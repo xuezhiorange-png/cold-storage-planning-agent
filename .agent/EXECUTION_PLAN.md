@@ -237,3 +237,7 @@
   assumption), parent_version_id for version lineage, immutability rules
   for approved/archived versions, 62 new tests (state machine, versioning,
   API integration), created ADR-010.
+- V1.44 update (Task 3): implemented engineering coefficient registry with
+  Definition/Revision split, state machine (draft → unverified → reviewed →
+  approved → withdrawn), scope resolution, snapshot integration, 112 new
+  tests (domain, service, API, database, architecture), created ADR-011.

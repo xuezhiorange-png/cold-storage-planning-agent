@@ -8,6 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from cold_storage.modules.coefficients.infrastructure.database import (
+    DatabaseCoefficientService,
+)
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 from cold_storage.modules.projects.infrastructure.orm import Base
 
@@ -41,6 +44,12 @@ def tmp_session_factory(tmp_engine):
 def tmp_project_service(tmp_engine):
     """Create a DatabaseProjectService using the temporary engine."""
     return DatabaseProjectService(tmp_engine)
+
+
+@pytest.fixture()
+def tmp_coefficient_service(tmp_engine):
+    """Create a DatabaseCoefficientService using the temporary engine."""
+    return DatabaseCoefficientService(tmp_engine)
 
 
 @pytest.fixture()

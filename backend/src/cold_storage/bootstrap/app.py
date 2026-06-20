@@ -24,6 +24,8 @@ from cold_storage.modules.calculations.domain.investment import (
 )
 from cold_storage.modules.calculations.domain.service import CalculationService
 from cold_storage.modules.calculations.domain.zone_planning import ColdRoomZonePlanner
+from cold_storage.modules.coefficients.api.routes import register_coefficient_routes
+from cold_storage.modules.coefficients.application.service import CoefficientService
 from cold_storage.modules.planning.application.service import (
     as_float,
     build_investment_from_zone_result,
@@ -141,6 +143,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     calculator = CalculationService()
     zone_planner = ColdRoomZonePlanner()
     investment_estimator = InvestmentEstimator()
+    coefficient_service = CoefficientService()
+    register_coefficient_routes(app, coefficient_service)
     if project_service is not None:
         app.dependency_overrides[get_project_service] = lambda: project_service
 
