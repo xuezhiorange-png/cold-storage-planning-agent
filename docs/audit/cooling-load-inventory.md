@@ -87,7 +87,10 @@ cooling-load and equipment-capability calculations.
 | `reference_daily_capacity_kg` | 25000 | kg/day | Scaling base |
 | `defrost_simultaneous_factor` | 0.30 | ratio | 30% defrost simultaneous |
 | `running_simultaneous_factor` | 0.90 | ratio | 90% running simultaneous |
-| `condenser_heat_rejection_factor` | 1.25 | ratio | From coefficient-inventory.md item 104 |
+
+> **Note:** `condenser_heat_rejection_factor` (1.25) has been removed from the
+> new equipment calculator — it duplicated the W_compressor term. The legacy
+> calculator in `service.py` still uses it for backward compatibility.
 
 ---
 

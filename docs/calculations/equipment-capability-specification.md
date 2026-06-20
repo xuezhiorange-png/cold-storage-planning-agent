@@ -58,7 +58,7 @@ single_evaporator = evaporator_total / total_evaporator_count
 
 ### Units
 - `design_cooling_load_kw_r`: kW(r) — from cooling load calculator
-- `evaporator_capacity_margin`: dimensionless ratio (default: 1.10)
+- `evaporator_capacity_margin`: dimensionless ratio (from coefficient resolver, required)
 - `evaporator_total`: kW(r)
 - `single_evaporator`: kW(r)
 
@@ -83,7 +83,7 @@ standby = compressor_installed - compressor_operating
 
 ### Units
 - All values in kW(r)
-- `redundancy_ratio`: dimensionless (default: 1.10, i.e., N+1 redundancy)
+- `redundancy_ratio`: dimensionless (from coefficient resolver, required — N+1 redundancy)
 
 ### Rules
 - Operating capacity equals the system load — the compressor must meet the
@@ -183,9 +183,9 @@ has been removed (it duplicated the W_compressor term).
 
 | Warning Code | Condition | Details |
 |---|---|---|
-| `DEMO_COEFFICIENT` | Coefficient `source_type` ≠ "approved" | Reports the coefficient code and metadata |
+| `DEMO_COEFFICIENT` | Coefficient `revision_status` ≠ "approved" | Reports the coefficient code and metadata |
 
-Every coefficient is checked: if its `source_type` is not `"approved"`, a
+Every coefficient is checked: if its `revision_status` is not `"approved"`, a
 `DEMO_COEFFICIENT` warning is emitted. This ensures that all demo/unverified
 values are flagged for review.
 

@@ -19,7 +19,10 @@ from cold_storage.modules.calculations.domain.cooling_load import (
     ZoneCoolingLoadInput,
     calculate_cooling_load,
 )
-from cold_storage.modules.calculations.domain.errors import MissingCalculationInputError
+from cold_storage.modules.calculations.domain.errors import (
+    InvalidCalculationInputError,
+    MissingCalculationInputError,
+)
 from cold_storage.modules.calculations.domain.models import CalculationResult
 
 
@@ -71,14 +74,20 @@ def build_cooling_load_input(inputs: dict[str, Any]) -> CoolingLoadCalcInput:
         product_target_temperature = _to_decimal(_require_field(z, "product_target_temperature"))
         cooling_duration = _to_decimal(_require_field(z, "cooling_duration"))
 
-        # temperature_level defaults to medium_temperature (API convenience, not engineering)
-        temp_level_str = z.get("temperature_level", "medium_temperature")
+        # temperature_level is required — no implicit default
+        temp_level_str = _require_field(z, "temperature_level")
+        try:
+            temperature_level = TemperatureLevel(temp_level_str)
+        except ValueError:
+            raise InvalidCalculationInputError(
+                "cooling_load", "temperature_level", temp_level_str
+            ) from None
 
         zones.append(
             ZoneCoolingLoadInput(
                 zone_code=zone_code,
                 zone_name=zone_name,
-                temperature_level=TemperatureLevel(temp_level_str),
+                temperature_level=temperature_level,
                 zone_area=zone_area,
                 room_height=room_height,
                 wall_area=wall_area,

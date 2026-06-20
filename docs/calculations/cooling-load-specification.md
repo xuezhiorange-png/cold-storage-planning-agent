@@ -158,6 +158,6 @@ Q_design_refrigeration = Q_total_diversified + Q_design_margin
 
 | Warning | Condition |
 |---|---|
-| `DEMO_COEFFICIENT` | Coefficient source_type ≠ "approved" |
+| `DEMO_COEFFICIENT` | Coefficient `revision_status` ≠ "approved" |
 | `ZERO_COOLING_DURATION` | cooling_duration = 0 |
 | `NO_COEFFICIENT_SOURCES` | No source metadata provided |

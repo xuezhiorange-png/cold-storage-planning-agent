@@ -1385,3 +1385,92 @@ class TestPowerWarnings:
 
         warning_codes = [w.code for w in result.warnings]
         assert "DEFAULT_DEMAND_FACTOR" not in warning_codes
+
+
+# ============================================================================
+# Temperature level validation (API layer)
+# ============================================================================
+
+
+class TestTemperatureLevelValidation:
+    """Temperature level input validation tests."""
+
+    BASE_ZONE = {
+        "zone_code": "Z1",
+        "zone_name": "Zone 1",
+        "temperature_level": "medium_temperature",
+        "zone_area": "100",
+        "room_height": "4",
+        "wall_area": "200",
+        "roof_area": "100",
+        "floor_area": "100",
+        "outdoor_design_temperature": "35",
+        "room_design_temperature": "0",
+        "operating_hours_per_day": "24",
+        "product_entry_temperature": "25",
+        "product_target_temperature": "0",
+        "cooling_duration": "4",
+    }
+
+    BASE_INPUTS = {
+        "zones": [BASE_ZONE],
+        "coefficients": {
+            "wall_u_value": "0.5",
+            "roof_u_value": "0.4",
+            "floor_u_value": "0.3",
+            "air_change_rate": "1.5",
+            "worker_heat_gain": "270",
+            "motor_efficiency": "0.90",
+            "design_margin_ratio": "1.10",
+            "diversity_factor": "1.0",
+        },
+    }
+
+    def test_missing_temperature_level_raises_error(self) -> None:
+        """Missing temperature_level raises MissingCalculationInputError."""
+        from cold_storage.modules.calculations.application.cooling_load_api import (
+            build_cooling_load_input,
+        )
+        from cold_storage.modules.calculations.domain.errors import (
+            MissingCalculationInputError,
+        )
+
+        inputs = {
+            "zones": [{k: v for k, v in self.BASE_ZONE.items() if k != "temperature_level"}],
+            "coefficients": self.BASE_INPUTS["coefficients"],
+        }
+        with pytest.raises(MissingCalculationInputError):
+            build_cooling_load_input(inputs)
+
+    def test_invalid_temperature_level_raises_error(self) -> None:
+        """Invalid temperature_level raises InvalidCalculationInputError."""
+        from cold_storage.modules.calculations.application.cooling_load_api import (
+            build_cooling_load_input,
+        )
+        from cold_storage.modules.calculations.domain.errors import (
+            InvalidCalculationInputError,
+        )
+
+        inputs = {
+            "zones": [{**self.BASE_ZONE, "temperature_level": "ultra_cold"}],
+            "coefficients": self.BASE_INPUTS["coefficients"],
+        }
+        with pytest.raises(InvalidCalculationInputError):
+            build_cooling_load_input(inputs)
+
+    @pytest.mark.parametrize(
+        "level",
+        ["medium_temperature", "low_temperature", "precooling", "special_process"],
+    )
+    def test_valid_temperature_levels(self, level: str) -> None:
+        """All four valid temperature levels are accepted."""
+        from cold_storage.modules.calculations.application.cooling_load_api import (
+            build_cooling_load_input,
+        )
+
+        inputs = {
+            "zones": [{**self.BASE_ZONE, "temperature_level": level}],
+            "coefficients": self.BASE_INPUTS["coefficients"],
+        }
+        result = build_cooling_load_input(inputs)
+        assert result.zones[0].temperature_level.value == level

@@ -134,7 +134,6 @@ engineering formulas out of `app.py`.
 - Design margin applied to total diversified load
 
 **Not calculated (out of scope):**
-- Latent heat / dehumidification load (sensible only in current version)
 - Solar radiation load on roof (assumed included in U-value or outdoor temp)
 - Floor heat gain from equipment movement or forklift traffic
 - Startup/pull-down transient loads
@@ -213,13 +212,14 @@ Q_zone = Q_transmission + Q_product + Q_infiltration + Q_internal + Q_defrost
 
 Two multiplicative adjustments are applied to the raw zone loads:
 
-1. **Diversity factor** (default: 1.0) — applied per temperature level.
+1. **Diversity factor** (from coefficient resolver) — applied per temperature level.
    Accounts for non-simultaneous operation across zones within a level.
    A factor < 1.0 reduces the total (zones don't all peak at once).
    Applied in `cooling_load.py` at the temperature level grouping step.
+   **Required** — raises `CoefficientMissingError` if absent.
 
-2. **Design margin ratio** (default: 1.10) — applied to the total diversified
-   load. Provides reserve capacity for:
+2. **Design margin ratio** (from coefficient resolver) — applied to the total
+   diversified load. Provides reserve capacity for:
    - Load estimation uncertainties
    - Future capacity expansion
    - Degraded equipment performance
@@ -284,14 +284,17 @@ vapor-compression refrigeration cycle:
 - W_compressor_input: electrical work input to the compressor
 - Q_condenser: total heat rejected at the condenser (to the ambient)
 
-**Additional factors in the calculator:**
+**Condenser heat rejection formula:**
 ```
-Q_condenser_actual = (Q_installed + W_compressor_input) × rejection_factor × margin
+Q_condenser_design = (Q_operating + W_compressor_input) × condenser_capacity_margin
 ```
-- `rejection_factor` (default: 1.25): accounts for motor inefficiency,
-  superheat, subcooling, and piping losses
-- `condenser_capacity_margin` (default: 1.15): reserve for high ambient
-  temperature conditions
+- Uses `compressor_operating`, NOT `compressor_installed` — standby units do not
+  contribute to normal heat rejection.
+- `condenser_heat_rejection_factor` has been **removed** — it duplicated the
+  W_compressor term.
+- `condenser_capacity_margin` (from coefficient resolver): reserve for high
+  ambient temperature conditions. **Required** — raises `CoefficientMissingError`
+  if absent.
 
 ### Installed capacity composition
 
