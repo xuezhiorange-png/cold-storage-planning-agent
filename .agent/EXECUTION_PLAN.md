@@ -224,3 +224,10 @@
   `demo_overview.py` and `investment.py` to fix CI formatting drift.
   All local quality checks now pass. Docker Compose validation passes on
   GitHub Actions. No business logic or calculation changes.
+- V1.42 update (Task 1): aligned runtime configuration with dual
+  SQLite/PostgreSQL modes, removed import-time singletons from
+  `dependencies.py`, added FastAPI lifespan for engine lifecycle
+  management, extracted planning orchestration from `bootstrap/app.py` to
+  `modules/planning/application/service.py`, added 35 new tests
+  (settings, lifecycle, orchestration, architecture), created ADR-008 and
+  ADR-009.
