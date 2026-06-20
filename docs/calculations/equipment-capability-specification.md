@@ -90,7 +90,8 @@ standby = compressor_installed - compressor_operating
   design load at design conditions.
 - Installed capacity = operating × redundancy_ratio.
 - Standby capacity = installed − operating (the N+1 reserve).
-- Default redundancy ratio of 1.10 provides 10% standby capacity.
+- For example, an approved coefficient revision value of 1.10 provides
+  10% standby capacity. The calculator itself defines no default value.
 - The redundancy is a ratio, not an absolute value — larger systems get
   proportionally more standby.
 
