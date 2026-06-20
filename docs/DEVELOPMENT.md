@@ -1,35 +1,63 @@
 # Development
 
-## Local Setup
+## Environment
 
-Use `uv` for backend Python 3.12 environments. The system Python on this workstation may be older than 3.12.
+- Backend tooling uses `uv`.
+- Frontend tooling uses `npm`.
+- The repository currently runs locally with SQLite by default unless
+  `DATABASE_URL` is overridden.
+- Docker Compose defines PostgreSQL and Redis targets, but the current baseline
+  does not switch to them automatically.
+
+## Local Setup
 
 ```bash
 make install
-make up
 make migrate
 make seed
 make demo
 ```
 
-## Quality Gates
-
-Run before claiming a milestone complete:
+Backend API:
 
 ```bash
-make test
-make lint
-make typecheck
-make architecture-test
+cd backend
+PYTHONPATH=src UV_CACHE_DIR=../.uv-cache uv run uvicorn cold_storage.bootstrap.app:create_app --factory --reload
 ```
 
-## Module Boundaries
+Frontend workbench:
 
-- API routes translate HTTP to application service calls.
-- Application services coordinate domain objects and ports.
-- Domain code owns business rules and must stay framework-free.
-- Infrastructure code implements persistence, document parsing, model gateways, and file generation.
+```bash
+cd frontend
+npm run dev -- --host 0.0.0.0
+```
 
-## Persistence
+## Quality Gates
 
-Project, version, input snapshot, calculation run, coefficient, and audit schemas are managed through Alembic. Run `make migrate` before starting the API locally.
+Run before opening or updating a PR:
+
+```bash
+cd backend && PYTHONPATH=src UV_CACHE_DIR=../.uv-cache uv run alembic upgrade head
+cd backend && UV_CACHE_DIR=../.uv-cache uv run pytest
+cd backend && UV_CACHE_DIR=../.uv-cache uv run ruff check .
+cd backend && UV_CACHE_DIR=../.uv-cache uv run ruff format --check .
+cd backend && UV_CACHE_DIR=../.uv-cache uv run mypy src
+cd frontend && npm run lint
+cd frontend && npm run typecheck
+cd frontend && npm run test
+cd frontend && npm run build
+```
+
+## Branching
+
+- `main` stores the preserved baseline and reviewed merges.
+- Task work happens on `codex/task-*` branches.
+- Do not do governance or feature work directly on `main`.
+
+## Implementation Discipline
+
+- Preserve existing behavior unless the task explicitly changes it.
+- Do not hide failing tests.
+- Do not push sensitive files, local databases, caches, or generated reports.
+- Record architectural deviations in `docs/TECH_DEBT.md`.
+- Record architecture decisions in `docs/architecture/`.
