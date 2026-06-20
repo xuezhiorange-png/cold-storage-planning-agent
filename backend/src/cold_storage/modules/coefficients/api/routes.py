@@ -143,9 +143,7 @@ def _coefficient_set_to_dict(s: CoefficientSet) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def register_coefficient_routes(
-    app: FastAPI, coefficient_service: CoefficientService
-) -> None:
+def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientService) -> None:
     """Register coefficient routes on the FastAPI app.
 
     This function is called from the app factory to inject the service dependency.
