@@ -319,19 +319,23 @@ const comparisonRows = computed(() => {
       { metric: '总分', balanced: '-', largeRoom: '-', smallRoom: '-', note: '后端方案数据' },
     ]
   }
-  const s = data.schemes
-  const fmt = (v: number) => formatNumber(v)
+  // Map by scheme_code — order-independent
+  const byCode = Object.fromEntries(data.schemes.map(s => [s.scheme_code, s]))
+  const b = byCode['balanced']
+  const lr = byCode['consolidated_large_rooms']
+  const sr = byCode['segmented_small_rooms']
+  const fmt = (v: number | string) => formatNumber(Number(v) || 0)
   return [
-    { metric: '总分', balanced: s[0]?.total_score ?? '-', largeRoom: s[1]?.total_score ?? '-', smallRoom: s[2]?.total_score ?? '-', note: data.weight_set_name },
-    { metric: '可行性', balanced: s[0]?.feasible ? '✓' : '✗', largeRoom: s[1]?.feasible ? '✓' : '✗', smallRoom: s[2]?.feasible ? '✓' : '✗', note: '硬约束校验' },
-    { metric: '面积 (m²)', balanced: fmt(s[0]?.total_area_m2 ?? 0), largeRoom: fmt(s[1]?.total_area_m2 ?? 0), smallRoom: fmt(s[2]?.total_area_m2 ?? 0), note: '' },
-    { metric: '板位', balanced: String(s[0]?.total_position_count ?? 0), largeRoom: String(s[1]?.total_position_count ?? 0), smallRoom: String(s[2]?.total_position_count ?? 0), note: '' },
-    { metric: '房间数', balanced: String(s[0]?.room_module_count ?? 0), largeRoom: String(s[1]?.room_module_count ?? 0), smallRoom: String(s[2]?.room_module_count ?? 0), note: '' },
-    { metric: '门数', balanced: String(s[0]?.door_count ?? 0), largeRoom: String(s[1]?.door_count ?? 0), smallRoom: String(s[2]?.door_count ?? 0), note: '' },
-    { metric: '投资 (CNY)', balanced: fmt(s[0]?.investment_cny ?? 0), largeRoom: fmt(s[1]?.investment_cny ?? 0), smallRoom: fmt(s[2]?.investment_cny ?? 0), note: '' },
-    { metric: '装机功率 kW(e)', balanced: fmt(s[0]?.installed_power_kw_e ?? 0), largeRoom: fmt(s[1]?.installed_power_kw_e ?? 0), smallRoom: fmt(s[2]?.installed_power_kw_e ?? 0), note: '' },
+    { metric: '总分', balanced: b?.total_score ?? '-', largeRoom: lr?.total_score ?? '-', smallRoom: sr?.total_score ?? '-', note: data.weight_set_name },
+    { metric: '可行性', balanced: b?.feasible ? '✓' : '✗', largeRoom: lr?.feasible ? '✓' : '✗', smallRoom: sr?.feasible ? '✓' : '✗', note: '硬约束校验' },
+    { metric: '面积 (m²)', balanced: fmt(b?.total_area_m2 ?? 0), largeRoom: fmt(lr?.total_area_m2 ?? 0), smallRoom: fmt(sr?.total_area_m2 ?? 0), note: '' },
+    { metric: '板位', balanced: String(b?.total_position_count ?? 0), largeRoom: String(lr?.total_position_count ?? 0), smallRoom: String(sr?.total_position_count ?? 0), note: '' },
+    { metric: '房间数', balanced: String(b?.room_module_count ?? 0), largeRoom: String(lr?.room_module_count ?? 0), smallRoom: String(sr?.room_module_count ?? 0), note: '' },
+    { metric: '门数', balanced: String(b?.door_count ?? 0), largeRoom: String(lr?.door_count ?? 0), smallRoom: String(sr?.door_count ?? 0), note: '' },
+    { metric: '投资 (CNY)', balanced: fmt(b?.investment_cny ?? 0), largeRoom: fmt(lr?.investment_cny ?? 0), smallRoom: fmt(sr?.investment_cny ?? 0), note: '' },
+    { metric: '装机功率 kW(e)', balanced: fmt(b?.installed_power_kw_e ?? 0), largeRoom: fmt(lr?.installed_power_kw_e ?? 0), smallRoom: fmt(sr?.installed_power_kw_e ?? 0), note: '' },
     { metric: '推荐', balanced: data.recommended_scheme_code === 'balanced' ? '★' : '', largeRoom: data.recommended_scheme_code === 'consolidated_large_rooms' ? '★' : '', smallRoom: data.recommended_scheme_code === 'segmented_small_rooms' ? '★' : '', note: '' },
-    { metric: '待复核', balanced: s[0]?.requires_review ? '是' : '否', largeRoom: s[1]?.requires_review ? '是' : '否', smallRoom: s[2]?.requires_review ? '是' : '否', note: data.weight_set_status === 'unverified' ? '演示权重' : '' },
+    { metric: '待复核', balanced: b?.requires_review ? '是' : '否', largeRoom: lr?.requires_review ? '是' : '否', smallRoom: sr?.requires_review ? '是' : '否', note: data.weight_set_status === 'unverified' ? '演示权重' : '' },
   ]
 })
 

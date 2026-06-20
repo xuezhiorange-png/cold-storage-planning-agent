@@ -1,4 +1,8 @@
-"""Scheme domain models — pure data types, no framework or DB dependencies."""
+"""Scheme domain models — pure data types, no framework or DB dependencies.
+
+All numeric domain values use ``decimal.Decimal`` for deterministic arithmetic.
+Float is only permitted at the DB/JSON serialisation boundary.
+"""
 
 from __future__ import annotations
 
@@ -24,9 +28,9 @@ class ZoneResult:
     zone_code: str
     zone_name: str
     temperature_level: str
-    area_m2: float
+    area_m2: Decimal
     position_count: int
-    storage_capacity_kg: float
+    storage_capacity_kg: Decimal
     process_compatibility: str
     hygiene_zone: str
 
@@ -35,28 +39,29 @@ class ZoneResult:
 class InvestmentResult:
     """Snapshot of Task 4 investment result."""
 
-    total_investment_cny: float
-    zone_investments: dict[str, float]
+    total_investment_cny: Decimal
+    zone_investments: dict[str, Decimal]
 
 
 @dataclass(frozen=True)
 class CoolingLoadResult:
     """Snapshot of Task 5 cooling load result."""
 
-    design_cooling_load_kw_r: float
-    sensible_load_kw_r: float
-    latent_load_kw_r: float
-    infiltration_load_kw_r: float
+    design_cooling_load_kw_r: Decimal
+    sensible_load_kw_r: Decimal
+    latent_load_kw_r: Decimal
+    infiltration_load_kw_r: Decimal
 
 
 @dataclass(frozen=True)
 class EquipmentResult:
     """Snapshot of Task 5 equipment capability result."""
 
-    compressor_operating_capacity_kw_r: float
-    compressor_installed_capacity_kw_r: float
-    condenser_heat_rejection_kw: float
-    installed_power_kw_e: float
+    compressor_operating_capacity_kw_r: Decimal
+    compressor_installed_capacity_kw_r: Decimal
+    compressor_standby_capacity_kw_r: Decimal
+    condenser_heat_rejection_kw: Decimal
+    installed_power_kw_e: Decimal
 
 
 # ---------------------------------------------------------------------------
@@ -80,8 +85,8 @@ class SchemeGenerationInput:
     cooling_load_result: CoolingLoadResult
     equipment_result: EquipmentResult
     generator_version: str
-    total_daily_throughput_kg_day: float
-    total_storage_capacity_kg: float
+    total_daily_throughput_kg_day: Decimal
+    total_storage_capacity_kg: Decimal
     total_position_count: int
 
 
@@ -101,7 +106,7 @@ class SchemeProfile:
     grouping_strategy: str = "baseline"
     splitting_strategy: str = "none"
     max_positions_per_room: int = 0
-    max_area_per_room_m2: float = 0.0
+    max_area_per_room_m2: Decimal = Decimal("0")
     minimum_room_modules: int = 0
     door_strategy: str = "standard"
     redundancy_strategy: str = "none"
@@ -123,15 +128,16 @@ class SchemeRoomModule:
     room_name: str
     zone_codes: list[str]
     temperature_level: str
-    area_m2: float
+    area_m2: Decimal
     position_count: int
-    storage_capacity_kg: float
-    design_cooling_load_kw_r: float
-    compressor_installed_capacity_kw_r: float
+    storage_capacity_kg: Decimal
+    design_cooling_load_kw_r: Decimal
+    compressor_operating_capacity_kw_r: Decimal
+    compressor_installed_capacity_kw_r: Decimal
     process_compatibility: str
     hygiene_zone: str
     door_count: int = 1
-    partition_length_proxy_m: float = 0.0
+    partition_length_proxy_m: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True)
@@ -178,6 +184,7 @@ class SchemeScoreBreakdown:
     scheme_code: str
     total_score: Decimal
     criterion_scores: list[SchemeCriterionScore]
+    diagnostic_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -191,17 +198,19 @@ class SchemeCandidate:
     constraint_results: list[SchemeConstraintResult]
     room_modules: list[SchemeRoomModule]
     zone_assignments: dict[str, list[str]]
-    total_area_m2: float
+    total_area_m2: Decimal
     total_position_count: int
     room_module_count: int
     door_count: int
-    partition_length_proxy_m: float
-    daily_throughput_kg_day: float
-    investment_cny: float
-    installed_power_kw_e: float
-    design_cooling_load_kw_r: float
-    compressor_installed_capacity_kw_r: float
-    condenser_heat_rejection_kw: float
+    partition_length_proxy_m: Decimal
+    daily_throughput_kg_day: Decimal
+    investment_cny: Decimal
+    installed_power_kw_e: Decimal
+    design_cooling_load_kw_r: Decimal
+    compressor_operating_capacity_kw_r: Decimal
+    compressor_installed_capacity_kw_r: Decimal
+    compressor_standby_capacity_kw_r: Decimal
+    condenser_heat_rejection_kw: Decimal
     metrics: list[SchemeMetric]
     assumptions: list[str]
     warnings: list[str]
@@ -271,9 +280,9 @@ class SchemeRun:
     input_snapshot: dict[str, object] = field(default_factory=dict)
     assumption_snapshot: dict[str, object] = field(default_factory=dict)
     comparison_snapshot: dict[str, object] = field(default_factory=dict)
+    candidates_snapshot: dict[str, object] = field(default_factory=dict)
     requires_review: bool = True
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     recommended_scheme_code: str | None = None
     warning_messages: list[str] = field(default_factory=list)
-    candidates_snapshot: dict[str, object] = field(default_factory=dict)

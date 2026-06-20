@@ -1,4 +1,11 @@
-"""Scheme ORM models — SQLAlchemy records for persistence."""
+"""Scheme ORM models — SQLAlchemy records for persistence.
+
+Key decisions:
+- ``total_score`` uses ``Numeric`` (not ``Float``) for exact Decimal round-trip.
+- ``score_breakdown_snapshot`` and ``constraint_results`` are stored as JSON.
+- ``SchemeRunRecord`` carries a ``status`` column to enforce immutability at
+  the repository layer (completed runs cannot be overwritten).
+"""
 
 from datetime import UTC, datetime
 
@@ -6,9 +13,9 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
-    Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     UniqueConstraint,
 )
@@ -70,7 +77,9 @@ class SchemeCandidateRecord(Base):
     profile_code: Mapped[str] = mapped_column(String(120))
     feasible: Mapped[bool] = mapped_column(Boolean, default=True)
     rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    total_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    total_score: Mapped[object | None] = mapped_column(Numeric(12, 3), nullable=True)
+    score_breakdown_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    constraint_results: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list)
     result_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)

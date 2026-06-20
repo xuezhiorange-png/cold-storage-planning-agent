@@ -76,12 +76,20 @@ class NoFeasibleSchemeError(SchemeDomainError):
         super().__init__("No feasible scheme found — all candidates failed hard constraints")
 
 
-class MissingSourceDataError(SchemeGenerationError):
-    """Raised when required Task 4/5 source data is missing."""
+class SourceCalculationMissingError(SchemeGenerationError):
+    """Raised when a required Task 4/5 source calculation is missing."""
 
-    def __init__(self, source_name: str) -> None:
-        self.source_name = source_name
-        super().__init__(f"Required source data missing: '{source_name}'")
+    def __init__(self, calculation_name: str) -> None:
+        self.calculation_name = calculation_name
+        super().__init__(f"Required source calculation missing: '{calculation_name}'")
+
+
+class SourceSnapshotInvalidError(SchemeGenerationError):
+    """Raised when source snapshot hash does not match persisted data."""
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(f"Source snapshot invalid: {detail}")
 
 
 class InvalidProfileError(SchemeDomainError):
@@ -90,6 +98,63 @@ class InvalidProfileError(SchemeDomainError):
     def __init__(self, profile_code: str, detail: str) -> None:
         self.profile_code = profile_code
         super().__init__(f"Invalid profile '{profile_code}': {detail}")
+
+
+class MissingProfileParameterError(SchemeDomainError):
+    """Raised when a required profile parameter is missing."""
+
+    def __init__(self, profile_code: str, parameter_name: str) -> None:
+        self.profile_code = profile_code
+        self.parameter_name = parameter_name
+        super().__init__(
+            f"Missing required parameter '{parameter_name}' for profile '{profile_code}'"
+        )
+
+
+class InvalidProfileParameterError(SchemeDomainError):
+    """Raised when a profile parameter has an invalid value."""
+
+    def __init__(self, profile_code: str, parameter_name: str, detail: str) -> None:
+        self.profile_code = profile_code
+        self.parameter_name = parameter_name
+        super().__init__(
+            f"Invalid parameter '{parameter_name}' for profile '{profile_code}': {detail}"
+        )
+
+
+class ProjectNotFoundError(SchemeGenerationError):
+    """Raised when the project does not exist."""
+
+    def __init__(self, project_id: str) -> None:
+        self.project_id = project_id
+        super().__init__(f"Project not found: '{project_id}'")
+
+
+class ProjectVersionNotFoundError(SchemeGenerationError):
+    """Raised when the project version does not exist."""
+
+    def __init__(self, project_id: str, version_number: int) -> None:
+        self.project_id = project_id
+        self.version_number = version_number
+        super().__init__(
+            f"Project version not found: project '{project_id}' version {version_number}"
+        )
+
+
+class VersionConflictError(SchemeGenerationError):
+    """Raised when project version does not belong to the project or calculations don\'t match."""
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(f"Version conflict: {detail}")
+
+
+class CompletedRunImmutabilityError(SchemeDomainError):
+    """Raised when attempting to modify a completed SchemeRun."""
+
+    def __init__(self, run_id: str) -> None:
+        self.run_id = run_id
+        super().__init__(f"Cannot modify completed scheme run '{run_id}'")
 
 
 class DivisionByZeroError(SchemeDomainError):

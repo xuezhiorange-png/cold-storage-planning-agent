@@ -1,6 +1,7 @@
 """SQLite integration tests for schemes module — ORM persistence, migrations,
 JSON snapshots, Decimal scores, foreign keys, unique constraints, and run
-immutability."""
+immutability.
+"""
 
 from __future__ import annotations
 
@@ -13,10 +14,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from cold_storage.modules.projects.infrastructure.orm import Base
+from cold_storage.modules.schemes.domain.errors import CompletedRunImmutabilityError
 from cold_storage.modules.schemes.domain.models import (
     SchemeCandidate,
+    SchemeConstraintResult,
+    SchemeCriterionScore,
     SchemeRoomModule,
     SchemeRun,
+    SchemeScoreBreakdown,
     SchemeWeightSet,
     WeightCriterion,
 )
@@ -171,27 +176,30 @@ def _make_candidate(scheme_code: str = "balanced", **overrides) -> SchemeCandida
                 room_name="平衡-原果间",
                 zone_codes=["Z1"],
                 temperature_level="0~4℃",
-                area_m2=200.0,
+                area_m2=Decimal("200.0"),
                 position_count=30,
-                storage_capacity_kg=15000.0,
-                design_cooling_load_kw_r=25.0,
-                compressor_installed_capacity_kw_r=30.0,
+                storage_capacity_kg=Decimal("15000.0"),
+                design_cooling_load_kw_r=Decimal("25.0"),
+                compressor_operating_capacity_kw_r=Decimal("22.0"),
+                compressor_installed_capacity_kw_r=Decimal("30.0"),
                 process_compatibility="raw",
                 hygiene_zone="general",
             ),
         ],
         zone_assignments={"Z1": ["BAL-001"]},
-        total_area_m2=200.0,
+        total_area_m2=Decimal("200.0"),
         total_position_count=30,
         room_module_count=1,
         door_count=1,
-        partition_length_proxy_m=28.28,
-        daily_throughput_kg_day=25000.0,
-        investment_cny=6_000_000.0,
-        installed_power_kw_e=150.0,
-        design_cooling_load_kw_r=25.0,
-        compressor_installed_capacity_kw_r=30.0,
-        condenser_heat_rejection_kw=30.0,
+        partition_length_proxy_m=Decimal("28.28"),
+        daily_throughput_kg_day=Decimal("25000.0"),
+        investment_cny=Decimal("6000000.0"),
+        installed_power_kw_e=Decimal("150.0"),
+        design_cooling_load_kw_r=Decimal("25.0"),
+        compressor_operating_capacity_kw_r=Decimal("22.0"),
+        compressor_installed_capacity_kw_r=Decimal("30.0"),
+        compressor_standby_capacity_kw_r=Decimal("8.0"),
+        condenser_heat_rejection_kw=Decimal("30.0"),
         metrics=[],
         assumptions=["baseline assumption"],
         warnings=[],
@@ -469,7 +477,7 @@ class TestRunImmutability:
         assert retrieved.completed_at is not None
         assert retrieved.recommended_scheme_code == "balanced"
 
-        # Attempt to change status to "pending" via re-save
+        # Attempt to change status to "pending" via re-save must raise
         updated_run = SchemeRun(
             id="run-001",
             project_id="proj-001",
@@ -486,18 +494,13 @@ class TestRunImmutability:
             recommended_scheme_code=None,
             warning_messages=[],
         )
-        repo.save_run(updated_run, candidates=[])
-        session.flush()
+        with pytest.raises(CompletedRunImmutabilityError):
+            repo.save_run(updated_run, candidates=[])
 
-        # Status should still be "pending" from the re-save (merge overwrites)
-        # This test demonstrates that the repository does NOT enforce immutability
-        # at the ORM level — the application layer must enforce this rule.
+        # Status should still be "completed"
         final = repo.get_run("run-001")
         assert final is not None
-        # The ORM merge replaces the record, so status IS changed —
-        # this documents that immutability is an application-level concern.
-        # We test that the application service rejects the change instead.
-        assert final.status == "pending"  # merge overwrites — no guard at ORM level
+        assert final.status == "completed"
 
     def test_application_layer_rejects_status_regression(self) -> None:
         """The domain layer should reject changing a completed run's status."""
@@ -508,3 +511,263 @@ class TestRunImmutability:
         # Verify that the domain model is truly immutable
         with pytest.raises(AttributeError):
             run.status = "pending"  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Score breakdown snapshot persistence
+# ---------------------------------------------------------------------------
+
+
+class TestScoreBreakdownPersistence:
+    def test_score_breakdown_snapshot_round_trip(self, repo, session) -> None:
+        """Score breakdown snapshot is stored as JSON and restored intact."""
+        sb = SchemeScoreBreakdown(
+            scheme_code="balanced",
+            total_score=Decimal("0.856"),
+            criterion_scores=[
+                SchemeCriterionScore(
+                    criterion_code="total_area_m2",
+                    raw_value=Decimal("200.0"),
+                    unit="m2",
+                    direction="lower_is_better",
+                    weight=Decimal("0.20"),
+                    min_value=Decimal("100.0"),
+                    max_value=Decimal("500.0"),
+                    normalized_score=Decimal("0.75"),
+                    weighted_contribution=Decimal("0.150"),
+                    formula="(max - raw) / (max - min) * weight",
+                ),
+                SchemeCriterionScore(
+                    criterion_code="investment_cny",
+                    raw_value=Decimal("6000000.0"),
+                    unit="CNY",
+                    direction="lower_is_better",
+                    weight=Decimal("0.30"),
+                    min_value=Decimal("4000000.0"),
+                    max_value=Decimal("10000000.0"),
+                    normalized_score=Decimal("0.667"),
+                    weighted_contribution=Decimal("0.200"),
+                    formula="(max - raw) / (max - min) * weight",
+                ),
+            ],
+        )
+
+        run = _make_run()
+        cand = _make_candidate()
+        repo.save_run(run, candidates=[cand], score_breakdowns=[sb])
+        session.flush()
+
+        # Retrieve the candidate record directly to inspect the snapshot
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+        rec = records[0]
+
+        # Verify the snapshot structure
+        snapshot = rec.score_breakdown_snapshot
+        assert snapshot["scheme_code"] == "balanced"
+        assert snapshot["total_score"] == "0.856"
+        assert snapshot["diagnostic_only"] is False
+        assert len(snapshot["criteria"]) == 2
+
+        # Verify individual criterion scores
+        crit0 = snapshot["criteria"][0]
+        assert crit0["criterion_code"] == "total_area_m2"
+        assert crit0["raw_value"] == "200.0"
+        assert crit0["weight"] == "0.20"
+        assert crit0["normalized_score"] == "0.75"
+        assert crit0["weighted_contribution"] == "0.150"
+
+        crit1 = snapshot["criteria"][1]
+        assert crit1["criterion_code"] == "investment_cny"
+        assert crit1["raw_value"] == "6000000.0"
+
+    def test_no_score_breakdown_stores_empty_dict(self, repo, session) -> None:
+        """When no score_breakdowns are provided, snapshot defaults to empty dict."""
+        run = _make_run()
+        cand = _make_candidate()
+        repo.save_run(run, candidates=[cand])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+        assert records[0].score_breakdown_snapshot == {}
+
+
+# ---------------------------------------------------------------------------
+# Constraint results persistence
+# ---------------------------------------------------------------------------
+
+
+class TestConstraintResultsPersistence:
+    def test_constraint_results_round_trip(self, repo, session) -> None:
+        """Constraint results are stored as JSON and restored intact."""
+        constraints = [
+            SchemeConstraintResult(
+                constraint_code="min_positions",
+                passed=True,
+                detail="Candidate has 30 positions, minimum is 20",
+                expected=20,
+                actual=30,
+            ),
+            SchemeConstraintResult(
+                constraint_code="max_investment",
+                passed=False,
+                detail="Investment 6M exceeds budget 5M",
+                expected=5000000,
+                actual=6000000,
+            ),
+        ]
+
+        run = _make_run()
+        cand = _make_candidate(constraint_results=constraints)
+        repo.save_run(run, candidates=[cand])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+        cr_list = records[0].constraint_results
+        assert len(cr_list) == 2
+
+        # First constraint
+        assert cr_list[0]["constraint_code"] == "min_positions"
+        assert cr_list[0]["passed"] is True
+        assert cr_list[0]["detail"] == "Candidate has 30 positions, minimum is 20"
+        assert cr_list[0]["expected"] == 20
+        assert cr_list[0]["actual"] == 30
+
+        # Second constraint
+        assert cr_list[1]["constraint_code"] == "max_investment"
+        assert cr_list[1]["passed"] is False
+        assert cr_list[1]["expected"] == 5000000
+        assert cr_list[1]["actual"] == 6000000
+
+    def test_empty_constraint_results_stores_empty_list(self, repo, session) -> None:
+        """When no constraints, result stores empty list."""
+        run = _make_run()
+        cand = _make_candidate(constraint_results=[])
+        repo.save_run(run, candidates=[cand])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+        assert records[0].constraint_results == []
+
+
+# ---------------------------------------------------------------------------
+# Rank persistence
+# ---------------------------------------------------------------------------
+
+
+class TestRankPersistence:
+    def test_rank_persisted_on_candidate(self, repo, session) -> None:
+        """Ranks are stored on candidate records via the ranks parameter."""
+        run = _make_run()
+        cand1 = _make_candidate(scheme_code="balanced")
+        cand2 = _make_candidate(scheme_code="consolidated_large_rooms")
+        repo.save_run(
+            run,
+            candidates=[cand1, cand2],
+            ranks={"balanced": 1, "consolidated_large_rooms": 2},
+        )
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 2
+        by_code = {r.scheme_code: r for r in records}
+
+        assert by_code["balanced"].rank == 1
+        assert by_code["consolidated_large_rooms"].rank == 2
+
+    def test_rank_none_when_not_provided(self, repo, session) -> None:
+        """When no ranks are provided, rank column is NULL."""
+        run = _make_run()
+        cand = _make_candidate()
+        repo.save_run(run, candidates=[cand])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+        assert records[0].rank is None
+
+
+# ---------------------------------------------------------------------------
+# Numeric total_score precision on SchemeCandidateRecord
+# ---------------------------------------------------------------------------
+
+
+class TestTotalScorePrecision:
+    def test_total_score_numeric_precision(self, repo, session) -> None:
+        """total_score is stored as Numeric(12,3) and preserves precision."""
+        sb = SchemeScoreBreakdown(
+            scheme_code="balanced",
+            total_score=Decimal("0.123456"),
+            criterion_scores=[],
+        )
+
+        run = _make_run()
+        cand = _make_candidate()
+        repo.save_run(run, candidates=[cand], score_breakdowns=[sb])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+
+        # Numeric(12,3) rounds to 3 decimal places
+        total_score = records[0].total_score
+        assert total_score is not None
+        # Decimal from SQLAlchemy Numeric(12,3) rounds to 3 dp
+        assert Decimal(str(total_score)) == Decimal("0.123")
+
+    def test_total_score_none_when_no_breakdown(self, repo, session) -> None:
+        """total_score is NULL when no score_breakdown is provided."""
+        run = _make_run()
+        cand = _make_candidate()
+        repo.save_run(run, candidates=[cand])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+        assert records[0].total_score is None
+
+
+# ---------------------------------------------------------------------------
+# Candidate result_snapshot includes new fields
+# ---------------------------------------------------------------------------
+
+
+class TestResultSnapshotFields:
+    def test_result_snapshot_includes_compressor_fields(self, repo, session) -> None:
+        """result_snapshot includes all compressor capacity fields as strings."""
+        run = _make_run()
+        cand = _make_candidate()
+        repo.save_run(run, candidates=[cand])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        assert len(records) == 1
+        snap = records[0].result_snapshot
+
+        assert snap["compressor_operating_capacity_kw_r"] == "22.0"
+        assert snap["compressor_installed_capacity_kw_r"] == "30.0"
+        assert snap["compressor_standby_capacity_kw_r"] == "8.0"
+        assert snap["design_cooling_load_kw_r"] == "25.0"
+        assert snap["condenser_heat_rejection_kw"] == "30.0"
+        assert snap["installed_power_kw_e"] == "150.0"
+        assert snap["investment_cny"] == "6000000.0"
+
+    def test_room_modules_in_snapshot_include_compressor_operating(self, repo, session) -> None:
+        """Room modules in the result_snapshot include compressor_operating_capacity_kw_r."""
+        run = _make_run()
+        cand = _make_candidate()
+        repo.save_run(run, candidates=[cand])
+        session.flush()
+
+        records = repo.get_candidates("run-001")
+        snap = records[0].result_snapshot
+        room_mods = snap["room_modules"]
+        assert len(room_mods) == 1
+        rm = room_mods[0]
+        assert rm["compressor_operating_capacity_kw_r"] == "22.0"
+        assert rm["compressor_installed_capacity_kw_r"] == "30.0"
+        assert rm["area_m2"] == "200.0"
+        assert rm["design_cooling_load_kw_r"] == "25.0"

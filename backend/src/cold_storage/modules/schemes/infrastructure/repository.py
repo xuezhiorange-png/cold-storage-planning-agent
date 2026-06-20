@@ -1,10 +1,21 @@
-"""Scheme repository — persistence operations."""
+"""Scheme repository — persistence operations.
+
+Key invariants:
+- Completed runs are immutable: ``save_run`` refuses to overwrite a record
+  whose ``status == 'completed'``.
+- Candidate records persist ``rank``, ``total_score``, ``score_breakdown_snapshot``,
+  and ``constraint_results`` for full traceability.
+"""
 
 from __future__ import annotations
+
+from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from cold_storage.modules.schemes.domain.errors import CompletedRunImmutabilityError
 from cold_storage.modules.schemes.domain.models import (
     SchemeCandidate,
     SchemeRun,
@@ -15,6 +26,17 @@ from cold_storage.modules.schemes.infrastructure.orm import (
     SchemeRunRecord,
     SchemeWeightSetRecord,
 )
+
+
+def _json_safe(val: Any) -> Any:
+    """Recursively convert Decimal values to strings for JSON serialization."""
+    if isinstance(val, Decimal):
+        return str(val)
+    if isinstance(val, dict):
+        return {k: _json_safe(v) for k, v in val.items()}
+    if isinstance(val, (list, tuple)):
+        return [_json_safe(item) for item in val]
+    return val
 
 
 class SchemeRepository:
@@ -61,11 +83,10 @@ class SchemeRepository:
         return [self._to_weight_set(r) for r in recs]
 
     def _to_weight_set(self, rec: SchemeWeightSetRecord) -> SchemeWeightSet:
-        from decimal import Decimal
-
+        # Rebuild WeightCriterion list
         from cold_storage.modules.schemes.domain.models import WeightCriterion
 
-        criteria = [
+        criteria_list = [
             WeightCriterion(
                 criterion_code=str(c["code"]),
                 weight=Decimal(str(c["weight"])),
@@ -83,7 +104,7 @@ class SchemeRepository:
             revision=rec.revision,
             status=rec.status,
             source_type=rec.source_type,
-            criteria=criteria,
+            criteria=criteria_list,
             created_at=rec.created_at,
             approved_at=rec.approved_at,
             requires_review=rec.requires_review,
@@ -91,7 +112,22 @@ class SchemeRepository:
 
     # ----- Scheme runs -----
 
-    def save_run(self, run: SchemeRun, candidates: list[SchemeCandidate]) -> SchemeRun:
+    def save_run(
+        self,
+        run: SchemeRun,
+        candidates: list[SchemeCandidate],
+        score_breakdowns: list[Any] | None = None,
+        ranks: dict[str, int] | None = None,
+    ) -> SchemeRun:
+        """Persist a scheme run and its candidates.
+
+        Raises ``CompletedRunImmutabilityError`` if a completed run with the
+        same ID already exists.
+        """
+        existing = self._session.get(SchemeRunRecord, run.id)
+        if existing is not None and existing.status == "completed":
+            raise CompletedRunImmutabilityError(run.id)
+
         run_rec = SchemeRunRecord(
             id=run.id,
             project_id=run.project_id,
@@ -111,43 +147,106 @@ class SchemeRepository:
         )
         self._session.merge(run_rec)
 
+        # Build lookup for score breakdowns
+        sb_map: dict[str, Any] = {}
+        if score_breakdowns:
+            for sb in score_breakdowns:
+                sb_map[sb.scheme_code] = sb
+
         for cand in candidates:
+            sb = sb_map.get(cand.scheme_code)
+            rank = (ranks or {}).get(cand.scheme_code)
+
+            # Build score breakdown snapshot
+            score_snapshot: dict[str, object] = {}
+            if sb is not None:
+                score_snapshot = {
+                    "scheme_code": sb.scheme_code,
+                    "total_score": str(sb.total_score),
+                    "diagnostic_only": getattr(sb, "diagnostic_only", False),
+                    "criteria": [
+                        {
+                            "criterion_code": cs.criterion_code,
+                            "raw_value": str(cs.raw_value),
+                            "unit": cs.unit,
+                            "direction": cs.direction,
+                            "weight": str(cs.weight),
+                            "min_value": str(cs.min_value),
+                            "max_value": str(cs.max_value),
+                            "normalized_score": str(cs.normalized_score),
+                            "weighted_contribution": str(cs.weighted_contribution),
+                            "formula": cs.formula,
+                        }
+                        for cs in sb.criterion_scores
+                    ],
+                }
+
+            # Build constraint results snapshot
+            constraint_snapshot = [
+                {
+                    "constraint_code": cr.constraint_code,
+                    "passed": cr.passed,
+                    "detail": cr.detail,
+                    "expected": _json_safe(cr.expected),
+                    "actual": _json_safe(cr.actual),
+                }
+                for cr in cand.constraint_results
+            ]
+
+            # Build result snapshot
+            result_snapshot: dict[str, object] = {
+                "total_area_m2": str(cand.total_area_m2),
+                "total_position_count": cand.total_position_count,
+                "room_module_count": cand.room_module_count,
+                "door_count": cand.door_count,
+                "partition_length_proxy_m": str(cand.partition_length_proxy_m),
+                "investment_cny": str(cand.investment_cny),
+                "installed_power_kw_e": str(cand.installed_power_kw_e),
+                "design_cooling_load_kw_r": str(cand.design_cooling_load_kw_r),
+                "compressor_operating_capacity_kw_r": str(cand.compressor_operating_capacity_kw_r),
+                "compressor_installed_capacity_kw_r": str(cand.compressor_installed_capacity_kw_r),
+                "compressor_standby_capacity_kw_r": str(cand.compressor_standby_capacity_kw_r),
+                "condenser_heat_rejection_kw": str(cand.condenser_heat_rejection_kw),
+                "feasible": cand.feasible,
+                "requires_review": cand.requires_review,
+                "assumptions": cand.assumptions,
+                "warnings": cand.warnings,
+                "room_modules": [
+                    {
+                        "room_code": rm.room_code,
+                        "room_name": rm.room_name,
+                        "zone_codes": rm.zone_codes,
+                        "temperature_level": rm.temperature_level,
+                        "area_m2": str(rm.area_m2),
+                        "position_count": rm.position_count,
+                        "storage_capacity_kg": str(rm.storage_capacity_kg),
+                        "design_cooling_load_kw_r": str(rm.design_cooling_load_kw_r),
+                        "compressor_operating_capacity_kw_r": str(
+                            rm.compressor_operating_capacity_kw_r
+                        ),
+                        "compressor_installed_capacity_kw_r": str(
+                            rm.compressor_installed_capacity_kw_r
+                        ),
+                        "process_compatibility": rm.process_compatibility,
+                        "hygiene_zone": rm.hygiene_zone,
+                        "door_count": rm.door_count,
+                        "partition_length_proxy_m": str(rm.partition_length_proxy_m),
+                    }
+                    for rm in cand.room_modules
+                ],
+            }
+
             cand_rec = SchemeCandidateRecord(
                 id=f"{run.id}-{cand.scheme_code}",
                 scheme_run_id=run.id,
                 scheme_code=cand.scheme_code,
                 profile_code=cand.profile_code,
                 feasible=cand.feasible,
-                rank=None,
-                total_score=None,
-                result_snapshot={
-                    "total_area_m2": cand.total_area_m2,
-                    "total_position_count": cand.total_position_count,
-                    "room_module_count": cand.room_module_count,
-                    "door_count": cand.door_count,
-                    "partition_length_proxy_m": cand.partition_length_proxy_m,
-                    "investment_cny": cand.investment_cny,
-                    "installed_power_kw_e": cand.installed_power_kw_e,
-                    "design_cooling_load_kw_r": cand.design_cooling_load_kw_r,
-                    "compressor_installed_capacity_kw_r": cand.compressor_installed_capacity_kw_r,
-                    "condenser_heat_rejection_kw": cand.condenser_heat_rejection_kw,
-                    "feasible": cand.feasible,
-                    "requires_review": cand.requires_review,
-                    "assumptions": cand.assumptions,
-                    "warnings": cand.warnings,
-                    "room_modules": [
-                        {
-                            "room_code": rm.room_code,
-                            "room_name": rm.room_name,
-                            "zone_codes": rm.zone_codes,
-                            "temperature_level": rm.temperature_level,
-                            "area_m2": rm.area_m2,
-                            "position_count": rm.position_count,
-                            "storage_capacity_kg": rm.storage_capacity_kg,
-                        }
-                        for rm in cand.room_modules
-                    ],
-                },
+                rank=rank,
+                total_score=sb.total_score if sb else None,
+                score_breakdown_snapshot=score_snapshot,
+                constraint_results=constraint_snapshot,
+                result_snapshot=result_snapshot,
             )
             self._session.merge(cand_rec)
 

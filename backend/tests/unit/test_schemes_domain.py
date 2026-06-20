@@ -67,6 +67,8 @@ from cold_storage.modules.schemes.domain.validation import (
 # Helper factories
 # ---------------------------------------------------------------------------
 
+_D = Decimal
+
 
 def _zone(
     code: str = "Z1",
@@ -82,9 +84,9 @@ def _zone(
         zone_code=code,
         zone_name=name,
         temperature_level=temp,
-        area_m2=area,
+        area_m2=_D(str(area)),
         position_count=positions,
-        storage_capacity_kg=capacity_kg,
+        storage_capacity_kg=_D(str(capacity_kg)),
         process_compatibility=process,
         hygiene_zone=hygiene,
     )
@@ -97,30 +99,32 @@ def _cooling(
     infiltration: float = 20.0,
 ) -> CoolingLoadResult:
     return CoolingLoadResult(
-        design_cooling_load_kw_r=design_kw_r,
-        sensible_load_kw_r=sensible,
-        latent_load_kw_r=latent,
-        infiltration_load_kw_r=infiltration,
+        design_cooling_load_kw_r=_D(str(design_kw_r)),
+        sensible_load_kw_r=_D(str(sensible)),
+        latent_load_kw_r=_D(str(latent)),
+        infiltration_load_kw_r=_D(str(infiltration)),
     )
 
 
 def _equipment(
     op_kw_r: float = 350.0,
     installed_kw_r: float = 400.0,
+    standby_kw_r: float = 100.0,
     condenser_kw: float = 500.0,
     kw_e: float = 120.0,
 ) -> EquipmentResult:
     return EquipmentResult(
-        compressor_operating_capacity_kw_r=op_kw_r,
-        compressor_installed_capacity_kw_r=installed_kw_r,
-        condenser_heat_rejection_kw=condenser_kw,
-        installed_power_kw_e=kw_e,
+        compressor_operating_capacity_kw_r=_D(str(op_kw_r)),
+        compressor_installed_capacity_kw_r=_D(str(installed_kw_r)),
+        compressor_standby_capacity_kw_r=_D(str(standby_kw_r)),
+        condenser_heat_rejection_kw=_D(str(condenser_kw)),
+        installed_power_kw_e=_D(str(kw_e)),
     )
 
 
 def _investment(total: float = 8_000_000.0) -> InvestmentResult:
     return InvestmentResult(
-        total_investment_cny=total,
+        total_investment_cny=_D(str(total)),
         zone_investments={},
     )
 
@@ -166,7 +170,7 @@ def _input(
         cooling_load_result=cooling,
         equipment_result=equip,
         generator_version="1.0.0",
-        total_daily_throughput_kg_day=5_000.0,
+        total_daily_throughput_kg_day=_D("5000"),
         total_storage_capacity_kg=total_capacity,
         total_position_count=total_positions,
     )
@@ -182,7 +186,9 @@ def _make_candidate(
     investment_cny: float = 8_000_000.0,
     installed_power_kw_e: float = 120.0,
     design_cooling_load_kw_r: float = 300.0,
+    compressor_operating_capacity_kw_r: float = 350.0,
     compressor_installed_capacity_kw_r: float = 400.0,
+    compressor_standby_capacity_kw_r: float = 100.0,
     condenser_heat_rejection_kw: float = 500.0,
     daily_throughput_kg_day: float = 5_000.0,
     feasible: bool = True,
@@ -195,17 +201,19 @@ def _make_candidate(
         constraint_results=[],
         room_modules=[],
         zone_assignments={},
-        total_area_m2=total_area_m2,
+        total_area_m2=_D(str(total_area_m2)),
         total_position_count=total_position_count,
         room_module_count=room_module_count,
         door_count=door_count,
-        partition_length_proxy_m=partition_length_proxy_m,
-        daily_throughput_kg_day=daily_throughput_kg_day,
-        investment_cny=investment_cny,
-        installed_power_kw_e=installed_power_kw_e,
-        design_cooling_load_kw_r=design_cooling_load_kw_r,
-        compressor_installed_capacity_kw_r=compressor_installed_capacity_kw_r,
-        condenser_heat_rejection_kw=condenser_heat_rejection_kw,
+        partition_length_proxy_m=_D(str(partition_length_proxy_m)),
+        daily_throughput_kg_day=_D(str(daily_throughput_kg_day)),
+        investment_cny=_D(str(investment_cny)),
+        installed_power_kw_e=_D(str(installed_power_kw_e)),
+        design_cooling_load_kw_r=_D(str(design_cooling_load_kw_r)),
+        compressor_operating_capacity_kw_r=_D(str(compressor_operating_capacity_kw_r)),
+        compressor_installed_capacity_kw_r=_D(str(compressor_installed_capacity_kw_r)),
+        compressor_standby_capacity_kw_r=_D(str(compressor_standby_capacity_kw_r)),
+        condenser_heat_rejection_kw=_D(str(condenser_heat_rejection_kw)),
         metrics=[],
         assumptions=[],
         warnings=[],
@@ -343,6 +351,14 @@ class TestGeneratorOrderIndependence:
         assert cand_fwd.investment_cny == cand_rev.investment_cny
         assert cand_fwd.room_module_count == cand_rev.room_module_count
 
+        # Since the generator sorts zones, room-level details also match
+        assert len(cand_fwd.room_modules) == len(cand_rev.room_modules)
+        for fwd_rm, rev_rm in zip(cand_fwd.room_modules, cand_rev.room_modules, strict=True):
+            assert fwd_rm.room_code == rev_rm.room_code
+            assert fwd_rm.zone_codes == rev_rm.zone_codes
+            assert fwd_rm.area_m2 == rev_rm.area_m2
+            assert fwd_rm.position_count == rev_rm.position_count
+
 
 # ===========================================================================
 # 3. Generator — balanced preserves baseline capacity
@@ -363,10 +379,10 @@ class TestGeneratorBalancedBaseline:
 
         # One room per zone → same totals
         expected_positions = 50 + 80
-        expected_capacity = 50_000.0 + 80_000.0
+        expected_capacity = _D("50000") + _D("80000")
         assert cand.total_position_count == expected_positions
         room_capacity = sum(r.storage_capacity_kg for r in cand.room_modules)
-        assert room_capacity == pytest.approx(expected_capacity)
+        assert room_capacity == expected_capacity
         assert cand.room_module_count == 2
 
 
@@ -455,14 +471,14 @@ class TestGeneratorPositionsPreserved:
     """Test 6: Total pallet positions don't decrease across schemes."""
 
     @pytest.mark.parametrize(
-        "gen_func,profile_code",
+        "gen_func,profile_code,profile_params",
         [
-            (generate_balanced, "balanced"),
-            (generate_consolidated, "consolidated_large_rooms"),
-            (generate_segmented, "segmented_small_rooms"),
+            (generate_balanced, "balanced", None),
+            (generate_consolidated, "consolidated_large_rooms", None),
+            (generate_segmented, "segmented_small_rooms", {"max_positions_per_room": 50}),
         ],
     )
-    def test_positions_never_decrease(self, gen_func, profile_code: str) -> None:
+    def test_positions_never_decrease(self, gen_func, profile_code: str, profile_params) -> None:
         zones = [
             _zone("Z1", "A", "-25C", 200.0, 50, 50_000.0),
             _zone("Z2", "B", "-18C", 300.0, 80, 80_000.0),
@@ -470,7 +486,7 @@ class TestGeneratorPositionsPreserved:
         ]
         inp = _input(zones=zones)
         expected = sum(z.position_count for z in zones)
-        profile = get_profile(profile_code)
+        profile = get_profile(profile_code, profile_params)
         cand = gen_func(inp, profile)
         assert cand.total_position_count >= expected
 
@@ -484,24 +500,24 @@ class TestGeneratorCapacityPreserved:
     """Test 7: Total storage capacity doesn't decrease across schemes."""
 
     @pytest.mark.parametrize(
-        "gen_func,profile_code",
+        "gen_func,profile_code,profile_params",
         [
-            (generate_balanced, "balanced"),
-            (generate_consolidated, "consolidated_large_rooms"),
-            (generate_segmented, "segmented_small_rooms"),
+            (generate_balanced, "balanced", None),
+            (generate_consolidated, "consolidated_large_rooms", None),
+            (generate_segmented, "segmented_small_rooms", {"max_positions_per_room": 50}),
         ],
     )
-    def test_capacity_never_decreases(self, gen_func, profile_code: str) -> None:
+    def test_capacity_never_decreases(self, gen_func, profile_code: str, profile_params) -> None:
         zones = [
             _zone("Z1", "A", "-25C", 200.0, 50, 50_000.0),
             _zone("Z2", "B", "-18C", 300.0, 80, 80_000.0),
         ]
         inp = _input(zones=zones)
         expected = sum(z.storage_capacity_kg for z in zones)
-        profile = get_profile(profile_code)
+        profile = get_profile(profile_code, profile_params)
         cand = gen_func(inp, profile)
         room_capacity = sum(r.storage_capacity_kg for r in cand.room_modules)
-        assert room_capacity >= expected - 1e-9  # float tolerance
+        assert room_capacity >= expected
 
 
 # ===========================================================================
@@ -570,10 +586,10 @@ class TestEquipmentSeparation:
     def test_kwr_and_kwe_are_distinct(self) -> None:
         equip = _equipment(op_kw_r=350.0, installed_kw_r=400.0, kw_e=120.0)
         # Refrigeration fields (kW(r))
-        assert equip.compressor_operating_capacity_kw_r == 350.0
-        assert equip.compressor_installed_capacity_kw_r == 400.0
+        assert equip.compressor_operating_capacity_kw_r == _D("350.0")
+        assert equip.compressor_installed_capacity_kw_r == _D("400.0")
         # Electrical field (kW(e))
-        assert equip.installed_power_kw_e == 120.0
+        assert equip.installed_power_kw_e == _D("120.0")
         # They are independent — changing one doesn't affect the other
         assert equip.compressor_installed_capacity_kw_r != equip.installed_power_kw_e
 
@@ -1100,7 +1116,10 @@ class TestScoringStableTieBreak:
     def _tiebreak_weight_set(self) -> SchemeWeightSet:
         """Weight set where investment_cny and installed_power_kw_e are hard
         constraints (excluded from scoring), so the tie-break fields don't
-        affect total_score."""
+        affect total_score.
+
+        All 7 REQUIRED_CRITERIA are present.
+        """
         return SchemeWeightSet(
             id="ws-tb",
             code="tb",
