@@ -214,7 +214,7 @@ class TestCoreCalculationGet:
         assert resp.status_code == 200
         data = resp.json()
         assert "throughput" in data
-        assert data["orchestration_version"] == "1.0.0"
+        assert data["orchestration_version"] == "2.0.0"
 
 
 # ---------------------------------------------------------------------------

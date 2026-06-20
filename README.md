@@ -71,8 +71,20 @@ npm run dev -- --host 0.0.0.0
 ## Current Scope Notes
 
 - Deterministic calculators currently drive engineering numbers.
+- Cooling load, equipment capability, and installed power calculators are
+  deterministic and traceable (Task 5). kW(r) and kW(e) are strictly separated.
 - Fake model gateways are the default.
 - Demo coefficients are explicitly unverified and require review.
 - OCR is not implemented in V1; scanned PDFs are marked `requires_ocr=true`.
 - The repository contains target-architecture docs that are ahead of the
   current implementation. Check `docs/audit/current-state.md` for the gap.
+
+## Calculation Modules (Task 5)
+
+| Calculator | Module | Purpose |
+|---|---|---|
+| Cooling load | `calculations/domain/cooling_load.py` | Envelope, product, infiltration, internal, defrost loads |
+| Equipment capability | `calculations/domain/equipment.py` | Evaporator, compressor, condenser capability |
+| Installed power | `calculations/domain/power.py` | Electrical installed capacity (kW(e)) |
+
+See `docs/calculations/` for detailed specifications.

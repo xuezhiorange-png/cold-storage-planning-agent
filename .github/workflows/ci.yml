@@ -54,21 +54,33 @@ jobs:
       - name: Alembic upgrade (PostgreSQL)
         env:
           DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: cold_storage_test
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
         run: cd backend && PYTHONPATH=src uv run alembic upgrade head
-      - name: Backend tests (PostgreSQL)
+      - name: PostgreSQL integration tests
         env:
           DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: cold_storage_test
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
-        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture"
+        run: cd backend && PYTHONPATH=src uv run pytest -m postgresql -vv --maxfail=1
+      - name: Backend tests (PostgreSQL)
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture and not postgresql"
 
   frontend:
     runs-on: ubuntu-latest

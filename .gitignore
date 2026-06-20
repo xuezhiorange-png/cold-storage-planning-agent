@@ -53,3 +53,5 @@ backend/storage/
 frontend/dist/
 .local/
 *.egg-info/
+
+.config/gh/

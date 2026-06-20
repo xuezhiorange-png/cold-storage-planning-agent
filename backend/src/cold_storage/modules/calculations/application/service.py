@@ -20,6 +20,17 @@ from cold_storage.modules.calculations.domain.areas import (
     ZoneAreaSpec,
     calculate_areas,
 )
+from cold_storage.modules.calculations.domain.cooling_load import (
+    CoefficientSet,
+    CoolingLoadCalcInput,
+    TemperatureLevel,
+    ZoneCoolingLoadInput,
+    calculate_cooling_load,
+)
+from cold_storage.modules.calculations.domain.equipment import (
+    EquipmentCapabilityCalcInput,
+    calculate_equipment_capability,
+)
 from cold_storage.modules.calculations.domain.errors import (
     LockedProjectVersionError,
 )
@@ -35,6 +46,10 @@ from cold_storage.modules.calculations.domain.pallets import (
     PalletCalcInput,
     calculate_pallets,
 )
+from cold_storage.modules.calculations.domain.power import (
+    InstalledPowerCalcInput,
+    calculate_installed_power,
+)
 from cold_storage.modules.calculations.domain.precooling import (
     PrecoolingCalcInput,
     calculate_precooling,
@@ -45,7 +60,7 @@ from cold_storage.modules.calculations.domain.throughput import (
 )
 
 # Version of the orchestration logic
-ORCHESTRATION_VERSION = "1.0.0"
+ORCHESTRATION_VERSION = "2.0.0"
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +79,9 @@ class CoreCalculationOrchestrationResult:
         pallets: CalculationResult | None = None,
         precooling: CalculationResult | None = None,
         areas: CalculationResult | None = None,
+        cooling_load: CalculationResult | None = None,
+        equipment: CalculationResult | None = None,
+        installed_power: CalculationResult | None = None,
         global_warnings: list[CalculationWarning] | None = None,
         success: bool = True,
         errors: list[str] | None = None,
@@ -73,6 +91,9 @@ class CoreCalculationOrchestrationResult:
         self.pallets = pallets
         self.precooling = precooling
         self.areas = areas
+        self.cooling_load = cooling_load
+        self.equipment = equipment
+        self.installed_power = installed_power
         self.global_warnings = global_warnings or []
         self.success = success
         self.errors = errors or []
@@ -96,6 +117,12 @@ class CoreCalculationOrchestrationResult:
             results["precooling"] = self.precooling.to_dict()
         if self.areas is not None:
             results["areas"] = self.areas.to_dict()
+        if self.cooling_load is not None:
+            results["cooling_load"] = self.cooling_load.to_dict()
+        if self.equipment is not None:
+            results["equipment"] = self.equipment.to_dict()
+        if self.installed_power is not None:
+            results["installed_power"] = self.installed_power.to_dict()
         return results
 
 
@@ -138,6 +165,9 @@ class CoreCalculationService:
         pallet_input: PalletCalcInput | None = None,
         precooling_input: PrecoolingCalcInput | None = None,
         area_zones: list[ZoneAreaSpec] | None = None,
+        cooling_load_input: CoolingLoadCalcInput | None = None,
+        equipment_input: EquipmentCapabilityCalcInput | None = None,
+        installed_power_input: InstalledPowerCalcInput | None = None,
     ) -> CoreCalculationOrchestrationResult:
         """Run calculators in sequence and validate cross-calculator consistency.
 
@@ -185,6 +215,27 @@ class CoreCalculationService:
             except Exception as exc:
                 errors.append(f"areas: {exc}")
 
+        # --- run cooling load (Task 5) -------------------------------------
+        if cooling_load_input is not None:
+            try:
+                results["cooling_load"] = calculate_cooling_load(cooling_load_input)
+            except Exception as exc:
+                errors.append(f"cooling_load: {exc}")
+
+        # --- run equipment capability (Task 5) -----------------------------
+        if equipment_input is not None:
+            try:
+                results["equipment"] = calculate_equipment_capability(equipment_input)
+            except Exception as exc:
+                errors.append(f"equipment: {exc}")
+
+        # --- run installed power (Task 5) ----------------------------------
+        if installed_power_input is not None:
+            try:
+                results["installed_power"] = calculate_installed_power(installed_power_input)
+            except Exception as exc:
+                errors.append(f"installed_power: {exc}")
+
         # --- cross-calculator consistency checks ---------------------------
         consistency_warnings = self._check_consistency(results)
         global_warnings.extend(consistency_warnings)
@@ -195,6 +246,9 @@ class CoreCalculationService:
             pallets=results.get("pallets"),
             precooling=results.get("precooling"),
             areas=results.get("areas"),
+            cooling_load=results.get("cooling_load"),
+            equipment=results.get("equipment"),
+            installed_power=results.get("installed_power"),
             global_warnings=global_warnings,
             success=len(errors) == 0,
             errors=errors,
@@ -330,11 +384,115 @@ class CoreCalculationService:
             except Exception:
                 pass
 
+        cooling_load_input: CoolingLoadCalcInput | None = None
+
+        # --- cooling load ---------------------------------------------------
+        if "zones" in inputs:
+            try:
+                zones_data = inputs["zones"]
+                zones = []
+                for z in zones_data:
+                    zones.append(
+                        ZoneCoolingLoadInput(
+                            zone_code=z.get("zone_code", "unknown"),
+                            zone_name=z.get("zone_name", "Unknown Zone"),
+                            temperature_level=TemperatureLevel(
+                                z.get("temperature_level", "medium_temperature")
+                            ),
+                            zone_area=_to_decimal(z.get("zone_area", 0)),
+                            room_height=_to_decimal(z.get("room_height", 4)),
+                            wall_area=_to_decimal(z.get("wall_area", 0)),
+                            roof_area=_to_decimal(z.get("roof_area", 0)),
+                            floor_area=_to_decimal(z.get("floor_area", 0)),
+                            u_value_wall=_to_decimal(z["u_value_wall"])
+                            if "u_value_wall" in z
+                            else None,
+                            u_value_roof=_to_decimal(z["u_value_roof"])
+                            if "u_value_roof" in z
+                            else None,
+                            u_value_floor=_to_decimal(z["u_value_floor"])
+                            if "u_value_floor" in z
+                            else None,
+                            outdoor_design_temperature=_to_decimal(
+                                z.get("outdoor_design_temperature", 35)
+                            ),
+                            adjacent_temperature=(
+                                _to_decimal(z["adjacent_temperature"])
+                                if "adjacent_temperature" in z
+                                else None
+                            ),
+                            room_design_temperature=_to_decimal(
+                                z.get("room_design_temperature", 0)
+                            ),
+                            operating_hours_per_day=_to_decimal(
+                                z.get("operating_hours_per_day", 24)
+                            ),
+                            product_mass_per_day=_to_decimal(z.get("product_mass_per_day", 0)),
+                            product_entry_temperature=_to_decimal(
+                                z.get("product_entry_temperature", 25)
+                            ),
+                            product_target_temperature=_to_decimal(
+                                z.get("product_target_temperature", 0)
+                            ),
+                            cooling_duration=_to_decimal(z.get("cooling_duration", 4)),
+                            packaging_mass=_to_decimal(z.get("packaging_mass", 0)),
+                            worker_count=int(z.get("worker_count", 0)),
+                            lighting_power=_to_decimal(z.get("lighting_power", 0)),
+                            equipment_power=_to_decimal(z.get("equipment_power", 0)),
+                            fan_motor_power=_to_decimal(z.get("fan_motor_power", 0)),
+                        )
+                    )
+
+                coeff_data = inputs.get("coefficients", {})
+                cs = CoefficientSet(
+                    wall_u_value=_to_decimal(coeff_data["wall_u_value"])
+                    if "wall_u_value" in coeff_data
+                    else None,
+                    roof_u_value=_to_decimal(coeff_data["roof_u_value"])
+                    if "roof_u_value" in coeff_data
+                    else None,
+                    floor_u_value=_to_decimal(coeff_data["floor_u_value"])
+                    if "floor_u_value" in coeff_data
+                    else None,
+                    product_specific_heat=(
+                        _to_decimal(coeff_data["product_specific_heat"])
+                        if "product_specific_heat" in coeff_data
+                        else None
+                    ),
+                    respiration_heat=(
+                        _to_decimal(coeff_data["respiration_heat"])
+                        if "respiration_heat" in coeff_data
+                        else None
+                    ),
+                    air_change_rate=(
+                        _to_decimal(coeff_data["air_change_rate"])
+                        if "air_change_rate" in coeff_data
+                        else None
+                    ),
+                    worker_heat_gain=(
+                        _to_decimal(coeff_data["worker_heat_gain"])
+                        if "worker_heat_gain" in coeff_data
+                        else None
+                    ),
+                    design_margin_ratio=_to_decimal(coeff_data.get("design_margin_ratio", "1.10")),
+                    diversity_factor=_to_decimal(coeff_data.get("diversity_factor", "1.0")),
+                    motor_efficiency=(
+                        _to_decimal(coeff_data["motor_efficiency"])
+                        if "motor_efficiency" in coeff_data
+                        else None
+                    ),
+                )
+
+                cooling_load_input = CoolingLoadCalcInput(zones=zones, coefficients=cs)
+            except Exception:
+                pass
+
         return self.orchestrate_core_calculation(
             throughput_input=throughput_input,
             inventory_input=inventory_input,
             pallet_input=pallet_input,
             precooling_input=precooling_input,
+            cooling_load_input=cooling_load_input,
         )
 
     # ------------------------------------------------------------------
@@ -367,6 +525,14 @@ class CoreCalculationService:
             if orchestration_result.inventory is not None:
                 assumptions["inventory_warnings"] = [
                     w.code for w in orchestration_result.inventory.warnings
+                ]
+            if orchestration_result.cooling_load is not None:
+                assumptions["cooling_load_warnings"] = [
+                    w.code for w in orchestration_result.cooling_load.warnings
+                ]
+            if orchestration_result.equipment is not None:
+                assumptions["equipment_warnings"] = [
+                    w.code for w in orchestration_result.equipment.warnings
                 ]
             project_version.assumption_snapshot = assumptions
 
