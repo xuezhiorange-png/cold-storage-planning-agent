@@ -46,6 +46,8 @@ from cold_storage.modules.projects.domain.models import (
     InvalidVersionTransitionError,
     VersionImmutabilityError,
 )
+from cold_storage.modules.schemes.api.routes import register_scheme_routes
+from cold_storage.modules.schemes.application.service import SchemeService
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 AgentServiceDep = Annotated[PlanningAgentService, Depends(get_agent_service)]
@@ -149,6 +151,19 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     coefficient_service = CoefficientService()
     core_calculation_service = CoreCalculationService()
     register_coefficient_routes(app, coefficient_service)
+
+    # Scheme routes
+    def _scheme_service_factory() -> SchemeService:
+        from sqlalchemy.orm import Session as SASession
+
+        from cold_storage.bootstrap.dependencies import get_engine
+
+        engine = get_engine()
+        session = SASession(bind=engine)
+        return SchemeService(session)
+
+    register_scheme_routes(app, _scheme_service_factory)
+
     if project_service is not None:
         app.dependency_overrides[get_project_service] = lambda: project_service
 
@@ -183,6 +198,191 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             as_float(power_configuration["total_installed_power_kw"]),
         )
         return planning_run_response(inputs, zone_result, investment_result)
+
+    @app.get("/api/v1/demo/scheme-comparison")
+    def demo_scheme_comparison() -> dict[str, Any]:
+        """Return demo scheme comparison data for the frontend."""
+        from cold_storage.bootstrap.scheme_seed import demo_weight_set
+        from cold_storage.modules.schemes.domain.generator import (
+            generate_balanced,
+            generate_consolidated,
+            generate_segmented,
+            get_profile,
+        )
+        from cold_storage.modules.schemes.domain.models import (
+            CoolingLoadResult,
+            EquipmentResult,
+            InvestmentResult,
+            SchemeGenerationInput,
+            ZoneResult,
+        )
+        from cold_storage.modules.schemes.domain.scoring import (
+            score_candidates,
+            stable_sort_key,
+        )
+        from cold_storage.modules.schemes.domain.validation import validate_candidate
+
+        zones = [
+            ZoneResult(
+                zone_code="precooling-primary",
+                zone_name="双级预冷间",
+                temperature_level="precooling",
+                area_m2=112.0,
+                position_count=20,
+                storage_capacity_kg=8800,
+                process_compatibility="raw",
+                hygiene_zone="standard",
+            ),
+            ZoneResult(
+                zone_code="precooling-secondary",
+                zone_name="次果预冷间",
+                temperature_level="precooling",
+                area_m2=56.0,
+                position_count=10,
+                storage_capacity_kg=4000,
+                process_compatibility="raw",
+                hygiene_zone="standard",
+            ),
+            ZoneResult(
+                zone_code="raw-storage",
+                zone_name="原果冷藏库",
+                temperature_level="medium_temperature",
+                area_m2=280.0,
+                position_count=70,
+                storage_capacity_kg=30800,
+                process_compatibility="raw",
+                hygiene_zone="standard",
+            ),
+            ZoneResult(
+                zone_code="finished-storage",
+                zone_name="成品冷藏库",
+                temperature_level="medium_temperature",
+                area_m2=350.0,
+                position_count=88,
+                storage_capacity_kg=35200,
+                process_compatibility="finished",
+                hygiene_zone="standard",
+            ),
+            ZoneResult(
+                zone_code="frozen-storage",
+                zone_name="冻果冷藏库",
+                temperature_level="frozen",
+                area_m2=84.0,
+                position_count=14,
+                storage_capacity_kg=8400,
+                process_compatibility="finished",
+                hygiene_zone="standard",
+            ),
+        ]
+        investment = InvestmentResult(total_investment_cny=6150420.50, zone_investments={})
+        cooling_load = CoolingLoadResult(
+            design_cooling_load_kw_r=180.0,
+            sensible_load_kw_r=150.0,
+            latent_load_kw_r=20.0,
+            infiltration_load_kw_r=10.0,
+        )
+        equipment = EquipmentResult(
+            compressor_operating_capacity_kw_r=180.0,
+            compressor_installed_capacity_kw_r=216.0,
+            condenser_heat_rejection_kw=240.0,
+            installed_power_kw_e=65.0,
+        )
+
+        input_data = SchemeGenerationInput(
+            project_id="demo-project",
+            project_version_id="demo-v1",
+            weight_set_id="demo-weight-set-001",
+            profile_codes=["balanced", "consolidated_large_rooms", "segmented_small_rooms"],
+            profile_parameters={
+                "segmented_small_rooms": {"max_positions_per_room": 48, "max_area_per_room_m2": 300}
+            },
+            source_calculation_ids={},
+            source_snapshot_hashes={},
+            zone_results=zones,
+            investment_result=investment,
+            cooling_load_result=cooling_load,
+            equipment_result=equipment,
+            generator_version="1.0.0",
+            total_daily_throughput_kg_day=25000,
+            total_storage_capacity_kg=87200,
+            total_position_count=202,
+        )
+
+        candidates = [
+            generate_balanced(input_data, get_profile("balanced")),
+            generate_consolidated(input_data, get_profile("consolidated_large_rooms")),
+            generate_segmented(input_data, get_profile("segmented_small_rooms")),
+        ]
+
+        zone_map = {z.zone_code: z for z in zones}
+        for i, cand in enumerate(candidates):
+            constraints = validate_candidate(cand, input_data, zone_map)
+            feasible = all(c.passed for c in constraints)
+            from cold_storage.modules.schemes.domain.models import SchemeCandidate
+
+            candidates[i] = SchemeCandidate(
+                scheme_code=cand.scheme_code,
+                scheme_name=cand.scheme_name,
+                profile_code=cand.profile_code,
+                feasible=feasible,
+                constraint_results=constraints,
+                room_modules=cand.room_modules,
+                zone_assignments=cand.zone_assignments,
+                total_area_m2=cand.total_area_m2,
+                total_position_count=cand.total_position_count,
+                room_module_count=cand.room_module_count,
+                door_count=cand.door_count,
+                partition_length_proxy_m=cand.partition_length_proxy_m,
+                daily_throughput_kg_day=cand.daily_throughput_kg_day,
+                investment_cny=cand.investment_cny,
+                installed_power_kw_e=cand.installed_power_kw_e,
+                design_cooling_load_kw_r=cand.design_cooling_load_kw_r,
+                compressor_installed_capacity_kw_r=cand.compressor_installed_capacity_kw_r,
+                condenser_heat_rejection_kw=cand.condenser_heat_rejection_kw,
+                metrics=cand.metrics,
+                assumptions=cand.assumptions,
+                warnings=cand.warnings,
+                requires_review=cand.requires_review,
+            )
+
+        ws = demo_weight_set()
+        score_breakdowns = score_candidates(candidates, ws)
+        feasible_bds = [
+            sb
+            for sb in score_breakdowns
+            if any(c.scheme_code == sb.scheme_code and c.feasible for c in candidates)
+        ]
+        if feasible_bds:
+            sorted_bds = sorted(feasible_bds, key=lambda sb: stable_sort_key(sb, candidates))
+            recommended = sorted_bds[0].scheme_code
+        else:
+            recommended = None
+
+        score_map = {sb.scheme_code: str(sb.total_score) for sb in score_breakdowns}
+        schemes_out = []
+        for c in candidates:
+            schemes_out.append(
+                {
+                    "scheme_code": c.scheme_code,
+                    "scheme_name": c.scheme_name,
+                    "feasible": c.feasible,
+                    "total_score": score_map.get(c.scheme_code, "0"),
+                    "total_area_m2": round(c.total_area_m2, 2),
+                    "total_position_count": c.total_position_count,
+                    "room_module_count": c.room_module_count,
+                    "door_count": c.door_count,
+                    "investment_cny": round(c.investment_cny, 2),
+                    "installed_power_kw_e": round(c.installed_power_kw_e, 2),
+                    "requires_review": c.requires_review,
+                }
+            )
+
+        return {
+            "schemes": schemes_out,
+            "recommended_scheme_code": recommended,
+            "weight_set_name": ws.name,
+            "weight_set_status": ws.status,
+        }
 
     @app.post("/api/v1/projects")
     def create_project(

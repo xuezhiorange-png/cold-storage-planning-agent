@@ -1,1 +1,1 @@
-"""Deterministic design scheme generation."""
+"""Scheme application service."""
