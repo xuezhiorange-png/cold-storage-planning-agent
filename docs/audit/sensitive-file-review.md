@@ -53,3 +53,40 @@ These were checked because they often carry secrets or local state:
 
 - Suitable for baseline push after `.gitignore` hardening.
 - Baseline push was allowed because no sensitive local artifacts were staged.
+
+---
+
+## Security Incident: GitHub Token Leak (2026-06-20)
+
+### Discovery
+
+- **Discovered**: 2026-06-20, during Task 5 PR review
+- **Files involved**: `.config/gh/hosts.yml`, `.config/gh/config.yml`
+- **Content**: Plaintext GitHub OAuth token (`ghp_*`) in `hosts.yml`
+- **Cause**: Local GitHub CLI configuration directory was accidentally committed
+
+### Remediation
+
+1. **Token revocation**: User confirmed token was NOT revoked (remains active)
+2. **PR #6 closed**: Prevented further reference to contaminated commits
+3. **History rewrite**: `git-filter-repo` v2.38.0 used to remove `.config/gh/**`
+   from all branches, tags, and reachable history
+4. **Clean branch**: `codex/task-5-cooling-load-capability` rebuilt from filtered history
+5. **`.gitignore` updated**: `.config/gh/` added to prevent re-commitment
+6. **Old local repo deleted**: `/root/cold-storage-planning-agent` removed
+7. **New Draft PR #7**: Created from clean branch
+
+### Verification
+
+- `.config/gh/` absent from all tracked files: ✅
+- `.config/gh/` absent from all reachable history: ✅
+- Token pattern scan across all commits: **zero hits**
+- Working tree token scan: **zero hits**
+- `.env`, private keys, DB files tracked: **none**
+- CI: 8/8 jobs passing
+
+### Note
+
+The token was NOT revoked by the user. The user should rotate the token
+at their earliest convenience since it was exposed in a public GitHub
+repository history (now cleaned).
