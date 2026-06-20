@@ -266,6 +266,9 @@ class TestCoolingLoadInfiltration:
             air_change_rate=_D("2.0"),
             worker_heat_gain=_D("270"),
             motor_efficiency=_D("0.90"),
+            design_margin_ratio=_D("1.10"),
+            diversity_factor=_D("1.0"),
+            revision_statuses={},
         )
         inp = CoolingLoadCalcInput(zones=[zone], coefficients=cs)
         result = calculate_cooling_load(inp)
@@ -543,6 +546,9 @@ class TestCoolingLoadErrors:
             air_change_rate=_D("1.5"),
             worker_heat_gain=_D("270"),
             motor_efficiency=_D("0.90"),
+            design_margin_ratio=_D("1.10"),
+            diversity_factor=_D("1.0"),
+            revision_statuses={},
         )
         inp = CoolingLoadCalcInput(zones=[zone], coefficients=cs)
         with pytest.raises(CoefficientMissingError) as exc_info:
@@ -560,6 +566,9 @@ class TestCoolingLoadErrors:
             air_change_rate=_D("1.5"),
             worker_heat_gain=_D("270"),
             motor_efficiency=_D("0.90"),
+            design_margin_ratio=_D("1.10"),
+            diversity_factor=_D("1.0"),
+            revision_statuses={},
         )
         inp = CoolingLoadCalcInput(zones=[zone], coefficients=cs)
         with pytest.raises(CoefficientMissingError):
@@ -575,6 +584,9 @@ class TestCoolingLoadErrors:
             air_change_rate=_D("1.5"),
             worker_heat_gain=None,
             motor_efficiency=_D("0.90"),
+            design_margin_ratio=_D("1.10"),
+            diversity_factor=_D("1.0"),
+            revision_statuses={},
         )
         inp = CoolingLoadCalcInput(zones=[zone], coefficients=cs)
         with pytest.raises(CoefficientMissingError):
@@ -614,6 +626,9 @@ class TestCoolingLoadWarnings:
             air_change_rate=_D("1.5"),
             worker_heat_gain=_D("270"),
             motor_efficiency=_D("0.90"),
+            design_margin_ratio=_D("1.10"),
+            diversity_factor=_D("1.0"),
+            revision_statuses={},
         )
         inp = CoolingLoadCalcInput(zones=[zone], coefficients=cs)
         result = calculate_cooling_load(inp)
@@ -622,7 +637,10 @@ class TestCoolingLoadWarnings:
 
     def test_approved_source_no_requires_review(self) -> None:
         """When all sources are approved, requires_review is False."""
-        zone = _make_zone()
+        zone = _make_zone(
+            outdoor_relative_humidity=_D("0.70"),
+            indoor_relative_humidity=_D("0.80"),
+        )
         cs = CoefficientSet(
             wall_u_value=_D("0.5"),
             roof_u_value=_D("0.4"),
@@ -630,7 +648,17 @@ class TestCoolingLoadWarnings:
             air_change_rate=_D("1.5"),
             worker_heat_gain=_D("270"),
             motor_efficiency=_D("0.90"),
+            design_margin_ratio=_D("1.10"),
+            diversity_factor=_D("1.0"),
             source_types={
+                "cooling.wall_u_value": "approved",
+                "cooling.roof_u_value": "approved",
+                "cooling.floor_u_value": "approved",
+                "cooling.air_change_rate": "approved",
+                "cooling.worker_heat_gain": "approved",
+                "power.motor_efficiency": "approved",
+            },
+            revision_statuses={
                 "cooling.wall_u_value": "approved",
                 "cooling.roof_u_value": "approved",
                 "cooling.floor_u_value": "approved",
@@ -807,7 +835,7 @@ class TestEquipmentCondenser:
     """Condenser heat rejection tests."""
 
     def test_condenser_heat_rejection(self) -> None:
-        """Condenser = (installed + input_power) × rejection_factor × margin."""
+        """Condenser = (operating + input_power) × rejection_factor × margin."""
         zone_eq = _make_zone_equipment(design_load=Decimal("10"))
         system = TemperatureSystemInput(
             system_code="SYS-MT",
@@ -819,10 +847,10 @@ class TestEquipmentCondenser:
         result = calculate_equipment_capability(inp)
 
         sys_result = result.result["systems"][0]
-        # installed=11, input_power=10/3≈3.333
-        # condenser_kw = (11 + 3.333) × 1.25 = 17.916
-        # condenser_with_margin = 17.916 × 1.15 = 20.603
-        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(20.603, abs=0.01)
+        # operating=10, input_power=10/3≈3.333
+        # condenser_kw = (10 + 3.333) × 1.25 = 16.666
+        # condenser_with_margin = 16.666 × 1.15 = 19.166
+        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(19.166, abs=0.01)
 
     def test_condenser_rejection_factor_overridden(self) -> None:
         """Custom rejection factor changes condenser output."""
@@ -844,10 +872,10 @@ class TestEquipmentCondenser:
         result = calculate_equipment_capability(inp)
 
         sys_result = result.result["systems"][0]
-        # installed=11, input_power≈3.333
-        # condenser_kw = (11 + 3.333) × 1.50 = 21.500
-        # no margin (1.0) → 21.500
-        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(21.500, abs=0.01)
+        # operating=10, input_power≈3.333
+        # condenser_kw = (10 + 3.333) × 1.50 = 20.0
+        # no margin (1.0) → 20.0
+        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(20.000, abs=0.01)
 
 
 class TestEquipmentCOP:

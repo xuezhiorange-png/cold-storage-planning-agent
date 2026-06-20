@@ -21,6 +21,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from cold_storage.modules.calculations.domain.errors import (
+    CoefficientMissingError,
     MissingCalculationInputError,
 )
 from cold_storage.modules.calculations.domain.models import (
@@ -45,20 +46,23 @@ _D = Decimal
 class EquipmentCoefficientSet:
     """Coefficients for equipment capability calculation."""
 
-    redundancy_ratio: Decimal = _D("1.10")  # compressor redundancy
-    evaporator_capacity_margin: Decimal = _D("1.10")  # evaporator margin
-    condenser_capacity_margin: Decimal = _D("1.15")  # condenser margin
-    condenser_heat_rejection_factor: Decimal = _D("1.25")  # Q_condenser = Q_ref + W_comp
+    redundancy_ratio: Decimal | None = None  # compressor redundancy
+    evaporator_capacity_margin: Decimal | None = None  # evaporator margin
+    condenser_capacity_margin: Decimal | None = None  # condenser margin
+    condenser_heat_rejection_factor: Decimal | None = None  # Q_condenser = Q_ref + W_comp
     compressor_cop: Decimal | None = None  # coefficient of performance
 
     revision_ids: dict[str, str] = field(default_factory=dict)
     source_types: dict[str, str] = field(default_factory=dict)
+    revision_statuses: dict[str, str] = field(default_factory=dict)
 
     def get_coefficient_metadata(self, code: str) -> dict[str, Any]:
+        revision_status = self.revision_statuses.get(code, "demo")
         return {
             "revision_id": self.revision_ids.get(code, "demo"),
             "source_type": self.source_types.get(code, "demo"),
-            "requires_review": self.source_types.get(code, "demo") != "approved",
+            "revision_status": revision_status,
+            "requires_review": revision_status != "approved",
         }
 
 
@@ -106,7 +110,7 @@ def _warn_demo_coeff(
     cs: EquipmentCoefficientSet, code: str, warnings: list[CalculationWarning]
 ) -> None:
     meta = cs.get_coefficient_metadata(code)
-    if meta["source_type"] != "approved":
+    if meta["revision_status"] != "approved":
         warnings.append(
             CalculationWarning(
                 code="DEMO_COEFFICIENT",
@@ -114,6 +118,15 @@ def _warn_demo_coeff(
                 details=meta,
             )
         )
+
+
+def _require_coefficient(
+    cs: EquipmentCoefficientSet, code: str, value: Decimal | None, calculator: str
+) -> Decimal:
+    """Return the coefficient value or raise CoefficientMissingError."""
+    if value is not None:
+        return value
+    raise CoefficientMissingError(calculator, code)
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +157,24 @@ def calculate_equipment_capability(
     _warn_demo_coeff(cs, "equipment.redundancy_ratio", warnings)
     _warn_demo_coeff(cs, "equipment.evaporator_capacity_margin", warnings)
     _warn_demo_coeff(cs, "equipment.condenser_capacity_margin", warnings)
+    _warn_demo_coeff(cs, "equipment.condenser_heat_rejection_factor", warnings)
+
+    # Validate required coefficients upfront
+    redundancy_ratio = _require_coefficient(
+        cs, "equipment.redundancy_ratio", cs.redundancy_ratio, CALCULATOR_NAME
+    )
+    evap_margin_default = _require_coefficient(
+        cs, "equipment.evaporator_capacity_margin", cs.evaporator_capacity_margin, CALCULATOR_NAME
+    )
+    condenser_margin_default = _require_coefficient(
+        cs, "equipment.condenser_capacity_margin", cs.condenser_capacity_margin, CALCULATOR_NAME
+    )
+    condenser_rejection_default = _require_coefficient(
+        cs,
+        "equipment.condenser_heat_rejection_factor",
+        cs.condenser_heat_rejection_factor,
+        CALCULATOR_NAME,
+    )
 
     system_results: list[dict[str, Any]] = []
     total_design_load = _D("0")
@@ -182,7 +213,7 @@ def calculate_equipment_capability(
         )
 
         # Evaporator capacity with margin
-        evap_margin = cs.evaporator_capacity_margin
+        evap_margin = evap_margin_default
         evaporator_total = (system_simultaneous * evap_margin).quantize(
             _D("0.001"), rounding=ROUND_HALF_UP
         )
@@ -214,7 +245,7 @@ def calculate_equipment_capability(
         compressor_operating = system_simultaneous  # must meet the load
 
         # Compressor standby (N+1 redundancy)
-        redundancy = cs.redundancy_ratio
+        redundancy = redundancy_ratio
         compressor_installed = (compressor_operating * redundancy).quantize(
             _D("0.001"), rounding=ROUND_HALF_UP
         )
@@ -249,11 +280,9 @@ def calculate_equipment_capability(
                     code="power.compressor_cop",
                     value=cs.compressor_cop,
                     unit="ratio",
-                    status="demo"
-                    if cs.source_types.get("power.compressor_cop", "demo") != "approved"
-                    else "approved",
+                    status=cs.revision_statuses.get("power.compressor_cop", "demo"),
                     source_type=cs.source_types.get("power.compressor_cop", "demo"),
-                    requires_review=cs.source_types.get("power.compressor_cop", "demo")
+                    requires_review=cs.revision_statuses.get("power.compressor_cop", "demo")
                     != "approved",
                 )
             )
@@ -273,12 +302,12 @@ def calculate_equipment_capability(
             )
 
         # Condenser heat rejection: Q_condenser = Q_refrigeration + W_compressor_input
-        condenser_rejection_factor = cs.condenser_heat_rejection_factor
+        condenser_rejection_factor = condenser_rejection_default
         condenser_kw = (
-            (compressor_installed + compressor_input_power_kw_e) * condenser_rejection_factor
+            (compressor_operating + compressor_input_power_kw_e) * condenser_rejection_factor
         ).quantize(_D("0.001"), rounding=ROUND_HALF_UP)
 
-        condenser_margin = cs.condenser_capacity_margin
+        condenser_margin = condenser_margin_default
         condenser_with_margin = (condenser_kw * condenser_margin).quantize(
             _D("0.001"), rounding=ROUND_HALF_UP
         )
@@ -289,7 +318,7 @@ def calculate_equipment_capability(
                 formula="Q_condenser = (Q_ref + W_comp) × rejection_factor × margin",
                 description=f"Condenser heat rejection — {system.system_name}",
                 inputs={
-                    "refrigeration_capacity": str(compressor_installed),
+                    "refrigeration_capacity": str(compressor_operating),
                     "compressor_input_power_kw_e": str(compressor_input_power_kw_e),
                     "rejection_factor": str(condenser_rejection_factor),
                     "margin": str(condenser_margin),
@@ -335,10 +364,10 @@ def calculate_equipment_capability(
         )
     )
 
-    has_demo = not cs.source_types or any(
-        cs.source_types.get(c, "demo") != "approved"
+    has_demo = not cs.revision_statuses or any(
+        cs.revision_statuses.get(c, "demo") != "approved"
         for c in ["equipment.redundancy_ratio", "equipment.evaporator_capacity_margin"]
-        if cs.source_types.get(c) is not None
+        if cs.revision_statuses.get(c) is not None
     )
 
     result_dict: dict[str, Any] = {

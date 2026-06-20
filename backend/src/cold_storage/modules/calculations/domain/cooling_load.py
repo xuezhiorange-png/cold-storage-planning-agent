@@ -45,6 +45,34 @@ CALCULATOR_VERSION = "1.0.0"
 
 _D = Decimal
 
+# --- Psychrometric helpers (deterministic, centralized) ---
+
+
+def _saturation_vapor_pressure(t_c: Decimal) -> Decimal:
+    """Magnus formula: es = 611.2 * exp(17.67*T/(T+243.5)) in Pa.
+    Valid for -40°C to +50°C."""
+    import math
+
+    t = float(t_c)
+    return Decimal(str(round(611.2 * math.exp(17.67 * t / (t + 243.5)), 2)))
+
+
+def _humidity_ratio(e: Decimal, p: Decimal) -> Decimal:
+    """w = 0.622 * e / (p - e) in kg/kg dry air.
+    e = vapor pressure (Pa), p = atmospheric pressure (Pa)."""
+    if p <= e:
+        return Decimal("0")
+    return (Decimal("0.622") * e / (p - e)).quantize(_D("0.000001"), rounding=ROUND_HALF_UP)
+
+
+def _enthalpy(t_c: Decimal, w: Decimal) -> Decimal:
+    """h = 1.006*t + w*(2501 + 1.86*t) in kJ/kg dry air.
+    t in °C, w in kg/kg."""
+    t = float(t_c)
+    wf = float(w)
+    h = 1.006 * t + wf * (2501.0 + 1.86 * t)
+    return Decimal(str(round(h, 4)))
+
 
 # ---------------------------------------------------------------------------
 # Coefficient set — injected at call time
@@ -66,23 +94,26 @@ class CoefficientSet:
     respiration_heat: Decimal | None = None  # W/kg
     air_change_rate: Decimal | None = None  # 1/h
     worker_heat_gain: Decimal | None = None  # W/person
-    design_margin_ratio: Decimal = _D("1.10")
-    diversity_factor: Decimal = _D("1.0")
-    evaporating_temp_diff: Decimal = _D("5")  # K
-    condenser_heat_rejection_factor: Decimal = _D("1.25")
+    design_margin_ratio: Decimal | None = None
+    diversity_factor: Decimal | None = None
+    evaporating_temp_diff: Decimal | None = None  # K
+    condenser_heat_rejection_factor: Decimal | None = None
     compressor_cop: Decimal | None = None
     motor_efficiency: Decimal | None = None
 
     # Metadata for traceability
     revision_ids: dict[str, str] = field(default_factory=dict)
     source_types: dict[str, str] = field(default_factory=dict)
+    revision_statuses: dict[str, str] = field(default_factory=dict)
 
     def get_coefficient_metadata(self, code: str) -> dict[str, Any]:
         """Return metadata for a coefficient used in traceability."""
+        revision_status = self.revision_statuses.get(code, "demo")
         return {
             "revision_id": self.revision_ids.get(code, "demo"),
             "source_type": self.source_types.get(code, "demo"),
-            "requires_review": self.source_types.get(code, "demo") != "approved",
+            "revision_status": revision_status,
+            "requires_review": revision_status != "approved",
         }
 
 
@@ -149,6 +180,11 @@ class ZoneCoolingLoadInput:
     door_opening_factor: Decimal = _D("1.0")
     air_curtain_factor: Decimal = _D("1.0")
 
+    # Humidity inputs for latent load (optional — if omitted, only sensible load is computed)
+    outdoor_relative_humidity: Decimal | None = None  # 0-1 (e.g., 0.70 for 70%)
+    indoor_relative_humidity: Decimal | None = None  # 0-1
+    atmospheric_pressure_pa: Decimal = _D("101325")  # Pa, standard atmosphere
+
     # Internal loads
     worker_count: int = 0
     worker_heat_gain: Decimal | None = None  # W/person, overrides coefficient
@@ -189,9 +225,9 @@ def _require_coefficient(
 
 
 def _warn_demo(cs: CoefficientSet, code: str, warnings: list[CalculationWarning]) -> None:
-    """Add a warning if the coefficient source type is not approved."""
+    """Add a warning if the coefficient review status is not approved."""
     meta = cs.get_coefficient_metadata(code)
-    if meta["source_type"] != "approved":
+    if meta["revision_status"] != "approved":
         warnings.append(
             CalculationWarning(
                 code="DEMO_COEFFICIENT",
@@ -347,11 +383,9 @@ def _calculate_zone_cooling_load(
                         code="cooling.respiration_heat",
                         value=resp_heat,
                         unit="W/kg",
-                        status="demo"
-                        if cs.source_types.get("cooling.respiration_heat", "demo") != "approved"
-                        else "approved",
+                        status=cs.revision_statuses.get("cooling.respiration_heat", "demo"),
                         source_type=cs.source_types.get("cooling.respiration_heat", "demo"),
-                        requires_review=cs.source_types.get("cooling.respiration_heat", "demo")
+                        requires_review=cs.revision_statuses.get("cooling.respiration_heat", "demo")
                         != "approved",
                     )
                 )
@@ -379,7 +413,9 @@ def _calculate_zone_cooling_load(
             )
         )
 
-    # --- 3. Infiltration / ventilation load ---
+    # --- 3. Infiltration / ventilation load (sensible + latent) ---
+    sensible_infiltration_kw = _D("0")
+    latent_infiltration_kw = _D("0")
     infiltration_kw = _D("0")
     volume = (
         zone.room_volume if zone.room_volume is not None else (zone.zone_area * zone.room_height)
@@ -390,30 +426,93 @@ def _calculate_zone_cooling_load(
     _warn_demo(cs, "cooling.air_change_rate", warnings)
 
     if air_change_rate > 0 and volume > 0:
-        # Air density ≈ 1.2 kg/m³, specific heat ≈ 1.006 kJ/(kg·K)
-        air_density = _D("1.2")
+        air_density = _D("1.2")  # kg/m³ at sea level, approximate
         air_specific_heat = _D("1.006")  # kJ/(kg·K)
 
-        # Base infiltration: air change rate × volume
         base_airflow = air_change_rate * volume  # m³/h
-
-        # Apply door opening and air curtain factors
         effective_airflow = base_airflow * zone.door_opening_factor * zone.air_curtain_factor
-
         delta_t_air = zone.outdoor_design_temperature - zone.room_design_temperature
 
-        # Sensible infiltration load: Q = ρ × V̇ × cp × ΔT / 3600  → kW
+        # Sensible load: Q_s = rho * Vdot * cp * dT / 3600
         sensible_infiltration_kw = (
             air_density * effective_airflow * air_specific_heat * delta_t_air / _D("3600")
         ).quantize(_D("0.001"), rounding=ROUND_HALF_UP)
 
-        infiltration_kw = sensible_infiltration_kw
+        # Latent load via enthalpy method (only if humidity inputs provided)
+        if zone.outdoor_relative_humidity is not None and zone.indoor_relative_humidity is not None:
+            # Validate RH range
+            if zone.outdoor_relative_humidity < 0 or zone.outdoor_relative_humidity > 1:
+                raise InvalidCalculationInputError(
+                    CALCULATOR_NAME, "outdoor_relative_humidity", zone.outdoor_relative_humidity
+                )
+            if zone.indoor_relative_humidity < 0 or zone.indoor_relative_humidity > 1:
+                raise InvalidCalculationInputError(
+                    CALCULATOR_NAME, "indoor_relative_humidity", zone.indoor_relative_humidity
+                )
+
+            p = zone.atmospheric_pressure_pa
+            es_out = _saturation_vapor_pressure(zone.outdoor_design_temperature)
+            es_in = _saturation_vapor_pressure(zone.room_design_temperature)
+            e_out = es_out * zone.outdoor_relative_humidity
+            e_in = es_in * zone.indoor_relative_humidity
+            w_out = _humidity_ratio(e_out, p)
+            w_in = _humidity_ratio(e_in, p)
+            h_out = _enthalpy(zone.outdoor_design_temperature, w_out)
+            h_in = _enthalpy(zone.room_design_temperature, w_in)
+
+            # Mass flow rate: rho * Vdot (kg/h)
+            mass_flow = air_density * effective_airflow
+
+            # Total load: Q_total = mass_flow * (h_out - h_in) / 3600
+            total_infiltration_kw = (mass_flow * (h_out - h_in) / _D("3600")).quantize(
+                _D("0.001"), rounding=ROUND_HALF_UP
+            )
+
+            # Latent = Total - Sensible
+            latent_infiltration_kw = (total_infiltration_kw - sensible_infiltration_kw).quantize(
+                _D("0.001"), rounding=ROUND_HALF_UP
+            )
+
+            # Guard against non-physical negative latent (can occur due to rounding)
+            if latent_infiltration_kw < 0:
+                latent_infiltration_kw = _D("0")
+
+            infiltration_kw = sensible_infiltration_kw + latent_infiltration_kw
+
+            steps.append(
+                CalculationStep(
+                    step_id=_next_step_id("CL"),
+                    formula="Q_latent = Q_total - Q_sensible; Q_total = m_dot*(h_out-h_in)/3600",
+                    description=f"Latent infiltration load — {zone.zone_name}",
+                    inputs={
+                        "outdoor_rh": str(zone.outdoor_relative_humidity),
+                        "indoor_rh": str(zone.indoor_relative_humidity),
+                        "atmospheric_pressure_pa": str(p),
+                        "h_out": str(h_out),
+                        "h_in": str(h_in),
+                        "w_out": str(w_out),
+                        "w_in": str(w_in),
+                    },
+                    output_name="latent_infiltration_load_kw_r",
+                    output_value=str(latent_infiltration_kw),
+                )
+            )
+        else:
+            # Sensible-only mode (restricted — requires review)
+            infiltration_kw = sensible_infiltration_kw
+            warnings.append(
+                CalculationWarning(
+                    code="SENSIBLE_ONLY_INFILTRATION",
+                    message="Humidity inputs missing; sensible-only mode",
+                    details={"mode": "sensible_only"},
+                )
+            )
 
         steps.append(
             CalculationStep(
                 step_id=_next_step_id("CL"),
-                formula="Q_infiltration = ρ × V̇ × cp × ΔT / 3600",
-                description=f"Infiltration/ventilation load — {zone.zone_name}",
+                formula="Q_sensible = rho * Vdot * cp * dT / 3600",
+                description=f"Sensible infiltration load — {zone.zone_name}",
                 inputs={
                     "air_change_rate": str(air_change_rate),
                     "volume": str(volume),
@@ -421,8 +520,8 @@ def _calculate_zone_cooling_load(
                     "air_curtain_factor": str(zone.air_curtain_factor),
                     "delta_t_air": str(delta_t_air),
                 },
-                output_name="total_infiltration_load_kw_r",
-                output_value=str(infiltration_kw),
+                output_name="sensible_infiltration_load_kw_r",
+                output_value=str(sensible_infiltration_kw),
             )
         )
 
@@ -538,6 +637,8 @@ def _calculate_zone_cooling_load(
         "floor_transmission_load_kw_r": float(floor_load_kw),
         "product_load_kw_r": float(product_load_kw),
         "infiltration_load_kw_r": float(infiltration_kw),
+        "sensible_infiltration_load_kw_r": float(sensible_infiltration_kw),
+        "latent_infiltration_load_kw_r": float(latent_infiltration_kw),
         "internal_load_kw_r": float(total_internal_kw),
         "people_load_kw_r": float(people_kw),
         "lighting_load_kw_r": float(lighting_kw),
@@ -571,8 +672,16 @@ def calculate_cooling_load(inp: CoolingLoadCalcInput) -> CalculationResult:
         raise MissingCalculationInputError(CALCULATOR_NAME, "zones")
 
     # Override design margin from input or coefficient
-    design_margin = inp.design_margin_ratio or inp.coefficients.design_margin_ratio
-    diversity = inp.diversity_factor or inp.coefficients.diversity_factor
+    design_margin = inp.design_margin_ratio
+    if design_margin is None:
+        design_margin = inp.coefficients.design_margin_ratio
+    if design_margin is None:
+        raise CoefficientMissingError(CALCULATOR_NAME, "design_margin_ratio")
+    diversity = inp.diversity_factor
+    if diversity is None:
+        diversity = inp.coefficients.diversity_factor
+    if diversity is None:
+        raise CoefficientMissingError(CALCULATOR_NAME, "diversity_factor")
 
     # --- Phase 1: calculate zone loads ---
     zone_results: list[dict[str, Any]] = []
@@ -655,7 +764,7 @@ def calculate_cooling_load(inp: CoolingLoadCalcInput) -> CalculationResult:
     # Check for demo coefficients
     _cs = inp.coefficients
     has_demo = any(
-        _cs.source_types.get(code, "demo") != "approved"
+        _cs.revision_statuses.get(code, "demo") != "approved"
         for code in [
             "cooling.wall_u_value",
             "cooling.roof_u_value",
@@ -665,10 +774,10 @@ def calculate_cooling_load(inp: CoolingLoadCalcInput) -> CalculationResult:
             "cooling.worker_heat_gain",
             "power.motor_efficiency",
         ]
-        if _cs.source_types.get(code) is not None
+        if _cs.revision_statuses.get(code) is not None
     )
     # Also check if any coefficient was used from defaults (demo)
-    if not inp.coefficients.source_types:
+    if not inp.coefficients.revision_statuses:
         has_demo = True
         warnings.append(
             CalculationWarning(
@@ -676,6 +785,8 @@ def calculate_cooling_load(inp: CoolingLoadCalcInput) -> CalculationResult:
                 message="No coefficient source metadata provided; all coefficients treated as demo",
             )
         )
+
+    has_sensible_only = any(w.code == "SENSIBLE_ONLY_INFILTRATION" for w in warnings)
 
     # Build result dict
     result_dict: dict[str, Any] = {
@@ -705,5 +816,7 @@ def calculate_cooling_load(inp: CoolingLoadCalcInput) -> CalculationResult:
         steps=steps,
         coefficient_references=coeff_refs,
         warnings=warnings,
-        requires_review=has_demo or any(w.code == "DEMO_COEFFICIENT" for w in warnings),
+        requires_review=has_demo
+        or has_sensible_only
+        or any(w.code == "DEMO_COEFFICIENT" for w in warnings),
     )
