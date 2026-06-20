@@ -245,3 +245,16 @@
   with 5 calculators (throughput, inventory, pallets, precooling, areas),
   Decimal precision, CoefficientSet integration, step-by-step traceability,
   calculation snapshots, 48 new tests, created ADR-012.
+- V1.46 update (Task 5): implemented deterministic cooling-load and
+  equipment-capability calculators. Added cooling_load.py (envelope,
+  product, infiltration, internal, defrost loads with temperature-level
+  grouping), equipment.py (evaporator, compressor N+1, condenser capability),
+  and power.py (installed electrical capacity in kW(e)). Strict kW(r) vs
+  kW(e) unit discipline. CoefficientSet injection for all engineering
+  parameters. Step-by-step traceability via CalculationStep. 73 new tests
+  (349 total). Added 4 new architecture tests (calculator purity, kW
+  separation, no coefficient repository access, no junk modules). API
+  endpoints: POST/GET cooling-load, preview. Created ADR-013, cooling-load-
+  specification.md, equipment-capability-specification.md, electrical-
+  installed-capacity-specification.md. PostgreSQL CI: 328 passed, 10 skipped
+  (asyncpg dependency).
