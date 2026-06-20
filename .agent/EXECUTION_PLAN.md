@@ -229,5 +229,5 @@
   `dependencies.py`, added FastAPI lifespan for engine lifecycle
   management, extracted planning orchestration from `bootstrap/app.py` to
   `modules/planning/application/service.py`, added 35 new tests
-  (settings, lifecycle, orchestration, architecture), created ADR-007 and
-  ADR-008.
+  (settings, lifecycle, orchestration, architecture), created ADR-008 and
+  ADR-009.

@@ -1,4 +1,4 @@
-# ADR-008 Application Lifecycle and Dependency Injection
+# ADR-009 Application Lifecycle and Dependency Injection
 
 - Status: Accepted
 - Context: The project previously created database engines and services at import time, causing test isolation issues and environment coupling.

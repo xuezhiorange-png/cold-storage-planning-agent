@@ -1,4 +1,4 @@
-# ADR-007 Runtime Database Modes
+# ADR-008 Runtime Database Modes
 
 - Status: Accepted
 - Context: The project needs to support both lightweight SQLite development and PostgreSQL production integration.

@@ -9,7 +9,7 @@ Last updated: 2026-06-20 (Task 1 completion — settings, lifecycle, orchestrati
 | --- | --- | --- | --- | --- |
 | `docker compose config` | Failed locally | `docker` command missing on the workstation; **passes on GitHub Actions** (compose-config job OK) | No | Task 12 |
 | `cd backend && PYTHONPATH=src python -m alembic upgrade head` | Success | Alembic runs with `SQLiteImpl` against local SQLite file | No | Task 1 |
-| `cd backend && PYTHONPATH=src python -m pytest` | Success | **53 tests passed** (settings, lifecycle, planning orchestration, architecture boundaries, plus original tests) | No | N/A |
+| `cd backend && PYTHONPATH=src python -m pytest` | Success | **54 tests passed** (settings, lifecycle, planning orchestration, architecture boundaries, plus original tests) | No | N/A |
 | `cd backend && ruff check .` | Success | All checks passed | No | N/A |
 | `cd backend && ruff format --check .` | **Success** | All files formatted | No | N/A |
 | `cd backend && PYTHONPATH=src mypy src` | Success | No issues found in source files | No | N/A |
@@ -35,7 +35,7 @@ Last updated: 2026-06-20 (Task 1 completion — settings, lifecycle, orchestrati
 
 ## Summary
 
-- **53 tests now pass** (up from 18 at Task 0 baseline).
+- **54 tests now pass** (up from 18 at Task 0 baseline).
 - All local quality checks pass (backend + frontend).
 - Settings restructured with dual database mode support (SQLite for local dev, PostgreSQL for production).
 - Import-time singletons removed; lifecycle managed via FastAPI lifespan.
