@@ -390,6 +390,35 @@ class DatabaseProjectService(ProjectService):
             ).all()
             return [self._calculation_to_dict(record) for record in records]
 
+    def save_core_calculation_result(
+        self,
+        project_id: str,
+        version_number: int,
+        result_snapshot: dict[str, Any],
+        actor: str,
+    ) -> dict[str, Any]:
+        """Persist a core calculation snapshot into the version's calculation_snapshot."""
+        with self.session_factory() as session:
+            record = self._get_version_record(session, project_id, version_number)
+            if record.status in ("approved", "archived"):
+                return {"success": False, "error_code": "PROJECT_VERSION_LOCKED"}
+            before = dict(record.calculation_snapshot) if record.calculation_snapshot else {}
+            record.calculation_snapshot = result_snapshot
+            self._add_audit(
+                session,
+                AuditEvent(
+                    actor=actor,
+                    action="save_core_calculation",
+                    entity_type="ProjectVersion",
+                    entity_id=record.id,
+                    before_snapshot=before,
+                    after_snapshot={"calculation_snapshot_keys": list(result_snapshot.keys())},
+                    metadata={"project_id": project_id, "version_number": version_number},
+                ),
+            )
+            session.commit()
+            return {"success": True}
+
     def list_audit_events(self, project_id: str) -> list[dict[str, Any]]:
         with self.session_factory() as session:
             records = session.scalars(
