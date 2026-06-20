@@ -589,6 +589,96 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         result = core_calculation_service.orchestrate_from_dict(request.inputs)
         return result.to_dict()
 
+    # --- Cooling load calculation (Task 5) ---------------------------------
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/calculations/cooling-load")
+    def calculate_cooling_load_endpoint(
+        project_id: str,
+        version: int,
+        request: CoreCalculationPreviewRequest,
+    ) -> dict[str, Any]:
+        """Run cooling load calculation for a project version.
+
+        Validates that the version is not locked, runs the calculation,
+        and persists the result in the calculation snapshot.
+        """
+        from cold_storage.modules.calculations.application.cooling_load_api import (
+            run_cooling_load_from_dict,
+        )
+        from cold_storage.modules.projects.application.service import ProjectService
+
+        project_service = ProjectService()
+        project_version = project_service.get_version(project_id, version)
+        if project_version is None:
+            return {
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": f"Project {project_id} version {version} not found",
+                }
+            }
+        if hasattr(project_version, "is_locked") and project_version.is_locked:
+            return {
+                "error": {
+                    "code": "VERSION_LOCKED",
+                    "message": "Cannot calculate on a locked project version",
+                }
+            }
+
+        try:
+            result = run_cooling_load_from_dict(request.inputs)
+
+            # Persist to project version snapshot
+            snapshot = getattr(project_version, "calculation_snapshot", {}) or {}
+            snapshot["cooling_load"] = result.to_dict()
+            project_version.calculation_snapshot = snapshot
+
+            return result.to_dict()
+
+        except Exception as exc:
+            return {"error": {"code": "CALCULATION_ERROR", "message": str(exc)}}
+
+    @app.get("/api/v1/projects/{project_id}/versions/{version}/calculations/cooling-load")
+    def get_cooling_load(
+        project_id: str,
+        version: int,
+    ) -> dict[str, Any]:
+        """Retrieve persisted cooling load calculation results."""
+        from cold_storage.modules.projects.application.service import ProjectService
+
+        project_service = ProjectService()
+        project_version = project_service.get_version(project_id, version)
+        if project_version is None:
+            return {
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": f"Project {project_id} version {version} not found",
+                }
+            }
+        snapshot = getattr(project_version, "calculation_snapshot", {}) or {}
+        cooling_load = snapshot.get("cooling_load")
+        if not cooling_load:
+            return {
+                "error": {"code": "NO_CALCULATION", "message": "No cooling load calculation found"}
+            }
+        result: dict[str, Any] = cooling_load
+        return result
+
+    @app.post("/api/v1/calculations/cooling-load/preview")
+    def preview_cooling_load(
+        request: CoreCalculationPreviewRequest,
+    ) -> dict[str, Any]:
+        """Run cooling load calculation without saving (preview mode)."""
+        from cold_storage.modules.calculations.application.cooling_load_api import (
+            run_cooling_load_from_dict,
+        )
+
+        try:
+            result = run_cooling_load_from_dict(request.inputs)
+            return result.to_dict()
+
+        except Exception as exc:
+            return {"error": {"code": "CALCULATION_ERROR", "message": str(exc)}}
+
     return app
 
 

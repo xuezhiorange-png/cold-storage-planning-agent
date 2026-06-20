@@ -586,7 +586,7 @@ class TestCoreCalculationService:
         )
         d = result.to_dict()
         assert "throughput" in d
-        assert d["orchestration_version"] == "1.0.0"
+        assert d["orchestration_version"] == "2.0.0"
         assert "success" in d
         assert "calculated_at" in d
 

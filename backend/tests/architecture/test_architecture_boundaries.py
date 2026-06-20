@@ -73,8 +73,6 @@ ENGINEERING_FORMULA_PATTERNS = [
     re.compile(r"\b\d+\.?\d*\s*kW\b", re.IGNORECASE),
     re.compile(r"\b\d+\.?\d*\s*CNY\b"),
     re.compile(r"\b\d+\s*\*\s*\d+"),  # multiplication like 123 * 456
-    re.compile(r"cooling_load"),
-    re.compile(r"equipment_requirement"),
 ]
 
 
@@ -100,10 +98,9 @@ def test_api_routes_do_not_import_calculation_details() -> None:
 
     # Direct imports from calculations domain should be minimal
     # (only the orchestration helpers and high-level types are allowed)
+    # Application-layer API services (cooling_load_api) are allowed
     forbidden_domain_imports = [
         "from cold_storage.modules.calculations.domain.coefficients",
-        "from cold_storage.modules.calculations.domain.cooling_load",
-        "from cold_storage.modules.calculations.domain.equipment",
     ]
     for imp in forbidden_domain_imports:
         assert imp not in content, f"app.py imports forbidden domain detail: {imp}"

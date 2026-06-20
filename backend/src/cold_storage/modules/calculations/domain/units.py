@@ -36,6 +36,11 @@ class Unit(StrEnum):
     # Energy / Power
     KW = "kW"
     KJ = "kJ"
+    KWH = "kWh"
+    W = "W"
+    W_M2_K = "W/(m2·K)"
+    KW_R = "kW(r)"
+    KW_E = "kW(e)"
 
     # Temperature
     CELSIUS = "℃"

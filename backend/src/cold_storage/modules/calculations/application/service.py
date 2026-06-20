@@ -20,6 +20,14 @@ from cold_storage.modules.calculations.domain.areas import (
     ZoneAreaSpec,
     calculate_areas,
 )
+from cold_storage.modules.calculations.domain.cooling_load import (
+    CoolingLoadCalcInput,
+    calculate_cooling_load,
+)
+from cold_storage.modules.calculations.domain.equipment import (
+    EquipmentCapabilityCalcInput,
+    calculate_equipment_capability,
+)
 from cold_storage.modules.calculations.domain.errors import (
     LockedProjectVersionError,
 )
@@ -35,6 +43,10 @@ from cold_storage.modules.calculations.domain.pallets import (
     PalletCalcInput,
     calculate_pallets,
 )
+from cold_storage.modules.calculations.domain.power import (
+    InstalledPowerCalcInput,
+    calculate_installed_power,
+)
 from cold_storage.modules.calculations.domain.precooling import (
     PrecoolingCalcInput,
     calculate_precooling,
@@ -45,7 +57,7 @@ from cold_storage.modules.calculations.domain.throughput import (
 )
 
 # Version of the orchestration logic
-ORCHESTRATION_VERSION = "1.0.0"
+ORCHESTRATION_VERSION = "2.0.0"
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +76,9 @@ class CoreCalculationOrchestrationResult:
         pallets: CalculationResult | None = None,
         precooling: CalculationResult | None = None,
         areas: CalculationResult | None = None,
+        cooling_load: CalculationResult | None = None,
+        equipment: CalculationResult | None = None,
+        installed_power: CalculationResult | None = None,
         global_warnings: list[CalculationWarning] | None = None,
         success: bool = True,
         errors: list[str] | None = None,
@@ -73,6 +88,9 @@ class CoreCalculationOrchestrationResult:
         self.pallets = pallets
         self.precooling = precooling
         self.areas = areas
+        self.cooling_load = cooling_load
+        self.equipment = equipment
+        self.installed_power = installed_power
         self.global_warnings = global_warnings or []
         self.success = success
         self.errors = errors or []
@@ -96,6 +114,12 @@ class CoreCalculationOrchestrationResult:
             results["precooling"] = self.precooling.to_dict()
         if self.areas is not None:
             results["areas"] = self.areas.to_dict()
+        if self.cooling_load is not None:
+            results["cooling_load"] = self.cooling_load.to_dict()
+        if self.equipment is not None:
+            results["equipment"] = self.equipment.to_dict()
+        if self.installed_power is not None:
+            results["installed_power"] = self.installed_power.to_dict()
         return results
 
 
@@ -138,6 +162,9 @@ class CoreCalculationService:
         pallet_input: PalletCalcInput | None = None,
         precooling_input: PrecoolingCalcInput | None = None,
         area_zones: list[ZoneAreaSpec] | None = None,
+        cooling_load_input: CoolingLoadCalcInput | None = None,
+        equipment_input: EquipmentCapabilityCalcInput | None = None,
+        installed_power_input: InstalledPowerCalcInput | None = None,
     ) -> CoreCalculationOrchestrationResult:
         """Run calculators in sequence and validate cross-calculator consistency.
 
@@ -185,6 +212,27 @@ class CoreCalculationService:
             except Exception as exc:
                 errors.append(f"areas: {exc}")
 
+        # --- run cooling load (Task 5) -------------------------------------
+        if cooling_load_input is not None:
+            try:
+                results["cooling_load"] = calculate_cooling_load(cooling_load_input)
+            except Exception as exc:
+                errors.append(f"cooling_load: {exc}")
+
+        # --- run equipment capability (Task 5) -----------------------------
+        if equipment_input is not None:
+            try:
+                results["equipment"] = calculate_equipment_capability(equipment_input)
+            except Exception as exc:
+                errors.append(f"equipment: {exc}")
+
+        # --- run installed power (Task 5) ----------------------------------
+        if installed_power_input is not None:
+            try:
+                results["installed_power"] = calculate_installed_power(installed_power_input)
+            except Exception as exc:
+                errors.append(f"installed_power: {exc}")
+
         # --- cross-calculator consistency checks ---------------------------
         consistency_warnings = self._check_consistency(results)
         global_warnings.extend(consistency_warnings)
@@ -195,6 +243,9 @@ class CoreCalculationService:
             pallets=results.get("pallets"),
             precooling=results.get("precooling"),
             areas=results.get("areas"),
+            cooling_load=results.get("cooling_load"),
+            equipment=results.get("equipment"),
+            installed_power=results.get("installed_power"),
             global_warnings=global_warnings,
             success=len(errors) == 0,
             errors=errors,
@@ -367,6 +418,14 @@ class CoreCalculationService:
             if orchestration_result.inventory is not None:
                 assumptions["inventory_warnings"] = [
                     w.code for w in orchestration_result.inventory.warnings
+                ]
+            if orchestration_result.cooling_load is not None:
+                assumptions["cooling_load_warnings"] = [
+                    w.code for w in orchestration_result.cooling_load.warnings
+                ]
+            if orchestration_result.equipment is not None:
+                assumptions["equipment_warnings"] = [
+                    w.code for w in orchestration_result.equipment.warnings
                 ]
             project_version.assumption_snapshot = assumptions
 
