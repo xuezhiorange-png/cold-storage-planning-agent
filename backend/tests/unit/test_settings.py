@@ -9,6 +9,19 @@ import pytest
 from cold_storage.bootstrap.settings import Settings
 
 
+@pytest.fixture(autouse=True)
+def _clear_db_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ensure tests start with clean database env vars."""
+    monkeypatch.delenv("DATABASE_BACKEND", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("SQLITE_PATH", raising=False)
+    monkeypatch.delenv("POSTGRES_HOST", raising=False)
+    monkeypatch.delenv("POSTGRES_PORT", raising=False)
+    monkeypatch.delenv("POSTGRES_DB", raising=False)
+    monkeypatch.delenv("POSTGRES_USER", raising=False)
+    monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+
+
 class TestDefaultSQLiteConfig:
     """Default configuration should produce a SQLite database URL."""
 
@@ -49,22 +62,26 @@ class TestPostgreSQLConfig:
         settings = Settings(
             database_backend="postgresql",
             postgres_host="db.example.com",
-            postgres_port=5432,
+            postgres_port=5433,
             postgres_db="mydb",
-            postgres_user="myuser",
+            postgres_user="admin",
             postgres_password="secret",
         )
-        assert settings.database_url is not None
-        assert "db.example.com" in settings.database_url
-        assert "myuser" in settings.database_url
-        assert "mydb" in settings.database_url
+        assert "db.example.com:5433/mydb" in settings.database_url
         assert settings.database_url.startswith("postgresql+asyncpg://")
 
+    def test_postgres_password_in_url(self):
+        settings = Settings(
+            database_backend="postgresql",
+            postgres_password="hunter2",
+        )
+        assert "hunter2" in settings.database_url
 
-class TestDatabaseBackendValidation:
-    """database_backend must be 'sqlite' or 'postgresql'."""
 
-    def test_valid_backends_accepted(self):
+class TestBackendValidation:
+    """database_backend must be sqlite or postgresql."""
+
+    def test_valid_backends(self):
         s1 = Settings(database_backend="sqlite")
         assert s1.database_backend == "sqlite"
         s2 = Settings(database_backend="postgresql")
@@ -91,26 +108,21 @@ class TestSensitiveFieldMasking:
 
 
 class TestEnvExampleConsistency:
-    """.env.example keys must match Settings field names."""
+    ".env.example keys must match Settings field names."
 
     def test_env_example_matches_settings(self):
         env_path = Path(__file__).resolve().parents[3] / ".env.example"
         if not env_path.exists():
             pytest.skip(".env.example not found")
-
-        env_keys = set()
-        for line in env_path.read_text().splitlines():
-            stripped = line.strip()
-            if stripped and not stripped.startswith("#") and "=" in stripped:
-                key = stripped.split("=", 1)[0].strip()
-                env_keys.add(key)
-
+        content = env_path.read_text()
         settings_fields = set(Settings.model_fields.keys())
-
-        # Every non-commented env key should correspond to a Settings field
-        # (case-insensitive match since env vars are typically UPPER_CASE)
-        env_lower = {k.lower() for k in env_keys}
-        settings_lower = {k.lower() for k in settings_fields}
-        assert env_lower <= settings_lower, (
-            f"Env keys not in Settings: {env_lower - settings_lower}"
-        )
+        # Check that each non-commented env line key is a Settings field
+        for line in content.strip().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            key = line.split("=")[0].strip()
+            # Strip any prefix like export
+            if key.startswith("export "):
+                key = key[7:]
+            assert key.lower() in settings_fields, f".env.example has key '{key}' not in Settings"
