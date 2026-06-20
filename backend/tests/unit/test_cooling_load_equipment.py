@@ -68,6 +68,10 @@ def _make_zone(**overrides):
         "floor_area": _D("100"),
         "room_design_temperature": _D("0"),
         "outdoor_design_temperature": _D("35"),
+        "operating_hours_per_day": _D("24"),
+        "product_entry_temperature": _D("25"),
+        "product_target_temperature": _D("0"),
+        "cooling_duration": _D("4"),
         # Coefficients that the calculator reads from the zone object
         "u_value_wall": _D("0.5"),
         "u_value_roof": _D("0.4"),
@@ -118,7 +122,6 @@ EQUIPMENT_COEFFICIENTS = EquipmentCoefficientSet(
     redundancy_ratio=_D("1.10"),
     evaporator_capacity_margin=_D("1.10"),
     condenser_capacity_margin=_D("1.15"),
-    condenser_heat_rejection_factor=_D("1.25"),
     compressor_cop=_D("3.0"),
 )
 
@@ -813,7 +816,7 @@ class TestEquipmentRedundancy:
             redundancy_ratio=_D("1.25"),  # 25% standby
             evaporator_capacity_margin=_D("1.10"),
             condenser_capacity_margin=_D("1.15"),
-            condenser_heat_rejection_factor=_D("1.25"),
+            compressor_cop=_D("3.0"),
         )
         system = TemperatureSystemInput(
             system_code="SYS-LT",
@@ -835,7 +838,7 @@ class TestEquipmentCondenser:
     """Condenser heat rejection tests."""
 
     def test_condenser_heat_rejection(self) -> None:
-        """Condenser = (operating + input_power) × rejection_factor × margin."""
+        """Condenser = (operating + input_power) × condenser_margin."""
         zone_eq = _make_zone_equipment(design_load=Decimal("10"))
         system = TemperatureSystemInput(
             system_code="SYS-MT",
@@ -847,19 +850,18 @@ class TestEquipmentCondenser:
         result = calculate_equipment_capability(inp)
 
         sys_result = result.result["systems"][0]
-        # operating=10, input_power=10/3≈3.333
-        # condenser_kw = (10 + 3.333) × 1.25 = 16.666
-        # condenser_with_margin = 16.666 × 1.15 = 19.166
-        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(19.166, abs=0.01)
+        # operating=10, COP=3, input_power=10/3≈3.333
+        # condenser_base = 10 + 3.333 = 13.333
+        # condenser_with_margin = 13.333 × 1.15 = 15.333
+        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(15.333, abs=0.01)
 
-    def test_condenser_rejection_factor_overridden(self) -> None:
-        """Custom rejection factor changes condenser output."""
+    def test_condenser_margin_only(self) -> None:
+        """Custom condenser margin changes condenser output (no rejection factor)."""
         zone_eq = _make_zone_equipment(design_load=Decimal("10"))
         cs = EquipmentCoefficientSet(
             redundancy_ratio=_D("1.10"),
             evaporator_capacity_margin=_D("1.10"),
-            condenser_capacity_margin=_D("1.0"),
-            condenser_heat_rejection_factor=_D("1.50"),  # higher rejection
+            condenser_capacity_margin=_D("1.0"),  # no margin
             compressor_cop=_D("3.0"),
         )
         system = TemperatureSystemInput(
@@ -873,9 +875,9 @@ class TestEquipmentCondenser:
 
         sys_result = result.result["systems"][0]
         # operating=10, input_power≈3.333
-        # condenser_kw = (10 + 3.333) × 1.50 = 20.0
-        # no margin (1.0) → 20.0
-        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(20.000, abs=0.01)
+        # condenser_base = 10 + 3.333 = 13.333
+        # no margin (1.0) → 13.333
+        assert sys_result["condenser_heat_rejection_kw"] == pytest.approx(13.333, abs=0.01)
 
 
 class TestEquipmentCOP:
@@ -888,7 +890,6 @@ class TestEquipmentCOP:
             redundancy_ratio=_D("1.10"),
             evaporator_capacity_margin=_D("1.10"),
             condenser_capacity_margin=_D("1.15"),
-            condenser_heat_rejection_factor=_D("1.25"),
             compressor_cop=_D("2.5"),
         )
         system = TemperatureSystemInput(
@@ -904,14 +905,55 @@ class TestEquipmentCOP:
         # input_power = 10 / 2.5 = 4.0
         assert sys_result["compressor_input_power_kw_e"] == pytest.approx(4.0)
 
-    def test_no_cop_when_none(self) -> None:
-        """Input power is 0 when COP is not provided."""
+    def test_cop_zero_raises_error(self) -> None:
+        """COP = 0 raises InvalidCalculationInputError."""
         zone_eq = _make_zone_equipment(design_load=Decimal("10"))
         cs = EquipmentCoefficientSet(
             redundancy_ratio=_D("1.10"),
             evaporator_capacity_margin=_D("1.10"),
             condenser_capacity_margin=_D("1.15"),
-            condenser_heat_rejection_factor=_D("1.25"),
+            compressor_cop=_D("0"),
+        )
+        system = TemperatureSystemInput(
+            system_code="SYS-MT",
+            system_name="Medium Temp System",
+            design_evaporating_temperature=_D("-10"),
+            zones=[zone_eq],
+        )
+        inp = EquipmentCapabilityCalcInput(systems=[system], coefficients=cs)
+        from cold_storage.modules.calculations.domain.errors import InvalidCalculationInputError
+
+        with pytest.raises(InvalidCalculationInputError):
+            calculate_equipment_capability(inp)
+
+    def test_cop_negative_raises_error(self) -> None:
+        """COP < 0 raises InvalidCalculationInputError."""
+        zone_eq = _make_zone_equipment(design_load=Decimal("10"))
+        cs = EquipmentCoefficientSet(
+            redundancy_ratio=_D("1.10"),
+            evaporator_capacity_margin=_D("1.10"),
+            condenser_capacity_margin=_D("1.15"),
+            compressor_cop=_D("-1.5"),
+        )
+        system = TemperatureSystemInput(
+            system_code="SYS-MT",
+            system_name="Medium Temp System",
+            design_evaporating_temperature=_D("-10"),
+            zones=[zone_eq],
+        )
+        inp = EquipmentCapabilityCalcInput(systems=[system], coefficients=cs)
+        from cold_storage.modules.calculations.domain.errors import InvalidCalculationInputError
+
+        with pytest.raises(InvalidCalculationInputError):
+            calculate_equipment_capability(inp)
+
+    def test_cop_missing_raises_error(self) -> None:
+        """COP = None raises CoefficientMissingError."""
+        zone_eq = _make_zone_equipment(design_load=Decimal("10"))
+        cs = EquipmentCoefficientSet(
+            redundancy_ratio=_D("1.10"),
+            evaporator_capacity_margin=_D("1.10"),
+            condenser_capacity_margin=_D("1.15"),
             compressor_cop=None,
         )
         system = TemperatureSystemInput(
@@ -921,10 +963,8 @@ class TestEquipmentCOP:
             zones=[zone_eq],
         )
         inp = EquipmentCapabilityCalcInput(systems=[system], coefficients=cs)
-        result = calculate_equipment_capability(inp)
-
-        sys_result = result.result["systems"][0]
-        assert sys_result["compressor_input_power_kw_e"] == pytest.approx(0.0)
+        with pytest.raises(CoefficientMissingError):
+            calculate_equipment_capability(inp)
 
 
 class TestEquipmentErrors:

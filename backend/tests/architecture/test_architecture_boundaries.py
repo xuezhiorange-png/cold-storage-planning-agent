@@ -321,3 +321,67 @@ def test_no_junk_common_modules() -> None:
     found = {path.name for path in read_python_files(backend_src)}
     violations = forbidden_names & found
     assert not violations, f"Junk modules found in backend/src: {violations}"
+
+
+# ---------------------------------------------------------------------------
+# Hidden engineering default detection
+# ---------------------------------------------------------------------------
+
+# Patterns that indicate hidden engineering defaults in calculation domain files.
+# These are forbidden in cooling_load.py, equipment.py, and power.py.
+HIDDEN_DEFAULT_PATTERNS = [
+    # Decimal("1.10"), Decimal("1.15"), Decimal("1.25"), Decimal("0.90")
+    re.compile(r'Decimal\("(?:1\.\d{2}|0\.\d{2})"\)\s*$'),
+    # = Decimal("35")  outdoor_design_temperature default
+    # = Decimal("0")   room_design_temperature default
+    # = Decimal("4")   cooling_duration default
+    re.compile(r'=\s*Decimal\("(?:35|25|4|0\.85|1\.67|101325)"\)'),
+]
+
+FORBIDDEN_CALC_FILES = [
+    "cooling_load.py",
+    "equipment.py",
+    "power.py",
+]
+
+
+def test_no_hidden_engineering_defaults_in_calculators() -> None:
+    """Core calculators must not contain hidden engineering default values.
+
+    Engineering coefficients must be injected via CoefficientSet or
+    explicitly provided inputs. Physical constants must be named.
+    """
+    calc_dir = BACKEND_SRC / "modules" / "calculations" / "domain"
+    for fname in FORBIDDEN_CALC_FILES:
+        path = calc_dir / fname
+        if not path.exists():
+            continue
+        content = path.read_text()
+        for pattern in HIDDEN_DEFAULT_PATTERNS:
+            for match in pattern.finditer(content):
+                # Exclude named constants (AIR_DENSITY_KG_M3, etc.)
+                line_start = content.rfind("\n", 0, match.start()) + 1
+                line = content[line_start : match.end()]
+                if line.strip().startswith(("AIR_", "STANDARD_", "#")):
+                    continue
+                pytest.fail(
+                    f"Hidden engineering default found in {fname}: "
+                    f"{match.group()!r} at position {match.start()}"
+                )
+
+
+def test_condenser_heat_rejection_factor_removed() -> None:
+    """condenser_heat_rejection_factor must not exist in equipment or cooling_load.
+
+    This factor was removed because it duplicated the W_compressor term.
+    The correct formula is: Q_condenser = (Q_ref + W_comp) × condenser_margin.
+    """
+    calc_dir = BACKEND_SRC / "modules" / "calculations" / "domain"
+    for fname in ["equipment.py", "cooling_load.py"]:
+        path = calc_dir / fname
+        if not path.exists():
+            continue
+        content = path.read_text()
+        assert "condenser_heat_rejection_factor" not in content, (
+            f"condenser_heat_rejection_factor still present in {fname}"
+        )

@@ -22,6 +22,7 @@ from typing import Any
 
 from cold_storage.modules.calculations.domain.errors import (
     CoefficientMissingError,
+    InvalidCalculationInputError,
     MissingCalculationInputError,
 )
 from cold_storage.modules.calculations.domain.models import (
@@ -49,7 +50,6 @@ class EquipmentCoefficientSet:
     redundancy_ratio: Decimal | None = None  # compressor redundancy
     evaporator_capacity_margin: Decimal | None = None  # evaporator margin
     condenser_capacity_margin: Decimal | None = None  # condenser margin
-    condenser_heat_rejection_factor: Decimal | None = None  # Q_condenser = Q_ref + W_comp
     compressor_cop: Decimal | None = None  # coefficient of performance
 
     revision_ids: dict[str, str] = field(default_factory=dict)
@@ -157,7 +157,6 @@ def calculate_equipment_capability(
     _warn_demo_coeff(cs, "equipment.redundancy_ratio", warnings)
     _warn_demo_coeff(cs, "equipment.evaporator_capacity_margin", warnings)
     _warn_demo_coeff(cs, "equipment.condenser_capacity_margin", warnings)
-    _warn_demo_coeff(cs, "equipment.condenser_heat_rejection_factor", warnings)
 
     # Validate required coefficients upfront
     redundancy_ratio = _require_coefficient(
@@ -168,12 +167,6 @@ def calculate_equipment_capability(
     )
     condenser_margin_default = _require_coefficient(
         cs, "equipment.condenser_capacity_margin", cs.condenser_capacity_margin, CALCULATOR_NAME
-    )
-    condenser_rejection_default = _require_coefficient(
-        cs,
-        "equipment.condenser_heat_rejection_factor",
-        cs.condenser_heat_rejection_factor,
-        CALCULATOR_NAME,
     )
 
     system_results: list[dict[str, Any]] = []
@@ -267,60 +260,62 @@ def calculate_equipment_capability(
             )
         )
 
-        # Compressor input power (kW(e)) from COP
-        compressor_input_power_kw_e = _D("0")
-        if cs.compressor_cop is not None and cs.compressor_cop > 0:
-            compressor_input_power_kw_e = (compressor_operating / cs.compressor_cop).quantize(
-                _D("0.001"), rounding=ROUND_HALF_UP
-            )
+        # Compressor input power (kW(e)) from COP — COP is required
+        cop = _require_coefficient(
+            cs, "equipment.compressor_cop", cs.compressor_cop, CALCULATOR_NAME
+        )
+        if cop <= 0:
+            raise InvalidCalculationInputError(CALCULATOR_NAME, "compressor_cop", cop)
+        compressor_input_power_kw_e = (compressor_operating / cop).quantize(
+            _D("0.001"), rounding=ROUND_HALF_UP
+        )
 
-            coeff_refs.append(
-                CoefficientReference(
-                    revision_id=cs.revision_ids.get("power.compressor_cop", "demo"),
-                    code="power.compressor_cop",
-                    value=cs.compressor_cop,
-                    unit="ratio",
-                    status=cs.revision_statuses.get("power.compressor_cop", "demo"),
-                    source_type=cs.source_types.get("power.compressor_cop", "demo"),
-                    requires_review=cs.revision_statuses.get("power.compressor_cop", "demo")
-                    != "approved",
-                )
+        coeff_refs.append(
+            CoefficientReference(
+                revision_id=cs.revision_ids.get("power.compressor_cop", "demo"),
+                code="power.compressor_cop",
+                value=cop,
+                unit="ratio",
+                status=cs.revision_statuses.get("power.compressor_cop", "demo"),
+                source_type=cs.source_types.get("power.compressor_cop", "demo"),
+                requires_review=cs.revision_statuses.get("power.compressor_cop", "demo")
+                != "approved",
             )
+        )
 
-            steps.append(
-                CalculationStep(
-                    step_id=f"EQ-COP-{system.system_code}",
-                    formula="input_power = refrigeration_capacity / COP",
-                    description=f"Compressor input power — {system.system_name}",
-                    inputs={
-                        "refrigeration_capacity_kw_r": str(compressor_operating),
-                        "cop": str(cs.compressor_cop),
-                    },
-                    output_name="compressor_input_power_kw_e",
-                    output_value=str(compressor_input_power_kw_e),
-                )
+        steps.append(
+            CalculationStep(
+                step_id=f"EQ-COP-{system.system_code}",
+                formula="input_power = refrigeration_capacity / COP",
+                description=f"Compressor input power — {system.system_name}",
+                inputs={
+                    "refrigeration_capacity_kw_r": str(compressor_operating),
+                    "cop": str(cop),
+                },
+                output_name="compressor_input_power_kw_e",
+                output_value=str(compressor_input_power_kw_e),
             )
+        )
 
-        # Condenser heat rejection: Q_condenser = Q_refrigeration + W_compressor_input
-        condenser_rejection_factor = condenser_rejection_default
-        condenser_kw = (
-            (compressor_operating + compressor_input_power_kw_e) * condenser_rejection_factor
-        ).quantize(_D("0.001"), rounding=ROUND_HALF_UP)
+        # Condenser heat rejection: Q_condenser = (Q_refrigeration + W_compressor) × margin
+        condenser_base = (compressor_operating + compressor_input_power_kw_e).quantize(
+            _D("0.001"), rounding=ROUND_HALF_UP
+        )
 
         condenser_margin = condenser_margin_default
-        condenser_with_margin = (condenser_kw * condenser_margin).quantize(
+        condenser_with_margin = (condenser_base * condenser_margin).quantize(
             _D("0.001"), rounding=ROUND_HALF_UP
         )
 
         steps.append(
             CalculationStep(
                 step_id=f"EQ-COND-{system.system_code}",
-                formula="Q_condenser = (Q_ref + W_comp) × rejection_factor × margin",
+                formula="Q_condenser = (Q_ref + W_comp) × condenser_margin",
                 description=f"Condenser heat rejection — {system.system_name}",
                 inputs={
                     "refrigeration_capacity": str(compressor_operating),
                     "compressor_input_power_kw_e": str(compressor_input_power_kw_e),
-                    "rejection_factor": str(condenser_rejection_factor),
+                    "condenser_base_kw": str(condenser_base),
                     "margin": str(condenser_margin),
                 },
                 output_name="condenser_heat_rejection_kw",

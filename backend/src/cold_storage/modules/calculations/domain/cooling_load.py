@@ -45,6 +45,11 @@ CALCULATOR_VERSION = "1.0.0"
 
 _D = Decimal
 
+# --- Named physical constants (explicit, documented, overridable) ---
+AIR_DENSITY_KG_M3 = _D("1.2")  # dry air at sea level, 20°C
+AIR_SPECIFIC_HEAT_KJ_KG_K = _D("1.006")  # cp of dry air
+STANDARD_ATMOSPHERIC_PRESSURE_PA = _D("101325")  # ISA sea level
+
 # --- Psychrometric helpers (deterministic, centralized) ---
 
 
@@ -59,9 +64,17 @@ def _saturation_vapor_pressure(t_c: Decimal) -> Decimal:
 
 def _humidity_ratio(e: Decimal, p: Decimal) -> Decimal:
     """w = 0.622 * e / (p - e) in kg/kg dry air.
-    e = vapor pressure (Pa), p = atmospheric pressure (Pa)."""
+    e = vapor pressure (Pa), p = atmospheric pressure (Pa).
+
+    Raises InvalidCalculationInputError if atmospheric pressure is not
+    greater than the vapor pressure (physically impossible condition).
+    """
     if p <= e:
-        return Decimal("0")
+        raise InvalidCalculationInputError(
+            "cooling_load",
+            "atmospheric_pressure",
+            f"atmospheric_pressure ({p} Pa) must be greater than vapor pressure ({e} Pa)",
+        )
     return (Decimal("0.622") * e / (p - e)).quantize(_D("0.000001"), rounding=ROUND_HALF_UP)
 
 
@@ -97,7 +110,6 @@ class CoefficientSet:
     design_margin_ratio: Decimal | None = None
     diversity_factor: Decimal | None = None
     evaporating_temp_diff: Decimal | None = None  # K
-    condenser_heat_rejection_factor: Decimal | None = None
     compressor_cop: Decimal | None = None
     motor_efficiency: Decimal | None = None
 
@@ -136,7 +148,7 @@ class TemperatureLevel(StrEnum):
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ZoneCoolingLoadInput:
     """Cooling load inputs for a single zone / cold room."""
 
@@ -156,23 +168,23 @@ class ZoneCoolingLoadInput:
     u_value_roof: Decimal | None = None
     u_value_floor: Decimal | None = None
 
-    # Temperatures (°C)
-    outdoor_design_temperature: Decimal = _D("35")
+    # Temperatures (°C) — MUST be provided explicitly (project design inputs)
+    outdoor_design_temperature: Decimal  # required
     adjacent_temperature: Decimal | None = None  # temperature of adjacent space
-    room_design_temperature: Decimal = _D("0")
-    room_relative_humidity: Decimal = _D("0.85")
+    room_design_temperature: Decimal  # required
+    room_relative_humidity: Decimal | None = None  # 0-1, metadata for latent load
 
-    # Operating hours
-    operating_hours_per_day: Decimal = _D("24")
+    # Operating hours — MUST be provided explicitly
+    operating_hours_per_day: Decimal  # required
 
-    # Product load inputs
+    # Product load inputs — MUST be provided explicitly when product_mass_per_day > 0
     product_mass_per_day: Decimal = _D("0")  # kg/day
-    product_entry_temperature: Decimal = _D("25")  # °C
-    product_target_temperature: Decimal = _D("0")  # °C
+    product_entry_temperature: Decimal  # required when product_mass > 0
+    product_target_temperature: Decimal  # required when product_mass > 0
     product_specific_heat: Decimal | None = None  # kJ/(kg·K), overrides coefficient
-    cooling_duration: Decimal = _D("4")  # h
+    cooling_duration: Decimal  # required when product_mass > 0
     packaging_mass: Decimal = _D("0")  # kg
-    packaging_specific_heat: Decimal = _D("1.67")  # kJ/(kg·K)
+    packaging_specific_heat: Decimal | None = None  # kJ/(kg·K), required when packaging_mass > 0
 
     # Infiltration / ventilation
     room_volume: Decimal | None = None  # m³, computed if None
@@ -183,7 +195,7 @@ class ZoneCoolingLoadInput:
     # Humidity inputs for latent load (optional — if omitted, only sensible load is computed)
     outdoor_relative_humidity: Decimal | None = None  # 0-1 (e.g., 0.70 for 70%)
     indoor_relative_humidity: Decimal | None = None  # 0-1
-    atmospheric_pressure_pa: Decimal = _D("101325")  # Pa, standard atmosphere
+    atmospheric_pressure_pa: Decimal = STANDARD_ATMOSPHERIC_PRESSURE_PA  # Pa, overridable
 
     # Internal loads
     worker_count: int = 0
@@ -360,12 +372,11 @@ def _calculate_zone_cooling_load(
         # Packaging load
         packaging_kw = _D("0")
         if zone.packaging_mass > 0 and zone.cooling_duration > 0:
+            if zone.packaging_specific_heat is None:
+                raise CoefficientMissingError(CALCULATOR_NAME, "packaging_specific_heat")
+            pkg_c = zone.packaging_specific_heat
             packaging_kw = (
-                zone.packaging_mass
-                * zone.packaging_specific_heat
-                * delta_t_product
-                / zone.cooling_duration
-                / _D("3600")
+                zone.packaging_mass * pkg_c * delta_t_product / zone.cooling_duration / _D("3600")
             ).quantize(_D("0.001"), rounding=ROUND_HALF_UP)
 
         # Respiration heat (only for applicable products at appropriate temperatures)
@@ -426,8 +437,8 @@ def _calculate_zone_cooling_load(
     _warn_demo(cs, "cooling.air_change_rate", warnings)
 
     if air_change_rate > 0 and volume > 0:
-        air_density = _D("1.2")  # kg/m³ at sea level, approximate
-        air_specific_heat = _D("1.006")  # kJ/(kg·K)
+        air_density = AIR_DENSITY_KG_M3
+        air_specific_heat = AIR_SPECIFIC_HEAT_KJ_KG_K
 
         base_airflow = air_change_rate * volume  # m³/h
         effective_airflow = base_airflow * zone.door_opening_factor * zone.air_curtain_factor
@@ -473,8 +484,26 @@ def _calculate_zone_cooling_load(
                 _D("0.001"), rounding=ROUND_HALF_UP
             )
 
-            # Guard against non-physical negative latent (can occur due to rounding)
+            # Handle non-physical negative latent (outdoor enthalpy < indoor)
             if latent_infiltration_kw < 0:
+                warnings.append(
+                    CalculationWarning(
+                        code="NEGATIVE_LATENT_LOAD",
+                        message=(
+                            f"Zone {zone.zone_code}: latent load is negative "
+                            f"({latent_infiltration_kw} kW), outdoor enthalpy "
+                            f"({h_out} kJ/kg) may be lower than indoor ({h_in} kJ/kg). "
+                            "Clamped to zero."
+                        ),
+                        details={
+                            "latent_kw_r_raw": str(latent_infiltration_kw),
+                            "h_out": str(h_out),
+                            "h_in": str(h_in),
+                            "w_out": str(w_out),
+                            "w_in": str(w_in),
+                        },
+                    )
+                )
                 latent_infiltration_kw = _D("0")
 
             infiltration_kw = sensible_infiltration_kw + latent_infiltration_kw
