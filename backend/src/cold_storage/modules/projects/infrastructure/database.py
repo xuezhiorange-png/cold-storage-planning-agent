@@ -1,3 +1,7 @@
+"""Database-backed project service implementation."""
+
+from __future__ import annotations
+
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
@@ -10,7 +14,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from cold_storage.modules.audit.domain import AuditEvent
 from cold_storage.modules.calculations.domain.result import CalculationResult
 from cold_storage.modules.projects.application.service import ProjectService
-from cold_storage.modules.projects.domain.models import Project, ProjectVersion, SaveInputsResult
+from cold_storage.modules.projects.domain.models import (
+    Project,
+    ProjectVersion,
+    SaveInputsResult,
+)
 from cold_storage.modules.projects.infrastructure.orm import (
     AuditEventRecord,
     CalculationRunRecord,
@@ -61,8 +69,51 @@ class DatabaseProjectService(ProjectService):
             record = self._get_project_record(session, project_id)
             return self._project_from_record(record, include_versions=True)
 
+    def update_project(
+        self,
+        project_id: str,
+        name: str | None = None,
+        location: str | None = None,
+        product_category: str | None = None,
+    ) -> Project:
+        with self.session_factory() as session:
+            record = self._get_project_record(session, project_id)
+            before: dict[str, object] = {
+                "name": record.name,
+                "location": record.location,
+                "product_category": record.product_category,
+            }
+            if name is not None:
+                record.name = name
+            if location is not None:
+                record.location = location
+            if product_category is not None:
+                record.product_category = product_category
+            self._add_audit(
+                session,
+                AuditEvent(
+                    actor="system",
+                    action="update_project",
+                    entity_type="Project",
+                    entity_id=project_id,
+                    before_snapshot=before,
+                    after_snapshot={
+                        "name": record.name,
+                        "location": record.location,
+                        "product_category": record.product_category,
+                    },
+                    metadata={"project_id": project_id},
+                ),
+            )
+            session.commit()
+            return self._project_from_record(record, include_versions=False)
+
     def create_version(
-        self, project_id: str, change_summary: str, created_by: str = "system"
+        self,
+        project_id: str,
+        change_summary: str,
+        created_by: str = "system",
+        parent_version_id: str | None = None,
     ) -> ProjectVersion:
         with self.session_factory() as session:
             project = self._get_project_record(session, project_id)
@@ -71,6 +122,7 @@ class DatabaseProjectService(ProjectService):
                 version_number=project.current_version_number + 1,
                 change_summary=change_summary,
                 created_by=created_by,
+                parent_version_id=parent_version_id,
             )
             project.current_version_number = version.version_number
             session.add(self._version_record(version))
@@ -103,32 +155,155 @@ class DatabaseProjectService(ProjectService):
             ).all()
             return [self._version_from_record(record) for record in records]
 
-    def approve_version(self, project_id: str, version_number: int) -> ProjectVersion:
+    def submit_version(
+        self, project_id: str, version_number: int, actor: str = "system"
+    ) -> ProjectVersion:
         with self.session_factory() as session:
             record = self._get_version_record(session, project_id, version_number)
-            before: dict[str, object] = {"status": record.status}
-            record.status = "approved"
-            self._add_audit(
-                session,
-                AuditEvent(
-                    actor="system",
-                    action="approve_project_version",
-                    entity_type="ProjectVersion",
-                    entity_id=record.id,
-                    before_snapshot=before,
-                    after_snapshot={"status": record.status},
-                    metadata={"project_id": project_id, "version_number": version_number},
-                ),
+            version = self._version_from_record(record)
+            before_status = version.status
+            version.transition_to("under_review")
+            record.status = version.status
+            record.submitted_at = version.submitted_at
+            record.updated_at = version.updated_at
+            self._add_transition_audit(
+                session, project_id, version, actor, "submit_version", before_status
             )
             session.commit()
             return self._version_from_record(record)
+
+    def return_version(
+        self, project_id: str, version_number: int, actor: str = "system"
+    ) -> ProjectVersion:
+        with self.session_factory() as session:
+            record = self._get_version_record(session, project_id, version_number)
+            version = self._version_from_record(record)
+            before_status = version.status
+            version.transition_to("draft")
+            record.status = version.status
+            record.updated_at = version.updated_at
+            self._add_transition_audit(
+                session, project_id, version, actor, "return_version_to_draft", before_status
+            )
+            session.commit()
+            return self._version_from_record(record)
+
+    def review_version(
+        self, project_id: str, version_number: int, actor: str = "system"
+    ) -> ProjectVersion:
+        with self.session_factory() as session:
+            record = self._get_version_record(session, project_id, version_number)
+            version = self._version_from_record(record)
+            before_status = version.status
+            version.transition_to("reviewed")
+            record.status = version.status
+            record.reviewed_at = version.reviewed_at
+            record.updated_at = version.updated_at
+            self._add_transition_audit(
+                session, project_id, version, actor, "review_version", before_status
+            )
+            session.commit()
+            return self._version_from_record(record)
+
+    def approve_version(
+        self, project_id: str, version_number: int, actor: str = "system"
+    ) -> ProjectVersion:
+        with self.session_factory() as session:
+            record = self._get_version_record(session, project_id, version_number)
+            version = self._version_from_record(record)
+            before_status = version.status
+            version.transition_to("approved")
+            record.status = version.status
+            record.approved_at = version.approved_at
+            record.approved_by = version.approved_by
+            record.updated_at = version.updated_at
+            self._add_transition_audit(
+                session, project_id, version, actor, "approve_project_version", before_status
+            )
+            session.commit()
+            return self._version_from_record(record)
+
+    def archive_version(
+        self, project_id: str, version_number: int, actor: str = "system"
+    ) -> ProjectVersion:
+        with self.session_factory() as session:
+            record = self._get_version_record(session, project_id, version_number)
+            version = self._version_from_record(record)
+            before_status = version.status
+            version.transition_to("archived")
+            record.status = version.status
+            record.archived_at = version.archived_at
+            record.updated_at = version.updated_at
+            self._add_transition_audit(
+                session, project_id, version, actor, "archive_version", before_status
+            )
+            session.commit()
+            return self._version_from_record(record)
+
+    def mark_generated(
+        self, project_id: str, version_number: int, actor: str = "system"
+    ) -> ProjectVersion:
+        with self.session_factory() as session:
+            record = self._get_version_record(session, project_id, version_number)
+            version = self._version_from_record(record)
+            before_status = version.status
+            version.transition_to("generated")
+            record.status = version.status
+            record.updated_at = version.updated_at
+            self._add_transition_audit(
+                session, project_id, version, actor, "mark_version_generated", before_status
+            )
+            session.commit()
+            return self._version_from_record(record)
+
+    def create_version_from(
+        self,
+        project_id: str,
+        source_version_number: int,
+        change_summary: str,
+        created_by: str = "system",
+    ) -> ProjectVersion:
+        with self.session_factory() as session:
+            source_record = self._get_version_record(session, project_id, source_version_number)
+            source_version = self._version_from_record(source_record)
+
+            project = self._get_project_record(session, project_id)
+            new_version = ProjectVersion(
+                project_id=project_id,
+                version_number=project.current_version_number + 1,
+                change_summary=change_summary,
+                created_by=created_by,
+                parent_version_id=source_version.id,
+            )
+            new_version.input_snapshot = source_version.input_snapshot.copy()
+            new_version.calculation_snapshot = source_version.calculation_snapshot.copy()
+            new_version.assumption_snapshot = source_version.assumption_snapshot.copy()
+            project.current_version_number = new_version.version_number
+            session.add(self._version_record(new_version))
+            self._add_audit(
+                session,
+                AuditEvent(
+                    actor=created_by,
+                    action="create_version_from",
+                    entity_type="ProjectVersion",
+                    entity_id=new_version.id,
+                    before_snapshot={"source_version_id": source_version.id},
+                    after_snapshot={
+                        "version_number": new_version.version_number,
+                        "parent_version_id": source_version.id,
+                    },
+                    metadata={"project_id": project_id},
+                ),
+            )
+            session.commit()
+            return new_version
 
     def save_inputs(
         self, project_id: str, version_number: int, inputs: dict[str, object], actor: str
     ) -> SaveInputsResult:
         with self.session_factory() as session:
             record = self._get_version_record(session, project_id, version_number)
-            if record.status == "approved":
+            if record.status in ("approved", "archived"):
                 self._add_audit(
                     session,
                     AuditEvent(
@@ -227,6 +402,10 @@ class DatabaseProjectService(ProjectService):
                 or record.event_metadata.get("project_id") == project_id
             ]
 
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
     def _get_project_record(self, session: Session, project_id: str) -> ProjectRecord:
         record = session.get(ProjectRecord, project_id)
         if record is None:
@@ -261,6 +440,28 @@ class DatabaseProjectService(ProjectService):
             )
         )
 
+    def _add_transition_audit(
+        self,
+        session: Session,
+        project_id: str,
+        version: ProjectVersion,
+        actor: str,
+        action: str,
+        before_status: str,
+    ) -> None:
+        self._add_audit(
+            session,
+            AuditEvent(
+                actor=actor,
+                action=action,
+                entity_type="ProjectVersion",
+                entity_id=version.id,
+                before_snapshot={"status": before_status},
+                after_snapshot={"status": version.status},
+                metadata={"project_id": project_id, "version_number": version.version_number},
+            ),
+        )
+
     def _project_record(self, project: Project) -> ProjectRecord:
         return ProjectRecord(
             id=project.id,
@@ -282,8 +483,17 @@ class DatabaseProjectService(ProjectService):
             change_summary=version.change_summary,
             status=version.status,
             input_snapshot=version.input_snapshot,
+            calculation_snapshot=version.calculation_snapshot,
+            assumption_snapshot=version.assumption_snapshot,
             created_at=version.created_at,
+            updated_at=version.updated_at,
             created_by=version.created_by,
+            parent_version_id=version.parent_version_id,
+            submitted_at=version.submitted_at,
+            reviewed_at=version.reviewed_at,
+            approved_at=version.approved_at,
+            approved_by=version.approved_by,
+            archived_at=version.archived_at,
         )
 
     def _project_from_record(self, record: ProjectRecord, include_versions: bool) -> Project:
@@ -313,8 +523,17 @@ class DatabaseProjectService(ProjectService):
             change_summary=record.change_summary,
             status=record.status,
             input_snapshot=dict(record.input_snapshot),
+            calculation_snapshot=dict(record.calculation_snapshot),
+            assumption_snapshot=dict(record.assumption_snapshot),
             created_at=record.created_at,
+            updated_at=record.updated_at,
             created_by=record.created_by,
+            parent_version_id=record.parent_version_id,
+            submitted_at=record.submitted_at,
+            reviewed_at=record.reviewed_at,
+            approved_at=record.approved_at,
+            approved_by=record.approved_by,
+            archived_at=record.archived_at,
         )
 
     def _calculation_to_dict(self, record: CalculationRunRecord) -> dict[str, Any]:

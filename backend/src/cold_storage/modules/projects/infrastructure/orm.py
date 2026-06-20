@@ -37,10 +37,23 @@ class ProjectVersionRecord(Base):
     change_summary: Mapped[str] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(50))
     input_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    calculation_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    assumption_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
     created_by: Mapped[str] = mapped_column(String(100))
+    parent_version_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("project_versions.id"), nullable=True
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     project: Mapped[ProjectRecord] = relationship(back_populates="versions")
 
 

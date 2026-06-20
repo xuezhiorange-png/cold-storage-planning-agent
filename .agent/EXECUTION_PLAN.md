@@ -231,3 +231,9 @@
   `modules/planning/application/service.py`, added 35 new tests
   (settings, lifecycle, orchestration, architecture), created ADR-008 and
   ADR-009.
+- V1.43 update (Task 2): implemented immutable project version workflow
+  with full state machine (draft → generated → under_review → reviewed →
+  approved → archived), added version snapshots (input, calculation,
+  assumption), parent_version_id for version lineage, immutability rules
+  for approved/archived versions, 62 new tests (state machine, versioning,
+  API integration), created ADR-010.

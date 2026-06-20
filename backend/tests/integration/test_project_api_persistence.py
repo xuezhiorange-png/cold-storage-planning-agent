@@ -149,6 +149,9 @@ def test_project_api_persists_inputs_calculations_and_audit(tmp_path: Path) -> N
     assert planning_run["power_configuration"]["summary_rows"][-1]["total_power_kw"] == 1360.55
     assert planning_run["power_configuration"]["requires_review"] is True
 
+    # Walk version through state machine: draft -> under_review -> reviewed -> approved
+    client.post(f"/api/v1/projects/{project_id}/versions/{version}/submit")
+    client.post(f"/api/v1/projects/{project_id}/versions/{version}/review")
     client.post(f"/api/v1/projects/{project_id}/versions/{version}/approve")
     locked_response = client.put(
         f"/api/v1/projects/{project_id}/versions/{version}/inputs",
