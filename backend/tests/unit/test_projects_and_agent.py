@@ -3,6 +3,13 @@ from cold_storage.modules.planning_agent.infrastructure.fake_gateways import Fak
 from cold_storage.modules.projects.application.service import ProjectService
 
 
+def _approve_version(service: ProjectService, project_id: str, version_number: int) -> None:
+    """Helper: walk a version through the state machine to approved status."""
+    service.submit_version(project_id, version_number)
+    service.review_version(project_id, version_number)
+    service.approve_version(project_id, version_number)
+
+
 def test_approved_project_version_cannot_be_modified() -> None:
     service = ProjectService()
     project = service.create_project(
@@ -11,7 +18,7 @@ def test_approved_project_version_cannot_be_modified() -> None:
         product_category="blueberry",
     )
     version = service.create_version(project.id, "初始版本")
-    service.approve_version(project.id, version.version_number)
+    _approve_version(service, project.id, version.version_number)
 
     result = service.save_inputs(
         project.id,
