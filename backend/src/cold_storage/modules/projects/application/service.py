@@ -355,6 +355,29 @@ class ProjectService:
             if record["project_id"] == project_id and record["project_version_id"] == version.id
         ]
 
+    def save_core_calculation_result(
+        self,
+        project_id: str,
+        version_number: int,
+        result_snapshot: dict[str, object],
+        actor: str,
+    ) -> dict[str, object]:
+        """Persist a core calculation snapshot into the version's calculation_snapshot."""
+        version = self.get_version(project_id, version_number)
+        version.calculation_snapshot = result_snapshot
+        self.audit_events.append(
+            AuditEvent(
+                actor=actor,
+                action="save_core_calculation",
+                entity_type="ProjectVersion",
+                entity_id=version.id,
+                before_snapshot={},
+                after_snapshot={"calculation_snapshot_keys": list(result_snapshot.keys())},
+                metadata={"project_id": project_id, "version_number": version_number},
+            )
+        )
+        return {"success": True}
+
     # ------------------------------------------------------------------
     # Audit events
     # ------------------------------------------------------------------

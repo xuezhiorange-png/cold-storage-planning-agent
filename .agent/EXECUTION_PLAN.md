@@ -241,3 +241,7 @@
   Definition/Revision split, state machine (draft → unverified → reviewed →
   approved → withdrawn), scope resolution, snapshot integration, 112 new
   tests (domain, service, API, database, architecture), created ADR-011.
+- V1.45 update (Task 4): implemented deterministic core calculation kernel
+  with 5 calculators (throughput, inventory, pallets, precooling, areas),
+  Decimal precision, CoefficientSet integration, step-by-step traceability,
+  calculation snapshots, 48 new tests, created ADR-012.
