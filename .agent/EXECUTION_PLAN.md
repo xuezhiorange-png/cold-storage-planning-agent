@@ -11,7 +11,7 @@
 
 | Milestone | Scope | Status |
 | --- | --- | --- |
-| 0 | Engineering scaffold, docs, health checks, CI, Makefile | Implemented |
+| 0 | Engineering scaffold, docs, health checks, CI, Makefile | **Implemented** |
 | 1 | Domain models, ORM, Alembic, units, coefficient registry, audit | Implemented baseline |
 | 2 | Deterministic calculators | Implemented baseline |
 | 3 | Project and calculation API | Implemented baseline |
@@ -220,3 +220,7 @@
   baseline on `main`, added a repository audit/governance branch, hardened
   `.gitignore`, and introduced audit, roadmap, ADR, CI, contribution, and task
   governance documents without changing business logic.
+- V1.41 update (Task 0 completion): applied `ruff format` to
+  `demo_overview.py` and `investment.py` to fix CI formatting drift.
+  All local quality checks now pass. Docker Compose validation passes on
+  GitHub Actions. No business logic or calculation changes.
