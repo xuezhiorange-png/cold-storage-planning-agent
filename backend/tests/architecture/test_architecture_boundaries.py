@@ -22,7 +22,6 @@ def read_python_files(path: Path) -> list[Path]:
 def test_domain_has_no_framework_dependencies() -> None:
     forbidden = ("fastapi", "sqlalchemy", "redis", "openai")
     domain_files = [path for path in read_python_files(BACKEND_SRC) if "domain" in path.parts]
-
     assert domain_files
     for path in domain_files:
         content = path.read_text()
@@ -35,7 +34,6 @@ def test_domain_has_no_framework_dependencies() -> None:
 def test_calculations_are_pure() -> None:
     forbidden = ("sqlalchemy", "redis", "requests", "httpx", "os.environ", "openai")
     calc_files = read_python_files(BACKEND_SRC / "modules" / "calculations")
-
     assert calc_files
     for path in calc_files:
         content = path.read_text()
@@ -62,7 +60,6 @@ def test_no_global_dumping_ground_modules() -> None:
         "service_v2.py",
         "temp.py",
     }
-
     found = {path.name for path in read_python_files(BACKEND_SRC)}
     assert forbidden_names.isdisjoint(found)
 
@@ -151,3 +148,53 @@ def test_no_import_time_database_connections() -> None:
                 pytest.fail(
                     f"Top-level create_engine call found in {path}:{_i + 1}: {line.strip()}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# Coefficient module boundary tests
+# ---------------------------------------------------------------------------
+
+
+def test_coefficient_domain_has_no_framework_dependencies() -> None:
+    """Coefficient domain must not depend on FastAPI, SQLAlchemy, or Redis."""
+    domain_files = read_python_files(BACKEND_SRC / "modules" / "coefficients" / "domain")
+    assert domain_files
+    forbidden = ("fastapi", "sqlalchemy", "redis")
+    for path in domain_files:
+        content = path.read_text()
+        for dep in forbidden:
+            assert f"import {dep}" not in content and f"from {dep}" not in content, (
+                f"Coefficient domain depends on forbidden module {dep}: {path}"
+            )
+
+
+def test_coefficient_infrastructure_has_no_fastapi_dependency() -> None:
+    """Coefficient infrastructure must not depend on FastAPI."""
+    infra_files = read_python_files(BACKEND_SRC / "modules" / "coefficients" / "infrastructure")
+    assert infra_files
+    for path in infra_files:
+        content = path.read_text()
+        assert "fastapi" not in content, f"Coefficient infrastructure depends on FastAPI: {path}"
+
+
+def test_coefficient_api_has_no_engineering_formulas() -> None:
+    """Coefficient API routes should not contain engineering formulas."""
+    api_files = read_python_files(BACKEND_SRC / "modules" / "coefficients" / "api")
+    assert api_files
+    for path in api_files:
+        content = path.read_text()
+        for pattern in ENGINEERING_FORMULA_PATTERNS:
+            match = pattern.search(content)
+            assert not match, (
+                f"Coefficient API contains engineering pattern {pattern.pattern!r}: {path}"
+            )
+
+
+def test_coefficient_api_has_no_database_imports() -> None:
+    """Coefficient API routes should not import SQLAlchemy directly."""
+    api_files = read_python_files(BACKEND_SRC / "modules" / "coefficients" / "api")
+    assert api_files
+    for path in api_files:
+        content = path.read_text()
+        assert "from sqlalchemy" not in content, f"Coefficient API imports SQLAlchemy: {path}"
+        assert "import sqlalchemy" not in content, f"Coefficient API imports SQLAlchemy: {path}"
