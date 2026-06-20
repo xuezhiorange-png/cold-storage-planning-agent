@@ -187,9 +187,11 @@ class TestPostgreSQLSnapshots:
                 text(
                     "INSERT INTO project_versions "
                     "(id, project_id, version_number, change_summary, status, "
-                    " calculation_snapshot, created_at, updated_at, created_by) "
+                    " calculation_snapshot, input_snapshot, assumption_snapshot, "
+                    " created_at, updated_at, created_by) "
                     "VALUES (:id, :pid, 1, 'initial', 'draft', "
-                    " CAST(:snapshot AS JSON), NOW(), NOW(), 'test')"
+                    " CAST(:snapshot AS JSON), CAST('{}' AS JSON), CAST('{}' AS JSON), "
+                    " NOW(), NOW(), 'test')"
                 ),
                 {"id": version_id, "pid": project_id, "snapshot": json.dumps(calculation_snapshot)},
             )
