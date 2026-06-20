@@ -15,12 +15,11 @@ target_metadata = Base.metadata
 
 
 def _build_database_url() -> str:
-    """Build database URL from Settings."""
+    """Build sync database URL from Settings (Alembic requires sync driver)."""
     settings = get_settings()
-    if settings.database_url:
-        return settings.database_url
     if settings.database_backend == "sqlite":
         return f"sqlite:///{settings.sqlite_path}"
+    # Always use sync driver for Alembic — never asyncpg
     return (
         f"postgresql://{settings.postgres_user}:{settings.postgres_password}"
         f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
