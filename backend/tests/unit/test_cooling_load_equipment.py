@@ -1294,7 +1294,7 @@ class TestPowerWarnings:
         result = calculate_installed_power(inp)
 
         warning_codes = [w.code for w in result.warnings]
-        assert "DEFAULLT_DEMAND_FACTOR" in warning_codes
+        assert "DEFAULT_DEMAND_FACTOR" in warning_codes
 
     def test_no_warning_when_defrost_zero(self) -> None:
         """No warning when defrost power is zero regardless of demand factor."""
@@ -1305,7 +1305,7 @@ class TestPowerWarnings:
         result = calculate_installed_power(inp)
 
         warning_codes = [w.code for w in result.warnings]
-        assert "DEFAULLT_DEMAND_FACTOR" not in warning_codes
+        assert "DEFAULT_DEMAND_FACTOR" not in warning_codes
 
     def test_no_warning_when_low_demand_factor(self) -> None:
         """No warning when refrigeration demand factor is low."""
@@ -1316,4 +1316,4 @@ class TestPowerWarnings:
         result = calculate_installed_power(inp)
 
         warning_codes = [w.code for w in result.warnings]
-        assert "DEFAULLT_DEMAND_FACTOR" not in warning_codes
+        assert "DEFAULT_DEMAND_FACTOR" not in warning_codes
