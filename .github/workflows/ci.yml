@@ -5,22 +5,38 @@ on:
   pull_request:
 
 jobs:
-  quality:
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker Compose config
+        run: docker compose config
+
+  backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
       - name: Backend install
         run: cd backend && uv sync
+      - name: Alembic upgrade
+        run: cd backend && PYTHONPATH=src uv run alembic upgrade head
       - name: Backend tests
         run: cd backend && uv run pytest
+      - name: Backend architecture tests
+        run: cd backend && uv run pytest tests/architecture
       - name: Backend lint
         run: cd backend && uv run ruff check . && uv run ruff format --check .
       - name: Backend typecheck
         run: cd backend && uv run mypy src
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Frontend install
         run: cd frontend && npm ci
       - name: Frontend quality

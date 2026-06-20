@@ -216,3 +216,7 @@
   style, moved the AI assistant from a persistent right-side panel into a
   single top-bar icon popover, and renamed the planting-area field to planting
   mu count ("定植亩数") without showing a separate mu unit suffix.
+- V1.40 update: preserved the current cold-storage project as a clean GitHub
+  baseline on `main`, added a repository audit/governance branch, hardened
+  `.gitignore`, and introduced audit, roadmap, ADR, CI, contribution, and task
+  governance documents without changing business logic.
