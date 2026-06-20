@@ -61,3 +61,27 @@ cd frontend && npm run build
 - Do not push sensitive files, local databases, caches, or generated reports.
 - Record architectural deviations in `docs/TECH_DEBT.md`.
 - Record architecture decisions in `docs/architecture/`.
+
+## PostgreSQL Testing
+
+PostgreSQL integration tests run in CI against a `pgvector/pgvector:pg16`
+service container. The CI job runs Alembic migrations first, then
+`pytest -k "not architecture"`.
+
+- Architecture tests are excluded from the PostgreSQL job (they validate
+  code structure, not database behavior).
+- Some integration tests (`test_core_calculation_api.py`) are skipped under
+  PostgreSQL because they depend on `create_app()` which requires asyncpg.
+- Other integration tests use SQLite in-memory fixtures regardless of the
+  CI environment.
+
+To run PostgreSQL tests locally:
+
+```bash
+docker compose up -d db redis
+cd backend
+DATABASE_URL=postgresql://cold_storage:cold_storage@localhost:5432/cold_storage_test \
+  PYTHONPATH=src UV_CACHE_DIR=../.uv-cache uv run alembic upgrade head
+DATABASE_URL=postgresql://cold_storage:cold_storage@localhost:5432/cold_storage_test \
+  PYTHONPATH=src UV_CACHE_DIR=../.uv-cache uv run pytest -k "not architecture"
+```
