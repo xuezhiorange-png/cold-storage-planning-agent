@@ -8,6 +8,8 @@ Tests the three new API endpoints:
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -18,6 +20,14 @@ from cold_storage.modules.projects.infrastructure.database import (
     DatabaseProjectService,
 )
 from cold_storage.modules.projects.infrastructure.orm import Base
+
+# Skip all tests in this module when DATABASE_BACKEND=postgresql
+# because the app lifespan tries to connect to PostgreSQL which
+# requires asyncpg (not always installed).
+pytestmark = pytest.mark.skipif(
+    os.environ.get("DATABASE_BACKEND") == "postgresql",
+    reason="Integration tests use SQLite; skip on PostgreSQL CI",
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
