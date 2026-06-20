@@ -12,23 +12,63 @@ jobs:
       - name: Docker Compose config
         run: docker compose config
 
-  backend:
+  backend-sqlite:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - name: Backend install
         run: cd backend && uv sync
-      - name: Alembic upgrade
-        run: cd backend && PYTHONPATH=src uv run alembic upgrade head
-      - name: Backend tests
-        run: cd backend && uv run pytest
+      - name: Alembic upgrade (SQLite)
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run alembic upgrade head
+      - name: Backend tests (SQLite)
+        run: cd backend && PYTHONPATH=src DATABASE_BACKEND=sqlite uv run pytest
       - name: Backend architecture tests
-        run: cd backend && uv run pytest tests/architecture
+        run: cd backend && PYTHONPATH=src uv run pytest tests/architecture
       - name: Backend lint
         run: cd backend && uv run ruff check . && uv run ruff format --check .
       - name: Backend typecheck
         run: cd backend && uv run mypy src
+
+  backend-postgresql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          POSTGRES_DB: cold_storage_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cold_storage"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Alembic upgrade (PostgreSQL)
+        env:
+          DATABASE_BACKEND: postgresql
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: cd backend && PYTHONPATH=src uv run alembic upgrade head
+      - name: Backend tests (PostgreSQL)
+        env:
+          DATABASE_BACKEND: postgresql
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture"
 
   frontend:
     runs-on: ubuntu-latest
