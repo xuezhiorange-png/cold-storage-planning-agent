@@ -1,0 +1,53 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python
+.uv-cache/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime data
+logs/
+uploads/
+storage/
+tmp/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.dump
+
+# Generated reports
+generated/
+reports/output/
+
+# Project-specific local artifacts
+backend/storage/
+frontend/dist/
