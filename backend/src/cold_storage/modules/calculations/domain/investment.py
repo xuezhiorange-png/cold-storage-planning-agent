@@ -73,13 +73,9 @@ class InvestmentEstimator:
                 requires_review=True,
             )
 
-        civil_structure = (data.total_area_m2 + 1000) * self._value(
-            "building_envelope_cost_cny_m2"
-        )
+        civil_structure = (data.total_area_m2 + 1000) * self._value("building_envelope_cost_cny_m2")
         refrigeration = data.total_area_m2 * self._value("refrigeration_cost_cny_m2")
-        power_distribution = data.total_power_kw * self._value(
-            "power_distribution_cost_cny_kw"
-        )
+        power_distribution = data.total_power_kw * self._value("power_distribution_cost_cny_kw")
         dormitory_living = 0
         monitoring_opening_supplies = self._value("monitoring_opening_supplies_cny")
         items = [

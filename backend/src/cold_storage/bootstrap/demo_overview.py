@@ -237,9 +237,7 @@ def _apply_precooling_axial_fan_rule(
     for row in equipment_rows:
         if row["name"] == "轴流风机":
             row["quantity"] = axial_fan_quantity
-            row["total_power_kw"] = round(
-                axial_fan_quantity * _number(row["running_power_kw"]), 2
-            )
+            row["total_power_kw"] = round(axial_fan_quantity * _number(row["running_power_kw"]), 2)
             return
 
 
