@@ -4,14 +4,13 @@ These tests verify real PostgreSQL connectivity, JSON snapshot persistence,
 Decimal/Numeric precision, and transaction behavior.
 
 Requires:
-  DATABASE_URL=postgresql+psycopg://...
+  DATABASE_URL=postgresql+psycopg2://...
 
 Marker: postgresql
 """
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import uuid
@@ -19,6 +18,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.postgresql
@@ -113,18 +113,18 @@ class TestPostgreSQLAlembic:
 class TestPostgreSQLSnapshots:
     """Verify JSON snapshot persistence and Decimal precision via real ORM."""
 
-    def test_decimal_precision_in_jsonb(self, pg_engine) -> None:
-        """Decimal values survive JSONB serialization round-trip."""
+    def test_decimal_precision_in_json(self, pg_engine) -> None:
+        """Decimal values survive JSON serialization round-trip."""
         test_value = Decimal("3.14159265358979323846")
+        json_str = json.dumps(str(test_value))
         with pg_engine.connect() as conn:
-            result = conn.execute(text("SELECT :val::jsonb"), {"val": json.dumps(str(test_value))})
+            result = conn.execute(text("SELECT CAST(:val AS JSON)"), {"val": json_str})
             stored = result.scalar()
             assert stored is not None
-            # JSONB stores as string, verify precision
             assert stored == str(test_value)
 
-    def test_jsonb_snapshot_structure(self, pg_engine) -> None:
-        """Verify JSONB can store and retrieve nested calculation snapshots."""
+    def test_json_snapshot_structure(self, pg_engine) -> None:
+        """Verify JSON can store and retrieve nested calculation snapshots."""
         snapshot = {
             "schema_version": "1.0",
             "calculator_version": "cooling-load-1.0",
@@ -137,7 +137,7 @@ class TestPostgreSQLSnapshots:
         }
         with pg_engine.connect() as conn:
             result = conn.execute(
-                text("SELECT :snapshot::jsonb"),
+                text("SELECT CAST(:snapshot AS JSON)"),
                 {"snapshot": json.dumps(snapshot)},
             )
             stored = result.scalar()
@@ -149,18 +149,24 @@ class TestPostgreSQLSnapshots:
         """Persist and read back a calculation_snapshot on a real project version."""
         project_code = f"test-pg-{uuid.uuid4().hex[:8]}"
         with pg_engine.connect() as conn:
-            # Create a project
+            # Create a project (all required fields per ORM)
+            project_id = str(uuid.uuid4())
             conn.execute(
                 text(
-                    "INSERT INTO projects (code, name, created_at, updated_at) "
-                    "VALUES (:code, :name, NOW(), NOW())"
+                    "INSERT INTO projects "
+                    "(id, code, name, location, product_category, status, "
+                    " current_version_number, created_at, updated_at) "
+                    "VALUES (:id, :code, :name, :loc, :cat, :status, 0, NOW(), NOW())"
                 ),
-                {"code": project_code, "name": "PG Test Project"},
+                {
+                    "id": project_id,
+                    "code": project_code,
+                    "name": "PG Test Project",
+                    "loc": "Test Location",
+                    "cat": "blueberry",
+                    "status": "draft",
+                },
             )
-            project_id = conn.execute(
-                text("SELECT id FROM projects WHERE code = :code"),
-                {"code": project_code},
-            ).scalar()
 
             # Create a project version with calculation_snapshot
             calculation_snapshot = {
@@ -176,14 +182,16 @@ class TestPostgreSQLSnapshots:
                     "total_condenser_rejection_kw": 361.181,
                 },
             }
+            version_id = str(uuid.uuid4())
             conn.execute(
                 text(
                     "INSERT INTO project_versions "
-                    "(project_id, version_number, status, calculation_snapshot, "
-                    " created_at, updated_at) "
-                    "VALUES (:pid, 1, 'draft', :snapshot, NOW(), NOW())"
+                    "(id, project_id, version_number, change_summary, status, "
+                    " calculation_snapshot, created_at, updated_at, created_by) "
+                    "VALUES (:id, :pid, 1, 'initial', 'draft', "
+                    " CAST(:snapshot AS JSON), NOW(), NOW(), 'test')"
                 ),
-                {"pid": project_id, "snapshot": json.dumps(calculation_snapshot)},
+                {"id": version_id, "pid": project_id, "snapshot": json.dumps(calculation_snapshot)},
             )
 
             # Read it back
@@ -209,34 +217,33 @@ class TestPostgreSQLSnapshots:
         """Persist and read back a coefficient definition + revision."""
         code = f"test.pg.coeff.{uuid.uuid4().hex[:8]}"
         with pg_engine.connect() as conn:
-            # Insert definition
+            # Insert definition (all required fields per ORM)
+            def_id = str(uuid.uuid4())
             conn.execute(
                 text(
                     "INSERT INTO coefficient_definitions "
-                    "(code, name, category, canonical_unit, value_type, scope_type, "
-                    " created_at, updated_at) "
-                    "VALUES (:code, 'PG Test Coeff', 'test', 'ratio', 'decimal', "
-                    "'global', NOW(), NOW())"
+                    "(id, code, name, description, category, canonical_unit, "
+                    " value_type, scope_type, is_active, created_at, updated_at) "
+                    "VALUES (:id, :code, 'PG Test', 'test coeff', 'test', 'ratio', "
+                    " 'decimal', 'global', true, NOW(), NOW())"
                 ),
-                {"code": code},
+                {"id": def_id, "code": code},
             )
-            def_id = conn.execute(
-                text("SELECT id FROM coefficient_definitions WHERE code = :code"),
-                {"code": code},
-            ).scalar()
 
-            # Insert revision
+            # Insert revision (value_decimal is String(50) in ORM)
+            rev_id = str(uuid.uuid4())
             conn.execute(
                 text(
                     "INSERT INTO coefficient_revisions "
-                    "(coefficient_definition_id, revision_number, unit, status, "
-                    " source_type, value_decimal, created_at) "
-                    "VALUES (:did, 1, 'ratio', 'approved', 'demo', :val, NOW())"
+                    "(id, coefficient_definition_id, revision_number, unit, status, "
+                    " source_type, value_decimal, created_by, created_at) "
+                    "VALUES (:id, :did, 1, 'ratio', 'approved', 'demo', "
+                    " :val, 'test', NOW())"
                 ),
-                {"did": def_id, "val": Decimal("3.14159")},
+                {"id": rev_id, "did": def_id, "val": "3.14159"},
             )
 
-            # Read back
+            # Read back — value_decimal is stored as String
             val = conn.execute(
                 text(
                     "SELECT value_decimal FROM coefficient_revisions "
@@ -246,8 +253,8 @@ class TestPostgreSQLSnapshots:
             ).scalar()
 
             assert val is not None
-            # Numeric precision check
-            assert abs(float(val) - 3.14159) < 0.0001
+            # Precision check via Decimal comparison
+            assert Decimal(val) == Decimal("3.14159")
 
             # Cleanup
             conn.execute(
@@ -267,32 +274,63 @@ class TestPostgreSQLSnapshots:
 
 
 class TestPostgreSQLTransactions:
-    """Verify transaction behavior."""
+    """Verify transaction behavior on real tables."""
 
     def test_rollback_does_not_persist(self, pg_engine) -> None:
-        """Rolled-back data must not persist."""
-        table_name = f"_test_rollback_{uuid.uuid4().hex[:8]}"
+        """Rolled-back project data must not persist."""
+        project_code = f"test-rb-{uuid.uuid4().hex[:8]}"
+        project_id = str(uuid.uuid4())
+
+        # Insert and rollback
         with pg_engine.connect() as conn:
-            conn.execute(text(f"CREATE TEMPORARY TABLE {table_name} (id int, val text)"))
-            conn.execute(text(f"INSERT INTO {table_name} VALUES (1, 'test')"))
+            conn.execute(
+                text(
+                    "INSERT INTO projects "
+                    "(id, code, name, location, product_category, status, "
+                    " current_version_number, created_at, updated_at) "
+                    "VALUES (:id, :code, 'RB Test', 'loc', 'cat', 'draft', 0, NOW(), NOW())"
+                ),
+                {"id": project_id, "code": project_code},
+            )
             conn.rollback()
 
-        # After rollback, the temp table should be gone (session-scoped temp)
-        with pg_engine.connect() as conn, contextlib.suppress(Exception):
-            result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
-            count = result.scalar()
-            assert count == 0, "Rolled-back data should not persist"
+        # Verify it does NOT exist
+        with pg_engine.connect() as conn:
+            count = conn.execute(
+                text("SELECT COUNT(*) FROM projects WHERE code = :code"),
+                {"code": project_code},
+            ).scalar()
+            assert count == 0, f"Rolled-back project still exists (count={count})"
 
     def test_committed_data_persists(self, pg_engine) -> None:
         """Committed data persists across connections."""
-        table_name = f"_test_commit_{uuid.uuid4().hex[:8]}"
+        project_code = f"test-cm-{uuid.uuid4().hex[:8]}"
+        project_id = str(uuid.uuid4())
+
         with pg_engine.connect() as conn:
-            conn.execute(text(f"CREATE TEMPORARY TABLE {table_name} (id int, val text)"))
-            conn.execute(text(f"INSERT INTO {table_name} VALUES (1, 'committed')"))
+            conn.execute(
+                text(
+                    "INSERT INTO projects "
+                    "(id, code, name, location, product_category, status, "
+                    " current_version_number, created_at, updated_at) "
+                    "VALUES (:id, :code, 'CM Test', 'loc', 'cat', 'draft', 0, NOW(), NOW())"
+                ),
+                {"id": project_id, "code": project_code},
+            )
             conn.commit()
 
-        # Note: temp tables are session-scoped, so this tests commit semantics
-        # within the same connection. Real persistence tested via ORM tests above.
+        # Verify it exists in a new connection
+        with pg_engine.connect() as conn:
+            count = conn.execute(
+                text("SELECT COUNT(*) FROM projects WHERE code = :code"),
+                {"code": project_code},
+            ).scalar()
+            assert count == 1, f"Committed project not found (count={count})"
+
+        # Cleanup
+        with pg_engine.connect() as conn:
+            conn.execute(text("DELETE FROM projects WHERE id = :id"), {"id": project_id})
+            conn.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -306,55 +344,56 @@ class TestPostgreSQLConstraints:
     def test_unique_constraint_enforced(self, pg_engine) -> None:
         """Duplicate coefficient codes must be rejected."""
         code = f"test.unique.{uuid.uuid4().hex[:8]}"
+        def_id_1 = str(uuid.uuid4())
+        def_id_2 = str(uuid.uuid4())
         with pg_engine.connect() as conn:
-            try:
+            conn.execute(
+                text(
+                    "INSERT INTO coefficient_definitions "
+                    "(id, code, name, description, category, canonical_unit, "
+                    " value_type, scope_type, is_active, created_at, updated_at) "
+                    "VALUES (:id, :code, 'T1', 'd', 'test', 'kg', "
+                    " 'decimal', 'global', true, NOW(), NOW())"
+                ),
+                {"id": def_id_1, "code": code},
+            )
+            with pytest.raises(IntegrityError):
                 conn.execute(
                     text(
                         "INSERT INTO coefficient_definitions "
-                        "(code, name, category, canonical_unit, value_type, scope_type, "
-                        "created_at, updated_at) "
-                        "VALUES (:c1, 'Test1', 'test', 'kg', 'decimal', 'global', "
-                        "NOW(), NOW())"
+                        "(id, code, name, description, category, canonical_unit, "
+                        " value_type, scope_type, is_active, created_at, updated_at) "
+                        "VALUES (:id, :code, 'T2', 'd', 'test', 'kg', "
+                        " 'decimal', 'global', true, NOW(), NOW())"
                     ),
-                    {"c1": code},
-                )
-                conn.execute(
-                    text(
-                        "INSERT INTO coefficient_definitions "
-                        "(code, name, category, canonical_unit, value_type, scope_type, "
-                        "created_at, updated_at) "
-                        "VALUES (:c2, 'Test2', 'test', 'kg', 'decimal', 'global', "
-                        "NOW(), NOW())"
-                    ),
-                    {"c2": code},
+                    {"id": def_id_2, "code": code},
                 )
                 conn.commit()
-                pytest.fail("Unique constraint not enforced on coefficient_definitions")
-            except Exception:
-                conn.rollback()
-            finally:
-                # Cleanup
-                conn.execute(
-                    text("DELETE FROM coefficient_definitions WHERE code = :code"),
-                    {"code": code},
-                )
-                conn.commit()
+            conn.rollback()
+
+        # Cleanup
+        with pg_engine.connect() as conn:
+            conn.execute(
+                text("DELETE FROM coefficient_definitions WHERE code = :code"),
+                {"code": code},
+            )
+            conn.commit()
 
     def test_foreign_key_constraint(self, pg_engine) -> None:
         """Revision with invalid definition_id must be rejected."""
         fake_id = str(uuid.uuid4())
+        rev_id = str(uuid.uuid4())
         with pg_engine.connect() as conn:
-            try:
+            with pytest.raises(IntegrityError):
                 conn.execute(
                     text(
                         "INSERT INTO coefficient_revisions "
-                        "(coefficient_definition_id, revision_number, unit, status, "
-                        "source_type, created_at) "
-                        "VALUES (:did, 1, 'ratio', 'draft', 'demo', NOW())"
+                        "(id, coefficient_definition_id, revision_number, unit, "
+                        " status, source_type, created_by, created_at) "
+                        "VALUES (:id, :did, 1, 'ratio', 'draft', 'demo', "
+                        " 'test', NOW())"
                     ),
-                    {"did": fake_id},
+                    {"id": rev_id, "did": fake_id},
                 )
                 conn.commit()
-                pytest.fail("Foreign key constraint not enforced")
-            except Exception:
-                conn.rollback()
+            conn.rollback()

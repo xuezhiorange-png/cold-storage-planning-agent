@@ -19,6 +19,7 @@ from cold_storage.modules.calculations.domain.cooling_load import (
     ZoneCoolingLoadInput,
     calculate_cooling_load,
 )
+from cold_storage.modules.calculations.domain.errors import MissingCalculationInputError
 from cold_storage.modules.calculations.domain.models import CalculationResult
 
 
@@ -35,39 +36,67 @@ def _to_decimal(value: Any) -> Decimal:
     raise ValueError(f"Cannot convert {type(value)} to Decimal")
 
 
+def _require_field(data: dict[str, Any], field: str, calculator: str = "cooling_load") -> Any:
+    """Return the value or raise MissingCalculationInputError."""
+    if field not in data or data[field] is None:
+        raise MissingCalculationInputError(calculator, field)
+    return data[field]
+
+
 def build_cooling_load_input(inputs: dict[str, Any]) -> CoolingLoadCalcInput:
     """Build a CoolingLoadCalcInput from a flat dict.
 
-    This is an input-parsing function, not an engineering formula.
+    Required fields are validated explicitly — no hidden defaults.
+    Engineering coefficients (design_margin_ratio, diversity_factor)
+    must be provided via the coefficients dict.
     """
     zones_data = inputs.get("zones", [])
+    if not zones_data:
+        raise MissingCalculationInputError("cooling_load", "zones")
+
     zones = []
     for z in zones_data:
+        # Validate required zone fields
+        zone_code = _require_field(z, "zone_code")
+        zone_name = _require_field(z, "zone_name")
+        zone_area = _to_decimal(_require_field(z, "zone_area"))
+        room_height = _to_decimal(_require_field(z, "room_height"))
+        wall_area = _to_decimal(_require_field(z, "wall_area"))
+        roof_area = _to_decimal(_require_field(z, "roof_area"))
+        floor_area = _to_decimal(_require_field(z, "floor_area"))
+        outdoor_design_temperature = _to_decimal(_require_field(z, "outdoor_design_temperature"))
+        room_design_temperature = _to_decimal(_require_field(z, "room_design_temperature"))
+        operating_hours_per_day = _to_decimal(_require_field(z, "operating_hours_per_day"))
+        product_entry_temperature = _to_decimal(_require_field(z, "product_entry_temperature"))
+        product_target_temperature = _to_decimal(_require_field(z, "product_target_temperature"))
+        cooling_duration = _to_decimal(_require_field(z, "cooling_duration"))
+
+        # temperature_level defaults to medium_temperature (API convenience, not engineering)
+        temp_level_str = z.get("temperature_level", "medium_temperature")
+
         zones.append(
             ZoneCoolingLoadInput(
-                zone_code=z.get("zone_code", "unknown"),
-                zone_name=z.get("zone_name", "Unknown Zone"),
-                temperature_level=TemperatureLevel(
-                    z.get("temperature_level", "medium_temperature")
-                ),
-                zone_area=_to_decimal(z.get("zone_area", 0)),
-                room_height=_to_decimal(z.get("room_height", 4)),
-                wall_area=_to_decimal(z.get("wall_area", 0)),
-                roof_area=_to_decimal(z.get("roof_area", 0)),
-                floor_area=_to_decimal(z.get("floor_area", 0)),
-                u_value_wall=_to_decimal(z["u_value_wall"]) if "u_value_wall" in z else None,
-                u_value_roof=_to_decimal(z["u_value_roof"]) if "u_value_roof" in z else None,
-                u_value_floor=_to_decimal(z["u_value_floor"]) if "u_value_floor" in z else None,
-                outdoor_design_temperature=_to_decimal(z.get("outdoor_design_temperature", 35)),
+                zone_code=zone_code,
+                zone_name=zone_name,
+                temperature_level=TemperatureLevel(temp_level_str),
+                zone_area=zone_area,
+                room_height=room_height,
+                wall_area=wall_area,
+                roof_area=roof_area,
+                floor_area=floor_area,
+                u_value_wall=(_to_decimal(z["u_value_wall"]) if "u_value_wall" in z else None),
+                u_value_roof=(_to_decimal(z["u_value_roof"]) if "u_value_roof" in z else None),
+                u_value_floor=(_to_decimal(z["u_value_floor"]) if "u_value_floor" in z else None),
+                outdoor_design_temperature=outdoor_design_temperature,
                 adjacent_temperature=(
                     _to_decimal(z["adjacent_temperature"]) if "adjacent_temperature" in z else None
                 ),
-                room_design_temperature=_to_decimal(z.get("room_design_temperature", 0)),
-                operating_hours_per_day=_to_decimal(z.get("operating_hours_per_day", 24)),
+                room_design_temperature=room_design_temperature,
+                operating_hours_per_day=operating_hours_per_day,
                 product_mass_per_day=_to_decimal(z.get("product_mass_per_day", 0)),
-                product_entry_temperature=_to_decimal(z.get("product_entry_temperature", 25)),
-                product_target_temperature=_to_decimal(z.get("product_target_temperature", 0)),
-                cooling_duration=_to_decimal(z.get("cooling_duration", 4)),
+                product_entry_temperature=product_entry_temperature,
+                product_target_temperature=product_target_temperature,
+                cooling_duration=cooling_duration,
                 packaging_mass=_to_decimal(z.get("packaging_mass", 0)),
                 worker_count=int(z.get("worker_count", 0)),
                 lighting_power=_to_decimal(z.get("lighting_power", 0)),
@@ -77,16 +106,26 @@ def build_cooling_load_input(inputs: dict[str, Any]) -> CoolingLoadCalcInput:
         )
 
     coeff_data = inputs.get("coefficients", {})
+
+    # design_margin_ratio and diversity_factor are REQUIRED engineering coefficients
+    # — they must come from the coefficient resolver, not hidden defaults
+    design_margin_raw = coeff_data.get("design_margin_ratio")
+    diversity_factor_raw = coeff_data.get("diversity_factor")
+    if design_margin_raw is None:
+        raise MissingCalculationInputError("cooling_load", "design_margin_ratio")
+    if diversity_factor_raw is None:
+        raise MissingCalculationInputError("cooling_load", "diversity_factor")
+
     cs = CoefficientSet(
-        wall_u_value=_to_decimal(coeff_data["wall_u_value"])
-        if "wall_u_value" in coeff_data
-        else None,
-        roof_u_value=_to_decimal(coeff_data["roof_u_value"])
-        if "roof_u_value" in coeff_data
-        else None,
-        floor_u_value=_to_decimal(coeff_data["floor_u_value"])
-        if "floor_u_value" in coeff_data
-        else None,
+        wall_u_value=(
+            _to_decimal(coeff_data["wall_u_value"]) if "wall_u_value" in coeff_data else None
+        ),
+        roof_u_value=(
+            _to_decimal(coeff_data["roof_u_value"]) if "roof_u_value" in coeff_data else None
+        ),
+        floor_u_value=(
+            _to_decimal(coeff_data["floor_u_value"]) if "floor_u_value" in coeff_data else None
+        ),
         product_specific_heat=(
             _to_decimal(coeff_data["product_specific_heat"])
             if "product_specific_heat" in coeff_data
@@ -105,8 +144,8 @@ def build_cooling_load_input(inputs: dict[str, Any]) -> CoolingLoadCalcInput:
             if "worker_heat_gain" in coeff_data
             else None
         ),
-        design_margin_ratio=_to_decimal(coeff_data.get("design_margin_ratio", "1.10")),
-        diversity_factor=_to_decimal(coeff_data.get("diversity_factor", "1.0")),
+        design_margin_ratio=_to_decimal(design_margin_raw),
+        diversity_factor=_to_decimal(diversity_factor_raw),
         motor_efficiency=(
             _to_decimal(coeff_data["motor_efficiency"])
             if "motor_efficiency" in coeff_data

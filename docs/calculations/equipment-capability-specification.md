@@ -102,9 +102,8 @@ input power (which becomes heat at the condenser side).
 ### Formula
 
 ```
-condenser_heat_rejection = (compressor_installed + compressor_input_power_kw_e)
-                          × condenser_heat_rejection_factor
-                          × condenser_capacity_margin
+condenser_base = compressor_operating + compressor_input_power_kw_e
+condenser_design = condenser_base × condenser_capacity_margin
 ```
 
 ### Physical Basis
@@ -118,17 +117,19 @@ all energy entering the cycle (refrigeration load + compressor work) must be
 rejected at the condenser.
 
 ### Units
-- `compressor_installed`: kW(r)
+- `compressor_operating`: kW(r) — the actual running load, NOT installed capacity
 - `compressor_input_power_kw_e`: kW(e)
-- `condenser_heat_rejection_factor`: dimensionless (default: 1.25)
-- `condenser_capacity_margin`: dimensionless (default: 1.15)
+- `condenser_capacity_margin`: dimensionless (from coefficient resolver)
 - Output: kW (thermal rejection capacity)
 
 ### Rules
-- The rejection factor accounts for additional heat from motor inefficiencies
-  and superheat.
+- Uses `compressor_operating`, NOT `compressor_installed` — standby units do
+  not contribute to normal heat rejection.
 - The condenser margin provides reserve capacity for high ambient temperatures.
-- Both factors are multiplicative: `(Q_ref + W_comp) × factor × margin`.
+- `condenser_heat_rejection_factor` has been **removed** — it duplicated the
+  W_compressor term. The formula is now simply `(Q_ref + W_comp) × margin`.
+- N+1 standby capacity is reflected only in `compressor_installed` and
+  `compressor_standby`, never in condenser heat rejection.
 
 ## COP-Based Input Power Calculation
 
@@ -147,11 +148,12 @@ compressor_input_power_kw_e = compressor_operating_kw_r / COP
 - Output: kW(e)
 
 ### Rules
-- If COP is not provided (None) or ≤ 0, compressor input power is set to 0
-  and no step is recorded.
+- **COP is required.** If COP is not provided, `CoefficientMissingError` is raised.
+- COP ≤ 0 raises `InvalidCalculationInputError` — no silent fallback to 0 kW(e).
 - The COP represents the system-level efficiency at design conditions.
 - COP values are temperature-dependent and should be specified per temperature
   system or globally.
+- COP must be bound to temperature conditions, refrigerant, and part-load state.
 
 ### Typical COP Ranges
 - Medium temperature (0–5°C): COP 3.0–5.0
@@ -162,16 +164,14 @@ compressor_input_power_kw_e = compressor_operating_kw_r / COP
 
 | Code | Required | Default | Description |
 |---|---|---|---|
-| `equipment.redundancy_ratio` | No | 1.10 | Compressor N+1 redundancy ratio |
-| `equipment.evaporator_capacity_margin` | No | 1.10 | Evaporator capacity margin |
-| `equipment.condenser_capacity_margin` | No | 1.15 | Condenser capacity margin |
-| `equipment.condenser_heat_rejection_factor` | No | 1.25 | Heat rejection factor (Q_ref + W_comp) |
-| `power.compressor_cop` | No | None | Coefficient of performance |
+| `equipment.redundancy_ratio` | Yes | — | Compressor N+1 redundancy ratio |
+| `equipment.evaporator_capacity_margin` | Yes | — | Evaporator capacity margin |
+| `equipment.condenser_capacity_margin` | Yes | — | Condenser capacity margin |
+| `power.compressor_cop` | Yes | — | Coefficient of performance |
 
-**Note:** All coefficients have defaults. None are strictly required for the
-calculator to run. However, if COP is not provided, compressor input power
-will be 0 kW(e) and condenser heat rejection will only include the
-refrigeration component.
+**Note:** All coefficients are **required** — the calculator raises
+`CoefficientMissingError` if any is missing. `condenser_heat_rejection_factor`
+has been removed (it duplicated the W_compressor term).
 
 ## Error Handling
 
@@ -229,6 +229,6 @@ Each step is recorded as a `CalculationStep` with a unique `step_id`:
 | `EQ-SUM-{system}` | `system_load = Σ zone_design_loads` | Sum zone loads for system |
 | `EQ-EVAP-{system}` | `evaporator_total = system_load × margin` | Evaporator capacity with margin |
 | `EQ-COMP-{system}` | `installed = operating × redundancy` | Compressor capacity (N+1) |
-| `EQ-COP-{system}` | `input_power = refrigeration / COP` | Compressor input power (only if COP provided) |
-| `EQ-COND-{system}` | `Q_cond = (Q_ref + W_comp) × factor × margin` | Condenser heat rejection |
+| `EQ-COP-{system}` | `input_power = refrigeration / COP` | Compressor input power (COP required) |
+| `EQ-COND-{system}` | `Q_condenser = (Q_ref + W_comp) × margin` | Condenser heat rejection |
 | `EQ-TOTAL` | `total = Σ system capacities` | Total across all systems |
