@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """PostgreSQL integration tests for core calculations.
 
 These tests verify real PostgreSQL connectivity, JSON snapshot persistence,
@@ -12,21 +10,20 @@ Requires:
 Marker: postgresql
 """
 
-import pytest
+from __future__ import annotations
 
-pytestmark = pytest.mark.postgresql
-
+import contextlib
 import os
 from decimal import Decimal
 
 import pytest
 
-# Skip entire module if not PostgreSQL
-DATABASE_BACKEND = os.environ.get("DATABASE_BACKEND", "sqlite")
-pytestmark = pytest.mark.skipif(
-    DATABASE_BACKEND != "postgresql",
-    reason="PostgreSQL integration tests require DATABASE_BACKEND=postgresql",
-)
+pytestmark = pytest.mark.postgresql
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
@@ -36,7 +33,7 @@ def pg_engine():
     if not database_url:
         pytest.skip("DATABASE_URL not set")
 
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import create_engine
 
     engine = create_engine(database_url)
     yield engine
@@ -50,6 +47,11 @@ def pg_session(pg_engine):
 
     with Session(pg_engine) as session:
         yield session
+
+
+# ---------------------------------------------------------------------------
+# Dialect tests
+# ---------------------------------------------------------------------------
 
 
 class TestPostgreSQLDialect:
@@ -68,6 +70,11 @@ class TestPostgreSQLDialect:
         with pg_engine.connect() as conn:
             result = conn.execute(text("SELECT 1"))
             assert result.scalar() == 1
+
+
+# ---------------------------------------------------------------------------
+# Alembic tests
+# ---------------------------------------------------------------------------
 
 
 class TestPostgreSQLAlembic:
@@ -105,6 +112,11 @@ class TestPostgreSQLAlembic:
                 assert result.scalar() is True, f"Table {table} not found"
 
 
+# ---------------------------------------------------------------------------
+# Snapshot tests
+# ---------------------------------------------------------------------------
+
+
 class TestPostgreSQLSnapshots:
     """Verify JSON snapshot persistence and Decimal precision."""
 
@@ -113,7 +125,6 @@ class TestPostgreSQLSnapshots:
         from sqlalchemy import text
 
         test_value = Decimal("3.14159265358979323846")
-        # PostgreSQL JSONB preserves numeric precision
         with pg_engine.connect() as conn:
             result = conn.execute(
                 text("SELECT :val::jsonb"),
@@ -147,6 +158,11 @@ class TestPostgreSQLSnapshots:
             assert stored["requires_review"] is True
 
 
+# ---------------------------------------------------------------------------
+# Transaction tests
+# ---------------------------------------------------------------------------
+
+
 class TestPostgreSQLTransactions:
     """Verify transaction behavior."""
 
@@ -155,22 +171,17 @@ class TestPostgreSQLTransactions:
         from sqlalchemy import text
 
         with pg_engine.connect() as conn:
-            # Create a temporary test table
-            conn.execute(text(
-                "CREATE TEMPORARY TABLE _test_rollback (id int, val text)"
-            ))
-            conn.execute(text(
-                "INSERT INTO _test_rollback VALUES (1, 'test')"
-            ))
+            conn.execute(text("CREATE TEMPORARY TABLE _test_rollback (id int, val text)"))
+            conn.execute(text("INSERT INTO _test_rollback VALUES (1, 'test')"))
             conn.rollback()
 
-        # After rollback, verify via new connection
-        with pg_engine.connect() as conn:
-            try:
-                conn.execute(text("SELECT * FROM _test_rollback"))
-                # If we get here, table persists (temp tables are connection-scoped)
-            except Exception:
-                pass  # Expected — table was rolled back
+        with pg_engine.connect() as conn, contextlib.suppress(Exception):
+            conn.execute(text("SELECT * FROM _test_rollback"))
+
+
+# ---------------------------------------------------------------------------
+# Constraint tests
+# ---------------------------------------------------------------------------
 
 
 class TestPostgreSQLUniqueConstraints:
@@ -181,24 +192,28 @@ class TestPostgreSQLUniqueConstraints:
         from sqlalchemy import text
 
         with pg_engine.connect() as conn:
-            # Try to insert duplicate coefficient definition
             try:
-                conn.execute(text(
-                    "INSERT INTO coefficient_definitions "
-                    "(code, name, category, canonical_unit, value_type, scope_type, "
-                    "created_at, updated_at) "
-                    "VALUES ('test.duplicate', 'Test', 'test', 'kg', 'numeric', 'global', "
-                    "NOW(), NOW())"
-                ))
-                conn.execute(text(
-                    "INSERT INTO coefficient_definitions "
-                    "(code, name, category, canonical_unit, value_type, scope_type, "
-                    "created_at, updated_at) "
-                    "VALUES ('test.duplicate', 'Test2', 'test', 'kg', 'numeric', 'global', "
-                    "NOW(), NOW())"
-                ))
+                conn.execute(
+                    text(
+                        "INSERT INTO coefficient_definitions "
+                        "(code, name, category, canonical_unit, value_type, scope_type, "
+                        "created_at, updated_at) "
+                        "VALUES ('test.duplicate', 'Test', 'test', 'kg', 'numeric', "
+                        "'global', NOW(), NOW())"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "INSERT INTO coefficient_definitions "
+                        "(code, name, category, canonical_unit, value_type, scope_type, "
+                        "created_at, updated_at) "
+                        "VALUES ('test.duplicate', 'Test2', 'test', 'kg', 'numeric', "
+                        "'global', NOW(), NOW())"
+                    )
+                )
                 conn.commit()
-                # If we get here, unique constraint is NOT enforced
-                assert False, "Unique constraint not enforced on coefficient_definitions"
+                raise AssertionError("Unique constraint not enforced on coefficient_definitions")
+            except AssertionError:
+                raise
             except Exception:
-                conn.rollback()  # Expected — unique violation
+                conn.rollback()
