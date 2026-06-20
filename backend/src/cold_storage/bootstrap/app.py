@@ -17,6 +17,9 @@ from cold_storage.bootstrap.dependencies import (
 )
 from cold_storage.bootstrap.logging import configure_logging
 from cold_storage.bootstrap.settings import get_settings
+from cold_storage.modules.calculations.application.service import (
+    CoreCalculationService,
+)
 from cold_storage.modules.calculations.domain.inputs import ThroughputInput
 from cold_storage.modules.calculations.domain.investment import (
     InvestmentEstimateInput,
@@ -144,6 +147,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     zone_planner = ColdRoomZonePlanner()
     investment_estimator = InvestmentEstimator()
     coefficient_service = CoefficientService()
+    core_calculation_service = CoreCalculationService()
     register_coefficient_routes(app, coefficient_service)
     if project_service is not None:
         app.dependency_overrides[get_project_service] = lambda: project_service
@@ -539,6 +543,51 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     ) -> dict[str, Any]:
         response = service.handle_message(request.message)
         return response.__dict__
+
+    # -----------------------------------------------------------------------
+    # Core Calculation Endpoints (Task 4)
+    # -----------------------------------------------------------------------
+
+    class CoreCalculationPreviewRequest(BaseModel):
+        """Request body for the preview endpoint (no persistence)."""
+
+        inputs: dict[str, Any]
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/calculations/core")
+    def save_core_calculation(
+        project_id: str,
+        version: int,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        """Run core calculations and persist the snapshot to the project version."""
+        project_version = service.get_version(project_id, version)
+        inputs = project_version.input_snapshot
+        result = core_calculation_service.orchestrate_from_dict(inputs)
+        # Persist the snapshot via the service (handles DB + audit)
+        result_dict = result.to_dict()
+        service.save_core_calculation_result(project_id, version, result_dict, actor="api")
+        return result_dict
+
+    @app.get("/api/v1/projects/{project_id}/versions/{version}/calculations/core")
+    def get_core_calculation(
+        project_id: str,
+        version: int,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        """Retrieve the persisted core calculation snapshot."""
+        project_version = service.get_version(project_id, version)
+        snapshot = project_version.calculation_snapshot
+        if not snapshot:
+            return {"error": {"code": "NO_CALCULATION", "message": "No core calculation found"}}
+        return snapshot
+
+    @app.post("/api/v1/calculations/core/preview")
+    def preview_core_calculation(
+        request: CoreCalculationPreviewRequest,
+    ) -> dict[str, Any]:
+        """Run core calculations without saving (preview mode)."""
+        result = core_calculation_service.orchestrate_from_dict(request.inputs)
+        return result.to_dict()
 
     return app
 
