@@ -1,0 +1,1 @@
+"""Coefficient application service."""
