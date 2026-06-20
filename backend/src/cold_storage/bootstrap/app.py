@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 
 from cold_storage.bootstrap.demo_overview import build_demo_overview
@@ -37,6 +37,10 @@ from cold_storage.modules.planning.application.service import (
 )
 from cold_storage.modules.planning_agent.application.agent_service import PlanningAgentService
 from cold_storage.modules.projects.application.service import ProjectService
+from cold_storage.modules.projects.domain.models import (
+    InvalidVersionTransitionError,
+    VersionImmutabilityError,
+)
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 AgentServiceDep = Annotated[PlanningAgentService, Depends(get_agent_service)]
@@ -53,7 +57,18 @@ class ProjectCreateRequest(BaseModel):
     product_category: str
 
 
+class ProjectUpdateRequest(BaseModel):
+    name: str | None = None
+    location: str | None = None
+    product_category: str | None = None
+
+
 class VersionCreateRequest(BaseModel):
+    change_summary: str
+
+
+class VersionCreateFromRequest(BaseModel):
+    source_version: int
     change_summary: str
 
 
@@ -201,6 +216,26 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             "current_version_number": project.current_version_number,
         }
 
+    @app.patch("/api/v1/projects/{project_id}")
+    def update_project(
+        project_id: str,
+        request: ProjectUpdateRequest,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        project = service.update_project(
+            project_id,
+            name=request.name,
+            location=request.location,
+            product_category=request.product_category,
+        )
+        return {
+            "id": project.id,
+            "code": project.code,
+            "name": project.name,
+            "location": project.location,
+            "product_category": project.product_category,
+        }
+
     @app.post("/api/v1/projects/{project_id}/versions")
     def create_version(
         project_id: str,
@@ -223,6 +258,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 "change_summary": version.change_summary,
                 "status": version.status,
                 "input_snapshot": version.input_snapshot,
+                "parent_version_id": version.parent_version_id,
+                "submitted_at": version.submitted_at.isoformat() if version.submitted_at else None,
+                "approved_at": version.approved_at.isoformat() if version.approved_at else None,
             }
             for version in service.list_versions(project_id)
         ]
@@ -236,7 +274,59 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             "change_summary": project_version.change_summary,
             "status": project_version.status,
             "input_snapshot": project_version.input_snapshot,
+            "calculation_snapshot": project_version.calculation_snapshot,
+            "assumption_snapshot": project_version.assumption_snapshot,
+            "parent_version_id": project_version.parent_version_id,
+            "submitted_at": project_version.submitted_at.isoformat()
+            if project_version.submitted_at
+            else None,
+            "reviewed_at": project_version.reviewed_at.isoformat()
+            if project_version.reviewed_at
+            else None,
+            "approved_at": project_version.approved_at.isoformat()
+            if project_version.approved_at
+            else None,
+            "approved_by": project_version.approved_by,
+            "archived_at": project_version.archived_at.isoformat()
+            if project_version.archived_at
+            else None,
         }
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/submit")
+    def submit_version(
+        project_id: str,
+        version: int,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        try:
+            project_version = service.submit_version(project_id, version, actor="api")
+        except (InvalidVersionTransitionError, VersionImmutabilityError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"id": project_version.id, "status": project_version.status}
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/return")
+    def return_version(
+        project_id: str,
+        version: int,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        try:
+            project_version = service.return_version(project_id, version, actor="api")
+        except (InvalidVersionTransitionError, VersionImmutabilityError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"id": project_version.id, "status": project_version.status}
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/review")
+    def review_version(
+        project_id: str,
+        version: int,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        try:
+            project_version = service.review_version(project_id, version, actor="api")
+        except (InvalidVersionTransitionError, VersionImmutabilityError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"id": project_version.id, "status": project_version.status}
 
     @app.post("/api/v1/projects/{project_id}/versions/{version}/approve")
     def approve_version(
@@ -244,8 +334,43 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         version: int,
         service: ProjectServiceDep,
     ) -> dict[str, Any]:
-        project_version = service.approve_version(project_id, version)
+        try:
+            project_version = service.approve_version(project_id, version, actor="api")
+        except (InvalidVersionTransitionError, VersionImmutabilityError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"id": project_version.id, "status": project_version.status}
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/archive")
+    def archive_version(
+        project_id: str,
+        version: int,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        try:
+            project_version = service.archive_version(project_id, version, actor="api")
+        except (InvalidVersionTransitionError, VersionImmutabilityError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"id": project_version.id, "status": project_version.status}
+
+    @app.post("/api/v1/projects/{project_id}/versions/{version}/create-from")
+    def create_version_from(
+        project_id: str,
+        version: int,
+        request: VersionCreateFromRequest,
+        service: ProjectServiceDep,
+    ) -> dict[str, Any]:
+        new_version = service.create_version_from(
+            project_id,
+            request.source_version,
+            request.change_summary,
+            created_by="api",
+        )
+        return {
+            "id": new_version.id,
+            "version_number": new_version.version_number,
+            "status": new_version.status,
+            "parent_version_id": new_version.parent_version_id,
+        }
 
     @app.put("/api/v1/projects/{project_id}/versions/{version}/inputs")
     def save_inputs(
