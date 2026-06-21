@@ -1,15 +1,22 @@
-"""FastAPI routes for the planning agent API."""
+"""FastAPI routes for the planning agent API.
+
+Fix #2: Router accepts a callable dependency (not a singleton service).
+Fix #3: PostMessageResponse includes pending_confirmations with tokens.
+Fix #7: Transaction boundary handled by _get_db_session in bootstrap.
+"""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from cold_storage.modules.planning_agent.api.schemas import (
     ConfirmToolCallRequest,
     CreateSessionRequest,
     MessageResponse,
+    PendingConfirmation,
     PostMessageRequest,
     PostMessageResponse,
     RejectToolCallRequest,
@@ -46,12 +53,22 @@ def _to_dict(obj: Any) -> dict[str, Any]:
     return {}
 
 
-def create_agent_router(service: PlanningAgentService) -> APIRouter:
+def create_agent_router(
+    service_factory: Callable[..., PlanningAgentService],
+) -> APIRouter:
+    """Create the planning agent API router.
+
+    ``service_factory`` is a FastAPI dependency that returns a
+    PlanningAgentService with its own per-request DB Session.
+    """
     router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 
+    def _svc() -> PlanningAgentService:
+        return service_factory()
+
     @router.post("/sessions", response_model=SessionResponse, status_code=201)
-    def create_session(req: CreateSessionRequest) -> Any:
-        session = service.create_session(
+    def create_session(req: CreateSessionRequest, svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
+        session = svc.create_session(
             project_id=req.project_id,
             project_version_id=req.project_version_id,
             title=req.title,
@@ -72,8 +89,8 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         )
 
     @router.get("/sessions", response_model=list[SessionResponse])
-    def list_sessions() -> Any:
-        sessions = service.list_sessions()
+    def list_sessions(svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
+        sessions = svc.list_sessions()
         return [
             SessionResponse(
                 id=s.id,
@@ -93,9 +110,9 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         ]
 
     @router.get("/sessions/{session_id}", response_model=SessionResponse)
-    def get_session(session_id: str) -> Any:
+    def get_session(session_id: str, svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
         try:
-            s = service.get_session(session_id)
+            s = svc.get_session(session_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         return SessionResponse(
@@ -114,12 +131,12 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         )
 
     @router.get("/sessions/{session_id}/messages", response_model=list[MessageResponse])
-    def get_messages(session_id: str) -> Any:
+    def get_messages(session_id: str, svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
         try:
-            service.get_session(session_id)
+            svc.get_session(session_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
-        msgs = service.get_messages(session_id)
+        msgs = svc.get_messages(session_id)
         return [
             MessageResponse(
                 id=m.id,
@@ -137,11 +154,11 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
     @router.post(
         "/sessions/{session_id}/messages", response_model=PostMessageResponse, status_code=201
     )
-    def post_message(session_id: str, req: PostMessageRequest) -> Any:
-        # Fix #6: Domain errors are NOT caught here — they propagate from service.
-        # Only infrastructure/transport errors are caught for HTTP mapping.
+    def post_message(
+        session_id: str, req: PostMessageRequest, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+    ) -> Any:
         try:
-            result = service.post_user_message(
+            result = svc.post_user_message(
                 session_id,
                 req.content,
                 idempotency_key=req.idempotency_key,
@@ -167,12 +184,24 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         except PlanningAgentError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
 
+        # Fix #3: Map pending_confirmations to schema
+        pending = [
+            PendingConfirmation(
+                tool_call_id=pc["tool_call_id"],
+                confirmation_token=pc["confirmation_token"],
+                arguments_sha256=pc["arguments_sha256"],
+                expires_at=pc["expires_at"],
+            )
+            for pc in result.get("pending_confirmations", [])
+        ]
+
         return PostMessageResponse(
             session_id=result["session_id"],
             turn_id=result["turn_id"],
             assistant_message=result["assistant_message"],
             decision_type=result["decision_type"],
             tool_calls=[ToolCallInfo(**tc) for tc in result["tool_calls"]],
+            pending_confirmations=pending,
             missing_parameters=result.get("missing_parameters", []),
             requires_review=result.get("requires_review", False),
             warnings=result.get("warnings", []),
@@ -181,8 +210,10 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         )
 
     @router.get("/sessions/{session_id}/turns/{turn_id}", response_model=TurnResponse)
-    def get_turn(session_id: str, turn_id: str) -> Any:
-        turn = service.get_turn(turn_id)
+    def get_turn(
+        session_id: str, turn_id: str, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+    ) -> Any:
+        turn = svc.get_turn(turn_id)
         if turn is None or turn.session_id != session_id:
             raise HTTPException(status_code=404, detail="Turn not found")
         return TurnResponse(
@@ -202,12 +233,14 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         )
 
     @router.get("/sessions/{session_id}/tool-calls", response_model=list[ToolCallInfo])
-    def list_tool_calls(session_id: str) -> Any:
+    def list_tool_calls(
+        session_id: str, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+    ) -> Any:
         try:
-            service.get_session(session_id)
+            svc.get_session(session_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
-        tcs = service.list_tool_calls(session_id)
+        tcs = svc.list_tool_calls(session_id)
         return [
             ToolCallInfo(
                 id=tc.id,
@@ -223,9 +256,13 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         ]
 
     @router.post("/tool-calls/{tool_call_id}/confirm")
-    def confirm_tool_call(tool_call_id: str, req: ConfirmToolCallRequest) -> Any:
+    def confirm_tool_call(
+        tool_call_id: str,
+        req: ConfirmToolCallRequest,
+        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+    ) -> Any:
         try:
-            result = service.confirm_tool_call(
+            result = svc.confirm_tool_call(
                 tool_call_id, confirmation_token=req.confirmation_token
             )
         except SessionNotFoundError as exc:
@@ -254,9 +291,13 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         }
 
     @router.post("/tool-calls/{tool_call_id}/reject")
-    def reject_tool_call(tool_call_id: str, req: RejectToolCallRequest) -> Any:  # noqa: ARG001
+    def reject_tool_call(
+        tool_call_id: str,
+        req: RejectToolCallRequest,  # noqa: ARG001
+        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+    ) -> Any:
         try:
-            result = service.reject_tool_call(tool_call_id)
+            result = svc.reject_tool_call(tool_call_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except UnauthorizedError as exc:
@@ -277,9 +318,11 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         }
 
     @router.post("/sessions/{session_id}/cancel", response_model=SessionCancelResponse)
-    def cancel_session(session_id: str) -> Any:
+    def cancel_session(
+        session_id: str, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+    ) -> Any:
         try:
-            s = service.cancel_session(session_id)
+            s = svc.cancel_session(session_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except UnauthorizedError as exc:

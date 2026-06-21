@@ -45,6 +45,18 @@ class ToolCallInfo(BaseModel):
     requires_review: bool = False
 
 
+class PendingConfirmation(BaseModel):
+    """Fix #3: One-time confirmation token returned in post-message response.
+
+    Token is only returned on first proposal — subsequent queries do not
+    leak the token.
+    """
+    tool_call_id: str
+    confirmation_token: str
+    arguments_sha256: str
+    expires_at: str
+
+
 class TurnResponse(BaseModel):
     id: str
     session_id: str
@@ -78,6 +90,7 @@ class PostMessageResponse(BaseModel):
     assistant_message: str
     decision_type: str
     tool_calls: list[ToolCallInfo] = Field(default_factory=list)
+    pending_confirmations: list[PendingConfirmation] = Field(default_factory=list)
     missing_parameters: list[dict[str, Any]] = Field(default_factory=list)
     requires_review: bool = False
     warnings: list[str] = Field(default_factory=list)

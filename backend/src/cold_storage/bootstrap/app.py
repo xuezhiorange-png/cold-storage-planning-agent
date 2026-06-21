@@ -1,16 +1,18 @@
 """FastAPI application factory."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session as SASession
 
 from cold_storage.bootstrap.demo_overview import build_demo_overview
 from cold_storage.bootstrap.dependencies import (
     get_agent_service,
+    get_engine,
     get_project_service,
     init_dependencies,
     shutdown_dependencies,
@@ -41,11 +43,11 @@ from cold_storage.modules.planning.application.service import (
     zone_number,
 )
 from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
-from cold_storage.modules.planning_agent.api.routes import create_agent_router
 from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
 from cold_storage.modules.planning_agent.application.service import PlanningAgentService
 from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
-from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway as NewFakeAgentGateway
+from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
+from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
     InvalidVersionTransitionError,
@@ -58,8 +60,49 @@ ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 AgentServiceDep = Annotated[LegacyPlanningAgentService, Depends(get_agent_service)]
 
 
+# --------------------------------------------------------------------------- Fix #2: Per-request
 # ---------------------------------------------------------------------------
-# Request models (API-layer concerns)
+
+
+def _get_db_session() -> Generator[SASession, None, None]:
+    """FastAPI dependency: yields a per-request SQLAlchemy Session.
+
+    The session is committed on success, rolled back on failure,
+    and always closed in finally.  Fix #2 + Fix #7.
+    """
+    engine = get_engine()
+    session = SASession(bind=engine, expire_on_commit=False)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def _get_planning_agent_service(
+    db_session: SASession = Depends(_get_db_session),  # noqa: B008
+) -> PlanningAgentService:
+    """FastAPI dependency: creates a PlanningAgentService per-request.
+
+    Fix #2: per-request Session, not singleton.
+    Fix #7: transaction boundary via _get_db_session commit/rollback.
+    """
+    gateway = FakeAgentModelGateway()
+    registry = build_default_registry()
+    orchestrator = AgentOrchestrator()
+    repo = AgentRepository(db_session)
+    return PlanningAgentService(
+        repository=repo,
+        gateway=gateway,
+        registry=registry,
+        orchestrator=orchestrator,
+    )
+
+
+# --------------------------------------------------------------------------- Request models (API
 # ---------------------------------------------------------------------------
 
 
@@ -128,8 +171,7 @@ class AgentMessageRequest(BaseModel):
     message: str
 
 
-# ---------------------------------------------------------------------------
-# Lifespan
+# --------------------------------------------------------------------------- Lifespan
 # ---------------------------------------------------------------------------
 
 
@@ -142,8 +184,7 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         shutdown_dependencies()
 
 
-# ---------------------------------------------------------------------------
-# App factory
+# --------------------------------------------------------------------------- App factory
 # ---------------------------------------------------------------------------
 
 
@@ -159,8 +200,6 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     # Scheme routes
     def _scheme_service_factory() -> SchemeService:
-        from sqlalchemy.orm import Session as SASession
-
         from cold_storage.bootstrap.dependencies import get_engine
 
         engine = get_engine()
@@ -171,8 +210,6 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     # Knowledge routes
     def _knowledge_service_factory() -> Any:
-        from sqlalchemy.orm import Session as SASession
-
         from cold_storage.bootstrap.dependencies import get_engine
         from cold_storage.modules.knowledge.application.service import KnowledgeService
 
@@ -556,9 +593,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             2,
         )
         power_configuration = build_power_configuration(
-            zone_result.result["zones"],
-            as_float(inputs["daily_inbound_mass_kg"]),
-            total_area,
+            zone_result.result["zones"], as_float(inputs["daily_inbound_mass_kg"]), total_area
         )
         investment_result = build_investment_from_zone_result(
             zone_result,
@@ -573,34 +608,17 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     def list_audit_events(project_id: str, service: ProjectServiceDep) -> list[dict[str, Any]]:
         return service.list_audit_events(project_id)
 
-    # --- New Planning Agent Router (Task 8) ---
-    # Registers /api/v1/agent/* endpoints including sessions, messages,
-    # tool-calls, confirm, reject, cancel.
-    new_gateway = NewFakeAgentGateway()
-    new_registry = build_default_registry()
-    new_orchestrator = AgentOrchestrator()
-    # DB session is created per-request via get_engine in dependencies.
-    # For the new router, we create the service with a placeholder that
-    # will be overridden via dependency injection in the router.
-    def _get_new_agent_service() -> PlanningAgentService:
-        from sqlalchemy.orm import Session as SASession
-        from cold_storage.bootstrap.dependencies import get_engine
-        from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
-
-        engine = get_engine()
-        session = SASession(bind=engine)
-        repo = AgentRepository(session)
-        return PlanningAgentService(
-            repository=repo,
-            gateway=new_gateway,
-            registry=new_registry,
-            orchestrator=new_orchestrator,
-        )
-
-    app.include_router(create_agent_router(_get_new_agent_service()))
-
+    # ----------------------------------------------------------------------- Fix #2: New Plannin
     # -----------------------------------------------------------------------
-    # Core Calculation Endpoints (Task 4)
+    # Fix #2: Router uses Depends() so each request gets its own DB Session.
+    # Fix #7: _get_db_session handles commit/rollback/close per-request.
+    from cold_storage.modules.planning_agent.api.routes import (
+        create_agent_router as _create_agent_router,
+    )
+
+    app.include_router(_create_agent_router(_get_planning_agent_service))
+
+    # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------
 
     class CoreCalculationPreviewRequest(BaseModel):
@@ -652,11 +670,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         version: int,
         request: CoreCalculationPreviewRequest,
     ) -> dict[str, Any]:
-        """Run cooling load calculation for a project version.
-
-        Validates that the version is not locked, runs the calculation,
-        and persists the result in the calculation snapshot.
-        """
+        """Run cooling load calculation for a project version."""
         from cold_storage.modules.calculations.application.cooling_load_api import (
             run_cooling_load_from_dict,
         )
@@ -712,9 +726,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         snapshot = getattr(project_version, "calculation_snapshot", {}) or {}
         cooling_load = snapshot.get("cooling_load")
         if not cooling_load:
-            return {
-                "error": {"code": "NO_CALCULATION", "message": "No cooling load calculation found"}
-            }
+            return {"error": {"code": "NO_CALCULATION",
+                       "message": "No cooling load calculation found"}}
         result: dict[str, Any] = cooling_load
         return result
 
@@ -737,8 +750,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     return app
 
 
-# ---------------------------------------------------------------------------
-# Helpers local to this module
+# --------------------------------------------------------------------------- Helpers local to th
 # ---------------------------------------------------------------------------
 
 

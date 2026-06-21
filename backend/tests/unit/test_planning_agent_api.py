@@ -44,7 +44,7 @@ def app(db_session):
         orchestrator=orchestrator,
     )
     fastapi_app = FastAPI()
-    fastapi_app.include_router(create_agent_router(service))
+    fastapi_app.include_router(create_agent_router(lambda: service))
     return fastapi_app
 
 

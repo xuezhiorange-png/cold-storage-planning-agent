@@ -435,7 +435,7 @@ class TestCreateAppIntegration:
         )
 
         app = FastAPI()
-        app.include_router(create_agent_router(svc))
+        app.include_router(create_agent_router(lambda: svc))
         return app, db_sess
 
     def test_create_session_returns_201(self):
@@ -534,7 +534,7 @@ class TestErrorPropagation:
         )
 
         app = FastAPI()
-        app.include_router(create_agent_router(service))
+        app.include_router(create_agent_router(lambda: service))
 
         with TestClient(app, raise_server_exceptions=False) as client:
             create_resp = client.post(
