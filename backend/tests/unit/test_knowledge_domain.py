@@ -34,6 +34,7 @@ import math
 import subprocess
 import sys
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -268,7 +269,7 @@ print(json.dumps(vec))
             ],
             capture_output=True,
             text=True,
-            cwd="/root/cold-storage-planning-agent-clean/backend",
+            cwd=str(Path(__file__).resolve().parent.parent.parent),
         )
         assert result.returncode == 0, f"Subprocess failed: {result.stderr}"
         result_sub = [float(v) for v in __import__("json").loads(result.stdout.strip())]
