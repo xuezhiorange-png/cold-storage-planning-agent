@@ -741,3 +741,173 @@ class TestSearchFilterLatestApprovedOnly:
         chunk_texts = [r["text"] for r in result["results"]]
         assert "Approved content beta" in chunk_texts
         assert "Unverified content alpha" not in chunk_texts
+
+
+# -----------------------------------------------------------------------
+# 19-20. create_document compensation cleanup on failure
+# -----------------------------------------------------------------------
+
+
+class TestCreateDocumentCompensationCleanup:
+    def test_create_document_save_revision_failure_cleanup(self, session) -> None:
+        """When save_revision fails, the storage file is cleaned up (compensation)."""
+        from unittest.mock import MagicMock, patch
+
+        from cold_storage.modules.knowledge.application.service import KnowledgeService
+
+        mock_storage = MagicMock()
+        mock_storage.save.return_value = MagicMock(storage_key="knowledge/orphan/key")
+        mock_storage.delete.return_value = None
+
+        with patch(
+            "cold_storage.modules.knowledge.application.service.LocalDocumentStorage",
+            return_value=mock_storage,
+        ):
+            svc = KnowledgeService(session)
+
+        # save_revision will raise, triggering compensation
+        with (
+            patch.object(svc._repo, "save_revision", side_effect=RuntimeError("DB write failed")),
+            pytest.raises(RuntimeError, match="DB write failed"),
+        ):
+            svc.create_document(
+                code="COMP-001",
+                title="Compensation Test",
+                file_content=b"test file content here",
+                filename="test.pdf",
+                mime_type="application/pdf",
+                owner="tester",
+            )
+
+        # Compensation: storage.delete must have been called with the orphan key
+        mock_storage.delete.assert_called_once_with("knowledge/orphan/key")
+
+    def test_create_document_audit_failure_cleanup(self, session) -> None:
+        """When _audit_event fails, the storage file is cleaned up (compensation)."""
+        from unittest.mock import MagicMock, patch
+
+        from cold_storage.modules.knowledge.application.service import KnowledgeService
+
+        mock_storage = MagicMock()
+        mock_storage.save.return_value = MagicMock(storage_key="knowledge/audit/key")
+        mock_storage.delete.return_value = None
+
+        with patch(
+            "cold_storage.modules.knowledge.application.service.LocalDocumentStorage",
+            return_value=mock_storage,
+        ):
+            svc = KnowledgeService(session)
+
+        # _audit_event will raise, triggering compensation
+        with (
+            patch.object(
+                svc,
+                "_audit_event",
+                side_effect=RuntimeError("Audit write failed"),
+            ),
+            pytest.raises(RuntimeError, match="Audit write failed"),
+        ):
+            svc.create_document(
+                code="COMP-002",
+                title="Audit Failure Test",
+                file_content=b"test file content here",
+                filename="test.pdf",
+                mime_type="application/pdf",
+                owner="tester",
+            )
+
+        # Compensation: storage.delete must have been called
+        mock_storage.delete.assert_called_once_with("knowledge/audit/key")
+
+
+# -----------------------------------------------------------------------
+# 21-22. approved→withdrawn content field rejection
+# -----------------------------------------------------------------------
+
+
+class TestApprovedWithdrawnContentFieldRejection:
+    def test_approved_withdrawn_rejects_content_fields(self, session) -> None:
+        """approved→withdrawn with content fields raises ApprovedRevisionImmutabilityError.
+
+        Only review_status, withdrawn_at, and requires_review are allowed.
+        """
+        from cold_storage.modules.knowledge.infrastructure.repository import (
+            KnowledgeRepository,
+        )
+
+        repo = KnowledgeRepository(session)
+
+        # Insert document + revision, set to approved
+        _insert_document(session, doc_id="doc-imm-r3", code="IMM-R3")
+        rev_rec = _insert_revision(
+            session,
+            revision_id="rev-imm-r3",
+            doc_id="doc-imm-r3",
+            content_hash="imm-r3-hash",
+        )
+        session.flush()
+
+        rev_rec.ingestion_status = "indexed"
+        rev_rec.review_status = "approved"
+        rev_rec.approved_at = datetime.now(UTC)
+        session.flush()
+
+        # Attempt approved→withdrawn WITH a content field (parser_name)
+        with pytest.raises(ApprovedRevisionImmutabilityError):
+            repo.update_revision_status(
+                "rev-imm-r3",
+                review_status="withdrawn",
+                parser_name="hacked",
+            )
+
+        # Verify the revision is still approved (no state change)
+        refreshed = session.get(KnowledgeRevisionRecord, "rev-imm-r3")
+        assert refreshed.review_status == "approved"
+
+        # Now call with ONLY allowed fields — should succeed
+        repo.update_revision_status(
+            "rev-imm-r3",
+            review_status="withdrawn",
+            withdrawn_at=datetime.now(UTC),
+        )
+        refreshed = session.get(KnowledgeRevisionRecord, "rev-imm-r3")
+        assert refreshed.review_status == "withdrawn"
+        assert refreshed.withdrawn_at is not None
+
+    def test_approved_withdrawn_with_requires_review_succeeds(self, session) -> None:
+        """approved→withdrawn with requires_review=False succeeds.
+
+        requires_review is one of the allowed fields during withdrawal.
+        """
+        from cold_storage.modules.knowledge.infrastructure.repository import (
+            KnowledgeRepository,
+        )
+
+        repo = KnowledgeRepository(session)
+
+        # Insert document + revision, set to approved
+        _insert_document(session, doc_id="doc-rv-r3", code="RV-R3")
+        rev_rec = _insert_revision(
+            session,
+            revision_id="rev-rv-r3",
+            doc_id="doc-rv-r3",
+            content_hash="rv-r3-hash",
+        )
+        session.flush()
+
+        rev_rec.ingestion_status = "indexed"
+        rev_rec.review_status = "approved"
+        rev_rec.approved_at = datetime.now(UTC)
+        rev_rec.requires_review = False
+        session.flush()
+
+        # Transition: approved→withdrawn with requires_review=False (allowed field)
+        repo.update_revision_status(
+            "rev-rv-r3",
+            review_status="withdrawn",
+            requires_review=False,
+        )
+
+        refreshed = session.get(KnowledgeRevisionRecord, "rev-rv-r3")
+        assert refreshed.review_status == "withdrawn"
+        assert refreshed.requires_review is False

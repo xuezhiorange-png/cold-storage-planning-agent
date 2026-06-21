@@ -8,7 +8,6 @@ import unicodedata
 from decimal import ROUND_HALF_UP, Decimal
 
 from cold_storage.modules.knowledge.domain.models import (
-    KnowledgeChunk,
     RetrievalCandidate,
     RetrievalProfile,
     RetrievalScore,
@@ -156,7 +155,7 @@ def _compute_idf(corpus_tokens: list[list[str]]) -> dict[str, float]:
 
 def search_chunks(
     query: str,
-    chunks: list[tuple[KnowledgeChunk, str]],
+    candidates: list[RetrievalCandidate],
     profile: RetrievalProfile,
     top_k: int = 10,
 ) -> list[RetrievalCandidate]:
@@ -166,14 +165,15 @@ def search_chunks(
     ----------
     query : str
         The search query text.
-    chunks : list[tuple[KnowledgeChunk, str]]
-        List of (chunk, document_code) pairs to search against.
+    candidates : list[RetrievalCandidate]
+        Pre-built candidates with chunk, document_code, review_status,
+        and revision_number already populated by the caller.
     profile : RetrievalProfile
         Retrieval configuration with BM25 params and weights.
     top_k : int
         Maximum number of results to return.
     """
-    if not chunks:
+    if not candidates:
         return []
 
     # Tokenize query
@@ -182,7 +182,7 @@ def search_chunks(
         return []
 
     # Tokenize all documents and compute corpus stats
-    doc_token_lists = [tokenize(ch.text) for ch, _ in chunks]
+    doc_token_lists = [tokenize(c.chunk.text) for c in candidates]
     n_docs = len(doc_token_lists)
     total_tokens = sum(len(toks) for toks in doc_token_lists)
     avg_dl = total_tokens / max(n_docs, 1)
@@ -190,10 +190,9 @@ def search_chunks(
     idf = _compute_idf(doc_token_lists)
 
     # Score each chunk
-    candidates: list[RetrievalCandidate] = []
     raw_lexical_scores: list[float] = []
 
-    for (_chunk, _doc_code), doc_tokens in zip(chunks, doc_token_lists, strict=True):
+    for _candidate, doc_tokens in zip(candidates, doc_token_lists, strict=True):
         lex_score = bm25_score(
             query_tokens,
             doc_tokens,
@@ -211,15 +210,21 @@ def search_chunks(
 
     query_embedding = generate_embedding(query, profile.embedding_config)
 
-    for (chunk, doc_code), lex_score in zip(chunks, raw_lexical_scores, strict=True):
+    scored: list[RetrievalCandidate] = []
+    for candidate, lex_score in zip(candidates, raw_lexical_scores, strict=True):
+        chunk = candidate.chunk
         chunk_embedding = chunk.embedding if chunk.embedding else []
         score = hybrid_score(lex_score, max_lex, query_embedding, chunk_embedding, profile)
-        candidate = RetrievalCandidate(
-            chunk=chunk,
-            score=score,
-            document_code=doc_code,
+        # Create a new candidate with the score filled in, preserving metadata
+        scored.append(
+            RetrievalCandidate(
+                chunk=chunk,
+                score=score,
+                document_code=candidate.document_code,
+                review_status=candidate.review_status,
+                revision_number=candidate.revision_number,
+            )
         )
-        candidates.append(candidate)
 
     # Sort by full tie-break chain:
     # 1. hybrid_score DESC
@@ -248,5 +253,5 @@ def search_chunks(
             c.chunk.id,
         )
 
-    candidates.sort(key=_sort_key)
-    return candidates[:top_k]
+    scored.sort(key=_sort_key)
+    return scored[:top_k]

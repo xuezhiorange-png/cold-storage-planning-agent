@@ -168,9 +168,50 @@ class KnowledgeRepository:
             return None
 
         # Approved revision immutability: only allow approved → withdrawn
+        # with ONLY review_status, withdrawn_at, and requires_review fields.
         if rec.review_status == "approved":
             if review_status is not None and review_status == "withdrawn":
-                pass  # Allow approved → withdrawn
+                # Define the only fields allowed during approved→withdrawn
+                _ALLOWED_FIELDS = {"review_status", "withdrawn_at", "requires_review"}
+                _CONTENT_FIELDS = {
+                    "ingestion_status",
+                    "requires_ocr",
+                    "parser_name",
+                    "parser_version",
+                    "chunker_version",
+                    "embedding_version",
+                    "extracted_text_length",
+                    "page_count",
+                    "sheet_count",
+                    "warnings",
+                    "indexed_at",
+                    "reviewed_at",
+                    "approved_at",
+                }
+                provided = _CONTENT_FIELDS & {
+                    k
+                    for k, v in {
+                        "ingestion_status": ingestion_status,
+                        "requires_ocr": requires_ocr,
+                        "parser_name": parser_name,
+                        "parser_version": parser_version,
+                        "chunker_version": chunker_version,
+                        "embedding_version": embedding_version,
+                        "extracted_text_length": extracted_text_length,
+                        "page_count": page_count,
+                        "sheet_count": sheet_count,
+                        "warnings": warnings,
+                        "indexed_at": indexed_at,
+                        "reviewed_at": reviewed_at,
+                        "approved_at": approved_at,
+                    }.items()
+                    if v is not None
+                }
+                if provided:
+                    raise ApprovedRevisionImmutabilityError(
+                        f"Cannot modify content fields {provided} on approved "
+                        f"revision {revision_id} during withdrawal"
+                    )
             else:
                 raise ApprovedRevisionImmutabilityError(
                     f"Revision {revision_id} is approved and immutable"

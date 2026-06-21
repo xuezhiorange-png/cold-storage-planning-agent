@@ -556,3 +556,56 @@ class TestSearchRequiresReviewDynamic:
             if revision_requires_review.get(candidate.review_status, True):
                 any_requires_review = True
         assert any_requires_review is False
+
+
+# ---------------------------------------------------------------------------
+# 29. Real search_chunks tie-break
+# ---------------------------------------------------------------------------
+
+
+class TestRealSearchChunksTieBreak:
+    def test_search_chunks_real_tie_break(self) -> None:
+        """search_chunks sorts approved > unverified when scores are identical.
+
+        Regression test: verify the REAL search_chunks() function breaks ties
+        using review_status priority, not a copied _sort_key helper.
+        """
+
+        from cold_storage.modules.knowledge.domain.models import (
+            KnowledgeChunk,
+            RetrievalCandidate,
+            RetrievalProfile,
+        )
+        from cold_storage.modules.knowledge.domain.retrieval import search_chunks
+
+        profile = RetrievalProfile()
+        shared_text = "cold storage temperature control system"
+
+        # Two candidates with the SAME text (same BM25/cosine scores)
+        # but different review_status and revision_number.
+        approved = RetrievalCandidate(
+            chunk=KnowledgeChunk(text=shared_text, chunk_index=0, id="chunk-approved"),
+            document_code="DOC-A",
+            review_status="approved",
+            revision_number=1,
+        )
+        unverified = RetrievalCandidate(
+            chunk=KnowledgeChunk(text=shared_text, chunk_index=0, id="chunk-unverified"),
+            document_code="DOC-A",
+            review_status="unverified",
+            revision_number=2,
+        )
+
+        results = search_chunks(
+            query="cold storage",
+            candidates=[unverified, approved],  # unverified first
+            profile=profile,
+            top_k=10,
+        )
+
+        assert len(results) == 2
+        # Approved candidate must sort first (review_status priority 0 < 2)
+        assert results[0].review_status == "approved"
+        assert results[0].chunk.id == "chunk-approved"
+        assert results[1].review_status == "unverified"
+        assert results[1].chunk.id == "chunk-unverified"

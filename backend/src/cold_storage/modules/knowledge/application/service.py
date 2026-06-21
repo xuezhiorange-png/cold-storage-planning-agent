@@ -42,6 +42,7 @@ from cold_storage.modules.knowledge.domain.models import (
     KnowledgeDocument,
     KnowledgeIngestionRun,
     KnowledgeRevision,
+    RetrievalCandidate,
     RetrievalProfile,
 )
 from cold_storage.modules.knowledge.domain.retrieval import search_chunks
@@ -180,23 +181,24 @@ class KnowledgeService:
                 "storage_key": stored.storage_key,
             }
         )
-        self._repo.save_revision(rev)
-
-        # Audit event
-        self._audit_event(
-            actor=owner or "system",
-            action="document.created",
-            entity_type="knowledge_document",
-            entity_id=doc.id,
-            before_snapshot={},
-            after_snapshot={
-                "code": code,
-                "title": title,
-                "revision_number": revision_number,
-            },
-        )
 
         try:
+            self._repo.save_revision(rev)
+
+            # Audit event
+            self._audit_event(
+                actor=owner or "system",
+                action="document.created",
+                entity_type="knowledge_document",
+                entity_id=doc.id,
+                before_snapshot={},
+                after_snapshot={
+                    "code": code,
+                    "title": title,
+                    "revision_number": revision_number,
+                },
+            )
+
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -686,7 +688,7 @@ class KnowledgeService:
 
         # Load all relevant chunks from DB
         all_doc_recs = self._repo.list_documents()
-        chunk_doc_pairs: list[tuple[KnowledgeChunk, str]] = []
+        input_candidates: list[RetrievalCandidate] = []
         total_candidates = 0
 
         for doc_rec in all_doc_recs:
@@ -745,10 +747,17 @@ class KnowledgeService:
                         embedding_version=c.embedding_version,
                         created_at=c.created_at,
                     )
-                    chunk_doc_pairs.append((chunk, doc_rec.code))
+                    input_candidates.append(
+                        RetrievalCandidate(
+                            chunk=chunk,
+                            document_code=doc_rec.code,
+                            review_status=rev_rec.review_status,
+                            revision_number=rev_rec.revision_number,
+                        )
+                    )
 
         profile = RetrievalProfile()
-        results = search_chunks(query, chunk_doc_pairs, profile, top_k=top_k)
+        results = search_chunks(query, input_candidates, profile, top_k=top_k)
 
         # Build response
         search_results = []
