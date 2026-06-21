@@ -246,3 +246,14 @@ class KnowledgeSearchResult:
     score: RetrievalScore = field(default_factory=RetrievalScore)
     citation: KnowledgeCitation = field(default_factory=lambda: KnowledgeCitation())
     requires_review: bool = True
+
+
+@dataclass(frozen=True)
+class RetrievalCandidate:
+    """A candidate from retrieval, carrying metadata needed for tie-breaking."""
+
+    chunk: KnowledgeChunk = field(default_factory=KnowledgeChunk)
+    score: RetrievalScore = field(default_factory=RetrievalScore)
+    document_code: str = ""
+    review_status: str = "unverified"
+    revision_number: int = 0

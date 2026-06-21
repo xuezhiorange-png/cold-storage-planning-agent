@@ -25,12 +25,28 @@ class PdfParser:
 
     Extracts text page-by-page, detects encrypted PDFs, and flags pages
     with insufficient text for OCR processing.
+
+    This parser is stateless: ``parse_with_metadata`` returns a
+    ``ParseResult`` rather than storing results on the instance.
     """
 
     name: str = "pdf"
 
     def parse(self, content: bytes, filename: str) -> list[ParsedBlock]:
         """Parse a PDF file into ParsedBlock list.
+
+        Raises
+        ------
+        ImportError
+            If pymupdf is not installed.
+        ValueError
+            If the PDF is encrypted.
+        """
+        result = self.parse_with_metadata(content, filename)
+        return result.blocks
+
+    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
+        """Parse a PDF and return a ParseResult with blocks + OCR metadata.
 
         Raises
         ------
@@ -103,8 +119,7 @@ class PdfParser:
             if ocr_page_numbers:
                 warnings.append(f"OCR may be required for image-only pages: {ocr_page_numbers}")
 
-            # Store result metadata for the service to read
-            self._last_parse_result = ParseResult(
+            return ParseResult(
                 blocks=blocks,
                 warnings=warnings,
                 page_count=page_count,
@@ -113,8 +128,6 @@ class PdfParser:
 
         finally:
             doc.close()  # type: ignore[no-untyped-call]
-
-        return blocks
 
     def detect_ocr_needed(self, content: bytes) -> bool:
         """Check if a PDF contains insufficient text and requires OCR.

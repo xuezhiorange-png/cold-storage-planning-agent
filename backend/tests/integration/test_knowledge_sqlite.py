@@ -466,3 +466,272 @@ class TestApprovedImmutability:
         # Try to modify — domain rules should prevent this
         with pytest.raises(ApprovedRevisionImmutabilityError):
             assert_not_approved(rev.review_status)
+
+
+# ---------------------------------------------------------------------------
+# 15. OCR revision has no chunks
+# ---------------------------------------------------------------------------
+
+
+class TestRequiresOcrRevision:
+    def test_requires_ocr_revision_has_no_chunks(self, session) -> None:
+        """Revision with ingestion_status='requires_ocr' has no chunks indexed."""
+        _insert_document(session, doc_id="doc-ocr", code="OCR-001")
+        _insert_revision(
+            session, revision_id="rev-ocr", doc_id="doc-ocr", content_hash="ocr-hash"
+        )
+        session.flush()
+
+        # Update to requires_ocr status
+        rev = session.get(KnowledgeRevisionRecord, "rev-ocr")
+        rev.ingestion_status = "requires_ocr"
+        rev.requires_ocr = True
+        session.flush()
+
+        # Verify no chunks exist for this revision
+        chunk_count = (
+            session.query(KnowledgeChunkRecord)
+            .filter_by(revision_id="rev-ocr")
+            .count()
+        )
+        assert chunk_count == 0
+
+        # Verify the revision is in requires_ocr state
+        retrieved = session.get(KnowledgeRevisionRecord, "rev-ocr")
+        assert retrieved.ingestion_status == "requires_ocr"
+        assert retrieved.requires_ocr is True
+
+
+# ---------------------------------------------------------------------------
+# 16. Approved → withdrawn transition
+# ---------------------------------------------------------------------------
+
+
+class TestApprovedWithdrawnTransition:
+    def test_approved_withdrawn_transition(self, session) -> None:
+        """approved → withdrawn is a valid lifecycle transition."""
+        from cold_storage.modules.knowledge.domain.lifecycle import (
+            validate_review_transition,
+        )
+
+        _insert_document(session, doc_id="doc-withdraw", code="WD-001")
+        _insert_revision(
+            session, revision_id="rev-withdraw", doc_id="doc-withdraw",
+            content_hash="wd-hash",
+        )
+        session.flush()
+
+        # Set to approved
+        rev = session.get(KnowledgeRevisionRecord, "rev-withdraw")
+        rev.ingestion_status = "indexed"
+        rev.review_status = "approved"
+        rev.approved_at = datetime.now(UTC)
+        session.flush()
+
+        # Domain allows approved → withdrawn
+        validate_review_transition("approved", "withdrawn")
+
+        # Transition to withdrawn
+        rev.review_status = "withdrawn"
+        rev.withdrawn_at = datetime.now(UTC)
+        session.flush()
+
+        # Verify final state
+        retrieved = session.get(KnowledgeRevisionRecord, "rev-withdraw")
+        assert retrieved.review_status == "withdrawn"
+        assert retrieved.withdrawn_at is not None
+
+
+# ---------------------------------------------------------------------------
+# 17. include_historical_revisions parameter
+# ---------------------------------------------------------------------------
+
+
+class TestIncludeHistoricalRevisions:
+    def test_include_historical_revisions(self, session) -> None:
+        """Search with include_historical_revisions returns chunks from all revisions."""
+        from unittest.mock import patch as mock_patch
+
+        from cold_storage.modules.knowledge.application.service import KnowledgeService
+
+        _insert_document(session, doc_id="doc-hist", code="HIST-001")
+        # v1
+        _insert_revision(
+            session, revision_id="rev-hist-1", doc_id="doc-hist",
+            rev_num=1, content_hash="hist-1",
+        )
+        # v2
+        _insert_revision(
+            session, revision_id="rev-hist-2", doc_id="doc-hist",
+            rev_num=2, content_hash="hist-2",
+        )
+        session.flush()
+
+        # Set both to indexed and approved
+        for rev_id in ("rev-hist-1", "rev-hist-2"):
+            rev = session.get(KnowledgeRevisionRecord, rev_id)
+            rev.ingestion_status = "indexed"
+            rev.review_status = "approved"
+            rev.requires_review = False
+
+        # Add chunks to v1
+        chunk1 = KnowledgeChunkRecord(
+            id="chunk-hist-1",
+            revision_id="rev-hist-1",
+            chunk_index=0,
+            text="Historical content version one",
+            text_sha256="hash-h1",
+            character_count=30,
+            token_count=5,
+            section_path="",
+            page_start=None,
+            page_end=None,
+            sheet_name=None,
+            row_start=None,
+            row_end=None,
+            source_locator="block:0",
+            embedding=[0.1] * 64,
+            embedding_dimension=64,
+            embedding_version="fake-hash-v1",
+            created_at=datetime.now(UTC),
+        )
+        session.add(chunk1)
+
+        # Add chunks to v2
+        chunk2 = KnowledgeChunkRecord(
+            id="chunk-hist-2",
+            revision_id="rev-hist-2",
+            chunk_index=0,
+            text="Updated content version two",
+            text_sha256="hash-h2",
+            character_count=28,
+            token_count=5,
+            section_path="",
+            page_start=None,
+            page_end=None,
+            sheet_name=None,
+            row_start=None,
+            row_end=None,
+            source_locator="block:0",
+            embedding=[0.1] * 64,
+            embedding_dimension=64,
+            embedding_version="fake-hash-v1",
+            created_at=datetime.now(UTC),
+        )
+        session.add(chunk2)
+        session.flush()
+
+        # Create service (mock storage since search doesn't use it)
+        with mock_patch(
+            "cold_storage.modules.knowledge.application.service.LocalDocumentStorage"
+        ):
+            svc = KnowledgeService(session)
+
+        # Without historical revisions: only latest (v2)
+        result_no_hist = svc.search(
+            query="content", include_historical_revisions=False,
+        )
+        chunk_texts = [r["text"] for r in result_no_hist["results"]]
+        assert "Updated content version two" in chunk_texts
+
+        # With historical revisions: both v1 and v2
+        result_with_hist = svc.search(
+            query="content", include_historical_revisions=True,
+        )
+        chunk_texts = [r["text"] for r in result_with_hist["results"]]
+        assert "Historical content version one" in chunk_texts
+        assert "Updated content version two" in chunk_texts
+
+
+# ---------------------------------------------------------------------------
+# 18. Search filter: latest approved only
+# ---------------------------------------------------------------------------
+
+
+class TestSearchFilterLatestApprovedOnly:
+    def test_search_filter_latest_approved_only(self, session) -> None:
+        """Default search returns only approved revision chunks."""
+        from unittest.mock import patch as mock_patch
+
+        from cold_storage.modules.knowledge.application.service import KnowledgeService
+
+        _insert_document(session, doc_id="doc-filter", code="FILTER-001")
+        # v1 — unverified
+        _insert_revision(
+            session, revision_id="rev-filter-1", doc_id="doc-filter",
+            rev_num=1, content_hash="filter-1",
+        )
+        # v2 — approved
+        _insert_revision(
+            session, revision_id="rev-filter-2", doc_id="doc-filter",
+            rev_num=2, content_hash="filter-2",
+        )
+        session.flush()
+
+        # v1: indexed but unverified
+        rev1 = session.get(KnowledgeRevisionRecord, "rev-filter-1")
+        rev1.ingestion_status = "indexed"
+        rev1.review_status = "unverified"
+
+        # v2: indexed and approved
+        rev2 = session.get(KnowledgeRevisionRecord, "rev-filter-2")
+        rev2.ingestion_status = "indexed"
+        rev2.review_status = "approved"
+        rev2.requires_review = False
+        session.flush()
+
+        # Add chunks
+        chunk1 = KnowledgeChunkRecord(
+            id="chunk-filter-1",
+            revision_id="rev-filter-1",
+            chunk_index=0,
+            text="Unverified content alpha",
+            text_sha256="hash-f1",
+            character_count=25,
+            token_count=4,
+            section_path="",
+            page_start=None,
+            page_end=None,
+            sheet_name=None,
+            row_start=None,
+            row_end=None,
+            source_locator="block:0",
+            embedding=[0.1] * 64,
+            embedding_dimension=64,
+            embedding_version="fake-hash-v1",
+            created_at=datetime.now(UTC),
+        )
+        chunk2 = KnowledgeChunkRecord(
+            id="chunk-filter-2",
+            revision_id="rev-filter-2",
+            chunk_index=0,
+            text="Approved content beta",
+            text_sha256="hash-f2",
+            character_count=22,
+            token_count=4,
+            section_path="",
+            page_start=None,
+            page_end=None,
+            sheet_name=None,
+            row_start=None,
+            row_end=None,
+            source_locator="block:0",
+            embedding=[0.1] * 64,
+            embedding_dimension=64,
+            embedding_version="fake-hash-v1",
+            created_at=datetime.now(UTC),
+        )
+        session.add(chunk1)
+        session.add(chunk2)
+        session.flush()
+
+        with mock_patch(
+            "cold_storage.modules.knowledge.application.service.LocalDocumentStorage"
+        ):
+            svc = KnowledgeService(session)
+
+        # Default search: only latest revision (v2) and approved_only filter
+        result = svc.search(query="content")
+        chunk_texts = [r["text"] for r in result["results"]]
+        assert "Approved content beta" in chunk_texts
+        assert "Unverified content alpha" not in chunk_texts

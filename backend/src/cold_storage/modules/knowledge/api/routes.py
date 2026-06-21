@@ -101,7 +101,7 @@ class SearchRequest(BaseModel):
     """Request body for knowledge search."""
 
     query: str
-    top_k: int = 10
+    top_k: int = Field(default=10, ge=1, le=50)
     document_categories: list[str] = Field(default_factory=list)
     include_unverified: bool = False
     include_reviewed: bool = False
@@ -213,25 +213,30 @@ async def create_document(
     """Create a new knowledge document with its first revision."""
     service = _get_service(request)
 
-    # Read in chunks with size checking during read
+    # Read in chunks with size checking, using SpooledTemporaryFile
     import os
+    import tempfile
 
     max_upload_bytes = int(os.environ.get("KNOWLEDGE_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
     sha256_hash = hashlib.sha256()
     total_size = 0
-    chunks: list[bytes] = []
-    while True:
-        chunk = await file.read(8192)
-        if not chunk:
-            break
-        total_size += len(chunk)
-        if total_size > max_upload_bytes:
-            from cold_storage.modules.knowledge.domain.errors import FileTooLargeError
+    spooled = tempfile.SpooledTemporaryFile(max_size=1024 * 1024)  # noqa: SIM115
+    try:
+        while True:
+            chunk = await file.read(8192)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > max_upload_bytes:
+                from cold_storage.modules.knowledge.domain.errors import FileTooLargeError as FTL
 
-            raise FileTooLargeError(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
-        sha256_hash.update(chunk)
-        chunks.append(chunk)
-    file_content = b"".join(chunks)
+                raise FTL(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
+            sha256_hash.update(chunk)
+            spooled.write(chunk)
+        spooled.seek(0)
+        file_content = spooled.read()
+    finally:
+        spooled.close()
     mime_type = file.content_type or "application/octet-stream"
     filename = file.filename or "unnamed"
 
@@ -267,25 +272,30 @@ async def create_revision(
     """Create a new revision for an existing document."""
     service = _get_service(request)
 
-    # Read in chunks with size checking during read
+    # Read in chunks with size checking, using SpooledTemporaryFile
     import os
+    import tempfile
 
     max_upload_bytes = int(os.environ.get("KNOWLEDGE_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
     sha256_hash = hashlib.sha256()
     total_size = 0
-    chunks_list: list[bytes] = []
-    while True:
-        chunk = await file.read(8192)
-        if not chunk:
-            break
-        total_size += len(chunk)
-        if total_size > max_upload_bytes:
-            from cold_storage.modules.knowledge.domain.errors import FileTooLargeError
+    spooled = tempfile.SpooledTemporaryFile(max_size=1024 * 1024)  # noqa: SIM115
+    try:
+        while True:
+            chunk = await file.read(8192)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > max_upload_bytes:
+                from cold_storage.modules.knowledge.domain.errors import FileTooLargeError as FTL
 
-            raise FileTooLargeError(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
-        sha256_hash.update(chunk)
-        chunks_list.append(chunk)
-    file_content = b"".join(chunks_list)
+                raise FTL(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
+            sha256_hash.update(chunk)
+            spooled.write(chunk)
+        spooled.seek(0)
+        file_content = spooled.read()
+    finally:
+        spooled.close()
     mime_type = file.content_type or "application/octet-stream"
     filename = file.filename or "unnamed"
 

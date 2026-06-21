@@ -180,14 +180,21 @@ class LocalDocumentStorage:
     def _resolve_storage_key(self, storage_key: str) -> Path:
         """Resolve a storage key to an absolute path, enforcing no traversal.
 
-        A storage key has the format ``<hex2>/<revision_id>/content``.
+        A storage key must have the format ``<hex2>/<revision_id>/content``.
         After resolving against base_dir, the result must still be within base_dir.
         """
+        import re
+
+        # Strict format validation: exactly 3 components, first is 2-hex, last is 'content'
+        if not re.match(r"^[0-9a-f]{2}/[^/]+/content$", storage_key):
+            raise ValueError(
+                f"Storage key must match <hex2>/<revision_id>/content, got: {storage_key!r}"
+            )
         parts = storage_key.split("/")
         for part in parts:
-            if ".." in part or part.startswith("/"):
+            if ".." in part or part.startswith("/") or "\\" in part:
                 raise ValueError(f"Invalid path component in storage key: {part!r}")
         resolved = (self._base / storage_key).resolve()
-        if not str(resolved).startswith(str(self._base.resolve())):
+        if not resolved.is_relative_to(self._base.resolve()):
             raise ValueError(f"Path traversal detected in storage key: {storage_key!r}")
         return resolved

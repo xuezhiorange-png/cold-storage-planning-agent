@@ -69,7 +69,7 @@ def _tokenize(text: str) -> list[str]:
     tokens: list[str] = []
 
     # Priority: unit strings first (kW(r), kW(e), kWh, m², kg, ℃), then words, numbers
-    token_pattern = r"kW\([re]\)|kWh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
+    token_pattern = r"kw\([re]\)|kwh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
     for m in re.finditer(token_pattern, text):
         tokens.append(m.group(0))
 

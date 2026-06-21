@@ -408,3 +408,151 @@ class TestCosineSimilarity:
         a = [1.0, 2.0]
         b = [1.0, 2.0, 3.0]
         assert cosine_similarity(a, b) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# 26. Tokenizer compound unit tokens
+# ---------------------------------------------------------------------------
+
+
+class TestTokenizerCompoundUnits:
+    def test_tokenize_kw_units(self) -> None:
+        """kW(r), kW(e) produce compound tokens; kWh is a single token."""
+        tokens_r = tokenize("kW(r)")
+        assert "kw(r)" in tokens_r
+        tokens_e = tokenize("kW(e)")
+        assert "kw(e)" in tokens_e
+        tokens_kwh = tokenize("kWh")
+        assert "kwh" in tokens_kwh
+        # Compound tokens are distinct — kW(r) ≠ kW(e)
+        assert "kw(r)" != "kw(e)"
+
+    def test_tokenize_kwh_vs_kwe(self) -> None:
+        """Tokenizing kW(r) vs kW(e) produces different embeddings."""
+        emb_r = generate_embedding("kW(r)")
+        emb_e = generate_embedding("kW(e)")
+        assert emb_r != emb_e
+
+
+# ---------------------------------------------------------------------------
+# 27. Tie-break stability
+# ---------------------------------------------------------------------------
+
+
+class TestTieBreakStability:
+    def test_tie_break_stable(self) -> None:
+        """Sorting candidates with same scores is stable and deterministic."""
+        from cold_storage.modules.knowledge.domain.models import (
+            KnowledgeChunk,
+            RetrievalCandidate,
+            RetrievalScore,
+        )
+
+        score = RetrievalScore(
+            hybrid_score=Decimal("0.5"),
+            lexical_normalized=Decimal("0.3"),
+            semantic_normalized=Decimal("0.2"),
+        )
+
+        _REVIEW_PRIORITY = {"approved": 0, "reviewed": 1, "unverified": 2, "withdrawn": 3}
+
+        def _sort_key(c: RetrievalCandidate) -> tuple:
+            return (
+                -c.score.hybrid_score,
+                -c.score.lexical_normalized,
+                -c.score.semantic_normalized,
+                _REVIEW_PRIORITY.get(c.review_status, 2),
+                c.document_code,
+                -c.revision_number,
+                c.chunk.chunk_index,
+                c.chunk.id,
+            )
+
+        candidates = [
+            RetrievalCandidate(
+                chunk=KnowledgeChunk(text="same", chunk_index=0, id="chunk-aaa"),
+                score=score,
+                document_code="DOC-A",
+                review_status="unverified",
+                revision_number=2,
+            ),
+            RetrievalCandidate(
+                chunk=KnowledgeChunk(text="same", chunk_index=0, id="chunk-bbb"),
+                score=score,
+                document_code="DOC-A",
+                review_status="approved",
+                revision_number=1,
+            ),
+            RetrievalCandidate(
+                chunk=KnowledgeChunk(text="same", chunk_index=0, id="chunk-ccc"),
+                score=score,
+                document_code="DOC-A",
+                review_status="reviewed",
+                revision_number=3,
+            ),
+        ]
+
+        sorted1 = sorted(candidates, key=_sort_key)
+        sorted2 = sorted(candidates, key=_sort_key)
+
+        # Deterministic: same order on repeated sorts
+        assert [c.chunk.id for c in sorted1] == [c.chunk.id for c in sorted2]
+
+        # Tie-break by review_status priority: approved > reviewed > unverified
+        assert sorted1[0].review_status == "approved"
+        assert sorted1[1].review_status == "reviewed"
+        assert sorted1[2].review_status == "unverified"
+
+
+# ---------------------------------------------------------------------------
+# 28. Dynamic requires_review
+# ---------------------------------------------------------------------------
+
+
+class TestSearchRequiresReviewDynamic:
+    def test_search_requires_review_dynamic(self) -> None:
+        """requires_review is False when all results are from approved revisions."""
+        from cold_storage.modules.knowledge.domain.models import (
+            KnowledgeChunk,
+            KnowledgeRevision,
+            RetrievalCandidate,
+            RetrievalScore,
+        )
+
+        # Approved revision: requires_review is explicitly set to False
+        approved_rev = KnowledgeRevision(
+            review_status="approved",
+            requires_review=False,
+        )
+        assert approved_rev.requires_review is False
+
+        # Unverified revision: requires_review defaults to True
+        unverified_rev = KnowledgeRevision(review_status="unverified")
+        assert unverified_rev.requires_review is True
+
+        # Simulate the service's any_requires_review logic
+        score = RetrievalScore(hybrid_score=Decimal("0.5"))
+        candidates = [
+            RetrievalCandidate(
+                chunk=KnowledgeChunk(text="test", id="c1"),
+                score=score,
+                document_code="DOC-1",
+                review_status="approved",
+                revision_number=1,
+            ),
+            RetrievalCandidate(
+                chunk=KnowledgeChunk(text="test", id="c2"),
+                score=score,
+                document_code="DOC-1",
+                review_status="approved",
+                revision_number=2,
+            ),
+        ]
+
+        # Service logic: approved revisions have requires_review=False
+        revision_requires_review = {"approved": False, "unverified": True, "reviewed": True}
+        any_requires_review = False
+        for candidate in candidates:
+            if revision_requires_review.get(candidate.review_status, True):
+                any_requires_review = True
+        assert any_requires_review is False

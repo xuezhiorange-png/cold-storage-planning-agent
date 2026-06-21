@@ -9,6 +9,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from cold_storage.modules.knowledge.domain.models import (
     KnowledgeChunk,
+    RetrievalCandidate,
     RetrievalProfile,
     RetrievalScore,
 )
@@ -22,7 +23,7 @@ def tokenize(text: str) -> list[str]:
     normalized = unicodedata.normalize("NFKC", text).lower()
     tokens: list[str] = []
     # Priority: unit strings first (kW(r), kW(e), kWh, m², kg, ℃), then words, numbers, CJK
-    token_pattern = r"kW\([re]\)|kWh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
+    token_pattern = r"kw\([re]\)|kwh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
     for m in re.finditer(token_pattern, normalized):
         tokens.append(m.group(0))
     cjk_chars = re.findall(r"[\u4e00-\u9fff]", normalized)
@@ -158,7 +159,7 @@ def search_chunks(
     chunks: list[tuple[KnowledgeChunk, str]],
     profile: RetrievalProfile,
     top_k: int = 10,
-) -> list[tuple[KnowledgeChunk, RetrievalScore, str]]:
+) -> list[RetrievalCandidate]:
     """Full hybrid search pipeline.
 
     Parameters
@@ -189,7 +190,7 @@ def search_chunks(
     idf = _compute_idf(doc_token_lists)
 
     # Score each chunk
-    results: list[tuple[KnowledgeChunk, RetrievalScore, str]] = []
+    candidates: list[RetrievalCandidate] = []
     raw_lexical_scores: list[float] = []
 
     for (_chunk, _doc_code), doc_tokens in zip(chunks, doc_token_lists, strict=True):
@@ -213,7 +214,12 @@ def search_chunks(
     for (chunk, doc_code), lex_score in zip(chunks, raw_lexical_scores, strict=True):
         chunk_embedding = chunk.embedding if chunk.embedding else []
         score = hybrid_score(lex_score, max_lex, query_embedding, chunk_embedding, profile)
-        results.append((chunk, score, doc_code))
+        candidate = RetrievalCandidate(
+            chunk=chunk,
+            score=score,
+            document_code=doc_code,
+        )
+        candidates.append(candidate)
 
     # Sort by full tie-break chain:
     # 1. hybrid_score DESC
@@ -227,22 +233,20 @@ def search_chunks(
     _REVIEW_PRIORITY = {"approved": 0, "reviewed": 1, "unverified": 2, "withdrawn": 3}
 
     def _sort_key(
-        r: tuple[KnowledgeChunk, RetrievalScore, str],
+        c: RetrievalCandidate,
     ) -> tuple[  # noqa: B023
         Decimal, Decimal, Decimal, int, str, int, int, str
     ]:
-        chunk, score, doc_code = r
-        rev_priority = _REVIEW_PRIORITY.get(getattr(chunk, "_review_status", "unverified"), 2)
         return (
-            -score.hybrid_score,
-            -score.lexical_normalized,
-            -score.semantic_normalized,
-            rev_priority,
-            doc_code,
-            -getattr(chunk, "_revision_number", 0),
-            chunk.chunk_index,
-            chunk.id,
+            -c.score.hybrid_score,
+            -c.score.lexical_normalized,
+            -c.score.semantic_normalized,
+            _REVIEW_PRIORITY.get(c.review_status, 2),
+            c.document_code,
+            -c.revision_number,
+            c.chunk.chunk_index,
+            c.chunk.id,
         )
 
-    results.sort(key=_sort_key)
-    return results[:top_k]
+    candidates.sort(key=_sort_key)
+    return candidates[:top_k]

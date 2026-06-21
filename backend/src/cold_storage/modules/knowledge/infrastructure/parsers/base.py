@@ -30,6 +30,12 @@ class Parser(Protocol):
         ...
 
 
+# Optional method: ``parse_with_metadata(content, filename) -> ParseResult``
+# is NOT part of the Protocol because most parsers don't need it.
+# Only PdfParser implements it; the application service uses ``hasattr``
+# to check for this capability before calling it.
+
+
 # ---------------------------------------------------------------------------
 # Parser registry
 # ---------------------------------------------------------------------------

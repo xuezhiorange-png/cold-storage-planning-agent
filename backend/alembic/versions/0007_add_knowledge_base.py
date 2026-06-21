@@ -8,6 +8,7 @@ Create Date: 2026-06-21
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -15,6 +16,14 @@ revision: str = "0007_add_knowledge_base"
 down_revision: str | None = "0006_scheme_candidate_details"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+
+def _json_type():
+    """Return JSONB for PostgreSQL, JSON for SQLite."""
+    dialect = op.get_bind().dialect.name
+    if dialect == "postgresql":
+        return postgresql.JSONB()
+    return sa.JSON()
 
 
 def upgrade() -> None:
@@ -55,8 +64,14 @@ def upgrade() -> None:
         sa.Column("storage_key", sa.String(500), nullable=False),
         sa.Column("ingestion_status", sa.String(50), nullable=False),
         sa.Column("review_status", sa.String(50), nullable=False),
-        sa.Column("requires_ocr", sa.Boolean(), nullable=False, server_default="0"),
-        sa.Column("requires_review", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column(
+            "requires_ocr", sa.Boolean(), nullable=False,
+            server_default=sa.text("false"),
+        ),
+        sa.Column(
+            "requires_review", sa.Boolean(), nullable=False,
+            server_default=sa.text("true"),
+        ),
         sa.Column("parser_name", sa.String(50), nullable=False),
         sa.Column("parser_version", sa.String(50), nullable=False),
         sa.Column("chunker_version", sa.String(50), nullable=False),
@@ -64,8 +79,8 @@ def upgrade() -> None:
         sa.Column("extracted_text_length", sa.Integer(), nullable=False),
         sa.Column("page_count", sa.Integer(), nullable=True),
         sa.Column("sheet_count", sa.Integer(), nullable=True),
-        sa.Column("metadata_snapshot", sa.JSON(), nullable=False),
-        sa.Column("warning_messages", sa.JSON(), nullable=False),
+        sa.Column("metadata_snapshot", _json_type(), nullable=False),
+        sa.Column("warning_messages", _json_type(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("indexed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
@@ -110,9 +125,9 @@ def upgrade() -> None:
         sa.Column("parser_version", sa.String(50), nullable=False),
         sa.Column("chunker_version", sa.String(50), nullable=False),
         sa.Column("embedding_version", sa.String(50), nullable=False),
-        sa.Column("input_snapshot", sa.JSON(), nullable=False),
-        sa.Column("result_snapshot", sa.JSON(), nullable=False),
-        sa.Column("warning_messages", sa.JSON(), nullable=False),
+        sa.Column("input_snapshot", _json_type(), nullable=False),
+        sa.Column("result_snapshot", _json_type(), nullable=False),
+        sa.Column("warning_messages", _json_type(), nullable=False),
         sa.Column("error_code", sa.String(50), nullable=False),
         sa.Column("error_message", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -141,7 +156,7 @@ def upgrade() -> None:
         sa.Column("row_start", sa.Integer(), nullable=True),
         sa.Column("row_end", sa.Integer(), nullable=True),
         sa.Column("source_locator", sa.Text(), nullable=False),
-        sa.Column("embedding", sa.JSON(), nullable=False),
+        sa.Column("embedding", _json_type(), nullable=False),
         sa.Column("embedding_dimension", sa.Integer(), nullable=False),
         sa.Column("embedding_version", sa.String(50), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),

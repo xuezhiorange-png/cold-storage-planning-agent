@@ -267,26 +267,27 @@ class KnowledgeService:
                 "storage_key": stored.storage_key,
             }
         )
-        self._repo.save_revision(rev)
-
-        # Update document's current revision number
-        doc_rec.current_revision_number = next_number
-        doc_rec.updated_at = datetime.now(UTC)
-        self._session.flush()
-
-        self._audit_event(
-            actor=doc_rec.owner or "system",
-            action="revision.created",
-            entity_type="knowledge_document",
-            entity_id=document_id,
-            before_snapshot={"revision_number": doc_rec.current_revision_number - 1},
-            after_snapshot={
-                "revision_number": next_number,
-                "content_sha256": content_sha256,
-            },
-        )
 
         try:
+            self._repo.save_revision(rev)
+
+            # Update document's current revision number
+            doc_rec.current_revision_number = next_number
+            doc_rec.updated_at = datetime.now(UTC)
+            self._session.flush()
+
+            self._audit_event(
+                actor=doc_rec.owner or "system",
+                action="revision.created",
+                entity_type="knowledge_document",
+                entity_id=document_id,
+                before_snapshot={"revision_number": doc_rec.current_revision_number - 1},
+                after_snapshot={
+                    "revision_number": next_number,
+                    "content_sha256": content_sha256,
+                },
+            )
+
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -351,8 +352,13 @@ class KnowledgeService:
                     f"No parser available for extension {rev_rec.file_extension}"
                 )
 
-            # Parse
-            blocks = parser.parse(file_content, rev_rec.original_filename)
+            # Parse with metadata
+            if hasattr(parser, "parse_with_metadata"):
+                parse_result = parser.parse_with_metadata(file_content, rev_rec.original_filename)
+                blocks = parse_result.blocks
+            else:
+                blocks = parser.parse(file_content, rev_rec.original_filename)
+                parse_result = None
             extracted_text_length = sum(len(b.text) for b in blocks)
 
             # Determine page/sheet counts from blocks
@@ -371,13 +377,12 @@ class KnowledgeService:
             if hasattr(parser, "detect_ocr_needed"):
                 requires_ocr = parser.detect_ocr_needed(file_content)
 
-            # Collect parser warnings (e.g. image-only pages)
-            if hasattr(parser, "_last_parse_result"):
-                parse_result = parser._last_parse_result
-                if parse_result and parse_result.warnings:
+            # Collect parser warnings (e.g. image-only pages) from parse_result
+            if parse_result is not None:
+                if parse_result.warnings:
                     warnings.extend(parse_result.warnings)
                 # If all pages are image-only, chunk_count should be 0
-                if parse_result and parse_result.ocr_page_numbers:
+                if parse_result.ocr_page_numbers:
                     total_pages = parse_result.page_count or 0
                     ocr_pages_count = len(parse_result.ocr_page_numbers)
                     if total_pages > 0 and ocr_pages_count == total_pages:
@@ -438,14 +443,21 @@ class KnowledgeService:
                 )
                 embedded_chunks.append(embedded)
 
-            # Persist chunks
-            self._repo.save_chunks(embedded_chunks)
+            # Determine final ingestion status
+            if requires_ocr and len(embedded_chunks) == 0:
+                final_status = "requires_ocr"
+            else:
+                final_status = "indexed"
+
+            # Persist chunks (only if there are any)
+            if embedded_chunks:
+                self._repo.save_chunks(embedded_chunks)
 
             # Update revision status
             now = datetime.now(UTC)
             self._repo.update_revision_status(
                 rev_rec.id,
-                ingestion_status="indexed",
+                ingestion_status=final_status,
                 requires_ocr=requires_ocr,
                 requires_review=requires_review,
                 parser_name=parser.name,
@@ -490,7 +502,7 @@ class KnowledgeService:
             entity_id=document_id,
             before_snapshot={"ingestion_status": "processing"},
             after_snapshot={
-                "ingestion_status": "indexed",
+                "ingestion_status": final_status,
                 "chunk_count": len(embedded_chunks),
             },
         )
@@ -500,7 +512,7 @@ class KnowledgeService:
         return {
             "document_id": document_id,
             "revision_number": revision_number,
-            "ingestion_status": "indexed",
+            "ingestion_status": final_status,
             "chunk_count": len(embedded_chunks),
             "extracted_text_length": extracted_text_length,
         }
@@ -610,7 +622,9 @@ class KnowledgeService:
     ) -> dict[str, Any]:
         """Transition the review status of a revision."""
         rev_rec = self._find_revision(document_id, revision_number)
-        assert_not_approved(rev_rec.review_status)
+        # Allow approved -> withdrawn (the only permitted change on approved revisions)
+        if not (rev_rec.review_status == "approved" and target_status == "withdrawn"):
+            assert_not_approved(rev_rec.review_status)
         validate_review_eligibility(rev_rec.ingestion_status, target_status)
         validate_review_transition(rev_rec.review_status, target_status)
 
@@ -688,7 +702,12 @@ class KnowledgeService:
                 continue
 
             rev_recs = self._repo.list_revisions(doc_rec.id)
-            for rev_rec in rev_recs:
+            # Filter to only indexed revisions
+            indexed_revs = [r for r in rev_recs if r.ingestion_status == "indexed"]
+            if not indexed_revs:
+                continue
+            revs_to_search = indexed_revs if include_historical_revisions else [indexed_revs[-1]]
+            for rev_rec in revs_to_search:
                 # Only search indexed revisions
                 if rev_rec.ingestion_status != "indexed":
                     continue
@@ -734,12 +753,19 @@ class KnowledgeService:
         # Build response
         search_results = []
         warnings: list[str] = []
-        for chunk, score, doc_code in results:
+        any_requires_review = False
+        for candidate in results:
+            chunk = candidate.chunk
+            score = candidate.score
+            doc_code = candidate.document_code
             # Find the revision for citation info
             citation_rev = self._repo.get_revision(chunk.revision_id)
             doc_rec_obj = (
                 self._repo.get_document(citation_rev.document_id) if citation_rev else None
             )
+
+            if citation_rev and citation_rev.requires_review:
+                any_requires_review = True
 
             search_results.append(
                 {
@@ -793,7 +819,7 @@ class KnowledgeService:
             "total_candidates": total_candidates,
             "total_results": len(search_results),
             "warnings": warnings,
-            "requires_review": True,
+            "requires_review": any_requires_review,
         }
 
     # ------------------------------------------------------------------

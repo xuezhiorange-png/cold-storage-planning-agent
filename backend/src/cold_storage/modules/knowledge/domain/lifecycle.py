@@ -47,7 +47,10 @@ def validate_review_transition(current: str, target: str) -> None:
 
 
 def validate_review_eligibility(ingestion_status: str, review_status: str) -> None:
-    """Only ``indexed`` revisions can enter ``reviewed``.  Requires-ocr cannot be approved."""
+    """Only ``indexed`` revisions can enter ``reviewed``.  Requires-ocr cannot be approved.
+    Withdrawn is always allowed regardless of ingestion status."""
+    if review_status == "withdrawn":
+        return  # Withdrawal is always allowed
     if review_status == "reviewed" and ingestion_status != "indexed":
         raise InvalidLifecycleTransitionError(
             "Cannot set review_status to 'reviewed' when ingestion_status"

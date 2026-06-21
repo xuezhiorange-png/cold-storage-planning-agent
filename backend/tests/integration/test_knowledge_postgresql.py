@@ -634,3 +634,62 @@ class TestKnowledgeReviewStatus:
             with pg_engine.connect() as conn:
                 _cleanup_knowledge(conn, doc_id)
                 conn.commit()
+
+
+# -----------------------------------------------------------------------
+# 18. JSONB column type verification
+# -----------------------------------------------------------------------
+
+
+class TestJsonbColumnTypes:
+    def test_jsonb_column_type(self, pg_engine) -> None:
+        """Verify JSONB column types for metadata, warnings, and embedding columns."""
+        with pg_engine.connect() as conn:
+            # knowledge_revisions: metadata_snapshot and warning_messages
+            result = conn.execute(
+                text(
+                    "SELECT column_name, udt_name "
+                    "FROM information_schema.columns "
+                    "WHERE table_name = 'knowledge_revisions' "
+                    "AND column_name IN ('metadata_snapshot', 'warning_messages')"
+                )
+            )
+            rows = {row[0]: row[1] for row in result.fetchall()}
+            assert rows.get("metadata_snapshot") == "jsonb", (
+                f"Expected jsonb for metadata_snapshot, got {rows.get('metadata_snapshot')}"
+            )
+            assert rows.get("warning_messages") == "jsonb", (
+                f"Expected jsonb for warning_messages, got {rows.get('warning_messages')}"
+            )
+
+            # knowledge_chunks: embedding
+            result = conn.execute(
+                text(
+                    "SELECT column_name, udt_name "
+                    "FROM information_schema.columns "
+                    "WHERE table_name = 'knowledge_chunks' "
+                    "AND column_name = 'embedding'"
+                )
+            )
+            row = result.fetchone()
+            assert row is not None, "embedding column not found in knowledge_chunks"
+            assert row[1] == "jsonb", (
+                f"Expected jsonb for embedding, got {row[1]}"
+            )
+
+            # knowledge_ingestion_runs: input_snapshot and result_snapshot
+            result = conn.execute(
+                text(
+                    "SELECT column_name, udt_name "
+                    "FROM information_schema.columns "
+                    "WHERE table_name = 'knowledge_ingestion_runs' "
+                    "AND column_name IN ('input_snapshot', 'result_snapshot')"
+                )
+            )
+            rows = {row[0]: row[1] for row in result.fetchall()}
+            assert rows.get("input_snapshot") == "jsonb", (
+                f"Expected jsonb for input_snapshot, got {rows.get('input_snapshot')}"
+            )
+            assert rows.get("result_snapshot") == "jsonb", (
+                f"Expected jsonb for result_snapshot, got {rows.get('result_snapshot')}"
+            )

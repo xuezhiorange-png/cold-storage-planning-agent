@@ -303,3 +303,74 @@ class TestUnsupportedFormat:
         """No parser registered for .zip returns None."""
         parser = get_parser(".zip")
         assert parser is None
+
+
+# ---------------------------------------------------------------------------
+# 15-16. PDF parser statelessness tests
+# ---------------------------------------------------------------------------
+
+
+class TestPdfParserStatelessness:
+    def test_pdf_parse_with_metadata_returns_result(self) -> None:
+        """parse_with_metadata returns a ParseResult with correct fields."""
+        try:
+            import pymupdf
+        except ImportError:
+            pytest.skip("pymupdf not installed")
+
+        from cold_storage.modules.knowledge.infrastructure.parsers.base import ParseResult
+        from cold_storage.modules.knowledge.infrastructure.parsers.pdf_parser import PdfParser
+
+        doc = pymupdf.open()
+        doc.new_page()
+        page = doc[0]
+        page.insert_text((72, 72), "Test content for parse result verification")
+        pdf_bytes = doc.tobytes()
+        doc.close()
+
+        parser = PdfParser()
+        result = parser.parse_with_metadata(pdf_bytes, "test.pdf")
+
+        assert isinstance(result, ParseResult)
+        assert isinstance(result.blocks, list)
+        assert len(result.blocks) >= 1
+        assert result.page_count == 1
+        assert isinstance(result.warnings, list)
+        assert isinstance(result.ocr_page_numbers, list)
+
+    def test_pdf_no_shared_state(self) -> None:
+        """parse_with_metadata leaves no shared state between calls."""
+        try:
+            import pymupdf
+        except ImportError:
+            pytest.skip("pymupdf not installed")
+
+        from cold_storage.modules.knowledge.infrastructure.parsers.pdf_parser import PdfParser
+
+        # First PDF
+        doc1 = pymupdf.open()
+        doc1.new_page()
+        page1 = doc1[0]
+        page1.insert_text((72, 72), "First document content alpha")
+        pdf1 = doc1.tobytes()
+        doc1.close()
+
+        # Second PDF
+        doc2 = pymupdf.open()
+        doc2.new_page()
+        page2 = doc2[0]
+        page2.insert_text((72, 72), "Second document content beta")
+        pdf2 = doc2.tobytes()
+        doc2.close()
+
+        parser = PdfParser()
+        result1 = parser.parse_with_metadata(pdf1, "first.pdf")
+        result2 = parser.parse_with_metadata(pdf2, "second.pdf")
+
+        # No state leakage: results are independent
+        assert result1.page_count == 1
+        assert result2.page_count == 1
+        assert result1.blocks is not result2.blocks
+        assert result1.blocks[0].text != result2.blocks[0].text
+        assert "alpha" in result1.blocks[0].text
+        assert "beta" in result2.blocks[0].text
