@@ -78,6 +78,34 @@ class AgentRepository:
         self._session.flush()
         return s
 
+    def update_session_cas(
+        self, s: AgentSession, expected_version: int
+    ) -> bool:
+        """Fix #6: Atomic CAS on session version.
+
+        UPDATE WHERE version=expected_version, returns True if updated.
+        Prevents lost updates from concurrent requests.
+        """
+        stmt = (
+            sa.update(AgentSessionRecord)
+            .where(
+                AgentSessionRecord.id == s.id,
+                AgentSessionRecord.version == expected_version,
+            )
+            .values(
+                status=s.status.value,
+                updated_at=datetime.now(UTC),
+                closed_at=s.closed_at,
+                next_message_sequence=s.next_message_sequence,
+                next_turn_sequence=s.next_turn_sequence,
+                version=s.version,
+            )
+        )
+        result = self._session.execute(stmt)
+        self._session.flush()
+        rowcount: int = result.rowcount or 0
+        return rowcount == 1
+
     def list_sessions(self, limit: int = 50) -> list[AgentSession]:
         stmt = (
             sa.select(AgentSessionRecord)
@@ -270,6 +298,26 @@ class AgentRepository:
         rec.expires_at = c.expires_at
         self._session.flush()
         return c
+
+    def claim_confirmation_atomic(
+        self, confirmation_id: str, expected_status: str = "active"
+    ) -> bool:
+        """Fix #6: Atomic CAS — UPDATE WHERE status=expected, return success.
+
+        Only one concurrent caller can succeed; others get False.
+        """
+        stmt = (
+            sa.update(AgentConfirmationRecord)
+            .where(
+                AgentConfirmationRecord.id == confirmation_id,
+                AgentConfirmationRecord.status == expected_status,
+            )
+            .values(status="used", used_at=sa.func.now())
+        )
+        result = self._session.execute(stmt)
+        self._session.flush()
+        rowcount: int = result.rowcount or 0
+        return rowcount == 1
 
     # ----- Transaction boundary -----
 

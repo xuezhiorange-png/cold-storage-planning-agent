@@ -36,7 +36,6 @@ from cold_storage.modules.planning_agent.domain.lifecycle import (
     validate_turn_transition,
 )
 from cold_storage.modules.planning_agent.domain.models import (
-    AgentConfirmation,
     AgentMessage,
     AgentSession,
     AgentToolCall,
@@ -277,15 +276,10 @@ class PlanningAgentService:
         if confirmation.arguments_sha256 != tc.arguments_sha256:
             raise StaleConfirmationError(confirmation.id, "arguments changed")
 
-        # Mark confirmation as used
-        used_confirmation = AgentConfirmation(
-            **{
-                **asdict(confirmation),
-                "status": ConfirmationStatus.USED,
-                "used_at": datetime.now(UTC),
-            }
-        )
-        self._repo.update_confirmation(used_confirmation)
+        # Fix #6: Atomic CAS — only one concurrent request can claim this
+        claimed = self._repo.claim_confirmation_atomic(confirmation.id)
+        if not claimed:
+            raise ConfirmationAlreadyUsedError(confirmation.id)
 
         # Transition tool call: awaiting_confirmation -> confirmed -> executing
         validate_tool_call_transition(tc.status, ToolCallStatus.CONFIRMED)
