@@ -8,8 +8,19 @@ Create Date: 2025-01-01 00:00:00.000000
 from __future__ import annotations
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql, sqlite
 
 from alembic import op
+
+
+
+# Fix #1: Dialect-aware JSON type — PostgreSQL uses JSONB, SQLite uses JSON
+def _json_type():
+    dialect = op.get_bind().dialect.name
+    if dialect == "postgresql":
+        return postgresql.JSONB
+    return sqlite.JSON
+
 
 revision = "0008_add_planning_agent"
 down_revision = "0007_add_knowledge_base"
@@ -50,7 +61,7 @@ def upgrade() -> None:
         sa.Column("sequence", sa.Integer, nullable=False),
         sa.Column("role", sa.String(16), nullable=False),
         sa.Column("content", sa.Text, nullable=False, server_default=""),
-        sa.Column("structured_content", sa.Text, nullable=True),
+        sa.Column("structured_content", _json_type(), nullable=True),
         sa.Column("tool_call_id", sa.String(36), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
@@ -71,8 +82,8 @@ def upgrade() -> None:
         sa.Column("model_name", sa.String(64), nullable=False, server_default=""),
         sa.Column("prompt_version", sa.String(64), nullable=False, server_default=""),
         sa.Column("request_sha256", sa.String(64), nullable=False, server_default=""),
-        sa.Column("decision_snapshot", sa.Text, nullable=True),
-        sa.Column("warning_messages", sa.Text, nullable=True),
+        sa.Column("decision_snapshot", _json_type(), nullable=True),
+        sa.Column("warning_messages", _json_type(), nullable=True),
         sa.Column("requires_review", sa.Boolean, nullable=False, server_default=bool_false),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
@@ -92,12 +103,12 @@ def upgrade() -> None:
         sa.Column("tool_name", sa.String(64), nullable=False),
         sa.Column("tool_version", sa.String(32), nullable=False, server_default="1.0.0"),
         sa.Column("authorization_level", sa.String(32), nullable=False, server_default="read"),
-        sa.Column("arguments", sa.Text, nullable=False, server_default="{}"),
+        sa.Column("arguments", _json_type(), nullable=False, server_default="{}"),
         sa.Column("arguments_sha256", sa.String(64), nullable=False, server_default=""),
         sa.Column("status", sa.String(32), nullable=False, server_default="proposed"),
-        sa.Column("result", sa.Text, nullable=True),
+        sa.Column("result", _json_type(), nullable=True),
         sa.Column("result_reference", sa.String(200), nullable=True),
-        sa.Column("warning_messages", sa.Text, nullable=True),
+        sa.Column("warning_messages", _json_type(), nullable=True),
         sa.Column("requires_review", sa.Boolean, nullable=False, server_default=bool_false),
         sa.Column(
             "proposed_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()

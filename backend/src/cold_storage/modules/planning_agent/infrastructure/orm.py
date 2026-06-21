@@ -51,7 +51,7 @@ class AgentMessageRecord(Base):
     sequence: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     role: Mapped[str] = mapped_column(sa.String(16), nullable=False)
     content: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
-    structured_content: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    structured_content: Mapped[str | None] = mapped_column(sa.JSON, nullable=True)
     tool_call_id: Mapped[str | None] = mapped_column(sa.String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
@@ -76,8 +76,8 @@ class AgentTurnRecord(Base):
     model_name: Mapped[str] = mapped_column(sa.String(64), nullable=False, server_default="")
     prompt_version: Mapped[str] = mapped_column(sa.String(64), nullable=False, server_default="")
     request_sha256: Mapped[str] = mapped_column(sa.String(64), nullable=False, server_default="")
-    decision_snapshot: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
-    warning_messages: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    decision_snapshot: Mapped[str | None] = mapped_column(sa.JSON, nullable=True)
+    warning_messages: Mapped[str | None] = mapped_column(sa.JSON, nullable=True)
     requires_review: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, server_default=sa.text("0")
     )
@@ -104,12 +104,12 @@ class AgentToolCallRecord(Base):
     authorization_level: Mapped[str] = mapped_column(
         sa.String(32), nullable=False, server_default="read"
     )
-    arguments: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="{}")
+    arguments: Mapped[str] = mapped_column(sa.JSON, nullable=False, server_default="{}")
     arguments_sha256: Mapped[str] = mapped_column(sa.String(64), nullable=False, server_default="")
     status: Mapped[str] = mapped_column(sa.String(32), nullable=False, server_default="proposed")
-    result: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    result: Mapped[str | None] = mapped_column(sa.JSON, nullable=True)
     result_reference: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
-    warning_messages: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    warning_messages: Mapped[str | None] = mapped_column(sa.JSON, nullable=True)
     requires_review: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, server_default=sa.text("0")
     )
