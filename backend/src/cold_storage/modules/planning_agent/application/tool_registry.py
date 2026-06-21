@@ -44,7 +44,9 @@ class ToolDefinition:
     requires_confirmation: bool = False
     requires_project: bool = False
     requires_project_version: bool = False
-    allowed_version_statuses: list[str] = field(default_factory=lambda: ["draft", "submitted"])
+    allowed_version_statuses: list[str] = field(
+        default_factory=lambda: ["draft", "generated", "under_review", "reviewed"]
+    )
 
 
 class ToolRegistry:
@@ -111,13 +113,14 @@ def build_default_registry() -> ToolRegistry:
                 "required": [
                     "source_tool",
                     "tool_version",
+                    "result_id",
                     "payload",
                     "warnings",
                     "requires_review",
                 ],
                 "properties": {
-                    "source_tool": {"type": "string"},
-                    "tool_version": {"type": "string"},
+                    "source_tool": {"const": "knowledge.search"},
+                    "tool_version": {"const": "1.0.0"},
                     "result_id": {"type": "string"},
                     "payload": {
                         "type": "object",
@@ -135,6 +138,14 @@ def build_default_registry() -> ToolRegistry:
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
+            allowed_version_statuses=[
+                "draft",
+                "generated",
+                "under_review",
+                "reviewed",
+                "approved",
+                "archived",
+            ],
         )
     )
 
@@ -155,13 +166,14 @@ def build_default_registry() -> ToolRegistry:
                 "required": [
                     "source_tool",
                     "tool_version",
+                    "result_id",
                     "payload",
                     "warnings",
                     "requires_review",
                 ],
                 "properties": {
-                    "source_tool": {"type": "string"},
-                    "tool_version": {"type": "string"},
+                    "source_tool": {"const": "project.get"},
+                    "tool_version": {"const": "1.0.0"},
                     "result_id": {"type": "string"},
                     "payload": {
                         "type": "object",
@@ -179,6 +191,14 @@ def build_default_registry() -> ToolRegistry:
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
             requires_project=True,
+            allowed_version_statuses=[
+                "draft",
+                "generated",
+                "under_review",
+                "reviewed",
+                "approved",
+                "archived",
+            ],
         )
     )
 
@@ -200,13 +220,14 @@ def build_default_registry() -> ToolRegistry:
                 "required": [
                     "source_tool",
                     "tool_version",
+                    "result_id",
                     "payload",
                     "warnings",
                     "requires_review",
                 ],
                 "properties": {
-                    "source_tool": {"type": "string"},
-                    "tool_version": {"type": "string"},
+                    "source_tool": {"const": "project_version.get"},
+                    "tool_version": {"const": "1.0.0"},
                     "result_id": {"type": "string"},
                     "payload": {
                         "type": "object",
@@ -225,6 +246,14 @@ def build_default_registry() -> ToolRegistry:
             requires_confirmation=False,
             requires_project=True,
             requires_project_version=True,
+            allowed_version_statuses=[
+                "draft",
+                "generated",
+                "under_review",
+                "reviewed",
+                "approved",
+                "archived",
+            ],
         )
     )
 
@@ -251,19 +280,44 @@ def build_default_registry() -> ToolRegistry:
                 "required": [
                     "source_tool",
                     "tool_version",
+                    "result_id",
                     "payload",
                     "warnings",
                     "requires_review",
                 ],
                 "properties": {
-                    "source_tool": {"type": "string"},
-                    "tool_version": {"type": "string"},
+                    "source_tool": {"const": "planning.calculate_throughput_inventory_area"},
+                    "tool_version": {"const": "1.0.0"},
                     "result_id": {"type": "string"},
                     "payload": {
                         "type": "object",
                         "required": ["zone_plan"],
                         "properties": {
-                            "zone_plan": {"type": "object"},
+                            "zone_plan": {
+                                "type": "object",
+                                "required": [
+                                    "throughput_t_per_day",
+                                    "throughput_unit",
+                                    "required_inventory_t",
+                                    "inventory_unit",
+                                    "precooling_area_m2",
+                                    "finished_area_m2",
+                                    "packaging_area_m2",
+                                ],
+                                "properties": {
+                                    "throughput_t_per_day": {"type": "number"},
+                                    "throughput_unit": {
+                                        "type": "string",
+                                        "enum": ["t/day", "kg/day"],
+                                    },
+                                    "required_inventory_t": {"type": "number"},
+                                    "inventory_unit": {"type": "string", "enum": ["t", "kg"]},
+                                    "precooling_area_m2": {"type": "number"},
+                                    "finished_area_m2": {"type": "number"},
+                                    "packaging_area_m2": {"type": "number"},
+                                },
+                                "additionalProperties": False,
+                            },
                         },
                         "additionalProperties": False,
                     },
@@ -275,7 +329,7 @@ def build_default_registry() -> ToolRegistry:
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
             requires_project_version=True,
-            allowed_version_statuses=["draft", "submitted"],
+            allowed_version_statuses=["draft", "generated"],
         )
     )
 
@@ -303,19 +357,43 @@ def build_default_registry() -> ToolRegistry:
                 "required": [
                     "source_tool",
                     "tool_version",
+                    "result_id",
                     "payload",
                     "warnings",
                     "requires_review",
                 ],
                 "properties": {
-                    "source_tool": {"type": "string"},
-                    "tool_version": {"type": "string"},
+                    "source_tool": {"const": "planning.calculate_cooling_load_and_equipment"},
+                    "tool_version": {"const": "1.0.0"},
                     "result_id": {"type": "string"},
                     "payload": {
                         "type": "object",
                         "required": ["result"],
                         "properties": {
-                            "result": {"type": "object"},
+                            "result": {
+                                "type": "object",
+                                "required": [
+                                    "total_cooling_load_kw",
+                                    "total_cooling_load_unit",
+                                    "equipment_list",
+                                    "total_equipment_capacity_kw",
+                                    "total_equipment_capacity_unit",
+                                ],
+                                "properties": {
+                                    "total_cooling_load_kw": {"type": "number"},
+                                    "total_cooling_load_unit": {
+                                        "type": "string",
+                                        "enum": ["kW", "BTU/h"],
+                                    },
+                                    "equipment_list": {"type": "array"},
+                                    "total_equipment_capacity_kw": {"type": "number"},
+                                    "total_equipment_capacity_unit": {
+                                        "type": "string",
+                                        "enum": ["kW", "BTU/h"],
+                                    },
+                                },
+                                "additionalProperties": False,
+                            },
                         },
                         "additionalProperties": False,
                     },
@@ -327,6 +405,7 @@ def build_default_registry() -> ToolRegistry:
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
             requires_project_version=True,
+            allowed_version_statuses=["draft", "generated"],
         )
     )
 
@@ -348,13 +427,14 @@ def build_default_registry() -> ToolRegistry:
                 "required": [
                     "source_tool",
                     "tool_version",
+                    "result_id",
                     "payload",
                     "warnings",
                     "requires_review",
                 ],
                 "properties": {
-                    "source_tool": {"type": "string"},
-                    "tool_version": {"type": "string"},
+                    "source_tool": {"const": "scheme.generate_and_compare"},
+                    "tool_version": {"const": "1.0.0"},
                     "result_id": {"type": "string"},
                     "payload": {
                         "type": "object",
@@ -373,6 +453,7 @@ def build_default_registry() -> ToolRegistry:
             requires_confirmation=True,
             requires_project=True,
             requires_project_version=True,
+            allowed_version_statuses=["draft", "generated"],
         )
     )
 

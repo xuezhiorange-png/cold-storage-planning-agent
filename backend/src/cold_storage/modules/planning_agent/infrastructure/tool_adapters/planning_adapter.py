@@ -5,6 +5,7 @@ Fix #12: fail closed — raise on missing service/method.
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from cold_storage.modules.planning.application.service import (
@@ -45,12 +46,21 @@ class ThroughputInventoryAreaAdapter:
         zone_result = build_zone_plan_from_inputs(calc_args, self._zone_planner)
         from dataclasses import asdict
 
+        warnings: list[str] = []
+        requires_review: bool = (
+            zone_result.requires_review if hasattr(zone_result, "requires_review") else True
+        )
+        output = {
+            "source_tool": "planning.calculate_throughput_inventory_area",
+            "tool_version": "1.0.0",
+            "result_id": str(uuid.uuid4()),
+            "payload": {"zone_plan": asdict(zone_result)},
+            "warnings": warnings,
+            "requires_review": requires_review,
+        }
         return AgentToolResult(
             tool_name="planning.calculate_throughput_inventory_area",
-            output={"zone_plan": asdict(zone_result)},
-            requires_review=zone_result.requires_review
-            if hasattr(zone_result, "requires_review")
-            else True,
+            output=output,
         )
 
 
@@ -68,8 +78,17 @@ class CoolingLoadEquipmentAdapter:
         if not hasattr(self._service, "orchestrate_core_calculation"):
             raise PlanningAgentError("CoolingService missing orchestrate_core_calculation method")
         result = self._service.orchestrate_core_calculation(arguments)
+        warnings: list[str] = []
+        requires_review: bool = True
+        output = {
+            "source_tool": "planning.calculate_cooling_load_and_equipment",
+            "tool_version": "1.0.0",
+            "result_id": str(uuid.uuid4()),
+            "payload": {"result": result},
+            "warnings": warnings,
+            "requires_review": requires_review,
+        }
         return AgentToolResult(
             tool_name="planning.calculate_cooling_load_and_equipment",
-            output={"result": result},
-            requires_review=True,
+            output=output,
         )

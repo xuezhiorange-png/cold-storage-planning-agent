@@ -82,7 +82,9 @@ class PlanningAgentService:
             created_at=now,
             updated_at=now,
         )
-        return self._repo.create_session(session)
+        result = self._repo.create_session(session)
+        self._repo.commit()
+        return result
 
     def get_session(self, session_id: str) -> AgentSession:
         return self._repo.get_session(session_id)
@@ -108,6 +110,7 @@ class PlanningAgentService:
         )
         if not self._repo.update_session_cas(closed, expected_version=session.version):
             raise ConcurrentTurnError(session_id)
+        self._repo.commit()
         return self._repo.get_session(session_id)
 
     # ----- Messages -----
@@ -122,24 +125,16 @@ class PlanningAgentService:
     ) -> dict[str, Any]:
         session = self._repo.get_session(session_id)
 
-        # Fix #4: Atomic idempotency check
+        # Idempotency check — replay protection
         if idempotency_key:
             existing = self._repo.get_idempotency_record(session_id, idempotency_key)
             if existing is not None:
-                # Replay: return the original result stored at commit time
-                if existing.result_payload is not None:
-                    original = dict(existing.result_payload)
-                    original["idempotent_replay"] = True
-                    return original
-                # Fallback: minimal replay response
-                return {
-                    "session_id": session_id,
-                    "turn_id": existing.turn_id,
-                    "assistant_message": "Already processed (idempotent replay)",
-                    "decision_type": "answer",
-                    "tool_calls": [],
-                    "idempotent_replay": True,
-                }
+                if existing.status == "processing":
+                    raise ConcurrentTurnError(session_id)
+                if existing.status == "completed" and existing.result_payload is not None:
+                    # Exact replay — return original payload verbatim
+                    return dict(existing.result_payload)
+                # failed/expired: let caller retry by re-claiming
 
         # Check session is active (or awaiting_confirmation for follow-up)
         if session.status in (SessionStatus.COMPLETED, SessionStatus.CANCELLED):

@@ -5,6 +5,7 @@ Fix #12: fail closed — raise on missing service/method, never return empty res
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from cold_storage.modules.planning_agent.domain.errors import PlanningAgentError
@@ -23,8 +24,17 @@ class SchemeGenerateCompareAdapter:
         project_id = arguments["project_id"]
         version_number = arguments["version_number"]
         result = self._service.generate_scheme_run(project_id, version_number)
+        warnings: list[str] = []
+        requires_review: bool = True
+        output = {
+            "source_tool": "scheme.generate_and_compare",
+            "tool_version": "1.0.0",
+            "result_id": str(uuid.uuid4()),
+            "payload": {"scheme_result": result},
+            "warnings": warnings,
+            "requires_review": requires_review,
+        }
         return AgentToolResult(
             tool_name="scheme.generate_and_compare",
-            output={"scheme_result": result},
-            requires_review=True,
+            output=output,
         )

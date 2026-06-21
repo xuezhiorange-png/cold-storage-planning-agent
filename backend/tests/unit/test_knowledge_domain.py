@@ -31,6 +31,7 @@ Covers 25 domain-level properties:
 from __future__ import annotations
 
 import math
+import os
 import subprocess
 import sys
 from decimal import Decimal
@@ -270,6 +271,10 @@ print(json.dumps(vec))
             capture_output=True,
             text=True,
             cwd=str(Path(__file__).resolve().parent.parent.parent),
+            env={
+                **os.environ,
+                "PYTHONPATH": str(Path(__file__).resolve().parent.parent.parent / "src"),
+            },
         )
         assert result.returncode == 0, f"Subprocess failed: {result.stderr}"
         result_sub = [float(v) for v in __import__("json").loads(result.stdout.strip())]

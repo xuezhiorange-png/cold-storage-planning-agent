@@ -59,8 +59,9 @@ def _to_dict(obj: Any) -> dict[str, Any]:
 class CurrentActor:
     """Authenticated actor identity.
 
-    In V1, parsed from the X-Actor header (required). 401 if absent.
-    Future versions should replace with JWT/OAuth middleware.
+    In V1, validated via trusted proxy secret. When PLANNING_AGENT_PROXY_SECRET
+    is configured, X-Proxy-Secret must match. Otherwise X-Actor is accepted
+    (dev mode only — production MUST configure the secret).
     """
 
     name: str
@@ -68,8 +69,24 @@ class CurrentActor:
 
 def _require_actor(
     x_actor: str | None = Header(default=None, alias="X-Actor"),
+    x_proxy_secret: str | None = Header(default=None, alias="X-Proxy-Secret"),
 ) -> CurrentActor:
-    """FastAPI dependency: require X-Actor header, return 401 if absent."""
+    """FastAPI dependency: require authenticated actor identity.
+
+    When PLANNING_AGENT_PROXY_SECRET env is set:
+      - X-Proxy-Secret must match, otherwise 403
+      - X-Actor is the verified identity
+    When not set (dev mode):
+      - X-Actor is accepted without verification
+    """
+    import os
+
+    proxy_secret = os.environ.get("PLANNING_AGENT_PROXY_SECRET")
+    if proxy_secret and x_proxy_secret != proxy_secret:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or missing proxy authentication",
+        )
     if not x_actor:
         raise HTTPException(status_code=401, detail="X-Actor header required")
     return CurrentActor(name=x_actor)
