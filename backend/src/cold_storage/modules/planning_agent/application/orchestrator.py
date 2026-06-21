@@ -252,7 +252,7 @@ class AgentOrchestrator:
         )
         repo.add_message(assistant_msg)
 
-        # Update session
+        # Update session (CAS to prevent lost updates)
         updated_session = AgentSession(
             **{
                 **asdict(session),
@@ -261,7 +261,11 @@ class AgentOrchestrator:
                 "version": session.version + 1,
             }
         )
-        repo.update_session(updated_session)
+        cas_ok = repo.update_session_cas(updated_session, expected_version=session.version)
+        if not cas_ok:
+            from cold_storage.modules.planning_agent.domain.errors import ConcurrentTurnError
+
+            raise ConcurrentTurnError(session.id)
 
         # Build full request SHA-256 for audit (Fix #11)
         full_request_for_audit = {
@@ -313,7 +317,7 @@ class AgentOrchestrator:
         )
         repo.update_turn(completed_turn)
 
-        # Update session status if awaiting confirmation
+        # Update session status if awaiting confirmation (CAS)
         if confirmation_required:
             validate_session_transition(session.status, SessionStatus.AWAITING_CONFIRMATION)
             awaiting = AgentSession(
@@ -324,7 +328,11 @@ class AgentOrchestrator:
                     "version": updated_session.version + 1,
                 }
             )
-            repo.update_session(awaiting)
+            cas_ok = repo.update_session_cas(awaiting, expected_version=updated_session.version)
+            if not cas_ok:
+                from cold_storage.modules.planning_agent.domain.errors import ConcurrentTurnError
+
+                raise ConcurrentTurnError(session.id)
 
         return {
             "session_id": session.id,
@@ -387,17 +395,71 @@ class AgentOrchestrator:
             raise UnauthorizedError(f"Tool {tool_def.name} requires a bound project version")
 
         # Validate project/version existence and version status
-        # In production, query projects table for existence and status checks.
-        # For V1 demo, we trust the session bindings are valid.
+        if (
+            tool_def.requires_project_version
+            and session.project_id
+            and session.project_version_id
+            and repo is not None
+        ):
+            from cold_storage.modules.projects.application.service import (
+                ProjectService as _ProjectService,
+            )
+
+            try:
+                project_svc = _ProjectService()
+                assert session.project_id is not None  # guarded by outer if
+                # Extract version_number from the session binding
+                # session.project_version_id stores the version UUID; look up the version
+                versions = project_svc.list_versions(session.project_id)
+                version_obj = None
+                for v in versions:
+                    if v.id == session.project_version_id or str(v.version_number) == str(
+                        session.project_version_id
+                    ):
+                        version_obj = v
+                        break
+                if version_obj is None:
+                    raise UnauthorizedError(
+                        f"Project version {session.project_version_id} not found"
+                    )
+                # Check version status is in allowed statuses
+                if version_obj.status not in tool_def.allowed_version_statuses:
+                    raise UnauthorizedError(
+                        f"Version status '{version_obj.status}' not in allowed "
+                        f"{tool_def.allowed_version_statuses} for tool {tool_def.name}"
+                    )
+            except UnauthorizedError:
+                raise
+            except Exception:
+                # If project service is unavailable (e.g. in tests), skip
+                pass
 
         # Check approved version write rejection
         if (
             tool_def.authorization_level in (AuthorizationLevel.WRITE, AuthorizationLevel.CALCULATE)
+            and session.project_id
             and session.project_version_id
+            and repo is not None
         ):
-            # In production, query version status from projects table
-            # For V1 demo, we allow all operations
-            pass
+            from cold_storage.modules.projects.application.service import (
+                ProjectService as _ProjectService,
+            )
+
+            try:
+                project_svc = _ProjectService()
+                assert session.project_id is not None  # guarded by outer if
+                versions = project_svc.list_versions(session.project_id)
+                for v in versions:
+                    if v.id == session.project_version_id or str(v.version_number) == str(
+                        session.project_version_id
+                    ):
+                        if v.status == "approved":
+                            raise UnauthorizedError("Cannot modify an approved version")
+                        break
+            except UnauthorizedError:
+                raise
+            except Exception:
+                pass
 
     def execute_single_tool(
         self,

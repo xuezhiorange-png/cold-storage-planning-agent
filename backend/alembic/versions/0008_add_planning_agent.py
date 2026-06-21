@@ -13,7 +13,6 @@ from sqlalchemy.dialects import postgresql, sqlite
 from alembic import op
 
 
-
 # Fix #1: Dialect-aware JSON type — PostgreSQL uses JSONB, SQLite uses JSON
 def _json_type():
     dialect = op.get_bind().dialect.name
@@ -143,31 +142,38 @@ def upgrade() -> None:
     op.create_index("ix_agent_confirmations_tool_call_id", "agent_confirmations", ["tool_call_id"])
     op.create_index("ix_agent_confirmations_session_id", "agent_confirmations", ["session_id"])
 
-
     # Fix #4: Idempotency tracking table
     op.create_table(
         "agent_idempotency",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column(
-            "session_id", sa.String(36),
-            sa.ForeignKey("agent_sessions.id"), nullable=False,
+            "session_id",
+            sa.String(36),
+            sa.ForeignKey("agent_sessions.id"),
+            nullable=False,
         ),
         sa.Column("idempotency_key", sa.String(128), nullable=False),
         sa.Column("turn_id", sa.String(36), nullable=False),
         sa.Column("result_ref", sa.Text, nullable=True),
+        sa.Column("result_payload", _json_type(), nullable=True),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True),
-            nullable=False, server_default=sa.func.now(),
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
         ),
         sa.UniqueConstraint(
-            "session_id", "idempotency_key",
+            "session_id",
+            "idempotency_key",
             name="uq_agent_idempotency_session_key",
         ),
     )
     op.create_index(
         "ix_agent_idempotency_session_id",
-        "agent_idempotency", ["session_id"],
+        "agent_idempotency",
+        ["session_id"],
     )
+
 
 def downgrade() -> None:
     op.drop_table("agent_idempotency")

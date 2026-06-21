@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -122,7 +121,7 @@ class AgentRepository:
             sequence=m.sequence,
             role=m.role.value,
             content=m.content,
-            structured_content=json.dumps(m.structured_content) if m.structured_content else None,
+            structured_content=m.structured_content,
             tool_call_id=m.tool_call_id,
             created_at=m.created_at,
         )
@@ -153,8 +152,8 @@ class AgentRepository:
             model_name=t.model_name,
             prompt_version=t.prompt_version,
             request_sha256=t.request_sha256,
-            decision_snapshot=json.dumps(t.decision_snapshot) if t.decision_snapshot else None,
-            warning_messages=json.dumps(t.warning_messages) if t.warning_messages else None,
+            decision_snapshot=t.decision_snapshot,
+            warning_messages=t.warning_messages or [],
             requires_review=t.requires_review,
             created_at=t.created_at,
             completed_at=t.completed_at,
@@ -171,8 +170,8 @@ class AgentRepository:
             return t
         rec.status = t.status.value
         rec.assistant_message_id = t.assistant_message_id
-        rec.decision_snapshot = json.dumps(t.decision_snapshot) if t.decision_snapshot else None
-        rec.warning_messages = json.dumps(t.warning_messages) if t.warning_messages else None
+        rec.decision_snapshot = t.decision_snapshot
+        rec.warning_messages = t.warning_messages or []
         rec.requires_review = t.requires_review
         rec.completed_at = t.completed_at
         rec.error_code = t.error_code
@@ -209,12 +208,12 @@ class AgentRepository:
             tool_name=tc.tool_name,
             tool_version=tc.tool_version,
             authorization_level=tc.authorization_level.value,
-            arguments=json.dumps(tc.arguments),
+            arguments=tc.arguments,
             arguments_sha256=tc.arguments_sha256,
             status=tc.status.value,
-            result=json.dumps(tc.result) if tc.result else None,
+            result=tc.result,
             result_reference=tc.result_reference,
-            warning_messages=json.dumps(tc.warning_messages) if tc.warning_messages else None,
+            warning_messages=tc.warning_messages or [],
             requires_review=tc.requires_review,
             proposed_at=tc.proposed_at,
             confirmed_at=tc.confirmed_at,
@@ -232,9 +231,9 @@ class AgentRepository:
         if rec is None:
             return tc
         rec.status = tc.status.value
-        rec.result = json.dumps(tc.result) if tc.result else None
+        rec.result = tc.result
         rec.result_reference = tc.result_reference
-        rec.warning_messages = json.dumps(tc.warning_messages) if tc.warning_messages else None
+        rec.warning_messages = tc.warning_messages or []
         rec.requires_review = tc.requires_review
         rec.confirmed_at = tc.confirmed_at
         rec.executed_at = tc.executed_at
@@ -344,8 +343,9 @@ class AgentRepository:
         key: str,
         turn_id: str,
         result_ref: str | None = None,
+        result_payload: dict[str, Any] | None = None,
     ) -> AgentIdempotencyRecord:
-        """Fix #4: Atomically store idempotency key. Raises on duplicate."""
+        """Fix #4: Atomically store idempotency key with full result payload."""
         import uuid as _uuid
 
         rec = AgentIdempotencyRecord(
@@ -354,6 +354,7 @@ class AgentRepository:
             idempotency_key=key,
             turn_id=turn_id,
             result_ref=result_ref,
+            result_payload=result_payload,
         )
         self._session.add(rec)
         self._session.flush()
@@ -384,7 +385,7 @@ class AgentRepository:
             sequence=r.sequence,
             role=MessageRole(r.role),
             content=r.content,
-            structured_content=json.loads(r.structured_content) if r.structured_content else None,
+            structured_content=r.structured_content,
             tool_call_id=r.tool_call_id,
             created_at=r.created_at,  # type: ignore[arg-type]
         )
@@ -401,8 +402,8 @@ class AgentRepository:
             model_name=r.model_name,
             prompt_version=r.prompt_version,
             request_sha256=r.request_sha256,
-            decision_snapshot=json.loads(r.decision_snapshot) if r.decision_snapshot else None,
-            warning_messages=json.loads(r.warning_messages) if r.warning_messages else [],
+            decision_snapshot=r.decision_snapshot,
+            warning_messages=r.warning_messages or [],
             requires_review=r.requires_review,
             created_at=r.created_at,  # type: ignore[arg-type]
             completed_at=r.completed_at,  # type: ignore[arg-type]
@@ -418,12 +419,12 @@ class AgentRepository:
             tool_name=r.tool_name,
             tool_version=r.tool_version,
             authorization_level=AuthorizationLevel(r.authorization_level),
-            arguments=json.loads(r.arguments) if r.arguments else {},
+            arguments=r.arguments or {},
             arguments_sha256=r.arguments_sha256,
             status=ToolCallStatus(r.status),
-            result=json.loads(r.result) if r.result else None,
+            result=r.result,
             result_reference=r.result_reference,
-            warning_messages=json.loads(r.warning_messages) if r.warning_messages else [],
+            warning_messages=r.warning_messages or [],
             requires_review=r.requires_review,
             proposed_at=r.proposed_at,  # type: ignore[arg-type]
             confirmed_at=r.confirmed_at,  # type: ignore[arg-type]

@@ -89,10 +89,53 @@ def _get_planning_agent_service(
 
     Fix #2: per-request Session, not singleton.
     Fix #7: transaction boundary via _get_db_session commit/rollback.
+    Fix #1+#2: Wire real tool adapters into the orchestrator.
     """
+    from cold_storage.modules.knowledge.application.service import (
+        KnowledgeService as _KnowledgeService,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.knowledge_adapter import (
+        KnowledgeSearchAdapter,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.planning_adapter import (
+        CoolingLoadEquipmentAdapter,
+        ThroughputInventoryAreaAdapter,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.project_adapter import (
+        ProjectGetAdapter,
+        ProjectVersionGetAdapter,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.scheme_adapter import (
+        SchemeGenerateCompareAdapter,
+    )
+
     gateway = FakeAgentModelGateway()
     registry = build_default_registry()
-    orchestrator = AgentOrchestrator()
+
+    # Build real adapters — stateless calculators are fine per-request
+    zone_planner = ColdRoomZonePlanner()
+    investment_estimator = InvestmentEstimator()
+    cooling_service = CoreCalculationService()
+    scheme_service = SchemeService(db_session)
+    knowledge_service = _KnowledgeService(db_session)
+    project_service = get_project_service()
+
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters import ToolAdapter as _TA
+
+    adapters: dict[str, _TA] = {
+        "planning.calculate_throughput_inventory_area": ThroughputInventoryAreaAdapter(
+            zone_planner, investment_estimator
+        ),
+        "planning.calculate_cooling_load_and_equipment": CoolingLoadEquipmentAdapter(
+            cooling_service
+        ),
+        "scheme.generate_and_compare": SchemeGenerateCompareAdapter(scheme_service),
+        "knowledge.search": KnowledgeSearchAdapter(knowledge_service),
+        "project.get": ProjectGetAdapter(project_service),
+        "project_version.get": ProjectVersionGetAdapter(project_service),
+    }
+
+    orchestrator = AgentOrchestrator(tool_adapters=adapters)
     repo = AgentRepository(db_session)
     return PlanningAgentService(
         repository=repo,
@@ -726,8 +769,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         snapshot = getattr(project_version, "calculation_snapshot", {}) or {}
         cooling_load = snapshot.get("cooling_load")
         if not cooling_load:
-            return {"error": {"code": "NO_CALCULATION",
-                       "message": "No cooling load calculation found"}}
+            return {
+                "error": {"code": "NO_CALCULATION", "message": "No cooling load calculation found"}
+            }
         result: dict[str, Any] = cooling_load
         return result
 

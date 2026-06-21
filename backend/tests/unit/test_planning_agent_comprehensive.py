@@ -10,14 +10,12 @@ Covers:
 7. Error propagation (unregistered tool → 422, not 500)
 8. Tool schema validation (wrong type)
 """
+
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -32,11 +30,9 @@ from cold_storage.modules.planning_agent.application.service import (
     sha256_json,
 )
 from cold_storage.modules.planning_agent.application.tool_registry import (
-    ToolRegistry,
     build_default_registry,
 )
 from cold_storage.modules.planning_agent.domain.enums import (
-    ConfirmationStatus,
     SessionStatus,
     ToolCallStatus,
     TurnStatus,
@@ -55,12 +51,8 @@ from cold_storage.modules.planning_agent.domain.gateways import (
 from cold_storage.modules.planning_agent.domain.models import (
     AgentConfirmation,
     AgentDecision,
-    AgentMessage,
-    AgentSession,
-    AgentToolCall,
     AgentToolRequest,
     AgentToolResult,
-    AgentTurn,
 )
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import (
     FakeAgentModelGateway,
@@ -68,10 +60,10 @@ from cold_storage.modules.planning_agent.infrastructure.fake_gateways import (
 from cold_storage.modules.planning_agent.infrastructure.orm import Base
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def db_session():
@@ -119,6 +111,7 @@ def service(repo, gateway, registry, orchestrator):
 # ---------------------------------------------------------------------------
 # Helper: gateway that proposes an unregistered tool
 # ---------------------------------------------------------------------------
+
 
 class _UnregisteredToolGateway:
     """Gateway that always returns a tool call for an unregistered tool."""
@@ -187,14 +180,13 @@ class _FakeSchemeAdapter:
 # 1. Confirmation flow: approve → session transitions back to active
 # ===================================================================
 
+
 class TestConfirmationFlow:
     """Create session → post message triggering scheme.generate_and_compare
     (requires confirmation) → verify pending_confirmations with token
     → confirm with token → verify session is active again."""
 
-    def test_confirm_tool_call_approve(
-        self, db_session, gateway, registry
-    ):
+    def test_confirm_tool_call_approve(self, db_session, gateway, registry):
         repo = AgentRepository(db_session)
         orch = AgentOrchestrator()
         orch.register_adapter("scheme.generate_and_compare", _FakeSchemeAdapter())
@@ -213,9 +205,7 @@ class TestConfirmationFlow:
         )
 
         # Message with '方案' + '项目' triggers scheme.generate_and_compare
-        result = service.post_user_message(
-            session.id, "帮我生成项目方案 项目ID是proj-1"
-        )
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
 
         # Verify pending_confirmations returned
         pending = result["pending_confirmations"]
@@ -258,12 +248,11 @@ class TestConfirmationFlow:
 # 2. Rejection flow: reject → session transitions back to active
 # ===================================================================
 
+
 class TestRejectionFlow:
     """Same as confirmation flow but reject → session transitions back."""
 
-    def test_reject_tool_call(
-        self, db_session, gateway, registry, orchestrator
-    ):
+    def test_reject_tool_call(self, db_session, gateway, registry, orchestrator):
         repo = AgentRepository(db_session)
         service = PlanningAgentService(
             repository=repo,
@@ -278,9 +267,7 @@ class TestRejectionFlow:
             title="Reject test",
         )
 
-        result = service.post_user_message(
-            session.id, "帮我生成项目方案 项目ID是proj-1"
-        )
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
 
         pending = result["pending_confirmations"]
         assert len(pending) >= 1
@@ -308,10 +295,9 @@ class TestRejectionFlow:
 # 3. Token replay protection: confirm same token twice → second fails
 # ===================================================================
 
+
 class TestTokenReplayProtection:
-    def test_confirm_twice_second_fails(
-        self, db_session, gateway, registry
-    ):
+    def test_confirm_twice_second_fails(self, db_session, gateway, registry):
         repo = AgentRepository(db_session)
         orch = AgentOrchestrator()
         orch.register_adapter("scheme.generate_and_compare", _FakeSchemeAdapter())
@@ -328,9 +314,7 @@ class TestTokenReplayProtection:
             title="Replay test",
         )
 
-        result = service.post_user_message(
-            session.id, "帮我生成项目方案 项目ID是proj-1"
-        )
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
 
         pending = result["pending_confirmations"]
         assert len(pending) >= 1
@@ -355,6 +339,7 @@ class TestTokenReplayProtection:
 # 4. Expired confirmation: expires_at in past → confirm fails
 # ===================================================================
 
+
 class TestExpiredConfirmation:
     def test_confirm_expired_token(self, db_session, repo):
         """Manually insert an expired confirmation and try to confirm."""
@@ -371,9 +356,7 @@ class TestExpiredConfirmation:
             title="Expired test",
         )
 
-        result = service.post_user_message(
-            session.id, "帮我生成项目方案 项目ID是proj-1"
-        )
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
 
         pending = result["pending_confirmations"]
         assert len(pending) >= 1
@@ -403,6 +386,7 @@ class TestExpiredConfirmation:
 # ===================================================================
 # 5. create_app integration test
 # ===================================================================
+
 
 class TestCreateAppIntegration:
     """Test POST /api/v1/agent/sessions returns 201,
@@ -471,6 +455,7 @@ class TestCreateAppIntegration:
 #    project fails with UnauthorizedError
 # ===================================================================
 
+
 class TestAuthEnforcement:
     def test_tool_requiring_project_without_session_project(
         self, db_session, registry, orchestrator
@@ -497,10 +482,9 @@ class TestAuthEnforcement:
 #    (which maps to 422 at API level, not 500)
 # ===================================================================
 
+
 class TestErrorPropagation:
-    def test_unregistered_tool_raises_correct_error(
-        self, db_session, registry, orchestrator
-    ):
+    def test_unregistered_tool_raises_correct_error(self, db_session, registry, orchestrator):
         repo = AgentRepository(db_session)
         unreg_gateway = _UnregisteredToolGateway()
         service = PlanningAgentService(
@@ -554,6 +538,7 @@ class TestErrorPropagation:
 # ===================================================================
 # 8. Tool schema validation: pass string to number field → fails
 # ===================================================================
+
 
 class TestToolSchemaValidation:
     def test_string_to_number_field_fails(self, registry):

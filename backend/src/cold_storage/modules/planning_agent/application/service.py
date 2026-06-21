@@ -102,7 +102,9 @@ class PlanningAgentService:
                 "version": session.version + 1,
             }
         )
-        return self._repo.update_session(closed)
+        if not self._repo.update_session_cas(closed, expected_version=session.version):
+            raise ConcurrentTurnError(session_id)
+        return self._repo.get_session(session_id)
 
     # ----- Messages -----
 
@@ -120,7 +122,12 @@ class PlanningAgentService:
         if idempotency_key:
             existing = self._repo.get_idempotency_record(session_id, idempotency_key)
             if existing is not None:
-                # Replay: return the original turn result
+                # Replay: return the original result stored at commit time
+                if existing.result_payload is not None:
+                    original = dict(existing.result_payload)
+                    original["idempotent_replay"] = True
+                    return original
+                # Fallback: minimal replay response
                 return {
                     "session_id": session_id,
                     "turn_id": existing.turn_id,
@@ -198,13 +205,14 @@ class PlanningAgentService:
         # Fix #9: Transaction boundary — commit after orchestration
         self._repo.commit()
 
-        # Fix #4: Store idempotency key (after commit, in new transaction)
+        # Fix #4: Store idempotency key with full result (after commit, in new transaction)
         if idempotency_key:
             try:
                 self._repo.store_idempotency_record(
                     session_id=session_id,
                     key=idempotency_key,
                     turn_id=result.get("turn_id", ""),
+                    result_payload=result,
                 )
                 self._repo.commit()
             except Exception:
@@ -351,7 +359,8 @@ class PlanningAgentService:
                     "version": session.version + 1,
                 }
             )
-            self._repo.update_session(resumed)
+            if not self._repo.update_session_cas(resumed, expected_version=session.version):
+                raise ConcurrentTurnError(tc.session_id)
 
         # Fix #9: Transaction boundary — commit after confirmation flow
         self._repo.commit()
@@ -416,7 +425,8 @@ class PlanningAgentService:
                     "version": session.version + 1,
                 }
             )
-            self._repo.update_session(resumed)
+            if not self._repo.update_session_cas(resumed, expected_version=session.version):
+                raise ConcurrentTurnError(tc.session_id)
 
         # Fix #9: Transaction boundary — commit after reject flow
         self._repo.commit()

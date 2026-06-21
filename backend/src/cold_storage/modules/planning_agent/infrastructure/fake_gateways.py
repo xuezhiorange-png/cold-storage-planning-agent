@@ -80,25 +80,27 @@ class FakeAgentModelGateway:
             )
 
         if "方案" in user_text or "scheme" in user_text.lower():
-            if "project_id" in user_text or "项目" in user_text:
+            # Fix #7: Extract project_id from user text, never hardcode "demo"
+            project_id = _extract_project_id(user_text)
+            if project_id is None:
                 return AgentDecision(
-                    decision_type=DecisionType.PROPOSE_TOOLS,
-                    assistant_message="准备生成方案对比。",
-                    tool_requests=[
-                        AgentToolRequest(
-                            tool_name="scheme.generate_and_compare",
-                            arguments={"project_id": "demo", "version_number": 1},
-                            reason="用户请求方案生成",
-                        ),
+                    decision_type=DecisionType.ASK_CLARIFICATION,
+                    assistant_message="请提供项目ID以生成方案对比。",
+                    missing_parameters=[
+                        {"name": "project_id", "reason": "required_by_tool", "expected_unit": None},
                     ],
-                    requires_review=True,
                 )
             return AgentDecision(
-                decision_type=DecisionType.ASK_CLARIFICATION,
-                assistant_message="请指定项目ID。",
-                missing_parameters=[
-                    {"name": "project_id", "reason": "required_by_tool", "expected_unit": None},
+                decision_type=DecisionType.PROPOSE_TOOLS,
+                assistant_message="准备生成方案对比。",
+                tool_requests=[
+                    AgentToolRequest(
+                        tool_name="scheme.generate_and_compare",
+                        arguments={"project_id": project_id, "version_number": 1},
+                        reason="用户请求方案生成",
+                    ),
                 ],
+                requires_review=True,
             )
 
         # Default: plain answer
@@ -158,3 +160,20 @@ def _extract_hours(text: str) -> float | None:
     if match:
         return float(match.group(1))
     return None  # Fix #7: no silent default
+
+
+def _extract_project_id(text: str) -> str | None:
+    """Extract project_id from user text. Returns None if not found.
+
+    Recognizes patterns like:
+    - 项目ID是xxx / 项目ID: xxx / project_id=xxx / project_id: xxx
+    """
+    # Chinese patterns
+    match = re.search(r"项目[Ii][Dd][是:=]\s*(\S+)", text)
+    if match:
+        return match.group(1)
+    # English patterns
+    match = re.search(r"project[_ ]?[Ii][Dd][=:]\s*(\S+)", text, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return None
