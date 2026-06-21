@@ -1,1 +1,1 @@
-"""Knowledge ingestion and retrieval."""
+"""Knowledge application layer."""

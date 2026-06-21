@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 interface ZoneResult {
   zone_name: string
@@ -340,12 +340,125 @@ const comparisonRows = computed(() => {
   ]
 })
 
-const knowledgeRows = [
-  { title: '知识依据清单', type: '目录', status: '已生成', excerpt: '冷链设计边界、温区、库存天数、设备功率表' },
-  { title: '蓝莓冷链演示资料', type: 'Markdown', status: '已解析', excerpt: '蓝莓采后预冷、低温分选包装、成品冷藏要点' },
-  { title: '元谋冷库设备表', type: 'Excel', status: '已引用', excerpt: '制冷机组、冷风机、辅助设备、生产设备功率' },
-  { title: '扫描版资料', type: 'PDF', status: 'requires_ocr', excerpt: 'V1 不做 OCR，保留复核标记' }
-]
+interface KnowledgeDocument {
+  id: string
+  title: string
+  document_category: string
+  current_revision_number: number
+  ingestion_status: string
+  review_status: string
+  requires_ocr: boolean
+  chunk_count: number
+  source_filename: string
+}
+
+interface KnowledgeSearchResult {
+  title: string
+  excerpt: string
+  hybrid_score: number
+  lexical_score: number
+  semantic_score: number
+  page?: number
+  sheet?: string
+  section?: string
+  review_status: string
+  requires_review: boolean
+}
+
+const knowledgeDocs = ref<KnowledgeDocument[]>([])
+const knowledgeLoading = ref(false)
+const knowledgeError = ref('')
+const knowledgeUploadError = ref('')
+const knowledgeUploadPending = ref(false)
+const knowledgeSearchQuery = ref('')
+const knowledgeSearchResults = ref<KnowledgeSearchResult[]>([])
+const knowledgeSearchPending = ref(false)
+const knowledgeSearchError = ref('')
+
+async function fetchKnowledgeDocs(): Promise<void> {
+  knowledgeLoading.value = true
+  knowledgeError.value = ''
+  try {
+    const res = await fetch('/api/v1/knowledge/documents')
+    if (!res.ok) {
+      knowledgeError.value = '文档列表加载失败'
+      return
+    }
+    const data = (await res.json()) as KnowledgeDocument[]
+    knowledgeDocs.value = data
+  } catch {
+    knowledgeError.value = '文档列表加载失败，请检查后端服务'
+  } finally {
+    knowledgeLoading.value = false
+  }
+}
+
+async function uploadKnowledgeFile(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  knowledgeUploadPending.value = true
+  knowledgeUploadError.value = ''
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch('/api/v1/knowledge/documents', {
+      method: 'POST',
+      body: formData
+    })
+    if (!res.ok) {
+      knowledgeUploadError.value = '上传失败，请检查文件格式或后端服务'
+      return
+    }
+    await fetchKnowledgeDocs()
+  } catch {
+    knowledgeUploadError.value = '上传失败，请检查后端服务'
+  } finally {
+    knowledgeUploadPending.value = false
+    input.value = ''
+  }
+}
+
+async function ingestDocument(docId: string, revisionNumber: number): Promise<void> {
+  try {
+    const res = await fetch(
+      `/api/v1/knowledge/documents/${docId}/revisions/${revisionNumber}/ingest`,
+      { method: 'POST' }
+    )
+    if (res.ok) {
+      await fetchKnowledgeDocs()
+    }
+  } catch {
+    // ignore – status will show in list
+  }
+}
+
+async function searchKnowledge(): Promise<void> {
+  if (!knowledgeSearchQuery.value.trim()) return
+  knowledgeSearchPending.value = true
+  knowledgeSearchError.value = ''
+  knowledgeSearchResults.value = []
+  try {
+    const res = await fetch('/api/v1/knowledge/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: knowledgeSearchQuery.value,
+        top_k: 10
+      })
+    })
+    if (!res.ok) {
+      knowledgeSearchError.value = '搜索失败，请检查后端服务'
+      return
+    }
+    const data = (await res.json()) as { results: KnowledgeSearchResult[] }
+    knowledgeSearchResults.value = data.results ?? []
+  } catch {
+    knowledgeSearchError.value = '搜索失败，请检查后端服务'
+  } finally {
+    knowledgeSearchPending.value = false
+  }
+}
 
 const reportRows = [
   { name: '方案书草稿', format: 'Word', status: '报告生成队列', source: '已持久化计算结果', owner: '设计负责人' },
@@ -446,8 +559,9 @@ async function loadSchemeComparison(): Promise<void> {
   }
 }
 
-// Load scheme data on mount
+// Load scheme and knowledge data on mount
 loadSchemeComparison()
+fetchKnowledgeDocs()
 
 function selectView(view: string): void {
   activeView.value = view
@@ -921,26 +1035,118 @@ function formatOptionalPower(value: number | null): string {
       >
         <div class="section-summary">
           <strong>知识依据清单</strong>
-          <span>4 个来源</span>
-          <span>混合检索样例</span>
+          <span>{{ knowledgeDocs.length }} 个来源</span>
+          <span>混合检索</span>
           <em>待复核</em>
         </div>
-        <article class="sample-row knowledge-row sample-header">
-          <strong>资料</strong>
-          <strong>类型</strong>
-          <strong>状态</strong>
-          <strong>摘要</strong>
-        </article>
-        <article
-          v-for="row in knowledgeRows"
-          :key="row.title"
-          class="sample-row knowledge-row"
-        >
-          <strong>{{ row.title }}</strong>
-          <span>{{ row.type }}</span>
-          <span>{{ row.status }}</span>
-          <span>{{ row.excerpt }}</span>
-        </article>
+
+        <div class="knowledge-controls">
+          <label class="knowledge-upload">
+            <span>上传文档</span>
+            <input
+              type="file"
+              accept=".txt,.md,.csv,.docx,.xlsx,.pdf"
+              :disabled="knowledgeUploadPending"
+              @change="uploadKnowledgeFile"
+            />
+            <button
+              v-if="knowledgeUploadPending"
+              type="button"
+              disabled
+            >上传中...</button>
+          </label>
+          <strong v-if="knowledgeUploadError" class="error-text">{{ knowledgeUploadError }}</strong>
+        </div>
+
+        <div class="knowledge-controls">
+          <label class="knowledge-search-box">
+            <span>搜索</span>
+            <input
+              v-model="knowledgeSearchQuery"
+              type="text"
+              placeholder="输入检索关键词..."
+              aria-label="知识搜索"
+              @keyup.enter="searchKnowledge"
+            />
+          </label>
+          <button
+            type="button"
+            :disabled="knowledgeSearchPending || !knowledgeSearchQuery.trim()"
+            @click="searchKnowledge"
+          >{{ knowledgeSearchPending ? '搜索中...' : '搜索' }}</button>
+          <strong v-if="knowledgeSearchError" class="error-text">{{ knowledgeSearchError }}</strong>
+        </div>
+
+        <div v-if="knowledgeError" class="error-text">{{ knowledgeError }}</div>
+
+        <template v-if="knowledgeDocs.length > 0 || knowledgeLoading">
+          <article class="sample-row knowledge-row sample-header">
+            <strong>资料</strong>
+            <strong>类型</strong>
+            <strong>版本</strong>
+            <strong>摄入状态</strong>
+            <strong>复核</strong>
+            <strong>OCR</strong>
+            <strong>Chunks</strong>
+            <strong>操作</strong>
+          </article>
+          <article
+            v-for="doc in knowledgeDocs"
+            :key="doc.id"
+            class="sample-row knowledge-row"
+          >
+            <strong>{{ doc.title }}</strong>
+            <span>{{ doc.document_category }}</span>
+            <span>v{{ doc.current_revision_number }}</span>
+            <span :class="{ 'status-ocr-required': doc.ingestion_status === 'OCR_REQUIRED' }">
+              {{ doc.ingestion_status }}
+            </span>
+            <span>{{ doc.review_status }}</span>
+            <span>{{ doc.requires_ocr ? '是' : '否' }}</span>
+            <span>{{ doc.chunk_count }}</span>
+            <span>
+              <button
+                type="button"
+                class="ingest-btn"
+                @click="ingestDocument(doc.id, doc.current_revision_number)"
+              >摄入</button>
+            </span>
+          </article>
+        </template>
+
+        <div v-else-if="!knowledgeLoading && !knowledgeError" class="empty-state">
+          暂无知识文档，请上传文件。
+        </div>
+
+        <template v-if="knowledgeSearchResults.length > 0">
+          <div class="knowledge-search-results">
+            <strong>搜索结果 ({{ knowledgeSearchResults.length }})</strong>
+            <article class="sample-row knowledge-row sample-header">
+              <strong>资料</strong>
+              <strong>摘要</strong>
+              <strong>混合分</strong>
+              <strong>词法分</strong>
+              <strong>语义分</strong>
+              <strong>位置</strong>
+              <strong>复核</strong>
+              <strong>需复核</strong>
+            </article>
+            <article
+              v-for="(r, idx) in knowledgeSearchResults"
+              :key="idx"
+              class="sample-row knowledge-row"
+            >
+              <strong>{{ r.title }}</strong>
+              <span>{{ r.excerpt }}</span>
+              <span>{{ r.hybrid_score.toFixed(3) }}</span>
+              <span>{{ r.lexical_score.toFixed(3) }}</span>
+              <span>{{ r.semantic_score.toFixed(3) }}</span>
+              <span>{{ r.page != null ? `P${r.page}` : r.sheet || r.section || '-' }}</span>
+              <span>{{ r.review_status }}</span>
+              <span>{{ r.requires_review ? '是' : '否' }}</span>
+            </article>
+          </div>
+        </template>
       </section>
 
       <section
