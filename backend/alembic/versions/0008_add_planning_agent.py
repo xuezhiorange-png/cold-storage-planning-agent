@@ -144,7 +144,33 @@ def upgrade() -> None:
     op.create_index("ix_agent_confirmations_session_id", "agent_confirmations", ["session_id"])
 
 
+    # Fix #4: Idempotency tracking table
+    op.create_table(
+        "agent_idempotency",
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column(
+            "session_id", sa.String(36),
+            sa.ForeignKey("agent_sessions.id"), nullable=False,
+        ),
+        sa.Column("idempotency_key", sa.String(128), nullable=False),
+        sa.Column("turn_id", sa.String(36), nullable=False),
+        sa.Column("result_ref", sa.Text, nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True),
+            nullable=False, server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint(
+            "session_id", "idempotency_key",
+            name="uq_agent_idempotency_session_key",
+        ),
+    )
+    op.create_index(
+        "ix_agent_idempotency_session_id",
+        "agent_idempotency", ["session_id"],
+    )
+
 def downgrade() -> None:
+    op.drop_table("agent_idempotency")
     op.drop_table("agent_confirmations")
     op.drop_table("agent_tool_calls")
     op.drop_table("agent_turns")

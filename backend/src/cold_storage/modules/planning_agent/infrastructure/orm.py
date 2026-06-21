@@ -142,3 +142,27 @@ class AgentConfirmationRecord(Base):
         sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
     )
     used_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+
+
+class AgentIdempotencyRecord(Base):
+    """Fix #4: Atomic idempotency tracking with unique constraint."""
+    __tablename__ = "agent_idempotency"
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "session_id", "idempotency_key",
+            name="uq_agent_idempotency_session_key",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("agent_sessions.id"), nullable=False
+    )
+    idempotency_key: Mapped[str] = mapped_column(sa.String(128), nullable=False)
+    turn_id: Mapped[str] = mapped_column(sa.String(36), nullable=False)
+    result_ref: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    created_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+

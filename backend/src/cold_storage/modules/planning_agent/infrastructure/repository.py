@@ -26,6 +26,7 @@ from cold_storage.modules.planning_agent.domain.models import (
 )
 from cold_storage.modules.planning_agent.infrastructure.orm import (
     AgentConfirmationRecord,
+    AgentIdempotencyRecord,
     AgentMessageRecord,
     AgentSessionRecord,
     AgentToolCallRecord,
@@ -282,35 +283,36 @@ class AgentRepository:
 
     # ----- Idempotency -----
 
-    def get_session_by_idempotency_key(self, key: str) -> str | None:
-        """Check if an idempotency key has been used. Returns session_id or None.
-
-        Fix #4: Idempotency key persistence. Uses the agent_messages table
-        to store idempotency keys in structured_content.
-        """
-        import json as _json
-
-        stmt = sa.select(AgentMessageRecord).where(
-            AgentMessageRecord.structured_content.isnot(None)
+    def get_idempotency_record(
+        self, session_id: str, key: str
+    ) -> AgentIdempotencyRecord | None:
+        """Fix #4: Atomic idempotency check — indexed lookup, no table scan."""
+        stmt = sa.select(AgentIdempotencyRecord).where(
+            AgentIdempotencyRecord.session_id == session_id,
+            AgentIdempotencyRecord.idempotency_key == key,
         )
-        rows = self._session.execute(stmt).scalars().all()
-        for row in rows:
-            if row.structured_content:
-                try:
-                    data = _json.loads(row.structured_content)
-                    if data.get("idempotency_key") == key:
-                        result: str = row.session_id
-                        return result
-                except (ValueError, TypeError):
-                    pass
-        return None
+        record: AgentIdempotencyRecord | None = self._session.execute(stmt).scalar_one_or_none()
+        return record
 
-    def get_last_result(self, key: str) -> dict[str, Any] | None:
-        """Retrieve the cached result for an idempotency key.
-
-        Fix #4: Returns the cached turn result if available.
-        """
-        return None  # V1: no result caching yet — will return None and let caller handle
+    def store_idempotency_record(
+        self,
+        session_id: str,
+        key: str,
+        turn_id: str,
+        result_ref: str | None = None,
+    ) -> AgentIdempotencyRecord:
+        """Fix #4: Atomically store idempotency key. Raises on duplicate."""
+        import uuid as _uuid
+        rec = AgentIdempotencyRecord(
+            id=str(_uuid.uuid4()),
+            session_id=session_id,
+            idempotency_key=key,
+            turn_id=turn_id,
+            result_ref=result_ref,
+        )
+        self._session.add(rec)
+        self._session.flush()
+        return rec
 
     # ----- Serializers -----
 

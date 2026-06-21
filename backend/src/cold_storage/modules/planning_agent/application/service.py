@@ -119,15 +119,15 @@ class PlanningAgentService:
     ) -> dict[str, Any]:
         session = self._repo.get_session(session_id)
 
-        # Fix #4: Idempotency — check for duplicate key
+        # Fix #4: Atomic idempotency check
         if idempotency_key:
-            existing = self._repo.get_session_by_idempotency_key(idempotency_key)
+            existing = self._repo.get_idempotency_record(session_id, idempotency_key)
             if existing is not None:
-                # Return the previous result for this idempotency key
-                return self._repo.get_last_result(idempotency_key) or {
+                # Replay: return the original turn result
+                return {
                     "session_id": session_id,
-                    "turn_id": "",
-                    "assistant_message": "Already processed",
+                    "turn_id": existing.turn_id,
+                    "assistant_message": "Already processed (idempotent replay)",
                     "decision_type": "answer",
                     "tool_calls": [],
                     "idempotent_replay": True,
@@ -202,6 +202,19 @@ class PlanningAgentService:
 
         # Fix #9: Transaction boundary — commit after orchestration
         self._repo.commit()
+
+        # Fix #4: Store idempotency key (after commit, in new transaction)
+        if idempotency_key:
+            try:
+                self._repo.store_idempotency_record(
+                    session_id=session_id,
+                    key=idempotency_key,
+                    turn_id=result.get("turn_id", ""),
+                )
+                self._repo.commit()
+            except Exception:
+                # Idempotency storage failure is non-fatal — the result is already committed
+                pass
 
         return result
 
