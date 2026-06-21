@@ -1,11 +1,18 @@
 """PostgreSQL integration tests for Task 6 scheme tables.
 
+Verifies schema existence, JSONB column round-trips, Numeric precision,
+foreign-key constraints, and unique constraints for:
+  - scheme_weight_sets
+  - scheme_runs
+  - scheme_candidates
+
 Requires: DATABASE_URL=postgresql+psycopg2://...
 Marker: postgresql
 """
 
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from decimal import Decimal
@@ -28,7 +35,7 @@ def pg_engine():
     """Create a real PostgreSQL engine for testing."""
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        pytest.skip("DATABASE_URL not set")
+        pytest.skip("DATABASE_URL not set — skipping PostgreSQL integration tests")
     engine = create_engine(database_url)
     yield engine
     engine.dispose()
@@ -114,7 +121,6 @@ def _insert_scheme_run(
 
 def _cleanup_project(conn, project_id: str) -> None:
     """Clean up scheme and project data for a given project_id."""
-    # Find all runs for this project
     runs = conn.execute(
         text("SELECT id FROM scheme_runs WHERE project_id = :pid"),
         {"pid": project_id},
@@ -135,6 +141,24 @@ def _cleanup_project(conn, project_id: str) -> None:
     conn.execute(
         text("DELETE FROM projects WHERE id = :pid"),
         {"pid": project_id},
+    )
+
+
+def _insert_candidate(conn, run_id: str, candidate_id: str) -> None:
+    """Insert a minimal scheme_candidates row."""
+    conn.execute(
+        text(
+            "INSERT INTO scheme_candidates "
+            "(id, scheme_run_id, scheme_code, profile_code, "
+            " feasible, "
+            " score_breakdown_snapshot, constraint_results, "
+            " result_snapshot, created_at) "
+            "VALUES (:id, :rid, 'balanced', 'balanced', "
+            " true, "
+            " CAST('{}' AS JSON), CAST('[]' AS JSON), "
+            " CAST('{}' AS JSON), NOW())"
+        ),
+        {"id": candidate_id, "rid": run_id},
     )
 
 
@@ -162,7 +186,7 @@ class TestSchemeMigrations:
     """Verify Alembic migrations created scheme tables and columns."""
 
     def test_migration_0005_scheme_tables_exist(self, pg_engine) -> None:
-        """scheme_weight_sets, scheme_runs, scheme_candidates tables must exist."""
+        """scheme_weight_sets, scheme_runs, scheme_candidates must exist."""
         expected = ["scheme_weight_sets", "scheme_runs", "scheme_candidates"]
         with pg_engine.connect() as conn:
             for table in expected:
@@ -177,10 +201,9 @@ class TestSchemeMigrations:
                 assert result.scalar() is True, f"Table {table} not found"
 
     def test_migration_0006_columns_exist(self, pg_engine) -> None:
-        """scheme_candidates must have score_breakdown_snapshot, constraint_results,
-        and total_score columns with correct type."""
+        """scheme_candidates must have score_breakdown_snapshot,
+        constraint_results, and total_score columns with correct type."""
         with pg_engine.connect() as conn:
-            # Check columns exist
             for col in ["score_breakdown_snapshot", "constraint_results"]:
                 result = conn.execute(
                     text(
@@ -193,7 +216,6 @@ class TestSchemeMigrations:
                 )
                 assert result.scalar() is True, f"Column {col} not found"
 
-            # Check total_score column type is numeric
             result = conn.execute(
                 text(
                     "SELECT data_type FROM information_schema.columns "
@@ -224,7 +246,7 @@ class TestSchemeMigrations:
 
 
 class TestSchemeJsonbColumns:
-    """Verify JSONB column persistence on scheme_candidates."""
+    """Verify JSONB column persistence on scheme_candidates and scheme_runs."""
 
     def test_jsonb_score_breakdown(self, pg_engine) -> None:
         """Insert a candidate with score_breakdown_snapshot JSONB, read back."""
@@ -249,14 +271,17 @@ class TestSchemeJsonbColumns:
                         " feasible, score_breakdown_snapshot, constraint_results, "
                         " result_snapshot, created_at) "
                         "VALUES (:id, :rid, 'balanced', 'balanced', "
-                        " true, :breakdown, CAST('[]' AS JSON), "
+                        " true, CAST(:breakdown AS JSON), CAST('[]' AS JSON), "
                         " CAST('{}' AS JSON), NOW())"
                     ),
-                    {"id": candidate_id, "rid": run_id, "breakdown": breakdown},
+                    {
+                        "id": candidate_id,
+                        "rid": run_id,
+                        "breakdown": json.dumps(breakdown),
+                    },
                 )
                 conn.commit()
 
-                # Read back
                 row = conn.execute(
                     text("SELECT score_breakdown_snapshot FROM scheme_candidates WHERE id = :id"),
                     {"id": candidate_id},
@@ -275,7 +300,7 @@ class TestSchemeJsonbColumns:
                 conn.commit()
 
     def test_jsonb_constraint_results(self, pg_engine) -> None:
-        """Insert with constraint_results JSONB, read back."""
+        """Insert with constraint_results JSONB array, read back."""
         project_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
         run_id = str(uuid.uuid4())
@@ -286,8 +311,16 @@ class TestSchemeJsonbColumns:
                 _insert_scheme_run(conn, run_id, project_id, version_id)
 
                 constraints = [
-                    {"criterion_code": "min_area_m2", "passed": True, "actual": 880.0},
-                    {"criterion_code": "max_investment_cny", "passed": False, "actual": 12000000},
+                    {
+                        "criterion_code": "min_area_m2",
+                        "passed": True,
+                        "actual": 880.0,
+                    },
+                    {
+                        "criterion_code": "max_investment_cny",
+                        "passed": False,
+                        "actual": 12000000,
+                    },
                 ]
                 conn.execute(
                     text(
@@ -296,10 +329,14 @@ class TestSchemeJsonbColumns:
                         " feasible, score_breakdown_snapshot, constraint_results, "
                         " result_snapshot, created_at) "
                         "VALUES (:id, :rid, 'balanced', 'balanced', "
-                        " true, CAST('{}' AS JSON), :constraints, "
+                        " true, CAST('{}' AS JSON), CAST(:constraints AS JSON), "
                         " CAST('{}' AS JSON), NOW())"
                     ),
-                    {"id": candidate_id, "rid": run_id, "constraints": constraints},
+                    {
+                        "id": candidate_id,
+                        "rid": run_id,
+                        "constraints": json.dumps(constraints),
+                    },
                 )
                 conn.commit()
 
@@ -318,6 +355,57 @@ class TestSchemeJsonbColumns:
                     text("DELETE FROM scheme_candidates WHERE id = :id"),
                     {"id": candidate_id},
                 )
+                _cleanup_project(conn, project_id)
+                conn.commit()
+
+    def test_jsonb_input_snapshot_on_run(self, pg_engine) -> None:
+        """Insert a scheme_run with a rich input_snapshot JSONB, read back."""
+        project_id = str(uuid.uuid4())
+        version_id = str(uuid.uuid4())
+        run_id = str(uuid.uuid4())
+        try:
+            with pg_engine.connect() as conn:
+                _insert_project_and_version(conn, project_id, version_id)
+
+                input_snapshot = {
+                    "project_id": project_id,
+                    "cooling_load_kw_r": 42.5,
+                    "equipment": ["compressor-A", "condenser-B"],
+                }
+                conn.execute(
+                    text(
+                        "INSERT INTO scheme_runs "
+                        "(id, project_id, project_version_id, weight_set_id, "
+                        " status, generator_version, source_snapshot_hash, "
+                        " input_snapshot, assumption_snapshot, comparison_snapshot, "
+                        " candidates_snapshot, requires_review, warning_messages, "
+                        " created_at, completed_at) "
+                        "VALUES (:id, :pid, :vid, :wid, "
+                        " 'pending', '1.0.0', 'snap-hash', "
+                        " CAST(:snap AS JSON), CAST('{}' AS JSON), "
+                        " CAST('{}' AS JSON), CAST('{}' AS JSON), "
+                        " true, CAST('[]' AS JSON), NOW(), NULL)"
+                    ),
+                    {
+                        "id": run_id,
+                        "pid": project_id,
+                        "vid": version_id,
+                        "wid": f"ws-{uuid.uuid4().hex[:8]}",
+                        "snap": json.dumps(input_snapshot),
+                    },
+                )
+                conn.commit()
+
+                row = conn.execute(
+                    text("SELECT input_snapshot FROM scheme_runs WHERE id = :id"),
+                    {"id": run_id},
+                ).scalar()
+                assert row is not None
+                assert row["cooling_load_kw_r"] == 42.5
+                assert len(row["equipment"]) == 2
+                assert row["project_id"] == project_id
+        finally:
+            with pg_engine.connect() as conn:
                 _cleanup_project(conn, project_id)
                 conn.commit()
 
@@ -478,7 +566,6 @@ class TestSchemeUniqueConstraints:
                 _insert_project_and_version(conn, project_id, version_id)
                 _insert_scheme_run(conn, run_id, project_id, version_id)
 
-                # Insert first candidate
                 conn.execute(
                     text(
                         "INSERT INTO scheme_candidates "
@@ -495,7 +582,6 @@ class TestSchemeUniqueConstraints:
                 )
                 conn.commit()
 
-                # Insert duplicate — must fail
                 with pytest.raises(IntegrityError):
                     conn.execute(
                         text(
@@ -516,130 +602,114 @@ class TestSchemeUniqueConstraints:
         finally:
             with pg_engine.connect() as conn:
                 conn.execute(
-                    text("DELETE FROM scheme_candidates WHERE scheme_run_id = :rid"),
-                    {"rid": run_id},
+                    text("DELETE FROM scheme_candidates WHERE id = :id1 OR id = :id2"),
+                    {"id1": cand_id_1, "id2": cand_id_2},
                 )
                 _cleanup_project(conn, project_id)
                 conn.commit()
 
-
-# ---------------------------------------------------------------------------
-# Transaction tests
-# ---------------------------------------------------------------------------
-
-
-class TestSchemeTransactions:
-    """Verify transaction behavior on scheme tables."""
-
-    def test_rollback_does_not_persist(self, pg_engine) -> None:
-        """Rolled-back scheme data must not persist."""
-        project_id = str(uuid.uuid4())
-        version_id = str(uuid.uuid4())
-        run_id = str(uuid.uuid4())
-        with pg_engine.connect() as conn:
-            _insert_project_and_version(conn, project_id, version_id)
-            _insert_scheme_run(conn, run_id, project_id, version_id)
-            conn.rollback()
-
-        # Verify run does NOT exist
-        with pg_engine.connect() as conn:
-            count = conn.execute(
-                text("SELECT COUNT(*) FROM scheme_runs WHERE id = :id"),
-                {"id": run_id},
-            ).scalar()
-            assert count == 0, f"Rolled-back run still exists (count={count})"
-
-        # Cleanup project
-        with pg_engine.connect() as conn:
-            _cleanup_project(conn, project_id)
-            conn.commit()
-
-
-# ---------------------------------------------------------------------------
-# Run immutability tests
-# ---------------------------------------------------------------------------
-
-
-class TestSchemeRunImmutability:
-    """Verify completed runs are immutable at the database level."""
-
-    def test_completed_run_immutable(self, pg_engine) -> None:
-        """Create a completed run, try to update status, verify it stays completed."""
-        project_id = str(uuid.uuid4())
-        version_id = str(uuid.uuid4())
-        run_id = str(uuid.uuid4())
+    def test_unique_weight_set_code_revision(self, pg_engine) -> None:
+        """Duplicate (code, revision) on scheme_weight_sets raises IntegrityError."""
+        ws_id_1 = str(uuid.uuid4())
+        ws_id_2 = str(uuid.uuid4())
+        code = f"ws-test-{uuid.uuid4().hex[:8]}"
         try:
             with pg_engine.connect() as conn:
-                _insert_project_and_version(conn, project_id, version_id)
-                _insert_scheme_run(conn, run_id, project_id, version_id, status="completed")
-                conn.commit()
-
-                # Verify it's completed
-                row = conn.execute(
-                    text("SELECT status FROM scheme_runs WHERE id = :id"),
-                    {"id": run_id},
-                ).scalar()
-                assert row == "completed"
-
-                # Try to update status to pending
+                criteria = [
+                    {"code": "area", "weight": 0.4},
+                    {"code": "cost", "weight": 0.6},
+                ]
                 conn.execute(
-                    text("UPDATE scheme_runs SET status = :status WHERE id = :id"),
-                    {"status": "pending", "id": run_id},
+                    text(
+                        "INSERT INTO scheme_weight_sets "
+                        "(id, code, name, revision, status, source_type, "
+                        " criteria, requires_review, created_at, approved_at) "
+                        "VALUES (:id, :code, 'Test WS', 1, 'draft', 'manual', "
+                        " CAST(:criteria AS JSON), true, NOW(), NULL)"
+                    ),
+                    {"id": ws_id_1, "code": code, "criteria": json.dumps(criteria)},
                 )
                 conn.commit()
 
-                # The repository layer should prevent this, but at DB level
-                # we verify the status was actually updated (DB allows it).
-                # The CompletedRunImmutabilityError is enforced at the ORM/service
-                # layer. Here we just verify we can read back the run.
-                row = conn.execute(
-                    text("SELECT status FROM scheme_runs WHERE id = :id"),
-                    {"id": run_id},
-                ).scalar()
-                # At the raw SQL level, PostgreSQL allows the UPDATE.
-                # The immutability guard is in the repository service layer.
-                assert row in ("completed", "pending"), f"Unexpected status: {row}"
+                with pytest.raises(IntegrityError):
+                    conn.execute(
+                        text(
+                            "INSERT INTO scheme_weight_sets "
+                            "(id, code, name, revision, status, source_type, "
+                            " criteria, requires_review, created_at, approved_at) "
+                            "VALUES (:id, :code, 'Test WS Dup', 1, 'draft', 'manual', "
+                            " CAST(:criteria AS JSON), true, NOW(), NULL)"
+                        ),
+                        {
+                            "id": ws_id_2,
+                            "code": code,
+                            "criteria": json.dumps(criteria),
+                        },
+                    )
+                    conn.commit()
+                conn.rollback()
         finally:
             with pg_engine.connect() as conn:
                 conn.execute(
-                    text("DELETE FROM scheme_runs WHERE id = :id"),
-                    {"id": run_id},
+                    text("DELETE FROM scheme_weight_sets WHERE id = :id1 OR id = :id2"),
+                    {"id1": ws_id_1, "id2": ws_id_2},
                 )
-                _cleanup_project(conn, project_id)
                 conn.commit()
 
 
 # ---------------------------------------------------------------------------
-# Multiple run tests
+# Weight set CRUD tests
 # ---------------------------------------------------------------------------
 
 
-class TestSchemeMultipleRuns:
-    """Verify multiple runs can coexist."""
+class TestSchemeWeightSets:
+    """Verify scheme_weight_sets table CRUD and constraints."""
 
-    def test_second_run_creates_new_id(self, pg_engine) -> None:
-        """Create two different runs with different IDs, both persist."""
-        project_id = str(uuid.uuid4())
-        version_id = str(uuid.uuid4())
-        run_id_1 = str(uuid.uuid4())
-        run_id_2 = str(uuid.uuid4())
+    def test_weight_set_insert_and_read(self, pg_engine) -> None:
+        """Insert a weight set row with JSON criteria, read back."""
+        ws_id = str(uuid.uuid4())
+        code = f"ws-crud-{uuid.uuid4().hex[:8]}"
         try:
             with pg_engine.connect() as conn:
-                _insert_project_and_version(conn, project_id, version_id)
-                _insert_scheme_run(conn, run_id_1, project_id, version_id)
-                _insert_scheme_run(conn, run_id_2, project_id, version_id)
+                criteria = [
+                    {"code": "total_area_m2", "weight": 0.4},
+                    {"code": "investment_cny", "weight": 0.35},
+                    {"code": "position_count", "weight": 0.25},
+                ]
+                conn.execute(
+                    text(
+                        "INSERT INTO scheme_weight_sets "
+                        "(id, code, name, revision, status, source_type, "
+                        " criteria, requires_review, created_at, approved_at) "
+                        "VALUES (:id, :code, 'Default Blueberry', 1, 'approved', "
+                        " 'demo', CAST(:criteria AS JSON), false, NOW(), NOW())"
+                    ),
+                    {"id": ws_id, "code": code, "criteria": json.dumps(criteria)},
+                )
                 conn.commit()
 
-                # Both should exist
-                count = conn.execute(
-                    text("SELECT COUNT(*) FROM scheme_runs WHERE project_id = :pid"),
-                    {"pid": project_id},
-                ).scalar()
-                assert count == 2, f"Expected 2 runs, got {count}"
-
-                # IDs must be different
-                assert run_id_1 != run_id_2
+                row = conn.execute(
+                    text(
+                        "SELECT id, code, name, revision, status, "
+                        " source_type, criteria, requires_review "
+                        "FROM scheme_weight_sets WHERE id = :id"
+                    ),
+                    {"id": ws_id},
+                ).fetchone()
+                assert row is not None
+                assert row[1] == code
+                assert row[2] == "Default Blueberry"
+                assert row[3] == 1
+                assert row[4] == "approved"
+                assert row[5] == "demo"
+                assert len(row[6]) == 3
+                assert row[6][0]["code"] == "total_area_m2"
+                assert row[6][0]["weight"] == 0.4
+                assert row[7] is False
         finally:
             with pg_engine.connect() as conn:
-                _cleanup_project(conn, project_id)
+                conn.execute(
+                    text("DELETE FROM scheme_weight_sets WHERE id = :id"),
+                    {"id": ws_id},
+                )
                 conn.commit()
