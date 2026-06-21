@@ -59,9 +59,8 @@ def _to_dict(obj: Any) -> dict[str, Any]:
 class CurrentActor:
     """Authenticated actor identity.
 
-    In V1, validated via trusted proxy secret. When PLANNING_AGENT_PROXY_SECRET
-    is configured, X-Proxy-Secret must match. Otherwise X-Actor is accepted
-    (dev mode only — production MUST configure the secret).
+    Fail-closed by default. Production MUST configure PLANNING_AGENT_PROXY_SECRET.
+    Only PLANNING_AGENT_ALLOW_INSECURE_ACTOR=true enables header-only mode.
     """
 
     name: str
@@ -73,20 +72,31 @@ def _require_actor(
 ) -> CurrentActor:
     """FastAPI dependency: require authenticated actor identity.
 
-    When PLANNING_AGENT_PROXY_SECRET env is set:
-      - X-Proxy-Secret must match, otherwise 403
-      - X-Actor is the verified identity
-    When not set (dev mode):
-      - X-Actor is accepted without verification
+    Fail-closed:
+    - PROXY_SECRET set → X-Proxy-Secret must match (hmac.compare_digest)
+    - PROXY_SECRET not set AND ALLOW_INSECURE_ACTOR=true → accept X-Actor
+    - Otherwise → 503 Service Unavailable (no auth configured)
     """
+    import hmac
     import os
 
     proxy_secret = os.environ.get("PLANNING_AGENT_PROXY_SECRET")
-    if proxy_secret and x_proxy_secret != proxy_secret:
+    allow_insecure = os.environ.get("PLANNING_AGENT_ALLOW_INSECURE_ACTOR", "").lower() == "true"
+
+    if proxy_secret:
+        if not x_proxy_secret or not hmac.compare_digest(x_proxy_secret, proxy_secret):
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid or missing proxy authentication",
+            )
+    elif not allow_insecure:
         raise HTTPException(
-            status_code=403,
-            detail="Invalid or missing proxy authentication",
+            status_code=503,
+            detail="Agent API requires authentication configuration. "
+            "Set PLANNING_AGENT_PROXY_SECRET or enable "
+            "PLANNING_AGENT_ALLOW_INSECURE_ACTOR for development.",
         )
+
     if not x_actor:
         raise HTTPException(status_code=401, detail="X-Actor header required")
     return CurrentActor(name=x_actor)

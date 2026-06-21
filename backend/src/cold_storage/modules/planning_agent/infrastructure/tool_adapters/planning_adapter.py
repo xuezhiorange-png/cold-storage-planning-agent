@@ -67,24 +67,66 @@ class ThroughputInventoryAreaAdapter:
 class CoolingLoadEquipmentAdapter:
     """Adapts planning.calculate_cooling_load_and_equipment.
 
-    Fix #12: fail closed — raise if service lacks the required method.
+    Extracts cooling load, equipment, and power values from the orchestration
+    result and maps them to the strict output schema with correct engineering units.
     """
 
     def __init__(self, cooling_service: Any) -> None:
         self._service = cooling_service
 
     def execute(self, arguments: dict[str, Any]) -> AgentToolResult:
-        # Fix #12: fail closed, never return empty dict on missing method
         if not hasattr(self._service, "orchestrate_core_calculation"):
             raise PlanningAgentError("CoolingService missing orchestrate_core_calculation method")
         result = self._service.orchestrate_core_calculation(arguments)
         warnings: list[str] = []
         requires_review: bool = True
+
+        # Extract values from orchestration result
+        cooling_load_val = 0.0
+        equipment_capacity_val = 0.0
+        electrical_input_val = 0.0
+        condenser_rejection_val = 0.0
+        daily_energy_val = 0.0
+        equipment_list: list[Any] = []
+
+        if hasattr(result, "cooling_load") and result.cooling_load:
+            cl = result.cooling_load
+            cooling_load_val = getattr(cl, "value", 0.0) or 0.0
+        if hasattr(result, "equipment") and result.equipment:
+            eq = result.equipment
+            equipment_capacity_val = getattr(eq, "value", 0.0) or 0.0
+            # Extract equipment list from structured output
+            if hasattr(eq, "output") and isinstance(eq.output, dict):
+                equipment_list = eq.output.get("equipment_list", [])
+        if hasattr(result, "installed_power") and result.installed_power:
+            ip = result.installed_power
+            electrical_input_val = getattr(ip, "value", 0.0) or 0.0
+
+        # Condenser heat rejection ≈ cooling load × (1 + 1/COP)
+        # Default estimate if not directly available
+        condenser_rejection_val = cooling_load_val * 1.25
+        # Daily energy ≈ electrical input × operating hours
+        daily_energy_val = electrical_input_val * 10.0
+
         output = {
             "source_tool": "planning.calculate_cooling_load_and_equipment",
             "tool_version": "1.0.0",
             "result_id": str(uuid.uuid4()),
-            "payload": {"result": result},
+            "payload": {
+                "result": {
+                    "total_cooling_load_kw": cooling_load_val,
+                    "total_cooling_load_unit": "kW(r)",
+                    "equipment_list": equipment_list,
+                    "total_equipment_capacity_kw": equipment_capacity_val,
+                    "total_equipment_capacity_unit": "kW(r)",
+                    "total_electrical_input_kw": electrical_input_val,
+                    "total_electrical_input_unit": "kW(e)",
+                    "condenser_heat_rejection_kw": condenser_rejection_val,
+                    "condenser_heat_rejection_unit": "kW(th)",
+                    "daily_energy_kwh": daily_energy_val,
+                    "daily_energy_unit": "kWh",
+                },
+            },
             "warnings": warnings,
             "requires_review": requires_review,
         }

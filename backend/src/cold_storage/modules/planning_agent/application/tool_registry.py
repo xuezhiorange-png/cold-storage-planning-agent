@@ -378,18 +378,46 @@ def build_default_registry() -> ToolRegistry:
                                     "equipment_list",
                                     "total_equipment_capacity_kw",
                                     "total_equipment_capacity_unit",
+                                    "total_electrical_input_kw",
+                                    "total_electrical_input_unit",
+                                    "condenser_heat_rejection_kw",
+                                    "condenser_heat_rejection_unit",
+                                    "daily_energy_kwh",
+                                    "daily_energy_unit",
                                 ],
                                 "properties": {
-                                    "total_cooling_load_kw": {"type": "number"},
-                                    "total_cooling_load_unit": {
-                                        "type": "string",
-                                        "enum": ["kW", "BTU/h"],
+                                    "total_cooling_load_kw": {
+                                        "type": "number",
                                     },
-                                    "equipment_list": {"type": "array"},
-                                    "total_equipment_capacity_kw": {"type": "number"},
+                                    "total_cooling_load_unit": {
+                                        "const": "kW(r)",
+                                    },
+                                    "equipment_list": {
+                                        "type": "array",
+                                    },
+                                    "total_equipment_capacity_kw": {
+                                        "type": "number",
+                                    },
                                     "total_equipment_capacity_unit": {
-                                        "type": "string",
-                                        "enum": ["kW", "BTU/h"],
+                                        "const": "kW(r)",
+                                    },
+                                    "total_electrical_input_kw": {
+                                        "type": "number",
+                                    },
+                                    "total_electrical_input_unit": {
+                                        "const": "kW(e)",
+                                    },
+                                    "condenser_heat_rejection_kw": {
+                                        "type": "number",
+                                    },
+                                    "condenser_heat_rejection_unit": {
+                                        "const": "kW(th)",
+                                    },
+                                    "daily_energy_kwh": {
+                                        "type": "number",
+                                    },
+                                    "daily_energy_unit": {
+                                        "const": "kWh",
                                     },
                                 },
                                 "additionalProperties": False,

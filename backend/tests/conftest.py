@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from httpx import Client as TestClient
 from sqlalchemy import create_engine
@@ -13,6 +15,14 @@ from cold_storage.modules.coefficients.infrastructure.database import (
 )
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 from cold_storage.modules.projects.infrastructure.orm import Base
+
+
+@pytest.fixture(autouse=True)
+def _allow_insecure_actor():
+    """Allow X-Actor header without proxy secret in all tests."""
+    os.environ["PLANNING_AGENT_ALLOW_INSECURE_ACTOR"] = "true"
+    yield
+    os.environ.pop("PLANNING_AGENT_ALLOW_INSECURE_ACTOR", None)
 
 
 @pytest.fixture()

@@ -161,9 +161,8 @@ class PlanningAgentService:
                 # Race: another request claimed first
                 existing = self._repo.get_idempotency_record(session_id, idempotency_key)
                 if existing and existing.status == "completed" and existing.result_payload:
-                    original = dict(existing.result_payload)
-                    original["idempotent_replay"] = True
-                    return original
+                    # Exact replay — return original payload verbatim
+                    return dict(existing.result_payload)
                 raise ConcurrentTurnError(session_id)
 
         # Create user message
