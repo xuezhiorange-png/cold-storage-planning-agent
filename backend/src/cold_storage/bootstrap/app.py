@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import asdict
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -227,9 +228,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 zone_code="precooling-primary",
                 zone_name="双级预冷间",
                 temperature_level="precooling",
-                area_m2=112.0,
+                area_m2=Decimal("112.0"),
                 position_count=20,
-                storage_capacity_kg=8800,
+                storage_capacity_kg=Decimal("8800"),
                 process_compatibility="raw",
                 hygiene_zone="standard",
             ),
@@ -237,9 +238,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 zone_code="precooling-secondary",
                 zone_name="次果预冷间",
                 temperature_level="precooling",
-                area_m2=56.0,
+                area_m2=Decimal("56.0"),
                 position_count=10,
-                storage_capacity_kg=4000,
+                storage_capacity_kg=Decimal("4000"),
                 process_compatibility="raw",
                 hygiene_zone="standard",
             ),
@@ -247,9 +248,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 zone_code="raw-storage",
                 zone_name="原果冷藏库",
                 temperature_level="medium_temperature",
-                area_m2=280.0,
+                area_m2=Decimal("280.0"),
                 position_count=70,
-                storage_capacity_kg=30800,
+                storage_capacity_kg=Decimal("30800"),
                 process_compatibility="raw",
                 hygiene_zone="standard",
             ),
@@ -257,9 +258,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 zone_code="finished-storage",
                 zone_name="成品冷藏库",
                 temperature_level="medium_temperature",
-                area_m2=350.0,
+                area_m2=Decimal("350.0"),
                 position_count=88,
-                storage_capacity_kg=35200,
+                storage_capacity_kg=Decimal("35200"),
                 process_compatibility="finished",
                 hygiene_zone="standard",
             ),
@@ -267,25 +268,29 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 zone_code="frozen-storage",
                 zone_name="冻果冷藏库",
                 temperature_level="frozen",
-                area_m2=84.0,
+                area_m2=Decimal("84.0"),
                 position_count=14,
-                storage_capacity_kg=8400,
+                storage_capacity_kg=Decimal("8400"),
                 process_compatibility="finished",
                 hygiene_zone="standard",
             ),
         ]
-        investment = InvestmentResult(total_investment_cny=6150420.50, zone_investments={})
+        investment = InvestmentResult(
+            total_investment_cny=Decimal("6150420.50"),
+            zone_investments={},
+        )
         cooling_load = CoolingLoadResult(
-            design_cooling_load_kw_r=180.0,
-            sensible_load_kw_r=150.0,
-            latent_load_kw_r=20.0,
-            infiltration_load_kw_r=10.0,
+            design_cooling_load_kw_r=Decimal("180.0"),
+            sensible_load_kw_r=Decimal("150.0"),
+            latent_load_kw_r=Decimal("20.0"),
+            infiltration_load_kw_r=Decimal("10.0"),
         )
         equipment = EquipmentResult(
-            compressor_operating_capacity_kw_r=180.0,
-            compressor_installed_capacity_kw_r=216.0,
-            condenser_heat_rejection_kw=240.0,
-            installed_power_kw_e=65.0,
+            compressor_operating_capacity_kw_r=Decimal("180.0"),
+            compressor_installed_capacity_kw_r=Decimal("216.0"),
+            compressor_standby_capacity_kw_r=Decimal("0"),
+            condenser_heat_rejection_kw=Decimal("240.0"),
+            installed_power_kw_e=Decimal("65.0"),
         )
 
         input_data = SchemeGenerationInput(
@@ -303,8 +308,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             cooling_load_result=cooling_load,
             equipment_result=equipment,
             generator_version="1.0.0",
-            total_daily_throughput_kg_day=25000,
-            total_storage_capacity_kg=87200,
+            total_daily_throughput_kg_day=Decimal("25000"),
+            total_storage_capacity_kg=Decimal("87200"),
             total_position_count=202,
         )
 
@@ -337,7 +342,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 investment_cny=cand.investment_cny,
                 installed_power_kw_e=cand.installed_power_kw_e,
                 design_cooling_load_kw_r=cand.design_cooling_load_kw_r,
+                compressor_operating_capacity_kw_r=cand.compressor_operating_capacity_kw_r,
                 compressor_installed_capacity_kw_r=cand.compressor_installed_capacity_kw_r,
+                compressor_standby_capacity_kw_r=cand.compressor_standby_capacity_kw_r,
                 condenser_heat_rejection_kw=cand.condenser_heat_rejection_kw,
                 metrics=cand.metrics,
                 assumptions=cand.assumptions,

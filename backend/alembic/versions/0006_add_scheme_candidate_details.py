@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0006_add_scheme_candidate_details"
+revision = "0006_scheme_candidate_details"
 down_revision = "0005_add_scheme_tables"
 branch_labels = None
 depends_on = None
