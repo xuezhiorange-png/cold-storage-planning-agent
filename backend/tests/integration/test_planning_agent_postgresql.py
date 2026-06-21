@@ -161,7 +161,7 @@ class TestMessageOrdering:
             s = AgentSession(title="Msg order test")
             repo.create_session(s)
             for i in range(1, 4):
-                msg = AgentMessage(session_id=s.id, sequence=i, role="user", content=f"msg {i}")
+                msg = AgentMessage(session_id=s.id, sequence=i, role=MessageRole.USER, content=f"msg {i}")
                 repo.add_message(msg)
             msgs = repo.get_messages(s.id)
             assert [m.sequence for m in msgs] == [1, 2, 3]
