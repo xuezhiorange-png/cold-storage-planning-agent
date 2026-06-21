@@ -166,6 +166,70 @@ class TestToolCallFlow:
         assert isinstance(tcs, list)
 
 
+class TestIdempotentReplayDepthEquality:
+    """Verify that first response, normal completed replay, and claim-race
+    completed replay all produce deeply equal payloads — no extra fields,
+    no removed fields, no mutations."""
+
+    def _call_with_key(self, service, session_id, content, key):
+        return service.post_user_message(session_id, content, idempotency_key=key)
+
+    def test_first_response_has_turn_and_assistant(self, service):
+        s = service.create_session()
+        r1 = self._call_with_key(service, s.id, "hello", "key-aaa")
+        assert "turn_id" in r1
+        assert "assistant_message" in r1
+
+    def test_normal_replay_returns_same_depth(self, service):
+        s = service.create_session()
+        r1 = self._call_with_key(service, s.id, "hello", "key-bbb")
+        r2 = self._call_with_key(service, s.id, "hello", "key-bbb")
+        assert r1.keys() == r2.keys(), "Key sets differ on normal replay"
+        for k in r1:
+            assert r1[k] == r2[k], f"Field {k!r} differs on normal replay"
+
+    def test_claim_race_replay_returns_same_depth(self, service):
+        """Simulate claim-race: manually create a completed idempotency
+        record, then call with the same key — the second call should hit
+        the claim-race branch and return the original payload."""
+        import uuid as _uuid
+
+        s = service.create_session()
+
+        # Manually insert a completed idempotency record
+        first_result = {
+            "turn_id": str(_uuid.uuid4()),
+            "assistant_message": {"content": "original result"},
+        }
+        service._repo.claim_idempotency(
+            session_id=s.id,
+            key="race-key",
+            turn_id=str(_uuid.uuid4()),
+        )
+        service._repo.complete_idempotency(
+            session_id=s.id,
+            key="race-key",
+            turn_id=first_result["turn_id"],
+            result_payload=first_result,
+        )
+        service._repo.commit()
+
+        # Now call with same key — should hit claim-race branch
+        r2 = self._call_with_key(service, s.id, "hello again", "race-key")
+
+        assert r2.keys() == first_result.keys(), "Key sets differ on claim-race replay"
+        for k in first_result:
+            assert r2[k] == first_result[k], f"Field {k!r} differs on claim-race replay"
+
+    def test_no_idempotent_replay_flag_in_payload(self, service):
+        """Replay must never inject an 'idempotent_replay' flag."""
+        s = service.create_session()
+        r1 = self._call_with_key(service, s.id, "test", "flag-key")
+        r2 = self._call_with_key(service, s.id, "test", "flag-key")
+        assert "idempotent_replay" not in r2
+        assert set(r2.keys()) == set(r1.keys())
+
+
 class TestOrchestratorToolExecution:
     def test_execute_unregistered_tool(self, orchestrator, registry):
         with pytest.raises(UnregisteredToolError):
