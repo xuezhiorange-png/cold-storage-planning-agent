@@ -41,17 +41,21 @@ class FakeAgentModelGateway:
             if tons is None or hours is None:
                 missing = []
                 if tons is None:
-                    missing.append({
-                        "name": "daily_inbound_mass_kg",
-                        "reason": "required_by_tool",
-                        "expected_unit": "kg",
-                    })
+                    missing.append(
+                        {
+                            "name": "daily_inbound_mass_kg",
+                            "reason": "required_by_tool",
+                            "expected_unit": "kg",
+                        }
+                    )
                 if hours is None:
-                    missing.append({
-                        "name": "working_time_h_per_day",
-                        "reason": "required_by_tool",
-                        "expected_unit": "hours",
-                    })
+                    missing.append(
+                        {
+                            "name": "working_time_h_per_day",
+                            "reason": "required_by_tool",
+                            "expected_unit": "hours",
+                        }
+                    )
                 return AgentDecision(
                     decision_type=DecisionType.ASK_CLARIFICATION,
                     assistant_message="请提供日入库量（吨/天）和工作时间（小时/天）。",

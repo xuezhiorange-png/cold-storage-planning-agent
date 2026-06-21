@@ -144,13 +144,14 @@ class AgentConfirmationRecord(Base):
     used_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
 
 
-
 class AgentIdempotencyRecord(Base):
     """Fix #4: Atomic idempotency tracking with unique constraint."""
+
     __tablename__ = "agent_idempotency"
     __table_args__ = (
         sa.UniqueConstraint(
-            "session_id", "idempotency_key",
+            "session_id",
+            "idempotency_key",
             name="uq_agent_idempotency_session_key",
         ),
     )
@@ -165,4 +166,3 @@ class AgentIdempotencyRecord(Base):
     created_at: Mapped[str] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
     )
-

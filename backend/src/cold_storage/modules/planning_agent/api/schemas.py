@@ -51,6 +51,7 @@ class PendingConfirmation(BaseModel):
     Token is only returned on first proposal — subsequent queries do not
     leak the token.
     """
+
     tool_call_id: str
     confirmation_token: str
     arguments_sha256: str

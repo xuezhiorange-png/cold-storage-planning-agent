@@ -117,9 +117,7 @@ class ToolRegistry:
         except Exception as exc:
             if isinstance(exc, ToolArgumentValidationError):
                 raise
-            raise ToolArgumentValidationError(
-                name, [str(exc)]
-            ) from exc
+            raise ToolArgumentValidationError(name, [str(exc)]) from exc
 
 
 def build_default_registry() -> ToolRegistry:

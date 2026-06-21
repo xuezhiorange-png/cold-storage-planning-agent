@@ -91,9 +91,7 @@ class PlanningAgentService:
 
     def cancel_session(self, session_id: str, *, user: str = "user") -> AgentSession:
         session = self._repo.get_session(session_id)
-        check_authorization(
-            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
-        )
+        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
         validate_session_transition(session.status, SessionStatus.CANCELLED)
         closed = AgentSession(
             **{
@@ -141,9 +139,7 @@ class PlanningAgentService:
         if active_turn is not None:
             raise ConcurrentTurnError(session_id)
 
-        check_authorization(
-            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
-        )
+        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
 
         # Create user message
         now = datetime.now(UTC)
@@ -241,7 +237,7 @@ class PlanningAgentService:
         """Confirm a pending tool call.
 
         Returns dict with tool_call info and session state updates.
-        Transitions: turn awaiting_confirmation -> completed, 
+        Transitions: turn awaiting_confirmation -> completed,
         session awaiting_confirmation -> active.
         """
         tc = self._repo.get_tool_call(tool_call_id)
@@ -249,9 +245,7 @@ class PlanningAgentService:
             raise SessionNotFoundError(tool_call_id)
 
         session = self._repo.get_session(tc.session_id)
-        check_authorization(
-            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
-        )
+        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
 
         token_hash = sha256_json(confirmation_token)
 
@@ -348,9 +342,7 @@ class PlanningAgentService:
         # Transition session from awaiting_confirmation -> active
         session = self._repo.get_session(tc.session_id)
         if session.status == SessionStatus.AWAITING_CONFIRMATION:
-            validate_session_transition(
-                session.status, SessionStatus.ACTIVE
-            )
+            validate_session_transition(session.status, SessionStatus.ACTIVE)
             resumed = AgentSession(
                 **{
                     **asdict(session),
@@ -387,9 +379,7 @@ class PlanningAgentService:
         if tc is None:
             raise SessionNotFoundError(tool_call_id)
         session = self._repo.get_session(tc.session_id)
-        check_authorization(
-            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
-        )
+        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
         validate_tool_call_transition(tc.status, ToolCallStatus.REJECTED)
         rejected = AgentToolCall(
             **{
@@ -417,9 +407,7 @@ class PlanningAgentService:
 
         session = self._repo.get_session(tc.session_id)
         if session.status == SessionStatus.AWAITING_CONFIRMATION:
-            validate_session_transition(
-                session.status, SessionStatus.ACTIVE
-            )
+            validate_session_transition(session.status, SessionStatus.ACTIVE)
             resumed = AgentSession(
                 **{
                     **asdict(session),
@@ -443,4 +431,5 @@ class PlanningAgentService:
 def sha256_json(obj: Any) -> str:
     """Local SHA-256 helper — same as domain sha256_json."""
     from cold_storage.modules.planning_agent.domain.models import sha256_json as _sha256_json
+
     return _sha256_json(obj)

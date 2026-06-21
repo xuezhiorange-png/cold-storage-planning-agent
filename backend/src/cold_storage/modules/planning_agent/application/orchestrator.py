@@ -49,7 +49,7 @@ from cold_storage.modules.planning_agent.prompts.system_v1 import (
 )
 
 # Confirmation token TTL: 30 minutes
-_CONFIRMATION_TOKEN_TTL=timedelta(minutes=30)
+_CONFIRMATION_TOKEN_TTL = timedelta(minutes=30)
 
 
 class AgentOrchestrator:
@@ -114,9 +114,7 @@ class AgentOrchestrator:
 
         # Validate decision
         if decision.decision_type not in DecisionType:
-            raise InvalidStructuredOutputError(
-                f"Unknown decision type: {decision.decision_type}"
-            )
+            raise InvalidStructuredOutputError(f"Unknown decision type: {decision.decision_type}")
 
         # Process based on decision type
         tool_calls: list[AgentToolCall] = []
@@ -184,9 +182,7 @@ class AgentOrchestrator:
                         {
                             "tool_call_id": tc.id,
                             "confirmation_token": token,
-                            "expires_at": (
-                                now + _CONFIRMATION_TOKEN_TTL
-                            ).isoformat(),
+                            "expires_at": (now + _CONFIRMATION_TOKEN_TTL).isoformat(),
                             "arguments_sha256": tc.arguments_sha256,
                         }
                     )
@@ -236,9 +232,7 @@ class AgentOrchestrator:
         # Build assistant message
         assistant_content = decision.assistant_message
         if tool_calls:
-            tc_summary = [
-                f"{tc.tool_name}({tc.status.value})" for tc in tool_calls
-            ]
+            tc_summary = [f"{tc.tool_name}({tc.status.value})" for tc in tool_calls]
             assistant_content += f"\n工具调用: {', '.join(tc_summary)}"
 
         now = datetime.now(UTC)
@@ -286,9 +280,7 @@ class AgentOrchestrator:
 
         # Complete turn
         turn_status = (
-            TurnStatus.AWAITING_CONFIRMATION
-            if confirmation_required
-            else TurnStatus.COMPLETED
+            TurnStatus.AWAITING_CONFIRMATION if confirmation_required else TurnStatus.COMPLETED
         )
         completed_turn = AgentTurn(
             **{
@@ -323,9 +315,7 @@ class AgentOrchestrator:
 
         # Update session status if awaiting confirmation
         if confirmation_required:
-            validate_session_transition(
-                session.status, SessionStatus.AWAITING_CONFIRMATION
-            )
+            validate_session_transition(session.status, SessionStatus.AWAITING_CONFIRMATION)
             awaiting = AgentSession(
                 **{
                     **asdict(updated_session),
@@ -346,8 +336,7 @@ class AgentOrchestrator:
                     "id": tc.id,
                     "tool_name": tc.tool_name,
                     "status": tc.status.value,
-                    "requires_confirmation": tc.status
-                    == ToolCallStatus.AWAITING_CONFIRMATION,
+                    "requires_confirmation": tc.status == ToolCallStatus.AWAITING_CONFIRMATION,
                 }
                 for tc in tool_calls
             ],
@@ -391,15 +380,11 @@ class AgentOrchestrator:
 
         # Check project binding
         if tool_def.requires_project and not session.project_id:
-            raise UnauthorizedError(
-                f"Tool {tool_def.name} requires a bound project"
-            )
+            raise UnauthorizedError(f"Tool {tool_def.name} requires a bound project")
 
         # Check version binding
         if tool_def.requires_project_version and not session.project_version_id:
-            raise UnauthorizedError(
-                f"Tool {tool_def.name} requires a bound project version"
-            )
+            raise UnauthorizedError(f"Tool {tool_def.name} requires a bound project version")
 
         # Validate project/version existence and version status
         # In production, query projects table for existence and status checks.
@@ -407,8 +392,7 @@ class AgentOrchestrator:
 
         # Check approved version write rejection
         if (
-            tool_def.authorization_level
-            in (AuthorizationLevel.WRITE, AuthorizationLevel.CALCULATE)
+            tool_def.authorization_level in (AuthorizationLevel.WRITE, AuthorizationLevel.CALCULATE)
             and session.project_version_id
         ):
             # In production, query version status from projects table

@@ -78,9 +78,7 @@ class AgentRepository:
         self._session.flush()
         return s
 
-    def update_session_cas(
-        self, s: AgentSession, expected_version: int
-    ) -> bool:
+    def update_session_cas(self, s: AgentSession, expected_version: int) -> bool:
         """Fix #6: Atomic CAS on session version.
 
         UPDATE WHERE version=expected_version, returns True if updated.
@@ -331,9 +329,7 @@ class AgentRepository:
 
     # ----- Idempotency -----
 
-    def get_idempotency_record(
-        self, session_id: str, key: str
-    ) -> AgentIdempotencyRecord | None:
+    def get_idempotency_record(self, session_id: str, key: str) -> AgentIdempotencyRecord | None:
         """Fix #4: Atomic idempotency check — indexed lookup, no table scan."""
         stmt = sa.select(AgentIdempotencyRecord).where(
             AgentIdempotencyRecord.session_id == session_id,
@@ -351,6 +347,7 @@ class AgentRepository:
     ) -> AgentIdempotencyRecord:
         """Fix #4: Atomically store idempotency key. Raises on duplicate."""
         import uuid as _uuid
+
         rec = AgentIdempotencyRecord(
             id=str(_uuid.uuid4()),
             session_id=session_id,

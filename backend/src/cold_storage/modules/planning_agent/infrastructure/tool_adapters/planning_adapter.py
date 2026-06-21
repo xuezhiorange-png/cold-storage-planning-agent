@@ -50,9 +50,7 @@ class CoolingLoadEquipmentAdapter:
     def execute(self, arguments: dict[str, Any]) -> AgentToolResult:
         # Fix #12: fail closed, never return empty dict on missing method
         if not hasattr(self._service, "orchestrate_core_calculation"):
-            raise PlanningAgentError(
-                "CoolingService missing orchestrate_core_calculation method"
-            )
+            raise PlanningAgentError("CoolingService missing orchestrate_core_calculation method")
         result = self._service.orchestrate_core_calculation(arguments)
         return AgentToolResult(
             tool_name="planning.calculate_cooling_load_and_equipment",

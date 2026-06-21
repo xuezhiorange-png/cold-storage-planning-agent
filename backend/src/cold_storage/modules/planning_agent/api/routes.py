@@ -155,7 +155,9 @@ def create_agent_router(
         "/sessions/{session_id}/messages", response_model=PostMessageResponse, status_code=201
     )
     def post_message(
-        session_id: str, req: PostMessageRequest, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+        session_id: str,
+        req: PostMessageRequest,
+        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
     ) -> Any:
         try:
             result = svc.post_user_message(
@@ -211,7 +213,9 @@ def create_agent_router(
 
     @router.get("/sessions/{session_id}/turns/{turn_id}", response_model=TurnResponse)
     def get_turn(
-        session_id: str, turn_id: str, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+        session_id: str,
+        turn_id: str,
+        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
     ) -> Any:
         turn = svc.get_turn(turn_id)
         if turn is None or turn.session_id != session_id:
@@ -234,7 +238,8 @@ def create_agent_router(
 
     @router.get("/sessions/{session_id}/tool-calls", response_model=list[ToolCallInfo])
     def list_tool_calls(
-        session_id: str, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+        session_id: str,
+        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
     ) -> Any:
         try:
             svc.get_session(session_id)
@@ -262,9 +267,7 @@ def create_agent_router(
         svc: PlanningAgentService = Depends(_svc),  # noqa: B008
     ) -> Any:
         try:
-            result = svc.confirm_tool_call(
-                tool_call_id, confirmation_token=req.confirmation_token
-            )
+            result = svc.confirm_tool_call(tool_call_id, confirmation_token=req.confirmation_token)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except ConfirmationAlreadyUsedError as exc:
@@ -319,7 +322,8 @@ def create_agent_router(
 
     @router.post("/sessions/{session_id}/cancel", response_model=SessionCancelResponse)
     def cancel_session(
-        session_id: str, svc: PlanningAgentService = Depends(_svc)  # noqa: B008
+        session_id: str,
+        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
     ) -> Any:
         try:
             s = svc.cancel_session(session_id)
