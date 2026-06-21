@@ -477,9 +477,7 @@ class TestRequiresOcrRevision:
     def test_requires_ocr_revision_has_no_chunks(self, session) -> None:
         """Revision with ingestion_status='requires_ocr' has no chunks indexed."""
         _insert_document(session, doc_id="doc-ocr", code="OCR-001")
-        _insert_revision(
-            session, revision_id="rev-ocr", doc_id="doc-ocr", content_hash="ocr-hash"
-        )
+        _insert_revision(session, revision_id="rev-ocr", doc_id="doc-ocr", content_hash="ocr-hash")
         session.flush()
 
         # Update to requires_ocr status
@@ -489,11 +487,7 @@ class TestRequiresOcrRevision:
         session.flush()
 
         # Verify no chunks exist for this revision
-        chunk_count = (
-            session.query(KnowledgeChunkRecord)
-            .filter_by(revision_id="rev-ocr")
-            .count()
-        )
+        chunk_count = session.query(KnowledgeChunkRecord).filter_by(revision_id="rev-ocr").count()
         assert chunk_count == 0
 
         # Verify the revision is in requires_ocr state
@@ -516,7 +510,9 @@ class TestApprovedWithdrawnTransition:
 
         _insert_document(session, doc_id="doc-withdraw", code="WD-001")
         _insert_revision(
-            session, revision_id="rev-withdraw", doc_id="doc-withdraw",
+            session,
+            revision_id="rev-withdraw",
+            doc_id="doc-withdraw",
             content_hash="wd-hash",
         )
         session.flush()
@@ -557,13 +553,19 @@ class TestIncludeHistoricalRevisions:
         _insert_document(session, doc_id="doc-hist", code="HIST-001")
         # v1
         _insert_revision(
-            session, revision_id="rev-hist-1", doc_id="doc-hist",
-            rev_num=1, content_hash="hist-1",
+            session,
+            revision_id="rev-hist-1",
+            doc_id="doc-hist",
+            rev_num=1,
+            content_hash="hist-1",
         )
         # v2
         _insert_revision(
-            session, revision_id="rev-hist-2", doc_id="doc-hist",
-            rev_num=2, content_hash="hist-2",
+            session,
+            revision_id="rev-hist-2",
+            doc_id="doc-hist",
+            rev_num=2,
+            content_hash="hist-2",
         )
         session.flush()
 
@@ -622,21 +624,21 @@ class TestIncludeHistoricalRevisions:
         session.flush()
 
         # Create service (mock storage since search doesn't use it)
-        with mock_patch(
-            "cold_storage.modules.knowledge.application.service.LocalDocumentStorage"
-        ):
+        with mock_patch("cold_storage.modules.knowledge.application.service.LocalDocumentStorage"):
             svc = KnowledgeService(session)
 
         # Without historical revisions: only latest (v2)
         result_no_hist = svc.search(
-            query="content", include_historical_revisions=False,
+            query="content",
+            include_historical_revisions=False,
         )
         chunk_texts = [r["text"] for r in result_no_hist["results"]]
         assert "Updated content version two" in chunk_texts
 
         # With historical revisions: both v1 and v2
         result_with_hist = svc.search(
-            query="content", include_historical_revisions=True,
+            query="content",
+            include_historical_revisions=True,
         )
         chunk_texts = [r["text"] for r in result_with_hist["results"]]
         assert "Historical content version one" in chunk_texts
@@ -658,13 +660,19 @@ class TestSearchFilterLatestApprovedOnly:
         _insert_document(session, doc_id="doc-filter", code="FILTER-001")
         # v1 — unverified
         _insert_revision(
-            session, revision_id="rev-filter-1", doc_id="doc-filter",
-            rev_num=1, content_hash="filter-1",
+            session,
+            revision_id="rev-filter-1",
+            doc_id="doc-filter",
+            rev_num=1,
+            content_hash="filter-1",
         )
         # v2 — approved
         _insert_revision(
-            session, revision_id="rev-filter-2", doc_id="doc-filter",
-            rev_num=2, content_hash="filter-2",
+            session,
+            revision_id="rev-filter-2",
+            doc_id="doc-filter",
+            rev_num=2,
+            content_hash="filter-2",
         )
         session.flush()
 
@@ -725,9 +733,7 @@ class TestSearchFilterLatestApprovedOnly:
         session.add(chunk2)
         session.flush()
 
-        with mock_patch(
-            "cold_storage.modules.knowledge.application.service.LocalDocumentStorage"
-        ):
+        with mock_patch("cold_storage.modules.knowledge.application.service.LocalDocumentStorage"):
             svc = KnowledgeService(session)
 
         # Default search: only latest revision (v2) and approved_only filter

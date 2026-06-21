@@ -673,9 +673,7 @@ class TestJsonbColumnTypes:
             )
             row = result.fetchone()
             assert row is not None, "embedding column not found in knowledge_chunks"
-            assert row[1] == "jsonb", (
-                f"Expected jsonb for embedding, got {row[1]}"
-            )
+            assert row[1] == "jsonb", f"Expected jsonb for embedding, got {row[1]}"
 
             # knowledge_ingestion_runs: input_snapshot and result_snapshot
             result = conn.execute(

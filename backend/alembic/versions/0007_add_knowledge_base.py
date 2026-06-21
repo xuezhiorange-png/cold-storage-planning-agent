@@ -65,11 +65,15 @@ def upgrade() -> None:
         sa.Column("ingestion_status", sa.String(50), nullable=False),
         sa.Column("review_status", sa.String(50), nullable=False),
         sa.Column(
-            "requires_ocr", sa.Boolean(), nullable=False,
+            "requires_ocr",
+            sa.Boolean(),
+            nullable=False,
             server_default=sa.text("false"),
         ),
         sa.Column(
-            "requires_review", sa.Boolean(), nullable=False,
+            "requires_review",
+            sa.Boolean(),
+            nullable=False,
             server_default=sa.text("true"),
         ),
         sa.Column("parser_name", sa.String(50), nullable=False),
