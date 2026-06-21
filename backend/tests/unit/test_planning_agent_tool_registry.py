@@ -108,7 +108,8 @@ class TestCoolingLoadOutputUnitValidation:
         return tool.output_schema
 
     def _make_output(self, **unit_overrides):
-        """Build a valid cooling load output dict, with optional unit overrides."""
+        """Build a valid cooling load output dict, with optional unit overrides.
+        Condenser and energy are omitted by default (optional)."""
         base = {
             "source_tool": "planning.calculate_cooling_load_and_equipment",
             "tool_version": "1.0.0",
@@ -122,10 +123,6 @@ class TestCoolingLoadOutputUnitValidation:
                     "total_equipment_capacity_unit": "kW(r)",
                     "total_electrical_input_kw": 40.0,
                     "total_electrical_input_unit": "kW(e)",
-                    "condenser_heat_rejection_kw": 125.0,
-                    "condenser_heat_rejection_unit": "kW(th)",
-                    "daily_energy_kwh": 400.0,
-                    "daily_energy_unit": "kWh",
                 },
             },
             "warnings": [],
@@ -135,10 +132,44 @@ class TestCoolingLoadOutputUnitValidation:
             base["payload"]["result"][key] = val
         return base
 
+    def _make_full_output(self, **unit_overrides):
+        """Build output with all optional fields present."""
+        base = self._make_output(
+            condenser_heat_rejection_kw=125.0,
+            condenser_heat_rejection_unit="kW(th)",
+            daily_energy_kwh=400.0,
+            daily_energy_unit="kWh",
+        )
+        for key, val in unit_overrides.items():
+            base["payload"]["result"][key] = val
+        return base
+
     def test_valid_output_passes(self, cooling_output_schema):
         import jsonschema
 
         output = self._make_output()
+        jsonschema.validate(output, cooling_output_schema)
+
+    def test_valid_full_output_passes(self, cooling_output_schema):
+        import jsonschema
+
+        output = self._make_full_output()
+        jsonschema.validate(output, cooling_output_schema)
+
+    def test_optional_condenser_absent_passes(self, cooling_output_schema):
+        """Condenser field is optional — absence should not fail validation."""
+        import jsonschema
+
+        output = self._make_output()
+        assert "condenser_heat_rejection_kw" not in output["payload"]["result"]
+        jsonschema.validate(output, cooling_output_schema)
+
+    def test_optional_energy_absent_passes(self, cooling_output_schema):
+        """Daily energy field is optional — absence should not fail validation."""
+        import jsonschema
+
+        output = self._make_output()
+        assert "daily_energy_kwh" not in output["payload"]["result"]
         jsonschema.validate(output, cooling_output_schema)
 
     def test_fuzzy_kw_rejected(self, cooling_output_schema):
@@ -169,12 +200,12 @@ class TestCoolingLoadOutputUnitValidation:
         """Condenser heat rejection must be kW(th), not kW(r)."""
         import jsonschema
 
-        output = self._make_output(condenser_heat_rejection_unit="kW(r)")
+        output = self._make_full_output(condenser_heat_rejection_unit="kW(r)")
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(output, cooling_output_schema)
 
     def test_missing_unit_rejected(self, cooling_output_schema):
-        """A missing unit field must fail validation."""
+        """A missing required unit field must fail validation."""
         import jsonschema
 
         output = self._make_output()

@@ -380,10 +380,6 @@ def build_default_registry() -> ToolRegistry:
                                     "total_equipment_capacity_unit",
                                     "total_electrical_input_kw",
                                     "total_electrical_input_unit",
-                                    "condenser_heat_rejection_kw",
-                                    "condenser_heat_rejection_unit",
-                                    "daily_energy_kwh",
-                                    "daily_energy_unit",
                                 ],
                                 "properties": {
                                     "total_cooling_load_kw": {

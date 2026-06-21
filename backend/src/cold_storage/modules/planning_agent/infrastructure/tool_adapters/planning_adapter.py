@@ -67,8 +67,11 @@ class ThroughputInventoryAreaAdapter:
 class CoolingLoadEquipmentAdapter:
     """Adapts planning.calculate_cooling_load_and_equipment.
 
-    Extracts cooling load, equipment, and power values from the orchestration
-    result and maps them to the strict output schema with correct engineering units.
+    Strict field-mapping only — no engineering derivations, no fixed ratios,
+    no default-zero fallbacks.  All values come from the deterministic
+    calculation service; missing required fields cause fail-closed errors.
+    Optional fields (condenser, energy) are omitted when upstream does not
+    provide them, with a ``not_calculated`` warning.
     """
 
     def __init__(self, cooling_service: Any) -> None:
@@ -81,51 +84,80 @@ class CoolingLoadEquipmentAdapter:
         warnings: list[str] = []
         requires_review: bool = True
 
-        # Extract values from orchestration result
-        cooling_load_val = 0.0
-        equipment_capacity_val = 0.0
-        electrical_input_val = 0.0
-        condenser_rejection_val = 0.0
-        daily_energy_val = 0.0
+        # --- Extract required fields from upstream CalculationResult dicts ---
+
+        # Cooling load (kW(r))
+        cooling_load_val: float | None = None
+        if hasattr(result, "cooling_load") and result.cooling_load is not None:
+            cl = getattr(result.cooling_load, "result", {})
+            cooling_load_val = cl.get("design_refrigeration_load_kw_r")
+
+        # Equipment capacity (kW(r)) and electrical input (kW(e))
+        equipment_capacity_val: float | None = None
+        electrical_input_val: float | None = None
         equipment_list: list[Any] = []
+        if hasattr(result, "equipment") and result.equipment is not None:
+            eq = getattr(result.equipment, "result", {})
+            equipment_capacity_val = eq.get("total_compressor_capacity_kw_r")
+            electrical_input_val = eq.get("total_compressor_input_power_kw_e")
+            if "systems" in eq:
+                equipment_list = eq["systems"]
 
-        if hasattr(result, "cooling_load") and result.cooling_load:
-            cl = result.cooling_load
-            cooling_load_val = getattr(cl, "value", 0.0) or 0.0
-        if hasattr(result, "equipment") and result.equipment:
-            eq = result.equipment
-            equipment_capacity_val = getattr(eq, "value", 0.0) or 0.0
-            # Extract equipment list from structured output
-            if hasattr(eq, "output") and isinstance(eq.output, dict):
-                equipment_list = eq.output.get("equipment_list", [])
-        if hasattr(result, "installed_power") and result.installed_power:
-            ip = result.installed_power
-            electrical_input_val = getattr(ip, "value", 0.0) or 0.0
+        # Fail closed: required fields must be present
+        missing: list[str] = []
+        if cooling_load_val is None:
+            missing.append("cooling_load (design_refrigeration_load_kw_r)")
+        if equipment_capacity_val is None:
+            missing.append("equipment_capacity (total_compressor_capacity_kw_r)")
+        if electrical_input_val is None:
+            missing.append("electrical_input (total_compressor_input_power_kw_e)")
+        if missing:
+            raise PlanningAgentError(
+                f"Upstream calculation missing required fields: {', '.join(missing)}"
+            )
 
-        # Condenser heat rejection ≈ cooling load × (1 + 1/COP)
-        # Default estimate if not directly available
-        condenser_rejection_val = cooling_load_val * 1.25
-        # Daily energy ≈ electrical input × operating hours
-        daily_energy_val = electrical_input_val * 10.0
+        # --- Optional fields: map directly, no derivation ---
+
+        # Condenser heat rejection (kW(th)) — from equipment calc
+        condenser_val: float | None = None
+        if hasattr(result, "equipment") and result.equipment is not None:
+            eq = getattr(result.equipment, "result", {})
+            condenser_val = eq.get("total_condenser_rejection_kw")
+
+        # Daily energy (kWh) — from installed_power calc if available
+        daily_energy_val: float | None = None
+        if hasattr(result, "installed_power") and result.installed_power is not None:
+            ip = getattr(result.installed_power, "result", {})
+            daily_energy_val = ip.get("total_installed_power_kw_e")
+
+        if condenser_val is None:
+            warnings.append("condenser_heat_rejection: not_calculated by upstream")
+        if daily_energy_val is None:
+            warnings.append("daily_energy: not_calculated by upstream")
+
+        # Build result dict — only include optional fields when present
+        result_dict: dict[str, Any] = {
+            "total_cooling_load_kw": cooling_load_val,
+            "total_cooling_load_unit": "kW(r)",
+            "equipment_list": equipment_list,
+            "total_equipment_capacity_kw": equipment_capacity_val,
+            "total_equipment_capacity_unit": "kW(r)",
+            "total_electrical_input_kw": electrical_input_val,
+            "total_electrical_input_unit": "kW(e)",
+        }
+        if condenser_val is not None:
+            result_dict["condenser_heat_rejection_kw"] = condenser_val
+            result_dict["condenser_heat_rejection_unit"] = "kW(th)"
+        if daily_energy_val is not None:
+            result_dict["daily_energy_kwh"] = daily_energy_val
+            result_dict["daily_energy_unit"] = "kWh"
 
         output = {
             "source_tool": "planning.calculate_cooling_load_and_equipment",
             "tool_version": "1.0.0",
             "result_id": str(uuid.uuid4()),
             "payload": {
-                "result": {
-                    "total_cooling_load_kw": cooling_load_val,
-                    "total_cooling_load_unit": "kW(r)",
-                    "equipment_list": equipment_list,
-                    "total_equipment_capacity_kw": equipment_capacity_val,
-                    "total_equipment_capacity_unit": "kW(r)",
-                    "total_electrical_input_kw": electrical_input_val,
-                    "total_electrical_input_unit": "kW(e)",
-                    "condenser_heat_rejection_kw": condenser_rejection_val,
-                    "condenser_heat_rejection_unit": "kW(th)",
-                    "daily_energy_kwh": daily_energy_val,
-                    "daily_energy_unit": "kWh",
-                },
+                "result": result_dict,
             },
             "warnings": warnings,
             "requires_review": requires_review,
