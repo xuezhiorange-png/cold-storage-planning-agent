@@ -164,6 +164,23 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     register_scheme_routes(app, _scheme_service_factory)
 
+    # Knowledge routes
+    def _knowledge_service_factory() -> Any:
+        from sqlalchemy.orm import Session as SASession
+
+        from cold_storage.bootstrap.dependencies import get_engine
+        from cold_storage.modules.knowledge.application.service import KnowledgeService
+
+        engine = get_engine()
+        session = SASession(bind=engine)
+        return KnowledgeService(session)
+
+    from cold_storage.modules.knowledge.api.routes import (
+        register_knowledge_routes,
+    )
+
+    register_knowledge_routes(app, _knowledge_service_factory)
+
     if project_service is not None:
         app.dependency_overrides[get_project_service] = lambda: project_service
 

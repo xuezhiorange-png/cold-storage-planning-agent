@@ -502,7 +502,70 @@ input {
 }
 
 .knowledge-row {
-  grid-template-columns: minmax(160px, 1.1fr) 110px 110px minmax(260px, 2fr);
+  grid-template-columns: minmax(160px, 1.1fr) 110px 80px 120px 80px 60px 60px 80px;
+}
+
+.knowledge-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.knowledge-upload {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knowledge-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knowledge-search-box input {
+  min-width: 240px;
+}
+
+.ingest-btn {
+  min-height: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  padding: 2px 10px;
+  font-size: 13px;
+}
+
+.ingest-btn:hover {
+  background: #1d4ed8;
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.status-ocr-required {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.knowledge-search-results {
+  margin-top: 16px;
+}
+
+.knowledge-search-results > strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.error-text {
+  color: #b91c1c;
 }
 
 .version-row,
