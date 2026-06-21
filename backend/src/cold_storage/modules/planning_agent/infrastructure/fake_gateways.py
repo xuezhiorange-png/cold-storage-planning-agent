@@ -34,18 +34,17 @@ class FakeAgentModelGateway:
 
         # Deterministic routing based on keywords
         if "蓝莓" in user_text or "blueberry" in user_text.lower():
-            tons = _extract_tons(user_text)
+            mass = _extract_mass(user_text)
             hours = _extract_hours(user_text)
 
-            # Fix #7: No silent defaults — ask_clarification if missing
-            if tons is None or hours is None:
+            if mass is None or hours is None:
                 missing = []
-                if tons is None:
+                if mass is None:
                     missing.append(
                         {
-                            "name": "daily_inbound_mass_kg",
+                            "name": "daily_inbound_mass",
                             "reason": "required_by_tool",
-                            "expected_unit": "kg",
+                            "expected_unit": "kg or tons",
                         }
                     )
                 if hours is None:
@@ -58,18 +57,20 @@ class FakeAgentModelGateway:
                     )
                 return AgentDecision(
                     decision_type=DecisionType.ASK_CLARIFICATION,
-                    assistant_message="请提供日入库量（吨/天）和工作时间（小时/天）。",
+                    assistant_message="请提供日入库量和工作时间。",
                     missing_parameters=missing,
                 )
 
+            value, unit = mass
             return AgentDecision(
                 decision_type=DecisionType.PROPOSE_TOOLS,
-                assistant_message="检测到蓝莓加工厂规划需求，准备执行通量和面积计算。",
+                assistant_message="检测到蓝莓加工厂规划需求。",
                 tool_requests=[
                     AgentToolRequest(
                         tool_name="planning.calculate_throughput_inventory_area",
                         arguments={
-                            "daily_inbound_mass_kg": tons,
+                            "daily_inbound_mass": value,
+                            "mass_unit": unit,
                             "working_time_h_per_day": hours,
                         },
                         reason="用户提供了产品类型和产能信息",
@@ -91,6 +92,18 @@ class FakeAgentModelGateway:
                     ],
                 )
             version_number = _extract_version_number(user_text)
+            if version_number is None:
+                return AgentDecision(
+                    decision_type=DecisionType.ASK_CLARIFICATION,
+                    assistant_message="请提供版本号以生成方案对比。",
+                    missing_parameters=[
+                        {
+                            "name": "version_number",
+                            "reason": "required_by_tool",
+                            "expected_unit": None,
+                        },
+                    ],
+                )
             return AgentDecision(
                 decision_type=DecisionType.PROPOSE_TOOLS,
                 assistant_message="准备生成方案对比。",
@@ -144,15 +157,20 @@ class DefaultAgentModelGateway:
         )
 
 
-def _extract_tons(text: str) -> float | None:
-    """Extract tonnage from text. Returns None if not found (no silent default)."""
+def _extract_mass(text: str) -> tuple[float, str] | None:
+    """Extract mass value + unit from user text.
+
+    Returns (value, unit) where unit is "kg" or "tons".
+    Does NOT convert between units — caller or tool layer handles conversion.
+    Returns None if not found (no silent default).
+    """
     match = re.search(r"(\d+(?:\.\d+)?)\s*吨", text)
     if match:
-        return float(match.group(1))
+        return (float(match.group(1)), "tons")
     match_kg = re.search(r"(\d+(?:\.\d+)?)\s*kg", text, re.IGNORECASE)
     if match_kg:
-        return float(match_kg.group(1)) / 1000
-    return None  # Fix #7: no silent default
+        return (float(match_kg.group(1)), "kg")
+    return None
 
 
 def _extract_hours(text: str) -> float | None:
@@ -163,8 +181,8 @@ def _extract_hours(text: str) -> float | None:
     return None  # Fix #7: no silent default
 
 
-def _extract_version_number(text: str) -> int:
-    """Extract version number from user text. Defaults to 1 if not found.
+def _extract_version_number(text: str) -> int | None:
+    """Extract version number from user text. Returns None if not found.
 
     Recognizes patterns like:
     - 版本1 / 版本号1 / version 1 / version_number=1
@@ -175,7 +193,7 @@ def _extract_version_number(text: str) -> int:
     match = re.search(r"version[_ ]?number?[=:]?\s*(\d+)", text, re.IGNORECASE)
     if match:
         return int(match.group(1))
-    return 1  # Default to version 1 when not specified
+    return None  # Never guess — ask user
 
 
 def _extract_project_id(text: str) -> str | None:

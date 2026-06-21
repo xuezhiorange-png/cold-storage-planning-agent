@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from cold_storage.modules.planning_agent.api.schemas import (
     ConfirmToolCallRequest,
@@ -68,11 +68,13 @@ def create_agent_router(
     def create_session(  # noqa: E501
         req: CreateSessionRequest,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
     ) -> Any:
         session = svc.create_session(
             project_id=req.project_id,
             project_version_id=req.project_version_id,
             title=req.title,
+            created_by=x_actor,
         )
         return SessionResponse(
             id=session.id,
@@ -159,11 +161,13 @@ def create_agent_router(
         session_id: str,
         req: PostMessageRequest,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
     ) -> Any:
         try:
             result = svc.post_user_message(
                 session_id,
                 req.content,
+                user=x_actor,
                 idempotency_key=req.idempotency_key,
             )
         except SessionNotFoundError as exc:
@@ -266,9 +270,14 @@ def create_agent_router(
         tool_call_id: str,
         req: ConfirmToolCallRequest,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
     ) -> Any:
         try:
-            result = svc.confirm_tool_call(tool_call_id, confirmation_token=req.confirmation_token)
+            result = svc.confirm_tool_call(
+                tool_call_id,
+                confirmation_token=req.confirmation_token,
+                user=x_actor,
+            )
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except ConfirmationAlreadyUsedError as exc:
@@ -299,9 +308,10 @@ def create_agent_router(
         tool_call_id: str,
         req: RejectToolCallRequest,  # noqa: ARG001
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
     ) -> Any:
         try:
-            result = svc.reject_tool_call(tool_call_id)
+            result = svc.reject_tool_call(tool_call_id, user=x_actor)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except UnauthorizedError as exc:
@@ -325,9 +335,10 @@ def create_agent_router(
     def cancel_session(
         session_id: str,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
     ) -> Any:
         try:
-            s = svc.cancel_session(session_id)
+            s = svc.cancel_session(session_id, user=x_actor)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except UnauthorizedError as exc:

@@ -225,11 +225,12 @@ class PlanningAgentService:
             repo=self._repo,
         )
 
-        # Fix #2: Complete idempotency record in same transaction
+        # Fix #2: Complete idempotency record in same transaction with real turn_id
         if idempotency_key:
             self._repo.complete_idempotency(
                 session_id=session_id,
                 key=idempotency_key,
+                turn_id=result.get("turn_id", ""),
                 result_payload=result,
             )
 
@@ -325,6 +326,12 @@ class PlanningAgentService:
             tool_result = self._orchestrator.execute_single_tool(
                 tc.tool_name, tc.arguments, self._registry
             )
+            # Fix #3: Validate output against output_schema
+            tool_def = self._registry.get(tc.tool_name)
+            if tool_def.output_schema:
+                self._orchestrator._validate_output(
+                    tc.tool_name, tool_result.output, tool_def.output_schema
+                )
             succeeded_tc = AgentToolCall(
                 **{
                     **asdict(execute_tc),
@@ -375,7 +382,10 @@ class PlanningAgentService:
                         "version": session_f.version + 1,
                     }
                 )
-                self._repo.update_session(failed_session)
+                if not self._repo.update_session_cas(
+                    failed_session, expected_version=session_f.version
+                ):
+                    raise ConcurrentTurnError(tc.session_id) from None
 
             self._repo.commit()
             return {

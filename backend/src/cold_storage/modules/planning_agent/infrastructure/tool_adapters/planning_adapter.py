@@ -15,7 +15,13 @@ from cold_storage.modules.planning_agent.domain.models import AgentToolResult
 
 
 class ThroughputInventoryAreaAdapter:
-    """Adapts planning.calculate_throughput_inventory_area."""
+    """Adapts planning.calculate_throughput_inventory_area.
+
+    Accepts daily_inbound_mass + mass_unit, converts to daily_inbound_mass_kg
+    before passing to the calculation service.
+    """
+
+    _UNIT_FACTORS = {"kg": 1.0, "tons": 1000.0}
 
     def __init__(self, zone_planner: Any, investment_estimator: Any) -> None:
         self._zone_planner = zone_planner
@@ -26,7 +32,17 @@ class ThroughputInventoryAreaAdapter:
             raise PlanningAgentError(
                 "Zone planner not configured — cannot execute throughput calculation"
             )
-        zone_result = build_zone_plan_from_inputs(arguments, self._zone_planner)
+        # Unit conversion: value + unit → daily_inbound_mass_kg
+        calc_args = dict(arguments)
+        if "daily_inbound_mass" in calc_args and "mass_unit" in calc_args:
+            value = calc_args.pop("daily_inbound_mass")
+            unit = calc_args.pop("mass_unit")
+            factor = self._UNIT_FACTORS.get(unit)
+            if factor is None:
+                raise PlanningAgentError(f"Unknown mass unit: {unit}")
+            calc_args["daily_inbound_mass_kg"] = value * factor
+
+        zone_result = build_zone_plan_from_inputs(calc_args, self._zone_planner)
         from dataclasses import asdict
 
         return AgentToolResult(

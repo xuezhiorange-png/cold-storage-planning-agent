@@ -30,7 +30,8 @@ class TestFakeAgentModelGateway:
         assert d1.tool_requests[0].tool_name == "planning.calculate_throughput_inventory_area"
         # Verify args are correctly extracted (Fix #7: no silent defaults)
         args = d1.tool_requests[0].arguments
-        assert args["daily_inbound_mass_kg"] == 25.0
+        assert args["daily_inbound_mass"] == 25.0
+        assert args["mass_unit"] == "tons"
         assert args["working_time_h_per_day"] == 16.0
 
     def test_blueberry_without_hours_returns_clarification(self):
@@ -51,7 +52,7 @@ class TestFakeAgentModelGateway:
         d = self.gateway.generate_decision(req)
         assert d.decision_type == DecisionType.ASK_CLARIFICATION
         missing_names = [p["name"] for p in d.missing_parameters]
-        assert "daily_inbound_mass_kg" in missing_names
+        assert "daily_inbound_mass" in missing_names
 
     def test_blueberry_without_params(self):
         req = AgentModelRequest(
@@ -63,7 +64,7 @@ class TestFakeAgentModelGateway:
 
     def test_scheme_request(self):
         req = AgentModelRequest(
-            messages=[{"role": "user", "content": "帮我生成项目方案 项目ID是abc"}],
+            messages=[{"role": "user", "content": "帮我生成项目方案 项目ID是abc 版本1"}],
         )
         d = self.gateway.generate_decision(req)
         assert d.decision_type == DecisionType.PROPOSE_TOOLS

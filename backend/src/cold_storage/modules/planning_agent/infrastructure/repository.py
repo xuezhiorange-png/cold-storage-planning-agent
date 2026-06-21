@@ -347,8 +347,11 @@ class AgentRepository:
 
         Returns True if inserted (claim succeeded), False if duplicate exists.
         Uses the unique constraint for atomicity.
+        Only catches IntegrityError (duplicate key); other DB errors propagate.
         """
         import uuid as _uuid
+
+        from sqlalchemy.exc import IntegrityError
 
         rec = AgentIdempotencyRecord(
             id=str(_uuid.uuid4()),
@@ -361,7 +364,7 @@ class AgentRepository:
         try:
             self._session.flush()
             return True
-        except Exception:
+        except IntegrityError:
             self._session.rollback()
             return False
 
@@ -369,16 +372,24 @@ class AgentRepository:
         self,
         session_id: str,
         key: str,
+        turn_id: str,
         result_payload: dict[str, Any],
     ) -> None:
-        """Mark idempotency record as completed with the full result payload."""
+        """Mark idempotency record as completed with the full result payload.
+
+        Also updates the placeholder turn_id to the real turn_id.
+        """
         stmt = (
             sa.update(AgentIdempotencyRecord)
             .where(
                 AgentIdempotencyRecord.session_id == session_id,
                 AgentIdempotencyRecord.idempotency_key == key,
             )
-            .values(status="completed", result_payload=result_payload)
+            .values(
+                status="completed",
+                turn_id=turn_id,
+                result_payload=result_payload,
+            )
         )
         self._session.execute(stmt)
 

@@ -186,7 +186,7 @@ class _FakeSchemeAdapter:
     def execute(self, arguments: dict[str, Any]) -> AgentToolResult:
         return AgentToolResult(
             tool_name="scheme.generate_and_compare",
-            output={"schemes": [{"name": "方案A"}, {"name": "方案B"}]},
+            output={"scheme_result": {"schemes": [{"name": "方案A"}, {"name": "方案B"}]}},
             requires_review=True,
         )
 
@@ -220,7 +220,7 @@ class TestConfirmationFlow:
         )
 
         # Message with '方案' + '项目' triggers scheme.generate_and_compare
-        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1 版本1")
 
         # Verify pending_confirmations returned
         pending = result["pending_confirmations"]
@@ -282,7 +282,7 @@ class TestRejectionFlow:
             title="Reject test",
         )
 
-        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1 版本1")
 
         pending = result["pending_confirmations"]
         assert len(pending) >= 1
@@ -329,7 +329,7 @@ class TestTokenReplayProtection:
             title="Replay test",
         )
 
-        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1 版本1")
 
         pending = result["pending_confirmations"]
         assert len(pending) >= 1
@@ -371,7 +371,7 @@ class TestExpiredConfirmation:
             title="Expired test",
         )
 
-        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1")
+        result = service.post_user_message(session.id, "帮我生成项目方案 项目ID是proj-1 版本1")
 
         pending = result["pending_confirmations"]
         assert len(pending) >= 1
@@ -584,7 +584,8 @@ class TestToolSchemaValidation:
             registry.validate_arguments(
                 "planning.calculate_throughput_inventory_area",
                 {
-                    "daily_inbound_mass_kg": 1000,
+                    "daily_inbound_mass": 1000,
+                    "mass_unit": "kg",
                     # missing working_time_h_per_day
                 },
             )
@@ -594,7 +595,8 @@ class TestToolSchemaValidation:
         registry.validate_arguments(
             "planning.calculate_throughput_inventory_area",
             {
-                "daily_inbound_mass_kg": 1000.0,
+                "daily_inbound_mass": 1000.0,
+                "mass_unit": "kg",
                 "working_time_h_per_day": 8,
             },
         )

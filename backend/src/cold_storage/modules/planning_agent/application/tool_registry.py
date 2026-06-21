@@ -137,6 +137,14 @@ def build_default_registry() -> ToolRegistry:
                 },
                 "additionalProperties": False,
             },
+            output_schema={
+                "type": "object",
+                "required": ["results", "count"],
+                "properties": {
+                    "results": {"type": "array"},
+                    "count": {"type": "integer"},
+                },
+            },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
         )
@@ -153,6 +161,13 @@ def build_default_registry() -> ToolRegistry:
                     "project_id": {"type": "string"},
                 },
                 "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "required": ["project"],
+                "properties": {
+                    "project": {"type": "object"},
+                },
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
@@ -173,6 +188,13 @@ def build_default_registry() -> ToolRegistry:
                 },
                 "additionalProperties": False,
             },
+            output_schema={
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                    "version": {"type": "object"},
+                },
+            },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
             requires_project=True,
@@ -186,9 +208,10 @@ def build_default_registry() -> ToolRegistry:
             description="Calculate throughput, inventory, precooling, and zone areas",
             input_schema={
                 "type": "object",
-                "required": ["daily_inbound_mass_kg", "working_time_h_per_day"],
+                "required": ["daily_inbound_mass", "mass_unit", "working_time_h_per_day"],
                 "properties": {
-                    "daily_inbound_mass_kg": {"type": "number", "minimum": 0},
+                    "daily_inbound_mass": {"type": "number", "minimum": 0},
+                    "mass_unit": {"type": "string", "enum": ["kg", "tons"]},
                     "working_time_h_per_day": {"type": "number", "minimum": 0, "maximum": 24},
                     "finished_storage_days": {"type": "number", "minimum": 0},
                     "packaging_storage_days": {"type": "number", "minimum": 0},
@@ -196,6 +219,13 @@ def build_default_registry() -> ToolRegistry:
                     "storage_days": {"type": "number", "minimum": 0},
                 },
                 "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "required": ["zone_plan"],
+                "properties": {
+                    "zone_plan": {"type": "object"},
+                },
             },
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
@@ -223,6 +253,13 @@ def build_default_registry() -> ToolRegistry:
                 },
                 "additionalProperties": False,
             },
+            output_schema={
+                "type": "object",
+                "required": ["result"],
+                "properties": {
+                    "result": {"type": "object"},
+                },
+            },
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
             requires_project_version=True,
@@ -241,6 +278,13 @@ def build_default_registry() -> ToolRegistry:
                     "version_number": {"type": "integer", "minimum": 1},
                 },
                 "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "required": ["scheme_result"],
+                "properties": {
+                    "scheme_result": {"type": "object"},
+                },
             },
             authorization_level=AuthorizationLevel.WRITE,
             requires_confirmation=True,

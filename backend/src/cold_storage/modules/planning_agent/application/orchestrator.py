@@ -11,7 +11,10 @@ from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from cold_storage.modules.planning_agent.application.tool_registry import ToolRegistry
+from cold_storage.modules.planning_agent.application.tool_registry import (
+    ToolRegistry,
+    _get_validate,
+)
 from cold_storage.modules.planning_agent.domain.enums import (
     DecisionType,
     MessageRole,
@@ -202,6 +205,12 @@ class AgentOrchestrator:
                         result = self.execute_single_tool(
                             tool_req.tool_name, tool_req.arguments, registry
                         )
+                        # Fix #3: Validate output against output_schema
+                        tool_def = registry.get(tool_req.tool_name)
+                        if tool_def.output_schema:
+                            self._validate_output(
+                                tool_req.tool_name, result.output, tool_def.output_schema
+                            )
                         tc = AgentToolCall(
                             **{
                                 **asdict(tc),
@@ -303,6 +312,24 @@ class AgentOrchestrator:
                 created_at=now,
             )
             repo.add_message(failure_msg)
+            # Increment session sequence for the TOOL message
+            updated_for_failure = AgentSession(
+                **{
+                    **asdict(updated_session),
+                    "next_message_sequence": updated_session.next_message_sequence + 1,
+                    "updated_at": now,
+                    "version": updated_session.version + 1,
+                }
+            )
+            cas_ok = repo.update_session_cas(
+                updated_for_failure, expected_version=updated_session.version
+            )
+            if not cas_ok:
+                from cold_storage.modules.planning_agent.domain.errors import (
+                    ConcurrentTurnError,
+                )
+
+                raise ConcurrentTurnError(session.id)
             turn_status = TurnStatus.FAILED
         else:
             turn_status = (
@@ -460,6 +487,25 @@ class AgentOrchestrator:
                 and version_obj.status == "approved"
             ):
                 raise UnauthorizedError("Cannot modify an approved version")
+
+    def _validate_output(
+        self,
+        tool_name: str,
+        output: dict[str, Any],
+        output_schema: dict[str, Any],
+    ) -> None:
+        """Fix #3: Validate adapter output against output_schema. Fail closed."""
+        validate = _get_validate()
+        try:
+            validate(instance=output, schema=output_schema)
+        except Exception as exc:
+            from cold_storage.modules.planning_agent.domain.errors import (
+                PlanningAgentError,
+            )
+
+            raise PlanningAgentError(
+                f"Tool {tool_name} output failed schema validation: {exc}"
+            ) from exc
 
     def execute_single_tool(
         self,
