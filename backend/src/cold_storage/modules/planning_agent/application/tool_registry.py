@@ -415,6 +415,12 @@ def build_default_registry() -> ToolRegistry:
                                     "daily_energy_unit": {
                                         "const": "kWh",
                                     },
+                                    "total_installed_power_kw_e": {
+                                        "type": "number",
+                                    },
+                                    "total_installed_power_unit": {
+                                        "const": "kW(e)",
+                                    },
                                 },
                                 "additionalProperties": False,
                             },

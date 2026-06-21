@@ -139,6 +139,8 @@ class TestCoolingLoadOutputUnitValidation:
             condenser_heat_rejection_unit="kW(th)",
             daily_energy_kwh=400.0,
             daily_energy_unit="kWh",
+            total_installed_power_kw_e=120.0,
+            total_installed_power_unit="kW(e)",
         )
         for key, val in unit_overrides.items():
             base["payload"]["result"][key] = val

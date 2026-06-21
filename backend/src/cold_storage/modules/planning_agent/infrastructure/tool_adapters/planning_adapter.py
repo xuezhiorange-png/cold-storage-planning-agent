@@ -124,16 +124,18 @@ class CoolingLoadEquipmentAdapter:
             eq = getattr(result.equipment, "result", {})
             condenser_val = eq.get("total_condenser_rejection_kw")
 
-        # Daily energy (kWh) — from installed_power calc if available
-        daily_energy_val: float | None = None
+        # Installed power (kW(e)) — separate from daily energy
+        installed_power_val: float | None = None
         if hasattr(result, "installed_power") and result.installed_power is not None:
             ip = getattr(result.installed_power, "result", {})
-            daily_energy_val = ip.get("total_installed_power_kw_e")
+            installed_power_val = ip.get("total_installed_power_kw_e")
+
+        # Daily energy (kWh) — no upstream calculator provides this yet
+        # Always omitted from output; warning emitted unconditionally below.
 
         if condenser_val is None:
             warnings.append("condenser_heat_rejection: not_calculated by upstream")
-        if daily_energy_val is None:
-            warnings.append("daily_energy: not_calculated by upstream")
+        warnings.append("daily_energy: not_calculated by upstream")
 
         # Build result dict — only include optional fields when present
         result_dict: dict[str, Any] = {
@@ -148,9 +150,9 @@ class CoolingLoadEquipmentAdapter:
         if condenser_val is not None:
             result_dict["condenser_heat_rejection_kw"] = condenser_val
             result_dict["condenser_heat_rejection_unit"] = "kW(th)"
-        if daily_energy_val is not None:
-            result_dict["daily_energy_kwh"] = daily_energy_val
-            result_dict["daily_energy_unit"] = "kWh"
+        if installed_power_val is not None:
+            result_dict["total_installed_power_kw_e"] = installed_power_val
+            result_dict["total_installed_power_unit"] = "kW(e)"
 
         output = {
             "source_tool": "planning.calculate_cooling_load_and_equipment",

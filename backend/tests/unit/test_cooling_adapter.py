@@ -141,8 +141,9 @@ class TestAdapterNoDerivations:
         assert out["condenser_heat_rejection_kw"] == 185.0
         assert out["condenser_heat_rejection_unit"] == "kW(th)"
 
-    def test_energy_included_when_upstream_provides(self):
-        """When upstream provides installed_power, energy appears with kWh."""
+    def test_energy_never_output_when_upstream_provides_installed_power(self):
+        """installed_power.result is power kW(e), NOT energy kWh.
+        Adapter must NOT map it to daily_energy_kwh."""
         upstream = _make_orchestration_result(
             cooling_load_kw_r=100.0,
             compressor_capacity_kw_r=110.0,
@@ -154,8 +155,13 @@ class TestAdapterNoDerivations:
         result = adapter.execute({})
 
         out = result.output["payload"]["result"]
-        assert out["daily_energy_kwh"] == 120.0
-        assert out["daily_energy_unit"] == "kWh"
+        # daily_energy must NOT appear — no upstream energy calculator
+        assert "daily_energy_kwh" not in out
+        assert "daily_energy_unit" not in out
+        assert any("daily_energy" in w for w in result.output["warnings"])
+        # installed_power appears as kW(e), separate field
+        assert out["total_installed_power_kw_e"] == 120.0
+        assert out["total_installed_power_unit"] == "kW(e)"
 
     def test_no_125x_condenser_derivation(self):
         """Condenser must NOT be cooling_load * 1.25."""
@@ -173,21 +179,24 @@ class TestAdapterNoDerivations:
         assert out["condenser_heat_rejection_kw"] == 999.0
         assert out["condenser_heat_rejection_kw"] != 100.0 * 1.25
 
-    def test_no_10x_energy_derivation(self):
-        """Energy must NOT be electrical_input * 10."""
+    def test_installed_power_not_mapped_to_energy(self):
+        """installed_power (kW(e)) must NOT be mapped to daily_energy_kwh (kWh)."""
         upstream = _make_orchestration_result(
             cooling_load_kw_r=100.0,
             compressor_capacity_kw_r=110.0,
             compressor_input_kw_e=40.0,
-            installed_power_kw_e=888.0,  # Deliberately not 400.0
+            installed_power_kw_e=888.0,
         )
         svc = _FakeCoolingService(upstream)
         adapter = CoolingLoadEquipmentAdapter(svc)
         result = adapter.execute({})
 
         out = result.output["payload"]["result"]
-        assert out["daily_energy_kwh"] == 888.0
-        assert out["daily_energy_kwh"] != 40.0 * 10.0
+        # Must not appear as daily_energy
+        assert "daily_energy_kwh" not in out
+        # Must appear as installed_power with correct unit
+        assert out["total_installed_power_kw_e"] == 888.0
+        assert out["total_installed_power_unit"] == "kW(e)"
 
 
 class TestAdapterFailClosed:
