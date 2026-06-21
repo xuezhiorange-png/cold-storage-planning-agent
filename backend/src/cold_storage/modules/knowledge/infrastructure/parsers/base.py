@@ -2,11 +2,22 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from cold_storage.modules.knowledge.domain.models import ParsedBlock
 
 PARSER_VERSION: str = "parser-v1"
+
+
+@dataclass
+class ParseResult:
+    """Rich result from a parser, carrying blocks plus metadata."""
+
+    blocks: list[ParsedBlock]
+    warnings: list[str] = field(default_factory=list)
+    page_count: int | None = None
+    ocr_page_numbers: list[int] = field(default_factory=list)
 
 
 class Parser(Protocol):

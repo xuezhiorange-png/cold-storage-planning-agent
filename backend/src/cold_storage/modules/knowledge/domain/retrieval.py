@@ -21,7 +21,9 @@ def tokenize(text: str) -> list[str]:
     """
     normalized = unicodedata.normalize("NFKC", text).lower()
     tokens: list[str] = []
-    for m in re.finditer(r"[a-z]+|[0-9]+(?:\.[0-9]+)?|[a-z0-9]+(?:\([^)]*\))?", normalized):
+    # Priority: unit strings first (kW(r), kW(e), kWh, m², kg, ℃), then words, numbers, CJK
+    token_pattern = r"kW\([re]\)|kWh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
+    for m in re.finditer(token_pattern, normalized):
         tokens.append(m.group(0))
     cjk_chars = re.findall(r"[\u4e00-\u9fff]", normalized)
     for ch in cjk_chars:
@@ -106,9 +108,11 @@ def hybrid_score(
 
     # Semantic score
     semantic_raw = cosine_similarity(query_embedding, chunk_embedding)
-    semantic_normalized = Decimal(str(semantic_raw)).quantize(
-        Decimal("0.000001"), rounding=ROUND_HALF_UP
-    )
+    # Normalize cosine from [-1, 1] → [0, 1]
+    raw_plus_one = Decimal(str(semantic_raw)) + Decimal("1")
+    semantic_normalized = raw_plus_one / Decimal("2")
+    semantic_normalized = max(Decimal("0"), min(Decimal("1"), semantic_normalized))
+    semantic_normalized = semantic_normalized.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
 
     # Weighted hybrid
     hybrid = (
@@ -211,6 +215,34 @@ def search_chunks(
         score = hybrid_score(lex_score, max_lex, query_embedding, chunk_embedding, profile)
         results.append((chunk, score, doc_code))
 
-    # Sort by hybrid score descending
-    results.sort(key=lambda r: r[1].hybrid_score, reverse=True)
+    # Sort by full tie-break chain:
+    # 1. hybrid_score DESC
+    # 2. lexical_normalized DESC
+    # 3. semantic_normalized DESC
+    # 4. review_status priority: approved > reviewed > unverified
+    # 5. document code ASC
+    # 6. revision_number DESC
+    # 7. chunk_index ASC
+    # 8. chunk_id ASC (dictionary order)
+    _REVIEW_PRIORITY = {"approved": 0, "reviewed": 1, "unverified": 2, "withdrawn": 3}
+
+    def _sort_key(
+        r: tuple[KnowledgeChunk, RetrievalScore, str],
+    ) -> tuple[  # noqa: B023
+        Decimal, Decimal, Decimal, int, str, int, int, str
+    ]:
+        chunk, score, doc_code = r
+        rev_priority = _REVIEW_PRIORITY.get(getattr(chunk, "_review_status", "unverified"), 2)
+        return (
+            -score.hybrid_score,
+            -score.lexical_normalized,
+            -score.semantic_normalized,
+            rev_priority,
+            doc_code,
+            -getattr(chunk, "_revision_number", 0),
+            chunk.chunk_index,
+            chunk.id,
+        )
+
+    results.sort(key=_sort_key)
     return results[:top_k]

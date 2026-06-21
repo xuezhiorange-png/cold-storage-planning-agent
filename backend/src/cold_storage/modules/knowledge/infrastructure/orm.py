@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from sqlalchemy import JSON as _SA_JSON
 from sqlalchemy import (
-    JSON,
     Boolean,
     DateTime,
     ForeignKey,
@@ -14,9 +14,23 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB as _PG_JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 from cold_storage.modules.projects.infrastructure.orm import Base
+
+
+class FlexibleJSON(TypeDecorator):  # type: ignore[type-arg]
+    """JSON on SQLite, JSONB on PostgreSQL."""
+
+    impl = _SA_JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):  # type: ignore[no-untyped-def]
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(_PG_JSONB())
+        return dialect.type_descriptor(_SA_JSON())
 
 
 class KnowledgeDocumentRecord(Base):
@@ -77,8 +91,8 @@ class KnowledgeRevisionRecord(Base):
     extracted_text_length: Mapped[int] = mapped_column(Integer, default=0)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sheet_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    metadata_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
-    warning_messages: Mapped[list[object]] = mapped_column(JSON, default=list)
+    metadata_snapshot: Mapped[dict[str, object]] = mapped_column(FlexibleJSON(), default=dict)
+    warning_messages: Mapped[list[object]] = mapped_column(FlexibleJSON(), default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
@@ -110,9 +124,9 @@ class KnowledgeIngestionRunRecord(Base):
     parser_version: Mapped[str] = mapped_column(String(50), default="")
     chunker_version: Mapped[str] = mapped_column(String(50), default="")
     embedding_version: Mapped[str] = mapped_column(String(50), default="")
-    input_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
-    result_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
-    warning_messages: Mapped[list[object]] = mapped_column(JSON, default=list)
+    input_snapshot: Mapped[dict[str, object]] = mapped_column(FlexibleJSON(), default=dict)
+    result_snapshot: Mapped[dict[str, object]] = mapped_column(FlexibleJSON(), default=dict)
+    warning_messages: Mapped[list[object]] = mapped_column(FlexibleJSON(), default=list)
     error_code: Mapped[str] = mapped_column(String(100), default="")
     error_message: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(
@@ -151,7 +165,7 @@ class KnowledgeChunkRecord(Base):
     row_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     row_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_locator: Mapped[str] = mapped_column(Text, default="")
-    embedding: Mapped[list[float]] = mapped_column(JSON, default=list)
+    embedding: Mapped[list[float]] = mapped_column(FlexibleJSON(), default=list)
     embedding_dimension: Mapped[int] = mapped_column(Integer, default=0)
     embedding_version: Mapped[str] = mapped_column(String(50), default="")
     created_at: Mapped[datetime] = mapped_column(

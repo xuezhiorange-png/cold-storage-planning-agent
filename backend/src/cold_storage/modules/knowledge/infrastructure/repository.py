@@ -156,10 +156,25 @@ class KnowledgeRepository:
 
         Only non-None fields are updated. This is the only mutation method
         for revisions — all other writes are INSERT-only.
+
+        Approved revisions are immutable except for ``withdrawn`` transitions.
         """
+        from cold_storage.modules.knowledge.domain.errors import (
+            ApprovedRevisionImmutabilityError,
+        )
+
         rec = self._session.get(KnowledgeRevisionRecord, revision_id)
         if rec is None:
             return None
+
+        # Approved revision immutability: only allow approved → withdrawn
+        if rec.review_status == "approved":
+            if review_status is not None and review_status == "withdrawn":
+                pass  # Allow approved → withdrawn
+            else:
+                raise ApprovedRevisionImmutabilityError(
+                    f"Revision {revision_id} is approved and immutable"
+                )
         if ingestion_status is not None:
             rec.ingestion_status = ingestion_status
         if review_status is not None:

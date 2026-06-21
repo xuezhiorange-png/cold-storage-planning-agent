@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from typing import Any, NoReturn
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cold_storage.modules.knowledge.application.service import KnowledgeService
 
@@ -59,8 +60,8 @@ class RevisionResponse(BaseModel):
     extracted_text_length: int
     page_count: int | None = None
     sheet_count: int | None = None
-    metadata_snapshot: dict[str, Any] = {}
-    warning_messages: list[str] = []
+    metadata_snapshot: dict[str, Any] = Field(default_factory=dict)
+    warning_messages: list[str] = Field(default_factory=list)
     created_at: str | None = None
     indexed_at: str | None = None
     reviewed_at: str | None = None
@@ -101,30 +102,48 @@ class SearchRequest(BaseModel):
 
     query: str
     top_k: int = 10
-    filters: dict[str, Any] = {}
+    document_categories: list[str] = Field(default_factory=list)
+    include_unverified: bool = False
+    include_reviewed: bool = False
+    include_historical_revisions: bool = False
+    document_ids: list[str] = Field(default_factory=list)
+    filters: dict[str, Any] = Field(default_factory=dict)
 
 
 class SearchResultScore(BaseModel):
     """Score breakdown for a search result."""
 
-    hybrid_score: str
     lexical_score: str
+    lexical_normalized: str
     semantic_raw: str
+    semantic_normalized: str
+    hybrid_score: str
+    retrieval_profile: str
+    embedding_version: str
 
 
 class SearchResultCitation(BaseModel):
     """Citation for a search result."""
 
-    document_code: str
     document_id: str
+    document_code: str
+    revision_id: str
     revision_number: int
+    version_label: str
     title: str
     original_filename: str
+    content_sha256: str
     chunk_id: str
+    chunk_index: int
     section_path: str
     page_start: int | None = None
     page_end: int | None = None
+    sheet_name: str | None = None
+    row_start: int | None = None
+    row_end: int | None = None
+    source_locator: str
     review_status: str
+    requires_review: bool
     excerpt: str
 
 
@@ -144,9 +163,14 @@ class SearchResponse(BaseModel):
     """Response for knowledge search."""
 
     query: str
-    total_results: int
-    results: list[SearchResult]
     retrieval_profile: str
+    embedding_provider: str = "fake"
+    production_ready: bool = False
+    results: list[SearchResult]
+    total_candidates: int
+    total_results: int
+    warnings: list[str] = Field(default_factory=list)
+    requires_review: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +213,25 @@ async def create_document(
     """Create a new knowledge document with its first revision."""
     service = _get_service(request)
 
-    file_content = await file.read()
+    # Read in chunks with size checking during read
+    import os
+
+    max_upload_bytes = int(os.environ.get("KNOWLEDGE_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
+    sha256_hash = hashlib.sha256()
+    total_size = 0
+    chunks: list[bytes] = []
+    while True:
+        chunk = await file.read(8192)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > max_upload_bytes:
+            from cold_storage.modules.knowledge.domain.errors import FileTooLargeError
+
+            raise FileTooLargeError(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
+        sha256_hash.update(chunk)
+        chunks.append(chunk)
+    file_content = b"".join(chunks)
     mime_type = file.content_type or "application/octet-stream"
     filename = file.filename or "unnamed"
 
@@ -225,7 +267,25 @@ async def create_revision(
     """Create a new revision for an existing document."""
     service = _get_service(request)
 
-    file_content = await file.read()
+    # Read in chunks with size checking during read
+    import os
+
+    max_upload_bytes = int(os.environ.get("KNOWLEDGE_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
+    sha256_hash = hashlib.sha256()
+    total_size = 0
+    chunks_list: list[bytes] = []
+    while True:
+        chunk = await file.read(8192)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > max_upload_bytes:
+            from cold_storage.modules.knowledge.domain.errors import FileTooLargeError
+
+            raise FileTooLargeError(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
+        sha256_hash.update(chunk)
+        chunks_list.append(chunk)
+    file_content = b"".join(chunks_list)
     mime_type = file.content_type or "application/octet-stream"
     filename = file.filename or "unnamed"
 
@@ -375,6 +435,11 @@ def search(body: SearchRequest, request: Any) -> dict[str, Any]:
             query=body.query,
             top_k=body.top_k,
             filters=body.filters,
+            include_unverified=body.include_unverified,
+            include_reviewed=body.include_reviewed,
+            include_historical_revisions=body.include_historical_revisions,
+            document_categories=body.document_categories,
+            document_ids=body.document_ids,
         )
     except Exception as exc:
         _raise_http(exc)

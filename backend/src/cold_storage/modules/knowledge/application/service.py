@@ -126,7 +126,12 @@ class KnowledgeService:
         mime_type: str,
         version_label: str = "",
     ) -> dict[str, Any]:
-        """Create a new knowledge document with its first revision."""
+        """Create a new knowledge document with its first revision.
+
+        ``file_content`` must already be fully read. For streaming uploads,
+        callers should read in chunks (e.g. 8 KB) with size checking before
+        calling this method.
+        """
         ext = _extract_extension(filename)
         self._validate_file_type(ext, mime_type)
         self._validate_file_size(len(file_content))
@@ -191,7 +196,18 @@ class KnowledgeService:
             },
         )
 
-        self._session.commit()
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            # Clean up orphan file
+            try:
+                self._storage.delete(stored.storage_key)
+            except Exception:
+                import logging
+
+                logging.warning(f"Failed to clean up orphan file: {stored.storage_key}")
+            raise
 
         return {
             "document_id": doc.id,
@@ -270,7 +286,18 @@ class KnowledgeService:
             },
         )
 
-        self._session.commit()
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            # Clean up orphan file
+            try:
+                self._storage.delete(stored.storage_key)
+            except Exception:
+                import logging
+
+                logging.warning(f"Failed to clean up orphan file: {stored.storage_key}")
+            raise
 
         return {
             "revision_id": rev.id,
@@ -338,6 +365,29 @@ class KnowledgeService:
             if sheets:
                 sheet_count = len(sheets)
 
+            # Detect OCR requirements
+            requires_ocr = False
+            requires_review = True
+            if hasattr(parser, "detect_ocr_needed"):
+                requires_ocr = parser.detect_ocr_needed(file_content)  
+
+            # Collect parser warnings (e.g. image-only pages)
+            if hasattr(parser, "_last_parse_result"):
+                parse_result = parser._last_parse_result  
+                if parse_result and parse_result.warnings:
+                    warnings.extend(parse_result.warnings)
+                # If all pages are image-only, chunk_count should be 0
+                if parse_result and parse_result.ocr_page_numbers:
+                    total_pages = parse_result.page_count or 0
+                    ocr_pages_count = len(parse_result.ocr_page_numbers)
+                    if total_pages > 0 and ocr_pages_count == total_pages:
+                        # All pages image-only
+                        requires_ocr = True
+                    elif ocr_pages_count > 0:
+                        # Some pages image-only
+                        requires_ocr = True
+                        requires_review = True
+
             # Chunk
             config = ChunkingConfig()
             chunks = chunk_blocks(blocks, config)
@@ -396,8 +446,8 @@ class KnowledgeService:
             self._repo.update_revision_status(
                 rev_rec.id,
                 ingestion_status="indexed",
-                requires_ocr=False,
-                requires_review=True,
+                requires_ocr=requires_ocr,
+                requires_review=requires_review,
                 parser_name=parser.name,
                 parser_version=PARSER_VER,
                 chunker_version=CHUNKER_VERSION,
@@ -602,6 +652,11 @@ class KnowledgeService:
         query: str,
         top_k: int = 10,
         filters: dict[str, Any] | None = None,
+        include_unverified: bool = False,
+        include_reviewed: bool = False,
+        include_historical_revisions: bool = False,
+        document_categories: list[str] | None = None,
+        document_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         """Run hybrid search across all indexed chunks."""
         if not query or not query.strip():
@@ -612,10 +667,13 @@ class KnowledgeService:
             raise SearchQueryEmptyError("Search query is empty")
 
         filters = filters or {}
+        doc_categories = document_categories or []
+        doc_ids_filter = document_ids or []
 
         # Load all relevant chunks from DB
         all_doc_recs = self._repo.list_documents()
         chunk_doc_pairs: list[tuple[KnowledgeChunk, str]] = []
+        total_candidates = 0
 
         for doc_rec in all_doc_recs:
             # Apply document-level filters
@@ -623,6 +681,10 @@ class KnowledgeService:
                 "document_category" in filters
                 and doc_rec.document_category != filters["document_category"]
             ):
+                continue
+            if doc_categories and doc_rec.document_category not in doc_categories:
+                continue
+            if doc_ids_filter and doc_rec.id not in doc_ids_filter:
                 continue
 
             rev_recs = self._repo.list_revisions(doc_rec.id)
@@ -634,9 +696,15 @@ class KnowledgeService:
                 # Review status filter
                 approved_only = filters.get("approved_only", True)
                 if approved_only and rev_rec.review_status != "approved":
-                    continue
+                    if not include_unverified and rev_rec.review_status == "unverified":
+                        continue
+                    if not include_reviewed and rev_rec.review_status == "reviewed":
+                        continue
+                    if rev_rec.review_status not in ("approved", "reviewed", "unverified"):
+                        continue
 
                 chunk_recs = self._repo.get_chunks(rev_rec.id)
+                total_candidates += len(chunk_recs)
                 for c in chunk_recs:
                     chunk = KnowledgeChunk(
                         id=c.id,
@@ -665,6 +733,7 @@ class KnowledgeService:
 
         # Build response
         search_results = []
+        warnings: list[str] = []
         for chunk, score, doc_code in results:
             # Find the revision for citation info
             citation_rev = self._repo.get_revision(chunk.revision_id)
@@ -680,23 +749,36 @@ class KnowledgeService:
                     "section_path": chunk.section_path,
                     "source_locator": chunk.source_locator,
                     "score": {
-                        "hybrid_score": str(score.hybrid_score),
                         "lexical_score": str(score.lexical_score),
+                        "lexical_normalized": str(score.lexical_normalized),
                         "semantic_raw": str(score.semantic_raw),
+                        "semantic_normalized": str(score.semantic_normalized),
+                        "hybrid_score": str(score.hybrid_score),
+                        "retrieval_profile": score.retrieval_profile,
+                        "embedding_version": score.embedding_version,
                     },
                     "citation": {
-                        "document_code": doc_code,
                         "document_id": (citation_rev.document_id if citation_rev else ""),
+                        "document_code": doc_code,
+                        "revision_id": (citation_rev.id if citation_rev else ""),
                         "revision_number": (citation_rev.revision_number if citation_rev else 0),
+                        "version_label": (citation_rev.version_label if citation_rev else ""),
                         "title": doc_rec_obj.title if doc_rec_obj else "",
                         "original_filename": (
                             citation_rev.original_filename if citation_rev else ""
                         ),
+                        "content_sha256": (citation_rev.content_sha256 if citation_rev else ""),
                         "chunk_id": chunk.id,
+                        "chunk_index": chunk.chunk_index,
                         "section_path": chunk.section_path,
                         "page_start": chunk.page_start,
                         "page_end": chunk.page_end,
+                        "sheet_name": chunk.sheet_name,
+                        "row_start": chunk.row_start,
+                        "row_end": chunk.row_end,
+                        "source_locator": chunk.source_locator,
                         "review_status": (citation_rev.review_status if citation_rev else ""),
+                        "requires_review": (citation_rev.requires_review if citation_rev else True),
                         "excerpt": chunk.text[:200],
                     },
                 }
@@ -704,9 +786,14 @@ class KnowledgeService:
 
         return {
             "query": query,
-            "total_results": len(search_results),
-            "results": search_results,
             "retrieval_profile": profile.code,
+            "embedding_provider": "fake",
+            "production_ready": False,
+            "results": search_results,
+            "total_candidates": total_candidates,
+            "total_results": len(search_results),
+            "warnings": warnings,
+            "requires_review": True,
         }
 
     # ------------------------------------------------------------------

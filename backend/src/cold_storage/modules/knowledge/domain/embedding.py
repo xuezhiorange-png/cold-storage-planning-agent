@@ -68,8 +68,9 @@ def _tokenize(text: str) -> list[str]:
     """Tokenize text into English words, numbers, Chinese unigrams+bigrams, and unit strings."""
     tokens: list[str] = []
 
-    # Match English words, numbers, and common units
-    for m in re.finditer(r"[a-z]+|[0-9]+(?:\.[0-9]+)?|[a-z0-9]+(?:\([^)]*\))?", text):
+    # Priority: unit strings first (kW(r), kW(e), kWh, m², kg, ℃), then words, numbers
+    token_pattern = r"kW\([re]\)|kWh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
+    for m in re.finditer(token_pattern, text):
         tokens.append(m.group(0))
 
     # Extract CJK characters for unigrams and bigrams

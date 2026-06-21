@@ -83,10 +83,10 @@ class LocalDocumentStorage:
         OSError
             If the write fails or the file exceeds the size limit.
         """
-        self._validate_path(revision_id)
-        self._validate_path(content_sha256)
+        self._validate_component(revision_id)
 
         bucket = content_sha256[:2]
+        self._validate_component(bucket)
         dest_dir = self._base / bucket / revision_id
         dest_file = dest_dir / "content"
 
@@ -132,7 +132,7 @@ class LocalDocumentStorage:
             raise
 
     def open(self, storage_key: str) -> BinaryIO:
-        """Open a stored file by its storage key.
+        """Open a stored file by its storage key (format: ``<hex2>/<revision_id>/content``).
 
         Raises
         ------
@@ -141,8 +141,7 @@ class LocalDocumentStorage:
         ValueError
             If the storage key contains path traversal sequences.
         """
-        self._validate_path(storage_key)
-        file_path = self._base / storage_key
+        file_path = self._resolve_storage_key(storage_key)
         if not file_path.is_file():
             raise FileNotFoundError(f"Storage key not found: {storage_key}")
         return open(file_path, "rb")  # noqa: SIM115
@@ -157,8 +156,7 @@ class LocalDocumentStorage:
         ValueError
             If the storage key contains path traversal sequences.
         """
-        self._validate_path(storage_key)
-        file_path = self._base / storage_key
+        file_path = self._resolve_storage_key(storage_key)
         if not file_path.is_file():
             raise FileNotFoundError(f"Storage key not found: {storage_key}")
         file_path.unlink()
@@ -166,13 +164,30 @@ class LocalDocumentStorage:
     def exists(self, storage_key: str) -> bool:
         """Return True if the storage key points to an existing file."""
         try:
-            self._validate_path(storage_key)
-        except ValueError:
+            file_path = self._resolve_storage_key(storage_key)
+        except (ValueError, FileNotFoundError):
             return False
-        return (self._base / storage_key).is_file()
+        return file_path.is_file()
 
     @staticmethod
-    def _validate_path(component: str) -> None:
-        """Reject path traversal attempts."""
+    def _validate_component(component: str) -> None:
+        """Validate a single path component (no traversal, no separators)."""
         if ".." in component or "/" in component or "\\" in component:
             raise ValueError(f"Invalid path component: {component!r}")
+        if not component:
+            raise ValueError("Path component must not be empty")
+
+    def _resolve_storage_key(self, storage_key: str) -> Path:
+        """Resolve a storage key to an absolute path, enforcing no traversal.
+
+        A storage key has the format ``<hex2>/<revision_id>/content``.
+        After resolving against base_dir, the result must still be within base_dir.
+        """
+        parts = storage_key.split("/")
+        for part in parts:
+            if ".." in part or part.startswith("/"):
+                raise ValueError(f"Invalid path component in storage key: {part!r}")
+        resolved = (self._base / storage_key).resolve()
+        if not str(resolved).startswith(str(self._base.resolve())):
+            raise ValueError(f"Path traversal detected in storage key: {storage_key!r}")
+        return resolved

@@ -7,6 +7,7 @@ import unicodedata
 from cold_storage.modules.knowledge.domain.models import ParsedBlock
 from cold_storage.modules.knowledge.infrastructure.parsers.base import (
     PARSER_VERSION,
+    ParseResult,
     register_parser,
 )
 
@@ -51,6 +52,8 @@ class PdfParser:
             blocks: list[ParsedBlock] = []
             order = 0
             page_count = doc.page_count
+            ocr_page_numbers: list[int] = []
+            ocr_image_counts: list[int] = []
 
             for page_idx in range(page_count):
                 page = doc.load_page(page_idx)  # type: ignore[no-untyped-call]
@@ -61,27 +64,16 @@ class PdfParser:
                 text = unicodedata.normalize("NFKC", text)
                 text = text.strip()
 
+                # Check for images before deciding what to do
+                image_list = page.get_images()
+
                 if not text:
-                    # Check if there are images (might need OCR)
-                    image_list = page.get_images()
+                    # Image-only page — do NOT generate a fake ParsedBlock.
+                    # Record in metadata; the application service will set
+                    # requires_ocr and warn about missing pages.
                     if image_list:
-                        blocks.append(
-                            ParsedBlock(
-                                text=f"[Page {page_num} — image-only page, OCR may be required]",
-                                block_type="paragraph",
-                                section_path=f"page:{page_num}",
-                                page_start=page_num,
-                                page_end=page_num,
-                                source_order=order,
-                                metadata={
-                                    "parser_version": PARSER_VERSION,
-                                    "page_number": page_num,
-                                    "requires_ocr": True,
-                                    "image_count": len(image_list),
-                                },
-                            )
-                        )
-                        order += 1
+                        ocr_page_numbers.append(page_num)
+                        ocr_image_counts.append(len(image_list))
                     continue
 
                 # Split page text into paragraphs
@@ -105,6 +97,19 @@ class PdfParser:
                         )
                     )
                     order += 1
+
+            # Build warnings
+            warnings: list[str] = []
+            if ocr_page_numbers:
+                warnings.append(f"OCR may be required for image-only pages: {ocr_page_numbers}")
+
+            # Store result metadata for the service to read
+            self._last_parse_result = ParseResult(
+                blocks=blocks,
+                warnings=warnings,
+                page_count=page_count,
+                ocr_page_numbers=ocr_page_numbers,
+            )
 
         finally:
             doc.close()  # type: ignore[no-untyped-call]
