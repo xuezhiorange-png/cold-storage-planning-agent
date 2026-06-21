@@ -702,10 +702,9 @@ class TestVersionNotFound:
         assert resp.status_code == 404
 
     def test_list_runs_nonexistent_version(self, client: TestClient):
-        # List runs for a version that has no runs — returns empty list
+        # List runs for a nonexistent version — returns 404
         resp = client.get("/api/v1/projects/does-not-exist/versions/99/scheme-runs")
-        assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.status_code == 404
 
 
 # ============================================================================

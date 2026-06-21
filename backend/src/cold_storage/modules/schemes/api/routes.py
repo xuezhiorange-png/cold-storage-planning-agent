@@ -22,6 +22,7 @@ from cold_storage.modules.schemes.domain.errors import (
     ProjectNotFoundError,
     ProjectVersionNotFoundError,
     SourceCalculationMissingError,
+    SourceSnapshotInvalidError,
     VersionConflictError,
     WeightSetError,
 )
@@ -57,7 +58,11 @@ def register_scheme_routes(app: FastAPI, get_service: Any) -> None:
             )
         except (ProjectNotFoundError, ProjectVersionNotFoundError) as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
-        except (SourceCalculationMissingError, VersionConflictError) as e:
+        except (
+            SourceCalculationMissingError,
+            VersionConflictError,
+            SourceSnapshotInvalidError,
+        ) as e:
             raise HTTPException(status_code=409, detail=str(e)) from e
         except (
             InvalidProfileError,
@@ -75,8 +80,10 @@ def register_scheme_routes(app: FastAPI, get_service: Any) -> None:
         version: int,
     ) -> list[dict[str, Any]]:
         service: SchemeService = get_service()
-        # Use version record ID for listing
-        version_id = f"{project_id}-v{version}"
+        try:
+            version_id = service.resolve_version_id(project_id, version)
+        except ProjectVersionNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
         return service.list_scheme_runs(version_id)
 
     @app.get("/api/v1/projects/{project_id}/versions/{version}/scheme-runs/{run_id}")
@@ -86,8 +93,12 @@ def register_scheme_routes(app: FastAPI, get_service: Any) -> None:
         run_id: str,
     ) -> dict[str, Any]:
         service: SchemeService = get_service()
+        try:
+            version_id = service.resolve_version_id(project_id, version)
+        except ProjectVersionNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
         result = service.get_scheme_run(run_id)
-        if result is None:
+        if result is None or result.get("project_version_id") != version_id:
             raise HTTPException(status_code=404, detail="Scheme run not found")
         return result
 
@@ -98,8 +109,16 @@ def register_scheme_routes(app: FastAPI, get_service: Any) -> None:
         run_id: str,
     ) -> dict[str, Any]:
         service: SchemeService = get_service()
+        try:
+            version_id = service.resolve_version_id(project_id, version)
+        except ProjectVersionNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
         result = service.get_comparison(run_id)
         if result is None:
+            raise HTTPException(status_code=404, detail="Scheme run not found")
+        # Verify the run belongs to this version
+        run_result = service.get_scheme_run(run_id)
+        if run_result is None or run_result.get("project_version_id") != version_id:
             raise HTTPException(status_code=404, detail="Scheme run not found")
         return result
 
@@ -107,7 +126,7 @@ def register_scheme_routes(app: FastAPI, get_service: Any) -> None:
     # Demo endpoint — uses Application Service, not direct domain calls
     # ------------------------------------------------------------------
 
-    @app.post("/api/v1/demo/scheme-comparison")
+    @app.get("/api/v1/demo/scheme-comparison")
     def demo_scheme_comparison() -> dict[str, Any]:
         """Demo endpoint using the same Application Service as the formal API.
 
@@ -115,15 +134,6 @@ def register_scheme_routes(app: FastAPI, get_service: Any) -> None:
         """
         service: SchemeService = get_service()
         try:
-            # Seed demo data via the service
-            return service.generate_scheme_run(
-                project_id="demo-project",
-                version=1,
-                profile_codes=["balanced", "consolidated_large_rooms", "segmented_small_rooms"],
-                weight_set_id="demo-weight-set-001",
-                profile_parameters={
-                    "segmented_small_rooms": {"max_positions_per_room": 50},
-                },
-            )
+            return service.generate_demo_scheme_comparison()
         except Exception as e:
             raise HTTPException(status_code=422, detail=str(e)) from e

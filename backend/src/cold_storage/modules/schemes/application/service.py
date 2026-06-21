@@ -8,9 +8,11 @@ equipment data are loaded from persisted Task 4 / Task 5 calculation runs.
 
 from __future__ import annotations
 
+import json
+import uuid
 from dataclasses import asdict
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from typing import Any
 
@@ -25,6 +27,7 @@ from cold_storage.modules.schemes.domain.errors import (
     ProjectNotFoundError,
     ProjectVersionNotFoundError,
     SourceCalculationMissingError,
+    SourceSnapshotInvalidError,
     WeightSetError,
 )
 from cold_storage.modules.schemes.domain.generator import GENERATOR_VERSION, generate_schemes
@@ -64,6 +67,48 @@ def _cast_list_dict(val: object) -> list[dict[str, object]]:
 _REQUIRED_CALC_TYPES = frozenset({"zone", "investment", "cooling_load", "equipment"})
 
 
+def require_snapshot_field(snapshot: dict[str, object], key: str, calc_type: str) -> object:
+    """Extract a required field from a calculation snapshot.
+
+    Raises SourceSnapshotInvalidError if the field is missing, None, or has
+    an invalid type (expected: str/int/float/Decimal convertible to Decimal).
+    """
+    val = snapshot.get(key)
+    if val is None:
+        raise SourceSnapshotInvalidError(f"Missing required field '{key}' in {calc_type} snapshot")
+    # Validate it's numeric
+    try:
+        Decimal(str(val))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise SourceSnapshotInvalidError(
+            f"Field '{key}' in {calc_type} snapshot has invalid type: {type(val).__name__}"
+        ) from exc
+    return val
+
+
+def _canonical_json(obj: object) -> str:
+    """Canonical JSON serialization with sorted keys, no whitespace."""
+
+    def _default(o: object) -> str:
+        if isinstance(o, Decimal):
+            return str(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        if isinstance(o, uuid.UUID):
+            return str(o)
+        if isinstance(o, set):
+            return str(sorted(o))
+        raise TypeError(f"Cannot serialize {type(o).__name__}")
+
+    return json.dumps(
+        obj,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=_default,
+    )
+
+
 class SchemeService:
     def __init__(self, session: Session) -> None:
         self._repo = SchemeRepository(session)
@@ -89,6 +134,11 @@ class SchemeService:
             raise ProjectVersionNotFoundError(project_id, version_number)
         return ver
 
+    def resolve_version_id(self, project_id: str, version: int) -> str:
+        """Resolve and validate the project version. Raises ProjectVersionNotFoundError."""
+        ver = self._load_version(project_id, version)
+        return ver.id
+
     def _load_calculation(
         self,
         project_version_id: str,
@@ -100,7 +150,10 @@ class SchemeService:
                 CalculationRunRecord.project_version_id == project_version_id,
                 CalculationRunRecord.calculator_name == calculator_name,
             )
-            .order_by(CalculationRunRecord.created_at.desc())
+            .order_by(
+                CalculationRunRecord.created_at.desc(),
+                CalculationRunRecord.id.desc(),
+            )
         )
         rec = stmt.first()
         if rec is None:
@@ -109,30 +162,247 @@ class SchemeService:
 
     def _load_all_calculations(self, project_version_id: str) -> dict[str, CalculationRunRecord]:
         """Load all calculation runs for a version, keyed by calculator_name."""
-        stmt = self._session.query(CalculationRunRecord).filter(
-            CalculationRunRecord.project_version_id == project_version_id
+        stmt = (
+            self._session.query(CalculationRunRecord)
+            .filter(
+                CalculationRunRecord.project_version_id == project_version_id,
+            )
+            .order_by(
+                CalculationRunRecord.created_at.desc(),
+                CalculationRunRecord.id.desc(),
+            )
         )
         recs = stmt.all()
         result: dict[str, CalculationRunRecord] = {}
         for rec in recs:
-            # Keep the latest per calculator_name
+            # Keep the latest per calculator_name (ordered by created_at DESC, id DESC)
             if rec.calculator_name not in result:
                 result[rec.calculator_name] = rec
         return result
 
     def _compute_snapshot_hash(self, calculations: dict[str, CalculationRunRecord]) -> str:
-        """Compute a deterministic hash from all persisted calculation result snapshots."""
-        parts: list[str] = []
+        """Compute a deterministic SHA-256 hash from persisted calculation result snapshots."""
+        parts: dict[str, object] = {}
         for name in sorted(calculations.keys()):
             calc = calculations[name]
-            result_json = str(sorted(calc.result_snapshot.items())) if calc.result_snapshot else ""
-            parts.append(f"{name}={result_json}")
-        combined = "|".join(parts)
-        return sha256(combined.encode()).hexdigest()[:16]
+            parts[name] = calc.result_snapshot if calc.result_snapshot else {}
+        canonical = _canonical_json(parts)
+        return sha256(canonical.encode("utf-8")).hexdigest()
+
+    def _compute_per_calc_hash(self, snapshot: dict[str, object]) -> str:
+        """Compute a deterministic SHA-256 hash for a single calculation snapshot."""
+        canonical = _canonical_json(snapshot)
+        return sha256(canonical.encode("utf-8")).hexdigest()
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def generate_demo_scheme_comparison(self) -> dict[str, Any]:
+        """Generate demo scheme comparison data via the standard service pipeline.
+
+        Seeds a demo project, version, calculations, and weight set, then
+        delegates to ``generate_scheme_run``.
+        """
+        self._ensure_demo_data()
+
+        result = self.generate_scheme_run(
+            project_id="demo-project",
+            version=1,
+            profile_codes=["balanced", "consolidated_large_rooms", "segmented_small_rooms"],
+            weight_set_id="demo-weight-set-001",
+            profile_parameters={
+                "segmented_small_rooms": {
+                    "max_positions_per_room": 48,
+                    "max_area_per_room_m2": 300,
+                },
+            },
+        )
+
+        # Rebuild response to match the frontend-expected shape
+        ws = self._repo.get_weight_set("demo-weight-set-001")
+        schemes_out = []
+        for s in result.get("schemes", []):
+            schemes_out.append(
+                {
+                    "scheme_code": s["scheme_code"],
+                    "scheme_name": s["scheme_name"],
+                    "feasible": s["feasible"],
+                    "total_score": s.get("total_score", "0"),
+                    "total_area_m2": s.get("total_area_m2"),
+                    "total_position_count": s.get("total_position_count"),
+                    "room_module_count": s.get("room_module_count"),
+                    "door_count": s.get("door_count"),
+                    "investment_cny": s.get("investment_cny"),
+                    "installed_power_kw_e": s.get("installed_power_kw_e"),
+                    "requires_review": s.get("requires_review", True),
+                }
+            )
+
+        return {
+            "schemes": schemes_out,
+            "recommended_scheme_code": result.get("recommended_scheme_code"),
+            "weight_set_name": ws.name if ws else "demo",
+            "weight_set_status": ws.status if ws else "unverified",
+        }
+
+    def _ensure_demo_data(self) -> None:
+        """Seed demo project, version, calculations, and weight set.
+
+        Uses upsert logic: creates records only if they don't exist yet.
+        """
+        from cold_storage.bootstrap.scheme_seed import demo_weight_set
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+        )
+
+        # 1. Demo project
+        project = self._session.get(ProjectRecord, "demo-project")
+        if project is None:
+            project = ProjectRecord(
+                id="demo-project",
+                code="demo-project",
+                name="蓝莓冷库规划演示",
+                location="演示地点",
+                product_category="蓝莓",
+                status="approved",
+                current_version_number=1,
+            )
+            self._session.add(project)
+            self._session.flush()
+
+        # 2. Demo version
+        ver = (
+            self._session.query(ProjectVersionRecord)
+            .filter(
+                ProjectVersionRecord.project_id == "demo-project",
+                ProjectVersionRecord.version_number == 1,
+            )
+            .first()
+        )
+        if ver is None:
+            ver = ProjectVersionRecord(
+                id="demo-project-v1",
+                project_id="demo-project",
+                version_number=1,
+                change_summary="演示版本",
+                status="approved",
+                created_by="system-seed",
+            )
+            self._session.add(ver)
+            self._session.flush()
+
+        version_id = ver.id
+
+        # 3. Demo calculations (upsert)
+        demo_calcs = {
+            "zone": {
+                "zone_results": [
+                    {
+                        "zone_code": "precooling-primary",
+                        "zone_name": "双级预冷间",
+                        "temperature_level": "precooling",
+                        "area_m2": 112.0,
+                        "position_count": 20,
+                        "storage_capacity_kg": 8800.0,
+                        "process_compatibility": "raw",
+                        "hygiene_zone": "standard",
+                    },
+                    {
+                        "zone_code": "precooling-secondary",
+                        "zone_name": "次果预冷间",
+                        "temperature_level": "precooling",
+                        "area_m2": 56.0,
+                        "position_count": 10,
+                        "storage_capacity_kg": 4000.0,
+                        "process_compatibility": "raw",
+                        "hygiene_zone": "standard",
+                    },
+                    {
+                        "zone_code": "raw-storage",
+                        "zone_name": "原果冷藏库",
+                        "temperature_level": "medium_temperature",
+                        "area_m2": 280.0,
+                        "position_count": 70,
+                        "storage_capacity_kg": 30800.0,
+                        "process_compatibility": "raw",
+                        "hygiene_zone": "standard",
+                    },
+                    {
+                        "zone_code": "finished-storage",
+                        "zone_name": "成品冷藏库",
+                        "temperature_level": "medium_temperature",
+                        "area_m2": 350.0,
+                        "position_count": 88,
+                        "storage_capacity_kg": 35200.0,
+                        "process_compatibility": "finished",
+                        "hygiene_zone": "standard",
+                    },
+                    {
+                        "zone_code": "frozen-storage",
+                        "zone_name": "冻果冷藏库",
+                        "temperature_level": "frozen",
+                        "area_m2": 84.0,
+                        "position_count": 14,
+                        "storage_capacity_kg": 8400.0,
+                        "process_compatibility": "finished",
+                        "hygiene_zone": "standard",
+                    },
+                ],
+                "total_daily_throughput_kg_day": 25000.0,
+            },
+            "investment": {
+                "total_investment_cny": 6150420.50,
+                "zone_investments": {},
+            },
+            "cooling_load": {
+                "design_cooling_load_kw_r": 180.0,
+                "sensible_load_kw_r": 150.0,
+                "latent_load_kw_r": 20.0,
+                "infiltration_load_kw_r": 10.0,
+            },
+            "equipment": {
+                "compressor_operating_capacity_kw_r": 180.0,
+                "compressor_installed_capacity_kw_r": 216.0,
+                "condenser_heat_rejection_kw": 240.0,
+                "installed_power_kw_e": 65.0,
+            },
+        }
+
+        for calc_name, result_snapshot in demo_calcs.items():
+            existing = (
+                self._session.query(CalculationRunRecord)
+                .filter(
+                    CalculationRunRecord.project_version_id == version_id,
+                    CalculationRunRecord.calculator_name == calc_name,
+                )
+                .first()
+            )
+            if existing is None:
+                rec = CalculationRunRecord(
+                    id=f"demo-calc-{calc_name}",
+                    project_id="demo-project",
+                    project_version_id=version_id,
+                    calculator_name=calc_name,
+                    calculator_version="1.0.0",
+                    input_snapshot={},
+                    result_snapshot=result_snapshot,
+                    formulas=[],
+                    coefficients=[],
+                    assumptions=[],
+                    warnings=[],
+                    source_references=[],
+                    requires_review=False,
+                )
+                self._session.add(rec)
+
+        # 4. Demo weight set
+        ws_existing = self._session.get(SchemeWeightSetRecord, "demo-weight-set-001")
+        if ws_existing is None:
+            ws = demo_weight_set()
+            self._repo.save_weight_set(ws)
+
+        self._session.flush()
 
     def generate_scheme_run(
         self,
@@ -188,7 +458,9 @@ class SchemeService:
 
         # 4. Parse investment result
         invest_snap = _cast_dict(invest_calc.result_snapshot)
-        total_investment = _to_decimal(invest_snap.get("total_investment_cny", 0))
+        total_investment = _to_decimal(
+            require_snapshot_field(invest_snap, "total_investment_cny", "investment")
+        )
         zone_investments = {
             str(k): _to_decimal(v)
             for k, v in _cast_dict(invest_snap.get("zone_investments", {})).items()
@@ -201,25 +473,39 @@ class SchemeService:
         # 5. Parse cooling load result
         cool_snap = _cast_dict(cool_calc.result_snapshot)
         cooling_load = CoolingLoadResult(
-            design_cooling_load_kw_r=_to_decimal(cool_snap.get("design_cooling_load_kw_r", 0)),
-            sensible_load_kw_r=_to_decimal(cool_snap.get("sensible_load_kw_r", 0)),
-            latent_load_kw_r=_to_decimal(cool_snap.get("latent_load_kw_r", 0)),
-            infiltration_load_kw_r=_to_decimal(cool_snap.get("infiltration_load_kw_r", 0)),
+            design_cooling_load_kw_r=_to_decimal(
+                require_snapshot_field(cool_snap, "design_cooling_load_kw_r", "cooling_load")
+            ),
+            sensible_load_kw_r=_to_decimal(
+                require_snapshot_field(cool_snap, "sensible_load_kw_r", "cooling_load")
+            ),
+            latent_load_kw_r=_to_decimal(
+                require_snapshot_field(cool_snap, "latent_load_kw_r", "cooling_load")
+            ),
+            infiltration_load_kw_r=_to_decimal(
+                require_snapshot_field(cool_snap, "infiltration_load_kw_r", "cooling_load")
+            ),
         )
 
         # 6. Parse equipment result
         equip_snap = _cast_dict(equip_calc.result_snapshot)
-        operating = _to_decimal(equip_snap.get("compressor_operating_capacity_kw_r", 0))
-        installed = _to_decimal(equip_snap.get("compressor_installed_capacity_kw_r", 0))
+        operating = _to_decimal(
+            require_snapshot_field(equip_snap, "compressor_operating_capacity_kw_r", "equipment")
+        )
+        installed = _to_decimal(
+            require_snapshot_field(equip_snap, "compressor_installed_capacity_kw_r", "equipment")
+        )
         standby = installed - operating  # derived: standby = installed - operating
         equipment = EquipmentResult(
             compressor_operating_capacity_kw_r=operating,
             compressor_installed_capacity_kw_r=installed,
             compressor_standby_capacity_kw_r=standby,
             condenser_heat_rejection_kw=_to_decimal(
-                equip_snap.get("condenser_heat_rejection_kw", 0)
+                require_snapshot_field(equip_snap, "condenser_heat_rejection_kw", "equipment")
             ),
-            installed_power_kw_e=_to_decimal(equip_snap.get("installed_power_kw_e", 0)),
+            installed_power_kw_e=_to_decimal(
+                require_snapshot_field(equip_snap, "installed_power_kw_e", "equipment")
+            ),
         )
 
         # 7. Compute totals from zone results
@@ -232,7 +518,7 @@ class SchemeService:
         # 9. Build source calculation IDs from loaded records
         source_calc_ids = {name: calc.id for name, calc in calculations.items()}
         source_snap_hashes = {
-            name: sha256(str(sorted(calc.result_snapshot.items())).encode()).hexdigest()[:16]
+            name: self._compute_per_calc_hash(calc.result_snapshot or {})
             for name, calc in calculations.items()
         }
 
@@ -251,7 +537,9 @@ class SchemeService:
             equipment_result=equipment,
             generator_version=GENERATOR_VERSION,
             total_daily_throughput_kg_day=_to_decimal(
-                zone_calc.result_snapshot.get("total_daily_throughput_kg_day", 0)
+                require_snapshot_field(
+                    zone_calc.result_snapshot, "total_daily_throughput_kg_day", "zone"
+                )
             ),
             total_storage_capacity_kg=total_capacity,
             total_position_count=total_positions,
@@ -466,7 +754,7 @@ def _safe_asdict(obj: Any) -> dict[str, Any]:
     if hasattr(obj, "__dataclass_fields__"):
         d = asdict(obj)
         result: dict[str, Any] = _serialize_decimals(d)
-    return result
+        return result
     return {}
 
 
@@ -498,6 +786,7 @@ def _build_response(
         "project_version_id": run.project_version_id,
         "status": "completed",
         "recommended_scheme_code": recommended_code,
+        "recommended_reason": recommended_reason,
         "schemes": [
             {
                 "scheme_code": c.scheme_code,

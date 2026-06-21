@@ -118,6 +118,7 @@ interface SchemeComparisonResponse {
 
 const schemeComparisonData = ref<SchemeComparisonResponse | null>(null)
 const schemeLoadError = ref('')
+const byCode = (code: string) => schemeComparisonData.value?.schemes?.find(s => s.scheme_code === code)
 
 const planningStatus = ref('当前显示 25 吨/天演示规划')
 const planningError = ref('')
@@ -895,9 +896,9 @@ function formatOptionalPower(value: number | null): string {
         </div>
         <article class="sample-row comparison-row sample-header">
           <strong>指标</strong>
-          <strong>{{ schemeRows[0]?.name ?? '方案A' }}</strong>
-          <strong>{{ schemeRows[1]?.name ?? '方案B' }}</strong>
-          <strong>{{ schemeRows[2]?.name ?? '方案C' }}</strong>
+          <strong>{{ byCode('balanced')?.scheme_name ?? '均衡方案' }}</strong>
+          <strong>{{ byCode('consolidated_large_rooms')?.scheme_name ?? '大间集中' }}</strong>
+          <strong>{{ byCode('segmented_small_rooms')?.scheme_name ?? '小间分段' }}</strong>
           <strong>备注</strong>
         </article>
         <article

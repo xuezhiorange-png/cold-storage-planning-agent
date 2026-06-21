@@ -125,7 +125,7 @@ class SchemeRepository:
         same ID already exists.
         """
         existing = self._session.get(SchemeRunRecord, run.id)
-        if existing is not None and existing.status == "completed":
+        if existing is not None:
             raise CompletedRunImmutabilityError(run.id)
 
         run_rec = SchemeRunRecord(
@@ -145,7 +145,7 @@ class SchemeRepository:
             warning_messages=run.warning_messages,
             completed_at=run.completed_at,
         )
-        self._session.merge(run_rec)
+        self._session.add(run_rec)
 
         # Build lookup for score breakdowns
         sb_map: dict[str, Any] = {}
@@ -248,7 +248,12 @@ class SchemeRepository:
                 constraint_results=constraint_snapshot,
                 result_snapshot=result_snapshot,
             )
-            self._session.merge(cand_rec)
+            existing_cand = self._session.get(SchemeCandidateRecord, cand_rec.id)
+            if existing_cand is not None:
+                raise CompletedRunImmutabilityError(
+                    f"Candidate {cand_rec.scheme_code} already exists in run {run.id}"
+                )
+            self._session.add(cand_rec)
 
         self._session.flush()
         return run
