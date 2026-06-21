@@ -46,6 +46,8 @@ from cold_storage.modules.projects.domain.models import (
     InvalidVersionTransitionError,
     VersionImmutabilityError,
 )
+from cold_storage.modules.schemes.api.routes import register_scheme_routes
+from cold_storage.modules.schemes.application.service import SchemeService
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 AgentServiceDep = Annotated[PlanningAgentService, Depends(get_agent_service)]
@@ -149,6 +151,19 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     coefficient_service = CoefficientService()
     core_calculation_service = CoreCalculationService()
     register_coefficient_routes(app, coefficient_service)
+
+    # Scheme routes
+    def _scheme_service_factory() -> SchemeService:
+        from sqlalchemy.orm import Session as SASession
+
+        from cold_storage.bootstrap.dependencies import get_engine
+
+        engine = get_engine()
+        session = SASession(bind=engine)
+        return SchemeService(session)
+
+    register_scheme_routes(app, _scheme_service_factory)
+
     if project_service is not None:
         app.dependency_overrides[get_project_service] = lambda: project_service
 

@@ -95,6 +95,31 @@ const designInputs = reactive({
   frozenStorageDays: 5,
   frozenGoodsPalletWeightKg: 600
 })
+interface SchemeItem {
+  scheme_code: string
+  scheme_name: string
+  feasible: boolean
+  total_score: string
+  total_area_m2: number
+  total_position_count: number
+  room_module_count: number
+  door_count: number
+  investment_cny: number
+  installed_power_kw_e: number
+  requires_review: boolean
+}
+
+interface SchemeComparisonResponse {
+  schemes: SchemeItem[]
+  recommended_scheme_code: string | null
+  weight_set_name: string
+  weight_set_status: string
+}
+
+const schemeComparisonData = ref<SchemeComparisonResponse | null>(null)
+const schemeLoadError = ref('')
+const byCode = (code: string) => schemeComparisonData.value?.schemes?.find(s => s.scheme_code === code)
+
 const planningStatus = ref('当前显示 25 吨/天演示规划')
 const planningError = ref('')
 const factoryOverview = reactive({
@@ -270,36 +295,50 @@ const completenessRows = computed(() => [
   { item: '设备功率参数', value: '参考莱富康表', state: '待复核', owner: '电气' }
 ])
 
-const schemeRows = computed(() => [
-  {
-    name: '平衡方案',
-    roomMix: '冷间组合：双级预冷 + 成品库 + 冻果间 + 次果暂存',
-    area: totalZoneArea.value,
-    positions: `${totalPositions.value} 个`,
-    note: '产能、存储和投资均衡'
-  },
-  {
-    name: '大冷间方案',
-    roomMix: '冷间组合：成品间集中布置，预冷间按整托位冗余配置',
-    area: '842.00 m²',
-    positions: '270 个',
-    note: '运营弹性更高，初始投资更高'
-  },
-  {
-    name: '小冷间方案',
-    roomMix: '冷间组合：分区更细，单间容量降低',
-    area: '798.50 m²',
-    positions: '232 个',
-    note: '调度更灵活，门和围护数量增加'
-  }
-])
+const schemeRows = computed(() => {
+  const data = schemeComparisonData.value
+  if (!data) return []
+  return data.schemes.map(s => ({
+    name: s.scheme_name,
+    roomMix: `房间 ${s.room_module_count} 个 · 门 ${s.door_count} 扇`,
+    area: `${formatNumber(s.total_area_m2)} m²`,
+    positions: `${s.total_position_count} 个`,
+    score: s.total_score,
+    feasible: s.feasible,
+    recommended: data.recommended_scheme_code === s.scheme_code,
+    requiresReview: s.requires_review,
+    investment: formatNumber(s.investment_cny),
+    power: `${formatNumber(s.installed_power_kw_e)} kW(e)`,
+    note: s.feasible ? (data.recommended_scheme_code === s.scheme_code ? '推荐' : '可行') : '不可行'
+  }))
+})
 
-const comparisonRows = [
-  { metric: '方案评分对比', balanced: '86', largeRoom: '82', smallRoom: '79', note: '概念阶段综合评分' },
-  { metric: '面积效率', balanced: '30.6 kg/day/m²', largeRoom: '29.7 kg/day/m²', smallRoom: '31.3 kg/day/m²', note: '按日处理量折算' },
-  { metric: '投资强度', balanced: '0.54 万元/m²', largeRoom: '0.57 万元/m²', smallRoom: '0.55 万元/m²', note: '不含土地和税费' },
-  { metric: '扩展余量', balanced: '中', largeRoom: '高', smallRoom: '低', note: '待结合总图复核' }
-]
+const comparisonRows = computed(() => {
+  const data = schemeComparisonData.value
+  if (!data || data.schemes.length === 0) {
+    return [
+      { metric: '总分', balanced: '-', largeRoom: '-', smallRoom: '-', note: '后端方案数据' },
+    ]
+  }
+  // Map by scheme_code — order-independent
+  const byCode = Object.fromEntries(data.schemes.map(s => [s.scheme_code, s]))
+  const b = byCode['balanced']
+  const lr = byCode['consolidated_large_rooms']
+  const sr = byCode['segmented_small_rooms']
+  const fmt = (v: number | string) => formatNumber(Number(v) || 0)
+  return [
+    { metric: '总分', balanced: b?.total_score ?? '-', largeRoom: lr?.total_score ?? '-', smallRoom: sr?.total_score ?? '-', note: data.weight_set_name },
+    { metric: '可行性', balanced: b?.feasible ? '✓' : '✗', largeRoom: lr?.feasible ? '✓' : '✗', smallRoom: sr?.feasible ? '✓' : '✗', note: '硬约束校验' },
+    { metric: '面积 (m²)', balanced: fmt(b?.total_area_m2 ?? 0), largeRoom: fmt(lr?.total_area_m2 ?? 0), smallRoom: fmt(sr?.total_area_m2 ?? 0), note: '' },
+    { metric: '板位', balanced: String(b?.total_position_count ?? 0), largeRoom: String(lr?.total_position_count ?? 0), smallRoom: String(sr?.total_position_count ?? 0), note: '' },
+    { metric: '房间数', balanced: String(b?.room_module_count ?? 0), largeRoom: String(lr?.room_module_count ?? 0), smallRoom: String(sr?.room_module_count ?? 0), note: '' },
+    { metric: '门数', balanced: String(b?.door_count ?? 0), largeRoom: String(lr?.door_count ?? 0), smallRoom: String(sr?.door_count ?? 0), note: '' },
+    { metric: '投资 (CNY)', balanced: fmt(b?.investment_cny ?? 0), largeRoom: fmt(lr?.investment_cny ?? 0), smallRoom: fmt(sr?.investment_cny ?? 0), note: '' },
+    { metric: '装机功率 kW(e)', balanced: fmt(b?.installed_power_kw_e ?? 0), largeRoom: fmt(lr?.installed_power_kw_e ?? 0), smallRoom: fmt(sr?.installed_power_kw_e ?? 0), note: '' },
+    { metric: '推荐', balanced: data.recommended_scheme_code === 'balanced' ? '★' : '', largeRoom: data.recommended_scheme_code === 'consolidated_large_rooms' ? '★' : '', smallRoom: data.recommended_scheme_code === 'segmented_small_rooms' ? '★' : '', note: '' },
+    { metric: '待复核', balanced: b?.requires_review ? '是' : '否', largeRoom: lr?.requires_review ? '是' : '否', smallRoom: sr?.requires_review ? '是' : '否', note: data.weight_set_status === 'unverified' ? '演示权重' : '' },
+  ]
+})
 
 const knowledgeRows = [
   { title: '知识依据清单', type: '目录', status: '已生成', excerpt: '冷链设计边界、温区、库存天数、设备功率表' },
@@ -392,6 +431,23 @@ async function runPlanning(): Promise<void> {
   totalDemandPower.value = `${formatNumber(data.power_configuration.total_estimated_demand_kw)} kW`
   planningStatus.value = '规划已根据当前参数刷新'
 }
+
+async function loadSchemeComparison(): Promise<void> {
+  schemeLoadError.value = ''
+  try {
+    const response = await fetch('/api/v1/demo/scheme-comparison')
+    if (!response.ok) {
+      schemeLoadError.value = '方案数据加载失败'
+      return
+    }
+    schemeComparisonData.value = (await response.json()) as SchemeComparisonResponse
+  } catch {
+    schemeLoadError.value = '方案数据加载失败，请检查后端服务'
+  }
+}
+
+// Load scheme data on mount
+loadSchemeComparison()
 
 function selectView(view: string): void {
   activeView.value = view
@@ -797,28 +853,34 @@ function formatOptionalPower(value: number | null): string {
         aria-label="冷间方案"
       >
         <div class="section-summary">
-          <strong>平衡方案</strong>
-          <span>{{ totalZoneArea }}</span>
-          <span>{{ totalPositions }} 个板位</span>
-          <em>推荐样例</em>
+          <strong>{{ schemeComparisonData?.recommended_scheme_code ? schemeRows.find(r => r.recommended)?.name ?? '方案' : '方案' }}</strong>
+          <span>{{ schemeComparisonData ? schemeRows.length + ' 个方案' : '加载中...' }}</span>
+          <em>{{ schemeComparisonData?.weight_set_name ?? '' }}</em>
+          <span v-if="schemeLoadError" style="color:var(--danger)">{{ schemeLoadError }}</span>
         </div>
         <article class="sample-row scheme-row sample-header">
           <strong>方案</strong>
-          <strong>冷间组合</strong>
+          <strong>房间/门</strong>
           <strong>面积</strong>
           <strong>板位</strong>
-          <strong>说明</strong>
+          <strong>评分</strong>
+          <strong>投资</strong>
+          <strong>kW(e)</strong>
+          <strong>状态</strong>
         </article>
         <article
           v-for="row in schemeRows"
           :key="row.name"
           class="sample-row scheme-row"
         >
-          <strong>{{ row.name }}</strong>
+          <strong>{{ row.name }}{{ row.recommended ? ' ★' : '' }}</strong>
           <span>{{ row.roomMix }}</span>
           <span>{{ row.area }}</span>
           <span>{{ row.positions }}</span>
-          <span>{{ row.note }}</span>
+          <span>{{ row.score }}</span>
+          <span>{{ row.investment }}</span>
+          <span>{{ row.power }}</span>
+          <span>{{ row.note }}{{ row.requiresReview ? ' (待复核)' : '' }}</span>
         </article>
       </section>
 
@@ -829,15 +891,14 @@ function formatOptionalPower(value: number | null): string {
       >
         <div class="section-summary">
           <strong>方案评分对比</strong>
-          <span>平衡方案 86</span>
-          <span>面积效率 30.6</span>
-          <em>样例权重</em>
+          <span>{{ schemeComparisonData?.weight_set_name ?? '后端方案数据' }}</span>
+          <em>{{ schemeComparisonData?.weight_set_status === 'unverified' ? '演示权重 / 待复核' : '' }}</em>
         </div>
         <article class="sample-row comparison-row sample-header">
           <strong>指标</strong>
-          <strong>平衡方案</strong>
-          <strong>大冷间方案</strong>
-          <strong>小冷间方案</strong>
+          <strong>{{ byCode('balanced')?.scheme_name ?? '均衡方案' }}</strong>
+          <strong>{{ byCode('consolidated_large_rooms')?.scheme_name ?? '大间集中' }}</strong>
+          <strong>{{ byCode('segmented_small_rooms')?.scheme_name ?? '小间分段' }}</strong>
           <strong>备注</strong>
         </article>
         <article
