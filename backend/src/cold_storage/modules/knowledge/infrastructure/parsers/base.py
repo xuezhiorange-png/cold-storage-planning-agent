@@ -29,11 +29,9 @@ class Parser(Protocol):
         """Parse raw file content into a list of ParsedBlock."""
         ...
 
-
-# Optional method: ``parse_with_metadata(content, filename) -> ParseResult``
-# is NOT part of the Protocol because most parsers don't need it.
-# Only PdfParser implements it; the application service uses ``hasattr``
-# to check for this capability before calling it.
+    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
+        """Parse raw file content, returning rich metadata alongside blocks."""
+        ...
 
 
 # ---------------------------------------------------------------------------

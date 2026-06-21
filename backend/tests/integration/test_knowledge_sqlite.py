@@ -770,10 +770,14 @@ class TestCreateDocumentCompensationCleanup:
             patch.object(svc._repo, "save_revision", side_effect=RuntimeError("DB write failed")),
             pytest.raises(RuntimeError, match="DB write failed"),
         ):
+            import io
+
             svc.create_document(
                 code="COMP-001",
                 title="Compensation Test",
-                file_content=b"test file content here",
+                file=io.BytesIO(b"test file content here"),
+                content_sha256="cca18bde8c75a368e26b50ffd7cf6266aaad91a040917db900920eb03b113ccd",
+                file_size=22,
                 filename="test.pdf",
                 mime_type="application/pdf",
                 owner="tester",
@@ -807,10 +811,14 @@ class TestCreateDocumentCompensationCleanup:
             ),
             pytest.raises(RuntimeError, match="Audit write failed"),
         ):
+            import io
+
             svc.create_document(
                 code="COMP-002",
                 title="Audit Failure Test",
-                file_content=b"test file content here",
+                file=io.BytesIO(b"test file content here"),
+                content_sha256="cca18bde8c75a368e26b50ffd7cf6266aaad91a040917db900920eb03b113ccd",
+                file_size=22,
                 filename="test.pdf",
                 mime_type="application/pdf",
                 owner="tester",

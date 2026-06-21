@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import os
 import re
 import unicodedata
 from datetime import UTC, datetime
-from typing import Any
+from typing import IO, Any
 
 from sqlalchemy.orm import Session
 
@@ -122,27 +121,26 @@ class KnowledgeService:
         source_type: str = "upload",
         source_reference: str = "",
         owner: str = "",
-        file_content: bytes,
+        file: IO[bytes],
+        content_sha256: str,
+        file_size: int,
         filename: str,
         mime_type: str,
         version_label: str = "",
     ) -> dict[str, Any]:
         """Create a new knowledge document with its first revision.
 
-        ``file_content`` must already be fully read. For streaming uploads,
-        callers should read in chunks (e.g. 8 KB) with size checking before
-        calling this method.
+        ``file`` must be a seekable binary stream. The caller computes
+        ``content_sha256`` and ``file_size`` while streaming the upload.
         """
         ext = _extract_extension(filename)
         self._validate_file_type(ext, mime_type)
-        self._validate_file_size(len(file_content))
+        self._validate_file_size(file_size)
 
         # Check duplicate code
         existing = self._repo.get_document_by_code(code)
         if existing is not None:
             raise DuplicateContentError(f"Document with code {code!r} already exists")
-
-        content_sha256 = _compute_sha256(file_content)
 
         # Create document
         doc = KnowledgeDocument(
@@ -166,7 +164,7 @@ class KnowledgeService:
             safe_filename=_sanitize_filename(filename),
             mime_type=mime_type,
             file_extension=ext,
-            file_size_bytes=len(file_content),
+            file_size_bytes=file_size,
             content_sha256=content_sha256,
             storage_key="",  # filled after save
             ingestion_status="uploaded",
@@ -174,7 +172,7 @@ class KnowledgeService:
         )
 
         # Save file to storage
-        stored = self._storage.save(io.BytesIO(file_content), rev.id, content_sha256)
+        stored = self._storage.save(file, rev.id, content_sha256)
         rev = KnowledgeRevision(
             **{
                 **rev.__dict__,
@@ -224,7 +222,9 @@ class KnowledgeService:
         self,
         *,
         document_id: str,
-        file_content: bytes,
+        file: IO[bytes],
+        content_sha256: str,
+        file_size: int,
         filename: str,
         mime_type: str,
         version_label: str = "",
@@ -236,9 +236,7 @@ class KnowledgeService:
 
         ext = _extract_extension(filename)
         self._validate_file_type(ext, mime_type)
-        self._validate_file_size(len(file_content))
-
-        content_sha256 = _compute_sha256(file_content)
+        self._validate_file_size(file_size)
 
         # Check duplicate content hash
         existing = self._repo.get_revision_by_hash(document_id, content_sha256)
@@ -255,14 +253,14 @@ class KnowledgeService:
             safe_filename=_sanitize_filename(filename),
             mime_type=mime_type,
             file_extension=ext,
-            file_size_bytes=len(file_content),
+            file_size_bytes=file_size,
             content_sha256=content_sha256,
             storage_key="",
             ingestion_status="uploaded",
             review_status="unverified",
         )
 
-        stored = self._storage.save(io.BytesIO(file_content), rev.id, content_sha256)
+        stored = self._storage.save(file, rev.id, content_sha256)
         rev = KnowledgeRevision(
             **{
                 **rev.__dict__,
@@ -355,12 +353,8 @@ class KnowledgeService:
                 )
 
             # Parse with metadata
-            if hasattr(parser, "parse_with_metadata"):
-                parse_result = parser.parse_with_metadata(file_content, rev_rec.original_filename)
-                blocks = parse_result.blocks
-            else:
-                blocks = parser.parse(file_content, rev_rec.original_filename)
-                parse_result = None
+            parse_result = parser.parse_with_metadata(file_content, rev_rec.original_filename)
+            blocks = parse_result.blocks
             extracted_text_length = sum(len(b.text) for b in blocks)
 
             # Determine page/sheet counts from blocks
@@ -380,20 +374,19 @@ class KnowledgeService:
                 requires_ocr = parser.detect_ocr_needed(file_content)
 
             # Collect parser warnings (e.g. image-only pages) from parse_result
-            if parse_result is not None:
-                if parse_result.warnings:
-                    warnings.extend(parse_result.warnings)
-                # If all pages are image-only, chunk_count should be 0
-                if parse_result.ocr_page_numbers:
-                    total_pages = parse_result.page_count or 0
-                    ocr_pages_count = len(parse_result.ocr_page_numbers)
-                    if total_pages > 0 and ocr_pages_count == total_pages:
-                        # All pages image-only
-                        requires_ocr = True
-                    elif ocr_pages_count > 0:
-                        # Some pages image-only
-                        requires_ocr = True
-                        requires_review = True
+            if parse_result.warnings:
+                warnings.extend(parse_result.warnings)
+            # If all pages are image-only, chunk_count should be 0
+            if parse_result.ocr_page_numbers:
+                total_pages = parse_result.page_count or 0
+                ocr_pages_count = len(parse_result.ocr_page_numbers)
+                if total_pages > 0 and ocr_pages_count == total_pages:
+                    # All pages image-only
+                    requires_ocr = True
+                elif ocr_pages_count > 0:
+                    # Some pages image-only
+                    requires_ocr = True
+                    requires_review = True
 
             # Chunk
             config = ChunkingConfig()
@@ -682,6 +675,9 @@ class KnowledgeService:
 
             raise SearchQueryEmptyError("Search query is empty")
 
+        if not (1 <= top_k <= 50):
+            raise ValueError(f"top_k must be between 1 and 50, got {top_k}")
+
         filters = filters or {}
         doc_categories = document_categories or []
         doc_ids_filter = document_ids or []
@@ -704,26 +700,29 @@ class KnowledgeService:
                 continue
 
             rev_recs = self._repo.list_revisions(doc_rec.id)
-            # Filter to only indexed revisions
-            indexed_revs = [r for r in rev_recs if r.ingestion_status == "indexed"]
-            if not indexed_revs:
+
+            # R4-2: Always exclude withdrawn revisions
+            eligible = [
+                r
+                for r in rev_recs
+                if r.ingestion_status == "indexed" and r.review_status != "withdrawn"
+            ]
+            if not eligible:
                 continue
-            revs_to_search = indexed_revs if include_historical_revisions else [indexed_revs[-1]]
+
+            # R4-1: When not including historical revisions, select the
+            # newest eligible approved revision; fall back to newest eligible
+            # of any status if no approved revision exists.
+            if include_historical_revisions:
+                revs_to_search = eligible
+            else:
+                approved = [r for r in eligible if r.review_status == "approved"]
+                if approved:
+                    revs_to_search = [max(approved, key=lambda r: r.revision_number)]
+                else:
+                    revs_to_search = [max(eligible, key=lambda r: r.revision_number)]
+
             for rev_rec in revs_to_search:
-                # Only search indexed revisions
-                if rev_rec.ingestion_status != "indexed":
-                    continue
-
-                # Review status filter
-                approved_only = filters.get("approved_only", True)
-                if approved_only and rev_rec.review_status != "approved":
-                    if not include_unverified and rev_rec.review_status == "unverified":
-                        continue
-                    if not include_reviewed and rev_rec.review_status == "reviewed":
-                        continue
-                    if rev_rec.review_status not in ("approved", "reviewed", "unverified"):
-                        continue
-
                 chunk_recs = self._repo.get_chunks(rev_rec.id)
                 total_candidates += len(chunk_recs)
                 for c in chunk_recs:

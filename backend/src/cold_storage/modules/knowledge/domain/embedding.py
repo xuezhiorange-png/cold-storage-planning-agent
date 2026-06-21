@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import math
-import re
 import unicodedata
 from decimal import ROUND_HALF_UP, Decimal
 
 from cold_storage.modules.knowledge.domain.models import FakeEmbeddingConfig
+from cold_storage.modules.knowledge.domain.tokenizer import tokenize
 
 DEFAULT_CONFIG = FakeEmbeddingConfig()
 
@@ -35,7 +35,7 @@ def generate_embedding(
         return [0.0] * dim
 
     normalized = unicodedata.normalize("NFKC", text).lower()
-    tokens = _tokenize(normalized)
+    tokens = tokenize(normalized)
 
     if not tokens:
         return [0.0] * dim
@@ -62,22 +62,3 @@ def generate_embedding(
         float(Decimal(str(v)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)) for v in vector
     ]
     return vector
-
-
-def _tokenize(text: str) -> list[str]:
-    """Tokenize text into English words, numbers, Chinese unigrams+bigrams, and unit strings."""
-    tokens: list[str] = []
-
-    # Priority: unit strings first (kW(r), kW(e), kWh, m², kg, ℃), then words, numbers
-    token_pattern = r"kw\([re]\)|kwh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
-    for m in re.finditer(token_pattern, text):
-        tokens.append(m.group(0))
-
-    # Extract CJK characters for unigrams and bigrams
-    cjk_chars = re.findall(r"[\u4e00-\u9fff]", text)
-    for ch in cjk_chars:
-        tokens.append(ch)
-    for i in range(len(cjk_chars) - 1):
-        tokens.append(cjk_chars[i] + cjk_chars[i + 1])
-
-    return tokens

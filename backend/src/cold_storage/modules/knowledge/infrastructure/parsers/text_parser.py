@@ -7,6 +7,7 @@ import unicodedata
 from cold_storage.modules.knowledge.domain.models import ParsedBlock
 from cold_storage.modules.knowledge.infrastructure.parsers.base import (
     PARSER_VERSION,
+    ParseResult,
     register_parser,
 )
 
@@ -60,6 +61,11 @@ class TextParser:
             current_line += line_count
 
         return blocks
+
+    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
+        """Parse and return ParseResult with blocks and metadata."""
+        blocks = self.parse(content, filename)
+        return ParseResult(blocks=blocks)
 
     @staticmethod
     def _decode(content: bytes) -> str:

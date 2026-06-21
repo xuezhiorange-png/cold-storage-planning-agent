@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import math
-import re
-import unicodedata
 from decimal import ROUND_HALF_UP, Decimal
 
 from cold_storage.modules.knowledge.domain.models import (
@@ -12,25 +10,7 @@ from cold_storage.modules.knowledge.domain.models import (
     RetrievalProfile,
     RetrievalScore,
 )
-
-
-def tokenize(text: str) -> list[str]:
-    """Deterministic tokenization matching the embedding tokenizer.
-
-    Produces English words, numbers, Chinese unigrams + bigrams, and unit strings.
-    """
-    normalized = unicodedata.normalize("NFKC", text).lower()
-    tokens: list[str] = []
-    # Priority: unit strings first (kW(r), kW(e), kWh, m², kg, ℃), then words, numbers, CJK
-    token_pattern = r"kw\([re]\)|kwh|m[²2]|kg|℃|[a-z]+|[0-9]+(?:\.[0-9]+)?"
-    for m in re.finditer(token_pattern, normalized):
-        tokens.append(m.group(0))
-    cjk_chars = re.findall(r"[\u4e00-\u9fff]", normalized)
-    for ch in cjk_chars:
-        tokens.append(ch)
-    for i in range(len(cjk_chars) - 1):
-        tokens.append(cjk_chars[i] + cjk_chars[i + 1])
-    return tokens
+from cold_storage.modules.knowledge.domain.tokenizer import tokenize
 
 
 def bm25_score(

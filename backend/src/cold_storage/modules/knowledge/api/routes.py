@@ -213,7 +213,7 @@ async def create_document(
     """Create a new knowledge document with its first revision."""
     service = _get_service(request)
 
-    # Read in chunks with size checking, using SpooledTemporaryFile
+    # Stream upload: compute hash + size while streaming to SpooledTemporaryFile
     import os
     import tempfile
 
@@ -234,9 +234,9 @@ async def create_document(
             sha256_hash.update(chunk)
             spooled.write(chunk)
         spooled.seek(0)
-        file_content = spooled.read()
-    finally:
+    except Exception:
         spooled.close()
+        raise
     mime_type = file.content_type or "application/octet-stream"
     filename = file.filename or "unnamed"
 
@@ -248,13 +248,17 @@ async def create_document(
             source_type=source_type,
             source_reference=source_reference,
             owner=owner,
-            file_content=file_content,
+            file=spooled,
+            content_sha256=sha256_hash.hexdigest(),
+            file_size=total_size,
             filename=filename,
             mime_type=mime_type,
             version_label=version_label,
         )
     except Exception as exc:
         _raise_http(exc)
+    finally:
+        spooled.close()
 
 
 # ---------------------------------------------------------------------------
@@ -272,7 +276,7 @@ async def create_revision(
     """Create a new revision for an existing document."""
     service = _get_service(request)
 
-    # Read in chunks with size checking, using SpooledTemporaryFile
+    # Stream upload: compute hash + size while streaming to SpooledTemporaryFile
     import os
     import tempfile
 
@@ -293,22 +297,26 @@ async def create_revision(
             sha256_hash.update(chunk)
             spooled.write(chunk)
         spooled.seek(0)
-        file_content = spooled.read()
-    finally:
+    except Exception:
         spooled.close()
+        raise
     mime_type = file.content_type or "application/octet-stream"
     filename = file.filename or "unnamed"
 
     try:
         return service.create_revision(
             document_id=document_id,
-            file_content=file_content,
+            file=spooled,
+            content_sha256=sha256_hash.hexdigest(),
+            file_size=total_size,
             filename=filename,
             mime_type=mime_type,
             version_label=version_label,
         )
     except Exception as exc:
         _raise_http(exc)
+    finally:
+        spooled.close()
 
 
 # ---------------------------------------------------------------------------

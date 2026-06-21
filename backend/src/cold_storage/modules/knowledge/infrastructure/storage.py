@@ -7,7 +7,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import BinaryIO, Protocol
+from typing import IO, Protocol
 
 
 class StoredObject:
@@ -27,11 +27,11 @@ class StoredObject:
 class DocumentStorage(Protocol):
     """Protocol for document storage backends."""
 
-    def save(self, content: BinaryIO, revision_id: str, content_sha256: str) -> StoredObject:
+    def save(self, content: IO[bytes], revision_id: str, content_sha256: str) -> StoredObject:
         """Save content and return a stored object with metadata."""
         ...
 
-    def open(self, storage_key: str) -> BinaryIO:
+    def open(self, storage_key: str) -> IO[bytes]:
         """Open a stored file by its storage key."""
         ...
 
@@ -67,7 +67,7 @@ class LocalDocumentStorage:
 
     def save(
         self,
-        content: BinaryIO,
+        content: IO[bytes],
         revision_id: str,
         content_sha256: str,
     ) -> StoredObject:
@@ -131,7 +131,7 @@ class LocalDocumentStorage:
                 os.unlink(tmp_path)
             raise
 
-    def open(self, storage_key: str) -> BinaryIO:
+    def open(self, storage_key: str) -> IO[bytes]:
         """Open a stored file by its storage key (format: ``<hex2>/<revision_id>/content``).
 
         Raises
