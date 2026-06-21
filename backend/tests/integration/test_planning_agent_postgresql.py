@@ -29,6 +29,7 @@ from cold_storage.modules.planning_agent.domain.models import (
     AgentMessage,
     AgentSession,
     AgentToolCall,
+    AgentTurn,
 )
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 
@@ -193,7 +194,9 @@ class TestConfirmationSingleUse:
             repo = AgentRepository(pg_session_factory)
             s = AgentSession(title="Conf test")
             repo.create_session(s)
-            tc = AgentToolCall(session_id=s.id, turn_id="t1", tool_name="test")
+            turn = AgentTurn(session_id=s.id, turn_number=1, user_message_id="um-1")
+            repo.add_turn(turn)
+            tc = AgentToolCall(session_id=s.id, turn_id=turn.id, tool_name="test")
             repo.add_tool_call(tc)
             conf = AgentConfirmation(
                 tool_call_id=tc.id,
@@ -242,7 +245,9 @@ class TestConcurrentConfirmation:
             repo = AgentRepository(setup_session)
             s = AgentSession(title="Concurrent test")
             repo.create_session(s)
-            tc = AgentToolCall(session_id=s.id, turn_id="t1", tool_name="test")
+            turn = AgentTurn(session_id=s.id, turn_number=1, user_message_id="um-1")
+            repo.add_turn(turn)
+            tc = AgentToolCall(session_id=s.id, turn_id=turn.id, tool_name="test")
             repo.add_tool_call(tc)
             conf = AgentConfirmation(
                 tool_call_id=tc.id,
