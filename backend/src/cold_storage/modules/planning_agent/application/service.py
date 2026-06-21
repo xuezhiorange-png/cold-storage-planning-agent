@@ -148,6 +148,25 @@ class PlanningAgentService:
 
         check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
 
+        # Fix #2: Atomically claim idempotency key before any side effects
+        if idempotency_key:
+            import uuid as _uuid
+
+            turn_id_placeholder = str(_uuid.uuid4())
+            claimed = self._repo.claim_idempotency(
+                session_id=session_id,
+                key=idempotency_key,
+                turn_id=turn_id_placeholder,
+            )
+            if not claimed:
+                # Race: another request claimed first
+                existing = self._repo.get_idempotency_record(session_id, idempotency_key)
+                if existing and existing.status == "completed" and existing.result_payload:
+                    original = dict(existing.result_payload)
+                    original["idempotent_replay"] = True
+                    return original
+                raise ConcurrentTurnError(session_id)
+
         # Create user message
         now = datetime.now(UTC)
         user_msg = AgentMessage(
@@ -159,7 +178,7 @@ class PlanningAgentService:
         )
         self._repo.add_message(user_msg)
 
-        # Update session sequence
+        # Update session sequence (CAS)
         updated_session = AgentSession(
             **{
                 **asdict(session),
@@ -168,7 +187,8 @@ class PlanningAgentService:
                 "version": session.version + 1,
             }
         )
-        self._repo.update_session(updated_session)
+        if not self._repo.update_session_cas(updated_session, expected_version=session.version):
+            raise ConcurrentTurnError(session_id)
 
         # Create processing turn
         turn = AgentTurn(
@@ -180,7 +200,7 @@ class PlanningAgentService:
         )
         self._repo.add_turn(turn)
 
-        # Update session turn sequence
+        # Update session turn sequence (CAS)
         updated_session2 = AgentSession(
             **{
                 **asdict(updated_session),
@@ -189,7 +209,10 @@ class PlanningAgentService:
                 "version": updated_session.version + 1,
             }
         )
-        self._repo.update_session(updated_session2)
+        if not self._repo.update_session_cas(
+            updated_session2, expected_version=updated_session.version
+        ):
+            raise ConcurrentTurnError(session_id)
 
         # Orchestrate: get model decision + execute tools
         # Fix #6: Re-raise domain errors instead of catch-all
@@ -202,22 +225,16 @@ class PlanningAgentService:
             repo=self._repo,
         )
 
-        # Fix #9: Transaction boundary — commit after orchestration
-        self._repo.commit()
-
-        # Fix #4: Store idempotency key with full result (after commit, in new transaction)
+        # Fix #2: Complete idempotency record in same transaction
         if idempotency_key:
-            try:
-                self._repo.store_idempotency_record(
-                    session_id=session_id,
-                    key=idempotency_key,
-                    turn_id=result.get("turn_id", ""),
-                    result_payload=result,
-                )
-                self._repo.commit()
-            except Exception:
-                # Idempotency storage failure is non-fatal — the result is already committed
-                pass
+            self._repo.complete_idempotency(
+                session_id=session_id,
+                key=idempotency_key,
+                result_payload=result,
+            )
+
+        # Fix #9: Transaction boundary — commit orchestration + idempotency together
+        self._repo.commit()
 
         return result
 
@@ -330,6 +347,41 @@ class PlanningAgentService:
                 }
             )
             self._repo.update_tool_call(failed_tc)
+
+            # Fix #6: Set turn and session to FAILED on confirmation tool failure
+            now_f = datetime.now(UTC)
+            turn_f = self._repo.get_active_turn(tc.session_id)
+            if turn_f is not None and turn_f.status == TurnStatus.AWAITING_CONFIRMATION:
+                validate_turn_transition(turn_f.status, TurnStatus.FAILED)
+                failed_turn = AgentTurn(
+                    **{
+                        **asdict(turn_f),
+                        "status": TurnStatus.FAILED,
+                        "error_code": type(exc).__name__,
+                        "error_message": str(exc),
+                        "completed_at": now_f,
+                    }
+                )
+                self._repo.update_turn(failed_turn)
+
+            session_f = self._repo.get_session(tc.session_id)
+            if session_f.status == SessionStatus.AWAITING_CONFIRMATION:
+                validate_session_transition(session_f.status, SessionStatus.FAILED)
+                failed_session = AgentSession(
+                    **{
+                        **asdict(session_f),
+                        "status": SessionStatus.FAILED,
+                        "updated_at": now_f,
+                        "version": session_f.version + 1,
+                    }
+                )
+                self._repo.update_session(failed_session)
+
+            self._repo.commit()
+            return {
+                "tool_call": self._repo.get_tool_call(tool_call_id),
+                "session_status": self._repo.get_session(tc.session_id).status.value,
+            }
 
         # --- Fix #3: Transition turn and session after confirm/reject ---
         now = datetime.now(UTC)

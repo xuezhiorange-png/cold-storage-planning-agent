@@ -69,7 +69,7 @@ class FakeAgentModelGateway:
                     AgentToolRequest(
                         tool_name="planning.calculate_throughput_inventory_area",
                         arguments={
-                            "daily_inbound_mass_kg": tons * 1000,
+                            "daily_inbound_mass_kg": tons,
                             "working_time_h_per_day": hours,
                         },
                         reason="用户提供了产品类型和产能信息",
@@ -90,13 +90,14 @@ class FakeAgentModelGateway:
                         {"name": "project_id", "reason": "required_by_tool", "expected_unit": None},
                     ],
                 )
+            version_number = _extract_version_number(user_text)
             return AgentDecision(
                 decision_type=DecisionType.PROPOSE_TOOLS,
                 assistant_message="准备生成方案对比。",
                 tool_requests=[
                     AgentToolRequest(
                         tool_name="scheme.generate_and_compare",
-                        arguments={"project_id": project_id, "version_number": 1},
+                        arguments={"project_id": project_id, "version_number": version_number},
                         reason="用户请求方案生成",
                     ),
                 ],
@@ -160,6 +161,21 @@ def _extract_hours(text: str) -> float | None:
     if match:
         return float(match.group(1))
     return None  # Fix #7: no silent default
+
+
+def _extract_version_number(text: str) -> int:
+    """Extract version number from user text. Defaults to 1 if not found.
+
+    Recognizes patterns like:
+    - 版本1 / 版本号1 / version 1 / version_number=1
+    """
+    match = re.search(r"版本[号]?\s*[=:]?\s*(\d+)", text)
+    if match:
+        return int(match.group(1))
+    match = re.search(r"version[_ ]?number?[=:]?\s*(\d+)", text, re.IGNORECASE)
+    if match:
+        return int(match.group(1))
+    return 1  # Default to version 1 when not specified
 
 
 def _extract_project_id(text: str) -> str | None:

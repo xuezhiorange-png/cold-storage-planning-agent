@@ -135,7 +135,7 @@ def _get_planning_agent_service(
         "project_version.get": ProjectVersionGetAdapter(project_service),
     }
 
-    orchestrator = AgentOrchestrator(tool_adapters=adapters)
+    orchestrator = AgentOrchestrator(tool_adapters=adapters, project_service=project_service)
     repo = AgentRepository(db_session)
     return PlanningAgentService(
         repository=repo,

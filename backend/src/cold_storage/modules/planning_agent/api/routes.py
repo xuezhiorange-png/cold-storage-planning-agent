@@ -58,16 +58,17 @@ def create_agent_router(
 ) -> APIRouter:
     """Create the planning agent API router.
 
-    ``service_factory`` is a FastAPI dependency that returns a
-    PlanningAgentService with its own per-request DB Session.
+    ``service_factory`` is a FastAPI dependency (e.g. ``_get_planning_agent_service``)
+    whose own ``Depends`` chain is resolved by FastAPI directly.  Each request
+    gets its own DB Session via ``_get_db_session``.
     """
     router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 
-    def _svc() -> PlanningAgentService:
-        return service_factory()
-
     @router.post("/sessions", response_model=SessionResponse, status_code=201)
-    def create_session(req: CreateSessionRequest, svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
+    def create_session(  # noqa: E501
+        req: CreateSessionRequest,
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+    ) -> Any:
         session = svc.create_session(
             project_id=req.project_id,
             project_version_id=req.project_version_id,
@@ -89,7 +90,7 @@ def create_agent_router(
         )
 
     @router.get("/sessions", response_model=list[SessionResponse])
-    def list_sessions(svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
+    def list_sessions(svc: PlanningAgentService = Depends(service_factory)) -> Any:  # noqa: B008
         sessions = svc.list_sessions()
         return [
             SessionResponse(
@@ -110,7 +111,7 @@ def create_agent_router(
         ]
 
     @router.get("/sessions/{session_id}", response_model=SessionResponse)
-    def get_session(session_id: str, svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
+    def get_session(session_id: str, svc: PlanningAgentService = Depends(service_factory)) -> Any:  # noqa: B008
         try:
             s = svc.get_session(session_id)
         except SessionNotFoundError as exc:
@@ -131,7 +132,7 @@ def create_agent_router(
         )
 
     @router.get("/sessions/{session_id}/messages", response_model=list[MessageResponse])
-    def get_messages(session_id: str, svc: PlanningAgentService = Depends(_svc)) -> Any:  # noqa: B008
+    def get_messages(session_id: str, svc: PlanningAgentService = Depends(service_factory)) -> Any:  # noqa: B008
         try:
             svc.get_session(session_id)
         except SessionNotFoundError as exc:
@@ -157,7 +158,7 @@ def create_agent_router(
     def post_message(
         session_id: str,
         req: PostMessageRequest,
-        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
     ) -> Any:
         try:
             result = svc.post_user_message(
@@ -215,7 +216,7 @@ def create_agent_router(
     def get_turn(
         session_id: str,
         turn_id: str,
-        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
     ) -> Any:
         turn = svc.get_turn(turn_id)
         if turn is None or turn.session_id != session_id:
@@ -239,7 +240,7 @@ def create_agent_router(
     @router.get("/sessions/{session_id}/tool-calls", response_model=list[ToolCallInfo])
     def list_tool_calls(
         session_id: str,
-        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
     ) -> Any:
         try:
             svc.get_session(session_id)
@@ -264,7 +265,7 @@ def create_agent_router(
     def confirm_tool_call(
         tool_call_id: str,
         req: ConfirmToolCallRequest,
-        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
     ) -> Any:
         try:
             result = svc.confirm_tool_call(tool_call_id, confirmation_token=req.confirmation_token)
@@ -297,7 +298,7 @@ def create_agent_router(
     def reject_tool_call(
         tool_call_id: str,
         req: RejectToolCallRequest,  # noqa: ARG001
-        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
     ) -> Any:
         try:
             result = svc.reject_tool_call(tool_call_id)
@@ -323,7 +324,7 @@ def create_agent_router(
     @router.post("/sessions/{session_id}/cancel", response_model=SessionCancelResponse)
     def cancel_session(
         session_id: str,
-        svc: PlanningAgentService = Depends(_svc),  # noqa: B008
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
     ) -> Any:
         try:
             s = svc.cancel_session(session_id)

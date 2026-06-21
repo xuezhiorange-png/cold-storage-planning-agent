@@ -60,9 +60,11 @@ class AgentOrchestrator:
         tool_adapters: dict[str, ToolAdapter] | None = None,
         *,
         max_tool_calls: int = 5,
+        project_service: Any = None,
     ) -> None:
         self._adapters: dict[str, ToolAdapter] = tool_adapters or {}
         self._max_tool_calls = max_tool_calls
+        self._project_service = project_service
 
     def register_adapter(self, tool_name: str, adapter: ToolAdapter) -> None:
         self._adapters[tool_name] = adapter
@@ -121,6 +123,7 @@ class AgentOrchestrator:
         confirmations: list[AgentConfirmation] = []
         confirmation_tokens: list[dict[str, Any]] = []
         confirmation_required = False
+        turn_failed = False
 
         if decision.decision_type == DecisionType.PROPOSE_TOOLS:
             if len(decision.tool_requests) > self._max_tool_calls:
@@ -219,6 +222,7 @@ class AgentOrchestrator:
                                 "completed_at": datetime.now(UTC),
                             }
                         )
+                        turn_failed = True
                         # Stop on failure
                         break
 
@@ -282,10 +286,29 @@ class AgentOrchestrator:
         model_provider = metadata.provider if metadata else "unknown"
         model_name_str = metadata.model_name if metadata else ""
 
-        # Complete turn
-        turn_status = (
-            TurnStatus.AWAITING_CONFIRMATION if confirmation_required else TurnStatus.COMPLETED
-        )
+        # Fix #6: Complete turn — handle failure
+        if turn_failed:
+            failed_tc = next((tc for tc in tool_calls if tc.status == ToolCallStatus.FAILED), None)
+            failure_content = (
+                f"\u5de5\u5177 {failed_tc.tool_name} \u6267\u884c\u5931\u8d25:"
+                f" {failed_tc.error_message}"
+                if failed_tc
+                else "\u5de5\u5177\u6267\u884c\u5931\u8d25"
+            )
+            failure_msg = AgentMessage(
+                session_id=session.id,
+                sequence=session.next_message_sequence + 1,
+                role=MessageRole.TOOL,
+                content=failure_content,
+                created_at=now,
+            )
+            repo.add_message(failure_msg)
+            turn_status = TurnStatus.FAILED
+        else:
+            turn_status = (
+                TurnStatus.AWAITING_CONFIRMATION if confirmation_required else TurnStatus.COMPLETED
+            )
+
         completed_turn = AgentTurn(
             **{
                 **asdict(turn),
@@ -313,6 +336,16 @@ class AgentOrchestrator:
                 "requires_review": decision.requires_review
                 or any(tc.requires_review for tc in tool_calls),
                 "completed_at": now,
+                **(
+                    {
+                        "error_code": (failed_tc.error_code if turn_failed and failed_tc else None),
+                        "error_message": (
+                            failed_tc.error_message if turn_failed and failed_tc else None
+                        ),
+                    }
+                    if turn_failed
+                    else {}
+                ),
             }
         )
         repo.update_turn(completed_turn)
@@ -394,72 +427,39 @@ class AgentOrchestrator:
         if tool_def.requires_project_version and not session.project_version_id:
             raise UnauthorizedError(f"Tool {tool_def.name} requires a bound project version")
 
-        # Validate project/version existence and version status
-        if (
-            tool_def.requires_project_version
-            and session.project_id
-            and session.project_version_id
-            and repo is not None
-        ):
-            from cold_storage.modules.projects.application.service import (
-                ProjectService as _ProjectService,
-            )
-
+        # Fix #3: Validate project/version existence and status — fail closed
+        if tool_def.requires_project_version and session.project_id and session.project_version_id:
+            if self._project_service is None:
+                raise UnauthorizedError(
+                    "Project service not configured — cannot validate version status"
+                )
+            assert session.project_id is not None  # guarded by outer if
             try:
-                project_svc = _ProjectService()
-                assert session.project_id is not None  # guarded by outer if
-                # Extract version_number from the session binding
-                # session.project_version_id stores the version UUID; look up the version
-                versions = project_svc.list_versions(session.project_id)
-                version_obj = None
-                for v in versions:
-                    if v.id == session.project_version_id or str(v.version_number) == str(
-                        session.project_version_id
-                    ):
-                        version_obj = v
-                        break
-                if version_obj is None:
-                    raise UnauthorizedError(
-                        f"Project version {session.project_version_id} not found"
-                    )
-                # Check version status is in allowed statuses
-                if version_obj.status not in tool_def.allowed_version_statuses:
-                    raise UnauthorizedError(
-                        f"Version status '{version_obj.status}' not in allowed "
-                        f"{tool_def.allowed_version_statuses} for tool {tool_def.name}"
-                    )
-            except UnauthorizedError:
-                raise
-            except Exception:
-                # If project service is unavailable (e.g. in tests), skip
-                pass
-
-        # Check approved version write rejection
-        if (
-            tool_def.authorization_level in (AuthorizationLevel.WRITE, AuthorizationLevel.CALCULATE)
-            and session.project_id
-            and session.project_version_id
-            and repo is not None
-        ):
-            from cold_storage.modules.projects.application.service import (
-                ProjectService as _ProjectService,
-            )
-
-            try:
-                project_svc = _ProjectService()
-                assert session.project_id is not None  # guarded by outer if
-                versions = project_svc.list_versions(session.project_id)
-                for v in versions:
-                    if v.id == session.project_version_id or str(v.version_number) == str(
-                        session.project_version_id
-                    ):
-                        if v.status == "approved":
-                            raise UnauthorizedError("Cannot modify an approved version")
-                        break
-            except UnauthorizedError:
-                raise
-            except Exception:
-                pass
+                versions = self._project_service.list_versions(session.project_id)
+            except Exception as exc:
+                raise UnauthorizedError(f"Failed to query project versions: {exc}") from exc
+            version_obj = None
+            for v in versions:
+                if v.id == session.project_version_id or str(v.version_number) == str(
+                    session.project_version_id
+                ):
+                    version_obj = v
+                    break
+            if version_obj is None:
+                raise UnauthorizedError(f"Project version {session.project_version_id} not found")
+            # Check version status is in allowed statuses
+            if version_obj.status not in tool_def.allowed_version_statuses:
+                raise UnauthorizedError(
+                    f"Version status '{version_obj.status}' not in allowed "
+                    f"{tool_def.allowed_version_statuses} for tool {tool_def.name}"
+                )
+            # Check approved version write rejection
+            if (
+                tool_def.authorization_level
+                in (AuthorizationLevel.WRITE, AuthorizationLevel.CALCULATE)
+                and version_obj.status == "approved"
+            ):
+                raise UnauthorizedError("Cannot modify an approved version")
 
     def execute_single_tool(
         self,

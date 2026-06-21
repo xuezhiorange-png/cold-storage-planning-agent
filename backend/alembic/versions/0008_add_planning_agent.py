@@ -93,6 +93,15 @@ def upgrade() -> None:
         sa.UniqueConstraint("session_id", "turn_number", name="uq_agent_turns_session_turn"),
     )
     op.create_index("ix_agent_turns_session_id", "agent_turns", ["session_id"])
+    # Fix #4: Partial unique index — at most one active turn per session
+    op.create_index(
+        "uq_agent_turns_active_per_session",
+        "agent_turns",
+        ["session_id"],
+        unique=True,
+        postgresql_where=sa.text("status IN ('processing', 'awaiting_confirmation', 'executing')"),
+        sqlite_where=sa.text("status IN ('processing', 'awaiting_confirmation', 'executing')"),
+    )
 
     op.create_table(
         "agent_tool_calls",
@@ -153,6 +162,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("idempotency_key", sa.String(128), nullable=False),
+        sa.Column("status", sa.String(16), nullable=False, server_default="processing"),
         sa.Column("turn_id", sa.String(36), nullable=False),
         sa.Column("result_ref", sa.Text, nullable=True),
         sa.Column("result_payload", _json_type(), nullable=True),

@@ -30,7 +30,7 @@ class TestFakeAgentModelGateway:
         assert d1.tool_requests[0].tool_name == "planning.calculate_throughput_inventory_area"
         # Verify args are correctly extracted (Fix #7: no silent defaults)
         args = d1.tool_requests[0].arguments
-        assert args["daily_inbound_mass_kg"] == 25000.0
+        assert args["daily_inbound_mass_kg"] == 25.0
         assert args["working_time_h_per_day"] == 16.0
 
     def test_blueberry_without_hours_returns_clarification(self):

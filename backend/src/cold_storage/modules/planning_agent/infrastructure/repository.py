@@ -329,7 +329,7 @@ class AgentRepository:
     # ----- Idempotency -----
 
     def get_idempotency_record(self, session_id: str, key: str) -> AgentIdempotencyRecord | None:
-        """Fix #4: Atomic idempotency check — indexed lookup, no table scan."""
+        """Indexed lookup for idempotency record."""
         stmt = sa.select(AgentIdempotencyRecord).where(
             AgentIdempotencyRecord.session_id == session_id,
             AgentIdempotencyRecord.idempotency_key == key,
@@ -337,28 +337,50 @@ class AgentRepository:
         record: AgentIdempotencyRecord | None = self._session.execute(stmt).scalar_one_or_none()
         return record
 
-    def store_idempotency_record(
+    def claim_idempotency(
         self,
         session_id: str,
         key: str,
         turn_id: str,
-        result_ref: str | None = None,
-        result_payload: dict[str, Any] | None = None,
-    ) -> AgentIdempotencyRecord:
-        """Fix #4: Atomically store idempotency key with full result payload."""
+    ) -> bool:
+        """Atomically insert idempotency record with status='processing'.
+
+        Returns True if inserted (claim succeeded), False if duplicate exists.
+        Uses the unique constraint for atomicity.
+        """
         import uuid as _uuid
 
         rec = AgentIdempotencyRecord(
             id=str(_uuid.uuid4()),
             session_id=session_id,
             idempotency_key=key,
+            status="processing",
             turn_id=turn_id,
-            result_ref=result_ref,
-            result_payload=result_payload,
         )
         self._session.add(rec)
-        self._session.flush()
-        return rec
+        try:
+            self._session.flush()
+            return True
+        except Exception:
+            self._session.rollback()
+            return False
+
+    def complete_idempotency(
+        self,
+        session_id: str,
+        key: str,
+        result_payload: dict[str, Any],
+    ) -> None:
+        """Mark idempotency record as completed with the full result payload."""
+        stmt = (
+            sa.update(AgentIdempotencyRecord)
+            .where(
+                AgentIdempotencyRecord.session_id == session_id,
+                AgentIdempotencyRecord.idempotency_key == key,
+            )
+            .values(status="completed", result_payload=result_payload)
+        )
+        self._session.execute(stmt)
 
     # ----- Serializers -----
 

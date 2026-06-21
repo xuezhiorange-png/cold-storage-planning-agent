@@ -163,6 +163,7 @@ class AgentIdempotencyRecord(Base):
         sa.String(36), sa.ForeignKey("agent_sessions.id"), nullable=False
     )
     idempotency_key: Mapped[str] = mapped_column(sa.String(128), nullable=False)
+    status: Mapped[str] = mapped_column(sa.String(16), nullable=False, server_default="processing")
     turn_id: Mapped[str] = mapped_column(sa.String(36), nullable=False)
     result_ref: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     result_payload: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON, nullable=True)

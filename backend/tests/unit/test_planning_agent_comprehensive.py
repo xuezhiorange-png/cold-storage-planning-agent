@@ -93,9 +93,24 @@ def registry():
     return build_default_registry()
 
 
+class _FakeProjectService:
+    """Minimal fake for version governance in tests."""
+
+    def list_versions(self, project_id: str):
+        from dataclasses import dataclass
+
+        @dataclass
+        class _FakeVersion:
+            id: str = "ver-1"
+            version_number: int = 1
+            status: str = "draft"
+
+        return [_FakeVersion()]
+
+
 @pytest.fixture()
 def orchestrator():
-    return AgentOrchestrator()
+    return AgentOrchestrator(project_service=_FakeProjectService())
 
 
 @pytest.fixture()
@@ -188,7 +203,7 @@ class TestConfirmationFlow:
 
     def test_confirm_tool_call_approve(self, db_session, gateway, registry):
         repo = AgentRepository(db_session)
-        orch = AgentOrchestrator()
+        orch = AgentOrchestrator(project_service=_FakeProjectService())
         orch.register_adapter("scheme.generate_and_compare", _FakeSchemeAdapter())
         service = PlanningAgentService(
             repository=repo,
@@ -299,7 +314,7 @@ class TestRejectionFlow:
 class TestTokenReplayProtection:
     def test_confirm_twice_second_fails(self, db_session, gateway, registry):
         repo = AgentRepository(db_session)
-        orch = AgentOrchestrator()
+        orch = AgentOrchestrator(project_service=_FakeProjectService())
         orch.register_adapter("scheme.generate_and_compare", _FakeSchemeAdapter())
         service = PlanningAgentService(
             repository=repo,
@@ -347,7 +362,7 @@ class TestExpiredConfirmation:
             repository=repo,
             gateway=FakeAgentModelGateway(),
             registry=build_default_registry(),
-            orchestrator=AgentOrchestrator(),
+            orchestrator=AgentOrchestrator(project_service=_FakeProjectService()),
         )
 
         session = service.create_session(
