@@ -24,29 +24,15 @@ class PdfParser:
     """Parse PDF files using PyMuPDF (fitz).
 
     Extracts text page-by-page, detects encrypted PDFs, and flags pages
-    with insufficient text for OCR processing.
-
-    This parser is stateless: ``parse_with_metadata`` returns a
-    ``ParseResult`` rather than storing results on the instance.
+    with insufficient text for OCR processing.  Returns a ``ParseResult``
+    whose ``ocr_page_numbers`` and ``page_count`` carry the OCR metadata;
+    the application service reads these directly.
     """
 
     name: str = "pdf"
 
-    def parse(self, content: bytes, filename: str) -> list[ParsedBlock]:
-        """Parse a PDF file into ParsedBlock list.
-
-        Raises
-        ------
-        ImportError
-            If pymupdf is not installed.
-        ValueError
-            If the PDF is encrypted.
-        """
-        result = self.parse_with_metadata(content, filename)
-        return result.blocks
-
-    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
-        """Parse a PDF and return a ParseResult with blocks + OCR metadata.
+    def parse(self, content: bytes, filename: str) -> ParseResult:
+        """Parse a PDF file into a ParseResult with blocks + OCR metadata.
 
         Raises
         ------
@@ -126,29 +112,6 @@ class PdfParser:
                 ocr_page_numbers=ocr_page_numbers,
             )
 
-        finally:
-            doc.close()  # type: ignore[no-untyped-call]
-
-    def detect_ocr_needed(self, content: bytes) -> bool:
-        """Check if a PDF contains insufficient text and requires OCR.
-
-        Returns True if the average text per page is below OCR_TEXT_THRESHOLD.
-        """
-        if pymupdf is None:
-            return False
-
-        doc = pymupdf.open(stream=content, filetype="pdf")  # type: ignore[no-untyped-call]
-        try:
-            if bool(doc.is_encrypted):
-                return True
-            if doc.page_count == 0:
-                return False
-            total_text = 0
-            for page_idx in range(doc.page_count):
-                page = doc.load_page(page_idx)  # type: ignore[no-untyped-call]
-                total_text += len(page.get_text("text").strip())
-            avg_text = total_text / doc.page_count
-            return bool(avg_text < OCR_TEXT_THRESHOLD)
         finally:
             doc.close()  # type: ignore[no-untyped-call]
 

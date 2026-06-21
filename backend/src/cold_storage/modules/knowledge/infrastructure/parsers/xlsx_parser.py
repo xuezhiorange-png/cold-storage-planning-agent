@@ -31,7 +31,7 @@ class XlsxParser:
 
     name: str = "xlsx"
 
-    def parse(self, content: bytes, filename: str) -> list[ParsedBlock]:
+    def parse(self, content: bytes, filename: str) -> ParseResult:
         """Parse an .xlsx file into structured blocks.
 
         Raises
@@ -133,11 +133,6 @@ class XlsxParser:
         finally:
             wb.close()
 
-        return blocks
-
-    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
-        """Parse and return ParseResult with blocks and metadata."""
-        blocks = self.parse(content, filename)
         return ParseResult(blocks=blocks)
 
 

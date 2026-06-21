@@ -40,7 +40,8 @@ class TestTextParser:
         """Basic UTF-8 text file is parsed into paragraph blocks."""
         parser = TextParser()
         content = b"Hello world.\n\nThis is a second paragraph."
-        blocks = parser.parse(content, "test.txt")
+        result = parser.parse(content, "test.txt")
+        blocks = result.blocks
         assert len(blocks) >= 1
         assert blocks[0].block_type == "paragraph"
         assert "Hello world" in blocks[0].text
@@ -49,7 +50,8 @@ class TestTextParser:
         """UTF-8 BOM is handled and stripped."""
         parser = TextParser()
         content = b"\xef\xbb\xbfHello with BOM"
-        blocks = parser.parse(content, "bom.txt")
+        result = parser.parse(content, "bom.txt")
+        blocks = result.blocks
         assert len(blocks) >= 1
         assert "Hello with BOM" in blocks[0].text
         # BOM should not appear in text
@@ -73,7 +75,8 @@ class TestMarkdownParser:
         """Section path correctly tracks heading hierarchy."""
         parser = MarkdownParser()
         md = "# Title\n## Section A\nContent under A\n## Section B\nMore content"
-        blocks = parser.parse(md.encode("utf-8"), "doc.md")
+        result = parser.parse(md.encode("utf-8"), "doc.md")
+        blocks = result.blocks
         # Find the paragraph blocks (not headings)
         paragraphs = [b for b in blocks if b.block_type == "paragraph"]
         assert len(paragraphs) >= 1
@@ -85,7 +88,8 @@ class TestMarkdownParser:
         """Fenced code blocks are parsed as separate 'code' blocks."""
         parser = MarkdownParser()
         md = "# Title\nSome text\n```python\nprint('hello')\n```\nAfter code"
-        blocks = parser.parse(md.encode("utf-8"), "code.md")
+        result = parser.parse(md.encode("utf-8"), "code.md")
+        blocks = result.blocks
         code_blocks = [b for b in blocks if b.block_type == "code"]
         assert len(code_blocks) >= 1
         assert "print" in code_blocks[0].text
@@ -101,7 +105,8 @@ class TestCsvParser:
         """Row ranges are correctly recorded for each data row."""
         parser = CsvParser()
         csv_content = "Name,Value\nAlpha,100\nBeta,200\nGamma,300\n"
-        blocks = parser.parse(csv_content.encode("utf-8"), "data.csv")
+        result = parser.parse(csv_content.encode("utf-8"), "data.csv")
+        blocks = result.blocks
         # First block is metadata (headers), rest are data rows
         data_blocks = [b for b in blocks if b.block_type == "paragraph"]
         assert len(data_blocks) == 3
@@ -114,7 +119,8 @@ class TestCsvParser:
         """Headers are captured in a metadata block."""
         parser = CsvParser()
         csv_content = "Name,Value,Unit\nAlpha,100,kg\n"
-        blocks = parser.parse(csv_content.encode("utf-8"), "headers.csv")
+        result = parser.parse(csv_content.encode("utf-8"), "headers.csv")
+        blocks = result.blocks
         metadata_blocks = [b for b in blocks if b.block_type == "metadata"]
         assert len(metadata_blocks) == 1
         assert "Name" in metadata_blocks[0].text
@@ -145,7 +151,8 @@ class TestDocxParser:
         from cold_storage.modules.knowledge.infrastructure.parsers.docx_parser import DocxParser
 
         parser = DocxParser()
-        blocks = parser.parse(buf.read(), "test.docx")
+        result = parser.parse(buf.read(), "test.docx")
+        blocks = result.blocks
         text_blocks = [b for b in blocks if b.block_type in ("paragraph", "heading")]
         assert len(text_blocks) >= 2
         texts = " ".join(b.text for b in text_blocks)
@@ -175,7 +182,8 @@ class TestDocxParser:
         from cold_storage.modules.knowledge.infrastructure.parsers.docx_parser import DocxParser
 
         parser = DocxParser()
-        blocks = parser.parse(buf.read(), "table.docx")
+        result = parser.parse(buf.read(), "table.docx")
+        blocks = result.blocks
         table_blocks = [b for b in blocks if b.block_type == "table"]
         assert len(table_blocks) >= 1
         assert "A" in table_blocks[0].text
@@ -210,7 +218,8 @@ class TestXlsxParser:
         from cold_storage.modules.knowledge.infrastructure.parsers.xlsx_parser import XlsxParser
 
         parser = XlsxParser()
-        blocks = parser.parse(buf.read(), "multi.xlsx")
+        result = parser.parse(buf.read(), "multi.xlsx")
+        blocks = result.blocks
         sheet_names = {b.sheet_name for b in blocks if b.sheet_name is not None}
         assert "Sheet1" in sheet_names
         assert "Sheet2" in sheet_names
@@ -233,7 +242,8 @@ class TestXlsxParser:
         from cold_storage.modules.knowledge.infrastructure.parsers.xlsx_parser import XlsxParser
 
         parser = XlsxParser()
-        blocks = parser.parse(buf.read(), "formula.xlsx")
+        result = parser.parse(buf.read(), "formula.xlsx")
+        blocks = result.blocks
         all_text = " ".join(b.text for b in blocks)
         # Formula should be present as text, not executed value
         assert "=A1+B1" in all_text
@@ -267,7 +277,8 @@ class TestPdfParser:
         from cold_storage.modules.knowledge.infrastructure.parsers.pdf_parser import PdfParser
 
         parser = PdfParser()
-        blocks = parser.parse(pdf_bytes, "multi.pdf")
+        result = parser.parse(pdf_bytes, "multi.pdf")
+        blocks = result.blocks
         pages = {b.page_start for b in blocks if b.page_start is not None}
         assert 1 in pages
         assert 2 in pages
@@ -288,9 +299,10 @@ class TestPdfParser:
         from cold_storage.modules.knowledge.infrastructure.parsers.pdf_parser import PdfParser
 
         parser = PdfParser()
-        result = parser.detect_ocr_needed(pdf_bytes)
-        # Empty page has no text and no images — avg text is 0
-        assert result is True
+        result = parser.parse(pdf_bytes, "empty.pdf")
+        # Empty page has no text and no images
+        assert len(result.blocks) == 0
+        assert result.page_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -311,8 +323,8 @@ class TestUnsupportedFormat:
 
 
 class TestPdfParserStatelessness:
-    def test_pdf_parse_with_metadata_returns_result(self) -> None:
-        """parse_with_metadata returns a ParseResult with correct fields."""
+    def test_pdf_parse_returns_result(self) -> None:
+        """parse() returns a ParseResult with correct fields."""
         try:
             import pymupdf
         except ImportError:
@@ -329,7 +341,7 @@ class TestPdfParserStatelessness:
         doc.close()
 
         parser = PdfParser()
-        result = parser.parse_with_metadata(pdf_bytes, "test.pdf")
+        result = parser.parse(pdf_bytes, "test.pdf")
 
         assert isinstance(result, ParseResult)
         assert isinstance(result.blocks, list)
@@ -339,7 +351,7 @@ class TestPdfParserStatelessness:
         assert isinstance(result.ocr_page_numbers, list)
 
     def test_pdf_no_shared_state(self) -> None:
-        """parse_with_metadata leaves no shared state between calls."""
+        """parse() leaves no shared state between calls."""
         try:
             import pymupdf
         except ImportError:
@@ -364,8 +376,8 @@ class TestPdfParserStatelessness:
         doc2.close()
 
         parser = PdfParser()
-        result1 = parser.parse_with_metadata(pdf1, "first.pdf")
-        result2 = parser.parse_with_metadata(pdf2, "second.pdf")
+        result1 = parser.parse(pdf1, "first.pdf")
+        result2 = parser.parse(pdf2, "second.pdf")
 
         # No state leakage: results are independent
         assert result1.page_count == 1

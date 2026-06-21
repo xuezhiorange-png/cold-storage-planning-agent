@@ -352,8 +352,8 @@ class KnowledgeService:
                     f"No parser available for extension {rev_rec.file_extension}"
                 )
 
-            # Parse with metadata
-            parse_result = parser.parse_with_metadata(file_content, rev_rec.original_filename)
+            # Parse — all parsers return ParseResult
+            parse_result = parser.parse(file_content, rev_rec.original_filename)
             blocks = parse_result.blocks
             extracted_text_length = sum(len(b.text) for b in blocks)
 
@@ -367,26 +367,21 @@ class KnowledgeService:
             if sheets:
                 sheet_count = len(sheets)
 
-            # Detect OCR requirements
+            # Detect OCR requirements from parse_result metadata
             requires_ocr = False
             requires_review = True
-            if hasattr(parser, "detect_ocr_needed"):
-                requires_ocr = parser.detect_ocr_needed(file_content)
-
-            # Collect parser warnings (e.g. image-only pages) from parse_result
-            if parse_result.warnings:
-                warnings.extend(parse_result.warnings)
-            # If all pages are image-only, chunk_count should be 0
             if parse_result.ocr_page_numbers:
+                ocr_count = len(parse_result.ocr_page_numbers)
                 total_pages = parse_result.page_count or 0
-                ocr_pages_count = len(parse_result.ocr_page_numbers)
-                if total_pages > 0 and ocr_pages_count == total_pages:
-                    # All pages image-only
+                if total_pages > 0 and ocr_count == total_pages:
                     requires_ocr = True
-                elif ocr_pages_count > 0:
-                    # Some pages image-only
+                elif ocr_count > 0:
                     requires_ocr = True
                     requires_review = True
+
+            # Collect parser warnings (e.g. image-only pages)
+            if parse_result.warnings:
+                warnings.extend(parse_result.warnings)
 
             # Chunk
             config = ChunkingConfig()
@@ -701,26 +696,32 @@ class KnowledgeService:
 
             rev_recs = self._repo.list_revisions(doc_rec.id)
 
-            # R4-2: Always exclude withdrawn revisions
+            # Build the set of allowed review statuses.
+            # Default: only approved. Explicit flags opt-in to more.
+            allowed_statuses: set[str] = {"approved"}
+            if include_reviewed:
+                allowed_statuses.add("reviewed")
+            if include_unverified:
+                allowed_statuses.add("unverified")
+
+            # Exclude withdrawn; require ingestion_status=indexed
+            # and review_status in the allowed set.
             eligible = [
                 r
                 for r in rev_recs
-                if r.ingestion_status == "indexed" and r.review_status != "withdrawn"
+                if r.ingestion_status == "indexed"
+                and r.review_status != "withdrawn"
+                and r.review_status in allowed_statuses
             ]
             if not eligible:
                 continue
 
-            # R4-1: When not including historical revisions, select the
-            # newest eligible approved revision; fall back to newest eligible
-            # of any status if no approved revision exists.
+            # When not including historical revisions, pick only the
+            # newest revision.  When including, search all eligible.
             if include_historical_revisions:
                 revs_to_search = eligible
             else:
-                approved = [r for r in eligible if r.review_status == "approved"]
-                if approved:
-                    revs_to_search = [max(approved, key=lambda r: r.revision_number)]
-                else:
-                    revs_to_search = [max(eligible, key=lambda r: r.revision_number)]
+                revs_to_search = [max(eligible, key=lambda r: r.revision_number)]
 
             for rev_rec in revs_to_search:
                 chunk_recs = self._repo.get_chunks(rev_rec.id)

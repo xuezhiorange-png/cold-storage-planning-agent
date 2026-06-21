@@ -228,19 +228,18 @@ async def create_document(
                 break
             total_size += len(chunk)
             if total_size > max_upload_bytes:
-                from cold_storage.modules.knowledge.domain.errors import FileTooLargeError as FTL
+                from cold_storage.modules.knowledge.domain.errors import (
+                    FileTooLargeError as FTL,
+                )
 
                 raise FTL(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
             sha256_hash.update(chunk)
             spooled.write(chunk)
         spooled.seek(0)
-    except Exception:
-        spooled.close()
-        raise
-    mime_type = file.content_type or "application/octet-stream"
-    filename = file.filename or "unnamed"
 
-    try:
+        mime_type = file.content_type or "application/octet-stream"
+        filename = file.filename or "unnamed"
+
         return service.create_document(
             code=code,
             title=title,
@@ -291,19 +290,18 @@ async def create_revision(
                 break
             total_size += len(chunk)
             if total_size > max_upload_bytes:
-                from cold_storage.modules.knowledge.domain.errors import FileTooLargeError as FTL
+                from cold_storage.modules.knowledge.domain.errors import (
+                    FileTooLargeError as FTL,
+                )
 
                 raise FTL(f"File exceeds maximum upload size of {max_upload_bytes} bytes")
             sha256_hash.update(chunk)
             spooled.write(chunk)
         spooled.seek(0)
-    except Exception:
-        spooled.close()
-        raise
-    mime_type = file.content_type or "application/octet-stream"
-    filename = file.filename or "unnamed"
 
-    try:
+        mime_type = file.content_type or "application/octet-stream"
+        filename = file.filename or "unnamed"
+
         return service.create_revision(
             document_id=document_id,
             file=spooled,

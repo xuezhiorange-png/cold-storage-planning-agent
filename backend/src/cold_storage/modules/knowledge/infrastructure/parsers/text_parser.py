@@ -17,7 +17,7 @@ class TextParser:
 
     name: str = "text"
 
-    def parse(self, content: bytes, filename: str) -> list[ParsedBlock]:
+    def parse(self, content: bytes, filename: str) -> ParseResult:
         """Parse a plain text file.
 
         Handles UTF-8 with or without BOM, records line ranges as paragraph metadata,
@@ -26,7 +26,7 @@ class TextParser:
         text = self._decode(content)
         text = unicodedata.normalize("NFKC", text)
         if not text.strip():
-            return []
+            return ParseResult(blocks=[])
 
         # Split into paragraphs on double newlines
         paragraphs = text.split("\n\n")
@@ -60,11 +60,6 @@ class TextParser:
             order += 1
             current_line += line_count
 
-        return blocks
-
-    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
-        """Parse and return ParseResult with blocks and metadata."""
-        blocks = self.parse(content, filename)
         return ParseResult(blocks=blocks)
 
     @staticmethod

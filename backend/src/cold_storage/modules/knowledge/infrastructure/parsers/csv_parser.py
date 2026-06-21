@@ -26,12 +26,12 @@ class CsvParser:
 
     name: str = "csv"
 
-    def parse(self, content: bytes, filename: str) -> list[ParsedBlock]:
+    def parse(self, content: bytes, filename: str) -> ParseResult:
         """Parse a CSV file, respecting row and column limits."""
         text = content.decode("utf-8-sig", errors="replace")
         text = unicodedata.normalize("NFKC", text)
         if not text.strip():
-            return []
+            return ParseResult(blocks=[])
 
         reader = csv.reader(io.StringIO(text))
         blocks: list[ParsedBlock] = []
@@ -42,7 +42,7 @@ class CsvParser:
         try:
             headers = next(reader)
         except StopIteration:
-            return []
+            return ParseResult(blocks=[])
 
         # Trim to column limit
         if len(headers) > MAX_CSV_COLUMNS:
@@ -109,11 +109,6 @@ class CsvParser:
             )
             order += 1
 
-        return blocks
-
-    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
-        """Parse and return ParseResult with blocks and metadata."""
-        blocks = self.parse(content, filename)
         return ParseResult(blocks=blocks)
 
 

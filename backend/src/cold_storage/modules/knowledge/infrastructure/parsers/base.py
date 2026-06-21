@@ -21,16 +21,18 @@ class ParseResult:
 
 
 class Parser(Protocol):
-    """Protocol that all file parsers must implement."""
+    """Protocol that all file parsers must implement.
+
+    Every parser exposes a single ``parse`` method that returns a
+    ``ParseResult``.  Non-PDF parsers return empty ``warnings`` and
+    ``ocr_page_numbers``; the PDF parser populates them when image-only
+    pages are detected.
+    """
 
     name: str
 
-    def parse(self, content: bytes, filename: str) -> list[ParsedBlock]:
-        """Parse raw file content into a list of ParsedBlock."""
-        ...
-
-    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
-        """Parse raw file content, returning rich metadata alongside blocks."""
+    def parse(self, content: bytes, filename: str) -> ParseResult:
+        """Parse raw file content into a ParseResult."""
         ...
 
 

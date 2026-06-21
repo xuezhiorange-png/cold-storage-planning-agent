@@ -22,12 +22,12 @@ class MarkdownParser:
 
     name: str = "markdown"
 
-    def parse(self, content: bytes, filename: str) -> list[ParsedBlock]:
+    def parse(self, content: bytes, filename: str) -> ParseResult:
         """Parse a Markdown file into structured blocks."""
         text = content.decode("utf-8", errors="replace")
         text = unicodedata.normalize("NFKC", text)
         if not text.strip():
-            return []
+            return ParseResult(blocks=[])
 
         blocks: list[ParsedBlock] = []
         heading_stack: list[str] = []
@@ -101,11 +101,6 @@ class MarkdownParser:
             order += 1
             current_line += line_count
 
-        return blocks
-
-    def parse_with_metadata(self, content: bytes, filename: str) -> ParseResult:
-        """Parse and return ParseResult with blocks and metadata."""
-        blocks = self.parse(content, filename)
         return ParseResult(blocks=blocks)
 
     @staticmethod
