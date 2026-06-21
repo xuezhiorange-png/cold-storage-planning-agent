@@ -6,7 +6,6 @@ The service owns transaction boundaries. The orchestrator does NOT hold a DB ses
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
@@ -34,6 +33,7 @@ from cold_storage.modules.planning_agent.domain.gateways import AgentModelGatewa
 from cold_storage.modules.planning_agent.domain.lifecycle import (
     validate_session_transition,
     validate_tool_call_transition,
+    validate_turn_transition,
 )
 from cold_storage.modules.planning_agent.domain.models import (
     AgentConfirmation,
@@ -92,7 +92,9 @@ class PlanningAgentService:
 
     def cancel_session(self, session_id: str, *, user: str = "user") -> AgentSession:
         session = self._repo.get_session(session_id)
-        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
+        check_authorization(
+            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
+        )
         validate_session_transition(session.status, SessionStatus.CANCELLED)
         closed = AgentSession(
             **{
@@ -117,7 +119,21 @@ class PlanningAgentService:
     ) -> dict[str, Any]:
         session = self._repo.get_session(session_id)
 
-        # Check session is active
+        # Fix #4: Idempotency — check for duplicate key
+        if idempotency_key:
+            existing = self._repo.get_session_by_idempotency_key(idempotency_key)
+            if existing is not None:
+                # Return the previous result for this idempotency key
+                return self._repo.get_last_result(idempotency_key) or {
+                    "session_id": session_id,
+                    "turn_id": "",
+                    "assistant_message": "Already processed",
+                    "decision_type": "answer",
+                    "tool_calls": [],
+                    "idempotent_replay": True,
+                }
+
+        # Check session is active (or awaiting_confirmation for follow-up)
         if session.status in (SessionStatus.COMPLETED, SessionStatus.CANCELLED):
             raise SessionCompletedError(session_id)
 
@@ -126,7 +142,9 @@ class PlanningAgentService:
         if active_turn is not None:
             raise ConcurrentTurnError(session_id)
 
-        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
+        check_authorization(
+            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
+        )
 
         # Create user message
         now = datetime.now(UTC)
@@ -172,29 +190,20 @@ class PlanningAgentService:
         self._repo.update_session(updated_session2)
 
         # Orchestrate: get model decision + execute tools
-        try:
-            result = self._orchestrator.orchestrate_turn(
-                session=updated_session2,
-                turn=turn,
-                user_message=user_msg,
-                gateway=self._gateway,
-                registry=self._registry,
-                repo=self._repo,
-            )
-            return result
-        except Exception as exc:
-            # Mark turn as failed
-            failed_turn = AgentTurn(
-                **{
-                    **asdict(turn),
-                    "status": TurnStatus.FAILED,
-                    "error_code": type(exc).__name__,
-                    "error_message": str(exc),
-                    "completed_at": datetime.now(UTC),
-                }
-            )
-            self._repo.update_turn(failed_turn)
-            return {"error": str(exc), "turn_id": turn.id}
+        # Fix #6: Re-raise domain errors instead of catch-all
+        result = self._orchestrator.orchestrate_turn(
+            session=updated_session2,
+            turn=turn,
+            user_message=user_msg,
+            gateway=self._gateway,
+            registry=self._registry,
+            repo=self._repo,
+        )
+
+        # Fix #9: Transaction boundary — commit after orchestration
+        self._repo.commit()
+
+        return result
 
     def get_messages(self, session_id: str) -> list[AgentMessage]:
         return self._repo.get_messages(session_id)
@@ -216,15 +225,23 @@ class PlanningAgentService:
         *,
         confirmation_token: str,
         user: str = "user",
-    ) -> AgentToolCall:
+    ) -> dict[str, Any]:
+        """Confirm a pending tool call.
+
+        Returns dict with tool_call info and session state updates.
+        Transitions: turn awaiting_confirmation -> completed, 
+        session awaiting_confirmation -> active.
+        """
         tc = self._repo.get_tool_call(tool_call_id)
         if tc is None:
             raise SessionNotFoundError(tool_call_id)
 
         session = self._repo.get_session(tc.session_id)
-        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
+        check_authorization(
+            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
+        )
 
-        token_hash = hashlib.sha256(confirmation_token.encode()).hexdigest()
+        token_hash = sha256_json(confirmation_token)
 
         # Find confirmation
         confirmation = self._repo.get_confirmation_by_token_hash(token_hash)
@@ -234,8 +251,12 @@ class PlanningAgentService:
         # Validate
         if confirmation.status != ConfirmationStatus.ACTIVE:
             raise ConfirmationAlreadyUsedError(confirmation.id)
-        if confirmation.expires_at and confirmation.expires_at < datetime.now(UTC):
-            raise ConfirmationExpiredError(confirmation.id)
+        if confirmation.expires_at:
+            expires = confirmation.expires_at
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=UTC)
+            if expires < datetime.now(UTC):
+                raise ConfirmationExpiredError(confirmation.id)
         if confirmation.tool_call_id != tool_call_id:
             raise StaleConfirmationError(confirmation.id, "tool_call_id mismatch")
         if confirmation.session_id != tc.session_id:
@@ -288,7 +309,7 @@ class PlanningAgentService:
                     "completed_at": datetime.now(UTC),
                 }
             )
-            return self._repo.update_tool_call(succeeded_tc)
+            self._repo.update_tool_call(succeeded_tc)
         except Exception as exc:
             failed_tc = AgentToolCall(
                 **{
@@ -299,21 +320,120 @@ class PlanningAgentService:
                     "completed_at": datetime.now(UTC),
                 }
             )
-            return self._repo.update_tool_call(failed_tc)
+            self._repo.update_tool_call(failed_tc)
+
+        # --- Fix #3: Transition turn and session after confirm/reject ---
+        now = datetime.now(UTC)
+
+        # Find the turn that was awaiting_confirmation
+        turn = self._repo.get_active_turn(tc.session_id)
+        if turn is not None and turn.status == TurnStatus.AWAITING_CONFIRMATION:
+            validate_turn_transition(turn.status, TurnStatus.COMPLETED)
+            completed_turn = AgentTurn(
+                **{
+                    **asdict(turn),
+                    "status": TurnStatus.COMPLETED,
+                    "completed_at": now,
+                }
+            )
+            self._repo.update_turn(completed_turn)
+
+        # Transition session from awaiting_confirmation -> active
+        session = self._repo.get_session(tc.session_id)
+        if session.status == SessionStatus.AWAITING_CONFIRMATION:
+            validate_session_transition(
+                session.status, SessionStatus.ACTIVE
+            )
+            resumed = AgentSession(
+                **{
+                    **asdict(session),
+                    "status": SessionStatus.ACTIVE,
+                    "updated_at": now,
+                    "version": session.version + 1,
+                }
+            )
+            self._repo.update_session(resumed)
+
+        # Fix #9: Transaction boundary — commit after confirmation flow
+        self._repo.commit()
+
+        # Get the updated tool call for response
+        final_tc = self._repo.get_tool_call(tool_call_id)
+        return {
+            "tool_call": final_tc,
+            "session_status": self._repo.get_session(tc.session_id).status.value,
+        }
 
     def reject_tool_call(
         self,
         tool_call_id: str,
         *,
         user: str = "user",
-    ) -> AgentToolCall:
+    ) -> dict[str, Any]:
+        """Reject a pending tool call.
+
+        Returns dict with tool_call info and session state updates.
+        Transitions: turn awaiting_confirmation -> completed,
+        session awaiting_confirmation -> active.
+        """
         tc = self._repo.get_tool_call(tool_call_id)
         if tc is None:
             raise SessionNotFoundError(tool_call_id)
         session = self._repo.get_session(tc.session_id)
-        check_authorization(AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user))
+        check_authorization(
+            AuthorizationLevel.WRITE, is_session_owner=(session.created_by == user)
+        )
         validate_tool_call_transition(tc.status, ToolCallStatus.REJECTED)
         rejected = AgentToolCall(
-            **{**asdict(tc), "status": ToolCallStatus.REJECTED, "completed_at": datetime.now(UTC)}
+            **{
+                **asdict(tc),
+                "status": ToolCallStatus.REJECTED,
+                "completed_at": datetime.now(UTC),
+            }
         )
-        return self._repo.update_tool_call(rejected)
+        self._repo.update_tool_call(rejected)
+
+        # --- Fix #3: Transition turn and session ---
+        now = datetime.now(UTC)
+
+        turn = self._repo.get_active_turn(tc.session_id)
+        if turn is not None and turn.status == TurnStatus.AWAITING_CONFIRMATION:
+            validate_turn_transition(turn.status, TurnStatus.COMPLETED)
+            completed_turn = AgentTurn(
+                **{
+                    **asdict(turn),
+                    "status": TurnStatus.COMPLETED,
+                    "completed_at": now,
+                }
+            )
+            self._repo.update_turn(completed_turn)
+
+        session = self._repo.get_session(tc.session_id)
+        if session.status == SessionStatus.AWAITING_CONFIRMATION:
+            validate_session_transition(
+                session.status, SessionStatus.ACTIVE
+            )
+            resumed = AgentSession(
+                **{
+                    **asdict(session),
+                    "status": SessionStatus.ACTIVE,
+                    "updated_at": now,
+                    "version": session.version + 1,
+                }
+            )
+            self._repo.update_session(resumed)
+
+        # Fix #9: Transaction boundary — commit after reject flow
+        self._repo.commit()
+
+        final_tc = self._repo.get_tool_call(tool_call_id)
+        return {
+            "tool_call": final_tc,
+            "session_status": self._repo.get_session(tc.session_id).status.value,
+        }
+
+
+def sha256_json(obj: Any) -> str:
+    """Local SHA-256 helper — same as domain sha256_json."""
+    from cold_storage.modules.planning_agent.domain.models import sha256_json as _sha256_json
+    return _sha256_json(obj)

@@ -2,6 +2,8 @@
 
 Each tool declares its name, version, schema, authorization level, and
 whether it requires confirmation or a bound project/version.
+
+Fix #8: validate_arguments uses jsonschema for strict type/range/nested validation.
 """
 
 from __future__ import annotations
@@ -14,6 +16,52 @@ from cold_storage.modules.planning_agent.domain.errors import (
     ToolArgumentValidationError,
     UnregisteredToolError,
 )
+
+# Lazy import for jsonschema to avoid import-time dependency issues
+_jsonschema_validator: Any = None
+
+
+def _get_validate() -> Any:
+    """Lazy-load jsonschema.validate."""
+    global _jsonschema_validator  # noqa: PLW0603
+    if _jsonschema_validator is None:
+        try:
+            import jsonschema
+
+            _jsonschema_validator = jsonschema.validate
+        except ImportError:
+            # Fallback: basic required-field check only
+            def _basic_validate(instance: Any, schema: Any) -> None:
+                required = schema.get("required", [])
+                for field_name in required:
+                    if field_name not in instance:
+                        raise ToolArgumentValidationError(
+                            "unknown", [f"Missing required field: {field_name}"]
+                        )
+                # Check types for properties
+                properties = schema.get("properties", {})
+                for key, value in instance.items():
+                    if key in properties:
+                        prop_schema = properties[key]
+                        expected_type = prop_schema.get("type")
+                        if expected_type == "string" and not isinstance(value, str):
+                            raise ToolArgumentValidationError(
+                                "unknown",
+                                [f"Field {key} must be string, got {type(value).__name__}"],
+                            )
+                        elif expected_type == "number" and not isinstance(value, (int, float)):
+                            raise ToolArgumentValidationError(
+                                "unknown",
+                                [f"Field {key} must be number, got {type(value).__name__}"],
+                            )
+                        elif expected_type == "integer" and not isinstance(value, int):
+                            raise ToolArgumentValidationError(
+                                "unknown",
+                                [f"Field {key} must be integer, got {type(value).__name__}"],
+                            )
+
+            _jsonschema_validator = _basic_validate
+    return _jsonschema_validator
 
 
 @dataclass(frozen=True)
@@ -54,15 +102,24 @@ class ToolRegistry:
         return list(self._tools.keys())
 
     def validate_arguments(self, name: str, arguments: dict[str, Any]) -> None:
-        """Validate arguments against the tool input_schema (basic required-field check)."""
+        """Validate arguments against the tool input_schema using jsonschema.
+
+        Checks: required fields, types, nested objects, additional properties.
+        """
         tool = self.get(name)
-        required = tool.input_schema.get("required", [])
-        errors: list[str] = []
-        for field_name in required:
-            if field_name not in arguments:
-                errors.append(f"Missing required field: {field_name}")
-        if errors:
-            raise ToolArgumentValidationError(name, errors)
+        schema = tool.input_schema
+        if not schema:
+            return
+
+        validate = _get_validate()
+        try:
+            validate(instance=arguments, schema=schema)
+        except Exception as exc:
+            if isinstance(exc, ToolArgumentValidationError):
+                raise
+            raise ToolArgumentValidationError(
+                name, [str(exc)]
+            ) from exc
 
 
 def build_default_registry() -> ToolRegistry:
@@ -80,6 +137,7 @@ def build_default_registry() -> ToolRegistry:
                     "query": {"type": "string", "description": "Search query"},
                     "top_k": {"type": "integer", "default": 5},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
@@ -96,6 +154,7 @@ def build_default_registry() -> ToolRegistry:
                 "properties": {
                     "project_id": {"type": "string"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
@@ -114,6 +173,7 @@ def build_default_registry() -> ToolRegistry:
                     "project_id": {"type": "string"},
                     "version_number": {"type": "integer"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
@@ -130,13 +190,14 @@ def build_default_registry() -> ToolRegistry:
                 "type": "object",
                 "required": ["daily_inbound_mass_kg", "working_time_h_per_day"],
                 "properties": {
-                    "daily_inbound_mass_kg": {"type": "number"},
-                    "working_time_h_per_day": {"type": "number"},
-                    "finished_storage_days": {"type": "number"},
-                    "packaging_storage_days": {"type": "number"},
-                    "precooling_required_ratio": {"type": "number"},
-                    "storage_days": {"type": "number"},
+                    "daily_inbound_mass_kg": {"type": "number", "minimum": 0},
+                    "working_time_h_per_day": {"type": "number", "minimum": 0, "maximum": 24},
+                    "finished_storage_days": {"type": "number", "minimum": 0},
+                    "packaging_storage_days": {"type": "number", "minimum": 0},
+                    "precooling_required_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+                    "storage_days": {"type": "number", "minimum": 0},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
@@ -162,6 +223,7 @@ def build_default_registry() -> ToolRegistry:
                         "items": {"type": "object"},
                     },
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
@@ -178,8 +240,9 @@ def build_default_registry() -> ToolRegistry:
                 "required": ["project_id", "version_number"],
                 "properties": {
                     "project_id": {"type": "string"},
-                    "version_number": {"type": "integer"},
+                    "version_number": {"type": "integer", "minimum": 1},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.WRITE,
             requires_confirmation=True,

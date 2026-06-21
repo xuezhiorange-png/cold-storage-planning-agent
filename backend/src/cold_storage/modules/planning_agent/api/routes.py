@@ -138,6 +138,8 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
         "/sessions/{session_id}/messages", response_model=PostMessageResponse, status_code=201
     )
     def post_message(session_id: str, req: PostMessageRequest) -> Any:
+        # Fix #6: Domain errors are NOT caught here — they propagate from service.
+        # Only infrastructure/transport errors are caught for HTTP mapping.
         try:
             result = service.post_user_message(
                 session_id,
@@ -164,9 +166,6 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
             raise HTTPException(status_code=503, detail=str(exc)) from None
         except PlanningAgentError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
-
-        if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
 
         return PostMessageResponse(
             session_id=result["session_id"],
@@ -223,10 +222,12 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
             for tc in tcs
         ]
 
-    @router.post("/tool-calls/{tool_call_id}/confirm", response_model=ToolCallInfo)
+    @router.post("/tool-calls/{tool_call_id}/confirm")
     def confirm_tool_call(tool_call_id: str, req: ConfirmToolCallRequest) -> Any:
         try:
-            tc = service.confirm_tool_call(tool_call_id, confirmation_token=req.confirmation_token)
+            result = service.confirm_tool_call(
+                tool_call_id, confirmation_token=req.confirmation_token
+            )
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except ConfirmationAlreadyUsedError as exc:
@@ -239,37 +240,41 @@ def create_agent_router(service: PlanningAgentService) -> APIRouter:
             raise HTTPException(status_code=403, detail=str(exc)) from None
         except InvalidTransitionError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
-        return ToolCallInfo(
-            id=tc.id,
-            tool_name=tc.tool_name,
-            status=tc.status.value,
-            requires_confirmation=False,
-            arguments=tc.arguments,
-            result=tc.result,
-            warnings=tc.warning_messages,
-            requires_review=tc.requires_review,
-        )
+        tc = result["tool_call"]
+        return {
+            "id": tc.id,
+            "tool_name": tc.tool_name,
+            "status": tc.status.value,
+            "requires_confirmation": False,
+            "arguments": tc.arguments,
+            "result": tc.result,
+            "warnings": tc.warning_messages,
+            "requires_review": tc.requires_review,
+            "session_status": result["session_status"],
+        }
 
-    @router.post("/tool-calls/{tool_call_id}/reject", response_model=ToolCallInfo)
+    @router.post("/tool-calls/{tool_call_id}/reject")
     def reject_tool_call(tool_call_id: str, req: RejectToolCallRequest) -> Any:  # noqa: ARG001
         try:
-            tc = service.reject_tool_call(tool_call_id)
+            result = service.reject_tool_call(tool_call_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except UnauthorizedError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from None
         except InvalidTransitionError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
-        return ToolCallInfo(
-            id=tc.id,
-            tool_name=tc.tool_name,
-            status=tc.status.value,
-            requires_confirmation=False,
-            arguments=tc.arguments,
-            result=tc.result,
-            warnings=tc.warning_messages,
-            requires_review=tc.requires_review,
-        )
+        tc = result["tool_call"]
+        return {
+            "id": tc.id,
+            "tool_name": tc.tool_name,
+            "status": tc.status.value,
+            "requires_confirmation": False,
+            "arguments": tc.arguments,
+            "result": tc.result,
+            "warnings": tc.warning_messages,
+            "requires_review": tc.requires_review,
+            "session_status": result["session_status"],
+        }
 
     @router.post("/sessions/{session_id}/cancel", response_model=SessionCancelResponse)
     def cancel_session(session_id: str) -> Any:

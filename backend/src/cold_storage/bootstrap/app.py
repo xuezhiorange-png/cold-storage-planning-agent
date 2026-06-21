@@ -41,6 +41,11 @@ from cold_storage.modules.planning.application.service import (
     zone_number,
 )
 from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
+from cold_storage.modules.planning_agent.api.routes import create_agent_router
+from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
+from cold_storage.modules.planning_agent.application.service import PlanningAgentService
+from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
+from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway as NewFakeAgentGateway
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
     InvalidVersionTransitionError,
@@ -568,13 +573,31 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     def list_audit_events(project_id: str, service: ProjectServiceDep) -> list[dict[str, Any]]:
         return service.list_audit_events(project_id)
 
-    @post_agent_message(app)
-    def agent_message(
-        request: AgentMessageRequest,
-        service: AgentServiceDep,
-    ) -> dict[str, Any]:
-        response = service.handle_message(request.message)
-        return response.__dict__
+    # --- New Planning Agent Router (Task 8) ---
+    # Registers /api/v1/agent/* endpoints including sessions, messages,
+    # tool-calls, confirm, reject, cancel.
+    new_gateway = NewFakeAgentGateway()
+    new_registry = build_default_registry()
+    new_orchestrator = AgentOrchestrator()
+    # DB session is created per-request via get_engine in dependencies.
+    # For the new router, we create the service with a placeholder that
+    # will be overridden via dependency injection in the router.
+    def _get_new_agent_service() -> PlanningAgentService:
+        from sqlalchemy.orm import Session as SASession
+        from cold_storage.bootstrap.dependencies import get_engine
+        from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
+
+        engine = get_engine()
+        session = SASession(bind=engine)
+        repo = AgentRepository(session)
+        return PlanningAgentService(
+            repository=repo,
+            gateway=new_gateway,
+            registry=new_registry,
+            orchestrator=new_orchestrator,
+        )
+
+    app.include_router(create_agent_router(_get_new_agent_service()))
 
     # -----------------------------------------------------------------------
     # Core Calculation Endpoints (Task 4)

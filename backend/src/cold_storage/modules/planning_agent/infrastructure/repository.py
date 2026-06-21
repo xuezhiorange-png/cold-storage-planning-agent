@@ -266,8 +266,51 @@ class AgentRepository:
             return c
         rec.status = c.status.value
         rec.used_at = c.used_at
+        rec.expires_at = c.expires_at
         self._session.flush()
         return c
+
+    # ----- Transaction boundary -----
+
+    def commit(self) -> None:
+        """Commit the current transaction. Fix #9: explicit transaction boundary."""
+        self._session.commit()
+
+    def rollback(self) -> None:
+        """Rollback the current transaction."""
+        self._session.rollback()
+
+    # ----- Idempotency -----
+
+    def get_session_by_idempotency_key(self, key: str) -> str | None:
+        """Check if an idempotency key has been used. Returns session_id or None.
+
+        Fix #4: Idempotency key persistence. Uses the agent_messages table
+        to store idempotency keys in structured_content.
+        """
+        import json as _json
+
+        stmt = sa.select(AgentMessageRecord).where(
+            AgentMessageRecord.structured_content.isnot(None)
+        )
+        rows = self._session.execute(stmt).scalars().all()
+        for row in rows:
+            if row.structured_content:
+                try:
+                    data = _json.loads(row.structured_content)
+                    if data.get("idempotency_key") == key:
+                        result: str = row.session_id
+                        return result
+                except (ValueError, TypeError):
+                    pass
+        return None
+
+    def get_last_result(self, key: str) -> dict[str, Any] | None:
+        """Retrieve the cached result for an idempotency key.
+
+        Fix #4: Returns the cached turn result if available.
+        """
+        return None  # V1: no result caching yet — will return None and let caller handle
 
     # ----- Serializers -----
 

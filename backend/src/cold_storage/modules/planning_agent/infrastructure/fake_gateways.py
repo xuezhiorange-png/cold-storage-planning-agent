@@ -2,6 +2,9 @@
 
 Completely deterministic, no network access, no external SDK dependency.
 Returns fixed structured decisions based on fixed test inputs.
+
+Fix #7: No silent defaulting of critical engineering parameters.
+When required params are missing, returns ask_clarification.
 """
 
 from __future__ import annotations
@@ -31,38 +34,45 @@ class FakeAgentModelGateway:
 
         # Deterministic routing based on keywords
         if "蓝莓" in user_text or "blueberry" in user_text.lower():
-            if "吨" in user_text or "kg" in user_text.lower():
-                return AgentDecision(
-                    decision_type=DecisionType.PROPOSE_TOOLS,
-                    assistant_message="检测到蓝莓加工厂规划需求，准备执行通量和面积计算。",
-                    tool_requests=[
-                        AgentToolRequest(
-                            tool_name="planning.calculate_throughput_inventory_area",
-                            arguments={
-                                "daily_inbound_mass_kg": _extract_tons(user_text) * 1000,
-                                "working_time_h_per_day": _extract_hours(user_text),
-                            },
-                            reason="用户提供了产品类型和产能信息",
-                        ),
-                    ],
-                    requires_review=True,
-                    warnings=["使用演示系数，结果需专业复核"],
-                )
-            return AgentDecision(
-                decision_type=DecisionType.ASK_CLARIFICATION,
-                assistant_message="请提供日入库量（吨/天）和工作时间（小时/天）。",
-                missing_parameters=[
-                    {
+            tons = _extract_tons(user_text)
+            hours = _extract_hours(user_text)
+
+            # Fix #7: No silent defaults — ask_clarification if missing
+            if tons is None or hours is None:
+                missing = []
+                if tons is None:
+                    missing.append({
                         "name": "daily_inbound_mass_kg",
                         "reason": "required_by_tool",
                         "expected_unit": "kg",
-                    },
-                    {
+                    })
+                if hours is None:
+                    missing.append({
                         "name": "working_time_h_per_day",
                         "reason": "required_by_tool",
                         "expected_unit": "hours",
-                    },
+                    })
+                return AgentDecision(
+                    decision_type=DecisionType.ASK_CLARIFICATION,
+                    assistant_message="请提供日入库量（吨/天）和工作时间（小时/天）。",
+                    missing_parameters=missing,
+                )
+
+            return AgentDecision(
+                decision_type=DecisionType.PROPOSE_TOOLS,
+                assistant_message="检测到蓝莓加工厂规划需求，准备执行通量和面积计算。",
+                tool_requests=[
+                    AgentToolRequest(
+                        tool_name="planning.calculate_throughput_inventory_area",
+                        arguments={
+                            "daily_inbound_mass_kg": tons * 1000,
+                            "working_time_h_per_day": hours,
+                        },
+                        reason="用户提供了产品类型和产能信息",
+                    ),
                 ],
+                requires_review=True,
+                warnings=["使用演示系数，结果需专业复核"],
             )
 
         if "方案" in user_text or "scheme" in user_text.lower():
@@ -127,15 +137,20 @@ class DefaultAgentModelGateway:
         )
 
 
-def _extract_tons(text: str) -> float:
+def _extract_tons(text: str) -> float | None:
+    """Extract tonnage from text. Returns None if not found (no silent default)."""
     match = re.search(r"(\d+(?:\.\d+)?)\s*吨", text)
     if match:
         return float(match.group(1))
-    return 25.0  # default demo
+    match_kg = re.search(r"(\d+(?:\.\d+)?)\s*kg", text, re.IGNORECASE)
+    if match_kg:
+        return float(match_kg.group(1)) / 1000
+    return None  # Fix #7: no silent default
 
 
-def _extract_hours(text: str) -> float:
+def _extract_hours(text: str) -> float | None:
+    """Extract working hours from text. Returns None if not found (no silent default)."""
     match = re.search(r"(\d+(?:\.\d+)?)\s*(?:小时|h)", text)
     if match:
         return float(match.group(1))
-    return 16.0  # default demo
+    return None  # Fix #7: no silent default
