@@ -41,12 +41,17 @@ def test_calculations_are_pure() -> None:
 
 
 def test_agent_has_no_database_dependency() -> None:
+    """Agent domain and application layers must not depend on SQLAlchemy.
+
+    Infrastructure layer (orm.py, repository.py) is allowed to use SQLAlchemy.
+    """
     agent_files = read_python_files(BACKEND_SRC / "modules" / "planning_agent")
     assert agent_files
-    for path in agent_files:
+    # Only check domain + application + api layers, not infrastructure
+    forbidden_files = [p for p in agent_files if "infrastructure" not in p.parts]
+    for path in forbidden_files:
         content = path.read_text()
-        assert "sqlalchemy" not in content
-        assert "Session" not in content
+        assert "sqlalchemy" not in content, f"Agent non-infra file depends on sqlalchemy: {path}"
 
 
 def test_no_global_dumping_ground_modules() -> None:

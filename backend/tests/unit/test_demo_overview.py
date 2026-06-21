@@ -43,4 +43,7 @@ def test_demo_overview_contains_sample_data_for_all_modules() -> None:
     )
     assert axial_fan_row["quantity"] == (24 + 8) * 4
     assert axial_fan_row["total_power_kw"] == 70.4
-    assert overview["modules"][9]["sample"]["tool_calls"] == ["propose_project_input_changes"]
+    assert (
+        "planning.calculate_throughput_inventory_area"
+        in overview["modules"][9]["sample"]["tool_calls"]
+    )

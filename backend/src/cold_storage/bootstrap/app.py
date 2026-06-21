@@ -40,7 +40,7 @@ from cold_storage.modules.planning.application.service import (
     planning_run_response,
     zone_number,
 )
-from cold_storage.modules.planning_agent.application.agent_service import PlanningAgentService
+from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
     InvalidVersionTransitionError,
@@ -50,7 +50,7 @@ from cold_storage.modules.schemes.api.routes import register_scheme_routes
 from cold_storage.modules.schemes.application.service import SchemeService
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
-AgentServiceDep = Annotated[PlanningAgentService, Depends(get_agent_service)]
+AgentServiceDep = Annotated[LegacyPlanningAgentService, Depends(get_agent_service)]
 
 
 # ---------------------------------------------------------------------------

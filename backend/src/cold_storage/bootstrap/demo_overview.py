@@ -15,8 +15,8 @@ from cold_storage.modules.planning.application.service import (
     build_power_configuration,
     zone_number,
 )
-from cold_storage.modules.planning_agent.application.agent_service import PlanningAgentService
-from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeModelGateway
+from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
+from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 
 
 def build_demo_overview() -> dict[str, Any]:
@@ -63,7 +63,7 @@ def build_demo_overview() -> dict[str, Any]:
             total_power_kw=_number(power_configuration["total_installed_power_kw"]),
         )
     )
-    agent_response = PlanningAgentService(FakeModelGateway()).handle_message(
+    agent_response = LegacyPlanningAgentService(FakeAgentModelGateway()).handle_message(
         "新建蓝莓项目，日入库25吨，每天工作16小时"
     )
     modules = [
