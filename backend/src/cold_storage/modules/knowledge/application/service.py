@@ -369,11 +369,11 @@ class KnowledgeService:
             requires_ocr = False
             requires_review = True
             if hasattr(parser, "detect_ocr_needed"):
-                requires_ocr = parser.detect_ocr_needed(file_content)  
+                requires_ocr = parser.detect_ocr_needed(file_content)
 
             # Collect parser warnings (e.g. image-only pages)
             if hasattr(parser, "_last_parse_result"):
-                parse_result = parser._last_parse_result  
+                parse_result = parser._last_parse_result
                 if parse_result and parse_result.warnings:
                     warnings.extend(parse_result.warnings)
                 # If all pages are image-only, chunk_count should be 0
