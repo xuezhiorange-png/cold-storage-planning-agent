@@ -6,6 +6,7 @@ The service owns transaction boundaries. The orchestrator does NOT hold a DB ses
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
@@ -88,6 +89,9 @@ class PlanningAgentService:
 
     def list_sessions(self, limit: int = 50) -> list[AgentSession]:
         return self._repo.list_sessions(limit=limit)
+
+    def list_sessions_by_actor(self, actor: str, limit: int = 50) -> list[AgentSession]:
+        return self._repo.list_sessions_by_actor(actor, limit=limit)
 
     def cancel_session(self, session_id: str, *, user: str = "user") -> AgentSession:
         session = self._repo.get_session(session_id)
@@ -223,6 +227,7 @@ class PlanningAgentService:
             gateway=self._gateway,
             registry=self._registry,
             repo=self._repo,
+            user=user,
         )
 
         # Fix #2: Complete idempotency record in same transaction with real turn_id
@@ -253,6 +258,73 @@ class PlanningAgentService:
 
     # ----- Confirmation flow -----
 
+    def _write_tool_and_assistant_messages(
+        self,
+        *,
+        session_id: str,
+        tool_call: AgentToolCall,
+        tool_content: str,
+        tool_role: MessageRole,
+        assistant_content: str,
+        now: datetime,
+    ) -> tuple[AgentMessage, AgentMessage]:
+        """Write TOOL result/failure + ASSISTANT summary messages with CAS.
+
+        Returns (tool_message, assistant_message).
+        """
+        session = self._repo.get_session(session_id)
+
+        # TOOL message
+        tool_msg = AgentMessage(
+            session_id=session_id,
+            sequence=session.next_message_sequence,
+            role=tool_role,
+            content=tool_content,
+            tool_call_id=tool_call.id,
+            created_at=now,
+        )
+        self._repo.add_message(tool_msg)
+        seq_after_tool = session.next_message_sequence + 1
+
+        # CAS advance sequence for TOOL message
+        updated_after_tool = AgentSession(
+            **{
+                **asdict(session),
+                "next_message_sequence": seq_after_tool,
+                "updated_at": now,
+                "version": session.version + 1,
+            }
+        )
+        if not self._repo.update_session_cas(updated_after_tool, expected_version=session.version):
+            raise ConcurrentTurnError(session_id)
+
+        # ASSISTANT message
+        assistant_msg = AgentMessage(
+            session_id=session_id,
+            sequence=seq_after_tool,
+            role=MessageRole.ASSISTANT,
+            content=assistant_content,
+            created_at=now,
+        )
+        self._repo.add_message(assistant_msg)
+        seq_after_assistant = seq_after_tool + 1
+
+        # CAS advance sequence for ASSISTANT message
+        updated_after_assistant = AgentSession(
+            **{
+                **asdict(updated_after_tool),
+                "next_message_sequence": seq_after_assistant,
+                "updated_at": now,
+                "version": updated_after_tool.version + 1,
+            }
+        )
+        if not self._repo.update_session_cas(
+            updated_after_assistant, expected_version=updated_after_tool.version
+        ):
+            raise ConcurrentTurnError(session_id)
+
+        return tool_msg, assistant_msg
+
     def confirm_tool_call(
         self,
         tool_call_id: str,
@@ -265,6 +337,7 @@ class PlanningAgentService:
         Returns dict with tool_call info and session state updates.
         Transitions: turn awaiting_confirmation -> completed,
         session awaiting_confirmation -> active.
+        Writes TOOL result message + ASSISTANT summary for audit trail.
         """
         tc = self._repo.get_tool_call(tool_call_id)
         if tc is None:
@@ -296,7 +369,7 @@ class PlanningAgentService:
         if confirmation.arguments_sha256 != tc.arguments_sha256:
             raise StaleConfirmationError(confirmation.id, "arguments changed")
 
-        # Fix #6: Atomic CAS — only one concurrent request can claim this
+        # Atomic CAS — only one concurrent request can claim this
         claimed = self._repo.claim_confirmation_atomic(confirmation.id)
         if not claimed:
             raise ConfirmationAlreadyUsedError(confirmation.id)
@@ -322,11 +395,13 @@ class PlanningAgentService:
         )
         self._repo.update_tool_call(execute_tc)
 
+        now = datetime.now(UTC)
+
         try:
             tool_result = self._orchestrator.execute_single_tool(
                 tc.tool_name, tc.arguments, self._registry
             )
-            # Fix #3: Validate output against output_schema
+            # Validate output against output_schema
             tool_def = self._registry.get(tc.tool_name)
             if tool_def.output_schema:
                 self._orchestrator._validate_output(
@@ -343,6 +418,20 @@ class PlanningAgentService:
                 }
             )
             self._repo.update_tool_call(succeeded_tc)
+
+            # --- Audit messages: TOOL result + ASSISTANT summary ---
+            output_summary = json.dumps(tool_result.output, ensure_ascii=False)[:500]
+            tool_content = f"工具 {tc.tool_name} 执行成功: {output_summary}"
+            assistant_content = f"已确认执行 {tc.tool_name}，结果已返回。"
+            tool_msg, assistant_msg = self._write_tool_and_assistant_messages(
+                session_id=tc.session_id,
+                tool_call=succeeded_tc,
+                tool_content=tool_content,
+                tool_role=MessageRole.TOOL,
+                assistant_content=assistant_content,
+                now=now,
+            )
+
         except Exception as exc:
             failed_tc = AgentToolCall(
                 **{
@@ -355,7 +444,19 @@ class PlanningAgentService:
             )
             self._repo.update_tool_call(failed_tc)
 
-            # Fix #6: Set turn and session to FAILED on confirmation tool failure
+            # --- Audit messages: TOOL failure + ASSISTANT failure ---
+            tool_content = f"工具 {tc.tool_name} 执行失败: {exc}"
+            assistant_content = f"确认执行 {tc.tool_name} 时失败: {exc}"
+            tool_msg, assistant_msg = self._write_tool_and_assistant_messages(
+                session_id=tc.session_id,
+                tool_call=failed_tc,
+                tool_content=tool_content,
+                tool_role=MessageRole.TOOL,
+                assistant_content=assistant_content,
+                now=now,
+            )
+
+            # Set turn and session to FAILED
             now_f = datetime.now(UTC)
             turn_f = self._repo.get_active_turn(tc.session_id)
             if turn_f is not None and turn_f.status == TurnStatus.AWAITING_CONFIRMATION:
@@ -364,6 +465,7 @@ class PlanningAgentService:
                     **{
                         **asdict(turn_f),
                         "status": TurnStatus.FAILED,
+                        "assistant_message_id": assistant_msg.id,
                         "error_code": type(exc).__name__,
                         "error_message": str(exc),
                         "completed_at": now_f,
@@ -393,10 +495,7 @@ class PlanningAgentService:
                 "session_status": self._repo.get_session(tc.session_id).status.value,
             }
 
-        # --- Fix #3: Transition turn and session after confirm/reject ---
-        now = datetime.now(UTC)
-
-        # Find the turn that was awaiting_confirmation
+        # --- Success path: transition turn + session, set assistant_message_id ---
         turn = self._repo.get_active_turn(tc.session_id)
         if turn is not None and turn.status == TurnStatus.AWAITING_CONFIRMATION:
             validate_turn_transition(turn.status, TurnStatus.COMPLETED)
@@ -404,6 +503,7 @@ class PlanningAgentService:
                 **{
                     **asdict(turn),
                     "status": TurnStatus.COMPLETED,
+                    "assistant_message_id": assistant_msg.id,
                     "completed_at": now,
                 }
             )
@@ -424,10 +524,8 @@ class PlanningAgentService:
             if not self._repo.update_session_cas(resumed, expected_version=session.version):
                 raise ConcurrentTurnError(tc.session_id)
 
-        # Fix #9: Transaction boundary — commit after confirmation flow
         self._repo.commit()
 
-        # Get the updated tool call for response
         final_tc = self._repo.get_tool_call(tool_call_id)
         return {
             "tool_call": final_tc,
@@ -443,8 +541,7 @@ class PlanningAgentService:
         """Reject a pending tool call.
 
         Returns dict with tool_call info and session state updates.
-        Transitions: turn awaiting_confirmation -> completed,
-        session awaiting_confirmation -> active.
+        Writes TOOL rejection message + ASSISTANT summary for audit trail.
         """
         tc = self._repo.get_tool_call(tool_call_id)
         if tc is None:
@@ -461,9 +558,21 @@ class PlanningAgentService:
         )
         self._repo.update_tool_call(rejected)
 
-        # --- Fix #3: Transition turn and session ---
         now = datetime.now(UTC)
 
+        # --- Audit messages: TOOL rejection + ASSISTANT summary ---
+        tool_content = f"工具 {tc.tool_name} 被用户拒绝"
+        assistant_content = f"已拒绝执行 {tc.tool_name}。"
+        tool_msg, assistant_msg = self._write_tool_and_assistant_messages(
+            session_id=tc.session_id,
+            tool_call=rejected,
+            tool_content=tool_content,
+            tool_role=MessageRole.TOOL,
+            assistant_content=assistant_content,
+            now=now,
+        )
+
+        # Transition turn + session
         turn = self._repo.get_active_turn(tc.session_id)
         if turn is not None and turn.status == TurnStatus.AWAITING_CONFIRMATION:
             validate_turn_transition(turn.status, TurnStatus.COMPLETED)
@@ -471,6 +580,7 @@ class PlanningAgentService:
                 **{
                     **asdict(turn),
                     "status": TurnStatus.COMPLETED,
+                    "assistant_message_id": assistant_msg.id,
                     "completed_at": now,
                 }
             )
@@ -490,7 +600,6 @@ class PlanningAgentService:
             if not self._repo.update_session_cas(resumed, expected_version=session.version):
                 raise ConcurrentTurnError(tc.session_id)
 
-        # Fix #9: Transaction boundary — commit after reject flow
         self._repo.commit()
 
         final_tc = self._repo.get_tool_call(tool_call_id)

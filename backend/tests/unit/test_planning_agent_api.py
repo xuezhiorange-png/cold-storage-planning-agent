@@ -50,7 +50,7 @@ def app(db_session):
 
 @pytest.fixture()
 def client(app):
-    with TestClient(app) as c:
+    with TestClient(app, headers={"X-Actor": "test-user"}) as c:
         yield c
 
 

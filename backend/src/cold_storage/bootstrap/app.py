@@ -67,14 +67,13 @@ AgentServiceDep = Annotated[LegacyPlanningAgentService, Depends(get_agent_servic
 def _get_db_session() -> Generator[SASession, None, None]:
     """FastAPI dependency: yields a per-request SQLAlchemy Session.
 
-    The session is committed on success, rolled back on failure,
-    and always closed in finally.  Fix #2 + Fix #7.
+    The Application Service owns commit/rollback.  This dependency only
+    handles rollback on unhandled exceptions and session close.
     """
     engine = get_engine()
     session = SASession(bind=engine, expire_on_commit=False)
     try:
         yield session
-        session.commit()
     except Exception:
         session.rollback()
         raise

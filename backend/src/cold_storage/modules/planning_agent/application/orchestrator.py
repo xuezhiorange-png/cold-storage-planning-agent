@@ -81,7 +81,7 @@ class AgentOrchestrator:
         gateway: AgentModelGateway,
         registry: ToolRegistry,
         repo: Any,
-        user: str = "user",
+        user: str,
     ) -> dict[str, Any]:
         """Full turn orchestration: gateway -> decision -> tools -> result.
 
@@ -146,6 +146,7 @@ class AgentOrchestrator:
                     else None,
                     user=user,
                     repo=repo,
+                    arguments=tool_req.arguments,
                 )
 
                 registry.validate_arguments(tool_req.tool_name, tool_req.arguments)
@@ -421,11 +422,12 @@ class AgentOrchestrator:
         tool_def: Any,
         *,
         session: AgentSession,
-        gateway_metadata: GatewayMetadata | None,
-        user: str = "user",
-        repo: Any = None,
+        gateway_metadata: GatewayMetadata | None,  # noqa: ARG002
+        user: str,
+        repo: Any,  # noqa: ARG002
+        arguments: dict[str, Any],
     ) -> None:
-        """Fix #5: Enforce tool-level authorization, project/version binding.
+        """Enforce tool-level authorization, project/version binding.
 
         Validates:
         - Session owner matches current actor
@@ -433,6 +435,7 @@ class AgentOrchestrator:
         - Version belongs to the bound project
         - Version status is in allowed_version_statuses
         - Approved versions cannot be modified
+        - Tool arguments' project_id/version match session bindings (no cross-boundary)
         """
         from cold_storage.modules.planning_agent.domain.authorization import (
             check_authorization,
@@ -454,7 +457,60 @@ class AgentOrchestrator:
         if tool_def.requires_project_version and not session.project_version_id:
             raise UnauthorizedError(f"Tool {tool_def.name} requires a bound project version")
 
-        # Fix #3: Validate project/version existence and status — fail closed
+        # --- Argument-project/version consistency (Round 6) ---
+        # If tool arguments carry project_id, it must match session's bound project
+        if (
+            "project_id" in arguments
+            and session.project_id
+            and arguments["project_id"] != session.project_id
+        ):
+            raise UnauthorizedError(
+                f"Tool argument project_id '{arguments['project_id']}' "
+                f"does not match session project '{session.project_id}'"
+            )
+
+        # If tool arguments carry version_number/version_id, validate consistency
+        if (
+            "version_number" in arguments
+            and session.project_version_id
+            and str(arguments["version_number"]) != str(session.project_version_id)
+        ):
+            # version_number should match what the session is bound to
+            # Session may store as UUID or version_number; compare as strings
+            # Also try to resolve: if session stores UUID, we need to look up version
+            if self._project_service and session.project_id:
+                try:
+                    versions = self._project_service.list_versions(session.project_id)
+                    matched = any(
+                        str(v.version_number) == str(arguments["version_number"])
+                        and (
+                            v.id == session.project_version_id
+                            or str(v.version_number) == str(session.project_version_id)
+                        )
+                        for v in versions
+                    )
+                    if not matched:
+                        raise UnauthorizedError(
+                            f"Tool argument version_number "
+                            f"'{arguments['version_number']}' "
+                            f"does not match session-bound version"
+                        )
+                except UnauthorizedError:
+                    raise
+                except Exception:
+                    raise UnauthorizedError(
+                        f"Tool argument version_number "
+                        f"'{arguments['version_number']}' "
+                        f"does not match session-bound version"
+                    ) from None
+            else:
+                raise UnauthorizedError(
+                    f"Tool argument version_number "
+                    f"'{arguments['version_number']}' "
+                    f"does not match session-bound version"
+                )
+
+        # Validate project/version existence and status — fail closed
         if tool_def.requires_project_version and session.project_id and session.project_version_id:
             if self._project_service is None:
                 raise UnauthorizedError(

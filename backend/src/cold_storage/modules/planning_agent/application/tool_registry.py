@@ -17,51 +17,20 @@ from cold_storage.modules.planning_agent.domain.errors import (
     UnregisteredToolError,
 )
 
-# Lazy import for jsonschema to avoid import-time dependency issues
-_jsonschema_validator: Any = None
+# jsonschema is a hard requirement — no fallback allowed (fail-closed).
+try:
+    import jsonschema
+
+    _jsonschema_validate = jsonschema.validate
+except ImportError as _exc:
+    raise ImportError(
+        "jsonschema is required for tool output validation. Install with: pip install jsonschema"
+    ) from _exc
 
 
 def _get_validate() -> Any:
-    """Lazy-load jsonschema.validate."""
-    global _jsonschema_validator  # noqa: PLW0603
-    if _jsonschema_validator is None:
-        try:
-            import jsonschema
-
-            _jsonschema_validator = jsonschema.validate
-        except ImportError:
-            # Fallback: basic required-field check only
-            def _basic_validate(instance: Any, schema: Any) -> None:
-                required = schema.get("required", [])
-                for field_name in required:
-                    if field_name not in instance:
-                        raise ToolArgumentValidationError(
-                            "unknown", [f"Missing required field: {field_name}"]
-                        )
-                # Check types for properties
-                properties = schema.get("properties", {})
-                for key, value in instance.items():
-                    if key in properties:
-                        prop_schema = properties[key]
-                        expected_type = prop_schema.get("type")
-                        if expected_type == "string" and not isinstance(value, str):
-                            raise ToolArgumentValidationError(
-                                "unknown",
-                                [f"Field {key} must be string, got {type(value).__name__}"],
-                            )
-                        elif expected_type == "number" and not isinstance(value, (int, float)):
-                            raise ToolArgumentValidationError(
-                                "unknown",
-                                [f"Field {key} must be number, got {type(value).__name__}"],
-                            )
-                        elif expected_type == "integer" and not isinstance(value, int):
-                            raise ToolArgumentValidationError(
-                                "unknown",
-                                [f"Field {key} must be integer, got {type(value).__name__}"],
-                            )
-
-            _jsonschema_validator = _basic_validate
-    return _jsonschema_validator
+    """Return jsonschema.validate. Raises at import time if missing."""
+    return _jsonschema_validate
 
 
 @dataclass(frozen=True)
@@ -139,11 +108,30 @@ def build_default_registry() -> ToolRegistry:
             },
             output_schema={
                 "type": "object",
-                "required": ["results", "count"],
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
                 "properties": {
-                    "results": {"type": "array"},
-                    "count": {"type": "integer"},
+                    "source_tool": {"type": "string"},
+                    "tool_version": {"type": "string"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": ["results", "count"],
+                        "properties": {
+                            "results": {"type": "array"},
+                            "count": {"type": "integer"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
@@ -164,10 +152,29 @@ def build_default_registry() -> ToolRegistry:
             },
             output_schema={
                 "type": "object",
-                "required": ["project"],
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
                 "properties": {
-                    "project": {"type": "object"},
+                    "source_tool": {"type": "string"},
+                    "tool_version": {"type": "string"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": ["project"],
+                        "properties": {
+                            "project": {"type": "object"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
@@ -190,10 +197,29 @@ def build_default_registry() -> ToolRegistry:
             },
             output_schema={
                 "type": "object",
-                "required": ["version"],
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
                 "properties": {
-                    "version": {"type": "object"},
+                    "source_tool": {"type": "string"},
+                    "tool_version": {"type": "string"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": ["version"],
+                        "properties": {
+                            "version": {"type": "object"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.READ,
             requires_confirmation=False,
@@ -222,10 +248,29 @@ def build_default_registry() -> ToolRegistry:
             },
             output_schema={
                 "type": "object",
-                "required": ["zone_plan"],
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
                 "properties": {
-                    "zone_plan": {"type": "object"},
+                    "source_tool": {"type": "string"},
+                    "tool_version": {"type": "string"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": ["zone_plan"],
+                        "properties": {
+                            "zone_plan": {"type": "object"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
@@ -255,10 +300,29 @@ def build_default_registry() -> ToolRegistry:
             },
             output_schema={
                 "type": "object",
-                "required": ["result"],
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
                 "properties": {
-                    "result": {"type": "object"},
+                    "source_tool": {"type": "string"},
+                    "tool_version": {"type": "string"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": ["result"],
+                        "properties": {
+                            "result": {"type": "object"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.CALCULATE,
             requires_confirmation=False,
@@ -281,10 +345,29 @@ def build_default_registry() -> ToolRegistry:
             },
             output_schema={
                 "type": "object",
-                "required": ["scheme_result"],
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
                 "properties": {
-                    "scheme_result": {"type": "object"},
+                    "source_tool": {"type": "string"},
+                    "tool_version": {"type": "string"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": ["scheme_result"],
+                        "properties": {
+                            "scheme_result": {"type": "object"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
                 },
+                "additionalProperties": False,
             },
             authorization_level=AuthorizationLevel.WRITE,
             requires_confirmation=True,

@@ -33,6 +33,7 @@ from cold_storage.modules.planning_agent.application.tool_registry import (
     build_default_registry,
 )
 from cold_storage.modules.planning_agent.domain.enums import (
+    DecisionType,
     SessionStatus,
     ToolCallStatus,
     TurnStatus,
@@ -133,7 +134,7 @@ class _UnregisteredToolGateway:
 
     def generate_decision(self, request: AgentModelRequest) -> AgentDecision:
         return AgentDecision(
-            decision_type="propose_tools",
+            decision_type=DecisionType.PROPOSE_TOOLS,
             assistant_message="Testing unregistered tool",
             tool_requests=[
                 AgentToolRequest(
@@ -159,7 +160,7 @@ class _AuthEnforcementGateway:
 
     def generate_decision(self, request: AgentModelRequest) -> AgentDecision:
         return AgentDecision(
-            decision_type="propose_tools",
+            decision_type=DecisionType.PROPOSE_TOOLS,
             assistant_message="Testing auth enforcement",
             tool_requests=[
                 AgentToolRequest(
@@ -186,7 +187,14 @@ class _FakeSchemeAdapter:
     def execute(self, arguments: dict[str, Any]) -> AgentToolResult:
         return AgentToolResult(
             tool_name="scheme.generate_and_compare",
-            output={"scheme_result": {"schemes": [{"name": "方案A"}, {"name": "方案B"}]}},
+            output={
+                "source_tool": "scheme.generate_and_compare",
+                "tool_version": "1.0.0",
+                "result_id": "test-result",
+                "payload": {"scheme_result": {"schemes": [{"name": "方案A"}, {"name": "方案B"}]}},
+                "warnings": [],
+                "requires_review": True,
+            },
             requires_review=True,
         )
 
@@ -439,7 +447,7 @@ class TestCreateAppIntegration:
 
     def test_create_session_returns_201(self):
         app, db_sess = self._build_test_app()
-        with TestClient(app) as client:
+        with TestClient(app, headers={"X-Actor": "test-user"}) as client:
             resp = client.post(
                 "/api/v1/agent/sessions",
                 json={"title": "Integration test"},
@@ -452,7 +460,7 @@ class TestCreateAppIntegration:
 
     def test_list_sessions_returns_200(self):
         app, db_sess = self._build_test_app()
-        with TestClient(app) as client:
+        with TestClient(app, headers={"X-Actor": "test-user"}) as client:
             # Create a session first
             client.post(
                 "/api/v1/agent/sessions",
@@ -535,7 +543,9 @@ class TestErrorPropagation:
         app = FastAPI()
         app.include_router(create_agent_router(lambda: service))
 
-        with TestClient(app, raise_server_exceptions=False) as client:
+        with TestClient(
+            app, raise_server_exceptions=False, headers={"X-Actor": "test-user"}
+        ) as client:
             create_resp = client.post(
                 "/api/v1/agent/sessions",
                 json={"title": "Error propagation test"},

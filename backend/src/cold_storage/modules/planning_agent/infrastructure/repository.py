@@ -112,6 +112,16 @@ class AgentRepository:
         rows = self._session.execute(stmt).scalars().all()
         return [self._to_session(r) for r in rows]
 
+    def list_sessions_by_actor(self, actor: str, limit: int = 50) -> list[AgentSession]:
+        stmt = (
+            sa.select(AgentSessionRecord)
+            .where(AgentSessionRecord.created_by == actor)
+            .order_by(AgentSessionRecord.created_at.desc())
+            .limit(limit)
+        )
+        rows = self._session.execute(stmt).scalars().all()
+        return [self._to_session(r) for r in rows]
+
     # ----- Messages -----
 
     def add_message(self, m: AgentMessage) -> AgentMessage:

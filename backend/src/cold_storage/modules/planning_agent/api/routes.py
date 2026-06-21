@@ -3,11 +3,13 @@
 Fix #2: Router accepts a callable dependency (not a singleton service).
 Fix #3: PostMessageResponse includes pending_confirmations with tokens.
 Fix #7: Transaction boundary handled by _get_db_session in bootstrap.
+Round 6: CurrentActor dependency, owner isolation on all read endpoints.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -53,6 +55,26 @@ def _to_dict(obj: Any) -> dict[str, Any]:
     return {}
 
 
+@dataclass(frozen=True)
+class CurrentActor:
+    """Authenticated actor identity.
+
+    In V1, parsed from the X-Actor header (required). 401 if absent.
+    Future versions should replace with JWT/OAuth middleware.
+    """
+
+    name: str
+
+
+def _require_actor(
+    x_actor: str | None = Header(default=None, alias="X-Actor"),
+) -> CurrentActor:
+    """FastAPI dependency: require X-Actor header, return 401 if absent."""
+    if not x_actor:
+        raise HTTPException(status_code=401, detail="X-Actor header required")
+    return CurrentActor(name=x_actor)
+
+
 def create_agent_router(
     service_factory: Callable[..., PlanningAgentService],
 ) -> APIRouter:
@@ -68,13 +90,13 @@ def create_agent_router(
     def create_session(  # noqa: E501
         req: CreateSessionRequest,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
-        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
     ) -> Any:
         session = svc.create_session(
             project_id=req.project_id,
             project_version_id=req.project_version_id,
             title=req.title,
-            created_by=x_actor,
+            created_by=actor.name,
         )
         return SessionResponse(
             id=session.id,
@@ -92,8 +114,11 @@ def create_agent_router(
         )
 
     @router.get("/sessions", response_model=list[SessionResponse])
-    def list_sessions(svc: PlanningAgentService = Depends(service_factory)) -> Any:  # noqa: B008
-        sessions = svc.list_sessions()
+    def list_sessions(  # noqa: E501
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
+    ) -> Any:
+        sessions = svc.list_sessions_by_actor(actor.name)
         return [
             SessionResponse(
                 id=s.id,
@@ -113,11 +138,17 @@ def create_agent_router(
         ]
 
     @router.get("/sessions/{session_id}", response_model=SessionResponse)
-    def get_session(session_id: str, svc: PlanningAgentService = Depends(service_factory)) -> Any:  # noqa: B008
+    def get_session(
+        session_id: str,
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
+    ) -> Any:
         try:
             s = svc.get_session(session_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
+        if s.created_by != actor.name:
+            raise HTTPException(status_code=404, detail="Session not found")
         return SessionResponse(
             id=s.id,
             project_id=s.project_id,
@@ -134,11 +165,17 @@ def create_agent_router(
         )
 
     @router.get("/sessions/{session_id}/messages", response_model=list[MessageResponse])
-    def get_messages(session_id: str, svc: PlanningAgentService = Depends(service_factory)) -> Any:  # noqa: B008
+    def get_messages(
+        session_id: str,
+        svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
+    ) -> Any:
         try:
-            svc.get_session(session_id)
+            s = svc.get_session(session_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
+        if s.created_by != actor.name:
+            raise HTTPException(status_code=404, detail="Session not found")
         msgs = svc.get_messages(session_id)
         return [
             MessageResponse(
@@ -161,13 +198,13 @@ def create_agent_router(
         session_id: str,
         req: PostMessageRequest,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
-        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
     ) -> Any:
         try:
             result = svc.post_user_message(
                 session_id,
                 req.content,
-                user=x_actor,
+                user=actor.name,
                 idempotency_key=req.idempotency_key,
             )
         except SessionNotFoundError as exc:
@@ -221,7 +258,14 @@ def create_agent_router(
         session_id: str,
         turn_id: str,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
     ) -> Any:
+        try:
+            s = svc.get_session(session_id)
+        except SessionNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        if s.created_by != actor.name:
+            raise HTTPException(status_code=404, detail="Session not found")
         turn = svc.get_turn(turn_id)
         if turn is None or turn.session_id != session_id:
             raise HTTPException(status_code=404, detail="Turn not found")
@@ -245,11 +289,14 @@ def create_agent_router(
     def list_tool_calls(
         session_id: str,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
     ) -> Any:
         try:
-            svc.get_session(session_id)
+            s = svc.get_session(session_id)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
+        if s.created_by != actor.name:
+            raise HTTPException(status_code=404, detail="Session not found")
         tcs = svc.list_tool_calls(session_id)
         return [
             ToolCallInfo(
@@ -270,13 +317,13 @@ def create_agent_router(
         tool_call_id: str,
         req: ConfirmToolCallRequest,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
-        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
     ) -> Any:
         try:
             result = svc.confirm_tool_call(
                 tool_call_id,
                 confirmation_token=req.confirmation_token,
-                user=x_actor,
+                user=actor.name,
             )
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
@@ -308,10 +355,10 @@ def create_agent_router(
         tool_call_id: str,
         req: RejectToolCallRequest,  # noqa: ARG001
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
-        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
     ) -> Any:
         try:
-            result = svc.reject_tool_call(tool_call_id, user=x_actor)
+            result = svc.reject_tool_call(tool_call_id, user=actor.name)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except UnauthorizedError as exc:
@@ -335,10 +382,10 @@ def create_agent_router(
     def cancel_session(
         session_id: str,
         svc: PlanningAgentService = Depends(service_factory),  # noqa: B008
-        x_actor: str = Header(default="api-user", alias="X-Actor"),  # noqa: B008
+        actor: CurrentActor = Depends(_require_actor),  # noqa: B008
     ) -> Any:
         try:
-            s = svc.cancel_session(session_id, user=x_actor)
+            s = svc.cancel_session(session_id, user=actor.name)
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         except UnauthorizedError as exc:
