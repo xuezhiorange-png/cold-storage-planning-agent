@@ -38,6 +38,7 @@ REQUIRED_ENGINEERING_RESULTS: list[str] = [
     "equipment_selection.total_compressor_capacity",
     "electrical_and_energy.total_installed_power",
     "scheme_comparison.schemes",
+    "scheme_comparison.recommended_scheme",
 ]
 
 
@@ -66,10 +67,11 @@ class ReportAssembler:
 
         # Gather data from provider (all persisted, no recalculation)
         project_data = self._provider.get_project(project_id)
-        self._provider.get_project_version(project_version_id)
+        project_version_data = self._provider.get_project_version(project_version_id)
         calculation_data = self._provider.get_calculation_results(project_id, project_version_id)
         scheme_data = self._provider.get_scheme_results(project_id, project_version_id)
-        self._provider.get_agent_sessions(project_id, project_version_id)
+        agent_session_data = self._provider.get_agent_sessions(project_id, project_version_id)
+        knowledge_data = self._provider.get_knowledge_documents()
 
         # Build content sections
         content: dict[str, Any] = {}
@@ -133,7 +135,43 @@ class ReportAssembler:
                 )
             )
 
-        # 10. risks_and_missing_information
+        # 10. provenance source refs — project_version, knowledge, agent_session
+        # Only add sources that are actually present (non-None, non-empty).
+        if project_version_data:
+            source_refs.append(
+                _make_source_ref(
+                    section_key="report_metadata",
+                    source_type=SourceType.PROJECT_VERSION,
+                    source_id=project_version_id,
+                    data=project_version_data,
+                )
+            )
+
+        if knowledge_data:
+            source_refs.append(
+                _make_source_ref(
+                    section_key="knowledge_references",
+                    source_type=SourceType.KNOWLEDGE_REVISION,
+                    source_id="",
+                    data={
+                        "knowledge_documents": knowledge_data,
+                        "knowledge_count": len(knowledge_data),
+                    },
+                )
+            )
+
+        if agent_session_data:
+            for session in agent_session_data:
+                source_refs.append(
+                    _make_source_ref(
+                        section_key="report_metadata",
+                        source_type=SourceType.AGENT_SESSION,
+                        source_id=session.get("session_id", ""),
+                        data=session,
+                    )
+                )
+
+        # 11. risks_and_missing_information
         content.setdefault(
             "risks_and_missing_information", {"risks": [], "missing_information": []}
         )
@@ -220,6 +258,13 @@ def _make_source_ref(
     source_id: str,
     data: dict[str, Any],
 ) -> dict[str, Any]:
+    """Build a source reference dict from persisted data.
+
+    Only includes metadata that genuinely came from the persisted record.
+    Does NOT fabricate or hardcode verification fields (tool_call_status,
+    knowledge_status, source_exists, hash_mismatch).  These must be
+    provided by the data provider based on actual persisted state.
+    """
     from cold_storage.modules.reports.domain.canonical import content_hash as ch
 
     ref: dict[str, Any] = {
@@ -231,9 +276,10 @@ def _make_source_ref(
         "tool_name": data.get("tool_name", ""),
         "tool_version": data.get("tool_version", ""),
         "result_id": data.get("result_id", ""),
-        "content_hash": ch(data),
+        "content_hash": data.get("persisted_content_hash", ch(data)),
     }
-    # Pass through source verification metadata from data provider
+    # Only pass through verification metadata that is genuinely present
+    # in the data (i.e., came from a persisted record, not fabricated).
     for key in ("tool_call_status", "knowledge_status", "source_exists", "hash_mismatch"):
         if key in data:
             ref[key] = data[key]
@@ -281,4 +327,7 @@ class ReportDataProvider:
         return None
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+        return []
+
+    def get_knowledge_documents(self) -> list[dict[str, Any]]:
         return []

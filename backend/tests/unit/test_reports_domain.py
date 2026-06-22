@@ -242,3 +242,208 @@ class TestRevisionDiff:
         unit_changes = [c for c in d if c["field_path"] == "load_unit"]
         assert len(unit_changes) == 1
         assert unit_changes[0].get("unit_changed") is True
+
+
+# ---------------------------------------------------------------------------
+# Quality gate: empty sections → blocker
+# ---------------------------------------------------------------------------
+
+
+class TestQualityGateEmptySections:
+    """An empty section dict {} for a required calc field should produce
+    EMPTY_REQUIRED_ENGINEERING_RESULT blocker."""
+
+    def test_empty_section_is_blocker(self):
+        content = {"equipment_selection": {}}
+        findings = evaluate_quality(
+            content,
+            [],
+            required_calc_fields=["equipment_selection.total_compressor_capacity"],
+        )
+        blockers = get_blockers(findings)
+        assert any(f["code"] == "EMPTY_REQUIRED_ENGINEERING_RESULT" for f in blockers)
+
+    def test_non_empty_section_passes(self):
+        content = {
+            "equipment_selection": {
+                "total_compressor_capacity": {
+                    "value": 120.0,
+                    "unit": "kW(r)",
+                    "source_result_id": "calc-001",
+                    "source_tool": "equipment_selector",
+                    "source_tool_version": "1.0.0",
+                }
+            }
+        }
+        findings = evaluate_quality(
+            content,
+            [],
+            required_calc_fields=["equipment_selection.total_compressor_capacity"],
+        )
+        assert not any(f["code"] == "EMPTY_REQUIRED_ENGINEERING_RESULT" for f in findings)
+
+
+# ---------------------------------------------------------------------------
+# Quality gate: measured-value unit dimension check
+# ---------------------------------------------------------------------------
+
+
+class TestQualityGateUnits:
+    """Measured-value objects with wrong unit dimension should produce
+    WRONG_UNIT_DIMENSION blocker."""
+
+    def test_measured_value_wrong_unit_is_blocker(self):
+        # total_compressor_capacity expects kW(r) but gets kW(e)
+        content = {
+            "equipment_selection": {
+                "total_compressor_capacity": {
+                    "value": 120.0,
+                    "unit": "kW(e)",  # WRONG — should be kW(r)
+                    "source_result_id": "calc-001",
+                    "source_tool": "equipment_selector",
+                    "source_tool_version": "1.0.0",
+                }
+            }
+        }
+        findings = evaluate_quality(content, [])
+        blockers = get_blockers(findings)
+        assert any(f["code"] == "WRONG_UNIT_DIMENSION" for f in blockers)
+
+    def test_measured_value_correct_unit_passes(self):
+        content = {
+            "equipment_selection": {
+                "total_compressor_capacity": {
+                    "value": 120.0,
+                    "unit": "kW(r)",  # correct
+                    "source_result_id": "calc-001",
+                    "source_tool": "equipment_selector",
+                    "source_tool_version": "1.0.0",
+                }
+            }
+        }
+        findings = evaluate_quality(content, [])
+        assert not any(f["code"] == "WRONG_UNIT_DIMENSION" for f in findings)
+
+
+# ---------------------------------------------------------------------------
+# Quality gate: findings schema — source_ids
+# ---------------------------------------------------------------------------
+
+
+class TestQualityGateFindingsSourceIds:
+    """Validate that findings objects conform to the JSON Schema, including
+    proper handling of source_ids (optional property)."""
+
+    def test_findings_with_source_ids_validate(self):
+        """Findings containing source_ids should pass schema validation."""
+        import jsonschema
+
+        from cold_storage.modules.reports.domain.schema import get_schema
+
+        schema = get_schema("cold_storage_concept_design", "1.0.0")
+        content = {
+            "report_metadata": {
+                "schema_version": "cold_storage_concept_design@1.0.0",
+                "report_id": "r1",
+                "project_id": "p1",
+                "project_version_id": "v1",
+                "generated_at": "2024-01-01T00:00:00Z",
+            },
+            "quality_summary": {
+                "total_findings": 1,
+                "blocker_count": 0,
+                "warning_count": 0,
+                "info_count": 1,
+                "findings": [
+                    {
+                        "code": "TEST",
+                        "severity": "info",
+                        "message": "test finding",
+                        "source_ids": ["src-1", "src-2"],
+                    }
+                ],
+            },
+        }
+        # Should not raise
+        jsonschema.validate(instance=content, schema=schema)
+
+    def test_finding_with_unknown_property_fails_schema(self):
+        """additionalProperties: False ensures findings don't smuggle
+        extra fields not defined in the schema."""
+        import jsonschema
+
+        from cold_storage.modules.reports.domain.schema import get_schema
+
+        schema = get_schema("cold_storage_concept_design", "1.0.0")
+        content = {
+            "report_metadata": {
+                "schema_version": "cold_storage_concept_design@1.0.0",
+                "report_id": "r1",
+                "project_id": "p1",
+                "project_version_id": "v1",
+                "generated_at": "2024-01-01T00:00:00Z",
+            },
+            "quality_summary": {
+                "total_findings": 1,
+                "blocker_count": 0,
+                "warning_count": 0,
+                "info_count": 1,
+                "findings": [
+                    {
+                        "code": "TEST",
+                        "severity": "info",
+                        "message": "test finding",
+                        "unknown_field": "should_fail",
+                    }
+                ],
+            },
+        }
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(instance=content, schema=schema)
+
+
+# ---------------------------------------------------------------------------
+# Minimum required engineering results
+# ---------------------------------------------------------------------------
+
+
+class TestMinimumEngineeringResults:
+    """Missing or empty key engineering result fields must produce BLOCKERs."""
+
+    def test_missing_compressor_capacity_is_blocker(self):
+        content = {
+            "equipment_selection": {
+                "some_other_field": "value",
+            }
+        }
+        findings = evaluate_quality(
+            content,
+            [],
+            required_calc_fields=["equipment_selection.total_compressor_capacity"],
+        )
+        blockers = get_blockers(findings)
+        assert any(f["code"] == "MISSING_REQUIRED_ENGINEERING_RESULT" for f in blockers)
+
+    def test_missing_installed_power_is_blocker(self):
+        content = {
+            "electrical_and_energy": {
+                "some_other_field": "value",
+            }
+        }
+        findings = evaluate_quality(
+            content,
+            [],
+            required_calc_fields=["electrical_and_energy.total_installed_power"],
+        )
+        blockers = get_blockers(findings)
+        assert any(f["code"] == "MISSING_REQUIRED_ENGINEERING_RESULT" for f in blockers)
+
+    def test_empty_equipment_section_is_blocker(self):
+        content = {"equipment_selection": {}}
+        findings = evaluate_quality(
+            content,
+            [],
+            required_calc_fields=["equipment_selection.total_compressor_capacity"],
+        )
+        blockers = get_blockers(findings)
+        assert any(f["code"] == "EMPTY_REQUIRED_ENGINEERING_RESULT" for f in blockers)

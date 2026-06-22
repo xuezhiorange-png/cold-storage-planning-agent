@@ -108,6 +108,7 @@ class _FakeDataProvider(ReportDataProvider):
                 {"scheme_id": "s1", "name": "Scheme A", "total_investment_cny": 5000000},
                 {"scheme_id": "s2", "name": "Scheme B", "total_investment_cny": 6000000},
             ],
+            "recommended_scheme": "s1",
         }
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
@@ -236,7 +237,7 @@ class TestReportGeneration:
         service.generate_revision(r.id, "user1")
         updated = service.get_report(r.id, "user1")
         # Should be GENERATED since assembler provides valid data
-        assert updated.status in (ReportStatus.DRAFT, ReportStatus.GENERATED)
+        assert updated.status == ReportStatus.GENERATED
 
     def test_generate_preserves_canonical_hash(self, service):
         r = service.create_report(
@@ -538,3 +539,227 @@ class TestIdempotency:
             actor="user1",
         )
         assert r1.id != r2.id
+
+
+# ---------------------------------------------------------------------------
+# Idempotency fingerprint comparison
+# ---------------------------------------------------------------------------
+
+
+class TestIdempotencyFingerprintComparison:
+    """Verify that the fingerprint is persisted, compared, and enforced."""
+
+    def test_fingerprint_stored_in_db(self, db_session, repo, assembler):
+        """After create with idempotency_key, verify fingerprint is in the DB
+        record and matches the expected fingerprint."""
+        svc = ReportService(repo, assembler)
+        svc.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+            idempotency_key="fp-verify-key",
+        )
+        record = repo.get_idempotency_record("fp-verify-key")
+        assert record is not None
+        assert record["fingerprint"]  # non-empty string
+        assert record["status"] == "completed"
+        # Verify the fingerprint is a valid SHA-256 hex digest
+        assert len(record["fingerprint"]) == 64
+
+    def test_different_fingerprint_raises_conflict(self, service):
+        """Same key with different project_version → IdempotencyPayloadConflictError."""
+        from cold_storage.modules.reports.domain.errors import (
+            IdempotencyPayloadConflictError,
+        )
+
+        service.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+            idempotency_key="conflict-fp-key",
+        )
+        with pytest.raises(IdempotencyPayloadConflictError):
+            service.create_report(
+                project_id="p1",
+                project_version_id="v2",  # different version → different fingerprint
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                actor="user1",
+                idempotency_key="conflict-fp-key",
+            )
+
+    def test_same_fingerprint_replays(self, service):
+        """Same key + same params → returns the same report."""
+        r1 = service.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+            idempotency_key="replay-fp-key",
+        )
+        r2 = service.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+            idempotency_key="replay-fp-key",
+        )
+        assert r1.id == r2.id
+
+
+# ---------------------------------------------------------------------------
+# Transaction atomicity
+# ---------------------------------------------------------------------------
+
+
+class TestTransactionAtomicity:
+    """Verify that claim + commit happen atomically."""
+
+    def test_rollback_on_save_failure(self, db_session, repo, assembler):
+        """If save_report fails, nothing is committed — report list is empty."""
+        from unittest.mock import patch
+
+        svc = ReportService(repo, assembler)
+
+        def failing_save(report):
+            raise RuntimeError("simulated save failure")
+
+        with (
+            patch.object(repo, "save_report", failing_save),
+            pytest.raises(RuntimeError, match="simulated save failure"),
+        ):
+            svc.create_report(
+                project_id="p1",
+                project_version_id="v1",
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                actor="user1",
+            )
+        # Nothing should be committed
+        reports = repo.list_reports(project_id="p1")
+        assert len(reports) == 0
+
+    def test_claim_and_complete_same_transaction(self, db_session, repo, assembler):
+        """Both claim and complete happen before commit — the idempotency
+        record shows 'completed' and the report exists, all in one commit."""
+        svc = ReportService(repo, assembler)
+        svc.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+            idempotency_key="tx-atomic-key",
+        )
+        record = repo.get_idempotency_record("tx-atomic-key")
+        assert record is not None
+        assert record["status"] == "completed"
+        # The report also exists — both committed atomically
+        reports = repo.list_reports(project_id="p1")
+        assert len(reports) == 1
+
+
+# ---------------------------------------------------------------------------
+# Blocker → draft preservation
+# ---------------------------------------------------------------------------
+
+
+class TestBlockerDraftPreservation:
+    """When the assembler produces findings with blockers the report must
+    remain in DRAFT status and certain transitions must be blocked."""
+
+    def _make_blocker_service(self, db_session, repo):
+        """Create a service backed by an empty data provider (triggers blockers)."""
+        from cold_storage.modules.reports.application.assembler import (
+            ReportAssembler,
+            ReportDataProvider,
+        )
+
+        class _EmptyProvider(ReportDataProvider):
+            """Returns no data — causes missing required sections / calc fields."""
+
+            pass
+
+        blocker_assembler = ReportAssembler(_EmptyProvider())
+        return ReportService(repo, blocker_assembler)
+
+    def test_generate_with_blockers_stays_draft(self, db_session, repo):
+        """When assembler returns findings with blockers, report stays DRAFT."""
+        from cold_storage.modules.reports.domain.enums import ReportStatus
+
+        svc = self._make_blocker_service(db_session, repo)
+        r = svc.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+        )
+        rev = svc.generate_revision(r.id, "user1")
+        # Quality status must be DRAFT because the empty provider yields blockers
+        assert rev.quality_status == ReportStatus.DRAFT
+        updated = svc.get_report(r.id, "user1")
+        assert updated.status == ReportStatus.DRAFT
+
+    def test_submit_review_blocked_when_blockers(self, db_session, repo, assembler):
+        """Report in GENERATED status with blocker findings in its latest
+        revision cannot be submitted for review → QualityBlockerError."""
+        from dataclasses import replace
+        from unittest.mock import patch
+
+        from cold_storage.modules.reports.domain.enums import (
+            QualitySeverity,
+            ReportStatus,
+        )
+        from cold_storage.modules.reports.domain.errors import QualityBlockerError
+        from cold_storage.modules.reports.domain.quality import _finding
+
+        svc = ReportService(repo, assembler)
+        r = svc.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+        )
+        # Generate a normal revision → status becomes GENERATED (no blockers)
+        rev = svc.generate_revision(r.id, "user1")
+        updated = svc.get_report(r.id, "user1")
+        assert updated.status == ReportStatus.GENERATED
+
+        # Simulate blocker findings in the latest revision
+        blocker_findings = [
+            _finding(
+                code="MISSING_REQUIRED_SECTION",
+                severity=QualitySeverity.BLOCKER,
+                section_key="cooling_load",
+                field_path="cooling_load",
+                message="Required section missing",
+            )
+        ]
+        patched_rev = replace(
+            rev,
+            quality_findings_json=blocker_findings,
+            quality_status=ReportStatus.DRAFT,
+        )
+        with (
+            patch.object(repo, "get_latest_revision", return_value=patched_rev),
+            pytest.raises(QualityBlockerError),
+        ):
+            svc.submit_review(r.id, "user1")
+
+    def test_approve_blocked_when_blockers(self, db_session, repo):
+        """Report with blockers can't reach REVIEWED → can't be approved.
+        Status machine blocks DRAFT → APPROVED directly."""
+        from cold_storage.modules.reports.domain.errors import (
+            InvalidStatusTransitionError,
+        )
+
+        svc = self._make_blocker_service(db_session, repo)
+        r = svc.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+        )
+        svc.generate_revision(r.id, "user1")
+        # Report is DRAFT (blockers) — DRAFT → APPROVED is not a valid transition
+        with pytest.raises(InvalidStatusTransitionError):
+            svc.approve(r.id, "user1")

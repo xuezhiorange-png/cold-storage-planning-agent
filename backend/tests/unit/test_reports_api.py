@@ -84,7 +84,11 @@ class _APIFakeDataProvider(ReportDataProvider):
         ]
 
     def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
-        return {"run_id": "scheme-001", "schemes": []}
+        return {
+            "run_id": "scheme-001",
+            "schemes": [{"scheme_id": "s1"}],
+            "recommended_scheme": "s1",
+        }
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
         return []
@@ -355,3 +359,68 @@ class TestReportAPI:
         app.dependency_overrides[_get_actor] = lambda: "actor_b"
         resp = client.get(f"/api/v1/reports/{report_id}")
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Blocker → draft preservation at API level
+# ---------------------------------------------------------------------------
+
+
+class _BlockerAPIProvider(ReportDataProvider):
+    """Returns no data — triggers quality blockers in the assembler."""
+
+    pass
+
+
+@pytest.fixture()
+def blocker_service(db_session):
+    repo = SQLReportRepository(db_session)
+    provider = _BlockerAPIProvider()
+    assembler = ReportAssembler(data_provider=provider)
+    return ReportService(repository=repo, assembler=assembler)
+
+
+@pytest.fixture()
+def blocker_client(blocker_service):
+    app = FastAPI()
+    app.include_router(router)
+    from cold_storage.modules.reports.api.routes import _get_actor, _get_service
+
+    app.dependency_overrides[_get_service] = lambda: blocker_service
+    app.dependency_overrides[_get_actor] = lambda: "test_actor"
+    return TestClient(app)
+
+
+class TestAPIBlockerDraft:
+    """At the HTTP level, generation with blockers returns 200 (revision
+    saved as Draft) and submit-review is blocked."""
+
+    def test_generate_with_blockers_returns_200(self, blocker_client):
+        create = blocker_client.post(
+            "/api/v1/reports",
+            json={
+                "project_id": "proj-1",
+                "project_version_id": "ver-1",
+            },
+        )
+        report_id = create.json()["report_id"]
+        resp = blocker_client.post(f"/api/v1/reports/{report_id}/generate")
+        assert resp.status_code == 200
+
+    def test_submit_review_with_blockers_returns_409(self, blocker_client):
+        create = blocker_client.post(
+            "/api/v1/reports",
+            json={
+                "project_id": "proj-1",
+                "project_version_id": "ver-1",
+            },
+        )
+        report_id = create.json()["report_id"]
+        blocker_client.post(f"/api/v1/reports/{report_id}/generate")
+        # When report is DRAFT (blockers), submit-review is blocked.
+        # The status machine catches DRAFT→UNDER_REVIEW first → 409.
+        resp = blocker_client.post(
+            f"/api/v1/reports/{report_id}/submit-review",
+            json={"comment": "ready for review"},
+        )
+        assert resp.status_code == 409

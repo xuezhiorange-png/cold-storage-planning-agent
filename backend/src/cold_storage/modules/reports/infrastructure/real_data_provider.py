@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Any
 
 from cold_storage.modules.reports.application.assembler import ReportDataProvider
-from cold_storage.modules.reports.domain.canonical import content_hash
 
 
 class RealReportDataProvider(ReportDataProvider):
@@ -73,6 +72,8 @@ class RealReportDataProvider(ReportDataProvider):
         """Read calculation results from CoreCalculationService.
 
         Returns a list of section-keyed dicts with source metadata.
+        Only includes metadata that genuinely comes from the persisted record.
+        Does NOT fabricate tool_call_status or synthesize result_ids.
         """
         if self._calculation_service is None:
             return []
@@ -101,21 +102,33 @@ class RealReportDataProvider(ReportDataProvider):
             result_data = getattr(calc_result, "result", {})
             tool_version = getattr(calc_result, "calculator_version", "1.0.0")
             result_id = getattr(calc_result, "id", None)
-            if result_id is None:
-                # Generate a deterministic ID from calculator name + version
-                result_id = f"{tool_name}-{tool_version}-{content_hash(result_data)}"
 
-            sections.append(
-                {
-                    "section_key": section_key,
-                    "result_id": result_id,
-                    "tool_name": tool_name,
-                    "tool_version": tool_version,
-                    "data": result_data,
-                    # Source verification metadata
-                    "tool_call_status": "completed",
-                }
-            )
+            if result_id is None:
+                # No persisted result_id — skip this section entirely.
+                # The caller (assembler) will generate a warning finding
+                # for the missing calculation result.
+                continue
+
+            # Build section entry with only genuinely persisted metadata
+            entry: dict[str, Any] = {
+                "section_key": section_key,
+                "result_id": result_id,
+                "tool_name": tool_name,
+                "tool_version": tool_version,
+                "data": result_data,
+            }
+
+            # Pass through persisted content_hash if available
+            persisted_hash = getattr(calc_result, "content_hash", None)
+            if persisted_hash:
+                entry["persisted_content_hash"] = persisted_hash
+
+            # Pass through persisted tool_call_status if available
+            persisted_status = getattr(calc_result, "tool_call_status", None)
+            if persisted_status is not None:
+                entry["tool_call_status"] = persisted_status
+
+            sections.append(entry)
 
         return sections
 

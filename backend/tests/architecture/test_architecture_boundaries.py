@@ -390,3 +390,49 @@ def test_condenser_heat_rejection_factor_removed() -> None:
         assert "condenser_heat_rejection_factor" not in content, (
             f"condenser_heat_rejection_factor still present in {fname}"
         )
+
+
+# ---------------------------------------------------------------------------
+
+
+class TestArchitectureBoundaries:
+    """Enforce reports-module architecture boundaries."""
+
+    def test_reports_module_no_direct_orm_imports(self) -> None:
+        """reports/**/*.py must NOT import from schemes.infrastructure or
+        knowledge.infrastructure — it should use query ports instead."""
+        reports_src = BACKEND_SRC / "modules" / "reports"
+        assert reports_src.exists(), f"{reports_src} not found"
+        forbidden_prefixes = (
+            "from cold_storage.modules.schemes.infrastructure",
+            "import cold_storage.modules.schemes.infrastructure",
+            "from cold_storage.modules.knowledge.infrastructure",
+            "import cold_storage.modules.knowledge.infrastructure",
+        )
+        for path in read_python_files(reports_src):
+            content = path.read_text()
+            for prefix in forbidden_prefixes:
+                assert prefix not in content, (
+                    f"Reports module imports from another module's infrastructure: "
+                    f"{path} — found '{prefix}'"
+                )
+
+    def test_real_data_provider_no_session_access(self) -> None:
+        """real_data_provider.py must not directly import _session.
+
+        It should use query ports, not ORM sessions.  Checks only import
+        lines (not docstrings/comments) to avoid false positives from words
+        like 'Session objects' in documentation.
+        """
+        rdp = BACKEND_SRC / "modules" / "reports" / "infrastructure" / "real_data_provider.py"
+        assert rdp.exists(), f"{rdp} not found"
+        content = rdp.read_text()
+        import_lines = [
+            line
+            for line in content.splitlines()
+            if "import" in line and not line.strip().startswith("#")
+        ]
+        for line in import_lines:
+            assert "_session" not in line, (
+                f"Real data provider imports _session: {rdp}\n  {line.strip()}"
+            )

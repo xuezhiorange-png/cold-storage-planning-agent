@@ -43,16 +43,21 @@ def evaluate_quality(
     findings: list[dict[str, Any]] = []
 
     # 1. Required sections check — missing section is a BLOCKER
+    #    Empty dicts {} are also treated as missing since they carry no data.
     if required_sections:
         for section in required_sections:
-            if section not in content or content[section] is None:
+            if (
+                section not in content
+                or content[section] is None
+                or (isinstance(content[section], dict) and not content[section])
+            ):
                 findings.append(
                     _finding(
                         code="MISSING_REQUIRED_SECTION",
                         severity=QualitySeverity.BLOCKER,
                         section_key=section,
                         field_path=section,
-                        message=f"Required section '{section}' is missing or null",
+                        message=f"Required section '{section}' is missing, null, or empty",
                         remediation=f"Provide data for section '{section}'",
                     )
                 )
