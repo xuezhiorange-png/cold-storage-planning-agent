@@ -70,9 +70,7 @@ class RealReportDataProvider(ReportDataProvider):
             pass
         return None
 
-    def get_calculation_results(
-        self, project_id: str, version_id: str
-    ) -> list[dict[str, Any]]:
+    def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
         """Read calculation results from CoreCalculationService.
 
         Returns a list of section-keyed dicts with source metadata.
@@ -80,9 +78,7 @@ class RealReportDataProvider(ReportDataProvider):
         if self._calculation_service is None:
             return []
         try:
-            result = self._calculation_service.get_orchestrated_result(
-                project_id, version_id
-            )
+            result = self._calculation_service.get_orchestrated_result(project_id, version_id)
         except (AttributeError, KeyError):
             return []
         if result is None:
@@ -110,21 +106,21 @@ class RealReportDataProvider(ReportDataProvider):
                 # Generate a deterministic ID from calculator name + version
                 result_id = f"{tool_name}-{tool_version}-{content_hash(result_data)}"
 
-            sections.append({
-                "section_key": section_key,
-                "result_id": result_id,
-                "tool_name": tool_name,
-                "tool_version": tool_version,
-                "data": result_data,
-                # Source verification metadata
-                "tool_call_status": "completed",
-            })
+            sections.append(
+                {
+                    "section_key": section_key,
+                    "result_id": result_id,
+                    "tool_name": tool_name,
+                    "tool_version": tool_version,
+                    "data": result_data,
+                    # Source verification metadata
+                    "tool_call_status": "completed",
+                }
+            )
 
         return sections
 
-    def get_scheme_results(
-        self, project_id: str, version_id: str
-    ) -> dict[str, Any] | None:
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         """Read scheme comparison results from SchemeRepository.
 
         Returns the latest completed scheme run with its candidates.
@@ -163,12 +159,14 @@ class RealReportDataProvider(ReportDataProvider):
 
             schemes = []
             for c in candidates:
-                schemes.append({
-                    "scheme_id": c.id,
-                    "name": getattr(c, "name", c.id),
-                    "total_score": str(getattr(c, "total_score", "0")),
-                    "rank": getattr(c, "rank", 0),
-                })
+                schemes.append(
+                    {
+                        "scheme_id": c.id,
+                        "name": getattr(c, "name", c.id),
+                        "total_score": str(getattr(c, "total_score", "0")),
+                        "rank": getattr(c, "rank", 0),
+                    }
+                )
 
             return {
                 "run_id": run_rec.id,
@@ -179,9 +177,7 @@ class RealReportDataProvider(ReportDataProvider):
         except (AttributeError, Exception):
             return None
 
-    def get_agent_sessions(
-        self, project_id: str, version_id: str
-    ) -> list[dict[str, Any]]:
+    def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
         """Read agent session/tool-call data for provenance.
 
         Currently returns empty — agent session tracking is not yet

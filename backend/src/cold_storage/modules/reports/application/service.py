@@ -149,9 +149,7 @@ class ReportService:
 
         # Idempotency
         if idempotency_key:
-            fp = self._make_fingerprint(
-                "generate", actor, report_id, report.project_id
-            )
+            fp = self._make_fingerprint("generate", actor, report_id, report.project_id)
             existing = self._check_idempotency_revision(idempotency_key, fp)
             if existing is not None:
                 return existing
@@ -402,9 +400,7 @@ class ReportService:
             return result
         return None
 
-    def _check_idempotency_revision(
-        self, key: str, fingerprint: str
-    ) -> ReportRevision | None:
+    def _check_idempotency_revision(self, key: str, fingerprint: str) -> ReportRevision | None:
         """Check for a completed revision result matching key + fingerprint."""
         if self._idempotency_store is None:
             return None
@@ -443,6 +439,7 @@ class ReportService:
     def _make_fingerprint(*parts: str) -> str:
         """Create a fingerprint from request parameters for idempotency binding."""
         import hashlib
+
         h = hashlib.sha256()
         for p in parts:
             h.update(p.encode())
@@ -471,13 +468,9 @@ def _validate_schema(
         schema = get_schema(report_type.value, schema_version.split("@")[-1])
     except ValueError as exc:
         # Unknown schema version — treat as invalid
-        raise SchemaValidationError(
-            [f"Unknown schema: {schema_version}"]
-        ) from exc
+        raise SchemaValidationError([f"Unknown schema: {schema_version}"]) from exc
 
     try:
         jsonschema.validate(instance=content, schema=schema)
     except jsonschema.ValidationError as exc:
-        raise SchemaValidationError(
-            [f"{exc.json_path}: {exc.message}"]
-        ) from exc
+        raise SchemaValidationError([f"{exc.json_path}: {exc.message}"]) from exc
