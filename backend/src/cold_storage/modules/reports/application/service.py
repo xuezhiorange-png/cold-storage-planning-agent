@@ -509,11 +509,16 @@ class ReportService:
 
     @staticmethod
     def _make_fingerprint(*parts: str) -> str:
-        """Create a fingerprint from request parameters for idempotency binding."""
+        """Create a fingerprint from request parameters for idempotency binding.
+
+        Uses null-byte separators to prevent deterministic collisions
+        between ("ab", "c") and ("a", "bc").
+        """
         import hashlib
 
         h = hashlib.sha256()
         for p in parts:
+            h.update(b"\x00")
             h.update(p.encode())
         return h.hexdigest()
 

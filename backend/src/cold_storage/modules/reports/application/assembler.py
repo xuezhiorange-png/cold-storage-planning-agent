@@ -129,9 +129,9 @@ class ReportAssembler:
             # Strip hash verification metadata before assigning to content
             # (JSON Schema additionalProperties=false does not allow these keys)
             scheme_hash_mismatch = scheme_data.get("source_hash_mismatch")
-            scheme_content = {
-                k: v for k, v in scheme_data.items() if k not in ("source_hash_mismatch",)
-            }
+            # Strip verification metadata — not part of scheme_comparison content
+            _strip_keys = ("source_hash_mismatch", "computed_content_hash")
+            scheme_content = {k: v for k, v in scheme_data.items() if k not in _strip_keys}
             content["scheme_comparison"] = scheme_content
 
             # Source ref for scheme_comparison carries hash verification

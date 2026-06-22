@@ -180,13 +180,19 @@ class RealReportDataProvider(ReportDataProvider):
                 "generator_version": latest_run.get("generator_version", ""),
             }
 
-            # Pass through persisted_content_hash if available
+            # Pass through persisted_content_hash (DB-only) and
+            # computed_content_hash (fallback for pre-0012 runs).
             persisted_hash = latest_run.get("persisted_content_hash", "")
+            computed_hash = latest_run.get("computed_content_hash", "")
             if persisted_hash:
                 result["persisted_content_hash"] = persisted_hash
+            if computed_hash:
+                result["computed_content_hash"] = computed_hash
 
-            # Verify source hash — recompute using same algorithm as SchemeQueryService
-            if persisted_hash:
+            # Verify source hash against persisted value when available.
+            # For legacy runs without DB hash, verify against the computed fallback.
+            reference_hash = persisted_hash or computed_hash
+            if reference_hash:
                 from cold_storage.modules.reports.domain.source_contract import (
                     compute_scheme_source_hash,
                 )
@@ -197,9 +203,7 @@ class RealReportDataProvider(ReportDataProvider):
                     generator_version=result.get("generator_version", ""),
                     candidates=candidates,
                 )
-                # Hash verification result goes into source_ref verification,
-                # NOT into scheme_comparison content (additionalProperties: false)
-                result["source_hash_mismatch"] = computed != persisted_hash
+                result["source_hash_mismatch"] = computed != reference_hash
 
             return result
         except Exception:  # noqa: BLE001

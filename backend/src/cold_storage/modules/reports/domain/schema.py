@@ -163,6 +163,7 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
                 "recommended_scheme": {"type": "string"},
                 "generator_version": {"type": "string"},
                 "persisted_content_hash": {"type": "string"},
+                "computed_content_hash": {"type": "string"},
                 "comparison_metrics": {"type": "array", "items": {"type": "object"}},
             },
             "additionalProperties": False,

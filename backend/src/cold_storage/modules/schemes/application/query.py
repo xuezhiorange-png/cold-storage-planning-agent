@@ -78,7 +78,11 @@ class SchemeQueryService(SchemeQueryPort):
             "completed_at": run.completed_at.isoformat() if run.completed_at else None,
             "recommended_scheme_code": run.recommended_scheme_code,
             "warning_messages": run.warning_messages,
-            "persisted_content_hash": run.content_hash or _run_content_hash(run, candidates),
+            # persisted_content_hash is ONLY the DB-stored value.
+            # A separate computed_content_hash field carries the fallback
+            # so consumers can distinguish real persistence from on-the-fly computation.
+            "persisted_content_hash": run.content_hash or "",
+            "computed_content_hash": _run_content_hash(run, candidates),
         }
 
     def get_completed_runs_for_project(self, project_id: str) -> list[dict[str, Any]]:
