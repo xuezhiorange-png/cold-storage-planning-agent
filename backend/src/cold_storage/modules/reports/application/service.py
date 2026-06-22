@@ -144,9 +144,9 @@ class ReportService:
 
         # Idempotency
         if idempotency_key:
-            existing = self._check_idempotency(idempotency_key)
+            existing = self._check_idempotency_revision(idempotency_key)
             if existing is not None:
-                return existing  # type: ignore[return-value]
+                return existing
 
         revision_number = report.current_revision_number + 1
         supersedes = None
@@ -359,7 +359,18 @@ class ReportService:
 
     # --- Idempotency ---
 
-    def _check_idempotency(self, key: str) -> Any:
+    def _check_idempotency(self, key: str) -> Report | None:
         if self._idempotency_store is None:
             return None
-        return self._idempotency_store.get(key)
+        result = self._idempotency_store.get(key)
+        if isinstance(result, Report):
+            return result
+        return None
+
+    def _check_idempotency_revision(self, key: str) -> ReportRevision | None:
+        if self._idempotency_store is None:
+            return None
+        result = self._idempotency_store.get(key)
+        if isinstance(result, ReportRevision):
+            return result
+        return None

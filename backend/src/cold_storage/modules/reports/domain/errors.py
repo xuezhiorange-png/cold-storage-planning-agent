@@ -26,7 +26,7 @@ class RevisionImmutableError(ReportError):
 
 
 class QualityBlockerError(ReportError):
-    def __init__(self, blockers: list[dict]) -> None:
+    def __init__(self, blockers: list[dict[str, object]]) -> None:
         super().__init__(f"Quality blockers present: {len(blockers)}")
         self.blockers = blockers
 
