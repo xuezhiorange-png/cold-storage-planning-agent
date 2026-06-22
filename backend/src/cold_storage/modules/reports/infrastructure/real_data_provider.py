@@ -146,7 +146,7 @@ class RealReportDataProvider(ReportDataProvider):
         if self._scheme_query is None:
             return None
         try:
-            runs = self._scheme_query.get_completed_runs_for_project(project_id)
+            runs = self._scheme_query.get_completed_runs_for_project_version(project_id, version_id)
             if not runs:
                 return None
 
@@ -165,13 +165,20 @@ class RealReportDataProvider(ReportDataProvider):
                     }
                 )
 
-            return {
+            result: dict[str, Any] = {
                 "run_id": latest_run["run_id"],
                 "status": latest_run["status"],
                 "schemes": schemes,
                 "recommended_scheme": latest_run.get("recommended_scheme_code", ""),
                 "generator_version": latest_run.get("generator_version", ""),
             }
+
+            # Pass through persisted_content_hash if available
+            persisted_hash = latest_run.get("persisted_content_hash", "")
+            if persisted_hash:
+                result["persisted_content_hash"] = persisted_hash
+
+            return result
         except Exception:  # noqa: BLE001
             return None
 
@@ -196,7 +203,8 @@ class RealReportDataProvider(ReportDataProvider):
                 tool_calls = self._agent_session_query.get_tool_calls_for_session(
                     session["session_id"]
                 )
-                result.append({**session, "tool_calls": tool_calls})
+                turns = self._agent_session_query.get_turns_for_session(session["session_id"])
+                result.append({**session, "tool_calls": tool_calls, "turns": turns})
             return result
         except Exception:  # noqa: BLE001
             return []

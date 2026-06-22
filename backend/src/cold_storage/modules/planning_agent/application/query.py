@@ -64,9 +64,11 @@ class AgentSessionQueryService(AgentSessionQueryPort):
                 "id": tc.id,
                 "tool_name": tc.tool_name,
                 "tool_version": tc.tool_version,
-                "status": tc.status.value if hasattr(tc.status, "value") else str(tc.status),
-                "result_reference": tc.result_reference,
-                "result_hash": getattr(tc, "result_hash", None),
+                "result_id": tc.result_reference or "",
+                "persisted_content_hash": getattr(tc, "result_hash", None) or "",
+                "tool_call_status": tc.status.value
+                if hasattr(tc.status, "value")
+                else str(tc.status),
                 "arguments_sha256": tc.arguments_sha256,
                 "completed_at": tc.completed_at.isoformat()
                 if tc.completed_at and hasattr(tc.completed_at, "isoformat")

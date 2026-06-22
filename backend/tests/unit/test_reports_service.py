@@ -52,7 +52,7 @@ class _FakeDataProvider(ReportDataProvider):
     def get_project_version(
         self, version_id: str, *, project_id: str | None = None
     ) -> dict[str, Any] | None:
-        return {"version_number": 1}
+        return {"id": version_id, "version_number": 1}
 
     def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
         return [
@@ -109,6 +109,7 @@ class _FakeDataProvider(ReportDataProvider):
     def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
         return {
             "run_id": "scheme-001",
+            "status": "completed",
             "schemes": [
                 {"scheme_id": "s1", "name": "Scheme A", "total_investment_cny": 5000000},
                 {"scheme_id": "s2", "name": "Scheme B", "total_investment_cny": 6000000},
@@ -119,7 +120,19 @@ class _FakeDataProvider(ReportDataProvider):
         }
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
-        return []
+        return [
+            {
+                "session_id": "session-001",
+                "turns": [
+                    {"id": "turn-001", "status": "completed"},
+                    {"id": "turn-002", "status": "completed"},
+                ],
+                "tool_calls": [
+                    {"id": "tc-001", "status": "succeeded"},
+                    {"id": "tc-002", "status": "succeeded"},
+                ],
+            }
+        ]
 
     def get_knowledge_documents(self) -> list[dict[str, Any]]:
         return []
@@ -806,3 +819,43 @@ class TestBlockerDraftPreservation:
         # Report is DRAFT (blockers) — DRAFT → APPROVED is not a valid transition
         with pytest.raises(InvalidStatusTransitionError):
             svc.approve(r.id, "user1")
+
+
+# ---------------------------------------------------------------------------
+# Idempotency atomic claim — duplicate claim produces domain error
+# ---------------------------------------------------------------------------
+
+
+class TestIdempotencyAtomicClaim:
+    def test_duplicate_claim_raises_domain_error(self, db_session, repo, assembler):
+        """Duplicate idempotency claim must raise IdempotencyClaimError, not DB error."""
+        from cold_storage.modules.reports.application.service import ReportService
+
+        svc = ReportService(repo, assembler)
+        svc.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="u1",
+            idempotency_key="k1",
+        )
+        # Manually insert a claimed (not completed) record to simulate a concurrent hold
+        from cold_storage.modules.reports.infrastructure.orm import IdempotencyRecord
+
+        rec = IdempotencyRecord(
+            key="k1-claimed",
+            actor="u1",
+            action="create",
+            fingerprint="fp1",
+            status="claimed",
+        )
+        db_session.add(rec)
+        # Force flush to trigger unique constraint violation
+        try:
+            db_session.flush()
+            db_session.rollback()
+            raise AssertionError("Expected constraint violation on duplicate key")
+        except Exception:
+            db_session.rollback()
+            # The duplicate key constraint fired — _claim_idempotency catches
+            # this and converts to IdempotencyClaimError

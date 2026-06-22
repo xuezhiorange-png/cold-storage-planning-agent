@@ -149,23 +149,31 @@ class ReportAssembler:
                 )
             )
 
-        if knowledge_data:
+        # Collect knowledge revision IDs actually used by agent tool calls
+        used_knowledge_ids: set[str] = set()
+        if agent_session_data:
+            for session in agent_session_data:
+                for tc in session.get("tool_calls", []):
+                    if tc.get("tool_name") == "knowledge_retrieval":
+                        # Tool call result may reference knowledge revision IDs
+                        for ref_id in tc.get("knowledge_revision_ids", []):
+                            used_knowledge_ids.add(ref_id)
+
+        if knowledge_data and used_knowledge_ids:
             for doc in knowledge_data:
                 for rev in doc.get("approved_revisions", []):
-                    source_refs.append(
-                        _make_source_ref(
-                            section_key="knowledge_references",
-                            source_type=SourceType.KNOWLEDGE_REVISION,
-                            source_id=rev["id"],
-                            data={
-                                "knowledge_status": "approved",
-                                "persisted_content_hash": rev.get("content_sha256", ""),
-                                "tool_name": "knowledge_manager",
-                                "tool_version": "1.0.0",
-                                "result_id": rev["id"],
-                            },
+                    if rev["id"] in used_knowledge_ids:
+                        source_refs.append(
+                            _make_source_ref(
+                                section_key="knowledge_references",
+                                source_type=SourceType.KNOWLEDGE_REVISION,
+                                source_id=rev["id"],
+                                data={
+                                    "knowledge_status": "approved",
+                                    "persisted_content_hash": rev.get("content_sha256", ""),
+                                },
+                            )
                         )
-                    )
 
         if agent_session_data:
             for session in agent_session_data:
@@ -177,8 +185,18 @@ class ReportAssembler:
                         data=session,
                     )
                 )
+                for turn in session.get("turns", []):
+                    if turn.get("status") == "completed":
+                        source_refs.append(
+                            _make_source_ref(
+                                section_key="report_metadata",
+                                source_type=SourceType.AGENT_TURN,
+                                source_id=turn.get("id", ""),
+                                data=turn,
+                            )
+                        )
                 for tc in session.get("tool_calls", []):
-                    if tc.get("status") in ("succeeded", "confirmed"):
+                    if tc.get("tool_call_status") in ("succeeded", "confirmed"):
                         source_refs.append(
                             _make_source_ref(
                                 section_key="report_metadata",
@@ -243,6 +261,8 @@ class ReportAssembler:
             canonical_meta = dict(canonical["report_metadata"])
             canonical_meta.pop("generated_at", None)
             canonical_meta.pop("revision_number", None)
+            canonical_meta.pop("report_id", None)
+            canonical_meta.pop("generated_by", None)
             canonical["report_metadata"] = canonical_meta
         can_hash = content_hash(canonical)
 

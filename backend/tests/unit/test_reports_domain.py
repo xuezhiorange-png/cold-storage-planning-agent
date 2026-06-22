@@ -596,3 +596,310 @@ class TestMissingHashGeneratesBlocker:
         findings = evaluate_quality(content, source_refs)
         blocker_codes = [f["code"] for f in findings if f["severity"] == "blocker"]
         assert "SOURCE_MISSING_CONTENT_HASH" not in blocker_codes
+
+
+# ---------------------------------------------------------------------------
+# Scheme version filtering — assembler omits scheme_comparison when None
+# ---------------------------------------------------------------------------
+
+
+class TestSchemeVersionFilter:
+    def test_cross_version_scheme_rejection(self):
+        """Scheme data from wrong project version should not appear in report."""
+        from cold_storage.modules.reports.application.assembler import (
+            ReportAssembler,
+            ReportDataProvider,
+        )
+        from cold_storage.modules.reports.domain.enums import ReportType
+
+        class _NoSchemeProvider(ReportDataProvider):
+            def get_project(self, project_id):
+                return {"name": "P"}
+
+            def get_project_version(self, version_id, project_id=None):
+                return {"id": version_id, "version_number": 1}
+
+            def get_calculation_results(self, project_id, version_id):
+                return []
+
+            def get_scheme_results(self, project_id, version_id):
+                return None  # No scheme for this version
+
+            def get_agent_sessions(self, project_id, version_id):
+                return []
+
+            def get_knowledge_documents(self):
+                return []
+
+        assembler = ReportAssembler(_NoSchemeProvider())
+        result = assembler.assemble(
+            report_id="r1",
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            revision_number=1,
+            generated_by="test",
+        )
+        assert "scheme_comparison" not in result.content
+
+
+# ---------------------------------------------------------------------------
+# Canonical hash stability — engineering inputs determine the hash
+# ---------------------------------------------------------------------------
+
+
+class TestCanonicalHashStability:
+    def test_same_inputs_same_hash(self):
+        """Same engineering inputs with same report_id should produce same canonical hash."""
+        from cold_storage.modules.reports.application.assembler import (
+            ReportAssembler,
+            ReportDataProvider,
+        )
+        from cold_storage.modules.reports.domain.enums import ReportType
+
+        class _StableProvider(ReportDataProvider):
+            def get_project(self, pid):
+                return {"name": "P"}
+
+            def get_project_version(self, vid, *, project_id=None):
+                return None
+
+            def get_calculation_results(self, pid, vid):
+                return []
+
+            def get_scheme_results(self, pid, vid):
+                return None
+
+            def get_agent_sessions(self, pid, vid):
+                return []
+
+            def get_knowledge_documents(self):
+                return []
+
+        p = _StableProvider()
+        a = ReportAssembler(p)
+        r1 = a.assemble(
+            report_id="report-A",
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            revision_number=1,
+            generated_by="alice",
+        )
+        r2 = a.assemble(
+            report_id="report-A",
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            revision_number=2,
+            generated_by="bob",
+        )
+        assert r1.content_hash == r2.content_hash, (
+            f"Canonical hash differs: {r1.content_hash} != {r2.content_hash}"
+        )
+
+    def test_different_report_id_same_hash(self):
+        """Different report_ids should produce same canonical hashes
+        because report_id is excluded from the canonical content."""
+        from cold_storage.modules.reports.application.assembler import (
+            ReportAssembler,
+            ReportDataProvider,
+        )
+        from cold_storage.modules.reports.domain.enums import ReportType
+
+        class _StableProvider(ReportDataProvider):
+            def get_project(self, pid):
+                return {"name": "P"}
+
+            def get_project_version(self, vid, *, project_id=None):
+                return None
+
+            def get_calculation_results(self, pid, vid):
+                return []
+
+            def get_scheme_results(self, pid, vid):
+                return None
+
+            def get_agent_sessions(self, pid, vid):
+                return []
+
+            def get_knowledge_documents(self):
+                return []
+
+        p = _StableProvider()
+        a = ReportAssembler(p)
+        r1 = a.assemble(
+            report_id="report-A",
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            revision_number=1,
+            generated_by="alice",
+        )
+        r2 = a.assemble(
+            report_id="report-B",
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            revision_number=1,
+            generated_by="alice",
+        )
+        assert r1.content_hash == r2.content_hash, (
+            "Canonical hash should be the same when only report_id differs "
+            "(report_id is excluded from canonical hash)"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Agent session provenance — sessions produce source refs
+# ---------------------------------------------------------------------------
+
+
+class TestAgentTurnProvenance:
+    def test_completed_tool_calls_generate_tool_call_refs(self):
+        """Successful tool calls should produce AGENT_TOOL_CALL source refs."""
+        from cold_storage.modules.reports.application.assembler import (
+            ReportAssembler,
+            ReportDataProvider,
+        )
+        from cold_storage.modules.reports.domain.enums import ReportType, SourceType
+
+        class _TurnProvider(ReportDataProvider):
+            def get_project(self, pid):
+                return {"name": "P"}
+
+            def get_project_version(self, vid, *, project_id=None):
+                return None
+
+            def get_calculation_results(self, pid, vid):
+                return []
+
+            def get_scheme_results(self, pid, vid):
+                return None
+
+            def get_agent_sessions(self, pid, vid):
+                return [
+                    {
+                        "session_id": "s1",
+                        "turns": [
+                            {"id": "t1", "status": "completed"},
+                            {"id": "t2", "status": "failed"},
+                        ],
+                        "tool_calls": [
+                            {"id": "tc1", "tool_call_status": "succeeded"},
+                            {"id": "tc2", "tool_call_status": "failed"},
+                            {"id": "tc3", "tool_call_status": "confirmed"},
+                        ],
+                    }
+                ]
+
+            def get_knowledge_documents(self):
+                return []
+
+        a = ReportAssembler(_TurnProvider())
+        result = a.assemble(
+            report_id="r1",
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            revision_number=1,
+            generated_by="test",
+        )
+        # Should have 1 AGENT_SESSION ref
+        session_refs = [
+            r for r in result.source_refs if r["source_type"] == SourceType.AGENT_SESSION.value
+        ]
+        assert len(session_refs) == 1
+        assert session_refs[0]["source_id"] == "s1"
+
+        # Should have 2 AGENT_TOOL_CALL refs (succeeded + confirmed, not failed)
+        tool_call_refs = [
+            r for r in result.source_refs if r["source_type"] == SourceType.AGENT_TOOL_CALL.value
+        ]
+        assert len(tool_call_refs) == 2
+        tc_ids = {r["source_id"] for r in tool_call_refs}
+        assert tc_ids == {"tc1", "tc3"}
+
+    def test_empty_tool_calls_produces_session_ref_only(self):
+        """Session with no tool calls should produce only an AGENT_SESSION ref."""
+        from cold_storage.modules.reports.application.assembler import (
+            ReportAssembler,
+            ReportDataProvider,
+        )
+        from cold_storage.modules.reports.domain.enums import ReportType, SourceType
+
+        class _EmptyToolCallsProvider(ReportDataProvider):
+            def get_project(self, pid):
+                return {"name": "P"}
+
+            def get_project_version(self, vid, *, project_id=None):
+                return None
+
+            def get_calculation_results(self, pid, vid):
+                return []
+
+            def get_scheme_results(self, pid, vid):
+                return None
+
+            def get_agent_sessions(self, pid, vid):
+                return [
+                    {
+                        "session_id": "s2",
+                        "turns": [{"id": "t1", "status": "completed"}],
+                        "tool_calls": [],
+                    }
+                ]
+
+            def get_knowledge_documents(self):
+                return []
+
+        a = ReportAssembler(_EmptyToolCallsProvider())
+        result = a.assemble(
+            report_id="r1",
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            revision_number=1,
+            generated_by="test",
+        )
+        session_refs = [
+            r for r in result.source_refs if r["source_type"] == SourceType.AGENT_SESSION.value
+        ]
+        tool_call_refs = [
+            r for r in result.source_refs if r["source_type"] == SourceType.AGENT_TOOL_CALL.value
+        ]
+        assert len(session_refs) == 1
+        assert len(tool_call_refs) == 0
+
+
+# ---------------------------------------------------------------------------
+# Scheme source ref — persisted_content_hash propagation
+# ---------------------------------------------------------------------------
+
+
+class TestSchemePersistedHash:
+    def test_scheme_source_ref_has_persisted_hash(self):
+        """Scheme source ref should carry persisted_content_hash from run."""
+        from cold_storage.modules.reports.application.assembler import _make_source_ref
+        from cold_storage.modules.reports.domain.enums import SourceType
+
+        ref = _make_source_ref(
+            section_key="scheme_comparison",
+            source_type=SourceType.SCHEME_RESULT,
+            source_id="run-1",
+            data={"run_id": "run-1", "persisted_content_hash": "abc123"},
+        )
+        assert ref["content_hash"] == "abc123"
+
+    def test_scheme_source_ref_empty_hash_when_missing(self):
+        """Scheme source ref without persisted hash should have empty content_hash."""
+        from cold_storage.modules.reports.application.assembler import _make_source_ref
+        from cold_storage.modules.reports.domain.enums import SourceType
+
+        ref = _make_source_ref(
+            section_key="scheme_comparison",
+            source_type=SourceType.SCHEME_RESULT,
+            source_id="run-1",
+            data={"run_id": "run-1"},
+        )
+        assert ref["content_hash"] == ""

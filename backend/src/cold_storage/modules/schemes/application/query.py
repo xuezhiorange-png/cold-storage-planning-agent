@@ -1,4 +1,4 @@
-"""Scheme query port — public read-only interface for scheme data.
+"""Scheme query port - public read-only interface for scheme data.
 
 This module defines the architecture boundary between the reports module
 and the schemes module.  Reports consume scheme data through this port
@@ -7,8 +7,24 @@ without touching ORM models, Session objects, or infrastructure internals.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from abc import ABC, abstractmethod
 from typing import Any
+
+
+def _run_content_hash(run: Any) -> str:
+    """Stable hash of scheme run content for provenance."""
+    canonical = json.dumps(
+        {
+            "run_id": run.id,
+            "recommended_scheme_code": run.recommended_scheme_code or "",
+            "generator_version": run.generator_version or "",
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 class SchemeQueryPort(ABC):
@@ -17,6 +33,13 @@ class SchemeQueryPort(ABC):
     @abstractmethod
     def get_completed_runs_for_project(self, project_id: str) -> list[dict[str, Any]]:
         """Return completed scheme runs for a project, newest first."""
+        ...
+
+    @abstractmethod
+    def get_completed_runs_for_project_version(
+        self, project_id: str, version_id: str
+    ) -> list[dict[str, Any]]:
+        """Return completed scheme runs for a specific project version, newest first."""
         ...
 
     @abstractmethod
@@ -31,22 +54,30 @@ class SchemeQueryService(SchemeQueryPort):
     def __init__(self, repository: Any) -> None:
         self._repo = repository
 
+    def _serialize_run(self, run: Any) -> dict[str, Any]:
+        return {
+            "run_id": run.id,
+            "project_id": run.project_id,
+            "project_version_id": run.project_version_id,
+            "status": run.status,
+            "weight_set_id": run.weight_set_id,
+            "generator_version": run.generator_version,
+            "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+            "recommended_scheme_code": run.recommended_scheme_code,
+            "warning_messages": run.warning_messages,
+            "persisted_content_hash": _run_content_hash(run),
+        }
+
     def get_completed_runs_for_project(self, project_id: str) -> list[dict[str, Any]]:
         runs = self._repo.get_completed_runs_for_project(project_id)
-        return [
-            {
-                "run_id": run.id,
-                "project_id": run.project_id,
-                "project_version_id": run.project_version_id,
-                "status": run.status,
-                "weight_set_id": run.weight_set_id,
-                "generator_version": run.generator_version,
-                "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-                "recommended_scheme_code": run.recommended_scheme_code,
-                "warning_messages": run.warning_messages,
-            }
-            for run in runs
-        ]
+        return [self._serialize_run(run) for run in runs]
+
+    def get_completed_runs_for_project_version(
+        self, project_id: str, version_id: str
+    ) -> list[dict[str, Any]]:
+        runs = self._repo.get_completed_runs_for_project(project_id)
+        filtered = [r for r in runs if r.project_version_id == version_id]
+        return [self._serialize_run(run) for run in filtered]
 
     def get_candidates_for_run(self, run_id: str) -> list[dict[str, Any]]:
         candidate_records = self._repo.get_candidates(run_id)

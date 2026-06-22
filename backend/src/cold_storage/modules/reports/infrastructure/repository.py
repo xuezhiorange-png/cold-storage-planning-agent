@@ -180,6 +180,11 @@ class SQLReportRepository(ReportRepository):
             status="claimed",
         )
         self._session.add(rec)
+        try:
+            self._session.flush()
+        except Exception:
+            self._session.rollback()
+            raise  # Will be caught by _claim_idempotency as IdempotencyClaimError
 
     def get_idempotency_record(self, key: str) -> dict[str, Any] | None:
         rec = self._session.get(IdempotencyRecord, key)
@@ -197,10 +202,12 @@ class SQLReportRepository(ReportRepository):
     def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
         stmt = (
             sa.update(IdempotencyRecord)
-            .where(IdempotencyRecord.key == key)
+            .where(IdempotencyRecord.key == key, IdempotencyRecord.status == "claimed")
             .values(status="completed", result_payload=result_payload)
         )
-        self._session.execute(stmt)
+        result = self._session.execute(stmt)
+        if result.rowcount == 0:
+            raise ValueError(f"Idempotency record {key} not found or not in claimed state")
 
     # --- Commit ---
 
