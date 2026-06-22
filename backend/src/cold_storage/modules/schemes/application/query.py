@@ -83,7 +83,22 @@ class SchemeQueryService(SchemeQueryPort):
 
     def get_completed_runs_for_project(self, project_id: str) -> list[dict[str, Any]]:
         runs = self._repo.get_completed_runs_for_project(project_id)
-        return [self._serialize_run(run, candidates=None) for run in runs]
+        result: list[dict[str, Any]] = []
+        for run in runs:
+            # Always load candidates so hash fallback (when content_hash is NULL)
+            # uses the same inputs as generation-time computation.
+            candidate_records = self._repo.get_candidates(run.id)
+            candidate_dicts = [
+                {
+                    "id": c.scheme_code,
+                    "scheme_code": c.scheme_code,
+                    "total_score": str(c.total_score) if c.total_score else None,
+                    "rank": c.rank,
+                }
+                for c in candidate_records
+            ]
+            result.append(self._serialize_run(run, candidate_dicts))
+        return result
 
     def get_completed_runs_for_project_version(
         self, project_id: str, version_id: str
