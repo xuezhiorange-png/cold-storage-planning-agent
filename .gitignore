@@ -55,3 +55,4 @@ frontend/dist/
 *.egg-info/
 
 .config/gh/
+data/

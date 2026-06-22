@@ -64,7 +64,7 @@ def seed_default_templates(template_repo: Any) -> None:
 
     for fmt in (ExportFormat.DOCX, ExportFormat.PDF):
         # Check if template already exists for this code+version+format
-        existing = template_repo.list_templates(template_code=template_code, fmt=fmt.value)
+        existing = template_repo.list_templates(template_code=template_code, format=fmt.value)
         already_exists = any(t.version == version for t in existing)
 
         if already_exists:
@@ -75,7 +75,7 @@ def seed_default_templates(template_repo: Any) -> None:
                 fmt.value,
             )
             # Ensure it's active
-            active = template_repo.get_active_template(template_code, fmt.value)
+            active = template_repo.get_active_template(template_code, format=fmt.value)
             if active is None or active.version != version:
                 for t in existing:
                     if t.version == version and t.status != TemplateStatus.ACTIVE:

@@ -372,12 +372,12 @@ class SQLReportRepository(ReportRepository):
             return None
         return _to_template_domain(rec)
 
-    def get_active_template(self, template_code: str, fmt: str) -> ReportTemplate | None:
+    def get_active_template(self, template_code: str, format: str) -> ReportTemplate | None:
         stmt = (
             sa.select(ReportTemplateRecord)
             .where(
                 ReportTemplateRecord.template_code == template_code,
-                ReportTemplateRecord.format == fmt,
+                ReportTemplateRecord.format == format,
                 ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
             )
             .order_by(ReportTemplateRecord.created_at.desc())
@@ -391,13 +391,13 @@ class SQLReportRepository(ReportRepository):
     def list_templates(
         self,
         template_code: str | None = None,
-        fmt: str | None = None,
+        format: str | None = None,
     ) -> list[ReportTemplate]:
         stmt = sa.select(ReportTemplateRecord)
         if template_code:
             stmt = stmt.where(ReportTemplateRecord.template_code == template_code)
-        if fmt:
-            stmt = stmt.where(ReportTemplateRecord.format == fmt)
+        if format:
+            stmt = stmt.where(ReportTemplateRecord.format == format)
         stmt = stmt.order_by(ReportTemplateRecord.created_at.desc())
         return [_to_template_domain(r) for r in self._session.execute(stmt).scalars()]
 

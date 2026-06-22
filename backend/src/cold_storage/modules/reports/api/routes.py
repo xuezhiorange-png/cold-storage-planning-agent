@@ -537,7 +537,7 @@ def list_templates(
     template_repo: Any = Depends(_get_template_repo),  # noqa: B008
 ) -> ListTemplatesResponse:
     """List report templates."""
-    templates = template_repo.list_templates(template_code=template_code, fmt=format)
+    templates = template_repo.list_templates(template_code=template_code, format=format)
     return ListTemplatesResponse(
         templates=[
             TemplateListItem(

@@ -76,3 +76,27 @@ def sample_client(sample_app):
     """Create a httpx TestClient for the FastAPI app."""
     with TestClient(sample_app) as client:
         yield client
+
+
+@pytest.fixture(autouse=True, scope="session")
+def ensure_cjk_font():
+    """Fail fast if the CJK font (fonts-wqy-zenhei) is not installed."""
+    try:
+        import fitz
+
+        from cold_storage.modules.reports.renderers.pdf_renderer import (
+            _get_cjk_font,
+        )
+
+        font = _get_cjk_font()
+        doc = fitz.open()
+        page = doc.new_page()
+        tw = fitz.TextWriter(page.rect)
+        tw.append((72, 72), "测试 Test", font=font, fontsize=12)
+        tw.write_text(page)
+        doc.close()
+    except Exception as exc:
+        pytest.fail(
+            f"CJK font not available: {exc}. "
+            "Install fonts-wqy-zenhei (apt-get install -y fonts-wqy-zenhei)."
+        )

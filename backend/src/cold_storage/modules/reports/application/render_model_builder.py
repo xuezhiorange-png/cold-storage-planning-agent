@@ -447,6 +447,7 @@ def build_render_model(
     template_code: str,
     template_version: str,
     locale: str = "zh-CN",
+    template_manifest_json: dict[str, Any] | None = None,
 ) -> ReportRenderModel:
     """Map assembled report content to a ReportRenderModel.
 
@@ -527,6 +528,7 @@ def build_render_model(
 
     # Build manifest
     section_keys = [s.section_key for s in sections if not s.is_empty]
+    render_settings = dict(template_manifest_json) if template_manifest_json else {"locale": locale}
     manifest = RenderManifest(
         template_code=template_code,
         template_version=template_version,
@@ -534,7 +536,7 @@ def build_render_model(
         source_content_hash=content_hash,
         sections=section_keys,
         format="docx/pdf",
-        render_settings={"locale": locale},
+        render_settings=render_settings,
     )
     manifest = RenderManifest(
         template_code=manifest.template_code,

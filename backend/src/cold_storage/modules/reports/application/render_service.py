@@ -24,18 +24,23 @@ from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
     RenderMode,
+    ReportStatus,
+    TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import (
     ArtifactNotFoundError,
     ExportPermissionError,
+    IdempotencyClaimError,
     IdempotencyPayloadConflictError,
     PathTraversalError,
     RenderError,
     ReportNotFoundError,
+    TemplateNotFoundError,
 )
 from cold_storage.modules.reports.domain.models import (
     Report,
     ReportExportArtifact,
+    ReportRevision,
     ReportTemplate,
 )
 
@@ -215,7 +220,7 @@ class ReportRenderService:
             raise ReportNotFoundError(f"{report_id}/rev/{revision_number}")
 
         # 3. Validate draft/formal rules (P0-5)
-        self._validate_export_mode(report, render_mode, revision_number)
+        self._validate_export_mode(report, render_mode, revision)
 
         # 4. Find the active template (or specific version)
         template = self._find_template(export_format, template_version)
@@ -232,16 +237,17 @@ class ReportRenderService:
             content_hash=revision.content_hash,
             generated_by=revision.generated_by,
             generated_at=revision.generated_at,
-            template_version=template.version if template else "1.0.0",
-            template_code=template.template_code if template else "cold_storage_concept_design",
+            template_version=template.version,
+            template_code=template.template_code,
+            template_manifest_json=template.manifest_json,
         )
 
-        # 6. Idempotency check (P0-6)
-        template_id = template.id if template else ""
-        template_version_str = template.version if template else "1.0.0"
-        template_content_hash = template.template_content_hash if template else ""
+        # 6. Idempotency check (P0-6) — atomic claim via idempotency_records
+        template_id = template.id
+        template_version_str = template.version
+        template_content_hash = template.template_content_hash
 
-        if idempotency_key and self._artifact_repo:
+        if idempotency_key:
             fingerprint = _compute_fingerprint(
                 actor=actor,
                 report_id=report_id,
@@ -253,13 +259,35 @@ class ReportRenderService:
                 template_version=template_version_str,
                 template_content_hash=template_content_hash,
             )
-            existing = self._artifact_repo.find_artifact_by_idempotency(idempotency_key, report_id)
-            if existing is not None:
-                # Check fingerprint match
-                existing_fingerprint = existing.render_manifest_json.get("fingerprint", "")
-                if existing_fingerprint and existing_fingerprint != fingerprint:
-                    raise IdempotencyPayloadConflictError(idempotency_key)
-                return existing
+
+            # Attempt atomic claim via idempotency_records table
+            try:
+                self._repo.save_idempotency_record(
+                    key=idempotency_key,
+                    actor=actor,
+                    action="render",
+                    fingerprint=fingerprint,
+                )
+                self._repo.commit()
+            except Exception:
+                self._repo.rollback()
+                # Record exists — verify same fingerprint
+                existing = self._repo.get_idempotency_record(idempotency_key)
+                if existing is None:
+                    raise
+                if existing["fingerprint"] != fingerprint:
+                    raise IdempotencyPayloadConflictError(idempotency_key) from None
+                # Same fingerprint — return existing completed artifact if available
+                if existing["status"] == "completed" and existing.get("result_payload"):
+                    payload = existing["result_payload"]
+                    if isinstance(payload, dict) and "artifact_id" in payload:
+                        completed = self._artifact_repo.get_artifact(  # type: ignore[union-attr]
+                            payload["artifact_id"]
+                        )
+                        if completed and completed.status == ArtifactStatus.COMPLETED:
+                            return completed
+                # Not yet completed — another render in progress
+                raise IdempotencyClaimError(idempotency_key) from None
 
         # 7. Create pending artifact
         file_ext = "docx" if export_format == ExportFormat.DOCX else "pdf"
@@ -343,6 +371,7 @@ class ReportRenderService:
             )
 
             if self._artifact_repo:
+                self._artifact_repo.update_artifact(artifact)
                 try:
                     self._artifact_repo.commit()
                 except Exception:
@@ -352,6 +381,14 @@ class ReportRenderService:
                     with contextlib.suppress(Exception):
                         self._storage.delete(storage_key)
                     raise
+
+            # Complete idempotency record (P0-6)
+            if idempotency_key:
+                self._repo.complete_idempotency_record(
+                    key=idempotency_key,
+                    result_payload={"artifact_id": artifact.id},
+                )
+                self._repo.commit()
 
             return artifact
 
@@ -415,12 +452,12 @@ class ReportRenderService:
         self,
         report: Report,
         mode: RenderMode,
-        revision_number: int,
+        revision: ReportRevision,
     ) -> None:
         """Validate that the report status allows the requested export mode.
 
-        P0-5: For formal mode, verify the revision being exported is the
-        APPROVED revision (latest revision).
+        P0-4/P0-5: For formal mode, verify the revision being exported is the
+        APPROVED revision (quality_status == APPROVED and latest revision).
         """
         allowed = (
             DRAFT_EXPORT_STATUSES
@@ -432,37 +469,60 @@ class ReportRenderService:
         if report.status not in allowed:
             raise ExportPermissionError(report.id, mode.value, report.status.value)
 
-        # P0-5: Formal mode requires exporting the latest/approved revision
-        if mode == RenderMode.FORMAL and revision_number != report.current_revision_number:
-            raise ExportPermissionError(
-                report.id,
-                mode.value,
-                f"Formal export requires latest revision ({report.current_revision_number}), "
-                f"got {revision_number}",
-            )
+        # P0-4/P0-5: Formal mode requires exporting the latest/approved revision
+        if mode == RenderMode.FORMAL:
+            if revision.revision_number != report.current_revision_number:
+                raise ExportPermissionError(
+                    report.id,
+                    mode.value,
+                    f"Formal export requires latest revision ({report.current_revision_number}), "
+                    f"got {revision.revision_number}",
+                )
+            # Check revision quality_status is approved
+            if revision.quality_status != ReportStatus.APPROVED:
+                raise ExportPermissionError(
+                    report.id,
+                    mode.value,
+                    f"Revision {revision.revision_number} quality status is "
+                    f"{revision.quality_status.value}, must be 'approved'",
+                )
 
     def _find_template(
         self,
         format: ExportFormat,
         template_version: str | None,  # noqa: A002
-    ) -> ReportTemplate | None:
-        """Find the active template or specific version."""
+    ) -> ReportTemplate:
+        """Find the active template or specific version.
+
+        Raises
+        ------
+        TemplateNotFoundError
+            If no matching template is found.
+        """
         if self._template_repo is None:
-            return None
+            raise TemplateNotFoundError("No template repository configured")
 
         if template_version:
-            # Find by version - list all and filter
+            # Find by version — only ACTIVE templates
             templates = self._template_repo.list_templates(format=format)
             for t in templates:
-                if t.version == template_version:
+                if t.version == template_version and t.status == TemplateStatus.ACTIVE:
                     return t
-            return None
+            raise TemplateNotFoundError(
+                f"Template version {template_version} not found or not active "
+                f"for format {format.value}"
+            )
 
         # Find active template
-        return self._template_repo.get_active_template(
+        result = self._template_repo.get_active_template(
             template_code="cold_storage_concept_design",
             format=format,
         )
+        if result is None:
+            raise TemplateNotFoundError(
+                f"No active template found for cold_storage_concept_design / {format.value}"
+            )
+        return result
 
     def _render_bytes(
         self,

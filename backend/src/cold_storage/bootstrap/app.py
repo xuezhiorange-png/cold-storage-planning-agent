@@ -109,6 +109,22 @@ def _get_planning_agent_service(
         SchemeGenerateCompareAdapter,
     )
 
+    # P0-7: Lazy imports for report tool adapters (avoid circular)
+    from cold_storage.modules.reports.application.render_service import (
+        ReportRenderService as _ReportRenderService,
+    )
+    from cold_storage.modules.reports.infrastructure.artifact_storage import (
+        ReportArtifactStorage as _ReportArtifactStorage,
+    )
+    from cold_storage.modules.reports.infrastructure.report_tool_adapters import (
+        ReportGetExportAdapter,
+        ReportListExportsAdapter,
+        ReportRenderAdapter,
+    )
+    from cold_storage.modules.reports.infrastructure.repository import (
+        SQLReportRepository as _SQLReportRepository,
+    )
+
     gateway = FakeAgentModelGateway()
     registry = build_default_registry()
 
@@ -119,6 +135,16 @@ def _get_planning_agent_service(
     scheme_service = SchemeService(db_session)
     knowledge_service = _KnowledgeService(db_session)
     project_service = get_project_service()
+
+    # P0-7: Create report render service for tool adapters
+    _reports_repo = _SQLReportRepository(db_session)
+    _reports_storage = _ReportArtifactStorage(base_dir="data/report_artifacts")
+    _reports_render_svc = _ReportRenderService(
+        repository=_reports_repo,
+        storage=_reports_storage,
+        template_repo=_reports_repo,  # type: ignore[arg-type]
+        artifact_repo=_reports_repo,  # type: ignore[arg-type]
+    )
 
     from cold_storage.modules.planning_agent.infrastructure.tool_adapters import ToolAdapter as _TA
 
@@ -133,6 +159,10 @@ def _get_planning_agent_service(
         "knowledge.search": KnowledgeSearchAdapter(knowledge_service),
         "project.get": ProjectGetAdapter(project_service),
         "project_version.get": ProjectVersionGetAdapter(project_service),
+        # Report tool adapters (P0-7)
+        "report.render": ReportRenderAdapter(_reports_render_svc),
+        "report.list_exports": ReportListExportsAdapter(_reports_render_svc),
+        "report.get_export": ReportGetExportAdapter(_reports_render_svc),
     }
 
     orchestrator = AgentOrchestrator(tool_adapters=adapters, project_service=project_service)
