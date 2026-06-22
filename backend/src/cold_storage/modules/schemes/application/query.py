@@ -126,7 +126,11 @@ class SchemeQueryService(SchemeQueryPort):
         candidate_records = self._repo.get_candidates(run_id)
         return [
             {
-                "id": c.id,
+                # Use scheme_code as the candidate ID for hash consistency.
+                # Hash computation (compute_scheme_source_hash / _run_content_hash)
+                # expects scheme_code, not DB UUIDs.  Using c.id here would cause
+                # a permanent mismatch with the stored content_hash.
+                "id": c.scheme_code,
                 "scheme_code": c.scheme_code,
                 "profile_code": c.profile_code,
                 "feasible": c.feasible,

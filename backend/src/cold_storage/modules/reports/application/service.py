@@ -34,6 +34,17 @@ from cold_storage.modules.reports.domain.quality import get_blockers, has_blocke
 from cold_storage.modules.reports.domain.status_machine import apply_action
 
 
+def _parse_dt(val: Any) -> datetime | Any:
+    """Parse an ISO datetime string back to a datetime object.
+
+    Used during idempotency replay where ``_serialize_result`` converts
+    datetimes to ISO strings via ``.isoformat()``.
+    """
+    if isinstance(val, str):
+        return datetime.fromisoformat(val)
+    return val
+
+
 class ReportRepository:
     """Port: persistence for reports, revisions, source refs, review actions."""
 
@@ -426,8 +437,8 @@ class ReportService:
                     status=ReportStatus(payload["status"]),
                     current_revision_number=payload["current_revision_number"],
                     created_by=payload["created_by"],
-                    created_at=payload["created_at"],
-                    updated_at=payload["updated_at"],
+                    created_at=_parse_dt(payload["created_at"]),
+                    updated_at=_parse_dt(payload["updated_at"]),
                     version=payload["version"],
                 )
         return None
@@ -455,7 +466,7 @@ class ReportService:
                     quality_status=RS(payload["quality_status"]),
                     quality_findings_json=payload["quality_findings_json"],
                     generated_by=payload["generated_by"],
-                    generated_at=payload["generated_at"],
+                    generated_at=_parse_dt(payload["generated_at"]),
                     supersedes_revision_id=payload.get("supersedes_revision_id"),
                 )
         return None

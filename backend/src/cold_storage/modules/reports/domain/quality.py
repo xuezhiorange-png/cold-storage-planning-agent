@@ -144,6 +144,28 @@ def _check_required_calc_fields(
                     remediation=(f"Populate calculation result for '{field_path}'"),
                 )
             )
+        elif isinstance(obj, str) and not obj:
+            findings.append(
+                _finding(
+                    code="EMPTY_REQUIRED_ENGINEERING_RESULT",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message=(f"Required engineering result '{field_path}' is an empty string"),
+                    remediation=(f"Populate calculation result for '{field_path}'"),
+                )
+            )
+        elif isinstance(obj, list) and not obj:
+            findings.append(
+                _finding(
+                    code="EMPTY_REQUIRED_ENGINEERING_RESULT",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message=(f"Required engineering result '{field_path}' is an empty list"),
+                    remediation=(f"Populate calculation result for '{field_path}'"),
+                )
+            )
 
 
 def _check_not_calculated(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:

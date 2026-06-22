@@ -8,6 +8,8 @@ infrastructure internals of schemes or knowledge.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Any
 
 from cold_storage.modules.reports.application.assembler import ReportDataProvider
@@ -128,6 +130,11 @@ class RealReportDataProvider(ReportDataProvider):
             persisted_hash = getattr(calc_result, "content_hash", None)
             if persisted_hash:
                 entry["persisted_content_hash"] = persisted_hash
+                # Recompute hash from current content and flag any mismatch
+                fresh_hash = hashlib.sha256(
+                    json.dumps(result_data, sort_keys=True, separators=(",", ":")).encode()
+                ).hexdigest()
+                entry["hash_mismatch"] = fresh_hash != persisted_hash
 
             # Pass through persisted tool_call_status if available
             persisted_status = getattr(calc_result, "tool_call_status", None)
