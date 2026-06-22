@@ -13,32 +13,6 @@ from unittest.mock import MagicMock
 import fitz  # PyMuPDF
 import pytest
 from sqlalchemy import create_engine
-
-def _has_cjk_font() -> bool:
-    try:
-        import fitz as _fitz
-
-        from cold_storage.modules.reports.renderers.pdf_renderer import (
-            _get_cjk_font,
-        )
-
-        font = _get_cjk_font()  # Will raise if font is invalid
-        # Verify font actually works by creating a small document
-        doc = _fitz.open()
-        page = doc.new_page()
-        tw = _fitz.TextWriter(page.rect)
-        tw.append((72, 72), "测试 Test", font=font, fontsize=12)
-        tw.write_text(page)
-        doc.close()
-        return True
-    except Exception:
-        return False
-
-
-requires_cjk_font = pytest.mark.skipif(
-    not _has_cjk_font(),
-    reason="No CJK font available (install fonts-wqy-zenhei)",
-)
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -71,6 +45,31 @@ from cold_storage.modules.reports.infrastructure.repository import (
 )
 from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
+
+
+def _has_cjk_font() -> bool:
+    try:
+        from cold_storage.modules.reports.renderers.pdf_renderer import (
+            _get_cjk_font,
+        )
+
+        font = _get_cjk_font()  # Will raise if font is invalid
+        # Verify font actually works by creating a small document
+        doc = fitz.open()
+        page = doc.new_page()
+        tw = fitz.TextWriter(page.rect)
+        tw.append((72, 72), "测试 Test", font=font, fontsize=12)
+        tw.write_text(page)
+        doc.close()
+        return True
+    except Exception:
+        return False
+
+
+requires_cjk_font = pytest.mark.skipif(
+    not _has_cjk_font(),
+    reason="No CJK font available (install fonts-wqy-zenhei)",
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
