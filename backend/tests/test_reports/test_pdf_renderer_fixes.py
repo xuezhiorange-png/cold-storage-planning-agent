@@ -5,6 +5,7 @@ P0-4: Manifest controls header/footer/watermark/placeholder
 P0-6: Long text pagination across pages
 P0-7: Ultra-tall table rows, repeat_header=false, landscape
 """
+
 from __future__ import annotations
 
 import fitz
@@ -135,9 +136,7 @@ class TestP0_3_UnitRowOverlap:
 
         header_top = min(y for y, _ in header_spans)
         unit_top = min(y for y, _ in unit_spans)
-        assert unit_top > header_top, (
-            f"Unit row y={unit_top} must be below header y={header_top}"
-        )
+        assert unit_top > header_top, f"Unit row y={unit_top} must be below header y={header_top}"
 
         # First data row "设备000" must be below unit row
         data_spans = [s for s in spans if s[1].startswith("设备000")]
@@ -178,9 +177,7 @@ class TestP0_3_UnitRowOverlap:
         for hb in header_bboxes:
             for ub in unit_bboxes:
                 # No vertical overlap: header bottom <= unit top
-                assert hb[3] <= ub[1] + 0.1, (
-                    f"Header bbox {hb} overlaps unit bbox {ub}"
-                )
+                assert hb[3] <= ub[1] + 0.1, f"Header bbox {hb} overlaps unit bbox {ub}"
 
 
 # ===========================================================================
@@ -246,9 +243,7 @@ class TestP0_4_ManifestControls:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         for page_idx, page in enumerate(doc):
             text = page.get_text()
-            assert "机密文件" in text, (
-                f"Page {page_idx + 1}: watermark '机密文件' not found"
-            )
+            assert "机密文件" in text, f"Page {page_idx + 1}: watermark '机密文件' not found"
         doc.close()
 
     def test_watermark_color_override(self):
@@ -287,9 +282,7 @@ class TestP0_4_ManifestControls:
                         color = span.get("color", 0)
                         # color is an int; convert to check it's not gray
                         # Red: 0xFF0000 = 16711680
-                        assert color != 0xCCCCCC, (
-                            f"Watermark color is still default gray: {color}"
-                        )
+                        assert color != 0xCCCCCC, f"Watermark color is still default gray: {color}"
         doc.close()
         assert found_draft, "DRAFT text not found on cover page"
 
@@ -335,12 +328,8 @@ class TestP0_4_ManifestControls:
 
         x_default, y_default = get_text_bbox(pdf_default)
         x_large, y_large = get_text_bbox(pdf_large)
-        assert x_large > x_default, (
-            f"Large margin x={x_large} should be > default x={x_default}"
-        )
-        assert y_large > y_default, (
-            f"Large margin y={y_large} should be > default y={y_default}"
-        )
+        assert x_large > x_default, f"Large margin x={x_large} should be > default x={x_default}"
+        assert y_large > y_default, f"Large margin y={y_large} should be > default y={y_default}"
 
     def test_empty_section_placeholder_from_manifest(self):
         """empty_section_behavior.placeholder_text in manifest overrides default."""
@@ -409,7 +398,6 @@ class TestP0_6_LongTextPagination:
         assert "第299行" in all_text, "Last line (第299行) not found in PDF"
 
         # Check no text bbox exceeds page bottom margin
-        margin_bottom = 56.69
         for page_idx, page in enumerate(doc):
             page_height = page.rect.height
             blocks = page.get_text("dict")["blocks"]
@@ -463,9 +451,7 @@ class TestP0_6_LongTextPagination:
         assert "这是一段超长的中文文本" in all_text
         # Count occurrences — 200 repetitions means it should appear ~200 times
         count = all_text.count("这是一段超长的中文文本")
-        assert count >= 100, (
-            f"Expected >= 100 occurrences of mega text, found {count}"
-        )
+        assert count >= 100, f"Expected >= 100 occurrences of mega text, found {count}"
         doc.close()
 
 
@@ -485,7 +471,9 @@ class TestP0_7_UltraTallAndRepeatHeader:
             rows.append(
                 [
                     RenderTableCell(value=f"项目{i:03d}"),
-                    RenderTableCell(value=f"这是描述文字第{i:03d}行，用于确保表格足够长能够跨页显示"),
+                    RenderTableCell(
+                        value=f"这是描述文字第{i:03d}行，用于确保表格足够长能够跨页显示"
+                    ),
                     RenderTableCell(value=f"{i * 10}.0"),
                 ]
             )

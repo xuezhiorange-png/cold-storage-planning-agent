@@ -1086,7 +1086,9 @@ class TestFormalExportRules:
         """Formal export of approved + latest revision succeeds."""
         svc, _, _ = render_service
         _seed_template(db_session, version="1.0.0")
-        report_id, _, _ = _seed_report(db_session, status="approved", revision_quality="approved", approved=True)
+        report_id, _, _ = _seed_report(
+            db_session, status="approved", revision_quality="approved", approved=True
+        )
 
         artifact = svc.render(
             report_id=report_id,

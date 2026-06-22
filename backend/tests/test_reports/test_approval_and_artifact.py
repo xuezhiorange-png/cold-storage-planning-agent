@@ -13,6 +13,7 @@ Covers:
 10. Failed idempotency allows retry → final completed
 11. Request changes clears approval fields
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -33,7 +34,6 @@ from cold_storage.modules.reports.application.assembler import (
     ReportDataProvider,
 )
 from cold_storage.modules.reports.application.render_service import (
-    ArtifactStoragePort,
     ReportRenderService,
 )
 from cold_storage.modules.reports.application.service import (
@@ -42,10 +42,8 @@ from cold_storage.modules.reports.application.service import (
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
-    RenderMode,
     ReportStatus,
     ReportType,
-    ReviewAction,
     TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import (
@@ -61,7 +59,6 @@ from cold_storage.modules.reports.infrastructure.orm import Base
 from cold_storage.modules.reports.infrastructure.repository import (
     SQLReportRepository,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -103,7 +100,9 @@ class _MockDataProvider(ReportDataProvider):
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         return {"name": "Test Project", "location": "Shanghai", "description": "Test"}
 
-    def get_project_version(self, version_id: str, project_id: str | None = None) -> dict[str, Any] | None:
+    def get_project_version(
+        self, version_id: str, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         return {"version_id": version_id, "project_id": project_id}
 
 
@@ -205,9 +204,7 @@ def _generate_revision(
     return service.generate_revision(report.id, "test-user")
 
 
-def _full_review_flow(
-    service: ReportService, report: Report
-) -> Report:
+def _full_review_flow(service: ReportService, report: Report) -> Report:
     """Walk through the full review flow to get to REVIEWED status."""
     # Submit review (GENERATED → UNDER_REVIEW)
     report = service.submit_review(report.id, "test-user")
@@ -222,7 +219,7 @@ def _approve_with_quality_status(
     quality_status: ReportStatus = ReportStatus.APPROVED,
 ) -> Report:
     """Approve a report with a specific quality status on the latest revision.
-    
+
     Creates a new revision with the desired quality_status, then calls approve.
     """
     # Create a new revision with the desired quality_status
@@ -328,7 +325,6 @@ class TestApprovalRevisionMismatch:
             # Approve (creates rev2 with APPROVED quality)
             report = _approve_with_quality_status(service, report, ReportStatus.APPROVED)
             report = repo.get_report(report.id)
-            rev1 = repo.get_latest_revision(report.id)
 
             # Create rev3 manually (after approval, status is APPROVED so can't use service)
             rev3 = ReportRevision.create(
@@ -626,16 +622,20 @@ class TestRendererFailureArtifactQueryable:
             )
 
             # Make rendering fail
-            with patch.object(render_svc, "_render_bytes", side_effect=RuntimeError("Renderer broke")):
-                with pytest.raises(RenderError):
-                    render_svc.render(
-                        report_id=report.id,
-                        revision_number=rev.revision_number,
-                        format="docx",
-                        template_version="1.0.0",
-                        mode="formal",
-                        actor="test-user",
-                    )
+            with (
+                patch.object(
+                    render_svc, "_render_bytes", side_effect=RuntimeError("Renderer broke")
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                )
 
             # Verify artifact is failed in a new session
             with session_factory() as new_session:
@@ -824,19 +824,33 @@ class TestFileCleanupFailureLogging:
                 artifact_repo=artifact_repo,
             )
 
-            with caplog.at_level(logging.WARNING, logger="cold_storage.modules.reports.application.render_service"):
-                with pytest.raises(RenderError):
-                    render_svc.render(
-                        report_id=report.id,
-                        revision_number=rev.revision_number,
-                        format="docx",
-                        template_version="1.0.0",
-                        mode="formal",
-                        actor="test-user",
-                    )
+            with (
+                caplog.at_level(
+                    logging.WARNING,
+                    logger="cold_storage.modules.reports.application.render_service",
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                )
 
             # Check for structured error log
-            cleanup_logs = [r for r in caplog.records if "clean" in r.message.lower() and ("temp" in r.message.lower() or "storage" in r.message.lower() or "file" in r.message.lower())]
+            cleanup_logs = [
+                r
+                for r in caplog.records
+                if "clean" in r.message.lower()
+                and (
+                    "temp" in r.message.lower()
+                    or "storage" in r.message.lower()
+                    or "file" in r.message.lower()
+                )
+            ]
             assert len(cleanup_logs) >= 1
             # Verify structured extra fields are present
             for log_record in cleanup_logs:
@@ -889,17 +903,21 @@ class TestFailedIdempotencyRetry:
             idempotency_key = "idem-retry-test"
 
             # First attempt fails
-            with patch.object(render_svc, "_render_bytes", side_effect=RuntimeError("First attempt fails")):
-                with pytest.raises(RenderError):
-                    render_svc.render(
-                        report_id=report.id,
-                        revision_number=rev.revision_number,
-                        format="docx",
-                        template_version="1.0.0",
-                        mode="formal",
-                        actor="test-user",
-                        idempotency_key=idempotency_key,
-                    )
+            with (
+                patch.object(
+                    render_svc, "_render_bytes", side_effect=RuntimeError("First attempt fails")
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key,
+                )
 
             # Verify idempotency is failed
             rec = repo.get_idempotency_record(idempotency_key)
@@ -953,6 +971,7 @@ class TestRequestChangesClearsApproval:
 
             # Put report back to GENERATED status so we can generate a new revision
             from dataclasses import replace as dc_replace
+
             updated = dc_replace(report, status=ReportStatus.GENERATED, version=report.version + 1)
             repo.update_report(updated, expected_version=report.version)
             session.commit()

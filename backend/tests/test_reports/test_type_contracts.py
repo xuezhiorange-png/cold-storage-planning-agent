@@ -4,17 +4,14 @@ Scans production source files to enforce:
 - No ``type: ignore`` comments in production code
 - No bare ``Any`` in function parameter annotations (with exceptions)
 """
+
 from __future__ import annotations
 
 import ast
 import pathlib
 
 REPORTS_DIR = (
-    pathlib.Path(__file__).parent.parent.parent
-    / "src"
-    / "cold_storage"
-    / "modules"
-    / "reports"
+    pathlib.Path(__file__).parent.parent.parent / "src" / "cold_storage" / "modules" / "reports"
 )
 
 PRODUCTION_FILES = [
@@ -65,7 +62,7 @@ def test_no_type_ignore_in_production() -> None:
                 if "type: ignore" in line:
                     if allowed_code and f"[{allowed_code}]" in line:
                         continue  # Allowed
-                    assert False, f"Found 'type: ignore' in {fname}:{i}: {line.strip()}"
+                    raise AssertionError(f"Found 'type: ignore' in {fname}:{i}: {line.strip()}")
 
 
 def test_no_bare_any_in_function_signatures() -> None:
@@ -79,14 +76,13 @@ def test_no_bare_any_in_function_signatures() -> None:
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for arg in node.args.args:
-                    if isinstance(arg.annotation, ast.Name) and arg.annotation.id == "Any":
-                        loc = (fname, node.name)
-                        if loc not in ALLOWED_ANY_LOCATIONS:
-                            # Skip 'self' parameter
-                            if arg.arg != "self":
-                                assert False, (
-                                    f"Bare Any in {fname}:{node.name}({arg.arg})"
-                                )
+                    if (
+                        isinstance(arg.annotation, ast.Name)
+                        and arg.annotation.id == "Any"
+                        and (fname, node.name) not in ALLOWED_ANY_LOCATIONS
+                        and arg.arg != "self"
+                    ):
+                        raise AssertionError(f"Bare Any in {fname}:{node.name}({arg.arg})")
 
 
 def test_type_aliases_exist() -> None:

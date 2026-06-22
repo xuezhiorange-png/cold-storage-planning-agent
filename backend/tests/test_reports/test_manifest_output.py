@@ -3,6 +3,7 @@
 These tests render actual PDF/DOCX files and verify that output
 reflects template manifest changes (header, footer, watermark, margins, etc.).
 """
+
 from __future__ import annotations
 
 from io import BytesIO
@@ -12,9 +13,9 @@ import pytest
 fitz = pytest.importorskip("fitz")  # PyMuPDF
 docx_mod = pytest.importorskip("docx")  # python-docx
 
-from docx import Document
+from docx import Document  # noqa: E402
 
-from cold_storage.modules.reports.domain.render_model import (
+from cold_storage.modules.reports.domain.render_model import (  # noqa: E402
     RenderManifest,
     RenderMetadata,
     RenderMetric,
@@ -25,18 +26,20 @@ from cold_storage.modules.reports.domain.render_model import (
     TemplateManifest,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _render_pdf(model: ReportRenderModel, *, is_draft: bool = False) -> bytes:
     from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
+
     return PdfRenderer().render(model, is_draft=is_draft)
 
 
 def _render_docx(model: ReportRenderModel, *, is_draft: bool = False) -> bytes:
     from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
+
     return DocxRenderer().render(model, is_draft=is_draft)
 
 
@@ -177,7 +180,8 @@ class TestManifestRealOutput:
         model = _make_model({})
         model = ReportRenderModel(
             metadata=model.metadata,
-            sections=model.sections + [
+            sections=model.sections
+            + [
                 RS(
                     section_key="test_empty",
                     title="空章节",
@@ -197,7 +201,8 @@ class TestManifestRealOutput:
         model2 = _make_model({"placeholder_text": {"not_provided": "数据缺失"}})
         model2 = ReportRenderModel(
             metadata=model2.metadata,
-            sections=model2.sections + [
+            sections=model2.sections
+            + [
                 RS(
                     section_key="test_empty",
                     title="空章节",
@@ -302,10 +307,20 @@ class TestManifestRealOutput:
         )
         assert len(model.manifest.sections) == 15
         expected = [
-            "report_metadata", "project_summary", "design_basis", "input_conditions",
-            "assumptions", "capacity_and_throughput", "inventory_and_storage",
-            "area_and_layout", "cooling_load", "equipment_selection",
-            "electrical_and_energy", "scheme_comparison", "investment_estimate",
-            "risks_and_quality", "citations_and_approval",
+            "report_metadata",
+            "project_summary",
+            "design_basis",
+            "input_conditions",
+            "assumptions",
+            "capacity_and_throughput",
+            "inventory_and_storage",
+            "area_and_layout",
+            "cooling_load",
+            "equipment_selection",
+            "electrical_and_energy",
+            "scheme_comparison",
+            "investment_estimate",
+            "risks_and_quality",
+            "citations_and_approval",
         ]
         assert model.manifest.sections == expected
