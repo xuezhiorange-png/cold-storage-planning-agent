@@ -23,6 +23,36 @@ _A4_HEIGHT_PT = 29.7 * _PT_PER_CM
 _A4_MARGIN_PT = 2.0 * _PT_PER_CM
 
 
+class TemplateEmptySectionConfig(BaseModel):
+    """Configuration for empty section rendering behavior."""
+
+    behavior: str = "show_placeholder"  # show_placeholder | hide
+    placeholder_text: dict[str, str] = Field(
+        default_factory=lambda: {
+            "not_provided": "该部分数据未提供",
+            "not_calculated": "该部分尚未计算",
+        }
+    )
+
+
+class TemplateTableColumnConfig(BaseModel):
+    """Configuration for a single table column."""
+
+    key: str
+    header: str = ""
+    width_ratio: float = 0.0
+    align: str = "left"
+
+
+class TemplateTableConfig(BaseModel):
+    """Configuration for a specific table in the template."""
+
+    columns: list[TemplateTableColumnConfig] = Field(default_factory=list)
+    repeat_header: bool = True
+    unit_row: bool = True
+    orientation: str = "portrait"
+
+
 class TemplatePageConfig(BaseModel):
     """Page size and margin configuration in points."""
 
@@ -80,6 +110,18 @@ class TemplateManifest(BaseModel):
     footer: TemplateHeaderFooterConfig = Field(default_factory=TemplateHeaderFooterConfig)
     watermark: TemplateWatermarkConfig = Field(default_factory=TemplateWatermarkConfig)
     locale: str = "zh-CN"
+    format: str = "docx"  # "docx" or "pdf"
+    template_code: str = "cold_storage_concept_design"
+    version: str = "1.0.0"
+    empty_section_behavior: TemplateEmptySectionConfig = Field(
+        default_factory=TemplateEmptySectionConfig
+    )
+    tables: dict[str, TemplateTableConfig] = Field(default_factory=dict)
+    required_sections: list[str] = Field(default_factory=list)
+    optional_sections: list[str] = Field(default_factory=list)
+    landscape_sections: list[str] = Field(default_factory=list)
+    numbering: dict[str, Any] = Field(default_factory=dict)
+    quality_finding_rendering: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def from_manifest_json(cls, manifest_json: dict[str, Any] | None) -> TemplateManifest:
@@ -112,6 +154,8 @@ class TemplateManifest(BaseModel):
             elif mm_key in raw_page:
                 page[pt_key] = raw_page[mm_key] * _MM_TO_PT
 
+        # Preserve landscape_sections from page config
+        page["landscape_sections"] = raw_page.get("landscape_sections", [])
         data["page"] = page
 
         # --- Normalize font config ---
@@ -160,20 +204,47 @@ class TemplateManifest(BaseModel):
 
         data["watermark"] = watermark
 
-        # --- Remove legacy keys that aren't part of the canonical model ---
+        # --- Normalize empty_section_behavior ---
+        # Accept string or dict format
+        raw_esb = data.get("empty_section_behavior")
+        raw_pt = data.get("placeholder_text")
+        if isinstance(raw_esb, str):
+            esb_dict: dict[str, Any] = {"behavior": raw_esb}
+        elif isinstance(raw_esb, dict):
+            esb_dict = dict(raw_esb)
+        else:
+            esb_dict = {"behavior": "show_placeholder"}
+        if isinstance(raw_pt, dict):
+            esb_dict["placeholder_text"] = raw_pt
+        data["empty_section_behavior"] = esb_dict
+
+        # --- Normalize tables ---
+        raw_tables = data.get("tables", {})
+        norm_tables: dict[str, Any] = {}
+        for tname, tval in raw_tables.items():
+            if isinstance(tval, dict):
+                # Convert legacy list-of-strings columns to structured format
+                raw_cols = tval.get("columns", [])
+                if raw_cols and isinstance(raw_cols[0], str):
+                    cols = [{"key": c, "header": c} for c in raw_cols]
+                else:
+                    cols = raw_cols
+                norm_tables[tname] = {
+                    "columns": cols,
+                    "repeat_header": tval.get("repeat_header", True),
+                    "unit_row": tval.get("unit_row", True),
+                    "orientation": tval.get("orientation", "portrait"),
+                }
+                # Handle unit_row as list (legacy) or bool (canonical)
+                if isinstance(tval.get("unit_row"), list):
+                    norm_tables[tname]["unit_row"] = True
+        data["tables"] = norm_tables
+
+        # --- Remove legacy keys that have been normalized or are no longer needed ---
         for key in (
             "styles",
             "draft_watermark",
-            "tables",
-            "numbering",
-            "empty_section_behavior",
             "placeholder_text",
-            "quality_finding_rendering",
-            "required_sections",
-            "optional_sections",
-            "template_code",
-            "version",
-            "format",
             "report_type",
             "schema_version",
             "status",

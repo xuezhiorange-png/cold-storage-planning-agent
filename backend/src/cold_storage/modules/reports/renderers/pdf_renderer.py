@@ -3,6 +3,8 @@
 Uses PyMuPDF (fitz).  Text is selectable (no rasterization).  A4 layout
 with headers, footers, and optional DRAFT watermark.
 
+P0-1: Metrics content type rendering.
+P0-6: Real pagination with page overflow detection and table header repeat.
 P0-9: Uses system CJK font for Chinese text rendering.
 P0-10: Template manifest controls page size, margins, fonts, styles, etc.
 """
@@ -258,149 +260,81 @@ def _insert_number(
     return y + _LINE_HEIGHT + 2
 
 
-def _draw_table(
+def _draw_header(
     page: fitz.Page,
-    x: float,
-    y: float,
-    table: RenderTable,
-    max_width: float | None = None,
+    project_name: str,
+    report_type: str,
     *,
-    font_path: str | None = None,
-) -> float:
-    """Draw a table on the page and return the new y position."""
-    if max_width is None:
-        max_width = _A4_WIDTH_PT - 2 * _MARGIN_PT
+    settings: dict[str, Any] | None = None,
+    margin_left: float | None = None,
+    page_width: float | None = None,
+    margin_top: float | None = None,
+) -> None:
+    """Draw header on page with configurable margins and sizes."""
+    if settings is None:
+        settings = {}
+    if margin_left is None:
+        margin_left = _MARGIN_PT
+    if page_width is None:
+        page_width = _A4_WIDTH_PT
+    if margin_top is None:
+        margin_top = _MARGIN_PT
 
-    num_cols = len(table.headers)
-    if num_cols == 0:
-        return y
-
-    col_width = max_width / num_cols
-    row_height = _LINE_HEIGHT + 4
-
-    # Check if we need a unit row
-    has_unit_row = bool(table.unit_row and any(u for u in table.unit_row))
-
-    font = fitz.Font(fontfile=font_path) if font_path else _get_cjk_font()
-
-    def _draw_row(
-        row_y: float,
-        cells: list[str],
-        is_header: bool = False,
-        is_unit: bool = False,
-    ) -> float:
-        """Draw a single row of cells."""
-        # Background
-        bg_color = _LIGHT_BLUE if is_header else _LIGHT_GRAY if is_unit else None
-        if bg_color:
-            rect = fitz.Rect(x, row_y, x + max_width, row_y + row_height)
-            page.draw_rect(rect, color=None, fill=bg_color)
-
-        # Grid lines (horizontal)
-        page.draw_line(
-            fitz.Point(x, row_y),
-            fitz.Point(x + max_width, row_y),
-            color=(0.7, 0.7, 0.7),
-            width=0.5,
-        )
-
-        # Grid lines (vertical) and text
-        for col_idx, cell_text in enumerate(cells):
-            col_x = x + col_idx * col_width
-            # Vertical line
-            page.draw_line(
-                fitz.Point(col_x, row_y),
-                fitz.Point(col_x, row_y + row_height),
-                color=(0.7, 0.7, 0.7),
-                width=0.5,
-            )
-            # Cell text
-            fontsize = _TABLE_HEADER_SIZE if is_header else _TABLE_BODY_SIZE
-            text_x = col_x + 3
-            text_y = row_y + row_height - 4
-            tw = fitz.TextWriter(page.rect)
-            tw.append(
-                fitz.Point(text_x, text_y),
-                cell_text,
-                font=font,
-                fontsize=fontsize,
-            )
-            tw.write_text(page, color=_TEXT_COLOR)
-
-        # Right border
-        page.draw_line(
-            fitz.Point(x + max_width, row_y),
-            fitz.Point(x + max_width, row_y + row_height),
-            color=(0.7, 0.7, 0.7),
-            width=0.5,
-        )
-
-        # Bottom border
-        page.draw_line(
-            fitz.Point(x, row_y + row_height),
-            fitz.Point(x + max_width, row_y + row_height),
-            color=(0.7, 0.7, 0.7),
-            width=0.5,
-        )
-
-        return row_y + row_height
-
-    current_y = y
-
-    # Header row
-    current_y = _draw_row(current_y, table.headers, is_header=True)
-
-    # Unit row
-    if has_unit_row:
-        unit_cells = [f"({u})" if u else "" for u in table.unit_row]
-        current_y = _draw_row(current_y, unit_cells, is_unit=True)
-
-    # Data rows
-    for row_data in table.rows:
-        cells = [cell.value for cell in row_data]
-        current_y = _draw_row(current_y, cells)
-
-    return current_y + 4  # small gap after table
-
-
-def _draw_header(page: fitz.Page, project_name: str, report_type: str) -> None:
-    """Draw header on page."""
+    header_size = settings.get("header_size", _HEADER_SIZE)
+    content_left = margin_left
+    content_right = page_width - settings.get("margin_right_pt", _MARGIN_PT)
     header_text = f"{project_name} — {report_type}"
     font = _get_cjk_font()
-    text_width = font.text_length(header_text, fontsize=_HEADER_SIZE)
-    content_right = _A4_WIDTH_PT - _MARGIN_PT
+    text_width = font.text_length(header_text, fontsize=header_size)
     tw = fitz.TextWriter(page.rect)
     tw.append(
-        fitz.Point(content_right - text_width, _MARGIN_PT + 0.5 * _PT_PER_CM),
+        fitz.Point(content_right - text_width, margin_top + 0.5 * _PT_PER_CM),
         header_text,
         font=font,
-        fontsize=_HEADER_SIZE,
+        fontsize=header_size,
     )
     tw.write_text(page, color=_GRAY_COLOR)
     # Line under header
-    content_left = _MARGIN_PT
     page.draw_line(
-        fitz.Point(content_left, _MARGIN_PT + 1.0 * _PT_PER_CM),
-        fitz.Point(content_right, _MARGIN_PT + 1.0 * _PT_PER_CM),
+        fitz.Point(content_left, margin_top + 1.0 * _PT_PER_CM),
+        fitz.Point(content_right, margin_top + 1.0 * _PT_PER_CM),
         color=(0.8, 0.8, 0.8),
         width=0.5,
     )
 
 
-def _draw_footer(page: fitz.Page, page_num: int) -> None:
-    """Draw page number in footer."""
+def _draw_footer(
+    page: fitz.Page,
+    page_num: int,
+    *,
+    settings: dict[str, Any] | None = None,
+    page_width: float | None = None,
+    page_height: float | None = None,
+    margin_bottom: float | None = None,
+) -> None:
+    """Draw page number in footer with configurable margins and sizes."""
+    if settings is None:
+        settings = {}
+    if page_width is None:
+        page_width = _A4_WIDTH_PT
+    if page_height is None:
+        page_height = _A4_HEIGHT_PT
+    if margin_bottom is None:
+        margin_bottom = _MARGIN_PT
+
+    footer_size = settings.get("footer_size", _FOOTER_SIZE)
     page_text = f"— {page_num} —"
     font = _get_cjk_font()
-    text_width = font.text_length(page_text, fontsize=_FOOTER_SIZE)
+    text_width = font.text_length(page_text, fontsize=footer_size)
     tw = fitz.TextWriter(page.rect)
     tw.append(
         fitz.Point(
-            (_A4_WIDTH_PT - text_width) / 2,
-            _A4_HEIGHT_PT - _MARGIN_PT + 0.3 * _PT_PER_CM,
+            (page_width - text_width) / 2,
+            page_height - margin_bottom + 0.3 * _PT_PER_CM,
         ),
         page_text,
         font=font,
-        fontsize=_FOOTER_SIZE,
+        fontsize=footer_size,
     )
     tw.write_text(page, color=_GRAY_COLOR)
 
@@ -412,8 +346,8 @@ def _draw_draft_watermark(
 ) -> None:
     """Draw DRAFT watermark centered on the page."""
     font = _get_cjk_font()
-    cx = _A4_WIDTH_PT / 2
-    cy = _A4_HEIGHT_PT / 2
+    cx = page.rect.width / 2
+    cy = page.rect.height / 2
     text_width = font.text_length(text, fontsize=fontsize)
     tw = fitz.TextWriter(page.rect)
     tw.append(
@@ -423,6 +357,287 @@ def _draw_draft_watermark(
         fontsize=fontsize,
     )
     tw.write_text(page, color=(0.8, 0.8, 0.8))
+
+
+# ---------------------------------------------------------------------------
+# Page Context (P0-1 / P0-6)
+# ---------------------------------------------------------------------------
+
+
+class PdfRenderContext:
+    """Page state management for PDF rendering.
+
+    Tracks the current page, Y position, and provides ensure_space()
+    to automatically create new pages when content overflows.
+    """
+
+    def __init__(
+        self,
+        doc: fitz.Document,
+        settings: dict[str, Any],
+        is_draft: bool,
+        metadata: Any,
+        font_path: str,
+    ):
+        self.doc = doc
+        self.settings = settings
+        self.is_draft = is_draft
+        self.metadata = metadata
+        self.font_path = font_path
+        self.page_width = settings["page_width_pt"]
+        self.page_height = settings["page_height_pt"]
+        self.margin_top = settings["margin_top_pt"]
+        self.margin_bottom = settings["margin_bottom_pt"]
+        self.margin_left = settings["margin_left_pt"]
+        self.margin_right = settings["margin_right_pt"]
+        self.content_width = self.page_width - self.margin_left - self.margin_right
+        self.content_top = self.margin_top + 1.5 * _PT_PER_CM
+        self.page: fitz.Page | None = None
+        self.y = 0.0
+        self.page_num = 0
+
+    def new_page(self) -> None:
+        """Create new page with header, footer, watermark."""
+        self.page = self.doc.new_page(width=self.page_width, height=self.page_height)
+        self.page_num += 1
+        self.y = self.content_top
+        # Draw header
+        _draw_header(
+            self.page,
+            self.metadata.project_name,
+            self.metadata.report_type,
+            settings=self.settings,
+            margin_left=self.margin_left,
+            page_width=self.page_width,
+            margin_top=self.margin_top,
+        )
+        # Draw footer
+        _draw_footer(
+            self.page,
+            self.page_num,
+            settings=self.settings,
+            page_width=self.page_width,
+            page_height=self.page_height,
+            margin_bottom=self.margin_bottom,
+        )
+        # Draw watermark
+        if self.is_draft:
+            _draw_draft_watermark(
+                self.page,
+                text=self.settings.get("draft_watermark_text", "DRAFT"),
+                fontsize=self.settings.get("draft_watermark_size", 60),
+            )
+
+    def ensure_space(self, required_height: float) -> bool:
+        """Check if there's enough space. If not, create new page.
+
+        Returns True if space is available.
+        """
+        bottom_limit = self.page_height - self.margin_bottom
+        if self.y + required_height > bottom_limit:
+            self.new_page()
+            return True
+        return True
+
+    @property
+    def content_left(self) -> float:
+        """Left edge of the content area."""
+        return float(self.margin_left)
+
+    @property
+    def current_page(self) -> fitz.Page:
+        """Return the current page, asserting it exists."""
+        assert self.page is not None, "No current page — call new_page() first"
+        return self.page
+
+
+# ---------------------------------------------------------------------------
+# Table Drawing with Pagination (P0-6)
+# ---------------------------------------------------------------------------
+
+
+def _wrap_cell_text(
+    text: str,
+    font: fitz.Font,
+    fontsize: float,
+    max_width: float,
+) -> list[str]:
+    """Wrap text to fit within max_width, returning list of lines."""
+    if not text:
+        return [""]
+
+    lines: list[str] = []
+    current_line = ""
+    for char in text:
+        test = current_line + char
+        text_width = font.text_length(test, fontsize=fontsize)
+        if text_width > max_width and current_line:
+            lines.append(current_line)
+            current_line = char
+        else:
+            current_line = test
+    if current_line:
+        lines.append(current_line)
+    return lines if lines else [""]
+
+
+def _measure_row_height(
+    cells: list[str],
+    font: fitz.Font,
+    fontsize: float,
+    col_width: float,
+    base_height: float,
+) -> float:
+    """Measure the actual height a row needs based on text wrapping."""
+    max_lines = 1
+    cell_padding = 6  # left + right padding
+    usable_width = col_width - cell_padding
+    for cell_text in cells:
+        lines = _wrap_cell_text(cell_text, font, fontsize, usable_width)
+        if len(lines) > max_lines:
+            max_lines = len(lines)
+    return base_height * max_lines
+
+
+def _draw_table(
+    ctx: PdfRenderContext,
+    x: float,
+    y: float,
+    table: RenderTable,
+    max_width: float | None = None,
+    *,
+    font_path: str | None = None,
+) -> float:
+    """Draw a table on the page and return the new y position.
+
+    Supports pagination: when a row won't fit on the current page, a new page
+    is created. On page break the header row (and unit row if present) are redrawn.
+    """
+    if max_width is None:
+        max_width = ctx.content_width
+
+    num_cols = len(table.headers)
+    if num_cols == 0:
+        return y
+
+    col_width = max_width / num_cols
+    base_row_height = _LINE_HEIGHT + 4
+
+    # Check if we need a unit row
+    has_unit_row = bool(table.unit_row and any(u for u in table.unit_row))
+
+    font = fitz.Font(fontfile=font_path) if font_path else _get_cjk_font()
+    header_font_size = ctx.settings.get("table_header_size", _TABLE_HEADER_SIZE)
+    body_font_size = ctx.settings.get("table_body_size", _TABLE_BODY_SIZE)
+
+    def _draw_row(
+        row_y: float,
+        cells: list[str],
+        is_header: bool = False,
+        is_unit: bool = False,
+    ) -> float:
+        """Draw a single row of cells, return new y after the row."""
+        row_font_size = header_font_size if is_header else body_font_size
+        row_height = _measure_row_height(cells, font, row_font_size, col_width, base_row_height)
+
+        # Background
+        bg_color = _LIGHT_BLUE if is_header else _LIGHT_GRAY if is_unit else None
+        if bg_color:
+            rect = fitz.Rect(x, row_y, x + max_width, row_y + row_height)
+            ctx.current_page.draw_rect(rect, color=None, fill=bg_color)
+
+        # Grid lines (horizontal)
+        ctx.current_page.draw_line(
+            fitz.Point(x, row_y),
+            fitz.Point(x + max_width, row_y),
+            color=(0.7, 0.7, 0.7),
+            width=0.5,
+        )
+
+        # Grid lines (vertical) and text
+        cell_padding = 6  # left+right padding
+        for col_idx, cell_text in enumerate(cells):
+            col_x = x + col_idx * col_width
+            # Vertical line
+            ctx.current_page.draw_line(
+                fitz.Point(col_x, row_y),
+                fitz.Point(col_x, row_y + row_height),
+                color=(0.7, 0.7, 0.7),
+                width=0.5,
+            )
+            # Cell text with wrapping
+            text_x = col_x + 3
+            text_y_pos = row_y
+            usable_width = col_width - cell_padding
+            wrapped_lines = _wrap_cell_text(cell_text, font, row_font_size, usable_width)
+            for wline in wrapped_lines:
+                text_y_pos += _LINE_HEIGHT
+                tw = fitz.TextWriter(ctx.current_page.rect)
+                tw.append(
+                    fitz.Point(text_x, text_y_pos),
+                    wline,
+                    font=font,
+                    fontsize=row_font_size,
+                )
+                tw.write_text(page=ctx.current_page, color=_TEXT_COLOR)
+
+        # Right border
+        ctx.current_page.draw_line(
+            fitz.Point(x + max_width, row_y),
+            fitz.Point(x + max_width, row_y + row_height),
+            color=(0.7, 0.7, 0.7),
+            width=0.5,
+        )
+
+        # Bottom border
+        ctx.current_page.draw_line(
+            fitz.Point(x, row_y + row_height),
+            fitz.Point(x + max_width, row_y + row_height),
+            color=(0.7, 0.7, 0.7),
+            width=0.5,
+        )
+
+        return row_y + row_height
+
+    current_y = y
+
+    # --- Draw header row (first page) ---
+    header_height = _measure_row_height(
+        table.headers, font, header_font_size, col_width, base_row_height
+    )
+    ctx.ensure_space(header_height)
+    current_y = ctx.y  # sync with context after ensure_space
+    current_y = _draw_row(current_y, table.headers, is_header=True)
+
+    # --- Draw unit row (if present, first page) ---
+    if has_unit_row:
+        unit_cells = [f"({u})" if u else "" for u in table.unit_row]
+        unit_height = _measure_row_height(
+            unit_cells, font, body_font_size, col_width, base_row_height
+        )
+        ctx.ensure_space(unit_height)
+        current_y = ctx.y  # sync with context after ensure_space
+        current_y = _draw_row(current_y, unit_cells, is_unit=True)
+
+    # --- Draw data rows with overflow detection ---
+    for row_data in table.rows:
+        cells = [cell.value for cell in row_data]
+        row_height = _measure_row_height(cells, font, body_font_size, col_width, base_row_height)
+
+        # Check if this row fits; if not, page break
+        if current_y + row_height > ctx.page_height - ctx.margin_bottom:
+            ctx.new_page()
+            current_y = ctx.y  # sync with new page Y position
+            # Redraw header row on new page
+            current_y = _draw_row(current_y, table.headers, is_header=True)
+            # Redraw unit row on new page if present
+            if has_unit_row:
+                unit_cells = [f"({u})" if u else "" for u in table.unit_row]
+                current_y = _draw_row(current_y, unit_cells, is_unit=True)
+
+        current_y = _draw_row(current_y, cells)
+
+    return current_y + 4  # small gap after table
 
 
 # ---------------------------------------------------------------------------
@@ -451,12 +666,6 @@ class PdfRenderer:
         # P0-10: Load template manifest settings
         settings = _load_manifest_settings(model)
 
-        page_width = settings["page_width_pt"]
-        page_height = settings["page_height_pt"]
-        margin_pt = settings["margin_pt"]
-        content_width = page_width - 2 * margin_pt
-        content_top = margin_pt + 1.5 * _PT_PER_CM
-
         # Get CJK font path for all text
         font_path = _find_cjk_font()
 
@@ -478,8 +687,19 @@ class PdfRenderer:
             }
         )
 
+        # ---- Render context ----
+        ctx = PdfRenderContext(
+            doc=doc,
+            settings=settings,
+            is_draft=is_draft,
+            metadata=meta,
+            font_path=font_path,
+        )
+
         # ---- Cover page ----
-        cover_page = doc.new_page(width=page_width, height=page_height)
+        cover_page = doc.new_page(
+            width=settings["page_width_pt"], height=settings["page_height_pt"]
+        )
         self._draw_cover(
             cover_page,
             meta,
@@ -489,22 +709,10 @@ class PdfRenderer:
         )
 
         # ---- Content sections ----
-        page_num = 2  # cover is page 1
         for section in model.sections:
-            page = doc.new_page(width=page_width, height=page_height)
-            self._draw_section(
-                page,
-                section,
-                meta,
-                settings=settings,
-                is_draft=is_draft,
-                font_path=font_path,
-                page_num=page_num,
-                margin_pt=margin_pt,
-                content_top=content_top,
-                content_width=content_width,
-            )
-            page_num += 1
+            # Start each section on a new page
+            ctx.new_page()
+            self._draw_section(ctx, section)
 
         # ---- Finalize ----
         pdf_bytes: bytes = doc.tobytes()
@@ -514,7 +722,6 @@ class PdfRenderer:
     # ------------------------------------------------------------------
     # Cover page
     # ------------------------------------------------------------------
-
     def _draw_cover(
         self,
         page: fitz.Page,
@@ -584,39 +791,17 @@ class PdfRenderer:
     # ------------------------------------------------------------------
     # Section rendering
     # ------------------------------------------------------------------
-
     def _draw_section(
         self,
-        page: fitz.Page,
+        ctx: PdfRenderContext,
         section: RenderSection,
-        meta: Any,
-        *,
-        settings: dict[str, Any],
-        is_draft: bool = False,
-        font_path: str | None = None,
-        page_num: int = 1,
-        margin_pt: float = _MARGIN_PT,
-        content_top: float = 0,
-        content_width: float = 0,
     ) -> None:
-        """Draw a section on a page."""
-        content_left = margin_pt
-        if content_top == 0:
-            content_top = margin_pt + 1.5 * _PT_PER_CM
-        if content_width == 0:
-            content_width = settings.get("page_width_pt", _A4_WIDTH_PT) - 2 * margin_pt
+        """Draw a section on the current page."""
+        content_left = ctx.content_left
+        content_width = ctx.content_width
+        settings = ctx.settings
 
-        _draw_header(page, meta.project_name, meta.report_type)
-
-        # Draft watermark
-        draft_wm_text = settings.get("draft_watermark_text", "DRAFT")
-        draft_wm_size = settings.get("draft_watermark_size", 60)
-        if is_draft:
-            _draw_draft_watermark(page, text=draft_wm_text, fontsize=draft_wm_size)
-
-        current_y = content_top
-
-        # P0-10: Use heading sizes from settings
+        # Heading
         heading_sizes = {
             1: settings.get("heading1_size", _HEADING1_SIZE),
             2: settings.get("heading2_size", _HEADING2_SIZE),
@@ -625,113 +810,164 @@ class PdfRenderer:
 
         if section.is_empty:
             heading_size = heading_sizes.get(section.level, _HEADING1_SIZE)
-            current_y = _insert_text(
-                page,
+            ctx.ensure_space(_LINE_HEIGHT + _LINE_HEIGHT + 10)
+            ctx.y = _insert_text(
+                ctx.current_page,
                 content_left,
-                current_y,
+                ctx.y,
                 section.title,
                 fontsize=heading_size,
                 color=_HEADING_COLOR,
-                font_path=font_path,
+                font_path=ctx.font_path,
                 max_width=content_width,
             )
-            current_y += 4
+            ctx.y += 4
             reason_text = {
                 "not_provided": "该部分数据未提供",
                 "not_calculated": "该部分尚未计算",
-            }.get(section.empty_reason, settings.get("placeholder_text", "该部分内容不可用"))
-            current_y = _insert_text(
-                page,
+            }.get(
+                section.empty_reason,
+                settings.get("placeholder_text", "该部分内容不可用"),
+            )
+            ctx.y = _insert_text(
+                ctx.current_page,
                 content_left + 10,
-                current_y,
+                ctx.y,
                 f"（{reason_text}）",
                 fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
                 color=_GRAY_COLOR,
-                font_path=font_path,
+                font_path=ctx.font_path,
                 max_width=content_width,
             )
-            _draw_footer(page, page_num)
             return
 
         # Heading
         heading_size = heading_sizes.get(section.level, _HEADING1_SIZE)
-        current_y = _insert_text(
-            page,
+        ctx.ensure_space(_LINE_HEIGHT + 6)
+        ctx.y = _insert_text(
+            ctx.current_page,
             content_left,
-            current_y,
+            ctx.y,
             section.title,
             fontsize=heading_size,
             color=_HEADING_COLOR,
-            font_path=font_path,
+            font_path=ctx.font_path,
             max_width=content_width,
         )
-        current_y += 6
+        ctx.y += 6
 
         if section.content_type == "text" and section.text:
-            current_y = _insert_text(
-                page,
+            ctx.y = _insert_text(
+                ctx.current_page,
                 content_left,
-                current_y,
+                ctx.y,
                 section.text,
                 fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
-                font_path=font_path,
+                font_path=ctx.font_path,
                 max_width=content_width,
             )
-        elif section.content_type == "number" and section.number:
-            num = section.number
-            current_y = _insert_number(
-                page, content_left, current_y, num.display, num.unit, font_path=font_path
-            )
-            if section.text:
-                current_y = _insert_text(
-                    page,
+
+        elif section.content_type == "metrics" and section.metrics:
+            # P0-1: Render each metric as: label: display_value unit
+            for metric in section.metrics:
+                label_text = f"{metric.label}: {metric.display_value}"
+                if metric.unit and metric.unit not in metric.display_value:
+                    label_text += f" {metric.unit}"
+                ctx.ensure_space(_LINE_HEIGHT + 4)
+                ctx.y = _insert_text(
+                    ctx.current_page,
                     content_left,
-                    current_y,
-                    section.text,
+                    ctx.y,
+                    label_text,
                     fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
-                    font_path=font_path,
+                    font_path=ctx.font_path,
                     max_width=content_width,
                 )
-        elif section.content_type == "table" and section.table:
-            if section.text:
-                current_y = _insert_text(
-                    page,
+            # Backward compat: also render primary number
+            if section.number:
+                ctx.ensure_space(_LINE_HEIGHT + 4)
+                ctx.y = _insert_number(
+                    ctx.current_page,
                     content_left,
-                    current_y,
+                    ctx.y,
+                    section.number.display,
+                    section.number.unit,
+                    font_path=ctx.font_path,
+                )
+            if section.text:
+                ctx.y = _insert_text(
+                    ctx.current_page,
+                    content_left,
+                    ctx.y,
                     section.text,
                     fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
-                    font_path=font_path,
+                    font_path=ctx.font_path,
                     max_width=content_width,
-                )
-                current_y += 4
-            current_y = _draw_table(
-                page,
-                content_left,
-                current_y,
-                section.table,
-                max_width=content_width,
-                font_path=font_path,
-            )
-        elif section.content_type == "finding":
-            if section.text:
-                current_y = _insert_text(
-                    page,
-                    content_left,
-                    current_y,
-                    section.text,
-                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
-                    font_path=font_path,
-                    max_width=content_width,
-                )
-                current_y += 4
-            if section.table:
-                current_y = _draw_table(
-                    page,
-                    content_left,
-                    current_y,
-                    section.table,
-                    max_width=content_width,
-                    font_path=font_path,
                 )
 
-        _draw_footer(page, page_num)
+        elif section.content_type == "number" and section.number:
+            num = section.number
+            ctx.ensure_space(_LINE_HEIGHT + 4)
+            ctx.y = _insert_number(
+                ctx.current_page,
+                content_left,
+                ctx.y,
+                num.display,
+                num.unit,
+                font_path=ctx.font_path,
+            )
+            if section.text:
+                ctx.y = _insert_text(
+                    ctx.current_page,
+                    content_left,
+                    ctx.y,
+                    section.text,
+                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                    font_path=ctx.font_path,
+                    max_width=content_width,
+                )
+
+        elif section.content_type == "table" and section.table:
+            if section.text:
+                ctx.ensure_space(_LINE_HEIGHT + 4)
+                ctx.y = _insert_text(
+                    ctx.current_page,
+                    content_left,
+                    ctx.y,
+                    section.text,
+                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                    font_path=ctx.font_path,
+                    max_width=content_width,
+                )
+                ctx.y += 4
+            ctx.y = _draw_table(
+                ctx,
+                content_left,
+                ctx.y,
+                section.table,
+                max_width=content_width,
+                font_path=ctx.font_path,
+            )
+
+        elif section.content_type == "finding":
+            if section.text:
+                ctx.ensure_space(_LINE_HEIGHT + 4)
+                ctx.y = _insert_text(
+                    ctx.current_page,
+                    content_left,
+                    ctx.y,
+                    section.text,
+                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                    font_path=ctx.font_path,
+                    max_width=content_width,
+                )
+                ctx.y += 4
+            if section.table:
+                ctx.y = _draw_table(
+                    ctx,
+                    content_left,
+                    ctx.y,
+                    section.table,
+                    max_width=content_width,
+                    font_path=ctx.font_path,
+                )

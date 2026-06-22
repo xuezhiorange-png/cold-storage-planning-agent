@@ -61,6 +61,11 @@ class Report:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: int = 1  # optimistic lock
+    # P0-8: Formal approval binding fields
+    approved_revision_id: str | None = None
+    approved_content_hash: str | None = None
+    approved_by: str | None = None
+    approved_at: str | None = None  # ISO 8601
 
     @classmethod
     def create(

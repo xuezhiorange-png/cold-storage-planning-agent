@@ -28,15 +28,21 @@ from cold_storage.modules.reports.domain.render_model import (
 # ---------------------------------------------------------------------------
 
 _SECTION_HEADINGS: dict[str, tuple[str, int]] = {
+    "report_metadata": ("报告元数据", 1),
     "project_summary": ("项目概况", 1),
+    "design_basis": ("设计依据", 1),
+    "input_conditions": ("输入条件", 1),
+    "assumptions": ("假设条件", 1),
+    "capacity_and_throughput": ("产能与吞吐", 1),
+    "inventory_and_storage": ("库存与储存", 1),
+    "area_and_layout": ("面积与布局", 1),
     "cooling_load": ("冷负荷计算", 1),
     "equipment_selection": ("设备选型", 1),
     "electrical_and_energy": ("电气及能耗", 1),
     "scheme_comparison": ("方案比较", 1),
     "investment_estimate": ("投资估算", 1),
-    "risks_and_missing_information": ("风险与待补充信息", 1),
-    "quality_summary": ("质量摘要", 1),
-    "citations": ("引用来源", 1),
+    "risks_and_quality": ("风险与质量", 1),
+    "citations_and_approval": ("引用与审批", 1),
 }
 
 
@@ -147,6 +153,124 @@ def _build_project_summary(data: dict[str, Any]) -> RenderSection:
         content_type="text",
         text=text,
     )
+
+
+def _build_report_metadata(data: dict[str, Any]) -> RenderSection:
+    """Build the report_metadata section."""
+    title, level = _SECTION_HEADINGS["report_metadata"]
+    parts: list[str] = []
+    label_map = {
+        "project_id": "项目编号",
+        "schema_version": "Schema版本",
+        "report_type": "报告类型",
+    }
+    for key, label in label_map.items():
+        val = data.get(key, "")
+        if val:
+            parts.append(f"{label}：{val}")
+    text = "\n".join(parts)
+    if not text.strip():
+        return RenderSection(
+            section_key="report_metadata",
+            title=title,
+            level=level,
+            content_type="empty",
+            is_empty=True,
+            empty_reason="not_provided",
+        )
+    return RenderSection(
+        section_key="report_metadata",
+        title=title,
+        level=level,
+        content_type="text",
+        text=text,
+    )
+
+
+def _build_design_basis(data: dict[str, Any]) -> RenderSection:
+    """Build the design_basis section."""
+    title, level = _SECTION_HEADINGS["design_basis"]
+    parts: list[str] = []
+    if isinstance(data, dict):
+        for key, val in data.items():
+            if isinstance(val, str) and val:
+                parts.append(f"{key}：{val}")
+            elif isinstance(val, dict):
+                inner = val.get("value", val.get("description", ""))
+                if inner:
+                    parts.append(f"{key}：{inner}")
+    text = "\n".join(parts)
+    if not text.strip():
+        return RenderSection(
+            section_key="design_basis",
+            title=title,
+            level=level,
+            content_type="empty",
+            is_empty=True,
+            empty_reason="not_provided",
+        )
+    return RenderSection(
+        section_key="design_basis",
+        title=title,
+        level=level,
+        content_type="text",
+        text=text,
+    )
+
+
+def _build_input_conditions(data: dict[str, Any]) -> RenderSection:
+    """Build the input_conditions section with text/metrics."""
+    return _make_number_section("input_conditions", data)
+
+
+def _build_assumptions(data: dict[str, Any]) -> RenderSection:
+    """Build the assumptions section with text fields."""
+    title, level = _SECTION_HEADINGS["assumptions"]
+    parts: list[str] = []
+    if isinstance(data, dict):
+        for key, val in data.items():
+            if isinstance(val, str) and val:
+                parts.append(f"{key}：{val}")
+            elif isinstance(val, list):
+                for item in val:
+                    if isinstance(item, str):
+                        parts.append(f"• {item}")
+                    elif isinstance(item, dict):
+                        desc = item.get("description", item.get("value", ""))
+                        if desc:
+                            parts.append(f"• {desc}")
+    text = "\n".join(parts)
+    if not text.strip():
+        return RenderSection(
+            section_key="assumptions",
+            title=title,
+            level=level,
+            content_type="empty",
+            is_empty=True,
+            empty_reason="not_provided",
+        )
+    return RenderSection(
+        section_key="assumptions",
+        title=title,
+        level=level,
+        content_type="text",
+        text=text,
+    )
+
+
+def _build_capacity_and_throughput(data: dict[str, Any]) -> RenderSection:
+    """Build the capacity_and_throughput section with number fields."""
+    return _make_number_section("capacity_and_throughput", data)
+
+
+def _build_inventory_and_storage(data: dict[str, Any]) -> RenderSection:
+    """Build the inventory_and_storage section with number fields."""
+    return _make_number_section("inventory_and_storage", data)
+
+
+def _build_area_and_layout(data: dict[str, Any]) -> RenderSection:
+    """Build the area_and_layout section with number fields."""
+    return _make_number_section("area_and_layout", data)
 
 
 def _build_cooling_load(data: dict[str, Any]) -> RenderSection:
@@ -291,16 +415,20 @@ def _build_investment_estimate(data: dict[str, Any]) -> RenderSection:
     )
 
 
-def _build_risks_and_missing(data: dict[str, Any]) -> RenderSection:
-    """Build the risks_and_missing_information section."""
-    title, level = _SECTION_HEADINGS["risks_and_missing_information"]
+def _build_risks_and_quality(data: dict[str, Any]) -> RenderSection:
+    """Build the risks_and_quality section (risks + missing + quality findings)."""
+    title, level = _SECTION_HEADINGS["risks_and_quality"]
 
     risks = data.get("risks", [])
     missing = data.get("missing_information", [])
+    findings = data.get("findings", [])
+    blocker_count = data.get("blocker_count", 0)
+    warning_count = data.get("warning_count", 0)
+    total = data.get("total_findings", 0)
 
-    if not risks and not missing:
+    if not risks and not missing and not findings and total == 0:
         return RenderSection(
-            section_key="risks_and_missing_information",
+            section_key="risks_and_quality",
             title=title,
             level=level,
             content_type="empty",
@@ -330,39 +458,12 @@ def _build_risks_and_missing(data: dict[str, Any]) -> RenderSection:
                 line += f" — 影响：{impact}"
             parts.append(line)
 
-    return RenderSection(
-        section_key="risks_and_missing_information",
-        title=title,
-        level=level,
-        content_type="text",
-        text="\n".join(parts),
-    )
-
-
-def _build_quality_summary(data: dict[str, Any]) -> RenderSection:
-    """Build the quality_summary section with findings table."""
-    title, level = _SECTION_HEADINGS["quality_summary"]
-
-    total = data.get("total_findings", 0)
-    if total == 0 and not data.get("findings"):
-        return RenderSection(
-            section_key="quality_summary",
-            title=title,
-            level=level,
-            content_type="empty",
-            is_empty=True,
-            empty_reason="not_provided",
+    if total > 0:
+        info_count = data.get("info_count", 0)
+        parts.append(
+            f"质量摘要：共 {total} 项发现：{blocker_count} 个阻断项、"
+            f"{warning_count} 个警告、{info_count} 个提示"
         )
-
-    findings = data.get("findings", [])
-
-    blocker_count = data.get("blocker_count", 0)
-    warning_count = data.get("warning_count", 0)
-    info_count = data.get("info_count", 0)
-
-    summary = (
-        f"共 {total} 项发现：{blocker_count} 个阻断项、{warning_count} 个警告、{info_count} 个提示"
-    )
 
     table: RenderTable | None = None
     if findings:
@@ -387,24 +488,31 @@ def _build_quality_summary(data: dict[str, Any]) -> RenderSection:
         )
 
     return RenderSection(
-        section_key="quality_summary",
+        section_key="risks_and_quality",
         title=title,
         level=level,
-        content_type="finding",
-        text=summary,
+        content_type="text",
+        text="\n".join(parts),
         findings=findings,
         table=table,
     )
 
 
-def _build_citations(data: Any) -> RenderSection:
-    """Build the citations section with source references table."""
-    title, level = _SECTION_HEADINGS["citations"]
+def _build_citations_and_approval(data: Any) -> RenderSection:
+    """Build the citations_and_approval section with source references table."""
+    title, level = _SECTION_HEADINGS["citations_and_approval"]
 
-    citations = data if isinstance(data, list) else []
+    # Accept both list (old format) and dict with "citations" key
+    if isinstance(data, list):
+        citations = data
+    elif isinstance(data, dict):
+        citations = data.get("citations", [])
+    else:
+        citations = []
+
     if not citations:
         return RenderSection(
-            section_key="citations",
+            section_key="citations_and_approval",
             title=title,
             level=level,
             content_type="empty",
@@ -435,7 +543,7 @@ def _build_citations(data: Any) -> RenderSection:
     )
 
     return RenderSection(
-        section_key="citations",
+        section_key="citations_and_approval",
         title=title,
         level=level,
         content_type="table",
@@ -460,6 +568,7 @@ def build_render_model(
     template_version: str,
     locale: str = "zh-CN",
     template_manifest_json: dict[str, Any] | None = None,
+    format: str = "docx",  # noqa: A002
 ) -> ReportRenderModel:
     """Map assembled report content to a ReportRenderModel.
 
@@ -510,15 +619,21 @@ def build_render_model(
     sections: list[RenderSection] = []
 
     section_builders: dict[str, Any] = {
+        "report_metadata": _build_report_metadata,
         "project_summary": _build_project_summary,
+        "design_basis": _build_design_basis,
+        "input_conditions": _build_input_conditions,
+        "assumptions": _build_assumptions,
+        "capacity_and_throughput": _build_capacity_and_throughput,
+        "inventory_and_storage": _build_inventory_and_storage,
+        "area_and_layout": _build_area_and_layout,
         "cooling_load": _build_cooling_load,
         "equipment_selection": _build_equipment_selection,
         "electrical_and_energy": _build_electrical_and_energy,
         "scheme_comparison": _build_scheme_comparison,
         "investment_estimate": _build_investment_estimate,
-        "risks_and_missing_information": _build_risks_and_missing,
-        "quality_summary": _build_quality_summary,
-        "citations": _build_citations,
+        "risks_and_quality": _build_risks_and_quality,
+        "citations_and_approval": _build_citations_and_approval,
     }
 
     for key, builder in section_builders.items():
@@ -549,19 +664,14 @@ def build_render_model(
         schema_version=schema_version,
         source_content_hash=content_hash,
         sections=section_keys,
-        format="docx/pdf",
+        format=format,
         render_settings=render_settings,
+        manifest_hash="",
     )
-    manifest = RenderManifest(
-        template_code=manifest.template_code,
-        template_version=manifest.template_version,
-        schema_version=manifest.schema_version,
-        source_content_hash=manifest.source_content_hash,
-        sections=manifest.sections,
-        format=manifest.format,
-        render_settings=manifest.render_settings,
-        manifest_hash=manifest.compute_hash(),
-    )
+    # Compute manifest hash in-place
+    from dataclasses import replace as dc_replace
+
+    manifest = dc_replace(manifest, manifest_hash=manifest.compute_hash())
 
     return ReportRenderModel(
         metadata=metadata,

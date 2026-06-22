@@ -102,3 +102,29 @@ class ExportPermissionError(ReportError):
 class PathTraversalError(ReportError):
     def __init__(self, path: str) -> None:
         super().__init__(f"Path traversal detected: {path}")
+
+
+class ArtifactFileNotFoundError(RenderError):
+    """Artifact file does not exist on disk."""
+
+    def __init__(self, artifact_id: str, path: str) -> None:
+        super().__init__(f"Artifact file not found: {artifact_id} at {path}")
+        self.artifact_id = artifact_id
+        self.path = path
+
+
+class ArtifactIntegrityError(RenderError):
+    """Artifact file integrity check failed."""
+
+    def __init__(self, artifact_id: str, detail: str) -> None:
+        super().__init__(f"Artifact integrity error for {artifact_id}: {detail}")
+        self.artifact_id = artifact_id
+
+
+class ArtifactNotReadyError(RenderError):
+    """Artifact is not in completed state."""
+
+    def __init__(self, artifact_id: str, status: str) -> None:
+        super().__init__(f"Artifact {artifact_id} not ready (status: {status})")
+        self.artifact_id = artifact_id
+        self.status = status

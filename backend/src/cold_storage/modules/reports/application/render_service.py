@@ -30,11 +30,13 @@ from cold_storage.modules.reports.domain.enums import (
     TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import (
+    ArtifactFileNotFoundError,
+    ArtifactIntegrityError,
     ArtifactNotFoundError,
+    ArtifactNotReadyError,
     ExportPermissionError,
     IdempotencyClaimError,
     IdempotencyPayloadConflictError,
-    PathTraversalError,
     RenderError,
     ReportNotFoundError,
     TemplateNotFoundError,
@@ -45,6 +47,7 @@ from cold_storage.modules.reports.domain.models import (
     ReportRevision,
     ReportTemplate,
 )
+from cold_storage.modules.reports.domain.render_model import ReportRenderModel
 
 
 class ArtifactStoragePort(Protocol):
@@ -60,64 +63,50 @@ class ArtifactStoragePort(Protocol):
     def get(self, key: str) -> bytes: ...
 
 
-class ReportTemplateRepository:
+class ReportTemplateRepositoryPort(Protocol):
     """Port: persistence for report templates."""
 
-    def get_template(self, template_id: str) -> ReportTemplate | None:
-        raise NotImplementedError
+    def get_template(self, template_id: str) -> ReportTemplate | None: ...
 
     def get_active_template(
         self, template_code: str, format: ExportFormat
-    ) -> ReportTemplate | None:
-        raise NotImplementedError
+    ) -> ReportTemplate | None: ...
 
     def list_templates(
         self,
         template_code: str | None = None,
         format: ExportFormat | None = None,
-    ) -> list[ReportTemplate]:
-        raise NotImplementedError
+    ) -> list[ReportTemplate]: ...
 
-    def save_template(self, template: ReportTemplate) -> None:
-        raise NotImplementedError
+    def save_template(self, template: ReportTemplate) -> None: ...
 
-    def update_template(self, template: ReportTemplate) -> None:
-        raise NotImplementedError
+    def update_template(self, template: ReportTemplate) -> None: ...
 
-    def commit(self) -> None:
-        raise NotImplementedError
+    def commit(self) -> None: ...
 
-    def rollback(self) -> None:
-        raise NotImplementedError
+    def rollback(self) -> None: ...
 
 
-class ReportArtifactRepository:
+class ReportArtifactRepositoryPort(Protocol):
     """Port: persistence for export artifacts."""
 
-    def save_artifact(self, artifact: ReportExportArtifact) -> None:
-        raise NotImplementedError
+    def save_artifact(self, artifact: ReportExportArtifact) -> None: ...
 
-    def get_artifact(self, artifact_id: str) -> ReportExportArtifact | None:
-        raise NotImplementedError
+    def get_artifact(self, artifact_id: str) -> ReportExportArtifact | None: ...
 
     def list_artifacts(
         self, report_id: str, status: ArtifactStatus | None = None
-    ) -> list[ReportExportArtifact]:
-        raise NotImplementedError
+    ) -> list[ReportExportArtifact]: ...
 
     def find_artifact_by_idempotency(
         self, idempotency_key: str, report_id: str
-    ) -> ReportExportArtifact | None:
-        raise NotImplementedError
+    ) -> ReportExportArtifact | None: ...
 
-    def update_artifact(self, artifact: ReportExportArtifact) -> None:
-        raise NotImplementedError
+    def update_artifact(self, artifact: ReportExportArtifact) -> None: ...
 
-    def commit(self) -> None:
-        raise NotImplementedError
+    def commit(self) -> None: ...
 
-    def rollback(self) -> None:
-        raise NotImplementedError
+    def rollback(self) -> None: ...
 
 
 def _compute_fingerprint(
@@ -167,8 +156,8 @@ class ReportRenderService:
         self,
         repository: ReportRepository,
         storage: ArtifactStoragePort,
-        template_repo: ReportTemplateRepository | None = None,
-        artifact_repo: ReportArtifactRepository | None = None,
+        template_repo: ReportTemplateRepositoryPort | None = None,
+        artifact_repo: ReportArtifactRepositoryPort | None = None,
     ) -> None:
         self._repo = repository
         self._storage = storage
@@ -257,6 +246,7 @@ class ReportRenderService:
             template_version=template.version,
             template_code=template.template_code,
             template_manifest_json=template.manifest_json,
+            format=export_format.value,
         )
 
         # 6. Idempotency check (P0-6) — atomic claim via idempotency_records
@@ -410,10 +400,13 @@ class ReportRenderService:
                 except Exception:
                     self._artifact_repo.rollback()
                     # P0-3: DB commit failed after file write — clean up and persist failure
-                    import contextlib
-
-                    with contextlib.suppress(Exception):
+                    try:
                         self._storage.delete(storage_key)
+                    except Exception:
+                        logging.getLogger(__name__).warning(
+                            "Failed to clean up storage after DB commit failure",
+                            extra={"artifact_id": artifact.id, "storage_key": storage_key},
+                        )
                     try:
                         failed_artifact = replace(
                             artifact,
@@ -484,10 +477,18 @@ class ReportRenderService:
 
             # Clean up any partially written storage
             if artifact.storage_key:
-                import contextlib
-
-                with contextlib.suppress(FileNotFoundError):
+                try:
                     self._storage.delete(artifact.storage_key)
+                except FileNotFoundError:
+                    pass
+                except Exception:
+                    logging.getLogger(__name__).warning(
+                        "Failed to clean up storage key after failure",
+                        extra={
+                            "artifact_id": artifact.id,
+                            "storage_key": artifact.storage_key,
+                        },
+                    )
 
             raise RenderError(f"Rendering failed: {exc}") from exc
 
@@ -557,6 +558,27 @@ class ReportRenderService:
                     f"Revision {revision.revision_number} quality status is "
                     f"{revision.quality_status.value}, must be 'approved'",
                 )
+            # P0-8: Verify approval binding if set
+            if (
+                report.approved_revision_id is not None
+                and revision.id != report.approved_revision_id
+            ):
+                raise ExportPermissionError(
+                    report.id,
+                    mode.value,
+                    f"Approved revision mismatch: approved={report.approved_revision_id}, "
+                    f"got {revision.id}",
+                )
+            if (
+                report.approved_content_hash is not None
+                and revision.content_hash != report.approved_content_hash
+            ):
+                raise ExportPermissionError(
+                    report.id,
+                    mode.value,
+                    f"Revision content hash {revision.content_hash} does not match "
+                    f"approved hash {report.approved_content_hash}",
+                )
             # P0-8: Block formal export if blocking quality findings exist
             if revision.quality_findings_json:
                 blockers = [
@@ -611,7 +633,7 @@ class ReportRenderService:
     def _render_bytes(
         self,
         format: ExportFormat,  # noqa: A002
-        render_model: Any,
+        render_model: ReportRenderModel,
         template: ReportTemplate | None,
         *,
         is_draft: bool = False,
@@ -699,8 +721,12 @@ class ReportRenderService:
             If the report is not found or actor has no access.
         ArtifactNotFoundError
             If the artifact is not found or doesn't belong to the report.
-        RenderError
-            If the artifact is not ready or integrity check fails.
+        ArtifactNotReadyError
+            If the artifact is not in completed state.
+        ArtifactFileNotFoundError
+            If the artifact file does not exist on disk.
+        ArtifactIntegrityError
+            If file size or SHA-256 does not match database.
         PathTraversalError
             If the storage_key contains path traversal characters.
         """
@@ -709,30 +735,28 @@ class ReportRenderService:
 
         # 3: Status must be COMPLETED
         if artifact.status != ArtifactStatus.COMPLETED:
-            raise RenderError(
-                f"Artifact {artifact_id} is not ready for download "
-                f"(status: {artifact.status.value})"
-            )
+            raise ArtifactNotReadyError(artifact_id, artifact.status.value)
 
         # 4: storage_key must be non-empty
         if not artifact.storage_key:
-            raise RenderError(f"Artifact {artifact_id} has no storage key")
+            raise ArtifactFileNotFoundError(artifact_id, "<no storage key>")
 
-        # 5: File exists on disk
+        # 5: File exists on disk — let PathTraversalError pass through
         try:
             file_path = self._storage.get_path(artifact.storage_key)
-        except (FileNotFoundError, PathTraversalError) as exc:
-            raise RenderError(f"Artifact file not found: {artifact.storage_key}") from exc
+        except FileNotFoundError:
+            raise ArtifactFileNotFoundError(artifact_id, artifact.storage_key) from None
 
         path = Path(file_path)
         if not path.is_file():
-            raise RenderError(f"Artifact file does not exist: {file_path}")
+            raise ArtifactFileNotFoundError(artifact_id, file_path)
 
         # 6: File size matches database
         actual_size = path.stat().st_size
         if actual_size != artifact.file_size_bytes:
-            raise RenderError(
-                f"File size mismatch: expected {artifact.file_size_bytes}, got {actual_size}"
+            raise ArtifactIntegrityError(
+                artifact_id,
+                f"File size mismatch: expected {artifact.file_size_bytes}, got {actual_size}",
             )
 
         # 7: SHA-256 matches database
@@ -742,8 +766,9 @@ class ReportRenderService:
                 sha256.update(chunk)
         actual_hash = sha256.hexdigest()
         if actual_hash != artifact.file_sha256:
-            raise RenderError(
-                f"SHA-256 mismatch: expected {artifact.file_sha256}, got {actual_hash}"
+            raise ArtifactIntegrityError(
+                artifact_id,
+                f"SHA-256 mismatch: expected {artifact.file_sha256}, got {actual_hash}",
             )
 
         return artifact

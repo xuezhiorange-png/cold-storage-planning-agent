@@ -19,16 +19,21 @@ from pydantic import BaseModel
 
 from cold_storage.modules.reports.application.render_service import (
     ReportRenderService,
+    ReportTemplateRepositoryPort,
 )
 from cold_storage.modules.reports.application.service import ReportService
-from cold_storage.modules.reports.domain.enums import ReportType
+from cold_storage.modules.reports.domain.enums import ExportFormat, ReportType
 from cold_storage.modules.reports.domain.errors import (
+    ArtifactFileNotFoundError,
+    ArtifactIntegrityError,
     ArtifactNotFoundError,
+    ArtifactNotReadyError,
     ConcurrencyConflictError,
     ExportPermissionError,
     IdempotencyClaimError,
     IdempotencyPayloadConflictError,
     InvalidStatusTransitionError,
+    PathTraversalError,
     QualityBlockerError,
     RenderError,
     ReportNotFoundError,
@@ -48,7 +53,7 @@ def _get_render_service() -> ReportRenderService:
     raise RuntimeError("ReportRenderService not wired")
 
 
-def _get_template_repo() -> Any:
+def _get_template_repo() -> ReportTemplateRepositoryPort:
     raise RuntimeError("ReportTemplateRepository not wired")
 
 
@@ -466,11 +471,6 @@ def download_export(
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> FileResponse:
     """Download an export artifact file."""
-    from cold_storage.modules.reports.domain.errors import (
-        PathTraversalError,
-        RenderError,
-    )
-
     try:
         # P0-8: Use verify_download for safety checks
         artifact = render_service.verify_download(report_id, artifact_id, actor)
@@ -493,10 +493,12 @@ def download_export(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PathTraversalError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RenderError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except FileNotFoundError as exc:
+    except ArtifactFileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ArtifactIntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ArtifactNotReadyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 # ===================================================================
@@ -509,7 +511,7 @@ reports_template_router = APIRouter(prefix="/api/v1/report-templates", tags=["re
 @reports_template_router.post("", response_model=TemplateResponse)
 def create_template(
     body: CreateTemplateRequest,
-    template_repo: Any = Depends(_get_template_repo),  # noqa: B008
+    template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> TemplateResponse:
     """Create a new report template."""
@@ -541,19 +543,17 @@ def create_template(
     except (ValueError, KeyError) as exc:
         template_repo.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:
-        template_repo.rollback()
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @reports_template_router.get("", response_model=ListTemplatesResponse)
 def list_templates(
     template_code: str | None = Query(None),
     format: str | None = Query(None),  # noqa: A002
-    template_repo: Any = Depends(_get_template_repo),  # noqa: B008
+    template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
 ) -> ListTemplatesResponse:
     """List report templates."""
-    templates = template_repo.list_templates(template_code=template_code, format=format)
+    fmt = ExportFormat(format) if format else None
+    templates = template_repo.list_templates(template_code=template_code, format=fmt)
     return ListTemplatesResponse(
         templates=[
             TemplateListItem(
@@ -571,7 +571,7 @@ def list_templates(
 @reports_template_router.post("/{template_id}/activate", response_model=TemplateStatusResponse)
 def activate_template(
     template_id: str,
-    template_repo: Any = Depends(_get_template_repo),  # noqa: B008
+    template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> TemplateStatusResponse:
     """Activate a report template."""
@@ -593,9 +593,7 @@ def activate_template(
             raise TemplateActivationError(template_id, "Cannot activate a retired template")
 
         # Deactivate other active templates for the same code and format
-        existing_active = template_repo.get_active_template(
-            template.template_code, template.format.value
-        )
+        existing_active = template_repo.get_active_template(template.template_code, template.format)
         if existing_active and existing_active.id != template_id:
             deactivated = dc_replace(existing_active, status=TemplateStatus.DRAFT)
             template_repo.update_template(deactivated)
@@ -612,15 +610,12 @@ def activate_template(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPException:
         raise
-    except Exception as exc:
-        template_repo.rollback()
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @reports_template_router.post("/{template_id}/retire", response_model=TemplateStatusResponse)
 def retire_template(
     template_id: str,
-    template_repo: Any = Depends(_get_template_repo),  # noqa: B008
+    template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> TemplateStatusResponse:
     """Retire a report template."""
@@ -642,13 +637,8 @@ def retire_template(
         return TemplateStatusResponse(template_id=template_id, status="retired")
     except HTTPException:
         raise
-    except Exception as exc:
-        template_repo.rollback()
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-# ---------------------------------------------------------------------------
-# Combined router
 # ---------------------------------------------------------------------------
 
 reports_router = APIRouter()
