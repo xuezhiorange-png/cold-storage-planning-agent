@@ -12,32 +12,23 @@ Covers:
 9. Modify empty_section_behavior.placeholder_text → output changes
 10. After seed_default_templates, both DOCX and PDF active templates exist
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
-from cold_storage.modules.reports.domain.render_model import (
-    RenderManifest,
-    ReportRenderModel,
-    TemplateEmptySectionConfig,
-    TemplateFontConfig,
-    TemplateHeaderFooterConfig,
-    TemplateManifest,
-    TemplatePageConfig,
-    TemplateTableConfig,
-    TemplateWatermarkConfig,
-    format_number,
-)
 from cold_storage.modules.reports.application.render_model_builder import (
     build_render_model,
 )
-
+from cold_storage.modules.reports.domain.render_model import (
+    ReportRenderModel,
+    TemplateManifest,
+    TemplateTableConfig,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -283,8 +274,10 @@ class TestManifestConfigAffectsOutput:
         manifest_modified = {"page": {"margin_top_pt": 100.0}}
         rm_base = self._build_with_manifest(sample_content, manifest_base)
         rm_mod = self._build_with_manifest(sample_content, manifest_modified)
-        assert rm_base.manifest.render_settings["page"]["margin_top_pt"] != rm_mod.manifest.render_settings["page"]["margin_top_pt"]
-        assert rm_mod.manifest.render_settings["page"]["margin_top_pt"] == 100.0
+        base_margin = rm_base.manifest.render_settings["page"]["margin_top_pt"]
+        mod_margin = rm_mod.manifest.render_settings["page"]["margin_top_pt"]
+        assert base_margin != mod_margin
+        assert mod_margin == 100.0
 
     def test_header_text_change(self, sample_content):
         """Modify header text → render_settings reflects new header."""
@@ -371,20 +364,20 @@ class TestSeedDefaultTemplates:
     """Test that seed_default_templates creates both DOCX and PDF active templates."""
 
     def test_seed_creates_both_formats(self):
-        from cold_storage.modules.reports.infrastructure.template_seed import (
-            seed_default_templates,
-        )
-        from cold_storage.modules.reports.infrastructure.orm import (
-            Base,
-            ReportTemplateRecord,
-        )
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         from sqlalchemy.pool import StaticPool
+
+        from cold_storage.modules.reports.domain.enums import ExportFormat
+        from cold_storage.modules.reports.infrastructure.orm import (
+            Base,
+        )
         from cold_storage.modules.reports.infrastructure.repository import (
             SQLReportRepository,
         )
-        from cold_storage.modules.reports.domain.enums import ExportFormat
+        from cold_storage.modules.reports.infrastructure.template_seed import (
+            seed_default_templates,
+        )
 
         engine = create_engine(
             "sqlite://",
@@ -404,9 +397,7 @@ class TestSeedDefaultTemplates:
                 format="docx",
             )
             assert len(docx_templates) >= 1
-            docx_active = repo.get_active_template(
-                "cold_storage_concept_design", format="docx"
-            )
+            docx_active = repo.get_active_template("cold_storage_concept_design", format="docx")
             assert docx_active is not None
             assert docx_active.version == "1.0.0"
             assert docx_active.format == ExportFormat.DOCX
@@ -417,9 +408,7 @@ class TestSeedDefaultTemplates:
                 format="pdf",
             )
             assert len(pdf_templates) >= 1
-            pdf_active = repo.get_active_template(
-                "cold_storage_concept_design", format="pdf"
-            )
+            pdf_active = repo.get_active_template("cold_storage_concept_design", format="pdf")
             assert pdf_active is not None
             assert pdf_active.version == "1.0.0"
             assert pdf_active.format == ExportFormat.PDF
@@ -431,17 +420,18 @@ class TestSeedDefaultTemplates:
 
     def test_seed_is_idempotent(self):
         """Calling seed twice should not create duplicates."""
-        from cold_storage.modules.reports.infrastructure.template_seed import (
-            seed_default_templates,
-        )
-        from cold_storage.modules.reports.infrastructure.orm import (
-            Base,
-        )
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         from sqlalchemy.pool import StaticPool
+
+        from cold_storage.modules.reports.infrastructure.orm import (
+            Base,
+        )
         from cold_storage.modules.reports.infrastructure.repository import (
             SQLReportRepository,
+        )
+        from cold_storage.modules.reports.infrastructure.template_seed import (
+            seed_default_templates,
         )
 
         engine = create_engine(
@@ -470,11 +460,11 @@ class TestSeedDefaultTemplates:
 
     def test_manifest_hash_computed(self):
         """Verify that template_content_hash is computed from manifest."""
+        from cold_storage.modules.reports.domain.enums import ExportFormat
         from cold_storage.modules.reports.infrastructure.template_seed import (
             _compute_content_hash,
             _load_manifest,
         )
-        from cold_storage.modules.reports.domain.enums import ExportFormat
 
         docx_manifest = _load_manifest(ExportFormat.DOCX)
         pdf_manifest = _load_manifest(ExportFormat.PDF)
