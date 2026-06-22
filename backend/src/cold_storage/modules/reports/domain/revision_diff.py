@@ -12,25 +12,26 @@ from typing import Any
 def diff_revisions(
     before: dict[str, Any],
     after: dict[str, Any],
-    path: str = "",
+    _path: str = "",
 ) -> list[dict[str, Any]]:
     """Produce a deterministic diff between two report content dicts.
 
     Returns a list of change records:
-        {"path": "...", "change_type": "added|removed|modified", "before": ..., "after": ...}
+        {"field_path": "...", "change_type": "added|removed|modified",
+         "before": ..., "after": ...}
     """
     changes: list[dict[str, Any]] = []
     all_keys = set(before.keys()) | set(after.keys())
 
     for key in sorted(all_keys):
-        cur = f"{path}.{key}" if path else key
+        cur = f"{_path}.{key}" if _path else key
         in_before = key in before
         in_after = key in after
 
         if in_before and not in_after:
             changes.append(
                 {
-                    "path": cur,
+                    "field_path": cur,
                     "change_type": "removed",
                     "before": before[key],
                     "after": None,
@@ -39,7 +40,7 @@ def diff_revisions(
         elif not in_before and in_after:
             changes.append(
                 {
-                    "path": cur,
+                    "field_path": cur,
                     "change_type": "added",
                     "before": None,
                     "after": after[key],
@@ -52,7 +53,7 @@ def diff_revisions(
                 changes.extend(diff_revisions(bv, av, cur))
             elif bv != av:
                 change: dict[str, Any] = {
-                    "path": cur,
+                    "field_path": cur,
                     "change_type": "modified",
                     "before": bv,
                     "after": av,

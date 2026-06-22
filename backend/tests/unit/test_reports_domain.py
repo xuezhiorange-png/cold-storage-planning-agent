@@ -231,13 +231,13 @@ class TestRevisionDiff:
         after = {"section": {"nested": "new"}}
         d = diff_revisions(before, after)
         assert len(d) == 1
-        assert d[0]["path"] == "section.nested"
+        assert d[0]["field_path"] == "section.nested"
 
     def test_unit_change_detected(self):
         before = {"load_unit": "kW(r)", "load_value": 100}
         after = {"load_unit": "kW(e)", "load_value": 100}
         d = diff_revisions(before, after)
         # load_unit changed
-        unit_changes = [c for c in d if c["path"] == "load_unit"]
+        unit_changes = [c for c in d if c["field_path"] == "load_unit"]
         assert len(unit_changes) == 1
         assert unit_changes[0].get("unit_changed") is True
