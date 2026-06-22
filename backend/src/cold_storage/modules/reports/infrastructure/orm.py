@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -17,8 +18,7 @@ class Base(DeclarativeBase):
 
 def _json_column(name: str, nullable: bool = True) -> Mapped[Any]:
     """JSON/JSONB column that works on both SQLite and PostgreSQL."""
-    # Use JSON type — SQLAlchemy handles dialect-specific rendering
-    return mapped_column(sa.JSON, nullable=nullable)
+    return mapped_column(sa.JSON().with_variant(JSONB(), "postgresql"), nullable=nullable)
 
 
 class ReportRecord(Base):
@@ -28,7 +28,7 @@ class ReportRecord(Base):
     project_id: Mapped[str] = mapped_column(sa.String(36), nullable=False, index=True)
     project_version_id: Mapped[str] = mapped_column(sa.String(36), nullable=False, index=True)
     report_type: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    status: Mapped[str] = mapped_column(sa.String(32), nullable=False, server_default="draft")
+    status: Mapped[str] = mapped_column(sa.String(32), nullable=False, server_default="draft", index=True)
     current_revision_number: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )
@@ -44,7 +44,7 @@ class ReportRecord(Base):
         server_default=sa.func.now(),
         onupdate=sa.func.now(),
     )
-    version: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default=sa.text("1"))
+    version: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default=sa.text("1"), index=True)
 
 
 class ReportRevisionRecord(Base):
@@ -67,7 +67,9 @@ class ReportRevisionRecord(Base):
         nullable=False,
         server_default=sa.func.now(),
     )
-    supersedes_revision_id: Mapped[str | None] = mapped_column(sa.String(36), nullable=True)
+    supersedes_revision_id: Mapped[str | None] = mapped_column(
+        sa.String(36), sa.ForeignKey("reports.id"), nullable=True
+    )
 
 
 class ReportSourceReferenceRecord(Base):
@@ -98,7 +100,9 @@ class ReportReviewActionRecord(Base):
     report_id: Mapped[str] = mapped_column(
         sa.String(36), sa.ForeignKey("reports.id"), nullable=False, index=True
     )
-    report_revision_id: Mapped[str] = mapped_column(sa.String(36), nullable=False)
+    report_revision_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("report_revisions.id"), nullable=False, index=True
+    )
     action: Mapped[str] = mapped_column(sa.String(32), nullable=False)
     actor: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     comment: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")

@@ -8,7 +8,6 @@ Create Date: 2026-06-22
 from __future__ import annotations
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision = "0009_add_reports"
@@ -17,7 +16,18 @@ branch_labels = None
 depends_on = None
 
 
+def _json_column_type() -> sa.types.TypeEngine:
+    """Return JSONB for PostgreSQL, JSON for SQLite."""
+    dialect = op.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import JSONB
+        return JSONB()
+    return sa.JSON()
+
+
 def upgrade() -> None:
+    json_type = _json_column_type()
+
     # reports
     op.create_table(
         "reports",
@@ -40,6 +50,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_reports_project_id", "reports", ["project_id"])
     op.create_index("ix_reports_project_version_id", "reports", ["project_version_id"])
+    op.create_index("ix_reports_status", "reports", ["status"])
+    op.create_index("ix_reports_version", "reports", ["version"])
 
     # report_revisions
     op.create_table(
@@ -48,16 +60,21 @@ def upgrade() -> None:
         sa.Column("report_id", sa.String(36), sa.ForeignKey("reports.id"), nullable=False),
         sa.Column("revision_number", sa.Integer, nullable=False),
         sa.Column("schema_version", sa.String(64), nullable=False),
-        sa.Column("content_json", sa.JSON, nullable=False),
-        sa.Column("canonical_content_json", sa.JSON, nullable=False),
+        sa.Column("content_json", json_type, nullable=False),
+        sa.Column("canonical_content_json", json_type, nullable=False),
         sa.Column("content_hash", sa.String(64), nullable=False),
         sa.Column("quality_status", sa.String(32), nullable=False),
-        sa.Column("quality_findings_json", sa.JSON, nullable=False),
+        sa.Column("quality_findings_json", json_type, nullable=False),
         sa.Column("generated_by", sa.String(64), nullable=False),
         sa.Column(
             "generated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
-        sa.Column("supersedes_revision_id", sa.String(36), nullable=True),
+        sa.Column(
+            "supersedes_revision_id",
+            sa.String(36),
+            sa.ForeignKey("reports.id"),
+            nullable=True,
+        ),
         sa.UniqueConstraint(
             "report_id", "revision_number", name="uq_report_revisions_report_revision"
         ),
@@ -99,7 +116,12 @@ def upgrade() -> None:
         "report_review_actions",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("report_id", sa.String(36), sa.ForeignKey("reports.id"), nullable=False),
-        sa.Column("report_revision_id", sa.String(36), nullable=False),
+        sa.Column(
+            "report_revision_id",
+            sa.String(36),
+            sa.ForeignKey("report_revisions.id"),
+            nullable=False,
+        ),
         sa.Column("action", sa.String(32), nullable=False),
         sa.Column("actor", sa.String(64), nullable=False),
         sa.Column("comment", sa.Text, nullable=False, server_default=""),
