@@ -190,7 +190,9 @@ class RealReportDataProvider(ReportDataProvider):
                     generator_version=result.get("generator_version", ""),
                     candidates=candidates,
                 )
-                result["hash_mismatch"] = computed != persisted_hash
+                # Hash verification result goes into source_ref verification,
+                # NOT into scheme_comparison content (additionalProperties: false)
+                result["source_hash_mismatch"] = computed != persisted_hash
 
             return result
         except Exception:  # noqa: BLE001

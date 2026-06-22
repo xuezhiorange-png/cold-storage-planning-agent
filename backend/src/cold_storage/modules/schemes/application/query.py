@@ -78,7 +78,7 @@ class SchemeQueryService(SchemeQueryPort):
             "completed_at": run.completed_at.isoformat() if run.completed_at else None,
             "recommended_scheme_code": run.recommended_scheme_code,
             "warning_messages": run.warning_messages,
-            "persisted_content_hash": _run_content_hash(run, candidates),
+            "persisted_content_hash": run.content_hash or _run_content_hash(run, candidates),
         }
 
     def get_completed_runs_for_project(self, project_id: str) -> list[dict[str, Any]]:
@@ -93,9 +93,11 @@ class SchemeQueryService(SchemeQueryPort):
         result: list[dict[str, Any]] = []
         for run in filtered:
             candidate_records = self._repo.get_candidates(run.id)
+            # Use scheme_code as hash id for consistency with service.py
+            # (SchemeCandidate domain model has no id, only scheme_code)
             candidate_dicts = [
                 {
-                    "id": c.id,
+                    "id": c.scheme_code,
                     "scheme_code": c.scheme_code,
                     "total_score": str(c.total_score) if c.total_score else None,
                     "rank": c.rank,

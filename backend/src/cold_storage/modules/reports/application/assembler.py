@@ -126,18 +126,29 @@ class ReportAssembler:
 
         # 9. scheme_comparison
         if scheme_data:
-            content["scheme_comparison"] = scheme_data
+            # Strip hash verification metadata before assigning to content
+            # (JSON Schema additionalProperties=false does not allow these keys)
+            scheme_hash_mismatch = scheme_data.get("source_hash_mismatch")
+            scheme_content = {
+                k: v for k, v in scheme_data.items() if k not in ("source_hash_mismatch",)
+            }
+            content["scheme_comparison"] = scheme_content
+
+            # Source ref for scheme_comparison carries hash verification
+            scheme_ref_data = {
+                **scheme_content,
+                "result_id": scheme_data.get("run_id", ""),
+                "tool_name": "scheme_evaluator",
+                "tool_version": scheme_data.get("generator_version", ""),
+            }
+            if scheme_hash_mismatch is not None:
+                scheme_ref_data["hash_mismatch"] = scheme_hash_mismatch
             source_refs.append(
                 _make_source_ref(
                     section_key="scheme_comparison",
                     source_type=SourceType.SCHEME_RESULT,
                     source_id=scheme_data.get("run_id", ""),
-                    data={
-                        **scheme_data,
-                        "result_id": scheme_data.get("run_id", ""),
-                        "tool_name": "scheme_evaluator",
-                        "tool_version": scheme_data.get("generator_version", ""),
-                    },
+                    data=scheme_ref_data,
                 )
             )
 
@@ -177,11 +188,10 @@ class ReportAssembler:
                                     "persisted_content_hash": rev.get("content_sha256", ""),
                                     "result_id": rev["id"],
                                     "tool_name": KNOWLEDGE_SEARCH_TOOL,
-                                    # knowledge.search tool contract version
                                     "tool_version": "1.0.0",
-                                    # knowledge revision version
-                                    "source_revision": rev.get("version_label", ""),
                                 },
+                                # Explicit: knowledge revision version label
+                                source_revision=rev.get("version_label", ""),
                             )
                         )
 
@@ -304,6 +314,7 @@ def _make_source_ref(
     source_type: SourceType,
     source_id: str,
     data: dict[str, Any],
+    source_revision: str = "",
 ) -> dict[str, Any]:
     """Build a source reference dict from persisted data.
 
@@ -311,6 +322,9 @@ def _make_source_ref(
     Does NOT fabricate or hardcode verification fields (tool_call_status,
     knowledge_status, source_exists, hash_mismatch).  These must be
     provided by the data provider based on actual persisted state.
+
+    source_revision: Explicit revision/version label.  When provided, used
+    directly.  Otherwise falls back to data.get("version", "").
     """
 
     ref: dict[str, Any] = {
@@ -318,7 +332,7 @@ def _make_source_ref(
         "field_path": section_key,
         "source_type": source_type.value,
         "source_id": source_id,
-        "source_revision": data.get("version", ""),
+        "source_revision": source_revision or data.get("version", ""),
         "tool_name": data.get("tool_name", ""),
         "tool_version": data.get("tool_version", ""),
         "result_id": data.get("result_id", ""),

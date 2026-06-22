@@ -63,6 +63,7 @@ class SchemeRunRecord(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     candidates: Mapped[list["SchemeCandidateRecord"]] = relationship(back_populates="scheme_run")
 

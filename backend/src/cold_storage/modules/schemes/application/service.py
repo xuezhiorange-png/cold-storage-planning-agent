@@ -654,8 +654,48 @@ class SchemeService:
         if not feasible_breakdowns:
             comparison_snapshot["warnings"] = ["NO_FEASIBLE_SCHEME"]
 
-        # 18. Create run record
+        # 18. Compute content hash BEFORE creating run (frozen dataclass)
+        from cold_storage.modules.schemes.application.query import (
+            _run_content_hash,
+        )
+
+        candidate_dicts_for_hash = [
+            {
+                "id": c.scheme_code,
+                "scheme_code": c.scheme_code,
+                "total_score": str(
+                    next(
+                        (
+                            sb.total_score
+                            for sb in score_breakdowns
+                            if sb.scheme_code == c.scheme_code
+                        ),
+                        None,
+                    )
+                ),
+                "rank": ranks.get(c.scheme_code),
+            }
+            for c in candidates
+        ]
+
+        # Lightweight namespace for hash — only fields used by _run_content_hash
+        class _HashRun:
+            __slots__ = ("id", "recommended_scheme_code", "generator_version")
+
+            def __init__(self, rid: str, rcode: str | None, gver: str) -> None:
+                self.id = rid
+                self.recommended_scheme_code = rcode
+                self.generator_version = gver
+
+        _temp_id = str(uuid.uuid4())
+        computed_hash = _run_content_hash(
+            _HashRun(_temp_id, recommended_code, GENERATOR_VERSION),
+            candidate_dicts_for_hash,
+        )
+
+        # 19. Create run record with precomputed content_hash
         run = SchemeRun(
+            id=_temp_id,
             project_id=project_id,
             project_version_id=project_version_id,
             weight_set_id=weight_set_id,
@@ -670,6 +710,7 @@ class SchemeService:
             recommended_scheme_code=recommended_code,
             warning_messages=[],
             completed_at=datetime.now(UTC),
+            content_hash=computed_hash,
         )
 
         self._repo.save_run(run, candidates, score_breakdowns=score_breakdowns, ranks=ranks)
