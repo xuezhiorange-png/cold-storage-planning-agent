@@ -13,13 +13,24 @@ from unittest.mock import MagicMock
 import fitz  # PyMuPDF
 import pytest
 from sqlalchemy import create_engine
-from cold_storage.modules.reports.renderers.pdf_renderer import _find_cjk_font
-
 
 def _has_cjk_font() -> bool:
     try:
-        path = _find_cjk_font()
-        return path is not None and len(path) > 0
+        import fitz as _fitz
+
+        from cold_storage.modules.reports.renderers.pdf_renderer import (
+            _get_cjk_font,
+        )
+
+        font = _get_cjk_font()  # Will raise if font is invalid
+        # Verify font actually works by creating a small document
+        doc = _fitz.open()
+        page = doc.new_page()
+        tw = _fitz.TextWriter(page.rect)
+        tw.append((72, 72), "测试 Test", font=font, fontsize=12)
+        tw.write_text(page)
+        doc.close()
+        return True
     except Exception:
         return False
 
