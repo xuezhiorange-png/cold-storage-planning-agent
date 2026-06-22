@@ -37,6 +37,7 @@ def evaluate_quality(
     source_refs: list[dict[str, Any]],
     *,
     required_sections: list[str] | tuple[str, ...] | None = None,
+    required_calc_fields: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Evaluate report content and return quality findings."""
     findings: list[dict[str, Any]] = []
@@ -56,16 +57,59 @@ def evaluate_quality(
                     )
                 )
 
-    # 2. Check for not_calculated / placeholder / default / estimated values
+    # 2. Required engineering result fields — missing key calculations → BLOCKER
+    if required_calc_fields:
+        _check_required_calc_fields(content, required_calc_fields, findings)
+
+    # 3. Check for not_calculated / placeholder / default / estimated values
     _check_not_calculated(content, "", findings)
 
-    # 3. Unit dimension isolation
+    # 4. Unit dimension isolation
     _check_units(content, "", findings)
 
-    # 4. Source reference completeness
+    # 5. Source reference completeness + verification
     _check_source_refs(source_refs, findings)
 
     return findings
+
+
+# ---------------------------------------------------------------------------
+# Required engineering result fields
+# ---------------------------------------------------------------------------
+
+
+def _check_required_calc_fields(
+    content: dict[str, Any],
+    required_fields: list[str],
+    findings: list[dict[str, Any]],
+) -> None:
+    """Check that key engineering result fields are present and non-empty.
+
+    Each required field is a dotted path like 'cooling_load.total_design_refrigeration_load'.
+    Missing path → BLOCKER.
+    """
+    for field_path in required_fields:
+        parts = field_path.split(".")
+        obj: Any = content
+        found = True
+        for part in parts:
+            if isinstance(obj, dict) and part in obj:
+                obj = obj[part]
+            else:
+                found = False
+                break
+        section = parts[0] if parts else "root"
+        if not found or obj is None:
+            findings.append(
+                _finding(
+                    code="MISSING_REQUIRED_ENGINEERING_RESULT",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message=f"Required engineering result '{field_path}' is missing",
+                    remediation=f"Ensure calculation result for '{field_path}' is present",
+                )
+            )
 
 
 def _check_not_calculated(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
@@ -172,43 +216,150 @@ def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
                 _check_units(item, f"{cur}[{i}]", findings)
 
 
-def _check_source_refs(source_refs: list[dict[str, Any]], findings: list[dict[str, Any]]) -> None:
-    """Check that source references have required fields."""
-    # result_id and tool_version are only required for calculation_result sources
-    CALC_REQUIRED_TYPES = {"calculation_result", "scheme_result"}
+# ---------------------------------------------------------------------------
+# Source reference completeness + verification
+# ---------------------------------------------------------------------------
+
+
+def _check_source_refs(
+    source_refs: list[dict[str, Any]],
+    findings: list[dict[str, Any]],
+) -> None:
+    """Check source references have required provenance fields.
+
+    For calculation_result, scheme_result, knowledge_revision, agent_tool_call:
+      - result_id → BLOCKER if missing
+      - tool_version → BLOCKER if missing
+      - content_hash → BLOCKER if missing
+
+    Source verification data (if present) is also checked:
+      - tool_call_status: must be confirmed/completed/success → BLOCKER otherwise
+      - knowledge_status: must be approved → BLOCKER otherwise
+      - source_exists: False → BLOCKER
+      - hash_mismatch: True → BLOCKER
+    """
+    VERIFIED_TYPES = {
+        "calculation_result",
+        "scheme_result",
+        "knowledge_revision",
+        "agent_tool_call",
+    }
     for ref in source_refs:
         source_type = ref.get("source_type", "")
-        if source_type in CALC_REQUIRED_TYPES:
+        section = ref.get("section_key", "unknown")
+        field_path = ref.get("field_path", "")
+
+        if source_type in VERIFIED_TYPES:
+            # result_id required
             if not ref.get("result_id"):
                 findings.append(
                     _finding(
                         code="SOURCE_MISSING_RESULT_ID",
                         severity=QualitySeverity.BLOCKER,
-                        section_key=ref.get("section_key", "unknown"),
-                        field_path=ref.get("field_path", ""),
-                        message="Source reference missing result_id",
+                        section_key=section,
+                        field_path=field_path,
+                        message=f"Source '{source_type}' missing result_id",
                     )
                 )
+            # tool_version required
             if not ref.get("tool_version"):
                 findings.append(
                     _finding(
                         code="SOURCE_MISSING_TOOL_VERSION",
                         severity=QualitySeverity.BLOCKER,
-                        section_key=ref.get("section_key", "unknown"),
-                        field_path=ref.get("field_path", ""),
-                        message="Source reference missing tool_version",
+                        section_key=section,
+                        field_path=field_path,
+                        message=f"Source '{source_type}' missing tool_version",
                     )
                 )
-        if not ref.get("content_hash"):
+            # content_hash required (BLOCKER, not warning)
+            if not ref.get("content_hash"):
+                findings.append(
+                    _finding(
+                        code="SOURCE_MISSING_CONTENT_HASH",
+                        severity=QualitySeverity.BLOCKER,
+                        section_key=section,
+                        field_path=field_path,
+                        message=f"Source '{source_type}' missing content_hash",
+                    )
+                )
+
+        # Source verification checks (when verification data is attached)
+        tool_call_status = ref.get("tool_call_status")
+        if tool_call_status is not None and tool_call_status not in (
+            "confirmed",
+            "completed",
+            "success",
+        ):
             findings.append(
                 _finding(
-                    code="SOURCE_MISSING_CONTENT_HASH",
-                    severity=QualitySeverity.WARNING,
-                    section_key=ref.get("section_key", "unknown"),
-                    field_path=ref.get("field_path", ""),
-                    message="Source reference missing content_hash",
+                    code="SOURCE_TOOL_CALL_INVALID_STATUS",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message=(
+                        f"Source tool call has invalid status '{tool_call_status}'; "
+                        "must be confirmed/completed/success"
+                    ),
                 )
             )
+
+        knowledge_status = ref.get("knowledge_status")
+        if knowledge_status is not None and knowledge_status != "approved":
+            findings.append(
+                _finding(
+                    code="SOURCE_KNOWLEDGE_NOT_APPROVED",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message=(
+                        f"Source knowledge revision has status '{knowledge_status}'; "
+                        "must be approved"
+                    ),
+                )
+            )
+
+        source_exists = ref.get("source_exists")
+        if source_exists is False:
+            findings.append(
+                _finding(
+                    code="SOURCE_DELETED_OR_UNREADABLE",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message="Source no longer exists or is unreadable",
+                )
+            )
+
+        hash_mismatch = ref.get("hash_mismatch")
+        if hash_mismatch is True:
+            findings.append(
+                _finding(
+                    code="SOURCE_HASH_MISMATCH",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message="Stored source hash does not match report citation hash",
+                )
+            )
+
+    # Non-verified types (project, project_version, agent_session, agent_turn)
+    # only need content_hash
+    for ref in source_refs:
+        source_type = ref.get("source_type", "")
+        if source_type not in VERIFIED_TYPES:
+            section = ref.get("section_key", "unknown")
+            field_path = ref.get("field_path", "")
+            if not ref.get("content_hash"):
+                findings.append(
+                    _finding(
+                        code="SOURCE_MISSING_CONTENT_HASH",
+                        severity=QualitySeverity.WARNING,
+                        section_key=section,
+                        field_path=field_path,
+                        message=f"Source '{source_type}' missing content_hash",
+                    )
+                )
 
 
 def has_blockers(findings: list[dict[str, Any]]) -> bool:

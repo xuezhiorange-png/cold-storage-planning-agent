@@ -8,6 +8,7 @@ import sqlalchemy as sa
 
 from cold_storage.modules.reports.application.service import ReportRepository
 from cold_storage.modules.reports.domain.enums import ReportStatus, SourceType
+from cold_storage.modules.reports.domain.errors import ConcurrencyConflictError
 from cold_storage.modules.reports.domain.models import (
     Report,
     ReportReviewAction,
@@ -61,18 +62,25 @@ class SQLReportRepository(ReportRepository):
         return [self._to_report(r) for r in self._session.execute(stmt).scalars()]
 
     def update_report(self, report: Report, *, expected_version: int | None = None) -> None:
-        rec = self._session.get(ReportRecord, report.id)
-        if rec is None:
-            raise ValueError(f"Report {report.id} not found")
-        if expected_version is not None and rec.version != expected_version:
-            raise ValueError(
-                f"Report {report.id} version mismatch "
-                f"(expected {expected_version}, got {rec.version})"
+        """Atomic compare-and-swap update.  Single SQL UPDATE with WHERE clause."""
+        stmt = (
+            sa.update(ReportRecord)
+            .where(ReportRecord.id == report.id)
+            .values(
+                status=report.status.value,
+                current_revision_number=report.current_revision_number,
+                updated_at=report.updated_at,
+                version=report.version,
             )
-        rec.status = report.status.value
-        rec.current_revision_number = report.current_revision_number
-        rec.updated_at = report.updated_at
-        rec.version = report.version
+        )
+        if expected_version is not None:
+            stmt = stmt.where(ReportRecord.version == expected_version)
+
+        result = self._session.execute(stmt)
+        if result.rowcount == 0:
+            if expected_version is not None:
+                raise ConcurrencyConflictError(report.id)
+            raise ValueError(f"Report {report.id} not found")
 
     # --- Revision ---
 

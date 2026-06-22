@@ -59,9 +59,59 @@ class _FakeDataProvider(ReportDataProvider):
                 "result_id": "calc-001",
                 "tool_name": "cooling_load_calculator",
                 "tool_version": "1.0.0",
-                "data": {"total_design_refrigeration_load": {"value": 100.0, "unit": "kW(r)"}},
+                "data": {
+                    "total_design_refrigeration_load": {
+                        "value": 100.0,
+                        "unit": "kW(r)",
+                        "source_result_id": "calc-001",
+                        "source_tool": "cooling_load_calculator",
+                        "source_tool_version": "1.0.0",
+                    }
+                },
+            },
+            {
+                "section_key": "equipment_selection",
+                "result_id": "calc-002",
+                "tool_name": "equipment_selector",
+                "tool_version": "1.0.0",
+                "data": {
+                    "total_compressor_capacity": {
+                        "value": 120.0,
+                        "unit": "kW(r)",
+                        "source_result_id": "calc-002",
+                        "source_tool": "equipment_selector",
+                        "source_tool_version": "1.0.0",
+                    }
+                },
+            },
+            {
+                "section_key": "electrical_and_energy",
+                "result_id": "calc-003",
+                "tool_name": "energy_calculator",
+                "tool_version": "1.0.0",
+                "data": {
+                    "total_installed_power": {
+                        "value": 50.0,
+                        "unit": "kW(e)",
+                        "source_result_id": "calc-003",
+                        "source_tool": "energy_calculator",
+                        "source_tool_version": "1.0.0",
+                    }
+                },
             },
         ]
+
+    def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
+        return {
+            "run_id": "scheme-001",
+            "schemes": [
+                {"scheme_id": "s1", "name": "Scheme A", "total_investment_cny": 5000000},
+                {"scheme_id": "s2", "name": "Scheme B", "total_investment_cny": 6000000},
+            ],
+        }
+
+    def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+        return []
 
 
 @pytest.fixture()

@@ -17,9 +17,12 @@ from cold_storage.modules.reports.domain.enums import (
     ReviewAction,
 )
 from cold_storage.modules.reports.domain.errors import (
+    IdempotencyClaimError,
+    IdempotencyPayloadConflictError,
     InvalidStatusTransitionError,
     QualityBlockerError,
     ReportNotFoundError,
+    SchemaValidationError,
 )
 from cold_storage.modules.reports.domain.models import (
     Report,
@@ -97,7 +100,10 @@ class ReportService:
     ) -> Report:
         # Idempotency check
         if idempotency_key:
-            existing = self._check_idempotency(idempotency_key)
+            fp = self._make_fingerprint(
+                "create", actor, project_id, project_version_id, report_type.value
+            )
+            existing = self._check_idempotency(idempotency_key, fp)
             if existing is not None:
                 return existing
             self._claim_idempotency(idempotency_key)
@@ -143,7 +149,10 @@ class ReportService:
 
         # Idempotency
         if idempotency_key:
-            existing = self._check_idempotency_revision(idempotency_key)
+            fp = self._make_fingerprint(
+                "generate", actor, report_id, report.project_id
+            )
+            existing = self._check_idempotency_revision(idempotency_key, fp)
             if existing is not None:
                 return existing
             self._claim_idempotency(idempotency_key)
@@ -164,6 +173,9 @@ class ReportService:
             revision_number=revision_number,
             generated_by=actor,
         )
+
+        # JSON Schema validation — fail closed if content doesn't match schema
+        _validate_schema(assembled.content, report.report_type, assembled.schema_version)
 
         # Quality status determines report status
         quality_status = assembled.quality_status
@@ -370,29 +382,53 @@ class ReportService:
 
     # --- Idempotency ---
 
-    def _check_idempotency(self, key: str) -> Report | None:
+    def _check_idempotency(self, key: str, fingerprint: str) -> Report | None:
+        """Check for a completed result matching key + fingerprint.
+
+        Returns the original result if found, None otherwise.
+        Raises IdempotencyPayloadConflictError if the key was used with
+        different parameters.
+        """
         if self._idempotency_store is None:
             return None
         result = self._idempotency_store.get(key)
+        if result is None:
+            return None
         if isinstance(result, Report):
+            # Verify fingerprint matches
+            stored_fp = getattr(result, "_idempotency_fingerprint", None)
+            if stored_fp is not None and stored_fp != fingerprint:
+                raise IdempotencyPayloadConflictError(key)
             return result
         return None
 
-    def _check_idempotency_revision(self, key: str) -> ReportRevision | None:
+    def _check_idempotency_revision(
+        self, key: str, fingerprint: str
+    ) -> ReportRevision | None:
+        """Check for a completed revision result matching key + fingerprint."""
         if self._idempotency_store is None:
             return None
         result = self._idempotency_store.get(key)
+        if result is None:
+            return None
         if isinstance(result, ReportRevision):
+            stored_fp = getattr(result, "_idempotency_fingerprint", None)
+            if stored_fp is not None and stored_fp != fingerprint:
+                raise IdempotencyPayloadConflictError(key)
             return result
         return None
 
-    def _claim_idempotency(self, key: str) -> bool:
-        """Claim an idempotency key to prevent concurrent duplicate execution."""
+    def _claim_idempotency(self, key: str) -> None:
+        """Claim an idempotency key to prevent concurrent duplicate execution.
+
+        Raises IdempotencyClaimError if another request holds the key.
+        """
         if self._idempotency_store is None:
-            return True
+            return
         if hasattr(self._idempotency_store, "claim"):
-            return bool(self._idempotency_store.claim(key))
-        return True
+            claimed = self._idempotency_store.claim(key)
+            if not claimed:
+                raise IdempotencyClaimError(key)
 
     def _complete_idempotency(self, key: str, result: object) -> None:
         """Store the result for idempotency after successful execution."""
@@ -402,3 +438,46 @@ class ReportService:
             self._idempotency_store.complete(key, result)
         else:
             self._idempotency_store.set(key, result)
+
+    @staticmethod
+    def _make_fingerprint(*parts: str) -> str:
+        """Create a fingerprint from request parameters for idempotency binding."""
+        import hashlib
+        h = hashlib.sha256()
+        for p in parts:
+            h.update(p.encode())
+        return h.hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Schema validation
+# ---------------------------------------------------------------------------
+
+
+def _validate_schema(
+    content: dict[str, Any],
+    report_type: ReportType,
+    schema_version: str,
+) -> None:
+    """Validate assembled content against the JSON Schema.
+
+    Raises ``SchemaValidationError`` if the content is invalid.
+    """
+    import jsonschema
+
+    from cold_storage.modules.reports.domain.schema import get_schema
+
+    try:
+        schema = get_schema(report_type.value, schema_version.split("@")[-1])
+    except ValueError as exc:
+        # Unknown schema version — treat as invalid
+        raise SchemaValidationError(
+            [f"Unknown schema: {schema_version}"]
+        ) from exc
+
+    try:
+        jsonschema.validate(instance=content, schema=schema)
+    except jsonschema.ValidationError as exc:
+        raise SchemaValidationError(
+            [f"{exc.json_path}: {exc.message}"]
+        ) from exc

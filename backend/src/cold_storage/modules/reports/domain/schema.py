@@ -141,6 +141,7 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
         "scheme_comparison": {
             "type": "object",
             "properties": {
+                "run_id": {"type": "string"},
                 "schemes": {"type": "array", "items": {"type": "object"}},
                 "recommended_scheme": {"type": "string"},
                 "comparison_metrics": {"type": "array", "items": {"type": "object"}},

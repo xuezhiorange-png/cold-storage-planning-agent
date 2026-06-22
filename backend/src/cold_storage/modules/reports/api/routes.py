@@ -9,9 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from cold_storage.modules.reports.application.service import ReportService
 from cold_storage.modules.reports.domain.enums import ReportType
 from cold_storage.modules.reports.domain.errors import (
+    ConcurrencyConflictError,
     InvalidStatusTransitionError,
     QualityBlockerError,
     ReportNotFoundError,
+    SchemaValidationError,
 )
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
@@ -124,6 +126,10 @@ def generate_revision(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except InvalidStatusTransitionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ConcurrencyConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except SchemaValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def _review_endpoint(action_name: str) -> Any:
@@ -140,6 +146,8 @@ def _review_endpoint(action_name: str) -> Any:
         except ReportNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except InvalidStatusTransitionError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ConcurrencyConflictError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except QualityBlockerError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

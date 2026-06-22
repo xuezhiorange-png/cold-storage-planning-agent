@@ -36,6 +36,14 @@ class ConcurrentRevisionError(ReportError):
         super().__init__(f"Concurrent revision creation for {report_id}")
 
 
+class ConcurrencyConflictError(ReportError):
+    """Raised when CAS update fails due to version mismatch."""
+
+    def __init__(self, report_id: str) -> None:
+        super().__init__(f"Concurrent update conflict for {report_id}")
+        self.report_id = report_id
+
+
 class ReportAccessDeniedError(ReportError):
     def __init__(self, report_id: str, actor: str) -> None:
         super().__init__(f"Actor {actor} denied access to report {report_id}")
@@ -45,3 +53,19 @@ class SchemaValidationError(ReportError):
     def __init__(self, errors: list[str]) -> None:
         super().__init__(f"Schema validation failed: {len(errors)} errors")
         self.errors = errors
+
+
+class IdempotencyClaimError(ReportError):
+    """Raised when another concurrent request holds the idempotency key."""
+
+    def __init__(self, key: str) -> None:
+        super().__init__(f"Idempotency key '{key}' is already claimed by a concurrent request")
+        self.key = key
+
+
+class IdempotencyPayloadConflictError(ReportError):
+    """Raised when the same idempotency key is used with different parameters."""
+
+    def __init__(self, key: str) -> None:
+        super().__init__(f"Idempotency key '{key}' used with different request parameters")
+        self.key = key

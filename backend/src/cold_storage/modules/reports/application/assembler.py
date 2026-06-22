@@ -20,11 +20,22 @@ SCHEMA_VERSION_MAP: dict[ReportType, str] = {
     ReportType.COLD_STORAGE_CONCEPT_DESIGN: "cold_storage_concept_design@1.0.0",
 }
 
-# Required sections for quality evaluation
+# Required sections for quality evaluation — per cold_storage_concept_design@1.0.0
+# Only data-driven sections that might be absent if the provider has no data.
+# citations, provenance, quality_summary are always present (assembler always creates them).
 REQUIRED_SECTIONS: tuple[str, ...] = (
     "report_metadata",
     "project_summary",
+    "cooling_load",
+    "equipment_selection",
+    "electrical_and_energy",
+    "scheme_comparison",
 )
+
+# Required engineering result paths — missing these is a BLOCKER
+REQUIRED_ENGINEERING_RESULTS: list[str] = [
+    "cooling_load.total_design_refrigeration_load",
+]
 
 
 class ReportAssembler:
@@ -110,7 +121,12 @@ class ReportAssembler:
                     section_key="scheme_comparison",
                     source_type=SourceType.SCHEME_RESULT,
                     source_id=scheme_data.get("run_id", ""),
-                    data=scheme_data,
+                    data={
+                        **scheme_data,
+                        "result_id": scheme_data.get("run_id", ""),
+                        "tool_name": "scheme_evaluator",
+                        "tool_version": "1.0.0",
+                    },
                 )
             )
 
@@ -120,7 +136,12 @@ class ReportAssembler:
         )
 
         # Evaluate quality
-        findings = evaluate_quality(content, source_refs, required_sections=REQUIRED_SECTIONS)
+        findings = evaluate_quality(
+            content,
+            source_refs,
+            required_sections=REQUIRED_SECTIONS,
+            required_calc_fields=REQUIRED_ENGINEERING_RESULTS,
+        )
         from cold_storage.modules.reports.domain.enums import ReportStatus
         from cold_storage.modules.reports.domain.quality import has_blockers
 
@@ -198,7 +219,7 @@ def _make_source_ref(
 ) -> dict[str, Any]:
     from cold_storage.modules.reports.domain.canonical import content_hash as ch
 
-    return {
+    ref: dict[str, Any] = {
         "section_key": section_key,
         "field_path": section_key,
         "source_type": source_type.value,
@@ -209,6 +230,11 @@ def _make_source_ref(
         "result_id": data.get("result_id", ""),
         "content_hash": ch(data),
     }
+    # Pass through source verification metadata from data provider
+    for key in ("tool_call_status", "knowledge_status", "source_exists", "hash_mismatch"):
+        if key in data:
+            ref[key] = data[key]
+    return ref
 
 
 class AssembledReport:
