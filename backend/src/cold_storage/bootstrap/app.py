@@ -142,8 +142,8 @@ def _get_planning_agent_service(
     _reports_render_svc = _ReportRenderService(
         repository=_reports_repo,
         storage=_reports_storage,
-        template_repo=_reports_repo,  # type: ignore[arg-type]
-        artifact_repo=_reports_repo,  # type: ignore[arg-type]
+        template_repo=_reports_repo,
+        artifact_repo=_reports_repo,
     )
 
     from cold_storage.modules.planning_agent.infrastructure.tool_adapters import ToolAdapter as _TA
@@ -874,8 +874,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         return ReportRenderService(
             repository=repo,
             storage=artifact_storage,
-            template_repo=repo,  # type: ignore[arg-type]
-            artifact_repo=repo,  # type: ignore[arg-type]
+            template_repo=repo,
+            artifact_repo=repo,
         )
 
     def _get_report_template_repo(
