@@ -35,6 +35,9 @@ REQUIRED_SECTIONS: tuple[str, ...] = (
 # Required engineering result paths — missing these is a BLOCKER
 REQUIRED_ENGINEERING_RESULTS: list[str] = [
     "cooling_load.total_design_refrigeration_load",
+    "equipment_selection.total_compressor_capacity",
+    "electrical_and_energy.total_installed_power",
+    "scheme_comparison.schemes",
 ]
 
 

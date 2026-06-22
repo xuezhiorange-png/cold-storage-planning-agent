@@ -97,6 +97,28 @@ class ReportSourceReferenceRecord(Base):
     content_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False, server_default="")
 
 
+class IdempotencyRecord(Base):
+    __tablename__ = "idempotency_records"
+
+    key: Mapped[str] = mapped_column(sa.String(128), primary_key=True)
+    actor: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    action: Mapped[str] = mapped_column(sa.String(32), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    status: Mapped[str] = mapped_column(sa.String(16), nullable=False, server_default="claimed")
+    result_payload: Mapped[Any] = _json_column("result_payload", nullable=True)
+    created_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    updated_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+        onupdate=sa.func.now(),
+    )
+
+
 class ReportReviewActionRecord(Base):
     __tablename__ = "report_review_actions"
 

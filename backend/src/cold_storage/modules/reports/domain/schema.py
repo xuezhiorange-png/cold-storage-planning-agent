@@ -12,6 +12,22 @@ def _unit_enum() -> dict[str, Any]:
     return {"type": "string", "enum": ["kW(r)", "kW(e)", "kW(th)", "kWh"]}
 
 
+def _measured_value_with_unit(unit_const: str) -> dict[str, Any]:
+    """A measured engineering value with a fixed unit constraint."""
+    return {
+        "type": "object",
+        "required": ["value", "unit", "source_result_id", "source_tool", "source_tool_version"],
+        "properties": {
+            "value": {"type": "number"},
+            "unit": {"const": unit_const},
+            "source_result_id": {"type": "string"},
+            "source_tool": {"type": "string"},
+            "source_tool_version": {"type": "string"},
+        },
+        "additionalProperties": False,
+    }
+
+
 def _measured_value(extra_props: dict[str, Any] | None = None) -> dict[str, Any]:
     """A measured engineering value: value + unit + source provenance."""
     props: dict[str, Any] = {
@@ -111,7 +127,7 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
         "cooling_load": {
             "type": "object",
             "properties": {
-                "total_design_refrigeration_load": _measured_value(),
+                "total_design_refrigeration_load": _measured_value_with_unit("kW(r)"),
                 "zone_loads": {"type": "array", "items": {"type": "object"}},
                 "level_summaries": {"type": "array", "items": {"type": "object"}},
             },
@@ -120,9 +136,9 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
         "equipment_selection": {
             "type": "object",
             "properties": {
-                "total_compressor_capacity": _measured_value(),
-                "total_compressor_input_power": _measured_value(),
-                "condenser_heat_rejection": _measured_value(),
+                "total_compressor_capacity": _measured_value_with_unit("kW(r)"),
+                "total_compressor_input_power": _measured_value_with_unit("kW(e)"),
+                "condenser_heat_rejection": _measured_value_with_unit("kW(th)"),
                 "systems": {"type": "array", "items": {"type": "object"}},
             },
             "additionalProperties": False,
@@ -130,11 +146,11 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
         "electrical_and_energy": {
             "type": "object",
             "properties": {
-                "total_installed_power": _measured_value(),
-                "refrigeration_power": _measured_value(),
-                "process_power": _measured_value(),
-                "lighting_power": _measured_value(),
-                "auxiliary_power": _measured_value(),
+                "total_installed_power": _measured_value_with_unit("kW(e)"),
+                "refrigeration_power": _measured_value_with_unit("kW(e)"),
+                "process_power": _measured_value_with_unit("kW(e)"),
+                "lighting_power": _measured_value_with_unit("kW(e)"),
+                "auxiliary_power": _measured_value_with_unit("kW(e)"),
             },
             "additionalProperties": False,
         },
@@ -207,6 +223,10 @@ COLD_STORAGE_CONCEPT_DESIGN_V1: dict[str, Any] = {
                             "field_path": {"type": "string"},
                             "message": {"type": "string"},
                             "remediation": {"type": "string"},
+                            "source_ids": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
                         },
                         "additionalProperties": False,
                     },

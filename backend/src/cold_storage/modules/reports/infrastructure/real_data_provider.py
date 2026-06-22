@@ -1,10 +1,9 @@
-"""Real ReportDataProvider — reads from actual application services and repositories.
+"""Real ReportDataProvider — reads from actual application services.
 
-Replaces the abstract ReportDataProvider with one that connects to
-Task 5 (calculations), Task 7 (schemes), Task 8 (knowledge), and
-Task 3 (projects) services/repositories.
-
-No LLM calls, no recalculation.  Only reads persisted data.
+Uses public query ports (SchemeQueryPort, KnowledgeQueryPort) instead of
+directly accessing ORM models or Session objects of other modules.  This
+enforces the architecture boundary: the reports module never touches
+infrastructure internals of schemes or knowledge.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from cold_storage.modules.reports.domain.canonical import content_hash
 class RealReportDataProvider(ReportDataProvider):
     """Reads persisted data from actual module services and repositories.
 
-    Constructor accepts any combination of services/repos; missing ones
+    Constructor accepts any combination of services/ports; missing ones
     are silently skipped (returns empty data for that section).
     """
 
@@ -27,13 +26,13 @@ class RealReportDataProvider(ReportDataProvider):
         *,
         project_service: Any | None = None,
         calculation_service: Any | None = None,
-        scheme_repository: Any | None = None,
-        knowledge_repository: Any | None = None,
+        scheme_query: Any | None = None,
+        knowledge_query: Any | None = None,
     ) -> None:
         self._project_service = project_service
         self._calculation_service = calculation_service
-        self._scheme_repo = scheme_repository
-        self._knowledge_repo = knowledge_repository
+        self._scheme_query = scheme_query
+        self._knowledge_query = knowledge_query
 
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         """Read project metadata from ProjectService."""
@@ -121,61 +120,50 @@ class RealReportDataProvider(ReportDataProvider):
         return sections
 
     def get_scheme_results(self, project_id: str, version_id: str) -> dict[str, Any] | None:
-        """Read scheme comparison results from SchemeRepository.
+        """Read scheme comparison results via SchemeQueryPort.
 
         Returns the latest completed scheme run with its candidates.
         """
-        if self._scheme_repo is None:
+        if self._scheme_query is None:
             return None
         try:
-            # Find the latest completed run for this project
-            from sqlalchemy import select
-
-            from cold_storage.modules.schemes.infrastructure.orm import (
-                SchemeCandidateRecord,
-                SchemeRunRecord,
-            )
-
-            stmt = (
-                select(SchemeRunRecord)
-                .where(
-                    SchemeRunRecord.project_id == project_id,
-                    SchemeRunRecord.status == "completed",
-                )
-                .order_by(SchemeRunRecord.created_at.desc())
-                .limit(1)
-            )
-            run_rec = self._scheme_repo._session.execute(stmt).scalar_one_or_none()
-            if run_rec is None:
+            runs = self._scheme_query.get_completed_runs_for_project(project_id)
+            if not runs:
                 return None
 
-            # Get candidates
-            cand_stmt = (
-                select(SchemeCandidateRecord)
-                .where(SchemeCandidateRecord.scheme_run_id == run_rec.id)
-                .order_by(SchemeCandidateRecord.rank)
-            )
-            candidates = self._scheme_repo._session.execute(cand_stmt).scalars().all()
+            latest_run = runs[0]  # Already ordered by created_at desc
 
-            schemes = []
+            candidates = self._scheme_query.get_candidates_for_run(latest_run["run_id"])
+
+            schemes: list[dict[str, Any]] = []
             for c in candidates:
                 schemes.append(
                     {
-                        "scheme_id": c.id,
-                        "name": getattr(c, "name", c.id),
-                        "total_score": str(getattr(c, "total_score", "0")),
-                        "rank": getattr(c, "rank", 0),
+                        "scheme_id": c["id"],
+                        "name": c.get("scheme_code", c["id"]),
+                        "total_score": c.get("total_score", "0"),
+                        "rank": c.get("rank", 0),
                     }
                 )
 
             return {
-                "run_id": run_rec.id,
-                "status": run_rec.status,
+                "run_id": latest_run["run_id"],
+                "status": latest_run["status"],
                 "schemes": schemes,
                 "tool_call_status": "completed",
             }
-        except (AttributeError, Exception):
+        except Exception:  # noqa: BLE001
             return None
+
+    def get_knowledge_documents(self) -> list[dict[str, Any]]:
+        """Read approved knowledge documents via KnowledgeQueryPort."""
+        if self._knowledge_query is None:
+            return []
+        try:
+            docs: list[dict[str, Any]] = self._knowledge_query.get_approved_documents()
+            return docs
+        except Exception:  # noqa: BLE001
+            return []
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
         """Read agent session/tool-call data for provenance.

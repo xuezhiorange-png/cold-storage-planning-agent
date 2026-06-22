@@ -69,7 +69,19 @@ class ReportRepository:
     def get_latest_revision(self, report_id: str) -> ReportRevision | None:
         raise NotImplementedError
 
+    def save_idempotency_record(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+        raise NotImplementedError
+
+    def get_idempotency_record(self, key: str) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
+        raise NotImplementedError
+
     def commit(self) -> None:
+        raise NotImplementedError
+
+    def rollback(self) -> None:
         raise NotImplementedError
 
 
@@ -80,12 +92,9 @@ class ReportService:
         self,
         repository: ReportRepository,
         assembler: ReportAssembler,
-        *,
-        idempotency_store: Any | None = None,
     ) -> None:
         self._repo = repository
         self._assembler = assembler
-        self._idempotency_store = idempotency_store
 
     # --- CRUD ---
 
@@ -106,7 +115,7 @@ class ReportService:
             existing = self._check_idempotency(idempotency_key, fp)
             if existing is not None:
                 return existing
-            self._claim_idempotency(idempotency_key)
+            self._claim_idempotency(idempotency_key, actor, "create", fp)
 
         report = Report.create(
             project_id=project_id,
@@ -115,10 +124,15 @@ class ReportService:
             created_by=actor,
         )
         self._repo.save_report(report)
-        self._repo.commit()
-        # Store result for idempotency
-        if idempotency_key:
-            self._complete_idempotency(idempotency_key, report)
+        # Complete idempotency BEFORE commit so both are in the same transaction.
+        # If either fails, rollback the entire transaction.
+        try:
+            if idempotency_key:
+                self._complete_idempotency(idempotency_key, report)
+            self._repo.commit()
+        except Exception:
+            self._repo.rollback()
+            raise
         return report
 
     def get_report(self, report_id: str, actor: str) -> Report:
@@ -153,7 +167,7 @@ class ReportService:
             existing = self._check_idempotency_revision(idempotency_key, fp)
             if existing is not None:
                 return existing
-            self._claim_idempotency(idempotency_key)
+            self._claim_idempotency(idempotency_key, actor, "generate", fp)
 
         revision_number = report.current_revision_number + 1
         supersedes = None
@@ -222,11 +236,15 @@ class ReportService:
             version=report.version + 1,
         )
         self._repo.update_report(updated, expected_version=report.version)
-        self._repo.commit()
-
-        # Store result for idempotency
-        if idempotency_key:
-            self._complete_idempotency(idempotency_key, revision)
+        # Complete idempotency BEFORE commit so both are in the same transaction.
+        # If either fails, rollback the entire transaction.
+        try:
+            if idempotency_key:
+                self._complete_idempotency(idempotency_key, revision)
+            self._repo.commit()
+        except Exception:
+            self._repo.rollback()
+            raise
 
         return revision
 
@@ -385,55 +403,98 @@ class ReportService:
 
         Returns the original result if found, None otherwise.
         Raises IdempotencyPayloadConflictError if the key was used with
-        different parameters.
+        different parameters (fingerprint mismatch).
         """
-        if self._idempotency_store is None:
+        record = self._repo.get_idempotency_record(key)
+        if record is None:
             return None
-        result = self._idempotency_store.get(key)
-        if result is None:
-            return None
-        if isinstance(result, Report):
-            # Verify fingerprint matches
-            stored_fp = getattr(result, "_idempotency_fingerprint", None)
-            if stored_fp is not None and stored_fp != fingerprint:
-                raise IdempotencyPayloadConflictError(key)
-            return result
+        # Fingerprint mismatch means different params → conflict
+        if record["fingerprint"] != fingerprint:
+            raise IdempotencyPayloadConflictError(key)
+        # Only return result if completed
+        if record["status"] == "completed" and record["result_payload"] is not None:
+            payload = record["result_payload"]
+            # Reconstruct Report from payload (serialized as dict)
+            if isinstance(payload, dict) and "id" in payload:
+                from cold_storage.modules.reports.domain.enums import ReportType
+
+                return Report(
+                    id=payload["id"],
+                    project_id=payload["project_id"],
+                    project_version_id=payload["project_version_id"],
+                    report_type=ReportType(payload["report_type"]),
+                    status=ReportStatus(payload["status"]),
+                    current_revision_number=payload["current_revision_number"],
+                    created_by=payload["created_by"],
+                    created_at=payload["created_at"],
+                    updated_at=payload["updated_at"],
+                    version=payload["version"],
+                )
         return None
 
     def _check_idempotency_revision(self, key: str, fingerprint: str) -> ReportRevision | None:
         """Check for a completed revision result matching key + fingerprint."""
-        if self._idempotency_store is None:
+        record = self._repo.get_idempotency_record(key)
+        if record is None:
             return None
-        result = self._idempotency_store.get(key)
-        if result is None:
-            return None
-        if isinstance(result, ReportRevision):
-            stored_fp = getattr(result, "_idempotency_fingerprint", None)
-            if stored_fp is not None and stored_fp != fingerprint:
-                raise IdempotencyPayloadConflictError(key)
-            return result
+        if record["fingerprint"] != fingerprint:
+            raise IdempotencyPayloadConflictError(key)
+        if record["status"] == "completed" and record["result_payload"] is not None:
+            payload = record["result_payload"]
+            if isinstance(payload, dict) and "id" in payload:
+                from cold_storage.modules.reports.domain.enums import ReportStatus as RS
+
+                return ReportRevision(
+                    id=payload["id"],
+                    report_id=payload["report_id"],
+                    revision_number=payload["revision_number"],
+                    schema_version=payload["schema_version"],
+                    content_json=payload["content_json"],
+                    canonical_content_json=payload["canonical_content_json"],
+                    content_hash=payload["content_hash"],
+                    quality_status=RS(payload["quality_status"]),
+                    quality_findings_json=payload["quality_findings_json"],
+                    generated_by=payload["generated_by"],
+                    generated_at=payload["generated_at"],
+                    supersedes_revision_id=payload.get("supersedes_revision_id"),
+                )
         return None
 
-    def _claim_idempotency(self, key: str) -> None:
-        """Claim an idempotency key to prevent concurrent duplicate execution.
+    def _claim_idempotency(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+        """Claim an idempotency key via INSERT.
 
         Raises IdempotencyClaimError if another request holds the key.
         """
-        if self._idempotency_store is None:
-            return
-        if hasattr(self._idempotency_store, "claim"):
-            claimed = self._idempotency_store.claim(key)
-            if not claimed:
-                raise IdempotencyClaimError(key)
+        try:
+            self._repo.save_idempotency_record(
+                key=key, actor=actor, action=action, fingerprint=fingerprint
+            )
+        except Exception as exc:
+            # Duplicate key → already claimed
+            raise IdempotencyClaimError(key) from exc
 
     def _complete_idempotency(self, key: str, result: object) -> None:
-        """Store the result for idempotency after successful execution."""
-        if self._idempotency_store is None:
-            return
-        if hasattr(self._idempotency_store, "complete"):
-            self._idempotency_store.complete(key, result)
-        else:
-            self._idempotency_store.set(key, result)
+        """Mark idempotency key as completed with the result payload."""
+        payload = self._serialize_result(result)
+        self._repo.complete_idempotency_record(key, payload)
+
+    @staticmethod
+    def _serialize_result(result: object) -> dict[str, Any]:
+        """Serialize a Report or ReportRevision to a JSON-safe dict."""
+        from dataclasses import fields, is_dataclass
+
+        if not is_dataclass(result) or isinstance(result, type):
+            return {"error": "non-serializable result"}
+        d: dict[str, Any] = {}
+        for f in fields(result):
+            val = getattr(result, f.name)
+            if hasattr(val, "value"):
+                d[f.name] = val.value
+            elif hasattr(val, "isoformat"):
+                d[f.name] = val.isoformat()
+            else:
+                d[f.name] = val
+        return d
 
     @staticmethod
     def _make_fingerprint(*parts: str) -> str:

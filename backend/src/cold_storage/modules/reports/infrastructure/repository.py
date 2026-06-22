@@ -16,6 +16,7 @@ from cold_storage.modules.reports.domain.models import (
     ReportSourceReference,
 )
 from cold_storage.modules.reports.infrastructure.orm import (
+    IdempotencyRecord,
     ReportRecord,
     ReportReviewActionRecord,
     ReportRevisionRecord,
@@ -168,10 +169,46 @@ class SQLReportRepository(ReportRepository):
         )
         self._session.add(rec)
 
+    # --- Idempotency Records ---
+
+    def save_idempotency_record(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+        rec = IdempotencyRecord(
+            key=key,
+            actor=actor,
+            action=action,
+            fingerprint=fingerprint,
+            status="claimed",
+        )
+        self._session.add(rec)
+
+    def get_idempotency_record(self, key: str) -> dict[str, Any] | None:
+        rec = self._session.get(IdempotencyRecord, key)
+        if rec is None:
+            return None
+        return {
+            "key": rec.key,
+            "actor": rec.actor,
+            "action": rec.action,
+            "fingerprint": rec.fingerprint,
+            "status": rec.status,
+            "result_payload": rec.result_payload,
+        }
+
+    def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
+        stmt = (
+            sa.update(IdempotencyRecord)
+            .where(IdempotencyRecord.key == key)
+            .values(status="completed", result_payload=result_payload)
+        )
+        self._session.execute(stmt)
+
     # --- Commit ---
 
     def commit(self) -> None:
         self._session.commit()
+
+    def rollback(self) -> None:
+        self._session.rollback()
 
     # --- Serialisers ---
 

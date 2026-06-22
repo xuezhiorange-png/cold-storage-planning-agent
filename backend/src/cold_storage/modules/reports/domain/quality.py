@@ -92,14 +92,32 @@ def _check_required_calc_fields(
         parts = field_path.split(".")
         obj: Any = content
         found = True
+        stopped_at_empty = False
         for part in parts:
             if isinstance(obj, dict) and part in obj:
                 obj = obj[part]
+            elif isinstance(obj, dict) and not obj:
+                # An intermediate dict is empty so the path cannot
+                # be resolved further — flag it as an empty result.
+                stopped_at_empty = True
+                found = False
+                break
             else:
                 found = False
                 break
         section = parts[0] if parts else "root"
-        if not found or obj is None:
+        if stopped_at_empty:
+            findings.append(
+                _finding(
+                    code="EMPTY_REQUIRED_ENGINEERING_RESULT",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message=(f"Required engineering result '{field_path}' exists but is empty"),
+                    remediation=(f"Populate calculation result for '{field_path}'"),
+                )
+            )
+        elif not found or obj is None:
             findings.append(
                 _finding(
                     code="MISSING_REQUIRED_ENGINEERING_RESULT",
@@ -108,6 +126,17 @@ def _check_required_calc_fields(
                     field_path=field_path,
                     message=f"Required engineering result '{field_path}' is missing",
                     remediation=f"Ensure calculation result for '{field_path}' is present",
+                )
+            )
+        elif isinstance(obj, dict) and not obj:
+            findings.append(
+                _finding(
+                    code="EMPTY_REQUIRED_ENGINEERING_RESULT",
+                    severity=QualitySeverity.BLOCKER,
+                    section_key=section,
+                    field_path=field_path,
+                    message=(f"Required engineering result '{field_path}' exists but is empty"),
+                    remediation=(f"Populate calculation result for '{field_path}'"),
                 )
             )
 
@@ -145,8 +174,11 @@ def _check_not_calculated(obj: Any, path: str, findings: list[dict[str, Any]]) -
 # Maps a regex (matched against the *base* field name, i.e. without the
 # trailing ``_unit`` suffix) to the expected unit string.
 _FIELD_UNIT_CONSTRAINTS: dict[str, str] = {
+    r"cooling_load": "kW(r)",
     r"total_design_refrigeration_load": "kW(r)",
+    r"total_compressor_capacity": "kW(r)",
     r"compressor_capacity": "kW(r)",
+    r"total_compressor_input_power": "kW(e)",
     r"compressor_input(?:_power)?": "kW(e)",
     r"installed_power": "kW(e)",
     r"process_power": "kW(e)",
@@ -175,19 +207,25 @@ def _expected_unit_for_field(field_path: str) -> str | None:
 
 
 def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
-    """Check that unit fields use correct dimension-specific units."""
+    """Check that unit fields use correct dimension-specific units.
+
+    Handles two patterns:
+    1. Legacy ``<field>_unit`` string keys (e.g. ``load_unit: "kW(r)"``)
+    2. Measured-value objects with ``{"value": ..., "unit": ...}`` structure.
+    """
     if not isinstance(obj, dict):
         return
     VALID_UNITS = {"kW(r)", "kW(e)", "kW(th)", "kWh"}
     for key, val in obj.items():
         cur = f"{path}.{key}" if path else key
+        section = path.split(".")[0] if path else "root"
         if key.endswith("_unit") and isinstance(val, str):
             if val not in VALID_UNITS:
                 findings.append(
                     _finding(
                         code="INVALID_UNIT",
                         severity=QualitySeverity.BLOCKER,
-                        section_key=path.split(".")[0] if path else "root",
+                        section_key=section,
                         field_path=cur,
                         message=f"Invalid unit '{val}'; must be one of {VALID_UNITS}",
                     )
@@ -202,13 +240,43 @@ def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
                         _finding(
                             code="WRONG_UNIT_DIMENSION",
                             severity=QualitySeverity.BLOCKER,
-                            section_key=path.split(".")[0] if path else "root",
+                            section_key=section,
                             field_path=cur,
                             message=(
                                 f"Unit mismatch: field '{cur}' expects '{expected}' but got '{val}'"
                             ),
                         )
                     )
+        elif isinstance(val, dict) and "value" in val and "unit" in val:
+            # Measured-value object: {"value": <number>, "unit": "<string>"}
+            # Validate the unit value against the parent field path.
+            unit_val = val["unit"]
+            if isinstance(unit_val, str):
+                if unit_val not in VALID_UNITS:
+                    findings.append(
+                        _finding(
+                            code="INVALID_UNIT",
+                            severity=QualitySeverity.BLOCKER,
+                            section_key=section,
+                            field_path=f"{cur}.unit",
+                            message=(f"Invalid unit '{unit_val}'; must be one of {VALID_UNITS}"),
+                        )
+                    )
+                else:
+                    expected = _expected_unit_for_field(cur)
+                    if expected is not None and unit_val != expected:
+                        findings.append(
+                            _finding(
+                                code="WRONG_UNIT_DIMENSION",
+                                severity=QualitySeverity.BLOCKER,
+                                section_key=section,
+                                field_path=f"{cur}.unit",
+                                message=(
+                                    f"Unit mismatch: field '{cur}' expects "
+                                    f"'{expected}' but got '{unit_val}'"
+                                ),
+                            )
+                        )
         elif isinstance(val, dict):
             _check_units(val, cur, findings)
         elif isinstance(val, list):

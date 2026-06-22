@@ -281,6 +281,19 @@ class SchemeRepository:
         )
         return list(self._session.execute(stmt).scalars().all())
 
+    def get_completed_runs_for_project(self, project_id: str) -> list[SchemeRun]:
+        """Return completed runs for a project, newest first."""
+        stmt = (
+            select(SchemeRunRecord)
+            .where(
+                SchemeRunRecord.project_id == project_id,
+                SchemeRunRecord.status == "completed",
+            )
+            .order_by(SchemeRunRecord.created_at.desc())
+        )
+        recs = self._session.execute(stmt).scalars().all()
+        return [self._to_run(r) for r in recs]
+
     def _to_run(self, rec: SchemeRunRecord) -> SchemeRun:
         return SchemeRun(
             id=rec.id,
