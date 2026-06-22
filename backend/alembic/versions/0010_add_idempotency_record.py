@@ -4,6 +4,7 @@ Revision ID: 0010_add_idempotency_record
 Revises: 0009_add_reports
 Create Date: 2026-06-22
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -34,9 +35,7 @@ def upgrade() -> None:
         sa.Column("actor", sa.String(64), nullable=False),
         sa.Column("action", sa.String(32), nullable=False),
         sa.Column("fingerprint", sa.String(64), nullable=False),
-        sa.Column(
-            "status", sa.String(16), nullable=False, server_default="claimed"
-        ),
+        sa.Column("status", sa.String(16), nullable=False, server_default="claimed"),
         sa.Column("result_payload", json_type, nullable=True),
         sa.Column(
             "created_at",

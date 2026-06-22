@@ -452,7 +452,6 @@ class TestIdempotency:
 
     def test_idempotent_claim_concurrent(self, service):
         """Claiming an already-claimed key → IdempotencyClaimError."""
-        from cold_storage.modules.reports.domain.errors import IdempotencyClaimError
 
         # Claim via the first create
         service.create_report(
@@ -482,23 +481,24 @@ class TestIdempotency:
 
         # First call: complete fails → commit should also fail (atomic)
         # We simulate this by making complete_idempotency_record raise
-        original_complete = repo.complete_idempotency_record
 
         def failing_complete(key, payload):
             raise RuntimeError("simulated complete failure")
 
-        with patch.object(repo, "complete_idempotency_record", failing_complete):
-            with pytest.raises(RuntimeError, match="simulated complete failure"):
-                svc.create_report(
-                    project_id="p1",
-                    project_version_id="v1",
-                    report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
-                    actor="user1",
-                    idempotency_key="fail-complete-key",
-                )
+        with (
+            patch.object(repo, "complete_idempotency_record", failing_complete),
+            pytest.raises(RuntimeError, match="simulated complete failure"),
+        ):
+            svc.create_report(
+                project_id="p1",
+                project_version_id="v1",
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                actor="user1",
+                idempotency_key="fail-complete-key",
+            )
 
         # The claim should have been rolled back with the failed commit
-        record = repo.get_idempotency_record("fail-complete-key")
+        repo.get_idempotency_record("fail-complete-key")
         # Since complete happens before commit and both fail together,
         # the record should not be committed (it was in the same transaction)
         # So retry should succeed
@@ -519,12 +519,8 @@ class TestIdempotency:
             report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
             actor="user1",
         )
-        rev1 = service.generate_revision(
-            r.id, "user1", idempotency_key="gen-key"
-        )
-        rev2 = service.generate_revision(
-            r.id, "user1", idempotency_key="gen-key"
-        )
+        rev1 = service.generate_revision(r.id, "user1", idempotency_key="gen-key")
+        rev2 = service.generate_revision(r.id, "user1", idempotency_key="gen-key")
         assert rev1.id == rev2.id
 
     def test_no_idempotency_key_always_creates(self, service):
