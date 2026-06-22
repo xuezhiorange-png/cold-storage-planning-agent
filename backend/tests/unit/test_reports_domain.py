@@ -447,3 +447,152 @@ class TestMinimumEngineeringResults:
         )
         blockers = get_blockers(findings)
         assert any(f["code"] == "EMPTY_REQUIRED_ENGINEERING_RESULT" for f in blockers)
+
+
+# -----------------------------------------------------------------------
+# Scheme source authenticity — no hardcoded tool_call_status
+# -----------------------------------------------------------------------
+
+
+class TestSchemeSourceAuthenticity:
+    def test_scheme_source_ref_has_no_hardcoded_status(self):
+        """Scheme source ref should not have hardcoded tool_call_status."""
+        from cold_storage.modules.reports.application.assembler import _make_source_ref
+        from cold_storage.modules.reports.domain.enums import SourceType
+
+        ref = _make_source_ref(
+            section_key="scheme_comparison",
+            source_type=SourceType.SCHEME_RESULT,
+            source_id="run-123",
+            data={"run_id": "run-123", "status": "completed"},
+        )
+        assert "tool_call_status" not in ref  # Not hardcoded
+        assert ref["source_id"] == "run-123"
+
+    def test_scheme_source_ref_includes_verification_when_present(self):
+        """tool_call_status only appears when genuinely present in data."""
+        from cold_storage.modules.reports.application.assembler import _make_source_ref
+        from cold_storage.modules.reports.domain.enums import SourceType
+
+        ref = _make_source_ref(
+            section_key="scheme_comparison",
+            source_type=SourceType.SCHEME_RESULT,
+            source_id="run-456",
+            data={"run_id": "run-456", "tool_call_status": "completed"},
+        )
+        assert ref["tool_call_status"] == "completed"
+
+
+# -----------------------------------------------------------------------
+# Knowledge per-revision provenance
+# -----------------------------------------------------------------------
+
+
+class TestKnowledgePerRevisionProvenance:
+    def test_knowledge_source_refs_are_per_revision(self):
+        """Each knowledge revision should have its own source ref."""
+        from cold_storage.modules.reports.application.assembler import _make_source_ref
+        from cold_storage.modules.reports.domain.enums import SourceType
+
+        knowledge_data = [
+            {
+                "id": "doc-1",
+                "approved_revisions": [
+                    {"id": "rev-1", "content_sha256": "abc123"},
+                    {"id": "rev-2", "content_sha256": "def456"},
+                ],
+            },
+        ]
+        refs = []
+        for doc in knowledge_data:
+            for rev in doc.get("approved_revisions", []):
+                refs.append(
+                    _make_source_ref(
+                        section_key="knowledge_references",
+                        source_type=SourceType.KNOWLEDGE_REVISION,
+                        source_id=rev["id"],
+                        data={
+                            "knowledge_status": "approved",
+                            "persisted_content_hash": rev.get("content_sha256", ""),
+                        },
+                    )
+                )
+        assert len(refs) == 2
+        assert refs[0]["source_id"] == "rev-1"
+        assert refs[1]["source_id"] == "rev-2"
+        assert refs[0]["content_hash"] == "abc123"
+        assert refs[1]["content_hash"] == "def456"
+
+    def test_knowledge_ref_without_persisted_hash_is_empty(self):
+        """Without persisted_content_hash, content_hash should be empty string."""
+        from cold_storage.modules.reports.application.assembler import _make_source_ref
+        from cold_storage.modules.reports.domain.enums import SourceType
+
+        ref = _make_source_ref(
+            section_key="knowledge_references",
+            source_type=SourceType.KNOWLEDGE_REVISION,
+            source_id="rev-3",
+            data={"knowledge_status": "approved"},
+        )
+        assert ref["content_hash"] == ""  # No fallback to computed hash
+
+
+# -----------------------------------------------------------------------
+# Missing hash generates blocker
+# -----------------------------------------------------------------------
+
+
+class TestMissingHashGeneratesBlocker:
+    def test_empty_content_hash_is_blocker(self):
+        """Source ref with empty content_hash should trigger SOURCE_MISSING_CONTENT_HASH."""
+        content = {
+            "report_metadata": {
+                "schema_version": "test@1.0",
+                "report_id": "r1",
+                "project_id": "p1",
+                "project_version_id": "v1",
+                "generated_at": "2026-01-01T00:00:00",
+                "generated_by": "test",
+                "revision_number": 1,
+            },
+            "quality_summary": {
+                "total_findings": 0,
+                "blocker_count": 0,
+                "warning_count": 0,
+                "info_count": 0,
+            },
+        }
+        source_refs = [
+            {
+                "section_key": "cooling_load",
+                "field_path": "cooling_load",
+                "source_type": "calculation_result",
+                "source_id": "calc-001",
+                "result_id": "calc-001",
+                "tool_version": "1.0.0",
+                "content_hash": "",  # Empty — no persisted hash
+            }
+        ]
+        findings = evaluate_quality(content, source_refs)
+        blocker_codes = [f["code"] for f in findings if f["severity"] == "blocker"]
+        assert "SOURCE_MISSING_CONTENT_HASH" in blocker_codes
+
+    def test_nonempty_content_hash_passes(self):
+        """Source ref with valid content_hash should not trigger blocker."""
+        content = {
+            "cooling_load": {"total_design_refrigeration_load": {"value": 100, "unit": "kW(r)"}}
+        }
+        source_refs = [
+            {
+                "section_key": "cooling_load",
+                "field_path": "cooling_load",
+                "source_type": "calculation_result",
+                "source_id": "calc-001",
+                "result_id": "calc-001",
+                "tool_version": "1.0.0",
+                "content_hash": "abc123def456",
+            }
+        ]
+        findings = evaluate_quality(content, source_refs)
+        blocker_codes = [f["code"] for f in findings if f["severity"] == "blocker"]
+        assert "SOURCE_MISSING_CONTENT_HASH" not in blocker_codes

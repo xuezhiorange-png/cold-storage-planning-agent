@@ -27,11 +27,13 @@ class RealReportDataProvider(ReportDataProvider):
         calculation_service: Any | None = None,
         scheme_query: Any | None = None,
         knowledge_query: Any | None = None,
+        agent_session_query: Any | None = None,
     ) -> None:
         self._project_service = project_service
         self._calculation_service = calculation_service
         self._scheme_query = scheme_query
         self._knowledge_query = knowledge_query
+        self._agent_session_query = agent_session_query
 
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         """Read project metadata from ProjectService."""
@@ -49,7 +51,9 @@ class RealReportDataProvider(ReportDataProvider):
         except (KeyError, AttributeError):
             return None
 
-    def get_project_version(self, version_id: str) -> dict[str, Any] | None:
+    def get_project_version(
+        self, version_id: str, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         """Read project version data."""
         if self._project_service is None:
             return None
@@ -59,6 +63,8 @@ class RealReportDataProvider(ReportDataProvider):
             for project in self._project_service.list_projects():
                 ver = getattr(project, "current_version", None)
                 if ver is not None and getattr(ver, "id", None) == version_id:
+                    if project_id is not None and getattr(project, "id", None) != project_id:
+                        continue
                     return {
                         "id": ver.id,
                         "version_number": getattr(ver, "version_number", 0),
@@ -163,7 +169,8 @@ class RealReportDataProvider(ReportDataProvider):
                 "run_id": latest_run["run_id"],
                 "status": latest_run["status"],
                 "schemes": schemes,
-                "tool_call_status": "completed",
+                "recommended_scheme": latest_run.get("recommended_scheme_code", ""),
+                "generator_version": latest_run.get("generator_version", ""),
             }
         except Exception:  # noqa: BLE001
             return None
@@ -179,9 +186,17 @@ class RealReportDataProvider(ReportDataProvider):
             return []
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
-        """Read agent session/tool-call data for provenance.
-
-        Currently returns empty — agent session tracking is not yet
-        implemented as a separate module.
-        """
-        return []
+        """Read agent session/tool-call data for provenance."""
+        if self._agent_session_query is None:
+            return []
+        try:
+            sessions = self._agent_session_query.get_sessions_for_project(project_id, version_id)
+            result: list[dict[str, Any]] = []
+            for session in sessions:
+                tool_calls = self._agent_session_query.get_tool_calls_for_session(
+                    session["session_id"]
+                )
+                result.append({**session, "tool_calls": tool_calls})
+            return result
+        except Exception:  # noqa: BLE001
+            return []

@@ -208,6 +208,14 @@ class AgentRepository:
         rec = self._session.execute(stmt).scalar_one_or_none()
         return self._to_turn(rec) if rec else None
 
+    def list_turns(self, session_id: str) -> list[AgentTurn]:
+        stmt = (
+            sa.select(AgentTurnRecord)
+            .where(AgentTurnRecord.session_id == session_id)
+            .order_by(AgentTurnRecord.turn_number)
+        )
+        return [self._to_turn(r) for r in self._session.execute(stmt).scalars()]
+
     # ----- Tool calls -----
 
     def add_tool_call(self, tc: AgentToolCall) -> AgentToolCall:

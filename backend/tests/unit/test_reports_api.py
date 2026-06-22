@@ -31,7 +31,9 @@ class _APIFakeDataProvider(ReportDataProvider):
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         return {"name": "Test Project", "location": "Test Location"}
 
-    def get_project_version(self, version_id: str) -> dict[str, Any] | None:
+    def get_project_version(
+        self, version_id: str, *, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         return {"version_number": 1}
 
     def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
@@ -41,6 +43,7 @@ class _APIFakeDataProvider(ReportDataProvider):
                 "result_id": "calc-001",
                 "tool_name": "cooling_load_calculator",
                 "tool_version": "1.0.0",
+                "persisted_content_hash": "hash-001",
                 "data": {
                     "total_design_refrigeration_load": {
                         "value": 100.0,
@@ -56,6 +59,7 @@ class _APIFakeDataProvider(ReportDataProvider):
                 "result_id": "calc-002",
                 "tool_name": "equipment_selector",
                 "tool_version": "1.0.0",
+                "persisted_content_hash": "hash-002",
                 "data": {
                     "total_compressor_capacity": {
                         "value": 120.0,
@@ -71,6 +75,7 @@ class _APIFakeDataProvider(ReportDataProvider):
                 "result_id": "calc-003",
                 "tool_name": "energy_calculator",
                 "tool_version": "1.0.0",
+                "persisted_content_hash": "hash-003",
                 "data": {
                     "total_installed_power": {
                         "value": 50.0,
@@ -88,9 +93,14 @@ class _APIFakeDataProvider(ReportDataProvider):
             "run_id": "scheme-001",
             "schemes": [{"scheme_id": "s1"}],
             "recommended_scheme": "s1",
+            "generator_version": "1.0.0",
+            "persisted_content_hash": "scheme_hash_123",
         }
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+        return []
+
+    def get_knowledge_documents(self) -> list[dict[str, Any]]:
         return []
 
 

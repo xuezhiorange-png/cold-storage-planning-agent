@@ -49,7 +49,9 @@ class _FakeDataProvider(ReportDataProvider):
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         return {"name": "Test Project", "location": "Test Location"}
 
-    def get_project_version(self, version_id: str) -> dict[str, Any] | None:
+    def get_project_version(
+        self, version_id: str, *, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         return {"version_number": 1}
 
     def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
@@ -59,6 +61,7 @@ class _FakeDataProvider(ReportDataProvider):
                 "result_id": "calc-001",
                 "tool_name": "cooling_load_calculator",
                 "tool_version": "1.0.0",
+                "persisted_content_hash": "hash-001",
                 "data": {
                     "total_design_refrigeration_load": {
                         "value": 100.0,
@@ -74,6 +77,7 @@ class _FakeDataProvider(ReportDataProvider):
                 "result_id": "calc-002",
                 "tool_name": "equipment_selector",
                 "tool_version": "1.0.0",
+                "persisted_content_hash": "hash-002",
                 "data": {
                     "total_compressor_capacity": {
                         "value": 120.0,
@@ -89,6 +93,7 @@ class _FakeDataProvider(ReportDataProvider):
                 "result_id": "calc-003",
                 "tool_name": "energy_calculator",
                 "tool_version": "1.0.0",
+                "persisted_content_hash": "hash-003",
                 "data": {
                     "total_installed_power": {
                         "value": 50.0,
@@ -109,9 +114,14 @@ class _FakeDataProvider(ReportDataProvider):
                 {"scheme_id": "s2", "name": "Scheme B", "total_investment_cny": 6000000},
             ],
             "recommended_scheme": "s1",
+            "generator_version": "1.0.0",
+            "persisted_content_hash": "scheme_hash_123",
         }
 
     def get_agent_sessions(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+        return []
+
+    def get_knowledge_documents(self) -> list[dict[str, Any]]:
         return []
 
 
@@ -238,6 +248,39 @@ class TestReportGeneration:
         updated = service.get_report(r.id, "user1")
         # Should be GENERATED since assembler provides valid data
         assert updated.status == ReportStatus.GENERATED
+
+
+# -----------------------------------------------------------------------
+# Project version ownership tests
+# -----------------------------------------------------------------------
+
+
+class TestProjectVersionOwnership:
+    def test_version_from_different_project_returns_none(self, db_session, repo):
+        """get_project_version returns None if version belongs to other project."""
+        from unittest.mock import MagicMock
+
+        from cold_storage.modules.reports.infrastructure.real_data_provider import (
+            RealReportDataProvider,
+        )
+
+        mock_project_service = MagicMock()
+        mock_version = MagicMock()
+        mock_version.id = "v1"
+        mock_version.version_number = 1
+        mock_version.status = "approved"
+        mock_project = MagicMock()
+        mock_project.id = "project-A"
+        mock_project.current_version = mock_version
+        mock_project_service.list_projects.return_value = [mock_project]
+
+        provider = RealReportDataProvider(project_service=mock_project_service)
+        # Query with matching project_id — should return data
+        result = provider.get_project_version("v1", project_id="project-A")
+        assert result is not None
+        # Query with wrong project_id — should return None
+        result = provider.get_project_version("v1", project_id="project-B")
+        assert result is None
 
     def test_generate_preserves_canonical_hash(self, service):
         r = service.create_report(

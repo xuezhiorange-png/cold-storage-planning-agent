@@ -67,7 +67,9 @@ class ReportAssembler:
 
         # Gather data from provider (all persisted, no recalculation)
         project_data = self._provider.get_project(project_id)
-        project_version_data = self._provider.get_project_version(project_version_id)
+        project_version_data = self._provider.get_project_version(
+            project_version_id, project_id=project_id
+        )
         calculation_data = self._provider.get_calculation_results(project_id, project_version_id)
         scheme_data = self._provider.get_scheme_results(project_id, project_version_id)
         agent_session_data = self._provider.get_agent_sessions(project_id, project_version_id)
@@ -130,7 +132,7 @@ class ReportAssembler:
                         **scheme_data,
                         "result_id": scheme_data.get("run_id", ""),
                         "tool_name": "scheme_evaluator",
-                        "tool_version": "1.0.0",
+                        "tool_version": scheme_data.get("generator_version", ""),
                     },
                 )
             )
@@ -148,17 +150,22 @@ class ReportAssembler:
             )
 
         if knowledge_data:
-            source_refs.append(
-                _make_source_ref(
-                    section_key="knowledge_references",
-                    source_type=SourceType.KNOWLEDGE_REVISION,
-                    source_id="",
-                    data={
-                        "knowledge_documents": knowledge_data,
-                        "knowledge_count": len(knowledge_data),
-                    },
-                )
-            )
+            for doc in knowledge_data:
+                for rev in doc.get("approved_revisions", []):
+                    source_refs.append(
+                        _make_source_ref(
+                            section_key="knowledge_references",
+                            source_type=SourceType.KNOWLEDGE_REVISION,
+                            source_id=rev["id"],
+                            data={
+                                "knowledge_status": "approved",
+                                "persisted_content_hash": rev.get("content_sha256", ""),
+                                "tool_name": "knowledge_manager",
+                                "tool_version": "1.0.0",
+                                "result_id": rev["id"],
+                            },
+                        )
+                    )
 
         if agent_session_data:
             for session in agent_session_data:
@@ -170,6 +177,16 @@ class ReportAssembler:
                         data=session,
                     )
                 )
+                for tc in session.get("tool_calls", []):
+                    if tc.get("status") in ("succeeded", "confirmed"):
+                        source_refs.append(
+                            _make_source_ref(
+                                section_key="report_metadata",
+                                source_type=SourceType.AGENT_TOOL_CALL,
+                                source_id=tc.get("id", ""),
+                                data=tc,
+                            )
+                        )
 
         # 11. risks_and_missing_information
         content.setdefault(
@@ -265,7 +282,6 @@ def _make_source_ref(
     knowledge_status, source_exists, hash_mismatch).  These must be
     provided by the data provider based on actual persisted state.
     """
-    from cold_storage.modules.reports.domain.canonical import content_hash as ch
 
     ref: dict[str, Any] = {
         "section_key": section_key,
@@ -276,7 +292,7 @@ def _make_source_ref(
         "tool_name": data.get("tool_name", ""),
         "tool_version": data.get("tool_version", ""),
         "result_id": data.get("result_id", ""),
-        "content_hash": data.get("persisted_content_hash", ch(data)),
+        "content_hash": data.get("persisted_content_hash", ""),
     }
     # Only pass through verification metadata that is genuinely present
     # in the data (i.e., came from a persisted record, not fabricated).
@@ -317,7 +333,9 @@ class ReportDataProvider:
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         return None
 
-    def get_project_version(self, version_id: str) -> dict[str, Any] | None:
+    def get_project_version(
+        self, version_id: str, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         return None
 
     def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
