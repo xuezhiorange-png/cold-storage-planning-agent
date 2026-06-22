@@ -1,1 +1,1 @@
-"""Planning agent infrastructure adapters."""
+"""Planning agent infrastructure layer."""

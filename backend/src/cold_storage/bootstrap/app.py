@@ -1,16 +1,18 @@
 """FastAPI application factory."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session as SASession
 
 from cold_storage.bootstrap.demo_overview import build_demo_overview
 from cold_storage.bootstrap.dependencies import (
     get_agent_service,
+    get_engine,
     get_project_service,
     init_dependencies,
     shutdown_dependencies,
@@ -40,7 +42,12 @@ from cold_storage.modules.planning.application.service import (
     planning_run_response,
     zone_number,
 )
-from cold_storage.modules.planning_agent.application.agent_service import PlanningAgentService
+from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
+from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
+from cold_storage.modules.planning_agent.application.service import PlanningAgentService
+from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
+from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
+from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
     InvalidVersionTransitionError,
@@ -50,11 +57,94 @@ from cold_storage.modules.schemes.api.routes import register_scheme_routes
 from cold_storage.modules.schemes.application.service import SchemeService
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
-AgentServiceDep = Annotated[PlanningAgentService, Depends(get_agent_service)]
+AgentServiceDep = Annotated[LegacyPlanningAgentService, Depends(get_agent_service)]
 
 
+# --------------------------------------------------------------------------- Fix #2: Per-request
 # ---------------------------------------------------------------------------
-# Request models (API-layer concerns)
+
+
+def _get_db_session() -> Generator[SASession, None, None]:
+    """FastAPI dependency: yields a per-request SQLAlchemy Session.
+
+    The Application Service owns commit/rollback.  This dependency only
+    handles rollback on unhandled exceptions and session close.
+    """
+    engine = get_engine()
+    session = SASession(bind=engine, expire_on_commit=False)
+    try:
+        yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def _get_planning_agent_service(
+    db_session: SASession = Depends(_get_db_session),  # noqa: B008
+) -> PlanningAgentService:
+    """FastAPI dependency: creates a PlanningAgentService per-request.
+
+    Fix #2: per-request Session, not singleton.
+    Fix #7: transaction boundary via _get_db_session commit/rollback.
+    Fix #1+#2: Wire real tool adapters into the orchestrator.
+    """
+    from cold_storage.modules.knowledge.application.service import (
+        KnowledgeService as _KnowledgeService,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.knowledge_adapter import (
+        KnowledgeSearchAdapter,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.planning_adapter import (
+        CoolingLoadEquipmentAdapter,
+        ThroughputInventoryAreaAdapter,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.project_adapter import (
+        ProjectGetAdapter,
+        ProjectVersionGetAdapter,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters.scheme_adapter import (
+        SchemeGenerateCompareAdapter,
+    )
+
+    gateway = FakeAgentModelGateway()
+    registry = build_default_registry()
+
+    # Build real adapters — stateless calculators are fine per-request
+    zone_planner = ColdRoomZonePlanner()
+    investment_estimator = InvestmentEstimator()
+    cooling_service = CoreCalculationService()
+    scheme_service = SchemeService(db_session)
+    knowledge_service = _KnowledgeService(db_session)
+    project_service = get_project_service()
+
+    from cold_storage.modules.planning_agent.infrastructure.tool_adapters import ToolAdapter as _TA
+
+    adapters: dict[str, _TA] = {
+        "planning.calculate_throughput_inventory_area": ThroughputInventoryAreaAdapter(
+            zone_planner, investment_estimator
+        ),
+        "planning.calculate_cooling_load_and_equipment": CoolingLoadEquipmentAdapter(
+            cooling_service
+        ),
+        "scheme.generate_and_compare": SchemeGenerateCompareAdapter(scheme_service),
+        "knowledge.search": KnowledgeSearchAdapter(knowledge_service),
+        "project.get": ProjectGetAdapter(project_service),
+        "project_version.get": ProjectVersionGetAdapter(project_service),
+    }
+
+    orchestrator = AgentOrchestrator(tool_adapters=adapters, project_service=project_service)
+    repo = AgentRepository(db_session)
+    return PlanningAgentService(
+        repository=repo,
+        gateway=gateway,
+        registry=registry,
+        orchestrator=orchestrator,
+    )
+
+
+# --------------------------------------------------------------------------- Request models (API
 # ---------------------------------------------------------------------------
 
 
@@ -123,8 +213,7 @@ class AgentMessageRequest(BaseModel):
     message: str
 
 
-# ---------------------------------------------------------------------------
-# Lifespan
+# --------------------------------------------------------------------------- Lifespan
 # ---------------------------------------------------------------------------
 
 
@@ -137,8 +226,7 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         shutdown_dependencies()
 
 
-# ---------------------------------------------------------------------------
-# App factory
+# --------------------------------------------------------------------------- App factory
 # ---------------------------------------------------------------------------
 
 
@@ -154,8 +242,6 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     # Scheme routes
     def _scheme_service_factory() -> SchemeService:
-        from sqlalchemy.orm import Session as SASession
-
         from cold_storage.bootstrap.dependencies import get_engine
 
         engine = get_engine()
@@ -166,8 +252,6 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     # Knowledge routes
     def _knowledge_service_factory() -> Any:
-        from sqlalchemy.orm import Session as SASession
-
         from cold_storage.bootstrap.dependencies import get_engine
         from cold_storage.modules.knowledge.application.service import KnowledgeService
 
@@ -551,9 +635,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             2,
         )
         power_configuration = build_power_configuration(
-            zone_result.result["zones"],
-            as_float(inputs["daily_inbound_mass_kg"]),
-            total_area,
+            zone_result.result["zones"], as_float(inputs["daily_inbound_mass_kg"]), total_area
         )
         investment_result = build_investment_from_zone_result(
             zone_result,
@@ -568,16 +650,17 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     def list_audit_events(project_id: str, service: ProjectServiceDep) -> list[dict[str, Any]]:
         return service.list_audit_events(project_id)
 
-    @post_agent_message(app)
-    def agent_message(
-        request: AgentMessageRequest,
-        service: AgentServiceDep,
-    ) -> dict[str, Any]:
-        response = service.handle_message(request.message)
-        return response.__dict__
-
+    # ----------------------------------------------------------------------- Fix #2: New Plannin
     # -----------------------------------------------------------------------
-    # Core Calculation Endpoints (Task 4)
+    # Fix #2: Router uses Depends() so each request gets its own DB Session.
+    # Fix #7: _get_db_session handles commit/rollback/close per-request.
+    from cold_storage.modules.planning_agent.api.routes import (
+        create_agent_router as _create_agent_router,
+    )
+
+    app.include_router(_create_agent_router(_get_planning_agent_service))
+
+    # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------
 
     class CoreCalculationPreviewRequest(BaseModel):
@@ -629,11 +712,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         version: int,
         request: CoreCalculationPreviewRequest,
     ) -> dict[str, Any]:
-        """Run cooling load calculation for a project version.
-
-        Validates that the version is not locked, runs the calculation,
-        and persists the result in the calculation snapshot.
-        """
+        """Run cooling load calculation for a project version."""
         from cold_storage.modules.calculations.application.cooling_load_api import (
             run_cooling_load_from_dict,
         )
@@ -714,8 +793,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     return app
 
 
-# ---------------------------------------------------------------------------
-# Helpers local to this module
+# --------------------------------------------------------------------------- Helpers local to th
 # ---------------------------------------------------------------------------
 
 

@@ -6,8 +6,8 @@ from typing import Any
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
 from cold_storage.bootstrap.settings import Settings
-from cold_storage.modules.planning_agent.application.agent_service import PlanningAgentService
-from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeModelGateway
+from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
+from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
 
@@ -18,7 +18,7 @@ def init_dependencies(settings: Settings) -> None:
     """Create engine, session_factory, project_service, agent_service and store them."""
     engine = create_engine_from_settings(settings)
     project_service = DatabaseProjectService(engine)
-    agent_service = PlanningAgentService(model_gateway=FakeModelGateway())
+    agent_service = LegacyPlanningAgentService(model_gateway=FakeAgentModelGateway())
 
     _singletons["engine"] = engine
     _singletons["project_service"] = project_service
@@ -32,8 +32,8 @@ def get_project_service() -> ProjectService:
     return _singletons["project_service"]  # type: ignore[no-any-return]
 
 
-def get_agent_service() -> PlanningAgentService:
-    """Return the PlanningAgentService singleton."""
+def get_agent_service() -> LegacyPlanningAgentService:
+    """Return the LegacyPlanningAgentService singleton."""
     if "agent_service" not in _singletons:
         raise RuntimeError("Dependencies not initialized. Call init_dependencies(settings) first.")
     return _singletons["agent_service"]  # type: ignore[no-any-return]

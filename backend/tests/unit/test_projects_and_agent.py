@@ -1,5 +1,5 @@
-from cold_storage.modules.planning_agent.application.agent_service import PlanningAgentService
-from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeModelGateway
+from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
+from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.projects.application.service import ProjectService
 
 
@@ -33,12 +33,12 @@ def test_approved_project_version_cannot_be_modified() -> None:
 
 
 def test_agent_extracts_requirements_without_calculating_values() -> None:
-    agent = PlanningAgentService(model_gateway=FakeModelGateway())
+    agent = LegacyPlanningAgentService(model_gateway=FakeAgentModelGateway())
 
     response = agent.handle_message("新建蓝莓项目，日入库25吨，每天工作16小时")
 
-    assert response.structured_output["daily_inbound_mass_kg"] == 25_000
-    assert response.structured_output["working_time_h_per_day"] == 16
+    # New gateway returns decision_type and tool_requests instead of raw param extraction
+    assert response.structured_output["decision_type"] == "propose_tools"
     assert "cooling_capacity_kw" not in response.structured_output
-    assert response.tool_calls == ["propose_project_input_changes"]
+    assert "planning.calculate_throughput_inventory_area" in response.tool_calls
     assert "施工图" not in response.message
