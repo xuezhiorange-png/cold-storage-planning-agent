@@ -13,14 +13,25 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-def _run_content_hash(run: Any) -> str:
+def _run_content_hash(run: Any, candidates: list[dict[str, Any]] | None = None) -> str:
     """Stable hash of scheme run content for provenance."""
+    payload: dict[str, Any] = {
+        "run_id": run.id,
+        "recommended_scheme_code": run.recommended_scheme_code or "",
+        "generator_version": run.generator_version or "",
+    }
+    if candidates:
+        payload["candidates"] = [
+            {
+                "id": c.get("id", ""),
+                "scheme_code": c.get("scheme_code", ""),
+                "total_score": c.get("total_score"),
+                "rank": c.get("rank"),
+            }
+            for c in sorted(candidates, key=lambda x: x.get("id", ""))
+        ]
     canonical = json.dumps(
-        {
-            "run_id": run.id,
-            "recommended_scheme_code": run.recommended_scheme_code or "",
-            "generator_version": run.generator_version or "",
-        },
+        payload,
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -54,7 +65,9 @@ class SchemeQueryService(SchemeQueryPort):
     def __init__(self, repository: Any) -> None:
         self._repo = repository
 
-    def _serialize_run(self, run: Any) -> dict[str, Any]:
+    def _serialize_run(
+        self, run: Any, candidates: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         return {
             "run_id": run.id,
             "project_id": run.project_id,
@@ -65,19 +78,32 @@ class SchemeQueryService(SchemeQueryPort):
             "completed_at": run.completed_at.isoformat() if run.completed_at else None,
             "recommended_scheme_code": run.recommended_scheme_code,
             "warning_messages": run.warning_messages,
-            "persisted_content_hash": _run_content_hash(run),
+            "persisted_content_hash": _run_content_hash(run, candidates),
         }
 
     def get_completed_runs_for_project(self, project_id: str) -> list[dict[str, Any]]:
         runs = self._repo.get_completed_runs_for_project(project_id)
-        return [self._serialize_run(run) for run in runs]
+        return [self._serialize_run(run, candidates=None) for run in runs]
 
     def get_completed_runs_for_project_version(
         self, project_id: str, version_id: str
     ) -> list[dict[str, Any]]:
         runs = self._repo.get_completed_runs_for_project(project_id)
         filtered = [r for r in runs if r.project_version_id == version_id]
-        return [self._serialize_run(run) for run in filtered]
+        result: list[dict[str, Any]] = []
+        for run in filtered:
+            candidate_records = self._repo.get_candidates(run.id)
+            candidate_dicts = [
+                {
+                    "id": c.id,
+                    "scheme_code": c.scheme_code,
+                    "total_score": str(c.total_score) if c.total_score else None,
+                    "rank": c.rank,
+                }
+                for c in candidate_records
+            ]
+            result.append(self._serialize_run(run, candidate_dicts))
+        return result
 
     def get_candidates_for_run(self, run_id: str) -> list[dict[str, Any]]:
         candidate_records = self._repo.get_candidates(run_id)

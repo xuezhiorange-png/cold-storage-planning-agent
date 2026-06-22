@@ -175,9 +175,12 @@ class ReportAssembler:
                                 data={
                                     "knowledge_status": "approved",
                                     "persisted_content_hash": rev.get("content_sha256", ""),
-                                    "result_id": rev["id"],  # revision ID as result_id
+                                    "result_id": rev["id"],
                                     "tool_name": KNOWLEDGE_SEARCH_TOOL,
-                                    "tool_version": rev.get("version_label", "1.0.0"),
+                                    # knowledge.search tool contract version
+                                    "tool_version": "1.0.0",
+                                    # knowledge revision version
+                                    "source_revision": rev.get("version_label", ""),
                                 },
                             )
                         )

@@ -178,6 +178,20 @@ class RealReportDataProvider(ReportDataProvider):
             if persisted_hash:
                 result["persisted_content_hash"] = persisted_hash
 
+            # Verify source hash — recompute using same algorithm as SchemeQueryService
+            if persisted_hash:
+                from cold_storage.modules.reports.domain.source_contract import (
+                    compute_scheme_source_hash,
+                )
+
+                computed = compute_scheme_source_hash(
+                    run_id=result["run_id"],
+                    recommended_scheme_code=result.get("recommended_scheme", ""),
+                    generator_version=result.get("generator_version", ""),
+                    candidates=candidates,
+                )
+                result["hash_mismatch"] = computed != persisted_hash
+
             return result
         except Exception:  # noqa: BLE001
             return None

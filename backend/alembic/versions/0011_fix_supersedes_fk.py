@@ -20,7 +20,6 @@ depends_on = None
 def upgrade() -> None:
     dialect = op.get_bind().dialect.name
     if dialect == "postgresql":
-        # Find the actual constraint name dynamically
         conn = op.get_bind()
         result = conn.execute(
             sa.text(
@@ -42,17 +41,50 @@ def upgrade() -> None:
                 ["id"],
             )
     else:
-        # SQLite: batch_alter_table recreates the table.
-        # SQLite doesn't enforce FK constraints at the DB level,
-        # so we just need the ORM metadata to be correct.
-        # Use batch_alter_table with explicit column type to trigger
-        # table recreation with the correct FK definition.
-        with op.batch_alter_table("report_revisions") as batch_op:
-            batch_op.alter_column(
-                "supersedes_revision_id",
-                type_=sa.String(36),
-                nullable=True,
+        # SQLite: recreate table with correct FK via backup-copy pattern.
+        # SQLite has no ALTER TABLE for FK changes.
+        conn = op.get_bind()
+        conn.execute(sa.text("PRAGMA foreign_keys = OFF"))
+        # Create new table with correct FK
+        conn.execute(
+            sa.text(
+                "CREATE TABLE report_revisions_new ("
+                "id VARCHAR(36) NOT NULL, "
+                "report_id VARCHAR(36) NOT NULL, "
+                "revision_number INTEGER NOT NULL, "
+                "schema_version VARCHAR(64) NOT NULL, "
+                "content_json JSON NOT NULL, "
+                "canonical_content_json JSON NOT NULL, "
+                "content_hash VARCHAR(64) NOT NULL, "
+                "quality_status VARCHAR(32) NOT NULL, "
+                "quality_findings_json JSON NOT NULL, "
+                "generated_by VARCHAR(64) NOT NULL, "
+                "generated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+                "supersedes_revision_id VARCHAR(36), "
+                "PRIMARY KEY (id), "
+                "CONSTRAINT uq_report_revisions_report_revision "
+                "UNIQUE (report_id, revision_number), "
+                "FOREIGN KEY(report_id) REFERENCES reports(id), "
+                "FOREIGN KEY(supersedes_revision_id) "
+                "REFERENCES report_revisions(id)"
+                ")"
             )
+        )
+        # Copy data
+        conn.execute(sa.text("INSERT INTO report_revisions_new SELECT * FROM report_revisions"))
+        # Swap tables
+        conn.execute(sa.text("DROP TABLE report_revisions"))
+        conn.execute(sa.text("ALTER TABLE report_revisions_new RENAME TO report_revisions"))
+        # Recreate indexes
+        conn.execute(
+            sa.text("CREATE INDEX ix_report_revisions_report_id ON report_revisions (report_id)")
+        )
+        conn.execute(
+            sa.text(
+                "CREATE INDEX ix_report_revisions_content_hash ON report_revisions (content_hash)"
+            )
+        )
+        conn.execute(sa.text("PRAGMA foreign_keys = ON"))
 
 
 def downgrade() -> None:
@@ -71,9 +103,40 @@ def downgrade() -> None:
             ["id"],
         )
     else:
-        with op.batch_alter_table("report_revisions") as batch_op:
-            batch_op.alter_column(
-                "supersedes_revision_id",
-                type_=sa.String(36),
-                nullable=True,
+        conn = op.get_bind()
+        conn.execute(sa.text("PRAGMA foreign_keys = OFF"))
+        conn.execute(
+            sa.text(
+                "CREATE TABLE report_revisions_old ("
+                "id VARCHAR(36) NOT NULL, "
+                "report_id VARCHAR(36) NOT NULL, "
+                "revision_number INTEGER NOT NULL, "
+                "schema_version VARCHAR(64) NOT NULL, "
+                "content_json JSON NOT NULL, "
+                "canonical_content_json JSON NOT NULL, "
+                "content_hash VARCHAR(64) NOT NULL, "
+                "quality_status VARCHAR(32) NOT NULL, "
+                "quality_findings_json JSON NOT NULL, "
+                "generated_by VARCHAR(64) NOT NULL, "
+                "generated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+                "supersedes_revision_id VARCHAR(36), "
+                "PRIMARY KEY (id), "
+                "CONSTRAINT uq_report_revisions_report_revision "
+                "UNIQUE (report_id, revision_number), "
+                "FOREIGN KEY(report_id) REFERENCES reports(id), "
+                "FOREIGN KEY(supersedes_revision_id) REFERENCES reports(id)"
+                ")"
             )
+        )
+        conn.execute(sa.text("INSERT INTO report_revisions_old SELECT * FROM report_revisions"))
+        conn.execute(sa.text("DROP TABLE report_revisions"))
+        conn.execute(sa.text("ALTER TABLE report_revisions_old RENAME TO report_revisions"))
+        conn.execute(
+            sa.text("CREATE INDEX ix_report_revisions_report_id ON report_revisions (report_id)")
+        )
+        conn.execute(
+            sa.text(
+                "CREATE INDEX ix_report_revisions_content_hash ON report_revisions (content_hash)"
+            )
+        )
+        conn.execute(sa.text("PRAGMA foreign_keys = ON"))
