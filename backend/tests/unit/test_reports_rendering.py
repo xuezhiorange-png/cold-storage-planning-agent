@@ -13,6 +13,21 @@ from unittest.mock import MagicMock
 import fitz  # PyMuPDF
 import pytest
 from sqlalchemy import create_engine
+from cold_storage.modules.reports.renderers.pdf_renderer import _find_cjk_font
+
+
+def _has_cjk_font() -> bool:
+    try:
+        path = _find_cjk_font()
+        return path is not None and len(path) > 0
+    except Exception:
+        return False
+
+
+requires_cjk_font = pytest.mark.skipif(
+    not _has_cjk_font(),
+    reason="No CJK font available (install fonts-wqy-zenhei)",
+)
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -246,6 +261,7 @@ class TestDocxRendering:
 # ---------------------------------------------------------------------------
 
 
+@requires_cjk_font
 class TestPdfRendering:
     def test_pdf_chinese_generation(self):
         """Render PDF with Chinese text, extract text, verify Chinese chars."""
