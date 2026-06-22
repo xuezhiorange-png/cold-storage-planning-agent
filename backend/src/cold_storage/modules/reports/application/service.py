@@ -1,42 +1,365 @@
-from dataclasses import dataclass
-from pathlib import Path
+"""Report application service — orchestrates creation, generation, review, approval.
 
-from docx import Document
-from openpyxl import Workbook
+No ORM access, no LLM calls.  Uses repository port and assembler.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
+
+from cold_storage.modules.reports.application.assembler import (
+    ReportAssembler,
+)
+from cold_storage.modules.reports.domain.enums import (
+    ReportStatus,
+    ReportType,
+    ReviewAction,
+)
+from cold_storage.modules.reports.domain.errors import (
+    InvalidStatusTransitionError,
+    QualityBlockerError,
+    ReportNotFoundError,
+)
+from cold_storage.modules.reports.domain.models import (
+    Report,
+    ReportReviewAction,
+    ReportRevision,
+    ReportSourceReference,
+)
+from cold_storage.modules.reports.domain.quality import get_blockers, has_blockers
+from cold_storage.modules.reports.domain.status_machine import apply_action
 
 
-@dataclass(frozen=True)
-class ReportArtifact:
-    report_id: str
-    word_path: Path
-    excel_path: Path
+class ReportRepository:
+    """Port: persistence for reports, revisions, source refs, review actions."""
+
+    def save_report(self, report: Report) -> None:
+        raise NotImplementedError
+
+    def get_report(self, report_id: str) -> Report | None:
+        raise NotImplementedError
+
+    def list_reports(self, project_id: str | None = None) -> list[Report]:
+        raise NotImplementedError
+
+    def update_report(self, report: Report) -> None:
+        raise NotImplementedError
+
+    def save_revision(self, revision: ReportRevision) -> None:
+        raise NotImplementedError
+
+    def get_revision(self, report_id: str, revision_number: int) -> ReportRevision | None:
+        raise NotImplementedError
+
+    def list_revisions(self, report_id: str) -> list[ReportRevision]:
+        raise NotImplementedError
+
+    def save_source_references(self, refs: list[ReportSourceReference]) -> None:
+        raise NotImplementedError
+
+    def save_review_action(self, action: ReportReviewAction) -> None:
+        raise NotImplementedError
+
+    def get_latest_revision(self, report_id: str) -> ReportRevision | None:
+        raise NotImplementedError
+
+    def commit(self) -> None:
+        raise NotImplementedError
 
 
 class ReportService:
-    def generate(
+    """Application service for report lifecycle management."""
+
+    def __init__(
+        self,
+        repository: ReportRepository,
+        assembler: ReportAssembler,
+        *,
+        idempotency_store: Any | None = None,
+    ) -> None:
+        self._repo = repository
+        self._assembler = assembler
+        self._idempotency_store = idempotency_store
+
+    # --- CRUD ---
+
+    def create_report(
+        self,
+        *,
+        project_id: str,
+        project_version_id: str,
+        report_type: ReportType,
+        actor: str,
+        idempotency_key: str | None = None,
+    ) -> Report:
+        # Idempotency check
+        if idempotency_key:
+            existing = self._check_idempotency(idempotency_key)
+            if existing is not None:
+                return existing
+
+        report = Report.create(
+            project_id=project_id,
+            project_version_id=project_version_id,
+            report_type=report_type,
+            created_by=actor,
+        )
+        self._repo.save_report(report)
+        self._repo.commit()
+        return report
+
+    def _get_report_internal(self, report_id: str) -> Report:
+        """Internal access without owner check — for review workflow."""
+        report = self._repo.get_report(report_id)
+        if report is None:
+            raise ReportNotFoundError(report_id)
+        return report
+
+    def get_report(self, report_id: str, actor: str) -> Report:
+        report = self._repo.get_report(report_id)
+        if report is None:
+            raise ReportNotFoundError(report_id)
+        if report.created_by != actor:
+            raise ReportNotFoundError(report_id)  # Owner isolation — 404 for non-owners
+        return report
+
+    def list_reports(self, project_id: str | None = None, actor: str | None = None) -> list[Report]:
+        return self._repo.list_reports(project_id=project_id)
+
+    # --- Generation ---
+
+    def generate_revision(
         self,
         report_id: str,
-        output_dir: Path,
-        calculation_results: list[dict[str, object]],
-    ) -> ReportArtifact:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        word_path = output_dir / f"{report_id}.docx"
-        excel_path = output_dir / f"{report_id}.xlsx"
+        actor: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ReportRevision:
+        report = self.get_report(report_id, actor)
 
-        document = Document()
-        document.add_heading("冷库规划设计方案书", level=1)
-        document.add_paragraph("本报告为规划和概念设计辅助输出，需专业人员复核。")
-        for item in calculation_results:
-            document.add_heading(str(item.get("calculator_name", "计算结果")), level=2)
-            document.add_paragraph(str(item.get("result", {})))
-        document.save(str(word_path))
+        # Check status allows generation
+        if report.status not in (ReportStatus.DRAFT, ReportStatus.GENERATED):
+            raise InvalidStatusTransitionError(report.status.value, "generated")
 
-        workbook = Workbook()
-        sheet = workbook.active
-        sheet.title = "计算结果"
-        sheet.append(["calculator_name", "result"])
-        for item in calculation_results:
-            sheet.append([str(item.get("calculator_name", "")), str(item.get("result", {}))])
-        workbook.save(excel_path)
+        # Idempotency
+        if idempotency_key:
+            existing = self._check_idempotency(idempotency_key)
+            if existing is not None:
+                return existing  # type: ignore[return-value]
 
-        return ReportArtifact(report_id=report_id, word_path=word_path, excel_path=excel_path)
+        revision_number = report.current_revision_number + 1
+        supersedes = None
+        if report.current_revision_number > 0:
+            prev = self._repo.get_latest_revision(report_id)
+            if prev:
+                supersedes = prev.id
+
+        # Assemble
+        assembled = self._assembler.assemble(
+            report_id=report_id,
+            project_id=report.project_id,
+            project_version_id=report.project_version_id,
+            report_type=report.report_type,
+            revision_number=revision_number,
+            generated_by=actor,
+        )
+
+        # Quality status determines report status
+        quality_status = assembled.quality_status
+
+        # Save revision
+        revision = ReportRevision.create(
+            report_id=report_id,
+            revision_number=revision_number,
+            schema_version=assembled.schema_version,
+            content_json=assembled.content,
+            canonical_content_json=assembled.canonical_content,
+            content_hash=assembled.content_hash,
+            quality_status=quality_status,
+            quality_findings_json=assembled.findings,
+            generated_by=actor,
+            supersedes_revision_id=supersedes,
+        )
+        self._repo.save_revision(revision)
+
+        # Save source references
+        source_refs = [
+            ReportSourceReference.create(
+                report_revision_id=revision.id,
+                source_type=ref["source_type"],
+                source_id=ref["source_id"],
+                source_revision=ref.get("source_revision", ""),
+                section_key=ref["section_key"],
+                field_path=ref["field_path"],
+                tool_name=ref.get("tool_name", ""),
+                tool_version=ref.get("tool_version", ""),
+                result_id=ref.get("result_id", ""),
+                content_hash=ref.get("content_hash", ""),
+            )
+            for ref in assembled.source_refs
+        ]
+        self._repo.save_source_references(source_refs)
+
+        # Update report
+        from dataclasses import replace
+
+        updated = replace(
+            report,
+            status=quality_status,
+            current_revision_number=revision_number,
+            updated_at=datetime.now(UTC),
+            version=report.version + 1,
+        )
+        self._repo.update_report(updated)
+        self._repo.commit()
+
+        return revision
+
+    # --- Review workflow ---
+
+    def submit_review(
+        self,
+        report_id: str,
+        actor: str,
+        *,
+        comment: str = "",
+    ) -> Report:
+        return self._apply_review_action(report_id, ReviewAction.SUBMIT_REVIEW, actor, comment)
+
+    def request_changes(
+        self,
+        report_id: str,
+        actor: str,
+        *,
+        comment: str = "",
+    ) -> Report:
+        return self._apply_review_action(report_id, ReviewAction.REQUEST_CHANGES, actor, comment)
+
+    def mark_reviewed(
+        self,
+        report_id: str,
+        actor: str,
+        *,
+        comment: str = "",
+    ) -> Report:
+        return self._apply_review_action(report_id, ReviewAction.MARK_REVIEWED, actor, comment)
+
+    def approve(
+        self,
+        report_id: str,
+        actor: str,
+        *,
+        comment: str = "",
+    ) -> Report:
+        return self._apply_review_action(report_id, ReviewAction.APPROVE, actor, comment)
+
+    def archive(
+        self,
+        report_id: str,
+        actor: str,
+        *,
+        comment: str = "",
+    ) -> Report:
+        return self._apply_review_action(report_id, ReviewAction.ARCHIVE, actor, comment)
+
+    def _apply_review_action(
+        self,
+        report_id: str,
+        action: ReviewAction,
+        actor: str,
+        comment: str,
+    ) -> Report:
+        from dataclasses import replace
+
+        report = self._get_report_internal(report_id)
+
+        # Validate blockers for non-draft transitions
+        new_status = apply_action(report.status, action)
+
+        # Check blockers when moving out of draft
+        if action == ReviewAction.SUBMIT_REVIEW:
+            latest_rev = self._repo.get_latest_revision(report_id)
+            if latest_rev and has_blockers(latest_rev.quality_findings_json):
+                raise QualityBlockerError(get_blockers(latest_rev.quality_findings_json))
+
+        # Record action
+        action_record = ReportReviewAction.create(
+            report_id=report_id,
+            report_revision_id=report.current_revision_number
+            and f"rev-{report.current_revision_number}"
+            or "",
+            action=action,
+            actor=actor,
+            comment=comment,
+            from_status=report.status,
+            to_status=new_status,
+        )
+        self._repo.save_review_action(action_record)
+
+        # Update report status
+        updated = replace(
+            report,
+            status=new_status,
+            updated_at=datetime.now(UTC),
+            version=report.version + 1,
+        )
+        self._repo.update_report(updated)
+        self._repo.commit()
+
+        return updated
+
+    # --- Revision access ---
+
+    def get_revision(
+        self,
+        report_id: str,
+        revision_number: int,
+        actor: str,
+    ) -> ReportRevision:
+        self.get_report(report_id, actor)  # access check
+        rev = self._repo.get_revision(report_id, revision_number)
+        if rev is None:
+            raise ReportNotFoundError(f"{report_id}/rev/{revision_number}")
+        return rev
+
+    def list_revisions(self, report_id: str, actor: str) -> list[ReportRevision]:
+        self.get_report(report_id, actor)  # access check
+        return self._repo.list_revisions(report_id)
+
+    # --- Export ---
+
+    def export_json(
+        self,
+        report_id: str,
+        revision_number: int,
+        actor: str,
+    ) -> dict[str, Any]:
+        rev = self.get_revision(report_id, revision_number, actor)
+        return {
+            "schema_version": rev.schema_version,
+            "content_hash": rev.content_hash,
+            "content": rev.content_json,
+        }
+
+    # --- Comparison ---
+
+    def compare_revisions(
+        self,
+        report_id: str,
+        rev_a: int,
+        rev_b: int,
+        actor: str,
+    ) -> list[dict[str, Any]]:
+        from cold_storage.modules.reports.domain.revision_diff import diff_revisions
+
+        ra = self.get_revision(report_id, rev_a, actor)
+        rb = self.get_revision(report_id, rev_b, actor)
+        return diff_revisions(ra.content_json, rb.content_json)
+
+    # --- Idempotency ---
+
+    def _check_idempotency(self, key: str) -> Any:
+        if self._idempotency_store is None:
+            return None
+        return self._idempotency_store.get(key)
