@@ -1,10 +1,13 @@
 """Report tool definitions for the planning agent tool registry.
 
-4 tools:
+tools:
 - report.create (WRITE, requires_confirmation)
 - report.generate (WRITE, requires_confirmation)
 - report.get (READ)
 - report.compare_revisions (READ)
+- report.render (WRITE, requires_confirmation) — Task 9B
+- report.list_exports (READ) — Task 9B
+- report.get_export (READ) — Task 9B
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ from cold_storage.modules.planning_agent.domain.enums import AuthorizationLevel
 
 
 def register_report_tools(registry: ToolRegistry) -> None:
-    """Register the 4 report tools in the given registry."""
+    """Register the 7 report tools in the given registry."""
 
     registry.register(
         ToolDefinition(
@@ -196,6 +199,177 @@ def register_report_tools(registry: ToolRegistry) -> None:
                             "changes": {"type": "array", "items": {"type": "object"}},
                             "revision_a": {"type": "integer"},
                             "revision_b": {"type": "integer"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
+                },
+                "additionalProperties": False,
+            },
+            authorization_level=AuthorizationLevel.READ,
+            requires_confirmation=False,
+        )
+    )
+
+    # --- Task 9B: Render / Export tools ---
+
+    registry.register(
+        ToolDefinition(
+            name="report.render",
+            description="Render a report revision to DOCX or PDF format",
+            input_schema={
+                "type": "object",
+                "required": ["report_id", "revision_number", "format", "mode"],
+                "properties": {
+                    "report_id": {"type": "string"},
+                    "revision_number": {"type": "integer", "minimum": 1},
+                    "format": {"type": "string", "enum": ["docx", "pdf"]},
+                    "mode": {"type": "string", "enum": ["draft", "formal"]},
+                    "template_version": {"type": "string"},
+                    "idempotency_key": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "result_id",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
+                "properties": {
+                    "source_tool": {"const": "report.render"},
+                    "tool_version": {"const": "1.0.0"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": [
+                            "artifact_id",
+                            "status",
+                            "format",
+                            "file_name",
+                            "file_size_bytes",
+                            "file_sha256",
+                        ],
+                        "properties": {
+                            "artifact_id": {"type": "string"},
+                            "status": {"type": "string"},
+                            "format": {"type": "string"},
+                            "file_name": {"type": "string"},
+                            "file_size_bytes": {"type": "integer"},
+                            "file_sha256": {"type": "string"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
+                },
+                "additionalProperties": False,
+            },
+            authorization_level=AuthorizationLevel.WRITE,
+            requires_confirmation=True,
+        )
+    )
+
+    registry.register(
+        ToolDefinition(
+            name="report.list_exports",
+            description="List all export artifacts for a report",
+            input_schema={
+                "type": "object",
+                "required": ["report_id"],
+                "properties": {
+                    "report_id": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "result_id",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
+                "properties": {
+                    "source_tool": {"const": "report.list_exports"},
+                    "tool_version": {"const": "1.0.0"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": ["exports"],
+                        "properties": {
+                            "exports": {
+                                "type": "array",
+                                "items": {"type": "object"},
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "requires_review": {"type": "boolean"},
+                },
+                "additionalProperties": False,
+            },
+            authorization_level=AuthorizationLevel.READ,
+            requires_confirmation=False,
+        )
+    )
+
+    registry.register(
+        ToolDefinition(
+            name="report.get_export",
+            description="Get details of a specific export artifact",
+            input_schema={
+                "type": "object",
+                "required": ["report_id", "artifact_id"],
+                "properties": {
+                    "report_id": {"type": "string"},
+                    "artifact_id": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "required": [
+                    "source_tool",
+                    "tool_version",
+                    "result_id",
+                    "payload",
+                    "warnings",
+                    "requires_review",
+                ],
+                "properties": {
+                    "source_tool": {"const": "report.get_export"},
+                    "tool_version": {"const": "1.0.0"},
+                    "result_id": {"type": "string"},
+                    "payload": {
+                        "type": "object",
+                        "required": [
+                            "artifact_id",
+                            "status",
+                            "format",
+                            "file_name",
+                            "file_size_bytes",
+                            "file_sha256",
+                            "revision_number",
+                            "template_version",
+                        ],
+                        "properties": {
+                            "artifact_id": {"type": "string"},
+                            "status": {"type": "string"},
+                            "format": {"type": "string"},
+                            "file_name": {"type": "string"},
+                            "file_size_bytes": {"type": "integer"},
+                            "file_sha256": {"type": "string"},
+                            "revision_number": {"type": "integer"},
+                            "template_version": {"type": "string"},
                         },
                         "additionalProperties": False,
                     },

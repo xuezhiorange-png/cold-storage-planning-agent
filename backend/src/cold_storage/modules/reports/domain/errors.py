@@ -69,3 +69,36 @@ class IdempotencyPayloadConflictError(ReportError):
     def __init__(self, key: str) -> None:
         super().__init__(f"Idempotency key '{key}' used with different request parameters")
         self.key = key
+
+
+class TemplateNotFoundError(ReportError):
+    def __init__(self, template_id: str) -> None:
+        super().__init__(f"Template not found: {template_id}")
+        self.template_id = template_id
+
+
+class TemplateActivationError(ReportError):
+    def __init__(self, template_id: str, reason: str) -> None:
+        super().__init__(f"Cannot activate template {template_id}: {reason}")
+        self.template_id = template_id
+
+
+class ArtifactNotFoundError(ReportError):
+    def __init__(self, artifact_id: str) -> None:
+        super().__init__(f"Export artifact not found: {artifact_id}")
+        self.artifact_id = artifact_id
+
+
+class RenderError(ReportError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+class ExportPermissionError(ReportError):
+    def __init__(self, report_id: str, mode: str, status: str) -> None:
+        super().__init__(f"Cannot export report {report_id} in {mode} mode with status '{status}'")
+
+
+class PathTraversalError(ReportError):
+    def __init__(self, path: str) -> None:
+        super().__init__(f"Path traversal detected: {path}")

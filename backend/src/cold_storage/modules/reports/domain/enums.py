@@ -43,6 +43,29 @@ class ReviewAction(StrEnum):
     ARCHIVE = "archive"
 
 
+class ExportFormat(StrEnum):
+    DOCX = "docx"
+    PDF = "pdf"
+
+
+class TemplateStatus(StrEnum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    RETIRED = "retired"
+
+
+class ArtifactStatus(StrEnum):
+    PENDING = "pending"
+    RENDERING = "rendering"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class RenderMode(StrEnum):
+    DRAFT = "draft"
+    FORMAL = "formal"
+
+
 # Status transitions: from_status -> set of allowed to_status
 STATUS_TRANSITIONS: dict[ReportStatus, set[ReportStatus]] = {
     ReportStatus.DRAFT: {ReportStatus.GENERATED},
@@ -61,3 +84,21 @@ ACTION_TRANSITIONS: dict[ReviewAction, tuple[ReportStatus, ReportStatus]] = {
     ReviewAction.APPROVE: (ReportStatus.REVIEWED, ReportStatus.APPROVED),
     ReviewAction.ARCHIVE: (ReportStatus.APPROVED, ReportStatus.ARCHIVED),
 }
+
+# Draft export allowed statuses
+DRAFT_EXPORT_STATUSES: frozenset[ReportStatus] = frozenset(
+    {
+        ReportStatus.DRAFT,
+        ReportStatus.GENERATED,
+        ReportStatus.UNDER_REVIEW,
+        ReportStatus.REVIEWED,
+    }
+)
+
+# Formal export allowed statuses
+FORMAL_EXPORT_STATUSES: frozenset[ReportStatus] = frozenset(
+    {
+        ReportStatus.APPROVED,
+        ReportStatus.ARCHIVED,
+    }
+)

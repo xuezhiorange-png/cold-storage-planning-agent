@@ -13,11 +13,14 @@ from typing import Any
 from uuid import uuid4
 
 from cold_storage.modules.reports.domain.enums import (
+    ArtifactStatus,
+    ExportFormat,
     QualitySeverity,
     ReportStatus,
     ReportType,
     ReviewAction,
     SourceType,
+    TemplateStatus,
 )
 
 
@@ -25,8 +28,6 @@ def _uuid() -> str:
     return str(uuid4())
 
 
-# ---------------------------------------------------------------------------
-# Quality Finding
 # ---------------------------------------------------------------------------
 
 
@@ -43,8 +44,6 @@ class QualityFinding:
     remediation: str = ""
 
 
-# ---------------------------------------------------------------------------
-# Report
 # ---------------------------------------------------------------------------
 
 
@@ -87,8 +86,6 @@ class Report:
         )
 
 
-# ---------------------------------------------------------------------------
-# ReportRevision — immutable snapshot
 # ---------------------------------------------------------------------------
 
 
@@ -141,8 +138,6 @@ class ReportRevision:
 
 
 # ---------------------------------------------------------------------------
-# ReportSourceReference
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -167,8 +162,6 @@ class ReportSourceReference:
 
 
 # ---------------------------------------------------------------------------
-# ReportReviewAction
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -188,3 +181,119 @@ class ReportReviewAction:
     @classmethod
     def create(cls, **kwargs: Any) -> ReportReviewAction:
         return cls(id=_uuid(), **kwargs)
+
+
+# ===================================================================
+# Template & Export Artifact models (Task 9B)
+# ===================================================================
+
+
+@dataclass(frozen=True)
+class ReportTemplate:
+    """Versioned report template.  Active templates are immutable."""
+
+    id: str
+    template_code: str
+    report_type: ReportType
+    format: ExportFormat
+    version: str
+    status: TemplateStatus
+    schema_version: str
+    locale: str
+    manifest_json: dict[str, Any]
+    template_content_hash: str
+    created_by: str
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    activated_at: datetime | None = None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        template_code: str,
+        report_type: ReportType,
+        format: ExportFormat,
+        version: str,
+        schema_version: str,
+        locale: str = "zh-CN",
+        manifest_json: dict[str, Any] | None = None,
+        template_content_hash: str = "",
+        created_by: str = "system",
+    ) -> ReportTemplate:
+        return cls(
+            id=_uuid(),
+            template_code=template_code,
+            report_type=report_type,
+            format=format,
+            version=version,
+            status=TemplateStatus.DRAFT,
+            schema_version=schema_version,
+            locale=locale,
+            manifest_json=manifest_json or {},
+            template_content_hash=template_content_hash,
+            created_by=created_by,
+            created_at=datetime.now(UTC),
+        )
+
+
+@dataclass(frozen=True)
+class ReportExportArtifact:
+    """Immutable export artifact bound to a revision + template version."""
+
+    id: str
+    report_id: str
+    report_revision_id: str
+    revision_number: int
+    format: ExportFormat
+    template_id: str
+    template_version: str
+    schema_version: str
+    status: ArtifactStatus
+    storage_key: str
+    file_name: str
+    mime_type: str
+    file_size_bytes: int
+    file_sha256: str
+    source_content_hash: str
+    render_manifest_json: dict[str, Any]
+    generated_by: str
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    failure_code: str = ""
+    failure_message: str = ""
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        report_id: str,
+        report_revision_id: str,
+        revision_number: int,
+        format: ExportFormat,
+        template_id: str,
+        template_version: str,
+        schema_version: str,
+        file_name: str,
+        mime_type: str,
+        source_content_hash: str,
+        generated_by: str,
+    ) -> ReportExportArtifact:
+        return cls(
+            id=_uuid(),
+            report_id=report_id,
+            report_revision_id=report_revision_id,
+            revision_number=revision_number,
+            format=format,
+            template_id=template_id,
+            template_version=template_version,
+            schema_version=schema_version,
+            status=ArtifactStatus.PENDING,
+            storage_key="",
+            file_name=file_name,
+            mime_type=mime_type,
+            file_size_bytes=0,
+            file_sha256="",
+            source_content_hash=source_content_hash,
+            render_manifest_json={},
+            generated_by=generated_by,
+            generated_at=datetime.now(UTC),
+        )

@@ -139,3 +139,84 @@ class ReportReviewActionRecord(Base):
         nullable=False,
         server_default=sa.func.now(),
     )
+
+
+class ReportTemplateRecord(Base):
+    __tablename__ = "report_templates"
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    template_code: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    report_type: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    format: Mapped[str] = mapped_column(sa.String(16), nullable=False)
+    version: Mapped[str] = mapped_column(sa.String(32), nullable=False)
+    status: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'draft'")
+    )
+    schema_version: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    locale: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'zh-CN'")
+    )
+    manifest_json: Mapped[Any] = _json_column("manifest_json", nullable=False)
+    template_content_hash: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+    created_by: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    activated_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "template_code",
+            "version",
+            "format",
+            name="uq_template_code_version_format",
+        ),
+    )
+
+
+class ReportExportArtifactRecord(Base):
+    __tablename__ = "report_export_artifacts"
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    report_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("reports.id"), nullable=False, index=True
+    )
+    report_revision_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("report_revisions.id"), nullable=False, index=True
+    )
+    revision_number: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    format: Mapped[str] = mapped_column(sa.String(16), nullable=False)
+    template_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("report_templates.id"), nullable=False
+    )
+    template_version: Mapped[str] = mapped_column(sa.String(32), nullable=False)
+    schema_version: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    status: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'pending'")
+    )
+    storage_key: Mapped[str] = mapped_column(
+        sa.String(256), nullable=False, server_default=sa.text("''")
+    )
+    file_name: Mapped[str] = mapped_column(sa.String(256), nullable=False)
+    mime_type: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    file_sha256: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+    source_content_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    render_manifest_json: Mapped[Any] = _json_column("render_manifest_json", nullable=False)
+    generated_by: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    generated_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    failure_code: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+    failure_message: Mapped[str] = mapped_column(
+        sa.Text, nullable=False, server_default=sa.text("''")
+    )
