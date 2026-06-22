@@ -13,11 +13,13 @@ from typing import Any
 from cold_storage.modules.reports.domain.render_model import (
     RenderManifest,
     RenderMetadata,
+    RenderMetric,
     RenderNumber,
     RenderSection,
     RenderTable,
     RenderTableCell,
     ReportRenderModel,
+    TemplateManifest,
     format_number,
 )
 
@@ -61,26 +63,34 @@ def _make_render_number(field_path: str, mv: dict[str, Any]) -> RenderNumber:
 def _make_number_section(
     section_key: str,
     data: dict[str, Any],
-    *,
-    unit_override: str | None = None,
 ) -> RenderSection:
-    """Build a RenderSection of content_type='number' from measured value fields."""
+    """Build a RenderSection with ALL measured values as structured metrics."""
     title, level = _SECTION_HEADINGS.get(section_key, (section_key, 1))
+    metrics: list[RenderMetric] = []
 
-    # Collect the first meaningful measured value as the primary number.
-    primary: RenderNumber | None = None
-    for k, v in data.items():
-        if _is_measured_value(v):
-            u = unit_override or v.get("unit", "")
-            primary = RenderNumber(
-                raw=v.get("value"),
-                display=format_number(v.get("value"), u),
-                unit=u,
-                field_path=f"{section_key}.{k}",
-            )
-            break
+    def _extract(prefix: str, d: dict[str, Any]) -> None:
+        for k, v in d.items():
+            if _is_measured_value(v):
+                unit = v.get("unit", "")
+                metrics.append(
+                    RenderMetric(
+                        field_path=f"{prefix}.{k}",
+                        label=k,
+                        raw_value=v.get("value"),
+                        display_value=format_number(v.get("value"), unit),
+                        unit=unit,
+                        source_id=v.get("source_result_id", ""),
+                        source_tool=v.get("source_tool", ""),
+                        source_tool_version=v.get("source_tool_version", ""),
+                        source_content_hash=v.get("source_content_hash", ""),
+                    )
+                )
+            elif isinstance(v, dict) and not _is_measured_value(v):
+                _extract(f"{prefix}.{k}", v)
 
-    if primary is None:
+    _extract(section_key, data)
+
+    if not metrics:
         return RenderSection(
             section_key=section_key,
             title=title,
@@ -90,18 +100,20 @@ def _make_number_section(
             empty_reason="not_calculated",
         )
 
+    primary = metrics[0]
     return RenderSection(
         section_key=section_key,
         title=title,
         level=level,
-        content_type="number",
-        number=primary,
+        content_type="metrics",
+        metrics=metrics,
+        number=RenderNumber(
+            raw=primary.raw_value,
+            display=primary.display_value,
+            unit=primary.unit,
+            field_path=primary.field_path,
+        ),
     )
-
-
-# ---------------------------------------------------------------------------
-# Section builders
-# ---------------------------------------------------------------------------
 
 
 def _build_project_summary(data: dict[str, Any]) -> RenderSection:
@@ -138,8 +150,8 @@ def _build_project_summary(data: dict[str, Any]) -> RenderSection:
 
 
 def _build_cooling_load(data: dict[str, Any]) -> RenderSection:
-    """Build the cooling_load section with number fields (unit: kW(r))."""
-    return _make_number_section("cooling_load", data, unit_override="kW(r)")
+    """Build the cooling_load section with number fields."""
+    return _make_number_section("cooling_load", data)
 
 
 def _build_equipment_selection(data: dict[str, Any]) -> RenderSection:
@@ -148,8 +160,8 @@ def _build_equipment_selection(data: dict[str, Any]) -> RenderSection:
 
 
 def _build_electrical_and_energy(data: dict[str, Any]) -> RenderSection:
-    """Build the electrical_and_energy section with number fields (unit: kW(e))."""
-    return _make_number_section("electrical_and_energy", data, unit_override="kW(e)")
+    """Build the electrical_and_energy section with number fields."""
+    return _make_number_section("electrical_and_energy", data)
 
 
 def _build_scheme_comparison(data: dict[str, Any]) -> RenderSection:
@@ -528,7 +540,9 @@ def build_render_model(
 
     # Build manifest
     section_keys = [s.section_key for s in sections if not s.is_empty]
-    render_settings = dict(template_manifest_json) if template_manifest_json else {"locale": locale}
+    # P0-5: Normalize manifest_json through canonical TemplateManifest model
+    template_manifest = TemplateManifest.from_manifest_json(template_manifest_json)
+    render_settings = template_manifest.model_dump()
     manifest = RenderManifest(
         template_code=template_code,
         template_version=template_version,

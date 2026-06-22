@@ -89,6 +89,12 @@ class ReportRepository:
     def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
         raise NotImplementedError
 
+    def fail_idempotency_record(self, key: str, failure_code: str, failure_message: str) -> None:
+        raise NotImplementedError
+
+    def reset_failed_idempotency(self, key: str) -> None:
+        raise NotImplementedError
+
     def commit(self) -> None:
         raise NotImplementedError
 

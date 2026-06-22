@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
+from cold_storage.modules.reports.application.service import ReportRepository
 from cold_storage.modules.reports.domain.enums import (
     DRAFT_EXPORT_STATUSES,
     FORMAL_EXPORT_STATUSES,
@@ -43,6 +45,19 @@ from cold_storage.modules.reports.domain.models import (
     ReportRevision,
     ReportTemplate,
 )
+
+
+class ArtifactStoragePort(Protocol):
+    """Port: artifact file storage operations."""
+
+    def put_temp(self, data: bytes, filename: str) -> tuple[str, str]: ...
+    def cleanup_temp(self, path: str) -> None: ...
+    def finalize_temp(self, path: str, artifact_id: str, filename: str) -> str: ...
+    def delete(self, key: str) -> None: ...
+    def exists(self, key: str) -> bool: ...
+    def get_path(self, key: str) -> str: ...
+    def put(self, artifact_id: str, data: bytes, filename: str) -> str: ...
+    def get(self, key: str) -> bytes: ...
 
 
 class ReportTemplateRepository:
@@ -150,8 +165,8 @@ class ReportRenderService:
 
     def __init__(
         self,
-        repository: Any,
-        storage: Any,
+        repository: ReportRepository,
+        storage: ArtifactStoragePort,
         template_repo: ReportTemplateRepository | None = None,
         artifact_repo: ReportArtifactRepository | None = None,
     ) -> None:
@@ -236,7 +251,9 @@ class ReportRenderService:
             revision_number=revision.revision_number,
             content_hash=revision.content_hash,
             generated_by=revision.generated_by,
-            generated_at=revision.generated_at,
+            generated_at=revision.generated_at.isoformat()
+            if hasattr(revision.generated_at, "isoformat")
+            else str(revision.generated_at),
             template_version=template.version,
             template_code=template.template_code,
             template_manifest_json=template.manifest_json,
@@ -246,6 +263,7 @@ class ReportRenderService:
         template_id = template.id
         template_version_str = template.version
         template_content_hash = template.template_content_hash
+        fingerprint = ""
 
         if idempotency_key:
             fingerprint = _compute_fingerprint(
@@ -280,14 +298,29 @@ class ReportRenderService:
                 # Same fingerprint — return existing completed artifact if available
                 if existing["status"] == "completed" and existing.get("result_payload"):
                     payload = existing["result_payload"]
-                    if isinstance(payload, dict) and "artifact_id" in payload:
-                        completed = self._artifact_repo.get_artifact(  # type: ignore[union-attr]
-                            payload["artifact_id"]
-                        )
+                    if (
+                        isinstance(payload, dict)
+                        and "artifact_id" in payload
+                        and self._artifact_repo is not None
+                    ):
+                        completed = self._artifact_repo.get_artifact(payload["artifact_id"])
                         if completed and completed.status == ArtifactStatus.COMPLETED:
                             return completed
-                # Not yet completed — another render in progress
-                raise IdempotencyClaimError(idempotency_key) from None
+                # P0-2: Allow retry if previously failed — delete and re-claim
+                if existing["status"] == "failed":
+                    self._repo.reset_failed_idempotency(idempotency_key)
+                    self._repo.commit()
+                    self._repo.save_idempotency_record(
+                        key=idempotency_key,
+                        actor=actor,
+                        action="render",
+                        fingerprint=fingerprint,
+                    )
+                    self._repo.commit()
+                    # Fall through — render will proceed
+                else:
+                    # Not yet completed or failed — another render in progress
+                    raise IdempotencyClaimError(idempotency_key) from None
 
         # 7. Create pending artifact
         file_ext = "docx" if export_format == ExportFormat.DOCX else "pdf"
@@ -375,11 +408,33 @@ class ReportRenderService:
                 try:
                     self._artifact_repo.commit()
                 except Exception:
-                    # P0-7: DB commit failed after file write — delete the file
+                    self._artifact_repo.rollback()
+                    # P0-3: DB commit failed after file write — clean up and persist failure
                     import contextlib
 
                     with contextlib.suppress(Exception):
                         self._storage.delete(storage_key)
+                    try:
+                        failed_artifact = replace(
+                            artifact,
+                            status=ArtifactStatus.FAILED,
+                            failure_code="DBCommitError",
+                            failure_message="Failed to persist completed artifact",
+                        )
+                        self._artifact_repo.update_artifact(failed_artifact)
+                        if idempotency_key:
+                            self._repo.fail_idempotency_record(
+                                idempotency_key,
+                                "DBCommitError",
+                                "Commit failed after render",
+                            )
+                        self._artifact_repo.commit()
+                    except Exception:
+                        self._artifact_repo.rollback()
+                        logging.getLogger(__name__).error(
+                            "Failed to persist failed artifact state",
+                            exc_info=True,
+                        )
                     raise
 
             # Complete idempotency record (P0-6)
@@ -393,7 +448,7 @@ class ReportRenderService:
             return artifact
 
         except Exception as exc:
-            # P0-7: Cleanup temp file if still present
+            # P0-3/P0-7: Cleanup temp file if still present
             if temp_path is not None:
                 self._storage.cleanup_temp(temp_path)
 
@@ -409,7 +464,23 @@ class ReportRenderService:
                     self._artifact_repo.update_artifact(artifact)
                     self._artifact_repo.commit()
                 except Exception:
-                    pass  # Best effort — don't mask the original error
+                    self._artifact_repo.rollback()
+                    logging.getLogger(__name__).error(
+                        "Failed to persist failed artifact state",
+                        exc_info=True,
+                    )
+
+            # P0-2: Mark idempotency as failed
+            if idempotency_key:
+                try:
+                    self._repo.fail_idempotency_record(
+                        idempotency_key,
+                        type(exc).__name__,
+                        str(exc),
+                    )
+                    self._repo.commit()
+                except Exception:
+                    self._repo.rollback()
 
             # Clean up any partially written storage
             if artifact.storage_key:
@@ -486,6 +557,19 @@ class ReportRenderService:
                     f"Revision {revision.revision_number} quality status is "
                     f"{revision.quality_status.value}, must be 'approved'",
                 )
+            # P0-8: Block formal export if blocking quality findings exist
+            if revision.quality_findings_json:
+                blockers = [
+                    f
+                    for f in revision.quality_findings_json
+                    if isinstance(f, dict) and f.get("severity") == "blocking"
+                ]
+                if blockers:
+                    raise ExportPermissionError(
+                        report.id,
+                        mode.value,
+                        f"Revision has {len(blockers)} blocking findings",
+                    )
 
     def _find_template(
         self,

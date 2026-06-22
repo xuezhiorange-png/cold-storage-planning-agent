@@ -6,10 +6,15 @@ P0-12: Agent Tool Adapters for report rendering operations.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cold_storage.modules.planning_agent.domain.errors import PlanningAgentError
 from cold_storage.modules.planning_agent.domain.models import AgentToolResult
+
+if TYPE_CHECKING:
+    from cold_storage.modules.reports.application.render_service import (
+        ReportRenderService,
+    )
 
 
 class ReportRenderAdapter:
@@ -18,7 +23,7 @@ class ReportRenderAdapter:
     WRITE + requires_confirmation.
     """
 
-    def __init__(self, render_service: Any) -> None:
+    def __init__(self, render_service: ReportRenderService) -> None:
         self._service = render_service
 
     def execute(self, arguments: dict[str, Any]) -> AgentToolResult:
@@ -77,7 +82,7 @@ class ReportListExportsAdapter:
     READ only.
     """
 
-    def __init__(self, render_service: Any) -> None:
+    def __init__(self, render_service: ReportRenderService) -> None:
         self._service = render_service
 
     def execute(self, arguments: dict[str, Any]) -> AgentToolResult:
@@ -129,7 +134,7 @@ class ReportGetExportAdapter:
     READ only.
     """
 
-    def __init__(self, render_service: Any) -> None:
+    def __init__(self, render_service: ReportRenderService) -> None:
         self._service = render_service
 
     def execute(self, arguments: dict[str, Any]) -> AgentToolResult:

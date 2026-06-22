@@ -29,9 +29,9 @@ if TYPE_CHECKING:
 _BODY_FONT = "SimSun"
 _BODY_FONT_FALLBACK = "Times New Roman"
 _HEADING_FONT = "Times New Roman"
-_A4_WIDTH_CM = 21.0
-_A4_HEIGHT_CM = 29.7
-_MARGIN_CM = 2.54  # 1 inch
+_A4_WIDTH_PT = 21.0 * 28.3465  # A4 width in points
+_A4_HEIGHT_PT = 29.7 * 28.3465  # A4 height in points
+_PT_TO_CM = 0.0352778
 
 
 # ---------------------------------------------------------------------------
@@ -160,16 +160,29 @@ class DocxRenderer:
         bytes
             The raw .docx file content.
         """
-        # P0-10: Load template manifest settings
-        manifest = model.manifest
-        render_settings = manifest.render_settings if hasattr(manifest, "render_settings") else {}
+        # P0-10: Load template manifest settings (canonical structure)
+        render_settings = model.manifest.render_settings
         page_settings = render_settings.get("page", {})
         font_settings = render_settings.get("fonts", {})
 
-        # Page size from manifest or defaults
-        page_width_cm = page_settings.get("width_cm", _A4_WIDTH_CM)
-        page_height_cm = page_settings.get("height_cm", _A4_HEIGHT_CM)
-        margin_cm = page_settings.get("margin_cm", _MARGIN_CM)
+        # Page size from manifest (canonical: page.width_pt/height_pt in pt)
+        # Convert pt to cm for python-docx: 1 pt = 0.0353 cm
+        _PT_TO_CM = 0.0352778
+        page_width_cm = page_settings.get("width_pt", _A4_WIDTH_PT) * _PT_TO_CM
+        page_height_cm = page_settings.get("height_pt", _A4_HEIGHT_PT) * _PT_TO_CM
+        # Per-side margins (canonical: page.margin_top_pt etc.)
+        margin_top_cm = (
+            page_settings.get("margin_top_pt", page_settings.get("margin_pt", 56.69)) * _PT_TO_CM
+        )
+        margin_bottom_cm = (
+            page_settings.get("margin_bottom_pt", page_settings.get("margin_pt", 56.69)) * _PT_TO_CM
+        )
+        margin_left_cm = (
+            page_settings.get("margin_left_pt", page_settings.get("margin_pt", 56.69)) * _PT_TO_CM
+        )
+        margin_right_cm = (
+            page_settings.get("margin_right_pt", page_settings.get("margin_pt", 56.69)) * _PT_TO_CM
+        )
 
         doc: Any = Document()
 
@@ -177,16 +190,16 @@ class DocxRenderer:
         for section in doc.sections:
             section.page_width = Cm(page_width_cm)
             section.page_height = Cm(page_height_cm)
-            section.top_margin = Cm(margin_cm)
-            section.bottom_margin = Cm(margin_cm)
-            section.left_margin = Cm(margin_cm)
-            section.right_margin = Cm(margin_cm)
+            section.top_margin = Cm(margin_top_cm)
+            section.bottom_margin = Cm(margin_bottom_cm)
+            section.left_margin = Cm(margin_left_cm)
+            section.right_margin = Cm(margin_right_cm)
             section.orientation = WD_ORIENT.PORTRAIT
 
         # ---- Default style ----
         style = doc.styles["Normal"]
-        style.font.name = _BODY_FONT
-        style.font.size = Pt(10.5)
+        style.font.name = font_settings.get("body_name", _BODY_FONT)
+        style.font.size = Pt(font_settings.get("body_size_pt", 10.5))
         rPr = style.element.find(qn("w:rPr"))
         if rPr is None:
             rPr = OxmlElement("w:rPr")
@@ -338,6 +351,15 @@ class DocxRenderer:
 
         if section.content_type == "text" and section.text:
             self._render_text_block(doc, section.text)
+        elif section.content_type == "metrics" and section.metrics:
+            # Render each metric as: label: display_value unit
+            for metric in section.metrics:
+                p = doc.add_paragraph()
+                run = p.add_run(f"{metric.label}: {metric.display_value} {metric.unit}".strip())
+                _set_run_font(run, size=Pt(10.5))
+            # Also render primary number for backward compat
+            if section.number:
+                self._render_number(doc, section)
         elif section.content_type == "number" and section.number:
             self._render_number(doc, section)
         elif section.content_type == "table" and section.table:
@@ -349,6 +371,21 @@ class DocxRenderer:
                 self._render_text_block(doc, section.text)
             if section.table:
                 self._render_table(doc, section.table)
+
+        # Render paragraphs
+        if section.paragraphs:
+            for para in section.paragraphs:
+                p = doc.add_paragraph()
+                run = p.add_run(para)
+                _set_run_font(run, size=Pt(10.5))
+
+        # Render citations as numbered footnotes
+        if section.citations:
+            for idx, cite in enumerate(section.citations, 1):
+                cite_text = f"[{idx}] {cite.get('tool_name', '')} — {cite.get('source_id', '')}"
+                p = doc.add_paragraph()
+                run = p.add_run(cite_text)
+                _set_run_font(run, size=Pt(9), color=RGBColor(0x60, 0x60, 0x60))
 
     def _render_text_block(self, doc: Any, text: str) -> None:
         """Render a text block, preserving line breaks as paragraphs."""
@@ -368,10 +405,15 @@ class DocxRenderer:
             self._render_text_block(doc, section.text)
 
     def _render_table(self, doc: Any, table: RenderTable) -> None:
-        """Render a RenderTable as a Word table."""
+        """Render a RenderTable as a Word table.
+
+        P0-6: Adds ``<w:tblHeader>`` to header rows so they repeat on page
+        breaks, and ``<w:cantSplit>`` to data rows to prevent mid-row breaks.
+        """
         num_cols = len(table.headers)
         num_rows = len(table.rows) + 1  # +1 for header
-        if table.unit_row and any(u for u in table.unit_row):
+        has_unit_row = table.unit_row and any(u for u in table.unit_row)
+        if has_unit_row:
             num_rows += 1  # +1 for unit row
 
         word_table = doc.add_table(rows=num_rows, cols=num_cols)
@@ -393,9 +435,16 @@ class DocxRenderer:
             shading.set(qn("w:fill"), "D9E2F3")
             tcPr.append(shading)
 
+        # P0-6: Mark header row with <w:tblHeader> for repeating on page breaks
+        header_tr = word_table.rows[0]._tr
+        header_trPr = header_tr.get_or_add_trPr()
+        tblHeader = OxmlElement("w:tblHeader")
+        tblHeader.set(qn("w:val"), "true")
+        header_trPr.append(tblHeader)
+
         # Unit row (if present)
         row_offset = 1
-        if table.unit_row and any(u for u in table.unit_row):
+        if has_unit_row:
             for col_idx, unit in enumerate(table.unit_row):
                 cell = word_table.rows[1].cells[col_idx]
                 cell.text = ""
@@ -407,6 +456,12 @@ class DocxRenderer:
 
         # Data rows
         for row_idx, row_data in enumerate(table.rows):
+            # P0-6: Mark data row with <w:cantSplit> to prevent mid-row breaks
+            tr = word_table.rows[row_idx + row_offset]._tr
+            trPr = tr.get_or_add_trPr()
+            cantSplit = OxmlElement("w:cantSplit")
+            trPr.append(cantSplit)
+
             for col_idx, cell_data in enumerate(row_data):
                 word_cell = word_table.rows[row_idx + row_offset].cells[col_idx]
                 word_cell.text = ""

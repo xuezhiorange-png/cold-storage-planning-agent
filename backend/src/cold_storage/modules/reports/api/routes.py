@@ -26,6 +26,8 @@ from cold_storage.modules.reports.domain.errors import (
     ArtifactNotFoundError,
     ConcurrencyConflictError,
     ExportPermissionError,
+    IdempotencyClaimError,
+    IdempotencyPayloadConflictError,
     InvalidStatusTransitionError,
     QualityBlockerError,
     RenderError,
@@ -387,6 +389,10 @@ def render_report_endpoint(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ExportPermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except IdempotencyPayloadConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except IdempotencyClaimError as exc:
+        raise HTTPException(status_code=425, detail=str(exc)) from exc
     except RenderError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -473,6 +479,13 @@ def download_export(
             path=file_path,
             media_type=artifact.mime_type,
             filename=artifact.file_name,
+            headers={
+                "Content-Length": str(artifact.file_size_bytes),
+                "X-Content-SHA256": artifact.file_sha256,
+                "X-Artifact-Id": artifact.id,
+                "X-Source-Content-Hash": artifact.source_content_hash,
+                "X-Template-Version": artifact.template_version,
+            },
         )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -525,6 +538,9 @@ def create_template(
             version=template.version,
             status=template.status.value,
         )
+    except (ValueError, KeyError) as exc:
+        template_repo.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         template_repo.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc

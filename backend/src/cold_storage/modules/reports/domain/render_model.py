@@ -11,6 +11,177 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
+from pydantic import BaseModel, Field
+
+# -----------------------------------------------------------------------
+# Canonical Template Manifest Models (P0-5)
+# -----------------------------------------------------------------------
+
+_PT_PER_CM = 28.3465
+_A4_WIDTH_PT = 21.0 * _PT_PER_CM
+_A4_HEIGHT_PT = 29.7 * _PT_PER_CM
+_A4_MARGIN_PT = 2.0 * _PT_PER_CM
+
+
+class TemplatePageConfig(BaseModel):
+    """Page size and margin configuration in points."""
+
+    width_pt: float = _A4_WIDTH_PT
+    height_pt: float = _A4_HEIGHT_PT
+    margin_top_pt: float = _A4_MARGIN_PT
+    margin_bottom_pt: float = _A4_MARGIN_PT
+    margin_left_pt: float = _A4_MARGIN_PT
+    margin_right_pt: float = _A4_MARGIN_PT
+    orientation: str = "portrait"  # portrait | landscape
+
+
+class TemplateFontConfig(BaseModel):
+    """Font configuration for the template."""
+
+    body_name: str = "SimSun"
+    body_size_pt: float = 10.5
+    heading1_size_pt: float = 16
+    heading2_size_pt: float = 14
+    heading3_size_pt: float = 12
+    table_header_size_pt: float = 9.5
+    table_body_size_pt: float = 9
+    footer_size_pt: float = 8
+    header_size_pt: float = 8
+
+
+class TemplateHeaderFooterConfig(BaseModel):
+    """Header or footer configuration with left/center/right text."""
+
+    left: str = ""
+    right: str = ""
+    center: str = ""
+
+
+class TemplateWatermarkConfig(BaseModel):
+    """Watermark configuration."""
+
+    text: str = ""
+    font_size_pt: float = 72
+    color: str = "#CCCCCC"
+    opacity: float = 0.3
+    angle: float = 45
+
+
+class TemplateManifest(BaseModel):
+    """Canonical template manifest parsed from template manifest_json.
+
+    Provides a single source of truth for template rendering configuration.
+    Renderers read from this model's ``model_dump()`` output.
+    """
+
+    page: TemplatePageConfig = Field(default_factory=TemplatePageConfig)
+    fonts: TemplateFontConfig = Field(default_factory=TemplateFontConfig)
+    header: TemplateHeaderFooterConfig = Field(default_factory=TemplateHeaderFooterConfig)
+    footer: TemplateHeaderFooterConfig = Field(default_factory=TemplateHeaderFooterConfig)
+    watermark: TemplateWatermarkConfig = Field(default_factory=TemplateWatermarkConfig)
+    locale: str = "zh-CN"
+
+    @classmethod
+    def from_manifest_json(cls, manifest_json: dict[str, Any] | None) -> TemplateManifest:
+        """Parse a raw template manifest_json dict into a canonical TemplateManifest.
+
+        Handles legacy field names (mm margins, styles.* font sizes, etc.)
+        by normalizing to the canonical pt-based structure.
+        """
+        if not manifest_json:
+            return cls()
+
+        data = dict(manifest_json)
+
+        # --- Normalize page config ---
+        raw_page = dict(data.get("page", {}))
+        page: dict[str, Any] = {}
+
+        # Accept width_pt/height_pt or compute from A4
+        page["width_pt"] = raw_page.get("width_pt", _A4_WIDTH_PT)
+        page["height_pt"] = raw_page.get("height_pt", _A4_HEIGHT_PT)
+        page["orientation"] = raw_page.get("orientation", "portrait")
+
+        # Accept margin_top_pt or convert from mm
+        _MM_TO_PT = 2.83465
+        for side in ("top", "bottom", "left", "right"):
+            pt_key = f"margin_{side}_pt"
+            mm_key = f"margin_{side}_mm"
+            if pt_key in raw_page:
+                page[pt_key] = raw_page[pt_key]
+            elif mm_key in raw_page:
+                page[pt_key] = raw_page[mm_key] * _MM_TO_PT
+
+        data["page"] = page
+
+        # --- Normalize font config ---
+        # Accept fonts.* or styles.* (legacy)
+        raw_fonts = dict(data.get("fonts", {}))
+        raw_styles = dict(data.get("styles", {}))
+
+        fonts: dict[str, Any] = {}
+        # body font name
+        fonts["body_name"] = raw_fonts.get("body_name") or raw_styles.get("body_font", "SimSun")
+        # body size
+        fonts["body_size_pt"] = raw_fonts.get("body_size_pt") or raw_styles.get(
+            "body_size_pt", 10.5
+        )
+        # heading sizes
+        for level in (1, 2, 3):
+            pt_key = f"heading{level}_size_pt"
+            fonts[pt_key] = raw_fonts.get(pt_key) or raw_styles.get(pt_key, [16, 14, 12][level - 1])
+        # table sizes
+        fonts["table_header_size_pt"] = raw_fonts.get("table_header_size_pt", 9.5)
+        fonts["table_body_size_pt"] = raw_fonts.get("table_body_size_pt", 9)
+        # header/footer sizes
+        fonts["footer_size_pt"] = raw_fonts.get("footer_size_pt", 8)
+        fonts["header_size_pt"] = raw_fonts.get("header_size_pt", 8)
+
+        data["fonts"] = fonts
+
+        # --- Normalize header/footer ---
+        # Already in left/center/right format
+        data["header"] = dict(data.get("header", {}))
+        data["footer"] = dict(data.get("footer", {}))
+
+        # --- Normalize watermark ---
+        # Accept watermark.* or draft_watermark.* (legacy)
+        raw_wm = dict(data.get("watermark", {}))
+        raw_draft = dict(data.get("draft_watermark", {}))
+        if not raw_wm and raw_draft:
+            raw_wm = raw_draft
+
+        watermark: dict[str, Any] = {}
+        watermark["text"] = raw_wm.get("text", "")
+        watermark["font_size_pt"] = raw_wm.get("font_size_pt", raw_wm.get("size", 72))
+        watermark["color"] = raw_wm.get("color", "#CCCCCC")
+        watermark["opacity"] = raw_wm.get("opacity", 0.3)
+        watermark["angle"] = raw_wm.get("angle", 45)
+
+        data["watermark"] = watermark
+
+        # --- Remove legacy keys that aren't part of the canonical model ---
+        for key in (
+            "styles",
+            "draft_watermark",
+            "tables",
+            "numbering",
+            "empty_section_behavior",
+            "placeholder_text",
+            "quality_finding_rendering",
+            "required_sections",
+            "optional_sections",
+            "template_code",
+            "version",
+            "format",
+            "report_type",
+            "schema_version",
+            "status",
+        ):
+            data.pop(key, None)
+
+        return cls.model_validate(data)
+
 
 @dataclass(frozen=True)
 class RenderNumber:
@@ -20,6 +191,21 @@ class RenderNumber:
     display: str  # formatted for rendering (e.g. "180.0")
     unit: str  # e.g. "kW(r)"
     field_path: str = ""
+
+
+@dataclass(frozen=True)
+class RenderMetric:
+    """A single structured metric with full provenance."""
+
+    field_path: str
+    label: str
+    raw_value: Any
+    display_value: str
+    unit: str
+    source_id: str = ""
+    source_tool: str = ""
+    source_tool_version: str = ""
+    source_content_hash: str = ""
 
 
 @dataclass(frozen=True)
@@ -55,6 +241,9 @@ class RenderSection:
     findings: list[dict[str, Any]] = field(default_factory=list)
     is_empty: bool = False
     empty_reason: str = ""  # "not_provided" | "not_calculated"
+    metrics: list[RenderMetric] = field(default_factory=list)
+    paragraphs: list[str] = field(default_factory=list)
+    citations: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

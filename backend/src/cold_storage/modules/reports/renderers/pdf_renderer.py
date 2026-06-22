@@ -106,42 +106,72 @@ _SECTION_SPACING = 20  # pt between sections
 def _load_manifest_settings(
     model: ReportRenderModel,
 ) -> dict[str, Any]:
-    """Extract rendering settings from template manifest with defaults."""
-    manifest = model.manifest
-    settings: dict[str, Any] = {}
+    """Extract rendering settings from template manifest with defaults.
 
-    # Try to get manifest_json from the template or render_settings
-    render_settings = manifest.render_settings if hasattr(manifest, "render_settings") else {}
+    Supports both legacy and canonical TemplateManifest structures.
+    Canonical: page.margin_top_pt, fonts.body_size_pt, header.left/right, watermark.text
+    Legacy: page.margin_pt, fonts.body_size, header.text, draft_watermark.text
+    """
+    render_settings = model.manifest.render_settings
+    settings: dict[str, Any] = {}
 
     # Page settings
     page = render_settings.get("page", {})
     settings["page_width_pt"] = page.get("width_pt", _A4_WIDTH_PT)
     settings["page_height_pt"] = page.get("height_pt", _A4_HEIGHT_PT)
-    settings["margin_pt"] = page.get("margin_pt", _MARGIN_PT)
+    # Support per-side margins (canonical) and single margin (legacy)
+    settings["margin_top_pt"] = page.get("margin_top_pt", page.get("margin_pt", _MARGIN_PT))
+    settings["margin_bottom_pt"] = page.get("margin_bottom_pt", page.get("margin_pt", _MARGIN_PT))
+    settings["margin_left_pt"] = page.get("margin_left_pt", page.get("margin_pt", _MARGIN_PT))
+    settings["margin_right_pt"] = page.get("margin_right_pt", page.get("margin_pt", _MARGIN_PT))
+    settings["margin_pt"] = settings["margin_left_pt"]  # backward compat
 
-    # Font settings
+    # Font settings (canonical: body_size_pt, heading1_size_pt)
     fonts = render_settings.get("fonts", {})
-    settings["body_font_size"] = fonts.get("body_size", _BODY_FONT_SIZE)
-    settings["heading1_size"] = fonts.get("heading1_size", _HEADING1_SIZE)
-    settings["heading2_size"] = fonts.get("heading2_size", _HEADING2_SIZE)
-    settings["heading3_size"] = fonts.get("heading3_size", _HEADING3_SIZE)
-    settings["table_header_size"] = fonts.get("table_header_size", _TABLE_HEADER_SIZE)
-    settings["table_body_size"] = fonts.get("table_body_size", _TABLE_BODY_SIZE)
-    settings["footer_size"] = fonts.get("footer_size", _FOOTER_SIZE)
-    settings["header_size"] = fonts.get("header_size", _HEADER_SIZE)
+    settings["body_font_size"] = fonts.get("body_size_pt", fonts.get("body_size", _BODY_FONT_SIZE))
+    settings["heading1_size"] = fonts.get(
+        "heading1_size_pt", fonts.get("heading1_size", _HEADING1_SIZE)
+    )
+    settings["heading2_size"] = fonts.get(
+        "heading2_size_pt", fonts.get("heading2_size", _HEADING2_SIZE)
+    )
+    settings["heading3_size"] = fonts.get(
+        "heading3_size_pt", fonts.get("heading3_size", _HEADING3_SIZE)
+    )
+    settings["table_header_size"] = fonts.get(
+        "table_header_size_pt", fonts.get("table_header_size", _TABLE_HEADER_SIZE)
+    )
+    settings["table_body_size"] = fonts.get(
+        "table_body_size_pt", fonts.get("table_body_size", _TABLE_BODY_SIZE)
+    )
+    settings["footer_size"] = fonts.get("footer_size_pt", fonts.get("footer_size", _FOOTER_SIZE))
+    settings["header_size"] = fonts.get("header_size_pt", fonts.get("header_size", _HEADER_SIZE))
 
     # Style settings
     styles = render_settings.get("styles", {})
     settings["heading_color"] = tuple(styles.get("heading_color", list(_HEADING_COLOR)))
 
-    # Header/footer text
-    settings["header_text"] = render_settings.get("header", {}).get("text", "")
-    settings["footer_text"] = render_settings.get("footer", {}).get("text", "")
+    # Header/footer text (canonical: header.left/right/center)
+    header = render_settings.get("header", {})
+    footer = render_settings.get("footer", {})
+    settings["header_left"] = header.get("left", "")
+    settings["header_right"] = header.get("right", "")
+    settings["header_center"] = header.get("center", "")
+    settings["footer_left"] = footer.get("left", "")
+    settings["footer_right"] = footer.get("right", "")
+    settings["footer_center"] = footer.get("center", "")
+    # Legacy single text
+    settings["header_text"] = header.get("text", "")
+    settings["footer_text"] = footer.get("text", "")
 
-    # Draft watermark
-    draft_wm = render_settings.get("draft_watermark", {})
+    # Draft watermark (canonical: watermark.text/font_size_pt/color/opacity/angle)
+    watermark = render_settings.get("watermark", {})
+    draft_wm = render_settings.get("draft_watermark", watermark)  # fallback
     settings["draft_watermark_text"] = draft_wm.get("text", "DRAFT")
-    settings["draft_watermark_size"] = draft_wm.get("size", 60)
+    settings["draft_watermark_size"] = draft_wm.get("font_size_pt", draft_wm.get("size", 60))
+    settings["draft_watermark_color"] = draft_wm.get("color", "#CCCCCC")
+    settings["draft_watermark_opacity"] = draft_wm.get("opacity", 0.3)
+    settings["draft_watermark_angle"] = draft_wm.get("angle", 45)
 
     # Empty section placeholder
     settings["placeholder_text"] = render_settings.get("placeholder_text", "该部分内容不可用")

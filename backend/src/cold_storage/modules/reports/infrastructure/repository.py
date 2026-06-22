@@ -278,6 +278,26 @@ class SQLReportRepository(ReportRepository):
         if result.rowcount == 0:
             raise ValueError(f"Idempotency record {key} not found or not in claimed state")
 
+    def fail_idempotency_record(self, key: str, failure_code: str, failure_message: str) -> None:
+        """Mark an idempotency record as failed with error details."""
+        stmt = (
+            sa.update(IdempotencyRecord)
+            .where(IdempotencyRecord.key == key)
+            .values(
+                status="failed",
+                result_payload={"failure_code": failure_code, "failure_message": failure_message},
+            )
+        )
+        self._session.execute(stmt)
+
+    def reset_failed_idempotency(self, key: str) -> None:
+        """Delete a failed idempotency record to allow retry with same key."""
+        stmt = sa.delete(IdempotencyRecord).where(
+            IdempotencyRecord.key == key,
+            IdempotencyRecord.status == "failed",
+        )
+        self._session.execute(stmt)
+
     # --- Commit ---
 
     def commit(self) -> None:
