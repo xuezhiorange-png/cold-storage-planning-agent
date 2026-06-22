@@ -166,6 +166,7 @@ class TestQualityFindings:
             {
                 "section_key": "x",
                 "field_path": "x",
+                "source_type": "calculation_result",
                 "result_id": "",
                 "tool_version": "1.0",
                 "content_hash": "abc",

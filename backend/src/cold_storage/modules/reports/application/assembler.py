@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from cold_storage.modules.reports.domain.canonical import canonical_json, content_hash
+from cold_storage.modules.reports.domain.canonical import content_hash
 from cold_storage.modules.reports.domain.enums import (
     ReportType,
     SourceType,
@@ -155,10 +155,16 @@ class ReportAssembler:
             for ref in source_refs
         ]
 
-        # Canonical hash
+        # Canonical hash — exclude time-dependent and sequence-dependent fields
+        # so the hash depends only on schema_version, project data, calculation
+        # results, and source hashes.
         canonical = content.copy()
         canonical.pop("provenance", None)
-        canonical_json(canonical)
+        if "report_metadata" in canonical:
+            canonical_meta = dict(canonical["report_metadata"])
+            canonical_meta.pop("generated_at", None)
+            canonical_meta.pop("revision_number", None)
+            canonical["report_metadata"] = canonical_meta
         can_hash = content_hash(canonical)
 
         content["provenance"] = {
@@ -174,7 +180,7 @@ class ReportAssembler:
 
         return AssembledReport(
             content=content,
-            canonical_content=canonical,
+            canonical_content=canonical,  # canonical excludes time/sequence fields
             content_hash=can_hash,
             source_refs=source_refs,
             quality_status=quality_status,

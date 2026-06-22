@@ -49,17 +49,26 @@ class SQLReportRepository(ReportRepository):
             return None
         return self._to_report(rec)
 
-    def list_reports(self, project_id: str | None = None) -> list[Report]:
+    def list_reports(
+        self, project_id: str | None = None, created_by: str | None = None
+    ) -> list[Report]:
         stmt = sa.select(ReportRecord)
         if project_id:
             stmt = stmt.where(ReportRecord.project_id == project_id)
+        if created_by:
+            stmt = stmt.where(ReportRecord.created_by == created_by)
         stmt = stmt.order_by(ReportRecord.created_at.desc())
         return [self._to_report(r) for r in self._session.execute(stmt).scalars()]
 
-    def update_report(self, report: Report) -> None:
+    def update_report(self, report: Report, *, expected_version: int | None = None) -> None:
         rec = self._session.get(ReportRecord, report.id)
         if rec is None:
             raise ValueError(f"Report {report.id} not found")
+        if expected_version is not None and rec.version != expected_version:
+            raise ValueError(
+                f"Report {report.id} version mismatch "
+                f"(expected {expected_version}, got {rec.version})"
+            )
         rec.status = report.status.value
         rec.current_revision_number = report.current_revision_number
         rec.updated_at = report.updated_at

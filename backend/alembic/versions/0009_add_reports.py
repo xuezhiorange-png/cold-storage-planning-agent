@@ -8,6 +8,7 @@ Create Date: 2026-06-22
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0009_add_reports"
@@ -21,6 +22,7 @@ def _json_column_type() -> sa.types.TypeEngine:
     dialect = op.get_bind().dialect.name
     if dialect == "postgresql":
         from sqlalchemy.dialects.postgresql import JSONB
+
         return JSONB()
     return sa.JSON()
 

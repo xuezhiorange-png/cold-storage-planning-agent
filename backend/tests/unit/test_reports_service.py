@@ -57,6 +57,8 @@ class _FakeDataProvider(ReportDataProvider):
             {
                 "section_key": "cooling_load",
                 "result_id": "calc-001",
+                "tool_name": "cooling_load_calculator",
+                "tool_version": "1.0.0",
                 "data": {"total_design_refrigeration_load": {"value": 100.0, "unit": "kW(r)"}},
             },
         ]
@@ -111,6 +113,28 @@ class TestReportCRUD:
         )
         with pytest.raises(ReportNotFoundError):
             service.get_report(r.id, "user2")
+
+    def test_list_reports_owner_isolation(self, service):
+        service.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+        )
+        service.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user2",
+        )
+        # user1 sees only their report
+        reports = service.list_reports(project_id="p1", actor="user1")
+        assert len(reports) == 1
+        assert reports[0].created_by == "user1"
+        # user2 sees only their report
+        reports = service.list_reports(project_id="p1", actor="user2")
+        assert len(reports) == 1
+        assert reports[0].created_by == "user2"
 
     def test_list_reports(self, service):
         service.create_report(
@@ -175,6 +199,25 @@ class TestReportGeneration:
         # Hash should be deterministic — same content → same hash
         assert len(rev.content_hash) == 64
 
+    def test_hash_stability_across_timestamps(self, service):
+        """Assembling twice with different generated_at must produce the same hash."""
+        r = service.create_report(
+            project_id="p1",
+            project_version_id="v1",
+            report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+            actor="user1",
+        )
+        rev1 = service.generate_revision(r.id, "user1")
+        hash1 = rev1.content_hash
+        # Generate a second revision — different assembly_timestamp
+        import time
+
+        time.sleep(0.01)
+        rev2 = service.generate_revision(r.id, "user1")
+        hash2 = rev2.content_hash
+        # Content hash must be identical despite different timestamps
+        assert hash1 == hash2, f"Content hash changed between assemblies: {hash1} != {hash2}"
+
 
 # ---------------------------------------------------------------------------
 # Review workflow tests
@@ -200,28 +243,28 @@ class TestReviewWorkflow:
     def test_request_changes(self, service):
         r = self._setup_generated(service)
         service.submit_review(r.id, "user1")
-        updated = service.request_changes(r.id, "reviewer", comment="Fix X")
+        updated = service.request_changes(r.id, "user1", comment="Fix X")
         assert updated.status == ReportStatus.DRAFT
 
     def test_mark_reviewed(self, service):
         r = self._setup_generated(service)
         service.submit_review(r.id, "user1")
-        updated = service.mark_reviewed(r.id, "reviewer")
+        updated = service.mark_reviewed(r.id, "user1")
         assert updated.status == ReportStatus.REVIEWED
 
     def test_approve(self, service):
         r = self._setup_generated(service)
         service.submit_review(r.id, "user1")
-        service.mark_reviewed(r.id, "reviewer")
-        updated = service.approve(r.id, "reviewer")
+        service.mark_reviewed(r.id, "user1")
+        updated = service.approve(r.id, "user1")
         assert updated.status == ReportStatus.APPROVED
 
     def test_archive(self, service):
         r = self._setup_generated(service)
         service.submit_review(r.id, "user1")
-        service.mark_reviewed(r.id, "reviewer")
-        service.approve(r.id, "reviewer")
-        updated = service.archive(r.id, "reviewer")
+        service.mark_reviewed(r.id, "user1")
+        service.approve(r.id, "user1")
+        updated = service.archive(r.id, "user1")
         assert updated.status == ReportStatus.ARCHIVED
 
     def test_invalid_transition_rejected(self, service):
@@ -234,10 +277,9 @@ class TestReviewWorkflow:
         # Non-owner can't read via get_report (404)
         with pytest.raises(ReportNotFoundError):
             service.get_report(r.id, "other_user")
-        # But review workflow uses internal access — any actor can submit
-        service.submit_review(r.id, "other_user", comment="Looks good")
-        updated = service._get_report_internal(r.id)
-        assert updated.status == ReportStatus.UNDER_REVIEW
+        # Cross-user review actions also return 404
+        with pytest.raises(ReportNotFoundError):
+            service.submit_review(r.id, "other_user", comment="Looks good")
 
 
 # ---------------------------------------------------------------------------
@@ -293,12 +335,23 @@ class TestExportAndComparison:
 class _InMemoryIdempotencyStore:
     def __init__(self):
         self._store: dict[str, Any] = {}
+        self._claimed: set[str] = set()
 
     def get(self, key: str) -> Any:
         return self._store.get(key)
 
     def set(self, key: str, value: Any) -> None:
         self._store[key] = value
+
+    def claim(self, key: str) -> bool:
+        if key in self._claimed:
+            return False
+        self._claimed.add(key)
+        return True
+
+    def complete(self, key: str, value: Any) -> None:
+        self._store[key] = value
+        self._claimed.discard(key)
 
 
 class TestIdempotency:
@@ -312,8 +365,6 @@ class TestIdempotency:
             actor="user1",
             idempotency_key="key-1",
         )
-        # Simulate first report being stored
-        store.set("key-1", r1)
         r2 = service.create_report(
             project_id="p1",
             project_version_id="v1",

@@ -6,6 +6,8 @@ in-memory SQLite to verify HTTP status codes and response contracts.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -21,6 +23,32 @@ from cold_storage.modules.reports.application.assembler import (
 from cold_storage.modules.reports.application.service import ReportService
 from cold_storage.modules.reports.infrastructure.orm import Base
 from cold_storage.modules.reports.infrastructure.repository import SQLReportRepository
+
+
+class _APIFakeDataProvider(ReportDataProvider):
+    """Provides enough data to pass quality gates in API tests."""
+
+    def get_project(self, project_id: str) -> dict[str, Any] | None:
+        return {"name": "Test Project", "location": "Test Location"}
+
+    def get_project_version(self, version_id: str) -> dict[str, Any] | None:
+        return {"version_number": 1}
+
+    def get_calculation_results(self, project_id: str, version_id: str) -> list[dict[str, Any]]:
+        return [
+            {
+                "section_key": "cooling_load",
+                "result_id": "calc-001",
+                "tool_name": "cooling_load_calculator",
+                "tool_version": "1.0.0",
+                "data": {
+                    "total_design_refrigeration_load": {
+                        "value": 100.0,
+                        "unit": "kW(r)",
+                    }
+                },
+            },
+        ]
 
 
 @pytest.fixture()
@@ -39,7 +67,7 @@ def db_session():
 @pytest.fixture()
 def service(db_session):
     repo = SQLReportRepository(db_session)
-    provider = ReportDataProvider()
+    provider = _APIFakeDataProvider()
     assembler = ReportAssembler(data_provider=provider)
     return ReportService(repository=repo, assembler=assembler)
 
@@ -73,7 +101,6 @@ class TestReportAPI:
 
     def test_create_report_not_found(self, client, service):
         """Cross-user / nonexistent project returns 404."""
-        # Create with one actor, try to access with another
         resp = client.post(
             "/api/v1/reports",
             json={
@@ -81,7 +108,6 @@ class TestReportAPI:
                 "project_version_id": "ver-1",
             },
         )
-        # Depending on service impl, may 404 or succeed
         assert resp.status_code in (200, 404)
 
     def test_list_reports(self, client):
@@ -166,9 +192,9 @@ class TestReportAPI:
             },
         )
         report_id = create.json()["report_id"]
-        # Generate first (draft → generated)
+        # Generate first (draft -> generated)
         client.post(f"/api/v1/reports/{report_id}/generate")
-        # Submit review (generated → under_review)
+        # Submit review (generated -> under_review)
         resp = client.post(
             f"/api/v1/reports/{report_id}/submit-review",
             json={"comment": "looks good"},
@@ -201,7 +227,7 @@ class TestReportAPI:
             },
         )
         report_id = create.json()["report_id"]
-        # draft → approved is not allowed (must go through generate, etc.)
+        # draft -> approved is not allowed
         resp = client.post(f"/api/v1/reports/{report_id}/approve")
         assert resp.status_code == 409
 
@@ -256,12 +282,10 @@ class TestReportAPI:
             json={"comment": "needs more detail"},
         )
         assert resp.status_code == 200
-        # under_review → draft (request changes)
         assert resp.json()["status"] == "draft"
 
     def test_idempotent_key_accepted(self, client):
-        """API accepts idempotency_key without error (idempotency logic
-        tested in service unit tests; API just passes it through)."""
+        """API accepts idempotency_key without error."""
         key = "idem-key-123"
         r1 = client.post(
             "/api/v1/reports",
@@ -278,7 +302,6 @@ class TestReportAPI:
         """Report created by one actor is not visible to another."""
         from cold_storage.modules.reports.api.routes import _get_actor
 
-        # Create as actor_a
         create = client.post(
             "/api/v1/reports",
             json={
@@ -288,7 +311,7 @@ class TestReportAPI:
         )
         report_id = create.json()["report_id"]
 
-        # Try to access as actor_b — override actor dep
+        # Try to access as actor_b
         app = client.app
         app.dependency_overrides[_get_actor] = lambda: "actor_b"
         resp = client.get(f"/api/v1/reports/{report_id}")

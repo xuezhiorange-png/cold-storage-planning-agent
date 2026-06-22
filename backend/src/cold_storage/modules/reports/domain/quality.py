@@ -6,6 +6,7 @@ structured set of rules.  Returns machine-readable findings.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from cold_storage.modules.reports.domain.enums import QualitySeverity
@@ -40,14 +41,14 @@ def evaluate_quality(
     """Evaluate report content and return quality findings."""
     findings: list[dict[str, Any]] = []
 
-    # 1. Required sections check
+    # 1. Required sections check — missing section is a BLOCKER
     if required_sections:
         for section in required_sections:
             if section not in content or content[section] is None:
                 findings.append(
                     _finding(
                         code="MISSING_REQUIRED_SECTION",
-                        severity=QualitySeverity.WARNING,
+                        severity=QualitySeverity.BLOCKER,
                         section_key=section,
                         field_path=section,
                         message=f"Required section '{section}' is missing or null",
@@ -55,7 +56,7 @@ def evaluate_quality(
                     )
                 )
 
-    # 2. Check for not_calculated / placeholder in values
+    # 2. Check for not_calculated / placeholder / default / estimated values
     _check_not_calculated(content, "", findings)
 
     # 3. Unit dimension isolation
@@ -68,15 +69,16 @@ def evaluate_quality(
 
 
 def _check_not_calculated(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
-    """Recursively check for not_calculated/placeholder values."""
+    """Recursively check for not_calculated/placeholder/default/estimated values."""
     if isinstance(obj, dict):
         for key, val in obj.items():
             cur = f"{path}.{key}" if path else key
-            if isinstance(val, str) and val in ("not_calculated", "placeholder", "estimated"):
+            _blocker_values = ("not_calculated", "placeholder", "default", "estimated")
+            if isinstance(val, str) and val in _blocker_values:
                 findings.append(
                     _finding(
                         code="NOT_CALCULATED_VALUE",
-                        severity=QualitySeverity.WARNING,
+                        severity=QualitySeverity.BLOCKER,
                         section_key=path.split(".")[0] if path else "root",
                         field_path=cur,
                         message=f"Field contains '{val}' which is not a real calculated result",
@@ -90,6 +92,42 @@ def _check_not_calculated(obj: Any, path: str, findings: list[dict[str, Any]]) -
     elif isinstance(obj, list):
         for i, item in enumerate(obj):
             _check_not_calculated(item, f"{path}[{i}]", findings)
+
+
+# ---------------------------------------------------------------------------
+# Field-level unit dimension constraints
+# ---------------------------------------------------------------------------
+
+# Maps a regex (matched against the *base* field name, i.e. without the
+# trailing ``_unit`` suffix) to the expected unit string.
+_FIELD_UNIT_CONSTRAINTS: dict[str, str] = {
+    r"total_design_refrigeration_load": "kW(r)",
+    r"compressor_capacity": "kW(r)",
+    r"compressor_input(?:_power)?": "kW(e)",
+    r"installed_power": "kW(e)",
+    r"process_power": "kW(e)",
+    r"lighting_power": "kW(e)",
+    r"auxiliary_power": "kW(e)",
+    r"refrigeration_power": "kW(e)",
+    r"condenser_heat_rejection": "kW(th)",
+}
+
+_ENERGY_FIELD_PATTERNS: list[str] = [
+    r"energy$",
+    r"consumption$",
+    r"_kwh$",
+]
+
+
+def _expected_unit_for_field(field_path: str) -> str | None:
+    """Return the expected unit for a given base field path, or None."""
+    for pattern, unit in _FIELD_UNIT_CONSTRAINTS.items():
+        if re.search(pattern, field_path):
+            return unit
+    for pattern in _ENERGY_FIELD_PATTERNS:
+        if re.search(pattern, field_path):
+            return "kWh"
+    return None
 
 
 def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
@@ -110,6 +148,23 @@ def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
                         message=f"Invalid unit '{val}'; must be one of {VALID_UNITS}",
                     )
                 )
+            else:
+                # Check field-level dimension constraint
+                # Strip the trailing _unit to get the base field name
+                base_field = cur[: -len("_unit")] if cur.endswith("_unit") else cur
+                expected = _expected_unit_for_field(base_field)
+                if expected is not None and val != expected:
+                    findings.append(
+                        _finding(
+                            code="WRONG_UNIT_DIMENSION",
+                            severity=QualitySeverity.BLOCKER,
+                            section_key=path.split(".")[0] if path else "root",
+                            field_path=cur,
+                            message=(
+                                f"Unit mismatch: field '{cur}' expects '{expected}' but got '{val}'"
+                            ),
+                        )
+                    )
         elif isinstance(val, dict):
             _check_units(val, cur, findings)
         elif isinstance(val, list):
@@ -119,27 +174,31 @@ def _check_units(obj: Any, path: str, findings: list[dict[str, Any]]) -> None:
 
 def _check_source_refs(source_refs: list[dict[str, Any]], findings: list[dict[str, Any]]) -> None:
     """Check that source references have required fields."""
+    # result_id and tool_version are only required for calculation_result sources
+    CALC_REQUIRED_TYPES = {"calculation_result", "scheme_result"}
     for ref in source_refs:
-        if not ref.get("result_id"):
-            findings.append(
-                _finding(
-                    code="SOURCE_MISSING_RESULT_ID",
-                    severity=QualitySeverity.WARNING,
-                    section_key=ref.get("section_key", "unknown"),
-                    field_path=ref.get("field_path", ""),
-                    message="Source reference missing result_id",
+        source_type = ref.get("source_type", "")
+        if source_type in CALC_REQUIRED_TYPES:
+            if not ref.get("result_id"):
+                findings.append(
+                    _finding(
+                        code="SOURCE_MISSING_RESULT_ID",
+                        severity=QualitySeverity.BLOCKER,
+                        section_key=ref.get("section_key", "unknown"),
+                        field_path=ref.get("field_path", ""),
+                        message="Source reference missing result_id",
+                    )
                 )
-            )
-        if not ref.get("tool_version"):
-            findings.append(
-                _finding(
-                    code="SOURCE_MISSING_TOOL_VERSION",
-                    severity=QualitySeverity.WARNING,
-                    section_key=ref.get("section_key", "unknown"),
-                    field_path=ref.get("field_path", ""),
-                    message="Source reference missing tool_version",
+            if not ref.get("tool_version"):
+                findings.append(
+                    _finding(
+                        code="SOURCE_MISSING_TOOL_VERSION",
+                        severity=QualitySeverity.BLOCKER,
+                        section_key=ref.get("section_key", "unknown"),
+                        field_path=ref.get("field_path", ""),
+                        message="Source reference missing tool_version",
+                    )
                 )
-            )
         if not ref.get("content_hash"):
             findings.append(
                 _finding(

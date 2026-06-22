@@ -40,10 +40,12 @@ class ReportRepository:
     def get_report(self, report_id: str) -> Report | None:
         raise NotImplementedError
 
-    def list_reports(self, project_id: str | None = None) -> list[Report]:
+    def list_reports(
+        self, project_id: str | None = None, created_by: str | None = None
+    ) -> list[Report]:
         raise NotImplementedError
 
-    def update_report(self, report: Report) -> None:
+    def update_report(self, report: Report, *, expected_version: int | None = None) -> None:
         raise NotImplementedError
 
     def save_revision(self, revision: ReportRevision) -> None:
@@ -98,6 +100,7 @@ class ReportService:
             existing = self._check_idempotency(idempotency_key)
             if existing is not None:
                 return existing
+            self._claim_idempotency(idempotency_key)
 
         report = Report.create(
             project_id=project_id,
@@ -107,13 +110,9 @@ class ReportService:
         )
         self._repo.save_report(report)
         self._repo.commit()
-        return report
-
-    def _get_report_internal(self, report_id: str) -> Report:
-        """Internal access without owner check — for review workflow."""
-        report = self._repo.get_report(report_id)
-        if report is None:
-            raise ReportNotFoundError(report_id)
+        # Store result for idempotency
+        if idempotency_key:
+            self._complete_idempotency(idempotency_key, report)
         return report
 
     def get_report(self, report_id: str, actor: str) -> Report:
@@ -125,7 +124,7 @@ class ReportService:
         return report
 
     def list_reports(self, project_id: str | None = None, actor: str | None = None) -> list[Report]:
-        return self._repo.list_reports(project_id=project_id)
+        return self._repo.list_reports(project_id=project_id, created_by=actor)
 
     # --- Generation ---
 
@@ -147,6 +146,7 @@ class ReportService:
             existing = self._check_idempotency_revision(idempotency_key)
             if existing is not None:
                 return existing
+            self._claim_idempotency(idempotency_key)
 
         revision_number = report.current_revision_number + 1
         supersedes = None
@@ -211,8 +211,12 @@ class ReportService:
             updated_at=datetime.now(UTC),
             version=report.version + 1,
         )
-        self._repo.update_report(updated)
+        self._repo.update_report(updated, expected_version=report.version)
         self._repo.commit()
+
+        # Store result for idempotency
+        if idempotency_key:
+            self._complete_idempotency(idempotency_key, revision)
 
         return revision
 
@@ -272,23 +276,30 @@ class ReportService:
     ) -> Report:
         from dataclasses import replace
 
-        report = self._get_report_internal(report_id)
+        report = self.get_report(report_id, actor)  # owner isolation
 
         # Validate blockers for non-draft transitions
         new_status = apply_action(report.status, action)
 
-        # Check blockers when moving out of draft
-        if action == ReviewAction.SUBMIT_REVIEW:
-            latest_rev = self._repo.get_latest_revision(report_id)
-            if latest_rev and has_blockers(latest_rev.quality_findings_json):
-                raise QualityBlockerError(get_blockers(latest_rev.quality_findings_json))
+        # Get latest revision for quality check and revision reference
+        latest_rev = self._repo.get_latest_revision(report_id)
 
-        # Record action
+        # Check blockers when moving out of draft
+        if (
+            action == ReviewAction.SUBMIT_REVIEW
+            and latest_rev
+            and has_blockers(latest_rev.quality_findings_json)
+        ):
+            raise QualityBlockerError(get_blockers(latest_rev.quality_findings_json))
+
+        # Validate revision exists when expected
+        if report.current_revision_number > 0 and latest_rev is None:
+            raise ReportNotFoundError(f"Revision not found for report {report_id}")
+
+        # Record action with real revision UUID
         action_record = ReportReviewAction.create(
             report_id=report_id,
-            report_revision_id=report.current_revision_number
-            and f"rev-{report.current_revision_number}"
-            or "",
+            report_revision_id=latest_rev.id if latest_rev else "",
             action=action,
             actor=actor,
             comment=comment,
@@ -304,7 +315,7 @@ class ReportService:
             updated_at=datetime.now(UTC),
             version=report.version + 1,
         )
-        self._repo.update_report(updated)
+        self._repo.update_report(updated, expected_version=report.version)
         self._repo.commit()
 
         return updated
@@ -374,3 +385,20 @@ class ReportService:
         if isinstance(result, ReportRevision):
             return result
         return None
+
+    def _claim_idempotency(self, key: str) -> bool:
+        """Claim an idempotency key to prevent concurrent duplicate execution."""
+        if self._idempotency_store is None:
+            return True
+        if hasattr(self._idempotency_store, "claim"):
+            return bool(self._idempotency_store.claim(key))
+        return True
+
+    def _complete_idempotency(self, key: str, result: object) -> None:
+        """Store the result for idempotency after successful execution."""
+        if self._idempotency_store is None:
+            return
+        if hasattr(self._idempotency_store, "complete"):
+            self._idempotency_store.complete(key, result)
+        else:
+            self._idempotency_store.set(key, result)
