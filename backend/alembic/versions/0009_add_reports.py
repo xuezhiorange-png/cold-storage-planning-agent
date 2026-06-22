@@ -58,14 +58,12 @@ def upgrade() -> None:
             "generated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
         sa.Column("supersedes_revision_id", sa.String(36), nullable=True),
+        sa.UniqueConstraint(
+            "report_id", "revision_number", name="uq_report_revisions_report_revision"
+        ),
     )
     op.create_index("ix_report_revisions_report_id", "report_revisions", ["report_id"])
     op.create_index("ix_report_revisions_content_hash", "report_revisions", ["content_hash"])
-    op.create_unique_constraint(
-        "uq_report_revisions_report_revision",
-        "report_revisions",
-        ["report_id", "revision_number"],
-    )
 
     # report_source_references
     op.create_table(
