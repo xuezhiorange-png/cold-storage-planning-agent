@@ -144,6 +144,7 @@ class SchemeRepository:
             recommended_scheme_code=run.recommended_scheme_code,
             warning_messages=run.warning_messages,
             completed_at=run.completed_at,
+            content_hash=run.content_hash,
         )
         self._session.add(run_rec)
 
@@ -281,6 +282,19 @@ class SchemeRepository:
         )
         return list(self._session.execute(stmt).scalars().all())
 
+    def get_completed_runs_for_project(self, project_id: str) -> list[SchemeRun]:
+        """Return completed runs for a project, newest first."""
+        stmt = (
+            select(SchemeRunRecord)
+            .where(
+                SchemeRunRecord.project_id == project_id,
+                SchemeRunRecord.status == "completed",
+            )
+            .order_by(SchemeRunRecord.created_at.desc())
+        )
+        recs = self._session.execute(stmt).scalars().all()
+        return [self._to_run(r) for r in recs]
+
     def _to_run(self, rec: SchemeRunRecord) -> SchemeRun:
         return SchemeRun(
             id=rec.id,
@@ -299,4 +313,5 @@ class SchemeRepository:
             completed_at=rec.completed_at,
             recommended_scheme_code=rec.recommended_scheme_code,
             warning_messages=[str(w) for w in rec.warning_messages],
+            content_hash=rec.content_hash,
         )

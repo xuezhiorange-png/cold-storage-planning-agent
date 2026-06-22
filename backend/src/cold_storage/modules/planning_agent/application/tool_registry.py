@@ -487,4 +487,9 @@ def build_default_registry() -> ToolRegistry:
         )
     )
 
+    # Report tools (Task 9A)
+    from cold_storage.modules.reports.application.tools import register_report_tools
+
+    register_report_tools(registry)
+
     return registry

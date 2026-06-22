@@ -284,5 +284,6 @@ class SchemeRun:
     requires_review: bool = True
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
+    content_hash: str | None = None
     recommended_scheme_code: str | None = None
     warning_messages: list[str] = field(default_factory=list)
