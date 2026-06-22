@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Any
 
 from cold_storage.modules.reports.application.assembler import ReportDataProvider
-from cold_storage.modules.reports.domain.canonical import content_hash as compute_hash
 
 
 class RealReportDataProvider(ReportDataProvider):
@@ -35,34 +34,6 @@ class RealReportDataProvider(ReportDataProvider):
         self._scheme_query = scheme_query
         self._knowledge_query = knowledge_query
         self._agent_session_query = agent_session_query
-
-    @staticmethod
-    def _verify_source_hash(
-        source_data: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Verify source hash and enrich with hash_mismatch flag.
-
-        If persisted_content_hash is present, computes a fresh hash from the
-        canonical payload (excluding verification/status fields) and compares.
-        Returns the data enriched with hash_mismatch: True when hashes differ.
-        """
-        persisted_hash = source_data.get("persisted_content_hash", "")
-        if persisted_hash:
-            canonical_payload = {
-                k: v
-                for k, v in source_data.items()
-                if k
-                not in (
-                    "persisted_content_hash",
-                    "tool_call_status",
-                    "knowledge_status",
-                    "source_exists",
-                    "hash_mismatch",
-                )
-            }
-            computed = compute_hash(canonical_payload)
-            source_data["hash_mismatch"] = computed != persisted_hash
-        return source_data
 
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         """Read project metadata from ProjectService."""
@@ -163,9 +134,6 @@ class RealReportDataProvider(ReportDataProvider):
             if persisted_status is not None:
                 entry["tool_call_status"] = persisted_status
 
-            # Verify source hash — enriches entry with hash_mismatch flag
-            self._verify_source_hash(entry)
-
             sections.append(entry)
 
         return sections
@@ -209,9 +177,6 @@ class RealReportDataProvider(ReportDataProvider):
             persisted_hash = latest_run.get("persisted_content_hash", "")
             if persisted_hash:
                 result["persisted_content_hash"] = persisted_hash
-
-            # Verify source hash — enriches result with hash_mismatch flag
-            self._verify_source_hash(result)
 
             return result
         except Exception:  # noqa: BLE001

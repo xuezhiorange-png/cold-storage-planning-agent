@@ -357,7 +357,10 @@ def _check_source_refs(
                     )
                 )
 
-        # Source verification checks (when verification data is attached)
+        # Source verification checks (when verification data is attached).
+        # Note: quality gate uses SOURCE_SUCCESS_STATUSES (general) rather than
+        # AGENT_TOOL_SUCCESS_STATUSES because it validates all source types,
+        # not just planning-agent tool calls.
         from cold_storage.modules.reports.domain.source_contract import (
             SOURCE_SUCCESS_STATUSES,
         )

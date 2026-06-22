@@ -74,7 +74,7 @@ def upgrade() -> None:
         sa.Column(
             "supersedes_revision_id",
             sa.String(36),
-            sa.ForeignKey("report_revisions.id"),
+            sa.ForeignKey("reports.id"),
             nullable=True,
         ),
         sa.UniqueConstraint(

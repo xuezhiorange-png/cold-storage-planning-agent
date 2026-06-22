@@ -812,13 +812,13 @@ class TestAgentTurnProvenance:
         assert len(session_refs) == 1
         assert session_refs[0]["source_id"] == "s1"
 
-        # Should have 2 AGENT_TOOL_CALL refs (succeeded + confirmed, not failed)
+        # Should have 1 AGENT_TOOL_CALL ref (only succeeded, not confirmed or failed)
         tool_call_refs = [
             r for r in result.source_refs if r["source_type"] == SourceType.AGENT_TOOL_CALL.value
         ]
-        assert len(tool_call_refs) == 2
+        assert len(tool_call_refs) == 1
         tc_ids = {r["source_id"] for r in tool_call_refs}
-        assert tc_ids == {"tc1", "tc3"}
+        assert tc_ids == {"tc1"}
 
     def test_empty_tool_calls_produces_session_ref_only(self):
         """Session with no tool calls should produce only an AGENT_SESSION ref."""

@@ -20,7 +20,7 @@ depends_on = None
 def upgrade() -> None:
     dialect = op.get_bind().dialect.name
     if dialect == "postgresql":
-        # Find the actual constraint name for supersedes_revision_id FK
+        # Find the actual constraint name dynamically
         conn = op.get_bind()
         result = conn.execute(
             sa.text(
@@ -41,6 +41,18 @@ def upgrade() -> None:
                 ["supersedes_revision_id"],
                 ["id"],
             )
+    else:
+        # SQLite: batch_alter_table recreates the table.
+        # SQLite doesn't enforce FK constraints at the DB level,
+        # so we just need the ORM metadata to be correct.
+        # Use batch_alter_table with explicit column type to trigger
+        # table recreation with the correct FK definition.
+        with op.batch_alter_table("report_revisions") as batch_op:
+            batch_op.alter_column(
+                "supersedes_revision_id",
+                type_=sa.String(36),
+                nullable=True,
+            )
 
 
 def downgrade() -> None:
@@ -58,3 +70,10 @@ def downgrade() -> None:
             ["supersedes_revision_id"],
             ["id"],
         )
+    else:
+        with op.batch_alter_table("report_revisions") as batch_op:
+            batch_op.alter_column(
+                "supersedes_revision_id",
+                type_=sa.String(36),
+                nullable=True,
+            )

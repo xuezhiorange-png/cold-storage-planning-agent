@@ -15,6 +15,10 @@ from cold_storage.modules.reports.domain.enums import (
     SourceType,
 )
 from cold_storage.modules.reports.domain.quality import evaluate_quality
+from cold_storage.modules.reports.domain.source_contract import (
+    AGENT_TOOL_SUCCESS_STATUSES,
+    KNOWLEDGE_SEARCH_TOOL,
+)
 
 SCHEMA_VERSION_MAP: dict[ReportType, str] = {
     ReportType.COLD_STORAGE_CONCEPT_DESIGN: "cold_storage_concept_design@1.0.0",
@@ -154,7 +158,7 @@ class ReportAssembler:
         if agent_session_data:
             for session in agent_session_data:
                 for tc in session.get("tool_calls", []):
-                    if tc.get("tool_name") == "knowledge_retrieval":
+                    if tc.get("tool_name") == KNOWLEDGE_SEARCH_TOOL:
                         # Tool call result may reference knowledge revision IDs
                         for ref_id in tc.get("knowledge_revision_ids", []):
                             used_knowledge_ids.add(ref_id)
@@ -171,6 +175,9 @@ class ReportAssembler:
                                 data={
                                     "knowledge_status": "approved",
                                     "persisted_content_hash": rev.get("content_sha256", ""),
+                                    "result_id": rev["id"],  # revision ID as result_id
+                                    "tool_name": KNOWLEDGE_SEARCH_TOOL,
+                                    "tool_version": rev.get("version_label", "1.0.0"),
                                 },
                             )
                         )
@@ -196,11 +203,7 @@ class ReportAssembler:
                             )
                         )
                 for tc in session.get("tool_calls", []):
-                    from cold_storage.modules.reports.domain.source_contract import (
-                        SOURCE_SUCCESS_STATUSES,
-                    )
-
-                    if tc.get("tool_call_status") in SOURCE_SUCCESS_STATUSES:
+                    if tc.get("tool_call_status") in AGENT_TOOL_SUCCESS_STATUSES:
                         source_refs.append(
                             _make_source_ref(
                                 section_key="report_metadata",
