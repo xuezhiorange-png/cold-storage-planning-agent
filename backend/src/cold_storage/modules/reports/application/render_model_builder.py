@@ -7,6 +7,7 @@ PDFRenderer.  No engineering computation, no ORM access.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -638,7 +639,7 @@ def build_render_model(
     # Build sections in defined order
     sections: list[RenderSection] = []
 
-    section_builders: dict[str, Any] = {
+    section_builders: dict[str, Callable[..., RenderSection]] = {
         "report_metadata": _build_report_metadata,
         "project_summary": _build_project_summary,
         "design_basis": _build_design_basis,

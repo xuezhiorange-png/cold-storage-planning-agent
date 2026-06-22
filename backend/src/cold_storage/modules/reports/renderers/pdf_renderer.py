@@ -1293,3 +1293,15 @@ class PdfRenderer:
                     max_width=content_width,
                     font_path=ctx.font_path,
                 )
+
+        # P0-8: Render paragraphs (approval text, etc.)
+        if section.paragraphs:
+            for para_text in section.paragraphs:
+                ctx.ensure_space(_LINE_HEIGHT + 4)
+                ctx.y = _draw_wrapped_text(
+                    ctx,
+                    para_text,
+                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                    max_width=content_width,
+                )
+                ctx.y += 2

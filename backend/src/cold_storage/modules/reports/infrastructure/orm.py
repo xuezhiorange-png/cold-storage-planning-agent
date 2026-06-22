@@ -1,6 +1,11 @@
 """SQLAlchemy ORM models for report persistence.
 
 PostgreSQL uses JSONB; SQLite falls back to JSON text.
+
+JSON columns use ``Any`` because SQLAlchemy ORM enforces untyped ``Mapped``
+for JSON/JSONB columns.  Domain layer defines ``JsonObject``/``JsonValue``
+aliases for semantic clarity; ORM layer keeps ``Any`` for SQLAlchemy
+compatibility.
 """
 
 from __future__ import annotations

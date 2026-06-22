@@ -324,3 +324,211 @@ class TestManifestRealOutput:
             "citations_and_approval",
         ]
         assert model.manifest.sections == expected
+
+    def test_approval_paragraphs_in_pdf_output(self) -> None:
+        """PDF renders approval paragraphs from citations_and_approval section."""
+        from cold_storage.modules.reports.application.render_model_builder import (
+            _build_citations_and_approval,
+        )
+
+        data = {
+            "citations": [],
+            "approval": {
+                "approved_by": "张工",
+                "approved_at": "2026-06-01",
+                "approved_revision_id": "rev-abc",
+                "approved_content_hash": "def456789abcdef",
+            },
+        }
+        section = _build_citations_and_approval(data)
+        metadata = RenderMetadata(
+            report_id="test-001",
+            project_name="测试项目",
+            report_type="概念设计报告",
+            schema_version="v1",
+            revision_number=1,
+            content_hash="abc123def456789",
+            content_hash_short="abc123de",
+            generated_at="2026-06-22T00:00:00",
+            generated_by="tester",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+            locale="zh-CN",
+        )
+        render_settings = TemplateManifest.from_manifest_json({}).model_dump()
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="v1",
+            source_content_hash="abc123def456789",
+            sections=["citations_and_approval"],
+            format="pdf",
+            render_settings=render_settings,
+        )
+        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        pdf_bytes = _render_pdf(model)
+        text = _extract_pdf_text(pdf_bytes)
+        assert "批准人：张工" in text, "Approval author not found in PDF"
+        assert "批准时间：2026-06-01" in text, "Approval time not found in PDF"
+        assert "批准版本：rev-abc" in text, "Approval revision not found in PDF"
+
+    def test_approval_paragraphs_in_docx_output(self) -> None:
+        """DOCX renders approval paragraphs from citations_and_approval section."""
+        from cold_storage.modules.reports.application.render_model_builder import (
+            _build_citations_and_approval,
+        )
+
+        data = {
+            "citations": [],
+            "approval": {
+                "approved_by": "李工",
+                "approved_at": "2026-06-15",
+                "approved_revision_id": "rev-xyz",
+                "approved_content_hash": "abc1234567890abcdef",
+            },
+        }
+        section = _build_citations_and_approval(data)
+        metadata = RenderMetadata(
+            report_id="test-002",
+            project_name="测试项目",
+            report_type="概念设计报告",
+            schema_version="v1",
+            revision_number=1,
+            content_hash="abc123def456789",
+            content_hash_short="abc123de",
+            generated_at="2026-06-22T00:00:00",
+            generated_by="tester",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+            locale="zh-CN",
+        )
+        render_settings = TemplateManifest.from_manifest_json({}).model_dump()
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="v1",
+            source_content_hash="abc123def456789",
+            sections=["citations_and_approval"],
+            format="docx",
+            render_settings=render_settings,
+        )
+        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        docx_bytes = _render_docx(model)
+        doc = Document(BytesIO(docx_bytes))
+        all_text = "\n".join(p.text for p in doc.paragraphs)
+        assert "批准人：李工" in all_text, "Approval author not in DOCX"
+        assert "批准时间：2026-06-15" in all_text, "Approval time not in DOCX"
+
+    def test_findings_table_in_pdf(self) -> None:
+        """risks_and_quality section with findings renders table in PDF."""
+        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
+
+        table = RenderTable(
+            title="质量发现",
+            headers=["代码", "严重性", "消息"],
+            rows=[
+                [
+                    RenderTableCell(value="Q001"),
+                    RenderTableCell(value="warning"),
+                    RenderTableCell(value="质量警告"),
+                ]
+            ],
+        )
+        section = RS(
+            section_key="risks_and_quality",
+            title="风险与质量",
+            level=1,
+            content_type="finding",
+            text="质量摘要：1 项发现",
+            table=table,
+        )
+        metadata = RenderMetadata(
+            report_id="test-003",
+            project_name="测试项目",
+            report_type="概念设计报告",
+            schema_version="v1",
+            revision_number=1,
+            content_hash="abc123def456789",
+            content_hash_short="abc123de",
+            generated_at="2026-06-22T00:00:00",
+            generated_by="tester",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+            locale="zh-CN",
+        )
+        render_settings = TemplateManifest.from_manifest_json({}).model_dump()
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="v1",
+            source_content_hash="abc123def456789",
+            sections=["risks_and_quality"],
+            format="pdf",
+            render_settings=render_settings,
+        )
+        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        pdf_bytes = _render_pdf(model)
+        text = _extract_pdf_text(pdf_bytes)
+        assert "Q001" in text, "Finding code Q001 not found in PDF"
+        assert "质量警告" in text, "Finding message not found in PDF"
+
+    def test_findings_table_in_docx(self) -> None:
+        """risks_and_quality section with findings renders table in DOCX."""
+        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
+
+        table = RenderTable(
+            title="质量发现",
+            headers=["代码", "严重性", "消息"],
+            rows=[
+                [
+                    RenderTableCell(value="Q001"),
+                    RenderTableCell(value="warning"),
+                    RenderTableCell(value="质量警告"),
+                ]
+            ],
+        )
+        section = RS(
+            section_key="risks_and_quality",
+            title="风险与质量",
+            level=1,
+            content_type="finding",
+            text="质量摘要：1 项发现",
+            table=table,
+        )
+        metadata = RenderMetadata(
+            report_id="test-004",
+            project_name="测试项目",
+            report_type="概念设计报告",
+            schema_version="v1",
+            revision_number=1,
+            content_hash="abc123def456789",
+            content_hash_short="abc123de",
+            generated_at="2026-06-22T00:00:00",
+            generated_by="tester",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+            locale="zh-CN",
+        )
+        render_settings = TemplateManifest.from_manifest_json({}).model_dump()
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="v1",
+            source_content_hash="abc123def456789",
+            sections=["risks_and_quality"],
+            format="docx",
+            render_settings=render_settings,
+        )
+        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        docx_bytes = _render_docx(model)
+        doc = Document(BytesIO(docx_bytes))
+        # Check table content (table cells are not in doc.paragraphs)
+        table_texts = []
+        for tbl in doc.tables:
+            for row in tbl.rows:
+                for cell in row.cells:
+                    table_texts.append(cell.text)
+        all_table_text = "\n".join(table_texts)
+        assert "Q001" in all_table_text, (
+            f"Finding code Q001 not in DOCX table: {all_table_text[:200]}"
+        )

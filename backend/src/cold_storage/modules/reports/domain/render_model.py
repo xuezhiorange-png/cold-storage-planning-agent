@@ -126,11 +126,11 @@ class TemplateManifest(BaseModel):
     required_sections: list[str] = Field(default_factory=list)
     optional_sections: list[str] = Field(default_factory=list)
     landscape_sections: list[str] = Field(default_factory=list)
-    numbering: dict[str, Any] = Field(default_factory=dict)
-    quality_finding_rendering: dict[str, Any] = Field(default_factory=dict)
+    numbering: JsonObject = Field(default_factory=dict)
+    quality_finding_rendering: JsonObject = Field(default_factory=dict)
 
     @classmethod
-    def from_manifest_json(cls, manifest_json: dict[str, Any] | None) -> TemplateManifest:
+    def from_manifest_json(cls, manifest_json: JsonObject | None) -> TemplateManifest:
         """Parse a raw template manifest_json dict into a canonical TemplateManifest.
 
         Handles legacy field names (mm margins, styles.* font sizes, etc.)
@@ -143,7 +143,7 @@ class TemplateManifest(BaseModel):
 
         # --- Normalize page config ---
         raw_page = dict(data.get("page", {}))
-        page: dict[str, Any] = {}
+        page: JsonObject = {}
 
         # Accept width_pt/height_pt or compute from A4
         page["width_pt"] = raw_page.get("width_pt", _A4_WIDTH_PT)
@@ -169,7 +169,7 @@ class TemplateManifest(BaseModel):
         raw_fonts = dict(data.get("fonts", {}))
         raw_styles = dict(data.get("styles", {}))
 
-        fonts: dict[str, Any] = {}
+        fonts: JsonObject = {}
         # body font name
         fonts["body_name"] = raw_fonts.get("body_name") or raw_styles.get("body_font", "SimSun")
         # body size

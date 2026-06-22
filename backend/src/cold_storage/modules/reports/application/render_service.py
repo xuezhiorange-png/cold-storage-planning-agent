@@ -46,7 +46,7 @@ from cold_storage.modules.reports.domain.models import (
     ReportRevision,
     ReportTemplate,
 )
-from cold_storage.modules.reports.domain.render_model import ReportRenderModel
+from cold_storage.modules.reports.domain.render_model import JsonObject, ReportRenderModel
 
 
 class ArtifactStoragePort(Protocol):
@@ -497,7 +497,7 @@ class ReportRenderService:
         source_content_hash: str,
         idempotency_key: str | None,
         fingerprint: str,
-        render_settings: dict[str, Any],
+        render_settings: JsonObject,
         approval_revision_id: str = "",
         approval_content_hash: str = "",
         approval_by: str = "",
