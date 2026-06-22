@@ -491,7 +491,7 @@ def _build_risks_and_quality(data: dict[str, Any]) -> RenderSection:
         section_key="risks_and_quality",
         title=title,
         level=level,
-        content_type="text",
+        content_type="finding",
         text="\n".join(parts),
         findings=findings,
         table=table,
@@ -502,15 +502,55 @@ def _build_citations_and_approval(data: Any) -> RenderSection:
     """Build the citations_and_approval section with source references table."""
     title, level = _SECTION_HEADINGS["citations_and_approval"]
 
-    # Accept both list (old format) and dict with "citations" key
-    if isinstance(data, list):
-        citations = data
-    elif isinstance(data, dict):
+    # Accept both list (old format) and dict with "citations" + "approval" keys
+    if isinstance(data, dict):
         citations = data.get("citations", [])
+        approval = data.get("approval", {})
+    elif isinstance(data, list):
+        citations = data
+        approval = {}
     else:
         citations = []
+        approval = {}
 
-    if not citations:
+    table: RenderTable | None = None
+    if citations:
+        headers = ["节", "来源类型", "来源ID", "工具", "内容哈希"]
+        rows_list: list[list[RenderTableCell]] = []
+        for c in citations:
+            rows_list.append(
+                [
+                    RenderTableCell(value=c.get("section_key", ""), align="left"),
+                    RenderTableCell(value=c.get("source_type", ""), align="left"),
+                    RenderTableCell(value=c.get("source_id", ""), align="left"),
+                    RenderTableCell(value=c.get("tool_name", ""), align="left"),
+                    RenderTableCell(
+                        value=(c.get("content_hash", "") or "")[:12],
+                        align="left",
+                    ),
+                ]
+            )
+        table = RenderTable(
+            title="引用来源",
+            headers=headers,
+            rows=rows_list,
+        )
+
+    # Build approval paragraphs
+    paragraphs: list[str] = []
+    if approval:
+        paragraphs.append("审批信息：")
+        if approval.get("approved_by"):
+            paragraphs.append(f"批准人：{approval['approved_by']}")
+        if approval.get("approved_at"):
+            paragraphs.append(f"批准时间：{approval['approved_at']}")
+        if approval.get("approved_revision_id"):
+            paragraphs.append(f"批准版本：{approval['approved_revision_id']}")
+        if approval.get("approved_content_hash"):
+            h = approval["approved_content_hash"]
+            paragraphs.append(f"批准哈希：{h[:16]}..." if len(h) > 16 else f"批准哈希：{h}")
+
+    if not citations and not approval:
         return RenderSection(
             section_key="citations_and_approval",
             title=title,
@@ -520,34 +560,14 @@ def _build_citations_and_approval(data: Any) -> RenderSection:
             empty_reason="not_provided",
         )
 
-    headers = ["节", "来源类型", "来源ID", "工具", "内容哈希"]
-    rows_list: list[list[RenderTableCell]] = []
-    for c in citations:
-        rows_list.append(
-            [
-                RenderTableCell(value=c.get("section_key", ""), align="left"),
-                RenderTableCell(value=c.get("source_type", ""), align="left"),
-                RenderTableCell(value=c.get("source_id", ""), align="left"),
-                RenderTableCell(value=c.get("tool_name", ""), align="left"),
-                RenderTableCell(
-                    value=(c.get("content_hash", "") or "")[:12],
-                    align="left",
-                ),
-            ]
-        )
-
-    table = RenderTable(
-        title="引用来源",
-        headers=headers,
-        rows=rows_list,
-    )
-
+    content_type = "table" if table else "text"
     return RenderSection(
         section_key="citations_and_approval",
         title=title,
         level=level,
-        content_type="table",
+        content_type=content_type,
         table=table,
+        paragraphs=paragraphs,
     )
 
 
@@ -654,7 +674,23 @@ def build_render_model(
             sections.append(builder(data))
 
     # Build manifest
-    section_keys = [s.section_key for s in sections if not s.is_empty]
+    ALL_SECTION_KEYS = [
+        "report_metadata",
+        "project_summary",
+        "design_basis",
+        "input_conditions",
+        "assumptions",
+        "capacity_and_throughput",
+        "inventory_and_storage",
+        "area_and_layout",
+        "cooling_load",
+        "equipment_selection",
+        "electrical_and_energy",
+        "scheme_comparison",
+        "investment_estimate",
+        "risks_and_quality",
+        "citations_and_approval",
+    ]
     # P0-5: Normalize manifest_json through canonical TemplateManifest model
     template_manifest = TemplateManifest.from_manifest_json(template_manifest_json)
     render_settings = template_manifest.model_dump()
@@ -663,7 +699,7 @@ def build_render_model(
         template_version=template_version,
         schema_version=schema_version,
         source_content_hash=content_hash,
-        sections=section_keys,
+        sections=ALL_SECTION_KEYS,
         format=format,
         render_settings=render_settings,
         manifest_hash="",

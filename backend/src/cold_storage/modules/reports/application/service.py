@@ -251,6 +251,11 @@ class ReportService:
             current_revision_number=revision_number,
             updated_at=datetime.now(UTC),
             version=report.version + 1,
+            # Clear approval fields when new revision is generated
+            approved_revision_id=None,
+            approved_content_hash=None,
+            approved_by=None,
+            approved_at=None,
         )
         self._repo.update_report(updated, expected_version=report.version)
         # Complete idempotency BEFORE commit so both are in the same transaction.
@@ -341,6 +346,31 @@ class ReportService:
         if report.current_revision_number > 0 and latest_rev is None:
             raise ReportNotFoundError(f"Revision not found for report {report_id}")
 
+        # P0-8: Compute approval fields
+        approval_fields: dict[str, Any] = {}
+        if action == ReviewAction.APPROVE:
+            if latest_rev is None:
+                raise ReportNotFoundError(f"No revision to approve for report {report_id}")
+            # Check blockers
+            if has_blockers(latest_rev.quality_findings_json):
+                raise QualityBlockerError(get_blockers(latest_rev.quality_findings_json))
+            from datetime import datetime as _dt
+
+            approval_fields = {
+                "approved_revision_id": latest_rev.id,
+                "approved_content_hash": latest_rev.content_hash,
+                "approved_by": actor,
+                "approved_at": _dt.now(UTC).isoformat(),
+            }
+        elif action in (ReviewAction.REQUEST_CHANGES,):
+            # Clear approval on request changes
+            approval_fields = {
+                "approved_revision_id": None,
+                "approved_content_hash": None,
+                "approved_by": None,
+                "approved_at": None,
+            }
+
         # Record action with real revision UUID
         action_record = ReportReviewAction.create(
             report_id=report_id,
@@ -359,6 +389,7 @@ class ReportService:
             status=new_status,
             updated_at=datetime.now(UTC),
             version=report.version + 1,
+            **approval_fields,
         )
         self._repo.update_report(updated, expected_version=report.version)
         self._repo.commit()

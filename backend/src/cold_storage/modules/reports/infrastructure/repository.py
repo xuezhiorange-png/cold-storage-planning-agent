@@ -94,12 +94,20 @@ def _to_artifact_domain(rec: ReportExportArtifactRecord) -> ReportExportArtifact
 
 
 class SQLReportRepository(ReportRepository):
-    def __init__(self, session: Any) -> None:
+    def __init__(self, session: sa.orm.Session) -> None:
         self._session = session
 
     # --- Report ---
 
     def save_report(self, report: Report) -> None:
+        from datetime import datetime as _dt
+
+        approved_at_dt: _dt | None = None
+        if report.approved_at is not None:
+            if isinstance(report.approved_at, str):
+                approved_at_dt = _dt.fromisoformat(report.approved_at)
+            elif isinstance(report.approved_at, _dt):
+                approved_at_dt = report.approved_at
         rec = ReportRecord(
             id=report.id,
             project_id=report.project_id,
@@ -111,6 +119,10 @@ class SQLReportRepository(ReportRepository):
             created_at=report.created_at,
             updated_at=report.updated_at,
             version=report.version,
+            approved_revision_id=report.approved_revision_id,
+            approved_content_hash=report.approved_content_hash,
+            approved_by=report.approved_by,
+            approved_at=approved_at_dt,
         )
         self._session.add(rec)
 
@@ -133,6 +145,14 @@ class SQLReportRepository(ReportRepository):
 
     def update_report(self, report: Report, *, expected_version: int | None = None) -> None:
         """Atomic compare-and-swap update.  Single SQL UPDATE with WHERE clause."""
+        from datetime import datetime as _dt
+
+        approved_at_dt: _dt | None = None
+        if report.approved_at is not None:
+            if isinstance(report.approved_at, str):
+                approved_at_dt = _dt.fromisoformat(report.approved_at)
+            elif isinstance(report.approved_at, _dt):
+                approved_at_dt = report.approved_at
         stmt = (
             sa.update(ReportRecord)
             .where(ReportRecord.id == report.id)
@@ -141,13 +161,17 @@ class SQLReportRepository(ReportRepository):
                 current_revision_number=report.current_revision_number,
                 updated_at=report.updated_at,
                 version=report.version,
+                approved_revision_id=report.approved_revision_id,
+                approved_content_hash=report.approved_content_hash,
+                approved_by=report.approved_by,
+                approved_at=approved_at_dt,
             )
         )
         if expected_version is not None:
             stmt = stmt.where(ReportRecord.version == expected_version)
 
         result = self._session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             if expected_version is not None:
                 raise ConcurrencyConflictError(report.id)
             raise ValueError(f"Report {report.id} not found")
@@ -275,7 +299,7 @@ class SQLReportRepository(ReportRepository):
             .values(status="completed", result_payload=result_payload)
         )
         result = self._session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError(f"Idempotency record {key} not found or not in claimed state")
 
     def fail_idempotency_record(self, key: str, failure_code: str, failure_message: str) -> None:
@@ -333,6 +357,10 @@ class SQLReportRepository(ReportRepository):
             created_at=_parse_dt(rec.created_at),
             updated_at=_parse_dt(rec.updated_at),
             version=rec.version,
+            approved_revision_id=rec.approved_revision_id,
+            approved_content_hash=rec.approved_content_hash,
+            approved_by=rec.approved_by,
+            approved_at=rec.approved_at.isoformat() if rec.approved_at is not None else None,
         )
 
     def _to_revision(self, rec: ReportRevisionRecord) -> ReportRevision:
@@ -432,7 +460,7 @@ class SQLReportRepository(ReportRepository):
             )
         )
         result = self._session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError(f"Template {template.id} not found")
 
     # --- Export Artifacts ---
@@ -512,5 +540,5 @@ class SQLReportRepository(ReportRepository):
             )
         )
         result = self._session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError(f"Artifact {artifact.id} not found")

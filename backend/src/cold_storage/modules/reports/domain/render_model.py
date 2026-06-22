@@ -14,6 +14,12 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 # -----------------------------------------------------------------------
+# Type aliases (P0-9)
+# -----------------------------------------------------------------------
+JsonValue = str | int | float | bool | None | list["JsonValue"] | dict[str, "JsonValue"]
+JsonObject = dict[str, Any]  # for truly dynamic JSON blobs
+
+# -----------------------------------------------------------------------
 # Canonical Template Manifest Models (P0-5)
 # -----------------------------------------------------------------------
 

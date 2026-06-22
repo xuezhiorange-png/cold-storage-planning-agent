@@ -5,6 +5,7 @@ PostgreSQL uses JSONB; SQLite falls back to JSON text.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import sqlalchemy as sa
@@ -49,6 +50,13 @@ class ReportRecord(Base):
     version: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("1"), index=True
     )
+    # P0-8: Formal approval binding fields
+    approved_revision_id: Mapped[str | None] = mapped_column(
+        sa.String(36), sa.ForeignKey("report_revisions.id"), nullable=True
+    )
+    approved_content_hash: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
 
 
 class ReportRevisionRecord(Base):

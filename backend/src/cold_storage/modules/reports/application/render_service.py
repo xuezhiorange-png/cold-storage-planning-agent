@@ -26,7 +26,6 @@ from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
     RenderMode,
-    ReportStatus,
     TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import (
@@ -335,16 +334,20 @@ class ReportRenderService:
             generated_by=actor,
         )
 
+        # P0-2: INSERT artifact(pending) → commit
         if self._artifact_repo:
             self._artifact_repo.save_artifact(artifact)
+            self._artifact_repo.commit()
 
-        # P0-7: Update status to RENDERING
+        # P0-2: UPDATE artifact(rendering) → commit
         artifact = replace(artifact, status=ArtifactStatus.RENDERING)
         if self._artifact_repo:
             self._artifact_repo.update_artifact(artifact)
+            self._artifact_repo.commit()
 
         # 8. Render via DocxRenderer or PdfRenderer
         temp_path: str | None = None
+        storage_key: str = ""
         try:
             rendered_bytes = self._render_bytes(
                 export_format,
@@ -381,6 +384,10 @@ class ReportRenderService:
                 render_settings=render_model.manifest.render_settings
                 if hasattr(render_model.manifest, "render_settings")
                 else {},
+                approval_revision_id=report.approved_revision_id or "",
+                approval_content_hash=report.approved_content_hash or "",
+                approval_by=report.approved_by or "",
+                approval_at=report.approved_at or "",
             )
 
             # 11. Update artifact with storage_key, file_size, file_sha256, status=completed
@@ -393,101 +400,88 @@ class ReportRenderService:
                 render_manifest_json=render_manifest,
             )
 
+            # P0-2: UPDATE artifact(completed) + complete idempotency → single commit
             if self._artifact_repo:
                 self._artifact_repo.update_artifact(artifact)
-                try:
-                    self._artifact_repo.commit()
-                except Exception:
-                    self._artifact_repo.rollback()
-                    # P0-3: DB commit failed after file write — clean up and persist failure
-                    try:
-                        self._storage.delete(storage_key)
-                    except Exception:
-                        logging.getLogger(__name__).warning(
-                            "Failed to clean up storage after DB commit failure",
-                            extra={"artifact_id": artifact.id, "storage_key": storage_key},
-                        )
-                    try:
-                        failed_artifact = replace(
-                            artifact,
-                            status=ArtifactStatus.FAILED,
-                            failure_code="DBCommitError",
-                            failure_message="Failed to persist completed artifact",
-                        )
-                        self._artifact_repo.update_artifact(failed_artifact)
-                        if idempotency_key:
-                            self._repo.fail_idempotency_record(
-                                idempotency_key,
-                                "DBCommitError",
-                                "Commit failed after render",
-                            )
-                        self._artifact_repo.commit()
-                    except Exception:
-                        self._artifact_repo.rollback()
-                        logging.getLogger(__name__).error(
-                            "Failed to persist failed artifact state",
-                            exc_info=True,
-                        )
-                    raise
-
-            # Complete idempotency record (P0-6)
             if idempotency_key:
                 self._repo.complete_idempotency_record(
                     key=idempotency_key,
                     result_payload={"artifact_id": artifact.id},
                 )
-                self._repo.commit()
+            if self._artifact_repo:
+                self._artifact_repo.commit()
 
             return artifact
 
         except Exception as exc:
-            # P0-3/P0-7: Cleanup temp file if still present
+            # P0-2: Cleanup temp file if still present
             if temp_path is not None:
-                self._storage.cleanup_temp(temp_path)
-
-            # 12. On failure: set status=failed, clean up
-            artifact = replace(
-                artifact,
-                status=ArtifactStatus.FAILED,
-                failure_code=type(exc).__name__,
-                failure_message=str(exc),
-            )
-            if self._artifact_repo:
                 try:
-                    self._artifact_repo.update_artifact(artifact)
-                    self._artifact_repo.commit()
-                except Exception:
-                    self._artifact_repo.rollback()
-                    logging.getLogger(__name__).error(
-                        "Failed to persist failed artifact state",
-                        exc_info=True,
-                    )
-
-            # P0-2: Mark idempotency as failed
-            if idempotency_key:
-                try:
-                    self._repo.fail_idempotency_record(
-                        idempotency_key,
-                        type(exc).__name__,
-                        str(exc),
-                    )
-                    self._repo.commit()
-                except Exception:
-                    self._repo.rollback()
-
-            # Clean up any partially written storage
-            if artifact.storage_key:
-                try:
-                    self._storage.delete(artifact.storage_key)
-                except FileNotFoundError:
-                    pass
-                except Exception:
+                    self._storage.cleanup_temp(temp_path)
+                except Exception as cleanup_exc:
                     logging.getLogger(__name__).warning(
-                        "Failed to clean up storage key after failure",
+                        "Failed to clean up temp file after render failure",
                         extra={
                             "artifact_id": artifact.id,
-                            "storage_key": artifact.storage_key,
+                            "storage_key": storage_key,
+                            "idempotency_key": idempotency_key or "",
+                            "exception": str(cleanup_exc),
                         },
+                    )
+
+            # Clean up finalized storage if it exists
+            if storage_key:
+                try:
+                    self._storage.delete(storage_key)
+                except Exception as cleanup_exc:
+                    logging.getLogger(__name__).warning(
+                        "Failed to clean up storage after render failure",
+                        extra={
+                            "artifact_id": artifact.id,
+                            "storage_key": storage_key,
+                            "idempotency_key": idempotency_key or "",
+                            "exception": str(cleanup_exc),
+                        },
+                    )
+
+            # P0-2: Persist failure state — rollback, re-read, update to failed
+            if self._artifact_repo:
+                try:
+                    self._artifact_repo.rollback()
+                    # Re-read artifact from DB (clean session)
+                    failed_artifact = self._artifact_repo.get_artifact(artifact.id)
+                    if failed_artifact is not None:
+                        from dataclasses import is_dataclass as _is_dc
+
+                        if _is_dc(failed_artifact):
+                            failed_artifact = replace(
+                                failed_artifact,
+                                status=ArtifactStatus.FAILED,
+                                failure_code=type(exc).__name__,
+                                failure_message=str(exc),
+                            )
+                        self._artifact_repo.update_artifact(failed_artifact)
+                    # Fail idempotency record in same commit
+                    if idempotency_key:
+                        self._repo.fail_idempotency_record(
+                            idempotency_key,
+                            type(exc).__name__,
+                            str(exc),
+                        )
+                    self._artifact_repo.commit()
+                except Exception:
+                    import contextlib
+
+                    with contextlib.suppress(Exception):
+                        self._artifact_repo.rollback()
+                    logging.getLogger(__name__).error(
+                        "Failed to persist failed artifact state",
+                        extra={
+                            "artifact_id": artifact.id,
+                            "storage_key": storage_key,
+                            "idempotency_key": idempotency_key or "",
+                        },
+                        exc_info=True,
                     )
 
             raise RenderError(f"Rendering failed: {exc}") from exc
@@ -504,6 +498,10 @@ class ReportRenderService:
         idempotency_key: str | None,
         fingerprint: str,
         render_settings: dict[str, Any],
+        approval_revision_id: str = "",
+        approval_content_hash: str = "",
+        approval_by: str = "",
+        approval_at: str = "",
     ) -> dict[str, Any]:
         """Build the render manifest with real metadata (P0-4)."""
         return {
@@ -518,6 +516,10 @@ class ReportRenderService:
             "render_settings": render_settings,
             "idempotency_key": idempotency_key or "",
             "fingerprint": fingerprint,
+            "approved_revision_id": approval_revision_id,
+            "approved_content_hash": approval_content_hash,
+            "approved_by": approval_by,
+            "approved_at": approval_at,
         }
 
     def _validate_export_mode(
@@ -543,41 +545,41 @@ class ReportRenderService:
 
         # P0-4/P0-5: Formal mode requires exporting the latest/approved revision
         if mode == RenderMode.FORMAL:
+            # P0-8: Must have all approval fields for formal export
+            missing = []
+            if not report.approved_revision_id:
+                missing.append("approved_revision_id")
+            if not report.approved_content_hash:
+                missing.append("approved_content_hash")
+            if not report.approved_by:
+                missing.append("approved_by")
+            if not report.approved_at:
+                missing.append("approved_at")
+            if missing:
+                raise ExportPermissionError(
+                    report.id,
+                    mode.value,
+                    f"Missing approval fields: {', '.join(missing)}",
+                )
+            # Verify revision matches approval
+            if revision.id != report.approved_revision_id:
+                raise ExportPermissionError(
+                    report.id,
+                    mode.value,
+                    "Approved revision mismatch",
+                )
+            if revision.content_hash != report.approved_content_hash:
+                raise ExportPermissionError(
+                    report.id,
+                    mode.value,
+                    "Approved content hash mismatch",
+                )
             if revision.revision_number != report.current_revision_number:
                 raise ExportPermissionError(
                     report.id,
                     mode.value,
                     f"Formal export requires latest revision ({report.current_revision_number}), "
                     f"got {revision.revision_number}",
-                )
-            # Check revision quality_status is approved
-            if revision.quality_status != ReportStatus.APPROVED:
-                raise ExportPermissionError(
-                    report.id,
-                    mode.value,
-                    f"Revision {revision.revision_number} quality status is "
-                    f"{revision.quality_status.value}, must be 'approved'",
-                )
-            # P0-8: Verify approval binding if set
-            if (
-                report.approved_revision_id is not None
-                and revision.id != report.approved_revision_id
-            ):
-                raise ExportPermissionError(
-                    report.id,
-                    mode.value,
-                    f"Approved revision mismatch: approved={report.approved_revision_id}, "
-                    f"got {revision.id}",
-                )
-            if (
-                report.approved_content_hash is not None
-                and revision.content_hash != report.approved_content_hash
-            ):
-                raise ExportPermissionError(
-                    report.id,
-                    mode.value,
-                    f"Revision content hash {revision.content_hash} does not match "
-                    f"approved hash {report.approved_content_hash}",
                 )
             # P0-8: Block formal export if blocking quality findings exist
             if revision.quality_findings_json:

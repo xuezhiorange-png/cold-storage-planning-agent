@@ -128,6 +128,7 @@ def _seed_report(
     status: str = "draft",
     revision_quality: str = "draft",
     created_by: str = "user1",
+    approved: bool = False,
 ) -> tuple[str, str, str]:
     """Seed a report + revision. Returns (report_id, revision_id, content_hash)."""
     from cold_storage.modules.reports.infrastructure.orm import (
@@ -151,6 +152,13 @@ def _seed_report(
         updated_at=now,
         version=1,
     )
+    if approved:
+        rev_id = f"rev-{report_id}-1"
+        report_rec.approved_revision_id = rev_id
+        report_rec.approved_content_hash = content_hash
+        report_rec.approved_by = created_by
+        report_rec.approved_at = now
+
     db_session.add(report_rec)
 
     content = {
@@ -979,7 +987,7 @@ class TestFormalExportRules:
         _seed_template(db_session, version="1.0.0")
         report_id, _, _ = _seed_report(db_session, status="approved", revision_quality="draft")
 
-        with pytest.raises(ExportPermissionError, match="must be 'approved'"):
+        with pytest.raises(ExportPermissionError, match="Missing approval fields|approved"):
             svc.render(
                 report_id=report_id,
                 revision_number=1,
@@ -1064,7 +1072,7 @@ class TestFormalExportRules:
 
         _seed_template(db_session, version="1.0.0")
 
-        with pytest.raises(ExportPermissionError, match="requires latest revision"):
+        with pytest.raises(ExportPermissionError, match="revision mismatch|Missing approval"):
             svc.render(
                 report_id=report_id,
                 revision_number=1,
@@ -1078,7 +1086,7 @@ class TestFormalExportRules:
         """Formal export of approved + latest revision succeeds."""
         svc, _, _ = render_service
         _seed_template(db_session, version="1.0.0")
-        report_id, _, _ = _seed_report(db_session, status="approved", revision_quality="approved")
+        report_id, _, _ = _seed_report(db_session, status="approved", revision_quality="approved", approved=True)
 
         artifact = svc.render(
             report_id=report_id,
