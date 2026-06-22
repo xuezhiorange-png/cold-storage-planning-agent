@@ -160,16 +160,27 @@ class DocxRenderer:
         bytes
             The raw .docx file content.
         """
+        # P0-10: Load template manifest settings
+        manifest = model.manifest
+        render_settings = manifest.render_settings if hasattr(manifest, "render_settings") else {}
+        page_settings = render_settings.get("page", {})
+        font_settings = render_settings.get("fonts", {})
+
+        # Page size from manifest or defaults
+        page_width_cm = page_settings.get("width_cm", _A4_WIDTH_CM)
+        page_height_cm = page_settings.get("height_cm", _A4_HEIGHT_CM)
+        margin_cm = page_settings.get("margin_cm", _MARGIN_CM)
+
         doc: Any = Document()
 
-        # ---- Page setup (A4) ----
+        # ---- Page setup (from manifest or A4 defaults) ----
         for section in doc.sections:
-            section.page_width = Cm(_A4_WIDTH_CM)
-            section.page_height = Cm(_A4_HEIGHT_CM)
-            section.top_margin = Cm(_MARGIN_CM)
-            section.bottom_margin = Cm(_MARGIN_CM)
-            section.left_margin = Cm(_MARGIN_CM)
-            section.right_margin = Cm(_MARGIN_CM)
+            section.page_width = Cm(page_width_cm)
+            section.page_height = Cm(page_height_cm)
+            section.top_margin = Cm(margin_cm)
+            section.bottom_margin = Cm(margin_cm)
+            section.left_margin = Cm(margin_cm)
+            section.right_margin = Cm(margin_cm)
             section.orientation = WD_ORIENT.PORTRAIT
 
         # ---- Default style ----
@@ -186,13 +197,18 @@ class DocxRenderer:
             rPr.insert(0, rFonts)
         rFonts.set(qn("w:eastAsia"), _BODY_FONT)
 
-        # ---- Heading styles ----
+        # ---- Heading styles (P0-10: use manifest settings) ----
+        heading_sizes = {
+            1: font_settings.get("heading1_size_pt", 16),
+            2: font_settings.get("heading2_size_pt", 14),
+            3: font_settings.get("heading3_size_pt", 12),
+        }
         for level in range(1, 4):
             style_name = f"Heading {level}"
             if style_name in doc.styles:
                 hs = doc.styles[style_name]
                 hs.font.name = _HEADING_FONT
-                hs.font.size = Pt([16, 14, 12][level - 1])
+                hs.font.size = Pt(heading_sizes.get(level, [16, 14, 12][level - 1]))
                 hs.font.bold = True
                 hs.font.color.rgb = RGBColor(0x1F, 0x38, 0x64)
 
@@ -244,12 +260,13 @@ class DocxRenderer:
         run = p_type.add_run(meta.report_type)
         _set_run_font(run, font_name=_HEADING_FONT, size=Pt(18), color=RGBColor(0x40, 0x40, 0x40))
 
-        # Version line
+        # Version line — P0-4: use clean ISO string, no slicing
         p_ver = doc.add_paragraph()
         p_ver.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        ver_str = (
-            f"版本 {meta.revision_number}  |  {meta.generated_at[:10] if meta.generated_at else ''}"
-        )
+        generated_at = meta.generated_at if meta.generated_at else ""
+        # Extract just the date portion (first 10 chars of ISO string)
+        date_display = generated_at[:10] if len(generated_at) >= 10 else generated_at
+        ver_str = f"版本 {meta.revision_number}  |  {date_display}"
         run = p_ver.add_run(ver_str)
         _set_run_font(run, size=Pt(12), color=RGBColor(0x60, 0x60, 0x60))
 

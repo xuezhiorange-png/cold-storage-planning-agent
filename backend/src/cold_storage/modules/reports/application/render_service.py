@@ -2,12 +2,20 @@
 
 No ORM access, no LLM calls.  Uses repository port, artifact storage,
 and renderers.
+
+P0-4: Real Revision Rendering — ISO 8601 dates, real manifest metadata
+P0-5: Formal Export Rules — verify approved revision
+P0-6: Real Idempotency — fingerprint-based deduplication
+P0-7: Artifact State Machine — pending -> rendering -> completed/failed
+P0-8: Download Safety — verify_download() with integrity checks
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from cold_storage.modules.reports.domain.enums import (
@@ -20,6 +28,8 @@ from cold_storage.modules.reports.domain.enums import (
 from cold_storage.modules.reports.domain.errors import (
     ArtifactNotFoundError,
     ExportPermissionError,
+    IdempotencyPayloadConflictError,
+    PathTraversalError,
     RenderError,
     ReportNotFoundError,
 )
@@ -88,6 +98,34 @@ class ReportArtifactRepository:
 
     def rollback(self) -> None:
         raise NotImplementedError
+
+
+def _compute_fingerprint(
+    *,
+    actor: str,
+    report_id: str,
+    revision_number: int,
+    source_content_hash: str,
+    format: str,
+    render_mode: str,
+    template_id: str,
+    template_version: str,
+    template_content_hash: str,
+) -> str:
+    """Compute a deterministic fingerprint for idempotency checking."""
+    payload = {
+        "actor": actor,
+        "report_id": report_id,
+        "revision_number": revision_number,
+        "source_content_hash": source_content_hash,
+        "format": format,
+        "render_mode": render_mode,
+        "template_id": template_id,
+        "template_version": template_version,
+        "template_content_hash": template_content_hash,
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 class ReportRenderService:
@@ -176,19 +214,13 @@ class ReportRenderService:
         if revision is None:
             raise ReportNotFoundError(f"{report_id}/rev/{revision_number}")
 
-        # 3. Validate draft/formal rules
-        self._validate_export_mode(report, render_mode)
+        # 3. Validate draft/formal rules (P0-5)
+        self._validate_export_mode(report, render_mode, revision_number)
 
-        # 4. Idempotency check
-        if idempotency_key and self._artifact_repo:
-            existing = self._artifact_repo.find_artifact_by_idempotency(idempotency_key, report_id)
-            if existing is not None:
-                return existing
-
-        # 5. Find the active template (or specific version)
+        # 4. Find the active template (or specific version)
         template = self._find_template(export_format, template_version)
 
-        # 6. Build render model from revision content
+        # 5. Build render model from revision content
         from cold_storage.modules.reports.application.render_model_builder import (
             build_render_model,
         )
@@ -204,6 +236,31 @@ class ReportRenderService:
             template_code=template.template_code if template else "cold_storage_concept_design",
         )
 
+        # 6. Idempotency check (P0-6)
+        template_id = template.id if template else ""
+        template_version_str = template.version if template else "1.0.0"
+        template_content_hash = template.template_content_hash if template else ""
+
+        if idempotency_key and self._artifact_repo:
+            fingerprint = _compute_fingerprint(
+                actor=actor,
+                report_id=report_id,
+                revision_number=revision_number,
+                source_content_hash=revision.content_hash,
+                format=format,
+                render_mode=mode,
+                template_id=template_id,
+                template_version=template_version_str,
+                template_content_hash=template_content_hash,
+            )
+            existing = self._artifact_repo.find_artifact_by_idempotency(idempotency_key, report_id)
+            if existing is not None:
+                # Check fingerprint match
+                existing_fingerprint = existing.render_manifest_json.get("fingerprint", "")
+                if existing_fingerprint and existing_fingerprint != fingerprint:
+                    raise IdempotencyPayloadConflictError(idempotency_key)
+                return existing
+
         # 7. Create pending artifact
         file_ext = "docx" if export_format == ExportFormat.DOCX else "pdf"
         mime_type = (
@@ -218,8 +275,8 @@ class ReportRenderService:
             report_revision_id=revision.id,
             revision_number=revision_number,
             format=export_format,
-            template_id=template.id if template else "",
-            template_version=template.version if template else "1.0.0",
+            template_id=template_id,
+            template_version=template_version_str,
             schema_version=revision.schema_version,
             file_name=file_name,
             mime_type=mime_type,
@@ -230,15 +287,50 @@ class ReportRenderService:
         if self._artifact_repo:
             self._artifact_repo.save_artifact(artifact)
 
+        # P0-7: Update status to RENDERING
+        artifact = replace(artifact, status=ArtifactStatus.RENDERING)
+        if self._artifact_repo:
+            self._artifact_repo.update_artifact(artifact)
+
         # 8. Render via DocxRenderer or PdfRenderer
+        temp_path: str | None = None
         try:
-            rendered_bytes = self._render_bytes(export_format, render_model, template)
+            rendered_bytes = self._render_bytes(
+                export_format,
+                render_model,
+                template,
+                is_draft=(render_mode == RenderMode.DRAFT),
+            )
 
             # 9. Compute file SHA-256
             file_sha256 = hashlib.sha256(rendered_bytes).hexdigest()
 
-            # 10. Save to artifact storage
-            storage_key = self._storage.put(artifact.id, rendered_bytes, file_name)
+            # 10. Save to temp file first, then finalize (P0-7)
+            temp_path, temp_sha256 = self._storage.put_temp(rendered_bytes, file_name)
+
+            # Verify temp file hash matches
+            if temp_sha256 != file_sha256:
+                self._storage.cleanup_temp(temp_path)
+                raise RenderError(f"SHA-256 mismatch: expected {file_sha256}, got {temp_sha256}")
+
+            # Move to final location
+            storage_key = self._storage.finalize_temp(temp_path, artifact.id, file_name)
+            temp_path = None  # Successfully finalized
+
+            # Build real manifest metadata (P0-4)
+            render_manifest = self._build_render_manifest(
+                export_format=export_format,
+                render_mode=render_mode,
+                template_id=template_id,
+                template_version=template_version_str,
+                template_content_hash=template_content_hash,
+                source_content_hash=revision.content_hash,
+                idempotency_key=idempotency_key,
+                fingerprint=fingerprint if idempotency_key else "",
+                render_settings=render_model.manifest.render_settings
+                if hasattr(render_model.manifest, "render_settings")
+                else {},
+            )
 
             # 11. Update artifact with storage_key, file_size, file_sha256, status=completed
             artifact = replace(
@@ -247,18 +339,27 @@ class ReportRenderService:
                 storage_key=storage_key,
                 file_size_bytes=len(rendered_bytes),
                 file_sha256=file_sha256,
-                render_manifest_json=render_model.manifest.__dict__
-                if hasattr(render_model.manifest, "__dict__")
-                else {},
+                render_manifest_json=render_manifest,
             )
 
             if self._artifact_repo:
-                self._artifact_repo.update_artifact(artifact)
-                self._artifact_repo.commit()
+                try:
+                    self._artifact_repo.commit()
+                except Exception:
+                    # P0-7: DB commit failed after file write — delete the file
+                    import contextlib
+
+                    with contextlib.suppress(Exception):
+                        self._storage.delete(storage_key)
+                    raise
 
             return artifact
 
         except Exception as exc:
+            # P0-7: Cleanup temp file if still present
+            if temp_path is not None:
+                self._storage.cleanup_temp(temp_path)
+
             # 12. On failure: set status=failed, clean up
             artifact = replace(
                 artifact,
@@ -267,8 +368,11 @@ class ReportRenderService:
                 failure_message=str(exc),
             )
             if self._artifact_repo:
-                self._artifact_repo.update_artifact(artifact)
-                self._artifact_repo.commit()
+                try:
+                    self._artifact_repo.update_artifact(artifact)
+                    self._artifact_repo.commit()
+                except Exception:
+                    pass  # Best effort — don't mask the original error
 
             # Clean up any partially written storage
             if artifact.storage_key:
@@ -279,8 +383,45 @@ class ReportRenderService:
 
             raise RenderError(f"Rendering failed: {exc}") from exc
 
-    def _validate_export_mode(self, report: Report, mode: RenderMode) -> None:
-        """Validate that the report status allows the requested export mode."""
+    def _build_render_manifest(
+        self,
+        *,
+        export_format: ExportFormat,
+        render_mode: RenderMode,
+        template_id: str,
+        template_version: str,
+        template_content_hash: str,
+        source_content_hash: str,
+        idempotency_key: str | None,
+        fingerprint: str,
+        render_settings: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Build the render manifest with real metadata (P0-4)."""
+        return {
+            "export_format": export_format.value,
+            "render_mode": render_mode.value,
+            "template_id": template_id,
+            "template_version": template_version,
+            "template_content_hash": template_content_hash,
+            "source_content_hash": source_content_hash,
+            "renderer_name": "cold_storage_renderer",
+            "renderer_version": "1.0.0",
+            "render_settings": render_settings,
+            "idempotency_key": idempotency_key or "",
+            "fingerprint": fingerprint,
+        }
+
+    def _validate_export_mode(
+        self,
+        report: Report,
+        mode: RenderMode,
+        revision_number: int,
+    ) -> None:
+        """Validate that the report status allows the requested export mode.
+
+        P0-5: For formal mode, verify the revision being exported is the
+        APPROVED revision (latest revision).
+        """
         allowed = (
             DRAFT_EXPORT_STATUSES
             if mode == RenderMode.DRAFT
@@ -290,6 +431,15 @@ class ReportRenderService:
         )
         if report.status not in allowed:
             raise ExportPermissionError(report.id, mode.value, report.status.value)
+
+        # P0-5: Formal mode requires exporting the latest/approved revision
+        if mode == RenderMode.FORMAL and revision_number != report.current_revision_number:
+            raise ExportPermissionError(
+                report.id,
+                mode.value,
+                f"Formal export requires latest revision ({report.current_revision_number}), "
+                f"got {revision_number}",
+            )
 
     def _find_template(
         self,
@@ -319,23 +469,27 @@ class ReportRenderService:
         format: ExportFormat,  # noqa: A002
         render_model: Any,
         template: ReportTemplate | None,
+        *,
+        is_draft: bool = False,
     ) -> bytes:
-        """Render the model to bytes using the appropriate renderer."""
+        """Render the model to bytes using the appropriate renderer.
 
+        P0-4: Pass is_draft flag to renderer.
+        """
         if format == ExportFormat.DOCX:
             from cold_storage.modules.reports.renderers.docx_renderer import (
                 DocxRenderer,
             )
 
             docx_renderer = DocxRenderer()
-            return docx_renderer.render(render_model)
+            return docx_renderer.render(render_model, is_draft=is_draft)
         elif format == ExportFormat.PDF:
             from cold_storage.modules.reports.renderers.pdf_renderer import (
                 PdfRenderer,
             )
 
             pdf_renderer = PdfRenderer()
-            return pdf_renderer.render(render_model)
+            return pdf_renderer.render(render_model, is_draft=is_draft)
         else:
             raise RenderError(f"Unsupported format: {format}")
 
@@ -372,6 +526,83 @@ class ReportRenderService:
             return []
 
         return self._artifact_repo.list_artifacts(report_id)
+
+    def verify_download(
+        self,
+        report_id: str,
+        artifact_id: str,
+        actor: str,
+    ) -> ReportExportArtifact:
+        """Verify download safety (P0-8).
+
+        Checks:
+        1. Artifact belongs to the report
+        2. Actor has permission
+        3. Status is COMPLETED
+        4. storage_key is non-empty
+        5. File exists on disk
+        6. File size matches database
+        7. SHA-256 matches database
+
+        Returns
+        -------
+        ReportExportArtifact
+            The verified artifact.
+
+        Raises
+        ------
+        ReportNotFoundError
+            If the report is not found or actor has no access.
+        ArtifactNotFoundError
+            If the artifact is not found or doesn't belong to the report.
+        RenderError
+            If the artifact is not ready or integrity check fails.
+        PathTraversalError
+            If the storage_key contains path traversal characters.
+        """
+        # 1 & 2: Get artifact with permission check
+        artifact = self.get_artifact(report_id, artifact_id, actor)
+
+        # 3: Status must be COMPLETED
+        if artifact.status != ArtifactStatus.COMPLETED:
+            raise RenderError(
+                f"Artifact {artifact_id} is not ready for download "
+                f"(status: {artifact.status.value})"
+            )
+
+        # 4: storage_key must be non-empty
+        if not artifact.storage_key:
+            raise RenderError(f"Artifact {artifact_id} has no storage key")
+
+        # 5: File exists on disk
+        try:
+            file_path = self._storage.get_path(artifact.storage_key)
+        except (FileNotFoundError, PathTraversalError) as exc:
+            raise RenderError(f"Artifact file not found: {artifact.storage_key}") from exc
+
+        path = Path(file_path)
+        if not path.is_file():
+            raise RenderError(f"Artifact file does not exist: {file_path}")
+
+        # 6: File size matches database
+        actual_size = path.stat().st_size
+        if actual_size != artifact.file_size_bytes:
+            raise RenderError(
+                f"File size mismatch: expected {artifact.file_size_bytes}, got {actual_size}"
+            )
+
+        # 7: SHA-256 matches database
+        sha256 = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                sha256.update(chunk)
+        actual_hash = sha256.hexdigest()
+        if actual_hash != artifact.file_sha256:
+            raise RenderError(
+                f"SHA-256 mismatch: expected {artifact.file_sha256}, got {actual_hash}"
+            )
+
+        return artifact
 
     def get_artifact_path(self, storage_key: str) -> str:
         """Get the file path for an artifact download."""

@@ -7,6 +7,7 @@ PDFRenderer.  No engineering computation, no ORM access.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from cold_storage.modules.reports.domain.render_model import (
@@ -471,6 +472,12 @@ def build_render_model(
 
     schema_version = meta_section.get("schema_version", template_version)
 
+    # Ensure generated_at is always an ISO 8601 string
+    if isinstance(generated_at, datetime):
+        generated_at_str = generated_at.isoformat()
+    else:
+        generated_at_str = str(generated_at) if generated_at else ""
+
     metadata = RenderMetadata(
         report_id=report_id,
         project_name=project_name,
@@ -479,7 +486,7 @@ def build_render_model(
         revision_number=revision_number,
         content_hash=content_hash,
         content_hash_short=content_hash[:8] if content_hash else "",
-        generated_at=generated_at,
+        generated_at=generated_at_str,
         generated_by=generated_by,
         template_version=template_version,
         template_code=template_code,

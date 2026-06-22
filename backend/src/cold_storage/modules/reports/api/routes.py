@@ -1,4 +1,13 @@
-"""Report API routes — minimal JSON API."""
+"""Report API routes — minimal JSON API.
+
+Two routers are exported:
+- ``reports_router``: the main router that includes both sub-routers below.
+- ``reports_api_router``: ``/api/v1/reports`` — CRUD, generation, review, render.
+- ``reports_template_router``: ``/api/v1/report-templates`` — template management.
+
+Template endpoints are on a separate prefix to prevent ``/{report_id}``
+from catching ``/templates``.
+"""
 
 from __future__ import annotations
 
@@ -6,113 +15,275 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
+from cold_storage.modules.reports.application.render_service import (
+    ReportRenderService,
+)
 from cold_storage.modules.reports.application.service import ReportService
 from cold_storage.modules.reports.domain.enums import ReportType
 from cold_storage.modules.reports.domain.errors import (
+    ArtifactNotFoundError,
     ConcurrencyConflictError,
+    ExportPermissionError,
     InvalidStatusTransitionError,
     QualityBlockerError,
+    RenderError,
     ReportNotFoundError,
     SchemaValidationError,
 )
 
-router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
+# ---------------------------------------------------------------------------
+# DI stubs — overridden by FastAPI dependency_overrides in app.py
+# ---------------------------------------------------------------------------
 
 
 def _get_service() -> ReportService:
     raise RuntimeError("ReportService not wired")
 
 
+def _get_render_service() -> ReportRenderService:
+    raise RuntimeError("ReportRenderService not wired")
+
+
+def _get_template_repo() -> Any:
+    raise RuntimeError("ReportTemplateRepository not wired")
+
+
 def _get_actor() -> str:
     return "system"
 
 
-@router.post("")
+# ---------------------------------------------------------------------------
+# Pydantic request / response models
+# ---------------------------------------------------------------------------
+
+
+class CreateReportRequest(BaseModel):
+    project_id: str
+    project_version_id: str
+    report_type: str = "cold_storage_concept_design"
+    idempotency_key: str | None = None
+
+
+class CreateReportResponse(BaseModel):
+    report_id: str
+    status: str
+
+
+class ReportListItem(BaseModel):
+    id: str
+    status: str
+
+
+class ListReportsResponse(BaseModel):
+    reports: list[ReportListItem]
+
+
+class ReportDetailResponse(BaseModel):
+    id: str
+    status: str
+    revision_number: int
+
+
+class RevisionListItem(BaseModel):
+    revision_number: int
+    content_hash: str
+
+
+class ListRevisionsResponse(BaseModel):
+    revisions: list[RevisionListItem]
+
+
+class RevisionDetailResponse(BaseModel):
+    revision_number: int
+    content_hash: str
+
+
+class GenerateRevisionRequest(BaseModel):
+    idempotency_key: str | None = None
+
+
+class RenderRequest(BaseModel):
+    format: str = "docx"
+    template_version: str | None = None
+    mode: str = "draft"
+    idempotency_key: str | None = None
+
+
+class ArtifactResponse(BaseModel):
+    artifact_id: str
+    status: str
+    format: str
+    file_name: str
+    file_size_bytes: int
+    file_sha256: str
+
+
+class ArtifactListItem(BaseModel):
+    artifact_id: str
+    status: str
+    format: str
+    file_name: str
+    file_size_bytes: int
+    revision_number: int
+    generated_at: str
+
+
+class ListExportsResponse(BaseModel):
+    exports: list[ArtifactListItem]
+
+
+class ArtifactDetailResponse(BaseModel):
+    artifact_id: str
+    status: str
+    format: str
+    file_name: str
+    file_size_bytes: int
+    file_sha256: str
+    revision_number: int
+    template_version: str
+    generated_at: str
+
+
+class ReviewActionRequest(BaseModel):
+    comment: str = ""
+
+
+class ReviewActionResponse(BaseModel):
+    status: str
+
+
+class CreateTemplateRequest(BaseModel):
+    template_code: str
+    report_type: str = "cold_storage_concept_design"
+    format: str = "docx"
+    version: str = "1.0.0"
+    schema_version: str = "cold_storage_concept_design@1.0.0"
+    locale: str = "zh-CN"
+    manifest_json: dict[str, Any] | None = None
+
+
+class TemplateResponse(BaseModel):
+    template_id: str
+    template_code: str
+    version: str
+    status: str
+
+
+class TemplateListItem(BaseModel):
+    template_id: str
+    template_code: str
+    version: str
+    format: str
+    status: str
+
+
+class ListTemplatesResponse(BaseModel):
+    templates: list[TemplateListItem]
+
+
+class TemplateStatusResponse(BaseModel):
+    template_id: str
+    status: str
+
+
+# ---------------------------------------------------------------------------
+# Reports router  (/api/v1/reports)
+# ---------------------------------------------------------------------------
+
+reports_api_router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
+
+
+@reports_api_router.post("", response_model=CreateReportResponse)
 def create_report(
-    body: dict[str, Any],
+    body: CreateReportRequest,
     service: ReportService = Depends(_get_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> CreateReportResponse:
     try:
         report = service.create_report(
-            project_id=body["project_id"],
-            project_version_id=body["project_version_id"],
-            report_type=ReportType(
-                body.get("report_type", "cold_storage_concept_design"),
-            ),
+            project_id=body.project_id,
+            project_version_id=body.project_version_id,
+            report_type=ReportType(body.report_type),
             actor=actor,
-            idempotency_key=body.get("idempotency_key"),
+            idempotency_key=body.idempotency_key,
         )
-        return {"report_id": report.id, "status": report.status.value}
+        return CreateReportResponse(report_id=report.id, status=report.status.value)
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("")
+@reports_api_router.get("", response_model=ListReportsResponse)
 def list_reports(
     project_id: str | None = Query(None),
     service: ReportService = Depends(_get_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> ListReportsResponse:
     reports = service.list_reports(project_id=project_id, actor=actor)
-    return {
-        "reports": [{"id": r.id, "status": r.status.value} for r in reports],
-    }
+    return ListReportsResponse(
+        reports=[ReportListItem(id=r.id, status=r.status.value) for r in reports],
+    )
 
 
-@router.get("/{report_id}")
+@reports_api_router.get("/{report_id}", response_model=ReportDetailResponse)
 def get_report(
     report_id: str,
     service: ReportService = Depends(_get_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> ReportDetailResponse:
     try:
         r = service.get_report(report_id, actor)
-        return {
-            "id": r.id,
-            "status": r.status.value,
-            "revision_number": r.current_revision_number,
-        }
+        return ReportDetailResponse(
+            id=r.id,
+            status=r.status.value,
+            revision_number=r.current_revision_number,
+        )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/{report_id}/revisions")
+@reports_api_router.get("/{report_id}/revisions", response_model=ListRevisionsResponse)
 def list_revisions(
     report_id: str,
     service: ReportService = Depends(_get_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> ListRevisionsResponse:
     try:
         revs = service.list_revisions(report_id, actor)
-        return {
-            "revisions": [
-                {"revision_number": r.revision_number, "content_hash": r.content_hash} for r in revs
+        return ListRevisionsResponse(
+            revisions=[
+                RevisionListItem(revision_number=r.revision_number, content_hash=r.content_hash)
+                for r in revs
             ],
-        }
+        )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/{report_id}/revisions/{revision_number}")
+@reports_api_router.get(
+    "/{report_id}/revisions/{revision_number}",
+    response_model=RevisionDetailResponse,
+)
 def get_revision(
     report_id: str,
     revision_number: int,
     service: ReportService = Depends(_get_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> RevisionDetailResponse:
     try:
         rev = service.get_revision(report_id, revision_number, actor)
-        return {"revision_number": rev.revision_number, "content_hash": rev.content_hash}
+        return RevisionDetailResponse(
+            revision_number=rev.revision_number, content_hash=rev.content_hash
+        )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/{report_id}/generate")
+@reports_api_router.post("/{report_id}/generate")
 def generate_revision(
     report_id: str,
-    body: dict[str, Any] | None = None,
+    body: GenerateRevisionRequest | None = None,
     service: ReportService = Depends(_get_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> dict[str, Any]:
@@ -120,7 +291,7 @@ def generate_revision(
         rev = service.generate_revision(
             report_id,
             actor,
-            idempotency_key=(body or {}).get("idempotency_key"),
+            idempotency_key=(body.idempotency_key if body else None),
         )
         return {"revision_number": rev.revision_number, "content_hash": rev.content_hash}
     except ReportNotFoundError as exc:
@@ -136,14 +307,14 @@ def generate_revision(
 def _review_endpoint(action_name: str) -> Any:
     def endpoint(
         report_id: str,
-        body: dict[str, Any] | None = None,
+        body: ReviewActionRequest | None = None,
         service: ReportService = Depends(_get_service),  # noqa: B008
         actor: str = Depends(_get_actor),  # noqa: B008
-    ) -> dict[str, Any]:
+    ) -> ReviewActionResponse:
         try:
             method = getattr(service, action_name)
-            r = method(report_id, actor, comment=(body or {}).get("comment", ""))
-            return {"status": r.status.value}
+            r = method(report_id, actor, comment=(body.comment if body else ""))
+            return ReviewActionResponse(status=r.status.value)
         except ReportNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except InvalidStatusTransitionError as exc:
@@ -156,14 +327,14 @@ def _review_endpoint(action_name: str) -> Any:
     return endpoint
 
 
-router.post("/{report_id}/submit-review")(_review_endpoint("submit_review"))
-router.post("/{report_id}/request-changes")(_review_endpoint("request_changes"))
-router.post("/{report_id}/mark-reviewed")(_review_endpoint("mark_reviewed"))
-router.post("/{report_id}/approve")(_review_endpoint("approve"))
-router.post("/{report_id}/archive")(_review_endpoint("archive"))
+reports_api_router.post("/{report_id}/submit-review")(_review_endpoint("submit_review"))
+reports_api_router.post("/{report_id}/request-changes")(_review_endpoint("request_changes"))
+reports_api_router.post("/{report_id}/mark-reviewed")(_review_endpoint("mark_reviewed"))
+reports_api_router.post("/{report_id}/approve")(_review_endpoint("approve"))
+reports_api_router.post("/{report_id}/archive")(_review_endpoint("archive"))
 
 
-@router.get("/{report_id}/export")
+@reports_api_router.get("/{report_id}/export")
 def export_json(
     report_id: str,
     revision_number: int = Query(...),
@@ -182,42 +353,36 @@ def export_json(
 # ===================================================================
 
 
-def _get_render_service() -> Any:
-    raise RuntimeError("ReportRenderService not wired")
-
-
-@router.post("/{report_id}/revisions/{revision_number}/render")
+@reports_api_router.post(
+    "/{report_id}/revisions/{revision_number}/render",
+    response_model=ArtifactResponse,
+)
 def render_report_endpoint(
     report_id: str,
     revision_number: int,
-    body: dict[str, Any],
-    render_service: Any = Depends(_get_render_service),  # noqa: B008
+    body: RenderRequest,
+    render_service: ReportRenderService = Depends(_get_render_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> ArtifactResponse:
     """Render a report revision to DOCX or PDF."""
-    from cold_storage.modules.reports.domain.errors import (
-        ExportPermissionError,
-        RenderError,
-    )
-
     try:
         artifact = render_service.render(
             report_id=report_id,
             revision_number=revision_number,
-            format=body.get("format", "docx"),
-            template_version=body.get("template_version"),
-            mode=body.get("mode", "draft"),
+            format=body.format,
+            template_version=body.template_version,
+            mode=body.mode,
             actor=actor,
-            idempotency_key=body.get("idempotency_key"),
+            idempotency_key=body.idempotency_key,
         )
-        return {
-            "artifact_id": artifact.id,
-            "status": artifact.status.value,
-            "format": artifact.format.value,
-            "file_name": artifact.file_name,
-            "file_size_bytes": artifact.file_size_bytes,
-            "file_sha256": artifact.file_sha256,
-        }
+        return ArtifactResponse(
+            artifact_id=artifact.id,
+            status=artifact.status.value,
+            format=artifact.format.value,
+            file_name=artifact.file_name,
+            file_size_bytes=artifact.file_size_bytes,
+            file_sha256=artifact.file_sha256,
+        )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ExportPermissionError as exc:
@@ -226,78 +391,83 @@ def render_report_endpoint(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.get("/{report_id}/exports")
+@reports_api_router.get("/{report_id}/exports", response_model=ListExportsResponse)
 def list_exports(
     report_id: str,
-    render_service: Any = Depends(_get_render_service),  # noqa: B008
+    render_service: ReportRenderService = Depends(_get_render_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> ListExportsResponse:
     """List all export artifacts for a report."""
     try:
         artifacts = render_service.list_artifacts(report_id, actor)
-        return {
-            "exports": [
-                {
-                    "artifact_id": a.id,
-                    "status": a.status.value,
-                    "format": a.format.value,
-                    "file_name": a.file_name,
-                    "file_size_bytes": a.file_size_bytes,
-                    "revision_number": a.revision_number,
-                    "generated_at": a.generated_at.isoformat()
+        return ListExportsResponse(
+            exports=[
+                ArtifactListItem(
+                    artifact_id=a.id,
+                    status=a.status.value,
+                    format=a.format.value,
+                    file_name=a.file_name,
+                    file_size_bytes=a.file_size_bytes,
+                    revision_number=a.revision_number,
+                    generated_at=a.generated_at.isoformat()
                     if hasattr(a.generated_at, "isoformat")
                     else str(a.generated_at),
-                }
+                )
                 for a in artifacts
             ],
-        }
+        )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/{report_id}/exports/{artifact_id}")
+@reports_api_router.get(
+    "/{report_id}/exports/{artifact_id}",
+    response_model=ArtifactDetailResponse,
+)
 def get_export(
     report_id: str,
     artifact_id: str,
-    render_service: Any = Depends(_get_render_service),  # noqa: B008
+    render_service: ReportRenderService = Depends(_get_render_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> ArtifactDetailResponse:
     """Get a specific export artifact."""
-    from cold_storage.modules.reports.domain.errors import ArtifactNotFoundError
-
     try:
         artifact = render_service.get_artifact(report_id, artifact_id, actor)
-        return {
-            "artifact_id": artifact.id,
-            "status": artifact.status.value,
-            "format": artifact.format.value,
-            "file_name": artifact.file_name,
-            "file_size_bytes": artifact.file_size_bytes,
-            "file_sha256": artifact.file_sha256,
-            "revision_number": artifact.revision_number,
-            "template_version": artifact.template_version,
-            "generated_at": artifact.generated_at.isoformat()
+        return ArtifactDetailResponse(
+            artifact_id=artifact.id,
+            status=artifact.status.value,
+            format=artifact.format.value,
+            file_name=artifact.file_name,
+            file_size_bytes=artifact.file_size_bytes,
+            file_sha256=artifact.file_sha256,
+            revision_number=artifact.revision_number,
+            template_version=artifact.template_version,
+            generated_at=artifact.generated_at.isoformat()
             if hasattr(artifact.generated_at, "isoformat")
             else str(artifact.generated_at),
-        }
+        )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ArtifactNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/{report_id}/exports/{artifact_id}/download")
+@reports_api_router.get("/{report_id}/exports/{artifact_id}/download")
 def download_export(
     report_id: str,
     artifact_id: str,
-    render_service: Any = Depends(_get_render_service),  # noqa: B008
+    render_service: ReportRenderService = Depends(_get_render_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> FileResponse:
     """Download an export artifact file."""
-    from cold_storage.modules.reports.domain.errors import ArtifactNotFoundError
+    from cold_storage.modules.reports.domain.errors import (
+        PathTraversalError,
+        RenderError,
+    )
 
     try:
-        artifact = render_service.get_artifact(report_id, artifact_id, actor)
+        # P0-8: Use verify_download for safety checks
+        artifact = render_service.verify_download(report_id, artifact_id, actor)
         file_path = render_service.get_artifact_path(artifact.storage_key)
         return FileResponse(
             path=file_path,
@@ -308,25 +478,27 @@ def download_export(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ArtifactNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PathTraversalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RenderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 # ===================================================================
-# Template endpoints (Task 9B)
+# Template endpoints  (/api/v1/report-templates)
 # ===================================================================
 
-
-def _get_template_repo() -> Any:
-    raise RuntimeError("ReportTemplateRepository not wired")
+reports_template_router = APIRouter(prefix="/api/v1/report-templates", tags=["report-templates"])
 
 
-@router.post("/templates")
+@reports_template_router.post("", response_model=TemplateResponse)
 def create_template(
-    body: dict[str, Any],
+    body: CreateTemplateRequest,
     template_repo: Any = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> TemplateResponse:
     """Create a new report template."""
     from cold_storage.modules.reports.domain.enums import (
         ExportFormat,
@@ -336,59 +508,56 @@ def create_template(
 
     try:
         template = ReportTemplate.create(
-            template_code=body["template_code"],
-            report_type=ReportType(body.get("report_type", "cold_storage_concept_design")),
-            format=ExportFormat(body.get("format", "docx")),
-            version=body.get("version", "1.0.0"),
-            schema_version=body.get("schema_version", "cold_storage_concept_design@1.0.0"),
-            locale=body.get("locale", "zh-CN"),
-            manifest_json=body.get("manifest_json", {}),
+            template_code=body.template_code,
+            report_type=ReportType(body.report_type),
+            format=ExportFormat(body.format),
+            version=body.version,
+            schema_version=body.schema_version,
+            locale=body.locale,
+            manifest_json=body.manifest_json or {},
             created_by=actor,
         )
         template_repo.save_template(template)
         template_repo.commit()
-        return {
-            "template_id": template.id,
-            "template_code": template.template_code,
-            "version": template.version,
-            "status": template.status.value,
-        }
+        return TemplateResponse(
+            template_id=template.id,
+            template_code=template.template_code,
+            version=template.version,
+            status=template.status.value,
+        )
     except Exception as exc:
         template_repo.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/templates")
+@reports_template_router.get("", response_model=ListTemplatesResponse)
 def list_templates(
     template_code: str | None = Query(None),
     format: str | None = Query(None),  # noqa: A002
     template_repo: Any = Depends(_get_template_repo),  # noqa: B008
-) -> dict[str, Any]:
+) -> ListTemplatesResponse:
     """List report templates."""
-    from cold_storage.modules.reports.domain.enums import ExportFormat
-
-    fmt = ExportFormat(format) if format else None
-    templates = template_repo.list_templates(template_code=template_code, format=fmt)
-    return {
-        "templates": [
-            {
-                "template_id": t.id,
-                "template_code": t.template_code,
-                "version": t.version,
-                "format": t.format.value,
-                "status": t.status.value,
-            }
+    templates = template_repo.list_templates(template_code=template_code, fmt=format)
+    return ListTemplatesResponse(
+        templates=[
+            TemplateListItem(
+                template_id=t.id,
+                template_code=t.template_code,
+                version=t.version,
+                format=t.format.value,
+                status=t.status.value,
+            )
             for t in templates
         ],
-    }
+    )
 
 
-@router.post("/templates/{template_id}/activate")
+@reports_template_router.post("/{template_id}/activate", response_model=TemplateStatusResponse)
 def activate_template(
     template_id: str,
     template_repo: Any = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> TemplateStatusResponse:
     """Activate a report template."""
     from dataclasses import replace as dc_replace
     from datetime import UTC, datetime
@@ -408,7 +577,9 @@ def activate_template(
             raise TemplateActivationError(template_id, "Cannot activate a retired template")
 
         # Deactivate other active templates for the same code and format
-        existing_active = template_repo.get_active_template(template.template_code, template.format)
+        existing_active = template_repo.get_active_template(
+            template.template_code, template.format.value
+        )
         if existing_active and existing_active.id != template_id:
             deactivated = dc_replace(existing_active, status=TemplateStatus.DRAFT)
             template_repo.update_template(deactivated)
@@ -420,10 +591,7 @@ def activate_template(
         )
         template_repo.update_template(activated)
         template_repo.commit()
-        return {
-            "template_id": template_id,
-            "status": "active",
-        }
+        return TemplateStatusResponse(template_id=template_id, status="active")
     except TemplateActivationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPException:
@@ -433,12 +601,12 @@ def activate_template(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/templates/{template_id}/retire")
+@reports_template_router.post("/{template_id}/retire", response_model=TemplateStatusResponse)
 def retire_template(
     template_id: str,
     template_repo: Any = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
-) -> dict[str, Any]:
+) -> TemplateStatusResponse:
     """Retire a report template."""
     from dataclasses import replace as dc_replace
 
@@ -455,12 +623,21 @@ def retire_template(
         retired = dc_replace(template, status=TemplateStatus.RETIRED)
         template_repo.update_template(retired)
         template_repo.commit()
-        return {
-            "template_id": template_id,
-            "status": "retired",
-        }
+        return TemplateStatusResponse(template_id=template_id, status="retired")
     except HTTPException:
         raise
     except Exception as exc:
         template_repo.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# Combined router
+# ---------------------------------------------------------------------------
+
+reports_router = APIRouter()
+reports_router.include_router(reports_api_router)
+reports_router.include_router(reports_template_router)
+
+# Backward compatibility alias
+router = reports_api_router

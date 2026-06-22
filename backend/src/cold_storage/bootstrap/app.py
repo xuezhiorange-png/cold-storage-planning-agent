@@ -1,5 +1,6 @@
 """FastAPI application factory."""
 
+import logging
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -769,7 +770,10 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         cooling_load = snapshot.get("cooling_load")
         if not cooling_load:
             return {
-                "error": {"code": "NO_CALCULATION", "message": "No cooling load calculation found"}
+                "error": {
+                    "code": "NO_CALCULATION",
+                    "message": "No cooling load calculation found",
+                }
             }
         result: dict[str, Any] = cooling_load
         return result
@@ -789,6 +793,111 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
         except Exception as exc:
             return {"error": {"code": "CALCULATION_ERROR", "message": str(exc)}}
+
+    # -----------------------------------------------------------------------
+    # Reports module DI wiring (P0-1)
+    # -----------------------------------------------------------------------
+    from cold_storage.modules.reports.api.routes import reports_router
+    from cold_storage.modules.reports.application.render_service import (
+        ReportRenderService,
+    )
+    from cold_storage.modules.reports.application.service import ReportService
+    from cold_storage.modules.reports.infrastructure.artifact_storage import (
+        ReportArtifactStorage,
+    )
+    from cold_storage.modules.reports.infrastructure.repository import (
+        SQLReportRepository,
+    )
+
+    def _get_reports_db_session() -> Generator[SASession, None, None]:
+        """Per-request SQLAlchemy session for the reports module."""
+        engine = get_engine()
+        session = SASession(bind=engine, expire_on_commit=False)
+        try:
+            yield session
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def _get_report_service(
+        db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
+    ) -> ReportService:
+        from cold_storage.modules.reports.application.assembler import (
+            ReportAssembler,
+        )
+        from cold_storage.modules.reports.infrastructure.real_data_provider import (
+            RealReportDataProvider,
+        )
+
+        repo = SQLReportRepository(db_session)
+        data_provider = RealReportDataProvider()
+        assembler = ReportAssembler(data_provider=data_provider)
+        return ReportService(repository=repo, assembler=assembler)
+
+    def _get_report_render_service(
+        db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
+    ) -> ReportRenderService:
+        repo = SQLReportRepository(db_session)
+        artifact_storage = ReportArtifactStorage(base_dir="data/report_artifacts")
+        return ReportRenderService(
+            repository=repo,
+            storage=artifact_storage,
+            template_repo=repo,  # type: ignore[arg-type]
+            artifact_repo=repo,  # type: ignore[arg-type]
+        )
+
+    def _get_report_template_repo(
+        db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
+    ) -> SQLReportRepository:
+        return SQLReportRepository(db_session)
+
+    # Wire DI overrides
+    from cold_storage.modules.reports.api.routes import (
+        _get_render_service as _reports_render_stub,
+    )
+    from cold_storage.modules.reports.api.routes import (
+        _get_service as _reports_service_stub,
+    )
+    from cold_storage.modules.reports.api.routes import (
+        _get_template_repo as _reports_template_stub,
+    )
+
+    app.dependency_overrides[_reports_service_stub] = _get_report_service
+    app.dependency_overrides[_reports_render_stub] = _get_report_render_service
+    app.dependency_overrides[_reports_template_stub] = _get_report_template_repo
+
+    # Register report routes
+    app.include_router(reports_router)
+
+    # Seed default templates (P0-3) — lazy, only if engine is available
+    _seeded = False
+
+    @app.on_event("startup")
+    def _seed_report_templates() -> None:
+        nonlocal _seeded
+        if _seeded:
+            return
+        try:
+            engine = get_engine()
+        except RuntimeError:
+            return  # dependencies not initialized (e.g. in tests)
+        from cold_storage.modules.reports.infrastructure.template_seed import (
+            seed_default_templates,
+        )
+
+        seed_session = SASession(bind=engine, expire_on_commit=False)
+        try:
+            seed_repo = SQLReportRepository(seed_session)
+            seed_default_templates(seed_repo)
+            _seeded = True
+        except Exception:
+            _logger = logging.getLogger(__name__)
+            _logger.exception("Failed to seed default report templates")
+            seed_session.rollback()
+        finally:
+            seed_session.close()
 
     return app
 

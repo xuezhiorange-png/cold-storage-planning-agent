@@ -10,6 +10,8 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -194,3 +196,112 @@ class ReportArtifactStorage:
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()
+
+    # ------------------------------------------------------------------
+    # P0-7: Temp file methods for atomic artifact writes
+    # ------------------------------------------------------------------
+
+    def put_temp(self, data: bytes, file_name: str) -> tuple[str, str]:
+        """Write data to a temp file and return (temp_path, sha256).
+
+        The temp file is created in the base_dir for easy cleanup.
+        SHA-256 is computed and returned alongside the path.
+
+        Parameters
+        ----------
+        data:
+            Raw file bytes to store.
+        file_name:
+            Original file name (used for temp file suffix).
+
+        Returns
+        -------
+        tuple[str, str]
+            (temp_file_path, sha256_hex_digest)
+        """
+        if not data:
+            raise ValueError("Artifact data must not be empty")
+
+        safe_name = _sanitize_file_name(file_name)
+        # Create a unique temp file in the base directory
+        fd, temp_path = tempfile.mkstemp(
+            suffix=f"_{safe_name}",
+            prefix="art_",
+            dir=str(self._base_dir),
+        )
+        try:
+            os.write(fd, data)
+        finally:
+            os.close(fd)
+
+        # Verify SHA-256
+        sha256_hash = self._compute_sha256(Path(temp_path))
+
+        return temp_path, sha256_hash
+
+    def finalize_temp(self, temp_path: str, artifact_id: str, file_name: str) -> str:
+        """Move temp file to final artifact location.
+
+        Parameters
+        ----------
+        temp_path:
+            Path to the temp file (from put_temp).
+        artifact_id:
+            The artifact UUID (used for directory structure).
+        file_name:
+            Original file name (will be sanitized).
+
+        Returns
+        -------
+        str
+            Storage key (UUID-based) for later retrieval.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the temp file does not exist.
+        ValueError
+            If the temp file is empty.
+        """
+        temp = Path(temp_path)
+        if not temp.is_file():
+            raise FileNotFoundError(f"Temp file not found: {temp_path}")
+
+        file_size = temp.stat().st_size
+        if file_size == 0:
+            raise ValueError("Temp file is empty")
+
+        storage_key = str(uuid.uuid4())
+        safe_name = _sanitize_file_name(file_name)
+        artifact_dir = self._base_dir / artifact_id
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        final_path = artifact_dir / f"{storage_key}_{safe_name}"
+
+        # Move the temp file to the final location
+        shutil.move(str(temp), str(final_path))
+
+        # SHA-256 verification after move
+        actual_hash = self._compute_sha256(final_path)
+        expected_hash = hashlib.sha256(final_path.read_bytes()).hexdigest()
+        if actual_hash != expected_hash:
+            # Clean up on verification failure
+            final_path.unlink(missing_ok=True)
+            raise ValueError(
+                f"SHA-256 verification failed after move: expected "
+                f"{expected_hash}, got {actual_hash}"
+            )
+
+        return storage_key
+
+    def cleanup_temp(self, temp_path: str) -> None:
+        """Delete a temp file (best-effort, no error if missing).
+
+        Parameters
+        ----------
+        temp_path:
+            Path to the temp file to delete.
+        """
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            Path(temp_path).unlink(missing_ok=True)

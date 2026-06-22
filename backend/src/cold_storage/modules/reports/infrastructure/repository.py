@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import UTC
-from typing import Any, cast
+from typing import Any
 
 import sqlalchemy as sa
 
 from cold_storage.modules.reports.application.service import ReportRepository
 from cold_storage.modules.reports.domain.enums import (
+    ArtifactStatus,
     ExportFormat,
     ReportStatus,
     ReportType,
     SourceType,
+    TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import ConcurrencyConflictError
 from cold_storage.modules.reports.domain.models import (
@@ -32,6 +33,64 @@ from cold_storage.modules.reports.infrastructure.orm import (
     ReportSourceReferenceRecord,
     ReportTemplateRecord,
 )
+
+# ---------------------------------------------------------------------------
+# ORM -> Domain converters
+# ---------------------------------------------------------------------------
+
+
+def _parse_dt(v: Any) -> Any:
+    """Parse an ISO datetime string to a datetime object, or pass through."""
+    if isinstance(v, str):
+        from datetime import datetime as _dt
+
+        return _dt.fromisoformat(v)
+    return v
+
+
+def _to_template_domain(rec: ReportTemplateRecord) -> ReportTemplate:
+    """Convert a ReportTemplateRecord ORM to a domain ReportTemplate."""
+    return ReportTemplate(
+        id=rec.id,
+        template_code=rec.template_code,
+        report_type=ReportType(rec.report_type),
+        format=ExportFormat(rec.format),
+        version=rec.version,
+        status=TemplateStatus(rec.status),
+        schema_version=rec.schema_version,
+        locale=rec.locale,
+        manifest_json=rec.manifest_json or {},
+        template_content_hash=rec.template_content_hash,
+        created_by=rec.created_by,
+        created_at=_parse_dt(rec.created_at),
+        activated_at=_parse_dt(rec.activated_at),
+    )
+
+
+def _to_artifact_domain(rec: ReportExportArtifactRecord) -> ReportExportArtifact:
+    """Convert a ReportExportArtifactRecord ORM to a domain ReportExportArtifact."""
+    return ReportExportArtifact(
+        id=rec.id,
+        report_id=rec.report_id,
+        report_revision_id=rec.report_revision_id,
+        revision_number=rec.revision_number,
+        format=ExportFormat(rec.format),
+        template_id=rec.template_id,
+        template_version=rec.template_version,
+        schema_version=rec.schema_version,
+        status=ArtifactStatus(rec.status),
+        storage_key=rec.storage_key,
+        file_name=rec.file_name,
+        mime_type=rec.mime_type,
+        file_size_bytes=rec.file_size_bytes,
+        file_sha256=rec.file_sha256,
+        source_content_hash=rec.source_content_hash,
+        render_manifest_json=rec.render_manifest_json or {},
+        generated_by=rec.generated_by,
+        generated_at=_parse_dt(rec.generated_at),
+        failure_code=rec.failure_code,
+        failure_message=rec.failure_message,
+    )
 
 
 class SQLReportRepository(ReportRepository):
@@ -307,80 +366,54 @@ class SQLReportRepository(ReportRepository):
         )
         self._session.add(rec)
 
-    def get_template(self, template_id: str) -> ReportTemplateRecord | None:
+    def get_template(self, template_id: str) -> ReportTemplate | None:
         rec = self._session.get(ReportTemplateRecord, template_id)
-        return cast(ReportTemplateRecord | None, rec)
+        if rec is None:
+            return None
+        return _to_template_domain(rec)
 
-    def get_active_template(
-        self, report_type: str, fmt: str, version: str | None = None
-    ) -> ReportTemplateRecord | None:
-        from cold_storage.modules.reports.domain.enums import TemplateStatus
-
+    def get_active_template(self, template_code: str, fmt: str) -> ReportTemplate | None:
         stmt = (
             sa.select(ReportTemplateRecord)
             .where(
-                ReportTemplateRecord.report_type == report_type,
+                ReportTemplateRecord.template_code == template_code,
                 ReportTemplateRecord.format == fmt,
                 ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
             )
             .order_by(ReportTemplateRecord.created_at.desc())
             .limit(1)
         )
-        return cast(ReportTemplateRecord | None, self._session.execute(stmt).scalar_one_or_none())
-
-    def list_templates(self, report_type: str | None = None) -> list[ReportTemplateRecord]:
-        stmt = sa.select(ReportTemplateRecord)
-        if report_type:
-            stmt = stmt.where(ReportTemplateRecord.report_type == report_type)
-        stmt = stmt.order_by(ReportTemplateRecord.created_at.desc())
-        return list(self._session.execute(stmt).scalars())
-
-    def activate_template(self, template_id: str) -> None:
-        """Set template to active. Validate no other active template with same code+format."""
-        from datetime import datetime as _dt
-
-        from cold_storage.modules.reports.domain.enums import TemplateStatus
-
-        rec = self._session.get(ReportTemplateRecord, template_id)
+        rec = self._session.execute(stmt).scalar_one_or_none()
         if rec is None:
-            raise ValueError(f"Template {template_id} not found")
+            return None
+        return _to_template_domain(rec)
 
-        # Check no other active template with same code+format+version
-        existing = self._session.execute(
-            sa.select(ReportTemplateRecord).where(
-                ReportTemplateRecord.template_code == rec.template_code,
-                ReportTemplateRecord.format == rec.format,
-                ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
-                ReportTemplateRecord.id != template_id,
-            )
-        ).scalar_one_or_none()
-        if existing is not None:
-            raise ValueError(
-                f"Another active template already exists for code={rec.template_code} "
-                f"format={rec.format} version={existing.version}"
-            )
+    def list_templates(
+        self,
+        template_code: str | None = None,
+        fmt: str | None = None,
+    ) -> list[ReportTemplate]:
+        stmt = sa.select(ReportTemplateRecord)
+        if template_code:
+            stmt = stmt.where(ReportTemplateRecord.template_code == template_code)
+        if fmt:
+            stmt = stmt.where(ReportTemplateRecord.format == fmt)
+        stmt = stmt.order_by(ReportTemplateRecord.created_at.desc())
+        return [_to_template_domain(r) for r in self._session.execute(stmt).scalars()]
 
+    def update_template(self, template: ReportTemplate) -> None:
+        """Update an existing template by ID (status, activated_at, etc.)."""
         stmt = (
             sa.update(ReportTemplateRecord)
-            .where(ReportTemplateRecord.id == template_id)
+            .where(ReportTemplateRecord.id == template.id)
             .values(
-                status=TemplateStatus.ACTIVE.value,
-                activated_at=_dt.now(UTC),
+                status=template.status.value,
+                activated_at=template.activated_at,
             )
-        )
-        self._session.execute(stmt)
-
-    def retire_template(self, template_id: str) -> None:
-        from cold_storage.modules.reports.domain.enums import TemplateStatus
-
-        stmt = (
-            sa.update(ReportTemplateRecord)
-            .where(ReportTemplateRecord.id == template_id)
-            .values(status=TemplateStatus.RETIRED.value)
         )
         result = self._session.execute(stmt)
         if result.rowcount == 0:
-            raise ValueError(f"Template {template_id} not found")
+            raise ValueError(f"Template {template.id} not found")
 
     # --- Export Artifacts ---
 
@@ -413,26 +446,51 @@ class SQLReportRepository(ReportRepository):
         )
         self._session.add(rec)
 
-    def get_artifact(self, artifact_id: str) -> ReportExportArtifactRecord | None:
+    def get_artifact(self, artifact_id: str) -> ReportExportArtifact | None:
         rec = self._session.get(ReportExportArtifactRecord, artifact_id)
-        return cast(ReportExportArtifactRecord | None, rec)
+        if rec is None:
+            return None
+        return _to_artifact_domain(rec)
 
-    def list_artifacts(self, report_id: str) -> list[ReportExportArtifactRecord]:
-        stmt = (
-            sa.select(ReportExportArtifactRecord)
-            .where(ReportExportArtifactRecord.report_id == report_id)
-            .order_by(ReportExportArtifactRecord.generated_at.desc())
+    def list_artifacts(
+        self, report_id: str, status: ArtifactStatus | None = None
+    ) -> list[ReportExportArtifact]:
+        stmt = sa.select(ReportExportArtifactRecord).where(
+            ReportExportArtifactRecord.report_id == report_id
         )
-        return list(self._session.execute(stmt).scalars())
+        if status is not None:
+            stmt = stmt.where(ReportExportArtifactRecord.status == status.value)
+        stmt = stmt.order_by(ReportExportArtifactRecord.generated_at.desc())
+        return [_to_artifact_domain(r) for r in self._session.execute(stmt).scalars()]
 
-    def update_artifact(self, artifact_id: str, **fields: Any) -> None:
-        if not fields:
-            return
+    def find_artifact_by_idempotency(
+        self, idempotency_key: str, report_id: str
+    ) -> ReportExportArtifact | None:
+        """Find an artifact by its idempotency key (stored in render_manifest_json)."""
+        stmt = sa.select(ReportExportArtifactRecord).where(
+            ReportExportArtifactRecord.report_id == report_id,
+        )
+        for rec in self._session.execute(stmt).scalars():
+            manifest = rec.render_manifest_json or {}
+            if manifest.get("idempotency_key") == idempotency_key:
+                return _to_artifact_domain(rec)
+        return None
+
+    def update_artifact(self, artifact: ReportExportArtifact) -> None:
+        """Update an existing artifact record by ID."""
         stmt = (
             sa.update(ReportExportArtifactRecord)
-            .where(ReportExportArtifactRecord.id == artifact_id)
-            .values(**fields)
+            .where(ReportExportArtifactRecord.id == artifact.id)
+            .values(
+                status=artifact.status.value,
+                storage_key=artifact.storage_key,
+                file_size_bytes=artifact.file_size_bytes,
+                file_sha256=artifact.file_sha256,
+                render_manifest_json=artifact.render_manifest_json,
+                failure_code=artifact.failure_code,
+                failure_message=artifact.failure_message,
+            )
         )
         result = self._session.execute(stmt)
         if result.rowcount == 0:
-            raise ValueError(f"Artifact {artifact_id} not found")
+            raise ValueError(f"Artifact {artifact.id} not found")

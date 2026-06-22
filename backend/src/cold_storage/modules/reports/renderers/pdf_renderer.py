@@ -2,10 +2,14 @@
 
 Uses PyMuPDF (fitz).  Text is selectable (no rasterization).  A4 layout
 with headers, footers, and optional DRAFT watermark.
+
+P0-9: Uses system CJK font for Chinese text rendering.
+P0-10: Template manifest controls page size, margins, fonts, styles, etc.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import fitz  # PyMuPDF
@@ -18,18 +22,62 @@ if TYPE_CHECKING:
     )
 
 # ---------------------------------------------------------------------------
-# Constants
+# CJK Font Detection (P0-9)
+# ---------------------------------------------------------------------------
+_CJK_FONT_CANDIDATES: list[str] = [
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+    "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+    "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf",
+]
+
+_CJK_FONT_PATH: str | None = None
+
+
+def _find_cjk_font() -> str:
+    """Find a CJK-capable font on the system, caching the result."""
+    global _CJK_FONT_PATH  # noqa: PLW0603
+    if _CJK_FONT_PATH is not None:
+        return _CJK_FONT_PATH
+
+    # Check hardcoded candidates first
+    for candidate in _CJK_FONT_CANDIDATES:
+        if Path(candidate).is_file():
+            _CJK_FONT_PATH = candidate
+            return _CJK_FONT_PATH
+
+    # Scan /usr/share/fonts for any .ttc or .ttf that might be CJK
+    for font_dir in Path("/usr/share/fonts").rglob("*"):
+        if font_dir.is_file() and font_dir.suffix in (".ttc", ".ttf"):
+            name_lower = font_dir.name.lower()
+            if any(kw in name_lower for kw in ("cjk", "wqy", "noto", "gothic", "mincho", "han")):
+                _CJK_FONT_PATH = str(font_dir)
+                return _CJK_FONT_PATH
+
+    raise RuntimeError("No CJK font found. Install fonts-wqy-zenhei or similar.")
+
+
+def _get_cjk_font() -> fitz.Font:
+    """Return a fitz.Font object for CJK text."""
+    font_path = _find_cjk_font()
+    return fitz.Font(fontfile=font_path)
+
+
+def _get_cjk_fontname() -> str:
+    """Return the registered fontname for CJK font used with page.insert_text."""
+    # We register the font on each page; use a stable name
+    return "cjk_font"
+
+
+# ---------------------------------------------------------------------------
+# Constants (defaults — overridden by template manifest)
 # ---------------------------------------------------------------------------
 _PT_PER_CM = 28.3465  # 1 cm = 28.3465 pt
 _A4_WIDTH_PT = 21.0 * _PT_PER_CM
 _A4_HEIGHT_PT = 29.7 * _PT_PER_CM
 _MARGIN_PT = 2.0 * _PT_PER_CM  # 2 cm margins
-
-_CONTENT_LEFT = _MARGIN_PT
-_CONTENT_RIGHT = _A4_WIDTH_PT - _MARGIN_PT
-_CONTENT_WIDTH = _CONTENT_RIGHT - _CONTENT_LEFT
-_CONTENT_TOP = _MARGIN_PT + 1.5 * _PT_PER_CM  # extra space for header
-_CONTENT_BOTTOM = _A4_HEIGHT_PT - _MARGIN_PT - 1.0 * _PT_PER_CM  # footer space
 
 _BODY_FONT_SIZE = 10.5
 _HEADING1_SIZE = 16
@@ -51,6 +99,60 @@ _SECTION_SPACING = 20  # pt between sections
 
 
 # ---------------------------------------------------------------------------
+# Template Manifest Helpers (P0-10)
+# ---------------------------------------------------------------------------
+
+
+def _load_manifest_settings(
+    model: ReportRenderModel,
+) -> dict[str, Any]:
+    """Extract rendering settings from template manifest with defaults."""
+    manifest = model.manifest
+    settings: dict[str, Any] = {}
+
+    # Try to get manifest_json from the template or render_settings
+    render_settings = manifest.render_settings if hasattr(manifest, "render_settings") else {}
+
+    # Page settings
+    page = render_settings.get("page", {})
+    settings["page_width_pt"] = page.get("width_pt", _A4_WIDTH_PT)
+    settings["page_height_pt"] = page.get("height_pt", _A4_HEIGHT_PT)
+    settings["margin_pt"] = page.get("margin_pt", _MARGIN_PT)
+
+    # Font settings
+    fonts = render_settings.get("fonts", {})
+    settings["body_font_size"] = fonts.get("body_size", _BODY_FONT_SIZE)
+    settings["heading1_size"] = fonts.get("heading1_size", _HEADING1_SIZE)
+    settings["heading2_size"] = fonts.get("heading2_size", _HEADING2_SIZE)
+    settings["heading3_size"] = fonts.get("heading3_size", _HEADING3_SIZE)
+    settings["table_header_size"] = fonts.get("table_header_size", _TABLE_HEADER_SIZE)
+    settings["table_body_size"] = fonts.get("table_body_size", _TABLE_BODY_SIZE)
+    settings["footer_size"] = fonts.get("footer_size", _FOOTER_SIZE)
+    settings["header_size"] = fonts.get("header_size", _HEADER_SIZE)
+
+    # Style settings
+    styles = render_settings.get("styles", {})
+    settings["heading_color"] = tuple(styles.get("heading_color", list(_HEADING_COLOR)))
+
+    # Header/footer text
+    settings["header_text"] = render_settings.get("header", {}).get("text", "")
+    settings["footer_text"] = render_settings.get("footer", {}).get("text", "")
+
+    # Draft watermark
+    draft_wm = render_settings.get("draft_watermark", {})
+    settings["draft_watermark_text"] = draft_wm.get("text", "DRAFT")
+    settings["draft_watermark_size"] = draft_wm.get("size", 60)
+
+    # Empty section placeholder
+    settings["placeholder_text"] = render_settings.get("placeholder_text", "该部分内容不可用")
+
+    # Table column definitions
+    settings["table_columns"] = render_settings.get("tables", {}).get("columns", {})
+
+    return settings
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -63,12 +165,18 @@ def _insert_text(
     *,
     fontsize: float = _BODY_FONT_SIZE,
     color: tuple[float, float, float] = _TEXT_COLOR,
-    fontname: str = "tiro",
+    font_path: str | None = None,
+    max_width: float | None = None,
 ) -> float:
     """Insert text on page and return the new y position.
 
-    Handles line wrapping within _CONTENT_WIDTH.
+    Handles line wrapping within the content width.
+    Uses CJK font for proper Chinese character rendering (P0-9).
     """
+    if max_width is None:
+        max_width = _A4_WIDTH_PT - 2 * _MARGIN_PT  # content width
+
+    font = fitz.Font(fontfile=font_path) if font_path else _get_cjk_font()
     lines = text.split("\n")
     current_y = y
 
@@ -77,35 +185,25 @@ def _insert_text(
             current_y += _LINE_HEIGHT
             continue
 
-        # Simple word wrapping
-        words = line.split(" ")
+        # Character-level wrapping for CJK text
         current_line = ""
-        font = fitz.Font(fontname)
-        for word in words:
-            test = f"{current_line} {word}".strip() if current_line else word
-            text_rect = font.text_length(test, fontsize=fontsize)
-            if text_rect > _CONTENT_WIDTH and current_line:
+        for char in line:
+            test = current_line + char
+            text_width = font.text_length(test, fontsize=fontsize)
+            if text_width > max_width and current_line:
                 # Write current line
-                page.insert_text(
-                    fitz.Point(x, current_y),
-                    current_line,
-                    fontname=fontname,
-                    fontsize=fontsize,
-                    color=color,
-                )
+                tw = fitz.TextWriter(page.rect)
+                tw.append(fitz.Point(x, current_y), current_line, font=font, fontsize=fontsize)
+                tw.write_text(page, color=color)
                 current_y += _LINE_HEIGHT
-                current_line = word
+                current_line = char
             else:
                 current_line = test
 
         if current_line:
-            page.insert_text(
-                fitz.Point(x, current_y),
-                current_line,
-                fontname=fontname,
-                fontsize=fontsize,
-                color=color,
-            )
+            tw = fitz.TextWriter(page.rect)
+            tw.append(fitz.Point(x, current_y), current_line, font=font, fontsize=fontsize)
+            tw.write_text(page, color=color)
             current_y += _LINE_HEIGHT
 
     return current_y
@@ -117,17 +215,16 @@ def _insert_number(
     y: float,
     display: str,
     unit: str,
+    *,
+    font_path: str | None = None,
 ) -> float:
     """Insert a bold number with unit."""
     fontsize = _BODY_FONT_SIZE + 0.5
     full_text = f"{display} {unit}"
-    page.insert_text(
-        fitz.Point(x, y),
-        full_text,
-        fontname="tiro",
-        fontsize=fontsize,
-        color=_TEXT_COLOR,
-    )
+    font = fitz.Font(fontfile=font_path) if font_path else _get_cjk_font()
+    tw = fitz.TextWriter(page.rect)
+    tw.append(fitz.Point(x, y), full_text, font=font, fontsize=fontsize)
+    tw.write_text(page, color=_TEXT_COLOR)
     return y + _LINE_HEIGHT + 2
 
 
@@ -137,10 +234,12 @@ def _draw_table(
     y: float,
     table: RenderTable,
     max_width: float | None = None,
+    *,
+    font_path: str | None = None,
 ) -> float:
     """Draw a table on the page and return the new y position."""
     if max_width is None:
-        max_width = _CONTENT_WIDTH
+        max_width = _A4_WIDTH_PT - 2 * _MARGIN_PT
 
     num_cols = len(table.headers)
     if num_cols == 0:
@@ -151,6 +250,8 @@ def _draw_table(
 
     # Check if we need a unit row
     has_unit_row = bool(table.unit_row and any(u for u in table.unit_row))
+
+    font = fitz.Font(fontfile=font_path) if font_path else _get_cjk_font()
 
     def _draw_row(
         row_y: float,
@@ -187,13 +288,14 @@ def _draw_table(
             fontsize = _TABLE_HEADER_SIZE if is_header else _TABLE_BODY_SIZE
             text_x = col_x + 3
             text_y = row_y + row_height - 4
-            page.insert_text(
+            tw = fitz.TextWriter(page.rect)
+            tw.append(
                 fitz.Point(text_x, text_y),
                 cell_text,
-                fontname="tiro",
+                font=font,
                 fontsize=fontsize,
-                color=_TEXT_COLOR,
             )
+            tw.write_text(page, color=_TEXT_COLOR)
 
         # Right border
         page.draw_line(
@@ -234,19 +336,22 @@ def _draw_table(
 def _draw_header(page: fitz.Page, project_name: str, report_type: str) -> None:
     """Draw header on page."""
     header_text = f"{project_name} — {report_type}"
-    font = fitz.Font("tiro")
+    font = _get_cjk_font()
     text_width = font.text_length(header_text, fontsize=_HEADER_SIZE)
-    page.insert_text(
-        fitz.Point(_CONTENT_RIGHT - text_width, _MARGIN_PT + 0.5 * _PT_PER_CM),
+    content_right = _A4_WIDTH_PT - _MARGIN_PT
+    tw = fitz.TextWriter(page.rect)
+    tw.append(
+        fitz.Point(content_right - text_width, _MARGIN_PT + 0.5 * _PT_PER_CM),
         header_text,
-        fontname="tiro",
+        font=font,
         fontsize=_HEADER_SIZE,
-        color=_GRAY_COLOR,
     )
+    tw.write_text(page, color=_GRAY_COLOR)
     # Line under header
+    content_left = _MARGIN_PT
     page.draw_line(
-        fitz.Point(_CONTENT_LEFT, _MARGIN_PT + 1.0 * _PT_PER_CM),
-        fitz.Point(_CONTENT_RIGHT, _MARGIN_PT + 1.0 * _PT_PER_CM),
+        fitz.Point(content_left, _MARGIN_PT + 1.0 * _PT_PER_CM),
+        fitz.Point(content_right, _MARGIN_PT + 1.0 * _PT_PER_CM),
         color=(0.8, 0.8, 0.8),
         width=0.5,
     )
@@ -255,32 +360,39 @@ def _draw_header(page: fitz.Page, project_name: str, report_type: str) -> None:
 def _draw_footer(page: fitz.Page, page_num: int) -> None:
     """Draw page number in footer."""
     page_text = f"— {page_num} —"
-    font = fitz.Font("tiro")
+    font = _get_cjk_font()
     text_width = font.text_length(page_text, fontsize=_FOOTER_SIZE)
-    page.insert_text(
-        fitz.Point((_A4_WIDTH_PT - text_width) / 2, _A4_HEIGHT_PT - _MARGIN_PT + 0.3 * _PT_PER_CM),
+    tw = fitz.TextWriter(page.rect)
+    tw.append(
+        fitz.Point(
+            (_A4_WIDTH_PT - text_width) / 2,
+            _A4_HEIGHT_PT - _MARGIN_PT + 0.3 * _PT_PER_CM,
+        ),
         page_text,
-        fontname="tiro",
+        font=font,
         fontsize=_FOOTER_SIZE,
-        color=_GRAY_COLOR,
     )
+    tw.write_text(page, color=_GRAY_COLOR)
 
 
-def _draw_draft_watermark(page: fitz.Page) -> None:
+def _draw_draft_watermark(
+    page: fitz.Page,
+    text: str = "DRAFT",
+    fontsize: float = 60,
+) -> None:
     """Draw DRAFT watermark centered on the page."""
-    text = "DRAFT"
-    fontsize = 60
-    font = fitz.Font("tiro")
+    font = _get_cjk_font()
     cx = _A4_WIDTH_PT / 2
     cy = _A4_HEIGHT_PT / 2
     text_width = font.text_length(text, fontsize=fontsize)
-    page.insert_text(
+    tw = fitz.TextWriter(page.rect)
+    tw.append(
         fitz.Point(cx - text_width / 2, cy),
         text,
-        fontname="tiro",
+        font=font,
         fontsize=fontsize,
-        color=(0.8, 0.8, 0.8),
     )
+    tw.write_text(page, color=(0.8, 0.8, 0.8))
 
 
 # ---------------------------------------------------------------------------
@@ -306,6 +418,18 @@ class PdfRenderer:
         bytes
             The raw .pdf file content.
         """
+        # P0-10: Load template manifest settings
+        settings = _load_manifest_settings(model)
+
+        page_width = settings["page_width_pt"]
+        page_height = settings["page_height_pt"]
+        margin_pt = settings["margin_pt"]
+        content_width = page_width - 2 * margin_pt
+        content_top = margin_pt + 1.5 * _PT_PER_CM
+
+        # Get CJK font path for all text
+        font_path = _find_cjk_font()
+
         doc = fitz.open()
 
         # ---- PDF metadata ----
@@ -325,13 +449,32 @@ class PdfRenderer:
         )
 
         # ---- Cover page ----
-        cover_page = doc.new_page(width=_A4_WIDTH_PT, height=_A4_HEIGHT_PT)
-        self._draw_cover(cover_page, meta, is_draft=is_draft)
+        cover_page = doc.new_page(width=page_width, height=page_height)
+        self._draw_cover(
+            cover_page,
+            meta,
+            settings=settings,
+            is_draft=is_draft,
+            font_path=font_path,
+        )
 
         # ---- Content sections ----
+        page_num = 2  # cover is page 1
         for section in model.sections:
-            page = doc.new_page(width=_A4_WIDTH_PT, height=_A4_HEIGHT_PT)
-            self._draw_section(page, section, meta, is_draft=is_draft)
+            page = doc.new_page(width=page_width, height=page_height)
+            self._draw_section(
+                page,
+                section,
+                meta,
+                settings=settings,
+                is_draft=is_draft,
+                font_path=font_path,
+                page_num=page_num,
+                margin_pt=margin_pt,
+                content_top=content_top,
+                content_width=content_width,
+            )
+            page_num += 1
 
         # ---- Finalize ----
         pdf_bytes: bytes = doc.tobytes()
@@ -342,54 +485,71 @@ class PdfRenderer:
     # Cover page
     # ------------------------------------------------------------------
 
-    def _draw_cover(self, page: fitz.Page, meta: Any, *, is_draft: bool = False) -> None:
+    def _draw_cover(
+        self,
+        page: fitz.Page,
+        meta: Any,
+        *,
+        settings: dict[str, Any],
+        is_draft: bool = False,
+        font_path: str | None = None,
+    ) -> None:
         """Draw the cover page."""
+        draft_wm_text = settings.get("draft_watermark_text", "DRAFT")
+        draft_wm_size = settings.get("draft_watermark_size", 60)
         if is_draft:
-            _draw_draft_watermark(page)
+            _draw_draft_watermark(page, text=draft_wm_text, fontsize=draft_wm_size)
 
-        cx = _A4_WIDTH_PT / 2
-        font = fitz.Font("tiro")
-        y = _A4_HEIGHT_PT * 0.35
+        page_width = settings["page_width_pt"]
+        page_height = settings["page_height_pt"]
+        cx = page_width / 2
+
+        font = _get_cjk_font()
+        y = page_height * 0.35
 
         # Project name
         name_text = meta.project_name or "项目报告"
         name_size = 26
         name_width = font.text_length(name_text, fontsize=name_size)
-        page.insert_text(
+        tw = fitz.TextWriter(page.rect)
+        tw.append(
             fitz.Point(cx - name_width / 2, y),
             name_text,
-            fontname="tiro",
+            font=font,
             fontsize=name_size,
-            color=_HEADING_COLOR,
         )
+        tw.write_text(page, color=_HEADING_COLOR)
 
         # Report type
         y += 40
         type_text = meta.report_type
         type_size = 18
         type_width = font.text_length(type_text, fontsize=type_size)
-        page.insert_text(
+        tw2 = fitz.TextWriter(page.rect)
+        tw2.append(
             fitz.Point(cx - type_width / 2, y),
             type_text,
-            fontname="tiro",
+            font=font,
             fontsize=type_size,
-            color=_GRAY_COLOR,
         )
+        tw2.write_text(page, color=_GRAY_COLOR)
 
-        # Version and date
+        # Version and date — P0-4: use clean ISO string, no slicing
         y += 30
-        ver_text = (
-            f"版本 {meta.revision_number}  |  {meta.generated_at[:10] if meta.generated_at else ''}"
-        )
+        generated_at = meta.generated_at if meta.generated_at else ""
+        # Extract just the date portion (first 10 chars of ISO string)
+        date_display = generated_at[:10] if len(generated_at) >= 10 else generated_at
+        ver_text = f"版本 {meta.revision_number}  |  {date_display}"
         ver_size = 12
         ver_width = font.text_length(ver_text, fontsize=ver_size)
-        page.insert_text(
+        tw3 = fitz.TextWriter(page.rect)
+        tw3.append(
             fitz.Point(cx - ver_width / 2, y),
             ver_text,
-            fontname="tiro",
+            font=font,
             fontsize=ver_size,
-            color=_GRAY_COLOR,
         )
+        tw3.write_text(page, color=_GRAY_COLOR)
 
     # ------------------------------------------------------------------
     # Section rendering
@@ -401,107 +561,147 @@ class PdfRenderer:
         section: RenderSection,
         meta: Any,
         *,
+        settings: dict[str, Any],
         is_draft: bool = False,
+        font_path: str | None = None,
+        page_num: int = 1,
+        margin_pt: float = _MARGIN_PT,
+        content_top: float = 0,
+        content_width: float = 0,
     ) -> None:
         """Draw a section on a page."""
+        content_left = margin_pt
+        if content_top == 0:
+            content_top = margin_pt + 1.5 * _PT_PER_CM
+        if content_width == 0:
+            content_width = settings.get("page_width_pt", _A4_WIDTH_PT) - 2 * margin_pt
+
         _draw_header(page, meta.project_name, meta.report_type)
 
-        current_y = _CONTENT_TOP
-
+        # Draft watermark
+        draft_wm_text = settings.get("draft_watermark_text", "DRAFT")
+        draft_wm_size = settings.get("draft_watermark_size", 60)
         if is_draft:
-            _draw_draft_watermark(page)
+            _draw_draft_watermark(page, text=draft_wm_text, fontsize=draft_wm_size)
+
+        current_y = content_top
+
+        # P0-10: Use heading sizes from settings
+        heading_sizes = {
+            1: settings.get("heading1_size", _HEADING1_SIZE),
+            2: settings.get("heading2_size", _HEADING2_SIZE),
+            3: settings.get("heading3_size", _HEADING3_SIZE),
+        }
 
         if section.is_empty:
-            heading_size = (
-                _HEADING1_SIZE
-                if section.level == 1
-                else _HEADING2_SIZE
-                if section.level == 2
-                else _HEADING3_SIZE
-            )
+            heading_size = heading_sizes.get(section.level, _HEADING1_SIZE)
             current_y = _insert_text(
                 page,
-                _CONTENT_LEFT,
+                content_left,
                 current_y,
                 section.title,
                 fontsize=heading_size,
                 color=_HEADING_COLOR,
+                font_path=font_path,
+                max_width=content_width,
             )
             current_y += 4
             reason_text = {
                 "not_provided": "该部分数据未提供",
                 "not_calculated": "该部分尚未计算",
-            }.get(section.empty_reason, "该部分内容不可用")
+            }.get(section.empty_reason, settings.get("placeholder_text", "该部分内容不可用"))
             current_y = _insert_text(
                 page,
-                _CONTENT_LEFT + 10,
+                content_left + 10,
                 current_y,
                 f"（{reason_text}）",
-                fontsize=_BODY_FONT_SIZE,
+                fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
                 color=_GRAY_COLOR,
+                font_path=font_path,
+                max_width=content_width,
             )
-            _draw_footer(page, 1)
+            _draw_footer(page, page_num)
             return
 
         # Heading
-        heading_size = (
-            _HEADING1_SIZE
-            if section.level == 1
-            else _HEADING2_SIZE
-            if section.level == 2
-            else _HEADING3_SIZE
-        )
+        heading_size = heading_sizes.get(section.level, _HEADING1_SIZE)
         current_y = _insert_text(
             page,
-            _CONTENT_LEFT,
+            content_left,
             current_y,
             section.title,
             fontsize=heading_size,
             color=_HEADING_COLOR,
+            font_path=font_path,
+            max_width=content_width,
         )
         current_y += 6
 
         if section.content_type == "text" and section.text:
             current_y = _insert_text(
                 page,
-                _CONTENT_LEFT,
+                content_left,
                 current_y,
                 section.text,
-                fontsize=_BODY_FONT_SIZE,
+                fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                font_path=font_path,
+                max_width=content_width,
             )
         elif section.content_type == "number" and section.number:
             num = section.number
-            current_y = _insert_number(page, _CONTENT_LEFT, current_y, num.display, num.unit)
+            current_y = _insert_number(
+                page, content_left, current_y, num.display, num.unit, font_path=font_path
+            )
             if section.text:
                 current_y = _insert_text(
                     page,
-                    _CONTENT_LEFT,
+                    content_left,
                     current_y,
                     section.text,
-                    fontsize=_BODY_FONT_SIZE,
+                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                    font_path=font_path,
+                    max_width=content_width,
                 )
         elif section.content_type == "table" and section.table:
             if section.text:
                 current_y = _insert_text(
                     page,
-                    _CONTENT_LEFT,
+                    content_left,
                     current_y,
                     section.text,
-                    fontsize=_BODY_FONT_SIZE,
+                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                    font_path=font_path,
+                    max_width=content_width,
                 )
                 current_y += 4
-            current_y = _draw_table(page, _CONTENT_LEFT, current_y, section.table)
+            current_y = _draw_table(
+                page,
+                content_left,
+                current_y,
+                section.table,
+                max_width=content_width,
+                font_path=font_path,
+            )
         elif section.content_type == "finding":
             if section.text:
                 current_y = _insert_text(
                     page,
-                    _CONTENT_LEFT,
+                    content_left,
                     current_y,
                     section.text,
-                    fontsize=_BODY_FONT_SIZE,
+                    fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
+                    font_path=font_path,
+                    max_width=content_width,
                 )
                 current_y += 4
             if section.table:
-                current_y = _draw_table(page, _CONTENT_LEFT, current_y, section.table)
+                current_y = _draw_table(
+                    page,
+                    content_left,
+                    current_y,
+                    section.table,
+                    max_width=content_width,
+                    font_path=font_path,
+                )
 
-        _draw_footer(page, 1)
+        _draw_footer(page, page_num)
