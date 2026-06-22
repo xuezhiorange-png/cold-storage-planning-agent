@@ -72,7 +72,7 @@ class ReportRevisionRecord(Base):
         server_default=sa.func.now(),
     )
     supersedes_revision_id: Mapped[str | None] = mapped_column(
-        sa.String(36), sa.ForeignKey("reports.id"), nullable=True
+        sa.String(36), sa.ForeignKey("report_revisions.id"), nullable=True
     )
 
 

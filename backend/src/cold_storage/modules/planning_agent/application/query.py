@@ -59,23 +59,34 @@ class AgentSessionQueryService(AgentSessionQueryPort):
 
     def get_tool_calls_for_session(self, session_id: str) -> list[dict[str, Any]]:
         tool_calls = self._repo.list_tool_calls(session_id)
-        return [
-            {
-                "id": tc.id,
-                "tool_name": tc.tool_name,
-                "tool_version": tc.tool_version,
-                "result_id": tc.result_reference or "",
-                "persisted_content_hash": getattr(tc, "result_hash", None) or "",
-                "tool_call_status": tc.status.value
-                if hasattr(tc.status, "value")
-                else str(tc.status),
-                "arguments_sha256": tc.arguments_sha256,
-                "completed_at": tc.completed_at.isoformat()
-                if tc.completed_at and hasattr(tc.completed_at, "isoformat")
-                else None,
-            }
-            for tc in tool_calls
-        ]
+        results: list[dict[str, Any]] = []
+        for tc in tool_calls:
+            # Extract knowledge_revision_ids from the tool call's persisted result
+            result_data = tc.result
+            knowledge_ids: list[str] = []
+            if isinstance(result_data, dict):
+                knowledge_ids = result_data.get("knowledge_revision_ids", [])
+            elif isinstance(result_data, list):
+                knowledge_ids = [r for r in result_data if isinstance(r, str)]
+
+            results.append(
+                {
+                    "id": tc.id,
+                    "tool_name": tc.tool_name,
+                    "tool_version": tc.tool_version,
+                    "result_id": tc.result_reference or "",
+                    "persisted_content_hash": getattr(tc, "result_hash", None) or "",
+                    "tool_call_status": tc.status.value
+                    if hasattr(tc.status, "value")
+                    else str(tc.status),
+                    "arguments_sha256": tc.arguments_sha256,
+                    "completed_at": tc.completed_at.isoformat()
+                    if tc.completed_at and hasattr(tc.completed_at, "isoformat")
+                    else None,
+                    "knowledge_revision_ids": knowledge_ids,
+                }
+            )
+        return results
 
     def get_turns_for_session(self, session_id: str) -> list[dict[str, Any]]:
         turns = self._repo.list_turns(session_id)

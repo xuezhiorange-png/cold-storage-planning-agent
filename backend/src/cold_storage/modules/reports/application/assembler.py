@@ -196,7 +196,11 @@ class ReportAssembler:
                             )
                         )
                 for tc in session.get("tool_calls", []):
-                    if tc.get("tool_call_status") in ("succeeded", "confirmed"):
+                    from cold_storage.modules.reports.domain.source_contract import (
+                        SOURCE_SUCCESS_STATUSES,
+                    )
+
+                    if tc.get("tool_call_status") in SOURCE_SUCCESS_STATUSES:
                         source_refs.append(
                             _make_source_ref(
                                 section_key="report_metadata",

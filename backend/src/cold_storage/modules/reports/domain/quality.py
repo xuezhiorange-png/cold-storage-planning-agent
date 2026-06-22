@@ -358,12 +358,12 @@ def _check_source_refs(
                 )
 
         # Source verification checks (when verification data is attached)
+        from cold_storage.modules.reports.domain.source_contract import (
+            SOURCE_SUCCESS_STATUSES,
+        )
+
         tool_call_status = ref.get("tool_call_status")
-        if tool_call_status is not None and tool_call_status not in (
-            "confirmed",
-            "completed",
-            "success",
-        ):
+        if tool_call_status is not None and tool_call_status not in SOURCE_SUCCESS_STATUSES:
             findings.append(
                 _finding(
                     code="SOURCE_TOOL_CALL_INVALID_STATUS",
@@ -372,7 +372,7 @@ def _check_source_refs(
                     field_path=field_path,
                     message=(
                         f"Source tool call has invalid status '{tool_call_status}'; "
-                        "must be confirmed/completed/success"
+                        f"must be one of {sorted(SOURCE_SUCCESS_STATUSES)}"
                     ),
                 )
             )
