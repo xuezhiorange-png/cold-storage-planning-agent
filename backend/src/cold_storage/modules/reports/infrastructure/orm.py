@@ -255,3 +255,6 @@ class ReportExportArtifactRecord(Base):
     )
     idempotency_key: Mapped[str | None] = mapped_column(sa.String(128), nullable=True, index=True)
     claim_token: Mapped[str | None] = mapped_column(sa.String(36), nullable=True)
+    claim_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )

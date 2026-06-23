@@ -539,7 +539,7 @@ class TestIdempotency:
         # First call: complete fails → commit should also fail (atomic)
         # We simulate this by making complete_idempotency_record raise
 
-        def failing_complete(key, payload):
+        def failing_complete(key, payload, **kwargs):
             raise RuntimeError("simulated complete failure")
 
         with (

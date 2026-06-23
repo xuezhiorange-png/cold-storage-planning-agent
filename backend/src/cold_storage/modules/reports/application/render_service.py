@@ -112,12 +112,20 @@ class ReportArtifactRepositoryPort(Protocol):
     def fail_nonterminal_artifacts(
         self,
         report_id: str,
-        failure_code: str = "stale_claim_recovery",
-        failure_message: str = "Orphaned by stale claim recovery",
         *,
-        idempotency_key: str | None = None,
-        stale_claim_token: str | None = None,
+        idempotency_key: str,
+        stale_claim_token: str,
+        stale_claim_version: int,
     ) -> int: ...
+
+    def transition_artifact(
+        self,
+        artifact: ReportExportArtifact,
+        *,
+        expected_status: ArtifactStatus,
+        claim_token: str,
+        claim_version: int,
+    ) -> None: ...
 
     def commit(self) -> None: ...
 
@@ -452,7 +460,9 @@ class ReportRenderService:
                                 if self._artifact_repo is not None:
                                     self._artifact_repo.fail_nonterminal_artifacts(
                                         report_id,
-                                        stale_claim_token=existing.get("claim_token"),
+                                        idempotency_key=idempotency_key,
+                                        stale_claim_token=str(existing.get("claim_token", "")),
+                                        stale_claim_version=existing.get("claim_version", 0),
                                     )
                                 self._uow.commit()
                                 # Fall through — render will proceed
@@ -507,6 +517,7 @@ class ReportRenderService:
             generated_by=actor,
             idempotency_key=idempotency_key,
             claim_token=claim_token if claim_token else None,
+            claim_version=claim_version,
         )
 
         # P0-2: Unified failure handler for ALL artifact persistence stages.
@@ -526,21 +537,18 @@ class ReportRenderService:
 
             # P0-2: UPDATE artifact(rendering) → commit
             current_stage = "update_rendering"
-            artifact = replace(artifact, status=ArtifactStatus.RENDERING)
             if self._artifact_repo:
-                # Verify claim is still current before committing
+                # Atomic transition: pending → rendering with claim fencing
+                artifact = replace(artifact, status=ArtifactStatus.RENDERING)
                 if idempotency_key and claim_token:
-                    current_rec = self._repo.get_idempotency_record(idempotency_key)
-                    if (
-                        current_rec is None
-                        or current_rec.get("claim_token") != claim_token
-                        or current_rec.get("claim_version") != claim_version
-                    ):
-                        raise RenderError(
-                            f"Claim mismatch for {idempotency_key}: "
-                            "another process has reclaimed this key"
-                        )
-                self._artifact_repo.update_artifact(artifact)
+                    self._artifact_repo.transition_artifact(
+                        artifact,
+                        expected_status=ArtifactStatus.PENDING,
+                        claim_token=claim_token,
+                        claim_version=claim_version,
+                    )
+                else:
+                    self._artifact_repo.update_artifact(artifact)
                 self._uow.commit()
 
             # 8. Render via DocxRenderer or PdfRenderer
@@ -597,12 +605,21 @@ class ReportRenderService:
 
             # P0-2: UPDATE artifact(completed) + complete idempotency → single commit
             if self._artifact_repo:
-                self._artifact_repo.update_artifact(artifact)
+                if idempotency_key and claim_token:
+                    self._artifact_repo.transition_artifact(
+                        artifact,
+                        expected_status=ArtifactStatus.RENDERING,
+                        claim_token=claim_token,
+                        claim_version=claim_version,
+                    )
+                else:
+                    self._artifact_repo.update_artifact(artifact)
             if idempotency_key:
                 self._repo.complete_idempotency_record(
                     key=idempotency_key,
                     result_payload={"artifact_id": artifact.id},
                     claim_token=claim_token,
+                    claim_version=claim_version,
                 )
             if self._artifact_repo:
                 self._uow.commit()
@@ -654,31 +671,46 @@ class ReportRenderService:
                         },
                     )
 
-            # P0-2: Persist failure state — rollback, re-read, update to failed
+            # P0-2: Persist failure state — rollback, acquire fencing, update
             if self._artifact_repo:
                 try:
                     self._uow.rollback()
-                    # Re-read artifact from DB (clean session)
-                    failed_artifact = self._artifact_repo.get_artifact(artifact.id)
-                    if failed_artifact is not None:
-                        from dataclasses import is_dataclass as _is_dc
-
-                        if _is_dc(failed_artifact):
-                            failed_artifact = replace(
-                                failed_artifact,
-                                status=ArtifactStatus.FAILED,
-                                failure_code=type(exc).__name__,
-                                failure_message=str(exc),
-                            )
-                        self._artifact_repo.update_artifact(failed_artifact)
-                    # Fail idempotency record in same commit
+                    # Step 1: Fail idempotency record (acquires fencing)
+                    stale_claim = False
                     if idempotency_key:
-                        self._repo.fail_idempotency_record(
-                            idempotency_key,
-                            type(exc).__name__,
-                            str(exc),
-                            claim_token=claim_token,
-                        )
+                        try:
+                            self._repo.fail_idempotency_record(
+                                idempotency_key,
+                                type(exc).__name__,
+                                str(exc),
+                                claim_token=claim_token,
+                                claim_version=claim_version,
+                            )
+                        except Exception:
+                            # StaleClaimError or other — we lost the claim
+                            import contextlib
+
+                            with contextlib.suppress(Exception):
+                                self._uow.rollback()
+                            stale_claim = True
+
+                    # Step 2: Only update artifact if we still hold the claim
+                    if not stale_claim:
+                        failed_artifact = self._artifact_repo.get_artifact(artifact.id)
+                        if failed_artifact is not None:
+                            from dataclasses import is_dataclass as _is_dc
+
+                            if _is_dc(failed_artifact):
+                                failed_artifact = replace(
+                                    failed_artifact,
+                                    status=ArtifactStatus.FAILED,
+                                    failure_code=type(exc).__name__,
+                                    failure_message=str(exc),
+                                )
+                            # Fencing already verified via
+                            # fail_idempotency_record above;
+                            # use update_artifact directly.
+                            self._artifact_repo.update_artifact(failed_artifact)
                     self._uow.commit()
                 except Exception:
                     import contextlib

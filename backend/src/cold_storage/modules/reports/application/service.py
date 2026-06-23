@@ -12,6 +12,7 @@ from cold_storage.modules.reports.application.assembler import (
     ReportAssembler,
 )
 from cold_storage.modules.reports.domain.enums import (
+    ArtifactStatus,
     ReportStatus,
     ReportType,
     ReviewAction,
@@ -26,6 +27,7 @@ from cold_storage.modules.reports.domain.errors import (
 )
 from cold_storage.modules.reports.domain.models import (
     Report,
+    ReportExportArtifact,
     ReportReviewAction,
     ReportRevision,
     ReportSourceReference,
@@ -89,12 +91,23 @@ class ReportRepository:
         raise NotImplementedError
 
     def complete_idempotency_record(
-        self, key: str, result_payload: Any, *, claim_token: str = ""
+        self,
+        key: str,
+        result_payload: Any,
+        *,
+        claim_token: str,
+        claim_version: int,
     ) -> None:
         raise NotImplementedError
 
     def fail_idempotency_record(
-        self, key: str, failure_code: str, failure_message: str, *, claim_token: str = ""
+        self,
+        key: str,
+        failure_code: str,
+        failure_message: str,
+        *,
+        claim_token: str,
+        claim_version: int,
     ) -> None:
         raise NotImplementedError
 
@@ -116,12 +129,21 @@ class ReportRepository:
     def fail_nonterminal_artifacts(
         self,
         report_id: str,
-        failure_code: str = "stale_claim_recovery",
-        failure_message: str = "Orphaned by stale claim recovery",
         *,
-        idempotency_key: str | None = None,
-        stale_claim_token: str | None = None,
+        idempotency_key: str,
+        stale_claim_token: str,
+        stale_claim_version: int,
     ) -> int:
+        raise NotImplementedError
+
+    def transition_artifact(
+        self,
+        artifact: ReportExportArtifact,
+        *,
+        expected_status: ArtifactStatus,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
         raise NotImplementedError
 
     def commit(self) -> None:
@@ -161,7 +183,7 @@ class ReportService:
             existing = self._check_idempotency(idempotency_key, fp)
             if existing is not None:
                 return existing
-            self._claim_idempotency(idempotency_key, actor, "create", fp)
+            ct, cv = self._claim_idempotency(idempotency_key, actor, "create", fp)
 
         report = Report.create(
             project_id=project_id,
@@ -174,7 +196,12 @@ class ReportService:
         # If either fails, rollback the entire transaction.
         try:
             if idempotency_key:
-                self._complete_idempotency(idempotency_key, report)
+                self._complete_idempotency(
+                    idempotency_key,
+                    report,
+                    claim_token=ct,
+                    claim_version=cv,
+                )
             self._repo.commit()
         except Exception:
             self._repo.rollback()
@@ -213,7 +240,7 @@ class ReportService:
             existing = self._check_idempotency_revision(idempotency_key, fp)
             if existing is not None:
                 return existing
-            self._claim_idempotency(idempotency_key, actor, "generate", fp)
+            ct, cv = self._claim_idempotency(idempotency_key, actor, "generate", fp)
 
         revision_number = report.current_revision_number + 1
         supersedes = None
@@ -291,7 +318,12 @@ class ReportService:
         # If either fails, rollback the entire transaction.
         try:
             if idempotency_key:
-                self._complete_idempotency(idempotency_key, revision)
+                self._complete_idempotency(
+                    idempotency_key,
+                    revision,
+                    claim_token=ct,
+                    claim_version=cv,
+                )
             self._repo.commit()
         except Exception:
             self._repo.rollback()
@@ -537,23 +569,35 @@ class ReportService:
                 )
         return None
 
-    def _claim_idempotency(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+    def _claim_idempotency(
+        self, key: str, actor: str, action: str, fingerprint: str
+    ) -> tuple[str, int]:
         """Claim an idempotency key via INSERT.
 
+        Returns (claim_token, claim_version).
         Raises IdempotencyClaimError if another request holds the key.
         """
         try:
-            self._repo.save_idempotency_record(
+            return self._repo.save_idempotency_record(
                 key=key, actor=actor, action=action, fingerprint=fingerprint
             )
         except Exception as exc:
             # Duplicate key → already claimed
             raise IdempotencyClaimError(key) from exc
 
-    def _complete_idempotency(self, key: str, result: object) -> None:
+    def _complete_idempotency(
+        self,
+        key: str,
+        result: object,
+        *,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
         """Mark idempotency key as completed with the result payload."""
         payload = self._serialize_result(result)
-        self._repo.complete_idempotency_record(key, payload)
+        self._repo.complete_idempotency_record(
+            key, payload, claim_token=claim_token, claim_version=claim_version
+        )
 
     @staticmethod
     def _serialize_result(result: object) -> dict[str, Any]:

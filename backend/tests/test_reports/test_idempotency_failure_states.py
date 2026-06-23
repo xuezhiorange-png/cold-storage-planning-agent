@@ -44,6 +44,7 @@ from cold_storage.modules.reports.domain.enums import (
 from cold_storage.modules.reports.domain.errors import (
     IdempotencyClaimError,
     RenderError,
+    StaleClaimError,
 )
 from cold_storage.modules.reports.domain.models import (
     Report,
@@ -981,13 +982,14 @@ class TestIdempotencyFailureStates:
                     idempotency_key=idempotency_key,
                 )
 
-        # Record old claim_token
+        # Record old claim_token and version
         with session_factory() as check_session:
             check_repo = SQLReportRepository(check_session)
             idem = check_repo.get_idempotency_record(idempotency_key)
             assert idem is not None
             assert idem["status"] == "claimed"
             old_claim_token = idem["claim_token"]
+            old_claim_version = idem["claim_version"]
 
         # Advance clock past stale threshold
         clock.advance(600)
@@ -1014,14 +1016,15 @@ class TestIdempotencyFailureStates:
             )
             assert artifact.status == ArtifactStatus.COMPLETED
 
-        # Old worker tries to complete with old token → should raise ValueError
+        # Old worker tries to complete with old token → should raise StaleClaimError
         with session_factory() as session:
             repo = SQLReportRepository(session)
-            with pytest.raises(ValueError, match="not found or not in claimed state"):
+            with pytest.raises(StaleClaimError):
                 repo.complete_idempotency_record(
                     idempotency_key,
                     {"artifact_id": "x"},
                     claim_token=old_claim_token,
+                    claim_version=old_claim_version,
                 )
 
     def test_reclaimed_old_worker_cannot_complete_artifact(
@@ -1177,13 +1180,14 @@ class TestIdempotencyFailureStates:
                     idempotency_key=idempotency_key,
                 )
 
-        # Record old claim_token
+        # Record old claim_token and version
         with session_factory() as check_session:
             check_repo = SQLReportRepository(check_session)
             idem = check_repo.get_idempotency_record(idempotency_key)
             assert idem is not None
             assert idem["status"] == "claimed"
             old_claim_token = idem["claim_token"]
+            old_claim_version = idem["claim_version"]
 
         # Advance clock past stale
         clock.advance(600)
@@ -1210,16 +1214,17 @@ class TestIdempotencyFailureStates:
             )
             assert artifact.status == ArtifactStatus.COMPLETED
 
-        # Old worker tries to fail with old claim_token → no-op (0 rows matched)
+        # Old worker tries to fail with old claim_token → StaleClaimError
         with session_factory() as session:
             repo = SQLReportRepository(session)
-            repo.fail_idempotency_record(
-                idempotency_key,
-                "RuntimeError",
-                "old attempt",
-                claim_token=old_claim_token,
-            )
-            session.commit()
+            with pytest.raises(StaleClaimError):
+                repo.fail_idempotency_record(
+                    idempotency_key,
+                    "RuntimeError",
+                    "old attempt",
+                    claim_token=old_claim_token,
+                    claim_version=old_claim_version,
+                )
 
         # Verify idempotency is still completed (old token couldn't affect it)
         with session_factory() as check_session:

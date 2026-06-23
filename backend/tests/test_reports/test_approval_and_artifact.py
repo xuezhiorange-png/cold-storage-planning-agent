@@ -778,11 +778,11 @@ class TestCompletedCommitFailure:
                 artifacts = new_repo.list_artifacts(report.id, status=ArtifactStatus.FAILED)
                 assert len(artifacts) >= 1
 
-                # P0-11: Verify no COMPLETED artifacts exist
+                # No COMPLETED artifacts
                 completed = new_repo.list_artifacts(report.id, status=ArtifactStatus.COMPLETED)
                 assert len(completed) == 0, "No completed artifacts after commit failure"
 
-                # P0-11: Verify no RENDERING artifacts remain
+                # No RENDERING artifacts remain
                 rendering = new_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
                 assert len(rendering) == 0, "No rendering artifacts after commit failure"
 

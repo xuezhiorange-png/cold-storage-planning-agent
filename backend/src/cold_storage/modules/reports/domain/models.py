@@ -330,6 +330,7 @@ class ReportExportArtifact:
     failure_message: str = ""
     idempotency_key: str | None = None
     claim_token: str | None = None
+    claim_version: int = 0
 
     @classmethod
     def create(
@@ -348,6 +349,7 @@ class ReportExportArtifact:
         generated_by: str,
         idempotency_key: str | None = None,
         claim_token: str | None = None,
+        claim_version: int = 0,
     ) -> ReportExportArtifact:
         return cls(
             id=_uuid(),
@@ -370,4 +372,5 @@ class ReportExportArtifact:
             generated_at=datetime.now(UTC),
             idempotency_key=idempotency_key,
             claim_token=claim_token,
+            claim_version=claim_version,
         )

@@ -63,6 +63,17 @@ class IdempotencyClaimError(ReportError):
         self.key = key
 
 
+class StaleClaimError(ReportError):
+    """Raised when a claim token/version no longer matches the current holder."""
+
+    def __init__(self, key: str, detail: str = "") -> None:
+        msg = f"Stale claim for idempotency key {key}"
+        if detail:
+            msg += f": {detail}"
+        super().__init__(msg)
+        self.key = key
+
+
 class IdempotencyPayloadConflictError(ReportError):
     """Raised when the same idempotency key is used with different parameters."""
 
