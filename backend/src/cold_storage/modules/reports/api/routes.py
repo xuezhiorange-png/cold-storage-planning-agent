@@ -517,14 +517,59 @@ def create_template(
     template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> TemplateResponse:
-    """Create a new report template."""
+    """Create a new report template.
+
+    P0-6: Normalizes manifest through TemplateManifest.from_manifest_json(),
+    computes canonical SHA-256 content hash, and validates request fields
+    match manifest.
+    """
+    import hashlib
+    import json
+
     from cold_storage.modules.reports.domain.enums import (
         ExportFormat,
         ReportType,
     )
     from cold_storage.modules.reports.domain.models import ReportTemplate
+    from cold_storage.modules.reports.domain.render_model import TemplateManifest
 
     try:
+        # P0-6: Normalize manifest through canonical TemplateManifest model
+        raw_manifest = body.manifest_json or {}
+        canonical_manifest = TemplateManifest.from_manifest_json(raw_manifest)
+        normalized_manifest = canonical_manifest.model_dump()
+
+        # P0-6: Compute canonical SHA-256 hash
+        canonical_str = json.dumps(
+            normalized_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        template_content_hash = hashlib.sha256(canonical_str.encode()).hexdigest()
+
+        # P0-6: Validate request fields match manifest
+        if (
+            body.template_code
+            and canonical_manifest.template_code
+            and body.template_code != canonical_manifest.template_code
+        ):
+            raise ValueError(
+                f"template_code mismatch: request='{body.template_code}' "
+                f"vs manifest='{canonical_manifest.template_code}'"
+            )
+        if (
+            body.version
+            and canonical_manifest.version
+            and body.version != canonical_manifest.version
+        ):
+            raise ValueError(
+                f"version mismatch: request='{body.version}' "
+                f"vs manifest='{canonical_manifest.version}'"
+            )
+        if body.format and canonical_manifest.format and body.format != canonical_manifest.format:
+            raise ValueError(
+                f"format mismatch: request='{body.format}' "
+                f"vs manifest='{canonical_manifest.format}'"
+            )
+
         template = ReportTemplate.create(
             template_code=body.template_code,
             report_type=ReportType(body.report_type),
@@ -532,7 +577,8 @@ def create_template(
             version=body.version,
             schema_version=body.schema_version,
             locale=body.locale,
-            manifest_json=body.manifest_json or {},
+            manifest_json=normalized_manifest,
+            template_content_hash=template_content_hash,
             created_by=actor,
         )
         template_repo.save_template(template)
@@ -594,6 +640,15 @@ def activate_template(
 
         if template.status == TemplateStatus.RETIRED:
             raise TemplateActivationError(template_id, "Cannot activate a retired template")
+
+        # P0-6: Active templates must not have manifest or hash modified
+        if template.status == TemplateStatus.ACTIVE:
+            # Load current DB version for comparison
+            current = template_repo.get_template(template_id)
+            if current is not None and current.manifest_json != template.manifest_json:
+                raise TemplateActivationError(
+                    template_id, "Cannot modify manifest on an active template"
+                )
 
         # P0-8: Deactivate all existing active templates for same code and format in one operation
         fmt_value = (

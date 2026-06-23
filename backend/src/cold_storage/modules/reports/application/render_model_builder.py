@@ -554,16 +554,18 @@ def _build_citations_and_approval(
         }
     if approval:
         paragraphs.append("审批信息：")
+        if approval_snapshot is not None and approval_snapshot.revision_number:
+            paragraphs.append(f"批准修订号：{approval_snapshot.revision_number}")
         if approval.get("approved_by"):
             paragraphs.append(f"批准人：{approval['approved_by']}")
         if approval.get("approved_at"):
             paragraphs.append(f"批准时间：{approval['approved_at']}")
         if approval.get("approved_revision_id"):
             rid = approval["approved_revision_id"]
-            paragraphs.append(f"批准版本：revision {rid[:8]}")
+            paragraphs.append(f"批准修订ID：{rid}")
         if approval.get("approved_content_hash"):
             h = approval["approved_content_hash"]
-            paragraphs.append(f"批准内容哈希：{h[:16]}..." if len(h) > 16 else f"批准内容哈希：{h}")
+            paragraphs.append(f"批准内容哈希：{h}")
 
     if not citations and not approval:
         return RenderSection(

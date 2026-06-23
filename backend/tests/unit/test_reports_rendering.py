@@ -25,6 +25,7 @@ from sqlalchemy.pool import StaticPool
 
 from cold_storage.modules.reports.application.render_service import (
     ReportRenderService,
+    ReportRenderUnitOfWork,
 )
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
@@ -71,7 +72,7 @@ def repo(db_session):
 
 
 @pytest.fixture()
-def render_service(repo):
+def render_service(repo, db_session):
     """Real ReportRenderService with in-memory DB + temp storage."""
     storage_dir = tempfile.mkdtemp()
     from cold_storage.modules.reports.infrastructure.artifact_storage import (
@@ -81,10 +82,9 @@ def render_service(repo):
     storage = ReportArtifactStorage(storage_dir)
     return (
         ReportRenderService(
-            repository=repo,
+            uow=ReportRenderUnitOfWork(db_session, report_repo=repo, artifact_repo=repo),
             storage=storage,
             template_repo=repo,
-            artifact_repo=repo,
         ),
         repo,
         storage,
@@ -563,7 +563,9 @@ class TestTemplateOperations:
         storage = ReportArtifactStorage(tempfile.mkdtemp())
         repo = SQLReportRepository(db_session)
         svc = ReportRenderService(
-            repository=repo, storage=storage, template_repo=repo, artifact_repo=repo
+            uow=ReportRenderUnitOfWork(db_session, report_repo=repo, artifact_repo=repo),
+            storage=storage,
+            template_repo=repo,
         )
 
         with pytest.raises(TemplateNotFoundError):
@@ -720,7 +722,9 @@ class TestArtifactStateMachine:
 
         storage = ReportArtifactStorage(tempfile.mkdtemp())
         svc = ReportRenderService(
-            repository=svc_repo, storage=storage, template_repo=svc_repo, artifact_repo=svc_repo
+            uow=ReportRenderUnitOfWork(db_session, report_repo=svc_repo, artifact_repo=svc_repo),
+            storage=storage,
+            template_repo=svc_repo,
         )
         report_id, rev_id, _ = _seed_report(db_session, status="draft", revision_quality="draft")
 
@@ -1064,10 +1068,9 @@ class TestFormalExportRules:
 
         storage = ReportArtifactStorage(tempfile.mkdtemp())
         svc = ReportRenderService(
-            repository=SQLReportRepository(db_session),
+            uow=ReportRenderUnitOfWork(db_session),
             storage=storage,
             template_repo=SQLReportRepository(db_session),
-            artifact_repo=SQLReportRepository(db_session),
         )
 
         _seed_template(db_session, version="1.0.0")

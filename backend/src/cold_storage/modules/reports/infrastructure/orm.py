@@ -179,6 +179,10 @@ class ReportTemplateRecord(Base):
         server_default=sa.func.now(),
     )
     activated_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    # P0-7: Active slot marker — 'active' for the current active template, NULL otherwise.
+    # Combined with unique index on (template_code, format, active_slot) to enforce
+    # at most one active template per code+format pair.
+    active_slot: Mapped[str | None] = mapped_column(sa.String(16), nullable=True, index=True)
     __table_args__ = (
         sa.UniqueConstraint(
             "template_code",

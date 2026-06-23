@@ -11,10 +11,13 @@ P0-10: Template manifest controls page size, margins, fonts, styles, etc.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import fitz  # PyMuPDF
+
+from cold_storage.modules.reports.domain.render_model import RenderTableCell
 
 if TYPE_CHECKING:
     from cold_storage.modules.reports.domain.render_model import (
@@ -23,6 +26,8 @@ if TYPE_CHECKING:
         RenderTable,
         ReportRenderModel,
     )
+
+_logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # CJK Font Detection (P0-9)
@@ -808,30 +813,30 @@ def _draw_table(
     )
     show_unit_row = section_config.get("unit_row", True)
 
-    # P0-4: Compute column widths from width_ratio if available
-    if (
-        columns_config
-        and len(columns_config) == num_cols
-        and any(c.get("width_ratio", 0) for c in columns_config)
-    ):
-        total_ratio = sum(c.get("width_ratio", 1.0) for c in columns_config)
-        if total_ratio > 0:
-            col_widths = [
-                (c.get("width_ratio", 1.0) / total_ratio) * max_width for c in columns_config
-            ]
-        else:
-            col_widths = [max_width / num_cols] * num_cols
-    else:
-        if columns_config and len(columns_config) != num_cols:
-            import logging
+    # P0-4: Validate column count vs manifest columns_config
+    if columns_config and len(columns_config) != num_cols:
+        raise ValueError(
+            f"columns_config count ({len(columns_config)}) != headers count "
+            f"({num_cols}) for section_key={section_key!r}"
+        )
 
-            logging.getLogger(__name__).warning(
-                "P0-4: columns_config count (%d) != headers count (%d) "
-                "for section_key=%r — falling back to equal-width columns",
-                len(columns_config),
-                num_cols,
-                section_key,
+    # P0-4: Compute column widths from width_ratio if available
+    if columns_config and any(c.get("width_ratio", 0) for c in columns_config):
+        # Validate width_ratio values: all must be positive numbers
+        for ci, col_cfg in enumerate(columns_config):
+            wr = col_cfg.get("width_ratio", 1.0)
+            if not isinstance(wr, (int, float)) or wr <= 0:
+                raise ValueError(
+                    f"width_ratio for column {ci} must be a positive number, "
+                    f"got {wr!r} in section_key={section_key!r}"
+                )
+        total_ratio = sum(c.get("width_ratio", 1.0) for c in columns_config)
+        if total_ratio <= 0:
+            raise ValueError(
+                f"All width_ratios are zero or negative for section_key={section_key!r}"
             )
+        col_widths = [(c.get("width_ratio", 1.0) / total_ratio) * max_width for c in columns_config]
+    else:
         col_widths = [max_width / num_cols] * num_cols
 
     # P0-4: Column alignment from config (overridden by cell.align)
@@ -851,14 +856,15 @@ def _draw_table(
 
     def _draw_row(
         row_y: float,
-        cells: list[str],
+        cells: list[RenderTableCell],
         is_header: bool = False,
         is_unit: bool = False,
     ) -> float:
         """Draw a single row of cells, return new y after the row."""
         row_font_size = header_font_size if is_header else body_font_size
+        cell_texts = [c.value for c in cells]
         row_height = _measure_row_height(
-            cells,
+            cell_texts,
             font,
             row_font_size,
             col_widths[0],
@@ -883,7 +889,8 @@ def _draw_table(
         # Grid lines (vertical) and text
         cell_padding = 6  # left+right padding
         col_x = x
-        for col_idx, cell_text in enumerate(cells):
+        for col_idx, cell in enumerate(cells):
+            cell_text = cell.value
             cw = col_widths[col_idx]
             # Vertical line
             ctx.current_page.draw_line(
@@ -895,11 +902,14 @@ def _draw_table(
             # Cell text with wrapping
             usable_width = cw - cell_padding
             wrapped_lines = _wrap_cell_text(cell_text, font, row_font_size, usable_width)
-            # P0-4: Compute text x position based on column alignment
-            alignment = col_aligns[col_idx] if col_idx < len(col_aligns) else "left"
-            for wline in wrapped_lines:
-                text_y_pos = row_y
-                text_y_pos += _LINE_HEIGHT
+            # P0-4: Cell alignment overrides column default
+            alignment = (
+                cell.align
+                if cell.align != "left"
+                else (col_aligns[col_idx] if col_idx < len(col_aligns) else "left")
+            )
+            for line_index, wline in enumerate(wrapped_lines):
+                text_y_pos = row_y + _LINE_HEIGHT * (line_index + 1)
                 wline_width = font.text_length(wline, fontsize=row_font_size)
                 if alignment == "right":
                     text_x = col_x + cw - cell_padding / 2 - wline_width
@@ -937,8 +947,9 @@ def _draw_table(
 
     def _draw_header_group(row_y: float) -> float:
         """Draw header + unit row as an inseparable group (P0-3)."""
+        header_texts = [h for h in table.headers]
         header_height = _measure_row_height(
-            table.headers,
+            header_texts,
             font,
             header_font_size,
             col_widths[0],
@@ -946,11 +957,11 @@ def _draw_table(
             col_widths=col_widths,
         )
         unit_height = 0.0
-        unit_cells: list[str] = []
+        unit_cell_texts: list[str] = []
         if has_unit_row:
-            unit_cells = [f"({u})" if u else "" for u in table.unit_row]
+            unit_cell_texts = [f"({u})" if u else "" for u in table.unit_row]
             unit_height = _measure_row_height(
-                unit_cells,
+                unit_cell_texts,
                 font,
                 body_font_size,
                 col_widths[0],
@@ -961,21 +972,37 @@ def _draw_table(
         group_height = header_height + unit_height
         ctx.ensure_space(group_height)
         row_y = ctx.y  # sync after ensure_space
-        row_y = _draw_row(row_y, table.headers, is_header=True)
+        # Create RenderTableCell objects with manifest column alignment
+        header_cells = [
+            RenderTableCell(
+                value=h,
+                align=col_aligns[i] if i < len(col_aligns) else "left",
+            )
+            for i, h in enumerate(table.headers)
+        ]
+        row_y = _draw_row(row_y, header_cells, is_header=True)
         if has_unit_row:
+            unit_cells = [
+                RenderTableCell(
+                    value=f"({u})" if u else "",
+                    align=col_aligns[i] if i < len(col_aligns) else "left",
+                )
+                for i, u in enumerate(table.unit_row)
+            ]
             row_y = _draw_row(row_y, unit_cells, is_unit=True)
         return row_y
 
     def _draw_row_split(
         row_y: float,
-        cells: list[str],
+        cells: list[RenderTableCell],
         is_header: bool = False,
         is_unit: bool = False,
     ) -> float:
         """Draw a row, splitting across pages if it's too tall (P0-7)."""
         row_font_size = header_font_size if is_header else body_font_size
+        cell_texts = [c.value for c in cells]
         row_height = _measure_row_height(
-            cells,
+            cell_texts,
             font,
             row_font_size,
             col_widths[0],
@@ -1003,10 +1030,10 @@ def _draw_table(
         # Pre-wrap all cells using per-column widths
         all_wrapped: list[list[str]] = []
         max_lines = 0
-        for ci, cell_text in enumerate(cells):
+        for ci, cell in enumerate(cells):
             cw = col_widths[ci]
             usable_width = cw - cell_padding
-            lines = _wrap_cell_text(cell_text, font, row_font_size, usable_width)
+            lines = _wrap_cell_text(cell.value, font, row_font_size, usable_width)
             all_wrapped.append(lines)
             if len(lines) > max_lines:
                 max_lines = len(lines)
@@ -1056,7 +1083,11 @@ def _draw_table(
                     width=0.5,
                 )
                 # Draw lines in this chunk
-                alignment = col_aligns[col_idx] if col_idx < len(col_aligns) else "left"
+                alignment = (
+                    cells[col_idx].align
+                    if cells[col_idx].align != "left"
+                    else (col_aligns[col_idx] if col_idx < len(col_aligns) else "left")
+                )
                 for li in range(line_idx, min(line_idx + chunk_lines, len(cell_lines))):
                     text_y_pos = row_y + _LINE_HEIGHT * (li - line_idx + 1)
                     wline = cell_lines[li]
@@ -1112,9 +1143,10 @@ def _draw_table(
 
     # --- Draw data rows with overflow detection ---
     for row_data in table.rows:
-        cells = [cell.value for cell in row_data]
+        cells = list(row_data)  # keep full RenderTableCell objects
+        cell_texts = [cell.value for cell in row_data]
         row_height = _measure_row_height(
-            cells,
+            cell_texts,
             font,
             body_font_size,
             col_widths[0],
@@ -1209,9 +1241,11 @@ class PdfRenderer:
 
         # ---- Content sections ----
         for section in model.sections:
-            # Start each section on a new page
+            # P0-3: Resolve orientation BEFORE creating the page
+            orientation = self._resolve_orientation(section, ctx)
+            ctx.set_orientation(orientation)
             ctx.new_page()
-            self._draw_section(ctx, section)
+            self._draw_section_content(ctx, section)
 
         # ---- Finalize ----
         pdf_bytes: bytes = doc.tobytes()
@@ -1292,27 +1326,15 @@ class PdfRenderer:
     # ------------------------------------------------------------------
     # Section rendering
     # ------------------------------------------------------------------
-    def _draw_section(
+    def _draw_section_content(
         self,
         ctx: PdfRenderContext,
         section: RenderSection,
     ) -> None:
-        """Draw a section on the current page.
+        """Draw section CONTENT on the current page (no page creation).
 
-        P0-5: Checks if section should be in landscape and switches orientation.
+        Orientation and page creation are handled by the caller (render()).
         """
-        # P0-5: Check if this section needs landscape orientation
-        was_landscape = ctx.orientation == "landscape"
-        if ctx.should_be_landscape(section.section_key):
-            if not was_landscape:
-                ctx.set_orientation("landscape")
-                # Start new page with landscape dimensions
-                ctx.new_page()
-        elif was_landscape:
-            # Previous section was landscape; restore portrait
-            ctx.set_orientation("portrait")
-            ctx.new_page()
-
         content_left = ctx.content_left
         content_width = ctx.content_width
         settings = ctx.settings
@@ -1487,3 +1509,27 @@ class PdfRenderer:
                     max_width=content_width,
                 )
                 ctx.y += 2
+
+    # ------------------------------------------------------------------
+    # Orientation resolution (P0-3)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _resolve_orientation(
+        section: RenderSection,
+        ctx: PdfRenderContext,
+    ) -> str:
+        """Determine the orientation for a section.
+
+        Checks table_configs[key].orientation first, then landscape_sections list.
+        """
+        # Check per-table config first
+        table_configs = ctx.settings.get("table_configs", {})
+        section_config = table_configs.get(section.section_key, {})
+        table_orientation: str = section_config.get("orientation", "")
+        if table_orientation in ("landscape", "portrait"):
+            return table_orientation
+        # Check landscape_sections list
+        if section.section_key in ctx.landscape_sections:
+            return "landscape"
+        # Default to context's current orientation (usually portrait)
+        return str(ctx.orientation)

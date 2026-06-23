@@ -113,6 +113,9 @@ def _get_planning_agent_service(
     from cold_storage.modules.reports.application.render_service import (
         ReportRenderService as _ReportRenderService,
     )
+    from cold_storage.modules.reports.application.render_service import (
+        ReportRenderUnitOfWork as _ReportRenderUnitOfWork,
+    )
     from cold_storage.modules.reports.infrastructure.artifact_storage import (
         ReportArtifactStorage as _ReportArtifactStorage,
     )
@@ -139,11 +142,15 @@ def _get_planning_agent_service(
     # P0-7: Create report render service for tool adapters
     _reports_repo = _SQLReportRepository(db_session)
     _reports_storage = _ReportArtifactStorage(base_dir="data/report_artifacts")
+    _reports_uow = _ReportRenderUnitOfWork(
+        db_session,
+        report_repo=_reports_repo,
+        artifact_repo=_reports_repo,
+    )
     _reports_render_svc = _ReportRenderService(
-        repository=_reports_repo,
+        uow=_reports_uow,
         storage=_reports_storage,
         template_repo=_reports_repo,
-        artifact_repo=_reports_repo,
     )
 
     from cold_storage.modules.planning_agent.infrastructure.tool_adapters import ToolAdapter as _TA
@@ -830,6 +837,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     from cold_storage.modules.reports.api.routes import reports_router
     from cold_storage.modules.reports.application.render_service import (
         ReportRenderService,
+        ReportRenderUnitOfWork,
     )
     from cold_storage.modules.reports.application.service import ReportService
     from cold_storage.modules.reports.infrastructure.artifact_storage import (
@@ -871,11 +879,15 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     ) -> ReportRenderService:
         repo = SQLReportRepository(db_session)
         artifact_storage = ReportArtifactStorage(base_dir="data/report_artifacts")
+        uow = ReportRenderUnitOfWork(
+            db_session,
+            report_repo=repo,
+            artifact_repo=repo,
+        )
         return ReportRenderService(
-            repository=repo,
+            uow=uow,
             storage=artifact_storage,
             template_repo=repo,
-            artifact_repo=repo,
         )
 
     def _get_report_template_repo(

@@ -44,6 +44,7 @@ class ApprovalSnapshot:
     content_hash: str
     approved_by: str
     approved_at: str
+    revision_number: int = 0
 
     @classmethod
     def from_report(cls, report: Report) -> ApprovalSnapshot | None:
@@ -51,13 +52,42 @@ class ApprovalSnapshot:
 
         Returns None if the report has not been approved (any field missing).
         """
-        if not report.approved_revision_id:
+        if not (
+            report.approved_revision_id
+            and report.approved_content_hash
+            and report.approved_by
+            and report.approved_at
+        ):
             return None
         return cls(
             revision_id=report.approved_revision_id or "",
             content_hash=report.approved_content_hash or "",
             approved_by=report.approved_by or "",
             approved_at=report.approved_at or "",
+        )
+
+    @classmethod
+    def from_report_and_revision(
+        cls, report: Report, revision: ReportRevision
+    ) -> ApprovalSnapshot | None:
+        """Build an ApprovalSnapshot from Report approval fields and a revision.
+
+        Returns None if the report has not been approved (any field missing).
+        Includes the revision_number from the revision object.
+        """
+        if not (
+            report.approved_revision_id
+            and report.approved_content_hash
+            and report.approved_by
+            and report.approved_at
+        ):
+            return None
+        return cls(
+            revision_id=report.approved_revision_id or "",
+            content_hash=report.approved_content_hash or "",
+            approved_by=report.approved_by or "",
+            approved_at=report.approved_at or "",
+            revision_number=revision.revision_number,
         )
 
 

@@ -1,7 +1,9 @@
 """0014_add_approval_fields
 
 Add approval binding fields to reports table.
-Idempotent: safe to re-run on databases that already have the columns.
+
+Idempotent: safe to re-run on databases that already have the columns,
+constraints, or indexes.  Handles both upgrade and downgrade cleanly.
 
 Revision ID: 0014_add_approval_fields
 Revises: 0013_add_templates_artifacts
@@ -36,12 +38,12 @@ def _column_exists(table: str, column: str) -> bool:
 
 
 def upgrade() -> None:
+    """Idempotent upgrade — safe to run multiple times."""
     tables = _existing_tables()
     if "reports" not in tables:
         return
 
-    # --- Columns ---
-    # SQLite supports ADD COLUMN directly; PostgreSQL does too.
+    # --- Columns (idempotent: skip if already exists) ---
     if not _column_exists("reports", "approved_revision_id"):
         op.add_column(
             "reports",
@@ -63,8 +65,7 @@ def upgrade() -> None:
             sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
         )
 
-    # --- Foreign key constraint ---
-    # Idempotent: skip if constraint already exists.
+    # --- Foreign key constraint (idempotent) ---
     bind = op.get_bind()
     dialect = bind.dialect.name
     existing_fks = sa.inspect(bind).get_foreign_keys("reports")
@@ -95,11 +96,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Idempotent downgrade — safe to run multiple times."""
     tables = _existing_tables()
     if "reports" not in tables:
         return
 
-    # --- Foreign key constraint ---
+    # --- Foreign key constraint (idempotent) ---
     bind = op.get_bind()
     dialect = bind.dialect.name
     existing_fks = sa.inspect(bind).get_foreign_keys("reports")
@@ -119,7 +121,7 @@ def downgrade() -> None:
                 type_="foreignkey",
             )
 
-    # --- Columns ---
+    # --- Columns (idempotent: skip if not exists) ---
     if _column_exists("reports", "approved_at"):
         op.drop_column("reports", "approved_at")
     if _column_exists("reports", "approved_by"):

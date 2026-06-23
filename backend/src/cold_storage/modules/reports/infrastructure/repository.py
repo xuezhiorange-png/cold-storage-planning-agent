@@ -411,6 +411,8 @@ class SQLReportRepository(ReportRepository):
             created_by=template.created_by,
             created_at=template.created_at,
             activated_at=template.activated_at,
+            # P0-7: Set active_slot based on status
+            active_slot="active" if template.status.value == "active" else None,
         )
         self._session.add(rec)
 
@@ -452,6 +454,8 @@ class SQLReportRepository(ReportRepository):
     def deactivate_templates(self, template_code: str, fmt: str) -> int:
         """Deactivate all active templates for the given code and format.
 
+        P0-7: Sets active_slot = NULL and status = DRAFT for all matching active templates.
+
         Returns the number of templates deactivated.
         """
         stmt = (
@@ -461,21 +465,30 @@ class SQLReportRepository(ReportRepository):
                 ReportTemplateRecord.format == fmt,
                 ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
             )
-            .values(status=TemplateStatus.DRAFT.value)
+            .values(status=TemplateStatus.DRAFT.value, active_slot=None)
         )
         result = self._session.execute(stmt)
         return result.rowcount  # type: ignore[attr-defined, no-any-return]
 
     def update_template(self, template: ReportTemplate) -> None:
-        """Update an existing template by ID (status, activated_at, etc.)."""
-        stmt = (
-            sa.update(ReportTemplateRecord)
-            .where(ReportTemplateRecord.id == template.id)
-            .values(
-                status=template.status.value,
-                activated_at=template.activated_at,
-            )
-        )
+        """Update an existing template by ID (status, activated_at, active_slot, etc.).
+
+        P0-7: Includes active_slot in the update.
+        """
+        # P0-7: Determine active_slot from status
+        from cold_storage.modules.reports.infrastructure.orm import ReportTemplateRecord as _Rec
+
+        values: dict[str, Any] = {
+            "status": template.status.value,
+            "activated_at": template.activated_at,
+        }
+        # P0-7: Set active_slot based on status
+        if template.status.value == "active":
+            values["active_slot"] = "active"
+        else:
+            values["active_slot"] = None
+
+        stmt = sa.update(_Rec).where(_Rec.id == template.id).values(**values)
         result = self._session.execute(stmt)
         if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError(f"Template {template.id} not found")

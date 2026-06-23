@@ -35,6 +35,7 @@ from cold_storage.modules.reports.application.assembler import (
 )
 from cold_storage.modules.reports.application.render_service import (
     ReportRenderService,
+    ReportRenderUnitOfWork,
 )
 from cold_storage.modules.reports.application.service import (
     ReportService,
@@ -356,12 +357,11 @@ class TestApprovalRevisionMismatch:
             )
             template_repo.get_active_template.return_value = template_mock
             template_repo.list_templates.return_value = [template_mock]
-            artifact_repo = MagicMock()
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=uow,
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=artifact_repo,
             )
             with pytest.raises(ExportPermissionError, match="revision mismatch|Approved revision"):
                 render_svc.render(
@@ -413,12 +413,11 @@ class TestApprovalContentHashMismatch:
             )
             template_repo.get_active_template.return_value = template_mock
             template_repo.list_templates.return_value = [template_mock]
-            artifact_repo = MagicMock()
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=uow,
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=artifact_repo,
             )
             with pytest.raises(ExportPermissionError, match="mismatch|hash"):
                 render_svc.render(
@@ -475,12 +474,11 @@ class TestMissingApprovalFields:
             )
             template_repo.get_active_template.return_value = template_mock
             template_repo.list_templates.return_value = [template_mock]
-            artifact_repo = MagicMock()
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=uow,
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=artifact_repo,
             )
             with pytest.raises(ExportPermissionError, match="Missing approval fields"):
                 render_svc.render(
@@ -527,12 +525,11 @@ class TestRenderManifestApprovalFields:
             )
             template_repo.get_active_template.return_value = template_mock
             template_repo.list_templates.return_value = [template_mock]
-            artifact_repo = MagicMock()
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=uow,
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=artifact_repo,
             )
             artifact = render_svc.render(
                 report_id=report.id,
@@ -594,6 +591,7 @@ class TestRendererFailureArtifactQueryable:
             class CaptureArtifactRepo:
                 def __init__(self, real_repo: SQLReportRepository):
                     self._real = real_repo
+                    self._session = getattr(real_repo, "_session", None)
 
                 def save_artifact(self, artifact: ReportExportArtifact) -> None:
                     self._real.save_artifact(artifact)
@@ -615,10 +613,9 @@ class TestRendererFailureArtifactQueryable:
             cap_repo = CaptureArtifactRepo(repo)
 
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=cap_repo),
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=cap_repo,
             )
 
             # Make rendering fail
@@ -685,10 +682,9 @@ class TestTempWriteFailure:
             template_repo.list_templates.return_value = [template_mock]
             artifact_repo = repo  # Use real repo for DB queries
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=artifact_repo),
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=artifact_repo,
             )
 
             with pytest.raises(RenderError):
@@ -743,26 +739,26 @@ class TestCompletedCommitFailure:
             template_repo.get_active_template.return_value = template_mock
             template_repo.list_templates.return_value = [template_mock]
 
-            # Use real repo but make commit fail on the second call (the completed commit)
+            # Use real repo but make UOW commit fail on the final completed commit
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             call_count = 0
-            original_commit = repo.commit
+            original_uow_commit = uow.commit
             failed_once = False
 
-            def failing_commit():
+            def failing_uow_commit():
                 nonlocal call_count, failed_once
                 call_count += 1
-                if call_count >= 3 and not failed_once:  # Fail on the final completed commit
+                if call_count >= 3 and not failed_once:
                     failed_once = True
                     raise RuntimeError("Commit failed")
-                original_commit()
+                original_uow_commit()
 
-            repo.commit = failing_commit
+            uow.commit = failing_uow_commit
 
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=uow,
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=repo,
             )
 
             with pytest.raises(RenderError):
@@ -837,12 +833,11 @@ class TestFileCleanupFailureLogging:
             )
             template_repo.get_active_template.return_value = template_mock
             template_repo.list_templates.return_value = [template_mock]
-            artifact_repo = MagicMock()
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=uow,
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=artifact_repo,
             )
 
             with (
@@ -915,10 +910,9 @@ class TestFailedIdempotencyRetry:
             artifact_repo = repo  # Use real repo for DB persistence
 
             render_svc = ReportRenderService(
-                repository=repo,
+                uow=ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=artifact_repo),
                 storage=storage,
                 template_repo=template_repo,
-                artifact_repo=artifact_repo,
             )
 
             idempotency_key = "idem-retry-test"

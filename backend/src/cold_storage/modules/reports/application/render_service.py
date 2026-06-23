@@ -82,6 +82,9 @@ class ReportTemplateRepositoryPort(Protocol):
 
     def update_template(self, template: ReportTemplate) -> None: ...
 
+    # P0-7: Deactivate all active templates for the given code and format.
+    def deactivate_templates(self, template_code: str, fmt: str) -> int: ...
+
     def commit(self) -> None: ...
 
     def rollback(self) -> None: ...
@@ -162,6 +165,17 @@ class ReportRenderUnitOfWork:
             SQLReportRepository,
         )
 
+        # Validate that provided repos share the same session
+        if report_repo is not None and getattr(report_repo, "_session", None) is not session:
+            raise ValueError(
+                "report_repo._session does not match the UOW session. "
+                "Both repositories must share the same SQLAlchemy session."
+            )
+        if artifact_repo is not None and getattr(artifact_repo, "_session", None) is not session:
+            raise ValueError(
+                "artifact_repo._session does not match the UOW session. "
+                "Both repositories must share the same SQLAlchemy session."
+            )
         self._report_repo: ReportRepository = report_repo or SQLReportRepository(session)
         self._artifact_repo: ReportArtifactRepositoryPort | None = (
             artifact_repo or SQLReportRepository(session)
@@ -194,58 +208,39 @@ class ReportRenderService:
 
     Parameters
     ----------
-    repository:
-        Report repository port (for loading report and revision).
+    uow:
+        Unit of Work that provides report_repo and artifact_repo from a
+        single shared session.
     storage:
         Artifact storage adapter (for saving rendered files).
     template_repo:
         Template repository port (for loading templates).
-    artifact_repo:
-        Artifact repository port (for persisting artifact records).
     """
 
     def __init__(
         self,
-        repository: ReportRepository | None = None,
+        *,
+        uow: ReportRenderUnitOfWork,
         storage: ArtifactStoragePort | None = None,
         template_repo: ReportTemplateRepositoryPort | None = None,
-        artifact_repo: ReportArtifactRepositoryPort | None = None,
-        *,
-        uow: ReportRenderUnitOfWork | None = None,
     ) -> None:
         """Initialize the render service.
 
         Parameters
         ----------
         uow:
-            Preferred: a ``ReportRenderUnitOfWork`` that provides both
+            Required: a ``ReportRenderUnitOfWork`` that provides both
             report_repo and artifact_repo from a single session.
-        repository:
-            Legacy: explicit report repository.  Logged as a warning if used
-            without a UnitOfWork.
         storage:
             Artifact file storage adapter (required).
         template_repo:
             Template repository port.
-        artifact_repo:
-            Legacy: explicit artifact repository.
         """
-        import warnings
-
-        if uow is not None:
-            self._repo: ReportRepository = uow.report_repo
-            self._artifact_repo: ReportArtifactRepositoryPort | None = uow.artifact_repo
-        elif repository is not None:
-            self._repo = repository
-            self._artifact_repo = artifact_repo
-            warnings.warn(
-                "ReportRenderService: prefer passing uow=ReportRenderUnitOfWork "
-                "instead of separate repository/artifact_repo arguments. "
-                "The separate-arguments path may use non-shared sessions.",
-                stacklevel=2,
-            )
-        else:
-            raise TypeError("ReportRenderService requires either uow= or repository=")
+        if uow is None:
+            raise TypeError("ReportRenderService requires uow= parameter")
+        self._uow: ReportRenderUnitOfWork = uow
+        self._repo: ReportRepository = uow.report_repo
+        self._artifact_repo: ReportArtifactRepositoryPort | None = uow.artifact_repo
         self._storage: ArtifactStoragePort = storage  # type: ignore[assignment]
         self._template_repo = template_repo
 
@@ -315,7 +310,7 @@ class ReportRenderService:
         template = self._find_template(export_format, template_version)
 
         # P0-1: Build ApprovalSnapshot from Report fields for render model
-        approval_snapshot = ApprovalSnapshot.from_report(report)
+        approval_snapshot = ApprovalSnapshot.from_report_and_revision(report, revision)
 
         # 5. Build render model from revision content
         from cold_storage.modules.reports.application.render_model_builder import (
@@ -365,9 +360,9 @@ class ReportRenderService:
                     action="render",
                     fingerprint=fingerprint,
                 )
-                self._repo.commit()
+                self._uow.commit()
             except Exception:
-                self._repo.rollback()
+                self._uow.rollback()
                 # Record exists — verify same fingerprint
                 existing = self._repo.get_idempotency_record(idempotency_key)
                 if existing is None:
@@ -388,14 +383,14 @@ class ReportRenderService:
                 # P0-2: Allow retry if previously failed — delete and re-claim
                 if existing["status"] == "failed":
                     self._repo.reset_failed_idempotency(idempotency_key)
-                    self._repo.commit()
+                    self._uow.commit()
                     self._repo.save_idempotency_record(
                         key=idempotency_key,
                         actor=actor,
                         action="render",
                         fingerprint=fingerprint,
                     )
-                    self._repo.commit()
+                    self._uow.commit()
                     # Fall through — render will proceed
                 else:
                     # Not yet completed or failed — another render in progress
@@ -437,14 +432,14 @@ class ReportRenderService:
             current_stage = "insert_pending"
             if self._artifact_repo:
                 self._artifact_repo.save_artifact(artifact)
-                self._artifact_repo.commit()
+                self._uow.commit()
 
             # P0-2: UPDATE artifact(rendering) → commit
             current_stage = "update_rendering"
             artifact = replace(artifact, status=ArtifactStatus.RENDERING)
             if self._artifact_repo:
                 self._artifact_repo.update_artifact(artifact)
-                self._artifact_repo.commit()
+                self._uow.commit()
 
             # 8. Render via DocxRenderer or PdfRenderer
             current_stage = "render"
@@ -507,7 +502,7 @@ class ReportRenderService:
                     result_payload={"artifact_id": artifact.id},
                 )
             if self._artifact_repo:
-                self._artifact_repo.commit()
+                self._uow.commit()
 
             return artifact
 
@@ -559,7 +554,7 @@ class ReportRenderService:
             # P0-2: Persist failure state — rollback, re-read, update to failed
             if self._artifact_repo:
                 try:
-                    self._artifact_repo.rollback()
+                    self._uow.rollback()
                     # Re-read artifact from DB (clean session)
                     failed_artifact = self._artifact_repo.get_artifact(artifact.id)
                     if failed_artifact is not None:
@@ -580,12 +575,12 @@ class ReportRenderService:
                             type(exc).__name__,
                             str(exc),
                         )
-                    self._artifact_repo.commit()
+                    self._uow.commit()
                 except Exception:
                     import contextlib
 
                     with contextlib.suppress(Exception):
-                        self._artifact_repo.rollback()
+                        self._uow.rollback()
                     logger.error(
                         "Failed to persist failed artifact state",
                         extra={

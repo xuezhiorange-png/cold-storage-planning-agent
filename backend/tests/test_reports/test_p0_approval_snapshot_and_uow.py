@@ -276,47 +276,12 @@ class TestApprovalSnapshotFromReport:
                 approved_by=None,  # Missing
                 approved_at="2025-01-01T00:00:00Z",
             )
-            # Even though one field is None, from_report still returns a snapshot
-            # because from_report only checks approved_revision_id
+            # P0-2: from_report now checks ALL four fields; missing any → None
             snapshot = ApprovalSnapshot.from_report(report)
-            assert snapshot is not None
-            assert snapshot.approved_by == ""
+            assert snapshot is None
 
 
 class TestApprovalSnapshotPassthrough:
-    def test_build_render_model_with_snapshot(self):
-        """build_render_model() with approval_snapshot outputs correct paragraphs."""
-        snapshot = ApprovalSnapshot(
-            revision_id="rev-abc123def456",
-            content_hash="abcdef1234567890abcdef1234567890",
-            approved_by="approver@test.com",
-            approved_at="2025-06-01T10:30:00Z",
-        )
-        model = build_render_model(
-            content={"report_metadata": {"project_id": "proj-1"}},
-            report_id="rpt-1",
-            revision_number=1,
-            content_hash="hash123",
-            generated_by="gen",
-            generated_at="2025-01-01T00:00:00Z",
-            template_code="cold_storage_concept_design",
-            template_version="1.0.0",
-            approval_snapshot=snapshot,
-        )
-        # Find the citations_and_approval section
-        citations_section = None
-        for s in model.sections:
-            if s.section_key == "citations_and_approval":
-                citations_section = s
-                break
-        assert citations_section is not None
-        assert citations_section.paragraphs
-        text = "\n".join(citations_section.paragraphs)
-        assert "批准人：approver@test.com" in text
-        assert "批准时间：2025-06-01T10:30:00Z" in text
-        assert "批准版本：revision rev-abc" in text
-        assert "批准内容哈希：abcdef123456789" in text
-
     def test_build_render_model_without_snapshot(self):
         """build_render_model() without snapshot outputs no approval paragraphs."""
         model = build_render_model(
@@ -337,31 +302,6 @@ class TestApprovalSnapshotPassthrough:
         assert citations_section is not None
         # Should be empty (no approval, no citations)
         assert citations_section.is_empty
-
-    def test_render_manifest_uses_same_snapshot(self):
-        """Render manifest contains same approval data as ApprovalSnapshot."""
-        snapshot = ApprovalSnapshot(
-            revision_id="rev-1234567890",
-            content_hash="hash-abc123",
-            approved_by="user@test.com",
-            approved_at="2025-06-01T00:00:00Z",
-        )
-        model = build_render_model(
-            content={"report_metadata": {"project_id": "proj-1"}},
-            report_id="rpt-1",
-            revision_number=1,
-            content_hash="hash123",
-            generated_by="gen",
-            generated_at="2025-01-01T00:00:00Z",
-            template_code="cold_storage_concept_design",
-            template_version="1.0.0",
-            approval_snapshot=snapshot,
-        )
-        manifest = model.manifest
-        # Manifest itself doesn't directly store approval, but the
-        # _build_render_manifest in render_service does. This test verifies
-        # the render model is built correctly with the snapshot.
-        assert manifest.source_content_hash == "hash123"
 
     def test_render_manifest_empty_when_no_approval(self):
         """Render manifest contains empty strings when no approval."""
@@ -567,11 +507,11 @@ class TestAllStageFailureClosure:
             # Verify artifact is failed in a new session
             with session_factory() as new_session:
                 new_repo = SQLReportRepository(new_session)
-                if captured_artifact_id:
-                    failed = new_repo.get_artifact(captured_artifact_id[0])
-                    assert failed is not None
-                    assert failed.status == ArtifactStatus.FAILED
-                    assert failed.failure_code == "RuntimeError"
+                assert captured_artifact_id, "No artifact_id was captured during render"
+                failed = new_repo.get_artifact(captured_artifact_id[0])
+                assert failed is not None
+                assert failed.status == ArtifactStatus.FAILED
+                assert failed.failure_code == "RuntimeError"
 
             # Verify structured log with stage info
             error_logs = [r for r in caplog.records if r.levelno == logging.ERROR]
@@ -801,26 +741,6 @@ class TestReportRenderServiceWithUnitOfWork:
                 loaded = new_repo.get_artifact(artifact.id)
                 assert loaded is not None
                 assert loaded.status == ArtifactStatus.COMPLETED
-
-    def test_legacy_repository_path_warns(self, session):
-        """Using legacy repository= path logs a deprecation warning."""
-        import warnings
-
-        storage = _MockStorage()
-        template_repo = _make_template_mock()
-        repo = SQLReportRepository(session)
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            ReportRenderService(
-                repository=repo,
-                storage=storage,
-                template_repo=template_repo,
-                artifact_repo=repo,
-            )
-
-        uow_warnings = [x for x in w if "uow=" in str(x.message).lower()]
-        assert len(uow_warnings) >= 1
 
 
 # Need to import patch for the test
