@@ -328,6 +328,8 @@ class ReportExportArtifact:
     generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     failure_code: str = ""
     failure_message: str = ""
+    idempotency_key: str | None = None
+    claim_token: str | None = None
 
     @classmethod
     def create(
@@ -344,6 +346,8 @@ class ReportExportArtifact:
         mime_type: str,
         source_content_hash: str,
         generated_by: str,
+        idempotency_key: str | None = None,
+        claim_token: str | None = None,
     ) -> ReportExportArtifact:
         return cls(
             id=_uuid(),
@@ -364,4 +368,6 @@ class ReportExportArtifact:
             render_manifest_json={},
             generated_by=generated_by,
             generated_at=datetime.now(UTC),
+            idempotency_key=idempotency_key,
+            claim_token=claim_token,
         )

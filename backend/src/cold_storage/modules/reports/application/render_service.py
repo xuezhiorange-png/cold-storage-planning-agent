@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -113,6 +114,9 @@ class ReportArtifactRepositoryPort(Protocol):
         report_id: str,
         failure_code: str = "stale_claim_recovery",
         failure_message: str = "Orphaned by stale claim recovery",
+        *,
+        idempotency_key: str | None = None,
+        stale_claim_token: str | None = None,
     ) -> int: ...
 
     def commit(self) -> None: ...
@@ -232,6 +236,7 @@ class ReportRenderService:
         storage: ArtifactStoragePort | None = None,
         template_repo: ReportTemplateRepositoryPort | None = None,
         stale_claim_seconds: int = 300,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         """Initialize the render service.
 
@@ -247,6 +252,8 @@ class ReportRenderService:
         stale_claim_seconds:
             Seconds after which a 'claimed' idempotency record is
             considered stale and eligible for recovery.
+        clock:
+            Injectable clock for testing. Defaults to ``datetime.now(UTC)``.
         """
         if uow is None:
             raise TypeError("ReportRenderService requires uow= parameter")
@@ -256,6 +263,7 @@ class ReportRenderService:
         self._storage: ArtifactStoragePort = storage  # type: ignore[assignment]
         self._template_repo = template_repo
         self._stale_claim_seconds = stale_claim_seconds
+        self._clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
 
     def render(
         self,
@@ -351,6 +359,8 @@ class ReportRenderService:
         template_version_str = template.version
         template_content_hash = template.template_content_hash
         fingerprint = ""
+        claim_token: str = ""
+        claim_version: int = 0
 
         if idempotency_key:
             fingerprint = _compute_fingerprint(
@@ -367,7 +377,7 @@ class ReportRenderService:
 
             # Attempt atomic claim via idempotency_records table
             try:
-                self._repo.save_idempotency_record(
+                claim_token, claim_version = self._repo.save_idempotency_record(
                     key=idempotency_key,
                     actor=actor,
                     action="render",
@@ -397,7 +407,7 @@ class ReportRenderService:
                 if existing["status"] == "failed":
                     self._repo.reset_failed_idempotency(idempotency_key)
                     self._uow.commit()
-                    self._repo.save_idempotency_record(
+                    claim_token, claim_version = self._repo.save_idempotency_record(
                         key=idempotency_key,
                         actor=actor,
                         action="render",
@@ -411,7 +421,7 @@ class ReportRenderService:
                     # cleanup orphaned non-terminal artifacts.
                     claimed_at = existing.get("claimed_at")
                     if claimed_at is not None:
-                        cutoff = datetime.now(UTC) - timedelta(seconds=self._stale_claim_seconds)
+                        cutoff = self._clock() - timedelta(seconds=self._stale_claim_seconds)
                         if hasattr(claimed_at, "replace"):
                             _claimed = claimed_at
                         else:
@@ -425,16 +435,25 @@ class ReportRenderService:
                             sql_cutoff = (
                                 cutoff.replace(tzinfo=None) if cutoff.tzinfo is not None else cutoff
                             )
-                            reclaimed = self._repo.reclaim_stale_idempotency(
-                                idempotency_key,
-                                fingerprint,
-                                sql_cutoff,
-                                original_claimed_at=claimed_at,
+                            reclaimed, new_token, new_version = (
+                                self._repo.reclaim_stale_idempotency(
+                                    idempotency_key,
+                                    fingerprint,
+                                    sql_cutoff,
+                                    original_claimed_at=claimed_at,
+                                    old_claim_token=existing.get("claim_token", ""),
+                                    old_claim_version=existing.get("claim_version", 0),
+                                )
                             )
                             if reclaimed:
+                                claim_token = new_token
+                                claim_version = new_version
                                 # Cleanup orphaned non-terminal artifacts
                                 if self._artifact_repo is not None:
-                                    self._artifact_repo.fail_nonterminal_artifacts(report_id)
+                                    self._artifact_repo.fail_nonterminal_artifacts(
+                                        report_id,
+                                        stale_claim_token=existing.get("claim_token"),
+                                    )
                                 self._uow.commit()
                                 # Fall through — render will proceed
                             else:
@@ -486,6 +505,8 @@ class ReportRenderService:
             mime_type=mime_type,
             source_content_hash=revision.content_hash,
             generated_by=actor,
+            idempotency_key=idempotency_key,
+            claim_token=claim_token if claim_token else None,
         )
 
         # P0-2: Unified failure handler for ALL artifact persistence stages.
@@ -507,6 +528,18 @@ class ReportRenderService:
             current_stage = "update_rendering"
             artifact = replace(artifact, status=ArtifactStatus.RENDERING)
             if self._artifact_repo:
+                # Verify claim is still current before committing
+                if idempotency_key and claim_token:
+                    current_rec = self._repo.get_idempotency_record(idempotency_key)
+                    if (
+                        current_rec is None
+                        or current_rec.get("claim_token") != claim_token
+                        or current_rec.get("claim_version") != claim_version
+                    ):
+                        raise RenderError(
+                            f"Claim mismatch for {idempotency_key}: "
+                            "another process has reclaimed this key"
+                        )
                 self._artifact_repo.update_artifact(artifact)
                 self._uow.commit()
 
@@ -569,6 +602,7 @@ class ReportRenderService:
                 self._repo.complete_idempotency_record(
                     key=idempotency_key,
                     result_payload={"artifact_id": artifact.id},
+                    claim_token=claim_token,
                 )
             if self._artifact_repo:
                 self._uow.commit()
@@ -643,6 +677,7 @@ class ReportRenderService:
                             idempotency_key,
                             type(exc).__name__,
                             str(exc),
+                            claim_token=claim_token,
                         )
                     self._uow.commit()
                 except Exception:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -91,6 +92,8 @@ def _to_artifact_domain(rec: ReportExportArtifactRecord) -> ReportExportArtifact
         generated_at=_parse_dt(rec.generated_at),
         failure_code=rec.failure_code,
         failure_message=rec.failure_message,
+        idempotency_key=rec.idempotency_key,
+        claim_token=rec.claim_token,
     )
 
 
@@ -265,10 +268,13 @@ class SQLReportRepository(ReportRepository):
 
     # --- Idempotency Records ---
 
-    def save_idempotency_record(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+    def save_idempotency_record(
+        self, key: str, actor: str, action: str, fingerprint: str
+    ) -> tuple[str, int]:
         from datetime import datetime as _dt
 
         now = _dt.now(UTC)
+        claim_token = str(uuid.uuid4())
         rec = IdempotencyRecord(
             key=key,
             actor=actor,
@@ -276,6 +282,8 @@ class SQLReportRepository(ReportRepository):
             fingerprint=fingerprint,
             status="claimed",
             claimed_at=now,
+            claim_token=claim_token,
+            claim_version=1,
         )
         self._session.add(rec)
         try:
@@ -283,6 +291,7 @@ class SQLReportRepository(ReportRepository):
         except Exception:
             self._session.rollback()
             raise  # Will be caught by _claim_idempotency as IdempotencyClaimError
+        return claim_token, 1
 
     def get_idempotency_record(self, key: str) -> dict[str, Any] | None:
         rec = self._session.get(IdempotencyRecord, key)
@@ -296,23 +305,38 @@ class SQLReportRepository(ReportRepository):
             "status": rec.status,
             "result_payload": rec.result_payload,
             "claimed_at": rec.claimed_at,
+            "claim_token": rec.claim_token,
+            "claim_version": rec.claim_version,
         }
 
-    def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
+    def complete_idempotency_record(
+        self, key: str, result_payload: Any, *, claim_token: str = ""
+    ) -> None:
+        conditions = [
+            IdempotencyRecord.key == key,
+            IdempotencyRecord.status == "claimed",
+        ]
+        if claim_token:
+            conditions.append(IdempotencyRecord.claim_token == claim_token)
         stmt = (
             sa.update(IdempotencyRecord)
-            .where(IdempotencyRecord.key == key, IdempotencyRecord.status == "claimed")
+            .where(sa.and_(*conditions))
             .values(status="completed", result_payload=result_payload)
         )
         result = self._session.execute(stmt)
         if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError(f"Idempotency record {key} not found or not in claimed state")
 
-    def fail_idempotency_record(self, key: str, failure_code: str, failure_message: str) -> None:
+    def fail_idempotency_record(
+        self, key: str, failure_code: str, failure_message: str, *, claim_token: str = ""
+    ) -> None:
         """Mark an idempotency record as failed with error details."""
+        conditions = [IdempotencyRecord.key == key]
+        if claim_token:
+            conditions.append(IdempotencyRecord.claim_token == claim_token)
         stmt = (
             sa.update(IdempotencyRecord)
-            .where(IdempotencyRecord.key == key)
+            .where(sa.and_(*conditions))
             .values(
                 status="failed",
                 result_payload={"failure_code": failure_code, "failure_message": failure_message},
@@ -334,11 +358,15 @@ class SQLReportRepository(ReportRepository):
         fingerprint: str,
         cutoff: datetime,
         original_claimed_at: datetime | None = None,
-    ) -> bool:
+        *,
+        old_claim_token: str = "",
+        old_claim_version: int = 0,
+    ) -> tuple[bool, str, int]:
         """Atomically reclaim a stale claimed idempotency record.
 
-        CAS update: status stays 'claimed' but claimed_at is refreshed.
-        Returns True if reclaim succeeded (rowcount > 0).
+        CAS update: status stays 'claimed' but claimed_at is refreshed
+        and claim_token/claim_version are incremented.
+        Returns (success, new_token, new_version).
 
         When *original_claimed_at* is provided, it is included in the
         WHERE clause so that only one concurrent winner can succeed —
@@ -351,6 +379,12 @@ class SQLReportRepository(ReportRepository):
         ]
         if original_claimed_at is not None:
             conditions.append(IdempotencyRecord.claimed_at == original_claimed_at)
+        if old_claim_token:
+            conditions.append(IdempotencyRecord.claim_token == old_claim_token)
+        if old_claim_version:
+            conditions.append(IdempotencyRecord.claim_version == old_claim_version)
+        new_token = str(uuid.uuid4())
+        new_version = old_claim_version + 1
         stmt = (
             sa.update(IdempotencyRecord)
             .where(sa.and_(*conditions))
@@ -358,27 +392,42 @@ class SQLReportRepository(ReportRepository):
                 status="claimed",
                 claimed_at=sa.func.now(),
                 updated_at=sa.func.now(),
+                claim_token=new_token,
+                claim_version=new_version,
             )
         )
         result = self._session.execute(stmt)
-        return result.rowcount > 0  # type: ignore[attr-defined,no-any-return]
+        return result.rowcount > 0, new_token, new_version  # type: ignore[attr-defined]
 
     def fail_nonterminal_artifacts(
         self,
         report_id: str,
         failure_code: str = "stale_claim_recovery",
         failure_message: str = "Orphaned by stale claim recovery",
+        *,
+        idempotency_key: str | None = None,
+        stale_claim_token: str | None = None,
     ) -> int:
         """Mark all non-terminal (pending/rendering) artifacts as failed.
 
+        When *idempotency_key* or *stale_claim_token* are provided, only
+        artifacts matching those criteria are failed.  When neither is
+        provided, all non-terminal artifacts for the report are failed
+        (backward compat).
+
         Returns the number of artifacts updated.
         """
+        conditions = [
+            ReportExportArtifactRecord.report_id == report_id,
+            ReportExportArtifactRecord.status.in_(["pending", "rendering"]),
+        ]
+        if idempotency_key is not None:
+            conditions.append(ReportExportArtifactRecord.idempotency_key == idempotency_key)
+        if stale_claim_token is not None:
+            conditions.append(ReportExportArtifactRecord.claim_token == stale_claim_token)
         stmt = (
             sa.update(ReportExportArtifactRecord)
-            .where(
-                ReportExportArtifactRecord.report_id == report_id,
-                ReportExportArtifactRecord.status.in_(["pending", "rendering"]),
-            )
+            .where(sa.and_(*conditions))
             .values(
                 status="failed",
                 failure_code=failure_code,
@@ -596,6 +645,8 @@ class SQLReportRepository(ReportRepository):
             generated_at=artifact.generated_at,
             failure_code=artifact.failure_code,
             failure_message=artifact.failure_message,
+            idempotency_key=artifact.idempotency_key,
+            claim_token=artifact.claim_token,
         )
         self._session.add(rec)
 
@@ -619,15 +670,15 @@ class SQLReportRepository(ReportRepository):
     def find_artifact_by_idempotency(
         self, idempotency_key: str, report_id: str
     ) -> ReportExportArtifact | None:
-        """Find an artifact by its idempotency key (stored in render_manifest_json)."""
+        """Find an artifact by its idempotency key."""
         stmt = sa.select(ReportExportArtifactRecord).where(
             ReportExportArtifactRecord.report_id == report_id,
+            ReportExportArtifactRecord.idempotency_key == idempotency_key,
         )
-        for rec in self._session.execute(stmt).scalars():
-            manifest = rec.render_manifest_json or {}
-            if manifest.get("idempotency_key") == idempotency_key:
-                return _to_artifact_domain(rec)
-        return None
+        rec = self._session.execute(stmt).scalar_one_or_none()
+        if rec is None:
+            return None
+        return _to_artifact_domain(rec)
 
     def update_artifact(self, artifact: ReportExportArtifact) -> None:
         """Update an existing artifact record by ID."""

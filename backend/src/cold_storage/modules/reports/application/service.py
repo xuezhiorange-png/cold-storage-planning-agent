@@ -80,16 +80,22 @@ class ReportRepository:
     def get_latest_revision(self, report_id: str) -> ReportRevision | None:
         raise NotImplementedError
 
-    def save_idempotency_record(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+    def save_idempotency_record(
+        self, key: str, actor: str, action: str, fingerprint: str
+    ) -> tuple[str, int]:
         raise NotImplementedError
 
     def get_idempotency_record(self, key: str) -> dict[str, Any] | None:
         raise NotImplementedError
 
-    def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
+    def complete_idempotency_record(
+        self, key: str, result_payload: Any, *, claim_token: str = ""
+    ) -> None:
         raise NotImplementedError
 
-    def fail_idempotency_record(self, key: str, failure_code: str, failure_message: str) -> None:
+    def fail_idempotency_record(
+        self, key: str, failure_code: str, failure_message: str, *, claim_token: str = ""
+    ) -> None:
         raise NotImplementedError
 
     def reset_failed_idempotency(self, key: str) -> None:
@@ -101,7 +107,21 @@ class ReportRepository:
         fingerprint: str,
         cutoff: datetime,
         original_claimed_at: datetime | None = None,
-    ) -> bool:
+        *,
+        old_claim_token: str = "",
+        old_claim_version: int = 0,
+    ) -> tuple[bool, str, int]:
+        raise NotImplementedError
+
+    def fail_nonterminal_artifacts(
+        self,
+        report_id: str,
+        failure_code: str = "stale_claim_recovery",
+        failure_message: str = "Orphaned by stale claim recovery",
+        *,
+        idempotency_key: str | None = None,
+        stale_claim_token: str | None = None,
+    ) -> int:
         raise NotImplementedError
 
     def commit(self) -> None:

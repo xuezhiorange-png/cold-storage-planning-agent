@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
 
@@ -277,6 +277,19 @@ def _verify_failed_state(
     # Optional storage cleanup check
     if storage_check is not None:
         storage_check()
+
+
+class FakeClock:
+    """Injectable clock for controllable time in tests."""
+
+    def __init__(self, initial):
+        self._time = initial
+
+    def __call__(self):
+        return self._time
+
+    def advance(self, seconds):
+        self._time += timedelta(seconds=seconds)
 
 
 # ===========================================================================
@@ -907,25 +920,733 @@ class TestIdempotencyFailureStates:
         # No test-side DB modifications occurred in this test
         # (no fail_idempotency_record, no direct SQL UPDATE)
 
+    # ------------------------------------------------------------------
+    # P0-6: Stale-claim recovery + claim-token fencing tests
+    # ------------------------------------------------------------------
+
+    def test_reclaimed_old_worker_cannot_complete_idempotency(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """After stale reclaim, old worker's token cannot complete the idempotency record.
+
+        1. First render fails (commit 4 fails) → idempotency stuck in 'claimed'.
+        2. Advance clock past stale threshold.
+        3. Second render reclaims stale claim and succeeds.
+        4. Old worker tries to complete with old claim_token → ValueError.
+        """
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-old-worker-1"
+        storage = _MockStorage()
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Attempt 1: fail render + fail state commit → stuck in claimed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_commit_4():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_commit_4)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key,
+                )
+
+        # Record old claim_token
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            idem = check_repo.get_idempotency_record(idempotency_key)
+            assert idem is not None
+            assert idem["status"] == "claimed"
+            old_claim_token = idem["claim_token"]
+
+        # Advance clock past stale threshold
+        clock.advance(600)
+
+        # Attempt 2: reclaim and succeed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc2 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            artifact = render_svc2.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key,
+            )
+            assert artifact.status == ArtifactStatus.COMPLETED
+
+        # Old worker tries to complete with old token → should raise ValueError
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            with pytest.raises(ValueError, match="not found or not in claimed state"):
+                repo.complete_idempotency_record(
+                    idempotency_key,
+                    {"artifact_id": "x"},
+                    claim_token=old_claim_token,
+                )
+
+    def test_reclaimed_old_worker_cannot_complete_artifact(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """After stale reclaim, old artifact is failed and old worker can't update it.
+
+        1. First render fails → artifact stuck in rendering.
+        2. Advance clock, retry succeeds → old artifact failed, new one completed.
+        3. Old artifact is in terminal (failed) state.
+        """
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-art-fence-1"
+        storage = _MockStorage()
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Attempt 1: fail render + fail state commit → stuck
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_commit_4():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_commit_4)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key,
+                )
+
+        # Record old artifact id
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            assert len(rendering) == 1
+            old_artifact_id = rendering[0].id
+
+        # Advance clock past stale
+        clock.advance(600)
+
+        # Attempt 2: reclaim and succeed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc2 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            new_artifact = render_svc2.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key,
+            )
+            assert new_artifact.status == ArtifactStatus.COMPLETED
+            assert new_artifact.id != old_artifact_id
+
+        # Verify old artifact is failed
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            old_artifact = check_repo.get_artifact(old_artifact_id)
+            assert old_artifact is not None
+            assert old_artifact.status == ArtifactStatus.FAILED
+            assert old_artifact.failure_code != ""
+
+    def test_only_current_claim_token_can_fail_attempt(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Old claim_token cannot fail an idempotency record after reclaim.
+
+        1. First render fails → stuck in claimed.
+        2. Advance clock, retry succeeds → idempotency completed with new token.
+        3. Old worker tries to fail with old token → record stays completed.
+        """
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-fail-fence-1"
+        storage = _MockStorage()
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Attempt 1: fail render + fail state commit → stuck in claimed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_commit_4():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_commit_4)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key,
+                )
+
+        # Record old claim_token
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            idem = check_repo.get_idempotency_record(idempotency_key)
+            assert idem is not None
+            assert idem["status"] == "claimed"
+            old_claim_token = idem["claim_token"]
+
+        # Advance clock past stale
+        clock.advance(600)
+
+        # Attempt 2: reclaim and succeed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc2 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            artifact = render_svc2.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key,
+            )
+            assert artifact.status == ArtifactStatus.COMPLETED
+
+        # Old worker tries to fail with old claim_token → no-op (0 rows matched)
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            repo.fail_idempotency_record(
+                idempotency_key,
+                "RuntimeError",
+                "old attempt",
+                claim_token=old_claim_token,
+            )
+            session.commit()
+
+        # Verify idempotency is still completed (old token couldn't affect it)
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            idem = check_repo.get_idempotency_record(idempotency_key)
+            assert idem is not None
+            assert idem["status"] == "completed"
+
+    def test_stale_recovery_fails_only_artifact_for_same_idempotency_key(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Stale recovery only fails artifacts for the same idempotency key.
+
+        1. Render key "idem-scoped-1" (docx) → fails → stuck.
+        2. Advance clock, retry key 1 → reclaims, succeeds.
+        3. Old artifact for key 1 is failed, new one is completed.
+        4. Render key "idem-scoped-2" (pdf) → succeeds.
+        5. key 2 artifact is completed, not touched by key 1 recovery.
+        """
+        report, rev = _setup_approved(session_factory)
+        idempotency_key_1 = "idem-scoped-1"
+        idempotency_key_2 = "idem-scoped-2"
+        storage = _MockStorage()
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Render key 1: fails → stuck
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_commit_4():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_commit_4)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key_1,
+                )
+
+        # Record old artifact for key 1
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            assert len(rendering) == 1
+            old_artifact_id_1 = rendering[0].id
+
+        # Advance clock past stale
+        clock.advance(600)
+
+        # Retry key 1: reclaim and succeed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc2 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            new_artifact_1 = render_svc2.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key_1,
+            )
+            assert new_artifact_1.status == ArtifactStatus.COMPLETED
+
+        # Verify old artifact for key 1 is failed
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            old = check_repo.get_artifact(old_artifact_id_1)
+            assert old is not None
+            assert old.status == ArtifactStatus.FAILED
+
+        # Render key 2 (pdf): succeeds
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc3 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            new_artifact_2 = render_svc3.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="pdf",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key_2,
+            )
+            assert new_artifact_2.status == ArtifactStatus.COMPLETED
+            assert new_artifact_2.id != new_artifact_1.id
+
+        # Verify both artifacts are in correct state
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            completed = check_repo.list_artifacts(report.id, status=ArtifactStatus.COMPLETED)
+            completed_by_key = {a.idempotency_key: a for a in completed}
+            assert idempotency_key_1 in completed_by_key
+            assert idempotency_key_2 in completed_by_key
+            assert completed_by_key[idempotency_key_1].id == new_artifact_1.id
+            assert completed_by_key[idempotency_key_2].id == new_artifact_2.id
+
+    def test_stale_recovery_does_not_touch_other_render_for_same_report(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Stale recovery for one key does not affect a completed render with another key.
+
+        1. Render key "idem-other-1" → succeeds → completed artifact.
+        2. Render key "idem-other-2" → fails → stuck.
+        3. Advance clock, retry key 2 → reclaims, succeeds.
+        4. key 1 completed artifact still exists and is completed.
+        5. key 2 has its own completed artifact.
+        """
+        report, rev = _setup_approved(session_factory)
+        idempotency_key_1 = "idem-other-1"
+        idempotency_key_2 = "idem-other-2"
+        storage = _MockStorage()
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Render key 1: succeeds
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            artifact_1 = render_svc.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key_1,
+            )
+            assert artifact_1.status == ArtifactStatus.COMPLETED
+
+        # Render key 2: fails → stuck
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc2 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_commit_4():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_commit_4)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc2.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key_2,
+                )
+
+        # Advance clock past stale
+        clock.advance(600)
+
+        # Retry key 2: reclaim and succeed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc3 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            new_artifact_2 = render_svc3.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key_2,
+            )
+            assert new_artifact_2.status == ArtifactStatus.COMPLETED
+
+        # Verify both artifacts are completed and independent
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+
+            # key 1 idempotency still completed
+            idem1 = check_repo.get_idempotency_record(idempotency_key_1)
+            assert idem1 is not None
+            assert idem1["status"] == "completed"
+
+            # key 2 idempotency completed
+            idem2 = check_repo.get_idempotency_record(idempotency_key_2)
+            assert idem2 is not None
+            assert idem2["status"] == "completed"
+
+            # Exactly 2 completed artifacts
+            completed = check_repo.list_artifacts(report.id, status=ArtifactStatus.COMPLETED)
+            assert len(completed) == 2
+            completed_by_key = {a.idempotency_key: a for a in completed}
+            assert idempotency_key_1 in completed_by_key
+            assert idempotency_key_2 in completed_by_key
+            assert completed_by_key[idempotency_key_1].id == artifact_1.id
+            assert completed_by_key[idempotency_key_2].id == new_artifact_2.id
+
+            # No pending or rendering artifacts
+            pending = check_repo.list_artifacts(report.id, status=ArtifactStatus.PENDING)
+            assert len(pending) == 0
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            assert len(rendering) == 0
+
+    def test_stale_recovery_does_not_touch_other_format_or_template(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Stale recovery for one key does not affect a completed render with
+        the same format but a different idempotency key.
+
+        1. Render key "idem-format-1" (docx) → succeeds → completed.
+        2. Render key "idem-format-2" (docx) → fails → stuck.
+        3. Advance clock, retry key 2 → reclaims, succeeds.
+        4. key 1 artifact still completed.
+        5. key 2 has its own completed artifact.
+        6. Both artifacts have different idempotency_key values.
+        """
+        report, rev = _setup_approved(session_factory)
+        idempotency_key_1 = "idem-format-1"
+        idempotency_key_2 = "idem-format-2"
+        storage = _MockStorage()
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Render key 1: succeeds
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            artifact_1 = render_svc.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key_1,
+            )
+            assert artifact_1.status == ArtifactStatus.COMPLETED
+
+        # Render key 2: fails → stuck
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc2 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_commit_4():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_commit_4)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc2.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key_2,
+                )
+
+        # Advance clock past stale
+        clock.advance(600)
+
+        # Retry key 2: reclaim and succeed
+        with session_factory() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            render_svc3 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=300,
+                clock=clock,
+            )
+            new_artifact_2 = render_svc3.render(
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=idempotency_key_2,
+            )
+            assert new_artifact_2.status == ArtifactStatus.COMPLETED
+
+        # Verify both artifacts are completed with different idempotency keys
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+
+            # Exactly 2 completed artifacts
+            completed = check_repo.list_artifacts(report.id, status=ArtifactStatus.COMPLETED)
+            assert len(completed) == 2
+
+            completed_by_key = {a.idempotency_key: a for a in completed}
+            assert idempotency_key_1 in completed_by_key
+            assert idempotency_key_2 in completed_by_key
+
+            # key 1 artifact is the original
+            assert completed_by_key[idempotency_key_1].id == artifact_1.id
+            # key 2 artifact is the new one from reclaim
+            assert completed_by_key[idempotency_key_2].id == new_artifact_2.id
+
+            # Both have different idempotency_key values
+            assert idempotency_key_1 != idempotency_key_2
+
+            # No pending or rendering artifacts
+            pending = check_repo.list_artifacts(report.id, status=ArtifactStatus.PENDING)
+            assert len(pending) == 0
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            assert len(rendering) == 0
+
     def test_two_retries_of_stale_claim_only_one_reclaims(
         self, session_factory, tmp_path, monkeypatch
     ):
         """Two independent sessions try to reclaim the same stale claim.
 
-        Only one should取得 the claim and produce a completed artifact.
-        The other should get the completed result or raise a conflict.
-        No two completed artifacts may exist.
+        Uses FakeClock with stale_claim_seconds=1 for controllable timing.
+        Only one should win the CAS reclaim and produce a completed artifact.
+        The other should get IdempotencyClaimError.
 
-        Uses a file-based SQLite engine for thread safety (in-memory
-        StaticPool is not safe for concurrent threads).
+        Uses a file-based SQLite engine for thread safety.
         """
         import threading
 
         report, rev = _setup_approved(session_factory)
-        idempotency_key = "idem-concurrent-recovery"
+        idempotency_key = "idem-concurrent-recovery-v2"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
 
         # Use a file-based SQLite for thread-safe concurrent access
-        db_path = tmp_path / "concurrent.db"
+        db_path = tmp_path / "concurrent_v2.db"
         file_engine = create_engine(
             f"sqlite:///{db_path}",
             connect_args={"check_same_thread": False},
@@ -950,7 +1671,8 @@ class TestIdempotencyFailureStates:
                 uow=uow,
                 storage=storage,
                 template_repo=repo,
-                stale_claim_seconds=0,
+                stale_claim_seconds=1,
+                clock=clock,
             )
 
             commit_count = 0
@@ -983,10 +1705,18 @@ class TestIdempotencyFailureStates:
                     idempotency_key=idempotency_key,
                 )
 
-        # Concurrent retries — two independent sessions on file-based DB.
-        # Thread 1 renders successfully; Thread 2 either gets the result
-        # or raises a conflict.  Both sessions share the same DB but use
-        # separate connections.
+        # Record old claim_token before advancing
+        with file_sf() as check_sess:
+            check_repo = SQLReportRepository(check_sess)
+            idem = check_repo.get_idempotency_record(idempotency_key)
+            assert idem is not None
+            assert idem["status"] == "claimed"
+            old_claim_token = idem["claim_token"]
+
+        # Advance clock past stale threshold
+        clock.advance(2)
+
+        # Concurrent retries — two independent sessions on file-based DB
         barrier = threading.Barrier(2)
         results: list[tuple[int, object]] = []
         errors: list[tuple[int, Exception]] = []
@@ -1000,7 +1730,8 @@ class TestIdempotencyFailureStates:
                     uow=u,
                     storage=s,
                     template_repo=r,
-                    stale_claim_seconds=0,
+                    stale_claim_seconds=1,
+                    clock=clock,
                 )
                 barrier.wait(timeout=10)
                 try:
@@ -1015,7 +1746,6 @@ class TestIdempotencyFailureStates:
                     )
                     results.append((worker_id, art))
                 except IdempotencyClaimError:
-                    # Expected for the losing thread — another render in progress
                     errors.append((worker_id, IdempotencyClaimError("conflict")))
                 except Exception as exc:
                     errors.append((worker_id, exc))
@@ -1029,11 +1759,9 @@ class TestIdempotencyFailureStates:
         for t in threads:
             t.join(timeout=30)
 
-        # At least one worker must succeed
-        assert len(results) >= 1, (
-            f"At least one worker should succeed, got {len(results)} successes "
-            f"and {len(errors)} errors: {errors}"
-        )
+        # Exactly one worker succeeded, exactly one got IdempotencyClaimError
+        assert len(results) == 1, f"Expected exactly 1 success, got {len(results)}: {results}"
+        assert len(errors) == 1, f"Expected exactly 1 error, got {len(errors)}: {errors}"
 
         # Exactly one completed artifact
         with file_sf() as final_session:
@@ -1055,3 +1783,6 @@ class TestIdempotencyFailureStates:
             assert idem is not None
             assert idem["status"] == "completed"
             assert idem["result_payload"]["artifact_id"] == completed[0].id
+
+            # Old claim_token is NOT the current claim_token
+            assert idem["claim_token"] != old_claim_token
