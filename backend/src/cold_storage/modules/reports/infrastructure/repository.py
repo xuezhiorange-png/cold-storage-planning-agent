@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import sqlalchemy as sa
@@ -265,12 +266,16 @@ class SQLReportRepository(ReportRepository):
     # --- Idempotency Records ---
 
     def save_idempotency_record(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+        from datetime import datetime as _dt
+
+        now = _dt.now(UTC)
         rec = IdempotencyRecord(
             key=key,
             actor=actor,
             action=action,
             fingerprint=fingerprint,
             status="claimed",
+            claimed_at=now,
         )
         self._session.add(rec)
         try:
@@ -290,6 +295,7 @@ class SQLReportRepository(ReportRepository):
             "fingerprint": rec.fingerprint,
             "status": rec.status,
             "result_payload": rec.result_payload,
+            "claimed_at": rec.claimed_at,
         }
 
     def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
@@ -321,6 +327,66 @@ class SQLReportRepository(ReportRepository):
             IdempotencyRecord.status == "failed",
         )
         self._session.execute(stmt)
+
+    def reclaim_stale_idempotency(
+        self,
+        key: str,
+        fingerprint: str,
+        cutoff: datetime,
+        original_claimed_at: datetime | None = None,
+    ) -> bool:
+        """Atomically reclaim a stale claimed idempotency record.
+
+        CAS update: status stays 'claimed' but claimed_at is refreshed.
+        Returns True if reclaim succeeded (rowcount > 0).
+
+        When *original_claimed_at* is provided, it is included in the
+        WHERE clause so that only one concurrent winner can succeed —
+        a classic optimistic-lock CAS pattern.
+        """
+        conditions = [
+            IdempotencyRecord.key == key,
+            IdempotencyRecord.status == "claimed",
+            IdempotencyRecord.claimed_at < cutoff,
+        ]
+        if original_claimed_at is not None:
+            conditions.append(IdempotencyRecord.claimed_at == original_claimed_at)
+        stmt = (
+            sa.update(IdempotencyRecord)
+            .where(sa.and_(*conditions))
+            .values(
+                status="claimed",
+                claimed_at=sa.func.now(),
+                updated_at=sa.func.now(),
+            )
+        )
+        result = self._session.execute(stmt)
+        return result.rowcount > 0  # type: ignore[attr-defined,no-any-return]
+
+    def fail_nonterminal_artifacts(
+        self,
+        report_id: str,
+        failure_code: str = "stale_claim_recovery",
+        failure_message: str = "Orphaned by stale claim recovery",
+    ) -> int:
+        """Mark all non-terminal (pending/rendering) artifacts as failed.
+
+        Returns the number of artifacts updated.
+        """
+        stmt = (
+            sa.update(ReportExportArtifactRecord)
+            .where(
+                ReportExportArtifactRecord.report_id == report_id,
+                ReportExportArtifactRecord.status.in_(["pending", "rendering"]),
+            )
+            .values(
+                status="failed",
+                failure_code=failure_code,
+                failure_message=failure_message,
+            )
+        )
+        result = self._session.execute(stmt)
+        return result.rowcount  # type: ignore[attr-defined,no-any-return]
 
     # --- Commit ---
 

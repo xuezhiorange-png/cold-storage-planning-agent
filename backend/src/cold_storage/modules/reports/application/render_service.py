@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -106,6 +107,13 @@ class ReportArtifactRepositoryPort(Protocol):
     ) -> ReportExportArtifact | None: ...
 
     def update_artifact(self, artifact: ReportExportArtifact) -> None: ...
+
+    def fail_nonterminal_artifacts(
+        self,
+        report_id: str,
+        failure_code: str = "stale_claim_recovery",
+        failure_message: str = "Orphaned by stale claim recovery",
+    ) -> int: ...
 
     def commit(self) -> None: ...
 
@@ -223,6 +231,7 @@ class ReportRenderService:
         uow: ReportRenderUnitOfWork,
         storage: ArtifactStoragePort | None = None,
         template_repo: ReportTemplateRepositoryPort | None = None,
+        stale_claim_seconds: int = 300,
     ) -> None:
         """Initialize the render service.
 
@@ -235,6 +244,9 @@ class ReportRenderService:
             Artifact file storage adapter (required).
         template_repo:
             Template repository port.
+        stale_claim_seconds:
+            Seconds after which a 'claimed' idempotency record is
+            considered stale and eligible for recovery.
         """
         if uow is None:
             raise TypeError("ReportRenderService requires uow= parameter")
@@ -243,6 +255,7 @@ class ReportRenderService:
         self._artifact_repo: ReportArtifactRepositoryPort | None = uow.artifact_repo
         self._storage: ArtifactStoragePort = storage  # type: ignore[assignment]
         self._template_repo = template_repo
+        self._stale_claim_seconds = stale_claim_seconds
 
     def render(
         self,
@@ -392,8 +405,64 @@ class ReportRenderService:
                     )
                     self._uow.commit()
                     # Fall through — render will proceed
+                elif existing["status"] in ("claimed", "running"):
+                    # Stale-claim recovery: if the claim is older than
+                    # the threshold, atomically CAS-reclaim it and
+                    # cleanup orphaned non-terminal artifacts.
+                    claimed_at = existing.get("claimed_at")
+                    if claimed_at is not None:
+                        cutoff = datetime.now(UTC) - timedelta(seconds=self._stale_claim_seconds)
+                        if hasattr(claimed_at, "replace"):
+                            _claimed = claimed_at
+                        else:
+                            _claimed = datetime.fromisoformat(str(claimed_at))
+                        # Normalize: strip tzinfo if claimed_at is naive
+                        # (SQLite stores naive datetimes)
+                        if _claimed.tzinfo is None and cutoff.tzinfo is not None:
+                            cutoff = cutoff.replace(tzinfo=None)
+                        if _claimed < cutoff:
+                            # Pass naive cutoff for SQLite compatibility
+                            sql_cutoff = (
+                                cutoff.replace(tzinfo=None) if cutoff.tzinfo is not None else cutoff
+                            )
+                            reclaimed = self._repo.reclaim_stale_idempotency(
+                                idempotency_key,
+                                fingerprint,
+                                sql_cutoff,
+                                original_claimed_at=claimed_at,
+                            )
+                            if reclaimed:
+                                # Cleanup orphaned non-terminal artifacts
+                                if self._artifact_repo is not None:
+                                    self._artifact_repo.fail_nonterminal_artifacts(report_id)
+                                self._uow.commit()
+                                # Fall through — render will proceed
+                            else:
+                                # CAS failed — re-read current state
+                                existing = self._repo.get_idempotency_record(idempotency_key)
+                                if (
+                                    existing is not None
+                                    and existing["status"] == "completed"
+                                    and existing.get("result_payload")
+                                ):
+                                    payload = existing["result_payload"]
+                                    if (
+                                        isinstance(payload, dict)
+                                        and "artifact_id" in payload
+                                        and self._artifact_repo is not None
+                                    ):
+                                        c = self._artifact_repo.get_artifact(payload["artifact_id"])
+                                        if c and c.status == ArtifactStatus.COMPLETED:
+                                            return c
+                                raise IdempotencyClaimError(idempotency_key) from None
+                        else:
+                            # Not stale — another render in progress
+                            raise IdempotencyClaimError(idempotency_key) from None
+                    else:
+                        # No claimed_at — legacy record, treat as non-stale
+                        raise IdempotencyClaimError(idempotency_key) from None
                 else:
-                    # Not yet completed or failed — another render in progress
+                    # Unknown status
                     raise IdempotencyClaimError(idempotency_key) from None
 
         # 7. Create pending artifact

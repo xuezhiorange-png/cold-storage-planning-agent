@@ -130,6 +130,10 @@ class IdempotencyRecord(Base):
         server_default=sa.func.now(),
         onupdate=sa.func.now(),
     )
+    claimed_at: Mapped[str | None] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=True,
+    )
 
 
 class ReportReviewActionRecord(Base):

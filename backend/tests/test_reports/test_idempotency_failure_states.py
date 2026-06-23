@@ -41,7 +41,10 @@ from cold_storage.modules.reports.domain.enums import (
     ReportStatus,
     ReportType,
 )
-from cold_storage.modules.reports.domain.errors import RenderError
+from cold_storage.modules.reports.domain.errors import (
+    IdempotencyClaimError,
+    RenderError,
+)
 from cold_storage.modules.reports.domain.models import (
     Report,
     ReportRevision,
@@ -769,21 +772,22 @@ class TestIdempotencyFailureStates:
         self, session_factory, tmp_path, monkeypatch
     ):
         """When the render pipeline AND failed-state commit both fail, verify
-        recovery on retry.
+        recovery on retry via stale-claim detection.
 
         The render service's exception handler attempts to persist FAILED state.
         If that commit also fails, it rolls back and logs.  The idempotency
-        record may be stuck in 'claimed' state.  Test that a retry with the
-        same key either resets via reset_failed_idempotency (if status is
-        'failed') or that the full-rollback path leaves the key available for
-        re-claim.
+        record is stuck in 'claimed' state.  A retry with the same key detects
+        the stale claim (claimed_at < now - stale_claim_seconds), atomically
+        reclaims it, cleans up orphaned artifacts, and proceeds to render.
+
+        No test-side DB patches are used — the product code recovers fully.
         """
         report, rev = _setup_approved(session_factory)
         idempotency_key = "idem-recovery-1"
 
         # Attempt 1: Fail the render bytes + make the failed-state commit fail.
         # This means:
-        #   commit 1: idempotency claim (OK)
+        #   commit 1: idempotency claim (OK) — claimed_at set
         #   commit 2: insert_pending (OK)
         #   commit 3: update_rendering (OK)
         #   render: FAILS
@@ -794,7 +798,12 @@ class TestIdempotencyFailureStates:
             repo = SQLReportRepository(session)
             uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             storage = ReportArtifactStorage(str(tmp_path / "artifacts"))
-            render_svc = ReportRenderService(uow=uow, storage=storage, template_repo=repo)
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=0,
+            )
 
             commit_count = 0
             original_commit = uow.commit
@@ -828,36 +837,28 @@ class TestIdempotencyFailureStates:
                     idempotency_key=idempotency_key,
                 )
 
-        # The idempotency record is stuck in 'claimed' state because:
-        # - commit 1 (claim) succeeded
-        # - commit 4 (fail idempotency) was rolled back
-        # On the next render with the same key, the save_idempotency_record
-        # will fail (unique key), and the recovery path detects the claimed
-        # record. Since it's neither 'completed' nor 'failed', a fresh
-        # session + fresh monkeypatch-free commit allows re-claim via
-        # reset_failed_idempotency after manually marking it failed,
-        # OR the previous render's rollback + idempotency key uniqueness
-        # allows a clean re-claim on a fresh session.
-
-        # Use a fresh session and reset the idempotency to 'failed' so
-        # reset_failed_idempotency can clean it up.
-        with session_factory() as session:
-            repo = SQLReportRepository(session)
-            # Force the stuck 'claimed' record to 'failed' so the retry path
-            # can use reset_failed_idempotency
-            repo.fail_idempotency_record(
-                idempotency_key,
-                "RuntimeError",
-                "Render crashed",
+        # Verify stuck state — no test-side DB patches applied
+        with session_factory() as check_session:
+            check_repo = SQLReportRepository(check_session)
+            idem = check_repo.get_idempotency_record(idempotency_key)
+            assert idem is not None, "Idempotency record should exist"
+            assert idem["status"] == "claimed", (
+                f"Idempotency should be stuck in 'claimed', got '{idem['status']}'"
             )
-            repo.commit()
 
-        # Attempt 2: Same key -- should recover via reset_failed_idempotency
+        # Attempt 2: Same key — stale_claim_seconds=0 makes the claim stale.
+        # Product code detects stale claim, CAS-reclaims, cleans up artifacts,
+        # and proceeds to render successfully.
         with session_factory() as session:
             repo = SQLReportRepository(session)
             uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             storage2 = ReportArtifactStorage(str(tmp_path / "artifacts2"))
-            render_svc2 = ReportRenderService(uow=uow, storage=storage2, template_repo=repo)
+            render_svc2 = ReportRenderService(
+                uow=uow,
+                storage=storage2,
+                template_repo=repo,
+                stale_claim_seconds=0,
+            )
 
             artifact = render_svc2.render(
                 report_id=report.id,
@@ -875,3 +876,182 @@ class TestIdempotencyFailureStates:
             idem = repo.get_idempotency_record(idempotency_key)
             assert idem is not None
             assert idem["status"] == "completed"
+            result_payload = idem.get("result_payload") or {}
+            assert result_payload.get("artifact_id") == artifact.id
+
+        # Final DB verification — strict assertions
+        with session_factory() as final_session:
+            final_repo = SQLReportRepository(final_session)
+
+            # Exactly one completed artifact
+            completed = final_repo.list_artifacts(report.id, status=ArtifactStatus.COMPLETED)
+            assert len(completed) == 1, (
+                f"Expected exactly 1 completed artifact, got {len(completed)}"
+            )
+            assert completed[0].id == artifact.id
+
+            # No pending artifacts
+            pending = final_repo.list_artifacts(report.id, status=ArtifactStatus.PENDING)
+            assert len(pending) == 0, f"Expected 0 pending artifacts, got {len(pending)}"
+
+            # No rendering artifacts
+            rendering = final_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            assert len(rendering) == 0, f"Expected 0 rendering artifacts, got {len(rendering)}"
+
+            # Idempotency is completed and points to the final artifact
+            idem = final_repo.get_idempotency_record(idempotency_key)
+            assert idem is not None
+            assert idem["status"] == "completed"
+            assert idem["result_payload"]["artifact_id"] == completed[0].id
+
+        # No test-side DB modifications occurred in this test
+        # (no fail_idempotency_record, no direct SQL UPDATE)
+
+    def test_two_retries_of_stale_claim_only_one_reclaims(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Two independent sessions try to reclaim the same stale claim.
+
+        Only one should取得 the claim and produce a completed artifact.
+        The other should get the completed result or raise a conflict.
+        No two completed artifacts may exist.
+
+        Uses a file-based SQLite engine for thread safety (in-memory
+        StaticPool is not safe for concurrent threads).
+        """
+        import threading
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-concurrent-recovery"
+
+        # Use a file-based SQLite for thread-safe concurrent access
+        db_path = tmp_path / "concurrent.db"
+        file_engine = create_engine(
+            f"sqlite:///{db_path}",
+            connect_args={"check_same_thread": False},
+        )
+        Base.metadata.create_all(file_engine)
+        file_sf = sessionmaker(bind=file_engine, expire_on_commit=False)
+
+        # Seed templates into the file-based DB
+        with file_sf() as seed_sess:
+            seed_repo = SQLReportRepository(seed_sess)
+            seed_repo.save_report(report)
+            seed_repo.save_revision(rev)
+            seed_default_templates(seed_repo)
+            seed_sess.commit()
+
+        # Attempt 1: Fail render + fail state commit → stuck in 'claimed'
+        with file_sf() as session:
+            repo = SQLReportRepository(session)
+            uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
+            storage = ReportArtifactStorage(str(tmp_path / "artifacts"))
+            render_svc = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                stale_claim_seconds=0,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_failed_state_commit():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated failed-state commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_failed_state_commit)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                render_svc.render(
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=idempotency_key,
+                )
+
+        # Concurrent retries — two independent sessions on file-based DB.
+        # Thread 1 renders successfully; Thread 2 either gets the result
+        # or raises a conflict.  Both sessions share the same DB but use
+        # separate connections.
+        barrier = threading.Barrier(2)
+        results: list[tuple[int, object]] = []
+        errors: list[tuple[int, Exception]] = []
+
+        def retry_worker(worker_id: int) -> None:
+            with file_sf() as sess:
+                r = SQLReportRepository(sess)
+                u = ReportRenderUnitOfWork(sess, report_repo=r, artifact_repo=r)
+                s = ReportArtifactStorage(str(tmp_path / f"artifacts_{worker_id}"))
+                svc = ReportRenderService(
+                    uow=u,
+                    storage=s,
+                    template_repo=r,
+                    stale_claim_seconds=0,
+                )
+                barrier.wait(timeout=10)
+                try:
+                    art = svc.render(
+                        report_id=report.id,
+                        revision_number=rev.revision_number,
+                        format="docx",
+                        template_version="1.0.0",
+                        mode="formal",
+                        actor="test-user",
+                        idempotency_key=idempotency_key,
+                    )
+                    results.append((worker_id, art))
+                except IdempotencyClaimError:
+                    # Expected for the losing thread — another render in progress
+                    errors.append((worker_id, IdempotencyClaimError("conflict")))
+                except Exception as exc:
+                    errors.append((worker_id, exc))
+
+        threads = [
+            threading.Thread(target=retry_worker, args=(0,)),
+            threading.Thread(target=retry_worker, args=(1,)),
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30)
+
+        # At least one worker must succeed
+        assert len(results) >= 1, (
+            f"At least one worker should succeed, got {len(results)} successes "
+            f"and {len(errors)} errors: {errors}"
+        )
+
+        # Exactly one completed artifact
+        with file_sf() as final_session:
+            final_repo = SQLReportRepository(final_session)
+
+            completed = final_repo.list_artifacts(report.id, status=ArtifactStatus.COMPLETED)
+            assert len(completed) == 1, (
+                f"Expected exactly 1 completed artifact, got {len(completed)}"
+            )
+
+            # No pending or rendering artifacts
+            pending = final_repo.list_artifacts(report.id, status=ArtifactStatus.PENDING)
+            assert len(pending) == 0, f"Expected 0 pending artifacts, got {len(pending)}"
+            rendering = final_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            assert len(rendering) == 0, f"Expected 0 rendering artifacts, got {len(rendering)}"
+
+            # Idempotency is completed
+            idem = final_repo.get_idempotency_record(idempotency_key)
+            assert idem is not None
+            assert idem["status"] == "completed"
+            assert idem["result_payload"]["artifact_id"] == completed[0].id

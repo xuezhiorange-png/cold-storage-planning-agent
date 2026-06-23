@@ -95,6 +95,15 @@ class ReportRepository:
     def reset_failed_idempotency(self, key: str) -> None:
         raise NotImplementedError
 
+    def reclaim_stale_idempotency(
+        self,
+        key: str,
+        fingerprint: str,
+        cutoff: datetime,
+        original_claimed_at: datetime | None = None,
+    ) -> bool:
+        raise NotImplementedError
+
     def commit(self) -> None:
         raise NotImplementedError
 
