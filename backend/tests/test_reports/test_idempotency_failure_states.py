@@ -1899,10 +1899,16 @@ class TestIdempotencyFailureStates:
                 r = SQLReportRepository(sess)
                 # Advance clock to make claim stale
                 stale_cutoff = clock() - timedelta(seconds=2)
+                # Read existing claim state for full CAS
+                existing = r.get_idempotency_record(idempotency_key)
+                assert existing is not None
                 reclaimed, _, _ = r.reclaim_stale_idempotency(
                     idempotency_key,
-                    "fingerprint",
+                    existing["fingerprint"],
                     stale_cutoff,
+                    original_claimed_at=existing["claimed_at"],
+                    old_claim_token=existing["claim_token"],
+                    old_claim_version=existing["claim_version"],
                 )
                 assert reclaimed, "Worker B should have reclaimed the stale claim"
                 r.commit()
@@ -2029,10 +2035,16 @@ class TestIdempotencyFailureStates:
             with file_sf() as sess:
                 r = SQLReportRepository(sess)
                 stale_cutoff = clock() - timedelta(seconds=2)
+                # Read existing claim state for full CAS
+                existing = r.get_idempotency_record(idempotency_key)
+                assert existing is not None
                 reclaimed, _, _ = r.reclaim_stale_idempotency(
                     idempotency_key,
-                    "fingerprint",
+                    existing["fingerprint"],
                     stale_cutoff,
+                    original_claimed_at=existing["claimed_at"],
+                    old_claim_token=existing["claim_token"],
+                    old_claim_version=existing["claim_version"],
                 )
                 assert reclaimed, "Worker B should have reclaimed"
                 r.commit()
@@ -2169,10 +2181,16 @@ class TestIdempotencyFailureStates:
             with file_sf() as sess:
                 r = SQLReportRepository(sess)
                 stale_cutoff = clock() - timedelta(seconds=2)
+                # Read existing claim state for full CAS
+                existing = r.get_idempotency_record(idempotency_key)
+                assert existing is not None
                 reclaimed, _, _ = r.reclaim_stale_idempotency(
                     idempotency_key,
-                    "fingerprint",
+                    existing["fingerprint"],
                     stale_cutoff,
+                    original_claimed_at=existing["claimed_at"],
+                    old_claim_token=existing["claim_token"],
+                    old_claim_version=existing["claim_version"],
                 )
                 assert reclaimed, "Worker B should have reclaimed"
                 r.commit()
@@ -2294,10 +2312,16 @@ class TestIdempotencyFailureStates:
             with session_factory() as sess:
                 r = SQLReportRepository(sess)
                 stale_cutoff = clock() - timedelta(seconds=2)
+                # Read existing claim state for full CAS
+                existing = r.get_idempotency_record(idempotency_key)
+                assert existing is not None
                 reclaimed, _, _ = r.reclaim_stale_idempotency(
                     idempotency_key,
-                    "fingerprint",
+                    existing["fingerprint"],
                     stale_cutoff,
+                    original_claimed_at=existing["claimed_at"],
+                    old_claim_token=existing["claim_token"],
+                    old_claim_version=existing["claim_version"],
                 )
                 assert reclaimed
                 r.commit()
@@ -2387,10 +2411,16 @@ class TestIdempotencyFailureStates:
             with session_factory() as sess:
                 r = SQLReportRepository(sess)
                 stale_cutoff = clock() - timedelta(seconds=2)
+                # Read existing claim state for full CAS
+                existing = r.get_idempotency_record(idempotency_key)
+                assert existing is not None
                 reclaimed, _, _ = r.reclaim_stale_idempotency(
                     idempotency_key,
-                    "fingerprint",
+                    existing["fingerprint"],
                     stale_cutoff,
+                    original_claimed_at=existing["claimed_at"],
+                    old_claim_token=existing["claim_token"],
+                    old_claim_version=existing["claim_version"],
                 )
                 assert reclaimed
                 r.commit()
@@ -2495,10 +2525,16 @@ class TestIdempotencyFailureStates:
             with session_factory() as sess:
                 r = SQLReportRepository(sess)
                 stale_cutoff = clock() - timedelta(seconds=2)
+                # Read existing claim state for full CAS
+                existing = r.get_idempotency_record(idempotency_key)
+                assert existing is not None
                 reclaimed, _, _ = r.reclaim_stale_idempotency(
                     idempotency_key,
-                    "fingerprint",
+                    existing["fingerprint"],
                     stale_cutoff,
+                    original_claimed_at=existing["claimed_at"],
+                    old_claim_token=existing["claim_token"],
+                    old_claim_version=existing["claim_version"],
                 )
                 assert reclaimed
                 r.commit()
@@ -2513,3 +2549,241 @@ class TestIdempotencyFailureStates:
 
         assert len(worker_a_error) == 1
         assert isinstance(worker_a_error[0], RenderError)
+
+
+# ===========================================================================
+# Repository-level CAS negative tests
+# ===========================================================================
+
+
+class TestReclaimCASNegative:
+    """Verify that reclaim_stale_idempotency rejects incorrect CAS params."""
+
+    def _setup_claimed(self, session_factory):
+        """Create a claimed idempotency record and return (report, rev, key, record)."""
+        report, rev = _setup_approved(session_factory)
+        key = "idem-cas-negative"
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            token, version = repo.save_idempotency_record(
+                key=key,
+                actor="test-user",
+                action="render",
+                fingerprint="real-fingerprint-abc",
+            )
+            repo.commit()
+            record = repo.get_idempotency_record(key)
+            return report, rev, key, record
+
+    def test_reclaim_rejects_wrong_fingerprint(self, session_factory):
+        """CAS fails when fingerprint doesn't match."""
+        report, rev, key, record = self._setup_claimed(session_factory)
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+        clock.advance(600)  # Make claim stale
+
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            stale_cutoff = clock() - timedelta(seconds=2)
+            success, token, version = repo.reclaim_stale_idempotency(
+                key,
+                "wrong-fingerprint",  # Wrong!
+                stale_cutoff,
+                original_claimed_at=record["claimed_at"],
+                old_claim_token=record["claim_token"],
+                old_claim_version=record["claim_version"],
+            )
+            assert success is False
+            assert token is None
+            assert version is None
+
+    def test_reclaim_rejects_wrong_claim_token(self, session_factory):
+        """CAS fails when claim_token doesn't match."""
+        report, rev, key, record = self._setup_claimed(session_factory)
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+        clock.advance(600)
+
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            stale_cutoff = clock() - timedelta(seconds=2)
+            success, token, version = repo.reclaim_stale_idempotency(
+                key,
+                record["fingerprint"],
+                stale_cutoff,
+                original_claimed_at=record["claimed_at"],
+                old_claim_token="wrong-token-uuid",  # Wrong!
+                old_claim_version=record["claim_version"],
+            )
+            assert success is False
+            assert token is None
+            assert version is None
+
+    def test_reclaim_rejects_wrong_claim_version(self, session_factory):
+        """CAS fails when claim_version doesn't match."""
+        report, rev, key, record = self._setup_claimed(session_factory)
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+        clock.advance(600)
+
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            stale_cutoff = clock() - timedelta(seconds=2)
+            success, token, version = repo.reclaim_stale_idempotency(
+                key,
+                record["fingerprint"],
+                stale_cutoff,
+                original_claimed_at=record["claimed_at"],
+                old_claim_token=record["claim_token"],
+                old_claim_version=999,  # Wrong!
+            )
+            assert success is False
+            assert token is None
+            assert version is None
+
+    def test_reclaim_rejects_changed_claimed_at(self, session_factory):
+        """CAS fails when original_claimed_at doesn't match (another worker reclaimed)."""
+        report, rev, key, record = self._setup_claimed(session_factory)
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+        clock.advance(600)
+
+        # Simulate: someone else already reclaimed, so claimed_at changed
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            stale_cutoff = clock() - timedelta(seconds=2)
+            # First reclaim succeeds
+            success, _, _ = repo.reclaim_stale_idempotency(
+                key,
+                record["fingerprint"],
+                stale_cutoff,
+                original_claimed_at=record["claimed_at"],
+                old_claim_token=record["claim_token"],
+                old_claim_version=record["claim_version"],
+            )
+            assert success is True
+            repo.commit()
+
+            # Second attempt with OLD claimed_at fails
+            new_record = repo.get_idempotency_record(key)
+            success2, token2, version2 = repo.reclaim_stale_idempotency(
+                key,
+                new_record["fingerprint"],
+                stale_cutoff,
+                original_claimed_at=record["claimed_at"],  # Old value!
+                old_claim_token=new_record["claim_token"],
+                old_claim_version=new_record["claim_version"],
+            )
+            assert success2 is False
+            assert token2 is None
+            assert version2 is None
+
+    def test_reclaim_requires_all_cas_arguments(self, session_factory):
+        """Verify that all CAS params are mandatory — call without them raises TypeError."""
+        report, rev, key, record = self._setup_claimed(session_factory)
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            stale_cutoff = clock() - timedelta(seconds=2)
+            # Calling without required keyword args should raise TypeError
+            with pytest.raises(TypeError):
+                repo.reclaim_stale_idempotency(
+                    key,
+                    record["fingerprint"],
+                    stale_cutoff,
+                    # Missing original_claimed_at, old_claim_token, old_claim_version
+                )
+
+
+class TestReclaimConcurrentCAS:
+    """Verify that concurrent CAS reclaim produces exactly one winner."""
+
+    def test_two_sessions_same_snapshot_exactly_one_wins(self, session_factory):
+        """Two sessions read the same snapshot, both attempt CAS — exactly one wins."""
+        import threading
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-concurrent-cas"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Create a fresh file-based DB for this test
+        import os
+        import tempfile
+
+        from sqlalchemy import create_engine as _create_engine
+        from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+        from cold_storage.modules.reports.infrastructure.orm import Base as _Base
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            db_file = f.name
+        try:
+            file_eng = _create_engine(
+                f"sqlite:///{db_file}",
+                connect_args={"check_same_thread": False},
+            )
+            _Base.metadata.create_all(file_eng)
+            file_sf = _sessionmaker(bind=file_eng, expire_on_commit=False)
+
+            # Seed
+            with file_sf() as sess:
+                r = SQLReportRepository(sess)
+                r.save_report(report)
+                r.save_revision(rev)
+                seed_default_templates(r)
+                token, version = r.save_idempotency_record(
+                    key=idempotency_key,
+                    actor="test-user",
+                    action="render",
+                    fingerprint="test-fingerprint",
+                )
+                sess.commit()
+                record = r.get_idempotency_record(idempotency_key)
+
+            clock.advance(600)  # Make stale
+
+            results: list[tuple[int, bool]] = []
+            lock = threading.Lock()
+
+            def worker(wid: int):
+                with file_sf() as sess:
+                    r = SQLReportRepository(sess)
+                    stale_cutoff = clock() - timedelta(seconds=2)
+                    success, tok, ver = r.reclaim_stale_idempotency(
+                        idempotency_key,
+                        record["fingerprint"],
+                        stale_cutoff,
+                        original_claimed_at=record["claimed_at"],
+                        old_claim_token=record["claim_token"],
+                        old_claim_version=record["claim_version"],
+                    )
+                    if success:
+                        r.commit()
+                    with lock:
+                        results.append((wid, success))
+
+            barrier = threading.Barrier(2)
+
+            def synced_worker(wid: int):
+                barrier.wait(timeout=10)
+                worker(wid)
+
+            t1 = threading.Thread(target=synced_worker, args=(0,))
+            t2 = threading.Thread(target=synced_worker, args=(1,))
+            t1.start()
+            t2.start()
+            t1.join(timeout=30)
+            t2.join(timeout=30)
+
+            # Exactly one winner
+            winners = [(w, s) for w, s in results if s]
+            losers = [(w, s) for w, s in results if not s]
+            assert len(winners) == 1, f"Expected 1 winner, got {len(winners)}: {results}"
+            assert len(losers) == 1, f"Expected 1 loser, got {len(losers)}: {results}"
+
+            # Version only incremented once
+            with file_sf() as sess:
+                r = SQLReportRepository(sess)
+                final = r.get_idempotency_record(idempotency_key)
+                assert final is not None
+                assert final["claim_version"] == record["claim_version"] + 1
+                assert final["claim_token"] != record["claim_token"]
+        finally:
+            os.unlink(db_file)

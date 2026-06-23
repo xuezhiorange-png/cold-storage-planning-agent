@@ -377,32 +377,33 @@ class SQLReportRepository(ReportRepository):
         key: str,
         fingerprint: str,
         cutoff: datetime,
-        original_claimed_at: datetime | None = None,
+        original_claimed_at: datetime,
         *,
-        old_claim_token: str = "",
-        old_claim_version: int = 0,
-    ) -> tuple[bool, str, int]:
+        old_claim_token: str,
+        old_claim_version: int,
+    ) -> tuple[bool, str | None, int | None]:
         """Atomically reclaim a stale claimed idempotency record.
 
-        CAS update: status stays 'claimed' but claimed_at is refreshed
-        and claim_token/claim_version are incremented.
-        Returns (success, new_token, new_version).
+        Strict CAS: ALL of the following must match for exactly one winner:
+        - key
+        - status = 'claimed'
+        - fingerprint
+        - claimed_at = original_claimed_at
+        - claimed_at < cutoff
+        - claim_token = old_claim_token
+        - claim_version = old_claim_version
 
-        When *original_claimed_at* is provided, it is included in the
-        WHERE clause so that only one concurrent winner can succeed —
-        a classic optimistic-lock CAS pattern.
+        Returns (success, new_token, new_version) or (False, None, None).
         """
         conditions = [
             IdempotencyRecord.key == key,
             IdempotencyRecord.status == "claimed",
+            IdempotencyRecord.fingerprint == fingerprint,
+            IdempotencyRecord.claimed_at == original_claimed_at,
             IdempotencyRecord.claimed_at < cutoff,
+            IdempotencyRecord.claim_token == old_claim_token,
+            IdempotencyRecord.claim_version == old_claim_version,
         ]
-        if original_claimed_at is not None:
-            conditions.append(IdempotencyRecord.claimed_at == original_claimed_at)
-        if old_claim_token:
-            conditions.append(IdempotencyRecord.claim_token == old_claim_token)
-        if old_claim_version:
-            conditions.append(IdempotencyRecord.claim_version == old_claim_version)
         new_token = str(uuid.uuid4())
         new_version = old_claim_version + 1
         stmt = (
@@ -417,7 +418,9 @@ class SQLReportRepository(ReportRepository):
             )
         )
         result = self._session.execute(stmt)
-        return result.rowcount > 0, new_token, new_version  # type: ignore[attr-defined]
+        if result.rowcount != 1:  # type: ignore[attr-defined]
+            return False, None, None
+        return True, new_token, new_version
 
     def fail_nonterminal_artifacts(
         self,
@@ -904,9 +907,13 @@ class SQLReportRepository(ReportRepository):
         1. CAS-update idempotency claimed → failed (binding token+version)
         2. UPDATE the artifact to failed (only if status IN pending/rendering
            and claim matches)
-        3. Either both succeed or the whole thing rolls back.
+        3. If the artifact exists but key/token/version/status don't match,
+           raise StaleClaimError to avoid inconsistent state.
+        4. Artifact not yet inserted (failed before INSERT) is allowed.
 
-        Raises StaleClaimError if the idempotency claim is no longer held.
+        Raises StaleClaimError if:
+        - The idempotency claim is no longer held
+        - The artifact exists but has mismatched claim/status
         """
         from cold_storage.modules.reports.domain.errors import StaleClaimError
 
@@ -928,7 +935,7 @@ class SQLReportRepository(ReportRepository):
         if idem_result.rowcount != 1:  # type: ignore[attr-defined]
             raise StaleClaimError(idempotency_key, "fail_attempt_with_claim: claim mismatch")
 
-        # Step 2: fail the artifact (only if it still belongs to this claim)
+        # Step 2: fail the artifact
         art_stmt = (
             sa.update(ReportExportArtifactRecord)
             .where(
@@ -944,8 +951,22 @@ class SQLReportRepository(ReportRepository):
                 failure_message=failure_message,
             )
         )
-        self._session.execute(art_stmt)
-        # Artifact may not exist yet (failed before INSERT) — that's OK.
-        # If it exists but has a different claim, it won't be updated — also OK.
+        art_result = self._session.execute(art_stmt)
+        art_rowcount: int = art_result.rowcount  # type: ignore[attr-defined]
+
+        if art_rowcount == 0:
+            # Artifact may not exist yet (failed before INSERT) — check
+            art_check = self._session.execute(
+                sa.select(ReportExportArtifactRecord.id).where(
+                    ReportExportArtifactRecord.id == artifact_id,
+                )
+            ).scalar_one_or_none()
+            if art_check is not None:
+                # Artifact exists but didn't match — inconsistent state
+                raise StaleClaimError(
+                    idempotency_key,
+                    "fail_attempt_with_claim: artifact exists but claim/status mismatch",
+                )
+            # Artifact doesn't exist — failed before INSERT, OK
 
     # --- Commit ---
