@@ -2787,3 +2787,133 @@ class TestReclaimConcurrentCAS:
                 assert final["claim_token"] != record["claim_token"]
         finally:
             os.unlink(db_file)
+
+
+# ---------------------------------------------------------------------------
+# PostgreSQL-specific concurrent CAS reclaim test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.postgresql
+def test_two_postgresql_sessions_same_snapshot_exactly_one_reclaims():
+    """Two real PostgreSQL sessions read the same snapshot, both attempt CAS — exactly one wins.
+
+    Uses a dedicated PostgreSQL engine from DATABASE_URL (NOT the in-memory SQLite
+    fixture).  Both threads open independent sessions, read the same stale snapshot,
+    and race via threading.Barrier.  The CAS UPDATE ... WHERE with 7 conditions
+    ensures exactly one rowcount==1.
+    """
+    import os
+    import threading
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        pytest.skip("DATABASE_URL not set — skipping PostgreSQL CAS test")
+
+    from sqlalchemy import create_engine as _create_engine
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+    from cold_storage.modules.reports.infrastructure.orm import Base as _Base
+
+    pg_eng = _create_engine(database_url)
+    _Base.metadata.create_all(pg_eng)
+    pg_sf = _sessionmaker(bind=pg_eng, expire_on_commit=False)
+
+    idempotency_key = "idem-pg-concurrent-cas"
+
+    try:
+        # Seed: create approved report + idempotency record via a dedicated session
+        with pg_sf() as seed_sess:
+            r_seed = SQLReportRepository(seed_sess)
+            report, rev = _setup_approved(pg_sf)
+            token, version = r_seed.save_idempotency_record(
+                key=idempotency_key,
+                actor="test-user",
+                action="render",
+                fingerprint="pg-test-fingerprint",
+            )
+            seed_sess.commit()
+
+            # Read the snapshot that both workers will use
+            snapshot = r_seed.get_idempotency_record(idempotency_key)
+            assert snapshot is not None
+
+        # Make stale: advance claimed_at back far enough
+        stale_cutoff = datetime.now(UTC) + timedelta(seconds=1)
+
+        results: list[tuple[int, bool, str | None, int | None]] = []
+        exceptions: list[tuple[int, BaseException]] = []
+        lock = threading.Lock()
+
+        def worker(wid: int) -> None:
+            try:
+                with pg_sf() as sess:
+                    r = SQLReportRepository(sess)
+                    success, tok, ver = r.reclaim_stale_idempotency(
+                        key=idempotency_key,
+                        fingerprint=snapshot["fingerprint"],
+                        cutoff=stale_cutoff,
+                        original_claimed_at=snapshot["claimed_at"],
+                        old_claim_token=snapshot["claim_token"],
+                        old_claim_version=snapshot["claim_version"],
+                    )
+                    if success:
+                        sess.commit()
+                    with lock:
+                        results.append((wid, success, tok, ver))
+            except BaseException as exc:
+                with lock:
+                    exceptions.append((wid, exc))
+
+        barrier = threading.Barrier(2)
+
+        def synced_worker(wid: int) -> None:
+            barrier.wait(timeout=10)
+            worker(wid)
+
+        t1 = threading.Thread(target=synced_worker, args=(0,))
+        t2 = threading.Thread(target=synced_worker, args=(1,))
+        t1.start()
+        t2.start()
+        t1.join(timeout=30)
+        t2.join(timeout=30)
+
+        # --- Assertions ---
+
+        # No exceptions from either thread
+        assert len(exceptions) == 0, f"Unexpected exceptions in worker threads: {exceptions}"
+
+        # Both threads completed
+        assert len(results) == 2, f"Expected 2 results, got {len(results)}: {results}"
+
+        winners = [(w, s, t, v) for w, s, t, v in results if s]
+        losers = [(w, s, t, v) for w, s, t, v in results if not s]
+
+        # Exactly one winner
+        assert len(winners) == 1, f"Expected 1 winner, got {len(winners)}: {results}"
+        assert len(losers) == 1, f"Expected 1 loser, got {len(losers)}: {results}"
+
+        # Winner got valid token + version
+        winner_wid, winner_success, winner_token, winner_version = winners[0]
+        assert winner_success is True
+        assert winner_token is not None
+        assert isinstance(winner_token, str) and len(winner_token) > 0
+        assert winner_version == snapshot["claim_version"] + 1
+
+        # Loser got (False, None, None)
+        loser_wid, loser_success, loser_token, loser_version = losers[0]
+        assert loser_success is False
+        assert loser_token is None
+        assert loser_version is None
+
+        # Final DB state: version incremented exactly once
+        with pg_sf() as verify_sess:
+            r_verify = SQLReportRepository(verify_sess)
+            final = r_verify.get_idempotency_record(idempotency_key)
+            assert final is not None
+            assert final["claim_version"] == snapshot["claim_version"] + 1
+            assert final["claim_token"] == winner_token
+            assert final["status"] == "claimed"
+
+    finally:
+        pg_eng.dispose()
