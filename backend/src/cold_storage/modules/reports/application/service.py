@@ -119,11 +119,11 @@ class ReportRepository:
         key: str,
         fingerprint: str,
         cutoff: datetime,
-        original_claimed_at: datetime | None = None,
+        original_claimed_at: datetime,
         *,
-        old_claim_token: str = "",
-        old_claim_version: int = 0,
-    ) -> tuple[bool, str, int]:
+        old_claim_token: str,
+        old_claim_version: int,
+    ) -> tuple[bool, str | None, int | None]:
         raise NotImplementedError
 
     def fail_nonterminal_artifacts(

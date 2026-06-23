@@ -462,6 +462,8 @@ class ReportRenderService:
                                 )
                             )
                             if reclaimed:
+                                assert new_token is not None
+                                assert new_version is not None
                                 claim_token = new_token
                                 claim_version = new_version
                                 # Cleanup orphaned non-terminal artifacts
