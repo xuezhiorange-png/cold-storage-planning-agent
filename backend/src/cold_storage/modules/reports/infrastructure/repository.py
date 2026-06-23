@@ -665,6 +665,98 @@ class SQLReportRepository(ReportRepository):
         )
         self._session.add(rec)
 
+    def insert_artifact_with_claim(
+        self,
+        artifact: ReportExportArtifact,
+        *,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
+        """Atomically verify claim validity and INSERT artifact.
+
+        For PostgreSQL: SELECT ... FOR UPDATE on idempotency record,
+        then verify claim, then INSERT artifact.
+        For SQLite: guard UPDATE to acquire write lock, then INSERT.
+
+        Raises StaleClaimError if the claim is no longer held.
+        """
+        from cold_storage.modules.reports.domain.errors import StaleClaimError
+
+        # Guard: acquire write lock / row lock on the idempotency record
+        if artifact.idempotency_key:
+            is_postgres = (
+                self._session.bind.dialect.name  # type: ignore[union-attr]
+                == "postgresql"
+            )
+            if is_postgres:
+                # PostgreSQL: SELECT ... FOR UPDATE
+                idem_stmt = (
+                    sa.select(IdempotencyRecord)
+                    .where(
+                        IdempotencyRecord.key == artifact.idempotency_key,
+                        IdempotencyRecord.status == "claimed",
+                        IdempotencyRecord.claim_token == claim_token,
+                        IdempotencyRecord.claim_version == claim_version,
+                    )
+                    .with_for_update()
+                )
+                idem_rec = self._session.execute(idem_stmt).scalar_one_or_none()
+                if idem_rec is None:
+                    raise StaleClaimError(
+                        artifact.idempotency_key,
+                        "insert_artifact: claim no longer held",
+                    )
+            else:
+                # SQLite: guard UPDATE to acquire write lock
+                guard_stmt = (
+                    sa.update(IdempotencyRecord)
+                    .where(
+                        IdempotencyRecord.key == artifact.idempotency_key,
+                        IdempotencyRecord.status == "claimed",
+                        IdempotencyRecord.claim_token == claim_token,
+                        IdempotencyRecord.claim_version == claim_version,
+                    )
+                    .values(updated_at=sa.func.now())
+                )
+                result = self._session.execute(guard_stmt)
+                if result.rowcount != 1:  # type: ignore[attr-defined]
+                    raise StaleClaimError(
+                        artifact.idempotency_key,
+                        "insert_artifact: claim no longer held",
+                    )
+
+        # INSERT artifact
+        rec = ReportExportArtifactRecord(
+            id=artifact.id,
+            report_id=artifact.report_id,
+            report_revision_id=artifact.report_revision_id,
+            revision_number=artifact.revision_number,
+            format=(
+                artifact.format.value
+                if isinstance(artifact.format, ExportFormat)
+                else artifact.format
+            ),
+            template_id=artifact.template_id,
+            template_version=artifact.template_version,
+            schema_version=artifact.schema_version,
+            status=artifact.status.value,
+            storage_key=artifact.storage_key,
+            file_name=artifact.file_name,
+            mime_type=artifact.mime_type,
+            file_size_bytes=artifact.file_size_bytes,
+            file_sha256=artifact.file_sha256,
+            source_content_hash=artifact.source_content_hash,
+            render_manifest_json=artifact.render_manifest_json,
+            generated_by=artifact.generated_by,
+            generated_at=artifact.generated_at,
+            failure_code=artifact.failure_code,
+            failure_message=artifact.failure_message,
+            idempotency_key=artifact.idempotency_key,
+            claim_token=artifact.claim_token,
+            claim_version=artifact.claim_version,
+        )
+        self._session.add(rec)
+
     def get_artifact(self, artifact_id: str) -> ReportExportArtifact | None:
         rec = self._session.get(ReportExportArtifactRecord, artifact_id)
         if rec is None:
@@ -724,59 +816,136 @@ class SQLReportRepository(ReportRepository):
     ) -> None:
         """Atomically transition an artifact status with claim fencing.
 
-        Verifies that:
-        1. The artifact exists and is in expected_status
-        2. The artifact's idempotency_key + claim_token + claim_version match
-        3. The associated idempotency record is still claimed by this token/version
+        Uses a single UPDATE with an EXISTS subquery against
+        idempotency_records to ensure the claim is still valid at the
+        exact moment of the artifact state change.  This is atomic on
+        both PostgreSQL and SQLite (no TOCTOU between SELECT and UPDATE).
 
-        Raises StaleClaimError if any check fails.
+        Raises StaleClaimError if:
+        - The artifact is not in expected_status
+        - The idempotency claim is no longer held by this token/version
         """
         from cold_storage.modules.reports.domain.errors import StaleClaimError
 
-        # First: verify the idempotency record is still held by this claim
         if artifact.idempotency_key:
-            idem_stmt = (
-                sa.select(IdempotencyRecord)
+            # Single atomic UPDATE with EXISTS subquery
+            stmt = (
+                sa.update(ReportExportArtifactRecord)
                 .where(
-                    IdempotencyRecord.key == artifact.idempotency_key,
-                    IdempotencyRecord.status == "claimed",
-                    IdempotencyRecord.claim_token == claim_token,
-                    IdempotencyRecord.claim_version == claim_version,
+                    ReportExportArtifactRecord.id == artifact.id,
+                    ReportExportArtifactRecord.status == expected_status.value,
+                    ReportExportArtifactRecord.idempotency_key == artifact.idempotency_key,
+                    ReportExportArtifactRecord.claim_token == claim_token,
+                    ReportExportArtifactRecord.claim_version == claim_version,
+                    sa.exists()
+                    .where(
+                        IdempotencyRecord.key == artifact.idempotency_key,
+                        IdempotencyRecord.status == "claimed",
+                        IdempotencyRecord.claim_token == claim_token,
+                        IdempotencyRecord.claim_version == claim_version,
+                    )
+                    .correlate(ReportExportArtifactRecord),
                 )
-                .with_for_update()
+                .values(
+                    status=artifact.status.value,
+                    storage_key=artifact.storage_key,
+                    file_size_bytes=artifact.file_size_bytes,
+                    file_sha256=artifact.file_sha256,
+                    render_manifest_json=artifact.render_manifest_json,
+                    failure_code=artifact.failure_code,
+                    failure_message=artifact.failure_message,
+                )
             )
-            idem_rec = self._session.execute(idem_stmt).scalar_one_or_none()
-            if idem_rec is None:
+            result = self._session.execute(stmt)
+            if result.rowcount != 1:  # type: ignore[attr-defined]
                 raise StaleClaimError(
                     artifact.idempotency_key,
-                    "idempotency claim no longer held",
+                    f"artifact transition {expected_status.value}"
+                    f" -> {artifact.status.value}: mismatch",
+                )
+        else:
+            # No idempotency — plain update
+            stmt = (
+                sa.update(ReportExportArtifactRecord)
+                .where(
+                    ReportExportArtifactRecord.id == artifact.id,
+                    ReportExportArtifactRecord.status == expected_status.value,
+                )
+                .values(
+                    status=artifact.status.value,
+                    storage_key=artifact.storage_key,
+                    file_size_bytes=artifact.file_size_bytes,
+                    file_sha256=artifact.file_sha256,
+                    render_manifest_json=artifact.render_manifest_json,
+                    failure_code=artifact.failure_code,
+                    failure_message=artifact.failure_message,
+                )
+            )
+            result = self._session.execute(stmt)
+            if result.rowcount != 1:  # type: ignore[attr-defined]
+                raise StaleClaimError(
+                    "",
+                    f"artifact transition {expected_status.value}"
+                    f" -> {artifact.status.value}: mismatch",
                 )
 
-        # Second: atomically transition the artifact
-        stmt = (
-            sa.update(ReportExportArtifactRecord)
+    def fail_attempt_with_claim(
+        self,
+        artifact_id: str,
+        idempotency_key: str,
+        claim_token: str,
+        claim_version: int,
+        failure_code: str,
+        failure_message: str,
+    ) -> None:
+        """Atomically fail an idempotency record and its non-terminal artifact.
+
+        In a single transaction:
+        1. CAS-update idempotency claimed → failed (binding token+version)
+        2. UPDATE the artifact to failed (only if status IN pending/rendering
+           and claim matches)
+        3. Either both succeed or the whole thing rolls back.
+
+        Raises StaleClaimError if the idempotency claim is no longer held.
+        """
+        from cold_storage.modules.reports.domain.errors import StaleClaimError
+
+        # Step 1: fail idempotency record with fencing
+        idem_stmt = (
+            sa.update(IdempotencyRecord)
             .where(
-                ReportExportArtifactRecord.id == artifact.id,
-                ReportExportArtifactRecord.status == expected_status.value,
-                ReportExportArtifactRecord.idempotency_key == artifact.idempotency_key,
-                ReportExportArtifactRecord.claim_token == claim_token,
-                ReportExportArtifactRecord.claim_version == claim_version,
+                IdempotencyRecord.key == idempotency_key,
+                IdempotencyRecord.status == "claimed",
+                IdempotencyRecord.claim_token == claim_token,
+                IdempotencyRecord.claim_version == claim_version,
             )
             .values(
-                status=artifact.status.value,
-                storage_key=artifact.storage_key,
-                file_size_bytes=artifact.file_size_bytes,
-                file_sha256=artifact.file_sha256,
-                render_manifest_json=artifact.render_manifest_json,
-                failure_code=artifact.failure_code,
-                failure_message=artifact.failure_message,
+                status="failed",
+                result_payload={"failure_code": failure_code, "failure_message": failure_message},
             )
         )
-        result = self._session.execute(stmt)
-        if result.rowcount != 1:  # type: ignore[attr-defined]
-            raise StaleClaimError(
-                artifact.idempotency_key or "",
-                f"artifact transition {expected_status.value} -> {artifact.status.value}: mismatch",
+        idem_result = self._session.execute(idem_stmt)
+        if idem_result.rowcount != 1:  # type: ignore[attr-defined]
+            raise StaleClaimError(idempotency_key, "fail_attempt_with_claim: claim mismatch")
+
+        # Step 2: fail the artifact (only if it still belongs to this claim)
+        art_stmt = (
+            sa.update(ReportExportArtifactRecord)
+            .where(
+                ReportExportArtifactRecord.id == artifact_id,
+                ReportExportArtifactRecord.idempotency_key == idempotency_key,
+                ReportExportArtifactRecord.claim_token == claim_token,
+                ReportExportArtifactRecord.claim_version == claim_version,
+                ReportExportArtifactRecord.status.in_(["pending", "rendering"]),
             )
+            .values(
+                status="failed",
+                failure_code=failure_code,
+                failure_message=failure_message,
+            )
+        )
+        self._session.execute(art_stmt)
+        # Artifact may not exist yet (failed before INSERT) — that's OK.
+        # If it exists but has a different claim, it won't be updated — also OK.
 
     # --- Commit ---

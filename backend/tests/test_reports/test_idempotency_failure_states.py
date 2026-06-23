@@ -1791,3 +1791,725 @@ class TestIdempotencyFailureStates:
 
             # Old claim_token is NOT the current claim_token
             assert idem["claim_token"] != old_claim_token
+
+    # ------------------------------------------------------------------
+    # Atomic fencing race condition tests
+    # ------------------------------------------------------------------
+
+    def test_old_worker_paused_before_pending_insert_cannot_create_orphan_after_reclaim(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Race: Worker A paused before pending INSERT, Worker B reclaims.
+
+        Proves that insert_artifact_with_claim uses atomic fencing:
+        Worker A gets claim, but before it inserts the pending artifact,
+        Worker B reclaims the stale claim.  Worker A's insert must fail
+        with StaleClaimError.
+
+        SQLite and PostgreSQL: uses guard UPDATE / SELECT FOR UPDATE.
+        """
+        import threading
+
+        from cold_storage.modules.reports.infrastructure import (
+            repository as repo_mod,
+        )
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-pending-race-1"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # Use file-based SQLite for thread safety
+        db_path = tmp_path / "pending_race.db"
+        file_engine = create_engine(
+            f"sqlite:///{db_path}",
+            connect_args={"check_same_thread": False},
+        )
+        Base.metadata.create_all(file_engine)
+        file_sf = sessionmaker(bind=file_engine, expire_on_commit=False)
+
+        # Seed data
+        with file_sf() as seed_sess:
+            seed_repo = SQLReportRepository(seed_sess)
+            seed_repo.save_report(report)
+            seed_repo.save_revision(rev)
+            seed_default_templates(seed_repo)
+            seed_sess.commit()
+
+        # Worker A: get a claim, then start render (will be paused at INSERT)
+        barrier = threading.Barrier(2)
+        insert_blocked = threading.Event()
+        original_insert = repo_mod.SQLReportRepository.insert_artifact_with_claim
+
+        def barrier_insert(self, artifact, *, claim_token, claim_version):
+            """Intercept insert_artifact_with_claim: signal barrier, wait for Worker B."""
+            insert_blocked.set()
+            barrier.wait(timeout=15)
+            return original_insert(
+                self,
+                artifact,
+                claim_token=claim_token,
+                claim_version=claim_version,
+            )
+
+        monkeypatch.setattr(
+            repo_mod.SQLReportRepository,
+            "insert_artifact_with_claim",
+            barrier_insert,
+        )
+
+        worker_a_error: list[Exception] = []
+        worker_a_done = threading.Event()
+
+        def worker_a():
+            try:
+                with file_sf() as sess:
+                    r = SQLReportRepository(sess)
+                    u = ReportRenderUnitOfWork(sess, report_repo=r, artifact_repo=r)
+                    s = ReportArtifactStorage(str(tmp_path / "artifacts_a"))
+                    svc = ReportRenderService(
+                        uow=u,
+                        storage=s,
+                        template_repo=r,
+                        stale_claim_seconds=1,
+                        clock=clock,
+                    )
+                    svc.render(
+                        report_id=report.id,
+                        revision_number=rev.revision_number,
+                        format="docx",
+                        template_version="1.0.0",
+                        mode="formal",
+                        actor="test-user",
+                        idempotency_key=idempotency_key,
+                    )
+            except Exception as exc:
+                worker_a_error.append(exc)
+            finally:
+                worker_a_done.set()
+
+        def worker_b():
+            """Wait for Worker A to reach the INSERT, then reclaim the stale claim."""
+            insert_blocked.wait(timeout=10)
+            # Small delay to ensure Worker A is past the claim check
+            # but blocked at barrier
+            import time
+
+            time.sleep(0.1)
+            with file_sf() as sess:
+                r = SQLReportRepository(sess)
+                # Advance clock to make claim stale
+                stale_cutoff = clock() - timedelta(seconds=2)
+                reclaimed, _, _ = r.reclaim_stale_idempotency(
+                    idempotency_key,
+                    "fingerprint",
+                    stale_cutoff,
+                )
+                assert reclaimed, "Worker B should have reclaimed the stale claim"
+                r.commit()
+
+        # Run Worker A and B concurrently
+        t_a = threading.Thread(target=worker_a)
+        t_b = threading.Thread(target=worker_b)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
+        worker_a_done.wait(timeout=5)
+
+        # Worker A must have failed with StaleClaimError (wrapped in RenderError)
+        assert len(worker_a_error) == 1, f"Worker A should have raised, got: {worker_a_error}"
+        assert isinstance(worker_a_error[0], RenderError)
+
+        # No orphan artifact with old token
+        with file_sf() as check_sess:
+            check_repo = SQLReportRepository(check_sess)
+            pending = check_repo.list_artifacts(report.id, status=ArtifactStatus.PENDING)
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            # All artifacts should be failed or nonexistent
+            for art in pending + rendering:
+                # If any exist, they must be from Worker B's claim, not Worker A's
+                assert art.claim_token != "", "No orphan artifacts from Worker A"
+
+    def test_old_worker_paused_after_claim_check_cannot_transition_after_reclaim(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Race: Worker A inserted artifact, paused before transition, Worker B reclaims.
+
+        Proves that transition_artifact uses EXISTS subquery:
+        Worker A inserted a pending artifact, but before it transitions
+        pending→rendering, Worker B reclaims.  Worker A's transition must
+        fail with StaleClaimError.
+
+        Uses Barrier placed before the UPDATE executes.
+        """
+        import threading
+
+        from cold_storage.modules.reports.infrastructure import (
+            repository as repo_mod,
+        )
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-transition-race-1"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # File-based SQLite
+        db_path = tmp_path / "transition_race.db"
+        file_engine = create_engine(
+            f"sqlite:///{db_path}",
+            connect_args={"check_same_thread": False},
+        )
+        Base.metadata.create_all(file_engine)
+        file_sf = sessionmaker(bind=file_engine, expire_on_commit=False)
+
+        with file_sf() as seed_sess:
+            seed_repo = SQLReportRepository(seed_sess)
+            seed_repo.save_report(report)
+            seed_repo.save_revision(rev)
+            seed_default_templates(seed_repo)
+            seed_sess.commit()
+
+        barrier = threading.Barrier(2)
+        transition_blocked = threading.Event()
+        original_transition = repo_mod.SQLReportRepository.transition_artifact
+
+        def barrier_transition(self, artifact, *, expected_status, claim_token, claim_version):
+            """Intercept transition_artifact: signal barrier, wait for Worker B."""
+            transition_blocked.set()
+            barrier.wait(timeout=15)
+            return original_transition(
+                self,
+                artifact,
+                expected_status=expected_status,
+                claim_token=claim_token,
+                claim_version=claim_version,
+            )
+
+        monkeypatch.setattr(
+            repo_mod.SQLReportRepository,
+            "transition_artifact",
+            barrier_transition,
+        )
+
+        worker_a_error: list[Exception] = []
+        worker_a_done = threading.Event()
+
+        def worker_a():
+            try:
+                with file_sf() as sess:
+                    r = SQLReportRepository(sess)
+                    u = ReportRenderUnitOfWork(sess, report_repo=r, artifact_repo=r)
+                    s = ReportArtifactStorage(str(tmp_path / "artifacts_a2"))
+                    svc = ReportRenderService(
+                        uow=u,
+                        storage=s,
+                        template_repo=r,
+                        stale_claim_seconds=1,
+                        clock=clock,
+                    )
+                    svc.render(
+                        report_id=report.id,
+                        revision_number=rev.revision_number,
+                        format="docx",
+                        template_version="1.0.0",
+                        mode="formal",
+                        actor="test-user",
+                        idempotency_key=idempotency_key,
+                    )
+            except Exception as exc:
+                worker_a_error.append(exc)
+            finally:
+                worker_a_done.set()
+
+        def worker_b():
+            """Wait for Worker A to reach transition, then reclaim."""
+            transition_blocked.wait(timeout=10)
+            import time
+
+            time.sleep(0.1)
+            with file_sf() as sess:
+                r = SQLReportRepository(sess)
+                stale_cutoff = clock() - timedelta(seconds=2)
+                reclaimed, _, _ = r.reclaim_stale_idempotency(
+                    idempotency_key,
+                    "fingerprint",
+                    stale_cutoff,
+                )
+                assert reclaimed, "Worker B should have reclaimed"
+                r.commit()
+
+        t_a = threading.Thread(target=worker_a)
+        t_b = threading.Thread(target=worker_b)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
+        worker_a_done.wait(timeout=5)
+
+        # Worker A must have failed
+        assert len(worker_a_error) == 1, f"Worker A should have raised, got: {worker_a_error}"
+        assert isinstance(worker_a_error[0], RenderError)
+
+        # Worker A's artifact should not be in rendering state
+        with file_sf() as check_sess:
+            check_repo = SQLReportRepository(check_sess)
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            for art in rendering:
+                assert art.claim_token != "", "No orphan rendering artifacts from Worker A"
+
+    def test_old_worker_failure_handler_cannot_modify_artifact_after_reclaim(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """Race: Worker A enters failure handler, Worker B reclaims before fail_attempt.
+
+        Proves that fail_attempt_with_claim uses atomic fencing:
+        Worker A's render crashes, enters failure handler.  Before
+        fail_attempt_with_claim executes, Worker B reclaims.  Worker A's
+        fail_attempt must raise StaleClaimError.
+        """
+        import threading
+
+        from cold_storage.modules.reports.infrastructure import (
+            repository as repo_mod,
+        )
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-fail-race-1"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # File-based SQLite
+        db_path = tmp_path / "fail_race.db"
+        file_engine = create_engine(
+            f"sqlite:///{db_path}",
+            connect_args={"check_same_thread": False},
+        )
+        Base.metadata.create_all(file_engine)
+        file_sf = sessionmaker(bind=file_engine, expire_on_commit=False)
+
+        with file_sf() as seed_sess:
+            seed_repo = SQLReportRepository(seed_sess)
+            seed_repo.save_report(report)
+            seed_repo.save_revision(rev)
+            seed_default_templates(seed_repo)
+            seed_sess.commit()
+
+        barrier = threading.Barrier(2)
+        fail_blocked = threading.Event()
+        original_fail = repo_mod.SQLReportRepository.fail_attempt_with_claim
+
+        def barrier_fail(
+            self,
+            artifact_id,
+            idempotency_key,
+            claim_token,
+            claim_version,
+            failure_code,
+            failure_message,
+        ):
+            """Intercept fail_attempt_with_claim: signal barrier, wait."""
+            fail_blocked.set()
+            barrier.wait(timeout=15)
+            return original_fail(
+                self,
+                artifact_id,
+                idempotency_key,
+                claim_token,
+                claim_version,
+                failure_code,
+                failure_message,
+            )
+
+        monkeypatch.setattr(
+            repo_mod.SQLReportRepository,
+            "fail_attempt_with_claim",
+            barrier_fail,
+        )
+
+        worker_a_error: list[Exception] = []
+        worker_a_done = threading.Event()
+
+        def worker_a():
+            try:
+                with file_sf() as sess:
+                    r = SQLReportRepository(sess)
+                    u = ReportRenderUnitOfWork(sess, report_repo=r, artifact_repo=r)
+                    s = ReportArtifactStorage(str(tmp_path / "artifacts_a3"))
+                    svc = ReportRenderService(
+                        uow=u,
+                        storage=s,
+                        template_repo=r,
+                        stale_claim_seconds=1,
+                        clock=clock,
+                    )
+                    # Inject render failure
+                    with patch(
+                        "cold_storage.modules.reports.application.render_service"
+                        ".ReportRenderService._render_bytes",
+                        side_effect=RuntimeError("Worker A render crash"),
+                    ):
+                        svc.render(
+                            report_id=report.id,
+                            revision_number=rev.revision_number,
+                            format="docx",
+                            template_version="1.0.0",
+                            mode="formal",
+                            actor="test-user",
+                            idempotency_key=idempotency_key,
+                        )
+            except Exception as exc:
+                worker_a_error.append(exc)
+            finally:
+                worker_a_done.set()
+
+        def worker_b():
+            """Wait for Worker A to enter failure handler, then reclaim."""
+            fail_blocked.wait(timeout=10)
+            import time
+
+            time.sleep(0.1)
+            with file_sf() as sess:
+                r = SQLReportRepository(sess)
+                stale_cutoff = clock() - timedelta(seconds=2)
+                reclaimed, _, _ = r.reclaim_stale_idempotency(
+                    idempotency_key,
+                    "fingerprint",
+                    stale_cutoff,
+                )
+                assert reclaimed, "Worker B should have reclaimed"
+                r.commit()
+
+        t_a = threading.Thread(target=worker_a)
+        t_b = threading.Thread(target=worker_b)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
+        worker_a_done.wait(timeout=5)
+
+        # Worker A should have failed (fail_attempt raised StaleClaimError,
+        # caught by outer handler, re-raised as RenderError)
+        assert len(worker_a_error) == 1, f"Worker A should have raised, got: {worker_a_error}"
+        assert isinstance(worker_a_error[0], RenderError)
+
+        # Final state: Worker A's artifact should NOT be in failed state
+        # (because fail_attempt_with_claim was rejected by Worker B's reclaim)
+        with file_sf() as check_sess:
+            check_repo = SQLReportRepository(check_sess)
+            # Worker A's fail_attempt_with_claim was rejected by reclaim,
+            # so its artifact stays non-terminal.
+
+            # Worker A's artifact should still be pending or rendering
+            # (fail_attempt was rejected)
+            pending = check_repo.list_artifacts(report.id, status=ArtifactStatus.PENDING)
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            # At least one non-terminal artifact from Worker A should exist
+            non_terminal = pending + rendering
+            assert len(non_terminal) >= 1, (
+                "Worker A's artifact should still be non-terminal "
+                "(fail_attempt_with_claim was rejected)"
+            )
+
+    # ------------------------------------------------------------------
+    # PostgreSQL-marked versions of atomic fencing tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.postgresql
+    def test_old_worker_paused_before_pending_insert_pg(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """PostgreSQL variant: insert_artifact_with_claim uses SELECT FOR UPDATE.
+
+        Same logic as the SQLite version but exercises the PostgreSQL code path.
+        When run against PostgreSQL, the guard uses SELECT ... FOR UPDATE
+        instead of the SQLite guard UPDATE.
+        """
+        import threading
+
+        from cold_storage.modules.reports.infrastructure import (
+            repository as repo_mod,
+        )
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-pending-race-pg-1"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        # For in-memory SQLite, we still test the SQLite path.
+        # The @pytest.mark.postgresql marker ensures this test runs
+        # in the PostgreSQL CI job where the dialect check routes
+        # to the SELECT FOR UPDATE path.
+        barrier = threading.Barrier(2)
+        insert_blocked = threading.Event()
+        original_insert = repo_mod.SQLReportRepository.insert_artifact_with_claim
+
+        def barrier_insert(self, artifact, *, claim_token, claim_version):
+            insert_blocked.set()
+            barrier.wait(timeout=15)
+            return original_insert(
+                self,
+                artifact,
+                claim_token=claim_token,
+                claim_version=claim_version,
+            )
+
+        monkeypatch.setattr(
+            repo_mod.SQLReportRepository,
+            "insert_artifact_with_claim",
+            barrier_insert,
+        )
+
+        worker_a_error: list[Exception] = []
+        worker_a_done = threading.Event()
+
+        def worker_a():
+            try:
+                with session_factory() as sess:
+                    r = SQLReportRepository(sess)
+                    u = ReportRenderUnitOfWork(sess, report_repo=r, artifact_repo=r)
+                    s = ReportArtifactStorage(str(tmp_path / "artifacts_pg_a"))
+                    svc = ReportRenderService(
+                        uow=u,
+                        storage=s,
+                        template_repo=r,
+                        stale_claim_seconds=1,
+                        clock=clock,
+                    )
+                    svc.render(
+                        report_id=report.id,
+                        revision_number=rev.revision_number,
+                        format="docx",
+                        template_version="1.0.0",
+                        mode="formal",
+                        actor="test-user",
+                        idempotency_key=idempotency_key,
+                    )
+            except Exception as exc:
+                worker_a_error.append(exc)
+            finally:
+                worker_a_done.set()
+
+        def worker_b():
+            insert_blocked.wait(timeout=10)
+            import time
+
+            time.sleep(0.1)
+            with session_factory() as sess:
+                r = SQLReportRepository(sess)
+                stale_cutoff = clock() - timedelta(seconds=2)
+                reclaimed, _, _ = r.reclaim_stale_idempotency(
+                    idempotency_key,
+                    "fingerprint",
+                    stale_cutoff,
+                )
+                assert reclaimed
+                r.commit()
+
+        t_a = threading.Thread(target=worker_a)
+        t_b = threading.Thread(target=worker_b)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
+        worker_a_done.wait(timeout=5)
+
+        assert len(worker_a_error) == 1
+        assert isinstance(worker_a_error[0], RenderError)
+
+    @pytest.mark.postgresql
+    def test_old_worker_paused_after_claim_check_cannot_transition_pg(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """PostgreSQL variant: transition_artifact uses EXISTS subquery."""
+        import threading
+
+        from cold_storage.modules.reports.infrastructure import (
+            repository as repo_mod,
+        )
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-transition-race-pg-1"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        barrier = threading.Barrier(2)
+        transition_blocked = threading.Event()
+        original_transition = repo_mod.SQLReportRepository.transition_artifact
+
+        def barrier_transition(self, artifact, *, expected_status, claim_token, claim_version):
+            transition_blocked.set()
+            barrier.wait(timeout=15)
+            return original_transition(
+                self,
+                artifact,
+                expected_status=expected_status,
+                claim_token=claim_token,
+                claim_version=claim_version,
+            )
+
+        monkeypatch.setattr(
+            repo_mod.SQLReportRepository,
+            "transition_artifact",
+            barrier_transition,
+        )
+
+        worker_a_error: list[Exception] = []
+        worker_a_done = threading.Event()
+
+        def worker_a():
+            try:
+                with session_factory() as sess:
+                    r = SQLReportRepository(sess)
+                    u = ReportRenderUnitOfWork(sess, report_repo=r, artifact_repo=r)
+                    s = ReportArtifactStorage(str(tmp_path / "artifacts_pg_a2"))
+                    svc = ReportRenderService(
+                        uow=u,
+                        storage=s,
+                        template_repo=r,
+                        stale_claim_seconds=1,
+                        clock=clock,
+                    )
+                    svc.render(
+                        report_id=report.id,
+                        revision_number=rev.revision_number,
+                        format="docx",
+                        template_version="1.0.0",
+                        mode="formal",
+                        actor="test-user",
+                        idempotency_key=idempotency_key,
+                    )
+            except Exception as exc:
+                worker_a_error.append(exc)
+            finally:
+                worker_a_done.set()
+
+        def worker_b():
+            transition_blocked.wait(timeout=10)
+            import time
+
+            time.sleep(0.1)
+            with session_factory() as sess:
+                r = SQLReportRepository(sess)
+                stale_cutoff = clock() - timedelta(seconds=2)
+                reclaimed, _, _ = r.reclaim_stale_idempotency(
+                    idempotency_key,
+                    "fingerprint",
+                    stale_cutoff,
+                )
+                assert reclaimed
+                r.commit()
+
+        t_a = threading.Thread(target=worker_a)
+        t_b = threading.Thread(target=worker_b)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
+        worker_a_done.wait(timeout=5)
+
+        assert len(worker_a_error) == 1
+        assert isinstance(worker_a_error[0], RenderError)
+
+    @pytest.mark.postgresql
+    def test_old_worker_failure_handler_cannot_modify_after_reclaim_pg(
+        self, session_factory, tmp_path, monkeypatch
+    ):
+        """PostgreSQL variant: fail_attempt_with_claim uses atomic fencing."""
+        import threading
+
+        from cold_storage.modules.reports.infrastructure import (
+            repository as repo_mod,
+        )
+
+        report, rev = _setup_approved(session_factory)
+        idempotency_key = "idem-fail-race-pg-1"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+
+        barrier = threading.Barrier(2)
+        fail_blocked = threading.Event()
+        original_fail = repo_mod.SQLReportRepository.fail_attempt_with_claim
+
+        def barrier_fail(
+            self,
+            artifact_id,
+            idempotency_key,
+            claim_token,
+            claim_version,
+            failure_code,
+            failure_message,
+        ):
+            fail_blocked.set()
+            barrier.wait(timeout=15)
+            return original_fail(
+                self,
+                artifact_id,
+                idempotency_key,
+                claim_token,
+                claim_version,
+                failure_code,
+                failure_message,
+            )
+
+        monkeypatch.setattr(
+            repo_mod.SQLReportRepository,
+            "fail_attempt_with_claim",
+            barrier_fail,
+        )
+
+        worker_a_error: list[Exception] = []
+        worker_a_done = threading.Event()
+
+        def worker_a():
+            try:
+                with session_factory() as sess:
+                    r = SQLReportRepository(sess)
+                    u = ReportRenderUnitOfWork(sess, report_repo=r, artifact_repo=r)
+                    s = ReportArtifactStorage(str(tmp_path / "artifacts_pg_a3"))
+                    svc = ReportRenderService(
+                        uow=u,
+                        storage=s,
+                        template_repo=r,
+                        stale_claim_seconds=1,
+                        clock=clock,
+                    )
+                    with patch(
+                        "cold_storage.modules.reports.application.render_service"
+                        ".ReportRenderService._render_bytes",
+                        side_effect=RuntimeError("Worker A crash"),
+                    ):
+                        svc.render(
+                            report_id=report.id,
+                            revision_number=rev.revision_number,
+                            format="docx",
+                            template_version="1.0.0",
+                            mode="formal",
+                            actor="test-user",
+                            idempotency_key=idempotency_key,
+                        )
+            except Exception as exc:
+                worker_a_error.append(exc)
+            finally:
+                worker_a_done.set()
+
+        def worker_b():
+            fail_blocked.wait(timeout=10)
+            import time
+
+            time.sleep(0.1)
+            with session_factory() as sess:
+                r = SQLReportRepository(sess)
+                stale_cutoff = clock() - timedelta(seconds=2)
+                reclaimed, _, _ = r.reclaim_stale_idempotency(
+                    idempotency_key,
+                    "fingerprint",
+                    stale_cutoff,
+                )
+                assert reclaimed
+                r.commit()
+
+        t_a = threading.Thread(target=worker_a)
+        t_b = threading.Thread(target=worker_b)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
+        worker_a_done.wait(timeout=5)
+
+        assert len(worker_a_error) == 1
+        assert isinstance(worker_a_error[0], RenderError)

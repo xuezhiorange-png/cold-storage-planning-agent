@@ -48,7 +48,7 @@ ALLOWED_ANY_LOCATIONS: set[tuple[str, str]] = {
 
 ALLOWED_TYPE_IGNORE: dict[str, list[str]] = {
     # SQLAlchemy session.execute() returns Result, not CursorResult — rowcount attr
-    "infrastructure/repository.py": ["attr-defined", "no-any-return"],
+    "infrastructure/repository.py": ["attr-defined", "no-any-return", "union-attr"],
     # ArtifactStoragePort protocol assignment
     "application/render_service.py": ["assignment"],
 }

@@ -96,19 +96,21 @@ class ReportArtifactRepositoryPort(Protocol):
     """Port: persistence for export artifacts."""
 
     def save_artifact(self, artifact: ReportExportArtifact) -> None: ...
-
     def get_artifact(self, artifact_id: str) -> ReportExportArtifact | None: ...
-
     def list_artifacts(
         self, report_id: str, status: ArtifactStatus | None = None
     ) -> list[ReportExportArtifact]: ...
-
     def find_artifact_by_idempotency(
         self, idempotency_key: str, report_id: str
     ) -> ReportExportArtifact | None: ...
-
     def update_artifact(self, artifact: ReportExportArtifact) -> None: ...
-
+    def insert_artifact_with_claim(
+        self,
+        artifact: ReportExportArtifact,
+        *,
+        claim_token: str,
+        claim_version: int,
+    ) -> None: ...
     def fail_nonterminal_artifacts(
         self,
         report_id: str,
@@ -117,7 +119,6 @@ class ReportArtifactRepositoryPort(Protocol):
         stale_claim_token: str,
         stale_claim_version: int,
     ) -> int: ...
-
     def transition_artifact(
         self,
         artifact: ReportExportArtifact,
@@ -126,9 +127,16 @@ class ReportArtifactRepositoryPort(Protocol):
         claim_token: str,
         claim_version: int,
     ) -> None: ...
-
+    def fail_attempt_with_claim(
+        self,
+        artifact_id: str,
+        idempotency_key: str,
+        claim_token: str,
+        claim_version: int,
+        failure_code: str,
+        failure_message: str,
+    ) -> None: ...
     def commit(self) -> None: ...
-
     def rollback(self) -> None: ...
 
 
@@ -532,7 +540,14 @@ class ReportRenderService:
             # P0-2: INSERT artifact(pending) → commit
             current_stage = "insert_pending"
             if self._artifact_repo:
-                self._artifact_repo.save_artifact(artifact)
+                if idempotency_key and claim_token:
+                    self._artifact_repo.insert_artifact_with_claim(
+                        artifact,
+                        claim_token=claim_token,
+                        claim_version=claim_version,
+                    )
+                else:
+                    self._artifact_repo.save_artifact(artifact)
                 self._uow.commit()
 
             # P0-2: UPDATE artifact(rendering) → commit
@@ -671,31 +686,22 @@ class ReportRenderService:
                         },
                     )
 
-            # P0-2: Persist failure state — rollback, acquire fencing, update
+            # P0-2: Persist failure state — rollback, atomic fail attempt
             if self._artifact_repo:
                 try:
                     self._uow.rollback()
-                    # Step 1: Fail idempotency record (acquires fencing)
-                    stale_claim = False
                     if idempotency_key:
-                        try:
-                            self._repo.fail_idempotency_record(
-                                idempotency_key,
-                                type(exc).__name__,
-                                str(exc),
-                                claim_token=claim_token,
-                                claim_version=claim_version,
-                            )
-                        except Exception:
-                            # StaleClaimError or other — we lost the claim
-                            import contextlib
-
-                            with contextlib.suppress(Exception):
-                                self._uow.rollback()
-                            stale_claim = True
-
-                    # Step 2: Only update artifact if we still hold the claim
-                    if not stale_claim:
+                        # Atomic: fail idempotency + fail artifact in one transaction
+                        self._artifact_repo.fail_attempt_with_claim(
+                            artifact_id=artifact.id,
+                            idempotency_key=idempotency_key,
+                            claim_token=claim_token,
+                            claim_version=claim_version,
+                            failure_code=type(exc).__name__,
+                            failure_message=str(exc),
+                        )
+                    else:
+                        # No idempotency — update artifact directly
                         failed_artifact = self._artifact_repo.get_artifact(artifact.id)
                         if failed_artifact is not None:
                             from dataclasses import is_dataclass as _is_dc
@@ -707,9 +713,6 @@ class ReportRenderService:
                                     failure_code=type(exc).__name__,
                                     failure_message=str(exc),
                                 )
-                            # Fencing already verified via
-                            # fail_idempotency_record above;
-                            # use update_artifact directly.
                             self._artifact_repo.update_artifact(failed_artifact)
                     self._uow.commit()
                 except Exception:
