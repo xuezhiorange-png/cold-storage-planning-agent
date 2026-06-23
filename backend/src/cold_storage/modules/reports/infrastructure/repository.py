@@ -474,6 +474,7 @@ class SQLReportRepository(ReportRepository):
         """Update an existing template by ID (status, activated_at, active_slot, etc.).
 
         P0-7: Includes active_slot in the update.
+        P0-3: Also updates manifest_json, template_content_hash, and version.
         """
         # P0-7: Determine active_slot from status
         from cold_storage.modules.reports.infrastructure.orm import ReportTemplateRecord as _Rec
@@ -487,6 +488,14 @@ class SQLReportRepository(ReportRepository):
             values["active_slot"] = "active"
         else:
             values["active_slot"] = None
+
+        # P0-3: Update manifest, hash, and version fields
+        if template.manifest_json is not None:
+            values["manifest_json"] = template.manifest_json
+        if template.template_content_hash is not None:
+            values["template_content_hash"] = template.template_content_hash
+        if template.version is not None:
+            values["version"] = template.version
 
         stmt = sa.update(_Rec).where(_Rec.id == template.id).values(**values)
         result = self._session.execute(stmt)

@@ -21,6 +21,8 @@ from docx.oxml.ns import nsmap as _nsmap
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
+from cold_storage.modules.reports.domain.errors import TemplateManifestError
+
 _nsmap["v"] = "urn:schemas-microsoft-com:vml"
 _nsmap["o"] = "urn:schemas-microsoft-com:office:office"
 _nsmap["w14"] = "http://schemas.microsoft.com/office/word/2010/wordml"
@@ -73,6 +75,9 @@ def _load_manifest_settings(
     settings["margin_bottom_pt"] = page.get("margin_bottom_pt", page.get("margin_pt", _MARGIN_PT))
     settings["margin_left_pt"] = page.get("margin_left_pt", page.get("margin_pt", _MARGIN_PT))
     settings["margin_right_pt"] = page.get("margin_right_pt", page.get("margin_pt", _MARGIN_PT))
+
+    # Default page orientation
+    settings["orientation"] = page.get("orientation", "portrait")
 
     # Font settings
     fonts = render_settings.get("fonts", {})
@@ -195,10 +200,58 @@ def _set_run_font(
         run.font.color.rgb = color
 
 
+def _add_tab_field_run(p: Any) -> None:
+    """Add a tab character as a field run (for left/center/right layout)."""
+    tab_run = p.add_run()
+    fldChar = OxmlElement("w:fldChar")
+    fldChar.set(qn("w:fldCharType"), "begin")
+    tab_run._r.append(fldChar)
+    tab_run2 = p.add_run()
+    instrText = OxmlElement("w:instrText")
+    instrText.text = "\t"
+    tab_run2._r.append(instrText)
+    tab_run3 = p.add_run()
+    fldChar2 = OxmlElement("w:fldChar")
+    fldChar2.set(qn("w:fldCharType"), "end")
+    tab_run3._r.append(fldChar2)
+
+
+def _add_page_field(p: Any, text_template: str, font_size: int) -> None:
+    """Add text with {page_number} replaced by a PAGE field.
+
+    P0-5: Handles left/right footer positions that contain {page_number}.
+    """
+    parts = text_template.split("{page_number}")
+    prefix = parts[0]
+    suffix = parts[1] if len(parts) > 1 else ""
+    if prefix:
+        run_pre = p.add_run(prefix)
+        _set_run_font(run_pre, size=Pt(font_size), color=RGBColor(0x80, 0x80, 0x80))
+    # PAGE field
+    fldChar1 = OxmlElement("w:fldChar")
+    fldChar1.set(qn("w:fldCharType"), "begin")
+    run_field = p.add_run()
+    run_field._r.append(fldChar1)
+    instrText = OxmlElement("w:instrText")
+    instrText.set(qn("xml:space"), "preserve")
+    instrText.text = " PAGE "
+    run_instr = p.add_run()
+    run_instr._r.append(instrText)
+    fldChar2 = OxmlElement("w:fldChar")
+    fldChar2.set(qn("w:fldCharType"), "end")
+    run_end = p.add_run()
+    run_end._r.append(fldChar2)
+    if suffix:
+        run_suf = p.add_run(suffix)
+        _set_run_font(run_suf, size=Pt(font_size), color=RGBColor(0x80, 0x80, 0x80))
+
+
 def _add_footer(section: Any, settings: dict[str, Any], meta: Any, page_num: int) -> None:
     """Add manifest-driven footer with left/center/right text and variable substitution.
 
     P0-5: Replaces the hardcoded _add_page_number_footer().
+    Tab stops computed from actual page width and margins.
+    {page_number} in left/right positions generates PAGE field.
     """
     footer_left = settings.get("footer_left", "")
     footer_center = settings.get("footer_center", "")
@@ -216,88 +269,63 @@ def _add_footer(section: Any, settings: dict[str, Any], meta: Any, page_num: int
     # For combined left+center+right, use tab stops
     has_multiple = sum(bool(x) for x in [footer_left, footer_center, footer_right]) > 1
 
+    # P0-5: Calculate tab stop positions from actual page width and margins
+    content_width_pt = (
+        settings.get("page_width_pt", _A4_WIDTH_PT)
+        - settings.get("margin_left_pt", _MARGIN_PT)
+        - settings.get("margin_right_pt", _MARGIN_PT)
+    )
+    # Word tab stops in twips (1/20 pt)
+    center_pos = int((content_width_pt / 2) * 20)
+    right_pos = int(content_width_pt * 20)
+
     if has_multiple:
         # Add tab stops for left/center/right layout
         pPr = p._p.get_or_add_pPr()
         tabs = OxmlElement("w:tabs")
         tab_center = OxmlElement("w:tab")
         tab_center.set(qn("w:val"), "center")
-        tab_center.set(qn("w:pos"), "4153")  # center of A4
+        tab_center.set(qn("w:pos"), str(center_pos))
         tabs.append(tab_center)
         tab_right = OxmlElement("w:tab")
         tab_right.set(qn("w:val"), "right")
-        tab_right.set(qn("w:pos"), "8306")  # right margin area
+        tab_right.set(qn("w:pos"), str(right_pos))
         tabs.append(tab_right)
         pPr.append(tabs)
 
     first = True
     if footer_left:
-        text = _substitute_vars(footer_left, meta, page_num)
-        run = p.add_run(text)
-        _set_run_font(run, size=Pt(footer_size), color=RGBColor(0x80, 0x80, 0x80))
+        # P0-5: Handle {page_number} in left position as PAGE field
+        if "{page_number}" in footer_left:
+            _add_page_field(p, footer_left, footer_size)
+        else:
+            text = _substitute_vars(footer_left, meta, page_num)
+            run = p.add_run(text)
+            _set_run_font(run, size=Pt(footer_size), color=RGBColor(0x80, 0x80, 0x80))
         if has_multiple:
-            tab_run = p.add_run()
-            fldChar = OxmlElement("w:fldChar")
-            fldChar.set(qn("w:fldCharType"), "begin")
-            tab_run._r.append(fldChar)
-            tab_run2 = p.add_run()
-            instrText = OxmlElement("w:instrText")
-            instrText.text = "\t"
-            tab_run2._r.append(instrText)
-            tab_run3 = p.add_run()
-            fldChar2 = OxmlElement("w:fldChar")
-            fldChar2.set(qn("w:fldCharType"), "end")
-            tab_run3._r.append(fldChar2)
+            _add_tab_field_run(p)
         first = False
 
     if footer_center:
         text = _substitute_vars(footer_center, meta, page_num)
         # Check if it contains {page_number} — if so, insert PAGE field
         if "{page_number}" in footer_center:
-            prefix = footer_center.split("{page_number}")[0]
-            suffix = footer_center.split("{page_number}")[1]
-            if prefix:
-                run_pre = p.add_run(prefix)
-                _set_run_font(run_pre, size=Pt(footer_size), color=RGBColor(0x80, 0x80, 0x80))
-            # PAGE field
-            fldChar1 = OxmlElement("w:fldChar")
-            fldChar1.set(qn("w:fldCharType"), "begin")
-            run_field = p.add_run()
-            run_field._r.append(fldChar1)
-            instrText = OxmlElement("w:instrText")
-            instrText.set(qn("xml:space"), "preserve")
-            instrText.text = " PAGE "
-            run_instr = p.add_run()
-            run_instr._r.append(instrText)
-            fldChar2 = OxmlElement("w:fldChar")
-            fldChar2.set(qn("w:fldCharType"), "end")
-            run_end = p.add_run()
-            run_end._r.append(fldChar2)
-            if suffix:
-                run_suf = p.add_run(suffix)
-                _set_run_font(run_suf, size=Pt(footer_size), color=RGBColor(0x80, 0x80, 0x80))
+            _add_page_field(p, footer_center, footer_size)
         else:
             run = p.add_run(text)
             _set_run_font(run, size=Pt(footer_size), color=RGBColor(0x80, 0x80, 0x80))
         if has_multiple:
-            tab_run = p.add_run()
-            fldChar = OxmlElement("w:fldChar")
-            fldChar.set(qn("w:fldCharType"), "begin")
-            tab_run._r.append(fldChar)
-            tab_run2 = p.add_run()
-            instrText = OxmlElement("w:instrText")
-            instrText.text = "\t"
-            tab_run2._r.append(instrText)
-            tab_run3 = p.add_run()
-            fldChar2 = OxmlElement("w:fldChar")
-            fldChar2.set(qn("w:fldCharType"), "end")
-            tab_run3._r.append(fldChar2)
+            _add_tab_field_run(p)
         first = False  # noqa: F841
 
     if footer_right:
-        text = _substitute_vars(footer_right, meta, page_num)
-        run = p.add_run(text)
-        _set_run_font(run, size=Pt(footer_size), color=RGBColor(0x80, 0x80, 0x80))
+        # P0-5: Handle {page_number} in right position as PAGE field
+        if "{page_number}" in footer_right:
+            _add_page_field(p, footer_right, footer_size)
+        else:
+            text = _substitute_vars(footer_right, meta, page_num)
+            run = p.add_run(text)
+            _set_run_font(run, size=Pt(footer_size), color=RGBColor(0x80, 0x80, 0x80))
 
 
 def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int) -> None:
@@ -324,16 +352,25 @@ def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int
     has_multiple = sum(bool(x) for x in [header_left, header_center, header_right]) > 1
 
     if has_multiple:
+        # P0-5: Calculate tab stop positions from actual page width and margins
+        h_content_width_pt = (
+            settings.get("page_width_pt", _A4_WIDTH_PT)
+            - settings.get("margin_left_pt", _MARGIN_PT)
+            - settings.get("margin_right_pt", _MARGIN_PT)
+        )
+        h_center_pos = int((h_content_width_pt / 2) * 20)  # twips
+        h_right_pos = int(h_content_width_pt * 20)
+
         # Add tab stops for left/center/right layout
         pPr = p._p.get_or_add_pPr()
         tabs = OxmlElement("w:tabs")
         tab_center = OxmlElement("w:tab")
         tab_center.set(qn("w:val"), "center")
-        tab_center.set(qn("w:pos"), "4153")
+        tab_center.set(qn("w:pos"), str(h_center_pos))
         tabs.append(tab_center)
         tab_right = OxmlElement("w:tab")
         tab_right.set(qn("w:val"), "right")
-        tab_right.set(qn("w:pos"), "8306")
+        tab_right.set(qn("w:pos"), str(h_right_pos))
         tabs.append(tab_right)
         pPr.append(tabs)
 
@@ -342,36 +379,14 @@ def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int
         run = p.add_run(text)
         _set_run_font(run, size=Pt(header_size), color=RGBColor(0x80, 0x80, 0x80))
         if has_multiple:
-            tab_run = p.add_run()
-            fldChar = OxmlElement("w:fldChar")
-            fldChar.set(qn("w:fldCharType"), "begin")
-            tab_run._r.append(fldChar)
-            tab_run2 = p.add_run()
-            instrText = OxmlElement("w:instrText")
-            instrText.text = "\t"
-            tab_run2._r.append(instrText)
-            tab_run3 = p.add_run()
-            fldChar2 = OxmlElement("w:fldChar")
-            fldChar2.set(qn("w:fldCharType"), "end")
-            tab_run3._r.append(fldChar2)
+            _add_tab_field_run(p)
 
     if header_center:
         text = _substitute_vars(header_center, meta, page_num)
         run = p.add_run(text)
         _set_run_font(run, size=Pt(header_size), color=RGBColor(0x80, 0x80, 0x80))
         if has_multiple:
-            tab_run = p.add_run()
-            fldChar = OxmlElement("w:fldChar")
-            fldChar.set(qn("w:fldCharType"), "begin")
-            tab_run._r.append(fldChar)
-            tab_run2 = p.add_run()
-            instrText = OxmlElement("w:instrText")
-            instrText.text = "\t"
-            tab_run2._r.append(instrText)
-            tab_run3 = p.add_run()
-            fldChar2 = OxmlElement("w:fldChar")
-            fldChar2.set(qn("w:fldCharType"), "end")
-            tab_run3._r.append(fldChar2)
+            _add_tab_field_run(p)
 
     if header_right:
         text = _substitute_vars(header_right, meta, page_num)
@@ -380,9 +395,10 @@ def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int
 
 
 def _add_draft_watermark(doc: Any, settings: dict[str, Any]) -> None:
-    """Add draft watermark to the document using VML/XML.
+    """Add draft watermark to every section header using VML/XML.
 
-    P0-5: Uses manifest-driven text, fillcolor, opacity, rotation, font_size.
+    P0-5: Adds watermark as a SEPARATE paragraph in each section's header,
+    so it coexists with header text without overwriting it.
     """
     wm_text = settings.get("draft_watermark_text", "DRAFT")
     if not wm_text:
@@ -390,56 +406,23 @@ def _add_draft_watermark(doc: Any, settings: dict[str, Any]) -> None:
 
     wm_size = settings.get("draft_watermark_size", 72)
     wm_color_str = settings.get("draft_watermark_color", "#CCCCCC")
-    # Strip # prefix for VML fillcolor
     wm_fillcolor = wm_color_str.lstrip("#")
     wm_opacity = settings.get("draft_watermark_opacity", 0.3)
     wm_angle = settings.get("draft_watermark_angle", 45)
 
-    # Convert opacity (0-1) to VML alpha (0-100000)
     for section in doc.sections:
         header = section.header
-        p = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        # Create VML watermark shape
-        p._p.get_or_add_pPr()
-
-        # Create the watermark paragraph properties for behind doc
-        # VML shape for watermark
-        shape = OxmlElement("v:shape")
-        shape.set(qn("w14:anchorId"), "42099685")
-        shape.set(qn("v:arc"), "n")
-        shape.set(qn("v:aspect"), "ratio")
-        shape.set(
-            "style",
-            "position:absolute;margin-left:0;margin-top:0;"
-            "width:527.85pt;height:131.95pt;z-index:-251658752",
-        )
-        shape.set("fillcolor", wm_fillcolor)
-        shape.set("strokecolor", "none")
-        shape.set("fill", "solid")
-
-        # Fill with opacity
-        fill = OxmlElement("v:fill")
-        fill.set("color", wm_fillcolor)
-        fill.set("opacity", str(wm_opacity))
-        shape.append(fill)
-
-        # Textpath
-        textpath = OxmlElement("v:textpath")
-        textpath.set("on", "t")
-        style_el = OxmlElement("v:textpath")
-        style_el.set(
-            "style",
-            f'font-family:\\"{settings.get("heading_font_name", "Arial")}\\";'
-            f"font-size:{wm_size}pt;font-weight:bold;font-style:normal",
-        )
-
-        # Simpler approach: use the paragraph text with rotation via XML
-        # Actually, let's use a more reliable method: Word's watermark
-        # via the header's shape properties
-        _add_vml_watermark(header, wm_text, wm_fillcolor, wm_opacity, wm_angle, wm_size, settings)
-        return
+        if not header.is_linked_to_previous:
+            # Only add watermark to non-linked headers
+            _add_vml_watermark(
+                header,
+                wm_text,
+                wm_fillcolor,
+                wm_opacity,
+                wm_angle,
+                wm_size,
+                settings,
+            )
 
 
 def _add_vml_watermark(
@@ -453,20 +436,19 @@ def _add_vml_watermark(
 ) -> None:
     """Add VML-based watermark to the document header.
 
-    Uses proper VML/XML for Word-compatible watermarks.
+    P0-5: Adds watermark as a SEPARATE paragraph so it coexists with header text.
+    Uses proper VML rotation via style attribute and o:opacity for transparency.
     """
-    # Create the watermark using Word's built-in watermark mechanism
-    p = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Add a NEW paragraph for the watermark (don't modify existing header text)
+    wm_para = header.add_paragraph()
+    wm_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # Build VML shape for the watermark
     r = OxmlElement("w:r")
     r.set(qn("w14:paraId"), "10661244")
     r.set(qn("w14:textId"), "77777777")
 
-    # Remove any previous text in this run
-    p._p.clear_content()
-    p._p.append(r)
+    wm_para._p.append(r)
 
     # Add shape with VML
     pict = OxmlElement("w:pict")
@@ -482,13 +464,15 @@ def _add_vml_watermark(
     shape.set("id", "PowerPlusWaterMarkObject")
     shape.set(qn("o:spid"), "_x0000_s2049")
     shape.set("type", "#_x0000_t136")
+    # P0-5: VML style with rotation in the style attribute (not rotation attribute)
     vml_style = (
         "position:absolute;"
         "margin-left:0;"
         "margin-top:0;"
         "width:527.85pt;"
         "height:131.95pt;"
-        "z-index:-251658752;"
+        f"z-index:-251658752;"
+        f"rotation:{int(angle)};"
         "mso-position-horizontal:center;"
         "mso-position-horizontal-relative:margin;"
         "mso-position-vertical:center;"
@@ -499,12 +483,17 @@ def _add_vml_watermark(
     shape.set("strokecolor", "none")
     shape.set("strokeweight", "0")
 
-    # Fill element with opacity
+    # Fill element with opacity — use o:opacity for VML
     fill = OxmlElement("v:fill")
     fill.set("type", "solid")
     fill.set("color", fillcolor)
     fill.set("opacity", str(opacity))
     shape.append(fill)
+
+    # Office namespace opacity attribute (o:opacity)
+    o_opacity = OxmlElement("o:opacity")
+    o_opacity.set("value", str(int(opacity * 100)) + "%")
+    shape.append(o_opacity)
 
     # TextPath element
     textpath = OxmlElement("v:textpath")
@@ -574,11 +563,6 @@ def _add_vml_watermark(
     pict.append(shapetype)
     r.append(pict)
 
-    # Rotation via XML attributes
-    # Word uses <w14:textWrap> and rotation via VML rotation attribute
-    # The angle needs to be set via the shape's rotation property
-    shape.set("rotation", str(int(angle * 60000)))  # degrees to 60000ths
-
 
 # ---------------------------------------------------------------------------
 # DOCX Renderer
@@ -623,6 +607,7 @@ class DocxRenderer:
         doc: Any = Document()
 
         # ---- Page setup (from manifest) ----
+        default_orientation = settings.get("orientation", "portrait")
         for section in doc.sections:
             section.page_width = Cm(page_width_cm)
             section.page_height = Cm(page_height_cm)
@@ -630,7 +615,9 @@ class DocxRenderer:
             section.bottom_margin = Cm(margin_bottom_cm)
             section.left_margin = Cm(margin_left_cm)
             section.right_margin = Cm(margin_right_cm)
-            section.orientation = WD_ORIENT.PORTRAIT
+            section.orientation = (
+                WD_ORIENT.LANDSCAPE if default_orientation == "landscape" else WD_ORIENT.PORTRAIT
+            )
 
         # ---- Default style ----
         style = doc.styles["Normal"]
@@ -747,33 +734,41 @@ class DocxRenderer:
         doc.add_page_break()
 
         # ---- Sections ----
+        table_configs = settings.get("table_configs", {})
         landscape_sections = settings.get("landscape_sections", [])
+        current_orientation = default_orientation
         for render_section in model.sections:
-            # P0-5: Landscape sections — create independent Word section
-            should_landscape = render_section.section_key in landscape_sections
-            if should_landscape:
-                # Add a new section break and switch to landscape
+            # P0-4: Orientation resolution order:
+            #   1. tables[section_key].orientation (from manifest)
+            #   2. landscape_sections list
+            #   3. page.orientation (default)
+            section_config = table_configs.get(render_section.section_key, {})
+            per_section_orientation = section_config.get("orientation", "")
+            if per_section_orientation in ("landscape", "portrait"):
+                target_orientation = per_section_orientation
+            elif render_section.section_key in landscape_sections:
+                target_orientation = "landscape"
+            else:
+                target_orientation = default_orientation
+
+            if target_orientation != current_orientation:
+                # Switch orientation — create new Word section
                 new_section = doc.add_section()
-                new_section.orientation = WD_ORIENT.LANDSCAPE
-                new_section.page_width = Cm(page_height_cm)  # swapped
-                new_section.page_height = Cm(page_width_cm)  # swapped
+                if target_orientation == "landscape":
+                    new_section.orientation = WD_ORIENT.LANDSCAPE
+                    new_section.page_width = Cm(page_height_cm)  # swapped
+                    new_section.page_height = Cm(page_width_cm)  # swapped
+                else:
+                    new_section.orientation = WD_ORIENT.PORTRAIT
+                    new_section.page_width = Cm(page_width_cm)
+                    new_section.page_height = Cm(page_height_cm)
                 new_section.top_margin = Cm(margin_top_cm)
                 new_section.bottom_margin = Cm(margin_bottom_cm)
                 new_section.left_margin = Cm(margin_left_cm)
                 new_section.right_margin = Cm(margin_right_cm)
+                current_orientation = target_orientation
 
             self._render_section(doc, render_section, settings, meta)
-
-            if should_landscape:
-                # Restore portrait after landscape section
-                restore_section = doc.add_section()
-                restore_section.orientation = WD_ORIENT.PORTRAIT
-                restore_section.page_width = Cm(page_width_cm)
-                restore_section.page_height = Cm(page_height_cm)
-                restore_section.top_margin = Cm(margin_top_cm)
-                restore_section.bottom_margin = Cm(margin_bottom_cm)
-                restore_section.left_margin = Cm(margin_left_cm)
-                restore_section.right_margin = Cm(margin_right_cm)
 
         # ---- Footer with page numbers (P0-5: manifest-driven) ----
         for idx, doc_section in enumerate(doc.sections):
@@ -905,6 +900,7 @@ class DocxRenderer:
 
         P0-5: Reads per-section table config from manifest for width_ratio,
         repeat_header, unit_row, and column alignment.
+        P0-4: Table width calculated within content area (margins subtracted).
         """
         if settings is None:
             settings = {}
@@ -916,27 +912,54 @@ class DocxRenderer:
         section_config = table_configs.get(section_key, {})
         column_configs = section_config.get("columns", [])
         repeat_header = section_config.get("repeat_header", True)
+        # P0-4: unit_row from manifest config; only create if config says true AND data has units
+        show_unit_row = section_config.get("unit_row", True)
 
         num_cols = len(table.headers)
         num_rows = len(table.rows) + 1  # +1 for header
-        has_unit_row = table.unit_row and any(u for u in table.unit_row)
+        has_unit_row = show_unit_row and table.unit_row and any(u for u in table.unit_row)
         if has_unit_row:
             num_rows += 1  # +1 for unit row
+
+        # P0-4: Validate column count
+        if column_configs and len(column_configs) != num_cols:
+            raise TemplateManifestError(
+                f"columns_config count ({len(column_configs)}) != headers count "
+                f"({num_cols}) for section_key={section_key!r}"
+            )
 
         word_table = doc.add_table(rows=num_rows, cols=num_cols)
         word_table.style = "Table Grid"
 
-        # P0-5: Apply width_ratio from manifest to tblGrid
-        if column_configs and len(column_configs) == num_cols:
+        # P0-4: Compute column widths within content area (subtract margins)
+        margin_left_pt = settings.get("margin_left_pt", _MARGIN_PT)
+        margin_right_pt = settings.get("margin_right_pt", _MARGIN_PT)
+        content_width_pt = (
+            settings.get("page_width_pt", _A4_WIDTH_PT) - margin_left_pt - margin_right_pt
+        )
+        content_width_cm = content_width_pt * _PT_TO_CM
+
+        # P0-5: Apply width_ratio from manifest to tblGrid (normalized)
+        if column_configs:
             tblGrid = word_table._tbl.find(qn("w:tblGrid"))
             if tblGrid is None:
                 tblGrid = OxmlElement("w:tblGrid")
                 word_table._tbl.insert(0, tblGrid)
-            total_width_emu = int(settings.get("page_width_pt", _A4_WIDTH_PT) * 9525 * _PT_TO_CM)
-            content_width_emu = total_width_emu  # approximate
+
+            # P0-4: Normalize width_ratio values
+            ratios = [col.get("width_ratio", 1.0) for col in column_configs]
+            total = sum(ratios)
+            if total <= 0 or any(r < 0 for r in ratios):
+                raise TemplateManifestError(
+                    f"Invalid width_ratio values for section_key={section_key!r}: "
+                    f"total={total}, ratios={ratios}"
+                )
+            norm = [r / total for r in ratios]
+
+            # Convert to EMU for Word (1 cm = 360000 EMU)
             for i, gridCol in enumerate(tblGrid.findall(qn("w:gridCol"))):
-                ratio = column_configs[i].get("width_ratio", 1.0 / num_cols)
-                gridCol.set(qn("w:w"), str(int(content_width_emu * ratio)))
+                col_width_cm = content_width_cm * norm[i]
+                gridCol.set(qn("w:w"), str(int(col_width_cm * 360000)))
 
         # Header row
         for col_idx, header in enumerate(table.headers):
@@ -993,11 +1016,13 @@ class DocxRenderer:
                 word_cell = word_table.rows[row_idx + row_offset].cells[col_idx]
                 word_cell.text = ""
                 p = word_cell.paragraphs[0]
-                # P0-5: Apply column alignment from manifest
-                if col_idx < len(column_configs):
-                    align = column_configs[col_idx].get("align", cell_data.align)
-                else:
+                # P0-4: Cell alignment priority: cell.align > column_align > "left"
+                if cell_data.align is not None:
                     align = cell_data.align
+                elif col_idx < len(column_configs):
+                    align = column_configs[col_idx].get("align", "left")
+                else:
+                    align = "left"
                 if align == "right":
                     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                 elif align == "center":

@@ -519,3 +519,144 @@ class TestManifestRealOutput:
         assert "Q001" in all_table_text, (
             f"Finding code Q001 not in DOCX table: {all_table_text[:200]}"
         )
+
+    def test_landscape_orientation_in_pdf(self) -> None:
+        """Landscape orientation produces wider-than-tall PDF pages."""
+        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
+
+        metadata = RenderMetadata(
+            report_id="test-orient",
+            project_name="测试项目",
+            report_type="概念设计报告",
+            schema_version="v1",
+            revision_number=1,
+            content_hash="abc123def456789",
+            content_hash_short="abc123de",
+            generated_at="2026-06-22T00:00:00",
+            generated_by="tester",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+            locale="zh-CN",
+        )
+        section = RS(
+            section_key="project_summary",
+            title="项目概况",
+            level=1,
+            content_type="text",
+            text="横版测试内容。",
+        )
+        render_settings = TemplateManifest.from_manifest_json(
+            {
+                "landscape_sections": ["project_summary"],
+            }
+        ).model_dump()
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="v1",
+            source_content_hash="abc123def456789",
+            sections=["project_summary"],
+            format="pdf",
+            render_settings=render_settings,
+        )
+        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        pdf_bytes = _render_pdf(model)
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        # Page 0 is cover (always portrait), page 1 is content section
+        assert len(doc) >= 2, f"Expected at least 2 pages (cover + content), got {len(doc)}"
+        page = doc[1]
+        # Landscape: width > height
+        assert page.rect.width > page.rect.height, (
+            f"Expected landscape (w>h) on content page, "
+            f"got w={page.rect.width} h={page.rect.height}"
+        )
+        doc.close()
+
+    def test_landscape_orientation_in_docx(self) -> None:
+        """Landscape orientation sets WD_ORIENT.LANDSCAPE on DOCX sections."""
+        from docx.enum.section import WD_ORIENT
+
+        model = _make_model({"page": {"orientation": "landscape"}})
+        docx_bytes = _render_docx(model)
+        doc = Document(BytesIO(docx_bytes))
+        for section in doc.sections:
+            assert section.orientation == WD_ORIENT.LANDSCAPE, (
+                f"Expected LANDSCAPE orientation, got {section.orientation}"
+            )
+
+    def test_table_column_widths_in_docx(self) -> None:
+        """Manifest table column widths are applied to DOCX table grid."""
+        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
+        from cold_storage.modules.reports.domain.render_model import RenderTable, RenderTableCell
+
+        metadata = RenderMetadata(
+            report_id="test-cols",
+            project_name="测试项目",
+            report_type="概念设计报告",
+            schema_version="v1",
+            revision_number=1,
+            content_hash="abc123def456789",
+            content_hash_short="abc123de",
+            generated_at="2026-06-22T00:00:00",
+            generated_by="tester",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+            locale="zh-CN",
+        )
+        table = RenderTable(
+            title="列宽测试",
+            headers=["列A", "列B", "列C"],
+            rows=[
+                [
+                    RenderTableCell(value="1"),
+                    RenderTableCell(value="2"),
+                    RenderTableCell(value="3"),
+                ],
+            ],
+        )
+        section = RS(
+            section_key="scheme_comparison",
+            title="方案比较",
+            level=1,
+            content_type="table",
+            table=table,
+        )
+        render_settings = TemplateManifest.from_manifest_json(
+            {
+                "tables": {
+                    "scheme_comparison": {
+                        "columns": [
+                            {"key": "col_a", "width_ratio": 0.5},
+                            {"key": "col_b", "width_ratio": 0.3},
+                            {"key": "col_c", "width_ratio": 0.2},
+                        ],
+                    },
+                },
+            }
+        ).model_dump()
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="v1",
+            source_content_hash="abc123def456789",
+            sections=["scheme_comparison"],
+            format="docx",
+            render_settings=render_settings,
+        )
+        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        docx_bytes = _render_docx(model)
+        doc = Document(BytesIO(docx_bytes))
+        # Find the table and check column widths
+        assert len(doc.tables) >= 1, "Expected at least one table in DOCX"
+        tbl = doc.tables[0]
+        from docx.oxml.ns import qn as _qn
+
+        tbl_grid = tbl._tbl.find(_qn("w:tblGrid"))
+        assert tbl_grid is not None, "tblGrid element missing"
+        grid_cols = tbl_grid.findall(_qn("w:gridCol"))
+        assert len(grid_cols) == 3, f"Expected 3 grid cols, got {len(grid_cols)}"
+        widths = [int(c.get(_qn("w:w"), "0")) for c in grid_cols]
+        # Widths should reflect 50%, 30%, 20% ratios (first should be largest)
+        assert widths[0] > widths[1] > widths[2], (
+            f"Expected decreasing widths [50%, 30%, 20%], got {widths}"
+        )

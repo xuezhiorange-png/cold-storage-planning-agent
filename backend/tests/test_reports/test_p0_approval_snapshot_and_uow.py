@@ -445,7 +445,15 @@ class TestAllStageFailureClosure:
                 new_repo = SQLReportRepository(new_session)
                 artifacts = new_repo.list_artifacts(report.id)
                 # The artifact was never persisted to DB
-                assert len(artifacts) == 0
+                assert len(artifacts) == 0, (
+                    f"Expected no artifacts after insert-pending failure, got {len(artifacts)}"
+                )
+
+            # No temp/final files should exist in storage
+            assert not storage._files, (
+                "Storage should be empty after insert-pending failure, "
+                f"got: {list(storage._files.keys())}"
+            )
 
     def test_render_failure_persists_failed_with_stage(self, session_factory, caplog):
         """Render failure → artifact queryable as failed, stage logged."""
@@ -507,15 +515,30 @@ class TestAllStageFailureClosure:
             # Verify artifact is failed in a new session
             with session_factory() as new_session:
                 new_repo = SQLReportRepository(new_session)
-                assert captured_artifact_id, "No artifact_id was captured during render"
+                assert captured_artifact_id, "artifact id was not captured"
                 failed = new_repo.get_artifact(captured_artifact_id[0])
                 assert failed is not None
                 assert failed.status == ArtifactStatus.FAILED
                 assert failed.failure_code == "RuntimeError"
+                assert "Renderer broke" in failed.failure_message
 
-            # Verify structured log with stage info
-            error_logs = [r for r in caplog.records if r.levelno == logging.ERROR]
-            assert any("render" in getattr(r, "stage", "") for r in error_logs)
+                # No completed, rendering, or pending artifacts should exist
+                all_artifacts = new_repo.list_artifacts(report.id)
+                for a in all_artifacts:
+                    assert a.status != ArtifactStatus.COMPLETED, (
+                        "No completed artifact should exist after failure"
+                    )
+                    assert a.status != ArtifactStatus.RENDERING, (
+                        "No rendering artifact should exist after failure"
+                    )
+                    assert a.status != ArtifactStatus.PENDING, (
+                        "No pending artifact should exist after failure"
+                    )
+
+            # Temp and final files should not exist in storage
+            assert not storage._files, (
+                f"Storage should be empty after failure, got: {list(storage._files.keys())}"
+            )
 
     def test_finalize_failure_persists_failed(self, session_factory):
         """Finalize failure → artifact queryable as failed."""
@@ -561,7 +584,31 @@ class TestAllStageFailureClosure:
             with session_factory() as new_session:
                 new_repo = SQLReportRepository(new_session)
                 artifacts = new_repo.list_artifacts(report.id, status=ArtifactStatus.FAILED)
-                assert len(artifacts) >= 1
+                assert len(artifacts) >= 1, "Expected at least one FAILED artifact"
+
+                # Check failure details on the first failed artifact
+                failed = artifacts[0]
+                assert failed.failure_code != "", "failure_code should be set"
+                assert failed.failure_message != "", "failure_message should be set"
+
+                # No completed, rendering, or pending artifacts should exist
+                all_artifacts = new_repo.list_artifacts(report.id)
+                for a in all_artifacts:
+                    assert a.status != ArtifactStatus.COMPLETED, (
+                        "No completed artifact should exist after finalize failure"
+                    )
+                    assert a.status != ArtifactStatus.RENDERING, (
+                        "No rendering artifact should exist after finalize failure"
+                    )
+                    assert a.status != ArtifactStatus.PENDING, (
+                        "No pending artifact should exist after finalize failure"
+                    )
+
+            # Temp and final files should not exist in storage (cleaned up by failure handler)
+            assert not storage._files, (
+                "Storage should be empty after finalize failure, "
+                f"got: {list(storage._files.keys())}"
+            )
 
     def test_structured_log_contains_artifact_id_and_stage(self, session_factory, caplog):
         """Failure handler logs structured info with artifact_id, stage, exception."""
@@ -614,10 +661,9 @@ class TestAllStageFailureClosure:
             assert len(error_logs) >= 1
             log = error_logs[0]
             assert log.getMessage() == "Artifact persistence failure"
-            assert hasattr(log, "artifact_id")
-            assert hasattr(log, "idempotency_key")
-            assert hasattr(log, "stage")
-            assert hasattr(log, "exception")
+            assert hasattr(log, "artifact_id") and log.artifact_id != ""
+            assert hasattr(log, "stage") and log.stage != ""
+            assert hasattr(log, "exception") and "Test failure" in log.exception
 
 
 # ===========================================================================

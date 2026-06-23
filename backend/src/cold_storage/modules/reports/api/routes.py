@@ -164,12 +164,12 @@ class ReviewActionResponse(BaseModel):
 
 class CreateTemplateRequest(BaseModel):
     template_code: str
-    report_type: str = "cold_storage_concept_design"
-    format: str = "docx"
+    report_type: ReportType = ReportType.COLD_STORAGE_CONCEPT_DESIGN
+    format: ExportFormat = ExportFormat.DOCX
     version: str = "1.0.0"
     schema_version: str = "cold_storage_concept_design@1.0.0"
     locale: str = "zh-CN"
-    manifest_json: dict[str, Any] | None = None
+    manifest_json: dict[str, Any]
 
 
 class TemplateResponse(BaseModel):
@@ -177,6 +177,7 @@ class TemplateResponse(BaseModel):
     template_code: str
     version: str
     status: str
+    template_content_hash: str | None = None
 
 
 class TemplateListItem(BaseModel):
@@ -519,6 +520,7 @@ def create_template(
 ) -> TemplateResponse:
     """Create a new report template.
 
+    P0-3: Validates that request fields match manifest fields strictly.
     P0-6: Normalizes manifest through TemplateManifest.from_manifest_json(),
     computes canonical SHA-256 content hash, and validates request fields
     match manifest.
@@ -526,16 +528,16 @@ def create_template(
     import hashlib
     import json
 
-    from cold_storage.modules.reports.domain.enums import (
-        ExportFormat,
-        ReportType,
-    )
     from cold_storage.modules.reports.domain.models import ReportTemplate
     from cold_storage.modules.reports.domain.render_model import TemplateManifest
 
     try:
+        # P0-3: Manifest must not be empty
+        if not body.manifest_json:
+            raise ValueError("manifest_json must not be empty")
+
         # P0-6: Normalize manifest through canonical TemplateManifest model
-        raw_manifest = body.manifest_json or {}
+        raw_manifest = dict(body.manifest_json)
         canonical_manifest = TemplateManifest.from_manifest_json(raw_manifest)
         normalized_manifest = canonical_manifest.model_dump()
 
@@ -545,35 +547,47 @@ def create_template(
         )
         template_content_hash = hashlib.sha256(canonical_str.encode()).hexdigest()
 
-        # P0-6: Validate request fields match manifest
-        if (
-            body.template_code
-            and canonical_manifest.template_code
-            and body.template_code != canonical_manifest.template_code
-        ):
+        # P0-3: Validate ALL request fields match manifest — strict bidirectional check
+        # Canonical manifest fields (always present after normalization)
+        if body.template_code != canonical_manifest.template_code:
             raise ValueError(
                 f"template_code mismatch: request='{body.template_code}' "
                 f"vs manifest='{canonical_manifest.template_code}'"
             )
-        if (
-            body.version
-            and canonical_manifest.version
-            and body.version != canonical_manifest.version
-        ):
+        if body.version != canonical_manifest.version:
             raise ValueError(
                 f"version mismatch: request='{body.version}' "
                 f"vs manifest='{canonical_manifest.version}'"
             )
-        if body.format and canonical_manifest.format and body.format != canonical_manifest.format:
+        if body.format.value != canonical_manifest.format:
             raise ValueError(
-                f"format mismatch: request='{body.format}' "
+                f"format mismatch: request='{body.format.value}' "
                 f"vs manifest='{canonical_manifest.format}'"
+            )
+        if body.locale != canonical_manifest.locale:
+            raise ValueError(
+                f"locale mismatch: request='{body.locale}' "
+                f"vs manifest='{canonical_manifest.locale}'"
+            )
+
+        # Raw manifest fields (removed by from_manifest_json as legacy keys)
+        raw_report_type = raw_manifest.get("report_type")
+        if raw_report_type is not None and raw_report_type != body.report_type.value:
+            raise ValueError(
+                f"report_type mismatch: request='{body.report_type.value}' "
+                f"vs manifest='{raw_report_type}'"
+            )
+        raw_schema_version = raw_manifest.get("schema_version")
+        if raw_schema_version is not None and raw_schema_version != body.schema_version:
+            raise ValueError(
+                f"schema_version mismatch: request='{body.schema_version}' "
+                f"vs manifest='{raw_schema_version}'"
             )
 
         template = ReportTemplate.create(
             template_code=body.template_code,
-            report_type=ReportType(body.report_type),
-            format=ExportFormat(body.format),
+            report_type=body.report_type,
+            format=body.format,
             version=body.version,
             schema_version=body.schema_version,
             locale=body.locale,
@@ -588,6 +602,7 @@ def create_template(
             template_code=template.template_code,
             version=template.version,
             status=template.status.value,
+            template_content_hash=template_content_hash,
         )
     except (ValueError, KeyError) as exc:
         template_repo.rollback()
@@ -623,7 +638,12 @@ def activate_template(
     template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> TemplateStatusResponse:
-    """Activate a report template."""
+    """Activate a report template.
+
+    P0-3: Rejects activation of templates with empty template_content_hash.
+    P0-6: Atomic deactivate + activate in single try/except.
+    Idempotent: if already active, returns success.
+    """
     from dataclasses import replace as dc_replace
     from datetime import UTC, datetime
 
@@ -641,29 +661,22 @@ def activate_template(
         if template.status == TemplateStatus.RETIRED:
             raise TemplateActivationError(template_id, "Cannot activate a retired template")
 
-        # P0-6: Active templates must not have manifest or hash modified
-        if template.status == TemplateStatus.ACTIVE:
-            # Load current DB version for comparison
-            current = template_repo.get_template(template_id)
-            if current is not None and current.manifest_json != template.manifest_json:
-                raise TemplateActivationError(
-                    template_id, "Cannot modify manifest on an active template"
-                )
+        # P0-3: Reject activation of templates with empty template_content_hash
+        if not template.template_content_hash:
+            raise TemplateActivationError(
+                template_id, "Cannot activate template with empty template_content_hash"
+            )
 
-        # P0-8: Deactivate all existing active templates for same code and format in one operation
+        # Idempotent: if already active, return success
+        if template.status == TemplateStatus.ACTIVE:
+            return TemplateStatusResponse(template_id=template_id, status="active")
+
+        # P0-6: Atomic deactivate all active templates for same code and format,
+        # then activate in same operation
         fmt_value = (
             template.format.value if hasattr(template.format, "value") else str(template.format)
         )
-        if hasattr(template_repo, "deactivate_templates"):
-            template_repo.deactivate_templates(template.template_code, fmt_value)
-        else:
-            # Fallback for protocol-only repos
-            existing_active = template_repo.get_active_template(
-                template.template_code, template.format
-            )
-            if existing_active and existing_active.id != template_id:
-                deactivated = dc_replace(existing_active, status=TemplateStatus.DRAFT)
-                template_repo.update_template(deactivated)
+        template_repo.deactivate_templates(template.template_code, fmt_value)
 
         activated = dc_replace(
             template,
@@ -674,7 +687,90 @@ def activate_template(
         template_repo.commit()
         return TemplateStatusResponse(template_id=template_id, status="active")
     except TemplateActivationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+
+
+class UpdateTemplateRequest(BaseModel):
+    """Request to update a template. Only allowed on DRAFT templates."""
+
+    manifest_json: dict[str, Any] | None = None
+    version: str | None = None
+
+
+@reports_template_router.put("/{template_id}", response_model=TemplateResponse)
+def update_template(
+    template_id: str,
+    body: UpdateTemplateRequest,
+    template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
+    actor: str = Depends(_get_actor),  # noqa: B008
+) -> TemplateResponse:
+    """Update a draft report template.
+
+    P0-3: Rejects manifest/hash changes on active or retired templates.
+    """
+    import hashlib
+    import json
+    from dataclasses import replace as dc_replace
+
+    from cold_storage.modules.reports.domain.enums import TemplateStatus
+    from cold_storage.modules.reports.domain.render_model import TemplateManifest
+
+    try:
+        template = template_repo.get_template(template_id)
+        if template is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Template not found: {template_id}",
+            )
+
+        # P0-3: Reject changes on active or retired templates
+        if template.status in (TemplateStatus.ACTIVE, TemplateStatus.RETIRED):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot modify {template.status.value} template",
+            )
+
+        updates: dict[str, Any] = {}
+        if body.manifest_json is not None:
+            if not body.manifest_json:
+                raise ValueError("manifest_json must not be empty")
+            raw_manifest = dict(body.manifest_json)
+            canonical_manifest = TemplateManifest.from_manifest_json(raw_manifest)
+            normalized_manifest = canonical_manifest.model_dump()
+            canonical_str = json.dumps(
+                normalized_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            )
+            updates["manifest_json"] = normalized_manifest
+            updates["template_content_hash"] = hashlib.sha256(canonical_str.encode()).hexdigest()
+
+        if body.version is not None:
+            updates["version"] = body.version
+
+        if not updates:
+            return TemplateResponse(
+                template_id=template.id,
+                template_code=template.template_code,
+                version=template.version,
+                status=template.status.value,
+                template_content_hash=template.template_content_hash,
+            )
+
+        updated = dc_replace(template, **updates)
+        template_repo.update_template(updated)
+        template_repo.commit()
+
+        return TemplateResponse(
+            template_id=updated.id,
+            template_code=updated.template_code,
+            version=updated.version,
+            status=updated.status.value,
+            template_content_hash=updated.template_content_hash,
+        )
+    except (ValueError, KeyError) as exc:
+        template_repo.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except HTTPException:
         raise
 

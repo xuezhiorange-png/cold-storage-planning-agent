@@ -628,6 +628,9 @@ class ReportRenderService:
             "approved_content_hash": (approval_snapshot.content_hash if approval_snapshot else ""),
             "approved_by": (approval_snapshot.approved_by if approval_snapshot else ""),
             "approved_at": (approval_snapshot.approved_at if approval_snapshot else ""),
+            "approved_revision_number": (
+                approval_snapshot.revision_number if approval_snapshot else 0
+            ),
         }
 
     def _validate_export_mode(

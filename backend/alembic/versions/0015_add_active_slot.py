@@ -55,13 +55,10 @@ def upgrade() -> None:
             sa.Column("active_slot", sa.String(16), nullable=True),
         )
 
-    # --- Create unique index on (template_code, format, active_slot) ---
+    # --- Create unique index on (template_code, format) WHERE active_slot IS NOT NULL ---
     # This enforces at most one active template per code+format pair.
-    # SQLite partial unique index workaround: use a regular index since
-    # SQLite 3.31+ supports partial unique indexes but we use a simpler approach.
     existing_idx = _existing_indexes("report_templates")
     if "uq_active_template_per_code_format" not in existing_idx:
-        # For PostgreSQL: use a partial unique index WHERE active_slot IS NOT NULL
         bind = op.get_bind()
         dialect = bind.dialect.name
         if dialect == "postgresql":
@@ -73,13 +70,13 @@ def upgrade() -> None:
                 postgresql_where=sa.text("active_slot IS NOT NULL"),
             )
         else:
-            # SQLite: use a regular non-unique index (SQLite doesn't support
-            # partial unique indexes in the same way). The application layer
-            # enforces the constraint via deactivate_templates before activate.
-            op.create_index(
-                "ix_active_template_per_code_format",
-                "report_templates",
-                ["template_code", "format", "active_slot"],
+            # SQLite 3.8+ supports partial unique indexes
+            op.execute(
+                sa.text(
+                    "CREATE UNIQUE INDEX uq_active_template_per_code_format "
+                    "ON report_templates (template_code, format) "
+                    "WHERE active_slot IS NOT NULL"
+                )
             )
 
 
@@ -92,8 +89,6 @@ def downgrade() -> None:
     existing_idx = _existing_indexes("report_templates")
     if "uq_active_template_per_code_format" in existing_idx:
         op.drop_index("uq_active_template_per_code_format", "report_templates")
-    if "ix_active_template_per_code_format" in existing_idx:
-        op.drop_index("ix_active_template_per_code_format", "report_templates")
 
     # --- Drop column ---
     if _column_exists("report_templates", "active_slot"):

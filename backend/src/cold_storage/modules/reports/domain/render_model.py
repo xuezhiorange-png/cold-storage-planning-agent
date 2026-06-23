@@ -291,7 +291,7 @@ class RenderTableCell:
 
     value: str
     unit: str = ""
-    align: str = "left"  # left | right | center
+    align: str | None = None  # None = use column/manifest default; "left" | "right" | "center"
 
 
 @dataclass(frozen=True)

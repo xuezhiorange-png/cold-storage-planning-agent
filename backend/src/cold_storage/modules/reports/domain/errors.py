@@ -125,6 +125,13 @@ class ArtifactNotReadyError(RenderError):
     """Artifact is not in completed state."""
 
     def __init__(self, artifact_id: str, status: str) -> None:
-        super().__init__(f"Artifact {artifact_id} not ready (status: {status})")
+        super().__init__(f"Artifact {artifact_id} not ready (status={status})")
         self.artifact_id = artifact_id
         self.status = status
+
+
+class TemplateManifestError(ReportError):
+    """Raised when a template manifest has invalid configuration."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

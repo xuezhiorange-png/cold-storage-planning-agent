@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 import fitz  # PyMuPDF
 
+from cold_storage.modules.reports.domain.errors import TemplateManifestError
 from cold_storage.modules.reports.domain.render_model import RenderTableCell
 
 if TYPE_CHECKING:
@@ -815,24 +816,24 @@ def _draw_table(
 
     # P0-4: Validate column count vs manifest columns_config
     if columns_config and len(columns_config) != num_cols:
-        raise ValueError(
+        raise TemplateManifestError(
             f"columns_config count ({len(columns_config)}) != headers count "
             f"({num_cols}) for section_key={section_key!r}"
         )
 
     # P0-4: Compute column widths from width_ratio if available
-    if columns_config and any(c.get("width_ratio", 0) for c in columns_config):
-        # Validate width_ratio values: all must be positive numbers
+    if columns_config and any("width_ratio" in c for c in columns_config):
+        # Validate width_ratio values: all must be non-negative numbers
         for ci, col_cfg in enumerate(columns_config):
             wr = col_cfg.get("width_ratio", 1.0)
-            if not isinstance(wr, (int, float)) or wr <= 0:
-                raise ValueError(
-                    f"width_ratio for column {ci} must be a positive number, "
+            if not isinstance(wr, (int, float)):
+                raise TemplateManifestError(
+                    f"width_ratio for column {ci} must be a number, "
                     f"got {wr!r} in section_key={section_key!r}"
                 )
         total_ratio = sum(c.get("width_ratio", 1.0) for c in columns_config)
         if total_ratio <= 0:
-            raise ValueError(
+            raise TemplateManifestError(
                 f"All width_ratios are zero or negative for section_key={section_key!r}"
             )
         col_widths = [(c.get("width_ratio", 1.0) / total_ratio) * max_width for c in columns_config]
@@ -902,12 +903,13 @@ def _draw_table(
             # Cell text with wrapping
             usable_width = cw - cell_padding
             wrapped_lines = _wrap_cell_text(cell_text, font, row_font_size, usable_width)
-            # P0-4: Cell alignment overrides column default
-            alignment = (
-                cell.align
-                if cell.align != "left"
-                else (col_aligns[col_idx] if col_idx < len(col_aligns) else "left")
-            )
+            # P0-4: Cell alignment priority: cell.align > column_align > "left"
+            if cell.align is not None:
+                alignment = cell.align
+            elif col_idx < len(col_aligns):
+                alignment = col_aligns[col_idx]
+            else:
+                alignment = "left"
             for line_index, wline in enumerate(wrapped_lines):
                 text_y_pos = row_y + _LINE_HEIGHT * (line_index + 1)
                 wline_width = font.text_length(wline, fontsize=row_font_size)
@@ -1083,11 +1085,13 @@ def _draw_table(
                     width=0.5,
                 )
                 # Draw lines in this chunk
-                alignment = (
-                    cells[col_idx].align
-                    if cells[col_idx].align != "left"
-                    else (col_aligns[col_idx] if col_idx < len(col_aligns) else "left")
-                )
+                # P0-4: Cell alignment priority: cell.align > column_align > "left"
+                if cells[col_idx].align is not None:
+                    alignment = cells[col_idx].align
+                elif col_idx < len(col_aligns):
+                    alignment = col_aligns[col_idx]
+                else:
+                    alignment = "left"
                 for li in range(line_idx, min(line_idx + chunk_lines, len(cell_lines))):
                     text_y_pos = row_y + _LINE_HEIGHT * (li - line_idx + 1)
                     wline = cell_lines[li]
