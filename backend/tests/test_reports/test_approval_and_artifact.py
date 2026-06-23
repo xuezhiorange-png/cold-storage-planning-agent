@@ -637,13 +637,15 @@ class TestRendererFailureArtifactQueryable:
                     actor="test-user",
                 )
 
+            # P0-11: Must have captured an artifact_id — fail test if not
+            assert captured_artifact_id, "No artifact_id was captured during render"
+
             # Verify artifact is failed in a new session
             with session_factory() as new_session:
                 new_repo = SQLReportRepository(new_session)
-                if captured_artifact_id:
-                    failed = new_repo.get_artifact(captured_artifact_id[0])
-                    assert failed is not None
-                    assert failed.status == ArtifactStatus.FAILED
+                failed = new_repo.get_artifact(captured_artifact_id[0])
+                assert failed is not None
+                assert failed.status == ArtifactStatus.FAILED
 
 
 # ---------------------------------------------------------------------------
@@ -771,6 +773,7 @@ class TestCompletedCommitFailure:
                     template_version="1.0.0",
                     mode="formal",
                     actor="test-user",
+                    idempotency_key="idem-commit-fail",
                 )
 
             # Verify artifact is failed
@@ -778,6 +781,24 @@ class TestCompletedCommitFailure:
                 new_repo = SQLReportRepository(new_session)
                 artifacts = new_repo.list_artifacts(report.id, status=ArtifactStatus.FAILED)
                 assert len(artifacts) >= 1
+
+                # P0-11: Verify no COMPLETED artifacts exist
+                completed = new_repo.list_artifacts(report.id, status=ArtifactStatus.COMPLETED)
+                assert len(completed) == 0, "No completed artifacts after commit failure"
+
+                # P0-11: Verify no RENDERING artifacts remain
+                rendering = new_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+                assert len(rendering) == 0, "No rendering artifacts after commit failure"
+
+            # P0-11: Verify file was deleted from storage
+            assert len(storage._files) == 0, "All files should have been cleaned up"
+
+            # P0-11: Verify idempotency is failed
+            idem_rec = repo.get_idempotency_record("idem-commit-fail")
+            assert idem_rec is not None, "Idempotency record should exist"
+            assert idem_rec["status"] == "failed", (
+                f"Idempotency should be failed, got {idem_rec['status']}"
+            )
 
 
 # ---------------------------------------------------------------------------

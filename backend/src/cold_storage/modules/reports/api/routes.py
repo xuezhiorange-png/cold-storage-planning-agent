@@ -22,7 +22,7 @@ from cold_storage.modules.reports.application.render_service import (
     ReportTemplateRepositoryPort,
 )
 from cold_storage.modules.reports.application.service import ReportService
-from cold_storage.modules.reports.domain.enums import ExportFormat, ReportType
+from cold_storage.modules.reports.domain.enums import ExportFormat, RenderMode, ReportType
 from cold_storage.modules.reports.domain.errors import (
     ArtifactFileNotFoundError,
     ArtifactIntegrityError,
@@ -38,6 +38,7 @@ from cold_storage.modules.reports.domain.errors import (
     RenderError,
     ReportNotFoundError,
     SchemaValidationError,
+    TemplateNotFoundError,
 )
 
 # ---------------------------------------------------------------------------
@@ -112,9 +113,9 @@ class GenerateRevisionRequest(BaseModel):
 
 
 class RenderRequest(BaseModel):
-    format: str = "docx"
+    format: ExportFormat = ExportFormat.DOCX
     template_version: str | None = None
-    mode: str = "draft"
+    mode: RenderMode = RenderMode.DRAFT
     idempotency_key: str | None = None
 
 
@@ -376,9 +377,9 @@ def render_report_endpoint(
         artifact = render_service.render(
             report_id=report_id,
             revision_number=revision_number,
-            format=body.format,
+            format=body.format.value,
             template_version=body.template_version,
-            mode=body.mode,
+            mode=body.mode.value,
             actor=actor,
             idempotency_key=body.idempotency_key,
         )
@@ -392,8 +393,10 @@ def render_report_endpoint(
         )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TemplateNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ExportPermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except IdempotencyPayloadConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except IdempotencyClaimError as exc:
@@ -592,11 +595,20 @@ def activate_template(
         if template.status == TemplateStatus.RETIRED:
             raise TemplateActivationError(template_id, "Cannot activate a retired template")
 
-        # Deactivate other active templates for the same code and format
-        existing_active = template_repo.get_active_template(template.template_code, template.format)
-        if existing_active and existing_active.id != template_id:
-            deactivated = dc_replace(existing_active, status=TemplateStatus.DRAFT)
-            template_repo.update_template(deactivated)
+        # P0-8: Deactivate all existing active templates for same code and format in one operation
+        fmt_value = (
+            template.format.value if hasattr(template.format, "value") else str(template.format)
+        )
+        if hasattr(template_repo, "deactivate_templates"):
+            template_repo.deactivate_templates(template.template_code, fmt_value)
+        else:
+            # Fallback for protocol-only repos
+            existing_active = template_repo.get_active_template(
+                template.template_code, template.format
+            )
+            if existing_active and existing_active.id != template_id:
+                deactivated = dc_replace(existing_active, status=TemplateStatus.DRAFT)
+                template_repo.update_template(deactivated)
 
         activated = dc_replace(
             template,

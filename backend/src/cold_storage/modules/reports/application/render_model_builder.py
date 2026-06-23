@@ -11,6 +11,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
+from cold_storage.modules.reports.domain.models import ApprovalSnapshot
 from cold_storage.modules.reports.domain.render_model import (
     RenderManifest,
     RenderMetadata,
@@ -499,7 +500,9 @@ def _build_risks_and_quality(data: dict[str, Any]) -> RenderSection:
     )
 
 
-def _build_citations_and_approval(data: Any) -> RenderSection:
+def _build_citations_and_approval(
+    data: Any, *, approval_snapshot: ApprovalSnapshot | None = None
+) -> RenderSection:
     """Build the citations_and_approval section with source references table."""
     title, level = _SECTION_HEADINGS["citations_and_approval"]
 
@@ -538,7 +541,17 @@ def _build_citations_and_approval(data: Any) -> RenderSection:
         )
 
     # Build approval paragraphs
+    # P0-1: If an ApprovalSnapshot is provided, use it as the canonical
+    # approval source.  This ensures the render model section and the
+    # artifact manifest use the exact same approval data.
     paragraphs: list[str] = []
+    if approval_snapshot is not None:
+        approval = {
+            "approved_by": approval_snapshot.approved_by,
+            "approved_at": approval_snapshot.approved_at,
+            "approved_revision_id": approval_snapshot.revision_id,
+            "approved_content_hash": approval_snapshot.content_hash,
+        }
     if approval:
         paragraphs.append("审批信息：")
         if approval.get("approved_by"):
@@ -546,10 +559,11 @@ def _build_citations_and_approval(data: Any) -> RenderSection:
         if approval.get("approved_at"):
             paragraphs.append(f"批准时间：{approval['approved_at']}")
         if approval.get("approved_revision_id"):
-            paragraphs.append(f"批准版本：{approval['approved_revision_id']}")
+            rid = approval["approved_revision_id"]
+            paragraphs.append(f"批准版本：revision {rid[:8]}")
         if approval.get("approved_content_hash"):
             h = approval["approved_content_hash"]
-            paragraphs.append(f"批准哈希：{h[:16]}..." if len(h) > 16 else f"批准哈希：{h}")
+            paragraphs.append(f"批准内容哈希：{h[:16]}..." if len(h) > 16 else f"批准内容哈希：{h}")
 
     if not citations and not approval:
         return RenderSection(
@@ -590,6 +604,7 @@ def build_render_model(
     locale: str = "zh-CN",
     template_manifest_json: dict[str, Any] | None = None,
     format: str = "docx",  # noqa: A002
+    approval_snapshot: ApprovalSnapshot | None = None,
 ) -> ReportRenderModel:
     """Map assembled report content to a ReportRenderModel.
 
@@ -659,7 +674,7 @@ def build_render_model(
 
     for key, builder in section_builders.items():
         data = content.get(key)
-        if data is None:
+        if data is None and not (key == "citations_and_approval" and approval_snapshot is not None):
             title, level = _SECTION_HEADINGS.get(key, (key, 1))
             sections.append(
                 RenderSection(
@@ -672,7 +687,10 @@ def build_render_model(
                 )
             )
         else:
-            sections.append(builder(data))
+            if key == "citations_and_approval":
+                sections.append(builder(data or {}, approval_snapshot=approval_snapshot))
+            else:
+                sections.append(builder(data))
 
     # Build manifest
     ALL_SECTION_KEYS = [

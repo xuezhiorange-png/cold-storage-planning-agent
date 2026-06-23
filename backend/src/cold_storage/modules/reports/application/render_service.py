@@ -41,6 +41,7 @@ from cold_storage.modules.reports.domain.errors import (
     TemplateNotFoundError,
 )
 from cold_storage.modules.reports.domain.models import (
+    ApprovalSnapshot,
     Report,
     ReportExportArtifact,
     ReportRevision,
@@ -136,6 +137,58 @@ def _compute_fingerprint(
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
+# ---------------------------------------------------------------------------
+# P0-3: Unit of Work — atomic commit via single session
+# ---------------------------------------------------------------------------
+
+
+class ReportRenderUnitOfWork:
+    """Atomic unit of work for report rendering.
+
+    Wraps a single SQLAlchemy Session so that both the report repository and
+    artifact repository share the same transaction.  ``commit()`` and
+    ``rollback()`` operate on the underlying session exactly once.
+    """
+
+    def __init__(
+        self,
+        session: Any,  # sqlalchemy.orm.Session
+        *,
+        report_repo: ReportRepository | None = None,
+        artifact_repo: ReportArtifactRepositoryPort | None = None,
+    ) -> None:
+        self._session = session
+        from cold_storage.modules.reports.infrastructure.repository import (
+            SQLReportRepository,
+        )
+
+        self._report_repo: ReportRepository = report_repo or SQLReportRepository(session)
+        self._artifact_repo: ReportArtifactRepositoryPort | None = (
+            artifact_repo or SQLReportRepository(session)
+        )
+
+    @property
+    def report_repo(self) -> ReportRepository:
+        return self._report_repo
+
+    @property
+    def artifact_repo(self) -> ReportArtifactRepositoryPort | None:
+        return self._artifact_repo
+
+    @property
+    def session(self) -> Any:
+        return self._session
+
+    def commit(self) -> None:
+        self._session.commit()
+
+    def rollback(self) -> None:
+        self._session.rollback()
+
+
+# ---------------------------------------------------------------------------
+
+
 class ReportRenderService:
     """Application service for report export rendering.
 
@@ -153,15 +206,48 @@ class ReportRenderService:
 
     def __init__(
         self,
-        repository: ReportRepository,
-        storage: ArtifactStoragePort,
+        repository: ReportRepository | None = None,
+        storage: ArtifactStoragePort | None = None,
         template_repo: ReportTemplateRepositoryPort | None = None,
         artifact_repo: ReportArtifactRepositoryPort | None = None,
+        *,
+        uow: ReportRenderUnitOfWork | None = None,
     ) -> None:
-        self._repo = repository
-        self._storage = storage
+        """Initialize the render service.
+
+        Parameters
+        ----------
+        uow:
+            Preferred: a ``ReportRenderUnitOfWork`` that provides both
+            report_repo and artifact_repo from a single session.
+        repository:
+            Legacy: explicit report repository.  Logged as a warning if used
+            without a UnitOfWork.
+        storage:
+            Artifact file storage adapter (required).
+        template_repo:
+            Template repository port.
+        artifact_repo:
+            Legacy: explicit artifact repository.
+        """
+        import warnings
+
+        if uow is not None:
+            self._repo: ReportRepository = uow.report_repo
+            self._artifact_repo: ReportArtifactRepositoryPort | None = uow.artifact_repo
+        elif repository is not None:
+            self._repo = repository
+            self._artifact_repo = artifact_repo
+            warnings.warn(
+                "ReportRenderService: prefer passing uow=ReportRenderUnitOfWork "
+                "instead of separate repository/artifact_repo arguments. "
+                "The separate-arguments path may use non-shared sessions.",
+                stacklevel=2,
+            )
+        else:
+            raise TypeError("ReportRenderService requires either uow= or repository=")
+        self._storage: ArtifactStoragePort = storage  # type: ignore[assignment]
         self._template_repo = template_repo
-        self._artifact_repo = artifact_repo
 
     def render(
         self,
@@ -228,6 +314,9 @@ class ReportRenderService:
         # 4. Find the active template (or specific version)
         template = self._find_template(export_format, template_version)
 
+        # P0-1: Build ApprovalSnapshot from Report fields for render model
+        approval_snapshot = ApprovalSnapshot.from_report(report)
+
         # 5. Build render model from revision content
         from cold_storage.modules.reports.application.render_model_builder import (
             build_render_model,
@@ -246,6 +335,7 @@ class ReportRenderService:
             template_code=template.template_code,
             template_manifest_json=template.manifest_json,
             format=export_format.value,
+            approval_snapshot=approval_snapshot,
         )
 
         # 6. Idempotency check (P0-6) — atomic claim via idempotency_records
@@ -334,21 +424,30 @@ class ReportRenderService:
             generated_by=actor,
         )
 
-        # P0-2: INSERT artifact(pending) → commit
-        if self._artifact_repo:
-            self._artifact_repo.save_artifact(artifact)
-            self._artifact_repo.commit()
-
-        # P0-2: UPDATE artifact(rendering) → commit
-        artifact = replace(artifact, status=ArtifactStatus.RENDERING)
-        if self._artifact_repo:
-            self._artifact_repo.update_artifact(artifact)
-            self._artifact_repo.commit()
-
-        # 8. Render via DocxRenderer or PdfRenderer
+        # P0-2: Unified failure handler for ALL artifact persistence stages.
+        # Covers: insert pending → commit, update rendering → commit,
+        #         render, finalize, update completed + complete idempotency.
+        # If ANY stage fails → rollback, re-read, update to failed, fail
+        # idempotency, commit, structured log.
         temp_path: str | None = None
         storage_key: str = ""
+        current_stage = "init"
         try:
+            # P0-2: INSERT artifact(pending) → commit
+            current_stage = "insert_pending"
+            if self._artifact_repo:
+                self._artifact_repo.save_artifact(artifact)
+                self._artifact_repo.commit()
+
+            # P0-2: UPDATE artifact(rendering) → commit
+            current_stage = "update_rendering"
+            artifact = replace(artifact, status=ArtifactStatus.RENDERING)
+            if self._artifact_repo:
+                self._artifact_repo.update_artifact(artifact)
+                self._artifact_repo.commit()
+
+            # 8. Render via DocxRenderer or PdfRenderer
+            current_stage = "render"
             rendered_bytes = self._render_bytes(
                 export_format,
                 render_model,
@@ -360,6 +459,7 @@ class ReportRenderService:
             file_sha256 = hashlib.sha256(rendered_bytes).hexdigest()
 
             # 10. Save to temp file first, then finalize (P0-7)
+            current_stage = "finalize"
             temp_path, temp_sha256 = self._storage.put_temp(rendered_bytes, file_name)
 
             # Verify temp file hash matches
@@ -371,7 +471,7 @@ class ReportRenderService:
             storage_key = self._storage.finalize_temp(temp_path, artifact.id, file_name)
             temp_path = None  # Successfully finalized
 
-            # Build real manifest metadata (P0-4)
+            # Build real manifest metadata (P0-4) using same ApprovalSnapshot
             render_manifest = self._build_render_manifest(
                 export_format=export_format,
                 render_mode=render_mode,
@@ -384,13 +484,11 @@ class ReportRenderService:
                 render_settings=render_model.manifest.render_settings
                 if hasattr(render_model.manifest, "render_settings")
                 else {},
-                approval_revision_id=report.approved_revision_id or "",
-                approval_content_hash=report.approved_content_hash or "",
-                approval_by=report.approved_by or "",
-                approval_at=report.approved_at or "",
+                approval_snapshot=approval_snapshot,
             )
 
             # 11. Update artifact with storage_key, file_size, file_sha256, status=completed
+            current_stage = "update_completed"
             artifact = replace(
                 artifact,
                 status=ArtifactStatus.COMPLETED,
@@ -414,17 +512,30 @@ class ReportRenderService:
             return artifact
 
         except Exception as exc:
-            # P0-2: Cleanup temp file if still present
+            logger = logging.getLogger(__name__)
+            logger.error(
+                "Artifact persistence failure",
+                extra={
+                    "artifact_id": artifact.id,
+                    "idempotency_key": idempotency_key or "",
+                    "stage": current_stage,
+                    "exception": str(exc),
+                },
+                exc_info=True,
+            )
+
+            # Cleanup temp file if still present
             if temp_path is not None:
                 try:
                     self._storage.cleanup_temp(temp_path)
                 except Exception as cleanup_exc:
-                    logging.getLogger(__name__).warning(
-                        "Failed to clean up temp file after render failure",
+                    logger.warning(
+                        "Failed to clean up temp file after artifact failure",
                         extra={
                             "artifact_id": artifact.id,
                             "storage_key": storage_key,
                             "idempotency_key": idempotency_key or "",
+                            "stage": current_stage,
                             "exception": str(cleanup_exc),
                         },
                     )
@@ -434,12 +545,13 @@ class ReportRenderService:
                 try:
                     self._storage.delete(storage_key)
                 except Exception as cleanup_exc:
-                    logging.getLogger(__name__).warning(
-                        "Failed to clean up storage after render failure",
+                    logger.warning(
+                        "Failed to clean up storage after artifact failure",
                         extra={
                             "artifact_id": artifact.id,
                             "storage_key": storage_key,
                             "idempotency_key": idempotency_key or "",
+                            "stage": current_stage,
                             "exception": str(cleanup_exc),
                         },
                     )
@@ -474,12 +586,12 @@ class ReportRenderService:
 
                     with contextlib.suppress(Exception):
                         self._artifact_repo.rollback()
-                    logging.getLogger(__name__).error(
+                    logger.error(
                         "Failed to persist failed artifact state",
                         extra={
                             "artifact_id": artifact.id,
-                            "storage_key": storage_key,
                             "idempotency_key": idempotency_key or "",
+                            "stage": current_stage,
                         },
                         exc_info=True,
                     )
@@ -498,12 +610,13 @@ class ReportRenderService:
         idempotency_key: str | None,
         fingerprint: str,
         render_settings: JsonObject,
-        approval_revision_id: str = "",
-        approval_content_hash: str = "",
-        approval_by: str = "",
-        approval_at: str = "",
+        approval_snapshot: ApprovalSnapshot | None = None,
     ) -> dict[str, Any]:
-        """Build the render manifest with real metadata (P0-4)."""
+        """Build the render manifest with real metadata (P0-4).
+
+        P0-1: Uses the same ApprovalSnapshot object that was passed to the
+        render model, ensuring section content and manifest are consistent.
+        """
         return {
             "export_format": export_format.value,
             "render_mode": render_mode.value,
@@ -516,10 +629,10 @@ class ReportRenderService:
             "render_settings": render_settings,
             "idempotency_key": idempotency_key or "",
             "fingerprint": fingerprint,
-            "approved_revision_id": approval_revision_id,
-            "approved_content_hash": approval_content_hash,
-            "approved_by": approval_by,
-            "approved_at": approval_at,
+            "approved_revision_id": (approval_snapshot.revision_id if approval_snapshot else ""),
+            "approved_content_hash": (approval_snapshot.content_hash if approval_snapshot else ""),
+            "approved_by": (approval_snapshot.approved_by if approval_snapshot else ""),
+            "approved_at": (approval_snapshot.approved_at if approval_snapshot else ""),
         }
 
     def _validate_export_mode(

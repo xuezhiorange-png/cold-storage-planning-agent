@@ -562,7 +562,9 @@ class TestP0_7_UltraTallAndRepeatHeader:
         doc.close()
 
     def test_landscape_orientation(self):
-        """Landscape page should have width > height."""
+        """Landscape page should have width > height.
+        P0-11: Uses manifest landscape_sections instead of manual width/height swap.
+        """
         sections = [
             RenderSection(
                 section_key="s1",
@@ -572,21 +574,24 @@ class TestP0_7_UltraTallAndRepeatHeader:
                 text="横向页面测试",
             )
         ]
-        # A4 landscape: 841.89 x 595.276
+        # Use landscape_sections in manifest to mark section s1 as landscape
         _, pdf_bytes = _make_model(
             sections,
             render_settings={
                 "page": {
-                    "width_pt": 841.89,
-                    "height_pt": 595.276,
+                    "landscape_sections": ["s1"],
                 },
             },
         )
 
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        for page_idx, page in enumerate(doc):
-            assert page.rect.width > page.rect.height, (
-                f"Page {page_idx}: width={page.rect.width} should be > "
-                f"height={page.rect.height} for landscape"
-            )
+        # Page 0 is cover (always portrait); page 1+ are content pages
+        # Content pages for landscape sections should have width > height
+        found_landscape = False
+        for page_idx in range(1, doc.page_count):
+            page = doc[page_idx]
+            if page.rect.width > page.rect.height:
+                found_landscape = True
+                break
+        assert found_landscape, "No landscape page found after setting landscape_sections=['s1']"
         doc.close()

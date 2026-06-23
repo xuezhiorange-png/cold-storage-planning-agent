@@ -32,6 +32,39 @@ def _uuid() -> str:
 
 
 @dataclass(frozen=True)
+class ApprovalSnapshot:
+    """Immutable snapshot of approval state for render model and manifest.
+
+    Carries the exact approval fields at the moment of render, ensuring
+    consistency between the citations/approval section and the artifact
+    manifest.
+    """
+
+    revision_id: str
+    content_hash: str
+    approved_by: str
+    approved_at: str
+
+    @classmethod
+    def from_report(cls, report: Report) -> ApprovalSnapshot | None:
+        """Build an ApprovalSnapshot from a Report's approval fields.
+
+        Returns None if the report has not been approved (any field missing).
+        """
+        if not report.approved_revision_id:
+            return None
+        return cls(
+            revision_id=report.approved_revision_id or "",
+            content_hash=report.approved_content_hash or "",
+            approved_by=report.approved_by or "",
+            approved_at=report.approved_at or "",
+        )
+
+
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
 class QualityFinding:
     """A single machine-readable quality finding."""
 

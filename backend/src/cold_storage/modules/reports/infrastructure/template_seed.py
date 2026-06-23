@@ -89,11 +89,27 @@ def seed_default_templates(template_repo: ReportTemplateRepositoryPort) -> None:
                 version,
                 fmt.value,
             )
-            # Ensure it's active
+            # P0-8: Ensure it's active — deactivate all others first, then activate target
             active = template_repo.get_active_template(template_code, format=fmt)
             if active is None or active.version != version:
                 for t in existing:
                     if t.version == version and t.status != TemplateStatus.ACTIVE:
+                        # P0-8: Deactivate all existing active templates for same code+format
+                        if hasattr(template_repo, "deactivate_templates"):
+                            template_repo.deactivate_templates(template_code, fmt.value)
+                        else:
+                            # Fallback: deactivate any active template
+                            current_active = template_repo.get_active_template(
+                                template_code, format=fmt
+                            )
+                            if current_active is not None:
+                                from dataclasses import replace as dc_replace
+
+                                deactivated = dc_replace(
+                                    current_active, status=TemplateStatus.DRAFT
+                                )
+                                template_repo.update_template(deactivated)
+
                         from dataclasses import replace as dc_replace
 
                         activated = dc_replace(t, status=TemplateStatus.ACTIVE)

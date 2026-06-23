@@ -449,6 +449,23 @@ class SQLReportRepository(ReportRepository):
         stmt = stmt.order_by(ReportTemplateRecord.created_at.desc())
         return [_to_template_domain(r) for r in self._session.execute(stmt).scalars()]
 
+    def deactivate_templates(self, template_code: str, fmt: str) -> int:
+        """Deactivate all active templates for the given code and format.
+
+        Returns the number of templates deactivated.
+        """
+        stmt = (
+            sa.update(ReportTemplateRecord)
+            .where(
+                ReportTemplateRecord.template_code == template_code,
+                ReportTemplateRecord.format == fmt,
+                ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
+            )
+            .values(status=TemplateStatus.DRAFT.value)
+        )
+        result = self._session.execute(stmt)
+        return result.rowcount  # type: ignore[attr-defined, no-any-return]
+
     def update_template(self, template: ReportTemplate) -> None:
         """Update an existing template by ID (status, activated_at, etc.)."""
         stmt = (

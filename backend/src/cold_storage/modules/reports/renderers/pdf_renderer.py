@@ -196,6 +196,17 @@ def _load_manifest_settings(
     settings["table_columns"] = render_settings.get("tables", {}).get("columns", {})
     # Table repeat_header default (P0-7)
     settings["table_repeat_header"] = render_settings.get("tables", {}).get("repeat_header", True)
+    # P0-4: Per-section table configs (keyed by section_key)
+    settings["table_configs"] = render_settings.get("tables", {})
+
+    # P0-5: Landscape orientation settings
+    settings["orientation"] = render_settings.get("page", {}).get("orientation", "portrait")
+    settings["landscape_sections"] = render_settings.get("landscape_sections", [])
+    # Also check page.landscape_sections
+    if not settings["landscape_sections"]:
+        settings["landscape_sections"] = render_settings.get("page", {}).get(
+            "landscape_sections", []
+        )
 
     return settings
 
@@ -472,31 +483,57 @@ def _draw_draft_watermark(
 ) -> None:
     """Draw DRAFT watermark centered on the page.
 
-    Supports manifest-driven color, opacity, angle (P0-4).
+    Supports manifest-driven color, opacity, angle (P0-6).
+    Uses rotation matrix and fill_opacity for proper rendering.
     """
+    import math
+
+    wm_angle: float = 45
+    wm_opacity: float = 0.3
     if settings is not None:
         text = settings.get("draft_watermark_text", text)
         fontsize = settings.get("draft_watermark_size", fontsize)
         wm_color_str = settings.get("draft_watermark_color", "#CCCCCC")
         wm_opacity = settings.get("draft_watermark_opacity", 0.3)
-        # Convert hex color + opacity to RGB tuple
+        wm_angle = settings.get("draft_watermark_angle", 45)
+        # Validate ranges
+        wm_opacity = max(0.0, min(1.0, float(wm_opacity)))
+        wm_angle = float(wm_angle)
+        # Convert hex color to RGB
         base_color = _hex_to_rgb(wm_color_str)
-        color = tuple(c * wm_opacity for c in base_color)
+        color = base_color  # full color; opacity handled by fill_opacity param
     else:
         color = (0.8, 0.8, 0.8)
 
     font = _get_cjk_font()
     cx = page.rect.width / 2
     cy = page.rect.height / 2
+
+    # P0-6: Build rotation matrix for watermark text around page center.
+    # PyMuPDF morph requires matrix[4] == matrix[5] == 0, so use pure
+    # rotation matrix and let the morph point handle the center offset.
+    angle_rad = math.radians(wm_angle)
+    cos_a = math.cos(angle_rad)
+    sin_a = math.sin(angle_rad)
+    # Pure rotation matrix (no translation) — morph point handles offset
+    mat = fitz.Matrix(cos_a, sin_a, -sin_a, cos_a, 0, 0)
+
     text_width = font.text_length(text, fontsize=fontsize)
-    tw = fitz.TextWriter(page.rect)
-    tw.append(
-        fitz.Point(cx - text_width / 2, cy),
+    text_x = cx - text_width / 2
+    text_y = cy
+
+    # P0-6: Use insert_text with morph=(center, rotation_matrix) for rotation
+    # and fill_opacity for transparency.
+    page.insert_text(
+        fitz.Point(text_x, text_y),
         text,
-        font=font,
+        fontname="cjk_font",
+        fontfile=_find_cjk_font(),
         fontsize=fontsize,
+        color=color,
+        morph=(fitz.Point(cx, cy), mat),
+        fill_opacity=wm_opacity,
     )
-    tw.write_text(page, color=color)
 
 
 # ---------------------------------------------------------------------------
@@ -567,6 +604,8 @@ class PdfRenderContext:
 
     Tracks the current page, Y position, and provides ensure_space()
     to automatically create new pages when content overflows.
+
+    P0-5: Supports landscape orientation per-section.
     """
 
     def __init__(
@@ -582,8 +621,10 @@ class PdfRenderContext:
         self.is_draft = is_draft
         self.metadata = metadata
         self.font_path = font_path
-        self.page_width = settings["page_width_pt"]
-        self.page_height = settings["page_height_pt"]
+        self._portrait_width = settings["page_width_pt"]
+        self._portrait_height = settings["page_height_pt"]
+        self.page_width = self._portrait_width
+        self.page_height = self._portrait_height
         self.margin_top = settings["margin_top_pt"]
         self.margin_bottom = settings["margin_bottom_pt"]
         self.margin_left = settings["margin_left_pt"]
@@ -593,6 +634,34 @@ class PdfRenderContext:
         self.page: fitz.Page | None = None
         self.y = 0.0
         self.page_num = 0
+        # P0-5: orientation tracking
+        self.orientation = settings.get("orientation", "portrait")
+        self.landscape_sections = settings.get("landscape_sections", [])
+
+    def set_orientation(self, orientation: str) -> None:
+        """Switch page orientation (portrait or landscape).
+
+        Swaps page_width/page_height and recalculates content_width/content_top.
+        """
+        self.orientation = orientation
+        if orientation == "landscape":
+            self.page_width = self._portrait_height  # swap
+            self.page_height = self._portrait_width
+        else:
+            self.page_width = self._portrait_width
+            self.page_height = self._portrait_height
+        self.content_width = self.page_width - self.margin_left - self.margin_right
+        self.content_top = self.margin_top + 1.5 * _PT_PER_CM
+
+    def should_be_landscape(self, section_key: str) -> bool:
+        """Check if a section should be rendered in landscape orientation."""
+        # Check per-table config first
+        table_configs = self.settings.get("table_configs", {})
+        section_config = table_configs.get(section_key, {})
+        if section_config.get("orientation") == "landscape":
+            return True
+        # Check landscape_sections list
+        return section_key in self.landscape_sections
 
     def new_page(self) -> None:
         """Create new page with header, footer, watermark."""
@@ -689,12 +758,17 @@ def _measure_row_height(
     fontsize: float,
     col_width: float,
     base_height: float,
+    col_widths: list[float] | None = None,
 ) -> float:
-    """Measure the actual height a row needs based on text wrapping."""
+    """Measure the actual height a row needs based on text wrapping.
+
+    If col_widths is provided, use per-column widths; otherwise use col_width.
+    """
     max_lines = 1
     cell_padding = 6  # left + right padding
-    usable_width = col_width - cell_padding
-    for cell_text in cells:
+    for ci, cell_text in enumerate(cells):
+        cw = col_widths[ci] if col_widths and ci < len(col_widths) else col_width
+        usable_width = cw - cell_padding
         lines = _wrap_cell_text(cell_text, font, fontsize, usable_width)
         if len(lines) > max_lines:
             max_lines = len(lines)
@@ -708,12 +782,15 @@ def _draw_table(
     table: RenderTable,
     max_width: float | None = None,
     *,
+    section_key: str = "",
     font_path: str | None = None,
 ) -> float:
     """Draw a table on the page and return the new y position.
 
     Supports pagination: when a row won't fit on the current page, a new page
     is created. On page break the header row (and unit row if present) are redrawn.
+
+    P0-4: Accepts section_key for per-section table configuration from manifest.
     """
     if max_width is None:
         max_width = ctx.content_width
@@ -722,18 +799,55 @@ def _draw_table(
     if num_cols == 0:
         return y
 
-    col_width = max_width / num_cols
+    # P0-4: Load per-section table config
+    table_configs = ctx.settings.get("table_configs", {})
+    section_config = table_configs.get(section_key, {})
+    columns_config = section_config.get("columns", [])
+    repeat_header = section_config.get(
+        "repeat_header", ctx.settings.get("table_repeat_header", True)
+    )
+    show_unit_row = section_config.get("unit_row", True)
+
+    # P0-4: Compute column widths from width_ratio if available
+    if (
+        columns_config
+        and len(columns_config) == num_cols
+        and any(c.get("width_ratio", 0) for c in columns_config)
+    ):
+        total_ratio = sum(c.get("width_ratio", 1.0) for c in columns_config)
+        if total_ratio > 0:
+            col_widths = [
+                (c.get("width_ratio", 1.0) / total_ratio) * max_width for c in columns_config
+            ]
+        else:
+            col_widths = [max_width / num_cols] * num_cols
+    else:
+        if columns_config and len(columns_config) != num_cols:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "P0-4: columns_config count (%d) != headers count (%d) "
+                "for section_key=%r — falling back to equal-width columns",
+                len(columns_config),
+                num_cols,
+                section_key,
+            )
+        col_widths = [max_width / num_cols] * num_cols
+
+    # P0-4: Column alignment from config (overridden by cell.align)
+    col_aligns: list[str] = ["left"] * num_cols
+    if columns_config and len(columns_config) == num_cols:
+        for ci, col_cfg in enumerate(columns_config):
+            col_aligns[ci] = col_cfg.get("align", "left")
+
     base_row_height = _LINE_HEIGHT + 4
 
-    # Check if we need a unit row
-    has_unit_row = bool(table.unit_row and any(u for u in table.unit_row))
+    # Check if we need a unit row (P0-4: respect show_unit_row config)
+    has_unit_row = show_unit_row and bool(table.unit_row and any(u for u in table.unit_row))
 
     font = fitz.Font(fontfile=font_path) if font_path else _get_cjk_font()
     header_font_size = ctx.settings.get("table_header_size", _TABLE_HEADER_SIZE)
     body_font_size = ctx.settings.get("table_body_size", _TABLE_BODY_SIZE)
-
-    # Check for repeat_header setting (P0-7)
-    repeat_header = ctx.settings.get("table_repeat_header", True)
 
     def _draw_row(
         row_y: float,
@@ -743,7 +857,14 @@ def _draw_table(
     ) -> float:
         """Draw a single row of cells, return new y after the row."""
         row_font_size = header_font_size if is_header else body_font_size
-        row_height = _measure_row_height(cells, font, row_font_size, col_width, base_row_height)
+        row_height = _measure_row_height(
+            cells,
+            font,
+            row_font_size,
+            col_widths[0],
+            base_row_height,
+            col_widths=col_widths,
+        )
 
         # Background
         bg_color = _LIGHT_BLUE if is_header else _LIGHT_GRAY if is_unit else None
@@ -761,8 +882,9 @@ def _draw_table(
 
         # Grid lines (vertical) and text
         cell_padding = 6  # left+right padding
+        col_x = x
         for col_idx, cell_text in enumerate(cells):
-            col_x = x + col_idx * col_width
+            cw = col_widths[col_idx]
             # Vertical line
             ctx.current_page.draw_line(
                 fitz.Point(col_x, row_y),
@@ -771,12 +893,20 @@ def _draw_table(
                 width=0.5,
             )
             # Cell text with wrapping
-            text_x = col_x + 3
-            text_y_pos = row_y
-            usable_width = col_width - cell_padding
+            usable_width = cw - cell_padding
             wrapped_lines = _wrap_cell_text(cell_text, font, row_font_size, usable_width)
+            # P0-4: Compute text x position based on column alignment
+            alignment = col_aligns[col_idx] if col_idx < len(col_aligns) else "left"
             for wline in wrapped_lines:
+                text_y_pos = row_y
                 text_y_pos += _LINE_HEIGHT
+                wline_width = font.text_length(wline, fontsize=row_font_size)
+                if alignment == "right":
+                    text_x = col_x + cw - cell_padding / 2 - wline_width
+                elif alignment == "center":
+                    text_x = col_x + (cw - wline_width) / 2
+                else:
+                    text_x = col_x + 3
                 tw = fitz.TextWriter(ctx.current_page.rect)
                 tw.append(
                     fitz.Point(text_x, text_y_pos),
@@ -785,6 +915,7 @@ def _draw_table(
                     fontsize=row_font_size,
                 )
                 tw.write_text(page=ctx.current_page, color=_TEXT_COLOR)
+            col_x += cw
 
         # Right border
         ctx.current_page.draw_line(
@@ -807,14 +938,24 @@ def _draw_table(
     def _draw_header_group(row_y: float) -> float:
         """Draw header + unit row as an inseparable group (P0-3)."""
         header_height = _measure_row_height(
-            table.headers, font, header_font_size, col_width, base_row_height
+            table.headers,
+            font,
+            header_font_size,
+            col_widths[0],
+            base_row_height,
+            col_widths=col_widths,
         )
         unit_height = 0.0
         unit_cells: list[str] = []
         if has_unit_row:
             unit_cells = [f"({u})" if u else "" for u in table.unit_row]
             unit_height = _measure_row_height(
-                unit_cells, font, body_font_size, col_width, base_row_height
+                unit_cells,
+                font,
+                body_font_size,
+                col_widths[0],
+                base_row_height,
+                col_widths=col_widths,
             )
         # Ensure space for the entire header group (P0-3: inseparable)
         group_height = header_height + unit_height
@@ -833,7 +974,14 @@ def _draw_table(
     ) -> float:
         """Draw a row, splitting across pages if it's too tall (P0-7)."""
         row_font_size = header_font_size if is_header else body_font_size
-        row_height = _measure_row_height(cells, font, row_font_size, col_width, base_row_height)
+        row_height = _measure_row_height(
+            cells,
+            font,
+            row_font_size,
+            col_widths[0],
+            base_row_height,
+            col_widths=col_widths,
+        )
         available = ctx.page_height - ctx.margin_bottom - row_y
 
         if row_height <= available:
@@ -851,12 +999,13 @@ def _draw_table(
 
         # Row too tall even for a fresh page — must split across pages (P0-7)
         cell_padding = 6
-        usable_width = col_width - cell_padding
 
-        # Pre-wrap all cells
+        # Pre-wrap all cells using per-column widths
         all_wrapped: list[list[str]] = []
         max_lines = 0
-        for cell_text in cells:
+        for ci, cell_text in enumerate(cells):
+            cw = col_widths[ci]
+            usable_width = cw - cell_padding
             lines = _wrap_cell_text(cell_text, font, row_font_size, usable_width)
             all_wrapped.append(lines)
             if len(lines) > max_lines:
@@ -897,8 +1046,9 @@ def _draw_table(
                 ctx.current_page.draw_rect(rect, color=None, fill=bg_color)
 
             # Vertical lines + text for this chunk
+            col_x = x
             for col_idx, cell_lines in enumerate(all_wrapped):
-                col_x = x + col_idx * col_width
+                cw = col_widths[col_idx]
                 ctx.current_page.draw_line(
                     fitz.Point(col_x, row_y),
                     fitz.Point(col_x, row_y + chunk_height),
@@ -906,18 +1056,26 @@ def _draw_table(
                     width=0.5,
                 )
                 # Draw lines in this chunk
-                text_x = col_x + 3
-                text_y_pos = row_y
+                alignment = col_aligns[col_idx] if col_idx < len(col_aligns) else "left"
                 for li in range(line_idx, min(line_idx + chunk_lines, len(cell_lines))):
-                    text_y_pos += _LINE_HEIGHT
+                    text_y_pos = row_y + _LINE_HEIGHT * (li - line_idx + 1)
+                    wline = cell_lines[li]
+                    wline_width = font.text_length(wline, fontsize=row_font_size)
+                    if alignment == "right":
+                        text_x = col_x + cw - cell_padding / 2 - wline_width
+                    elif alignment == "center":
+                        text_x = col_x + (cw - wline_width) / 2
+                    else:
+                        text_x = col_x + 3
                     tw = fitz.TextWriter(ctx.current_page.rect)
                     tw.append(
                         fitz.Point(text_x, text_y_pos),
-                        cell_lines[li],
+                        wline,
                         font=font,
                         fontsize=row_font_size,
                     )
                     tw.write_text(page=ctx.current_page, color=_TEXT_COLOR)
+                col_x += cw
 
             # Right border
             ctx.current_page.draw_line(
@@ -955,7 +1113,14 @@ def _draw_table(
     # --- Draw data rows with overflow detection ---
     for row_data in table.rows:
         cells = [cell.value for cell in row_data]
-        row_height = _measure_row_height(cells, font, body_font_size, col_width, base_row_height)
+        row_height = _measure_row_height(
+            cells,
+            font,
+            body_font_size,
+            col_widths[0],
+            base_row_height,
+            col_widths=col_widths,
+        )
 
         # Check if this row fits; if not, page break
         available = ctx.page_height - ctx.margin_bottom - current_y
@@ -1132,7 +1297,22 @@ class PdfRenderer:
         ctx: PdfRenderContext,
         section: RenderSection,
     ) -> None:
-        """Draw a section on the current page."""
+        """Draw a section on the current page.
+
+        P0-5: Checks if section should be in landscape and switches orientation.
+        """
+        # P0-5: Check if this section needs landscape orientation
+        was_landscape = ctx.orientation == "landscape"
+        if ctx.should_be_landscape(section.section_key):
+            if not was_landscape:
+                ctx.set_orientation("landscape")
+                # Start new page with landscape dimensions
+                ctx.new_page()
+        elif was_landscape:
+            # Previous section was landscape; restore portrait
+            ctx.set_orientation("portrait")
+            ctx.new_page()
+
         content_left = ctx.content_left
         content_width = ctx.content_width
         settings = ctx.settings
@@ -1271,6 +1451,7 @@ class PdfRenderer:
                 ctx.y,
                 section.table,
                 max_width=content_width,
+                section_key=section.section_key,
                 font_path=ctx.font_path,
             )
 
@@ -1291,6 +1472,7 @@ class PdfRenderer:
                     ctx.y,
                     section.table,
                     max_width=content_width,
+                    section_key=section.section_key,
                     font_path=ctx.font_path,
                 )
 
