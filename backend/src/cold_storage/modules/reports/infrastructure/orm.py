@@ -190,6 +190,14 @@ class ReportTemplateRecord(Base):
             "format",
             name="uq_template_code_version_format",
         ),
+        sa.Index(
+            "uq_active_template_per_code_format",
+            "template_code",
+            "format",
+            unique=True,
+            sqlite_where=sa.text("active_slot IS NOT NULL"),
+            postgresql_where=sa.text("active_slot IS NOT NULL"),
+        ),
     )
 
 

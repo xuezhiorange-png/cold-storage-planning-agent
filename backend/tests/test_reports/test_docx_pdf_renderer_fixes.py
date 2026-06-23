@@ -15,6 +15,9 @@ import fitz
 from docx import Document
 from docx.enum.section import WD_ORIENT
 
+# Register qn for XML namespace access in tests
+from docx.oxml.ns import qn as _qn  # noqa: F401
+
 from cold_storage.modules.reports.domain.errors import TemplateManifestError
 from cold_storage.modules.reports.domain.render_model import (
     RenderManifest,
@@ -134,19 +137,25 @@ class TestP0_7_PdfCellAlignment:
             },
         )
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        page = doc[1]  # content page
-        blocks = page.get_text("dict")["blocks"]
-        for block in blocks:
-            if block["type"] != 0:
-                continue
-            for line in block.get("lines", []):
-                for span in line.get("spans", []):
-                    if span["text"] == "值":
-                        margin = 56.69
-                        assert span["bbox"][0] < margin + 20, (
-                            f"Cell text '值' should be left-aligned, but x0={span['bbox'][0]:.1f}"
-                        )
+        margin_left = 56.69
+        found = False
+        for page_num in range(doc.page_count):
+            page = doc[page_num]
+            blocks = page.get_text("dict")["blocks"]
+            for block in blocks:
+                if block["type"] != 0:
+                    continue
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        if span["text"] == "值":
+                            found = True
+                            # Left-aligned: x0 should be near left margin
+                            assert abs(span["bbox"][0] - margin_left) < 20, (
+                                f"Cell text '值' should be left-aligned, "
+                                f"but x0={span['bbox'][0]:.1f}, expected ~{margin_left}"
+                            )
         doc.close()
+        assert found, "target span '值' not found in PDF"
 
     def test_manifest_center_cell_none_final_center(self):
         """Manifest column center + cell None -> final center."""
@@ -176,25 +185,33 @@ class TestP0_7_PdfCellAlignment:
             },
         )
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        page = doc[1]
-        blocks = page.get_text("dict")["blocks"]
-        page_width = page.rect.width
-        for block in blocks:
-            if block["type"] != 0:
-                continue
-            for line in block.get("lines", []):
-                for span in line.get("spans", []):
-                    if span["text"] == "居中":
-                        text_center = (span["bbox"][0] + span["bbox"][2]) / 2
-                        page_center = page_width / 2
-                        assert abs(text_center - page_center) < 100, (
-                            f"Cell text '居中' should be center-aligned, "
-                            f"text_center={text_center:.1f}, page_center={page_center:.1f}"
-                        )
+        found = False
+        for page_num in range(doc.page_count):
+            page = doc[page_num]
+            page_width = page.rect.width
+            blocks = page.get_text("dict")["blocks"]
+            for block in blocks:
+                if block["type"] != 0:
+                    continue
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        if span["text"] == "居中":
+                            found = True
+                            span_center_x = (span["bbox"][0] + span["bbox"][2]) / 2
+                            page_center_x = page_width / 2
+                            assert abs(span_center_x - page_center_x) < 10, (
+                                f"Cell text '居中' should be center-aligned, "
+                                f"span_center={span_center_x:.1f}, page_center={page_center_x:.1f}"
+                            )
         doc.close()
+        assert found, "target span '居中' not found in PDF"
 
     def test_split_row_alignment_consistent_with_normal(self):
-        """Split row alignment must be consistent with normal row alignment."""
+        """Split row alignment must be consistent with normal row alignment.
+
+        P0-6: Verifies that normal rows and split rows use the same alignment
+        rule by finding spans from both row types and comparing alignment.
+        """
         long_text = "这是一段超长的中文文本用于测试分页对齐一致性。" * 50
         sections = [
             RenderSection(
@@ -233,7 +250,33 @@ class TestP0_7_PdfCellAlignment:
         )
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         assert doc.page_count >= 1
+
+        # Find all spans with "短文本" (normal row) and check alignment
+        normal_positions = []
+        split_positions = []
+        for page_num in range(doc.page_count):
+            page = doc[page_num]
+            blocks = page.get_text("dict")["blocks"]
+            for block in blocks:
+                if block["type"] != 0:
+                    continue
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        if span["text"] == "短文本":
+                            normal_positions.append(span["bbox"][0])
+                        elif span["text"] == "长文本":
+                            split_positions.append(span["bbox"][0])
+
         doc.close()
+
+        # Both should be aligned (x0 values should be close)
+        if normal_positions and split_positions:
+            normal_x = normal_positions[0]
+            split_x = split_positions[0]
+            # Alignment tolerance: within 10pt
+            assert abs(normal_x - split_x) < 10, (
+                f"Normal row x0={normal_x:.1f} should match split row x0={split_x:.1f}"
+            )
 
 
 # ===========================================================================
@@ -552,27 +595,94 @@ class TestP0_5_DocxHeaderWatermark:
         assert "PAGE" in docx_text, "PAGE field not found in footer right"
 
     def test_landscape_section_tab_stop_matches_width(self):
-        """Landscape section tab stops match landscape page width."""
+        """Landscape section tab stops match landscape page width.
+
+        P0-7: Verifies that portrait and landscape sections produce different
+        tab stop positions in their headers/footers, and that left/center/right
+        text and PAGE fields are present.
+        """
+        import zipfile
+
+        from lxml import etree
+
         sections = [
             RenderSection(
-                section_key="s1",
-                title="横版",
+                section_key="portrait1",
+                title="竖版章节",
+                level=1,
+                content_type="text",
+                text="竖版内容",
+            ),
+            RenderSection(
+                section_key="landscape1",
+                title="横版章节",
                 level=1,
                 content_type="text",
                 text="横版内容",
-            )
+            ),
         ]
         docx_bytes = _render_docx(
             sections,
             render_settings={
-                "landscape_sections": ["s1"],
+                "landscape_sections": ["landscape1"],
                 "header": {"left": "左", "center": "中", "right": "右"},
                 "footer": {"left": "左", "center": "中", "right": "右"},
             },
         )
         assert len(docx_bytes) > 0
         doc = Document(BytesIO(docx_bytes))
-        assert len(doc.sections) >= 1
+        assert len(doc.sections) >= 2
+
+        with zipfile.ZipFile(BytesIO(docx_bytes)) as zf:
+            # Find header XML files
+            header_files = [n for n in zf.namelist() if "header" in n and n.endswith(".xml")]
+            footer_files = [n for n in zf.namelist() if "footer" in n and n.endswith(".xml")]
+            assert len(header_files) >= 1, "No header XML files found"
+            assert len(footer_files) >= 1, "No footer XML files found"
+
+            # Parse each header XML for w:tab/@w:pos values
+            header_tab_positions = []
+            w_pos_attr = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pos"
+            for hf in sorted(header_files):
+                xml_content = zf.read(hf)
+                root = etree.fromstring(xml_content)
+                ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+                tabs = root.findall(".//w:tab", ns)
+                positions = [int(tab.get(w_pos_attr)) for tab in tabs if tab.get(w_pos_attr)]
+                if positions:
+                    header_tab_positions.append(max(positions))
+
+            # Parse each footer XML for w:tab/@w:pos values
+            footer_tab_positions = []
+            for ff in sorted(footer_files):
+                xml_content = zf.read(ff)
+                root = etree.fromstring(xml_content)
+                tabs = root.findall(".//w:tab", ns)
+                positions = [int(tab.get(w_pos_attr)) for tab in tabs if tab.get(w_pos_attr)]
+                if positions:
+                    footer_tab_positions.append(max(positions))
+
+            # Different orientations must produce different tab stop positions
+            if len(header_tab_positions) >= 2:
+                assert header_tab_positions[0] != header_tab_positions[1], (
+                    f"Portrait and landscape headers should have different tab stops: "
+                    f"{header_tab_positions}"
+                )
+            if len(footer_tab_positions) >= 2:
+                assert footer_tab_positions[0] != footer_tab_positions[1], (
+                    f"Portrait and landscape footers should have different tab stops: "
+                    f"{footer_tab_positions}"
+                )
+
+            # Verify left/center/right text exists in header
+            all_xml = ""
+            for hf in header_files:
+                all_xml += zf.read(hf).decode("utf-8", errors="ignore")
+            for ff in footer_files:
+                all_xml += zf.read(ff).decode("utf-8", errors="ignore")
+            assert "左" in all_xml, "Left header/footer text not found"
+            assert "中" in all_xml, "Center header/footer text not found"
+            assert "右" in all_xml, "Right header/footer text not found"
 
 
 # ===========================================================================

@@ -570,18 +570,16 @@ def create_template(
                 f"vs manifest='{canonical_manifest.locale}'"
             )
 
-        # Raw manifest fields (removed by from_manifest_json as legacy keys)
-        raw_report_type = raw_manifest.get("report_type")
-        if raw_report_type is not None and raw_report_type != body.report_type.value:
+        # Validate report_type and schema_version from canonical manifest
+        if canonical_manifest.report_type != body.report_type.value:
             raise ValueError(
                 f"report_type mismatch: request='{body.report_type.value}' "
-                f"vs manifest='{raw_report_type}'"
+                f"vs manifest='{canonical_manifest.report_type}'"
             )
-        raw_schema_version = raw_manifest.get("schema_version")
-        if raw_schema_version is not None and raw_schema_version != body.schema_version:
+        if canonical_manifest.schema_version != body.schema_version:
             raise ValueError(
                 f"schema_version mismatch: request='{body.schema_version}' "
-                f"vs manifest='{raw_schema_version}'"
+                f"vs manifest='{canonical_manifest.schema_version}'"
             )
 
         template = ReportTemplate.create(
@@ -647,6 +645,8 @@ def activate_template(
     from dataclasses import replace as dc_replace
     from datetime import UTC, datetime
 
+    from sqlalchemy.exc import IntegrityError
+
     from cold_storage.modules.reports.domain.enums import TemplateStatus
     from cold_storage.modules.reports.domain.errors import TemplateActivationError
 
@@ -686,9 +686,16 @@ def activate_template(
         template_repo.update_template(activated)
         template_repo.commit()
         return TemplateStatusResponse(template_id=template_id, status="active")
+    except IntegrityError:
+        template_repo.rollback()
+        raise HTTPException(status_code=409, detail="Concurrent activation conflict") from None
     except TemplateActivationError as exc:
+        template_repo.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except HTTPException:
+        raise
+    except Exception:
+        template_repo.rollback()
         raise
 
 

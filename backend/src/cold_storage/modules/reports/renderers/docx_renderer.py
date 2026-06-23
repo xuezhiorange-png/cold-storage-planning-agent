@@ -250,7 +250,7 @@ def _add_footer(section: Any, settings: dict[str, Any], meta: Any, page_num: int
     """Add manifest-driven footer with left/center/right text and variable substitution.
 
     P0-5: Replaces the hardcoded _add_page_number_footer().
-    Tab stops computed from actual page width and margins.
+    P0-7: Reads actual section dimensions for landscape-correct tab stops.
     {page_number} in left/right positions generates PAGE field.
     """
     footer_left = settings.get("footer_left", "")
@@ -269,12 +269,12 @@ def _add_footer(section: Any, settings: dict[str, Any], meta: Any, page_num: int
     # For combined left+center+right, use tab stops
     has_multiple = sum(bool(x) for x in [footer_left, footer_center, footer_right]) > 1
 
-    # P0-5: Calculate tab stop positions from actual page width and margins
-    content_width_pt = (
-        settings.get("page_width_pt", _A4_WIDTH_PT)
-        - settings.get("margin_left_pt", _MARGIN_PT)
-        - settings.get("margin_right_pt", _MARGIN_PT)
-    )
+    # P0-7: Calculate tab stop positions from ACTUAL section dimensions
+    # (python-docx page_width returns EMU; 1 pt = 12700 EMU)
+    actual_width_pt = section.page_width / 12700
+    actual_margin_left = section.left_margin / 12700
+    actual_margin_right = section.right_margin / 12700
+    content_width_pt = actual_width_pt - actual_margin_left - actual_margin_right
     # Word tab stops in twips (1/20 pt)
     center_pos = int((content_width_pt / 2) * 20)
     right_pos = int(content_width_pt * 20)
@@ -332,6 +332,7 @@ def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int
     """Add manifest-driven header with left/center/right text and variable substitution.
 
     P0-5: Replaces the hardcoded _add_header().
+    P0-7: Reads actual section dimensions for landscape-correct tab stops.
     """
     header_left = settings.get("header_left", "")
     header_center = settings.get("header_center", "")
@@ -352,12 +353,12 @@ def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int
     has_multiple = sum(bool(x) for x in [header_left, header_center, header_right]) > 1
 
     if has_multiple:
-        # P0-5: Calculate tab stop positions from actual page width and margins
-        h_content_width_pt = (
-            settings.get("page_width_pt", _A4_WIDTH_PT)
-            - settings.get("margin_left_pt", _MARGIN_PT)
-            - settings.get("margin_right_pt", _MARGIN_PT)
-        )
+        # P0-7: Calculate tab stop positions from ACTUAL section dimensions
+        # (python-docx page_width returns EMU; 1 pt = 12700 EMU)
+        actual_width_pt = section.page_width / 12700
+        actual_margin_left = section.left_margin / 12700
+        actual_margin_right = section.right_margin / 12700
+        h_content_width_pt = actual_width_pt - actual_margin_left - actual_margin_right
         h_center_pos = int((h_content_width_pt / 2) * 20)  # twips
         h_right_pos = int(h_content_width_pt * 20)
 
@@ -399,6 +400,7 @@ def _add_draft_watermark(doc: Any, settings: dict[str, Any]) -> None:
 
     P0-5: Adds watermark as a SEPARATE paragraph in each section's header,
     so it coexists with header text without overwriting it.
+    P0-7: Uses actual section dimensions for watermark size.
     """
     wm_text = settings.get("draft_watermark_text", "DRAFT")
     if not wm_text:
@@ -422,6 +424,7 @@ def _add_draft_watermark(doc: Any, settings: dict[str, Any]) -> None:
                 wm_angle,
                 wm_size,
                 settings,
+                section=section,
             )
 
 
@@ -433,12 +436,24 @@ def _add_vml_watermark(
     angle: float,
     font_size: int,
     settings: dict[str, Any],
+    section: Any = None,
 ) -> None:
     """Add VML-based watermark to the document header.
 
     P0-5: Adds watermark as a SEPARATE paragraph so it coexists with header text.
+    P0-7: Uses actual section dimensions (EMU) for watermark width/height.
     Uses proper VML rotation via style attribute and o:opacity for transparency.
     """
+    # P0-7: Compute watermark dimensions from actual section size
+    if section is not None:
+        actual_width_pt = section.page_width / 12700
+        actual_height_pt = section.page_height / 12700
+        wm_width_pt = actual_width_pt * 0.85  # ~85% of page width
+        wm_height_pt = actual_height_pt * 0.30  # ~30% of page height
+    else:
+        wm_width_pt = 527.85
+        wm_height_pt = 131.95
+
     # Add a NEW paragraph for the watermark (don't modify existing header text)
     wm_para = header.add_paragraph()
     wm_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -464,13 +479,13 @@ def _add_vml_watermark(
     shape.set("id", "PowerPlusWaterMarkObject")
     shape.set(qn("o:spid"), "_x0000_s2049")
     shape.set("type", "#_x0000_t136")
-    # P0-5: VML style with rotation in the style attribute (not rotation attribute)
+    # P0-7: VML style with rotation, using section-aware dimensions
     vml_style = (
         "position:absolute;"
         "margin-left:0;"
         "margin-top:0;"
-        "width:527.85pt;"
-        "height:131.95pt;"
+        f"width:{wm_width_pt:.2f}pt;"
+        f"height:{wm_height_pt:.2f}pt;"
         f"z-index:-251658752;"
         f"rotation:{int(angle)};"
         "mso-position-horizontal:center;"

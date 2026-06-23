@@ -96,13 +96,20 @@ def _make_valid_manifest(
     version: str = "1.0.0",
     format: str = "docx",
     locale: str = "zh-CN",
+    report_type: str = "cold_storage_concept_design",
+    schema_version: str = "1.0.0",
 ) -> dict[str, Any]:
-    """Build a valid manifest dict with all required identity fields."""
+    """Build a valid manifest dict with all required identity fields.
+
+    Now includes report_type and schema_version for P0-1 canonical manifest.
+    """
     return {
         "template_code": template_code,
         "version": version,
         "format": format,
         "locale": locale,
+        "report_type": report_type,
+        "schema_version": schema_version,
     }
 
 
@@ -228,7 +235,9 @@ class TestTemplateTypeValidation:
                 "format": "docx",
                 "version": "1.0.0",
                 "schema_version": "cold_storage_concept_design@1.0.0",
-                "manifest_json": _make_valid_manifest(),
+                "manifest_json": _make_valid_manifest(
+                    schema_version="cold_storage_concept_design@1.0.0"
+                ),
             },
         )
         assert resp.status_code == 200
@@ -383,7 +392,9 @@ class TestTemplateCreationSuccess:
                 "format": "docx",
                 "version": "1.0.0",
                 "schema_version": "cold_storage_concept_design@1.0.0",
-                "manifest_json": _make_valid_manifest(),
+                "manifest_json": _make_valid_manifest(
+                    schema_version="cold_storage_concept_design@1.0.0"
+                ),
             },
         )
         assert resp.status_code == 200
@@ -402,14 +413,18 @@ class TestTemplateCreationSuccess:
             "format": "docx",
             "version": "1.0.0",
             "schema_version": "cold_storage_concept_design@1.0.0",
-            "manifest_json": _make_valid_manifest(),
+            "manifest_json": _make_valid_manifest(
+                schema_version="cold_storage_concept_design@1.0.0"
+            ),
         }
         r1 = client.post("/api/v1/report-templates", json=payload)
         r2 = client.post(
             "/api/v1/report-templates",
             json={
                 **payload,
-                "manifest_json": _make_valid_manifest(),
+                "manifest_json": _make_valid_manifest(
+                    schema_version="cold_storage_concept_design@1.0.0"
+                ),
             },
         )
         assert r1.status_code == 200
@@ -426,7 +441,7 @@ class TestTemplateCreationSuccess:
                 "format": "docx",
                 "version": "1.0.0",
                 "schema_version": "v1",
-                "manifest_json": _make_valid_manifest(version="1.0.0"),
+                "manifest_json": _make_valid_manifest(version="1.0.0", schema_version="v1"),
             },
         )
         r2 = client.post(
@@ -437,7 +452,7 @@ class TestTemplateCreationSuccess:
                 "format": "docx",
                 "version": "1.0.1",
                 "schema_version": "v1",
-                "manifest_json": _make_valid_manifest(version="1.0.1"),
+                "manifest_json": _make_valid_manifest(version="1.0.1", schema_version="v1"),
             },
         )
         assert r1.status_code == 200
@@ -458,7 +473,9 @@ class TestTemplateActivation:
                 "format": "docx",
                 "version": "1.0.0",
                 "schema_version": "cold_storage_concept_design@1.0.0",
-                "manifest_json": _make_valid_manifest(),
+                "manifest_json": _make_valid_manifest(
+                    schema_version="cold_storage_concept_design@1.0.0"
+                ),
             },
         )
         assert resp.status_code == 200
@@ -688,6 +705,251 @@ class TestTemplateUpdate:
         )
         assert resp.status_code == 422
         assert "manifest_json must not be empty" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# P0-1: Template identity fields in Canonical Manifest tests
+# ---------------------------------------------------------------------------
+
+
+class TestCanonicalManifestIdentity:
+    """P0-1: report_type and schema_version preserved in canonical manifest."""
+
+    def test_wrong_report_type_in_manifest_returns_422(self, client):
+        """Wrong report_type in manifest caught via canonical manifest → 422."""
+        manifest = _make_valid_manifest(report_type="wrong_type")
+        resp = client.post(
+            "/api/v1/report-templates",
+            json={
+                "template_code": "cold_storage_concept_design",
+                "report_type": "cold_storage_concept_design",
+                "format": "docx",
+                "version": "1.0.0",
+                "schema_version": "1.0.0",
+                "manifest_json": manifest,
+            },
+        )
+        assert resp.status_code == 422
+        assert "report_type mismatch" in resp.json()["detail"]
+
+    def test_wrong_schema_version_in_manifest_returns_422(self, client):
+        """Wrong schema_version in manifest caught via canonical manifest → 422."""
+        manifest = _make_valid_manifest(schema_version="wrong@2.0")
+        resp = client.post(
+            "/api/v1/report-templates",
+            json={
+                "template_code": "cold_storage_concept_design",
+                "report_type": "cold_storage_concept_design",
+                "format": "docx",
+                "version": "1.0.0",
+                "schema_version": "1.0.0",
+                "manifest_json": manifest,
+            },
+        )
+        assert resp.status_code == 422
+        assert "schema_version mismatch" in resp.json()["detail"]
+
+    def test_canonical_manifest_preserves_report_type(self):
+        """from_manifest_json preserves report_type in canonical output."""
+        from cold_storage.modules.reports.domain.render_model import TemplateManifest
+
+        manifest = {
+            "template_code": "cold_storage_concept_design",
+            "report_type": "cold_storage_concept_design",
+            "schema_version": "cold_storage_concept_design@1.0.0",
+            "locale": "zh-CN",
+        }
+        tm = TemplateManifest.from_manifest_json(manifest)
+        assert tm.report_type == "cold_storage_concept_design"
+
+    def test_canonical_manifest_preserves_schema_version(self):
+        """from_manifest_json preserves schema_version in canonical output."""
+        from cold_storage.modules.reports.domain.render_model import TemplateManifest
+
+        manifest = {
+            "template_code": "cold_storage_concept_design",
+            "report_type": "cold_storage_concept_design",
+            "schema_version": "custom_schema@2.0.0",
+            "locale": "zh-CN",
+        }
+        tm = TemplateManifest.from_manifest_json(manifest)
+        assert tm.schema_version == "custom_schema@2.0.0"
+
+    def test_hash_changes_when_schema_version_changes(self, client):
+        """Same manifest with different schema_version → different hash."""
+        payload1 = {
+            "template_code": "cold_storage_concept_design",
+            "report_type": "cold_storage_concept_design",
+            "format": "docx",
+            "version": "1.0.0",
+            "schema_version": "cold_storage_concept_design@1.0.0",
+            "manifest_json": _make_valid_manifest(
+                schema_version="cold_storage_concept_design@1.0.0"
+            ),
+        }
+        payload2 = {
+            **payload1,
+            "schema_version": "cold_storage_concept_design@2.0.0",
+            "manifest_json": _make_valid_manifest(
+                schema_version="cold_storage_concept_design@2.0.0"
+            ),
+        }
+        r1 = client.post("/api/v1/report-templates", json=payload1)
+        r2 = client.post("/api/v1/report-templates", json=payload2)
+        assert r1.status_code == 200
+        assert r2.status_code == 200
+        assert r1.json()["template_content_hash"] != r2.json()["template_content_hash"]
+
+    def test_canonical_manifest_model_dump_includes_identity(self):
+        """TemplateManifest.model_dump() includes report_type and schema_version."""
+        from cold_storage.modules.reports.domain.render_model import TemplateManifest
+
+        manifest = {
+            "template_code": "cold_storage_concept_design",
+            "report_type": "cold_storage_concept_design",
+            "schema_version": "cold_storage_concept_design@1.0.0",
+            "locale": "zh-CN",
+        }
+        tm = TemplateManifest.from_manifest_json(manifest)
+        dumped = tm.model_dump()
+        assert "report_type" in dumped
+        assert dumped["report_type"] == "cold_storage_concept_design"
+        assert "schema_version" in dumped
+        assert dumped["schema_version"] == "cold_storage_concept_design@1.0.0"
+
+
+# ---------------------------------------------------------------------------
+# P0-3: ORM active_slot partial unique constraint tests
+# ---------------------------------------------------------------------------
+
+
+class TestORMActiveSlotConstraint:
+    """P0-3: Active slot unique constraint prevents duplicate active templates."""
+
+    def test_direct_db_insert_two_active_raises_integrity(self, session):
+        """Insert two records with same code+format+active_slot=active → IntegrityError."""
+        import sqlalchemy as sa
+        from sqlalchemy.exc import IntegrityError
+
+        from cold_storage.modules.reports.infrastructure.orm import ReportTemplateRecord
+
+        rec1 = ReportTemplateRecord(
+            id="t1",
+            template_code="test_code",
+            report_type="cold_storage_concept_design",
+            format="docx",
+            version="1.0",
+            status="active",
+            schema_version="1.0",
+            locale="zh-CN",
+            manifest_json={},
+            template_content_hash="",
+            created_by="test",
+            active_slot="active",
+        )
+        rec2 = ReportTemplateRecord(
+            id="t2",
+            template_code="test_code",
+            report_type="cold_storage_concept_design",
+            format="docx",
+            version="2.0",
+            status="active",
+            schema_version="1.0",
+            locale="zh-CN",
+            manifest_json={},
+            template_content_hash="",
+            created_by="test",
+            active_slot="active",
+        )
+        session.add(rec1)
+        session.commit()
+        session.add(rec2)
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+        # Session must be usable after rollback
+        result = session.execute(sa.select(ReportTemplateRecord)).scalars().all()
+        assert len(result) == 1
+
+    def test_direct_db_insert_one_active_one_null_succeeds(self, session):
+        """Insert one active and one NULL active_slot → succeeds."""
+        import sqlalchemy as sa
+
+        from cold_storage.modules.reports.infrastructure.orm import ReportTemplateRecord
+
+        rec1 = ReportTemplateRecord(
+            id="t1",
+            template_code="test_code",
+            report_type="cold_storage_concept_design",
+            format="docx",
+            version="1.0",
+            status="active",
+            schema_version="1.0",
+            locale="zh-CN",
+            manifest_json={},
+            template_content_hash="",
+            created_by="test",
+            active_slot="active",
+        )
+        rec2 = ReportTemplateRecord(
+            id="t2",
+            template_code="test_code",
+            report_type="cold_storage_concept_design",
+            format="docx",
+            version="2.0",
+            status="draft",
+            schema_version="1.0",
+            locale="zh-CN",
+            manifest_json={},
+            template_content_hash="",
+            created_by="test",
+            active_slot=None,
+        )
+        session.add(rec1)
+        session.add(rec2)
+        session.commit()
+        result = session.execute(sa.select(ReportTemplateRecord)).scalars().all()
+        assert len(result) == 2
+
+    def test_direct_db_insert_different_format_both_active_succeeds(self, session):
+        """Insert two active records with same code but different format → succeeds."""
+        import sqlalchemy as sa
+
+        from cold_storage.modules.reports.infrastructure.orm import ReportTemplateRecord
+
+        rec1 = ReportTemplateRecord(
+            id="t1",
+            template_code="test_code",
+            report_type="cold_storage_concept_design",
+            format="docx",
+            version="1.0",
+            status="active",
+            schema_version="1.0",
+            locale="zh-CN",
+            manifest_json={},
+            template_content_hash="",
+            created_by="test",
+            active_slot="active",
+        )
+        rec2 = ReportTemplateRecord(
+            id="t2",
+            template_code="test_code",
+            report_type="cold_storage_concept_design",
+            format="pdf",
+            version="1.0",
+            status="active",
+            schema_version="1.0",
+            locale="zh-CN",
+            manifest_json={},
+            template_content_hash="",
+            created_by="test",
+            active_slot="active",
+        )
+        session.add(rec1)
+        session.add(rec2)
+        session.commit()
+        result = session.execute(sa.select(ReportTemplateRecord)).scalars().all()
+        assert len(result) == 2
 
 
 # ---------------------------------------------------------------------------

@@ -119,6 +119,8 @@ class TemplateManifest(BaseModel):
     format: str = "docx"  # "docx" or "pdf"
     template_code: str = "cold_storage_concept_design"
     version: str = "1.0.0"
+    report_type: str = "cold_storage_concept_design"
+    schema_version: str = "1.0.0"
     empty_section_behavior: TemplateEmptySectionConfig = Field(
         default_factory=TemplateEmptySectionConfig
     )
@@ -251,11 +253,15 @@ class TemplateManifest(BaseModel):
             "styles",
             "draft_watermark",
             "placeholder_text",
-            "report_type",
-            "schema_version",
             "status",
         ):
             data.pop(key, None)
+
+        # Preserve identity fields
+        if "report_type" in manifest_json:
+            data["report_type"] = manifest_json["report_type"]
+        if "schema_version" in manifest_json:
+            data["schema_version"] = manifest_json["schema_version"]
 
         return cls.model_validate(data)
 
