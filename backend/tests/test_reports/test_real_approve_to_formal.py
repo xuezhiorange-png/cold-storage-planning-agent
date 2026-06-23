@@ -12,11 +12,11 @@ Uses REAL components:
   - LocalArtifactStorage (real file I/O)
 
 Verifies:
-  1. Formal PDF output contains approval section (Chinese approval fields)
-  2. Formal DOCX output contains approval section
-  3. Artifact manifest contains all 5 approval fields
-  4. PDF and DOCX manifests match (same approval snapshot)
-  5. Cross-session: approval fields persist across sessions
+  1. Formal PDF output contains exact complete approval snapshot strings
+  2. Formal DOCX output contains exact complete approval snapshot strings
+  3. Persisted artifact manifests contain all 5 approval fields and match
+  4. Cross-session: approval fields persist across sessions
+  5. Formal render of unapproved report is rejected
 """
 
 from __future__ import annotations
@@ -178,18 +178,57 @@ def _setup_approved_report(
         return report, repo.get_latest_revision(report.id)
 
 
+def _reload_report(session_factory: sessionmaker, report_id: str) -> Report:
+    """Reload a report from the DB (fresh session) to get canonical stored values.
+
+    This is necessary because the approved_at value may differ between the
+    in-memory object (which includes timezone from Python) and the DB-stored
+    value (which SQLite may strip timezone from).
+    """
+    with session_factory() as s:
+        repo = SQLReportRepository(s)
+        return repo.get_report(report_id)
+
+
+def _build_expected_strings(
+    approved_rev: ReportRevision,
+    report: Report,
+) -> list[str]:
+    """Build the exact approval strings that render_model_builder generates.
+
+    These match the format strings in
+    render_model_builder._build_citations_and_approval exactly, including
+    the full-width colon ：
+    """
+    # report.approved_at is always a str from _to_report (which calls
+    # rec.approved_at.isoformat()).  No further conversion needed.
+    return [
+        f"批准修订号：{approved_rev.revision_number}",
+        f"批准修订ID：{report.approved_revision_id}",
+        f"批准内容哈希：{report.approved_content_hash}",
+        f"批准人：{report.approved_by}",
+        f"批准时间：{report.approved_at}",
+    ]
+
+
 # ---------------------------------------------------------------------------
 # P0-4: Real approve→formal pipeline tests
 # ---------------------------------------------------------------------------
 
 
 class TestRealApproveToFormal:
-    def test_real_approve_to_formal_docx_contains_approval_fields(self, session_factory, tmp_path):
+    def test_real_formal_docx_contains_exact_complete_approval_snapshot(
+        self, session_factory, tmp_path
+    ):
         """Full pipeline: create → generate → review → approve → render formal DOCX.
 
-        Verifies DOCX output contains approval section text.
+        Verifies DOCX output contains every exact approval string
+        (no weak 'or' assertions).
         """
         report, approved_rev = _setup_approved_report(session_factory)
+        # Reload from DB to get the canonical stored approved_at value
+        db_report = _reload_report(session_factory, report.id)
+        expected_strings = _build_expected_strings(approved_rev, db_report)
 
         # Seed real templates
         with session_factory() as s:
@@ -202,7 +241,6 @@ class TestRealApproveToFormal:
             repo = SQLReportRepository(s)
             uow = ReportRenderUnitOfWork(s, report_repo=repo, artifact_repo=repo)
 
-            # Load real templates for render service
             storage = ReportArtifactStorage(str(tmp_path / "artifacts"))
             template_repo = SQLReportRepository(s)
 
@@ -232,26 +270,22 @@ class TestRealApproveToFormal:
             doc = Document(io.BytesIO(docx_bytes))
             docx_text = "\n".join(p.text for p in doc.paragraphs)
 
-            # Must contain approval fields (Chinese labels from render_model_builder)
-            assert "批准修订号" in docx_text or str(approved_rev.revision_number) in docx_text
-            assert "批准修订ID" in docx_text or artifact.report_revision_id in docx_text
-            assert "批准内容哈希" in docx_text or artifact.source_content_hash in docx_text
-            assert "批准人" in docx_text or "test-user" in docx_text
+            # Strict exact-value assertions for every approval string
+            for s in expected_strings:
+                assert s in docx_text, f"DOCX missing exact approval string: {s}"
 
-            # Check manifest
-            manifest = artifact.render_manifest_json
-            assert manifest["approved_revision_number"] == approved_rev.revision_number
-            assert manifest["approved_revision_id"] != ""
-            assert manifest["approved_content_hash"] != ""
-            assert manifest["approved_by"] == "test-user"
-            assert manifest["approved_at"] != ""
-
-    def test_real_approve_to_formal_pdf_contains_approval_fields(self, session_factory, tmp_path):
+    def test_real_formal_pdf_contains_exact_complete_approval_snapshot(
+        self, session_factory, tmp_path
+    ):
         """Full pipeline: create → generate → review → approve → render formal PDF.
 
-        Verifies PDF output contains approval section text.
+        Verifies PDF output contains every exact approval string
+        (no weak 'or' assertions).
         """
         report, approved_rev = _setup_approved_report(session_factory)
+        # Reload from DB to get the canonical stored approved_at value
+        db_report = _reload_report(session_factory, report.id)
+        expected_strings = _build_expected_strings(approved_rev, db_report)
 
         # Seed real templates
         with session_factory() as s:
@@ -291,25 +325,20 @@ class TestRealApproveToFormal:
             pdf_text = "".join(page.get_text() for page in doc)
             doc.close()
 
-            # Must contain approval fields
-            assert "批准修订号" in pdf_text or str(approved_rev.revision_number) in pdf_text
-            assert "批准修订ID" in pdf_text or artifact.report_revision_id in pdf_text
-            assert "批准内容哈希" in pdf_text or artifact.source_content_hash in pdf_text
-            assert "批准人" in pdf_text or "test-user" in pdf_text
+            # Strict exact-value assertions for every approval string
+            for s in expected_strings:
+                assert s in pdf_text, f"PDF missing exact approval string: {s}"
 
-            # Check manifest
-            manifest = artifact.render_manifest_json
-            assert manifest["approved_revision_number"] == approved_rev.revision_number
-            assert manifest["approved_revision_id"] != ""
-            assert manifest["approved_content_hash"] != ""
-            assert manifest["approved_by"] == "test-user"
-            assert manifest["approved_at"] != ""
-
-    def test_pdf_and_docx_manifests_match(self, session_factory, tmp_path):
+    def test_persisted_artifact_manifests_equal_report_approval_snapshot(
+        self, session_factory, tmp_path
+    ):
         """PDF and DOCX renders of the same approved revision produce
-        identical approval snapshots in their manifests.
+        identical approval snapshots in their manifests, and those
+        snapshots match the Report's approval fields exactly.
         """
         report, approved_rev = _setup_approved_report(session_factory)
+        # Reload from DB to get canonical stored values
+        db_report = _reload_report(session_factory, report.id)
 
         # Seed real templates
         with session_factory() as s:
@@ -357,15 +386,44 @@ class TestRealApproveToFormal:
                 actor="test-user",
             )
 
-        # Compare approval fields in manifests
-        docx_manifest = docx_artifact.render_manifest_json
-        pdf_manifest = pdf_artifact.render_manifest_json
+        # Reload artifacts from DB in a fresh session
+        with session_factory() as s:
+            repo = SQLReportRepository(s)
+            docx_reloaded = repo.get_artifact(docx_artifact.id)
+            pdf_reloaded = repo.get_artifact(pdf_artifact.id)
 
-        assert docx_manifest["approved_revision_number"] == pdf_manifest["approved_revision_number"]
-        assert docx_manifest["approved_revision_id"] == pdf_manifest["approved_revision_id"]
-        assert docx_manifest["approved_content_hash"] == pdf_manifest["approved_content_hash"]
-        assert docx_manifest["approved_by"] == pdf_manifest["approved_by"]
-        assert docx_manifest["approved_at"] == pdf_manifest["approved_at"]
+            # Build expected approval dict from DB-canonical report
+            approved_at = db_report.approved_at
+
+            # Assert each manifest field matches the Report's approval fields
+            for label, manifest in [
+                ("DOCX", docx_reloaded.render_manifest_json),
+                ("PDF", pdf_reloaded.render_manifest_json),
+            ]:
+                assert manifest["approved_revision_number"] == approved_rev.revision_number, (
+                    f"{label} manifest approved_revision_number mismatch"
+                )
+                assert manifest["approved_revision_id"] == db_report.approved_revision_id, (
+                    f"{label} manifest approved_revision_id mismatch"
+                )
+                assert manifest["approved_content_hash"] == db_report.approved_content_hash, (
+                    f"{label} manifest approved_content_hash mismatch"
+                )
+                assert manifest["approved_by"] == db_report.approved_by, (
+                    f"{label} manifest approved_by mismatch"
+                )
+                assert manifest["approved_at"] == approved_at, (
+                    f"{label} manifest approved_at mismatch"
+                )
+
+            # Assert DOCX and PDF manifests are identical for all 5 approval fields
+            docx_m = docx_reloaded.render_manifest_json
+            pdf_m = pdf_reloaded.render_manifest_json
+            assert docx_m["approved_revision_number"] == pdf_m["approved_revision_number"]
+            assert docx_m["approved_revision_id"] == pdf_m["approved_revision_id"]
+            assert docx_m["approved_content_hash"] == pdf_m["approved_content_hash"]
+            assert docx_m["approved_by"] == pdf_m["approved_by"]
+            assert docx_m["approved_at"] == pdf_m["approved_at"]
 
     def test_approval_fields_persist_across_sessions(self, session_factory):
         """Approval fields on Report persist across session boundaries."""

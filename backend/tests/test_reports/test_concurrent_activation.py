@@ -4,6 +4,13 @@ Covers P0-2 (concurrent activation) and P0-3 (IntegrityError handling).
 
 All tests use REAL SQLAlchemy sessions backed by a SQLite file database
 (not in-memory), threading, and Barrier synchronization.
+
+The ``TestRealAPIConcurrentActivation`` class goes further: it spins up a
+real FastAPI app with per-request sessions, two OS threads, and real HTTP
+requests via ``httpx.Client`` with ``ASGITransport``.  A Barrier is injected
+via monkeypatching ``SQLReportRepository.deactivate_templates`` so both
+threads synchronize *after* deactivating but *before* committing the
+activation — guaranteeing a genuine race at the DB unique-constraint level.
 """
 
 from __future__ import annotations
@@ -243,11 +250,18 @@ class TestConcurrentActivation:
 
 
 # ---------------------------------------------------------------------------
-# P0-3: API-level concurrent activation (IntegrityError → 409)
+# P0-3: API-level concurrent activation — mock-based (IntegrityError → 409)
 # ---------------------------------------------------------------------------
 
 
 class TestAPIConcurrentActivation:
+    """Mock-based API activation tests.
+
+    These tests verify the route handler catches IntegrityError and returns
+    409, using MagicMock or pre-seeded DB states rather than true concurrent
+    requests.
+    """
+
     def test_api_concurrent_activation_one_409(self, session_factory):
         """API activate_template catches IntegrityError and returns 409.
 
@@ -316,8 +330,10 @@ class TestAPIConcurrentActivation:
         """When IntegrityError occurs during activation, API returns 409.
 
         Simulates the IntegrityError by directly calling the route handler
-        with a conflicting session state.
+        with a conflicting session state via a mock repo.
         """
+        from unittest.mock import MagicMock
+
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
@@ -333,8 +349,6 @@ class TestAPIConcurrentActivation:
         app.include_router(reports_template_router)
 
         # Create a repo that will fail on commit with IntegrityError
-        from unittest.mock import MagicMock
-
         mock_repo = MagicMock()
         mock_repo.get_template.return_value = ReportTemplate(
             id="v1",
@@ -379,7 +393,6 @@ class TestAPIConcurrentActivation:
 
         app = FastAPI()
         app.include_router(reports_template_router)
-
         real_repo = SQLReportRepository(session_factory())
         app.dependency_overrides[_get_template_repo] = lambda: real_repo
         app.dependency_overrides[_get_actor] = lambda: "test"
@@ -422,13 +435,11 @@ class TestAPIConcurrentActivation:
 
         app = FastAPI()
         app.include_router(reports_template_router)
-
         real_repo = SQLReportRepository(session_factory())
         app.dependency_overrides[_get_template_repo] = lambda: real_repo
         app.dependency_overrides[_get_actor] = lambda: "test"
 
         client = TestClient(app, raise_server_exceptions=False)
-
         resp1 = client.post("/api/v1/report-templates/v1/activate")
         assert resp1.status_code == 200
 
@@ -465,6 +476,232 @@ class TestAPIConcurrentActivation:
         app.dependency_overrides[_get_actor] = lambda: "test"
 
         client = TestClient(app, raise_server_exceptions=False)
-
         resp = client.post("/api/v1/report-templates/v1/activate")
         assert resp.status_code == 409, resp.json()
+
+
+# ---------------------------------------------------------------------------
+# P0-2 + P0-3: Real API concurrent activation
+# ---------------------------------------------------------------------------
+# Uses file-backed SQLite, real FastAPI app with per-request Session,
+# two OS threads making real HTTP requests via httpx.Client + ASGITransport.
+# A Barrier is injected by monkeypatching ``deactivate_templates`` so both
+# threads synchronize *after* deactivating but *before* committing —
+# guaranteeing a genuine race at the DB unique-constraint level.
+
+
+def _build_app_for_test(session_factory):
+    """Create a FastAPI app wired to the given session_factory."""
+    from fastapi import FastAPI
+
+    from cold_storage.modules.reports.api.routes import (
+        _get_actor,
+        _get_template_repo,
+        reports_template_router,
+    )
+
+    app = FastAPI()
+    app.include_router(reports_template_router)
+
+    def _get_repo():
+        s = session_factory()
+        try:
+            yield SQLReportRepository(s)
+        finally:
+            s.close()
+
+    app.dependency_overrides[_get_template_repo] = _get_repo
+    app.dependency_overrides[_get_actor] = lambda: "api-test"
+
+    return app
+
+
+def _activate_via_http(app, template_id: str) -> int:
+    """Make an async HTTP POST to the activate endpoint, return status code.
+
+    Each call creates its own event loop and ``httpx.AsyncClient`` so it can
+    run from a plain OS thread without interfering with other threads or with
+    pytest's own event loop.
+    """
+    import asyncio
+
+    import httpx
+
+    async def _post():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(f"/api/v1/report-templates/{template_id}/activate")
+            return resp.status_code
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_post())
+    finally:
+        loop.close()
+
+
+class TestRealAPIConcurrentActivation:
+    """Real API concurrent activation tests.
+
+    Two threads each issue a real HTTP POST to the activate endpoint.
+    A Barrier injected via monkeypatch on ``SQLReportRepository.deactivate_templates``
+    ensures both threads reach the activate step simultaneously, producing a
+    genuine race on the DB partial unique index.
+    """
+
+    def test_real_concurrent_api_activation_returns_one_200_one_409(self, session_factory):
+        """Two threads simultaneously activate v1 and v2 via real HTTP.
+
+        One must return 200, the other 409.
+        The barrier is injected after ``deactivate_templates`` so both threads
+        have cleared any existing active template before racing to set theirs.
+        """
+        _seed_two_draft_templates(session_factory)
+
+        app = _build_app_for_test(session_factory)
+
+        barrier = threading.Barrier(2, timeout=10)
+        original_deactivate = SQLReportRepository.deactivate_templates
+
+        def _synchronized_deactivate(self, template_code, fmt):
+            result = original_deactivate(self, template_code, fmt)
+            self._session.commit()  # flush + release any pending lock
+            barrier.wait()  # both threads must pass before either proceeds
+            return result
+
+        # Monkeypatch at the class level so both per-request repo instances
+        # (which are different objects) see the patched method.
+        SQLReportRepository.deactivate_templates = _synchronized_deactivate  # type: ignore[assignment]
+
+        results: list[int | None] = [None, None]
+
+        def _thread_activate(template_id: str, idx: int) -> None:
+            results[idx] = _activate_via_http(app, template_id)
+
+        t1 = threading.Thread(target=_thread_activate, args=("v1", 0))
+        t2 = threading.Thread(target=_thread_activate, args=("v2", 1))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        # Restore original method
+        SQLReportRepository.deactivate_templates = original_deactivate  # type: ignore[assignment]
+
+        assert 200 in results, f"Expected one 200, got {results}"
+        assert 409 in results, f"Expected one 409, got {results}"
+
+    def test_real_concurrent_api_activation_leaves_exactly_one_active(self, session_factory):
+        """After concurrent API activation, exactly one template is active.
+
+        Same two-thread setup as above; verifies the DB state after both
+        threads have completed.
+        """
+        _seed_two_draft_templates(session_factory)
+
+        app = _build_app_for_test(session_factory)
+
+        barrier = threading.Barrier(2, timeout=10)
+        original_deactivate = SQLReportRepository.deactivate_templates
+
+        def _synchronized_deactivate(self, template_code, fmt):
+            result = original_deactivate(self, template_code, fmt)
+            self._session.commit()
+            barrier.wait()
+            return result
+
+        SQLReportRepository.deactivate_templates = _synchronized_deactivate  # type: ignore[assignment]
+
+        def _thread_activate(template_id: str) -> None:
+            _activate_via_http(app, template_id)
+
+        t1 = threading.Thread(target=_thread_activate, args=("v1",))
+        t2 = threading.Thread(target=_thread_activate, args=("v2",))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        SQLReportRepository.deactivate_templates = original_deactivate  # type: ignore[assignment]
+
+        # Verify exactly one active template in DB
+        with session_factory() as s:
+            active = (
+                s.execute(
+                    sa.select(ReportTemplateRecord).where(
+                        ReportTemplateRecord.active_slot == "active"
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(active) == 1, f"Expected exactly 1 active template, got {len(active)}"
+
+    def test_conflicted_api_session_is_usable_after_rollback(self, session_factory):
+        """After a 409 response, the server session is usable for subsequent requests.
+
+        Makes two concurrent activate calls (one 409), then issues a third
+        sequential GET request to verify the server's session pool is still
+        healthy and returns data correctly.
+        """
+        _seed_two_draft_templates(session_factory)
+
+        app = _build_app_for_test(session_factory)
+
+        barrier = threading.Barrier(2, timeout=10)
+        original_deactivate = SQLReportRepository.deactivate_templates
+
+        def _synchronized_deactivate(self, template_code, fmt):
+            result = original_deactivate(self, template_code, fmt)
+            self._session.commit()
+            barrier.wait()
+            return result
+
+        SQLReportRepository.deactivate_templates = _synchronized_deactivate  # type: ignore[assignment]
+
+        results: list[int | None] = [None, None]
+
+        def _thread_activate(template_id: str, idx: int) -> None:
+            results[idx] = _activate_via_http(app, template_id)
+
+        t1 = threading.Thread(target=_thread_activate, args=("v1", 0))
+        t2 = threading.Thread(target=_thread_activate, args=("v2", 1))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        SQLReportRepository.deactivate_templates = original_deactivate  # type: ignore[assignment]
+
+        assert 200 in results, f"Expected one 200, got {results}"
+        assert 409 in results, f"Expected one 409, got {results}"
+
+        # Verify the session pool is still usable by issuing a GET request
+        # using a simple event loop + async client (not through a barrier)
+        import asyncio
+
+        import httpx
+
+        async def _get_templates():
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                return await client.get("/api/v1/report-templates")
+
+        loop = asyncio.new_event_loop()
+        try:
+            resp = loop.run_until_complete(_get_templates())
+        finally:
+            loop.close()
+
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert "templates" in data
+        assert len(data["templates"]) == 2  # both v1 and v2 still exist
+
+        # Exactly one should be active
+        active_templates = [t for t in data["templates"] if t["status"] == "active"]
+        assert len(active_templates) == 1, (
+            f"Expected exactly 1 active template, got {len(active_templates)}: {active_templates}"
+        )
