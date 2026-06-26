@@ -7,10 +7,7 @@ import {
   type DesignInputs,
   type DesignInputValidationError
 } from '../model/designInputs'
-import { LatestRequestGate } from '../../../shared/composables/latestRequestGate'
-import { createPlanningApi, type PlanningApi } from '../../../features/calculations/api/planningApi'
-import { isRequestCancelled } from '../../../api/errors'
-import type { PlanningRunResponse } from '../../../api/contracts/planning'
+import type { PlanningRunRequest } from '../../../api/contracts/planning'
 
 export interface FactoryOverview {
   factoryName: string
@@ -26,10 +23,6 @@ export function createDefaultFactoryOverview(): FactoryOverview {
   }
 }
 
-export interface ProjectSubmitResult {
-  response: PlanningRunResponse
-}
-
 export interface UseProjectFormReturn {
   /** Reactive design inputs, bound directly to form controls */
   designInputs: DesignInputs
@@ -43,13 +36,24 @@ export interface UseProjectFormReturn {
   validationErrors: Ref<DesignInputValidationError[]>
   /** Validate all inputs. Returns true if valid. */
   validate: () => boolean
-  /** Submit the form (validates first, then calls the planning API) */
-  submit: () => Promise<ProjectSubmitResult | null>
+  /** Submit the form (validates first, then calls submitHandler if provided). Returns true if validation passed. */
+  submit: () => Promise<boolean>
   /** Reset all inputs to defaults */
   reset: () => void
 }
 
-export function useProjectForm(planningApi: PlanningApi = createPlanningApi()): UseProjectFormReturn {
+/**
+ * Composable for managing project form state.
+ *
+ * - Only handles form state, validation, request mapping, dirty/reset.
+ * - Does NOT make API calls. Accepts an optional `submitHandler` callback
+ *   that receives the mapped `PlanningRunRequest` on successful validation.
+ * - Tracks a request counter so that a superseded (stale) submit's `finally`
+ *   block does not clear `submitting` while a newer submit is still in flight.
+ */
+export function useProjectForm(
+  submitHandler?: (request: PlanningRunRequest) => Promise<void>
+): UseProjectFormReturn {
   const designInputs = reactive<DesignInputs>({ ...createDefaultDesignInputs() })
   const factoryOverview = reactive<FactoryOverview>({ ...createDefaultFactoryOverview() })
 
@@ -57,7 +61,8 @@ export function useProjectForm(planningApi: PlanningApi = createPlanningApi()): 
   const submitError = ref('')
   const validationErrors = ref<DesignInputValidationError[]>([])
 
-  const gate = new LatestRequestGate()
+  /** Monotonically increasing counter to identify the most recent submit call. */
+  let currentRequestId = 0
 
   function validate(): boolean {
     const errors = validateDesignInputs(designInputs)
@@ -65,38 +70,34 @@ export function useProjectForm(planningApi: PlanningApi = createPlanningApi()): 
     return errors.length === 0
   }
 
-  async function submit(): Promise<ProjectSubmitResult | null> {
+  async function submit(): Promise<boolean> {
     submitError.value = ''
     validationErrors.value = []
 
     if (!validate()) {
-      return null
+      return false
     }
 
+    const requestId = ++currentRequestId
     submitting.value = true
 
     try {
-      const handle = gate.begin()
       const request = mapDesignInputsToPlanningRequest(designInputs)
-
-      const response = await planningApi.run(request, handle.signal)
-
-      if (!handle.isCurrent()) {
-        return null
-      }
-
-      handle.finish()
-      return { response }
+      await submitHandler?.(request)
+      return true
     } catch (error: unknown) {
-      if (isRequestCancelled(error)) {
-        return null
+      if (requestId === currentRequestId) {
+        const message =
+          error instanceof Error ? error.message : '提交失败，请检查后端服务'
+        submitError.value = message
       }
-      const message =
-        error instanceof Error ? error.message : '提交失败，请检查后端服务'
-      submitError.value = message
-      return null
+      return false
     } finally {
-      submitting.value = false
+      // Only clear submitting if this submit is still the most recent call.
+      // This prevents a stale finally from hiding a newer in-flight request.
+      if (requestId === currentRequestId) {
+        submitting.value = false
+      }
     }
   }
 

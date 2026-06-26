@@ -41,13 +41,23 @@ export function createDefaultExportForm(): ExportForm {
 /**
  * Reactive state and actions for the report-export feature.
  *
- * Wires together:
- *   - ReportsApi for all HTTP calls
- *   - LatestRequestGate to cancel stale in-flight requests
- *   - Browser download triggering via a temporary <a> element
+ * Uses four independent LatestRequestGate instances so that unrelated
+ * domains (reports list, detail, render, download) never cancel each
+ * other and stale responses cannot leave loading flags permanently true.
+ *
+ * Domains:
+ *   - reportsGate  → loadReports
+ *   - detailGate   → selectReport, loadRevisions, loadExports
+ *   - renderGate   → renderReport
+ *   - downloadGate → downloadArtifact
  */
 export function useReportExport(api: ReportsApi = reportsApi) {
-  const gate = new LatestRequestGate()
+  /* ── 4 independent gate domains ──────────────────────────── */
+
+  const reportsGate = new LatestRequestGate()
+  const detailGate = new LatestRequestGate()
+  const renderGate = new LatestRequestGate()
+  const downloadGate = new LatestRequestGate()
 
   /* ── Reports list ────────────────────────────────────────── */
 
@@ -94,10 +104,10 @@ export function useReportExport(api: ReportsApi = reportsApi) {
 
   /**
    * Load all reports, optionally filtered by project.
-   * Stale requests from previous calls are auto-aborted.
+   * Stale requests from previous calls are auto-aborted via reportsGate.
    */
   async function loadReports(projectId?: string): Promise<void> {
-    const handle = gate.begin()
+    const handle = reportsGate.begin()
     reportsLoading.value = true
     reportsError.value = ''
 
@@ -118,10 +128,13 @@ export function useReportExport(api: ReportsApi = reportsApi) {
 
   /**
    * Select a report and load its revisions + exports in parallel.
-   * Uses a single shared gate handle so the parallel calls don't abort each other.
+   *
+   * Uses Promise.allSettled so one failing request does not discard the
+   * other's successful result.  Each domain gets its own error slot.
+   * Stale responses (from a newer selectReport call) are silently ignored.
    */
   async function selectReport(reportId: string): Promise<void> {
-    const handle = gate.begin()
+    const handle = detailGate.begin()
 
     selectedReportId.value = reportId
     selectedRevisionNumber.value = null
@@ -133,36 +146,36 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     exportsLoading.value = true
     exportsError.value = ''
 
-    try {
-      const [revResponse, expResponse] = await Promise.all([
-        api.listRevisions(reportId, handle.signal),
-        api.listExports(reportId, undefined, handle.signal)
-      ])
+    const [revResult, expResult] = await Promise.allSettled([
+      api.listRevisions(reportId, handle.signal),
+      api.listExports(reportId, undefined, handle.signal)
+    ])
 
-      if (handle.isCurrent()) {
-        revisions.value = revResponse.revisions
-        exports.value = expResponse.exports
+    if (handle.isCurrent()) {
+      if (revResult.status === 'fulfilled') {
+        revisions.value = revResult.value.revisions
+      } else if (!isStale(revResult.reason, handle)) {
+        revisionsError.value = extractMessage(revResult.reason, '加载版本列表失败')
       }
-    } catch (err: unknown) {
-      if (!isStale(err, handle)) {
-        // Determine which operation failed based on the error context
-        revisionsError.value = extractMessage(err, '加载版本列表失败')
-        exportsError.value = extractMessage(err, '加载导出列表失败')
+
+      if (expResult.status === 'fulfilled') {
+        exports.value = expResult.value.exports
+      } else if (!isStale(expResult.reason, handle)) {
+        exportsError.value = extractMessage(expResult.reason, '加载导出列表失败')
       }
-    } finally {
-      if (handle.isCurrent()) {
-        revisionsLoading.value = false
-        exportsLoading.value = false
-      }
-      handle.finish()
+
+      revisionsLoading.value = false
+      exportsLoading.value = false
     }
+
+    handle.finish()
   }
 
   /**
    * Load revision history for a given report.
    */
   async function loadRevisions(reportId: string): Promise<void> {
-    const handle = gate.begin()
+    const handle = detailGate.begin()
     revisionsLoading.value = true
     revisionsError.value = ''
 
@@ -183,14 +196,18 @@ export function useReportExport(api: ReportsApi = reportsApi) {
 
   /**
    * Render (export) a specific revision of a report.
-   * Refreshes the exports list on success so the new artifact appears immediately.
+   *
+   * After the render call succeeds the renderGate handle is released
+   * *before* the exports list refresh (which runs on detailGate).
+   * This prevents a concurrent refresh from being cancelled if a new
+   * render call arrives.
    */
   async function renderReport(
     reportId: string,
     revisionNumber: number,
     form: ExportForm
   ): Promise<void> {
-    const handle = gate.begin()
+    const handle = renderGate.begin()
     renderLoading.value = true
     renderError.value = ''
     renderResult.value = null
@@ -209,9 +226,10 @@ export function useReportExport(api: ReportsApi = reportsApi) {
         renderResult.value = response
         selectedRevisionNumber.value = revisionNumber
         renderLoading.value = false
-        handle.finish() // release the gate before the refresh call
+        handle.finish() // release renderGate before refresh
 
-        // Refresh exports so the caller sees the newly created artifact
+        // Refresh exports so the caller sees the newly created artifact.
+        // This runs on the independent detailGate domain.
         await loadExports(reportId)
         return
       }
@@ -229,7 +247,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
    * Load the list of exports (artifacts) for a report, optionally filtered by locale.
    */
   async function loadExports(reportId: string, locale?: ReportLocale): Promise<void> {
-    const handle = gate.begin()
+    const handle = detailGate.begin()
     exportsLoading.value = true
     exportsError.value = ''
 
@@ -252,7 +270,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
    * Download an artifact and trigger a browser file-save.
    */
   async function downloadArtifact(reportId: string, artifactId: string): Promise<void> {
-    const handle = gate.begin()
+    const handle = downloadGate.begin()
     downloadLoading.value = true
     downloadError.value = ''
     downloadResult.value = null
@@ -275,10 +293,13 @@ export function useReportExport(api: ReportsApi = reportsApi) {
   }
 
   /**
-   * Reset all state and cancel any in-flight requests.
+   * Reset all state and cancel any in-flight requests across all four gates.
    */
   function reset(): void {
-    gate.cancel()
+    reportsGate.cancel()
+    detailGate.cancel()
+    renderGate.cancel()
+    downloadGate.cancel()
 
     reports.value = []
     reportsLoading.value = false

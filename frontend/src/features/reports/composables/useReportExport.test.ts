@@ -23,6 +23,39 @@ function createMockApi(client: HttpClient): ReportsApi {
   return createReportsApi(client)
 }
 
+/** Minimal artifact shape used throughout the tests. */
+function makeExports(count: number, idPrefix = 'a'): Array<Record<string, unknown>> {
+  const items: Array<Record<string, unknown>> = []
+  for (let i = 1; i <= count; i++) {
+    items.push({
+      artifact_id: `${idPrefix}${i}`,
+      status: 'completed',
+      format: 'pdf',
+      file_name: `${idPrefix}${i}.pdf`,
+      file_size_bytes: i * 100,
+      revision_number: 1,
+      generated_at: '2026-06-26T00:00:00Z',
+      locale: 'zh-CN',
+      template_locale: 'zh-CN',
+      translation_catalog_version: '1',
+      translation_catalog_content_hash: 'ch',
+      localized_template_content_hash: 'lh'
+    })
+  }
+  return items
+}
+
+function makeRevisions(count: number, idPrefix = 'r'): Array<Record<string, unknown>> {
+  const items: Array<Record<string, unknown>> = []
+  for (let i = 1; i <= count; i++) {
+    items.push({
+      revision_number: i,
+      content_hash: `${idPrefix}${i}`
+    })
+  }
+  return items
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -141,22 +174,7 @@ describe('useReportExport', () => {
         ]
       })
       .mockResolvedValueOnce({
-        exports: [
-          {
-            artifact_id: 'a1',
-            status: 'completed',
-            format: 'pdf',
-            file_name: 'r.pdf',
-            file_size_bytes: 100,
-            revision_number: 1,
-            generated_at: '2026-06-26T00:00:00Z',
-            locale: 'zh-CN',
-            template_locale: 'zh-CN',
-            translation_catalog_version: '1',
-            translation_catalog_content_hash: 'ch',
-            localized_template_content_hash: 'lh'
-          }
-        ]
+        exports: makeExports(1, 'a')
       })
 
     const api = createMockApi(c)
@@ -171,6 +189,271 @@ describe('useReportExport', () => {
     expect(ctx.exports.value[0].artifact_id).toBe('a1')
     expect(ctx.revisionsLoading.value).toBe(false)
     expect(ctx.exportsLoading.value).toBe(false)
+  })
+
+  it('selectReport: revisions success + exports failure', async () => {
+    const c = createClient()
+    vi.mocked(c.requestJson)
+      .mockResolvedValueOnce({
+        revisions: makeRevisions(1, 'r')
+      })
+      .mockRejectedValueOnce(new Error('Export API unavailable'))
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    await ctx.selectReport('r1')
+
+    // Revisions succeeded
+    expect(ctx.revisions.value).toHaveLength(1)
+    expect(ctx.revisions.value[0].content_hash).toBe('r1')
+    expect(ctx.revisionsLoading.value).toBe(false)
+    expect(ctx.revisionsError.value).toBe('')
+
+    // Exports failed — the error should be captured without affecting revisions
+    expect(ctx.exports.value).toEqual([])
+    expect(ctx.exportsLoading.value).toBe(false)
+    expect(ctx.exportsError.value).toBe('Export API unavailable')
+  })
+
+  it('selectReport: exports success + revisions failure', async () => {
+    const c = createClient()
+    vi.mocked(c.requestJson)
+      .mockRejectedValueOnce(new Error('Revisions API unavailable'))
+      .mockResolvedValueOnce({
+        exports: makeExports(2, 'x')
+      })
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    await ctx.selectReport('r1')
+
+    // Revisions failed
+    expect(ctx.revisions.value).toEqual([])
+    expect(ctx.revisionsLoading.value).toBe(false)
+    expect(ctx.revisionsError.value).toBe('Revisions API unavailable')
+
+    // Exports succeeded
+    expect(ctx.exports.value).toHaveLength(2)
+    expect(ctx.exports.value[0].artifact_id).toBe('x1')
+    expect(ctx.exportsLoading.value).toBe(false)
+    expect(ctx.exportsError.value).toBe('')
+  })
+
+  it('selectReport clears previous renderResult on new selection', async () => {
+    const c = createClient()
+    vi.mocked(c.requestJson)
+      .mockResolvedValue({ revisions: [], exports: [] })
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    // Simulate having a render result
+    ;(ctx as any).renderResult.value = { artifact_id: 'old' }
+
+    await ctx.selectReport('r1')
+
+    expect(ctx.renderResult.value).toBeNull()
+  })
+
+  /* ── Quick-switch overlap protection ───────────────────────── */
+
+  it('quick switch report A -> B, A response does not overwrite B', async () => {
+    const c = createClient()
+
+    // Deferred promises for A's two parallel requests
+    let resolveARev!: (v: unknown) => void
+    let resolveAExp!: (v: unknown) => void
+    const promARev = new Promise((resolve) => {
+      resolveARev = resolve
+    })
+    const promAExp = new Promise((resolve) => {
+      resolveAExp = resolve
+    })
+
+    vi.mocked(c.requestJson)
+      // A's calls — deferred
+      .mockResolvedValueOnce(promARev as Promise<unknown>)
+      .mockResolvedValueOnce(promAExp as Promise<unknown>)
+      // B's calls — resolve immediately
+      .mockResolvedValueOnce({
+        revisions: makeRevisions(1, 'b')
+      })
+      .mockResolvedValueOnce({
+        exports: makeExports(1, 'b')
+      })
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    // Start A (deferred promises — hangs)
+    const promiseA = ctx.selectReport('A')
+
+    // Start B — this aborts A via detailGate and resolves immediately
+    await ctx.selectReport('B')
+
+    // B's data is already in place
+    expect(ctx.selectedReportId.value).toBe('B')
+    expect(ctx.revisions.value).toHaveLength(1)
+    expect(ctx.revisions.value[0].revision_number).toBe(1)
+    expect(ctx.revisions.value[0].content_hash).toBe('b1')
+    expect(ctx.exports.value).toHaveLength(1)
+    expect(ctx.exports.value[0].artifact_id).toBe('b1')
+
+    // Now resolve A's stale responses
+    resolveARev({ revisions: makeRevisions(3, 'a') })
+    resolveAExp({ exports: makeExports(3, 'a') })
+    await promiseA
+
+    // A's stale response must NOT have overwritten B's data
+    expect(ctx.selectedReportId.value).toBe('B')
+    expect(ctx.revisions.value).toHaveLength(1)
+    expect(ctx.revisions.value[0].content_hash).toBe('b1')
+    expect(ctx.exports.value).toHaveLength(1)
+    expect(ctx.exports.value[0].artifact_id).toBe('b1')
+
+    // Loading flags must be false
+    expect(ctx.revisionsLoading.value).toBe(false)
+    expect(ctx.exportsLoading.value).toBe(false)
+  })
+
+  /* ── Cross-domain independence ─────────────────────────────── */
+
+  it('selectReport and downloadArtifact do not interfere', async () => {
+    const c = createClient()
+
+    // Deferred promises for selectReport
+    let resolveRev!: (v: unknown) => void
+    let resolveExp!: (v: unknown) => void
+    const promRev = new Promise((resolve) => {
+      resolveRev = resolve
+    })
+    const promExp = new Promise((resolve) => {
+      resolveExp = resolve
+    })
+
+    vi.mocked(c.requestJson)
+      .mockResolvedValueOnce(promRev as Promise<unknown>)
+      .mockResolvedValueOnce(promExp as Promise<unknown>)
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    // Start selectReport (hangs)
+    const selectCall = ctx.selectReport('r1')
+
+    // While selectReport is in-flight, start a download (different gate)
+    vi.mocked(c.requestBinary).mockResolvedValue({
+      blob: new Blob(['content']),
+      status: 200,
+      headers: new Headers({
+        'Content-Disposition': "attachment; filename*=UTF-8''report.pdf",
+        'X-Artifact-Id': 'dl1',
+        'X-Content-SHA256': 'sha',
+        'X-Source-Content-Hash': 'src-hash',
+        'X-Template-Version': '1.0',
+        'X-Report-Locale': 'zh-CN',
+        'X-Template-Locale': 'zh-CN',
+        'X-Translation-Catalog-Version': '1',
+        'X-Translation-Catalog-Content-Hash': 'ch',
+        'X-Localized-Template-Content-Hash': 'lh'
+      })
+    })
+
+    // Preserve URL stubs
+    const origCreate = URL.createObjectURL
+    const origRevoke = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:mock') as unknown as typeof URL.createObjectURL
+    URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL
+
+    await ctx.downloadArtifact('r1', 'dl1')
+
+    // Download completes independently
+    expect(ctx.downloadLoading.value).toBe(false)
+    expect(ctx.downloadError.value).toBe('')
+    expect(ctx.downloadResult.value?.artifactId).toBe('dl1')
+
+    // selectReport is still loading (no stuck flags)
+    expect(ctx.revisionsLoading.value).toBe(true)
+    expect(ctx.exportsLoading.value).toBe(true)
+
+    // Complete selectReport
+    resolveRev({ revisions: makeRevisions(1, 'r') })
+    resolveExp({ exports: makeExports(1, 'r') })
+    await selectCall
+
+    expect(ctx.revisionsLoading.value).toBe(false)
+    expect(ctx.exportsLoading.value).toBe(false)
+    expect(ctx.revisions.value).toHaveLength(1)
+
+    URL.createObjectURL = origCreate
+    URL.revokeObjectURL = origRevoke
+  })
+
+  it('renderReport and loadReports can overlap without interference', async () => {
+    const c = createClient()
+
+    // Deferred promise for the render call
+    let resolveRender!: (v: unknown) => void
+    const promRender = new Promise((resolve) => {
+      resolveRender = resolve
+    })
+
+    const mockJson = c.requestJson as ReturnType<typeof vi.fn>
+
+    // #1: render call (deferred)
+    mockJson.mockResolvedValueOnce(promRender)
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    // Start render (hangs at the render API call)
+    const renderCall = ctx.renderReport('r1', 1, createDefaultExportForm())
+
+    // Verify render is loading
+    expect(ctx.renderLoading.value).toBe(true)
+
+    // While render is in-flight, load reports (uses reportsGate — independent)
+    mockJson
+      // #2: loadReports
+      .mockResolvedValueOnce({
+        reports: [
+          { id: 'r1', status: 'draft' },
+          { id: 'r2', status: 'generated' }
+        ]
+      })
+      // #3: exports refresh (called after render resolves)
+      .mockResolvedValueOnce({ exports: [] })
+
+    await ctx.loadReports()
+
+    // Reports load independently
+    expect(ctx.reports.value).toHaveLength(2)
+    expect(ctx.reportsLoading.value).toBe(false)
+
+    // Render must still be in-flight
+    expect(ctx.renderLoading.value).toBe(true)
+
+    // Complete the render
+    resolveRender({
+      artifact_id: 'new-artifact',
+      status: 'pending',
+      format: 'pdf',
+      file_name: 'report.pdf',
+      file_size_bytes: 0,
+      file_sha256: '',
+      locale: 'zh-CN',
+      template_locale: 'zh-CN',
+      translation_catalog_version: '1.0.0',
+      translation_catalog_content_hash: 'ch',
+      localized_template_content_hash: 'lh'
+    })
+    await renderCall
+
+    expect(ctx.renderLoading.value).toBe(false)
+    expect(ctx.renderResult.value?.artifact_id).toBe('new-artifact')
+    expect(ctx.selectedRevisionNumber.value).toBe(1)
   })
 
   /* ── renderReport ──────────────────────────────────────────── */
@@ -311,6 +594,42 @@ describe('useReportExport', () => {
     expect(ctx.renderLoading.value).toBe(false)
     expect(ctx.renderError.value).toBe('')
     expect(ctx.renderResult.value).toBeNull()
+  })
+
+  it('reset cancels all in-flight requests — stale updates are ignored', async () => {
+    const c = createClient()
+
+    // Deferred promise so we can control when the reports request resolves
+    let resolveReports!: (v: unknown) => void
+    const promReports = new Promise((resolve) => {
+      resolveReports = resolve
+    })
+
+    vi.mocked(c.requestJson).mockImplementation(
+      () => promReports as Promise<unknown>
+    )
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    // Start an in-flight request
+    const reportsCall = ctx.loadReports()
+    expect(ctx.reportsLoading.value).toBe(true)
+
+    // Reset — cancels reportsGate (and all others)
+    ctx.reset()
+
+    // State is cleared immediately
+    expect(ctx.reportsLoading.value).toBe(false)
+    expect(ctx.reports.value).toEqual([])
+
+    // Resolve the stale response
+    resolveReports({ reports: [{ id: 'r1', status: 'draft' }] })
+    await reportsCall
+
+    // State must remain cleared — the stale response was discarded
+    expect(ctx.reports.value).toEqual([])
+    expect(ctx.reportsLoading.value).toBe(false)
   })
 
   /* ── createDefaultExportForm ───────────────────────────────── */

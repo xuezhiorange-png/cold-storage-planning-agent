@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+
+import AgentPanel from '../features/agent/components/AgentPanel.vue'
 </script>
 
 <template>
@@ -10,8 +12,9 @@ import { RouterLink, RouterView } from 'vue-router'
         <span>Cold Storage Planning Workbench</span>
       </div>
       <nav aria-label="应用导航">
-        <RouterLink to="/workbench">规划工作台</RouterLink>
+        <RouterLink to="/workbench/project">规划工作台</RouterLink>
       </nav>
+      <AgentPanel />
     </header>
 
     <main class="application-shell__content">

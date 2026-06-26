@@ -2,6 +2,14 @@
 import { ElButton, ElCard, ElForm, ElFormItem, ElInput, ElInputNumber } from 'element-plus'
 
 import { useProjectForm } from '../composables/useProjectForm'
+import type { PlanningRunRequest } from '../../../api/contracts/planning'
+
+const props = withDefaults(defineProps<{
+  /** Optional submit callback. Receives the validated and mapped request. */
+  onSubmit?: (request: PlanningRunRequest) => Promise<void>
+}>(), {
+  onSubmit: undefined
+})
 
 const {
   designInputs,
@@ -11,7 +19,7 @@ const {
   validationErrors,
   submit,
   reset
-} = useProjectForm()
+} = useProjectForm(props.onSubmit)
 
 function fieldError(field: string): string {
   const err = validationErrors.value.find(e => e.field === field)

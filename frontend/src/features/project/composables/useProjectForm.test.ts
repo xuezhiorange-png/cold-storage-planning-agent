@@ -1,18 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createDefaultDesignInputs } from '../model/designInputs'
-import type { PlanningRunResponse } from '../../../api/contracts/planning'
 import {
   useProjectForm,
   createDefaultFactoryOverview,
   type FactoryOverview
 } from './useProjectForm'
-
-function mockApi() {
-  return {
-    run: vi.fn()
-  }
-}
 
 describe('useProjectForm', () => {
   describe('createDefaultFactoryOverview', () => {
@@ -28,17 +21,17 @@ describe('useProjectForm', () => {
 
   describe('initial state', () => {
     it('starts with default design inputs', () => {
-      const { designInputs } = useProjectForm(mockApi())
+      const { designInputs } = useProjectForm()
       expect({ ...designInputs }).toEqual(createDefaultDesignInputs())
     })
 
     it('starts with default factory overview', () => {
-      const { factoryOverview } = useProjectForm(mockApi())
+      const { factoryOverview } = useProjectForm()
       expect({ ...factoryOverview }).toEqual(createDefaultFactoryOverview())
     })
 
     it('starts empty submitting, submitError, and validationErrors', () => {
-      const { submitting, submitError, validationErrors } = useProjectForm(mockApi())
+      const { submitting, submitError, validationErrors } = useProjectForm()
       expect(submitting.value).toBe(false)
       expect(submitError.value).toBe('')
       expect(validationErrors.value).toEqual([])
@@ -47,12 +40,12 @@ describe('useProjectForm', () => {
 
   describe('validate()', () => {
     it('returns true when all inputs are valid', () => {
-      const { validate } = useProjectForm(mockApi())
+      const { validate } = useProjectForm()
       expect(validate()).toBe(true)
     })
 
     it('returns false and populates validationErrors for invalid inputs', () => {
-      const { designInputs, validate, validationErrors } = useProjectForm(mockApi())
+      const { designInputs, validate, validationErrors } = useProjectForm()
       designInputs.dailyInboundMassTons = 0
       designInputs.rawStorageRatio = 1.5
 
@@ -64,88 +57,87 @@ describe('useProjectForm', () => {
   })
 
   describe('submit()', () => {
-    it('calls the planning API and returns the response on success', async () => {
-      const api = mockApi()
-      const fakeResponse: PlanningRunResponse = {
-        success: true,
-        summary: {
-          total_area_m2: 1813.57,
-          total_position_count: 346,
-          total_investment_cny: 6_150_400,
-          total_power_kw: 1352.63,
-          requires_review: true
-        },
-        zone_plan: { result: { zones: [] } },
-        investment_estimate: { result: { items: [] } },
-        power_configuration: {
-          equipment_rows: [],
-          summary_rows: [],
-          items: [],
-          total_installed_power_kw: 0,
-          total_estimated_demand_kw: 0,
-          requires_review: false
-        }
-      }
-      api.run.mockResolvedValue(fakeResponse)
-
-      const { submit } = useProjectForm(api)
+    it('calls the submitHandler with mapped request on success', async () => {
+      const handler = vi.fn()
+      const { submit } = useProjectForm(handler)
       const result = await submit()
 
-      expect(result).not.toBeNull()
-      expect(result!.response).toBe(fakeResponse)
-      expect(api.run).toHaveBeenCalledTimes(1)
+      expect(result).toBe(true)
+      expect(handler).toHaveBeenCalledTimes(1)
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          daily_inbound_mass_kg: expect.any(Number),
+          working_time_h_per_day: expect.any(Number)
+        })
+      )
     })
 
-    it('does not call the API when validation fails', async () => {
-      const api = mockApi()
-      const { designInputs, submit } = useProjectForm(api)
+    it('does not call submitHandler when validation fails', async () => {
+      const handler = vi.fn()
+      const { designInputs, submit } = useProjectForm(handler)
       designInputs.dailyInboundMassTons = -1
 
       const result = await submit()
 
-      expect(result).toBeNull()
-      expect(api.run).not.toHaveBeenCalled()
+      expect(result).toBe(false)
+      expect(handler).not.toHaveBeenCalled()
     })
 
-    it('sets submitError on API failure', async () => {
-      const api = mockApi()
-      api.run.mockRejectedValue(new Error('Network error'))
+    it('sets submitError when submitHandler throws', async () => {
+      const handler = vi.fn().mockRejectedValue(new Error('Network error'))
 
-      const { submit, submitError } = useProjectForm(api)
+      const { submit, submitError } = useProjectForm(handler)
       const result = await submit()
 
-      expect(result).toBeNull()
+      expect(result).toBe(false)
       expect(submitError.value).toBe('Network error')
     })
 
     it('toggles submitting ref during the request', async () => {
-      const api = mockApi()
-      api.run.mockResolvedValue({
-        success: true,
-        summary: {
-          total_area_m2: 0,
-          total_position_count: 0,
-          total_investment_cny: 0,
-          total_power_kw: 0,
-          requires_review: false
-        },
-        zone_plan: { result: { zones: [] } },
-        investment_estimate: { result: { items: [] } },
-        power_configuration: {
-          equipment_rows: [],
-          summary_rows: [],
-          items: [],
-          total_installed_power_kw: 0,
-          total_estimated_demand_kw: 0,
-          requires_review: false
-        }
-      })
-
-      const { submit, submitting } = useProjectForm(api)
+      const handler = vi.fn()
+      const { submit, submitting } = useProjectForm(handler)
 
       const submitPromise = submit()
       expect(submitting.value).toBe(true)
       await submitPromise
+      expect(submitting.value).toBe(false)
+    })
+
+    it('supports undefined submitHandler (for testing without API)', async () => {
+      const { submit } = useProjectForm()
+      const result = await submit()
+
+      expect(result).toBe(true)
+    })
+
+    it('lets only the most recent request control the submitting flag', async () => {
+      let resolveFirst!: () => void
+      const firstPromise = new Promise<void>(resolve => { resolveFirst = resolve })
+      let resolveSecond!: () => void
+      const secondPromise = new Promise<void>(resolve => { resolveSecond = resolve })
+
+      const handler = vi.fn()
+        .mockReturnValueOnce(firstPromise)
+        .mockReturnValueOnce(secondPromise)
+
+      const { submit, submitting } = useProjectForm(handler)
+
+      // Start first submit
+      const firstSubmit = submit()
+      expect(submitting.value).toBe(true)
+
+      // Start second submit while first is still pending
+      const secondSubmit = submit()
+      expect(submitting.value).toBe(true)
+
+      // Resolve first handler — its finally should NOT clear submitting
+      resolveFirst!()
+      await firstSubmit
+      expect(submitting.value).toBe(true) // Still true because second is in flight
+
+      // Resolve second handler — now submitting should clear
+      resolveSecond!()
+      await secondSubmit
       expect(submitting.value).toBe(false)
     })
   })
@@ -153,7 +145,7 @@ describe('useProjectForm', () => {
   describe('reset()', () => {
     it('restores design inputs and factory overview to defaults', () => {
       const { designInputs, factoryOverview, reset, submitError, validationErrors } =
-        useProjectForm(mockApi())
+        useProjectForm()
 
       designInputs.dailyInboundMassTons = 100
       factoryOverview.factoryName = 'Changed'
