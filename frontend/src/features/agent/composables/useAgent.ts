@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 export interface UseAgentReturn {
   isOpen: import('vue').Ref<boolean>
@@ -18,24 +18,51 @@ export function useAgent(): UseAgentReturn {
   const isOpen = ref(false)
 
   let toggleButtonRef: HTMLElement | null = null
+  let focusRestoreTimer: ReturnType<typeof setTimeout> | null = null
+
+  function cancelPendingFocusRestore(): void {
+    if (focusRestoreTimer !== null) {
+      clearTimeout(focusRestoreTimer)
+      focusRestoreTimer = null
+    }
+  }
+
+  function scheduleFocusRestore(): void {
+    cancelPendingFocusRestore()
+    focusRestoreTimer = setTimeout(() => {
+      focusRestoreTimer = null
+      // Only restore focus if drawer is closed
+      if (!isOpen.value && toggleButtonRef) {
+        toggleButtonRef.focus()
+      }
+    }, 100)
+  }
 
   function setToggleRef(el: HTMLElement | null): void {
     toggleButtonRef = el
   }
 
   function toggle(): void {
-    isOpen.value = !isOpen.value
-    if (!isOpen.value && toggleButtonRef) {
-      setTimeout(() => toggleButtonRef?.focus(), 100)
+    const willBeOpen = !isOpen.value
+    isOpen.value = willBeOpen
+
+    if (willBeOpen) {
+      // Opening — cancel any pending restore from previous close
+      cancelPendingFocusRestore()
+    } else {
+      // Closing — schedule focus restore
+      scheduleFocusRestore()
     }
   }
 
   function close(): void {
     isOpen.value = false
-    if (toggleButtonRef) {
-      setTimeout(() => toggleButtonRef?.focus(), 100)
-    }
+    scheduleFocusRestore()
   }
+
+  onUnmounted(() => {
+    cancelPendingFocusRestore()
+  })
 
   return {
     isOpen,

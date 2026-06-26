@@ -140,6 +140,53 @@ describe('useProjectForm', () => {
       await secondSubmit
       expect(submitting.value).toBe(false)
     })
+
+    it('stale resolve after reset returns false and does not write error', async () => {
+      let resolveHandler!: () => void
+      const handlerPromise = new Promise<void>(resolve => { resolveHandler = resolve })
+      const handler = vi.fn().mockReturnValue(handlerPromise)
+      
+      const { submit, submitting, submitError, reset } = useProjectForm(handler)
+      
+      // Start submit
+      const submitPromise = submit()
+      expect(submitting.value).toBe(true)
+      
+      // Reset invalidates
+      reset()
+      expect(submitting.value).toBe(false)
+      expect(submitError.value).toBe('')
+      
+      // Stale handler resolves
+      resolveHandler()
+      await submitPromise
+      
+      // Must return false, must not write error, must not modify submitting
+      const result = await submitPromise
+      expect(result).toBe(false)
+      expect(submitError.value).toBe('')
+      expect(submitting.value).toBe(false)
+    })
+
+    it('stale reject after reset returns false and does not write error', async () => {
+      let rejectHandler!: () => void
+      const handlerPromise = new Promise<void>((_, reject) => { rejectHandler = reject })
+      const handler = vi.fn().mockReturnValue(handlerPromise)
+      
+      const { submit, submitting, submitError, reset } = useProjectForm(handler)
+      
+      const submitPromise = submit()
+      expect(submitting.value).toBe(true)
+      
+      reset()
+      expect(submitting.value).toBe(false)
+      
+      rejectHandler()
+      await expect(submitPromise).resolves.toBe(false)
+      
+      expect(submitError.value).toBe('')
+      expect(submitting.value).toBe(false)
+    })
   })
 
   describe('reset()', () => {

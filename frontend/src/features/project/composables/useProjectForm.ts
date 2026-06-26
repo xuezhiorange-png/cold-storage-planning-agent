@@ -84,6 +84,10 @@ export function useProjectForm(
     try {
       const request = mapDesignInputsToPlanningRequest(designInputs)
       await submitHandler?.(request)
+      // Guard: only current request reports success
+      if (requestId !== currentRequestId) {
+        return false
+      }
       return true
     } catch (error: unknown) {
       if (requestId === currentRequestId) {

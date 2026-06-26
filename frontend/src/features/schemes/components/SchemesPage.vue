@@ -25,6 +25,7 @@ function formatWan(value: number | null): string {
     <div v-if="state === 'empty'" class="schemes-page__empty">暂无方案数据</div>
     <div v-if="state === 'unavailable'" class="schemes-page__unavailable" role="status">
       方案比选服务当前不可用
+      <button @click="load" class="schemes-page__retry">重试</button>
     </div>
     <div v-if="state === 'error'" class="schemes-page__error">
       {{ error }}
@@ -39,6 +40,11 @@ function formatWan(value: number | null): string {
           {{ data.weight_set_status === 'unverified' ? '演示权重 / 待复核' : data.weight_set_status }}
         </em>
         <em v-if="data.recommended_scheme_code === null" class="schemes-page__no-recommendation">暂无推荐方案</em>
+        <button
+          type="button"
+          class="schemes-page__refresh"
+          @click="load"
+        >刷新</button>
       </div>
 
       <!-- Scheme cards -->
