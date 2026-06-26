@@ -1,10 +1,15 @@
-import { createRouter, createWebHistory, type Router } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory,
+  type Router,
+  type RouterHistory
+} from 'vue-router'
 
 import LegacyWorkbench from '../features/workbench/LegacyWorkbench.vue'
 
-export function createWorkbenchRouter(): Router {
+export function createWorkbenchRouter(history: RouterHistory = createWebHistory()): Router {
   return createRouter({
-    history: createWebHistory(),
+    history,
     routes: [
       {
         path: '/',
