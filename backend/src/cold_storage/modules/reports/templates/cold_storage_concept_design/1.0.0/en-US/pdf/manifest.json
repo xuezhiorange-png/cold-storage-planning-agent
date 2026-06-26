@@ -1,0 +1,39 @@
+{
+  "template_code": "cold_storage_concept_design",
+  "version": "1.0.0",
+  "format": "pdf",
+  "report_type": "cold_storage_concept_design",
+  "schema_version": "cold_storage_concept_design@1.0.0",
+  "locale": "en-US",
+  "page": {
+    "width_pt": 595.276,
+    "height_pt": 841.89,
+    "margin_top_pt": 56.69,
+    "margin_bottom_pt": 56.69,
+    "margin_left_pt": 56.69,
+    "margin_right_pt": 56.69,
+    "orientation": "portrait"
+  },
+  "fonts": {
+    "body_name": "Arial",
+    "body_size_pt": 10.5,
+    "heading1_size_pt": 16,
+    "heading2_size_pt": 14,
+    "heading3_size_pt": 12,
+    "table_header_size_pt": 9.5,
+    "table_body_size_pt": 9,
+    "footer_size_pt": 8,
+    "header_size_pt": 8
+  },
+  "header": {"left": "", "center": "", "right": "{project_name} \u2014 {report_type}"},
+  "footer": {"left": "", "center": "\u2014 {page_number} \u2014", "right": ""},
+  "watermark": {"text": "DRAFT", "font_size_pt": 72, "color": "#CCCCCC", "opacity": 0.3, "angle": 45},
+  "empty_section_behavior": {
+    "behavior": "show_placeholder",
+    "placeholder_text": {"not_provided": "This section data was not provided", "not_calculated": "This section has not been calculated"}
+  },
+  "required_sections": ["project_summary", "design_basis", "input_conditions", "cooling_load", "equipment_selection", "electrical_and_energy"],
+  "optional_sections": ["assumptions", "capacity_and_throughput", "inventory_and_storage", "area_and_layout", "scheme_comparison", "investment_estimate", "risks_and_quality", "citations_and_approval"],
+  "landscape_sections": [],
+  "tables": {}
+}

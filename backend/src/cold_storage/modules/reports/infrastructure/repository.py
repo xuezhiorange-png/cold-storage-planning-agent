@@ -12,6 +12,7 @@ from cold_storage.modules.reports.application.service import ReportRepository
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
+    ReportLocale,
     ReportStatus,
     ReportType,
     SourceType,
@@ -27,7 +28,11 @@ from cold_storage.modules.reports.domain.models import (
     ReportTemplate,
 )
 from cold_storage.modules.reports.infrastructure.orm import (
+    CleanupDebtRecord,
+    DeletionOutboxRecord,
+    DeletionReceiptRecord,
     IdempotencyRecord,
+    MigrationAuditRecord,
     ReportExportArtifactRecord,
     ReportRecord,
     ReportReviewActionRecord,
@@ -60,7 +65,7 @@ def _to_template_domain(rec: ReportTemplateRecord) -> ReportTemplate:
         version=rec.version,
         status=TemplateStatus(rec.status),
         schema_version=rec.schema_version,
-        locale=rec.locale,
+        locale=ReportLocale(rec.locale),
         manifest_json=rec.manifest_json or {},
         template_content_hash=rec.template_content_hash,
         created_by=rec.created_by,
@@ -95,6 +100,11 @@ def _to_artifact_domain(rec: ReportExportArtifactRecord) -> ReportExportArtifact
         idempotency_key=rec.idempotency_key,
         claim_token=rec.claim_token,
         claim_version=rec.claim_version,
+        locale=ReportLocale(rec.locale),
+        translation_catalog_version=rec.translation_catalog_version,
+        localized_template_content_hash=rec.localized_template_content_hash,
+        template_locale=ReportLocale(rec.template_locale),
+        translation_catalog_content_hash=rec.translation_catalog_content_hash,
     )
 
 
@@ -429,11 +439,14 @@ class SQLReportRepository(ReportRepository):
         idempotency_key: str,
         stale_claim_token: str,
         stale_claim_version: int,
-    ) -> int:
+    ) -> tuple[int, list[str]]:
         """Mark non-terminal artifacts as failed, scoped to a stale claim.
 
         WHERE: report_id + idempotency_key + claim_token + claim_version
         + status IN (pending, rendering)
+
+        Returns (count, list_of_storage_keys) so the caller can physically
+        delete the old artifact files from storage.
         """
         conditions = [
             ReportExportArtifactRecord.report_id == report_id,
@@ -442,7 +455,13 @@ class SQLReportRepository(ReportRepository):
             ReportExportArtifactRecord.claim_version == stale_claim_version,
             ReportExportArtifactRecord.status.in_(["pending", "rendering"]),
         ]
-        stmt = (
+        # First, collect storage_keys of matching artifacts
+        select_stmt = sa.select(ReportExportArtifactRecord.storage_key).where(sa.and_(*conditions))
+        keys_result = self._session.execute(select_stmt)
+        storage_keys: list[str] = [row[0] for row in keys_result.fetchall() if row[0]]
+
+        # Then mark them as failed
+        update_stmt = (
             sa.update(ReportExportArtifactRecord)
             .where(sa.and_(*conditions))
             .values(
@@ -451,8 +470,9 @@ class SQLReportRepository(ReportRepository):
                 failure_message="Orphaned by stale claim recovery",
             )
         )
-        result = self._session.execute(stmt)
-        return result.rowcount  # type: ignore[attr-defined,no-any-return]
+        result = self._session.execute(update_stmt)
+        count: int = result.rowcount  # type: ignore[attr-defined]
+        return count, storage_keys
 
     # --- Commit ---
 
@@ -554,14 +574,22 @@ class SQLReportRepository(ReportRepository):
             return None
         return _to_template_domain(rec)
 
-    def get_active_template(self, template_code: str, format: str) -> ReportTemplate | None:
+    def get_active_template(
+        self,
+        template_code: str,
+        format: str,
+        locale: ReportLocale | None = None,
+    ) -> ReportTemplate | None:
+        conditions = [
+            ReportTemplateRecord.template_code == template_code,
+            ReportTemplateRecord.format == format,
+            ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
+        ]
+        if locale is not None:
+            conditions.append(ReportTemplateRecord.locale == locale.value)
         stmt = (
             sa.select(ReportTemplateRecord)
-            .where(
-                ReportTemplateRecord.template_code == template_code,
-                ReportTemplateRecord.format == format,
-                ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
-            )
+            .where(sa.and_(*conditions))
             .order_by(ReportTemplateRecord.created_at.desc())
             .limit(1)
         )
@@ -574,29 +602,42 @@ class SQLReportRepository(ReportRepository):
         self,
         template_code: str | None = None,
         format: str | None = None,
+        locale: ReportLocale | None = None,
     ) -> list[ReportTemplate]:
         stmt = sa.select(ReportTemplateRecord)
         if template_code:
             stmt = stmt.where(ReportTemplateRecord.template_code == template_code)
         if format:
             stmt = stmt.where(ReportTemplateRecord.format == format)
+        if locale is not None:
+            stmt = stmt.where(ReportTemplateRecord.locale == locale.value)
         stmt = stmt.order_by(ReportTemplateRecord.created_at.desc())
         return [_to_template_domain(r) for r in self._session.execute(stmt).scalars()]
 
-    def deactivate_templates(self, template_code: str, fmt: str) -> int:
-        """Deactivate all active templates for the given code and format.
+    def deactivate_templates(
+        self,
+        template_code: str,
+        fmt: str,
+        locale: ReportLocale | None = None,
+    ) -> int:
+        """Deactivate all active templates for the given code, format, and locale.
 
         P0-7: Sets active_slot = NULL and status = DRAFT for all matching active templates.
+        If locale is provided, only deactivates templates with that locale.
+        If locale is None, deactivates all locales for the given code+format.
 
         Returns the number of templates deactivated.
         """
+        conditions = [
+            ReportTemplateRecord.template_code == template_code,
+            ReportTemplateRecord.format == fmt,
+            ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
+        ]
+        if locale is not None:
+            conditions.append(ReportTemplateRecord.locale == locale.value)
         stmt = (
             sa.update(ReportTemplateRecord)
-            .where(
-                ReportTemplateRecord.template_code == template_code,
-                ReportTemplateRecord.format == fmt,
-                ReportTemplateRecord.status == TemplateStatus.ACTIVE.value,
-            )
+            .where(sa.and_(*conditions))
             .values(status=TemplateStatus.DRAFT.value, active_slot=None)
         )
         result = self._session.execute(stmt)
@@ -665,6 +706,15 @@ class SQLReportRepository(ReportRepository):
             idempotency_key=artifact.idempotency_key,
             claim_token=artifact.claim_token,
             claim_version=artifact.claim_version,
+            locale=artifact.locale,
+            translation_catalog_version=artifact.translation_catalog_version,
+            localized_template_content_hash=artifact.localized_template_content_hash,
+            template_locale=(
+                artifact.template_locale.value
+                if isinstance(artifact.template_locale, ReportLocale)
+                else artifact.template_locale
+            ),
+            translation_catalog_content_hash=artifact.translation_catalog_content_hash,
         )
         self._session.add(rec)
 
@@ -757,6 +807,15 @@ class SQLReportRepository(ReportRepository):
             idempotency_key=artifact.idempotency_key,
             claim_token=artifact.claim_token,
             claim_version=artifact.claim_version,
+            locale=artifact.locale,
+            translation_catalog_version=artifact.translation_catalog_version,
+            localized_template_content_hash=artifact.localized_template_content_hash,
+            template_locale=(
+                artifact.template_locale.value
+                if isinstance(artifact.template_locale, ReportLocale)
+                else artifact.template_locale
+            ),
+            translation_catalog_content_hash=artifact.translation_catalog_content_hash,
         )
         self._session.add(rec)
 
@@ -767,13 +826,18 @@ class SQLReportRepository(ReportRepository):
         return _to_artifact_domain(rec)
 
     def list_artifacts(
-        self, report_id: str, status: ArtifactStatus | None = None
+        self,
+        report_id: str,
+        status: ArtifactStatus | None = None,
+        locale: ReportLocale | None = None,
     ) -> list[ReportExportArtifact]:
         stmt = sa.select(ReportExportArtifactRecord).where(
             ReportExportArtifactRecord.report_id == report_id
         )
         if status is not None:
             stmt = stmt.where(ReportExportArtifactRecord.status == status.value)
+        if locale is not None:
+            stmt = stmt.where(ReportExportArtifactRecord.locale == locale.value)
         stmt = stmt.order_by(ReportExportArtifactRecord.generated_at.desc())
         return [_to_artifact_domain(r) for r in self._session.execute(stmt).scalars()]
 
@@ -803,6 +867,15 @@ class SQLReportRepository(ReportRepository):
                 render_manifest_json=artifact.render_manifest_json,
                 failure_code=artifact.failure_code,
                 failure_message=artifact.failure_message,
+                locale=artifact.locale,
+                translation_catalog_version=artifact.translation_catalog_version,
+                localized_template_content_hash=artifact.localized_template_content_hash,
+                template_locale=(
+                    artifact.template_locale.value
+                    if isinstance(artifact.template_locale, ReportLocale)
+                    else artifact.template_locale
+                ),
+                translation_catalog_content_hash=artifact.translation_catalog_content_hash,
             )
         )
         result = self._session.execute(stmt)
@@ -968,5 +1041,769 @@ class SQLReportRepository(ReportRepository):
                     "fail_attempt_with_claim: artifact exists but claim/status mismatch",
                 )
             # Artifact doesn't exist — failed before INSERT, OK
+
+    # --- Cleanup Debt ---
+
+    def insert_cleanup_debt(
+        self,
+        *,
+        idempotency_key: str,
+        storage_key: str,
+        stale_claim_token: str,
+        stale_claim_version: int,
+        reclaim_token: str,
+        reclaim_version: int,
+    ) -> str:
+        """Insert a pending cleanup debt record.
+
+        Returns the debt ID.
+        """
+        debt_id = str(uuid.uuid4())
+        rec = CleanupDebtRecord(
+            id=debt_id,
+            idempotency_key=idempotency_key,
+            storage_key=storage_key,
+            stale_claim_token=stale_claim_token,
+            stale_claim_version=stale_claim_version,
+            reclaim_token=reclaim_token,
+            reclaim_version=reclaim_version,
+            status="pending",
+            next_retry_at=None,
+        )
+        self._session.add(rec)
+        return debt_id
+
+    def claim_cleanup_debt(
+        self,
+        debt_id: str,
+        *,
+        lock_seconds: int = 300,
+        observed_locked_at: datetime | None = None,
+        observed_locked_by: str = "",
+        observed_lock_expires_at: datetime | None = None,
+    ) -> bool:
+        """CAS: claim a pending, retryable, or expired-processing debt.
+
+        For pending/retryable debts, the claim succeeds immediately.
+        For expired processing debts, the lease values
+        (locked_at, locked_by, lock_expires_at) must match exactly (CAS).
+
+        Returns True if the claim succeeded.
+        """
+        from datetime import timedelta
+
+        now = datetime.now(UTC)
+        new_locked_by = str(uuid.uuid4())
+
+        # Try 1: claim pending or retryable (no lease CAS)
+        stmt = (
+            sa.update(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.id == debt_id,
+                CleanupDebtRecord.status.in_(["pending", "retryable"]),
+            )
+            .values(
+                status="processing",
+                locked_at=now,
+                locked_by=new_locked_by,
+                lock_expires_at=now + timedelta(seconds=lock_seconds),
+                claim_version=CleanupDebtRecord.claim_version + 1,
+            )
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount == 1:  # type: ignore[attr-defined]
+            return True
+
+        # Try 2: claim expired processing with exact lease CAS
+        stmt = (
+            sa.update(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.id == debt_id,
+                CleanupDebtRecord.status == "processing",
+                CleanupDebtRecord.locked_at == observed_locked_at,
+                CleanupDebtRecord.locked_by == observed_locked_by,
+                CleanupDebtRecord.lock_expires_at == observed_lock_expires_at,
+            )
+            .values(
+                status="processing",
+                locked_at=now,
+                locked_by=new_locked_by,
+                lock_expires_at=now + timedelta(seconds=lock_seconds),
+                claim_version=CleanupDebtRecord.claim_version + 1,
+            )
+        )
+        result = self._session.execute(stmt)
+        return bool(result.rowcount == 1)  # type: ignore[attr-defined]
+
+    def mark_cleanup_completed(self, debt_id: str, *, observed_claim_version: int = 0) -> None:
+        """Mark a cleanup debt as completed (processing -> completed).
+
+        The claim_version must match (CAS) to prevent completing a debt
+        that has been re-claimed by another worker.
+        """
+        stmt = (
+            sa.update(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.id == debt_id,
+                CleanupDebtRecord.status == "processing",
+                CleanupDebtRecord.claim_version == observed_claim_version,
+            )
+            .values(status="completed", completed_at=datetime.now(UTC))
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount != 1:  # type: ignore[attr-defined]
+            raise ValueError(
+                f"Cleanup debt {debt_id} not found, not processing, or claim_version mismatch"
+            )
+
+    def mark_cleanup_retryable(self, debt_id: str, error: str, *, backoff: int = 30) -> None:
+        """Mark a cleanup debt as retryable with deterministic backoff.
+
+        Sets status to 'retryable', increments retry_count, and calculates
+        next_retry_at using exponential backoff: backoff * 2^retry_count.
+        """
+        from datetime import timedelta
+
+        # Read current retry_count atomically
+        current = self._session.execute(
+            sa.select(CleanupDebtRecord.retry_count).where(CleanupDebtRecord.id == debt_id)
+        ).scalar()
+        new_count = (current or 0) + 1
+        delay_seconds = backoff * (2 ** (new_count - 1))
+        stmt = (
+            sa.update(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.id == debt_id,
+                CleanupDebtRecord.status == "processing",
+            )
+            .values(
+                status="retryable",
+                retry_count=new_count,
+                last_error=error[:1024],
+                next_retry_at=datetime.now(UTC) + timedelta(seconds=delay_seconds),
+                locked_at=None,
+                locked_by="",
+            )
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount != 1:  # type: ignore[attr-defined]
+            raise ValueError(f"Cleanup debt {debt_id} not found or not processing")
+
+    def mark_cleanup_permanent_failed(self, debt_id: str, error: str) -> None:
+        """Mark a retryable cleanup debt as permanent_failed."""
+        stmt = (
+            sa.update(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.id == debt_id,
+                CleanupDebtRecord.status == "retryable",
+            )
+            .values(
+                status="permanent_failed",
+                last_error=error[:1024],
+            )
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount != 1:  # type: ignore[attr-defined]
+            raise ValueError(f"Cleanup debt {debt_id} not found or not retryable")
+
+    def list_pending_cleanup_debts(self) -> list[dict[str, Any]]:
+        """List all cleanup debts eligible for processing.
+
+        Includes debts with status 'pending' or 'retryable' whose
+        next_retry_at is None or in the past, ordered by created_at.
+        """
+        now = datetime.now(UTC)
+        stmt = (
+            sa.select(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.status.in_(["pending", "retryable"]),
+                sa.or_(
+                    CleanupDebtRecord.next_retry_at.is_(None),
+                    CleanupDebtRecord.next_retry_at <= now,
+                ),
+            )
+            .order_by(CleanupDebtRecord.created_at)
+        )
+        rows = self._session.execute(stmt).scalars().all()
+        return [
+            {
+                "id": r.id,
+                "idempotency_key": r.idempotency_key,
+                "storage_key": r.storage_key,
+                "stale_claim_token": r.stale_claim_token,
+                "stale_claim_version": r.stale_claim_version,
+                "reclaim_token": r.reclaim_token,
+                "reclaim_version": r.reclaim_version,
+                "status": r.status,
+                "created_at": r.created_at,
+                "completed_at": r.completed_at,
+                "retry_count": r.retry_count,
+                "last_error": r.last_error,
+                "next_retry_at": r.next_retry_at,
+                "locked_at": r.locked_at,
+                "locked_by": r.locked_by,
+            }
+            for r in rows
+        ]
+
+    def list_eligible_cleanup_debts(
+        self,
+        *,
+        processing_timeout_seconds: int = 600,
+    ) -> list[dict[str, Any]]:
+        """List cleanup debts eligible for processing or re-claiming.
+
+        Includes:
+        - Pending / retryable debts whose next_retry_at is None or in the past.
+        - Expired processing debts where lock_expires_at is past.
+        - Processing debts without lock_expires_at whose lock is older
+          than processing_timeout_seconds.
+
+        Returns dicts sorted by created_at.
+        """
+        from datetime import timedelta
+
+        now = datetime.now(UTC)
+        cutoff = now - timedelta(seconds=processing_timeout_seconds)
+        stmt = (
+            sa.select(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.status.in_(["pending", "retryable", "processing"]),
+                sa.or_(
+                    # pending/retryable: no retry deadline or deadline passed
+                    sa.and_(
+                        CleanupDebtRecord.status.in_(["pending", "retryable"]),
+                        sa.or_(
+                            CleanupDebtRecord.next_retry_at.is_(None),
+                            CleanupDebtRecord.next_retry_at <= now,
+                        ),
+                    ),
+                    # processing with lock_expires_at: deadline passed
+                    sa.and_(
+                        CleanupDebtRecord.status == "processing",
+                        CleanupDebtRecord.lock_expires_at.isnot(None),
+                        CleanupDebtRecord.lock_expires_at <= now,
+                    ),
+                    # processing without lock_expires_at: lock older than timeout
+                    sa.and_(
+                        CleanupDebtRecord.status == "processing",
+                        CleanupDebtRecord.lock_expires_at.is_(None),
+                        CleanupDebtRecord.locked_at.isnot(None),
+                        CleanupDebtRecord.locked_at < cutoff,
+                    ),
+                ),
+            )
+            .order_by(CleanupDebtRecord.created_at)
+        )
+        rows = self._session.execute(stmt).scalars().all()
+        return [
+            {
+                "id": r.id,
+                "idempotency_key": r.idempotency_key,
+                "storage_key": r.storage_key,
+                "stale_claim_token": r.stale_claim_token,
+                "stale_claim_version": r.stale_claim_version,
+                "reclaim_token": r.reclaim_token,
+                "reclaim_version": r.reclaim_version,
+                "status": r.status,
+                "created_at": r.created_at,
+                "completed_at": r.completed_at,
+                "retry_count": r.retry_count,
+                "last_error": r.last_error,
+                "next_retry_at": r.next_retry_at,
+                "locked_at": r.locked_at,
+                "locked_by": r.locked_by,
+                "lock_expires_at": r.lock_expires_at,
+                "claim_version": r.claim_version,
+            }
+            for r in rows
+        ]
+
+    def count_pending_cleanup_debts(self, idempotency_key: str | None = None) -> int:
+        """Count cleanup debts eligible for processing.
+
+        Includes 'pending' and 'retryable' (not past deadline) debts.
+        """
+        now = datetime.now(UTC)
+        stmt = (
+            sa.select(sa.func.count())
+            .select_from(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.status.in_(["pending", "retryable"]),
+                sa.or_(
+                    CleanupDebtRecord.next_retry_at.is_(None),
+                    CleanupDebtRecord.next_retry_at <= now,
+                ),
+            )
+        )
+        if idempotency_key is not None:
+            stmt = stmt.where(CleanupDebtRecord.idempotency_key == idempotency_key)
+        result = self._session.execute(stmt).scalar()
+        return result or 0
+
+    def count_eligible_cleanup_debts(
+        self,
+        *,
+        processing_timeout_seconds: int = 600,
+    ) -> int:
+        """Count cleanup debts eligible for processing or re-claiming.
+
+        Uses the same query conditions as :meth:`list_eligible_cleanup_debts`.
+        Includes pending, retryable (not past deadline), and expired processing debts.
+        """
+        from datetime import timedelta
+
+        now = datetime.now(UTC)
+        cutoff = now - timedelta(seconds=processing_timeout_seconds)
+        stmt = (
+            sa.select(sa.func.count())
+            .select_from(CleanupDebtRecord)
+            .where(
+                CleanupDebtRecord.status.in_(["pending", "retryable", "processing"]),
+                sa.or_(
+                    # pending/retryable: no retry deadline or deadline passed
+                    sa.and_(
+                        CleanupDebtRecord.status.in_(["pending", "retryable"]),
+                        sa.or_(
+                            CleanupDebtRecord.next_retry_at.is_(None),
+                            CleanupDebtRecord.next_retry_at <= now,
+                        ),
+                    ),
+                    # processing with lock_expires_at: deadline passed
+                    sa.and_(
+                        CleanupDebtRecord.status == "processing",
+                        CleanupDebtRecord.lock_expires_at.isnot(None),
+                        CleanupDebtRecord.lock_expires_at <= now,
+                    ),
+                    # processing without lock_expires_at: lock older than timeout
+                    sa.and_(
+                        CleanupDebtRecord.status == "processing",
+                        CleanupDebtRecord.lock_expires_at.is_(None),
+                        CleanupDebtRecord.locked_at.isnot(None),
+                        CleanupDebtRecord.locked_at < cutoff,
+                    ),
+                ),
+            )
+        )
+        result = self._session.execute(stmt).scalar()
+        return result or 0
+
+    def insert_audit_log(
+        self,
+        record_id: str,
+        storage_key: str,
+        migration_actor: str,
+        audit_reason: str,
+        result: str,
+        *,
+        operation: str = "legacy_delete",
+        source_hash: str | None = None,
+    ) -> None:
+        """Insert a MigrationAuditRecord."""
+        rec = MigrationAuditRecord(
+            id=record_id,
+            storage_key=storage_key,
+            migration_actor=migration_actor,
+            audit_reason=audit_reason,
+            operation=operation,
+            result=result,
+            source_hash=source_hash,
+        )
+        self._session.add(rec)
+
+    # --- Deletion Outbox ---
+
+    def insert_deletion_outbox(
+        self,
+        storage_key: str,
+        migration_actor: str,
+        audit_reason: str,
+        operation: str = "legacy_delete",
+        source_hash: str | None = None,
+    ) -> str:
+        """Insert a pending deletion outbox record.
+
+        Returns the outbox ID.
+        """
+        import uuid as _uuid
+
+        outbox_id = str(_uuid.uuid4())
+        rec = DeletionOutboxRecord(
+            id=outbox_id,
+            storage_key=storage_key,
+            migration_actor=migration_actor,
+            audit_reason=audit_reason,
+            operation=operation,
+            source_hash=source_hash,
+            status="pending_audit",
+        )
+        self._session.add(rec)
+        return outbox_id
+
+    def update_deletion_outbox_status(self, outbox_id: str, status: str) -> None:
+        """Update the status of a deletion outbox record."""
+        stmt = (
+            sa.update(DeletionOutboxRecord)
+            .where(DeletionOutboxRecord.id == outbox_id)
+            .values(status=status)
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount != 1:  # type: ignore[attr-defined]
+            raise ValueError(f"Deletion outbox {outbox_id} not found")
+
+    # --- Deletion Receipts ---
+
+    def insert_deletion_receipt(
+        self,
+        storage_key: str,
+        stale_claim_token: str,
+        stale_claim_version: int,
+        reclaim_token: str,
+        reclaim_version: int,
+        deletion_hash: str,
+        status: str = "deleted",
+        deleted_at: datetime | None = None,
+    ) -> None:
+        """Insert a deletion receipt record.
+
+        If a receipt already exists for this storage_key it is replaced
+        (UPSERT semantics) so that re-delete operations overwrite old
+        receipts.
+
+        Parameters
+        ----------
+        status:
+            Two-phase protocol status: ``intent``, ``deleted``, or
+            ``delete_failed``.  Default ``deleted`` for backward compat.
+        deleted_at:
+            When the file was actually deleted.  If None, the server
+            default (current timestamp) is used in the UPSERT values.
+        """
+        from datetime import UTC
+
+        dialect = "sqlite"
+        if self._session.bind is not None:
+            dialect = self._session.bind.dialect.name
+        # Determine the correct deleted_at value based on status.
+        # - 'intent' and 'delete_failed': deleted_at stays None
+        # - 'deleted': default to now if not explicitly provided
+        if deleted_at is not None:
+            actual_deleted_at: datetime | None = deleted_at
+        elif status == "deleted":
+            actual_deleted_at = datetime.now(UTC)
+        else:
+            actual_deleted_at = None
+
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            pg_stmt = pg_insert(DeletionReceiptRecord).values(
+                storage_key=storage_key,
+                stale_claim_token=stale_claim_token,
+                stale_claim_version=stale_claim_version,
+                reclaim_token=reclaim_token,
+                reclaim_version=reclaim_version,
+                deletion_hash=deletion_hash,
+                status=status,
+                deleted_at=actual_deleted_at,
+            )
+            pg_stmt = pg_stmt.on_conflict_do_update(
+                index_elements=["storage_key"],
+                set_=dict(
+                    stale_claim_token=stale_claim_token,
+                    stale_claim_version=stale_claim_version,
+                    reclaim_token=reclaim_token,
+                    reclaim_version=reclaim_version,
+                    deletion_hash=deletion_hash,
+                    status=status,
+                    deleted_at=actual_deleted_at,
+                ),
+            )
+            self._session.execute(pg_stmt)
+        else:
+            # SQLite: merge-style upsert
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            sqlite_stmt = sqlite_insert(DeletionReceiptRecord).values(
+                storage_key=storage_key,
+                stale_claim_token=stale_claim_token,
+                stale_claim_version=stale_claim_version,
+                reclaim_token=reclaim_token,
+                reclaim_version=reclaim_version,
+                deletion_hash=deletion_hash,
+                status=status,
+                deleted_at=actual_deleted_at,
+            )
+            sqlite_stmt = sqlite_stmt.on_conflict_do_update(
+                index_elements=["storage_key"],
+                set_=dict(
+                    stale_claim_token=stale_claim_token,
+                    stale_claim_version=stale_claim_version,
+                    reclaim_token=reclaim_token,
+                    reclaim_version=reclaim_version,
+                    deletion_hash=deletion_hash,
+                    status=status,
+                    deleted_at=actual_deleted_at,
+                ),
+            )
+            self._session.execute(sqlite_stmt)
+
+    def get_deletion_receipt(self, storage_key: str) -> dict[str, Any] | None:
+        """Get a deletion receipt by storage key.
+
+        Returns a dict with keys (stale_claim_token, stale_claim_version,
+        reclaim_token, reclaim_version, deletion_hash, deleted_at, status) or None.
+        """
+        rec = self._session.get(DeletionReceiptRecord, storage_key)
+        if rec is None:
+            return None
+        return {
+            "stale_claim_token": rec.stale_claim_token,
+            "stale_claim_version": rec.stale_claim_version,
+            "reclaim_token": rec.reclaim_token,
+            "reclaim_version": rec.reclaim_version,
+            "deletion_hash": rec.deletion_hash,
+            "deleted_at": rec.deleted_at,
+            "status": rec.status,
+        }
+
+    _UNSET = object()
+
+    def update_deletion_receipt_status(
+        self,
+        storage_key: str,
+        status: str,
+        deleted_at: datetime | None | object = _UNSET,
+    ) -> None:
+        """Update the status of a deletion receipt record.
+
+        Used by the two-phase reclaim_delete protocol to transition
+        from ``intent`` to ``deleted`` or ``delete_failed``.
+
+        Parameters
+        ----------
+        storage_key:
+            The storage key of the receipt.
+        status:
+            New status (``deleted`` or ``delete_failed``).
+        deleted_at:
+            If provided (including None), update the deleted_at value.
+            If not provided (the sentinel default), deleted_at is not changed.
+            Pass ``deleted_at=None`` to explicitly clear the timestamp
+            (e.g. when transitioning to ``delete_failed`` after a prior
+            successful deletion that was retried).
+        """
+        values: dict[str, Any] = {"status": status}
+        if deleted_at is not self._UNSET:
+            values["deleted_at"] = deleted_at
+        stmt = (
+            sa.update(DeletionReceiptRecord)
+            .where(DeletionReceiptRecord.storage_key == storage_key)
+            .values(**values)
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount == 0:  # type: ignore[attr-defined]
+            raise ValueError(f"Deletion receipt not found: {storage_key}")
+
+    # --- Deletion Outbox CAS claim methods (0025) ---
+
+    def claim_deletion_outbox(
+        self,
+        outbox_id: str,
+        *,
+        claimant_token: str,
+        now: datetime,
+        lease_seconds: int,
+        observed_status: str,
+        observed_claim_version: int,
+    ) -> bool:
+        """CAS claim a deletion outbox for processing.
+
+        CAS conditions: ``id == outbox_id``, ``status == observed_status``,
+        ``claim_version == observed_claim_version``, plus eligibility:
+
+        - If observed status is ``pending_audit`` or ``delete_failed``,
+          the outbox is immediately eligible.
+        - If observed status is ``deleting``, the lock must be expired
+          (``lock_expires_at <= now`` and ``lock_expires_at IS NOT NULL``).
+
+        On success:
+        - status = 'deleting'
+        - claim_token = claimant_token
+        - claim_version = claim_version + 1
+        - locked_at = now
+        - lock_expires_at = now + lease_seconds
+
+        Returns True if the outbox was successfully claimed.
+        """
+        from datetime import timedelta
+
+        eligible = sa.or_(
+            DeletionOutboxRecord.status.in_(["pending_audit", "delete_failed"]),
+            sa.and_(
+                DeletionOutboxRecord.status == "deleting",
+                DeletionOutboxRecord.lock_expires_at.isnot(None),
+                DeletionOutboxRecord.lock_expires_at <= now,
+            ),
+        )
+
+        stmt = (
+            sa.update(DeletionOutboxRecord)
+            .where(DeletionOutboxRecord.id == outbox_id)
+            .where(DeletionOutboxRecord.status == observed_status)
+            .where(DeletionOutboxRecord.claim_version == observed_claim_version)
+            .where(eligible)
+            .values(
+                status="deleting",
+                claim_token=claimant_token,
+                claim_version=DeletionOutboxRecord.claim_version + 1,
+                locked_at=now,
+                lock_expires_at=now + timedelta(seconds=lease_seconds),
+            )
+        )
+        result = self._session.execute(stmt)
+        return bool(result.rowcount == 1)  # type: ignore[attr-defined]
+
+    def complete_deletion_outbox(
+        self,
+        outbox_id: str,
+        *,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
+        """Complete a deletion outbox (CAS: status='deleting', claim matches).
+
+        Updates status to 'audited' and clears claim fields.
+
+        Raises ValueError if no matching outbox found.
+        """
+        stmt = (
+            sa.update(DeletionOutboxRecord)
+            .where(DeletionOutboxRecord.id == outbox_id)
+            .where(DeletionOutboxRecord.status == "deleting")
+            .where(DeletionOutboxRecord.claim_token == claim_token)
+            .where(DeletionOutboxRecord.claim_version == claim_version)
+            .values(
+                status="audited",
+                claim_token=None,
+                locked_at=None,
+                lock_expires_at=None,
+            )
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount != 1:  # type: ignore[attr-defined]
+            raise ValueError(f"Deletion outbox {outbox_id} not found or claim mismatch")
+
+    def fail_deletion_outbox(
+        self,
+        outbox_id: str,
+        *,
+        claim_token: str,
+        claim_version: int,
+        error: str,
+    ) -> None:
+        """Fail a deletion outbox (CAS: status='deleting', claim matches).
+
+        Updates status to 'delete_failed', increments retry_count,
+        sets last_error, and clears claim fields.
+
+        Raises ValueError if no matching outbox found.
+        """
+        stmt = (
+            sa.update(DeletionOutboxRecord)
+            .where(DeletionOutboxRecord.id == outbox_id)
+            .where(DeletionOutboxRecord.status == "deleting")
+            .where(DeletionOutboxRecord.claim_token == claim_token)
+            .where(DeletionOutboxRecord.claim_version == claim_version)
+            .values(
+                status="delete_failed",
+                retry_count=DeletionOutboxRecord.retry_count + 1,
+                last_error=error,
+                claim_token=None,
+                locked_at=None,
+                lock_expires_at=None,
+            )
+        )
+        result = self._session.execute(stmt)
+        if result.rowcount != 1:  # type: ignore[attr-defined]
+            raise ValueError(f"Deletion outbox {outbox_id} not found or claim mismatch")
+
+    # --- Deletion Outbox listing ---
+
+    def list_deletion_outboxes_by_status(self, status: str) -> list[dict[str, Any]]:
+        """List deletion outbox records with the given status.
+
+        Returns a list of dicts with keys (id, storage_key, migration_actor,
+        audit_reason, operation, source_hash, status, retry_count, created_at).
+        """
+        stmt = (
+            sa.select(DeletionOutboxRecord)
+            .where(DeletionOutboxRecord.status == status)
+            .order_by(DeletionOutboxRecord.created_at)
+        )
+        rows = self._session.execute(stmt).scalars().all()
+        return [
+            {
+                "id": r.id,
+                "storage_key": r.storage_key,
+                "migration_actor": r.migration_actor,
+                "audit_reason": r.audit_reason,
+                "operation": r.operation,
+                "source_hash": r.source_hash,
+                "status": r.status,
+                "retry_count": r.retry_count,
+                "created_at": r.created_at,
+            }
+            for r in rows
+        ]
+
+    def list_eligible_outboxes(
+        self,
+        processing_timeout_seconds: int = 600,
+    ) -> list[dict[str, Any]]:
+        """List outboxes eligible for processing.
+
+        Returns outboxes where:
+        - status IN ('pending_audit', 'delete_failed'), OR
+        - status = 'deleting' AND lock_expires_at <= now (expired lease)
+
+        Includes claim fields (claim_token, claim_version, locked_at,
+        lock_expires_at) in the returned dicts.
+        """
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
+        stmt = (
+            sa.select(DeletionOutboxRecord)
+            .where(
+                sa.or_(
+                    DeletionOutboxRecord.status.in_(["pending_audit", "delete_failed"]),
+                    sa.and_(
+                        DeletionOutboxRecord.status == "deleting",
+                        DeletionOutboxRecord.lock_expires_at <= now,
+                    ),
+                )
+            )
+            .order_by(DeletionOutboxRecord.created_at)
+        )
+        rows = self._session.execute(stmt).scalars().all()
+        return [
+            {
+                "id": r.id,
+                "storage_key": r.storage_key,
+                "migration_actor": r.migration_actor,
+                "audit_reason": r.audit_reason,
+                "operation": r.operation,
+                "source_hash": r.source_hash,
+                "status": r.status,
+                "retry_count": r.retry_count,
+                "created_at": r.created_at,
+                "claim_token": r.claim_token,
+                "claim_version": r.claim_version,
+                "locked_at": r.locked_at,
+                "lock_expires_at": r.lock_expires_at,
+            }
+            for r in rows
+        ]
 
     # --- Commit ---

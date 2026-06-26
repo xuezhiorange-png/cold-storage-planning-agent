@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from cold_storage.modules.planning_agent.domain.errors import PlanningAgentError
 from cold_storage.modules.planning_agent.domain.models import AgentToolResult
+from cold_storage.modules.reports.domain.enums import ReportLocale
 
 if TYPE_CHECKING:
     from cold_storage.modules.reports.application.render_service import (
@@ -37,6 +38,8 @@ class ReportRenderAdapter:
         template_version = arguments.get("template_version")
         idempotency_key = arguments.get("idempotency_key")
         actor = arguments.get("actor", "system")
+        # Section VIII: locale is required — no default
+        locale = ReportLocale(arguments["locale"])
 
         try:
             artifact = self._service.render(
@@ -47,6 +50,7 @@ class ReportRenderAdapter:
                 mode=mode,
                 actor=actor,
                 idempotency_key=idempotency_key,
+                locale=locale,
             )
         except Exception as exc:
             raise PlanningAgentError(f"Render failed: {exc}") from exc
@@ -66,6 +70,11 @@ class ReportRenderAdapter:
                 "file_name": artifact.file_name,
                 "file_size_bytes": artifact.file_size_bytes,
                 "file_sha256": artifact.file_sha256,
+                "locale": artifact.locale.value,
+                "template_locale": artifact.template_locale.value,
+                "translation_catalog_version": artifact.translation_catalog_version,
+                "translation_catalog_content_hash": artifact.translation_catalog_content_hash,
+                "localized_template_content_hash": artifact.localized_template_content_hash,
             },
             "warnings": warnings,
             "requires_review": True,
@@ -91,9 +100,11 @@ class ReportListExportsAdapter:
 
         report_id = arguments["report_id"]
         actor = arguments.get("actor", "system")
+        locale_str = arguments.get("locale")
+        locale = ReportLocale(locale_str) if locale_str is not None else None
 
         try:
-            artifacts = self._service.list_artifacts(report_id, actor)
+            artifacts = self._service.list_artifacts(report_id, actor, locale=locale)
         except Exception as exc:
             raise PlanningAgentError(f"List exports failed: {exc}") from exc
 
@@ -115,6 +126,11 @@ class ReportListExportsAdapter:
                             if hasattr(a.generated_at, "isoformat")
                             else str(a.generated_at)
                         ),
+                        "locale": a.locale.value,
+                        "template_locale": a.template_locale.value,
+                        "translation_catalog_version": a.translation_catalog_version,
+                        "translation_catalog_content_hash": a.translation_catalog_content_hash,
+                        "localized_template_content_hash": a.localized_template_content_hash,
                     }
                     for a in artifacts
                 ],
@@ -163,6 +179,11 @@ class ReportGetExportAdapter:
                 "file_sha256": artifact.file_sha256,
                 "revision_number": artifact.revision_number,
                 "template_version": artifact.template_version,
+                "locale": artifact.locale.value,
+                "template_locale": artifact.template_locale.value,
+                "translation_catalog_version": artifact.translation_catalog_version,
+                "translation_catalog_content_hash": artifact.translation_catalog_content_hash,
+                "localized_template_content_hash": artifact.localized_template_content_hash,
             },
             "warnings": [],
             "requires_review": False,

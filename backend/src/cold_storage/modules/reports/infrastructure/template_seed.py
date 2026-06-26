@@ -16,6 +16,7 @@ from typing import Any
 from cold_storage.modules.reports.application.render_service import ReportTemplateRepositoryPort
 from cold_storage.modules.reports.domain.enums import (
     ExportFormat,
+    ReportLocale,
     ReportType,
     TemplateStatus,
 )
@@ -26,23 +27,53 @@ logger = logging.getLogger(__name__)
 _MANIFEST_DIR = Path(__file__).parent.parent / "templates" / "cold_storage_concept_design" / "1.0.0"
 
 
-def _load_manifest(fmt: ExportFormat) -> dict[str, Any]:
+def _load_manifest(
+    fmt: ExportFormat,
+    locale: str = "zh-CN",
+    *,
+    allow_legacy_fallback: bool = False,
+) -> dict[str, Any]:
     """Load format-specific manifest JSON from disk.
 
-    Looks for ``<manifest_dir>/<fmt>/manifest.json`` first, falling back to
-    the legacy single ``manifest.json`` if the format-specific file is missing.
+    Looks for ``<manifest_dir>/<locale>/<fmt>/manifest.json`` first,
+    then ``<manifest_dir>/<fmt>/manifest.json`` (legacy format-specific),
+    then ``<manifest_dir>/manifest.json`` (legacy single manifest).
+
+    When *allow_legacy_fallback* is ``False`` (default), raises
+    ``FileNotFoundError`` if the locale-specific path does not exist.
+    When ``True``, falls back to legacy paths for backward compatibility.
     """
+    locale_path = _MANIFEST_DIR / locale / fmt.value / "manifest.json"
+
+    if not allow_legacy_fallback:
+        if not locale_path.exists():
+            raise FileNotFoundError(
+                f"Locale-specific manifest not found: {locale_path}. "
+                f"Expected manifest at {locale_path} for locale={locale!r} "
+                f"and format={fmt.value!r}."
+            )
+        result: dict[str, Any] = json.loads(locale_path.read_text(encoding="utf-8"))
+        return result
+
+    # allow_legacy_fallback=True: try locale-specific, then legacy paths
+    if locale_path.exists():
+        result = json.loads(locale_path.read_text(encoding="utf-8"))
+        return result
+
+    # Fallback to legacy format-specific path
     manifest_path = _MANIFEST_DIR / fmt.value / "manifest.json"
-    if not manifest_path.exists():
-        # Fallback to legacy single manifest
-        legacy = _MANIFEST_DIR / "manifest.json"
-        if legacy.exists():
-            data: dict[str, Any] = json.loads(legacy.read_text(encoding="utf-8"))
-            return data
-        logger.warning("Template manifest not found at %s", manifest_path)
-        return {}
-    result: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
-    return result
+    if manifest_path.exists():
+        result2: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return result2
+
+    # Fallback to legacy single manifest
+    legacy = _MANIFEST_DIR / "manifest.json"
+    if legacy.exists():
+        result3: dict[str, Any] = json.loads(legacy.read_text(encoding="utf-8"))
+        return result3
+
+    logger.warning("Template manifest not found at %s", locale_path)
+    return {}
 
 
 def _compute_content_hash(manifest: dict[str, Any]) -> str:
@@ -52,7 +83,10 @@ def _compute_content_hash(manifest: dict[str, Any]) -> str:
 
 
 def seed_default_templates(template_repo: ReportTemplateRepositoryPort) -> None:
-    """Create default DOCX and PDF templates if they do not already exist.
+    """Create default DOCX and PDF templates for all supported locales.
+
+    Seeds templates for both zh-CN and en-US locales.  Each locale gets
+    its own DOCX and PDF templates with locale-specific manifests.
 
     Parameters
     ----------
@@ -61,8 +95,18 @@ def seed_default_templates(template_repo: ReportTemplateRepositoryPort) -> None:
         (save_template, list_templates, get_active_template, update_template,
         commit).
     """
+    from cold_storage.modules.reports.domain.enums import ReportLocale
+
+    for locale in ReportLocale:
+        _seed_locale_templates(template_repo, locale.value)
+
+
+def _seed_locale_templates(template_repo: ReportTemplateRepositoryPort, locale: str) -> None:
+    """Seed templates for a single locale."""
+    from cold_storage.modules.reports.domain.enums import ReportLocale as _RL
+
     for fmt in (ExportFormat.DOCX, ExportFormat.PDF):
-        manifest = _load_manifest(fmt)
+        manifest = _load_manifest(fmt, locale=locale, allow_legacy_fallback=True)
         if not manifest:
             logger.warning(
                 "Skipping template seed for %s: manifest empty or missing",
@@ -74,13 +118,13 @@ def seed_default_templates(template_repo: ReportTemplateRepositoryPort) -> None:
         version = manifest.get("version", "1.0.0")
         report_type_str = manifest.get("report_type", "cold_storage_concept_design")
         schema_version = manifest.get("schema_version", f"{report_type_str}@{version}")
-        locale = manifest.get("locale", "zh-CN")
+        manifest_locale = manifest.get("locale", locale)
 
         report_type = ReportType(report_type_str)
 
-        # Check if template already exists for this code+version+format
+        # Check if template already exists for this code+version+format+locale
         existing = template_repo.list_templates(template_code=template_code, format=fmt)
-        already_exists = any(t.version == version for t in existing)
+        already_exists = any(t.version == version and t.locale == manifest_locale for t in existing)
 
         if already_exists:
             logger.info(
@@ -90,17 +134,21 @@ def seed_default_templates(template_repo: ReportTemplateRepositoryPort) -> None:
                 fmt.value,
             )
             # P0-8: Ensure it's active — deactivate all others first, then activate target
-            active = template_repo.get_active_template(template_code, format=fmt)
+            active = template_repo.get_active_template(
+                template_code, format=fmt, locale=_RL(manifest_locale)
+            )
             if active is None or active.version != version:
                 for t in existing:
                     if t.version == version and t.status != TemplateStatus.ACTIVE:
-                        # P0-8: Deactivate all existing active templates for same code+format
+                        # P0-8: Deactivate existing active templates for same code+format+locale
                         if hasattr(template_repo, "deactivate_templates"):
-                            template_repo.deactivate_templates(template_code, fmt.value)
+                            template_repo.deactivate_templates(
+                                template_code, fmt.value, locale=_RL(locale)
+                            )
                         else:
                             # Fallback: deactivate any active template
                             current_active = template_repo.get_active_template(
-                                template_code, format=fmt
+                                template_code, format=fmt, locale=_RL(locale)
                             )
                             if current_active is not None:
                                 from dataclasses import replace as dc_replace
@@ -128,7 +176,7 @@ def seed_default_templates(template_repo: ReportTemplateRepositoryPort) -> None:
             format=fmt,
             version=version,
             schema_version=schema_version,
-            locale=locale,
+            locale=ReportLocale(locale),
             manifest_json=manifest,
             template_content_hash=template_content_hash,
             created_by="system",

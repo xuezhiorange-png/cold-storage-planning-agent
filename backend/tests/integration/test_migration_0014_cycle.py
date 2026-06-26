@@ -157,8 +157,8 @@ class TestMigrationRoundtrip:
         assert result.returncode == 0, f"alembic upgrade failed:\n{result.stderr}"
 
         idx = _get_index_names(temp_db, "report_templates")
-        assert "uq_active_template_per_code_format" in idx
-        assert _index_is_unique(temp_db, "uq_active_template_per_code_format")
+        assert "uq_active_template_per_code_format_locale" in idx
+        assert _index_is_unique(temp_db, "uq_active_template_per_code_format_locale")
 
     # -- downgrade 0013 ----------------------------------------------------
 
@@ -199,7 +199,7 @@ class TestMigrationRoundtrip:
         assert result.returncode == 0, f"alembic downgrade failed:\n{result.stderr}"
 
         idx = _get_index_names(temp_db, "report_templates")
-        assert "uq_active_template_per_code_format" not in idx
+        assert "uq_active_template_per_code_format_locale" not in idx
 
     # -- full cycle --------------------------------------------------------
 
@@ -233,8 +233,8 @@ class TestMigrationRoundtrip:
 
         assert "active_slot" in _get_columns(temp_db, "report_templates")
         idx = _get_index_names(temp_db, "report_templates")
-        assert "uq_active_template_per_code_format" in idx
-        assert _index_is_unique(temp_db, "uq_active_template_per_code_format")
+        assert "uq_active_template_per_code_format_locale" in idx
+        assert _index_is_unique(temp_db, "uq_active_template_per_code_format_locale")
 
     def test_idempotent_double_upgrade(self, temp_db):
         """Running upgrade head twice does not error."""

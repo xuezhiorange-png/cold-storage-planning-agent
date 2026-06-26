@@ -16,6 +16,7 @@ from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
     QualitySeverity,
+    ReportLocale,
     ReportStatus,
     ReportType,
     ReviewAction,
@@ -267,10 +268,10 @@ class ReportTemplate:
     version: str
     status: TemplateStatus
     schema_version: str
-    locale: str
     manifest_json: dict[str, Any]
     template_content_hash: str
     created_by: str
+    locale: ReportLocale = ReportLocale.ZH_CN
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     activated_at: datetime | None = None
 
@@ -283,7 +284,7 @@ class ReportTemplate:
         format: ExportFormat,
         version: str,
         schema_version: str,
-        locale: str = "zh-CN",
+        locale: ReportLocale = ReportLocale.ZH_CN,
         manifest_json: dict[str, Any] | None = None,
         template_content_hash: str = "",
         created_by: str = "system",
@@ -331,6 +332,11 @@ class ReportExportArtifact:
     idempotency_key: str | None = None
     claim_token: str | None = None
     claim_version: int = 0
+    locale: ReportLocale = ReportLocale.ZH_CN
+    translation_catalog_version: str = "1.0.0"
+    localized_template_content_hash: str = ""
+    template_locale: ReportLocale = ReportLocale.ZH_CN
+    translation_catalog_content_hash: str = ""
 
     @classmethod
     def create(
@@ -350,6 +356,11 @@ class ReportExportArtifact:
         idempotency_key: str | None = None,
         claim_token: str | None = None,
         claim_version: int = 0,
+        locale: ReportLocale = ReportLocale.ZH_CN,
+        template_locale: ReportLocale = ReportLocale.ZH_CN,
+        translation_catalog_content_hash: str = "",
+        translation_catalog_version: str = "1.0.0",
+        localized_template_content_hash: str = "",
     ) -> ReportExportArtifact:
         return cls(
             id=_uuid(),
@@ -373,4 +384,9 @@ class ReportExportArtifact:
             idempotency_key=idempotency_key,
             claim_token=claim_token,
             claim_version=claim_version,
+            locale=locale,
+            template_locale=template_locale,
+            translation_catalog_content_hash=translation_catalog_content_hash,
+            translation_catalog_version=translation_catalog_version,
+            localized_template_content_hash=localized_template_content_hash,
         )

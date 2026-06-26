@@ -44,8 +44,11 @@ from cold_storage.modules.reports.application.assembler import (
     ReportAssembler,
     ReportDataProvider,
 )
-from cold_storage.modules.reports.application.render_model_builder import (
-    build_render_model,
+from cold_storage.modules.reports.application.canonical_render_model_builder import (
+    build_canonical_render_model,
+)
+from cold_storage.modules.reports.application.render_model_localizer import (
+    localize_render_model,
 )
 from cold_storage.modules.reports.application.render_service import (
     ReportRenderService,
@@ -55,6 +58,7 @@ from cold_storage.modules.reports.application.service import ReportService
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
+    ReportLocale,
     ReportStatus,
     ReportType,
     TemplateStatus,
@@ -69,6 +73,42 @@ from cold_storage.modules.reports.infrastructure.orm import Base
 from cold_storage.modules.reports.infrastructure.repository import (
     SQLReportRepository,
 )
+
+
+def build_render_model(
+    *,
+    content,
+    report_id,
+    revision_number,
+    content_hash,
+    generated_by,
+    generated_at,
+    template_code,
+    template_version,
+    locale,
+    template_manifest_json=None,
+    format="docx",
+    approval_snapshot=None,
+):
+    """Backward-compat wrapper used by tests."""
+    canonical = build_canonical_render_model(
+        content=content,
+        report_id=report_id,
+        revision_number=revision_number,
+        content_hash=content_hash,
+        generated_by=generated_by,
+        generated_at=generated_at,
+        template_code=template_code,
+        template_version=template_version,
+        approval_snapshot=approval_snapshot,
+    )
+    return localize_render_model(
+        canonical,
+        locale=locale,
+        template_manifest_json=template_manifest_json,
+        format=format,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -136,6 +176,7 @@ class _MockStorage:
 
     def __init__(self) -> None:
         self._files: dict[str, bytes] = {}
+        self._claim_owners: dict[str, tuple[str, int]] = {}  # key -> (claim_token, claim_version)
 
     def put_temp(self, data: bytes, filename: str) -> tuple[str, str]:
         key = f"temp/{filename}"
@@ -145,14 +186,32 @@ class _MockStorage:
     def cleanup_temp(self, path: str) -> None:
         self._files.pop(path, None)
 
-    def finalize_temp(self, path: str, artifact_id: str, filename: str) -> str:
+    def finalize_temp(
+        self,
+        path: str,
+        artifact_id: str,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         data = self._files.pop(path, b"")
         key = f"final/{artifact_id}/{filename}"
         self._files[key] = data
+        if claim_token:
+            self._claim_owners[key] = (claim_token, claim_version)
         return key
 
-    def delete(self, key: str) -> None:
+    def delete(self, key: str, *, claim_token: str = "", claim_version: int = 0) -> None:
+        # Validate claim ownership if key exists and claim_token provided
+        if key in self._claim_owners and claim_token:
+            owner_token, owner_version = self._claim_owners[key]
+            if owner_token != claim_token:
+                raise PermissionError(
+                    f"Claim token mismatch for {key}: expected {owner_token}, got {claim_token}"
+                )
         self._files.pop(key, None)
+        self._claim_owners.pop(key, None)
 
     def exists(self, key: str) -> bool:
         return key in self._files
@@ -162,9 +221,26 @@ class _MockStorage:
             raise FileNotFoundError(key)
         return f"/tmp/{key}"
 
-    def put(self, artifact_id: str, data: bytes, filename: str) -> str:
+    def put(
+        self,
+        artifact_id: str,
+        data: bytes,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         key = f"final/{artifact_id}/{filename}"
+        # Reject overwrite if key exists and owned by a different claim
+        if key in self._claim_owners and claim_token:
+            owner_token, owner_version = self._claim_owners[key]
+            if owner_token != claim_token:
+                raise PermissionError(
+                    f"Claim token mismatch for {key}: expected {owner_token}, got {claim_token}"
+                )
         self._files[key] = data
+        if claim_token:
+            self._claim_owners[key] = (claim_token, claim_version)
         return key
 
     def get(self, key: str) -> bytes:
@@ -293,15 +369,13 @@ class TestApprovalSnapshotPassthrough:
             generated_at="2025-01-01T00:00:00Z",
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
+            locale=ReportLocale.ZH_CN,
         )
-        citations_section = None
-        for s in model.sections:
-            if s.section_key == "citations_and_approval":
-                citations_section = s
-                break
-        assert citations_section is not None
-        # Should be empty (no approval, no citations)
-        assert citations_section.is_empty
+        # No approval_snapshot passed — no citations_and_approval section exists
+        citations_section = next(
+            (s for s in model.sections if s.section_key == "citations_and_approval"), None
+        )
+        assert citations_section is None
 
     def test_render_manifest_empty_when_no_approval(self):
         """Render manifest contains empty strings when no approval."""
@@ -343,7 +417,15 @@ class _FailingStorage:
             raise OSError("Cleanup failed")
         self._files.pop(path, None)
 
-    def finalize_temp(self, path: str, artifact_id: str, filename: str) -> str:
+    def finalize_temp(
+        self,
+        path: str,
+        artifact_id: str,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         if self._fail_finalize:
             raise OSError("Finalize failed")
         data = self._files.pop(path, b"")
@@ -351,7 +433,7 @@ class _FailingStorage:
         self._files[key] = data
         return key
 
-    def delete(self, key: str) -> None:
+    def delete(self, key: str, *, claim_token: str = "", claim_version: int = 0) -> None:
         if self._fail_delete:
             raise OSError("Delete failed")
         self._files.pop(key, None)
@@ -364,7 +446,15 @@ class _FailingStorage:
             raise FileNotFoundError(key)
         return f"/tmp/{key}"
 
-    def put(self, artifact_id: str, data: bytes, filename: str) -> str:
+    def put(
+        self,
+        artifact_id: str,
+        data: bytes,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         key = f"final/{artifact_id}/{filename}"
         self._files[key] = data
         return key
@@ -383,8 +473,11 @@ def _make_template_mock():
         version="1.0.0",
         template_content_hash="hash",
         template_code="cold_storage_concept_design",
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
         format=ExportFormat.DOCX,
         status=TemplateStatus.ACTIVE,
+        locale=ReportLocale.ZH_CN,
+        schema_version="cold_storage_concept_design@1.0.0",
         manifest_json={},
     )
     template_repo.get_active_template.return_value = template_mock
@@ -432,6 +525,7 @@ class TestAllStageFailureClosure:
 
             with pytest.raises(RenderError, match="Rendering failed"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -504,6 +598,7 @@ class TestAllStageFailureClosure:
                 pytest.raises(RenderError),
             ):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -572,6 +667,7 @@ class TestAllStageFailureClosure:
 
             with pytest.raises(RenderError):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -648,6 +744,7 @@ class TestAllStageFailureClosure:
                 pytest.raises(RenderError),
             ):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -769,6 +866,7 @@ class TestReportRenderServiceWithUnitOfWork:
             )
 
             artifact = render_svc.render(
+                locale=ReportLocale.ZH_CN,
                 report_id=report.id,
                 revision_number=rev.revision_number,
                 format="docx",

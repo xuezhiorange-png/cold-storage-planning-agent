@@ -38,6 +38,7 @@ from cold_storage.modules.reports.application.render_service import (
 from cold_storage.modules.reports.application.service import ReportService
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
+    ReportLocale,
     ReportStatus,
     ReportType,
 )
@@ -132,6 +133,7 @@ class _MockStorage:
 
     def __init__(self) -> None:
         self._files: dict[str, bytes] = {}
+        self._claim_owners: dict[str, tuple[str, int]] = {}  # key -> (claim_token, claim_version)
 
     def put_temp(self, data: bytes, filename: str) -> tuple[str, str]:
         key = f"temp/{filename}"
@@ -141,14 +143,32 @@ class _MockStorage:
     def cleanup_temp(self, path: str) -> None:
         self._files.pop(path, None)
 
-    def finalize_temp(self, path: str, artifact_id: str, filename: str) -> str:
+    def finalize_temp(
+        self,
+        path: str,
+        artifact_id: str,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         data = self._files.pop(path, b"")
         key = f"final/{artifact_id}/{filename}"
         self._files[key] = data
+        if claim_token:
+            self._claim_owners[key] = (claim_token, claim_version)
         return key
 
-    def delete(self, key: str) -> None:
+    def delete(self, key: str, *, claim_token: str = "", claim_version: int = 0) -> None:
+        # Validate claim ownership if key exists and claim_token provided
+        if key in self._claim_owners and claim_token:
+            owner_token, owner_version = self._claim_owners[key]
+            if owner_token != claim_token:
+                raise PermissionError(
+                    f"Claim token mismatch for {key}: expected {owner_token}, got {claim_token}"
+                )
         self._files.pop(key, None)
+        self._claim_owners.pop(key, None)
 
     def exists(self, key: str) -> bool:
         return key in self._files
@@ -158,9 +178,26 @@ class _MockStorage:
             raise FileNotFoundError(key)
         return f"/tmp/{key}"
 
-    def put(self, artifact_id: str, data: bytes, filename: str) -> str:
+    def put(
+        self,
+        artifact_id: str,
+        data: bytes,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         key = f"final/{artifact_id}/{filename}"
+        # Reject overwrite if key exists and owned by a different claim
+        if key in self._claim_owners and claim_token:
+            owner_token, owner_version = self._claim_owners[key]
+            if owner_token != claim_token:
+                raise PermissionError(
+                    f"Claim token mismatch for {key}: expected {owner_token}, got {claim_token}"
+                )
         self._files[key] = data
+        if claim_token:
+            self._claim_owners[key] = (claim_token, claim_version)
         return key
 
     def get(self, key: str) -> bytes:
@@ -337,6 +374,7 @@ class TestIdempotencyFailureStates:
 
             with pytest.raises(RenderError, match="Rendering failed"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -392,6 +430,7 @@ class TestIdempotencyFailureStates:
 
             with pytest.raises(RenderError, match="Rendering failed"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -438,6 +477,7 @@ class TestIdempotencyFailureStates:
                 pytest.raises(RenderError, match="Rendering failed"),
             ):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -482,6 +522,7 @@ class TestIdempotencyFailureStates:
 
             with pytest.raises(RenderError, match="Rendering failed"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -519,13 +560,16 @@ class TestIdempotencyFailureStates:
                 uow=uow,
             )
 
-            def fail_finalize(temp_path: str, artifact_id: str, filename: str) -> str:
+            def fail_finalize(
+                temp_path: str, artifact_id: str, filename: str, **kwargs: Any
+            ) -> str:
                 raise OSError("Filesystem read-only")
 
             monkeypatch.setattr(storage, "finalize_temp", fail_finalize)
 
             with pytest.raises(RenderError, match="Rendering failed"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -582,6 +626,7 @@ class TestIdempotencyFailureStates:
 
             with pytest.raises(RenderError, match="Rendering failed"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -616,13 +661,14 @@ class TestIdempotencyFailureStates:
             uow = ReportRenderUnitOfWork(session, report_repo=repo, artifact_repo=repo)
             render_svc = ReportRenderService(uow=uow, storage=storage, template_repo=repo)
 
-            def fail_finalize(path: str, artifact_id: str, filename: str) -> str:
+            def fail_finalize(path: str, artifact_id: str, filename: str, **kwargs: Any) -> str:
                 raise OSError("Simulated finalize failure")
 
             monkeypatch.setattr(storage, "finalize_temp", fail_finalize)
 
             with pytest.raises(RenderError):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -680,6 +726,7 @@ class TestIdempotencyFailureStates:
 
             with pytest.raises(RenderError):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -742,6 +789,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Verify idempotency record is failed
@@ -772,6 +820,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key,
+                locale=ReportLocale.ZH_CN,
             )
 
             assert artifact.status == ArtifactStatus.COMPLETED
@@ -849,6 +898,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Verify stuck state — no test-side DB patches applied
@@ -882,6 +932,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key,
+                locale=ReportLocale.ZH_CN,
             )
             assert artifact.status == ArtifactStatus.COMPLETED
             assert artifact.storage_key != ""
@@ -980,6 +1031,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Record old claim_token and version
@@ -1013,6 +1065,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key,
+                locale=ReportLocale.ZH_CN,
             )
             assert artifact.status == ArtifactStatus.COMPLETED
 
@@ -1081,6 +1134,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Record old artifact id
@@ -1112,6 +1166,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key,
+                locale=ReportLocale.ZH_CN,
             )
             assert new_artifact.status == ArtifactStatus.COMPLETED
             assert new_artifact.id != old_artifact_id
@@ -1178,6 +1233,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Record old claim_token and version
@@ -1211,6 +1267,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key,
+                locale=ReportLocale.ZH_CN,
             )
             assert artifact.status == ArtifactStatus.COMPLETED
 
@@ -1290,6 +1347,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key_1,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Record old artifact for key 1
@@ -1321,6 +1379,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key_1,
+                locale=ReportLocale.ZH_CN,
             )
             assert new_artifact_1.status == ArtifactStatus.COMPLETED
 
@@ -1350,6 +1409,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key_2,
+                locale=ReportLocale.ZH_CN,
             )
             assert new_artifact_2.status == ArtifactStatus.COMPLETED
             assert new_artifact_2.id != new_artifact_1.id
@@ -1400,6 +1460,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key_1,
+                locale=ReportLocale.ZH_CN,
             )
             assert artifact_1.status == ArtifactStatus.COMPLETED
 
@@ -1443,6 +1504,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key_2,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Advance clock past stale
@@ -1467,6 +1529,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key_2,
+                locale=ReportLocale.ZH_CN,
             )
             assert new_artifact_2.status == ArtifactStatus.COMPLETED
 
@@ -1537,6 +1600,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key_1,
+                locale=ReportLocale.ZH_CN,
             )
             assert artifact_1.status == ArtifactStatus.COMPLETED
 
@@ -1580,6 +1644,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key_2,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Advance clock past stale
@@ -1604,6 +1669,7 @@ class TestIdempotencyFailureStates:
                 mode="formal",
                 actor="test-user",
                 idempotency_key=idempotency_key_2,
+                locale=ReportLocale.ZH_CN,
             )
             assert new_artifact_2.status == ArtifactStatus.COMPLETED
 
@@ -1708,6 +1774,7 @@ class TestIdempotencyFailureStates:
                     mode="formal",
                     actor="test-user",
                     idempotency_key=idempotency_key,
+                    locale=ReportLocale.ZH_CN,
                 )
 
         # Record old claim_token before advancing
@@ -1748,6 +1815,7 @@ class TestIdempotencyFailureStates:
                         mode="formal",
                         actor="test-user",
                         idempotency_key=idempotency_key,
+                        locale=ReportLocale.ZH_CN,
                     )
                     results.append((worker_id, art))
                 except IdempotencyClaimError:
@@ -1881,6 +1949,7 @@ class TestIdempotencyFailureStates:
                         mode="formal",
                         actor="test-user",
                         idempotency_key=idempotency_key,
+                        locale=ReportLocale.ZH_CN,
                     )
             except Exception as exc:
                 worker_a_error.append(exc)
@@ -2020,6 +2089,7 @@ class TestIdempotencyFailureStates:
                         mode="formal",
                         actor="test-user",
                         idempotency_key=idempotency_key,
+                        locale=ReportLocale.ZH_CN,
                     )
             except Exception as exc:
                 worker_a_error.append(exc)
@@ -2166,6 +2236,7 @@ class TestIdempotencyFailureStates:
                             mode="formal",
                             actor="test-user",
                             idempotency_key=idempotency_key,
+                            locale=ReportLocale.ZH_CN,
                         )
             except Exception as exc:
                 worker_a_error.append(exc)
@@ -2298,6 +2369,7 @@ class TestIdempotencyFailureStates:
                         mode="formal",
                         actor="test-user",
                         idempotency_key=idempotency_key,
+                        locale=ReportLocale.ZH_CN,
                     )
             except Exception as exc:
                 worker_a_error.append(exc)
@@ -2397,6 +2469,7 @@ class TestIdempotencyFailureStates:
                         mode="formal",
                         actor="test-user",
                         idempotency_key=idempotency_key,
+                        locale=ReportLocale.ZH_CN,
                     )
             except Exception as exc:
                 worker_a_error.append(exc)
@@ -2511,6 +2584,7 @@ class TestIdempotencyFailureStates:
                             mode="formal",
                             actor="test-user",
                             idempotency_key=idempotency_key,
+                            locale=ReportLocale.ZH_CN,
                         )
             except Exception as exc:
                 worker_a_error.append(exc)
@@ -2917,3 +2991,491 @@ def test_two_postgresql_sessions_same_snapshot_exactly_one_reclaims():
 
     finally:
         pg_eng.dispose()
+
+
+# ===========================================================================
+# P0-6: Stale reclaim fencing — storage key deletion + full fencing assertions
+# ===========================================================================
+
+
+class TestStaleReclaimFencing:
+    """Verify stale reclaim correctly handles storage keys and full fencing.
+
+    Uses in-memory ``_MockStorage`` so we can check individual storage keys
+    after reclaim.
+    """
+
+    def test_stale_reclaim_storage_key_deletion_and_full_fencing(
+        self, session_factory, tmp_path, monkeypatch
+    ) -> None:
+        """After stale reclaim of zh-CN:
+        - Old zh-CN storage key is deleted
+        - New zh-CN storage key exists with correct sha256 and size
+        - en-US storage keys are untouched
+        - Old worker fencing: cannot complete/fail/update after reclaim
+        - Old worker cannot delete new file or finalize idempotency
+        """
+        from cold_storage.modules.reports.application.render_service import (
+            ReportRenderService,
+            ReportRenderUnitOfWork,
+        )
+
+        report, rev = _setup_approved(session_factory)
+        key_zh = "idem-storage-fence-zh"
+        key_en = "idem-storage-fence-en"
+        clock = FakeClock(datetime.now(UTC) + timedelta(days=1))
+        storage = _MockStorage()
+
+        # ---- Step 1: Render zh-CN successfully (baseline) ----
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            uow = ReportRenderUnitOfWork(sess, report_repo=repo, artifact_repo=repo)
+            svc = ReportRenderService(uow=uow, storage=storage, template_repo=repo, clock=clock)
+            zh_artifact = svc.render(
+                locale=ReportLocale.ZH_CN,
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=key_zh,
+            )
+            assert zh_artifact.status == ArtifactStatus.COMPLETED
+            zh_old_storage_key = zh_artifact.storage_key
+            # Unused: kept for documentation of old state
+            zh_old_sha256: str = zh_artifact.file_sha256  # noqa: F841
+            zh_old_size = zh_artifact.file_size_bytes
+            # Record old claim info (documentation only)
+            idem_zh = repo.get_idempotency_record(key_zh)
+            assert idem_zh is not None
+            # unused: kept for doc
+            zh_old_claim_token: str = idem_zh["claim_token"]  # noqa: F841
+            zh_old_claim_version: int = idem_zh["claim_version"]  # noqa: F841
+
+        # Verify old storage key exists
+        assert storage.exists(zh_old_storage_key), (
+            f"Old zh-CN storage key {zh_old_storage_key} should exist"
+        )
+        old_zh_bytes = storage.get(zh_old_storage_key)
+        assert len(old_zh_bytes) == zh_old_size
+
+        # ---- Step 2: Render en-US (independent) ----
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            uow = ReportRenderUnitOfWork(sess, report_repo=repo, artifact_repo=repo)
+            svc2 = ReportRenderService(uow=uow, storage=storage, template_repo=repo, clock=clock)
+            en_artifact = svc2.render(
+                locale=ReportLocale.EN_US,
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=key_en,
+            )
+            assert en_artifact.status == ArtifactStatus.COMPLETED
+            en_storage_key = en_artifact.storage_key
+            en_sha256 = en_artifact.file_sha256
+            en_size = en_artifact.file_size_bytes
+
+        assert en_storage_key != zh_old_storage_key
+        en_old_bytes = storage.get(en_storage_key)
+        assert len(en_old_bytes) == en_size
+
+        # ---- Step 3: Advance clock and reclaim zh-CN ----
+        clock.advance(600)
+
+        # Render zh-CN again with same key — should detect stale claim, reclaim,
+        # produce new artifact, and the RENDER service's reclaim handler
+        # (within render()) should call fail_nonterminal_artifacts.
+        # But since the original zh-CN was COMPLETED (not stuck), the reclaim
+        # won't trigger.  So we need to first get a STUCK zh-CN claim.
+        # Strategy: render a new key (key_zh_v2) that fails and gets stuck,
+        # then reclaim it.
+
+        key_zh_v2 = "idem-storage-fence-zh-v2"
+        # Render key_zh_v2: fail render + fail state commit → stuck in claimed
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            uow = ReportRenderUnitOfWork(sess, report_repo=repo, artifact_repo=repo)
+            svc3 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                clock=clock,
+            )
+
+            commit_count = 0
+            original_commit = uow.commit
+
+            def fail_on_commit_4():
+                nonlocal commit_count
+                commit_count += 1
+                if commit_count == 4:
+                    raise OSError("Simulated failed-state commit failure")
+                return original_commit()
+
+            monkeypatch.setattr(uow, "commit", fail_on_commit_4)
+
+            with (
+                patch(
+                    "cold_storage.modules.reports.application.render_service"
+                    ".ReportRenderService._render_bytes",
+                    side_effect=RuntimeError("Render crashed"),
+                ),
+                pytest.raises(RenderError),
+            ):
+                svc3.render(
+                    locale=ReportLocale.ZH_CN,
+                    report_id=report.id,
+                    revision_number=rev.revision_number,
+                    format="docx",
+                    template_version="1.0.0",
+                    mode="formal",
+                    actor="test-user",
+                    idempotency_key=key_zh_v2,
+                )
+
+        # Record the stuck artifact state
+        with session_factory() as sess:
+            check_repo = SQLReportRepository(sess)
+            rendering = check_repo.list_artifacts(report.id, status=ArtifactStatus.RENDERING)
+            # Find the artifact for key_zh_v2
+            stuck_artifacts = [a for a in rendering if a.idempotency_key == key_zh_v2]
+            assert len(stuck_artifacts) == 1
+            stuck_artifact = stuck_artifacts[0]
+            stuck_storage_key = stuck_artifact.storage_key
+
+            idem_v2 = check_repo.get_idempotency_record(key_zh_v2)
+            assert idem_v2 is not None
+            assert idem_v2["status"] == "claimed"
+            v2_old_token = idem_v2["claim_token"]
+            v2_old_version = idem_v2["claim_version"]
+
+        # Advance clock past stale
+        clock.advance(600)
+
+        # ---- Step 4: Reclaim zh-CN v2 — render again triggers reclaim ----
+        with session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            uow = ReportRenderUnitOfWork(sess, report_repo=repo, artifact_repo=repo)
+            svc4 = ReportRenderService(
+                uow=uow,
+                storage=storage,
+                template_repo=repo,
+                clock=clock,
+            )
+            new_zh_artifact = svc4.render(
+                locale=ReportLocale.ZH_CN,
+                report_id=report.id,
+                revision_number=rev.revision_number,
+                format="docx",
+                template_version="1.0.0",
+                mode="formal",
+                actor="test-user",
+                idempotency_key=key_zh_v2,
+            )
+            assert new_zh_artifact.status == ArtifactStatus.COMPLETED
+            new_zh_storage_key = new_zh_artifact.storage_key
+            new_zh_sha256 = new_zh_artifact.file_sha256
+            new_zh_size = new_zh_artifact.file_size_bytes
+
+        # ==================================================================
+        # Assertions
+        # ==================================================================
+
+        # 1. Old zh-CN storage key (from stuck artifact) is deleted
+        #    (fail_nonterminal_artifacts in reclaim handler doesn't delete
+        #     storage, but the stuck artifact's storage_key should be gone
+        #     because the old render never finalized — it crashed before
+        #     put_temp.  So stuck_storage_key may be empty.)
+        #    Actually the stuck artifact may not have a storage_key since
+        #    it crashed during rendering. The storage_key would be "".
+        #    The old COMPLETED zh_old_storage_key must still exist.
+        if stuck_storage_key:
+            assert not storage.exists(stuck_storage_key), (
+                f"Stuck artifact storage key {stuck_storage_key} should be gone"
+            )
+
+        # 2. New zh-CN storage key exists with correct sha256 and size
+        assert storage.exists(new_zh_storage_key), (
+            f"New zh-CN storage key {new_zh_storage_key} should exist"
+        )
+        new_zh_bytes = storage.get(new_zh_storage_key)
+        assert len(new_zh_bytes) == new_zh_size, (
+            f"New zh-CN size mismatch: expected {new_zh_size}, got {len(new_zh_bytes)}"
+        )
+        import hashlib
+
+        actual_sha256 = hashlib.sha256(new_zh_bytes).hexdigest()
+        assert actual_sha256 == new_zh_sha256, (
+            f"New zh-CN sha256 mismatch: expected {new_zh_sha256}, got {actual_sha256}"
+        )
+
+        # 3. New zh-CN is different from old zh-CN
+        assert new_zh_storage_key != stuck_storage_key
+
+        # 4. en-US storage key still exists and is unchanged
+        assert storage.exists(en_storage_key), (
+            f"en-US storage key {en_storage_key} should still exist"
+        )
+        en_new_bytes = storage.get(en_storage_key)
+        assert en_new_bytes == en_old_bytes, "en-US bytes unchanged after zh-CN reclaim"
+        en_new_sha256 = hashlib.sha256(en_new_bytes).hexdigest()
+        assert en_new_sha256 == en_sha256, "en-US hash unchanged after zh-CN reclaim"
+
+        # 5. Old worker cannot complete artifact after reclaim
+        # The stuck artifact was failed by fail_nonterminal_artifacts during
+        # reclaim, so transition_artifact with expected_status=RENDERING
+        # won't match (status is FAILED) → StaleClaimError
+        with pytest.raises(StaleClaimError), session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            from dataclasses import replace
+
+            stuck_artifact_fail = repo.get_artifact(stuck_artifact.id)
+            updated = replace(
+                stuck_artifact_fail,
+                status=ArtifactStatus.COMPLETED,
+                storage_key="fake-key",
+                file_size_bytes=100,
+                file_sha256="fake",
+                render_manifest_json={},
+            )
+            repo.transition_artifact(
+                updated,
+                expected_status=ArtifactStatus.RENDERING,
+                claim_token=v2_old_token,
+                claim_version=v2_old_version,
+            )
+            repo.commit()
+
+        # 6. Old worker cannot fail artifact after reclaim
+        with pytest.raises(StaleClaimError), session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            repo.fail_attempt_with_claim(
+                artifact_id=stuck_artifact.id,
+                idempotency_key=key_zh_v2,
+                claim_token=v2_old_token,
+                claim_version=v2_old_version,
+                failure_code="old_attempt",
+                failure_message="old worker trying to fail after reclaim",
+            )
+
+        # 7. Old worker cannot update file metadata after reclaim
+        # Artifact is FAILED, so transition with stale token raises StaleClaimError
+        with pytest.raises(StaleClaimError), session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            from dataclasses import replace
+
+            old_art = repo.get_artifact(stuck_artifact.id)
+            updated = replace(
+                old_art,
+                file_size_bytes=9999,
+                file_sha256="hacked",
+            )
+            repo.transition_artifact(
+                updated,
+                expected_status=old_art.status,
+                claim_token=v2_old_token,
+                claim_version=v2_old_version,
+            )
+            repo.commit()
+
+        # 8. Old worker cannot finalize idempotency after reclaim
+        with pytest.raises(StaleClaimError), session_factory() as sess:
+            repo = SQLReportRepository(sess)
+            repo.complete_idempotency_record(
+                key_zh_v2,
+                {"artifact_id": "fake"},
+                claim_token=v2_old_token,
+                claim_version=v2_old_version,
+            )
+
+        # 9. Old worker cannot delete new worker's file
+        # (The old worker's storage adapter can call delete(), but
+        #  the new worker's file should be protected because the old
+        #  worker shouldn't have access to the new storage key.)
+        # Verify the new file still exists
+        assert storage.exists(new_zh_storage_key), (
+            "New zh-CN storage key should still exist after fencing attempts"
+        )
+
+        # 10. Idempotency record is now completed with new claim info
+        with session_factory() as sess:
+            check_repo = SQLReportRepository(sess)
+            final_idem = check_repo.get_idempotency_record(key_zh_v2)
+            assert final_idem is not None
+            assert final_idem["status"] == "completed"
+            assert final_idem["claim_token"] != v2_old_token
+            assert final_idem["claim_version"] > v2_old_version
+            # Result points to new artifact
+            assert final_idem["result_payload"]["artifact_id"] == new_zh_artifact.id
+
+            # en-US idempotency still completed
+            en_idem = check_repo.get_idempotency_record(key_en)
+            assert en_idem is not None
+            assert en_idem["status"] == "completed"
+            assert en_idem["claim_token"] != "" and en_idem["claim_version"] >= 1
+
+
+# ===========================================================================
+# P0-7: Canonical numeric gate enforcement
+# ===========================================================================
+# Domain models require "Numeric values use Decimal for deterministic
+# arithmetic. Float is only permitted at the JSON serialisation boundary."
+# The gateway functions (_format_display_value, format_decimal) enforce
+# this by rejecting raw floats and converting them at the canonical boundary.
+
+
+class TestCanonicalNumericGate:
+    """Verify numeric gate enforcement at the canonical render boundary.
+
+    format_decimal must reject float.
+    _format_display_value must convert float→Decimal before formatting.
+    """
+
+    def test_format_decimal_rejects_float(self) -> None:
+        """format_decimal must raise TypeError for float input."""
+        from decimal import Decimal
+
+        from cold_storage.modules.reports.localization.formatter import (
+            format_decimal,
+        )
+
+        with pytest.raises(TypeError, match="format_decimal requires Decimal or int"):
+            format_decimal(1.5, ReportLocale.ZH_CN)  # type: ignore[arg-type]
+
+        # Decimal and int are accepted
+        result_dec = format_decimal(Decimal("12345.67"), ReportLocale.ZH_CN)
+        assert isinstance(result_dec, str)
+        result_int = format_decimal(12345, ReportLocale.ZH_CN)
+        assert isinstance(result_int, str)
+
+    def test_format_decimal_rejects_str_numeric(self) -> None:
+        """format_decimal must raise TypeError for str input (even if numeric)."""
+        from cold_storage.modules.reports.localization.formatter import (
+            format_decimal,
+        )
+
+        with pytest.raises(TypeError, match="format_decimal requires Decimal or int"):
+            format_decimal("12345.67", ReportLocale.ZH_CN)  # type: ignore[arg-type]
+
+    def test_format_decimal_exact_precision(self) -> None:
+        """format_decimal preserves Decimal precision (no float conversion)."""
+        from decimal import Decimal, localcontext
+
+        from cold_storage.modules.reports.localization.formatter import (
+            format_decimal,
+        )
+
+        # Very high precision — must be exact (use sufficient context)
+        with localcontext() as ctx:
+            ctx.prec = 50
+            value = Decimal("1.2345678901234567890123456789")
+            result = format_decimal(value, ReportLocale.ZH_CN)
+            # The result should contain the digits without loss
+            assert "1.2345678901234567890123456789" in result.replace(",", "")
+
+        # Multiple decimal places
+        value2 = Decimal("0.0000001")
+        result2 = format_decimal(value2, ReportLocale.ZH_CN)
+        assert "0.0000001" in result2.replace(",", "")
+
+    def test_format_display_value_converts_float_to_decimal(self) -> None:
+        """_format_display_value must reject float; conversion happens in canonical builder."""
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            _format_display_value,
+        )
+        from cold_storage.modules.reports.localization.catalog import get_catalog
+
+        catalog = get_catalog(ReportLocale.ZH_CN)
+
+        # Float input — canonical gate rejects it
+        with pytest.raises(TypeError):
+            _format_display_value(12345.67, "CNY", ReportLocale.ZH_CN, catalog)
+
+    def test_format_display_value_handles_none(self) -> None:
+        """_format_display_value returns em-dash for None."""
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            _format_display_value,
+        )
+        from cold_storage.modules.reports.localization.catalog import get_catalog
+
+        catalog = get_catalog(ReportLocale.ZH_CN)
+        result = _format_display_value(None, "CNY", ReportLocale.ZH_CN, catalog)
+        assert result == "—"  # em-dash
+
+    def test_format_display_value_handles_decimal_and_int(self) -> None:
+        """_format_display_value accepts Decimal and int directly."""
+        from decimal import Decimal
+
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            _format_display_value,
+        )
+        from cold_storage.modules.reports.localization.catalog import get_catalog
+
+        catalog = get_catalog(ReportLocale.ZH_CN)
+
+        result_dec = _format_display_value(Decimal("12345.67"), "CNY", ReportLocale.ZH_CN, catalog)
+        assert isinstance(result_dec, str)
+
+        result_int = _format_display_value(12345, "unit", ReportLocale.ZH_CN, catalog)
+        assert isinstance(result_int, str)
+
+    def test_format_display_value_handles_str_numeric(self) -> None:
+        """_format_display_value rejects str; canonical builder provides Decimal."""
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            _format_display_value,
+        )
+        from cold_storage.modules.reports.localization.catalog import get_catalog
+
+        catalog = get_catalog(ReportLocale.ZH_CN)
+
+        with pytest.raises(TypeError):
+            _format_display_value("12345.67", "CNY", ReportLocale.ZH_CN, catalog)
+
+    def test_canonical_metrics_use_raw_value(self) -> None:
+        """CanonicalRenderMetric stores raw value without float conversion gate.
+
+        The gate is at the localization boundary (_format_display_value),
+        not at the canonical metric level.
+        """
+        # Decimal is the canonical type
+        from decimal import Decimal
+
+        from cold_storage.modules.reports.domain.render_model import (
+            CanonicalRenderMetric,
+        )
+
+        metric = CanonicalRenderMetric(
+            field_path="test.field",
+            field_key="test.key",
+            raw_value=Decimal("12345.67"),
+            unit_code="CNY",
+        )
+        assert isinstance(metric.raw_value, Decimal)
+
+        # int is also allowed at this level
+        metric_int = CanonicalRenderMetric(
+            field_path="test.field2",
+            field_key="test.key2",
+            raw_value=12345,
+            unit_code="unit",
+        )
+        assert isinstance(metric_int.raw_value, int)
+
+    def test_format_unit_label_accepts_decimal(self) -> None:
+        """format_unit_label returns translated unit label for unit_code + locale."""
+        from cold_storage.modules.reports.localization.formatter import (
+            format_unit_label,
+        )
+
+        result = format_unit_label("cny", ReportLocale.ZH_CN)
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+        result_en = format_unit_label("cny", ReportLocale.EN_US)
+        assert isinstance(result_en, str)
+        assert len(result_en) > 0

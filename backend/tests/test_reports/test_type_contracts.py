@@ -16,7 +16,8 @@ REPORTS_DIR = (
 
 PRODUCTION_FILES = [
     "application/render_service.py",
-    "application/render_model_builder.py",
+    "application/canonical_render_model_builder.py",
+    "application/render_model_localizer.py",
     "application/service.py",
     "api/routes.py",
     "infrastructure/repository.py",
@@ -33,8 +34,8 @@ ALLOWED_ANY_LOCATIONS: set[tuple[str, str]] = {
     # pydantic model_dump returns dict[str, Any]
     ("domain/render_model.py", "TemplateManifest"),
     # Dynamic JSON content — these helpers accept any JSON value
-    ("application/render_model_builder.py", "_is_measured_value"),
-    ("application/render_model_builder.py", "_build_citations_and_approval"),
+    ("application/canonical_render_model_builder.py", "_is_measured_value"),
+    ("application/render_model_localizer.py", "_is_numeric"),
     ("application/service.py", "_parse_dt"),
     ("application/service.py", "complete_idempotency_record"),
     ("infrastructure/repository.py", "_parse_dt"),

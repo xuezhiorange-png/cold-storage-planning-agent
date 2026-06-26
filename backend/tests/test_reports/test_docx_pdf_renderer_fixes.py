@@ -20,12 +20,14 @@ from docx.oxml.ns import qn as _qn  # noqa: F401
 
 from cold_storage.modules.reports.domain.errors import TemplateManifestError
 from cold_storage.modules.reports.domain.render_model import (
+    CanonicalRenderTable,
+    CanonicalRenderTableCell,
+    LocalizedRenderMetadata,
+    LocalizedRenderSection,
+    LocalizedRenderTable,
+    LocalizedRenderTableCell,
+    LocalizedReportRenderModel,
     RenderManifest,
-    RenderMetadata,
-    RenderSection,
-    RenderTable,
-    RenderTableCell,
-    ReportRenderModel,
 )
 from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
@@ -35,7 +37,18 @@ from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
 # ---------------------------------------------------------------------------
 
 
-def _make_metadata(**overrides: Any) -> RenderMetadata:
+def _tc(display_value: str, align: str | None = None) -> LocalizedRenderTableCell:
+    """Create a LocalizedRenderTableCell with a minimal canonical cell."""
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_table"
+
+
+def _make_metadata(**overrides: Any) -> LocalizedRenderMetadata:
+    from cold_storage.modules.reports.domain.render_model import CanonicalRenderMetadata
+
     defaults = dict(
         report_id="r-test",
         project_name="蓝莓冷库概念设计项目",
@@ -50,11 +63,40 @@ def _make_metadata(**overrides: Any) -> RenderMetadata:
         template_code="cold_storage_concept_design",
     )
     defaults.update(overrides)
-    return RenderMetadata(**defaults)  # type: ignore[arg-type]
+    canonical = CanonicalRenderMetadata(
+        report_id=defaults["report_id"],
+        project_name=defaults["project_name"],
+        report_type=defaults["report_type"],
+        schema_version=defaults["schema_version"],
+        revision_number=defaults["revision_number"],
+        content_hash=defaults["content_hash"],
+        content_hash_short=defaults["content_hash_short"],
+        generated_at=defaults["generated_at"],
+        generated_by=defaults["generated_by"],
+        template_version=defaults["template_version"],
+        template_code=defaults["template_code"],
+    )
+    return LocalizedRenderMetadata(
+        canonical=canonical,
+        project_name=defaults["project_name"],
+        report_type_label=defaults["report_type"],
+        confidentiality_label="",
+        disclaimer="",
+        empty_section_placeholder="",
+        cover_title="",
+        cover_version_line="",
+        control_info_title="",
+        content_hash_label="",
+        template_version_label="",
+        generated_by_label="",
+        generated_at_label="",
+        revision_label="",
+        watermark_text="",
+    )
 
 
 def _make_manifest(
-    sections: list[RenderSection],
+    sections: list[LocalizedRenderSection],
     render_settings: dict | None = None,
     fmt: str = "pdf",
 ) -> RenderManifest:
@@ -70,26 +112,32 @@ def _make_manifest(
 
 
 def _render_pdf(
-    sections: list[RenderSection],
+    sections: list[LocalizedRenderSection],
     *,
     is_draft: bool = False,
     render_settings: dict | None = None,
 ) -> bytes:
     metadata = _make_metadata()
     manifest = _make_manifest(sections, render_settings=render_settings, fmt="pdf")
-    model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+    model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
     return PdfRenderer().render(model, is_draft=is_draft)
 
 
 def _render_docx(
-    sections: list[RenderSection],
+    sections: list[LocalizedRenderSection],
     *,
     is_draft: bool = False,
     render_settings: dict | None = None,
+    watermark_text: str = "",
 ) -> bytes:
     metadata = _make_metadata()
     manifest = _make_manifest(sections, render_settings=render_settings, fmt="docx")
-    model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+    model = LocalizedReportRenderModel(
+        metadata=metadata,
+        sections=sections,
+        manifest=manifest,
+        watermark_text=watermark_text,
+    )
     return DocxRenderer().render(model, is_draft=is_draft)
 
 
@@ -112,16 +160,17 @@ class TestP0_7_PdfCellAlignment:
     def test_manifest_right_cell_explicit_left_final_left(self):
         """Manifest column right + cell explicit left -> final left."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="对齐测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["列A"],
                     rows=[
-                        [RenderTableCell(value="值", align="left")],
+                        [_tc("值", align="left")],
                     ],
                 ),
             )
@@ -160,16 +209,17 @@ class TestP0_7_PdfCellAlignment:
     def test_manifest_center_cell_none_final_center(self):
         """Manifest column center + cell None -> final center."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="对齐测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["列A"],
                     rows=[
-                        [RenderTableCell(value="居中")],  # align=None
+                        [_tc("居中")],  # align=None
                     ],
                 ),
             )
@@ -214,22 +264,23 @@ class TestP0_7_PdfCellAlignment:
         """
         long_text = "这是一段超长的中文文本用于测试分页对齐一致性。" * 50
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="分页对齐测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["项目", "内容"],
                     rows=[
                         [
-                            RenderTableCell(value="短文本", align="right"),
-                            RenderTableCell(value="普通"),
+                            _tc("短文本", align="right"),
+                            _tc("普通"),
                         ],
                         [
-                            RenderTableCell(value="长文本", align="right"),
-                            RenderTableCell(value=long_text),
+                            _tc("长文本", align="right"),
+                            _tc(long_text),
                         ],
                     ],
                 ),
@@ -288,7 +339,7 @@ class TestP0_4_DocxOrientation:
     def test_default_portrait_orientation(self):
         """Default orientation is portrait when page.orientation is not set."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -304,7 +355,7 @@ class TestP0_4_DocxOrientation:
     def test_manifest_landscape_orientation(self):
         """page.orientation=landscape sets all sections to landscape."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -323,21 +374,21 @@ class TestP0_4_DocxOrientation:
     def test_landscape_sections_creates_new_word_section(self):
         """Landscape section creates a new Word section with landscape orientation."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="portrait1",
                 title="竖版章节",
                 level=1,
                 content_type="text",
                 text="竖版内容",
             ),
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="landscape1",
                 title="横版章节",
                 level=1,
                 content_type="text",
                 text="横版内容",
             ),
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="portrait2",
                 title="恢复竖版",
                 level=1,
@@ -357,7 +408,7 @@ class TestP0_4_DocxOrientation:
     def test_table_config_orientation_overrides_landscape_sections(self):
         """tables[key].orientation overrides landscape_sections list."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -387,15 +438,16 @@ class TestP0_4_DocxTableConfig:
     def test_unit_row_false_no_unit_row(self):
         """unit_row=false should NOT create a unit row."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["A", "B"],
-                    rows=[[RenderTableCell(value="1"), RenderTableCell(value="2")]],
+                    rows=[[_tc("1"), _tc("2")]],
                     unit_row=["kg", "m"],
                 ),
             )
@@ -416,15 +468,16 @@ class TestP0_4_DocxTableConfig:
     def test_unit_row_true_creates_unit_row(self):
         """unit_row=true (default) creates unit row when data has units."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["A", "B"],
-                    rows=[[RenderTableCell(value="1"), RenderTableCell(value="2")]],
+                    rows=[[_tc("1"), _tc("2")]],
                     unit_row=["kg", "m"],
                 ),
             )
@@ -438,15 +491,16 @@ class TestP0_4_DocxTableConfig:
     def test_column_count_mismatch_raises_error(self):
         """Column count mismatch between manifest and table raises TemplateManifestError."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["A", "B"],
-                    rows=[[RenderTableCell(value="1"), RenderTableCell(value="2")]],
+                    rows=[[_tc("1"), _tc("2")]],
                 ),
             )
         ]
@@ -470,15 +524,16 @@ class TestP0_4_DocxTableConfig:
     def test_invalid_width_ratio_raises_error(self):
         """Invalid width_ratio (all zero) raises TemplateManifestError."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["A", "B"],
-                    rows=[[RenderTableCell(value="1"), RenderTableCell(value="2")]],
+                    rows=[[_tc("1"), _tc("2")]],
                 ),
             )
         ]
@@ -510,7 +565,7 @@ class TestP0_5_DocxHeaderWatermark:
     def test_custom_header_and_watermark_both_exist(self):
         """Custom header text and watermark both exist in output."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -525,6 +580,7 @@ class TestP0_5_DocxHeaderWatermark:
                 "header": {"right": "自定义页眉"},
                 "watermark": {"text": "DRAFT"},
             },
+            watermark_text="DRAFT",
         )
         docx_text = _get_docx_text(docx_bytes)
         assert "自定义页眉" in docx_text, "Custom header text not found"
@@ -533,7 +589,7 @@ class TestP0_5_DocxHeaderWatermark:
     def test_watermark_does_not_delete_header_text(self):
         """Watermark adds a separate paragraph, header text is preserved."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -548,6 +604,7 @@ class TestP0_5_DocxHeaderWatermark:
                 "header": {"left": "左侧", "right": "右侧"},
                 "watermark": {"text": "DRAFT"},
             },
+            watermark_text="DRAFT",
         )
         docx_text = _get_docx_text(docx_bytes)
         assert "左侧" in docx_text, "Left header text not found"
@@ -557,7 +614,7 @@ class TestP0_5_DocxHeaderWatermark:
     def test_page_number_field_in_footer_left(self):
         """{page_number} in footer left generates PAGE field."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -577,7 +634,7 @@ class TestP0_5_DocxHeaderWatermark:
     def test_page_number_field_in_footer_right(self):
         """{page_number} in footer right generates PAGE field."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -606,14 +663,14 @@ class TestP0_5_DocxHeaderWatermark:
         from lxml import etree
 
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="portrait1",
                 title="竖版章节",
                 level=1,
                 content_type="text",
                 text="竖版内容",
             ),
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="landscape1",
                 title="横版章节",
                 level=1,
@@ -694,15 +751,16 @@ class TestP0_7_PdfManifestErrors:
     def test_wrong_column_count_raises_manifest_error(self):
         """Wrong column count raises TemplateManifestError."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["A", "B"],
-                    rows=[[RenderTableCell(value="1"), RenderTableCell(value="2")]],
+                    rows=[[_tc("1"), _tc("2")]],
                 ),
             )
         ]
@@ -724,15 +782,16 @@ class TestP0_7_PdfManifestErrors:
     def test_invalid_width_ratio_raises_manifest_error(self):
         """Invalid width_ratio (all zero) raises TemplateManifestError."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
                 content_type="table",
-                table=RenderTable(
+                table=LocalizedRenderTable(
+                    canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
                     title="测试表",
                     headers=["A", "B"],
-                    rows=[[RenderTableCell(value="1"), RenderTableCell(value="2")]],
+                    rows=[[_tc("1"), _tc("2")]],
                 ),
             )
         ]

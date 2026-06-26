@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -28,6 +29,7 @@ from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
     RenderMode,
+    ReportLocale,
     TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import (
@@ -49,7 +51,263 @@ from cold_storage.modules.reports.domain.models import (
     ReportRevision,
     ReportTemplate,
 )
-from cold_storage.modules.reports.domain.render_model import JsonObject, ReportRenderModel
+from cold_storage.modules.reports.domain.observer import NoopCanonicalObserver
+from cold_storage.modules.reports.domain.reclaim_delete_result import ReclaimDeleteResult
+from cold_storage.modules.reports.domain.render_model import JsonObject, LocalizedReportRenderModel
+
+
+class IdempotencyWaiterPort(Protocol):
+    """Port: wait for another render to complete on the same idempotency key.
+
+    The ``notify_completed`` / ``notify_failed`` methods are called by the
+    *winner* (the thread that successfully claimed the idempotency record)
+    so that concurrent *loser* threads blocked in ``wait_for_completion``
+    can be woken up and learn the outcome.
+
+    ``wait_for_completion`` accepts an ``expected_fingerprint`` to validate
+    that the completed record matches the caller's request parameters, and a
+    monotonic-clock ``deadline`` for timeout.
+    """
+
+    def wait_for_completion(
+        self,
+        idempotency_key: str,
+        expected_fingerprint: str,
+        deadline: float,
+        expected_report_id: str = "",
+        expected_revision_number: int = 0,
+    ) -> ReportExportArtifact | None:
+        """Block until the render for *idempotency_key* finishes, or *deadline* elapses.
+
+        Returns the completed artifact, or ``None`` if the outcome is unknown.
+        Raises ``IdempotencyClaimError`` on timeout or if the winner's render failed.
+        ``IdempotencyPayloadConflictError`` if the completed record's fingerprint
+        does not match *expected_fingerprint*.
+        """
+        ...
+
+    def notify_completed(self, idempotency_key: str, artifact_id: str) -> None:
+        """Notify all waiters that the render succeeded."""
+        ...
+
+    def notify_failed(self, idempotency_key: str, error: Exception) -> None:
+        """Notify all waiters that the render failed."""
+        ...
+
+
+class DatabaseIdempotencyWaiter:
+    """Production waiter that polls the idempotency_records table.
+
+    Uses fresh database connections per poll via ``session_factory`` to
+    ensure it always observes the winner's commit.  Falls back to a shared
+    ``repo`` if no factory is provided (backward-compat for simple setups).
+
+    Validates on completion:
+    - fingerprint matches ``expected_fingerprint``
+    - ``result_payload`` is a dict containing ``artifact_id``
+    - the artifact exists and is ``COMPLETED``
+    - claim lineage (claim_token on artifact vs idempotency record)
+
+    ``failed`` status propagates ``failure_code`` / ``failure_message``.
+    """
+
+    def __init__(
+        self,
+        repo: Any = None,
+        artifact_repo: ReportArtifactRepositoryPort | None = None,
+        *,
+        session_factory: Callable[[], Any] | None = None,
+        poll_interval: float = 0.5,
+        expected_report_id: str = "",
+        expected_revision_number: int = 0,
+    ) -> None:
+        self._repo = repo
+        self._artifact_repo = artifact_repo
+        self._session_factory = session_factory
+        self._poll_interval = poll_interval
+        self._expected_report_id = expected_report_id
+        self._expected_revision_number = expected_revision_number
+
+    def wait_for_completion(
+        self,
+        idempotency_key: str,
+        expected_fingerprint: str,
+        deadline: float,
+        expected_report_id: str = "",
+        expected_revision_number: int = 0,
+    ) -> ReportExportArtifact | None:
+        """Poll the idempotency_records table until completed/failed or deadline."""
+
+        from cold_storage.modules.reports.infrastructure.repository import (
+            SQLReportRepository,
+        )
+
+        # Use provided values, fall back to instance defaults
+        effective_report_id = expected_report_id or self._expected_report_id
+        effective_revision_number = expected_revision_number or self._expected_revision_number
+
+        while time.monotonic() < deadline:
+            # Open fresh connection when factory is provided
+            repo = self._repo
+            artifact_repo = self._artifact_repo
+            fresh_session = None
+            if self._session_factory:
+                fresh_session = self._session_factory()
+                repo = SQLReportRepository(fresh_session)
+                artifact_repo = SQLReportRepository(fresh_session)
+
+            try:
+                record = repo.get_idempotency_record(idempotency_key)
+            finally:
+                if fresh_session is not None:
+                    fresh_session.close()
+
+            if record:
+                if record["status"] == "completed":
+                    return self._handle_completed(
+                        record,
+                        expected_fingerprint,
+                        idempotency_key,
+                        artifact_repo,
+                        expected_report_id=effective_report_id,
+                        expected_revision_number=effective_revision_number,
+                    )
+
+                if record["status"] == "failed":
+                    payload = record.get("result_payload") or {}
+                    failure_code = payload.get("failure_code", "UnknownError")
+                    failure_message = payload.get("failure_message", "Idempotency render failed")
+                    raise IdempotencyClaimError(
+                        idempotency_key,
+                        failure_code=failure_code,
+                        failure_message=failure_message,
+                    )
+
+            time.sleep(self._poll_interval)
+
+        raise IdempotencyClaimError(
+            idempotency_key,
+            failure_code="WaiterTimeout",
+            failure_message=("Waiter timed out after waiting for idempotency key"),
+        )
+
+    def _handle_completed(
+        self,
+        record: dict[str, Any],
+        expected_fingerprint: str,
+        idempotency_key: str,
+        artifact_repo: ReportArtifactRepositoryPort | None,
+        *,
+        expected_report_id: str = "",
+        expected_revision_number: int = 0,
+    ) -> ReportExportArtifact | None:
+        """Validate a completed idempotency record and return the artifact."""
+        # 1. Validate fingerprint
+        if record.get("fingerprint") != expected_fingerprint:
+            raise IdempotencyPayloadConflictError(idempotency_key)
+
+        # 2. Validate result_payload is a dict
+        payload = record.get("result_payload", {})
+        if not isinstance(payload, dict):
+            raise IdempotencyClaimError(
+                idempotency_key,
+                failure_code="InvalidPayload",
+                failure_message="result_payload is not a dict",
+            )
+
+        # 3. Validate artifact_id exists
+        artifact_id = payload.get("artifact_id")
+        if not artifact_id:
+            raise IdempotencyClaimError(
+                idempotency_key,
+                failure_code="MissingArtifactId",
+                failure_message="result_payload missing artifact_id",
+            )
+
+        # 4. Validate artifact exists and is COMPLETED
+        if artifact_repo is not None:
+            artifact = artifact_repo.get_artifact(artifact_id)
+            if artifact is None:
+                raise IdempotencyClaimError(
+                    idempotency_key,
+                    failure_code="ArtifactNotFound",
+                    failure_message=f"artifact {artifact_id} not found",
+                )
+            if artifact.status != ArtifactStatus.COMPLETED:
+                raise IdempotencyClaimError(
+                    idempotency_key,
+                    failure_code="ArtifactNotCompleted",
+                    failure_message=(f"artifact {artifact_id} status={artifact.status.value}"),
+                )
+
+            # 5. Validate claim lineage matches (claim_token)
+            record_claim_token = record.get("claim_token", "")
+            if artifact.claim_token != record_claim_token:
+                raise IdempotencyClaimError(
+                    idempotency_key,
+                    failure_code="ClaimMismatch",
+                    failure_message=(
+                        f"artifact claim_token {artifact.claim_token} "
+                        f"!= record claim_token {record_claim_token}"
+                    ),
+                )
+
+            # 6. Validate claim_version matches
+            record_claim_version = record.get("claim_version", 0)
+            if artifact.claim_version != record_claim_version:
+                raise IdempotencyClaimError(
+                    idempotency_key,
+                    failure_code="ClaimVersionMismatch",
+                    failure_message=(
+                        f"artifact claim_version {artifact.claim_version} "
+                        f"!= record claim_version {record_claim_version}"
+                    ),
+                )
+
+            # 7. Validate idempotency_key on artifact
+            if artifact.idempotency_key != idempotency_key:
+                raise IdempotencyClaimError(
+                    idempotency_key,
+                    failure_code="IdempotencyKeyMismatch",
+                    failure_message=(
+                        f"artifact idempotency_key {artifact.idempotency_key} "
+                        f"!= expected {idempotency_key}"
+                    ),
+                )
+
+            # 8. Validate report_id matches expected
+            if expected_report_id and artifact.report_id != expected_report_id:
+                raise IdempotencyClaimError(
+                    idempotency_key,
+                    failure_code="ReportIdMismatch",
+                    failure_message=(
+                        f"artifact report_id {artifact.report_id} != expected {expected_report_id}"
+                    ),
+                )
+
+            # 9. Validate revision_number matches expected
+            if expected_revision_number and artifact.revision_number != expected_revision_number:
+                raise IdempotencyClaimError(
+                    idempotency_key,
+                    failure_code="RevisionNumberMismatch",
+                    failure_message=(
+                        f"artifact revision_number {artifact.revision_number} "
+                        f"!= expected {expected_revision_number}"
+                    ),
+                )
+
+            return artifact
+
+        # No artifact_repo — can't validate further
+        return None
+
+    # -- Idempotency waiter port and implementations ------------------------------
+
+    def notify_completed(self, idempotency_key: str, artifact_id: str) -> None:
+        pass  # No-op for database polling
+
+    def notify_failed(self, idempotency_key: str, error: Exception) -> None:
+        pass  # No-op for database polling
 
 
 class ArtifactStoragePort(Protocol):
@@ -57,12 +315,63 @@ class ArtifactStoragePort(Protocol):
 
     def put_temp(self, data: bytes, filename: str) -> tuple[str, str]: ...
     def cleanup_temp(self, path: str) -> None: ...
-    def finalize_temp(self, path: str, artifact_id: str, filename: str) -> str: ...
-    def delete(self, key: str) -> None: ...
+    def finalize_temp(
+        self,
+        path: str,
+        artifact_id: str,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str: ...
+    def delete(self, key: str, *, claim_token: str = "", claim_version: int = 0) -> None: ...
+    def reclaim_delete(
+        self,
+        key: str,
+        *,
+        stale_claim_token: str,
+        stale_claim_version: int,
+        reclaim_token: str = "",
+        reclaim_version: int = 0,
+        missing_is_success: bool = False,
+        repository: Any = None,
+    ) -> ReclaimDeleteResult:
+        """Reclaim-delete an artifact.
+
+        ``missing_is_success=True`` requires a valid ``repository``
+        for DeletionReceipt verification.  Passing ``repository=None``
+        with ``missing_is_success=True`` raises :class:`ValueError`.
+        """
+        ...
+
     def exists(self, key: str) -> bool: ...
     def get_path(self, key: str) -> str: ...
-    def put(self, artifact_id: str, data: bytes, filename: str) -> str: ...
+    def put(
+        self,
+        artifact_id: str,
+        data: bytes,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str: ...
     def get(self, key: str) -> bytes: ...
+    def replace(
+        self,
+        key: str,
+        data: bytes,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str: ...
+    def delete_legacy_artifact(
+        self,
+        key: str,
+        *,
+        migration_actor: str,
+        audit_reason: str,
+        repository: Any,  # REQUIRED
+    ) -> None: ...
 
 
 class ReportTemplateRepositoryPort(Protocol):
@@ -71,13 +380,14 @@ class ReportTemplateRepositoryPort(Protocol):
     def get_template(self, template_id: str) -> ReportTemplate | None: ...
 
     def get_active_template(
-        self, template_code: str, format: ExportFormat
+        self, template_code: str, format: ExportFormat, locale: ReportLocale | None = None
     ) -> ReportTemplate | None: ...
 
     def list_templates(
         self,
         template_code: str | None = None,
         format: ExportFormat | None = None,
+        locale: ReportLocale | None = None,
     ) -> list[ReportTemplate]: ...
 
     def save_template(self, template: ReportTemplate) -> None: ...
@@ -85,7 +395,9 @@ class ReportTemplateRepositoryPort(Protocol):
     def update_template(self, template: ReportTemplate) -> None: ...
 
     # P0-7: Deactivate all active templates for the given code and format.
-    def deactivate_templates(self, template_code: str, fmt: str) -> int: ...
+    def deactivate_templates(
+        self, template_code: str, fmt: str, locale: ReportLocale | None = None
+    ) -> int: ...
 
     def commit(self) -> None: ...
 
@@ -98,7 +410,10 @@ class ReportArtifactRepositoryPort(Protocol):
     def save_artifact(self, artifact: ReportExportArtifact) -> None: ...
     def get_artifact(self, artifact_id: str) -> ReportExportArtifact | None: ...
     def list_artifacts(
-        self, report_id: str, status: ArtifactStatus | None = None
+        self,
+        report_id: str,
+        status: ArtifactStatus | None = None,
+        locale: ReportLocale | None = None,
     ) -> list[ReportExportArtifact]: ...
     def find_artifact_by_idempotency(
         self, idempotency_key: str, report_id: str
@@ -118,7 +433,7 @@ class ReportArtifactRepositoryPort(Protocol):
         idempotency_key: str,
         stale_claim_token: str,
         stale_claim_version: int,
-    ) -> int: ...
+    ) -> tuple[int, list[str]]: ...
     def transition_artifact(
         self,
         artifact: ReportExportArtifact,
@@ -151,6 +466,9 @@ def _compute_fingerprint(
     template_id: str,
     template_version: str,
     template_content_hash: str,
+    locale: str = "zh-CN",
+    translation_catalog_version: str = "1.0.0",
+    localized_template_content_hash: str = "",
 ) -> str:
     """Compute a deterministic fingerprint for idempotency checking."""
     payload = {
@@ -163,6 +481,9 @@ def _compute_fingerprint(
         "template_id": template_id,
         "template_version": template_version,
         "template_content_hash": template_content_hash,
+        "locale": locale,
+        "translation_catalog_version": translation_catalog_version,
+        "localized_template_content_hash": localized_template_content_hash,
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
@@ -187,8 +508,10 @@ class ReportRenderUnitOfWork:
         *,
         report_repo: ReportRepository | None = None,
         artifact_repo: ReportArtifactRepositoryPort | None = None,
+        session_factory: Callable[[], Any] | None = None,
     ) -> None:
         self._session = session
+        self._session_factory: Callable[[], Any] | None = session_factory
         from cold_storage.modules.reports.infrastructure.repository import (
             SQLReportRepository,
         )
@@ -220,6 +543,10 @@ class ReportRenderUnitOfWork:
     @property
     def session(self) -> Any:
         return self._session
+
+    @property
+    def session_factory(self) -> Callable[[], Any] | None:
+        return self._session_factory
 
     def commit(self) -> None:
         self._session.commit()
@@ -253,6 +580,8 @@ class ReportRenderService:
         template_repo: ReportTemplateRepositoryPort | None = None,
         stale_claim_seconds: int = 300,
         clock: Callable[[], datetime] | None = None,
+        idempotency_waiter: IdempotencyWaiterPort | None = None,
+        canonical_observer: Any = None,
     ) -> None:
         """Initialize the render service.
 
@@ -270,9 +599,14 @@ class ReportRenderService:
             considered stale and eligible for recovery.
         clock:
             Injectable clock for testing. Defaults to ``datetime.now(UTC)``.
+        canonical_observer:
+            Optional observer that receives the canonical render model
+            after it is built but before localisation. Defaults to
+            ``NoopCanonicalObserver``.
         """
         if uow is None:
             raise TypeError("ReportRenderService requires uow= parameter")
+
         self._uow: ReportRenderUnitOfWork = uow
         self._repo: ReportRepository = uow.report_repo
         self._artifact_repo: ReportArtifactRepositoryPort | None = uow.artifact_repo
@@ -280,6 +614,109 @@ class ReportRenderService:
         self._template_repo = template_repo
         self._stale_claim_seconds = stale_claim_seconds
         self._clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
+        self._waiter = idempotency_waiter or DatabaseIdempotencyWaiter(
+            repo=self._repo,
+            artifact_repo=self._artifact_repo,
+            session_factory=uow.session_factory,
+        )
+        self._canonical_observer = canonical_observer or NoopCanonicalObserver()
+
+    # ------------------------------------------------------------------
+    # P0-9: Two-phase cleanup executor
+    # ------------------------------------------------------------------
+
+    def _execute_pending_cleanup(self) -> None:
+        """Execute pending cleanup debts (Phase 2 of two-phase cleanup).
+
+        Called after the DB transaction commits successfully.  If this
+        method crashes, the pending debts remain in the database and will
+        be processed on the next call (either via ``render()`` or an
+        explicit ``run_cleanup_executor()`` call).
+
+        Each debt is processed independently:
+        1. CAS: pending/retryable -> processing (with locking)
+        2. reclaim_delete the file using the reclaim_delete API
+        3. Mark debt as completed or retryable
+
+        The CAS ensures that if two executors run concurrently, only
+        one processes each debt.
+        """
+        debts = self._repo.list_eligible_cleanup_debts()
+        for debt in debts:
+            debt_id: str = str(debt.get("id", ""))
+            # Extract observed lease params for CAS
+            locked_at: datetime | None = debt.get("locked_at")  # type: ignore[assignment]
+            locked_by = str(debt.get("locked_by", ""))
+            lock_expires_at: datetime | None = debt.get("lock_expires_at")  # type: ignore[assignment]
+            status = str(debt.get("status", ""))
+            # For pending/retryable debts, pass None/empty observed lease params.
+            # For expired processing debts, pass actual values for CAS.
+            if status in ("pending", "retryable"):
+                claimed = self._repo.claim_cleanup_debt(
+                    debt_id,
+                    observed_locked_at=None,
+                    observed_locked_by="",
+                    observed_lock_expires_at=None,
+                )
+            else:
+                claimed = self._repo.claim_cleanup_debt(
+                    debt_id,
+                    observed_locked_at=locked_at,
+                    observed_locked_by=locked_by,
+                    observed_lock_expires_at=lock_expires_at,
+                )
+            if not claimed:
+                # Another executor already claimed it
+                continue
+            # Commit the claim so it's visible to other sessions
+            self._repo.commit()
+            try:
+                sk: str = str(debt.get("storage_key", ""))
+                stale_tok: str = str(debt.get("stale_claim_token", ""))
+                stale_ver: int = int(str(debt.get("stale_claim_version", 0)))
+                reclaim_tok: str = str(debt.get("reclaim_token", ""))
+                reclaim_ver: int = int(str(debt.get("reclaim_version", 0)))
+                claim_ver: int = int(str(debt.get("claim_version", 0)))
+                self._storage.reclaim_delete(
+                    sk,
+                    stale_claim_token=stale_tok,
+                    stale_claim_version=stale_ver,
+                    reclaim_token=reclaim_tok,
+                    reclaim_version=reclaim_ver,
+                    missing_is_success=True,
+                    repository=self._repo,
+                )
+                self._repo.mark_cleanup_completed(
+                    debt_id,
+                    observed_claim_version=claim_ver + 1,
+                )
+                self._repo.commit()
+            except Exception as exc:
+                error_msg = f"{type(exc).__name__}: {exc}"
+                try:
+                    self._repo.mark_cleanup_retryable(debt_id, error_msg)
+                    self._repo.commit()
+                except Exception:
+                    import logging as _logging
+
+                    _logging.getLogger(__name__).warning(
+                        "Failed to mark cleanup debt %s as retryable",
+                        debt_id,
+                        exc_info=True,
+                    )
+
+    def run_cleanup_executor(self) -> int:
+        """Explicitly run the cleanup executor on all pending debts.
+
+        This is the public API for running cleanup outside of the
+        render flow (e.g., on startup or via a background job).
+
+        Returns the number of debts processed.
+        """
+        pending = self._repo.count_eligible_cleanup_debts()
+        if pending:
+            self._execute_pending_cleanup()
+        return pending
 
     def render(
         self,
@@ -291,6 +728,7 @@ class ReportRenderService:
         mode: str,  # noqa: A002
         actor: str,
         idempotency_key: str | None = None,
+        locale: ReportLocale,
     ) -> ReportExportArtifact:
         """Render a report revision to DOCX or PDF.
 
@@ -343,18 +781,27 @@ class ReportRenderService:
         # 3. Validate draft/formal rules (P0-5)
         self._validate_export_mode(report, render_mode, revision)
 
-        # 4. Find the active template (or specific version)
-        template = self._find_template(export_format, template_version)
+        # 4. Find the active template (or specific version) for locale
+        template = self._find_template(
+            export_format,
+            template_version,
+            locale=locale,
+            report_type=report.report_type.value,
+            schema_version=revision.schema_version,
+        )
 
         # P0-1: Build ApprovalSnapshot from Report fields for render model
         approval_snapshot = ApprovalSnapshot.from_report_and_revision(report, revision)
 
-        # 5. Build render model from revision content
-        from cold_storage.modules.reports.application.render_model_builder import (
-            build_render_model,
+        # 5. Build render model: canonical → localized (two-stage pipeline)
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            build_canonical_render_model,
+        )
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            localize_render_model,
         )
 
-        render_model = build_render_model(
+        canonical_model = build_canonical_render_model(
             content=revision.content_json,
             report_id=revision.report_id,
             revision_number=revision.revision_number,
@@ -363,11 +810,24 @@ class ReportRenderService:
             generated_at=revision.generated_at.isoformat()
             if hasattr(revision.generated_at, "isoformat")
             else str(revision.generated_at),
-            template_version=template.version,
             template_code=template.template_code,
+            template_version=template.version,
+            approval_snapshot=approval_snapshot,
+        )
+
+        # Notify canonical observer (used by tests to capture snapshots)
+        self._canonical_observer.record(
+            artifact_id="",  # filled in after artifact creation below
+            locale=locale.value,
+            format=export_format.value,
+            canonical=canonical_model,
+        )
+
+        render_model = localize_render_model(
+            canonical_model,
+            locale=locale,
             template_manifest_json=template.manifest_json,
             format=export_format.value,
-            approval_snapshot=approval_snapshot,
         )
 
         # 6. Idempotency check (P0-6) — atomic claim via idempotency_records
@@ -377,6 +837,42 @@ class ReportRenderService:
         fingerprint = ""
         claim_token: str = ""
         claim_version: int = 0
+
+        # Compute locale-aware fingerprint components (always, not just for idempotency)
+        from cold_storage.modules.reports.localization.catalog import (
+            compute_catalog_content_hash as _catalog_hash,
+        )
+        from cold_storage.modules.reports.localization.catalog import (
+            get_catalog as _get_catalog,
+        )
+
+        report_locale = locale  # Already ReportLocale
+        template_locale = (
+            template.locale
+            if isinstance(template.locale, ReportLocale)
+            else ReportLocale(template.locale)
+        )
+
+        # Section I: Validate template locale matches requested locale
+        if template_locale != report_locale:
+            raise TemplateNotFoundError(
+                f"Template locale {template_locale.value} does not match "
+                f"requested locale {report_locale.value}"
+            )
+
+        catalog = _get_catalog(report_locale)
+        translation_catalog_version = catalog.version
+        translation_catalog_content_hash = _catalog_hash(report_locale)
+        localized_content_str = (
+            json.dumps(template.manifest_json, sort_keys=True, separators=(",", ":"))
+            + ":"
+            + report_locale.value
+            + ":"
+            + translation_catalog_version
+            + ":"
+            + translation_catalog_content_hash
+        )
+        localized_template_content_hash = hashlib.sha256(localized_content_str.encode()).hexdigest()
 
         if idempotency_key:
             fingerprint = _compute_fingerprint(
@@ -389,6 +885,9 @@ class ReportRenderService:
                 template_id=template_id,
                 template_version=template_version_str,
                 template_content_hash=template_content_hash,
+                locale=report_locale.value,
+                translation_catalog_version=translation_catalog_version,
+                localized_template_content_hash=localized_template_content_hash,
             )
 
             # Attempt atomic claim via idempotency_records table
@@ -451,14 +950,16 @@ class ReportRenderService:
                             sql_cutoff = (
                                 cutoff.replace(tzinfo=None) if cutoff.tzinfo is not None else cutoff
                             )
+                            stale_claim_token = str(existing.get("claim_token", ""))
+                            stale_claim_version = existing.get("claim_version", 0)
                             reclaimed, new_token, new_version = (
                                 self._repo.reclaim_stale_idempotency(
                                     idempotency_key,
                                     fingerprint,
                                     sql_cutoff,
                                     original_claimed_at=claimed_at,
-                                    old_claim_token=existing.get("claim_token", ""),
-                                    old_claim_version=existing.get("claim_version", 0),
+                                    old_claim_token=stale_claim_token,
+                                    old_claim_version=stale_claim_version,
                                 )
                             )
                             if reclaimed:
@@ -468,13 +969,31 @@ class ReportRenderService:
                                 claim_version = new_version
                                 # Cleanup orphaned non-terminal artifacts
                                 if self._artifact_repo is not None:
-                                    self._artifact_repo.fail_nonterminal_artifacts(
-                                        report_id,
+                                    _, stale_storage_keys = (
+                                        self._artifact_repo.fail_nonterminal_artifacts(
+                                            report_id,
+                                            idempotency_key=idempotency_key,
+                                            stale_claim_token=stale_claim_token,
+                                            stale_claim_version=stale_claim_version,
+                                        )
+                                    )
+                                # Two-phase cleanup (P0-9):
+                                # Phase 1: Record cleanup_debt in the same transaction.
+                                # Phase 2: Execute file deletions after commit.
+                                for sk in stale_storage_keys:
+                                    self._repo.insert_cleanup_debt(
                                         idempotency_key=idempotency_key,
-                                        stale_claim_token=str(existing.get("claim_token", "")),
-                                        stale_claim_version=existing.get("claim_version", 0),
+                                        storage_key=sk,
+                                        stale_claim_token=stale_claim_token,
+                                        stale_claim_version=stale_claim_version,
+                                        reclaim_token=claim_token,
+                                        reclaim_version=claim_version,
                                     )
                                 self._uow.commit()
+                                # Phase 2: Execute cleanup after commit succeeds.
+                                # If this crashes, the cleanup_debt remains
+                                # pending and will be processed on the next run.
+                                self._execute_pending_cleanup()
                                 # Fall through — render will proceed
                             else:
                                 # CAS failed — re-read current state
@@ -493,16 +1012,36 @@ class ReportRenderService:
                                         c = self._artifact_repo.get_artifact(payload["artifact_id"])
                                         if c and c.status == ArtifactStatus.COMPLETED:
                                             return c
-                                raise IdempotencyClaimError(idempotency_key) from None
+                                return self._resolve_idempotency_conflict(
+                                    idempotency_key,
+                                    fingerprint,
+                                    report_id=report_id,
+                                    revision_number=revision_number,
+                                )
                         else:
                             # Not stale — another render in progress
-                            raise IdempotencyClaimError(idempotency_key) from None
+                            return self._resolve_idempotency_conflict(
+                                idempotency_key,
+                                fingerprint,
+                                report_id=report_id,
+                                revision_number=revision_number,
+                            )
                     else:
                         # No claimed_at — legacy record, treat as non-stale
-                        raise IdempotencyClaimError(idempotency_key) from None
+                        return self._resolve_idempotency_conflict(
+                            idempotency_key,
+                            fingerprint,
+                            report_id=report_id,
+                            revision_number=revision_number,
+                        )
                 else:
                     # Unknown status
-                    raise IdempotencyClaimError(idempotency_key) from None
+                    return self._resolve_idempotency_conflict(
+                        idempotency_key,
+                        fingerprint,
+                        report_id=report_id,
+                        revision_number=revision_number,
+                    )
 
         # 7. Create pending artifact
         file_ext = "docx" if export_format == ExportFormat.DOCX else "pdf"
@@ -528,6 +1067,11 @@ class ReportRenderService:
             idempotency_key=idempotency_key,
             claim_token=claim_token if claim_token else None,
             claim_version=claim_version,
+            locale=report_locale,
+            template_locale=template_locale,
+            translation_catalog_version=translation_catalog_version,
+            translation_catalog_content_hash=translation_catalog_content_hash,
+            localized_template_content_hash=localized_template_content_hash,
         )
 
         # P0-2: Unified failure handler for ALL artifact persistence stages.
@@ -590,7 +1134,13 @@ class ReportRenderService:
                 raise RenderError(f"SHA-256 mismatch: expected {file_sha256}, got {temp_sha256}")
 
             # Move to final location
-            storage_key = self._storage.finalize_temp(temp_path, artifact.id, file_name)
+            storage_key = self._storage.finalize_temp(
+                temp_path,
+                artifact.id,
+                file_name,
+                claim_token=claim_token,
+                claim_version=claim_version,
+            )
             temp_path = None  # Successfully finalized
 
             # Build real manifest metadata (P0-4) using same ApprovalSnapshot
@@ -607,6 +1157,10 @@ class ReportRenderService:
                 if hasattr(render_model.manifest, "render_settings")
                 else {},
                 approval_snapshot=approval_snapshot,
+                locale=report_locale.value,
+                translation_catalog_version=translation_catalog_version,
+                translation_catalog_content_hash=translation_catalog_content_hash,
+                localized_template_content_hash=localized_template_content_hash,
             )
 
             # 11. Update artifact with storage_key, file_size, file_sha256, status=completed
@@ -640,6 +1194,10 @@ class ReportRenderService:
                 )
             if self._artifact_repo:
                 self._uow.commit()
+
+            # Notify any waiter that the idempotent render completed
+            if self._waiter is not None and idempotency_key:
+                self._waiter.notify_completed(idempotency_key, artifact.id)
 
             return artifact
 
@@ -675,7 +1233,9 @@ class ReportRenderService:
             # Clean up finalized storage if it exists
             if storage_key:
                 try:
-                    self._storage.delete(storage_key)
+                    self._storage.delete(
+                        storage_key, claim_token=claim_token, claim_version=claim_version
+                    )
                 except Exception as cleanup_exc:
                     logger.warning(
                         "Failed to clean up storage after artifact failure",
@@ -717,6 +1277,9 @@ class ReportRenderService:
                                 )
                             self._artifact_repo.update_artifact(failed_artifact)
                     self._uow.commit()
+                    # Notify any waiter that the idempotent render failed
+                    if self._waiter is not None and idempotency_key:
+                        self._waiter.notify_failed(idempotency_key, exc)
                 except Exception:
                     import contextlib
 
@@ -734,6 +1297,32 @@ class ReportRenderService:
 
             raise RenderError(f"Rendering failed: {exc}") from exc
 
+    def _resolve_idempotency_conflict(
+        self,
+        key: str,
+        expected_fingerprint: str = "",
+        *,
+        report_id: str = "",
+        revision_number: int = 0,
+    ) -> ReportExportArtifact:
+        """Wait for a concurrent render on the same idempotency key to complete.
+
+        Delegates to the configured ``IdempotencyWaiterPort`` with the
+        stale-claim deadline and the caller's fingerprint for validation.
+        """
+        if self._waiter is not None:
+            deadline = time.monotonic() + self._stale_claim_seconds
+            result = self._waiter.wait_for_completion(
+                key,
+                expected_fingerprint,
+                deadline,
+                expected_report_id=report_id,
+                expected_revision_number=revision_number,
+            )
+            if result is not None:
+                return result
+        raise IdempotencyClaimError(key)
+
     def _build_render_manifest(
         self,
         *,
@@ -747,6 +1336,10 @@ class ReportRenderService:
         fingerprint: str,
         render_settings: JsonObject,
         approval_snapshot: ApprovalSnapshot | None = None,
+        locale: str = "zh-CN",
+        translation_catalog_version: str = "",
+        translation_catalog_content_hash: str = "",
+        localized_template_content_hash: str = "",
     ) -> dict[str, Any]:
         """Build the render manifest with real metadata (P0-4).
 
@@ -772,6 +1365,10 @@ class ReportRenderService:
             "approved_revision_number": (
                 approval_snapshot.revision_number if approval_snapshot else 0
             ),
+            "locale": locale,
+            "translation_catalog_version": translation_catalog_version,
+            "translation_catalog_content_hash": translation_catalog_content_hash,
+            "localized_template_content_hash": localized_template_content_hash,
         }
 
     def _validate_export_mode(
@@ -851,8 +1448,21 @@ class ReportRenderService:
         self,
         format: ExportFormat,
         template_version: str | None,  # noqa: A002
+        *,
+        locale: ReportLocale,
+        report_type: str | None = None,
+        schema_version: str | None = None,
     ) -> ReportTemplate:
-        """Find the active template or specific version.
+        """Find the active template or specific version for a given locale.
+
+        Section IV: Validates that the template matches:
+        - template_code == cold_storage_concept_design
+        - report_type matches (if provided)
+        - schema_version matches (if provided)
+        - format matches
+        - locale matches
+        - status == ACTIVE
+        - version matches (if specified)
 
         Raises
         ------
@@ -863,31 +1473,55 @@ class ReportRenderService:
             raise TemplateNotFoundError("No template repository configured")
 
         if template_version:
-            # Find by version — only ACTIVE templates
+            # Find by version — only ACTIVE templates with matching locale
             templates = self._template_repo.list_templates(format=format)
             for t in templates:
-                if t.version == template_version and t.status == TemplateStatus.ACTIVE:
-                    return t
+                if t.version != template_version:
+                    continue
+                if t.status != TemplateStatus.ACTIVE:
+                    continue
+                if t.locale != locale:
+                    continue
+                # Section IV: validate report_type and schema_version
+                if report_type and t.report_type.value != report_type:
+                    continue
+                if schema_version and t.schema_version != schema_version:
+                    continue
+                return t
             raise TemplateNotFoundError(
                 f"Template version {template_version} not found or not active "
-                f"for format {format.value}"
+                f"for format {format.value} / locale {locale.value}"
             )
 
-        # Find active template
+        # Find active template for locale
         result = self._template_repo.get_active_template(
             template_code="cold_storage_concept_design",
             format=format,
+            locale=locale,
         )
         if result is None:
             raise TemplateNotFoundError(
-                f"No active template found for cold_storage_concept_design / {format.value}"
+                f"No active template for cold_storage_concept_design / "
+                f"{format.value} / {locale.value}"
+            )
+
+        # Section IV: validate report_type and schema_version
+        if report_type and result.report_type.value != report_type:
+            raise TemplateNotFoundError(
+                f"Active template report_type {result.report_type.value} "
+                f"does not match requested {report_type}"
+            )
+        if schema_version and result.schema_version != schema_version:
+            raise TemplateNotFoundError(
+                f"Active template schema_version {result.schema_version} "
+                f"does not match requested {schema_version}"
             )
         return result
 
     def _render_bytes(
         self,
         format: ExportFormat,  # noqa: A002
-        render_model: ReportRenderModel,
+        render_model: LocalizedReportRenderModel,
         template: ReportTemplate | None,
         *,
         is_draft: bool = False,
@@ -933,8 +1567,13 @@ class ReportRenderService:
 
         return artifact
 
-    def list_artifacts(self, report_id: str, actor: str) -> list[ReportExportArtifact]:
-        """List all export artifacts for a report."""
+    def list_artifacts(
+        self,
+        report_id: str,
+        actor: str,
+        locale: ReportLocale | None = None,
+    ) -> list[ReportExportArtifact]:
+        """List all export artifacts for a report, optionally filtered by locale."""
         # Owner isolation check
         report = self._repo.get_report(report_id)
         if report is None:
@@ -945,7 +1584,7 @@ class ReportRenderService:
         if self._artifact_repo is None:
             return []
 
-        return self._artifact_repo.list_artifacts(report_id)
+        return self._artifact_repo.list_artifacts(report_id, locale=locale)
 
     def verify_download(
         self,

@@ -21,14 +21,54 @@ from pathlib import Path
 
 import pytest
 
-from cold_storage.modules.reports.application.render_model_builder import (
-    build_render_model,
+from cold_storage.modules.reports.application.canonical_render_model_builder import (
+    build_canonical_render_model,
 )
+from cold_storage.modules.reports.application.render_model_localizer import (
+    localize_render_model,
+)
+from cold_storage.modules.reports.domain.enums import ReportLocale
 from cold_storage.modules.reports.domain.render_model import (
-    ReportRenderModel,
+    LocalizedReportRenderModel,
     TemplateManifest,
     TemplateTableConfig,
 )
+
+
+def build_render_model(
+    *,
+    content,
+    report_id,
+    revision_number,
+    content_hash,
+    generated_by,
+    generated_at,
+    template_code,
+    template_version,
+    locale,
+    template_manifest_json=None,
+    format="docx",
+    approval_snapshot=None,
+):
+    """Backward-compat wrapper used by tests."""
+    canonical = build_canonical_render_model(
+        content=content,
+        report_id=report_id,
+        revision_number=revision_number,
+        content_hash=content_hash,
+        generated_by=generated_by,
+        generated_at=generated_at,
+        template_code=template_code,
+        template_version=template_version,
+        approval_snapshot=approval_snapshot,
+    )
+    return localize_render_model(
+        canonical,
+        locale=locale,
+        template_manifest_json=template_manifest_json,
+        format=format,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -255,7 +295,7 @@ class TestContentHashDistinction:
 class TestManifestConfigAffectsOutput:
     """Test that manifest config changes propagate to render model output."""
 
-    def _build_with_manifest(self, content: dict, manifest: dict) -> ReportRenderModel:
+    def _build_with_manifest(self, content: dict, manifest: dict) -> LocalizedReportRenderModel:
         return build_render_model(
             content=content,
             report_id="test-report",
@@ -266,6 +306,7 @@ class TestManifestConfigAffectsOutput:
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
             template_manifest_json=manifest,
+            locale=ReportLocale.ZH_CN,
         )
 
     def test_page_margins_change(self, sample_content):
@@ -455,8 +496,13 @@ class TestSeedDefaultTemplates:
                 template_code="cold_storage_concept_design",
                 format="pdf",
             )
-            assert len(docx_templates) == 1
-            assert len(pdf_templates) == 1
+            # Task 9C: 2 templates per format (zh-CN + en-US)
+            assert len(docx_templates) == 2
+            assert len(pdf_templates) == 2
+            docx_locales = {t.locale for t in docx_templates}
+            pdf_locales = {t.locale for t in pdf_templates}
+            assert docx_locales == {"zh-CN", "en-US"}
+            assert pdf_locales == {"zh-CN", "en-US"}
 
     def test_manifest_hash_computed(self):
         """Verify that template_content_hash is computed from manifest."""
@@ -466,8 +512,8 @@ class TestSeedDefaultTemplates:
             _load_manifest,
         )
 
-        docx_manifest = _load_manifest(ExportFormat.DOCX)
-        pdf_manifest = _load_manifest(ExportFormat.PDF)
+        docx_manifest = _load_manifest(ExportFormat.DOCX, allow_legacy_fallback=True)
+        pdf_manifest = _load_manifest(ExportFormat.PDF, allow_legacy_fallback=True)
 
         docx_hash = _compute_content_hash(docx_manifest)
         pdf_hash = _compute_content_hash(pdf_manifest)

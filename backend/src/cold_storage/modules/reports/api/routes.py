@@ -22,7 +22,12 @@ from cold_storage.modules.reports.application.render_service import (
     ReportTemplateRepositoryPort,
 )
 from cold_storage.modules.reports.application.service import ReportService
-from cold_storage.modules.reports.domain.enums import ExportFormat, RenderMode, ReportType
+from cold_storage.modules.reports.domain.enums import (
+    ExportFormat,
+    RenderMode,
+    ReportLocale,
+    ReportType,
+)
 from cold_storage.modules.reports.domain.errors import (
     ArtifactFileNotFoundError,
     ArtifactIntegrityError,
@@ -117,6 +122,7 @@ class RenderRequest(BaseModel):
     template_version: str | None = None
     mode: RenderMode = RenderMode.DRAFT
     idempotency_key: str | None = None
+    locale: ReportLocale
 
 
 class ArtifactResponse(BaseModel):
@@ -126,6 +132,11 @@ class ArtifactResponse(BaseModel):
     file_name: str
     file_size_bytes: int
     file_sha256: str
+    locale: str
+    template_locale: str
+    translation_catalog_version: str
+    translation_catalog_content_hash: str
+    localized_template_content_hash: str
 
 
 class ArtifactListItem(BaseModel):
@@ -136,6 +147,11 @@ class ArtifactListItem(BaseModel):
     file_size_bytes: int
     revision_number: int
     generated_at: str
+    locale: str
+    template_locale: str
+    translation_catalog_version: str
+    translation_catalog_content_hash: str
+    localized_template_content_hash: str
 
 
 class ListExportsResponse(BaseModel):
@@ -152,6 +168,11 @@ class ArtifactDetailResponse(BaseModel):
     revision_number: int
     template_version: str
     generated_at: str
+    locale: str
+    template_locale: str
+    translation_catalog_version: str
+    translation_catalog_content_hash: str
+    localized_template_content_hash: str
 
 
 class ReviewActionRequest(BaseModel):
@@ -168,7 +189,7 @@ class CreateTemplateRequest(BaseModel):
     format: ExportFormat = ExportFormat.DOCX
     version: str = "1.0.0"
     schema_version: str = "cold_storage_concept_design@1.0.0"
-    locale: str = "zh-CN"
+    locale: ReportLocale
     manifest_json: dict[str, Any]
 
 
@@ -177,6 +198,7 @@ class TemplateResponse(BaseModel):
     template_code: str
     version: str
     status: str
+    locale: str
     template_content_hash: str | None = None
 
 
@@ -186,6 +208,9 @@ class TemplateListItem(BaseModel):
     version: str
     format: str
     status: str
+    locale: str
+    schema_version: str | None = None
+    template_content_hash: str | None = None
 
 
 class ListTemplatesResponse(BaseModel):
@@ -374,6 +399,15 @@ def render_report_endpoint(
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> ArtifactResponse:
     """Render a report revision to DOCX or PDF."""
+    # Validate locale against supported values
+    try:
+        ReportLocale(body.locale.value)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported locale: {body.locale.value}. "
+            f"Supported locales: {[loc.value for loc in ReportLocale]}",
+        ) from None
     try:
         artifact = render_service.render(
             report_id=report_id,
@@ -383,6 +417,7 @@ def render_report_endpoint(
             mode=body.mode.value,
             actor=actor,
             idempotency_key=body.idempotency_key,
+            locale=body.locale,
         )
         return ArtifactResponse(
             artifact_id=artifact.id,
@@ -391,6 +426,13 @@ def render_report_endpoint(
             file_name=artifact.file_name,
             file_size_bytes=artifact.file_size_bytes,
             file_sha256=artifact.file_sha256,
+            locale=artifact.locale.value if artifact.locale is not None else "",
+            template_locale=artifact.template_locale.value
+            if artifact.template_locale is not None
+            else "",
+            translation_catalog_version=artifact.translation_catalog_version,
+            translation_catalog_content_hash=artifact.translation_catalog_content_hash,
+            localized_template_content_hash=artifact.localized_template_content_hash,
         )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -409,12 +451,13 @@ def render_report_endpoint(
 @reports_api_router.get("/{report_id}/exports", response_model=ListExportsResponse)
 def list_exports(
     report_id: str,
+    locale: ReportLocale | None = Query(None, description="Filter by locale (e.g. zh-CN, en-US)"),  # noqa: B008
     render_service: ReportRenderService = Depends(_get_render_service),  # noqa: B008
     actor: str = Depends(_get_actor),  # noqa: B008
 ) -> ListExportsResponse:
-    """List all export artifacts for a report."""
+    """List all export artifacts for a report, optionally filtered by locale."""
     try:
-        artifacts = render_service.list_artifacts(report_id, actor)
+        artifacts = render_service.list_artifacts(report_id, actor, locale=locale)
         return ListExportsResponse(
             exports=[
                 ArtifactListItem(
@@ -427,6 +470,13 @@ def list_exports(
                     generated_at=a.generated_at.isoformat()
                     if hasattr(a.generated_at, "isoformat")
                     else str(a.generated_at),
+                    locale=a.locale.value if a.locale is not None else "",
+                    template_locale=a.template_locale.value
+                    if a.template_locale is not None
+                    else "",
+                    translation_catalog_version=a.translation_catalog_version,
+                    translation_catalog_content_hash=a.translation_catalog_content_hash,
+                    localized_template_content_hash=a.localized_template_content_hash,
                 )
                 for a in artifacts
             ],
@@ -460,6 +510,13 @@ def get_export(
             generated_at=artifact.generated_at.isoformat()
             if hasattr(artifact.generated_at, "isoformat")
             else str(artifact.generated_at),
+            locale=artifact.locale.value if artifact.locale is not None else "",
+            template_locale=artifact.template_locale.value
+            if artifact.template_locale is not None
+            else "",
+            translation_catalog_version=artifact.translation_catalog_version,
+            translation_catalog_content_hash=artifact.translation_catalog_content_hash,
+            localized_template_content_hash=artifact.localized_template_content_hash,
         )
     except ReportNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -479,6 +536,10 @@ def download_export(
         # P0-8: Use verify_download for safety checks
         artifact = render_service.verify_download(report_id, artifact_id, actor)
         file_path = render_service.get_artifact_path(artifact.storage_key)
+        locale_val = artifact.locale.value if artifact.locale is not None else ""
+        template_locale_val = (
+            artifact.template_locale.value if artifact.template_locale is not None else ""
+        )
         return FileResponse(
             path=file_path,
             media_type=artifact.mime_type,
@@ -489,6 +550,11 @@ def download_export(
                 "X-Artifact-Id": artifact.id,
                 "X-Source-Content-Hash": artifact.source_content_hash,
                 "X-Template-Version": artifact.template_version,
+                "X-Report-Locale": locale_val,
+                "X-Template-Locale": template_locale_val,
+                "X-Translation-Catalog-Version": artifact.translation_catalog_version,
+                "X-Translation-Catalog-Content-Hash": artifact.translation_catalog_content_hash,
+                "X-Localized-Template-Content-Hash": artifact.localized_template_content_hash,
             },
         )
     except ReportNotFoundError as exc:
@@ -600,6 +666,7 @@ def create_template(
             template_code=template.template_code,
             version=template.version,
             status=template.status.value,
+            locale=template.locale.value if template.locale is not None else "",
             template_content_hash=template_content_hash,
         )
     except (ValueError, KeyError) as exc:
@@ -611,11 +678,17 @@ def create_template(
 def list_templates(
     template_code: str | None = Query(None),
     format: str | None = Query(None),  # noqa: A002
+    locale: ReportLocale | None = Query(  # noqa: B008
+        None, description="Filter by locale (e.g. zh-CN, en-US)"
+    ),
     template_repo: ReportTemplateRepositoryPort = Depends(_get_template_repo),  # noqa: B008
 ) -> ListTemplatesResponse:
-    """List report templates."""
+    """List report templates, optionally filtered by locale."""
     fmt = ExportFormat(format) if format else None
-    templates = template_repo.list_templates(template_code=template_code, format=fmt)
+    templates = template_repo.list_templates(template_code=template_code, format=fmt, locale=locale)
+    # Apply locale filter if provided
+    if locale is not None:
+        templates = [t for t in templates if t.locale == locale]
     return ListTemplatesResponse(
         templates=[
             TemplateListItem(
@@ -624,6 +697,9 @@ def list_templates(
                 version=t.version,
                 format=t.format.value,
                 status=t.status.value,
+                locale=t.locale.value if t.locale is not None else "",
+                schema_version=t.schema_version,
+                template_content_hash=t.template_content_hash,
             )
             for t in templates
         ],
@@ -676,7 +752,9 @@ def activate_template(
         fmt_value = (
             template.format.value if hasattr(template.format, "value") else str(template.format)
         )
-        template_repo.deactivate_templates(template.template_code, fmt_value)
+        template_repo.deactivate_templates(
+            template.template_code, fmt_value, locale=template.locale
+        )
 
         activated = dc_replace(
             template,
@@ -761,6 +839,7 @@ def update_template(
                 template_code=template.template_code,
                 version=template.version,
                 status=template.status.value,
+                locale=template.locale.value if template.locale is not None else "",
                 template_content_hash=template.template_content_hash,
             )
 
@@ -773,6 +852,7 @@ def update_template(
             template_code=updated.template_code,
             version=updated.version,
             status=updated.status.value,
+            locale=updated.locale.value if updated.locale is not None else "",
             template_content_hash=updated.template_content_hash,
         )
     except (ValueError, KeyError) as exc:
