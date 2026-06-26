@@ -6,9 +6,16 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body' | 'headers'>
   idempotencyKey?: string
 }
 
+export interface BinaryResponse {
+  blob: Blob
+  headers: Headers
+  status: number
+}
+
 export interface HttpClient {
   requestJson<T>(path: string, options?: ApiRequestOptions): Promise<T>
   requestBlob(path: string, options?: ApiRequestOptions): Promise<Blob>
+  requestBinary(path: string, options?: ApiRequestOptions): Promise<BinaryResponse>
 }
 
 interface ErrorPayload {
@@ -52,7 +59,11 @@ function toRequestInit(options: ApiRequestOptions): RequestInit {
     headers.set('Idempotency-Key', options.idempotencyKey)
   }
 
-  const { idempotencyKey: _idempotencyKey, ...requestOptions } = options
+  const requestOptions = { ...options }
+  delete requestOptions.idempotencyKey
+  delete requestOptions.body
+  delete requestOptions.headers
+
   return {
     ...requestOptions,
     headers,
@@ -141,6 +152,18 @@ export function createHttpClient(baseUrl = import.meta.env.VITE_API_BASE_URL ?? 
     async requestBlob(path: string, options: ApiRequestOptions = {}): Promise<Blob> {
       const response = await execute(path, options)
       return response.blob()
+    },
+
+    async requestBinary(
+      path: string,
+      options: ApiRequestOptions = {}
+    ): Promise<BinaryResponse> {
+      const response = await execute(path, options)
+      return {
+        blob: await response.blob(),
+        headers: response.headers,
+        status: response.status
+      }
     }
   }
 }
