@@ -22,7 +22,14 @@ function formatWan(value: number | null): string {
 <template>
   <div class="schemes-page">
     <div v-if="state === 'loading'" class="schemes-page__status">加载方案数据...</div>
-    <div v-if="error" class="schemes-page__error">{{ error }}</div>
+    <div v-if="state === 'empty'" class="schemes-page__empty">暂无方案数据</div>
+    <div v-if="state === 'unavailable'" class="schemes-page__unavailable" role="status">
+      方案比选服务当前不可用
+    </div>
+    <div v-if="state === 'error'" class="schemes-page__error">
+      {{ error }}
+      <button @click="load" class="schemes-page__retry">重试</button>
+    </div>
 
     <template v-if="data">
       <div class="schemes-page__summary">
@@ -31,6 +38,7 @@ function formatWan(value: number | null): string {
         <em :class="{ 'status-unverified': data.weight_set_status === 'unverified' }">
           {{ data.weight_set_status === 'unverified' ? '演示权重 / 待复核' : data.weight_set_status }}
         </em>
+        <em v-if="data.recommended_scheme_code === null" class="schemes-page__no-recommendation">暂无推荐方案</em>
       </div>
 
       <!-- Scheme cards -->
@@ -112,6 +120,20 @@ function formatWan(value: number | null): string {
   font-size: 14px;
 }
 
+.schemes-page__empty {
+  padding: 48px 24px;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
+.schemes-page__unavailable {
+  padding: 48px 24px;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
 .schemes-page__error {
   padding: 8px 12px;
   border-radius: 6px;
@@ -119,6 +141,24 @@ function formatWan(value: number | null): string {
   border: 1px solid #fca5a5;
   color: #991b1b;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schemes-page__retry {
+  padding: 4px 12px;
+  border: 1px solid #991b1b;
+  border-radius: 4px;
+  background: #fff;
+  color: #991b1b;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.schemes-page__retry:hover {
+  background: #fef2f2;
 }
 
 .schemes-page__summary {
@@ -152,6 +192,15 @@ function formatWan(value: number | null): string {
 .status-unverified {
   color: #d97706;
   border-color: #d97706;
+}
+
+.schemes-page__no-recommendation {
+  border: 1px solid #9ca3af;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-style: normal;
+  background: #fff;
+  color: #6b7280;
 }
 
 /* ── Scheme grid ──────────────────────────────────── */

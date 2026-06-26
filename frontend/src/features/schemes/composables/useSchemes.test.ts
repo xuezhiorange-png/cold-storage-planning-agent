@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { defineComponent, h } from 'vue'
 
 import type { HttpClient } from '../../../api/httpClient'
+import { ApiError } from '../../../api/errors'
 import { createSchemesApi, type SchemesApi } from '../api/schemesApi'
-import { useSchemes, type SchemesState } from './useSchemes'
+import { useSchemes, type SchemesState, type UseSchemesReturn } from './useSchemes'
 
 // ---------------------------------------------------------------------------
 // Factory helpers
@@ -253,9 +256,9 @@ describe('useSchemes', () => {
     expect(ctx.data.value).toBeNull()
   })
 
-  /* ── Route unmount cancellation ────────────────────────────── */
+  /* ── Component unmount cancellation ────────────────────── */
 
-  it('does not update state after component is unmounted', async () => {
+  it('does not update state after abort() is called', async () => {
     const c = createClient()
     const api = createMockApi(c)
 
@@ -269,16 +272,7 @@ describe('useSchemes', () => {
     const loadPromise = ctx.load()
     expect(ctx.state.value).toBe('loading')
 
-    // Simulate unmount (triggers onUnmounted)
-    vi.spyOn(ctx as any, 'abort')
-    // The onUnmounted hook sets isAlive=false and cancels the gate.
-    // We can test this by mimicking the unmount behavior directly:
-    // Actually, onUnmounted runs synchronously at setup but its callback
-    // runs when the component is unmounted. We can't easily trigger it
-    // in a unit test without Vue Test Utils. Instead, let's test the
-    // protection by resolving without the gate being current.
-
-    // Alternative: resolve after gate is cancelled
+    // Abort
     ctx.abort()
 
     resolveCall(makeResponse())
@@ -287,5 +281,109 @@ describe('useSchemes', () => {
     // State should not have been updated to success
     expect(ctx.state.value).toBe('idle' satisfies SchemesState)
     expect(ctx.data.value).toBeNull()
+  })
+
+  it('does not update state after component is unmounted', async () => {
+    const c = createClient()
+    const api = createMockApi(c)
+
+    let resolveCall!: (v: unknown) => void
+    vi.mocked(c.requestJson).mockImplementation(
+      () => new Promise((resolve) => { resolveCall = resolve })
+    )
+
+    // Create a wrapper component that uses useSchemes
+    const TestComponent = defineComponent({
+      setup() {
+        const ctx = useSchemes(api)
+        // Expose ctx for assertions after mount
+        ;(window as unknown as Record<string, unknown>).__ctx = ctx
+        ctx.load()
+        return () => h('div', 'test')
+      }
+    })
+
+    const wrapper = mount(TestComponent, {
+      global: {
+        plugins: []
+      }
+    })
+    await flushPromises()
+
+    const ctx = (window as unknown as Record<string, unknown>).__ctx as UseSchemesReturn
+    expect(ctx.state.value).toBe('loading')
+
+    // Unmount the component (triggers onUnmounted → isAlive=false + gate.cancel)
+    wrapper.unmount()
+
+    // Resolve the deferred promise — should be discarded
+    resolveCall(makeResponse())
+    await flushPromises()
+
+    // State should not have been updated — gate was cancelled on unmount
+    expect(ctx.state.value).toBe('idle' satisfies SchemesState)
+    expect(ctx.data.value).toBeNull()
+
+    // Clean up the window property
+    delete (window as unknown as Record<string, unknown>).__ctx
+  })
+
+  /* ── Unavailable state ───────────────────────────────────────── */
+
+  it('transitions to unavailable on 404 ApiError', async () => {
+    const c = createClient()
+    vi.mocked(c.requestJson).mockRejectedValue(
+      new ApiError({ status: 404, message: 'Not found' })
+    )
+    const api = createMockApi(c)
+    const ctx = useSchemes(api)
+
+    await ctx.load()
+
+    expect(ctx.state.value).toBe('unavailable' satisfies SchemesState)
+    expect(ctx.error.value).toBe('方案比选服务当前不可用')
+    expect(ctx.data.value).toBeNull()
+  })
+
+  it('transitions to unavailable on 501 ApiError', async () => {
+    const c = createClient()
+    vi.mocked(c.requestJson).mockRejectedValue(
+      new ApiError({ status: 501, message: 'Not implemented' })
+    )
+    const api = createMockApi(c)
+    const ctx = useSchemes(api)
+
+    await ctx.load()
+
+    expect(ctx.state.value).toBe('unavailable' satisfies SchemesState)
+    expect(ctx.error.value).toBe('方案比选服务当前不可用')
+  })
+
+  it('transitions to unavailable on FEATURE_DISABLED ApiError', async () => {
+    const c = createClient()
+    vi.mocked(c.requestJson).mockRejectedValue(
+      new ApiError({ status: 403, message: 'Feature disabled', code: 'FEATURE_DISABLED' })
+    )
+    const api = createMockApi(c)
+    const ctx = useSchemes(api)
+
+    await ctx.load()
+
+    expect(ctx.state.value).toBe('unavailable' satisfies SchemesState)
+    expect(ctx.error.value).toBe('方案比选服务当前不可用')
+  })
+
+  it('transitions to error on other ApiError status', async () => {
+    const c = createClient()
+    vi.mocked(c.requestJson).mockRejectedValue(
+      new ApiError({ status: 500, message: 'Internal server error' })
+    )
+    const api = createMockApi(c)
+    const ctx = useSchemes(api)
+
+    await ctx.load()
+
+    expect(ctx.state.value).toBe('error' satisfies SchemesState)
+    expect(ctx.error.value).toBe('Internal server error')
   })
 })

@@ -1,34 +1,70 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ElButton, ElInput } from 'element-plus'
+import { nextTick, ref, watch } from 'vue'
 
 import { useAgent } from '../composables/useAgent'
 
-const { isOpen, messages, loading, inputText, toggle, send, clear } = useAgent()
+const { isOpen, availability, toggle, close, setToggleRef } = useAgent()
 
-/** No agent backend exists — hardcoded unavailable */
-const backendAvailable = ref(false)
+const drawerRef = ref<HTMLElement | null>(null)
 
-function onKeydown(event: Event): void {
-  const ke = event as KeyboardEvent
-  if (ke.key === 'Enter' && !ke.shiftKey) {
-    ke.preventDefault()
-    send()
+/* ── Focus management ────────────────────────────── */
+
+function getFocusableElements(): HTMLElement[] {
+  if (!drawerRef.value) return []
+  return Array.from(
+    drawerRef.value.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+  )
+}
+
+function onDrawerKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    close()
+    return
+  }
+  if (event.key !== 'Tab') return
+  const focusable = getFocusableElements()
+  if (focusable.length === 0) return
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+
+  if (event.shiftKey) {
+    if (document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    }
+  } else {
+    if (document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
   }
 }
+
+/* Auto-focus drawer when it opens */
+watch(isOpen, (open) => {
+  if (open) {
+    nextTick(() => {
+      drawerRef.value?.focus()
+    })
+  }
+})
 </script>
 
 <template>
   <div class="agent-panel">
     <!-- Toggle button -->
     <button
+      :ref="(el) => setToggleRef(el as HTMLElement | null)"
       class="agent-panel__toggle"
       type="button"
       :class="{
         'agent-panel__toggle--active': isOpen,
-        'agent-panel__toggle--unavailable': !backendAvailable
+        'agent-panel__toggle--unavailable': availability === 'unavailable'
       }"
-      aria-label="切换AI助手"
+      :aria-label="availability === 'unavailable' ? 'AI助手当前不可用' : '切换AI助手'"
       @click="toggle"
     >
       AI
@@ -37,86 +73,35 @@ function onKeydown(event: Event): void {
     <!-- Chat overlay -->
     <Teleport to="body">
       <Transition name="agent-slide">
-        <div v-if="isOpen" class="agent-panel__overlay" @click.self="toggle">
+        <div v-if="isOpen" class="agent-panel__overlay" @click.self="close">
           <aside
+            ref="drawerRef"
             class="agent-panel__drawer"
             role="dialog"
             aria-modal="true"
             aria-label="AI 助手"
+            tabindex="-1"
             @click.stop
-            @keydown.escape="toggle"
+            @keydown="onDrawerKeydown"
           >
             <header class="agent-panel__header">
               <strong
-                :class="{ 'agent-panel__header--disabled': !backendAvailable }"
+                :class="{ 'agent-panel__header--disabled': availability === 'unavailable' }"
               >AI 助手</strong>
               <div class="agent-panel__header-actions">
                 <button
                   type="button"
-                  class="agent-panel__clear-btn"
-                  aria-label="清除对话"
-                  @click="clear"
-                >清除</button>
-                <button
-                  type="button"
                   class="agent-panel__close-btn"
                   aria-label="关闭"
-                  @click="toggle"
+                  @click="close"
                 >✕</button>
               </div>
             </header>
 
             <!-- Unavailable banner -->
-            <div v-if="!backendAvailable" class="agent-panel__unavailable">
-              AI 助手当前不可用 — 后端未部署 Agent 服务
+            <div class="agent-panel__unavailable" role="status">
+              AI 助手当前不可用
             </div>
-
-            <!-- Messages -->
-            <div v-else class="agent-panel__messages">
-              <div
-                v-for="(msg, idx) in messages"
-                :key="idx"
-                class="agent-panel__message"
-                :class="`agent-panel__message--${msg.role}`"
-              >
-                <div class="agent-panel__bubble">
-                  {{ msg.content }}
-                </div>
-              </div>
-
-              <div v-if="loading" class="agent-panel__message agent-panel__message--assistant">
-                <div class="agent-panel__bubble agent-panel__bubble--loading">
-                  思考中...
-                </div>
-              </div>
-
-              <div
-                v-if="messages.length === 0 && !loading"
-                class="agent-panel__empty"
-              >
-                我可以提取需求、生成参数变更建议、调用确定性计算工具并解释结果。
-              </div>
-            </div>
-
-            <!-- Input -->
-            <footer v-if="backendAvailable" class="agent-panel__footer">
-              <ElInput
-                v-model="inputText"
-                type="textarea"
-                :rows="2"
-                placeholder="输入自然语言需求，例如：日入库量调整为30吨"
-                :disabled="loading"
-                @keydown="onKeydown"
-              />
-              <ElButton
-                type="primary"
-                :disabled="!inputText.trim() || loading"
-                :loading="loading"
-                @click="send"
-              >
-                {{ loading ? '发送中...' : '发送' }}
-              </ElButton>
-            </footer>
           </aside>
         </div>
       </Transition>
@@ -151,6 +136,7 @@ function onKeydown(event: Event): void {
   background: #6b7280;
   cursor: default;
   opacity: 0.6;
+  pointer-events: none;
 }
 
 /* ── Overlay ──────────────────────────────────────── */
@@ -166,11 +152,12 @@ function onKeydown(event: Event): void {
 /* ── Drawer ───────────────────────────────────────── */
 .agent-panel__drawer {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   width: min(400px, 100vw);
   height: 100%;
   background: #fff;
   box-shadow: -4px 0 24px rgba(11, 31, 58, 0.18);
+  outline: none;
 }
 
 /* ── Header ───────────────────────────────────────── */
@@ -197,16 +184,6 @@ function onKeydown(event: Event): void {
   gap: 8px;
 }
 
-.agent-panel__clear-btn {
-  padding: 2px 8px;
-  border: 1px solid #5b7fa4;
-  border-radius: 4px;
-  background: transparent;
-  color: #b8cae0;
-  font-size: 12px;
-  cursor: pointer;
-}
-
 .agent-panel__close-btn {
   padding: 2px 8px;
   border: none;
@@ -226,75 +203,6 @@ function onKeydown(event: Event): void {
   font-size: 14px;
   text-align: center;
   line-height: 1.6;
-}
-
-/* ── Messages ─────────────────────────────────────── */
-.agent-panel__messages {
-  overflow-y: auto;
-  padding: 12px 16px;
-  display: grid;
-  gap: 10px;
-  align-content: start;
-}
-
-.agent-panel__message {
-  display: flex;
-}
-
-.agent-panel__message--user {
-  justify-content: flex-end;
-}
-
-.agent-panel__message--assistant {
-  justify-content: flex-start;
-}
-
-.agent-panel__bubble {
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.agent-panel__message--user .agent-panel__bubble {
-  background: #123a63;
-  color: #fff;
-  border-bottom-right-radius: 2px;
-}
-
-.agent-panel__message--assistant .agent-panel__bubble {
-  background: #f0f4f8;
-  color: #0f1f33;
-  border-bottom-left-radius: 2px;
-}
-
-.agent-panel__bubble--loading {
-  color: #5d6f84;
-  font-style: italic;
-}
-
-.agent-panel__empty {
-  padding: 32px 16px;
-  text-align: center;
-  color: #6b7a8f;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-/* ── Footer ───────────────────────────────────────── */
-.agent-panel__footer {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  padding: 12px 16px;
-  border-top: 1px solid #e0e6ed;
-  background: #f8f9fb;
-}
-
-.agent-panel__footer .el-button {
-  flex-shrink: 0;
 }
 
 /* ── Transition ───────────────────────────────────── */

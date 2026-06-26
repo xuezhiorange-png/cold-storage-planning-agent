@@ -4,37 +4,22 @@ import { ElCard, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 
 import ProjectInputsPanel from './ProjectInputsPanel.vue'
-import { usePlanningRun } from '../../calculations/composables/usePlanningRun'
 import { usePlanningWorkflowStore } from '../../../stores/planningWorkflow'
 import type { PlanningRunRequest } from '../../../api/contracts/planning'
 
 const router = useRouter()
 const store = usePlanningWorkflowStore()
-const planner = usePlanningRun()
-
-let isAlive = true
 
 onUnmounted(() => {
-  isAlive = false
-  planner.abort()
+  store.cancel()
 })
 
 async function handleSubmit(request: PlanningRunRequest): Promise<void> {
-  store.setLoading(true)
-  store.setRequest(request)
-  store.setError('')
-
-  const response = await planner.execute(request)
-
-  if (!isAlive) return
+  const response = await store.execute(request)
 
   if (response) {
-    store.setResponse(response)
     ElMessage.success('规划计算完成')
-    router.push('/workbench/calculations')
-  } else if (planner.error.value) {
-    store.setError(planner.error.value)
-    throw new Error(planner.error.value)
+    await router.push('/workbench/calculations')
   }
 }
 </script>

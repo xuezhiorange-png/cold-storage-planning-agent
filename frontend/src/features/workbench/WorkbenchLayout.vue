@@ -47,7 +47,9 @@ const navItems: NavItem[] = [
 /* ── Nav bar ─────────────────────────────────────── */
 .workbench-layout__nav {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
   padding: 10px 16px;
   background: #f3f7fb;
   border-bottom: 1px solid #c7d4e3;
@@ -66,7 +68,6 @@ const navItems: NavItem[] = [
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
-  white-space: nowrap;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
@@ -84,6 +85,7 @@ const navItems: NavItem[] = [
 /* ── Content area ─────────────────────────────────── */
 .workbench-layout__content {
   padding: 16px;
-  overflow-x: hidden;
+  overflow-x: auto;
+  min-width: 0;
 }
 </style>

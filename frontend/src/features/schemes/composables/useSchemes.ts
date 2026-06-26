@@ -1,4 +1,5 @@
 import { computed, onUnmounted, ref, type Ref } from 'vue'
+import { ApiError } from '../../../api/errors'
 import { LatestRequestGate } from '../../../shared/composables/latestRequestGate'
 import { createSchemesApi, type SchemesApi } from '../api/schemesApi'
 import type { SchemeItemContract, SchemeComparisonResponse } from '../../../api/contracts/schemes'
@@ -53,14 +54,23 @@ export function useSchemes(api: SchemesApi = createSchemesApi()): UseSchemesRetu
         state.value = previousState
         return
       }
-      state.value = 'error'
-      error.value = err instanceof Error ? err.message : '加载方案数据失败'
-    } finally {
-      // If the handle is still current but we never entered either the success
-      // or error paths, it means the request was orphaned without a terminal
-      // state. This should not happen in practice, but guard against it.
-      if (handle.isCurrent() && isAlive && state.value === 'loading') {
+      if (err instanceof ApiError) {
+        if (err.status === 404 || err.status === 501 || err.code === 'FEATURE_DISABLED') {
+          state.value = 'unavailable'
+          error.value = '方案比选服务当前不可用'
+        } else {
+          state.value = 'error'
+          error.value = err instanceof Error ? err.message : '加载方案数据失败'
+        }
+      } else {
         state.value = 'error'
+        error.value = err instanceof Error ? err.message : '加载方案数据失败'
+      }
+    } finally {
+      // If the handle is still current but loading was never progressed,
+      // the request was orphaned. If stale or unmounted, restore state.
+      if (state.value === 'loading') {
+        state.value = handle.isCurrent() && isAlive ? 'error' : previousState
       }
     }
   }
