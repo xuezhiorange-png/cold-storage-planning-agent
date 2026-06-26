@@ -1,0 +1,92 @@
+{
+  "template_code": "cold_storage_concept_design",
+  "version": "1.0.0",
+  "format": "docx",
+  "report_type": "cold_storage_concept_design",
+  "schema_version": "cold_storage_concept_design@1.0.0",
+  "locale": "zh-CN",
+  "status": "active",
+  "required_sections": [
+    "project_summary",
+    "cooling_load",
+    "equipment_selection",
+    "electrical_and_energy",
+    "scheme_comparison",
+    "investment_estimate",
+    "risks_and_missing_information",
+    "quality_summary",
+    "citations"
+  ],
+  "optional_sections": [
+    "report_metadata"
+  ],
+  "tables": {
+    "scheme_comparison": {
+      "columns": ["方案代码", "方案名称", "Profile", "可行", "总面积(m²)", "总库位", "投资(万元)", "装机功率(kW(e))", "排名"],
+      "unit_row": ["", "", "", "", "m²", "个", "万元", "kW(e)", ""]
+    },
+    "quality_findings": {
+      "columns": ["级别", "编码", "章节", "字段", "描述"]
+    },
+    "citations": {
+      "columns": ["章节", "字段路径", "来源类型", "来源ID", "工具", "版本", "内容哈希"]
+    }
+  },
+  "styles": {
+    "body_font": "SimSun",
+    "heading_font": "SimHei",
+    "mono_font": "Courier New",
+    "body_size_pt": 10.5,
+    "heading1_size_pt": 16,
+    "heading2_size_pt": 14,
+    "heading3_size_pt": 12,
+    "line_spacing": 1.5
+  },
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin_top_mm": 25,
+    "margin_bottom_mm": 25,
+    "margin_left_mm": 30,
+    "margin_right_mm": 25,
+    "landscape_sections": ["scheme_comparison_table"]
+  },
+  "header": {
+    "left": "{project_name}",
+    "center": "",
+    "right": "{report_type} 版本 {revision_number}"
+  },
+  "footer": {
+    "left": "{confidentiality}",
+    "center": "",
+    "right": "第 {page_number} 页  |  生成: {generated_at}  |  哈希: {content_hash_short}"
+  },
+  "numbering": {
+    "style": "decimal",
+    "format": "{chapter}.{section}.{subsection}"
+  },
+  "empty_section_behavior": "show_placeholder",
+  "placeholder_text": {
+    "not_provided": "（未提供）",
+    "not_calculated": "（未计算）"
+  },
+  "quality_finding_rendering": {
+    "blocker": {"color": "#CC0000", "bold": true},
+    "warning": {"color": "#CC8800", "bold": false},
+    "info": {"color": "#333333", "bold": false}
+  },
+  "draft_watermark": {
+    "text": "DRAFT",
+    "color": "#CC0000",
+    "opacity": 0.15,
+    "angle": -45,
+    "font_size_pt": 72
+  },
+  "fonts": {
+    "chinese": "SimSun",
+    "western": "Times New Roman",
+    "mono": "Courier New",
+    "fallback_chinese": "Noto Sans CJK SC",
+    "fallback_western": "DejaVu Serif"
+  }
+}

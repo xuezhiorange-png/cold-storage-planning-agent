@@ -12,6 +12,7 @@ from cold_storage.modules.reports.application.assembler import (
     ReportAssembler,
 )
 from cold_storage.modules.reports.domain.enums import (
+    ArtifactStatus,
     ReportStatus,
     ReportType,
     ReviewAction,
@@ -26,6 +27,7 @@ from cold_storage.modules.reports.domain.errors import (
 )
 from cold_storage.modules.reports.domain.models import (
     Report,
+    ReportExportArtifact,
     ReportReviewAction,
     ReportRevision,
     ReportSourceReference,
@@ -80,13 +82,68 @@ class ReportRepository:
     def get_latest_revision(self, report_id: str) -> ReportRevision | None:
         raise NotImplementedError
 
-    def save_idempotency_record(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+    def save_idempotency_record(
+        self, key: str, actor: str, action: str, fingerprint: str
+    ) -> tuple[str, int]:
         raise NotImplementedError
 
     def get_idempotency_record(self, key: str) -> dict[str, Any] | None:
         raise NotImplementedError
 
-    def complete_idempotency_record(self, key: str, result_payload: Any) -> None:
+    def complete_idempotency_record(
+        self,
+        key: str,
+        result_payload: Any,
+        *,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
+        raise NotImplementedError
+
+    def fail_idempotency_record(
+        self,
+        key: str,
+        failure_code: str,
+        failure_message: str,
+        *,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
+        raise NotImplementedError
+
+    def reset_failed_idempotency(self, key: str) -> None:
+        raise NotImplementedError
+
+    def reclaim_stale_idempotency(
+        self,
+        key: str,
+        fingerprint: str,
+        cutoff: datetime,
+        original_claimed_at: datetime,
+        *,
+        old_claim_token: str,
+        old_claim_version: int,
+    ) -> tuple[bool, str | None, int | None]:
+        raise NotImplementedError
+
+    def fail_nonterminal_artifacts(
+        self,
+        report_id: str,
+        *,
+        idempotency_key: str,
+        stale_claim_token: str,
+        stale_claim_version: int,
+    ) -> int:
+        raise NotImplementedError
+
+    def transition_artifact(
+        self,
+        artifact: ReportExportArtifact,
+        *,
+        expected_status: ArtifactStatus,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
         raise NotImplementedError
 
     def commit(self) -> None:
@@ -126,7 +183,7 @@ class ReportService:
             existing = self._check_idempotency(idempotency_key, fp)
             if existing is not None:
                 return existing
-            self._claim_idempotency(idempotency_key, actor, "create", fp)
+            ct, cv = self._claim_idempotency(idempotency_key, actor, "create", fp)
 
         report = Report.create(
             project_id=project_id,
@@ -139,7 +196,12 @@ class ReportService:
         # If either fails, rollback the entire transaction.
         try:
             if idempotency_key:
-                self._complete_idempotency(idempotency_key, report)
+                self._complete_idempotency(
+                    idempotency_key,
+                    report,
+                    claim_token=ct,
+                    claim_version=cv,
+                )
             self._repo.commit()
         except Exception:
             self._repo.rollback()
@@ -178,7 +240,7 @@ class ReportService:
             existing = self._check_idempotency_revision(idempotency_key, fp)
             if existing is not None:
                 return existing
-            self._claim_idempotency(idempotency_key, actor, "generate", fp)
+            ct, cv = self._claim_idempotency(idempotency_key, actor, "generate", fp)
 
         revision_number = report.current_revision_number + 1
         supersedes = None
@@ -245,13 +307,23 @@ class ReportService:
             current_revision_number=revision_number,
             updated_at=datetime.now(UTC),
             version=report.version + 1,
+            # Clear approval fields when new revision is generated
+            approved_revision_id=None,
+            approved_content_hash=None,
+            approved_by=None,
+            approved_at=None,
         )
         self._repo.update_report(updated, expected_version=report.version)
         # Complete idempotency BEFORE commit so both are in the same transaction.
         # If either fails, rollback the entire transaction.
         try:
             if idempotency_key:
-                self._complete_idempotency(idempotency_key, revision)
+                self._complete_idempotency(
+                    idempotency_key,
+                    revision,
+                    claim_token=ct,
+                    claim_version=cv,
+                )
             self._repo.commit()
         except Exception:
             self._repo.rollback()
@@ -335,6 +407,31 @@ class ReportService:
         if report.current_revision_number > 0 and latest_rev is None:
             raise ReportNotFoundError(f"Revision not found for report {report_id}")
 
+        # P0-8: Compute approval fields
+        approval_fields: dict[str, Any] = {}
+        if action == ReviewAction.APPROVE:
+            if latest_rev is None:
+                raise ReportNotFoundError(f"No revision to approve for report {report_id}")
+            # Check blockers
+            if has_blockers(latest_rev.quality_findings_json):
+                raise QualityBlockerError(get_blockers(latest_rev.quality_findings_json))
+            from datetime import datetime as _dt
+
+            approval_fields = {
+                "approved_revision_id": latest_rev.id,
+                "approved_content_hash": latest_rev.content_hash,
+                "approved_by": actor,
+                "approved_at": _dt.now(UTC).isoformat(),
+            }
+        elif action in (ReviewAction.REQUEST_CHANGES,):
+            # Clear approval on request changes
+            approval_fields = {
+                "approved_revision_id": None,
+                "approved_content_hash": None,
+                "approved_by": None,
+                "approved_at": None,
+            }
+
         # Record action with real revision UUID
         action_record = ReportReviewAction.create(
             report_id=report_id,
@@ -353,6 +450,7 @@ class ReportService:
             status=new_status,
             updated_at=datetime.now(UTC),
             version=report.version + 1,
+            **approval_fields,
         )
         self._repo.update_report(updated, expected_version=report.version)
         self._repo.commit()
@@ -471,23 +569,35 @@ class ReportService:
                 )
         return None
 
-    def _claim_idempotency(self, key: str, actor: str, action: str, fingerprint: str) -> None:
+    def _claim_idempotency(
+        self, key: str, actor: str, action: str, fingerprint: str
+    ) -> tuple[str, int]:
         """Claim an idempotency key via INSERT.
 
+        Returns (claim_token, claim_version).
         Raises IdempotencyClaimError if another request holds the key.
         """
         try:
-            self._repo.save_idempotency_record(
+            return self._repo.save_idempotency_record(
                 key=key, actor=actor, action=action, fingerprint=fingerprint
             )
         except Exception as exc:
             # Duplicate key → already claimed
             raise IdempotencyClaimError(key) from exc
 
-    def _complete_idempotency(self, key: str, result: object) -> None:
+    def _complete_idempotency(
+        self,
+        key: str,
+        result: object,
+        *,
+        claim_token: str,
+        claim_version: int,
+    ) -> None:
         """Mark idempotency key as completed with the result payload."""
         payload = self._serialize_result(result)
-        self._repo.complete_idempotency_record(key, payload)
+        self._repo.complete_idempotency_record(
+            key, payload, claim_token=claim_token, claim_version=claim_version
+        )
 
     @staticmethod
     def _serialize_result(result: object) -> dict[str, Any]:

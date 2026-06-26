@@ -13,11 +13,14 @@ from typing import Any
 from uuid import uuid4
 
 from cold_storage.modules.reports.domain.enums import (
+    ArtifactStatus,
+    ExportFormat,
     QualitySeverity,
     ReportStatus,
     ReportType,
     ReviewAction,
     SourceType,
+    TemplateStatus,
 )
 
 
@@ -26,7 +29,68 @@ def _uuid() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Quality Finding
+
+
+@dataclass(frozen=True)
+class ApprovalSnapshot:
+    """Immutable snapshot of approval state for render model and manifest.
+
+    Carries the exact approval fields at the moment of render, ensuring
+    consistency between the citations/approval section and the artifact
+    manifest.
+    """
+
+    revision_id: str
+    content_hash: str
+    approved_by: str
+    approved_at: str
+    revision_number: int = 0
+
+    @classmethod
+    def from_report(cls, report: Report) -> ApprovalSnapshot | None:
+        """Build an ApprovalSnapshot from a Report's approval fields.
+
+        Returns None if the report has not been approved (any field missing).
+        """
+        if not (
+            report.approved_revision_id
+            and report.approved_content_hash
+            and report.approved_by
+            and report.approved_at
+        ):
+            return None
+        return cls(
+            revision_id=report.approved_revision_id or "",
+            content_hash=report.approved_content_hash or "",
+            approved_by=report.approved_by or "",
+            approved_at=report.approved_at or "",
+        )
+
+    @classmethod
+    def from_report_and_revision(
+        cls, report: Report, revision: ReportRevision
+    ) -> ApprovalSnapshot | None:
+        """Build an ApprovalSnapshot from Report approval fields and a revision.
+
+        Returns None if the report has not been approved (any field missing).
+        Includes the revision_number from the revision object.
+        """
+        if not (
+            report.approved_revision_id
+            and report.approved_content_hash
+            and report.approved_by
+            and report.approved_at
+        ):
+            return None
+        return cls(
+            revision_id=report.approved_revision_id or "",
+            content_hash=report.approved_content_hash or "",
+            approved_by=report.approved_by or "",
+            approved_at=report.approved_at or "",
+            revision_number=revision.revision_number,
+        )
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -44,8 +108,6 @@ class QualityFinding:
 
 
 # ---------------------------------------------------------------------------
-# Report
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -62,6 +124,11 @@ class Report:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: int = 1  # optimistic lock
+    # P0-8: Formal approval binding fields
+    approved_revision_id: str | None = None
+    approved_content_hash: str | None = None
+    approved_by: str | None = None
+    approved_at: str | None = None  # ISO 8601
 
     @classmethod
     def create(
@@ -87,8 +154,6 @@ class Report:
         )
 
 
-# ---------------------------------------------------------------------------
-# ReportRevision — immutable snapshot
 # ---------------------------------------------------------------------------
 
 
@@ -141,8 +206,6 @@ class ReportRevision:
 
 
 # ---------------------------------------------------------------------------
-# ReportSourceReference
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -167,8 +230,6 @@ class ReportSourceReference:
 
 
 # ---------------------------------------------------------------------------
-# ReportReviewAction
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -188,3 +249,128 @@ class ReportReviewAction:
     @classmethod
     def create(cls, **kwargs: Any) -> ReportReviewAction:
         return cls(id=_uuid(), **kwargs)
+
+
+# ===================================================================
+# Template & Export Artifact models (Task 9B)
+# ===================================================================
+
+
+@dataclass(frozen=True)
+class ReportTemplate:
+    """Versioned report template.  Active templates are immutable."""
+
+    id: str
+    template_code: str
+    report_type: ReportType
+    format: ExportFormat
+    version: str
+    status: TemplateStatus
+    schema_version: str
+    locale: str
+    manifest_json: dict[str, Any]
+    template_content_hash: str
+    created_by: str
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    activated_at: datetime | None = None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        template_code: str,
+        report_type: ReportType,
+        format: ExportFormat,
+        version: str,
+        schema_version: str,
+        locale: str = "zh-CN",
+        manifest_json: dict[str, Any] | None = None,
+        template_content_hash: str = "",
+        created_by: str = "system",
+    ) -> ReportTemplate:
+        return cls(
+            id=_uuid(),
+            template_code=template_code,
+            report_type=report_type,
+            format=format,
+            version=version,
+            status=TemplateStatus.DRAFT,
+            schema_version=schema_version,
+            locale=locale,
+            manifest_json=manifest_json or {},
+            template_content_hash=template_content_hash,
+            created_by=created_by,
+            created_at=datetime.now(UTC),
+        )
+
+
+@dataclass(frozen=True)
+class ReportExportArtifact:
+    """Immutable export artifact bound to a revision + template version."""
+
+    id: str
+    report_id: str
+    report_revision_id: str
+    revision_number: int
+    format: ExportFormat
+    template_id: str
+    template_version: str
+    schema_version: str
+    status: ArtifactStatus
+    storage_key: str
+    file_name: str
+    mime_type: str
+    file_size_bytes: int
+    file_sha256: str
+    source_content_hash: str
+    render_manifest_json: dict[str, Any]
+    generated_by: str
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    failure_code: str = ""
+    failure_message: str = ""
+    idempotency_key: str | None = None
+    claim_token: str | None = None
+    claim_version: int = 0
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        report_id: str,
+        report_revision_id: str,
+        revision_number: int,
+        format: ExportFormat,
+        template_id: str,
+        template_version: str,
+        schema_version: str,
+        file_name: str,
+        mime_type: str,
+        source_content_hash: str,
+        generated_by: str,
+        idempotency_key: str | None = None,
+        claim_token: str | None = None,
+        claim_version: int = 0,
+    ) -> ReportExportArtifact:
+        return cls(
+            id=_uuid(),
+            report_id=report_id,
+            report_revision_id=report_revision_id,
+            revision_number=revision_number,
+            format=format,
+            template_id=template_id,
+            template_version=template_version,
+            schema_version=schema_version,
+            status=ArtifactStatus.PENDING,
+            storage_key="",
+            file_name=file_name,
+            mime_type=mime_type,
+            file_size_bytes=0,
+            file_sha256="",
+            source_content_hash=source_content_hash,
+            render_manifest_json={},
+            generated_by=generated_by,
+            generated_at=datetime.now(UTC),
+            idempotency_key=idempotency_key,
+            claim_token=claim_token,
+            claim_version=claim_version,
+        )

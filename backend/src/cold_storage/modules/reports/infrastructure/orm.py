@@ -1,10 +1,16 @@
 """SQLAlchemy ORM models for report persistence.
 
 PostgreSQL uses JSONB; SQLite falls back to JSON text.
+
+JSON columns use ``Any`` because SQLAlchemy ORM enforces untyped ``Mapped``
+for JSON/JSONB columns.  Domain layer defines ``JsonObject``/``JsonValue``
+aliases for semantic clarity; ORM layer keeps ``Any`` for SQLAlchemy
+compatibility.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import sqlalchemy as sa
@@ -49,6 +55,13 @@ class ReportRecord(Base):
     version: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("1"), index=True
     )
+    # P0-8: Formal approval binding fields
+    approved_revision_id: Mapped[str | None] = mapped_column(
+        sa.String(36), sa.ForeignKey("report_revisions.id"), nullable=True
+    )
+    approved_content_hash: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
 
 
 class ReportRevisionRecord(Base):
@@ -117,6 +130,14 @@ class IdempotencyRecord(Base):
         server_default=sa.func.now(),
         onupdate=sa.func.now(),
     )
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=True,
+    )
+    claim_token: Mapped[str | None] = mapped_column(sa.String(36), nullable=True)
+    claim_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
 
 
 class ReportReviewActionRecord(Base):
@@ -138,4 +159,102 @@ class ReportReviewActionRecord(Base):
         sa.DateTime(timezone=True),
         nullable=False,
         server_default=sa.func.now(),
+    )
+
+
+class ReportTemplateRecord(Base):
+    __tablename__ = "report_templates"
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    template_code: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    report_type: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    format: Mapped[str] = mapped_column(sa.String(16), nullable=False)
+    version: Mapped[str] = mapped_column(sa.String(32), nullable=False)
+    status: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'draft'")
+    )
+    schema_version: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    locale: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'zh-CN'")
+    )
+    manifest_json: Mapped[Any] = _json_column("manifest_json", nullable=False)
+    template_content_hash: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+    created_by: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    activated_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    # P0-7: Active slot marker — 'active' for the current active template, NULL otherwise.
+    # Combined with unique index on (template_code, format, active_slot) to enforce
+    # at most one active template per code+format pair.
+    active_slot: Mapped[str | None] = mapped_column(sa.String(16), nullable=True, index=True)
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "template_code",
+            "version",
+            "format",
+            name="uq_template_code_version_format",
+        ),
+        sa.Index(
+            "uq_active_template_per_code_format",
+            "template_code",
+            "format",
+            unique=True,
+            sqlite_where=sa.text("active_slot IS NOT NULL"),
+            postgresql_where=sa.text("active_slot IS NOT NULL"),
+        ),
+    )
+
+
+class ReportExportArtifactRecord(Base):
+    __tablename__ = "report_export_artifacts"
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    report_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("reports.id"), nullable=False, index=True
+    )
+    report_revision_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("report_revisions.id"), nullable=False, index=True
+    )
+    revision_number: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    format: Mapped[str] = mapped_column(sa.String(16), nullable=False)
+    template_id: Mapped[str] = mapped_column(
+        sa.String(36), sa.ForeignKey("report_templates.id"), nullable=False
+    )
+    template_version: Mapped[str] = mapped_column(sa.String(32), nullable=False)
+    schema_version: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    status: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'pending'")
+    )
+    storage_key: Mapped[str] = mapped_column(
+        sa.String(256), nullable=False, server_default=sa.text("''")
+    )
+    file_name: Mapped[str] = mapped_column(sa.String(256), nullable=False)
+    mime_type: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    file_sha256: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+    source_content_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    render_manifest_json: Mapped[Any] = _json_column("render_manifest_json", nullable=False)
+    generated_by: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    generated_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    failure_code: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+    failure_message: Mapped[str] = mapped_column(
+        sa.Text, nullable=False, server_default=sa.text("''")
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(sa.String(128), nullable=True, index=True)
+    claim_token: Mapped[str | None] = mapped_column(sa.String(36), nullable=True)
+    claim_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
     )
