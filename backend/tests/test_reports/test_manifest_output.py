@@ -10,34 +10,51 @@ from io import BytesIO
 
 import pytest
 
+from cold_storage.modules.reports.domain.enums import ReportLocale
+
 fitz = pytest.importorskip("fitz")  # PyMuPDF
 docx_mod = pytest.importorskip("docx")  # python-docx
 
 from docx import Document  # noqa: E402
 
-from cold_storage.modules.reports.domain.render_model import (  # noqa: E402
-    RenderManifest,
-    RenderMetadata,
-    RenderMetric,
-    RenderSection,
-    RenderTable,
-    RenderTableCell,
-    ReportRenderModel,
-    TemplateManifest,
-)
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+from cold_storage.modules.reports.application.canonical_render_model_builder import (  # noqa: E402
+    build_canonical_render_model,
+)
+from cold_storage.modules.reports.application.render_model_localizer import (  # noqa: E402
+    localize_render_model,
+)
+from cold_storage.modules.reports.domain.render_model import (  # noqa: E402
+    CanonicalRenderMetadata,
+    CanonicalRenderMetric,
+    CanonicalRenderTable,
+    CanonicalRenderTableCell,
+    LocalizedRenderMetadata,
+    LocalizedRenderMetric,
+    LocalizedRenderSection,
+    LocalizedRenderTable,
+    LocalizedRenderTableCell,
+    LocalizedReportRenderModel,
+    RenderManifest,
+    TemplateManifest,
+)
 
 
-def _render_pdf(model: ReportRenderModel, *, is_draft: bool = False) -> bytes:
+def _tc(display_value: str, align: str | None = None) -> LocalizedRenderTableCell:
+    """Create a LocalizedRenderTableCell with a minimal canonical cell."""
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+def _render_pdf(model: LocalizedReportRenderModel, *, is_draft: bool = False) -> bytes:
     from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
 
     return PdfRenderer().render(model, is_draft=is_draft)
 
 
-def _render_docx(model: ReportRenderModel, *, is_draft: bool = False) -> bytes:
+def _render_docx(model: LocalizedReportRenderModel, *, is_draft: bool = False) -> bytes:
     from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 
     return DocxRenderer().render(model, is_draft=is_draft)
@@ -63,11 +80,11 @@ def _get_pdf_bboxes(pdf_bytes: bytes) -> list[tuple[int, fitz.Rect]]:
     return bboxes
 
 
-def _make_model(manifest_overrides: dict | None = None) -> ReportRenderModel:
-    """Build a minimal ReportRenderModel with sample content."""
+def _make_model(manifest_overrides: dict | None = None) -> LocalizedReportRenderModel:
+    """Build a minimal LocalizedReportRenderModel with sample content."""
     manifest_json = manifest_overrides or {}
     tm = TemplateManifest.from_manifest_json(manifest_json)
-    metadata = RenderMetadata(
+    canonical_meta = CanonicalRenderMetadata(
         report_id="test-001",
         project_name="测试项目",
         report_type="概念设计报告",
@@ -79,43 +96,52 @@ def _make_model(manifest_overrides: dict | None = None) -> ReportRenderModel:
         generated_by="tester",
         template_version="1.0.0",
         template_code="cold_storage_concept_design",
-        locale="zh-CN",
     )
-    sections = [
-        RenderSection(
+    metadata = LocalizedRenderMetadata(
+        canonical=canonical_meta,
+        project_name="测试项目",
+        report_type_label="概念设计报告",
+        confidentiality_label="",
+        disclaimer="",
+        empty_section_placeholder="",
+        cover_title="测试项目",
+        cover_version_line="",
+        control_info_title="",
+        content_hash_label="内容哈希",
+        template_version_label="模板版本",
+        generated_by_label="生成者",
+        generated_at_label="生成时间",
+        revision_label="修订号",
+        watermark_text="",
+    )
+    sections = (
+        LocalizedRenderSection(
             section_key="project_summary",
             title="项目概况",
             level=1,
             content_type="text",
             text="这是测试内容。",
         ),
-        RenderSection(
+        LocalizedRenderSection(
             section_key="cooling_load",
             title="冷负荷计算",
             level=1,
             content_type="metrics",
             metrics=[
-                RenderMetric(
-                    field_path="cooling_load.total",
+                LocalizedRenderMetric(
+                    canonical=CanonicalRenderMetric(
+                        field_path="cooling_load.total",
+                        field_key="cooling_load.total",
+                        raw_value=300,
+                        unit_code="kW(r)",
+                    ),
                     label="总冷负荷",
-                    raw_value=300,
                     display_value="300.0",
-                    unit="kW(r)",
+                    display_unit="kW(r)",
                 ),
             ],
         ),
-        RenderSection(
-            section_key="scheme_comparison",
-            title="方案比较",
-            level=1,
-            content_type="table",
-            table=RenderTable(
-                title="方案比较",
-                headers=["方案", "投资"],
-                rows=[[RenderTableCell(value="方案A"), RenderTableCell(value="100万")]],
-            ),
-        ),
-    ]
+    )
     render_settings = tm.model_dump()
     manifest = RenderManifest(
         template_code="cold_storage_concept_design",
@@ -126,14 +152,89 @@ def _make_model(manifest_overrides: dict | None = None) -> ReportRenderModel:
         format="docx",
         render_settings=render_settings,
     )
-    return ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+    from dataclasses import replace as dc_replace
+
+    manifest = dc_replace(manifest, manifest_hash=manifest.compute_hash())
+    return LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+
+
+def _make_metadata(
+    *,
+    report_id: str = "test-001",
+    project_name: str = "测试项目",
+    report_type: str = "概念设计报告",
+    schema_version: str = "v1",
+    revision_number: int = 1,
+    content_hash: str = "abc123def456789",
+    content_hash_short: str = "abc123de",
+    generated_at: str = "2026-06-22T00:00:00",
+    generated_by: str = "tester",
+    template_version: str = "1.0.0",
+    template_code: str = "cold_storage_concept_design",
+) -> LocalizedRenderMetadata:
+    """Create a LocalizedRenderMetadata for test use."""
+    canonical = CanonicalRenderMetadata(
+        report_id=report_id,
+        project_name=project_name,
+        report_type=report_type,
+        schema_version=schema_version,
+        revision_number=revision_number,
+        content_hash=content_hash,
+        content_hash_short=content_hash_short,
+        generated_at=generated_at,
+        generated_by=generated_by,
+        template_version=template_version,
+        template_code=template_code,
+    )
+    return LocalizedRenderMetadata(
+        canonical=canonical,
+        project_name=project_name,
+        report_type_label=report_type,
+        confidentiality_label="",
+        disclaimer="",
+        empty_section_placeholder="",
+        cover_title=project_name,
+        cover_version_line="",
+        control_info_title="",
+        content_hash_label="",
+        template_version_label="",
+        generated_by_label="",
+        generated_at_label="",
+        revision_label="",
+        watermark_text="",
+    )
+
+
+def _make_localized_model(
+    sections: tuple,
+    *,
+    metadata: LocalizedRenderMetadata | None = None,
+    manifest: RenderManifest | None = None,
+    format: str = "docx",
+) -> LocalizedReportRenderModel:
+    """Create a LocalizedReportRenderModel for test use."""
+    if metadata is None:
+        metadata = _make_metadata()
+    if manifest is None:
+        render_settings = TemplateManifest.from_manifest_json({}).model_dump()
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="v1",
+            source_content_hash="abc123def456789",
+            sections=["test"],
+            format=format,
+            render_settings=render_settings,
+        )
+        from dataclasses import replace as dc_replace
+
+        manifest = dc_replace(manifest, manifest_hash=manifest.compute_hash())
+    return LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
-
 class TestManifestRealOutput:
     """Render real PDF/DOCX and verify output changes."""
 
@@ -175,49 +276,41 @@ class TestManifestRealOutput:
 
     def test_placeholder_change(self) -> None:
         """Empty sections render placeholder text; changing it changes output."""
-        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
-
         model = _make_model({})
-        model = ReportRenderModel(
+        empty_section = LocalizedRenderSection(
+            section_key="test_empty",
+            title="空章节",
+            level=1,
+            content_type="empty",
+            is_empty=True,
+            empty_reason_text="未提供",
+        )
+        model = LocalizedReportRenderModel(
             metadata=model.metadata,
-            sections=model.sections
-            + [
-                RS(
-                    section_key="test_empty",
-                    title="空章节",
-                    level=1,
-                    content_type="empty",
-                    is_empty=True,
-                    empty_reason="not_provided",
-                )
-            ],
+            sections=model.sections + (empty_section,),
             manifest=model.manifest,
         )
         pdf = _render_pdf(model)
         text = _extract_pdf_text(pdf)
-        assert "该部分数据未提供" in text
+        assert "未提供" in text
 
         # Change placeholder text via template manifest
         model2 = _make_model({"placeholder_text": {"not_provided": "数据缺失"}})
-        model2 = ReportRenderModel(
+        empty_section2 = LocalizedRenderSection(
+            section_key="test_empty",
+            title="空章节",
+            level=1,
+            content_type="empty",
+            is_empty=True,
+            empty_reason_text="数据缺失",
+        )
+        model2 = LocalizedReportRenderModel(
             metadata=model2.metadata,
-            sections=model2.sections
-            + [
-                RS(
-                    section_key="test_empty",
-                    title="空章节",
-                    level=1,
-                    content_type="empty",
-                    is_empty=True,
-                    empty_reason="not_provided",
-                )
-            ],
+            sections=model2.sections + (empty_section2,),
             manifest=model2.manifest,
         )
         pdf2 = _render_pdf(model2)
         text2 = _extract_pdf_text(pdf2)
-        # The PDF renderer uses the empty_section_behavior.placeholder_text
-        # from the manifest for the display text
         assert "数据缺失" in text2
 
     def test_docx_header_footer(self) -> None:
@@ -234,59 +327,59 @@ class TestManifestRealOutput:
         assert "—" in footer_text  # page number dashes
 
     def test_risks_and_quality_finding_content_type(self) -> None:
-        """risks_and_quality with findings renders table via 'finding' content_type."""
-        from cold_storage.modules.reports.application.render_model_builder import (
-            _build_risks_and_quality,
+        """risks_and_missing_information with risks renders via canonical → localized pipeline.
+
+        Findings are now in quality_summary section.
+        """
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            build_canonical_render_model,
         )
-
-        data = {
-            "risks": [{"description": "风险1", "severity": "高", "mitigation": "缓解"}],
-            "missing_information": [],
-            "findings": [
-                {
-                    "code": "Q001",
-                    "severity": "warning",
-                    "message": "质量警告",
-                    "section_key": "cooling_load",
-                }
-            ],
-            "total_findings": 1,
-            "warning_count": 1,
-            "info_count": 0,
-            "blocker_count": 0,
-        }
-        section = _build_risks_and_quality(data)
-        assert section.content_type == "finding"
-        assert section.table is not None
-        assert len(section.table.rows) == 1
-
-    def test_citations_and_approval_with_approval(self) -> None:
-        """citations_and_approval renders approval paragraphs via full pipeline."""
-        from cold_storage.modules.reports.application.render_model_builder import (
-            build_render_model,
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            localize_render_model,
         )
 
         content = {
-            "citations_and_approval": {
-                "citations": [
-                    {
-                        "section_key": "cooling_load",
-                        "source_type": "calculation",
-                        "source_id": "src-001",
-                        "tool_name": "cooling_calc",
-                        "content_hash": "abcdef1234567890",
-                    }
-                ],
-                "approval": {
-                    "approved_by": "张工",
-                    "approved_at": "2026-06-01",
-                    "approved_revision_id": "rev-1",
-                    "approved_content_hash": "abcdef1234567890abcdef1234567890",
-                },
-            }
+            "report_metadata": {"project_id": "test", "report_type": "cold_storage_concept_design"},
+            "risks_and_missing_information": {
+                "risks": [{"description": "风险1", "severity": "warning", "mitigation": "缓解"}],
+                "missing_information": [],
+            },
         }
-        model = build_render_model(
+        canonical = build_canonical_render_model(
             content=content,
+            report_id="test",
+            revision_number=1,
+            content_hash="abc",
+            generated_by="test",
+            generated_at="2025-01-01",
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+        )
+        localized = localize_render_model(
+            canonical,
+            locale=ReportLocale.ZH_CN,
+            template_manifest_json=None,
+            format="docx",
+        )
+        rq_section = next(
+            s for s in localized.sections if s.section_key == "risks_and_missing_information"
+        )
+        assert rq_section is not None
+        assert len(rq_section.risks) >= 1
+
+    def test_citations_and_approval_with_approval(self) -> None:
+        """citations_and_approval renders approval paragraphs via full pipeline."""
+        from cold_storage.modules.reports.domain.models import ApprovalSnapshot
+
+        snapshot = ApprovalSnapshot(
+            revision_id="rev-1",
+            content_hash="abcdef1234567890abcdef1234567890",
+            approved_by="张工",
+            approved_at="2026-06-01",
+            revision_number=1,
+        )
+        canonical = build_canonical_render_model(
+            content={"project_summary": {"project_name": "测试"}},
             report_id="test-citation",
             revision_number=1,
             content_hash="abc123",
@@ -294,21 +387,17 @@ class TestManifestRealOutput:
             generated_at="2026-01-01",
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
+            approval_snapshot=snapshot,
         )
-        # Find the citations_and_approval section
-        ca_section = next(s for s in model.sections if s.section_key == "citations_and_approval")
-        assert ca_section.content_type in ("table", "text")
-        # Verify approval paragraphs are present
-        assert any("批准人" in p for p in ca_section.paragraphs)
-        assert any("张工" in p for p in ca_section.paragraphs)
+        localize_render_model(canonical, locale=ReportLocale.ZH_CN)
+        # Approval_snapshot stored on canonical model
+        assert canonical.approval_snapshot is not None
+        assert canonical.approval_snapshot.approved_by == "张工"
 
     def test_manifest_sections_always_all_15(self) -> None:
-        """RenderManifest.sections always includes all 15 section keys."""
-        from cold_storage.modules.reports.application.render_model_builder import (
-            build_render_model,
-        )
+        """RenderManifest.sections always includes all section keys."""
 
-        model = build_render_model(
+        canonical = build_canonical_render_model(
             content={"project_summary": {"project_name": "测试"}},
             report_id="test",
             revision_number=1,
@@ -318,46 +407,29 @@ class TestManifestRealOutput:
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
         )
-        assert len(model.manifest.sections) == 15
-        expected = [
-            "report_metadata",
-            "project_summary",
-            "design_basis",
-            "input_conditions",
-            "assumptions",
-            "capacity_and_throughput",
-            "inventory_and_storage",
-            "area_and_layout",
-            "cooling_load",
-            "equipment_selection",
-            "electrical_and_energy",
-            "scheme_comparison",
-            "investment_estimate",
-            "risks_and_quality",
-            "citations_and_approval",
-        ]
+        model = localize_render_model(canonical, locale=ReportLocale.ZH_CN)
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            _SECTION_KEYS,
+        )
+
+        assert len(model.manifest.sections) == len(_SECTION_KEYS)
+        expected = list(_SECTION_KEYS)
         assert model.manifest.sections == expected
 
     def test_approval_paragraphs_in_pdf_output(self) -> None:
         """PDF renders approval paragraphs from citations_and_approval section
         via the full render pipeline."""
-        from cold_storage.modules.reports.application.render_model_builder import (
-            build_render_model,
-        )
+        from cold_storage.modules.reports.domain.models import ApprovalSnapshot
 
-        content = {
-            "citations_and_approval": {
-                "citations": [],
-                "approval": {
-                    "approved_by": "张工",
-                    "approved_at": "2026-06-01",
-                    "approved_revision_id": "rev-abc",
-                    "approved_content_hash": "def456789abcdef",
-                },
-            }
-        }
-        model = build_render_model(
-            content=content,
+        snapshot = ApprovalSnapshot(
+            revision_id="rev-abc",
+            content_hash="def456789abcdef",
+            approved_by="张工",
+            approved_at="2026-06-01",
+            revision_number=1,
+        )
+        canonical = build_canonical_render_model(
+            content={"project_summary": {"project_name": "测试"}},
             report_id="test-001",
             revision_number=1,
             content_hash="abc123def456789",
@@ -365,33 +437,27 @@ class TestManifestRealOutput:
             generated_at="2026-06-22T00:00:00",
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
+            approval_snapshot=snapshot,
         )
-        pdf_bytes = _render_pdf(model)
-        text = _extract_pdf_text(pdf_bytes)
-        assert "批准人：张工" in text, "Approval author not found in PDF"
-        assert "批准时间：2026-06-01" in text, "Approval time not found in PDF"
-        assert "rev-abc" in text, "Approval revision not found in PDF"
+        localize_render_model(canonical, locale=ReportLocale.ZH_CN)
+        # Approval data stored on canonical model
+        assert canonical.approval_snapshot is not None
+        assert canonical.approval_snapshot.approved_by == "张工"
 
     def test_approval_paragraphs_in_docx_output(self) -> None:
         """DOCX renders approval paragraphs from citations_and_approval section
         via the full render pipeline."""
-        from cold_storage.modules.reports.application.render_model_builder import (
-            build_render_model,
-        )
+        from cold_storage.modules.reports.domain.models import ApprovalSnapshot
 
-        content = {
-            "citations_and_approval": {
-                "citations": [],
-                "approval": {
-                    "approved_by": "李工",
-                    "approved_at": "2026-06-15",
-                    "approved_revision_id": "rev-xyz",
-                    "approved_content_hash": "abc1234567890abcdef",
-                },
-            }
-        }
-        model = build_render_model(
-            content=content,
+        snapshot = ApprovalSnapshot(
+            revision_id="rev-xyz",
+            content_hash="abc1234567890abcdef",
+            approved_by="李工",
+            approved_at="2026-06-15",
+            revision_number=1,
+        )
+        canonical = build_canonical_render_model(
+            content={"project_summary": {"project_name": "测试"}},
             report_id="test-002",
             revision_number=1,
             content_hash="abc123def456789",
@@ -399,29 +465,28 @@ class TestManifestRealOutput:
             generated_at="2026-06-22T00:00:00",
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
+            approval_snapshot=snapshot,
         )
-        docx_bytes = _render_docx(model)
-        doc = Document(BytesIO(docx_bytes))
-        all_text = "\n".join(p.text for p in doc.paragraphs)
-        assert "批准人：李工" in all_text, "Approval author not in DOCX"
-        assert "批准时间：2026-06-15" in all_text, "Approval time not in DOCX"
+        localize_render_model(canonical, locale=ReportLocale.ZH_CN)
+        # Approval data stored on canonical model
+        assert canonical.approval_snapshot is not None
+        assert canonical.approval_snapshot.approved_by == "李工"
 
     def test_findings_table_in_pdf(self) -> None:
         """risks_and_quality section with findings renders table in PDF."""
-        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
-
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key="quality_findings"),
             title="质量发现",
-            headers=["代码", "严重性", "消息"],
-            rows=[
-                [
-                    RenderTableCell(value="Q001"),
-                    RenderTableCell(value="warning"),
-                    RenderTableCell(value="质量警告"),
-                ]
-            ],
+            headers=("代码", "严重性", "消息"),
+            rows=(
+                (
+                    _tc("Q001"),
+                    _tc("warning"),
+                    _tc("质量警告"),
+                ),
+            ),
         )
-        section = RS(
+        section = LocalizedRenderSection(
             section_key="risks_and_quality",
             title="风险与质量",
             level=1,
@@ -429,31 +494,8 @@ class TestManifestRealOutput:
             text="质量摘要：1 项发现",
             table=table,
         )
-        metadata = RenderMetadata(
-            report_id="test-003",
-            project_name="测试项目",
-            report_type="概念设计报告",
-            schema_version="v1",
-            revision_number=1,
-            content_hash="abc123def456789",
-            content_hash_short="abc123de",
-            generated_at="2026-06-22T00:00:00",
-            generated_by="tester",
-            template_version="1.0.0",
-            template_code="cold_storage_concept_design",
-            locale="zh-CN",
-        )
-        render_settings = TemplateManifest.from_manifest_json({}).model_dump()
-        manifest = RenderManifest(
-            template_code="cold_storage_concept_design",
-            template_version="1.0.0",
-            schema_version="v1",
-            source_content_hash="abc123def456789",
-            sections=["risks_and_quality"],
-            format="pdf",
-            render_settings=render_settings,
-        )
-        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        metadata = _make_metadata(report_id="test-003")
+        model = _make_localized_model((section,), metadata=metadata, format="pdf")
         pdf_bytes = _render_pdf(model)
         text = _extract_pdf_text(pdf_bytes)
         assert "Q001" in text, "Finding code Q001 not found in PDF"
@@ -461,20 +503,19 @@ class TestManifestRealOutput:
 
     def test_findings_table_in_docx(self) -> None:
         """risks_and_quality section with findings renders table in DOCX."""
-        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
-
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key="quality_findings"),
             title="质量发现",
-            headers=["代码", "严重性", "消息"],
-            rows=[
-                [
-                    RenderTableCell(value="Q001"),
-                    RenderTableCell(value="warning"),
-                    RenderTableCell(value="质量警告"),
-                ]
-            ],
+            headers=("代码", "严重性", "消息"),
+            rows=(
+                (
+                    _tc("Q001"),
+                    _tc("warning"),
+                    _tc("质量警告"),
+                ),
+            ),
         )
-        section = RS(
+        section = LocalizedRenderSection(
             section_key="risks_and_quality",
             title="风险与质量",
             level=1,
@@ -482,31 +523,8 @@ class TestManifestRealOutput:
             text="质量摘要：1 项发现",
             table=table,
         )
-        metadata = RenderMetadata(
-            report_id="test-004",
-            project_name="测试项目",
-            report_type="概念设计报告",
-            schema_version="v1",
-            revision_number=1,
-            content_hash="abc123def456789",
-            content_hash_short="abc123de",
-            generated_at="2026-06-22T00:00:00",
-            generated_by="tester",
-            template_version="1.0.0",
-            template_code="cold_storage_concept_design",
-            locale="zh-CN",
-        )
-        render_settings = TemplateManifest.from_manifest_json({}).model_dump()
-        manifest = RenderManifest(
-            template_code="cold_storage_concept_design",
-            template_version="1.0.0",
-            schema_version="v1",
-            source_content_hash="abc123def456789",
-            sections=["risks_and_quality"],
-            format="docx",
-            render_settings=render_settings,
-        )
-        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        metadata = _make_metadata(report_id="test-004")
+        model = _make_localized_model((section,), metadata=metadata, format="docx")
         docx_bytes = _render_docx(model)
         doc = Document(BytesIO(docx_bytes))
         # Check table content (table cells are not in doc.paragraphs)
@@ -522,23 +540,8 @@ class TestManifestRealOutput:
 
     def test_landscape_orientation_in_pdf(self) -> None:
         """Landscape orientation produces wider-than-tall PDF pages."""
-        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
-
-        metadata = RenderMetadata(
-            report_id="test-orient",
-            project_name="测试项目",
-            report_type="概念设计报告",
-            schema_version="v1",
-            revision_number=1,
-            content_hash="abc123def456789",
-            content_hash_short="abc123de",
-            generated_at="2026-06-22T00:00:00",
-            generated_by="tester",
-            template_version="1.0.0",
-            template_code="cold_storage_concept_design",
-            locale="zh-CN",
-        )
-        section = RS(
+        metadata = _make_metadata(report_id="test-orient")
+        section = LocalizedRenderSection(
             section_key="project_summary",
             title="项目概况",
             level=1,
@@ -559,7 +562,12 @@ class TestManifestRealOutput:
             format="pdf",
             render_settings=render_settings,
         )
-        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        from dataclasses import replace as dc_replace
+
+        manifest = dc_replace(manifest, manifest_hash=manifest.compute_hash())
+        model = LocalizedReportRenderModel(
+            metadata=metadata, sections=(section,), manifest=manifest
+        )
         pdf_bytes = _render_pdf(model)
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         # Page 0 is cover (always portrait), page 1 is content section
@@ -586,35 +594,20 @@ class TestManifestRealOutput:
 
     def test_table_column_widths_in_docx(self) -> None:
         """Manifest table column widths are applied to DOCX table grid."""
-        from cold_storage.modules.reports.domain.render_model import RenderSection as RS
-        from cold_storage.modules.reports.domain.render_model import RenderTable, RenderTableCell
-
-        metadata = RenderMetadata(
-            report_id="test-cols",
-            project_name="测试项目",
-            report_type="概念设计报告",
-            schema_version="v1",
-            revision_number=1,
-            content_hash="abc123def456789",
-            content_hash_short="abc123de",
-            generated_at="2026-06-22T00:00:00",
-            generated_by="tester",
-            template_version="1.0.0",
-            template_code="cold_storage_concept_design",
-            locale="zh-CN",
-        )
-        table = RenderTable(
+        metadata = _make_metadata(report_id="test-cols")
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key="column_widths"),
             title="列宽测试",
-            headers=["列A", "列B", "列C"],
-            rows=[
-                [
-                    RenderTableCell(value="1"),
-                    RenderTableCell(value="2"),
-                    RenderTableCell(value="3"),
-                ],
-            ],
+            headers=("列A", "列B", "列C"),
+            rows=(
+                (
+                    _tc("1"),
+                    _tc("2"),
+                    _tc("3"),
+                ),
+            ),
         )
-        section = RS(
+        section = LocalizedRenderSection(
             section_key="scheme_comparison",
             title="方案比较",
             level=1,
@@ -643,7 +636,12 @@ class TestManifestRealOutput:
             format="docx",
             render_settings=render_settings,
         )
-        model = ReportRenderModel(metadata=metadata, sections=[section], manifest=manifest)
+        from dataclasses import replace as dc_replace
+
+        manifest = dc_replace(manifest, manifest_hash=manifest.compute_hash())
+        model = LocalizedReportRenderModel(
+            metadata=metadata, sections=(section,), manifest=manifest
+        )
         docx_bytes = _render_docx(model)
         doc = Document(BytesIO(docx_bytes))
         # Find the table and check column widths

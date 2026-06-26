@@ -196,15 +196,21 @@ class ReportTemplateRecord(Base):
             "template_code",
             "version",
             "format",
-            name="uq_template_code_version_format",
+            "locale",
+            name="uq_template_code_version_format_locale",
         ),
         sa.Index(
-            "uq_active_template_per_code_format",
+            "uq_active_template_per_code_format_locale",
             "template_code",
             "format",
+            "locale",
             unique=True,
             sqlite_where=sa.text("active_slot IS NOT NULL"),
             postgresql_where=sa.text("active_slot IS NOT NULL"),
+        ),
+        sa.CheckConstraint(
+            "locale IN ('zh-CN', 'en-US')",
+            name="ck_report_template_locale_supported",
         ),
     )
 
@@ -258,3 +264,181 @@ class ReportExportArtifactRecord(Base):
     claim_version: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )
+    locale: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'zh-CN'"), index=True
+    )
+    translation_catalog_version: Mapped[str] = mapped_column(
+        sa.String(32), nullable=False, server_default=sa.text("'1.0.0'")
+    )
+    localized_template_content_hash: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+    template_locale: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'zh-CN'")
+    )
+    translation_catalog_content_hash: Mapped[str] = mapped_column(
+        sa.String(64), nullable=False, server_default=sa.text("''")
+    )
+
+    __table_args__ = (
+        sa.CheckConstraint(
+            "locale IN ('zh-CN', 'en-US')",
+            name="ck_report_artifact_locale_supported",
+        ),
+        sa.CheckConstraint(
+            "template_locale IN ('zh-CN', 'en-US')",
+            name="ck_report_artifact_template_locale_supported",
+        ),
+    )
+
+
+class CleanupDebtRecord(Base):
+    """Records a pending file-deletion task for the two-phase cleanup pattern.
+
+    When a stale claim is recovered, the old owner's artifact files are not
+    deleted immediately.  Instead, a ``CleanupDebtRecord`` is inserted in
+    the same DB transaction that CAS-reclaims the idempotency record and
+    fails the old artifacts.  After the transaction commits, a cleanup
+    executor reads pending debts and performs the physical file deletions
+    with ``reclaim_delete`` fencing.
+
+    This ensures that a crash between the DB commit and the file deletion
+    does not orphan files — the pending debt survives and can be retried.
+    """
+
+    __tablename__ = "cleanup_debt"
+
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(sa.String(128), nullable=False, index=True)
+    storage_key: Mapped[str] = mapped_column(sa.String(256), nullable=False)
+    stale_claim_token: Mapped[str] = mapped_column(sa.String(36), nullable=False, server_default="")
+    stale_claim_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    reclaim_token: Mapped[str] = mapped_column(sa.String(36), nullable=False, server_default="")
+    reclaim_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    status: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'pending'"), index=True
+    )
+    created_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    completed_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    retry_count: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    last_error: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default=sa.text("''"))
+    next_retry_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    locked_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    locked_by: Mapped[str] = mapped_column(
+        sa.String(128), nullable=False, server_default=sa.text("''")
+    )
+    lock_expires_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    claim_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+
+
+class MigrationAuditRecord(Base):
+    """Persistent audit log for privileged migration/cleanup operations.
+
+    Records every call to ``delete_legacy_artifact()`` and similar
+    privileged operations so there is a durable trail of who deleted
+    what, when, and why.
+    """
+
+    __tablename__ = "migration_audit_log"
+
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    storage_key: Mapped[str] = mapped_column(sa.String(256), nullable=False)
+    migration_actor: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    audit_reason: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    operation: Mapped[str] = mapped_column(
+        sa.String(32), nullable=False, server_default=sa.text("'legacy_delete'")
+    )
+    result: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    source_hash: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
+    created_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+
+
+class DeletionOutboxRecord(Base):
+    """Transactional outbox for legacy artifact deletion audit.
+
+    Used by ``delete_legacy_artifact()`` to guarantee that the audit
+    record is committed to the database BEFORE the file is deleted.
+    If the file deletion fails the outbox status is updated to
+    ``delete_failed`` so operators can investigate.
+
+    ``retry_count`` tracks the number of retry attempts made during
+    startup recovery (see ``recover_pending_outboxes()``).
+    """
+
+    __tablename__ = "deletion_outbox"
+
+    id: Mapped[str] = mapped_column(sa.String(36), primary_key=True)
+    storage_key: Mapped[str] = mapped_column(sa.String(256), nullable=False)
+    migration_actor: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    audit_reason: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    operation: Mapped[str] = mapped_column(
+        sa.String(32), nullable=False, server_default=sa.text("'legacy_delete'")
+    )
+    source_hash: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
+    status: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'pending_audit'")
+    )
+    retry_count: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    last_error: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    updated_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    created_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+
+    # Claim/lease fields for CAS-based outbox claiming (0025)
+    claim_token: Mapped[str | None] = mapped_column(sa.String(36), nullable=True)
+    claim_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("0")
+    )
+    locked_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    lock_expires_at: Mapped[str | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+
+class DeletionReceiptRecord(Base):
+    """Persistent receipt that a reclaim_delete operation completed.
+
+    Records the claim identifiers that were used to delete a file so
+    that a subsequent ``reclaim_delete`` with ``missing_is_success=True``
+    can verify that the file was in fact deleted by the same owner,
+    preventing unauthorised ``already_missing`` responses.
+
+    ``status`` tracks the two-phase protocol: ``intent`` (receipt
+    committed, deletion pending), ``deleted`` (file removed), or
+    ``delete_failed`` (deletion failed after intent).
+    """
+
+    __tablename__ = "deletion_receipts"
+
+    storage_key: Mapped[str] = mapped_column(sa.String(256), primary_key=True)
+    stale_claim_token: Mapped[str] = mapped_column(sa.String(36), nullable=False)
+    stale_claim_version: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    reclaim_token: Mapped[str] = mapped_column(sa.String(36), nullable=False)
+    reclaim_version: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    status: Mapped[str] = mapped_column(
+        sa.String(16), nullable=False, server_default=sa.text("'intent'")
+    )
+    deleted_at: Mapped[str] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=True,
+    )
+    deletion_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False)

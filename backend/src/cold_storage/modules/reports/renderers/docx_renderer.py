@@ -1,7 +1,7 @@
-"""DOCX renderer — produces a .docx file from a ReportRenderModel.
+"""DOCX renderer -- produces a .docx file from a LocalizedReportRenderModel.
 
 Uses python-docx.  No macros, no external resource loading, no template
-expressions.  Font fallback: SimSun → Times New Roman.  A4 page size.
+expressions.  Font fallback: SimSun -> Times New Roman.  A4 page size.
 
 P0-5: Fully manifest-driven headers, footers, watermarks, fonts, and layout.
 """
@@ -29,9 +29,9 @@ _nsmap["w14"] = "http://schemas.microsoft.com/office/word/2010/wordml"
 
 if TYPE_CHECKING:
     from cold_storage.modules.reports.domain.render_model import (
-        RenderSection,
-        RenderTable,
-        ReportRenderModel,
+        LocalizedRenderSection,
+        LocalizedRenderTable,
+        LocalizedReportRenderModel,
     )
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ _HEADING3_SIZE = 12
 
 
 def _load_manifest_settings(
-    model: ReportRenderModel,
+    model: LocalizedReportRenderModel,
 ) -> dict[str, Any]:
     """Extract rendering settings from template manifest with defaults.
 
@@ -105,7 +105,7 @@ def _load_manifest_settings(
     # Draft watermark
     wm = render_settings.get("watermark", {})
     draft_wm = render_settings.get("draft_watermark", wm)
-    settings["draft_watermark_text"] = draft_wm.get("text", "DRAFT")
+    settings["draft_watermark_text"] = draft_wm.get("text", "")
     settings["draft_watermark_size"] = draft_wm.get("font_size_pt", draft_wm.get("size", 72))
     settings["draft_watermark_color"] = draft_wm.get("color", "#CCCCCC")
     settings["draft_watermark_opacity"] = draft_wm.get("opacity", 0.3)
@@ -139,13 +139,29 @@ def _load_manifest_settings(
 
 def _substitute_vars(text: str, meta: Any, page_num: int = 0) -> str:
     """Substitute template variables like {project_name} in text."""
+    canonical = getattr(meta, "canonical", meta)
     return (
         text.replace("{project_name}", getattr(meta, "project_name", "") or "")
-        .replace("{report_type}", getattr(meta, "report_type", "") or "")
-        .replace("{revision_number}", str(getattr(meta, "revision_number", "")))
-        .replace("{generated_at}", (getattr(meta, "generated_at", "") or "")[:10])
-        .replace("{content_hash_short}", getattr(meta, "content_hash_short", "") or "")
-        .replace("{confidentiality}", getattr(meta, "confidentiality", "") or "")
+        .replace(
+            "{report_type}",
+            getattr(meta, "report_type_label", getattr(meta, "report_type", "")) or "",
+        )
+        .replace(
+            "{revision_number}",
+            str(getattr(canonical, "revision_number", getattr(meta, "revision_number", ""))),
+        )
+        .replace(
+            "{generated_at}",
+            (getattr(canonical, "generated_at", getattr(meta, "generated_at", "")) or "")[:10],
+        )
+        .replace(
+            "{content_hash_short}",
+            getattr(canonical, "content_hash_short", getattr(meta, "content_hash_short", "")) or "",
+        )
+        .replace(
+            "{confidentiality}",
+            getattr(meta, "confidentiality_label", getattr(meta, "confidentiality", "")) or "",
+        )
         .replace("{page_number}", str(page_num))
     )
 
@@ -341,8 +357,8 @@ def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int
 
     # If all empty, use legacy default
     if not header_left and not header_center and not header_right:
-        pname = getattr(meta, "project_name", "")
-        rtype = getattr(meta, "report_type", "")
+        pname = getattr(meta, "project_name", "") or ""
+        rtype = getattr(meta, "report_type_label", getattr(meta, "report_type", "")) or ""
         header_right = f"{pname} \u2014 {rtype}"
 
     header = section.header
@@ -395,14 +411,14 @@ def _add_header(section: Any, settings: dict[str, Any], meta: Any, page_num: int
         _set_run_font(run, size=Pt(header_size), color=RGBColor(0x80, 0x80, 0x80))
 
 
-def _add_draft_watermark(doc: Any, settings: dict[str, Any]) -> None:
+def _add_draft_watermark(doc: Any, settings: dict[str, Any], text: str = "") -> None:
     """Add draft watermark to every section header using VML/XML.
 
     P0-5: Adds watermark as a SEPARATE paragraph in each section's header,
     so it coexists with header text without overwriting it.
     P0-7: Uses actual section dimensions for watermark size.
     """
-    wm_text = settings.get("draft_watermark_text", "DRAFT")
+    wm_text = text
     if not wm_text:
         return
 
@@ -585,9 +601,9 @@ def _add_vml_watermark(
 
 
 class DocxRenderer:
-    """Render a ReportRenderModel to DOCX bytes."""
+    """Render a LocalizedReportRenderModel to DOCX bytes."""
 
-    def render(self, model: ReportRenderModel, *, is_draft: bool = False) -> bytes:
+    def render(self, model: LocalizedReportRenderModel, *, is_draft: bool = False) -> bytes:
         """Render the model to DOCX bytes.
 
         Parameters
@@ -665,10 +681,10 @@ class DocxRenderer:
 
         # ---- Document properties (metadata) ----
         cp = doc.core_properties
-        cp.title = meta.project_name or "Report"
-        cp.subject = meta.report_type
-        cp.comments = f"Revision {meta.revision_number}"
-        cp.author = meta.generated_by
+        cp.title = meta.project_name or ""
+        cp.subject = getattr(meta, "report_type_label", getattr(meta, "report_type", ""))
+        cp.comments = ""
+        cp.author = getattr(getattr(meta, "canonical", meta), "generated_by", "")
         # Custom properties via XML
         docProps = doc.element.find(qn("w:docProps"))
         if docProps is None:
@@ -683,8 +699,10 @@ class DocxRenderer:
             prop.append(val_el)
             docProps.append(prop)
 
-        _add_custom_prop("SourceContentHash", meta.content_hash)
-        _add_custom_prop("TemplateVersion", meta.template_version)
+        _content_hash = getattr(getattr(meta, "canonical", meta), "content_hash", "")
+        _template_version = getattr(getattr(meta, "canonical", meta), "template_version", "")
+        _add_custom_prop("SourceContentHash", _content_hash)
+        _add_custom_prop("TemplateVersion", _template_version)
 
         # ---- Cover page ----
         # Blank lines for centering
@@ -694,7 +712,7 @@ class DocxRenderer:
         # Project name
         p_name = doc.add_paragraph()
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p_name.add_run(meta.project_name or "\u9879\u76ee\u62a5\u544a")
+        run = p_name.add_run(meta.project_name or "")
         _set_run_font(
             run,
             font_name=heading_font_name,
@@ -706,7 +724,7 @@ class DocxRenderer:
         # Report type
         p_type = doc.add_paragraph()
         p_type.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p_type.add_run(meta.report_type)
+        run = p_type.add_run(getattr(meta, "report_type_label", getattr(meta, "report_type", "")))
         _set_run_font(
             run,
             font_name=heading_font_name,
@@ -717,9 +735,10 @@ class DocxRenderer:
         # Version line
         p_ver = doc.add_paragraph()
         p_ver.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        generated_at = meta.generated_at if meta.generated_at else ""
-        date_display = generated_at[:10] if len(generated_at) >= 10 else generated_at
-        ver_str = f"\u7248\u672c {meta.revision_number}  |  {date_display}"
+        _gen_at = getattr(getattr(meta, "canonical", meta), "generated_at", "")
+        generated_at = _gen_at if _gen_at else ""
+        generated_at[:10] if len(generated_at) >= 10 else generated_at
+        ver_str = model.cover_version_line
         run = p_ver.add_run(ver_str)
         _set_run_font(run, size=Pt(12), color=RGBColor(0x60, 0x60, 0x60))
 
@@ -727,17 +746,27 @@ class DocxRenderer:
         doc.add_page_break()
 
         p_title = doc.add_paragraph()
-        run = p_title.add_run("\u6587\u4ef6\u63a7\u5236\u4fe1\u606f")
+        control_title = model.control_info_title
+        run = p_title.add_run(control_title)
         _set_run_font(run, font_name=heading_font_name, size=Pt(14), bold=True)
 
-        hash_val = meta.content_hash
+        hash_val = getattr(getattr(meta, "canonical", meta), "content_hash", "")
         hash_display = hash_val[:16] + "\u2026" if len(hash_val) > 16 else hash_val
+        ch_label = model.content_hash_label
+        tv_label = model.template_version_label
+        gb_label = model.generated_by_label
+        ga_label = model.generated_at_label
+        rev_label = model.revision_label
+        _tmpl_ver = getattr(getattr(meta, "canonical", meta), "template_version", "")
+        _gen_by = getattr(getattr(meta, "canonical", meta), "generated_by", "")
+        _gen_at = getattr(getattr(meta, "canonical", meta), "generated_at", "")
+        _rev_num = getattr(getattr(meta, "canonical", meta), "revision_number", "")
         control_items = [
-            ("\u5185\u5bb9\u54c8\u5e0c", hash_display),
-            ("\u6a21\u677f\u7248\u672c", meta.template_version),
-            ("\u751f\u6210\u8005", meta.generated_by),
-            ("\u751f\u6210\u65f6\u95f4", meta.generated_at),
-            ("\u4fee\u8ba2\u53f7", str(meta.revision_number)),
+            (ch_label, hash_display),
+            (tv_label, _tmpl_ver),
+            (gb_label, _gen_by),
+            (ga_label, _gen_at),
+            (rev_label, str(_rev_num)),
         ]
         for label, value in control_items:
             p = doc.add_paragraph()
@@ -795,7 +824,22 @@ class DocxRenderer:
 
         # ---- Watermark (P0-5: manifest-driven) ----
         if is_draft:
-            _add_draft_watermark(doc, settings)
+            _add_draft_watermark(doc, settings, text=model.watermark_text)
+
+        # Render disclaimer
+        disclaimer_text = model.disclaimer or ""
+        if disclaimer_text:
+            # Add a separator line
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            run = p.add_run("─" * 40)
+            _set_run_font(run, size=Pt(8), color=RGBColor(0x99, 0x99, 0x99))
+
+            # Add disclaimer
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            run = p.add_run(disclaimer_text)
+            _set_run_font(run, size=Pt(8), color=RGBColor(0x99, 0x99, 0x99))
 
         # ---- Serialize ----
         buf = BytesIO()
@@ -809,7 +853,7 @@ class DocxRenderer:
     def _render_section(
         self,
         doc: Any,
-        section: RenderSection,
+        section: LocalizedRenderSection,
         settings: dict[str, Any] | None = None,
         meta: Any = None,
     ) -> None:
@@ -823,13 +867,8 @@ class DocxRenderer:
 
         if section.is_empty:
             doc.add_heading(section.title, level=section.level)
-            # P0-5: Use manifest-driven placeholder text
-            esb = settings.get("empty_section_behavior", {})
-            placeholder_map = esb.get("placeholder_text", {})
-            if not isinstance(placeholder_map, dict):
-                placeholder_map = {}
-            default_text = self._empty_reason_text(section.empty_reason)
-            placeholder = placeholder_map.get(section.empty_reason, default_text)
+            # empty_reason_text is pre-populated by localize_render_model
+            placeholder = section.empty_reason_text
             p = doc.add_paragraph(f"\uff08{placeholder}\uff09")
             target_run = p.runs[0] if p.runs else p.add_run("")
             _set_run_font(
@@ -847,7 +886,10 @@ class DocxRenderer:
         elif section.content_type == "metrics" and section.metrics:
             for metric in section.metrics:
                 p = doc.add_paragraph()
-                run = p.add_run(f"{metric.label}: {metric.display_value} {metric.unit}".strip())
+                label_text = f"{metric.label}: {metric.display_value}"
+                if metric.display_unit:
+                    label_text += f" {metric.display_unit}"
+                run = p.add_run(label_text.strip())
                 _set_run_font(run, size=Pt(body_font_size))
             if section.number:
                 self._render_number(doc, section, body_font_size)
@@ -873,8 +915,8 @@ class DocxRenderer:
         # Render citations as numbered footnotes
         if section.citations:
             for idx, cite in enumerate(section.citations, 1):
-                tool = cite.get("tool_name", "")
-                src = cite.get("source_id", "")
+                tool = cite.canonical.tool_name
+                src = cite.canonical.source_id
                 cite_text = f"[{idx}] {tool} \u2014 {src}"
                 p = doc.add_paragraph()
                 run = p.add_run(cite_text)
@@ -893,13 +935,13 @@ class DocxRenderer:
             _set_run_font(run, size=Pt(body_font_size))
 
     def _render_number(
-        self, doc: Any, section: RenderSection, body_font_size: float = _BODY_FONT_SIZE
+        self, doc: Any, section: LocalizedRenderSection, body_font_size: float = _BODY_FONT_SIZE
     ) -> None:
         """Render a number field with its value and unit."""
         num = section.number
         if num is not None:
             p = doc.add_paragraph()
-            run = p.add_run(f"{num.display} {num.unit}")
+            run = p.add_run(f"{num.display_value} {num.display_unit}")
             _set_run_font(run, size=Pt(body_font_size + 0.5), bold=True)
         if section.text:
             self._render_text_block(doc, section.text, body_font_size)
@@ -907,11 +949,11 @@ class DocxRenderer:
     def _render_table(
         self,
         doc: Any,
-        table: RenderTable,
+        table: LocalizedRenderTable,
         section_key: str = "",
         settings: dict[str, Any] | None = None,
     ) -> None:
-        """Render a RenderTable as a Word table.
+        """Render a LocalizedRenderTable as a Word table.
 
         P0-5: Reads per-section table config from manifest for width_ratio,
         repeat_header, unit_row, and column alignment.
@@ -1042,14 +1084,7 @@ class DocxRenderer:
                     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                 elif align == "center":
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                run = p.add_run(cell_data.value)
+                run = p.add_run(cell_data.display_value)
                 _set_run_font(run, size=Pt(table_body_size))
 
-    @staticmethod
-    def _empty_reason_text(reason: str) -> str:
-        """Human-readable empty reason."""
-        reasons = {
-            "not_provided": "\u8be5\u90e8\u5206\u6570\u636e\u672a\u63d0\u4f9b",
-            "not_calculated": "\u8be5\u90e8\u5206\u5c1a\u672a\u8ba1\u7b97",
-        }
-        return reasons.get(reason, "\u8be5\u90e8\u5206\u5185\u5bb9\u4e0d\u53ef\u7528")
+    # NOTE: _empty_reason_text removed — empty_reason_text must come from model.

@@ -20,26 +20,39 @@ from io import BytesIO
 import fitz
 
 from cold_storage.modules.reports.domain.render_model import (
+    CanonicalRenderTable,
+    CanonicalRenderTableCell,
+    LocalizedRenderMetadata,
+    LocalizedRenderMetric,
+    LocalizedRenderNumber,
+    LocalizedRenderSection,
+    LocalizedRenderTable,
+    LocalizedRenderTableCell,
+    LocalizedReportRenderModel,
     RenderManifest,
-    RenderMetadata,
-    RenderMetric,
-    RenderNumber,
-    RenderSection,
-    RenderTable,
-    RenderTableCell,
-    ReportRenderModel,
 )
 from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
 from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
+
+
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_pagination"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _make_metadata() -> RenderMetadata:
+def _make_metadata() -> LocalizedRenderMetadata:
     """Create a standard test metadata object."""
-    return RenderMetadata(
+    from cold_storage.modules.reports.domain.render_model import CanonicalRenderMetadata
+
+    canonical = CanonicalRenderMetadata(
         report_id="r-test",
         project_name="蓝莓冷库概念设计项目",
         report_type="概念设计报告",
@@ -52,9 +65,26 @@ def _make_metadata() -> RenderMetadata:
         template_version="1.0.0",
         template_code="cold_storage_concept_design",
     )
+    return LocalizedRenderMetadata(
+        canonical=canonical,
+        project_name="蓝莓冷库概念设计项目",
+        report_type_label="概念设计报告",
+        confidentiality_label="",
+        disclaimer="",
+        empty_section_placeholder="",
+        cover_title="",
+        cover_version_line="",
+        control_info_title="",
+        content_hash_label="",
+        template_version_label="",
+        generated_by_label="",
+        generated_at_label="",
+        revision_label="",
+        watermark_text="",
+    )
 
 
-def _make_manifest(sections: list[RenderSection]) -> RenderManifest:
+def _make_manifest(sections: list[LocalizedRenderSection]) -> RenderManifest:
     """Create a standard manifest from a list of sections."""
     return RenderManifest(
         template_code="cold_storage_concept_design",
@@ -67,19 +97,25 @@ def _make_manifest(sections: list[RenderSection]) -> RenderManifest:
 
 
 def _make_model(
-    sections: list[RenderSection],
+    sections: list[LocalizedRenderSection],
     *,
     is_draft: bool = False,
-) -> tuple[ReportRenderModel, bytes]:
-    """Build a ReportRenderModel, render it, and return (model, pdf_bytes)."""
+    watermark_text: str = "DRAFT",
+) -> tuple[LocalizedReportRenderModel, bytes]:
+    """Build a LocalizedReportRenderModel, render it, and return (model, pdf_bytes)."""
     metadata = _make_metadata()
     manifest = _make_manifest(sections)
-    model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+    model = LocalizedReportRenderModel(
+        metadata=metadata,
+        sections=sections,
+        manifest=manifest,
+        watermark_text=watermark_text,
+    )
     pdf_bytes = PdfRenderer().render(model, is_draft=is_draft)
     return model, pdf_bytes
 
 
-def _build_100_row_cjk_table() -> tuple[list[RenderSection], RenderTable]:
+def _build_100_row_cjk_table() -> tuple[list[LocalizedRenderSection], LocalizedRenderTable]:
     """Build a section with a 100-row table, each cell 80+ CJK chars."""
     rows = []
     for i in range(100):
@@ -89,19 +125,20 @@ def _build_100_row_cjk_table() -> tuple[list[RenderSection], RenderTable]:
         cjk_note = f"备注内容：蓝色冷冻库项目中的重要参数记录和质量控制指标，第{i}号检测点。"
         rows.append(
             [
-                RenderTableCell(value=cjk_label, align="left"),
-                RenderTableCell(value=cjk_desc, align="left"),
-                RenderTableCell(value=cjk_note, align="left"),
-                RenderTableCell(value=f"{250 + i * 5}.0", align="right"),
+                _tc(cjk_label, align="left"),
+                _tc(cjk_desc, align="left"),
+                _tc(cjk_note, align="left"),
+                _tc(f"{250 + i * 5}.0", align="right"),
             ]
         )
-    table = RenderTable(
+    table = LocalizedRenderTable(
+        canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
         title="设备清单",
         headers=["设备编号", "描述", "备注", "功率(kW)"],
         rows=rows,
         unit_row=["", "", "", "kW"],
     )
-    section = RenderSection(
+    section = LocalizedRenderSection(
         section_key="equipment_list",
         title="设备清单",
         level=1,
@@ -111,47 +148,69 @@ def _build_100_row_cjk_table() -> tuple[list[RenderSection], RenderTable]:
     return [section], table
 
 
-def _build_metrics_sections() -> list[RenderSection]:
-    """Build sections with 5 different RenderMetrics."""
+def _build_metrics_sections() -> list[LocalizedRenderSection]:
+    """Build sections with 5 different LocalizedRenderMetrics."""
+    from cold_storage.modules.reports.domain.render_model import CanonicalRenderMetric
+
     metrics = [
-        RenderMetric(
-            field_path="cooling.total_design_load",
+        LocalizedRenderMetric(
+            canonical=CanonicalRenderMetric(
+                field_path="cooling.total_design_load",
+                field_key="cooling.total_design_load",
+                raw_value=250.0,
+                unit_code="kW(r)",
+            ),
             label="总设计制冷量",
-            raw_value=250.0,
             display_value="250.0",
-            unit="kW(r)",
+            display_unit="kW(r)",
         ),
-        RenderMetric(
-            field_path="cooling.precooling_capacity",
+        LocalizedRenderMetric(
+            canonical=CanonicalRenderMetric(
+                field_path="cooling.precooling_capacity",
+                field_key="cooling.precooling_capacity",
+                raw_value=180.5,
+                unit_code="kW(r)",
+            ),
             label="预冷能力",
-            raw_value=180.5,
             display_value="180.5",
-            unit="kW(r)",
+            display_unit="kW(r)",
         ),
-        RenderMetric(
-            field_path="storage.area",
+        LocalizedRenderMetric(
+            canonical=CanonicalRenderMetric(
+                field_path="storage.area",
+                field_key="storage.area",
+                raw_value=1200.0,
+                unit_code="m2",
+            ),
             label="冷藏库面积",
-            raw_value=1200.0,
             display_value="1,200.0",
-            unit="m2",
+            display_unit="m2",
         ),
-        RenderMetric(
-            field_path="investment.total",
+        LocalizedRenderMetric(
+            canonical=CanonicalRenderMetric(
+                field_path="investment.total",
+                field_key="investment.total",
+                raw_value=5800000.0,
+                unit_code="CNY",
+            ),
             label="总投资估算",
-            raw_value=5800000.0,
             display_value="5,800,000",
-            unit="CNY",
+            display_unit="CNY",
         ),
-        RenderMetric(
-            field_path="capacity.total_volume",
+        LocalizedRenderMetric(
+            canonical=CanonicalRenderMetric(
+                field_path="capacity.total_volume",
+                field_key="capacity.total_volume",
+                raw_value=3600.0,
+                unit_code="m3",
+            ),
             label="冷库总容积",
-            raw_value=3600.0,
             display_value="3,600",
-            unit="m3",
+            display_unit="m3",
         ),
     ]
     return [
-        RenderSection(
+        LocalizedRenderSection(
             section_key="cooling_metrics",
             title="冷负荷指标",
             level=1,
@@ -159,6 +218,14 @@ def _build_metrics_sections() -> list[RenderSection]:
             metrics=metrics,
         )
     ]
+
+
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_pagination"
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +358,14 @@ class TestLargeCjkTablePagination:
         assert len(cjk_chars) > 200, f"Expected >200 CJK characters in PDF, got {len(cjk_chars)}"
 
 
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_pagination"
+
+
 # ---------------------------------------------------------------------------
 # Test 2: DRAFT watermark on every page in draft mode
 # ---------------------------------------------------------------------------
@@ -324,6 +399,14 @@ class TestDraftWatermark:
             # Since our content never contains "DRAFT", this is reliable.
             assert "DRAFT" not in text, f"Page {page_idx + 1}: DRAFT watermark found in formal mode"
         doc.close()
+
+
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_pagination"
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +446,7 @@ class TestMetricsRendering:
         sections = _build_metrics_sections()
         metadata = _make_metadata()
         manifest = _make_manifest(sections)
-        model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+        model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
 
         # Render both formats
         pdf_bytes = PdfRenderer().render(model)
@@ -399,6 +482,14 @@ class TestMetricsRendering:
             assert unit in docx_text, f"DOCX missing metric unit: {unit}"
 
 
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_pagination"
+
+
 # ---------------------------------------------------------------------------
 # Test 4: Content type coverage
 # ---------------------------------------------------------------------------
@@ -408,7 +499,7 @@ class TestContentTypes:
     def test_text_content_type(self):
         """Text content type renders correctly."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试章节",
                 level=1,
@@ -427,13 +518,24 @@ class TestContentTypes:
 
     def test_number_content_type(self):
         """Number content type renders correctly."""
+        from cold_storage.modules.reports.domain.render_model import CanonicalRenderMetric
+
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="制冷量",
                 level=1,
                 content_type="number",
-                number=RenderNumber(raw=250.0, display="250.0", unit="kW(r)"),
+                number=LocalizedRenderNumber(
+                    canonical=CanonicalRenderMetric(
+                        field_path="test",
+                        field_key="test",
+                        raw_value=250.0,
+                        unit_code="kW(r)",
+                    ),
+                    display_value="250.0",
+                    display_unit="kW(r)",
+                ),
             )
         ]
         _, pdf_bytes = _make_model(sections)
@@ -448,13 +550,13 @@ class TestContentTypes:
     def test_empty_section(self):
         """Empty section renders with placeholder text."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="空章节",
                 level=1,
                 content_type="empty",
                 is_empty=True,
-                empty_reason="not_provided",
+                empty_reason_text="未提供",
             )
         ]
         _, pdf_bytes = _make_model(sections)
@@ -464,26 +566,27 @@ class TestContentTypes:
         doc.close()
 
         assert "空章节" in all_text
-        assert "该部分数据未提供" in all_text
+        assert "未提供" in all_text
 
     def test_finding_content_type(self):
         """Finding content type renders text and optional table."""
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
             title="发现明细",
             headers=["检查项", "状态"],
             rows=[
                 [
-                    RenderTableCell(value="设备选型"),
-                    RenderTableCell(value="合格"),
+                    _tc("设备选型"),
+                    _tc("合格"),
                 ],
                 [
-                    RenderTableCell(value="能效比"),
-                    RenderTableCell(value="需优化"),
+                    _tc("能效比"),
+                    _tc("需优化"),
                 ],
             ],
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="f1",
                 title="质量发现",
                 level=1,
@@ -504,6 +607,14 @@ class TestContentTypes:
         assert "合格" in all_text
 
 
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_pagination"
+
+
 # ---------------------------------------------------------------------------
 # Test 5: Small table (no overflow needed)
 # ---------------------------------------------------------------------------
@@ -514,18 +625,19 @@ class TestSmallTable:
         """A small table (5 rows) should fit on one content page."""
         rows = [
             [
-                RenderTableCell(value=f"项目{i}", align="left"),
-                RenderTableCell(value=f"值{i}", align="right"),
+                _tc(f"项目{i}", align="left"),
+                _tc(f"值{i}", align="right"),
             ]
             for i in range(5)
         ]
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
             title="小表格",
             headers=["项目", "值"],
             rows=rows,
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="小表格",
                 level=1,

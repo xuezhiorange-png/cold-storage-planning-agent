@@ -11,21 +11,34 @@ from __future__ import annotations
 import fitz
 
 from cold_storage.modules.reports.domain.render_model import (
+    CanonicalRenderTable,
+    CanonicalRenderTableCell,
+    LocalizedRenderMetadata,
+    LocalizedRenderSection,
+    LocalizedRenderTable,
+    LocalizedRenderTableCell,
+    LocalizedReportRenderModel,
     RenderManifest,
-    RenderMetadata,
-    RenderSection,
-    RenderTable,
-    RenderTableCell,
-    ReportRenderModel,
 )
 from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
+
+
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_pdf_fixes"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _make_metadata(**overrides: object) -> RenderMetadata:
+def _make_metadata(**overrides: object) -> LocalizedRenderMetadata:
+    from cold_storage.modules.reports.domain.render_model import CanonicalRenderMetadata
+
     defaults = dict(
         report_id="r-test",
         project_name="蓝莓冷库概念设计项目",
@@ -40,11 +53,40 @@ def _make_metadata(**overrides: object) -> RenderMetadata:
         template_code="cold_storage_concept_design",
     )
     defaults.update(overrides)
-    return RenderMetadata(**defaults)  # type: ignore[arg-type]
+    canonical = CanonicalRenderMetadata(
+        report_id=defaults["report_id"],
+        project_name=defaults["project_name"],
+        report_type=defaults["report_type"],
+        schema_version=defaults["schema_version"],
+        revision_number=defaults["revision_number"],
+        content_hash=defaults["content_hash"],
+        content_hash_short=defaults["content_hash_short"],
+        generated_at=defaults["generated_at"],
+        generated_by=defaults["generated_by"],
+        template_version=defaults["template_version"],
+        template_code=defaults["template_code"],
+    )
+    return LocalizedRenderMetadata(
+        canonical=canonical,
+        project_name=defaults["project_name"],
+        report_type_label=defaults["report_type"],
+        confidentiality_label="",
+        disclaimer="",
+        empty_section_placeholder="",
+        cover_title="",
+        cover_version_line="",
+        control_info_title="",
+        content_hash_label="",
+        template_version_label="",
+        generated_by_label="",
+        generated_at_label="",
+        revision_label="",
+        watermark_text="",
+    )
 
 
 def _make_manifest(
-    sections: list[RenderSection],
+    sections: list[LocalizedRenderSection],
     render_settings: dict | None = None,
 ) -> RenderManifest:
     return RenderManifest(
@@ -59,37 +101,38 @@ def _make_manifest(
 
 
 def _make_model(
-    sections: list[RenderSection],
+    sections: list[LocalizedRenderSection],
     *,
     is_draft: bool = False,
     render_settings: dict | None = None,
     metadata_overrides: dict | None = None,
-) -> tuple[ReportRenderModel, bytes]:
+) -> tuple[LocalizedReportRenderModel, bytes]:
     metadata = _make_metadata(**(metadata_overrides or {}))
     manifest = _make_manifest(sections, render_settings=render_settings)
-    model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+    model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
     pdf_bytes = PdfRenderer().render(model, is_draft=is_draft)
     return model, pdf_bytes
 
 
-def _build_100_row_table_with_unit() -> list[RenderSection]:
+def _build_100_row_table_with_unit() -> list[LocalizedRenderSection]:
     rows = []
     for i in range(100):
         rows.append(
             [
-                RenderTableCell(value=f"设备{i:03d}"),
-                RenderTableCell(value=f"描述文字第{i:03d}行这是一段较长的描述用于测试换行"),
-                RenderTableCell(value=f"{250 + i * 5}.0"),
+                _tc(f"设备{i:03d}"),
+                _tc(f"描述文字第{i:03d}行这是一段较长的描述用于测试换行"),
+                _tc(f"{250 + i * 5}.0"),
             ]
         )
-    table = RenderTable(
+    table = LocalizedRenderTable(
+        canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
         title="设备清单",
         headers=["编号", "描述", "功率"],
         rows=rows,
         unit_row=["", "", "kW"],
     )
     return [
-        RenderSection(
+        LocalizedRenderSection(
             section_key="equipment",
             title="设备清单",
             level=1,
@@ -189,7 +232,7 @@ class TestP0_4_ManifestControls:
     def test_custom_header_text(self):
         """Modifying header_right in manifest should change PDF header text."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -211,7 +254,7 @@ class TestP0_4_ManifestControls:
     def test_custom_footer_text(self):
         """Modifying footer_center in manifest should change PDF footer text."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -249,7 +292,7 @@ class TestP0_4_ManifestControls:
     def test_watermark_color_override(self):
         """Modifying watermark.color should change the watermark color in PDF objects."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -289,7 +332,7 @@ class TestP0_4_ManifestControls:
     def test_margin_override_shifts_text_position(self):
         """Changing margins in manifest should shift text bbox positions."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="测试",
                 level=1,
@@ -334,13 +377,13 @@ class TestP0_4_ManifestControls:
     def test_empty_section_placeholder_from_manifest(self):
         """empty_section_behavior.placeholder_text in manifest overrides default."""
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="空章节",
                 level=1,
                 content_type="empty",
                 is_empty=True,
-                empty_reason="not_provided",
+                empty_reason_text="数据未提供（自定义）",
             )
         ]
         _, pdf_bytes = _make_model(
@@ -379,7 +422,7 @@ class TestP0_6_LongTextPagination:
             for i in range(300)
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="long_text",
                 title="长文本测试",
                 level=1,
@@ -420,17 +463,18 @@ class TestP0_6_LongTextPagination:
         mega_text = "这是一段超长的中文文本" * 200  # ~1200 chars
         rows = [
             [
-                RenderTableCell(value="描述"),
-                RenderTableCell(value=mega_text),
+                _tc("描述"),
+                _tc(mega_text),
             ]
         ]
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
             title="超长文本表格",
             headers=["项目", "内容"],
             rows=rows,
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="mega",
                 title="超长文本测试",
                 level=1,
@@ -470,21 +514,20 @@ class TestP0_7_UltraTallAndRepeatHeader:
         for i in range(80):
             rows.append(
                 [
-                    RenderTableCell(value=f"项目{i:03d}"),
-                    RenderTableCell(
-                        value=f"这是描述文字第{i:03d}行，用于确保表格足够长能够跨页显示"
-                    ),
-                    RenderTableCell(value=f"{i * 10}.0"),
+                    _tc(f"项目{i:03d}"),
+                    _tc(f"这是描述文字第{i:03d}行，用于确保表格足够长能够跨页显示"),
+                    _tc(f"{i * 10}.0"),
                 ]
             )
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
             title="大表格",
             headers=["编号", "描述", "数值"],
             rows=rows,
             unit_row=["", "", "kW"],
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="big",
                 title="大表格测试",
                 level=1,
@@ -529,21 +572,22 @@ class TestP0_7_UltraTallAndRepeatHeader:
         ultra_long = "超长内容文字" * 500  # ~3000 chars
         rows = [
             [
-                RenderTableCell(value="标题"),
-                RenderTableCell(value="普通内容"),
+                _tc("标题"),
+                _tc("普通内容"),
             ],
             [
-                RenderTableCell(value="超长行"),
-                RenderTableCell(value=ultra_long),
+                _tc("超长行"),
+                _tc(ultra_long),
             ],
         ]
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
             title="超长行表格",
             headers=["项目", "内容"],
             rows=rows,
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="ultra",
                 title="超长行测试",
                 level=1,
@@ -566,7 +610,7 @@ class TestP0_7_UltraTallAndRepeatHeader:
         P0-11: Uses manifest landscape_sections instead of manual width/height swap.
         """
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s1",
                 title="横向测试",
                 level=1,

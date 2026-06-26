@@ -133,7 +133,7 @@ class ReportRepository:
         idempotency_key: str,
         stale_claim_token: str,
         stale_claim_version: int,
-    ) -> int:
+    ) -> tuple[int, list[str]]:
         raise NotImplementedError
 
     def transition_artifact(
@@ -144,6 +144,91 @@ class ReportRepository:
         claim_token: str,
         claim_version: int,
     ) -> None:
+        raise NotImplementedError
+
+    def insert_cleanup_debt(
+        self,
+        *,
+        idempotency_key: str,
+        storage_key: str,
+        stale_claim_token: str,
+        stale_claim_version: int,
+        reclaim_token: str,
+        reclaim_version: int,
+    ) -> str:
+        """Insert a pending cleanup debt record (P0-9 two-phase cleanup).
+
+        Returns the debt ID.
+        """
+        raise NotImplementedError
+
+    def claim_cleanup_debt(
+        self,
+        debt_id: str,
+        *,
+        lock_seconds: int = 300,
+        observed_locked_at: datetime | None = None,
+        observed_locked_by: str = "",
+        observed_lock_expires_at: datetime | None = None,
+    ) -> bool:
+        """CAS claim a pending, retryable, or expired-processing cleanup debt.
+
+        For pending/retryable debts, the claim succeeds immediately.
+        For expired processing debts, the lease values (locked_at, locked_by,
+        lock_expires_at) must match exactly (CAS).
+
+        Returns True if the claim succeeded.
+        """
+        raise NotImplementedError
+
+    def mark_cleanup_retryable(self, debt_id: str, error: str, *, backoff: int = 30) -> None:
+        """Mark a processing cleanup debt as retryable with backoff."""
+        raise NotImplementedError
+
+    def count_pending_cleanup_debts(self, idempotency_key: str | None = None) -> int:
+        """Count pending cleanup debts, optionally filtered by idempotency_key."""
+        raise NotImplementedError
+
+    def count_eligible_cleanup_debts(
+        self,
+        *,
+        processing_timeout_seconds: int = 600,
+    ) -> int:
+        """Count cleanup debts eligible for processing, including expired processing debts."""
+        raise NotImplementedError
+
+    def mark_cleanup_completed(self, debt_id: str, *, observed_claim_version: int = 0) -> None:
+        """Mark a cleanup debt as completed with claim_version CAS."""
+        raise NotImplementedError
+
+    def list_eligible_cleanup_debts(
+        self,
+        *,
+        processing_timeout_seconds: int = 600,
+    ) -> list[dict[str, object]]:
+        """List cleanup debts eligible for processing, including expired processing debts."""
+        raise NotImplementedError
+
+    def mark_cleanup_failed(self, debt_id: str, error: str) -> None:
+        """Mark a cleanup debt as failed with error info."""
+        raise NotImplementedError
+
+    def list_pending_cleanup_debts(self) -> list[dict[str, object]]:
+        """List all pending cleanup debts."""
+        raise NotImplementedError
+
+    def insert_audit_log(
+        self,
+        record_id: str,
+        storage_key: str,
+        migration_actor: str,
+        audit_reason: str,
+        result: str,
+        *,
+        operation: str = "legacy_delete",
+        source_hash: str | None = None,
+    ) -> None:
+        """Insert a MigrationAuditRecord."""
         raise NotImplementedError
 
     def commit(self) -> None:

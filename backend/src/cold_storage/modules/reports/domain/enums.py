@@ -66,6 +66,14 @@ class RenderMode(StrEnum):
     FORMAL = "formal"
 
 
+class ReportLocale(StrEnum):
+    ZH_CN = "zh-CN"
+    EN_US = "en-US"
+
+
+SUPPORTED_LOCALES: frozenset[ReportLocale] = frozenset(ReportLocale)
+
+
 # Status transitions: from_status -> set of allowed to_status
 STATUS_TRANSITIONS: dict[ReportStatus, set[ReportStatus]] = {
     ReportStatus.DRAFT: {ReportStatus.GENERATED},

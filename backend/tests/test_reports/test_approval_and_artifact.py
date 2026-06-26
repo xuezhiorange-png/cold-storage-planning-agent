@@ -43,6 +43,7 @@ from cold_storage.modules.reports.application.service import (
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
+    ReportLocale,
     ReportStatus,
     ReportType,
     TemplateStatus,
@@ -133,6 +134,7 @@ class _MockStorage:
 
     def __init__(self) -> None:
         self._files: dict[str, bytes] = {}
+        self._claim_owners: dict[str, tuple[str, int]] = {}  # key -> (claim_token, claim_version)
         self._fail_put_temp = False
         self._fail_cleanup_temp = False
         self._fail_delete = False
@@ -151,18 +153,36 @@ class _MockStorage:
             raise OSError("Cleanup failed")
         self._files.pop(path, None)
 
-    def finalize_temp(self, path: str, artifact_id: str, filename: str) -> str:
+    def finalize_temp(
+        self,
+        path: str,
+        artifact_id: str,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         if self._fail_finalize:
             raise OSError("Finalize failed")
         data = self._files.pop(path, b"")
         key = f"final/{artifact_id}/{filename}"
         self._files[key] = data
+        if claim_token:
+            self._claim_owners[key] = (claim_token, claim_version)
         return key
 
-    def delete(self, key: str) -> None:
+    def delete(self, key: str, *, claim_token: str = "", claim_version: int = 0) -> None:
         if self._fail_delete:
             raise OSError("Delete failed")
+        # Validate claim ownership if key exists and claim_token provided
+        if key in self._claim_owners and claim_token:
+            owner_token, owner_version = self._claim_owners[key]
+            if owner_token != claim_token:
+                raise PermissionError(
+                    f"Claim token mismatch for {key}: expected {owner_token}, got {claim_token}"
+                )
         self._files.pop(key, None)
+        self._claim_owners.pop(key, None)
 
     def exists(self, key: str) -> bool:
         return key in self._files
@@ -172,13 +192,76 @@ class _MockStorage:
             raise FileNotFoundError(key)
         return f"/tmp/{key}"
 
-    def put(self, artifact_id: str, data: bytes, filename: str) -> str:
+    def put(
+        self,
+        artifact_id: str,
+        data: bytes,
+        filename: str,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
         key = f"final/{artifact_id}/{filename}"
+        # Reject overwrite if key exists and owned by a different claim
+        if key in self._claim_owners and claim_token:
+            owner_token, owner_version = self._claim_owners[key]
+            if owner_token != claim_token:
+                raise PermissionError(
+                    f"Claim token mismatch for {key}: expected {owner_token}, got {claim_token}"
+                )
         self._files[key] = data
+        if claim_token:
+            self._claim_owners[key] = (claim_token, claim_version)
         return key
 
     def get(self, key: str) -> bytes:
         return self._files.get(key, b"")
+
+    def replace(
+        self,
+        key: str,
+        data: bytes,
+        *,
+        claim_token: str = "",
+        claim_version: int = 0,
+    ) -> str:
+        """Replace an existing artifact's content in-place (mock)."""
+        if key not in self._files:
+            raise FileNotFoundError(key)
+        # Validate claim ownership
+        if key in self._claim_owners:
+            owner_token, owner_version = self._claim_owners[key]
+            if owner_token != claim_token or (claim_token and owner_version != claim_version):
+                raise PermissionError(
+                    f"Claim token/version mismatch for {key}: "
+                    f"expected ({owner_token}, {owner_version}), "
+                    f"got ({claim_token}, {claim_version})"
+                )
+        self._files[key] = data
+        if claim_token:
+            self._claim_owners[key] = (claim_token, claim_version)
+        return key
+
+    def delete_legacy_artifact(
+        self,
+        key: str,
+        *,
+        migration_actor: str,
+        audit_reason: str,
+        repository: Any = None,
+    ) -> None:
+        """Privileged migration delete for legacy artifacts (mock)."""
+        if key not in self._files:
+            raise FileNotFoundError(key)
+        if not migration_actor.strip() or not audit_reason.strip():
+            raise ValueError("migration_actor and audit_reason must be non-empty")
+        # Only allow if no owner metadata exists
+        if key in self._claim_owners:
+            raise PermissionError(
+                f"Storage key {key} has owner metadata. "
+                f"Use delete() with correct claim_token/version instead."
+            )
+        del self._files[key]
 
 
 def _create_report(repo: SQLReportRepository, session: Any) -> Report:
@@ -353,6 +436,9 @@ class TestApprovalRevisionMismatch:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -365,6 +451,7 @@ class TestApprovalRevisionMismatch:
             )
             with pytest.raises(ExportPermissionError, match="revision mismatch|Approved revision"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev2.revision_number,
                     format="docx",
@@ -409,6 +496,9 @@ class TestApprovalContentHashMismatch:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -421,6 +511,7 @@ class TestApprovalContentHashMismatch:
             )
             with pytest.raises(ExportPermissionError, match="mismatch|hash"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -470,6 +561,9 @@ class TestMissingApprovalFields:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -482,6 +576,7 @@ class TestMissingApprovalFields:
             )
             with pytest.raises(ExportPermissionError, match="Missing approval fields"):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -521,6 +616,9 @@ class TestRenderManifestApprovalFields:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -532,6 +630,7 @@ class TestRenderManifestApprovalFields:
                 template_repo=template_repo,
             )
             artifact = render_svc.render(
+                locale=ReportLocale.ZH_CN,
                 report_id=report.id,
                 revision_number=rev.revision_number,
                 format="docx",
@@ -580,6 +679,9 @@ class TestRendererFailureArtifactQueryable:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -626,6 +728,7 @@ class TestRendererFailureArtifactQueryable:
                 pytest.raises(RenderError),
             ):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -676,6 +779,9 @@ class TestTempWriteFailure:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -689,6 +795,7 @@ class TestTempWriteFailure:
 
             with pytest.raises(RenderError):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -734,6 +841,9 @@ class TestCompletedCommitFailure:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -763,6 +873,7 @@ class TestCompletedCommitFailure:
 
             with pytest.raises(RenderError):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -829,6 +940,9 @@ class TestFileCleanupFailureLogging:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -848,6 +962,7 @@ class TestFileCleanupFailureLogging:
                 pytest.raises(RenderError),
             ):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -903,6 +1018,9 @@ class TestFailedIdempotencyRetry:
                 template_code="cold_storage_concept_design",
                 format=ExportFormat.DOCX,
                 status=TemplateStatus.ACTIVE,
+                locale=ReportLocale.ZH_CN,
+                report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+                schema_version="cold_storage_concept_design@1.0.0",
                 manifest_json={},
             )
             template_repo.get_active_template.return_value = template_mock
@@ -925,6 +1043,7 @@ class TestFailedIdempotencyRetry:
                 pytest.raises(RenderError),
             ):
                 render_svc.render(
+                    locale=ReportLocale.ZH_CN,
                     report_id=report.id,
                     revision_number=rev.revision_number,
                     format="docx",
@@ -941,6 +1060,7 @@ class TestFailedIdempotencyRetry:
 
             # Second attempt should succeed (idempotency reset + re-claim)
             result = render_svc.render(
+                locale=ReportLocale.ZH_CN,
                 report_id=report.id,
                 revision_number=rev.revision_number,
                 format="docx",

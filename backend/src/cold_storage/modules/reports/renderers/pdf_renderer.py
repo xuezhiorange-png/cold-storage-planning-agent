@@ -1,4 +1,4 @@
-"""PDF renderer — produces a .pdf file from a ReportRenderModel.
+"""PDF renderer -- produces a .pdf file from a LocalizedReportRenderModel.
 
 Uses PyMuPDF (fitz).  Text is selectable (no rasterization).  A4 layout
 with headers, footers, and optional DRAFT watermark.
@@ -18,14 +18,22 @@ from typing import TYPE_CHECKING, Any
 import fitz  # PyMuPDF
 
 from cold_storage.modules.reports.domain.errors import TemplateManifestError
-from cold_storage.modules.reports.domain.render_model import RenderTableCell
+from cold_storage.modules.reports.domain.render_model import (
+    CanonicalRenderTableCell as _CanonicalCell,
+)
+from cold_storage.modules.reports.domain.render_model import LocalizedRenderTableCell
+
+
+def _make_pdf_cell(text: str) -> _CanonicalCell:
+    """Create a CanonicalRenderTableCell for cells built outside the localizer."""
+    return _CanonicalCell(field_path="", field_key="", raw_value=text or "")
+
 
 if TYPE_CHECKING:
     from cold_storage.modules.reports.domain.render_model import (
-        RenderMetadata,
-        RenderSection,
-        RenderTable,
-        ReportRenderModel,
+        LocalizedRenderSection,
+        LocalizedRenderTable,
+        LocalizedReportRenderModel,
     )
 
 _logger = logging.getLogger(__name__)
@@ -113,7 +121,7 @@ _SECTION_SPACING = 20  # pt between sections
 
 
 def _load_manifest_settings(
-    model: ReportRenderModel,
+    model: LocalizedReportRenderModel,
 ) -> dict[str, Any]:
     """Extract rendering settings from template manifest with defaults.
 
@@ -176,22 +184,23 @@ def _load_manifest_settings(
     # Draft watermark (canonical: watermark.text/font_size_pt/color/opacity/angle)
     watermark = render_settings.get("watermark", {})
     draft_wm = render_settings.get("draft_watermark", watermark)  # fallback
-    settings["draft_watermark_text"] = draft_wm.get("text", "DRAFT")
+    settings["draft_watermark_text"] = draft_wm.get("text", "")
     settings["draft_watermark_size"] = draft_wm.get("font_size_pt", draft_wm.get("size", 60))
     settings["draft_watermark_color"] = draft_wm.get("color", "#CCCCCC")
     settings["draft_watermark_opacity"] = draft_wm.get("opacity", 0.3)
     settings["draft_watermark_angle"] = draft_wm.get("angle", 45)
 
     # Empty section placeholder
-    settings["placeholder_text"] = render_settings.get("placeholder_text", "该部分内容不可用")
+    settings["placeholder_text"] = render_settings.get("placeholder_text", "")
     # P0-8: Load empty_section_behavior from manifest for per-reason placeholder text
     esb = render_settings.get("empty_section_behavior", {})
     if not isinstance(esb, dict):
         esb = {}
-    # Ensure default placeholder texts are always present
-    default_placeholders = {
-        "not_provided": "该部分数据未提供",
-        "not_calculated": "该部分尚未计算",
+    # Ensure default placeholder texts are always present (empty by default;
+    # the renderer will localize the code at display time).
+    default_placeholders: dict[str, str] = {
+        "not_provided": "",
+        "not_calculated": "",
     }
     existing_pt = esb.get("placeholder_text", {})
     merged_pt = {**default_placeholders, **existing_pt}
@@ -295,21 +304,28 @@ def _insert_number(
 
 def _substitute_vars(text: str, meta: Any, page_num: int) -> str:
     """Substitute template variables like {project_name} in text."""
+    canonical = getattr(meta, "canonical", meta)
     return (
         text.replace("{project_name}", getattr(meta, "project_name", "") or "")
-        .replace("{report_type}", getattr(meta, "report_type", "") or "")
-        .replace("{revision_number}", str(getattr(meta, "revision_number", "")))
+        .replace(
+            "{report_type}",
+            getattr(meta, "report_type_label", getattr(meta, "report_type", "")) or "",
+        )
+        .replace(
+            "{revision_number}",
+            str(getattr(canonical, "revision_number", getattr(meta, "revision_number", ""))),
+        )
         .replace(
             "{generated_at}",
-            (getattr(meta, "generated_at", "") or "")[:10],
+            (getattr(canonical, "generated_at", getattr(meta, "generated_at", "")) or "")[:10],
         )
         .replace(
             "{content_hash_short}",
-            getattr(meta, "content_hash_short", "") or "",
+            getattr(canonical, "content_hash_short", getattr(meta, "content_hash_short", "")) or "",
         )
         .replace(
             "{confidentiality}",
-            getattr(meta, "confidentiality", "") or "",
+            getattr(meta, "confidentiality_label", getattr(meta, "confidentiality", "")) or "",
         )
         .replace("{page_number}", str(page_num))
     )
@@ -482,7 +498,7 @@ def _draw_footer(
 
 def _draw_draft_watermark(
     page: fitz.Page,
-    text: str = "DRAFT",
+    text: str = "",
     fontsize: float = 60,
     *,
     settings: dict[str, Any] | None = None,
@@ -497,7 +513,7 @@ def _draw_draft_watermark(
     wm_angle: float = 45
     wm_opacity: float = 0.3
     if settings is not None:
-        text = settings.get("draft_watermark_text", text)
+        text = text or settings.get("draft_watermark_text", "")
         fontsize = settings.get("draft_watermark_size", fontsize)
         wm_color_str = settings.get("draft_watermark_color", "#CCCCCC")
         wm_opacity = settings.get("draft_watermark_opacity", 0.3)
@@ -619,14 +635,16 @@ class PdfRenderContext:
         doc: fitz.Document,
         settings: dict[str, Any],
         is_draft: bool,
-        metadata: RenderMetadata,
+        metadata: Any,
         font_path: str,
+        watermark_text: str = "",
     ):
         self.doc = doc
         self.settings = settings
         self.is_draft = is_draft
         self.metadata = metadata
         self.font_path = font_path
+        self.watermark_text = watermark_text
         self._portrait_width = settings["page_width_pt"]
         self._portrait_height = settings["page_height_pt"]
         self.page_width = self._portrait_width
@@ -678,7 +696,9 @@ class PdfRenderContext:
         _draw_header(
             self.page,
             self.metadata.project_name,
-            self.metadata.report_type,
+            self.metadata.report_type_label
+            if hasattr(self.metadata, "report_type_label")
+            else self.metadata.report_type,
             settings=self.settings,
             margin_left=self.margin_left,
             page_width=self.page_width,
@@ -698,12 +718,14 @@ class PdfRenderContext:
         )
         # Draw watermark (P0-4: pass settings for manifest-driven color/opacity)
         if self.is_draft:
-            _draw_draft_watermark(
-                self.page,
-                text=self.settings.get("draft_watermark_text", "DRAFT"),
-                fontsize=self.settings.get("draft_watermark_size", 60),
-                settings=self.settings,
-            )
+            wm_text = self.watermark_text or self.settings.get("draft_watermark_text", "")
+            if wm_text:
+                _draw_draft_watermark(
+                    self.page,
+                    text=wm_text,
+                    fontsize=self.settings.get("draft_watermark_size", 60),
+                    settings=self.settings,
+                )
 
     def ensure_space(self, required_height: float) -> bool:
         """Check if there's enough space. If not, create new page.
@@ -785,7 +807,7 @@ def _draw_table(
     ctx: PdfRenderContext,
     x: float,
     y: float,
-    table: RenderTable,
+    table: LocalizedRenderTable,
     max_width: float | None = None,
     *,
     section_key: str = "",
@@ -857,13 +879,13 @@ def _draw_table(
 
     def _draw_row(
         row_y: float,
-        cells: list[RenderTableCell],
+        cells: list[LocalizedRenderTableCell],
         is_header: bool = False,
         is_unit: bool = False,
     ) -> float:
         """Draw a single row of cells, return new y after the row."""
         row_font_size = header_font_size if is_header else body_font_size
-        cell_texts = [c.value for c in cells]
+        cell_texts = [c.display_value for c in cells]
         row_height = _measure_row_height(
             cell_texts,
             font,
@@ -891,7 +913,7 @@ def _draw_table(
         cell_padding = 6  # left+right padding
         col_x = x
         for col_idx, cell in enumerate(cells):
-            cell_text = cell.value
+            cell_text = cell.display_value
             cw = col_widths[col_idx]
             # Vertical line
             ctx.current_page.draw_line(
@@ -974,10 +996,11 @@ def _draw_table(
         group_height = header_height + unit_height
         ctx.ensure_space(group_height)
         row_y = ctx.y  # sync after ensure_space
-        # Create RenderTableCell objects with manifest column alignment
+        # Create LocalizedRenderTableCell objects with manifest column alignment
         header_cells = [
-            RenderTableCell(
-                value=h,
+            LocalizedRenderTableCell(
+                canonical=_make_pdf_cell(h),
+                display_value=h,
                 align=col_aligns[i] if i < len(col_aligns) else "left",
             )
             for i, h in enumerate(table.headers)
@@ -985,8 +1008,9 @@ def _draw_table(
         row_y = _draw_row(row_y, header_cells, is_header=True)
         if has_unit_row:
             unit_cells = [
-                RenderTableCell(
-                    value=f"({u})" if u else "",
+                LocalizedRenderTableCell(
+                    canonical=_make_pdf_cell(f"({u})" if u else ""),
+                    display_value=f"({u})" if u else "",
                     align=col_aligns[i] if i < len(col_aligns) else "left",
                 )
                 for i, u in enumerate(table.unit_row)
@@ -996,13 +1020,13 @@ def _draw_table(
 
     def _draw_row_split(
         row_y: float,
-        cells: list[RenderTableCell],
+        cells: list[LocalizedRenderTableCell],
         is_header: bool = False,
         is_unit: bool = False,
     ) -> float:
         """Draw a row, splitting across pages if it's too tall (P0-7)."""
         row_font_size = header_font_size if is_header else body_font_size
-        cell_texts = [c.value for c in cells]
+        cell_texts = [c.display_value for c in cells]
         row_height = _measure_row_height(
             cell_texts,
             font,
@@ -1035,7 +1059,7 @@ def _draw_table(
         for ci, cell in enumerate(cells):
             cw = col_widths[ci]
             usable_width = cw - cell_padding
-            lines = _wrap_cell_text(cell.value, font, row_font_size, usable_width)
+            lines = _wrap_cell_text(cell.display_value, font, row_font_size, usable_width)
             all_wrapped.append(lines)
             if len(lines) > max_lines:
                 max_lines = len(lines)
@@ -1147,8 +1171,8 @@ def _draw_table(
 
     # --- Draw data rows with overflow detection ---
     for row_data in table.rows:
-        cells = list(row_data)  # keep full RenderTableCell objects
-        cell_texts = [cell.value for cell in row_data]
+        cells = list(row_data)  # keep full LocalizedRenderTableCell objects
+        cell_texts = [cell.display_value for cell in row_data]
         row_height = _measure_row_height(
             cell_texts,
             font,
@@ -1181,9 +1205,9 @@ def _draw_table(
 
 
 class PdfRenderer:
-    """Render a ReportRenderModel to PDF bytes."""
+    """Render a LocalizedReportRenderModel to PDF bytes."""
 
-    def render(self, model: ReportRenderModel, *, is_draft: bool = False) -> bytes:
+    def render(self, model: LocalizedReportRenderModel, *, is_draft: bool = False) -> bytes:
         """Render the model to PDF bytes.
 
         Parameters
@@ -1208,15 +1232,16 @@ class PdfRenderer:
 
         # ---- PDF metadata ----
         meta = model.metadata
+        _canonical = getattr(meta, "canonical", meta)
         doc.set_metadata(
             {
-                "title": meta.project_name or "Report",
-                "subject": meta.report_type,
-                "author": meta.generated_by,
+                "title": meta.project_name or "",
+                "subject": getattr(meta, "report_type_label", getattr(meta, "report_type", "")),
+                "author": getattr(_canonical, "generated_by", ""),
                 "keywords": (
-                    f"revision={meta.revision_number}"
-                    f";hash={meta.content_hash_short}"
-                    f";template={meta.template_version}"
+                    f"revision={getattr(_canonical, 'revision_number', '')}"
+                    f";hash={getattr(_canonical, 'content_hash_short', '')}"
+                    f";template={getattr(_canonical, 'template_version', '')}"
                 ),
                 "creator": "Cold Storage Planning Agent",
             }
@@ -1229,6 +1254,7 @@ class PdfRenderer:
             is_draft=is_draft,
             metadata=meta,
             font_path=font_path,
+            watermark_text=model.watermark_text,
         )
 
         # ---- Cover page ----
@@ -1241,6 +1267,7 @@ class PdfRenderer:
             settings=settings,
             is_draft=is_draft,
             font_path=font_path,
+            model=model,
         )
 
         # ---- Content sections ----
@@ -1250,6 +1277,26 @@ class PdfRenderer:
             ctx.set_orientation(orientation)
             ctx.new_page()
             self._draw_section_content(ctx, section)
+
+        # Render disclaimer
+        disclaimer_text = model.disclaimer or ""
+        if disclaimer_text and len(doc) > 0:
+            # Add disclaimer at bottom of last page using CJK font
+            font_size = 8
+            last_page = doc[-1]
+            page_height = last_page.rect.height
+            margin_left = 56.69
+            y_pos = page_height - 60
+
+            cjk_font = _get_cjk_font()
+            tw = fitz.TextWriter(last_page.rect)
+            tw.append(
+                fitz.Point(margin_left, y_pos),
+                disclaimer_text,
+                font=cjk_font,
+                fontsize=font_size,
+            )
+            tw.write_text(last_page, color=(0.6, 0.6, 0.6))
 
         # ---- Finalize ----
         pdf_bytes: bytes = doc.tobytes()
@@ -1267,9 +1314,12 @@ class PdfRenderer:
         settings: dict[str, Any],
         is_draft: bool = False,
         font_path: str | None = None,
+        model: Any = None,
     ) -> None:
         """Draw the cover page."""
-        draft_wm_text = settings.get("draft_watermark_text", "DRAFT")
+        draft_wm_text = (model.watermark_text if model else "") or settings.get(
+            "draft_watermark_text", ""
+        )
         draft_wm_size = settings.get("draft_watermark_size", 60)
         if is_draft:
             _draw_draft_watermark(
@@ -1284,7 +1334,7 @@ class PdfRenderer:
         y = page_height * 0.35
 
         # Project name
-        name_text = meta.project_name or "项目报告"
+        name_text = meta.project_name or ""
         name_size = 26
         name_width = font.text_length(name_text, fontsize=name_size)
         tw = fitz.TextWriter(page.rect)
@@ -1298,7 +1348,7 @@ class PdfRenderer:
 
         # Report type
         y += 40
-        type_text = meta.report_type
+        type_text = getattr(meta, "report_type_label", getattr(meta, "report_type", ""))
         type_size = 18
         type_width = font.text_length(type_text, fontsize=type_size)
         tw2 = fitz.TextWriter(page.rect)
@@ -1312,10 +1362,11 @@ class PdfRenderer:
 
         # Version and date — P0-4: use clean ISO string, no slicing
         y += 30
-        generated_at = meta.generated_at if meta.generated_at else ""
+        _gen_at = getattr(getattr(meta, "canonical", meta), "generated_at", "")
+        generated_at = _gen_at if _gen_at else ""
         # Extract just the date portion (first 10 chars of ISO string)
-        date_display = generated_at[:10] if len(generated_at) >= 10 else generated_at
-        ver_text = f"版本 {meta.revision_number}  |  {date_display}"
+        generated_at[:10] if len(generated_at) >= 10 else generated_at
+        ver_text = model.cover_version_line if model else ""
         ver_size = 12
         ver_width = font.text_length(ver_text, fontsize=ver_size)
         tw3 = fitz.TextWriter(page.rect)
@@ -1333,7 +1384,7 @@ class PdfRenderer:
     def _draw_section_content(
         self,
         ctx: PdfRenderContext,
-        section: RenderSection,
+        section: LocalizedRenderSection,
     ) -> None:
         """Draw section CONTENT on the current page (no page creation).
 
@@ -1364,18 +1415,13 @@ class PdfRenderer:
                 max_width=content_width,
             )
             ctx.y += 4
-            # P0-4: Read placeholder text from manifest empty_section_behavior
-            empty_behavior = settings.get("empty_section_behavior", {})
-            placeholder_texts = empty_behavior.get("placeholder_text", {})
-            reason_text = placeholder_texts.get(
-                section.empty_reason,
-                settings.get("placeholder_text", "该部分内容不可用"),
-            )
+            # Use pre-localized empty_reason_text from model
+            reason_text = getattr(section, "empty_reason_text", "") or ""
             ctx.y = _insert_text(
                 ctx.current_page,
                 content_left + 10,
                 ctx.y,
-                f"（{reason_text}）",
+                f"\uff08{reason_text}\uff09",
                 fontsize=settings.get("body_font_size", _BODY_FONT_SIZE),
                 color=_GRAY_COLOR,
                 font_path=ctx.font_path,
@@ -1411,8 +1457,8 @@ class PdfRenderer:
             # P0-1: Render each metric as: label: display_value unit
             for metric in section.metrics:
                 label_text = f"{metric.label}: {metric.display_value}"
-                if metric.unit and metric.unit not in metric.display_value:
-                    label_text += f" {metric.unit}"
+                if metric.display_unit and metric.display_unit not in metric.display_value:
+                    label_text += f" {metric.display_unit}"
                 ctx.ensure_space(_LINE_HEIGHT + 4)
                 ctx.y = _insert_text(
                     ctx.current_page,
@@ -1430,8 +1476,8 @@ class PdfRenderer:
                     ctx.current_page,
                     content_left,
                     ctx.y,
-                    section.number.display,
-                    section.number.unit,
+                    section.number.display_value,
+                    section.number.display_unit,
                     font_path=ctx.font_path,
                 )
             if section.text:
@@ -1449,8 +1495,8 @@ class PdfRenderer:
                 ctx.current_page,
                 content_left,
                 ctx.y,
-                num.display,
-                num.unit,
+                num.display_value,
+                num.display_unit,
                 font_path=ctx.font_path,
             )
             if section.text:
@@ -1519,7 +1565,7 @@ class PdfRenderer:
     # ------------------------------------------------------------------
     @staticmethod
     def _resolve_orientation(
-        section: RenderSection,
+        section: LocalizedRenderSection,
         ctx: PdfRenderContext,
     ) -> str:
         """Determine the orientation for a section.

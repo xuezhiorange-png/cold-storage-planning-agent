@@ -154,13 +154,14 @@ class _InMemoryTemplateRepo:
     def update_template(self, template: ReportTemplate) -> None:
         self._templates[template.id] = template
 
-    def deactivate_templates(self, template_code: str, fmt: str) -> int:
+    def deactivate_templates(self, template_code: str, fmt: str, locale: str | None = None) -> int:
         count = 0
         for t in list(self._templates.values()):
             if (
                 t.template_code == template_code
                 and (t.format.value if hasattr(t.format, "value") else str(t.format)) == fmt
                 and t.status == TemplateStatus.ACTIVE
+                and (locale is None or t.locale == locale)
             ):
                 self._templates[t.id] = replace(t, status=TemplateStatus.DRAFT)
                 count += 1
@@ -206,6 +207,7 @@ class TestTemplateTypeValidation:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -221,6 +223,7 @@ class TestTemplateTypeValidation:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -238,6 +241,7 @@ class TestTemplateTypeValidation:
                 "manifest_json": _make_valid_manifest(
                     schema_version="cold_storage_concept_design@1.0.0"
                 ),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 200
@@ -257,6 +261,7 @@ class TestTemplateIdentityValidation:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(template_code="code_B"),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -273,6 +278,7 @@ class TestTemplateIdentityValidation:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(version="2.0.0"),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -289,6 +295,7 @@ class TestTemplateIdentityValidation:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(format="pdf"),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -308,6 +315,7 @@ class TestTemplateIdentityValidation:
                     **_make_valid_manifest(),
                     "report_type": "different_type",
                 },
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -327,6 +335,7 @@ class TestTemplateIdentityValidation:
                     **_make_valid_manifest(),
                     "schema_version": "different@2.0.0",
                 },
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -343,6 +352,7 @@ class TestTemplateIdentityValidation:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(locale="en-US"),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -359,6 +369,7 @@ class TestTemplateIdentityValidation:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": {},
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -374,6 +385,7 @@ class TestTemplateIdentityValidation:
                 "format": "docx",
                 "version": "1.0.0",
                 "schema_version": "v1",
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -395,6 +407,7 @@ class TestTemplateCreationSuccess:
                 "manifest_json": _make_valid_manifest(
                     schema_version="cold_storage_concept_design@1.0.0"
                 ),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 200
@@ -413,6 +426,7 @@ class TestTemplateCreationSuccess:
             "format": "docx",
             "version": "1.0.0",
             "schema_version": "cold_storage_concept_design@1.0.0",
+            "locale": "zh-CN",
             "manifest_json": _make_valid_manifest(
                 schema_version="cold_storage_concept_design@1.0.0"
             ),
@@ -442,6 +456,7 @@ class TestTemplateCreationSuccess:
                 "version": "1.0.0",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(version="1.0.0", schema_version="v1"),
+                "locale": "zh-CN",
             },
         )
         r2 = client.post(
@@ -453,6 +468,7 @@ class TestTemplateCreationSuccess:
                 "version": "1.0.1",
                 "schema_version": "v1",
                 "manifest_json": _make_valid_manifest(version="1.0.1", schema_version="v1"),
+                "locale": "zh-CN",
             },
         )
         assert r1.status_code == 200
@@ -476,6 +492,7 @@ class TestTemplateActivation:
                 "manifest_json": _make_valid_manifest(
                     schema_version="cold_storage_concept_design@1.0.0"
                 ),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 200
@@ -595,6 +612,7 @@ class TestTemplateUpdate:
                 "version": "1.0.0",
                 "schema_version": "cold_storage_concept_design@1.0.0",
                 "manifest_json": _make_valid_manifest(),
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 200
@@ -727,6 +745,7 @@ class TestCanonicalManifestIdentity:
                 "version": "1.0.0",
                 "schema_version": "1.0.0",
                 "manifest_json": manifest,
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -744,6 +763,7 @@ class TestCanonicalManifestIdentity:
                 "version": "1.0.0",
                 "schema_version": "1.0.0",
                 "manifest_json": manifest,
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 422
@@ -782,6 +802,7 @@ class TestCanonicalManifestIdentity:
             "report_type": "cold_storage_concept_design",
             "format": "docx",
             "version": "1.0.0",
+            "locale": "zh-CN",
             "schema_version": "cold_storage_concept_design@1.0.0",
             "manifest_json": _make_valid_manifest(
                 schema_version="cold_storage_concept_design@1.0.0"

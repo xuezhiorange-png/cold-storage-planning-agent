@@ -56,11 +56,27 @@ class SchemaValidationError(ReportError):
 
 
 class IdempotencyClaimError(ReportError):
-    """Raised when another concurrent request holds the idempotency key."""
+    """Raised when another concurrent request holds the idempotency key.
 
-    def __init__(self, key: str) -> None:
-        super().__init__(f"Idempotency key '{key}' is already claimed by a concurrent request")
+    When *failure_code* is non-empty, the error represents a render failure
+    that was propagated by a DatabaseIdempotencyWaiter polling the completed
+    idempotency record.
+    """
+
+    def __init__(
+        self,
+        key: str,
+        failure_code: str = "",
+        failure_message: str = "",
+    ) -> None:
+        if failure_code:
+            msg = f"Idempotency key '{key}': {failure_code}: {failure_message}"
+        else:
+            msg = f"Idempotency key '{key}' is already claimed by a concurrent request"
+        super().__init__(msg)
         self.key = key
+        self.failure_code = failure_code
+        self.failure_message = failure_message
 
 
 class StaleClaimError(ReportError):

@@ -30,6 +30,7 @@ from cold_storage.modules.reports.application.render_service import (
 from cold_storage.modules.reports.domain.enums import (
     ArtifactStatus,
     ExportFormat,
+    ReportLocale,
     TemplateStatus,
 )
 from cold_storage.modules.reports.domain.errors import (
@@ -37,6 +38,11 @@ from cold_storage.modules.reports.domain.errors import (
     IdempotencyPayloadConflictError,
     ReportNotFoundError,
     TemplateNotFoundError,
+)
+from cold_storage.modules.reports.domain.render_model import (
+    CanonicalRenderTable,
+    CanonicalRenderTableCell,
+    LocalizedRenderTableCell,
 )
 from cold_storage.modules.reports.infrastructure.orm import Base
 from cold_storage.modules.reports.infrastructure.repository import (
@@ -51,6 +57,14 @@ from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
 
 # CJK font is now always available (CI installs fonts-wqy-zenhei).
 # If missing locally, conftest.py ensure_cjk_font fixture will fail loudly.
+
+
+def _tc(display_value: str, align: str | None = None):
+    canonical = CanonicalRenderTableCell(field_path="", field_key="", raw_value=display_value or "")
+    return LocalizedRenderTableCell(canonical=canonical, display_value=display_value, align=align)
+
+
+_DUMMY_TABLE_KEY = "test_rendering"
 
 
 @pytest.fixture()
@@ -193,6 +207,45 @@ def _seed_report(
     return report_id, f"rev-{report_id}-1", content_hash
 
 
+def _make_test_metadata(**kwargs):
+    """Create a LocalizedRenderMetadata from old-style keyword arguments."""
+    from cold_storage.modules.reports.domain.render_model import (
+        CanonicalRenderMetadata,
+        LocalizedRenderMetadata,
+    )
+
+    canonical = CanonicalRenderMetadata(
+        report_id=kwargs.get("report_id", "test"),
+        project_name=kwargs.get("project_name", "Test"),
+        report_type=kwargs.get("report_type", "test"),
+        schema_version=kwargs.get("schema_version", "v1"),
+        revision_number=kwargs.get("revision_number", 1),
+        content_hash=kwargs.get("content_hash", "abc123"),
+        content_hash_short=kwargs.get("content_hash_short", "abc12345"),
+        generated_at=kwargs.get("generated_at", "2025-01-01"),
+        generated_by=kwargs.get("generated_by", "test"),
+        template_version=kwargs.get("template_version", "1.0.0"),
+        template_code=kwargs.get("template_code", "test"),
+    )
+    return LocalizedRenderMetadata(
+        canonical=canonical,
+        project_name=kwargs.get("project_name", "Test"),
+        report_type_label=kwargs.get("report_type", "test"),
+        confidentiality_label="",
+        disclaimer="",
+        empty_section_placeholder="",
+        cover_title="",
+        cover_version_line="",
+        control_info_title="",
+        content_hash_label="",
+        template_version_label="",
+        generated_by_label="",
+        generated_at_label="",
+        revision_label="",
+        watermark_text="",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Group 1: DOCX rendering (3 tests — real Renderer)
 # ---------------------------------------------------------------------------
@@ -202,14 +255,14 @@ class TestDocxRendering:
     def test_docx_draft_watermark(self):
         """DOCX with is_draft=True must contain 'DRAFT' watermark text."""
         from cold_storage.modules.reports.domain.render_model import (
+            CanonicalRenderMetric,
+            LocalizedRenderNumber,
+            LocalizedRenderSection,
+            LocalizedReportRenderModel,
             RenderManifest,
-            RenderMetadata,
-            RenderNumber,
-            RenderSection,
-            ReportRenderModel,
         )
 
-        metadata = RenderMetadata(
+        metadata = _make_test_metadata(
             report_id="r1",
             project_name="Test",
             report_type="概念设计报告",
@@ -223,19 +276,28 @@ class TestDocxRendering:
             template_code="cold_storage_concept_design",
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="project_summary",
                 title="项目概况",
                 level=1,
                 content_type="text",
                 text="项目名称：测试项目\n项目地点：上海",
             ),
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="cooling_load",
                 title="冷负荷计算",
                 level=1,
                 content_type="number",
-                number=RenderNumber(raw=100.0, display="100.0", unit="kW(r)"),
+                number=LocalizedRenderNumber(
+                    canonical=CanonicalRenderMetric(
+                        field_path="test",
+                        field_key="test",
+                        raw_value=100.0,
+                        unit_code="kW(r)",
+                    ),
+                    display_value="100.0",
+                    display_unit="kW(r)",
+                ),
             ),
         ]
         manifest = RenderManifest(
@@ -246,7 +308,12 @@ class TestDocxRendering:
             sections=[s.section_key for s in sections],
             format="docx/pdf",
         )
-        model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+        model = LocalizedReportRenderModel(
+            metadata=metadata,
+            sections=sections,
+            manifest=manifest,
+            watermark_text="DRAFT",
+        )
         renderer = DocxRenderer()
         docx_bytes = renderer.render(model, is_draft=True)
         assert len(docx_bytes) > 0
@@ -264,13 +331,12 @@ class TestDocxRendering:
     def test_docx_formal_no_watermark(self):
         """DOCX with is_draft=False must NOT have 'DRAFT' watermark."""
         from cold_storage.modules.reports.domain.render_model import (
+            LocalizedRenderSection,
+            LocalizedReportRenderModel,
             RenderManifest,
-            RenderMetadata,
-            RenderSection,
-            ReportRenderModel,
         )
 
-        metadata = RenderMetadata(
+        metadata = _make_test_metadata(
             report_id="r1",
             project_name="Test",
             report_type="概念设计报告",
@@ -284,7 +350,7 @@ class TestDocxRendering:
             template_code="cold_storage_concept_design",
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="test", title="Test", level=1, content_type="text", text="Hello"
             )
         ]
@@ -296,7 +362,7 @@ class TestDocxRendering:
             sections=["test"],
             format="docx/pdf",
         )
-        model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+        model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
         docx_bytes = DocxRenderer().render(model, is_draft=False)
 
         with zipfile.ZipFile(BytesIO(docx_bytes)) as zf:
@@ -306,9 +372,12 @@ class TestDocxRendering:
                 assert "w:t>DRAFT<" not in content, f"DRAFT watermark found in formal mode in {hf}"
 
     def test_docx_datetime_real_input(self):
-        """Pass real datetime objects through render_model_builder → DOCX."""
-        from cold_storage.modules.reports.application.render_model_builder import (
-            build_render_model,
+        """Pass real datetime objects through canonical+localizer → DOCX."""
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            build_canonical_render_model,
+        )
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            localize_render_model,
         )
 
         content = {
@@ -324,7 +393,7 @@ class TestDocxRendering:
             },
         }
         now = datetime.now(UTC)
-        model = build_render_model(
+        canonical = build_canonical_render_model(
             content=content,
             report_id="r1",
             revision_number=1,
@@ -334,6 +403,7 @@ class TestDocxRendering:
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
         )
+        model = localize_render_model(canonical, locale=ReportLocale.ZH_CN)
         docx_bytes = DocxRenderer().render(model)
         assert len(docx_bytes) > 1000, "DOCX output too small"
 
@@ -347,13 +417,12 @@ class TestPdfRendering:
     def test_pdf_chinese_generation(self):
         """Render PDF with Chinese text, extract text, verify Chinese chars."""
         from cold_storage.modules.reports.domain.render_model import (
+            LocalizedRenderSection,
+            LocalizedReportRenderModel,
             RenderManifest,
-            RenderMetadata,
-            RenderSection,
-            ReportRenderModel,
         )
 
-        metadata = RenderMetadata(
+        metadata = _make_test_metadata(
             report_id="r1",
             project_name="蓝莓冷库",
             report_type="概念设计报告",
@@ -367,7 +436,7 @@ class TestPdfRendering:
             template_code="cold_storage_concept_design",
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="ps",
                 title="项目概况",
                 level=1,
@@ -383,7 +452,7 @@ class TestPdfRendering:
             sections=["ps"],
             format="docx/pdf",
         )
-        model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+        model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
         pdf_bytes = PdfRenderer().render(model)
         assert len(pdf_bytes) > 0
 
@@ -397,13 +466,12 @@ class TestPdfRendering:
     def test_pdf_text_extractable(self):
         """Render PDF and use PyMuPDF to extract text; verify not empty."""
         from cold_storage.modules.reports.domain.render_model import (
+            LocalizedRenderSection,
+            LocalizedReportRenderModel,
             RenderManifest,
-            RenderMetadata,
-            RenderSection,
-            ReportRenderModel,
         )
 
-        metadata = RenderMetadata(
+        metadata = _make_test_metadata(
             report_id="r1",
             project_name="Test Project",
             report_type="概念设计报告",
@@ -417,7 +485,7 @@ class TestPdfRendering:
             template_code="cold_storage_concept_design",
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="s",
                 title="Section",
                 level=1,
@@ -433,7 +501,7 @@ class TestPdfRendering:
             sections=["s"],
             format="docx/pdf",
         )
-        model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+        model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
         pdf_bytes = PdfRenderer().render(model)
 
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -446,13 +514,12 @@ class TestPdfRendering:
     def test_pdf_correct_pagenumbers(self):
         """Render PDF with many sections spanning multiple pages."""
         from cold_storage.modules.reports.domain.render_model import (
+            LocalizedRenderSection,
+            LocalizedReportRenderModel,
             RenderManifest,
-            RenderMetadata,
-            RenderSection,
-            ReportRenderModel,
         )
 
-        metadata = RenderMetadata(
+        metadata = _make_test_metadata(
             report_id="r1",
             project_name="Multi",
             report_type="概念设计报告",
@@ -469,7 +536,7 @@ class TestPdfRendering:
         for i in range(15):
             text_content = f"Section {i} content. " + "Lorem ipsum dolor sit amet. " * 20
             sections.append(
-                RenderSection(
+                LocalizedRenderSection(
                     section_key=f"section_{i}",
                     title=f"章节 {i}",
                     level=1,
@@ -485,7 +552,7 @@ class TestPdfRendering:
             sections=[s.section_key for s in sections],
             format="docx/pdf",
         )
-        model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+        model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
         pdf_bytes = PdfRenderer().render(model)
 
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -495,15 +562,13 @@ class TestPdfRendering:
     def test_pdf_table_cross_page(self):
         """Large table (>50 rows) renders to PDF without error."""
         from cold_storage.modules.reports.domain.render_model import (
+            LocalizedRenderSection,
+            LocalizedRenderTable,
+            LocalizedReportRenderModel,
             RenderManifest,
-            RenderMetadata,
-            RenderSection,
-            RenderTable,
-            RenderTableCell,
-            ReportRenderModel,
         )
 
-        metadata = RenderMetadata(
+        metadata = _make_test_metadata(
             report_id="r1",
             project_name="Table",
             report_type="概念设计报告",
@@ -518,20 +583,21 @@ class TestPdfRendering:
         )
         rows = [
             [
-                RenderTableCell(value=f"设备-{i:03d}", align="left"),
-                RenderTableCell(value=f"{100 + i * 10}", align="right"),
-                RenderTableCell(value="kW(r)", align="center"),
+                _tc(f"设备-{i:03d}", align="left"),
+                _tc(f"{100 + i * 10}", align="right"),
+                _tc("kW(r)", align="center"),
             ]
             for i in range(60)
         ]
-        table = RenderTable(
+        table = LocalizedRenderTable(
+            canonical=CanonicalRenderTable(table_key=_DUMMY_TABLE_KEY),
             title="设备清单",
             headers=["设备名称", "功率", "单位"],
             rows=rows,
             unit_row=["", "", "kW(r)"],
         )
         sections = [
-            RenderSection(
+            LocalizedRenderSection(
                 section_key="el", title="设备清单", level=1, content_type="table", table=table
             )
         ]
@@ -543,7 +609,7 @@ class TestPdfRendering:
             sections=["el"],
             format="docx/pdf",
         )
-        model = ReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
+        model = LocalizedReportRenderModel(metadata=metadata, sections=sections, manifest=manifest)
         pdf_bytes = PdfRenderer().render(model)
         assert len(pdf_bytes) > 1000, "PDF with large table too small"
 
@@ -569,7 +635,7 @@ class TestTemplateOperations:
         )
 
         with pytest.raises(TemplateNotFoundError):
-            svc._find_template(ExportFormat.DOCX, None)
+            svc._find_template(ExportFormat.DOCX, None, locale=ReportLocale.ZH_CN)
 
     def test_retired_template_rejected_via_render(self, db_session, render_service):
         """RETIRED template cannot be found by _find_template."""
@@ -577,7 +643,7 @@ class TestTemplateOperations:
         _seed_template(db_session, version="1.0.0", status="retired")
 
         with pytest.raises(TemplateNotFoundError):
-            svc._find_template(ExportFormat.DOCX, "1.0.0")
+            svc._find_template(ExportFormat.DOCX, "1.0.0", locale=ReportLocale.ZH_CN)
 
     def test_template_version_selection_via_render(self, db_session, render_service):
         """Specific version request selects correct template."""
@@ -585,10 +651,10 @@ class TestTemplateOperations:
         _seed_template(db_session, version="1.0.0")
         _seed_template(db_session, version="1.1.0")
 
-        t = svc._find_template(ExportFormat.DOCX, "1.1.0")
+        t = svc._find_template(ExportFormat.DOCX, "1.1.0", locale=ReportLocale.ZH_CN)
         assert t.version == "1.1.0"
 
-        t = svc._find_template(ExportFormat.DOCX, "1.0.0")
+        t = svc._find_template(ExportFormat.DOCX, "1.0.0", locale=ReportLocale.ZH_CN)
         assert t.version == "1.0.0"
 
     def test_template_init_idempotent(self, db_session):
@@ -699,6 +765,7 @@ class TestArtifactStateMachine:
             template_version="1.0.0",
             mode="draft",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
         )
         assert artifact.status == ArtifactStatus.COMPLETED
 
@@ -737,6 +804,7 @@ class TestArtifactStateMachine:
                 template_version=None,
                 mode="draft",
                 actor="user1",
+                locale=ReportLocale.ZH_CN,
             )
 
 
@@ -759,6 +827,7 @@ class TestDownloadSafety:
             template_version="1.0.0",
             mode="draft",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
         )
 
         # verify_download should succeed
@@ -781,6 +850,7 @@ class TestDownloadSafety:
             template_version="1.0.0",
             mode="draft",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
         )
 
         # Tamper with the stored file (same size to hit SHA check)
@@ -809,6 +879,7 @@ class TestDownloadSafety:
             template_version="1.0.0",
             mode="draft",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
         )
 
         # Truncate the stored file
@@ -839,6 +910,7 @@ class TestRenderIdempotency:
             template_version="1.0.0",
             mode="draft",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
             idempotency_key="idem-render-1",
         )
         a2 = svc.render(
@@ -848,6 +920,7 @@ class TestRenderIdempotency:
             template_version="1.0.0",
             mode="draft",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
             idempotency_key="idem-render-1",
         )
         assert a1.id == a2.id
@@ -866,6 +939,7 @@ class TestRenderIdempotency:
             template_version="1.0.0",
             mode="draft",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
             idempotency_key="idem-conflict-1",
         )
 
@@ -878,6 +952,7 @@ class TestRenderIdempotency:
                 template_version="1.0.0",
                 mode="draft",
                 actor="user1",
+                locale=ReportLocale.ZH_CN,
                 idempotency_key="idem-conflict-1",
             )
 
@@ -999,6 +1074,7 @@ class TestFormalExportRules:
                 template_version="1.0.0",
                 mode="formal",
                 actor="user1",
+                locale=ReportLocale.ZH_CN,
             )
 
     def test_formal_requires_latest_revision(self, db_session):
@@ -1083,6 +1159,7 @@ class TestFormalExportRules:
                 template_version="1.0.0",
                 mode="formal",
                 actor="user1",
+                locale=ReportLocale.ZH_CN,
             )
 
     def test_formal_succeeds_when_approved_and_latest(self, db_session, render_service):
@@ -1100,6 +1177,7 @@ class TestFormalExportRules:
             template_version="1.0.0",
             mode="formal",
             actor="user1",
+            locale=ReportLocale.ZH_CN,
         )
         assert artifact.status == ArtifactStatus.COMPLETED
 
@@ -1159,8 +1237,11 @@ class TestTemplateConfigFlowsToRenderer:
         )
         db_session.flush()
 
-        from cold_storage.modules.reports.application.render_model_builder import (
-            build_render_model,
+        from cold_storage.modules.reports.application.canonical_render_model_builder import (
+            build_canonical_render_model,
+        )
+        from cold_storage.modules.reports.application.render_model_localizer import (
+            localize_render_model,
         )
 
         content = {
@@ -1177,7 +1258,7 @@ class TestTemplateConfigFlowsToRenderer:
         }
 
         # Render with template A
-        model_a = build_render_model(
+        canonical_a = build_canonical_render_model(
             content=content,
             report_id="r1",
             revision_number=1,
@@ -1186,6 +1267,10 @@ class TestTemplateConfigFlowsToRenderer:
             generated_at="2025-01-01T00:00:00",
             template_code="cold_storage_concept_design",
             template_version="1.0.0",
+        )
+        model_a = localize_render_model(
+            canonical_a,
+            locale=ReportLocale.ZH_CN,
             template_manifest_json={
                 "page": {"width_pt": 595.276, "height_pt": 841.89, "margin_pt": 56.69}
             },
@@ -1194,7 +1279,7 @@ class TestTemplateConfigFlowsToRenderer:
         PdfRenderer().render(model_a)
 
         # Render with template B
-        model_b = build_render_model(
+        canonical_b = build_canonical_render_model(
             content=content,
             report_id="r1",
             revision_number=1,
@@ -1203,6 +1288,10 @@ class TestTemplateConfigFlowsToRenderer:
             generated_at="2025-01-01T00:00:00",
             template_code="cold_storage_concept_design",
             template_version="2.0.0",
+        )
+        model_b = localize_render_model(
+            canonical_b,
+            locale=ReportLocale.ZH_CN,
             template_manifest_json={
                 "page": {"width_pt": 612.0, "height_pt": 792.0, "margin_pt": 72.0}
             },
@@ -1313,6 +1402,7 @@ class TestCreateAppE2E:
                 "format": "docx",
                 "template_version": "1.0.0",
                 "mode": "draft",
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 200
@@ -1398,6 +1488,7 @@ class TestCreateAppE2E:
                 "format": "pdf",
                 "template_version": "1.0.0",
                 "mode": "draft",
+                "locale": "zh-CN",
             },
         )
         assert resp.status_code == 200
@@ -1467,6 +1558,7 @@ class TestCreateAppE2E:
                 "format": "docx",
                 "template_version": "1.0.0",
                 "mode": "draft",
+                "locale": "zh-CN",
                 "idempotency_key": "e2e-idem-1",
             },
         )
@@ -1480,6 +1572,7 @@ class TestCreateAppE2E:
                 "format": "docx",
                 "template_version": "1.0.0",
                 "mode": "draft",
+                "locale": "zh-CN",
                 "idempotency_key": "e2e-idem-1",
             },
         )
@@ -1520,4 +1613,5 @@ class TestOwnerIsolation:
                 template_version="1.0.0",
                 mode="draft",
                 actor="user2",
+                locale=ReportLocale.ZH_CN,
             )

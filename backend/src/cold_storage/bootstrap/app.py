@@ -146,6 +146,10 @@ def _get_planning_agent_service(
         db_session,
         report_repo=_reports_repo,
         artifact_repo=_reports_repo,
+        session_factory=lambda: SASession(
+            bind=db_session.bind,
+            expire_on_commit=False,
+        ),
     )
     _reports_render_svc = _ReportRenderService(
         uow=_reports_uow,
@@ -883,6 +887,10 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             db_session,
             report_repo=repo,
             artifact_repo=repo,
+            session_factory=lambda: SASession(
+                bind=db_session.bind,
+                expire_on_commit=False,
+            ),
         )
         return ReportRenderService(
             uow=uow,
