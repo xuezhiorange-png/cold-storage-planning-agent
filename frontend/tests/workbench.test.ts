@@ -4,6 +4,22 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import App from '../src/App.vue'
+import { createWorkbenchRouter } from '../src/app/router'
+import { createMemoryHistory } from 'vue-router'
+
+const testRouter = createWorkbenchRouter(createMemoryHistory())
+
+// Navigate to /workbench before each test
+testRouter.push('/workbench')
+await testRouter.isReady()
+
+function mountApp() {
+  return mount(App, {
+    global: {
+      plugins: [testRouter]
+    }
+  })
+}
 
 describe('cold storage workbench', () => {
   afterEach(() => {
@@ -11,7 +27,7 @@ describe('cold storage workbench', () => {
   })
 
   it('keeps structured pages as the primary workflow', async () => {
-    const wrapper = mount(App)
+    const wrapper = mountApp()
 
     expect(wrapper.find('.workflow-nav').text()).not.toContain('设计参数')
     expect(wrapper.text()).toContain('日处理量')
@@ -84,7 +100,7 @@ describe('cold storage workbench', () => {
   })
 
   it('renders sample content for main workflow pages', async () => {
-    const wrapper = mount(App)
+    const wrapper = mountApp()
     const expectedByView: Record<string, string[]> = {
       基本信息: ['总体情况', '加工厂名称', '定植亩数', '定植品种', '日处理量', '包材库存'],
       计算结果: ['区域', '设计存储量', '板位数量', '估算面积', '成品间'],
@@ -106,7 +122,7 @@ describe('cold storage workbench', () => {
   })
 
   it('shows the main workflow as direct process navigation', async () => {
-    const wrapper = mount(App)
+    const wrapper = mountApp()
 
     expect(wrapper.find('.project-header').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('概念设计')
@@ -127,7 +143,7 @@ describe('cold storage workbench', () => {
   })
 
   it('renders calculation results as a compact table', async () => {
-    const wrapper = mount(App)
+    const wrapper = mountApp()
 
     await wrapper.findAll('.workflow-nav button').find((button) => button.text() === '计算结果')?.trigger('click')
 
@@ -169,7 +185,7 @@ describe('cold storage workbench', () => {
 
   it('uses a deep-blue workbench style and top AI icon entry', async () => {
     const css = readFileSync(resolve(__dirname, '../src/style.css'), 'utf8')
-    const wrapper = mount(App)
+    const wrapper = mountApp()
 
     expect(css).toContain('#0b1f3a')
     expect(css).toContain('#123a63')
@@ -197,7 +213,7 @@ describe('cold storage workbench', () => {
   })
 
   it('lets the project overview edit factory name, planting mu count, and varieties', async () => {
-    const wrapper = mount(App)
+    const wrapper = mountApp()
 
     await wrapper.findAll('.workflow-nav button').find((button) => button.text() === '基本信息')?.trigger('click')
 
@@ -223,7 +239,7 @@ describe('cold storage workbench', () => {
   })
 
   it('does not show a menu button or drawer', async () => {
-    const wrapper = mount(App)
+    const wrapper = mountApp()
 
     expect(wrapper.find('.app-topbar').text()).toContain('冷库规划设计助手V1')
     expect(wrapper.find('button[aria-label="打开页面菜单"]').exists()).toBe(false)
@@ -314,7 +330,7 @@ describe('cold storage workbench', () => {
       })
     } as Response)
 
-    const wrapper = mount(App)
+    const wrapper = mountApp()
     await wrapper.find('input[aria-label="日处理量"]').setValue('30')
     await wrapper.find('input[aria-label="成品库库存天数"]').setValue('4')
     await wrapper.find('input[aria-label="包材库库存天数"]').setValue('10')

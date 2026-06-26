@@ -1,7 +1,7 @@
 import { ApiError, ApiRequestCancelledError, type ApiErrorDetails } from './errors'
 
 export interface ApiRequestOptions extends Omit<RequestInit, 'body' | 'headers'> {
-  body?: BodyInit | Record<string, unknown> | unknown[] | null
+  body?: BodyInit | Record<string, unknown> | unknown[] | object | null
   headers?: HeadersInit
   idempotencyKey?: string
 }
@@ -48,11 +48,13 @@ function isJsonBody(body: ApiRequestOptions['body']): body is Record<string, unk
 
 function toRequestInit(options: ApiRequestOptions): RequestInit {
   const headers = new Headers(options.headers)
-  let body: BodyInit | null | undefined = options.body as BodyInit | null | undefined
+  let body: BodyInit | null | undefined
 
   if (isJsonBody(options.body)) {
     headers.set('Content-Type', 'application/json')
     body = JSON.stringify(options.body)
+  } else if (options.body !== undefined && options.body !== null) {
+    body = options.body as BodyInit
   }
 
   if (options.idempotencyKey) {
