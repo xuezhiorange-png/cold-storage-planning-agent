@@ -6,6 +6,7 @@ import { useAgent } from '../composables/useAgent'
 const { isOpen, availability, toggle, close, setToggleRef } = useAgent()
 
 const drawerRef = ref<HTMLElement | null>(null)
+const closeButtonRef = ref<HTMLButtonElement | null>(null)
 
 /* ── Focus management ────────────────────────────── */
 
@@ -24,30 +25,39 @@ function onDrawerKeydown(event: KeyboardEvent): void {
     return
   }
   if (event.key !== 'Tab') return
+
   const focusable = getFocusableElements()
-  if (focusable.length === 0) return
+  if (focusable.length === 0) {
+    event.preventDefault()
+    return
+  }
 
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
+  const currentIdx = focusable.indexOf(document.activeElement as HTMLElement)
 
   if (event.shiftKey) {
-    if (document.activeElement === first) {
+    if (currentIdx <= 0 || document.activeElement === drawerRef.value) {
       event.preventDefault()
       last.focus()
     }
   } else {
-    if (document.activeElement === last) {
+    if (currentIdx === focusable.length - 1 || currentIdx < 0) {
       event.preventDefault()
       first.focus()
     }
   }
 }
 
-/* Auto-focus drawer when it opens */
+/* Focus close button as first focusable element when drawer opens */
 watch(isOpen, (open) => {
   if (open) {
     nextTick(() => {
-      drawerRef.value?.focus()
+      if (closeButtonRef.value) {
+        closeButtonRef.value.focus()
+      } else {
+        drawerRef.value?.focus()
+      }
     })
   }
 })
@@ -90,6 +100,7 @@ watch(isOpen, (open) => {
               >AI 助手</strong>
               <div class="agent-panel__header-actions">
                 <button
+                  ref="closeButtonRef"
                   type="button"
                   class="agent-panel__close-btn"
                   aria-label="关闭"
@@ -99,8 +110,10 @@ watch(isOpen, (open) => {
             </header>
 
             <!-- Unavailable banner -->
-            <div class="agent-panel__unavailable" role="status">
-              AI 助手当前不可用
+            <div class="agent-panel__unavailable" role="status" aria-live="polite">
+              <p>AI 助手当前不可用</p>
+              <p>后端尚未部署 Agent 服务。</p>
+              <p>当前无法发送消息或执行工具操作。</p>
             </div>
           </aside>
         </div>
@@ -194,6 +207,8 @@ watch(isOpen, (open) => {
 /* ── Unavailable banner ────────────────────────────── */
 .agent-panel__unavailable {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
   align-items: center;
   justify-content: center;
   padding: 48px 24px;
@@ -201,6 +216,10 @@ watch(isOpen, (open) => {
   font-size: 14px;
   text-align: center;
   line-height: 1.6;
+}
+
+.agent-panel__unavailable p {
+  margin: 0;
 }
 
 /* ── Transition ───────────────────────────────────── */

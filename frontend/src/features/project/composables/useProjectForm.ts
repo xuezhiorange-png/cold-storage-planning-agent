@@ -102,6 +102,9 @@ export function useProjectForm(
   }
 
   function reset(): void {
+    currentRequestId += 1  // Invalidate all in-flight submits
+    submitting.value = false  // Immediately reset submitting
+
     const defaults = createDefaultDesignInputs()
     for (const key of Object.keys(defaults) as Array<keyof DesignInputs>) {
       designInputs[key] = defaults[key]

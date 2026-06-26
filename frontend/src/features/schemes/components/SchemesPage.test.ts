@@ -273,3 +273,96 @@ describe('SchemesPage', () => {
     expect(wrapper.text()).toContain('演示权重 / 待复核')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Real composable tests (mock fetch, use real useSchemes)
+// ---------------------------------------------------------------------------
+
+const successResponse = {
+  schemes: [
+    { scheme_code: 'A', scheme_name: '方案A', feasible: true, total_score: '95', total_area_m2: 1000, total_position_count: 200, room_module_count: 8, door_count: 16, investment_cny: 5000000, installed_power_kw_e: 800, requires_review: false },
+    { scheme_code: 'B', scheme_name: '方案B', feasible: false, total_score: '78', total_area_m2: 1200, total_position_count: 180, room_module_count: 6, door_count: 12, investment_cny: 4500000, installed_power_kw_e: 750, requires_review: true }
+  ],
+  recommended_scheme_code: 'A',
+  weight_set_name: '默认权重集',
+  weight_set_status: 'verified'
+}
+
+function mockFetchOnce(data: any) {
+  vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
+    () => Promise.resolve(new Response(JSON.stringify(data)))
+  )
+}
+
+function mockFetchError() {
+  vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
+    () => Promise.reject(new Error('Network error'))
+  )
+}
+
+describe('SchemesPage real composable', () => {
+  beforeEach(async () => {
+    vi.restoreAllMocks()
+    // Override the mock to use the real useSchemes implementation
+    const actual = await vi.importActual<{ useSchemes: typeof useSchemes }>('../composables/useSchemes')
+    vi.mocked(useSchemes).mockImplementation(actual.useSchemes)
+  })
+
+  it('renders success state with cards', async () => {
+    mockFetchOnce(successResponse)
+
+    const wrapper = mount(SchemesPage)
+    await flushPromises()
+
+    // Cards rendered
+    expect(wrapper.text()).toContain('方案A')
+    expect(wrapper.text()).toContain('方案B')
+
+    // Recommended badge
+    expect(wrapper.text()).toContain('推荐')
+
+    // Infeasible card has the overlay class
+    const cards = wrapper.findAll('.scheme-card')
+    expect(cards.length).toBe(2)
+    expect(cards[1].classes()).toContain('scheme-card--infeasible')
+
+    // Weight set
+    expect(wrapper.text()).toContain('默认权重集')
+  })
+
+  it('renders empty state when no schemes', async () => {
+    mockFetchOnce({
+      schemes: [],
+      recommended_scheme_code: null,
+      weight_set_name: '默认权重集',
+      weight_set_status: 'verified'
+    })
+
+    const wrapper = mount(SchemesPage)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('暂无方案数据')
+    expect(wrapper.find('.schemes-page__grid').exists()).toBe(false)
+  })
+
+  it('renders unavailable state on 404', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      () => Promise.resolve(new Response('Not Found', { status: 404 }))
+    )
+
+    const wrapper = mount(SchemesPage)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('方案比选服务当前不可用')
+  })
+
+  it('renders error state with retry button', async () => {
+    mockFetchError()
+
+    const wrapper = mount(SchemesPage)
+    await flushPromises()
+
+    expect(wrapper.find('.schemes-page__error').exists()).toBe(true)
+    expect(wrapper.find('.schemes-page__retry').exists()).toBe(true)
+  })
+})

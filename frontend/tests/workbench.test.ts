@@ -119,7 +119,6 @@ describe('cold storage workbench', () => {
     expect(toggleButton.exists()).toBe(true)
 
     // Chat drawer should be rendered in body via Teleport — initially hidden
-    // The drawer content is teleported, check parent for teleported content
     const drawer = document.body.querySelector('.agent-panel__drawer')
     expect(drawer).toBeNull()
 
@@ -268,11 +267,8 @@ describe('cold storage workbench', () => {
     const wrapper = mountApp()
     await flushPromises()
 
-    // Toggle button should have the unavailable class
     const toggleBtn = wrapper.find('button.agent-panel__toggle')
     expect(toggleBtn.classes()).toContain('agent-panel__toggle--unavailable')
-
-    // Toggle button aria-label should indicate unavailability
     expect(toggleBtn.attributes('aria-label')).toBe('查看 AI 助手不可用说明')
 
     // If drawer was left open from previous test, close it first
@@ -286,10 +282,11 @@ describe('cold storage workbench', () => {
     await toggleBtn.trigger('click')
     await flushPromises()
 
-    // Check drawer content shows unavailable message
     const drawer = document.body.querySelector('.agent-panel__drawer')
     expect(drawer).not.toBeNull()
     expect(drawer!.textContent).toContain('AI 助手当前不可用')
+    expect(drawer!.textContent).toContain('后端尚未部署')
+    expect(drawer!.textContent).toContain('无法发送消息')
 
     // Close via the close button inside the drawer
     const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
@@ -303,21 +300,7 @@ describe('cold storage workbench', () => {
 
   /* ── Agent focus management ─────────────────────── */
 
-  it('auto-focuses drawer when opened', async () => {
-    const wrapper = mountApp()
-    await flushPromises()
-
-    const toggleBtn = wrapper.find('button.agent-panel__toggle')
-    await toggleBtn.trigger('click')
-    await flushPromises()
-
-    const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
-    expect(drawer).not.toBeNull()
-    // Drawer should have focus after opening
-    expect(document.activeElement).toBe(drawer)
-  })
-
-  it('traps Tab focus inside drawer', async () => {
+  it('focuses close button when drawer opens', async () => {
     const wrapper = mountApp()
     await flushPromises()
 
@@ -328,25 +311,13 @@ describe('cold storage workbench', () => {
     const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
     expect(drawer).not.toBeNull()
 
-    // Drawer has focus; Tab should move to the close button
-    drawer!.focus()
+    // Close button should have focus (first focusable element)
     const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
     expect(closeBtn).not.toBeNull()
-
-    // Simulate Tab keydown — cycling to close button
-    const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })
-    drawer!.dispatchEvent(tabEvent)
-
-    // Drawer still has focus (tab trap cycles to last element)
-    // Since closeBtn is the only focusable element, Tab on it cycles back
-    closeBtn!.focus()
-    const shiftTabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true })
-    closeBtn!.dispatchEvent(shiftTabEvent)
-    // After shift+tab on first element, focus should go to last (closeBtn)
     expect(document.activeElement).toBe(closeBtn)
   })
 
-  it('closes drawer on Escape', async () => {
+  it('Shift+Tab from close button stays inside drawer', async () => {
     const wrapper = mountApp()
     await flushPromises()
 
@@ -357,24 +328,57 @@ describe('cold storage workbench', () => {
     const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
     expect(drawer).not.toBeNull()
 
-    // Press Escape using dispatchEvent on the drawer
-    const escEvent = new KeyboardEvent('keydown', {
-      key: 'Escape',
-      code: 'Escape',
-      keyCode: 27,
-      which: 27,
-      bubbles: true,
-      cancelable: true
-    })
+    const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
+    expect(closeBtn).not.toBeNull()
+
+    // Focus close button and Shift+Tab
+    closeBtn!.focus()
+    const shiftTabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })
+    closeBtn!.dispatchEvent(shiftTabEvent)
+
+    // Focus should stay on closeBtn (only focusable element, cycles back)
+    expect(document.activeElement).toBe(closeBtn)
+  })
+
+  it('Escape closes drawer', async () => {
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const toggleBtn = wrapper.find('button.agent-panel__toggle')
+    await toggleBtn.trigger('click')
+    await flushPromises()
+
+    const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
+    expect(drawer).not.toBeNull()
+
+    // Escape
+    const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     drawer!.dispatchEvent(escEvent)
     await flushPromises()
 
-    const closedDrawer = document.body.querySelector('.agent-panel__drawer')
-    expect(closedDrawer).toBeNull()
+    // Drawer closed
+    expect(document.body.querySelector('.agent-panel__drawer')).toBeNull()
+  })
+
+  it('close button click closes drawer', async () => {
+    const wrapper = mountApp()
+    await flushPromises()
+
+    await wrapper.find('button.agent-panel__toggle').trigger('click')
+    await flushPromises()
+
+    const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
+    expect(drawer).not.toBeNull()
+
+    const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
+    expect(closeBtn).not.toBeNull()
+    closeBtn!.click()
+    await flushPromises()
+
+    expect(document.body.querySelector('.agent-panel__drawer')).toBeNull()
   })
 
   it('navigating to schemes route shows empty state', async () => {
-    // Mock the schemes API to return empty data — create fresh Response per call
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => Promise.resolve(
         new Response(
@@ -394,7 +398,6 @@ describe('cold storage workbench', () => {
     await testRouter.push('/workbench/schemes')
     await flushPromises()
 
-    // The schemes page should show the empty state message
     expect(wrapper.text()).toContain('暂无方案数据')
   })
 
@@ -411,11 +414,9 @@ describe('cold storage workbench', () => {
         const nav = wrapper.find('nav[aria-label="主流程导航"]')
         expect(nav.exists()).toBe(true)
 
-        // All 6 links must be visible
         const links = nav.findAll('a')
         expect(links.length).toBe(6)
 
-        // Each link must have non-empty text and href
         for (const link of links) {
           expect(link.text().trim().length).toBeGreaterThan(0)
           expect(link.attributes('href')).toBeTruthy()
@@ -431,10 +432,8 @@ describe('cold storage workbench', () => {
 
       const wrapper = mountApp()
       const nav = wrapper.find('nav[aria-label="主流程导航"]')
-      // At minimum, the nav element must exist and not be display:none
       expect(nav.isVisible()).toBe(true)
 
-      // Check nav link count is 6
       const links = nav.findAll('a')
       expect(links.length).toBe(6)
 
@@ -448,12 +447,10 @@ describe('cold storage workbench', () => {
       const wrapper = mountApp()
       await flushPromises()
 
-      // Submit button
       const submitBtn = wrapper.find('.el-button--primary')
       expect(submitBtn.exists()).toBe(true)
       expect(submitBtn.isVisible()).toBe(true)
 
-      // Reset button
       const buttons = wrapper.findAll('.project-inputs-panel__header .el-button')
       expect(buttons.length).toBeGreaterThanOrEqual(1)
 
@@ -470,8 +467,6 @@ describe('cold storage workbench', () => {
       const toggleBtn = wrapper.find('button.agent-panel__toggle')
       expect(toggleBtn.exists()).toBe(true)
       expect(toggleBtn.isVisible()).toBe(true)
-
-      // Should be clickable (not disabled)
       expect(toggleBtn.attributes('disabled')).toBeUndefined()
 
       window.innerWidth = 1024
@@ -505,29 +500,15 @@ describe('cold storage workbench', () => {
       }
     )
 
+    const wrapper = mountApp()
+    await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
-    // 1. Execute request A (deferred)
-    store.execute({
-      daily_inbound_mass_kg: 100,
-      working_time_h_per_day: 8,
-      utilization_factor: 0.8,
-      finished_storage_days: 7,
-      packaging_storage_days: 7,
-      main_packaging_storage_days: 3,
-      auxiliary_packaging_storage_days: 3,
-      reserve_factor: 1.2,
-      precooling_required_ratio: 0.8,
-      primary_precooling_working_hours_per_day: 6,
-      secondary_precooling_working_hours_per_day: 6,
-      raw_storage_ratio: 0.3,
-      finished_goods_pallet_weight_kg: 500,
-      frozen_fruit_ratio: 0.2,
-      frozen_storage_days: 30,
-      frozen_goods_pallet_weight_kg: 500
-    })
+    // 1. Submit A through the real UI
+    await wrapper.find('.el-button--primary').trigger('click')
     await flushPromises()
     expect(store.isLoading).toBe(true)
+    expect(store.latestRequest).not.toBeNull()
 
     // 2. Execute request B — cancels A, starts B (deferred)
     store.execute({
@@ -771,7 +752,6 @@ describe('cold storage workbench', () => {
           if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
           signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
         }
-        // First call → resolveA, second call → resolveB
         if (!resolveA) {
           resolveA = resolve
         } else {
@@ -783,12 +763,12 @@ describe('cold storage workbench', () => {
     const store = usePlanningWorkflowStore(pinia)
 
     // Execute A
-    const aPromise = store.execute({ daily_inbound_mass_kg: 100, working_time_h_per_day: 8, utilization_factor: 0.8, finished_storage_days: 7, packaging_storage_days: 7, main_packaging_storage_days: 3, auxiliary_packaging_storage_days: 3, reserve_factor: 1.2, precooling_required_ratio: 0.8, primary_precooling_working_hours_per_day: 6, secondary_precooling_working_hours_per_day: 6, raw_storage_ratio: 0.3, finished_goods_pallet_weight_kg: 500, frozen_fruit_ratio: 0.2, frozen_storage_days: 30, frozen_goods_pallet_weight_kg: 500 })
+    store.execute({ daily_inbound_mass_kg: 100, working_time_h_per_day: 8, utilization_factor: 0.8, finished_storage_days: 7, packaging_storage_days: 7, main_packaging_storage_days: 3, auxiliary_packaging_storage_days: 3, reserve_factor: 1.2, precooling_required_ratio: 0.8, primary_precooling_working_hours_per_day: 6, secondary_precooling_working_hours_per_day: 6, raw_storage_ratio: 0.3, finished_goods_pallet_weight_kg: 500, frozen_fruit_ratio: 0.2, frozen_storage_days: 30, frozen_goods_pallet_weight_kg: 500 })
     await flushPromises()
     expect(store.isLoading).toBe(true)
 
     // Execute B (cancels A)
-    const bPromise = store.execute({ daily_inbound_mass_kg: 200, working_time_h_per_day: 10, utilization_factor: 0.85, finished_storage_days: 10, packaging_storage_days: 5, main_packaging_storage_days: 2, auxiliary_packaging_storage_days: 2, reserve_factor: 1.1, precooling_required_ratio: 0.9, primary_precooling_working_hours_per_day: 8, secondary_precooling_working_hours_per_day: 8, raw_storage_ratio: 0.4, finished_goods_pallet_weight_kg: 600, frozen_fruit_ratio: 0.3, frozen_storage_days: 45, frozen_goods_pallet_weight_kg: 600 })
+    store.execute({ daily_inbound_mass_kg: 200, working_time_h_per_day: 10, utilization_factor: 0.85, finished_storage_days: 10, packaging_storage_days: 5, main_packaging_storage_days: 2, auxiliary_packaging_storage_days: 2, reserve_factor: 1.1, precooling_required_ratio: 0.9, primary_precooling_working_hours_per_day: 8, secondary_precooling_working_hours_per_day: 8, raw_storage_ratio: 0.4, finished_goods_pallet_weight_kg: 600, frozen_fruit_ratio: 0.3, frozen_storage_days: 45, frozen_goods_pallet_weight_kg: 600 })
     await flushPromises()
     expect(store.isLoading).toBe(true)
 
@@ -805,7 +785,6 @@ describe('cold storage workbench', () => {
     if (resolveA) (resolveA as (v: Response) => void)(new Response(JSON.stringify({ ...bResponseData, summary: { ...bResponseData.summary, total_area_m2: 999 } })))
     await flushPromises()
 
-    // Store should still have B's response
     expect(store.latestResponse?.summary.total_area_m2).toBe(200)
   })
 
@@ -819,13 +798,11 @@ describe('cold storage workbench', () => {
     expect(toggleBtn.exists()).toBe(true)
     expect(toggleBtn.classes()).toContain('agent-panel__toggle--unavailable')
 
-    // Verify the button does NOT have pointer-events: none style
     const style = toggleBtn.attributes('style')
     if (style) {
       expect(style).not.toContain('pointer-events')
     }
 
-    // Click should open the drawer
     await toggleBtn.trigger('click')
     await flushPromises()
 
@@ -833,7 +810,6 @@ describe('cold storage workbench', () => {
     expect(drawer).not.toBeNull()
     expect(drawer!.textContent).toContain('AI 助手当前不可用')
 
-    // Close
     const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
     expect(closeBtn).not.toBeNull()
     closeBtn!.click()
@@ -851,12 +827,10 @@ describe('cold storage workbench', () => {
     const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
     expect(drawer).not.toBeNull()
 
-    // Close button should be present
     const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
     expect(closeBtn).not.toBeNull()
     expect(closeBtn!.textContent).toContain('✕')
 
-    // Escape closes drawer
     const escEvent = new KeyboardEvent('keydown', {
       key: 'Escape',
       code: 'Escape',
@@ -876,17 +850,13 @@ describe('cold storage workbench', () => {
     await flushPromises()
 
     const toggleBtn = wrapper.find('button.agent-panel__toggle')
-    // Open
     await toggleBtn.trigger('click')
     await flushPromises()
 
-    // Close via close button
     const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
     const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
     closeBtn!.click()
 
-    // setTimeout should have been called with a 100ms delay
-    // We can verify by advancing timers — no crash means focus restore fired
     vi.advanceTimersByTime(100)
     await flushPromises()
 
@@ -940,6 +910,81 @@ describe('cold storage workbench', () => {
     await flushPromises()
 
     // Old response NOT written back, still on project
+    expect(store.latestResponse).toBeNull()
+    expect(testRouter.currentRoute.value.name).toBe('project')
+  })
+
+  it('reset button during request restores form, clears store, aborts signal, stays on project', async () => {
+    let capturedSignal: AbortSignal | null = null
+    let resolveFetch: ((v: Response) => void) | null = null
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_input: RequestInfo | URL, options?: RequestInit) => {
+        capturedSignal = options?.signal ?? null
+        return new Promise<Response>((resolve, reject) => {
+          const signal = options?.signal
+          if (signal) {
+            if (signal.aborted) {
+              reject(new DOMException('Aborted', 'AbortError'))
+              return
+            }
+            signal.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'))
+            }, { once: true })
+          }
+          resolveFetch = resolve
+        })
+      }
+    )
+
+    const wrapper = mountApp()
+    await flushPromises()
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Submit click
+    const submitBtn = wrapper.find('.el-button--primary')
+    await submitBtn.trigger('click')
+    await flushPromises()
+
+    // submitting should be true, store loading true
+    expect(store.isLoading).toBe(true)
+    expect(store.latestRequest).not.toBeNull()
+
+    // Capture signal before reset
+    expect(capturedSignal).not.toBeNull()
+
+    // Find and click reset button by text 重置
+    const allButtons = wrapper.findAll('button')
+    const resetButton = allButtons.filter(b => b.text().includes('重置'))
+    expect(resetButton.length).toBeGreaterThanOrEqual(1)
+    await resetButton[0].trigger('click')
+    await flushPromises()
+
+    // Store cleared
+    expect(store.isLoading).toBe(false)
+    expect(store.latestRequest).toBeNull()
+    expect(store.latestResponse).toBeNull()
+    expect(store.error).toBe('')
+
+    // Signal should be aborted (reset cancels the request)
+    expect((capturedSignal as unknown as AbortSignal).aborted).toBe(true)
+
+    // Still on project
+    expect(testRouter.currentRoute.value.name).toBe('project')
+
+    // Resolve old request
+    if (resolveFetch) {
+      (resolveFetch as (v: Response) => void)(new Response(JSON.stringify({
+        success: true,
+        summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false },
+        zone_plan: { result: { zones: [] } },
+        investment_estimate: { result: { items: [] } },
+        power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
+      })))
+    }
+    await flushPromises()
+
+    // Old response not written back
     expect(store.latestResponse).toBeNull()
     expect(testRouter.currentRoute.value.name).toBe('project')
   })
@@ -1006,104 +1051,104 @@ describe('cold storage workbench', () => {
     expect(testRouter.currentRoute.value.name).toBe('project')
   })
 
-  it('stale A after B completes does not navigate', async () => {
+  it('pending A -> reset -> resolve A -> no navigation or store change', async () => {
     let resolveA: ((v: Response) => void) | null = null
-    let resolveB: ((v: Response) => void) | null = null
-    let callCount = 0
 
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input, options) => {
-      return new Promise((resolve, reject) => {
-        const signal = options?.signal
-        if (signal) {
-          if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
-          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
-        }
-        callCount++
-        if (callCount === 1) {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (input, options) => {
+        return new Promise<Response>((resolve, reject) => {
+          const signal = options?.signal
+          if (signal) {
+            if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
+            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+          }
           resolveA = resolve
-        } else {
-          resolveB = resolve
-        }
-      })
-    }) as unknown as typeof globalThis.fetch
+        })
+      }
+    )
 
+    const wrapper = mountApp()
+    await flushPromises()
     const store = usePlanningWorkflowStore(pinia)
 
-    // Execute A (deferred)
-    store.execute({
-      daily_inbound_mass_kg: 100,
-      working_time_h_per_day: 8,
-      utilization_factor: 0.8,
-      finished_storage_days: 7,
-      packaging_storage_days: 7,
-      main_packaging_storage_days: 3,
-      auxiliary_packaging_storage_days: 3,
-      reserve_factor: 1.2,
-      precooling_required_ratio: 0.8,
-      primary_precooling_working_hours_per_day: 6,
-      secondary_precooling_working_hours_per_day: 6,
-      raw_storage_ratio: 0.3,
-      finished_goods_pallet_weight_kg: 500,
-      frozen_fruit_ratio: 0.2,
-      frozen_storage_days: 30,
-      frozen_goods_pallet_weight_kg: 500
-    })
+    // Submit A
+    await wrapper.find('.el-button--primary').trigger('click')
     await flushPromises()
     expect(store.isLoading).toBe(true)
 
-    // Execute B — cancels A, starts B (deferred)
-    store.execute({
-      daily_inbound_mass_kg: 200,
-      working_time_h_per_day: 10,
-      utilization_factor: 0.85,
-      finished_storage_days: 10,
-      packaging_storage_days: 5,
-      main_packaging_storage_days: 2,
-      auxiliary_packaging_storage_days: 2,
-      reserve_factor: 1.1,
-      precooling_required_ratio: 0.9,
-      primary_precooling_working_hours_per_day: 8,
-      secondary_precooling_working_hours_per_day: 8,
-      raw_storage_ratio: 0.4,
-      finished_goods_pallet_weight_kg: 600,
-      frozen_fruit_ratio: 0.3,
-      frozen_storage_days: 45,
-      frozen_goods_pallet_weight_kg: 600
-    })
-    await flushPromises()
-    expect(store.isLoading).toBe(true)
-
-    // Resolve B first
-    const bResponse = {
-      success: true,
-      summary: { total_area_m2: 850, total_position_count: 300, total_investment_cny: 3_000_000, total_power_kw: 1350, requires_review: false },
-      zone_plan: { result: { zones: [] } },
-      investment_estimate: { result: { items: [] } },
-      power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
+    // Reset
+    const resetBtn = wrapper.findAll('button').filter(b => b.text().includes('重置'))
+    if (resetBtn.length > 0) {
+      await resetBtn[0].trigger('click')
     }
-    if (resolveB) (resolveB as (v: Response) => void)(new Response(JSON.stringify(bResponse)))
     await flushPromises()
 
-    // Store has B's response
     expect(store.isLoading).toBe(false)
-    expect(store.latestResponse).not.toBeNull()
-    expect(store.latestResponse!.summary.total_area_m2).toBe(850)
-
-    // Navigation did NOT happen — B's success only affects the store if
-    // handleSubmit was called. Since we called store.execute directly,
-    // there is no route change. This tests that even if A resolves after B,
-    // it doesn't trigger a stale navigation.
+    expect(store.latestRequest).toBeNull()
     expect(testRouter.currentRoute.value.name).toBe('project')
 
-    // Try to resolve A (was aborted — resolve is no-op)
-    if (resolveA) (resolveA as (v: Response) => void)(new Response(JSON.stringify({
-      ...bResponse,
-      summary: { ...bResponse.summary, total_area_m2: 999 }
-    })))
+    // Resolve A
+    if (resolveA) {
+      (resolveA as (v: Response) => void)(new Response(JSON.stringify({
+        success: true,
+        summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false },
+        zone_plan: { result: { zones: [] } },
+        investment_estimate: { result: { items: [] } },
+        power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
+      })))
+    }
     await flushPromises()
 
-    // Store still has B's response, still on project page
-    expect(store.latestResponse!.summary.total_area_m2).toBe(850)
+    // Still no stale data or navigation
+    expect(store.latestResponse).toBeNull()
     expect(testRouter.currentRoute.value.name).toBe('project')
+  })
+
+  it('pending A -> route unmount -> resolve A -> no stale update or navigation', async () => {
+    let resolveA: ((v: Response) => void) | null = null
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (input, options) => {
+        return new Promise<Response>((resolve, reject) => {
+          const signal = options?.signal
+          if (signal) {
+            if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
+            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+          }
+          resolveA = resolve
+        })
+      }
+    )
+
+    const wrapper = mountApp()
+    await flushPromises()
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Submit A
+    await wrapper.find('.el-button--primary').trigger('click')
+    await flushPromises()
+    expect(store.isLoading).toBe(true)
+
+    // Navigate to calculations (triggers onUnmounted → store.cancel())
+    await testRouter.push('/workbench/calculations')
+    await flushPromises()
+
+    expect(store.isLoading).toBe(false)
+    expect(store.latestResponse).toBeNull()
+
+    // Resolve A
+    if (resolveA) {
+      (resolveA as (v: Response) => void)(new Response(JSON.stringify({
+        success: true,
+        summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false },
+        zone_plan: { result: { zones: [] } },
+        investment_estimate: { result: { items: [] } },
+        power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
+      })))
+    }
+    await flushPromises()
+
+    // No stale update
+    expect(store.latestResponse).toBeNull()
   })
 })
