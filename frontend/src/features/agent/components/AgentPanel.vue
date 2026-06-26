@@ -64,7 +64,7 @@ watch(isOpen, (open) => {
         'agent-panel__toggle--active': isOpen,
         'agent-panel__toggle--unavailable': availability === 'unavailable'
       }"
-      :aria-label="availability === 'unavailable' ? 'AI助手当前不可用' : '切换AI助手'"
+      :aria-label="availability === 'unavailable' ? '查看 AI 助手不可用说明' : '切换AI助手'"
       @click="toggle"
     >
       AI
@@ -134,9 +134,7 @@ watch(isOpen, (open) => {
 .agent-panel__toggle--unavailable {
   border-color: #9ca3af;
   background: #6b7280;
-  cursor: default;
   opacity: 0.6;
-  pointer-events: none;
 }
 
 /* ── Overlay ──────────────────────────────────────── */

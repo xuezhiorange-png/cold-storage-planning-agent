@@ -22,6 +22,10 @@ async function handleSubmit(request: PlanningRunRequest): Promise<void> {
     await router.push('/workbench/calculations')
   }
 }
+
+function handleReset() {
+  store.reset()
+}
 </script>
 
 <template>
@@ -38,7 +42,7 @@ async function handleSubmit(request: PlanningRunRequest): Promise<void> {
         <p>请修改输入后重试。</p>
       </div>
 
-      <ProjectInputsPanel :onSubmit="handleSubmit" />
+      <ProjectInputsPanel :onSubmit="handleSubmit" :onReset="handleReset" />
     </ElCard>
   </div>
 </template>

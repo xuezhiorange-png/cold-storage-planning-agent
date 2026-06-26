@@ -319,44 +319,45 @@ function reportStatusLabel(status: string): string {
               暂无导出文件
             </div>
 
-            <table
-              v-else
-              class="report-export-panel__exports-table"
-              aria-label="已导出文件列表"
-            >
-              <thead>
-                <tr>
-                  <th>文件名</th>
-                  <th>格式</th>
-                  <th>版本</th>
-                  <th>大小</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="artifact in exports"
-                  :key="artifact.artifact_id"
-                >
-                  <td>{{ artifact.file_name }}</td>
-                  <td>{{ artifact.format.toUpperCase() }}</td>
-                  <td>v{{ artifact.revision_number }}</td>
-                  <td>{{ formatFileSize(artifact.file_size_bytes) }}</td>
-                  <td>{{ statusLabel(artifact.status) }}</td>
-                  <td>
-                    <button
-                      type="button"
-                      class="report-export-panel__download-btn"
-                      :disabled="downloadLoading || artifact.status !== 'completed'"
-                      @click="handleDownload(report.id, artifact)"
-                    >
-                      {{ downloadLoading ? '下载中...' : '下载' }}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div v-else class="table-scroll">
+              <table
+                class="report-export-panel__exports-table"
+                aria-label="已导出文件列表"
+              >
+                <thead>
+                  <tr>
+                    <th>文件名</th>
+                    <th>格式</th>
+                    <th>版本</th>
+                    <th>大小</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="artifact in exports"
+                    :key="artifact.artifact_id"
+                  >
+                    <td>{{ artifact.file_name }}</td>
+                    <td>{{ artifact.format.toUpperCase() }}</td>
+                    <td>v{{ artifact.revision_number }}</td>
+                    <td>{{ formatFileSize(artifact.file_size_bytes) }}</td>
+                    <td>{{ statusLabel(artifact.status) }}</td>
+                    <td>
+                      <button
+                        type="button"
+                        class="report-export-panel__download-btn"
+                        :disabled="downloadLoading || artifact.status !== 'completed'"
+                        @click="handleDownload(report.id, artifact)"
+                      >
+                        {{ downloadLoading ? '下载中...' : '下载' }}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <!-- Download error banner -->

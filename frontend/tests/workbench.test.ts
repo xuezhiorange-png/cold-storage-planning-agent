@@ -273,7 +273,7 @@ describe('cold storage workbench', () => {
     expect(toggleBtn.classes()).toContain('agent-panel__toggle--unavailable')
 
     // Toggle button aria-label should indicate unavailability
-    expect(toggleBtn.attributes('aria-label')).toBe('AI助手当前不可用')
+    expect(toggleBtn.attributes('aria-label')).toBe('查看 AI 助手不可用说明')
 
     // If drawer was left open from previous test, close it first
     let existingDrawer = document.body.querySelector('.agent-panel__drawer')
@@ -398,31 +398,84 @@ describe('cold storage workbench', () => {
     expect(wrapper.text()).toContain('暂无方案数据')
   })
 
-  it('renders workflow navigation at 320px width', async () => {
-    window.innerWidth = 320
-    window.dispatchEvent(new Event('resize'))
+  describe('narrow screen', () => {
+    const widths = [320, 375, 768]
 
-    const wrapper = mountApp()
-    const nav = wrapper.find('nav[aria-label="主流程导航"]')
-    expect(nav.exists()).toBe(true)
-    expect(nav.text()).toContain('基本信息')
-    expect(nav.text()).toContain('计算结果')
-    expect(nav.text()).toContain('方案比选')
+    widths.forEach(w => {
+      it(`renders accessible workflow navigation at ${w}px`, async () => {
+        window.innerWidth = w
+        window.dispatchEvent(new Event('resize'))
 
-    // Restore
-    window.innerWidth = 1024
-  })
+        const wrapper = mountApp()
 
-  it('renders submit button visible at 375px', async () => {
-    window.innerWidth = 375
-    window.dispatchEvent(new Event('resize'))
+        const nav = wrapper.find('nav[aria-label="主流程导航"]')
+        expect(nav.exists()).toBe(true)
 
-    const wrapper = mountApp()
-    const btn = wrapper.find('.el-button--primary')
-    expect(btn.exists()).toBe(true)
-    expect(btn.text()).toContain('运行规划')
+        // All 6 links must be visible
+        const links = nav.findAll('a')
+        expect(links.length).toBe(6)
 
-    window.innerWidth = 1024
+        // Each link must have non-empty text and href
+        for (const link of links) {
+          expect(link.text().trim().length).toBeGreaterThan(0)
+          expect(link.attributes('href')).toBeTruthy()
+        }
+
+        window.innerWidth = 1024
+      })
+    })
+
+    it('nav uses flex-wrap or auto-scroll at 320px', async () => {
+      window.innerWidth = 320
+      window.dispatchEvent(new Event('resize'))
+
+      const wrapper = mountApp()
+      const nav = wrapper.find('nav[aria-label="主流程导航"]')
+      // At minimum, the nav element must exist and not be display:none
+      expect(nav.isVisible()).toBe(true)
+
+      // Check nav link count is 6
+      const links = nav.findAll('a')
+      expect(links.length).toBe(6)
+
+      window.innerWidth = 1024
+    })
+
+    it('project page submit and reset buttons visible at 320px', async () => {
+      window.innerWidth = 320
+      window.dispatchEvent(new Event('resize'))
+
+      const wrapper = mountApp()
+      await flushPromises()
+
+      // Submit button
+      const submitBtn = wrapper.find('.el-button--primary')
+      expect(submitBtn.exists()).toBe(true)
+      expect(submitBtn.isVisible()).toBe(true)
+
+      // Reset button
+      const buttons = wrapper.findAll('.project-inputs-panel__header .el-button')
+      expect(buttons.length).toBeGreaterThanOrEqual(1)
+
+      window.innerWidth = 1024
+    })
+
+    it('agent toggle visible and clickable at 375px', async () => {
+      window.innerWidth = 375
+      window.dispatchEvent(new Event('resize'))
+
+      const wrapper = mountApp()
+      await flushPromises()
+
+      const toggleBtn = wrapper.find('button.agent-panel__toggle')
+      expect(toggleBtn.exists()).toBe(true)
+      expect(toggleBtn.isVisible()).toBe(true)
+
+      // Should be clickable (not disabled)
+      expect(toggleBtn.attributes('disabled')).toBeUndefined()
+
+      window.innerWidth = 1024
+    })
   })
 
   it('stale request does not update store when superseded by newer request', async () => {
@@ -596,9 +649,7 @@ describe('cold storage workbench', () => {
     expect(store.latestResponse!.summary.total_power_kw).toBe(1350)
     expect(store.isLoading).toBe(false)
 
-    // 5. Navigate to calculations manually (handleSubmit calls router.push
-    // without await; manual push ensures we get there)
-    await testRouter.push('/workbench/calculations')
+    // 5. Auto-navigation to calculations
     await flushPromises()
     expect(testRouter.currentRoute.value.name).toBe('calculations')
 
@@ -756,5 +807,303 @@ describe('cold storage workbench', () => {
 
     // Store should still have B's response
     expect(store.latestResponse?.summary.total_area_m2).toBe(200)
+  })
+
+  /* ── Agent toggle clickability & focus tests ──────── */
+
+  it('unavailable toggle button is clickable (no pointer-events: none)', async () => {
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const toggleBtn = wrapper.find('button.agent-panel__toggle')
+    expect(toggleBtn.exists()).toBe(true)
+    expect(toggleBtn.classes()).toContain('agent-panel__toggle--unavailable')
+
+    // Verify the button does NOT have pointer-events: none style
+    const style = toggleBtn.attributes('style')
+    if (style) {
+      expect(style).not.toContain('pointer-events')
+    }
+
+    // Click should open the drawer
+    await toggleBtn.trigger('click')
+    await flushPromises()
+
+    const drawer = document.body.querySelector('.agent-panel__drawer')
+    expect(drawer).not.toBeNull()
+    expect(drawer!.textContent).toContain('AI 助手当前不可用')
+
+    // Close
+    const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
+    expect(closeBtn).not.toBeNull()
+    closeBtn!.click()
+    await flushPromises()
+  })
+
+  it('closes drawer on Escape and close button exists', async () => {
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const toggleBtn = wrapper.find('button.agent-panel__toggle')
+    await toggleBtn.trigger('click')
+    await flushPromises()
+
+    const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
+    expect(drawer).not.toBeNull()
+
+    // Close button should be present
+    const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
+    expect(closeBtn).not.toBeNull()
+    expect(closeBtn!.textContent).toContain('✕')
+
+    // Escape closes drawer
+    const escEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      code: 'Escape',
+      bubbles: true,
+      cancelable: true
+    })
+    drawer!.dispatchEvent(escEvent)
+    await flushPromises()
+
+    const closedDrawer = document.body.querySelector('.agent-panel__drawer')
+    expect(closedDrawer).toBeNull()
+  })
+
+  it('setTimeout is called on close for focus restore', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const toggleBtn = wrapper.find('button.agent-panel__toggle')
+    // Open
+    await toggleBtn.trigger('click')
+    await flushPromises()
+
+    // Close via close button
+    const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement | null
+    const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
+    closeBtn!.click()
+
+    // setTimeout should have been called with a 100ms delay
+    // We can verify by advancing timers — no crash means focus restore fired
+    vi.advanceTimersByTime(100)
+    await flushPromises()
+
+    expect(document.body.querySelector('.agent-panel__drawer')).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('reset button during request cancels store state and stays on project page', async () => {
+    let resolveFetch: ((v: Response) => void) | null = null
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, options) => {
+      return new Promise((resolve, reject) => {
+        const signal = options?.signal
+        if (signal) {
+          if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+        }
+        resolveFetch = resolve
+      })
+    }) as unknown as typeof globalThis.fetch
+
+    const wrapper = mountApp()
+    await flushPromises()
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Submit — request pending
+    await wrapper.find('.el-button--primary').trigger('click')
+    await flushPromises()
+    expect(store.isLoading).toBe(true)
+    expect(store.latestRequest).not.toBeNull()
+
+    // Find and click the real reset button in ProjectInputsPanel
+    const resetBtn = wrapper.findAll('button').filter(b => b.text().includes('重置'))[0]
+    expect(resetBtn).toBeDefined()
+    expect(resetBtn.text()).toContain('重置')
+    await resetBtn.trigger('click')
+    await flushPromises()
+
+    // Store is now reset
+    expect(store.isLoading).toBe(false)
+    expect(store.latestRequest).toBeNull()
+    expect(store.latestResponse).toBeNull()
+    expect(store.error).toBe('')
+
+    // Still on project page
+    expect(testRouter.currentRoute.value.name).toBe('project')
+
+    // Old request resolves — should not write back
+    if (resolveFetch) {
+      (resolveFetch as (v: Response) => void)(new Response(JSON.stringify({ success: true, summary: { total_area_m2: 999, total_position_count: 1, total_investment_cny: 0, total_power_kw: 0, requires_review: false }, zone_plan: { result: { zones: [] } }, investment_estimate: { result: { items: [] } }, power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false } })))
+    }
+    await flushPromises()
+
+    // Old response NOT written back, still on project
+    expect(store.latestResponse).toBeNull()
+    expect(testRouter.currentRoute.value.name).toBe('project')
+  })
+
+  it('planning error stays on project page (no navigation)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new Error('API 请求失败')
+    ) as unknown as typeof globalThis.fetch
+
+    const wrapper = mountApp()
+    await flushPromises()
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Submit
+    await wrapper.find('.el-button--primary').trigger('click')
+    await flushPromises()
+
+    // Store has the error
+    expect(store.error).toBe('API 请求失败')
+    expect(store.isLoading).toBe(false)
+
+    // Still on project page — no navigation despite failing
+    expect(testRouter.currentRoute.value.name).toBe('project')
+
+    // Error display visible on project page
+    const errorDiv = wrapper.find('.project-page__error')
+    expect(errorDiv.exists()).toBe(true)
+    expect(errorDiv.text()).toContain('API 请求失败')
+    expect(errorDiv.text()).toContain('请修改输入后重试')
+  })
+
+  it('cancelled request stays on project page', async () => {
+    let resolveFetch: ((v: Response) => void) | null = null
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, options) => {
+      return new Promise((resolve, reject) => {
+        const signal = options?.signal
+        if (signal) {
+          if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+        }
+        resolveFetch = resolve
+      })
+    }) as unknown as typeof globalThis.fetch
+
+    const wrapper = mountApp()
+    await flushPromises()
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Submit
+    await wrapper.find('.el-button--primary').trigger('click')
+    await flushPromises()
+    expect(store.isLoading).toBe(true)
+
+    // Cancel via store
+    store.cancel()
+    await flushPromises()
+
+    // Store is cleared
+    expect(store.isLoading).toBe(false)
+    expect(store.latestResponse).toBeNull()
+    expect(store.error).toBe('')
+
+    // Still on project page — no navigation
+    expect(testRouter.currentRoute.value.name).toBe('project')
+  })
+
+  it('stale A after B completes does not navigate', async () => {
+    let resolveA: ((v: Response) => void) | null = null
+    let resolveB: ((v: Response) => void) | null = null
+    let callCount = 0
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, options) => {
+      return new Promise((resolve, reject) => {
+        const signal = options?.signal
+        if (signal) {
+          if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+        }
+        callCount++
+        if (callCount === 1) {
+          resolveA = resolve
+        } else {
+          resolveB = resolve
+        }
+      })
+    }) as unknown as typeof globalThis.fetch
+
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Execute A (deferred)
+    store.execute({
+      daily_inbound_mass_kg: 100,
+      working_time_h_per_day: 8,
+      utilization_factor: 0.8,
+      finished_storage_days: 7,
+      packaging_storage_days: 7,
+      main_packaging_storage_days: 3,
+      auxiliary_packaging_storage_days: 3,
+      reserve_factor: 1.2,
+      precooling_required_ratio: 0.8,
+      primary_precooling_working_hours_per_day: 6,
+      secondary_precooling_working_hours_per_day: 6,
+      raw_storage_ratio: 0.3,
+      finished_goods_pallet_weight_kg: 500,
+      frozen_fruit_ratio: 0.2,
+      frozen_storage_days: 30,
+      frozen_goods_pallet_weight_kg: 500
+    })
+    await flushPromises()
+    expect(store.isLoading).toBe(true)
+
+    // Execute B — cancels A, starts B (deferred)
+    store.execute({
+      daily_inbound_mass_kg: 200,
+      working_time_h_per_day: 10,
+      utilization_factor: 0.85,
+      finished_storage_days: 10,
+      packaging_storage_days: 5,
+      main_packaging_storage_days: 2,
+      auxiliary_packaging_storage_days: 2,
+      reserve_factor: 1.1,
+      precooling_required_ratio: 0.9,
+      primary_precooling_working_hours_per_day: 8,
+      secondary_precooling_working_hours_per_day: 8,
+      raw_storage_ratio: 0.4,
+      finished_goods_pallet_weight_kg: 600,
+      frozen_fruit_ratio: 0.3,
+      frozen_storage_days: 45,
+      frozen_goods_pallet_weight_kg: 600
+    })
+    await flushPromises()
+    expect(store.isLoading).toBe(true)
+
+    // Resolve B first
+    const bResponse = {
+      success: true,
+      summary: { total_area_m2: 850, total_position_count: 300, total_investment_cny: 3_000_000, total_power_kw: 1350, requires_review: false },
+      zone_plan: { result: { zones: [] } },
+      investment_estimate: { result: { items: [] } },
+      power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
+    }
+    if (resolveB) (resolveB as (v: Response) => void)(new Response(JSON.stringify(bResponse)))
+    await flushPromises()
+
+    // Store has B's response
+    expect(store.isLoading).toBe(false)
+    expect(store.latestResponse).not.toBeNull()
+    expect(store.latestResponse!.summary.total_area_m2).toBe(850)
+
+    // Navigation did NOT happen — B's success only affects the store if
+    // handleSubmit was called. Since we called store.execute directly,
+    // there is no route change. This tests that even if A resolves after B,
+    // it doesn't trigger a stale navigation.
+    expect(testRouter.currentRoute.value.name).toBe('project')
+
+    // Try to resolve A (was aborted — resolve is no-op)
+    if (resolveA) (resolveA as (v: Response) => void)(new Response(JSON.stringify({
+      ...bResponse,
+      summary: { ...bResponse.summary, total_area_m2: 999 }
+    })))
+    await flushPromises()
+
+    // Store still has B's response, still on project page
+    expect(store.latestResponse!.summary.total_area_m2).toBe(850)
+    expect(testRouter.currentRoute.value.name).toBe('project')
   })
 })

@@ -7,8 +7,11 @@ import type { PlanningRunRequest } from '../../../api/contracts/planning'
 const props = withDefaults(defineProps<{
   /** Optional submit callback. Receives the validated and mapped request. */
   onSubmit?: (request: PlanningRunRequest) => Promise<void>
+  /** Optional reset callback. Called after form fields are reset. */
+  onReset?: () => void
 }>(), {
-  onSubmit: undefined
+  onSubmit: undefined,
+  onReset: undefined
 })
 
 const {
@@ -21,6 +24,11 @@ const {
   reset
 } = useProjectForm(props.onSubmit)
 
+function handleReset() {
+  reset()
+  props.onReset?.()
+}
+
 function fieldError(field: string): string {
   const err = validationErrors.value.find(e => e.field === field)
   return err?.message ?? ''
@@ -32,7 +40,7 @@ function fieldError(field: string): string {
     <template #header>
       <div class="project-inputs-panel__header">
         <span>项目设计输入</span>
-        <ElButton size="small" @click="reset">重置</ElButton>
+        <ElButton size="small" @click="handleReset">重置</ElButton>
       </div>
     </template>
 

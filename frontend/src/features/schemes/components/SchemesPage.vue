@@ -31,7 +31,7 @@ function formatWan(value: number | null): string {
       <button @click="load" class="schemes-page__retry">重试</button>
     </div>
 
-    <template v-if="data">
+    <template v-if="state === 'success' && data">
       <div class="schemes-page__summary">
         <strong>{{ data.weight_set_name }}</strong>
         <span>{{ data.schemes.length }} 个方案</span>

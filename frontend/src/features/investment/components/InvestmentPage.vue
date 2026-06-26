@@ -34,14 +34,16 @@ function formatWan(value: number): string {
           <span>投资估算</span>
         </template>
 
-        <ElTable :data="investmentItems" stripe border size="small">
-          <ElTableColumn prop="item_name" label="投资分项" min-width="200" />
-          <ElTableColumn label="估算金额" width="180" align="right">
-            <template #default="scope">
-              {{ formatWan((scope.row as InvestmentRow).amount_cny) }} 万元
-            </template>
-          </ElTableColumn>
-        </ElTable>
+        <div class="table-scroll">
+          <ElTable :data="investmentItems" stripe border size="small">
+            <ElTableColumn prop="item_name" label="投资分项" min-width="200" />
+            <ElTableColumn label="估算金额" width="180" align="right">
+              <template #default="scope">
+                {{ formatWan((scope.row as InvestmentRow).amount_cny) }} 万元
+              </template>
+            </ElTableColumn>
+          </ElTable>
+        </div>
 
         <div class="investment-page__total">
           <strong>合计</strong>

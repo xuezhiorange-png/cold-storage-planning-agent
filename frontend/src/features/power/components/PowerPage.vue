@@ -57,50 +57,52 @@ function formatOptionalPower(value: number | null): string {
         </template>
 
         <!-- Equipment table -->
-        <ElTable :data="equipmentRows" stripe border size="small" max-height="480">
-          <ElTableColumn prop="sequence" label="序号" width="60" align="center" />
-          <ElTableColumn prop="name" label="名称" min-width="140" />
-          <ElTableColumn prop="area" label="区域" min-width="140" />
-          <ElTableColumn prop="quantity" label="数量" width="80" align="right" />
-          <ElTableColumn label="化霜功率" width="120" align="right">
-            <template #default="scope">
-              {{ formatOptionalPower((scope.row as EquipmentPowerRowContract).defrost_power_kw) }}
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="化霜总功率" width="120" align="right">
-            <template #default="scope">
-              {{ formatOptionalPower((scope.row as EquipmentPowerRowContract).defrost_total_power_kw) }}
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="运行功率" width="120" align="right">
-            <template #default="scope">
-              {{ formatNumber((scope.row as EquipmentPowerRowContract).running_power_kw) }} kW
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="总功率" width="120" align="right">
-            <template #default="scope">
-              {{ formatNumber((scope.row as EquipmentPowerRowContract).total_power_kw) }} kW
-            </template>
-          </ElTableColumn>
-        </ElTable>
+        <div class="table-scroll">
+          <ElTable :data="equipmentRows" stripe border size="small" max-height="480">
+            <ElTableColumn prop="sequence" label="序号" width="60" align="center" />
+            <ElTableColumn prop="name" label="名称" min-width="140" />
+            <ElTableColumn prop="area" label="区域" min-width="140" />
+            <ElTableColumn prop="quantity" label="数量" width="80" align="right" />
+            <ElTableColumn label="化霜功率" width="120" align="right">
+              <template #default="scope">
+                {{ formatOptionalPower((scope.row as EquipmentPowerRowContract).defrost_power_kw) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="化霜总功率" width="120" align="right">
+              <template #default="scope">
+                {{ formatOptionalPower((scope.row as EquipmentPowerRowContract).defrost_total_power_kw) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="运行功率" width="120" align="right">
+              <template #default="scope">
+                {{ formatNumber((scope.row as EquipmentPowerRowContract).running_power_kw) }} kW
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="总功率" width="120" align="right">
+              <template #default="scope">
+                {{ formatNumber((scope.row as EquipmentPowerRowContract).total_power_kw) }} kW
+              </template>
+            </ElTableColumn>
+          </ElTable>
+        </div>
 
         <!-- Summary table -->
-        <ElTable
-          v-if="summaryRows.length > 0"
-          :data="summaryRows"
-          stripe
-          border
-          size="small"
-          style="margin-top: 16px"
-        >
-          <ElTableColumn prop="name" label="汇总项" min-width="160" />
-          <ElTableColumn prop="basis" label="计算依据" min-width="200" />
-          <ElTableColumn label="功率" width="140" align="right">
-            <template #default="scope">
-              {{ formatNumber((scope.row as PowerSummaryRowContract).total_power_kw) }} kW
-            </template>
-          </ElTableColumn>
-        </ElTable>
+        <div v-if="summaryRows.length > 0" class="table-scroll" style="margin-top: 16px">
+          <ElTable
+            :data="summaryRows"
+            stripe
+            border
+            size="small"
+          >
+            <ElTableColumn prop="name" label="汇总项" min-width="160" />
+            <ElTableColumn prop="basis" label="计算依据" min-width="200" />
+            <ElTableColumn label="功率" width="140" align="right">
+              <template #default="scope">
+                {{ formatNumber((scope.row as PowerSummaryRowContract).total_power_kw) }} kW
+              </template>
+            </ElTableColumn>
+          </ElTable>
+        </div>
 
         <!-- Totals -->
         <div class="power-page__totals">

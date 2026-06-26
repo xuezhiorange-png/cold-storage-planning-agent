@@ -1,6 +1,6 @@
 # Task 10 — Frontend Planning Workbench
 
-Status: design contract frozen; implementation pending
+Status: implemented; awaiting engineering review
 
 Issue: #18
 

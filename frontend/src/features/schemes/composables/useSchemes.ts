@@ -54,6 +54,7 @@ export function useSchemes(api: SchemesApi = createSchemesApi()): UseSchemesRetu
         state.value = previousState
         return
       }
+      data.value = null
       if (err instanceof ApiError) {
         if (err.status === 404 || err.status === 501 || err.code === 'FEATURE_DISABLED') {
           state.value = 'unavailable'

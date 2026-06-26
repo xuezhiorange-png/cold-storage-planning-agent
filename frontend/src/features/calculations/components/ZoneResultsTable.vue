@@ -26,28 +26,30 @@ function formatThroughput(value: number | undefined | null): string {
     <div v-if="zones.length === 0" class="zone-results-table__empty">
       暂无区域规划数据，请先执行计算。
     </div>
-    <table v-else class="zone-results-table__table">
-      <thead>
-        <tr>
-          <th scope="col">区域名称</th>
-          <th scope="col">温区</th>
-          <th scope="col">日处理量</th>
-          <th scope="col">存储质量</th>
-          <th scope="col">板位</th>
-          <th scope="col">面积</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="zone in zones" :key="zone.zone_name">
-          <td>{{ zone.zone_name }}</td>
-          <td>{{ zone.temperature_band }}</td>
-          <td>{{ formatThroughput(zone.daily_throughput_kg_day ?? zone.daily_throughput_kg) }}</td>
-          <td>{{ formatMass(zone.design_storage_mass_kg) }}</td>
-          <td>{{ zone.position_count }}</td>
-          <td>{{ formatNumber(zone.required_area_m2) }} m²</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else class="table-scroll">
+      <table class="zone-results-table__table">
+        <thead>
+          <tr>
+            <th scope="col">区域名称</th>
+            <th scope="col">温区</th>
+            <th scope="col">日处理量</th>
+            <th scope="col">存储质量</th>
+            <th scope="col">板位</th>
+            <th scope="col">面积</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="zone in zones" :key="zone.zone_name">
+            <td>{{ zone.zone_name }}</td>
+            <td>{{ zone.temperature_band }}</td>
+            <td>{{ formatThroughput(zone.daily_throughput_kg_day ?? zone.daily_throughput_kg) }}</td>
+            <td>{{ formatMass(zone.design_storage_mass_kg) }}</td>
+            <td>{{ zone.position_count }}</td>
+            <td>{{ formatNumber(zone.required_area_m2) }} m²</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>
 
