@@ -18,7 +18,7 @@ const investmentItems = computed<InvestmentRow[]>(() => {
 })
 
 const totalCny = computed(() => {
-  return investmentItems.value.reduce((sum, item) => sum + item.amount_cny, 0)
+  return store.latestResponse?.summary?.total_investment_cny ?? null
 })
 
 function formatWan(value: number): string {
@@ -45,7 +45,8 @@ function formatWan(value: number): string {
 
         <div class="investment-page__total">
           <strong>合计</strong>
-          <span>{{ formatWan(totalCny) }} 万元</span>
+          <span v-if="totalCny !== null">{{ formatWan(totalCny) }} 万元</span>
+          <span v-else>—</span>
         </div>
 
         <p class="investment-page__note">

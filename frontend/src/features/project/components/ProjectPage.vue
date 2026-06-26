@@ -1,27 +1,40 @@
 <script setup lang="ts">
+import { onUnmounted } from 'vue'
 import { ElCard, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 
 import ProjectInputsPanel from './ProjectInputsPanel.vue'
-import { createPlanningApi } from '../../calculations/api/planningApi'
+import { usePlanningRun } from '../../calculations/composables/usePlanningRun'
 import { usePlanningWorkflowStore } from '../../../stores/planningWorkflow'
 import type { PlanningRunRequest } from '../../../api/contracts/planning'
 
 const router = useRouter()
 const store = usePlanningWorkflowStore()
-const planningApi = createPlanningApi()
+const planner = usePlanningRun()
+
+let isAlive = true
+
+onUnmounted(() => {
+  isAlive = false
+  planner.abort()
+})
 
 async function handleSubmit(request: PlanningRunRequest): Promise<void> {
   store.setLoading(true)
   store.setRequest(request)
-  try {
-    const response = await planningApi.run(request)
+  store.setError('')
+
+  const response = await planner.execute(request)
+
+  if (!isAlive) return
+
+  if (response) {
     store.setResponse(response)
     ElMessage.success('规划计算完成')
     router.push('/workbench/calculations')
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '规划运行失败'
-    store.setError(message)
+  } else if (planner.error.value) {
+    store.setError(planner.error.value)
+    throw new Error(planner.error.value)
   }
 }
 </script>
@@ -34,6 +47,11 @@ async function handleSubmit(request: PlanningRunRequest): Promise<void> {
           <span>项目设计输入</span>
         </div>
       </template>
+
+      <div v-if="store.error" role="alert" class="project-page__error">
+        <p>{{ store.error }}</p>
+        <p>请修改输入后重试。</p>
+      </div>
 
       <ProjectInputsPanel :onSubmit="handleSubmit" />
     </ElCard>
@@ -49,5 +67,15 @@ async function handleSubmit(request: PlanningRunRequest): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.project-page__error {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: #fef0f0;
+  color: #f56c6c;
+  font-size: 13px;
+  line-height: 1.4;
 }
 </style>

@@ -456,6 +456,88 @@ describe('useReportExport', () => {
     expect(ctx.selectedRevisionNumber.value).toBe(1)
   })
 
+  it('render A resolves after selecting report B, does not affect B state', async () => {
+    const c = createClient()
+    const mockJson = c.requestJson as ReturnType<typeof vi.fn>
+
+    // Deferred promise for render A
+    let resolveRenderA!: (v: unknown) => void
+    const promRenderA = new Promise((resolve) => {
+      resolveRenderA = resolve
+    })
+
+    // #1: render A (deferred)
+    mockJson.mockResolvedValueOnce(promRenderA)
+
+    const api = createMockApi(c)
+    const ctx = useReportExport(api)
+
+    // Start render A (hangs at API call)
+    const renderACall = ctx.renderReport('A', 1, createDefaultExportForm())
+    expect(ctx.renderLoading.value).toBe(true)
+
+    // Now select report B — uses detailGate (independent of renderGate),
+    // so render A continues in background
+    mockJson
+      // #2: B's revisions
+      .mockResolvedValueOnce({
+        revisions: [{ revision_number: 1, content_hash: 'b1' }]
+      })
+      // #3: B's exports
+      .mockResolvedValueOnce({
+        exports: makeExports(1, 'b')
+      })
+
+    await ctx.selectReport('B')
+
+    // B's state is fully set
+    expect(ctx.selectedReportId.value).toBe('B')
+    expect(ctx.selectedRevisionNumber.value).toBeNull()
+    expect(ctx.renderResult.value).toBeNull()
+    expect(ctx.revisions.value).toHaveLength(1)
+    expect(ctx.revisions.value[0].content_hash).toBe('b1')
+    expect(ctx.exports.value).toHaveLength(1)
+    expect(ctx.exports.value[0].artifact_id).toBe('b1')
+
+    // Now resolve render A — it should NOT overwrite B's state
+    resolveRenderA({
+      artifact_id: 'artifact-from-A',
+      status: 'completed',
+      format: 'pdf',
+      file_name: 'a.pdf',
+      file_size_bytes: 100,
+      file_sha256: '',
+      locale: 'zh-CN',
+      template_locale: 'zh-CN',
+      translation_catalog_version: '1.0.0',
+      translation_catalog_content_hash: 'ch',
+      localized_template_content_hash: 'lh'
+    })
+
+    // renderCall resolves but its result should have been discarded
+    await renderACall
+
+    // B's state must remain unchanged
+    expect(ctx.selectedReportId.value).toBe('B')
+    expect(ctx.selectedRevisionNumber.value).toBeNull()
+    expect(ctx.renderResult.value).toBeNull()
+
+    // B's revisions/exports must be intact
+    expect(ctx.revisions.value).toHaveLength(1)
+    expect(ctx.revisions.value[0].content_hash).toBe('b1')
+    expect(ctx.exports.value).toHaveLength(1)
+    expect(ctx.exports.value[0].artifact_id).toBe('b1')
+
+    // Loading flags must be cleared (render finished)
+    expect(ctx.renderLoading.value).toBe(false)
+    expect(ctx.revisionsLoading.value).toBe(false)
+    expect(ctx.exportsLoading.value).toBe(false)
+
+    // Verify loadExports was NOT called for report A (only 3 calls:
+    // render A, B revisions, B exports)
+    expect(mockJson).toHaveBeenCalledTimes(3)
+  })
+
   /* ── renderReport ──────────────────────────────────────────── */
 
   it('renderReport calls the API with the correct payload', async () => {

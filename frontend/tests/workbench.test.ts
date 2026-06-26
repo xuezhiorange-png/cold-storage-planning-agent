@@ -4,10 +4,12 @@ import { createMemoryHistory } from 'vue-router'
 import { createPinia } from 'pinia'
 
 import App from '../src/App.vue'
+import { usePlanningWorkflowStore } from '../src/stores/planningWorkflow'
 import { createWorkbenchRouter } from '../src/app/router'
 
 const testRouter = createWorkbenchRouter(createMemoryHistory())
 const pinia = createPinia()
+const workflowStore = usePlanningWorkflowStore(pinia)
 
 testRouter.push('/workbench/project')
 await testRouter.isReady()
@@ -22,6 +24,7 @@ function mountApp() {
 
 describe('cold storage workbench', () => {
   beforeEach(async () => {
+    workflowStore.clear()
     await testRouter.push('/workbench/project')
     await testRouter.isReady()
   })
@@ -182,5 +185,192 @@ describe('cold storage workbench', () => {
     const wrapper = mountApp()
     const header = wrapper.find('header')
     expect(header.exists()).toBe(true)
+  })
+
+  it('investment page uses backend total_investment_cny not reduce sum', async () => {
+    // Mock a response where items sum to 1,000,000 but total_investment_cny is 1,200,000
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          summary: {
+            total_area_m2: 850,
+            total_position_count: 300,
+            total_investment_cny: 1_200_000,
+            total_power_kw: 1350,
+            requires_review: false
+          },
+          zone_plan: { result: { zones: [] } },
+          investment_estimate: {
+            result: {
+              items: [
+                { item_name: '土建', amount_cny: 600_000 },
+                { item_name: '设备', amount_cny: 400_000 }
+              ]
+            }
+          },
+          power_configuration: {
+            equipment_rows: [],
+            summary_rows: [],
+            items: [],
+            total_installed_power_kw: 0,
+            total_estimated_demand_kw: 0,
+            requires_review: false
+          }
+        })
+      )
+    ) as unknown as typeof globalThis.fetch
+
+    const wrapper = mountApp()
+    // Start at project page where submit button lives
+    await testRouter.push('/workbench/project')
+    await flushPromises()
+
+    // Submit the planning run so the store has latestResponse
+    const primaryBtn = wrapper.find('.el-button--primary')
+    expect(primaryBtn.exists()).toBe(true)
+    await primaryBtn.trigger('click')
+    await flushPromises()
+
+    // Navigate to investment page which reads store.latestResponse
+    await testRouter.push('/workbench/investment')
+    await flushPromises()
+
+    // Should show 120.00 万元 (backend total), not 100.00 万元 (reduce sum)
+    const totalEl = wrapper.find('.investment-page__total')
+    expect(totalEl.text()).toContain('120.00')
+    expect(totalEl.text()).not.toContain('100.00')
+  })
+
+  it('agent shows unavailable state when no backend exists', async () => {
+    const wrapper = mountApp()
+    await flushPromises()
+
+    // Toggle button should have the unavailable class
+    const toggleBtn = wrapper.find('button.agent-panel__toggle')
+    expect(toggleBtn.classes()).toContain('agent-panel__toggle--unavailable')
+
+    // If drawer was left open from previous test, close it first
+    let existingDrawer = document.body.querySelector('.agent-panel__drawer')
+    if (existingDrawer) {
+      await toggleBtn.trigger('click')
+      await flushPromises()
+    }
+
+    // Open the drawer
+    await toggleBtn.trigger('click')
+    await flushPromises()
+
+    // Check drawer content shows unavailable message
+    const drawer = document.body.querySelector('.agent-panel__drawer')
+    expect(drawer).not.toBeNull()
+    expect(drawer!.textContent).toContain('不可用')
+    expect(drawer!.textContent).toContain('未部署')
+
+    // Close via the close button inside the drawer
+    const closeBtn = drawer!.querySelector('.agent-panel__close-btn') as HTMLElement | null
+    expect(closeBtn).not.toBeNull()
+    closeBtn!.click()
+    await flushPromises()
+
+    const closedDrawer = document.body.querySelector('.agent-panel__drawer')
+    expect(closedDrawer).toBeNull()
+  })
+
+  it('renders workflow navigation at 320px width', async () => {
+    window.innerWidth = 320
+    window.dispatchEvent(new Event('resize'))
+
+    const wrapper = mountApp()
+    const nav = wrapper.find('nav[aria-label="主流程导航"]')
+    expect(nav.exists()).toBe(true)
+    expect(nav.text()).toContain('基本信息')
+    expect(nav.text()).toContain('计算结果')
+    expect(nav.text()).toContain('方案比选')
+
+    // Restore
+    window.innerWidth = 1024
+  })
+
+  it('renders submit button visible at 375px', async () => {
+    window.innerWidth = 375
+    window.dispatchEvent(new Event('resize'))
+
+    const wrapper = mountApp()
+    const btn = wrapper.find('.el-button--primary')
+    expect(btn.exists()).toBe(true)
+    expect(btn.text()).toContain('运行规划')
+
+    window.innerWidth = 1024
+  })
+
+  it('stale request does not update store after navigating away', async () => {
+    let resolveFetch: ((value: Response) => void) | null = null
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (input: RequestInfo | URL, options?: RequestInit) => {
+        return new Promise<Response>((resolve, reject) => {
+          const signal = options?.signal
+          if (signal) {
+            if (signal.aborted) {
+              reject(new DOMException('Aborted', 'AbortError'))
+              return
+            }
+            signal.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'))
+            }, { once: true })
+          }
+          resolveFetch = resolve
+        })
+      }
+    )
+
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Submit — starts a pending request
+    const primaryButton = wrapper.find('.el-button--primary')
+    await primaryButton.trigger('click')
+    await flushPromises()
+
+    // Fetch was called and request data landed in the store
+    expect(fetchMock).toHaveBeenCalled()
+
+    // Navigate away before the API resolves (triggers onUnmounted → planner.abort)
+    await testRouter.push('/workbench/calculations')
+    await flushPromises()
+
+    // After abort + stale protection, store should not have been updated with
+    // a response or error from the aborted request
+    expect(store.latestResponse).toBeNull()
+    expect(store.error).toBe('')
+  })
+
+  it('request failure shows error on project page', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new Error('API 请求失败')
+    ) as unknown as typeof globalThis.fetch
+
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const store = usePlanningWorkflowStore(pinia)
+
+    // Submit
+    const primaryButton = wrapper.find('.el-button--primary')
+    await primaryButton.trigger('click')
+    await flushPromises()
+
+    // Store should have the error
+    expect(store.error).toBe('API 请求失败')
+    expect(store.isLoading).toBe(false)
+
+    // Error display should be visible on the project page
+    const errorDiv = wrapper.find('.project-page__error')
+    expect(errorDiv.exists()).toBe(true)
+    expect(errorDiv.text()).toContain('API 请求失败')
+    expect(errorDiv.text()).toContain('请修改输入后重试')
   })
 })

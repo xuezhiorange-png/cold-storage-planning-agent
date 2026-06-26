@@ -208,6 +208,7 @@ export function useReportExport(api: ReportsApi = reportsApi) {
     form: ExportForm
   ): Promise<void> {
     const handle = renderGate.begin()
+    const reportIdAtCallTime = reportId
     renderLoading.value = true
     renderError.value = ''
     renderResult.value = null
@@ -223,10 +224,18 @@ export function useReportExport(api: ReportsApi = reportsApi) {
       const response = await api.render(reportId, revisionNumber, body, handle.signal)
 
       if (handle.isCurrent()) {
+        // Identity check: if the user selected a different report while this
+        // render was in-flight, discard the result so we don't clobber B's state.
+        if (selectedReportId.value !== null && selectedReportId.value !== reportIdAtCallTime) return
+
         renderResult.value = response
         selectedRevisionNumber.value = revisionNumber
         renderLoading.value = false
         handle.finish() // release renderGate before refresh
+
+        // Double-check identity before loadExports — render may have resolved
+        // after a selectReport call updated selectedReportId.
+        if (selectedReportId.value !== null && selectedReportId.value !== reportIdAtCallTime) return
 
         // Refresh exports so the caller sees the newly created artifact.
         // This runs on the independent detailGate domain.

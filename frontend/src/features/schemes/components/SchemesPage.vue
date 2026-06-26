@@ -1,60 +1,27 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
+import { useSchemes } from '../composables/useSchemes'
 
-interface SchemeItem {
-  scheme_code: string
-  scheme_name: string
-  feasible: boolean
-  total_score: string
-  total_area_m2: number
-  total_position_count: number
-  room_module_count: number
-  door_count: number
-  investment_cny: number
-  installed_power_kw_e: number
-  requires_review: boolean
-}
+const { data, schemes, state, error, load } = useSchemes()
 
-interface SchemeComparisonResponse {
-  schemes: SchemeItem[]
-  recommended_scheme_code: string | null
-  weight_set_name: string
-  weight_set_status: string
-}
-
-const data = ref<SchemeComparisonResponse | null>(null)
-const loading = ref(false)
-const error = ref('')
-
-onMounted(async () => {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await fetch('/api/v1/demo/scheme-comparison')
-    if (!res.ok) {
-      error.value = '方案数据加载失败'
-      return
-    }
-    data.value = (await res.json()) as SchemeComparisonResponse
-  } catch {
-    error.value = '方案数据加载失败，请检查后端服务'
-  } finally {
-    loading.value = false
-  }
+onMounted(() => {
+  load()
 })
 
-function formatNumber(value: number): string {
+function formatNumber(value: number | null): string {
+  if (value === null) return '—'
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
-function formatWan(value: number): string {
+function formatWan(value: number | null): string {
+  if (value === null) return '—'
   return `${(value / 10000).toFixed(2)} 万元`
 }
 </script>
 
 <template>
   <div class="schemes-page">
-    <div v-if="loading" class="schemes-page__status">加载方案数据...</div>
+    <div v-if="state === 'loading'" class="schemes-page__status">加载方案数据...</div>
     <div v-if="error" class="schemes-page__error">{{ error }}</div>
 
     <template v-if="data">
@@ -190,7 +157,7 @@ function formatWan(value: number): string {
 /* ── Scheme grid ──────────────────────────────────── */
 .schemes-page__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
   gap: 16px;
 }
 

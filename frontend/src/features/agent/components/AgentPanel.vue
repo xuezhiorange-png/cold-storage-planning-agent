@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { ElButton, ElInput } from 'element-plus'
 
 import { useAgent } from '../composables/useAgent'
 
 const { isOpen, messages, loading, inputText, toggle, send, clear } = useAgent()
+
+/** No agent backend exists — hardcoded unavailable */
+const backendAvailable = ref(false)
 
 function onKeydown(event: Event): void {
   const ke = event as KeyboardEvent
@@ -20,7 +24,10 @@ function onKeydown(event: Event): void {
     <button
       class="agent-panel__toggle"
       type="button"
-      :class="{ 'agent-panel__toggle--active': isOpen }"
+      :class="{
+        'agent-panel__toggle--active': isOpen,
+        'agent-panel__toggle--unavailable': !backendAvailable
+      }"
       aria-label="切换AI助手"
       @click="toggle"
     >
@@ -31,9 +38,18 @@ function onKeydown(event: Event): void {
     <Teleport to="body">
       <Transition name="agent-slide">
         <div v-if="isOpen" class="agent-panel__overlay" @click.self="toggle">
-          <aside class="agent-panel__drawer" @click.stop>
+          <aside
+            class="agent-panel__drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="AI 助手"
+            @click.stop
+            @keydown.escape="toggle"
+          >
             <header class="agent-panel__header">
-              <strong>AI 助手</strong>
+              <strong
+                :class="{ 'agent-panel__header--disabled': !backendAvailable }"
+              >AI 助手</strong>
               <div class="agent-panel__header-actions">
                 <button
                   type="button"
@@ -50,8 +66,13 @@ function onKeydown(event: Event): void {
               </div>
             </header>
 
+            <!-- Unavailable banner -->
+            <div v-if="!backendAvailable" class="agent-panel__unavailable">
+              AI 助手当前不可用 — 后端未部署 Agent 服务
+            </div>
+
             <!-- Messages -->
-            <div class="agent-panel__messages">
+            <div v-else class="agent-panel__messages">
               <div
                 v-for="(msg, idx) in messages"
                 :key="idx"
@@ -78,7 +99,7 @@ function onKeydown(event: Event): void {
             </div>
 
             <!-- Input -->
-            <footer class="agent-panel__footer">
+            <footer v-if="backendAvailable" class="agent-panel__footer">
               <ElInput
                 v-model="inputText"
                 type="textarea"
@@ -125,6 +146,13 @@ function onKeydown(event: Event): void {
   background: #0b2a4a;
 }
 
+.agent-panel__toggle--unavailable {
+  border-color: #9ca3af;
+  background: #6b7280;
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* ── Overlay ──────────────────────────────────────── */
 .agent-panel__overlay {
   position: fixed;
@@ -160,6 +188,10 @@ function onKeydown(event: Event): void {
   font-size: 15px;
 }
 
+.agent-panel__header--disabled {
+  opacity: 0.5;
+}
+
 .agent-panel__header-actions {
   display: flex;
   gap: 8px;
@@ -182,6 +214,18 @@ function onKeydown(event: Event): void {
   color: #fff;
   font-size: 16px;
   cursor: pointer;
+}
+
+/* ── Unavailable banner ────────────────────────────── */
+.agent-panel__unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.6;
 }
 
 /* ── Messages ─────────────────────────────────────── */
