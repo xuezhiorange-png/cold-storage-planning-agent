@@ -3,11 +3,11 @@ import 'element-plus/dist/index.css'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
-import AppShell from './app/AppShell.vue'
+import App from './App.vue'
 import { router } from './app/router'
 import './style.css'
 
-const app = createApp(AppShell)
+const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(ElementPlus)
