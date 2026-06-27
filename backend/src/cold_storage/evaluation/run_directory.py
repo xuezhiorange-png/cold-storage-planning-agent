@@ -571,6 +571,7 @@ def _decode_run_context_strict(value: object) -> EvaluationRunContext:
         raise RunSummaryInvalidError(
             code="EVAL_RUN_SUMMARY_INVALID",
             message=f"started_at must include timezone offset in run.json, got '{started_at}'",
+            field="started_at",
         )
 
     # Parse scenario_ids as tuple of strings (semantic validation via shared validator below)
