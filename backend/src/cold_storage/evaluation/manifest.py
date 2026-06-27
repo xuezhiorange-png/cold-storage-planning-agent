@@ -49,6 +49,36 @@ _DEFAULT_SCHEMA_PATH = _HERE.parents[3] / "evaluation" / "manifest.schema.json"
 # Eval root for data files (fixtures, expected outputs)
 _DEFAULT_EVAL_ROOT = _HERE.parents[3] / "evaluation"  # repo root / evaluation/
 
+# Ignore rationale denylist — placeholder/generic reasons that carry no
+# meaningful justification and must be rejected.
+_IGNORE_RATIONALE_DENYLIST: set[str] = {
+    "dynamic",
+    "ignore",
+    "ignored",
+    "nondeterministic",
+    "non-deterministic",
+    "temporary",
+    "temp",
+    "unknown",
+    "n/a",
+    "na",
+    "none",
+}
+
+# Minimum meaningful rationale length after stripping.
+_MIN_RATIONALE_LENGTH = 12
+
+
+def _is_placeholder_rationale(reason: str) -> bool:
+    """Check if an ignore reason is a placeholder."""
+    stripped = reason.strip().lower()
+    if len(stripped) < _MIN_RATIONALE_LENGTH:
+        return True
+    if stripped in _IGNORE_RATIONALE_DENYLIST:
+        return True
+    # Also catch single-word reasons
+    return " " not in stripped
+
 
 def load_evaluation_manifest(
     manifest_path: str | Path,
@@ -61,10 +91,12 @@ def load_evaluation_manifest(
     Performs, in order:
     1. File existence check
     2. UTF-8 JSON decode
-    3. JSON Schema validation
-    4. Semantic validation (duplicates, conflicts)
-    5. Path safety for all references
-    6. Conversion to ``EvaluationManifest``
+    3. Pre-checks (root object, schema version)
+    4. Duplicate preflight (scenario IDs, comparison paths)
+    5. JSON Schema validation
+    6. Semantic validation (conflicts, rationale quality)
+    7. Path safety for all references
+    8. Conversion to ``EvaluationManifest``
 
     Args:
         manifest_path: Path to the manifest JSON file.
@@ -103,7 +135,27 @@ def load_evaluation_manifest(
             message=f"Manifest is not valid JSON: {exc}",
             field=str(path),
         ) from exc
-    # 3. JSON Schema validation
+
+    # 3. Pre-checks before Schema
+    if not isinstance(raw, dict):
+        raise ManifestSchemaError(
+            code="EVAL_SCHEMA_INVALID",
+            message="Manifest root must be a JSON object",
+        )
+
+    sv = raw.get("schema_version")
+    if sv not in (SCHEMA_VERSION,):
+        raise UnknownSchemaVersionError(
+            code="EVAL_SCHEMA_VERSION_UNSUPPORTED",
+            message=(f"Schema version '{sv}' is not supported. Supported: {SCHEMA_VERSION}"),
+            field="schema_version",
+        )
+
+    # 4. Duplicate preflight (before Schema to preserve dedicated error codes)
+    _preflight_duplicate_scenarios(raw)
+    _preflight_duplicate_comparison_paths(raw)
+
+    # 5. JSON Schema validation
     schema_path = _DEFAULT_SCHEMA_PATH
     if not schema_path.exists():
         raise ManifestSchemaError(
@@ -120,11 +172,68 @@ def load_evaluation_manifest(
             message="; ".join(f"[{list(e.absolute_path)}] {e.message}" for e in errors),
         )
 
-    # 4. Semantic validation
+    # 6. Semantic validation
     _validate_semantic(raw, root, require_referenced_files)
 
-    # 5. Convert to models
+    # 7. Convert to models
     return _to_manifest(raw, root, require_referenced_files)
+
+
+def _preflight_duplicate_scenarios(raw: dict[str, Any]) -> None:
+    """Check for duplicate scenario IDs before Schema validation."""
+    seen_ids: set[str] = set()
+    for scenario in raw.get("scenarios", []):
+        sid = scenario.get("scenario_id", "")
+        if sid in seen_ids:
+            raise DuplicateScenarioIdError(
+                code="EVAL_SCENARIO_ID_DUPLICATE",
+                message=f"Duplicate scenario ID: '{sid}'",
+                field=f"scenarios/{sid}",
+            )
+        if sid:
+            seen_ids.add(sid)
+
+
+def _preflight_duplicate_comparison_paths(raw: dict[str, Any]) -> None:
+    """Check for duplicate comparison policy paths before Schema validation."""
+    for sidx, scenario in enumerate(raw.get("scenarios", [])):
+        policy = scenario.get("comparison_policy", {})
+        seen_exact: set[str] = set()
+        seen_decimal: set[str] = set()
+        seen_ignored: set[str] = set()
+
+        for ridx, rule in enumerate(policy.get("exact_paths", [])):
+            p = rule.get("path", "")
+            if p in seen_exact:
+                sid = scenario.get("scenario_id", "")
+                raise DuplicateComparisonPathError(
+                    code="EVAL_COMPARISON_PATH_DUPLICATE",
+                    message=f"Duplicate exact path '{p}' in scenario '{sid}'",
+                    field=f"scenarios/{sidx}/exact_paths/{ridx}",
+                )
+            seen_exact.add(p)
+
+        for ridx, rule in enumerate(policy.get("decimal_paths", [])):
+            p = rule.get("path", "")
+            if p in seen_decimal:
+                sid = scenario.get("scenario_id", "")
+                raise DuplicateComparisonPathError(
+                    code="EVAL_COMPARISON_PATH_DUPLICATE",
+                    message=f"Duplicate decimal path '{p}' in scenario '{sid}'",
+                    field=f"scenarios/{sidx}/decimal_paths/{ridx}",
+                )
+            seen_decimal.add(p)
+
+        for ridx, rule in enumerate(policy.get("ignored_paths", [])):
+            p = rule.get("path", "")
+            if p in seen_ignored:
+                sid = scenario.get("scenario_id", "")
+                raise DuplicateComparisonPathError(
+                    code="EVAL_COMPARISON_PATH_DUPLICATE",
+                    message=f"Duplicate ignored path '{p}' in scenario '{sid}'",
+                    field=f"scenarios/{sidx}/ignored_paths/{ridx}",
+                )
+            seen_ignored.add(p)
 
 
 def validate_manifest_structure(manifest_path: str | Path) -> dict[str, Any]:
@@ -328,6 +437,16 @@ def _validate_comparison_policy(scenario_id: str, policy: dict[str, Any]) -> Non
             raise IgnorePolicyError(
                 code="EVAL_IGNORE_POLICY_INVALID",
                 message=f"Missing reason for ignored path '{p}' in scenario '{scenario_id}'",
+                field=f"scenarios/{scenario_id}/ignored_paths",
+            )
+        reason = rule.get("reason", "")
+        if _is_placeholder_rationale(reason):
+            raise IgnorePolicyError(
+                code="EVAL_IGNORE_POLICY_INVALID",
+                message=(
+                    f"Placeholder or short ignore reason '{reason}' "
+                    f"at path '{p}' in scenario '{scenario_id}'"
+                ),
                 field=f"scenarios/{scenario_id}/ignored_paths",
             )
         ignored_paths.add(p)

@@ -87,3 +87,39 @@ class RunStateError(RunDirectoryError):
 
 class CommandNotImplementedError(EvaluationError):
     """CLI command not yet implemented."""
+
+
+class RunSummaryNotFoundError(RunDirectoryError):
+    """Run summary file does not exist."""
+
+
+class RunSummaryInvalidError(RunDirectoryError):
+    """Run summary JSON is malformed."""
+
+
+class RunIdentityMismatchError(RunDirectoryError):
+    """Run summary identity does not match expected."""
+
+
+class RunManifestMismatchError(RunDirectoryError):
+    """Run summary manifest hash does not match expected."""
+
+
+class RunSummaryStatusInvalidError(RunDirectoryError):
+    """Run summary claims passed but run.json status does not match."""
+
+
+class CanonicalValueError(EvaluationError):
+    """Invalid value encountered during canonicalization."""
+
+
+class DecimalValueInvalidError(DecimalPolicyError):
+    """Decimal quantization failed due to invalid value."""
+
+
+class DecimalNonFiniteError(DecimalPolicyError):
+    """Decimal quantization received non-finite float."""
+
+
+class DecimalQuantizeFailedError(DecimalPolicyError):
+    """Decimal quantization operation failed."""
