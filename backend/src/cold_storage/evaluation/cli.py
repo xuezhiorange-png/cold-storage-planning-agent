@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 from cold_storage.evaluation.errors import (
-    CommandNotImplementedError,
     EvaluationError,
 )
 from cold_storage.evaluation.manifest import load_evaluation_manifest
@@ -55,10 +54,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Override the evaluation root directory",
     )
 
-    # run (not implemented)
-    subparsers.add_parser(
+    # run (Phase B: SQLite acceptance execution)
+    run_parser = subparsers.add_parser(
         "run",
-        help="Run an evaluation scenario (not implemented in Phase A)",
+        help="Run evaluation scenarios through the production pipeline",
+    )
+    run_parser.add_argument(
+        "--database",
+        type=str,
+        default=None,
+        help="Database backend: 'sqlite' (default: temp SQLite)",
+    )
+    run_parser.add_argument(
+        "--evaluation-root",
+        type=str,
+        default=None,
+        help="Override the evaluation root directory",
     )
 
     args = parser.parse_args(argv)
@@ -131,10 +142,27 @@ def _do_inspect(args: argparse.Namespace) -> int:
 
 
 def _do_run(args: argparse.Namespace) -> int:
-    """Stub for the run command."""
-    raise CommandNotImplementedError(
-        code="EVAL_COMMAND_NOT_IMPLEMENTED",
-        message="The 'run' command is not implemented in Phase A",
+    """Run evaluation scenarios through the production pipeline."""
+    from cold_storage.evaluation.evaluate import run_manifest
+
+    database_url: str | None = None
+    if hasattr(args, "database") and args.database == "sqlite":
+        import tempfile
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        database_url = f"sqlite:///{tmp.name}"
+        tmp.close()  # release handle so SQLAlchemy can use it
+
+    eval_root = (
+        Path(args.evaluation_root)
+        if (hasattr(args, "evaluation_root") and args.evaluation_root)
+        else None
+    )
+
+    return run_manifest(
+        Path(args.manifest),
+        database_url=database_url,
+        eval_root_override=eval_root,
     )
 
 
