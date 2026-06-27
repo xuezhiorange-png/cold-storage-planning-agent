@@ -42,7 +42,7 @@ function handleReset() {
         <p>请修改输入后重试。</p>
       </div>
 
-      <ProjectInputsPanel :onSubmit="handleSubmit" :onReset="handleReset" />
+      <ProjectInputsPanel :on-submit="handleSubmit" :on-reset="handleReset" />
     </ElCard>
   </div>
 </template>

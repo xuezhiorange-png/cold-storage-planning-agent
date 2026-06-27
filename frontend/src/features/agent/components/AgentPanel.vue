@@ -105,7 +105,9 @@ watch(isOpen, (open) => {
                   class="agent-panel__close-btn"
                   aria-label="关闭"
                   @click="close"
-                >✕</button>
+                >
+                  ✕
+                </button>
               </div>
             </header>
 

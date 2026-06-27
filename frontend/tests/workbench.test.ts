@@ -394,30 +394,45 @@ describe('cold storage workbench', () => {
     vi.useRealTimers()
   })
 
-  it('close button closes drawer', async () => {
+  it('close button closes drawer and restores focus to toggle', async () => {
+    vi.useFakeTimers()
     const wrapper = mountApp()
     await flushPromises()
 
-    await wrapper.find('button.agent-panel__toggle').trigger('click')
+    const toggleBtn = wrapper.find('button.agent-panel__toggle')
+    ;(toggleBtn.element as HTMLElement).focus()
+
+    await toggleBtn.trigger('click')
     await flushPromises()
 
     const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement
-    const closeBtn = drawer?.querySelector('.agent-panel__close-btn') as HTMLElement
+    const closeBtn = drawer.querySelector('.agent-panel__close-btn') as HTMLElement
     expect(closeBtn).not.toBeNull()
+    expect(document.activeElement).toBe(closeBtn)
+
     closeBtn.click()
     await flushPromises()
 
+    // Advance timers for focus restore
+    vi.advanceTimersByTime(150)
+    await flushPromises()
+
     expect(document.body.querySelector('.agent-panel__drawer')).toBeNull()
+    expect(document.activeElement).toBe(toggleBtn.element)
+    vi.useRealTimers()
   })
 
-  it('overlay click closes drawer', async () => {
+  it('overlay closes drawer and restores focus to toggle', async () => {
+    vi.useFakeTimers()
     const wrapper = mountApp()
     await flushPromises()
 
-    await wrapper.find('button.agent-panel__toggle').trigger('click')
+    const toggleBtn = wrapper.find('button.agent-panel__toggle')
+    ;(toggleBtn.element as HTMLElement).focus()
+
+    await toggleBtn.trigger('click')
     await flushPromises()
 
-    // Find overlay in document.body
     const overlay = document.body.querySelector('.agent-panel__overlay') as HTMLElement
     expect(overlay).not.toBeNull()
 
@@ -425,7 +440,13 @@ describe('cold storage workbench', () => {
     overlay.click()
     await flushPromises()
 
+    // Advance timers for focus restore
+    vi.advanceTimersByTime(150)
+    await flushPromises()
+
     expect(document.body.querySelector('.agent-panel__drawer')).toBeNull()
+    expect(document.activeElement).toBe(toggleBtn.element)
+    vi.useRealTimers()
   })
 
   it('navigating to schemes route shows empty state', async () => {
@@ -1019,30 +1040,108 @@ describe('narrow screen nav link clicks', () => {
     expect(invScroll.exists()).toBe(true)
   })
 
-  it('reports exports table uses table-scroll', async () => {
-    // Mock planning API for store data
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-      success: true,
-      summary: { total_area_m2: 850, total_position_count: 300, total_investment_cny: 3000000, total_power_kw: 1350, requires_review: false },
-      zone_plan: { result: { zones: [] } },
-      investment_estimate: { result: { items: [] } },
-      power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
-    })))
-    
+  it('reports exports table inside table-scroll with accessible download action', async () => {
+    // Use mockImplementation to handle sequential fetch calls across planning and reports API
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    let callCount = 0
+    fetchMock.mockImplementation((url: RequestInfo | URL) => {
+      callCount++
+      const urlStr = String(url)
+
+      // Planning API (first call)
+      if (urlStr.includes('/api/v1/demo/planning-run')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          success: true,
+          summary: { total_area_m2: 850, total_position_count: 300, total_investment_cny: 3000000, total_power_kw: 1350, requires_review: false },
+          zone_plan: { result: { zones: [] } },
+          investment_estimate: { result: { items: [] } },
+          power_configuration: { equipment_rows: [], summary_rows: [], items: [], total_installed_power_kw: 0, total_estimated_demand_kw: 0, requires_review: false }
+        })))
+      }
+
+      // Reports list (second call)
+      if (urlStr.includes('/api/v1/reports') && !urlStr.includes('/revisions') && !urlStr.includes('/exports')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          reports: [{ id: 'report-001', status: 'draft' }]
+        })))
+      }
+
+      // Revisions
+      if (urlStr.includes('/revisions')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          revisions: [{ revision_number: 1, content_hash: 'abc' }]
+        })))
+      }
+
+      // Exports
+      if (urlStr.includes('/exports')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          exports: [{
+            artifact_id: 'art-001',
+            status: 'completed',
+            format: 'pdf',
+            file_name: 'report-001-v1.pdf',
+            file_size_bytes: 24576,
+            revision_number: 1,
+            generated_at: '2026-06-27T12:00:00Z',
+            locale: 'zh-CN',
+            template_locale: 'zh-CN',
+            translation_catalog_version: '1.0',
+            translation_catalog_content_hash: 'def',
+            localized_template_content_hash: 'ghi'
+          }]
+        })))
+      }
+
+      return Promise.reject(new Error(`unexpected fetch: ${urlStr}`))
+    })
+
     const wrapper = mountApp()
     await flushPromises()
     
-    // Submit planning
+    // Submit planning to populate store
     await wrapper.find('.el-button--primary').trigger('click')
+
+    // Wait for the planning API promise + auto-navigation + reports API calls + renders
+    await new Promise(resolve => setTimeout(resolve, 50))
     await flushPromises()
     
-    // Navigate to reports
+    // Navigate directly to reports (skip intermediate calculations)
     await testRouter.push('/workbench/reports')
+    await new Promise(resolve => setTimeout(resolve, 100))
     await flushPromises()
+
+    // Try to find the report toggle after all the data has loaded
+    const reportToggle = wrapper.find('.report-export-panel__toggle')
+
+    // If the toggle doesn't exist (report didn't load), print what's on the page
+    if (!reportToggle.exists()) {
+      console.log('Page text at time of test failure:', wrapper.text().substring(0, 500))
+      // Also check what the mock received:
+      expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2)
+    }
+
+    expect(reportToggle.exists()).toBe(true)
+    await reportToggle.trigger('click')
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await flushPromises()
+
+    // The exports table should now be rendered inside .table-scroll
+    const tableScroll = wrapper.find('.table-scroll')
+    expect(tableScroll.exists()).toBe(true)
     
-    // ReportsExportPanel renders with empty state when no reports data
-    // We can verify the component mounted
-    expect(wrapper.text()).toContain('报告输出')
+    // The table within .table-scroll should contain the artifact data
+    const exportTable = wrapper.find('.report-export-panel__exports-table')
+    expect(exportTable.exists()).toBe(true)
+    expect(exportTable.text()).toContain('report-001-v1.pdf')
+    expect(exportTable.text()).toContain('PDF')
+    
+    // Download button should be accessible
+    const downloadBtn = wrapper.find('.report-export-panel__download-btn')
+    expect(downloadBtn.exists()).toBe(true)
+    expect(downloadBtn.attributes('disabled')).toBeUndefined()
+    expect(downloadBtn.text()).toContain('下载')
   })
   
   it('submit and reset buttons visible at 320, 375, and 768', async () => {
@@ -1104,15 +1203,14 @@ describe('narrow screen nav link clicks', () => {
     const drawer = document.body.querySelector('.agent-panel__drawer') as HTMLElement
     expect(drawer).not.toBeNull()
 
-    // CSS contract: the drawer must NOT exceed viewport width
-    // In jsdom we can't compute actual layout, so we verify:
-    // 1. CSS class exists
-    expect(drawer.classList.contains('agent-panel__drawer')).toBe(true)
-    // 2. The scoped CSS includes the responsive width rule
-    // (verified by static CSS analysis — the component has width: min(400px, 100vw))
-    // 3. max-width: 100vw prevents overflow (part of the grid-template-rows)
-    // NOTE: This is a CSS contract test, not a browser geometry test.
-    // Real browser verification requires Playwright.
+    // CSS contract: read the component source and verify the responsive rule exists.
+    // This is a CSS source contract, NOT a browser geometry test.
+    const { readFileSync } = await import('fs')
+    const { resolve } = await import('path')
+    // In vitest's node environment, process.cwd() is the project root
+    const source = readFileSync(resolve(process.cwd(), 'src/features/agent/components/AgentPanel.vue'), 'utf-8')
+    const normalized = source.replace(/\s+/g, ' ')
+    expect(normalized).toMatch(/\.agent-panel__drawer\s*\{[^}]*width:\s*min\(400px,\s*100vw\)/)
 
     window.innerWidth = 1024
   })

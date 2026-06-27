@@ -21,15 +21,24 @@ function formatWan(value: number | null): string {
 
 <template>
   <div class="schemes-page">
-    <div v-if="state === 'loading'" class="schemes-page__status">加载方案数据...</div>
+    <div v-if="state === 'loading'" class="schemes-page__loading-row">
+      <span>加载方案数据...</span>
+      <button
+        type="button"
+        class="schemes-page__refresh"
+        @click="load"
+      >
+        重新加载
+      </button>
+    </div>
     <div v-if="state === 'empty'" class="schemes-page__empty">暂无方案数据</div>
     <div v-if="state === 'unavailable'" class="schemes-page__unavailable" role="status">
       方案比选服务当前不可用
-      <button @click="load" class="schemes-page__retry">重试</button>
+      <button class="schemes-page__retry" @click="load">重试</button>
     </div>
     <div v-if="state === 'error'" class="schemes-page__error">
       {{ error }}
-      <button @click="load" class="schemes-page__retry">重试</button>
+      <button class="schemes-page__retry" @click="load">重试</button>
     </div>
 
     <template v-if="state === 'success' && data">
@@ -44,7 +53,9 @@ function formatWan(value: number | null): string {
           type="button"
           class="schemes-page__refresh"
           @click="load"
-        >刷新</button>
+        >
+          刷新
+        </button>
       </div>
 
       <!-- Scheme cards -->
@@ -124,6 +135,29 @@ function formatWan(value: number | null): string {
 .schemes-page__status {
   color: #5d6f84;
   font-size: 14px;
+}
+
+.schemes-page__loading-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #5d6f84;
+  font-size: 14px;
+}
+
+.schemes-page__loading-row .schemes-page__refresh {
+  padding: 4px 12px;
+  border: 1px solid #5d6f84;
+  border-radius: 4px;
+  background: #fff;
+  color: #5d6f84;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.schemes-page__loading-row .schemes-page__refresh:hover {
+  background: #f0f4f8;
 }
 
 .schemes-page__empty {

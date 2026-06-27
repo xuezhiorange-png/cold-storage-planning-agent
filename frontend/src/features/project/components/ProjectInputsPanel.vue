@@ -265,8 +265,8 @@ function fieldError(field: string): string {
         <ElButton
           type="primary"
           :loading="submitting"
-          @click="submit"
           style="width: 100%"
+          @click="submit"
         >
           {{ submitting ? '提交中...' : '运行规划' }}
         </ElButton>

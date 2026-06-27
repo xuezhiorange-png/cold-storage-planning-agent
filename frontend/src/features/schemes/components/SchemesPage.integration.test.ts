@@ -140,8 +140,48 @@ describe('SchemesPage state transitions', () => {
     expect(wrapper.text()).toContain('方案A')
   })
 
-  it('stale A success does not overwrite B success', async () => {
-    // Start in success state
+  it('stale A success does not overwrite B success — A pending, B supersedes', async () => {
+    // Start in success state with scheme A
+    mockFetchResolve(successResp([schemeA], 'A'))
+    const wrapper = mount(SchemesPage, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('方案A')
+
+    // Click refresh: A is deferred (pending)
+    let resolveA: ((v: Response) => void) | null = null
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      () => new Promise<Response>(resolve => { resolveA = resolve })
+    )
+    await wrapper.find('.schemes-page__refresh').trigger('click')
+    await flushPromises()
+    // A is pending — refresh button now shows "重新加载"
+    expect(wrapper.text()).toContain('加载方案数据')
+
+
+    // While A is pending, click "重新加载" to start B
+    let resolveB: ((v: Response) => void) | null = null
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      () => new Promise<Response>(resolve => { resolveB = resolve })
+    )
+    await wrapper.find('.schemes-page__refresh').trigger('click')
+    await flushPromises()
+
+    // B resolves first with scheme B
+    resolveB!(new Response(JSON.stringify(successResp([schemeB], 'B'))))
+    await flushPromises()
+    expect(wrapper.text()).toContain('方案B')
+    expect(wrapper.text()).not.toContain('方案A')
+
+    // A resolves after B — should NOT overwrite B
+    resolveA!(new Response(JSON.stringify(successResp([schemeA], 'A'))))
+    await flushPromises()
+    expect(wrapper.text()).toContain('方案B')
+    expect(wrapper.text()).not.toContain('方案A')
+    expect(wrapper.find('.schemes-page__error').exists()).toBe(false)
+  })
+
+  it('stale A error does not clear B success — A pending, B supersedes', async () => {
+    // Start in success state with scheme A
     mockFetchResolve(successResp([schemeA], 'A'))
     const wrapper = mount(SchemesPage, { global: { plugins: [router] } })
     await flushPromises()
@@ -155,104 +195,27 @@ describe('SchemesPage state transitions', () => {
     )
     await wrapper.find('.schemes-page__refresh').trigger('click')
     await flushPromises()
+    expect(wrapper.text()).toContain('加载方案数据')
 
-    // A is pending. Now click refresh again — this starts B.
-    // But B can't be clicked while loading (refresh button disappears).
-    // Instead, we need to resolve A first to get back to success, then immediately start B.
-    // Actually the real approach: we need the refresh button to remain during loading.
-    // But currently it disappears. Let's test what we CAN test:
-    // A deferred, resolve A, then B resolves. Verify A's data before B, B's after.
-    
-    // Resolve A
-    resolveA!(new Response(JSON.stringify(successResp([schemeA], 'A'))))
-    await flushPromises()
-    expect(wrapper.text()).toContain('方案A')
-    
-    // Now refresh: start B
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify(successResp([schemeB], 'B'))))
-    await wrapper.find('.schemes-page__refresh').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('方案B')
-  })
-
-  it('stale A error does not clear B success', async () => {
-    mockFetchResolve(successResp([schemeA], 'A'))
-    const wrapper = mount(SchemesPage, { global: { plugins: [router] } })
-    await flushPromises()
-    expect(wrapper.text()).toContain('方案A')
-
-    // Deferred A
-    let resolveA: ((v: Response) => void) | null = null
+    // While A is pending, click "重新加载" to start B
+    let resolveB: ((v: Response) => void) | null = null
     vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
-      () => new Promise<Response>(resolve => { resolveA = resolve })
-    )
-    await wrapper.find('.schemes-page__refresh').trigger('click')
-    await flushPromises()
-    
-    // Resolve A with success (the deferred one)
-    resolveA!(new Response(JSON.stringify(successResp([schemeA], 'A'))))
-    await flushPromises()
-    expect(wrapper.text()).toContain('方案A')
-    
-    // Now B: deferred A2, then B succeeds
-    let resolveA2: ((v: Response) => void) | null = null
-    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
-      () => new Promise<Response>(resolve => { resolveA2 = resolve })
+      () => new Promise<Response>(resolve => { resolveB = resolve })
     )
     await wrapper.find('.schemes-page__refresh').trigger('click')
     await flushPromises()
 
-    // A2 is now in-flight but refresh button is hidden during loading.
-    // Since we can't click refresh again from the UI, resolve A2 first.
-    // A2 was superseded by B's gate call (the gate cancelled A2's signal),
-    // so A2's resolution will be absorbed by the composable as stale.
-    // Actually, we need B to compete with A2. Let's rethink:
-    // We deferred A2. The refresh button is hidden. We need to resolve A2
-    // so the page goes back to success, then we can start B.
-
-    // Resolve A2 first (its gate was cancelled, so this resolve is stale)
-    resolveA2!(new Response(JSON.stringify(successResp([schemeA], 'A'))))
+    // B resolves first with scheme B
+    resolveB!(new Response(JSON.stringify(successResp([schemeB], 'B'))))
     await flushPromises()
-
-    // Now click refresh to start B
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify(successResp([schemeB], 'B'))))
-    await wrapper.find('.schemes-page__refresh').trigger('click')
-    await flushPromises()
-
     expect(wrapper.text()).toContain('方案B')
 
-    // Now test that a stale A error can't clear B's success.
-    // A is happening in the background (rejected), but B already succeeded.
-    // Actually this design is complex. Keep it simpler:
-    // We already verified B shows after A2 was stale-resolved.
-  })
-
-  it('stale A success does not overwrite B success', async () => {
-    mockFetchResolve(successResp([schemeA], 'A'))
-    const wrapper = mount(SchemesPage, { global: { plugins: [router] } })
+    // A rejects after B — should NOT clear B's data or show error
+    rejectA!(new Error('stale A failure'))
     await flushPromises()
-    expect(wrapper.text()).toContain('方案A')
-
-    // Deferred A
-    let resolveA: ((v: Response) => void) | null = null
-    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
-      () => new Promise<Response>(resolve => { resolveA = resolve })
-    )
-    await wrapper.find('.schemes-page__refresh').trigger('click')
-    await flushPromises()
-
-    // Resolve A so page goes back to success
-    resolveA!(new Response(JSON.stringify(successResp([schemeA], 'A'))))
-    await flushPromises()
-    expect(wrapper.text()).toContain('方案A')
-
-    // Now start B
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify(successResp([schemeB], 'B'))))
-    await wrapper.find('.schemes-page__refresh').trigger('click')
-    await flushPromises()
-
-    // B shows
     expect(wrapper.text()).toContain('方案B')
+    expect(wrapper.text()).not.toContain('方案A')
+    expect(wrapper.find('.schemes-page__error').exists()).toBe(false)
   })
 })
 
