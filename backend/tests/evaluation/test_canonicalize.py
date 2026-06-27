@@ -334,3 +334,196 @@ def test_quantize_enforces_mode() -> None:
         decimal_paths=rule,
     )
     assert result["value"] == "1.23"
+
+
+# ── P0-4: Canonical JSON type and non-finite regression tests ──────
+
+
+def test_root_tuple_rejected():
+    """Tuple as root value must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes((1, 2))  # type: ignore[arg-type]
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_nested_tuple_rejected():
+    """Tuple nested inside list must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes({"a": (1, 2)})  # type: ignore[arg-type]
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_set_rejected():
+    """Set value must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes({1, 2})  # type: ignore[arg-type]
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_decimal_rejected():
+    """Decimal value must raise CanonicalValueError."""
+    from decimal import Decimal
+
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes(Decimal("1.5"))  # type: ignore[arg-type]
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_non_string_dict_key_rejected():
+    """Non-string dict key must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes({1: "value"})  # type: ignore[arg-type]
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_root_nan_rejected():
+    """NaN as root value must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes(float("nan"))
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_infinity_rejected():
+    """Infinity value must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes(float("inf"))
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_negative_infinity_rejected():
+    """-Infinity value must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes(float("-inf"))
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_nan_in_nested_dict_rejected():
+    """NaN nested inside dict value must raise CanonicalValueError with path."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes({"value": float("nan")})
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_nan_in_list_rejected():
+    """NaN inside a list must raise CanonicalValueError."""
+    from cold_storage.evaluation.canonicalize import canonical_json_bytes
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc:
+        canonical_json_bytes([1.0, float("nan")])
+    assert exc.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+# ── P0-4: Decimal context independence tests ────────────────────────
+
+
+def test_ambient_precision_does_not_affect_quantize():
+    """Changing ambient Decimal precision must not affect quantize output."""
+    from decimal import getcontext
+
+    from cold_storage.evaluation.canonicalize import quantize_decimal_value
+
+    original_prec = getcontext().prec
+    try:
+        getcontext().prec = 2
+        result_low = quantize_decimal_value(123.456, scale=2)
+        getcontext().prec = 1000
+        result_high = quantize_decimal_value(123.456, scale=2)
+        assert result_low == result_high
+    finally:
+        getcontext().prec = original_prec
+
+
+def test_ambient_rounding_does_not_affect_quantize():
+    """Changing ambient Decimal rounding must not affect quantize output."""
+    from decimal import ROUND_DOWN, getcontext
+
+    from cold_storage.evaluation.canonicalize import quantize_decimal_value
+
+    original = getcontext().rounding
+    try:
+        getcontext().rounding = ROUND_DOWN
+        result = quantize_decimal_value(1.2345, scale=2)
+        assert result == "1.23"  # ROUND_HALF_EVEN would round to 1.23 anyway for 1.2345
+        # Use a tie to prove ROUND_HALF_EVEN vs ROUND_DOWN
+        getcontext().rounding = ROUND_DOWN
+        result_tie = quantize_decimal_value(1.235, scale=2)
+        assert result_tie == "1.24"  # ROUND_HALF_EVEN rounds 1.235 to 1.24 (even digit)
+    finally:
+        getcontext().rounding = original
+
+
+def test_scale_true_rejected():
+    """Boolean as scale must raise DecimalPolicyError."""
+    from cold_storage.evaluation.canonicalize import quantize_decimal_value
+    from cold_storage.evaluation.errors import DecimalPolicyError
+
+    with pytest.raises(DecimalPolicyError) as exc:
+        quantize_decimal_value(1.5, scale=True)  # type: ignore[arg-type]
+    assert exc.value.code == "EVAL_DECIMAL_POLICY_INVALID"
+
+
+def test_scale_negative_rejected():
+    """Negative scale must raise DecimalPolicyError."""
+    from cold_storage.evaluation.canonicalize import quantize_decimal_value
+    from cold_storage.evaluation.errors import DecimalPolicyError
+
+    with pytest.raises(DecimalPolicyError) as exc:
+        quantize_decimal_value(1.5, scale=-1)
+    assert exc.value.code == "EVAL_DECIMAL_POLICY_INVALID"
+
+
+def test_scale_too_large_rejected():
+    """Scale > 20 must raise DecimalPolicyError."""
+    from cold_storage.evaluation.canonicalize import quantize_decimal_value
+    from cold_storage.evaluation.errors import DecimalPolicyError
+
+    with pytest.raises(DecimalPolicyError) as exc:
+        quantize_decimal_value(1.5, scale=21)
+    assert exc.value.code == "EVAL_DECIMAL_POLICY_INVALID"
+
+
+def test_scale_float_rejected():
+    """Float scale must raise DecimalPolicyError."""
+    from cold_storage.evaluation.canonicalize import quantize_decimal_value
+    from cold_storage.evaluation.errors import DecimalPolicyError
+
+    with pytest.raises(DecimalPolicyError) as exc:
+        quantize_decimal_value(1.5, scale=1.5)  # type: ignore[arg-type]
+    assert exc.value.code == "EVAL_DECIMAL_POLICY_INVALID"
+
+
+def test_same_input_repeatable_hash():
+    """Same input repeated must produce same bytes/hash."""
+    from cold_storage.evaluation.canonicalize import sha256_canonical_json
+
+    h1 = sha256_canonical_json({"a": 1, "b": 2})
+    h2 = sha256_canonical_json({"b": 2, "a": 1})
+    assert h1 == h2

@@ -10,6 +10,7 @@ from cold_storage.evaluation.errors import (
     RunIdentityMismatchError,
     RunManifestMismatchError,
     RunStateError,
+    RunSummaryInvalidError,
     RunSummaryStatusInvalidError,
 )
 from cold_storage.evaluation.models import EvaluationRunSummary, RunStatus, ScenarioRunSummary
@@ -126,7 +127,8 @@ def test_summary_atomic_write(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
     rd.write_summary(ctx, summary)
     import json
 
@@ -137,9 +139,12 @@ def test_summary_atomic_write(tmp_path: Path) -> None:
 def test_stale_old_run_not_current(tmp_path: Path) -> None:
     """Stale old run summary must not satisfy new manifest hash."""
     rd = _run_dir(tmp_path)
-    ctx = rd.create_run("suite-1", 1, "oldhash" * 8, ("s1",))
+    ctx = rd.create_run(
+        "suite-1", 1, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", ("s1",)
+    )
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
     rd.write_summary(ctx, summary)
 
     # New manifest hash must not match old run — read_verified_summary should reject it
@@ -150,12 +155,17 @@ def test_stale_old_run_not_current(tmp_path: Path) -> None:
         )
 
     # A different run with a different hash should show different context
-    ctx2 = rd.create_run("suite-1", 1, "newhash" * 8, ("s1",))
+    ctx2 = rd.create_run(
+        "suite-1", 1, "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210", ("s1",)
+    )
     ctx2 = rd.transition_status(ctx2, RunStatus.RUNNING)
     import json
 
     run_data = json.loads((rd.run_dir(ctx2.run_id) / "run.json").read_text("utf-8"))
-    assert run_data["manifest_sha256"] == "newhash" * 8
+    assert (
+        run_data["manifest_sha256"]
+        == "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+    )
 
 
 def test_write_summary_rejects_mismatched_run_id(tmp_path: Path) -> None:
@@ -215,7 +225,8 @@ def test_read_verified_summary_rejects_stale_manifest_hash(tmp_path: Path) -> No
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
     rd.write_summary(ctx, summary)
 
     with pytest.raises(RunManifestMismatchError):
@@ -230,10 +241,11 @@ def test_read_verified_summary_validates_identity(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
 
     # Write a valid summary, then tamper with the run_id in the file to
     # bypass write_summary's validation so we can test read_verified_summary.
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
     rd.write_summary(ctx, summary)
 
     import json
@@ -321,24 +333,9 @@ def test_stale_context_rejected_by_persisted_run_json(tmp_path: Path) -> None:
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
 
-    # Write summary while RUNNING (allowed with RUNNING status)
-    summary = EvaluationRunSummary(
-        run_id=ctx.run_id,
-        suite_id=ctx.suite_id,
-        suite_revision=ctx.suite_revision,
-        manifest_sha256=ctx.manifest_sha256,
-        scenario_ids=ctx.scenario_ids,
-        status=RunStatus.RUNNING,
-        completed_at="2026-06-27T12:00:00+00:00",
-        code_commit_sha=ctx.code_commit_sha,
-        passed=False,
-        scenario_results=(),
-    )
-    rd.write_summary(ctx, summary)
-
     # Tamper the context (simulate stale in-memory context)
 
-    # Now try to write a PASSED summary with the stale RUNNING context
+    # Try to write a PASSED summary with a stale RUNNING context
     stale_ctx = ctx  # context still says RUNNING
     passed_summary = EvaluationRunSummary(
         run_id=stale_ctx.run_id,
@@ -350,9 +347,18 @@ def test_stale_context_rejected_by_persisted_run_json(tmp_path: Path) -> None:
         completed_at="2026-06-27T12:00:00+00:00",
         code_commit_sha=stale_ctx.code_commit_sha,
         passed=True,
-        scenario_results=(),
+        scenario_results=(
+            ScenarioRunSummary(
+                scenario_id="s1",
+                passed=True,
+                checks_total=5,
+                checks_passed=5,
+                checks_failed=0,
+            ),
+        ),
     )
-    with pytest.raises(RunSummaryStatusInvalidError):
+    # The stale context should fail when run.json is verified against context
+    with pytest.raises((RunSummaryStatusInvalidError, RunIdentityMismatchError)):
         rd.write_summary(stale_ctx, passed_summary)
 
 
@@ -361,7 +367,8 @@ def test_read_verified_summary_checks_suite_id(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
     rd.write_summary(ctx, summary)
 
     import json
@@ -407,7 +414,8 @@ def test_read_verified_summary_checks_scenario_ids(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
     rd.write_summary(ctx, summary)
 
     import json
@@ -458,7 +466,8 @@ def test_read_verified_summary_checks_status_non_passed(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
     rd.write_summary(ctx, summary)
 
     import json
@@ -491,7 +500,8 @@ def test_strict_summary_unknown_field_rejected(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
     rd.write_summary(ctx, summary)
 
     import json
@@ -515,7 +525,8 @@ def test_strict_summary_missing_required_field(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
     rd.write_summary(ctx, summary)
 
     import json
@@ -539,7 +550,8 @@ def test_strict_summary_string_as_bool_rejected(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
     rd.write_summary(ctx, summary)
 
     import json
@@ -563,7 +575,8 @@ def test_strict_summary_bool_as_int_rejected(tmp_path: Path) -> None:
     rd = _run_dir(tmp_path)
     ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
     ctx = rd.transition_status(ctx, RunStatus.RUNNING)
-    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
     rd.write_summary(ctx, summary)
 
     import json
@@ -774,7 +787,16 @@ def test_passed_status_with_false_passed_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises(
+        (
+            ValueError,
+            KeyError,
+            TypeError,
+            AssertionError,
+            RunSummaryInvalidError,
+            RunSummaryStatusInvalidError,
+        )
+    ):
         _dict_to_summary_strict(d)
 
 
@@ -793,7 +815,16 @@ def test_failed_status_with_passed_true_rejected():
         "passed": True,
         "scenario_results": [],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises(
+        (
+            ValueError,
+            KeyError,
+            TypeError,
+            AssertionError,
+            RunSummaryInvalidError,
+            RunSummaryStatusInvalidError,
+        )
+    ):
         _dict_to_summary_strict(d)
 
 
@@ -812,7 +843,16 @@ def test_aborted_status_with_passed_true_rejected():
         "passed": True,
         "scenario_results": [],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises(
+        (
+            ValueError,
+            KeyError,
+            TypeError,
+            AssertionError,
+            RunSummaryInvalidError,
+            RunSummaryStatusInvalidError,
+        )
+    ):
         _dict_to_summary_strict(d)
 
 
@@ -839,7 +879,7 @@ def test_negative_checks_total_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
 
 
@@ -866,7 +906,7 @@ def test_check_counts_not_close_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
 
 
@@ -894,7 +934,7 @@ def test_unknown_scenario_result_field_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
 
 
@@ -913,7 +953,7 @@ def test_naive_completed_at_rejected():
         "passed": False,
         "scenario_results": [],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
 
 
@@ -959,7 +999,7 @@ def test_passed_missing_scenario_result_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
 
 
@@ -986,7 +1026,7 @@ def test_passed_non_passed_scenario_result_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
 
 
@@ -1020,7 +1060,7 @@ def test_duplicate_scenario_result_rejected():
             },
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
 
 
@@ -1054,5 +1094,5 @@ def test_undeclared_scenario_result_rejected():
             },
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)

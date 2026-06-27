@@ -464,3 +464,256 @@ def test_ignored_path_uses_same_parser() -> None:
         policy,
     )
     assert result.passed
+
+
+# ── P0-5: JSONPath grammar regression tests ────────────────────────
+
+
+class TestJsonPathGrammar:
+    """JSONPath grammar must match manifest.schema.json constraints."""
+
+    def test_non_string_input_rejected(self):
+        """Non-string path_str must raise JsonPathInvalidError."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        for bad in (None, 123, True, [], {}):
+            with pytest.raises(JsonPathInvalidError) as exc:
+                parse_json_path(bad)  # type: ignore[arg-type]
+            assert exc.value.code == "EVAL_JSON_PATH_INVALID"
+
+    def test_array_index_leading_zero_rejected(self):
+        """$[01] must raise JsonPathInvalidError (leading zero)."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$[01]")
+
+    def test_array_index_positive_sign_rejected(self):
+        """$[+1] must raise JsonPathInvalidError."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$[+1]")
+
+    def test_array_index_space_rejected(self):
+        """$[ 1] must raise JsonPathInvalidError."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$[ 1]")
+
+    def test_array_index_trailing_space_rejected(self):
+        """$[1 ] must raise JsonPathInvalidError."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$[1 ]")
+
+    def test_object_key_wildcard_rejected(self):
+        """$.* must raise JsonPathInvalidError (wildcard)."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$.*")
+
+    def test_object_key_dash_rejected(self):
+        """$.-field must raise JsonPathInvalidError."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$.-field")
+
+    def test_object_key_number_prefix_rejected(self):
+        """$.1field must raise JsonPathInvalidError."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$.1field")
+
+    def test_object_key_double_dot_rejected(self):
+        """$..field must raise JsonPathInvalidError (recursive descent)."""
+        from cold_storage.evaluation.errors import JsonPathInvalidError
+        from cold_storage.evaluation.json_path import parse_json_path
+
+        with pytest.raises(JsonPathInvalidError):
+            parse_json_path("$..field")
+
+
+class TestJsonPathRoundTrip:
+    """parse + render must round-trip for all legal paths."""
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "$",
+            "$.field",
+            "$._field",
+            "$.field_1",
+            "$[0]",
+            "$.items[10]",
+            "$.matrix[0][1]",
+            "$.a.b.c",
+            "$.a[0].b[1]",
+        ],
+    )
+    def test_round_trip(self, path: str):
+        from cold_storage.evaluation.json_path import parse_json_path, render_json_path
+
+        parsed = parse_json_path(path)
+        assert parsed.raw == path
+        assert render_json_path(parsed) == path
+
+
+# ── P0-6: Malformed comparison path loader/CLI tests ───────────────
+
+
+@pytest.mark.parametrize(
+    "bad_path",
+    [
+        {"path": []},
+        {"path": {}},
+        {"path": None},
+        {"path": True},
+        {"path": 123},
+    ],
+)
+def test_malformed_exact_path_via_loader(tmp_path, bad_path):
+    """Malformed exact path must raise ManifestSchemaError via loader."""
+    import json
+
+    from cold_storage.evaluation.errors import ManifestSchemaError
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    manifest = {
+        "schema_version": "1.0",
+        "suite_id": "test",
+        "suite_revision": 1,
+        "scenarios": [
+            {
+                "scenario_id": "s1",
+                "fixture_revision": 1,
+                "expected_outcome": "success",
+                "project_input_path": "../evaluation/examples/project-input.json",
+                "document_refs": [],
+                "required_stages": [],
+                "expected_path": "../evaluation/examples/expected-output.json",
+                "provenance": {"source": "test", "rationale": "regression test"},
+                "comparison_policy": {
+                    "exact_paths": [bad_path],
+                    "decimal_paths": [],
+                    "ignored_paths": [],
+                    "artifact_checks": [],
+                },
+            }
+        ],
+    }
+    mf = tmp_path / "manifest.json"
+    mf.write_text(json.dumps(manifest), "utf-8")
+
+    with pytest.raises(ManifestSchemaError) as exc:
+        load_evaluation_manifest(str(mf))
+    assert exc.value.code == "EVAL_SCHEMA_INVALID"
+
+
+@pytest.mark.parametrize(
+    "bad_path",
+    [
+        {"path": []},
+        {"path": {}},
+        {"path": None},
+        {"path": True},
+        {"path": 123},
+    ],
+)
+def test_malformed_decimal_path_via_loader(tmp_path, bad_path):
+    """Malformed decimal path must raise ManifestSchemaError via loader."""
+    import json
+
+    from cold_storage.evaluation.errors import ManifestSchemaError
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    manifest = {
+        "schema_version": "1.0",
+        "suite_id": "test",
+        "suite_revision": 1,
+        "scenarios": [
+            {
+                "scenario_id": "s1",
+                "fixture_revision": 1,
+                "expected_outcome": "success",
+                "project_input_path": "../evaluation/examples/project-input.json",
+                "document_refs": [],
+                "required_stages": [],
+                "expected_path": "../evaluation/examples/expected-output.json",
+                "provenance": {"source": "test", "rationale": "regression test"},
+                "comparison_policy": {
+                    "exact_paths": [],
+                    "decimal_paths": [bad_path],
+                    "ignored_paths": [],
+                    "artifact_checks": [],
+                },
+            }
+        ],
+    }
+    mf = tmp_path / "manifest.json"
+    mf.write_text(json.dumps(manifest), "utf-8")
+
+    with pytest.raises(ManifestSchemaError) as exc:
+        load_evaluation_manifest(str(mf))
+    assert exc.value.code == "EVAL_SCHEMA_INVALID"
+
+
+@pytest.mark.parametrize(
+    "bad_path",
+    [
+        {"path": []},
+        {"path": {}},
+        {"path": None},
+        {"path": True},
+        {"path": 123},
+    ],
+)
+def test_malformed_ignored_path_via_loader(tmp_path, bad_path):
+    """Malformed ignored path must raise ManifestSchemaError via loader."""
+    import json
+
+    from cold_storage.evaluation.errors import ManifestSchemaError
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    manifest = {
+        "schema_version": "1.0",
+        "suite_id": "test",
+        "suite_revision": 1,
+        "scenarios": [
+            {
+                "scenario_id": "s1",
+                "fixture_revision": 1,
+                "expected_outcome": "success",
+                "project_input_path": "../evaluation/examples/project-input.json",
+                "document_refs": [],
+                "required_stages": [],
+                "expected_path": "../evaluation/examples/expected-output.json",
+                "provenance": {"source": "test", "rationale": "regression test"},
+                "comparison_policy": {
+                    "exact_paths": [],
+                    "decimal_paths": [],
+                    "ignored_paths": [bad_path],
+                    "artifact_checks": [],
+                },
+            }
+        ],
+    }
+    mf = tmp_path / "manifest.json"
+    mf.write_text(json.dumps(manifest), "utf-8")
+
+    with pytest.raises(ManifestSchemaError) as exc:
+        load_evaluation_manifest(str(mf))
+    assert exc.value.code == "EVAL_SCHEMA_INVALID"
