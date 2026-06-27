@@ -149,7 +149,7 @@ def _do_run(args: argparse.Namespace) -> int:
     if hasattr(args, "database") and args.database == "sqlite":
         import tempfile
 
-        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
         database_url = f"sqlite:///{tmp.name}"
         tmp.close()  # release handle so SQLAlchemy can use it
 

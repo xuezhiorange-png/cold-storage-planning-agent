@@ -60,7 +60,7 @@ def test_run_not_implemented() -> None:
     # Without a manifest path it should still error.
     import tempfile
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+    tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")  # noqa: SIM115
     tmp.write("{}")
     tmp.close()
     rc = main(["--manifest", str(tmp), "run"])

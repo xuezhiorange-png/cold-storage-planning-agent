@@ -10,7 +10,6 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-import tempfile
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -462,9 +461,10 @@ def run_manifest(
         "0" * 64,
         tuple(s.scenario_id for s in manifest.scenarios),
     )
-
     # Temp SQLite DB
-    tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    import tempfile
+
+    tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
     db_url = database_url or f"sqlite:///{tmp_db.name}"
 
     all_pass = True
@@ -560,8 +560,9 @@ def run_manifest(
     with contextlib.suppress(OSError):
         os.unlink(tmp_db.name)
 
+    total_passed = sum(1 for r in scenario_results if r["match"])
     print(
-        f"\nResults: {sum(1 for r in scenario_results if r['match'])}/{len(scenario_results)} passed",
+        f"\nResults: {total_passed}/{len(scenario_results)} passed",
         flush=True,
     )
     return 0 if all_pass else 1
