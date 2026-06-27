@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import uuid
@@ -383,7 +382,7 @@ def _atomic_write(path: Path, data: dict[str, Any]) -> None:
         tmp.write_bytes(content)
         # Flush and fsync for durability
         with open(tmp, "rb") as f:
-            fcntl.fsync(f.fileno())
+            os.fsync(f.fileno())
         os.replace(str(tmp), str(path))
     finally:
         if tmp.exists():

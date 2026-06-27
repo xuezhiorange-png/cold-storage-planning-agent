@@ -155,15 +155,15 @@ def resolve_path(obj: JsonValue, parsed: ParsedJsonPath) -> tuple[JsonValue, boo
     for seg in parsed.segments:
         if isinstance(seg, ObjectKeySegment):
             if not isinstance(current, dict):
-                return None, False  # type: ignore[return-value]
+                return None, False
             if seg.key not in current:
-                return None, False  # type: ignore[return-value]
+                return None, False
             current = current[seg.key]
         elif isinstance(seg, ArrayIndexSegment):
             if not isinstance(current, (list, tuple)):
-                return None, False  # type: ignore[return-value]
+                return None, False
             if seg.index < 0 or seg.index >= len(current):
-                return None, False  # type: ignore[return-value]
+                return None, False
             current = current[seg.index]
     return current, True
 
@@ -335,8 +335,8 @@ def _compare_recursive(
                 ComparisonMismatch(
                     path=path,
                     kind=ComparisonMismatchKind.ARRAY_LENGTH_MISMATCH,
-                    expected=len(expected),  # type: ignore[arg-type]
-                    actual=len(actual),  # type: ignore[arg-type]
+                    expected=str(len(expected)),
+                    actual=str(len(actual)),
                     message=(
                         f"Array length mismatch at '{path}': "
                         f"expected {len(expected)} elements, got {len(actual)}"
