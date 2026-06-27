@@ -131,3 +131,12 @@ class JsonPathInvalidError(EvaluationError):
 
 class RunIdInvalidError(RunDirectoryError):
     """Run ID has invalid format or is a path traversal attempt."""
+
+
+class RunInputInvalidError(RunDirectoryError):
+    """Invalid input to create_run or other run creation boundary.
+
+    Used for semantically invalid field values (suite_id, suite_revision,
+    manifest_sha256, scenario_ids, database_backend, code_commit_sha).
+    The ``field`` attribute identifies the offending field.
+    """
