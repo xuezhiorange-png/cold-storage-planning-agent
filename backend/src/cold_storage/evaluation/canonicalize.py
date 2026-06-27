@@ -7,14 +7,9 @@ import json
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from math import isfinite, isnan
 
-from cold_storage.evaluation.errors import (
-    DecimalPolicyError,
-)
-from cold_storage.evaluation.models import (
-    DecimalMode,
-    DecimalPathRule,
-    IgnoredPathRule,
-)
+from cold_storage.evaluation.errors import CanonicalValueError, DecimalPolicyError
+from cold_storage.evaluation.json_path import append_object_key
+from cold_storage.evaluation.models import DecimalMode, DecimalPathRule, IgnoredPathRule
 
 # JSON value: dict, list, str, int, float, bool, None
 JsonValue = dict[str, "JsonValue"] | list["JsonValue"] | str | int | float | bool | None
@@ -24,12 +19,15 @@ JsonScalar = str | int | float | bool | None
 def quantize_decimal_value(
     value: JsonScalar,
     scale: int,
+    *,
+    rule: DecimalPathRule | None = None,
 ) -> str:
     """Quantize a numeric value to a fixed-scale deterministic string.
 
     Args:
         value: The value to quantize (int, float, or numeric string).
         scale: Number of decimal places (0-20).
+        rule: Optional full DecimalPathRule to enforce mode.
 
     Returns:
         A deterministic fixed-scale string representation.
@@ -48,6 +46,14 @@ def quantize_decimal_value(
             code="EVAL_DECIMAL_VALUE_INVALID",
             message="Cannot quantize None",
             field="None",
+        )
+
+    # Enforce mode when a full rule is provided
+    if rule is not None and rule.mode != DecimalMode.QUANTIZE:
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_POLICY_INVALID",
+            message=f"Unsupported decimal mode '{rule.mode}'; only 'quantize' is supported",
+            field=rule.path,
         )
 
     # Parse to Decimal
@@ -69,14 +75,21 @@ def quantize_decimal_value(
         elif isinstance(value, int):
             d = Decimal(value)
         elif isinstance(value, str):
-            # Empty string is not valid
             if not value:
                 raise DecimalPolicyError(
                     code="EVAL_DECIMAL_VALUE_INVALID",
                     message="Cannot quantize empty string",
                     field="",
                 )
-            d = Decimal(value)
+            # Strip whitespace — Decimal("  ") would succeed but we reject it
+            stripped = value.strip()
+            if not stripped:
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_VALUE_INVALID",
+                    message="Cannot quantize whitespace-only string",
+                    field=value,
+                )
+            d = Decimal(stripped)
         else:
             raise DecimalPolicyError(
                 code="EVAL_DECIMAL_VALUE_INVALID",
@@ -90,8 +103,24 @@ def quantize_decimal_value(
             field=str(value),
         ) from exc
 
-    # Quantize with explicit rounding
-    quantized = d.quantize(Decimal(10) ** -scale, rounding=ROUND_HALF_EVEN)
+    # Check finite for all inputs (catches string "NaN", "Infinity", etc.)
+    if not d.is_finite():
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_NON_FINITE",
+            message=f"Cannot quantize non-finite value: '{value}'",
+            field=str(value),
+        )
+
+    # Quantize with explicit rounding inside a protected wrapper
+    try:
+        quantized = d.quantize(Decimal(10) ** -scale, rounding=ROUND_HALF_EVEN)
+    except (InvalidOperation, ValueError, OverflowError) as exc:
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_QUANTIZE_FAILED",
+            message=f"Quantization failed for value '{value}' at scale {scale}: {exc}",
+            field=str(value),
+        ) from exc
+
     return str(quantized)
 
 
@@ -118,7 +147,7 @@ def canonicalize_json(
         value,
         path="$",
         ignored={r.path for r in ignored_paths},
-        decimal={r.path: (r.scale, r.mode) for r in decimal_paths},
+        decimal={r.path: r for r in decimal_paths},
     )
 
 
@@ -126,8 +155,9 @@ def canonical_json_bytes(value: JsonValue) -> bytes:
     """Serialize a canonicalized JSON value to deterministic bytes.
 
     Raises:
-        TypeError: If value contains non-standard JSON types.
+        CanonicalValueError: If value contains non-standard JSON types.
     """
+    _validate_json_types(value)
     return (
         json.dumps(
             value,
@@ -148,19 +178,50 @@ def sha256_canonical_json(value: JsonValue) -> str:
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
 
 
+def _validate_json_types(value: object) -> None:
+    """Recursively verify all values are standard JSON types.
+
+    Rejects Decimal, tuple, set, datetime, custom objects, etc.
+    """
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            _validate_json_types(item)
+        return
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if not isinstance(k, str):
+                raise CanonicalValueError(
+                    code="EVAL_CANONICAL_VALUE_INVALID",
+                    message=f"Non-string dict key in JSON value: {type(k).__name__}",
+                    field=str(k),
+                )
+            _validate_json_types(v)
+        return
+    # Reject any non-JSON-compatible type
+    type_name = type(value).__name__
+    raise CanonicalValueError(
+        code="EVAL_CANONICAL_VALUE_INVALID",
+        message=f"Non-JSON-compatible type in canonical value: {type_name}",
+        field=str(value),
+    )
+
+
 def _canonicalize(
     value: JsonValue,
     path: str,
     ignored: set[str],
-    decimal: dict[str, tuple[int, DecimalMode]],
+    decimal: dict[str, DecimalPathRule],
 ) -> JsonValue:
     if path in ignored:
-        return _SENTINEL  # type: ignore[return-value]  # sentinel checked by identity
+        return _SENTINEL  # type: ignore[return-value]
 
     if isinstance(value, dict):
         result: dict[str, JsonValue] = {}
         for key in sorted(value):
-            child = _canonicalize(value[key], f"{path}.{key}", ignored, decimal)
+            child_path = append_object_key(path, key)
+            child = _canonicalize(value[key], child_path, ignored, decimal)
             if child is not _SENTINEL:  # type: ignore[comparison-overlap]
                 result[key] = child
         return result
@@ -174,9 +235,8 @@ def _canonicalize(
         return result_list
 
     if path in decimal:
-        scale, mode = decimal[path]
-        # Quantize to fixed-scale string (fail-closed for invalid values)
-        quantized = quantize_decimal_value(value, scale)
+        rule = decimal[path]
+        quantized = quantize_decimal_value(value, rule.scale, rule=rule)
         return quantized
 
     return value
