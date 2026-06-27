@@ -362,9 +362,7 @@ def test_placeholder_reason_dynamic(tmp_path: Path) -> None:
     scenario["comparison_policy"] = {
         "exact_paths": [],
         "decimal_paths": [],
-        "ignored_paths": [
-            {"path": "$.metadata.generated_at", "reason": "dynamic"}
-        ],
+        "ignored_paths": [{"path": "$.metadata.generated_at", "reason": "dynamic"}],
         "artifact_checks": [],
     }
     manifest = _make_manifest([scenario])
@@ -379,9 +377,7 @@ def test_placeholder_reason_ignore(tmp_path: Path) -> None:
     scenario["comparison_policy"] = {
         "exact_paths": [],
         "decimal_paths": [],
-        "ignored_paths": [
-            {"path": "$.metadata.generated_at", "reason": "ignore"}
-        ],
+        "ignored_paths": [{"path": "$.metadata.generated_at", "reason": "ignore"}],
         "artifact_checks": [],
     }
     manifest = _make_manifest([scenario])
@@ -396,9 +392,7 @@ def test_placeholder_reason_nondeterministic(tmp_path: Path) -> None:
     scenario["comparison_policy"] = {
         "exact_paths": [],
         "decimal_paths": [],
-        "ignored_paths": [
-            {"path": "$.metadata.generated_at", "reason": "nondeterministic"}
-        ],
+        "ignored_paths": [{"path": "$.metadata.generated_at", "reason": "nondeterministic"}],
         "artifact_checks": [],
     }
     manifest = _make_manifest([scenario])
@@ -413,9 +407,7 @@ def test_placeholder_reason_short(tmp_path: Path) -> None:
     scenario["comparison_policy"] = {
         "exact_paths": [],
         "decimal_paths": [],
-        "ignored_paths": [
-            {"path": "$.metadata.generated_at", "reason": "short"}
-        ],
+        "ignored_paths": [{"path": "$.metadata.generated_at", "reason": "short"}],
         "artifact_checks": [],
     }
     manifest = _make_manifest([scenario])
@@ -430,9 +422,7 @@ def test_placeholder_reason_single_word(tmp_path: Path) -> None:
     scenario["comparison_policy"] = {
         "exact_paths": [],
         "decimal_paths": [],
-        "ignored_paths": [
-            {"path": "$.metadata.generated_at", "reason": "testing"}
-        ],
+        "ignored_paths": [{"path": "$.metadata.generated_at", "reason": "testing"}],
         "artifact_checks": [],
     }
     manifest = _make_manifest([scenario])

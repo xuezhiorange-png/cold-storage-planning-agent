@@ -8,7 +8,6 @@ from cold_storage.evaluation.compare import (
     ArrayIndexSegment,
     ComparisonMismatchKind,
     ObjectKeySegment,
-    ParsedJsonPath,
     compare_evaluation_result,
     parse_json_path,
     resolve_path,
@@ -38,9 +37,7 @@ def _policy(
             )
             for p in (decimal or [])
         ),
-        ignored_paths=tuple(
-            IgnoredPathRule(p["path"], p["reason"]) for p in (ignored or [])
-        ),
+        ignored_paths=tuple(IgnoredPathRule(p["path"], p["reason"]) for p in (ignored or [])),
         artifact_checks=(),
     )
 

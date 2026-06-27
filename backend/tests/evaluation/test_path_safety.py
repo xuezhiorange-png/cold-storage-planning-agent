@@ -118,7 +118,7 @@ def test_symlink_same_prefix_escape_rejected(tmp_path: Path) -> None:
 
 
 def test_project_input_in_wrong_dir_rejected(tmp_path: Path) -> None:
-    """Project input in expected/ must be rejected (only fixtures/projects/ or examples/ allowed)."""
+    """Project input in expected/ rejected (only fixtures/projects/ or examples/ allowed)."""
     file_path = tmp_path / "expected" / "data.json"
     file_path.parent.mkdir(parents=True)
     file_path.write_text("{}")
@@ -131,7 +131,7 @@ def test_project_input_in_wrong_dir_rejected(tmp_path: Path) -> None:
 
 
 def test_expected_output_in_wrong_dir_rejected(tmp_path: Path) -> None:
-    """Expected output in fixtures/projects/ must be rejected (only expected/ or examples/ allowed)."""
+    """Expected output in fixtures/projects/ rejected (only expected/ or examples/ allowed)."""
     file_path = tmp_path / "fixtures" / "projects" / "data.json"
     file_path.parent.mkdir(parents=True)
     file_path.write_text("{}")
