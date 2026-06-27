@@ -362,6 +362,7 @@ def test_stale_context_rejected_by_persisted_run_json(tmp_path: Path) -> None:
     # The stale context should fail when run.json is verified against context
     with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         rd.write_summary(stale_ctx, passed_summary)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_STATUS_INVALID"
     assert exc_info.value.field == "status"
 
 
@@ -786,6 +787,7 @@ def test_passed_status_with_false_passed_rejected():
     }
     with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_STATUS_INVALID"
     assert exc_info.value.field == "status"
 
 
@@ -806,6 +808,7 @@ def test_failed_status_with_passed_true_rejected():
     }
     with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_STATUS_INVALID"
     assert exc_info.value.field == "status"
 
 
@@ -826,6 +829,7 @@ def test_aborted_status_with_passed_true_rejected():
     }
     with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_STATUS_INVALID"
     assert exc_info.value.field == "status"
 
 
@@ -854,6 +858,7 @@ def test_negative_checks_total_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "scenario_results"
 
 
@@ -882,6 +887,7 @@ def test_check_counts_not_close_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "scenario_results"
 
 
@@ -911,6 +917,7 @@ def test_unknown_scenario_result_field_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "$"
 
 
@@ -931,6 +938,7 @@ def test_naive_completed_at_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "completed_at"
 
 
@@ -978,6 +986,7 @@ def test_passed_missing_scenario_result_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "scenario_results"
 
 
@@ -1006,6 +1015,7 @@ def test_passed_non_passed_scenario_result_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "scenario_results"
 
 
@@ -1041,6 +1051,7 @@ def test_duplicate_scenario_result_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "scenario_results"
 
 
@@ -1076,6 +1087,7 @@ def test_undeclared_scenario_result_rejected():
     }
     with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
     assert exc_info.value.field == "scenario_results"
 
 
@@ -1289,8 +1301,10 @@ def test_tampered_run_json_started_at_rejected_in_write_summary(tmp_path: Path) 
     run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
 
     summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
-    with pytest.raises(RunSummaryInvalidError):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         rd.write_summary(ctx, summary)
+    assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
+    assert exc_info.value.field == "started_at"
 
 
 def test_tampered_database_backend_rejected_in_read(tmp_path: Path) -> None:

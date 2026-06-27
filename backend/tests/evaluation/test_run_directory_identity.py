@@ -459,25 +459,41 @@ class TestWriteSummaryTamper:
         ctx = rd.transition_status(ctx, RunStatus.FAILED)
         run_dir = rd.run_dir(ctx.run_id)
         # Write a valid summary first
-        valid_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
-        rd.write_summary(ctx, valid_summary)
+        original_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        rd.write_summary(ctx, original_summary)
         summary_path = run_dir / "summary.json"
         assert summary_path.exists()
         import hashlib
 
-        original_hash = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+        original_bytes = summary_path.read_bytes()
+        original_hash = hashlib.sha256(original_bytes).hexdigest()
+        # Construct a genuinely different replacement summary
+        replacement_summary = EvaluationRunSummary(
+            run_id=ctx.run_id,
+            suite_id=ctx.suite_id,
+            suite_revision=ctx.suite_revision,
+            manifest_sha256=ctx.manifest_sha256,
+            scenario_ids=ctx.scenario_ids,
+            status=RunStatus.FAILED,
+            completed_at="2026-06-27T13:00:00+00:00",
+            code_commit_sha=ctx.code_commit_sha,
+            passed=False,
+            scenario_results=(),
+        )
+        assert replacement_summary.completed_at != original_summary.completed_at
         # Tamper run.json
         raw = json.loads((run_dir / "run.json").read_text("utf-8"))
         raw["suite_id"] = " "
         (run_dir / "run.json").write_text(json.dumps(raw, indent=2), "utf-8")
-        # Attempt write_summary with slightly different summary
-        altered_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        # Attempt write_summary with different summary
         with pytest.raises(RunSummaryInvalidError) as exc_info:
-            rd.write_summary(ctx, altered_summary)
+            rd.write_summary(ctx, replacement_summary)
+        assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
         assert exc_info.value.field == "suite_id"
-        # Verify existing summary.json is unchanged
+        # Verify existing summary.json is unchanged (both hash AND bytes)
         assert summary_path.exists()
         assert hashlib.sha256(summary_path.read_bytes()).hexdigest() == original_hash
+        assert summary_path.read_bytes() == original_bytes
 
     def test_write_summary_rejects_duplicate_scenario_ids_with_existing_summary(
         self, tmp_path: Path
@@ -490,22 +506,38 @@ class TestWriteSummaryTamper:
         ctx = rd.transition_status(ctx, RunStatus.FAILED)
         run_dir = rd.run_dir(ctx.run_id)
         # Write a valid summary first
-        valid_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
-        rd.write_summary(ctx, valid_summary)
+        original_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        rd.write_summary(ctx, original_summary)
         summary_path = run_dir / "summary.json"
         assert summary_path.exists()
         import hashlib
 
-        original_hash = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+        original_bytes = summary_path.read_bytes()
+        original_hash = hashlib.sha256(original_bytes).hexdigest()
+        # Construct a genuinely different replacement summary
+        replacement_summary = EvaluationRunSummary(
+            run_id=ctx.run_id,
+            suite_id=ctx.suite_id,
+            suite_revision=ctx.suite_revision,
+            manifest_sha256=ctx.manifest_sha256,
+            scenario_ids=ctx.scenario_ids,
+            status=RunStatus.FAILED,
+            completed_at="2026-06-27T13:00:00+00:00",
+            code_commit_sha=ctx.code_commit_sha,
+            passed=False,
+            scenario_results=(),
+        )
+        assert replacement_summary.completed_at != original_summary.completed_at
         # Tamper run.json
         raw = json.loads((run_dir / "run.json").read_text("utf-8"))
         raw["scenario_ids"] = ["s1", "s1"]
         (run_dir / "run.json").write_text(json.dumps(raw, indent=2), "utf-8")
-        # Attempt write_summary with slightly different summary
-        altered_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        # Attempt write_summary with different summary
         with pytest.raises(RunSummaryInvalidError) as exc_info:
-            rd.write_summary(ctx, altered_summary)
+            rd.write_summary(ctx, replacement_summary)
+        assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
         assert exc_info.value.field == "scenario_ids[1]"
-        # Verify existing summary.json is unchanged
+        # Verify existing summary.json is unchanged (both hash AND bytes)
         assert summary_path.exists()
         assert hashlib.sha256(summary_path.read_bytes()).hexdigest() == original_hash
+        assert summary_path.read_bytes() == original_bytes
