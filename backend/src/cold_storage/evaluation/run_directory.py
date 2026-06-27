@@ -24,6 +24,9 @@ from cold_storage.evaluation.models import EvaluationRunSummary, RunStatus, Scen
 
 _VALID_RUN_ID_RE = re.compile(r"^[a-f0-9]{12}$")
 
+# Default validation/quantization constants
+_FROZEN_PRECISION = 50
+
 
 def _validate_run_id(run_id: str) -> None:
     """Validate run_id format to prevent path traversal attacks."""
@@ -35,6 +38,35 @@ def _validate_run_id(run_id: str) -> None:
             message=f"Invalid run_id format: '{run_id}' (must be 12 hex chars)",
             field="run_id",
         )
+
+
+def _resolve_run_directory(base: Path, run_id: str) -> Path:
+    """Resolve a run directory path and verify it stays under *base*.
+
+    Performs, in order:
+    1. Validate run ID format (12 hex chars).
+    2. Resolve both *base* and the candidate run directory to absolute paths.
+    3. Verify the resolved run directory is :meth:`Path.is_relative_to` *base*.
+
+    Raises:
+        EvaluationError: If run ID format is invalid or the resolved path
+            escapes the base directory.
+    """
+    _validate_run_id(run_id)
+    base_resolved = base.resolve()
+    run_resolved = (base / run_id).resolve()
+    if not run_resolved.is_relative_to(base_resolved):
+        from cold_storage.evaluation.errors import EvaluationError
+
+        raise EvaluationError(
+            code="EVAL_RUN_ID_INVALID",
+            message=(
+                f"Resolved run directory '{run_resolved}' is outside "
+                f"base directory '{base_resolved}'"
+            ),
+            field="run_id",
+        )
+    return run_resolved
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,7 +155,36 @@ class EvaluationRunDirectory:
         Valid transitions:
         - created -> running
         - running -> passed | failed | aborted
+
+        Validates run ID format, path containment, and that the run
+        directory and run.json already exist before modifying state.
         """
+        # Validate run ID and path containment
+        run_dir = _resolve_run_directory(self._base, context.run_id)
+        if not run_dir.exists():
+            raise RunStateError(
+                code="EVAL_RUN_STATE_INVALID",
+                message=f"Run directory does not exist for run '{context.run_id}'",
+            )
+
+        run_json_path = run_dir / "run.json"
+        if not run_json_path.exists():
+            raise RunStateError(
+                code="EVAL_RUN_STATE_INVALID",
+                message=f"Run metadata (run.json) not found for run '{context.run_id}'",
+            )
+
+        # Verify persisted identity matches context (prevents stale/fabricated context)
+        try:
+            run_meta: dict[str, Any] = json.loads(run_json_path.read_text("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise RunStateError(
+                code="EVAL_RUN_STATE_INVALID",
+                message=f"Run.json is invalid for run '{context.run_id}': {exc}",
+            ) from exc
+
+        _verify_context_against_run_meta(context, run_meta)
+
         allowed = self._allowed_transitions(context.status, new_status)
         if not allowed:
             raise RunStateError(
@@ -142,7 +203,7 @@ class EvaluationRunDirectory:
             database_backend=context.database_backend,
             code_commit_sha=context.code_commit_sha,
         )
-        _atomic_write(self._base / context.run_id / "run.json", _context_to_dict(updated))
+        _atomic_write(run_json_path, _context_to_dict(updated))
         return updated
 
     def write_summary(
@@ -154,6 +215,11 @@ class EvaluationRunDirectory:
 
         The write is atomic (unique temp file + fsync + os.replace).
 
+        Pre-conditions:
+        - Run directory must exist (created by create_run).
+        - ``run.json`` must exist and be valid.
+        - Persisted identity in ``run.json`` must match *context*.
+
         Identity constraints:
         - summary.run_id must equal context.run_id
         - summary.manifest_sha256 must equal context.manifest_sha256
@@ -162,15 +228,44 @@ class EvaluationRunDirectory:
         - summary.scenario_ids must equal context.scenario_ids
         - summary.status must equal context.status
         - passed=True requires summary.status == PASSED
-
-        Additionally checks that the persisted run.json status is consistent
-        with the context, preventing stale context bypass.
         """
-        if context.status not in (RunStatus.RUNNING, RunStatus.PASSED, RunStatus.FAILED):
+        if context.status not in (
+            RunStatus.RUNNING,
+            RunStatus.PASSED,
+            RunStatus.FAILED,
+            RunStatus.ABORTED,
+        ):
             raise RunStateError(
                 code="EVAL_RUN_STATE_INVALID",
                 message=f"Cannot write summary in status '{context.status.value}'",
             )
+
+        # Validate run ID and path containment
+        run_dir = _resolve_run_directory(self._base, context.run_id)
+        run_json_path = run_dir / "run.json"
+
+        # Fail closed: run.json must exist
+        if not run_json_path.exists():
+            raise RunSummaryNotFoundError(
+                code="EVAL_RUN_SUMMARY_NOT_FOUND",
+                message=f"Run metadata (run.json) not found for run '{context.run_id}'",
+            )
+        if not run_dir.exists():
+            raise RunSummaryNotFoundError(
+                code="EVAL_RUN_SUMMARY_NOT_FOUND",
+                message=f"Run directory does not exist for run '{context.run_id}'",
+            )
+
+        # Verify persisted identity matches context
+        try:
+            run_meta: dict[str, Any] = json.loads(run_json_path.read_text("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Run.json is invalid for run '{context.run_id}': {exc}",
+            ) from exc
+
+        _verify_context_against_run_meta(context, run_meta)
 
         # Validate identity
         if summary.run_id != context.run_id:
@@ -235,29 +330,6 @@ class EvaluationRunDirectory:
                 field="status",
             )
 
-        # Verify against persisted run.json to prevent stale context bypass
-        run_json_path = self._base / context.run_id / "run.json"
-        if run_json_path.exists():
-            try:
-                run_meta: dict[str, Any] = json.loads(run_json_path.read_text("utf-8"))
-            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-                raise RunSummaryInvalidError(
-                    code="EVAL_RUN_SUMMARY_INVALID",
-                    message=f"Run.json is invalid for run '{context.run_id}': {exc}",
-                ) from exc
-
-            persisted_status = run_meta.get("status")
-            if persisted_status != context.status.value:
-                raise RunSummaryStatusInvalidError(
-                    code="EVAL_RUN_SUMMARY_STATUS_INVALID",
-                    message=(
-                        f"Context status '{context.status.value}' does not match "
-                        f"persisted run.json status '{persisted_status}'; "
-                        f"stale context suspected"
-                    ),
-                    field="status",
-                )
-
         _atomic_write(
             self._base / context.run_id / "summary.json",
             _summary_to_dict(summary),
@@ -288,7 +360,7 @@ class EvaluationRunDirectory:
             RunSummaryStatusInvalidError: Summary status vs run.json inconsistency.
         """
         _validate_run_id(run_id)
-        run_dir = self._base / run_id
+        run_dir = _resolve_run_directory(self._base, run_id)
         summary_path = run_dir / "summary.json"
         run_json_path = run_dir / "run.json"
 
@@ -377,9 +449,12 @@ class EvaluationRunDirectory:
         return summary
 
     def run_dir(self, run_id: str) -> Path:
-        """Get the directory path for a given run ID."""
-        _validate_run_id(run_id)
-        return self._base / run_id
+        """Get the secure resolved directory path for a given run ID.
+
+        Validates the run ID format and ensures the resolved path stays
+        under the configured base directory.
+        """
+        return _resolve_run_directory(self._base, run_id)
 
     @staticmethod
     def _allowed_transitions(current: RunStatus, next_status: RunStatus) -> bool:
@@ -388,6 +463,52 @@ class EvaluationRunDirectory:
             RunStatus.RUNNING: {RunStatus.PASSED, RunStatus.FAILED, RunStatus.ABORTED},
         }
         return next_status in transitions.get(current, set())
+
+
+def _verify_context_against_run_meta(
+    context: EvaluationRunContext,
+    run_meta: dict[str, Any],
+) -> None:
+    """Verify that a context matches persisted run.json metadata.
+
+    Checks every identity field that should be cross-referenced.
+    Raises:
+        RunIdentityMismatchError: On any field mismatch.
+    """
+    fields_to_check = [
+        ("run_id", context.run_id, run_meta.get("run_id", "")),
+        ("suite_id", context.suite_id, run_meta.get("suite_id", "")),
+        ("suite_revision", context.suite_revision, run_meta.get("suite_revision", -1)),
+        ("manifest_sha256", context.manifest_sha256, run_meta.get("manifest_sha256", "")),
+        ("status", context.status.value, run_meta.get("status", "")),
+        ("started_at", context.started_at, run_meta.get("started_at", "")),
+    ]
+    for field_name, ctx_val, run_val in fields_to_check:
+        if ctx_val != run_val:
+            raise RunIdentityMismatchError(
+                code="EVAL_RUN_IDENTITY_MISMATCH",
+                message=(f"Context {field_name} '{ctx_val}' does not match run.json '{run_val}'"),
+                field=field_name,
+            )
+
+    # Scenario IDs
+    run_scenario_ids = tuple(run_meta.get("scenario_ids", []))
+    if context.scenario_ids != run_scenario_ids:
+        raise RunIdentityMismatchError(
+            code="EVAL_RUN_IDENTITY_MISMATCH",
+            message="Context scenario_ids differ from run.json",
+            field="scenario_ids",
+        )
+
+    # Code commit sha
+    ctx_sha = context.code_commit_sha or ""
+    run_sha = run_meta.get("code_commit_sha") or ""
+    if ctx_sha != run_sha:
+        raise RunIdentityMismatchError(
+            code="EVAL_RUN_IDENTITY_MISMATCH",
+            message=f"Context code_commit_sha '{ctx_sha}' does not match run.json '{run_sha}'",
+            field="code_commit_sha",
+        )
 
 
 def _verify_summary_against_run_meta(
@@ -575,6 +696,24 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
         else None
     )
 
+    # ── passed/status bidirectional invariant ────────────────────
+    # summary.passed == (summary.status == RunStatus.PASSED)
+    if passed and status != RunStatus.PASSED:
+        raise ValueError(f"passed=True but status is '{status.value}'")
+    if not passed and status == RunStatus.PASSED:
+        raise ValueError(f"status=PASSED but passed={passed}")
+
+    # ── completed_at must be valid ISO-8601 with UTC offset ──────
+    from datetime import datetime
+
+    if completed_at:
+        try:
+            parsed_dt = datetime.fromisoformat(completed_at)
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"Invalid completed_at format: '{completed_at}': {exc}") from exc
+        if parsed_dt.tzinfo is None or parsed_dt.utcoffset() is None:
+            raise ValueError(f"completed_at must include timezone offset, got '{completed_at}'")
+
     scenario_ids_raw = d.get("scenario_ids", [])
     if not isinstance(scenario_ids_raw, list):
         raise TypeError(f"Expected list for 'scenario_ids', got {type(scenario_ids_raw).__name__}")
@@ -592,6 +731,19 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
     for sr in scenario_results_raw:
         if not isinstance(sr, dict):
             raise TypeError(f"Expected dict for scenario_result, got {type(sr).__name__}")
+
+        # Reject unknown fields inside scenario result objects
+        _known_result_fields = {
+            "scenario_id",
+            "passed",
+            "checks_total",
+            "checks_passed",
+            "checks_failed",
+        }
+        extra = set(sr) - _known_result_fields
+        if extra:
+            raise ValueError(f"Unknown scenario result fields: {sorted(extra)}")
+
         sr_id = _expect_string(sr.get("scenario_id"), "scenario_result.scenario_id")
         if sr_id in seen_result_ids:
             raise ValueError(f"Duplicate scenario result ID: '{sr_id}'")
@@ -604,6 +756,13 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
         checks_passed = _expect_int(sr.get("checks_passed"), "scenario_result.checks_passed")
         checks_failed = _expect_int(sr.get("checks_failed"), "scenario_result.checks_failed")
 
+        # Count invariants
+        if checks_total < 0:
+            raise ValueError(f"Negative checks_total for scenario '{sr_id}': {checks_total}")
+        if checks_passed < 0:
+            raise ValueError(f"Negative checks_passed for scenario '{sr_id}': {checks_passed}")
+        if checks_failed < 0:
+            raise ValueError(f"Negative checks_failed for scenario '{sr_id}': {checks_failed}")
         if checks_passed + checks_failed != checks_total:
             raise ValueError(
                 f"Check counts do not close for scenario '{sr_id}': "
@@ -612,6 +771,11 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
         if sr_passed and checks_failed > 0:
             raise ValueError(
                 f"Scenario '{sr_id}' claims passed but has {checks_failed} failed checks"
+            )
+        # passed == (checks_failed == 0)
+        if sr_passed != (checks_failed == 0):
+            raise ValueError(
+                f"Scenario '{sr_id}' passed={sr_passed} but checks_failed={checks_failed}"
             )
 
         scenario_results_list.append(
@@ -623,6 +787,23 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
                 checks_failed=checks_failed,
             )
         )
+
+    # PASSED summary must cover all declared scenarios
+    if status == RunStatus.PASSED:
+        if len(scenario_results_list) != len(scenario_ids):
+            raise ValueError(
+                f"PASSED summary with {len(scenario_results_list)} scenario results "
+                f"expected {len(scenario_ids)}"
+            )
+        result_ids = {sr.scenario_id for sr in scenario_results_list}
+        for sid in scenario_ids:
+            if sid not in result_ids:
+                raise ValueError(f"PASSED summary missing scenario result for '{sid}'")
+        for sr in scenario_results_list:
+            if not sr.passed:
+                raise ValueError(
+                    f"PASSED summary contains non-passed scenario result: '{sr.scenario_id}'"
+                )
 
     return EvaluationRunSummary(
         run_id=run_id,
