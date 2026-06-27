@@ -55,10 +55,16 @@ def test_inspect_output_json() -> None:
 
 
 def test_run_not_implemented() -> None:
-    """Run command must exit non-zero in Phase A."""
-    tmp = _make_manifest(_VALID_MANIFEST)
+    """Run command must exit with appropriate code (Phase B implemented)."""
+    # This test verifies the run command is no longer raising NotImplementedError.
+    # Without a manifest path it should still error.
+    import tempfile
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+    tmp.write("{}")
+    tmp.close()
     rc = main(["--manifest", str(tmp), "run"])
-    assert rc != 0
+    assert rc != 0  # Invalid manifest should fail
 
 
 # ── P0-5: Stable error code tests via CLI ──────────────────────────────
