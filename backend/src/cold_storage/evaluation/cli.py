@@ -10,10 +10,7 @@ from cold_storage.evaluation.errors import (
     CommandNotImplementedError,
     EvaluationError,
 )
-from cold_storage.evaluation.manifest import (
-    load_evaluation_manifest,
-    validate_manifest_structure,
-)
+from cold_storage.evaluation.manifest import load_evaluation_manifest
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -84,14 +81,16 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _do_validate(args: argparse.Namespace) -> int:
-    """Validate manifest strictly."""
+    """Validate manifest using the authoritative single pipeline.
+
+    Routes through ``load_evaluation_manifest()`` which runs all
+    validation in the correct order (preflight → JSON Schema →
+    semantic → path safety → model conversion), preserving stable
+    error codes.
+    """
     manifest_path = Path(args.manifest)
     eval_root = Path(args.evaluation_root) if args.evaluation_root else None
 
-    # Schema + structure validation
-    validate_manifest_structure(manifest_path)
-
-    # Full semantic + model validation
     manifest = load_evaluation_manifest(
         manifest_path,
         evaluation_root=eval_root,

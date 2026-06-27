@@ -180,10 +180,34 @@ def load_evaluation_manifest(
 
 
 def _preflight_duplicate_scenarios(raw: dict[str, Any]) -> None:
-    """Check for duplicate scenario IDs before Schema validation."""
+    """Check for duplicate scenario IDs before Schema validation.
+
+    Includes defensive type checks to prevent AttributeError/TypeError
+    from malformed container shapes.
+    """
+    scenarios_raw = raw.get("scenarios")
+    if not isinstance(scenarios_raw, list):
+        raise ManifestSchemaError(
+            code="EVAL_SCHEMA_INVALID",
+            message="'scenarios' must be a list",
+            field="scenarios",
+        )
+
     seen_ids: set[str] = set()
-    for scenario in raw.get("scenarios", []):
+    for sidx, scenario in enumerate(scenarios_raw):
+        if not isinstance(scenario, dict):
+            raise ManifestSchemaError(
+                code="EVAL_SCHEMA_INVALID",
+                message=f"Scenario at index {sidx} must be an object",
+                field=f"scenarios/{sidx}",
+            )
         sid = scenario.get("scenario_id", "")
+        if not isinstance(sid, str):
+            raise ManifestSchemaError(
+                code="EVAL_SCHEMA_INVALID",
+                message=f"Scenario 'scenario_id' at index {sidx} must be a string",
+                field=f"scenarios/{sidx}/scenario_id",
+            )
         if sid in seen_ids:
             raise DuplicateScenarioIdError(
                 code="EVAL_SCENARIO_ID_DUPLICATE",
@@ -195,45 +219,68 @@ def _preflight_duplicate_scenarios(raw: dict[str, Any]) -> None:
 
 
 def _preflight_duplicate_comparison_paths(raw: dict[str, Any]) -> None:
-    """Check for duplicate comparison policy paths before Schema validation."""
-    for sidx, scenario in enumerate(raw.get("scenarios", [])):
-        policy = scenario.get("comparison_policy", {})
+    """Check for duplicate comparison policy paths before Schema validation.
+
+    Includes defensive type checks to prevent AttributeError/TypeError
+    from malformed container shapes.
+    """
+    scenarios_raw = raw.get("scenarios", [])
+    if not isinstance(scenarios_raw, list):
+        return
+
+    for sidx, scenario in enumerate(scenarios_raw):
+        if not isinstance(scenario, dict):
+            continue
+
+        policy_raw = scenario.get("comparison_policy")
+        if not isinstance(policy_raw, dict):
+            continue
+
         seen_exact: set[str] = set()
         seen_decimal: set[str] = set()
         seen_ignored: set[str] = set()
 
-        for ridx, rule in enumerate(policy.get("exact_paths", [])):
-            p = rule.get("path", "")
-            if p in seen_exact:
-                sid = scenario.get("scenario_id", "")
-                raise DuplicateComparisonPathError(
-                    code="EVAL_COMPARISON_PATH_DUPLICATE",
-                    message=f"Duplicate exact path '{p}' in scenario '{sid}'",
-                    field=f"scenarios/{sidx}/exact_paths/{ridx}",
-                )
-            seen_exact.add(p)
+        exact_paths_raw = policy_raw.get("exact_paths", [])
+        if isinstance(exact_paths_raw, list):
+            for ridx, rule in enumerate(exact_paths_raw):
+                p = rule.get("path", "") if isinstance(rule, dict) else ""
+                if p in seen_exact:
+                    sid = scenario.get("scenario_id", "")
+                    raise DuplicateComparisonPathError(
+                        code="EVAL_COMPARISON_PATH_DUPLICATE",
+                        message=f"Duplicate exact path '{p}' in scenario '{sid}'",
+                        field=f"scenarios/{sidx}/exact_paths/{ridx}",
+                    )
+                if p:
+                    seen_exact.add(p)
 
-        for ridx, rule in enumerate(policy.get("decimal_paths", [])):
-            p = rule.get("path", "")
-            if p in seen_decimal:
-                sid = scenario.get("scenario_id", "")
-                raise DuplicateComparisonPathError(
-                    code="EVAL_COMPARISON_PATH_DUPLICATE",
-                    message=f"Duplicate decimal path '{p}' in scenario '{sid}'",
-                    field=f"scenarios/{sidx}/decimal_paths/{ridx}",
-                )
-            seen_decimal.add(p)
+        decimal_paths_raw = policy_raw.get("decimal_paths", [])
+        if isinstance(decimal_paths_raw, list):
+            for ridx, rule in enumerate(decimal_paths_raw):
+                p = rule.get("path", "") if isinstance(rule, dict) else ""
+                if p in seen_decimal:
+                    sid = scenario.get("scenario_id", "")
+                    raise DuplicateComparisonPathError(
+                        code="EVAL_COMPARISON_PATH_DUPLICATE",
+                        message=f"Duplicate decimal path '{p}' in scenario '{sid}'",
+                        field=f"scenarios/{sidx}/decimal_paths/{ridx}",
+                    )
+                if p:
+                    seen_decimal.add(p)
 
-        for ridx, rule in enumerate(policy.get("ignored_paths", [])):
-            p = rule.get("path", "")
-            if p in seen_ignored:
-                sid = scenario.get("scenario_id", "")
-                raise DuplicateComparisonPathError(
-                    code="EVAL_COMPARISON_PATH_DUPLICATE",
-                    message=f"Duplicate ignored path '{p}' in scenario '{sid}'",
-                    field=f"scenarios/{sidx}/ignored_paths/{ridx}",
-                )
-            seen_ignored.add(p)
+        ignored_paths_raw = policy_raw.get("ignored_paths", [])
+        if isinstance(ignored_paths_raw, list):
+            for ridx, rule in enumerate(ignored_paths_raw):
+                p = rule.get("path", "") if isinstance(rule, dict) else ""
+                if p in seen_ignored:
+                    sid = scenario.get("scenario_id", "")
+                    raise DuplicateComparisonPathError(
+                        code="EVAL_COMPARISON_PATH_DUPLICATE",
+                        message=f"Duplicate ignored path '{p}' in scenario '{sid}'",
+                        field=f"scenarios/{sidx}/ignored_paths/{ridx}",
+                    )
+                if p:
+                    seen_ignored.add(p)
 
 
 def validate_manifest_structure(manifest_path: str | Path) -> dict[str, Any]:
@@ -286,9 +333,7 @@ def _validate_semantic(
         )
 
     seen_ids: set[str] = set()
-    scenarios = raw.get("scenarios", [])
-
-    for scenario in scenarios:
+    for sidx, scenario in enumerate(raw.get("scenarios", [])):
         sid = scenario.get("scenario_id", "")
         if sid in seen_ids:
             raise DuplicateScenarioIdError(
@@ -334,6 +379,23 @@ def _validate_semantic(
                 root,
                 require_files,
                 reference_kind=EvaluationReferenceKind.DOCUMENT,
+            )
+
+        # Provenance semantic validation
+        prov = scenario.get("provenance", {})
+        prov_source = prov.get("source", "") if isinstance(prov, dict) else ""
+        prov_rationale = prov.get("rationale", "") if isinstance(prov, dict) else ""
+        if not prov_source.strip():
+            raise ManifestSemanticError(
+                code="EVAL_SCHEMA_INVALID",
+                message=f"Empty or whitespace-only provenance source in scenario '{sid}'",
+                field=f"scenarios/{sidx}/provenance/source",
+            )
+        if not prov_rationale.strip():
+            raise ManifestSemanticError(
+                code="EVAL_SCHEMA_INVALID",
+                message=f"Empty or whitespace-only provenance rationale in scenario '{sid}'",
+                field=f"scenarios/{sidx}/provenance/rationale",
             )
 
 
