@@ -598,3 +598,461 @@ def test_invalid_run_id_path_traversal_rejected(tmp_path: Path) -> None:
             expected_manifest_sha256="a" * 64,
         )
     assert exc_info.value.code == "EVAL_RUN_ID_INVALID"
+
+
+# ── P0-A: Write-path containment tests ─────────────────────────────
+
+
+def test_transition_rejects_nonexistent_run_directory(tmp_path: Path) -> None:
+    """transition_status must reject a run whose directory does not exist."""
+    from cold_storage.evaluation.errors import RunStateError
+    from cold_storage.evaluation.models import RunStatus
+
+    rd = _run_dir(tmp_path)
+    fake_ctx = EvaluationRunContext(
+        run_id="abcdef123456",
+        suite_id="suite-1",
+        suite_revision=1,
+        manifest_sha256="a" * 64,
+        started_at="2026-06-27T12:00:00+00:00",
+        status=RunStatus.CREATED,
+        scenario_ids=("s1",),
+    )
+    with pytest.raises(RunStateError):
+        rd.transition_status(fake_ctx, RunStatus.RUNNING)
+
+
+def test_transition_rejects_missing_run_json(tmp_path: Path) -> None:
+    """transition_status must reject a run with no run.json."""
+    from cold_storage.evaluation.errors import RunStateError
+    from cold_storage.evaluation.models import RunStatus
+
+    rd = _run_dir(tmp_path)
+    run_id = "abcdef123456"
+    (tmp_path / "runs" / run_id).mkdir(parents=True)
+    fake_ctx = EvaluationRunContext(
+        run_id=run_id,
+        suite_id="suite-1",
+        suite_revision=1,
+        manifest_sha256="a" * 64,
+        started_at="2026-06-27T12:00:00+00:00",
+        status=RunStatus.CREATED,
+        scenario_ids=("s1",),
+    )
+    with pytest.raises(RunStateError):
+        rd.transition_status(fake_ctx, RunStatus.RUNNING)
+
+
+def test_fabricated_context_transition_rejected(tmp_path: Path) -> None:
+    """Fabricated context with run_id=../outside must be rejected by transition_status."""
+    from cold_storage.evaluation.errors import EvaluationError
+    from cold_storage.evaluation.models import RunStatus
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+
+    bad_ctx = EvaluationRunContext(
+        run_id="../outside",
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        started_at=ctx.started_at,
+        status=RunStatus.RUNNING,
+        scenario_ids=ctx.scenario_ids,
+    )
+    with pytest.raises(EvaluationError) as exc_info:
+        rd.transition_status(bad_ctx, RunStatus.PASSED)
+    assert exc_info.value.code == "EVAL_RUN_ID_INVALID"
+
+
+def test_fabricated_context_write_summary_rejected(tmp_path: Path) -> None:
+    """Fabricated context with run_id=../outside must be rejected by write_summary."""
+    from cold_storage.evaluation.errors import EvaluationError
+    from cold_storage.evaluation.models import RunStatus
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+
+    bad_ctx = EvaluationRunContext(
+        run_id="../outside",
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        started_at=ctx.started_at,
+        status=RunStatus.RUNNING,
+        scenario_ids=ctx.scenario_ids,
+    )
+    bad_summary = EvaluationRunSummary(
+        run_id="../outside",
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        scenario_ids=ctx.scenario_ids,
+        status=RunStatus.RUNNING,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha=ctx.code_commit_sha,
+        passed=False,
+        scenario_results=(),
+    )
+    with pytest.raises(EvaluationError) as exc_info:
+        rd.write_summary(bad_ctx, bad_summary)
+    assert exc_info.value.code == "EVAL_RUN_ID_INVALID"
+
+
+def test_absolute_run_id_rejected(tmp_path: Path) -> None:
+    """Absolute path as run ID must be rejected."""
+    from cold_storage.evaluation.errors import EvaluationError
+
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError) as exc_info:
+        rd.run_dir("/tmp/outside")
+    assert exc_info.value.code == "EVAL_RUN_ID_INVALID"
+
+
+def test_slash_containing_run_id_rejected(tmp_path: Path) -> None:
+    """Run ID with slash must be rejected."""
+    from cold_storage.evaluation.errors import EvaluationError
+
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError) as exc_info:
+        rd.run_dir("abcd/1234")
+    assert exc_info.value.code == "EVAL_RUN_ID_INVALID"
+
+
+# ── P0-B: Summary invariant tests ──────────────────────────────────
+
+
+def test_passed_summary_empty_scenario_results_rejected(tmp_path: Path) -> None:
+    """PASSED summary with empty scenario_results must be rejected."""
+    from cold_storage.evaluation.errors import RunSummaryInvalidError
+    from cold_storage.evaluation.models import RunStatus
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+
+    empty_summary = EvaluationRunSummary(
+        run_id=ctx.run_id,
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        scenario_ids=ctx.scenario_ids,
+        status=RunStatus.PASSED,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha=ctx.code_commit_sha,
+        passed=True,
+        scenario_results=(),
+    )
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
+        rd.write_summary(ctx, empty_summary)
+    assert "EVAL_RUN_SUMMARY_INVALID" in str(exc_info.value)
+
+
+def test_passed_status_with_false_passed_rejected():
+    """status=PASSED with passed=False must raise ValueError in strict conversion."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "passed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": False,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": True,
+                "checks_total": 5,
+                "checks_passed": 5,
+                "checks_failed": 0,
+            }
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_failed_status_with_passed_true_rejected():
+    """passed=True with status=FAILED must raise ValueError in strict conversion."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "failed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": True,
+        "scenario_results": [],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_aborted_status_with_passed_true_rejected():
+    """ABORTED status with passed=True must raise ValueError in strict conversion."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "aborted",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": True,
+        "scenario_results": [],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_negative_checks_total_rejected():
+    """Negative checks_total must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "failed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": False,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": False,
+                "checks_total": -1,
+                "checks_passed": 0,
+                "checks_failed": 0,
+            }
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_check_counts_not_close_rejected():
+    """checks_passed + checks_failed != checks_total must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "failed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": False,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": False,
+                "checks_total": 10,
+                "checks_passed": 5,
+                "checks_failed": 3,
+            }
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_unknown_scenario_result_field_rejected():
+    """Unknown field inside scenario result must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "failed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": False,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": False,
+                "checks_total": 5,
+                "checks_passed": 0,
+                "checks_failed": 5,
+                "_unknown": "extra",
+            }
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_naive_completed_at_rejected():
+    """completed_at without timezone offset must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "failed",
+        "completed_at": "2026-06-27T12:00:00",
+        "passed": False,
+        "scenario_results": [],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_offset_aware_completed_at_accepted():
+    """completed_at with valid UTC offset must be accepted."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "failed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": False,
+        "scenario_results": [],
+    }
+    summary = _dict_to_summary_strict(d)
+    assert summary.completed_at == "2026-06-27T12:00:00+00:00"
+
+
+def test_passed_missing_scenario_result_rejected():
+    """PASSED summary missing a declared scenario must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1", "s2"],
+        "status": "passed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": True,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": True,
+                "checks_total": 5,
+                "checks_passed": 5,
+                "checks_failed": 0,
+            }
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_passed_non_passed_scenario_result_rejected():
+    """PASSED summary with non-passed scenario result must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "passed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": True,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": False,
+                "checks_total": 5,
+                "checks_passed": 3,
+                "checks_failed": 2,
+            }
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_duplicate_scenario_result_rejected():
+    """Duplicate scenario result ID must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "passed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": True,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": True,
+                "checks_total": 5,
+                "checks_passed": 5,
+                "checks_failed": 0,
+            },
+            {
+                "scenario_id": "s1",
+                "passed": True,
+                "checks_total": 5,
+                "checks_passed": 5,
+                "checks_failed": 0,
+            },
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
+
+
+def test_undeclared_scenario_result_rejected():
+    """Scenario result with undeclared scenario_id must raise ValueError."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "suite-1",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "passed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": True,
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": True,
+                "checks_total": 5,
+                "checks_passed": 5,
+                "checks_failed": 0,
+            },
+            {
+                "scenario_id": "s2",
+                "passed": True,
+                "checks_total": 5,
+                "checks_passed": 5,
+                "checks_failed": 0,
+            },
+        ],
+    }
+    with pytest.raises((ValueError, KeyError, TypeError, AssertionError)):
+        _dict_to_summary_strict(d)
