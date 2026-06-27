@@ -1096,3 +1096,246 @@ def test_undeclared_scenario_result_rejected():
     }
     with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
         _dict_to_summary_strict(d)
+
+
+# ── P0-1: Summary root type validation through public API ────────────────
+
+
+@pytest.mark.parametrize("root_value", [[], "summary", 123, True, None])
+def test_read_verified_summary_rejects_non_dict_root(tmp_path: Path, root_value: object) -> None:
+    """read_verified_summary must reject non-dict root values."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    serialized = json.dumps(root_value, indent=2)
+    summary_path.write_text(serialized, "utf-8")
+
+    with pytest.raises(RunSummaryInvalidError) as exc:
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+    assert exc.value.code == "EVAL_RUN_SUMMARY_INVALID"
+
+
+# ── P0-2: write-time code_commit_sha identity check ──────────────────────
+
+
+def test_write_summary_rejects_code_commit_sha_mismatch(tmp_path: Path) -> None:
+    """write_summary must reject summary with different code_commit_sha."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run(
+        "suite-1",
+        1,
+        "a" * 64,
+        ("s1",),
+        code_commit_sha="abc123",
+    )
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+
+    summary = EvaluationRunSummary(
+        run_id=ctx.run_id,
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        scenario_ids=ctx.scenario_ids,
+        status=RunStatus.FAILED,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha="different-sha",
+        passed=False,
+        scenario_results=(),
+    )
+    with pytest.raises(RunIdentityMismatchError) as exc:
+        rd.write_summary(ctx, summary)
+    assert exc.value.code == "EVAL_RUN_IDENTITY_MISMATCH"
+    assert exc.value.field == "code_commit_sha"
+    assert not (rd.run_dir(ctx.run_id) / "summary.json").exists()
+
+
+def test_write_summary_rejects_code_commit_sha_none_vs_str(tmp_path: Path) -> None:
+    """None != specific sha must be rejected."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run(
+        "suite-1",
+        1,
+        "a" * 64,
+        ("s1",),
+        code_commit_sha=None,
+    )
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+
+    summary = EvaluationRunSummary(
+        run_id=ctx.run_id,
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        scenario_ids=ctx.scenario_ids,
+        status=RunStatus.FAILED,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha="some-sha",
+        passed=False,
+        scenario_results=(),
+    )
+    with pytest.raises(RunIdentityMismatchError) as exc:
+        rd.write_summary(ctx, summary)
+    assert exc.value.code == "EVAL_RUN_IDENTITY_MISMATCH"
+    assert exc.value.field == "code_commit_sha"
+
+
+# ── P0-3: Persisted run.json strict semantics ───────────────────────────
+
+
+def test_strict_decoder_rejects_empty_started_at(tmp_path: Path) -> None:
+    """Empty started_at in run.json must be rejected."""
+    from cold_storage.evaluation.run_directory import _load_run_json_strict, _resolve_run_directory
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    import json
+
+    run_json_path = _resolve_run_directory(rd._base, ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["started_at"] = ""
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    with pytest.raises(RunSummaryInvalidError):
+        _load_run_json_strict(_resolve_run_directory(rd._base, ctx.run_id), ctx.run_id)
+
+
+def test_strict_decoder_rejects_naive_started_at(tmp_path: Path) -> None:
+    """started_at without timezone in run.json must be rejected."""
+    from cold_storage.evaluation.run_directory import _load_run_json_strict, _resolve_run_directory
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    import json
+
+    run_json_path = _resolve_run_directory(rd._base, ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["started_at"] = "2026-06-27T12:00:00"
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    with pytest.raises(RunSummaryInvalidError):
+        _load_run_json_strict(_resolve_run_directory(rd._base, ctx.run_id), ctx.run_id)
+
+
+def test_strict_decoder_rejects_suite_revision_zero(tmp_path: Path) -> None:
+    """suite_revision 0 in run.json must be rejected."""
+    from cold_storage.evaluation.run_directory import _load_run_json_strict, _resolve_run_directory
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    import json
+
+    run_json_path = _resolve_run_directory(rd._base, ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["suite_revision"] = 0
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    with pytest.raises(RunSummaryInvalidError):
+        _load_run_json_strict(_resolve_run_directory(rd._base, ctx.run_id), ctx.run_id)
+
+
+def test_strict_decoder_rejects_duplicate_scenario_ids(tmp_path: Path) -> None:
+    """Duplicate scenario IDs in run.json must be rejected."""
+    from cold_storage.evaluation.run_directory import _load_run_json_strict, _resolve_run_directory
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    import json
+
+    run_json_path = _resolve_run_directory(rd._base, ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["scenario_ids"] = ["s1", "s1"]
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    with pytest.raises(RunSummaryInvalidError):
+        _load_run_json_strict(_resolve_run_directory(rd._base, ctx.run_id), ctx.run_id)
+
+
+def test_strict_decoder_rejects_empty_scenario_id(tmp_path: Path) -> None:
+    """Empty scenario ID in run.json must be rejected."""
+    from cold_storage.evaluation.run_directory import _load_run_json_strict, _resolve_run_directory
+
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    import json
+
+    run_json_path = _resolve_run_directory(rd._base, ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["scenario_ids"] = ["s1", ""]
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    with pytest.raises(RunSummaryInvalidError):
+        _load_run_json_strict(_resolve_run_directory(rd._base, ctx.run_id), ctx.run_id)
+
+
+def test_tampered_run_json_started_at_rejected_in_transition(tmp_path: Path) -> None:
+    """transition_status must reject tampered started_at in run.json."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    import json
+
+    run_json_path = rd.run_dir(ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["started_at"] = ""
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    with pytest.raises(RunStateError):
+        rd.transition_status(ctx, RunStatus.RUNNING)
+
+
+def test_tampered_run_json_started_at_rejected_in_write_summary(tmp_path: Path) -> None:
+    """write_summary must reject tampered started_at in run.json."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    import json
+
+    run_json_path = rd.run_dir(ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["started_at"] = "2026-06-27T12:00:00"
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+    with pytest.raises((RunStateError, RunSummaryInvalidError)):
+        rd.write_summary(ctx, summary)
+
+
+def test_tampered_database_backend_rejected_in_read(tmp_path: Path) -> None:
+    """read_verified_summary must reject tampered database_backend in run.json."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run(
+        "suite-1",
+        1,
+        "a" * 64,
+        ("s1",),
+        database_backend="postgresql",
+    )
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.FAILED)
+    summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    run_json_path = rd.run_dir(ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["database_backend"] = "mysql"
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    with pytest.raises(RunSummaryInvalidError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )

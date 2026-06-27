@@ -527,3 +527,139 @@ def test_same_input_repeatable_hash():
     h1 = sha256_canonical_json({"a": 1, "b": 2})
     h2 = sha256_canonical_json({"b": 2, "a": 1})
     assert h1 == h2
+
+
+# ── P0-6: Decimal ambient context isolation ─────────────────────────────
+
+
+class TestDecimalAmbientContextIsolation:
+    """quantize_decimal_value must be immune to ambient Decimal context changes."""
+
+    INPUT = 12.345
+    SCALE = 2
+    EXPECTED = "12.34"  # ROUND_HALF_EVEN on 12.345 → 12.34
+    NON_FINITE = float("inf")
+
+    def _check_consistent(self) -> None:
+        """Assert consistent result across repeated calls."""
+        result = quantize_decimal_value(self.INPUT, self.SCALE)
+        assert result == self.EXPECTED
+
+    def test_default_context(self) -> None:
+        """Works with default ambient context."""
+        self._check_consistent()
+
+    def test_ambient_prec_2(self) -> None:
+        """Works with ambient precision=2."""
+        from decimal import getcontext
+
+        ctx = getcontext()
+        original = ctx.prec
+        try:
+            ctx.prec = 2
+            self._check_consistent()
+        finally:
+            ctx.prec = original
+
+    def test_ambient_prec_1000(self) -> None:
+        """Works with ambient precision=1000."""
+        from decimal import getcontext
+
+        ctx = getcontext()
+        original = ctx.prec
+        try:
+            ctx.prec = 1000
+            self._check_consistent()
+        finally:
+            ctx.prec = original
+
+    def test_ambient_rounding_changed(self) -> None:
+        """Works with ambient rounding changed."""
+        from decimal import ROUND_DOWN, getcontext
+
+        ctx = getcontext()
+        original = ctx.rounding
+        try:
+            ctx.rounding = ROUND_DOWN
+            self._check_consistent()
+        finally:
+            ctx.rounding = original
+
+    def test_ambient_emax_changed(self) -> None:
+        """Works with ambient Emax changed."""
+        from decimal import getcontext
+
+        ctx = getcontext()
+        original = ctx.Emax
+        try:
+            ctx.Emax = 10
+            self._check_consistent()
+        finally:
+            ctx.Emax = original
+
+    def test_ambient_emin_changed(self) -> None:
+        """Works with ambient Emin changed."""
+        from decimal import getcontext
+
+        ctx = getcontext()
+        original = ctx.Emin
+        try:
+            ctx.Emin = -10
+            self._check_consistent()
+        finally:
+            ctx.Emin = original
+
+    def test_ambient_clamp_changed(self) -> None:
+        """Works with ambient clamp changed."""
+        from decimal import getcontext
+
+        ctx = getcontext()
+        original = ctx.clamp
+        try:
+            ctx.clamp = 1
+            self._check_consistent()
+        finally:
+            ctx.clamp = original
+
+    def test_ambient_invalid_operation_trap_disabled(self) -> None:
+        """Works with InvalidOperation trap disabled in ambient."""
+        from decimal import InvalidOperation, getcontext
+
+        ctx = getcontext()
+        original_traps = ctx.traps.copy()
+        try:
+            ctx.traps[InvalidOperation] = False
+            self._check_consistent()
+        finally:
+            ctx.traps.update(original_traps)
+
+    def test_non_finite_consistent_error(self) -> None:
+        """NaN/Infinity raises stable error regardless of ambient context."""
+        from decimal import getcontext
+
+        original = getcontext().prec
+        try:
+            getcontext().prec = 1000
+            with pytest.raises(DecimalPolicyError) as exc:
+                quantize_decimal_value(self.NON_FINITE, self.SCALE)
+            assert exc.value.code == "EVAL_DECIMAL_NON_FINITE"
+        finally:
+            getcontext().prec = original
+
+    def test_context_flags_isolated(self) -> None:
+        """Flags from a prior call must not affect the next call."""
+        from decimal import InvalidOperation
+
+        from cold_storage.evaluation.canonicalize import _EVALUATION_DECIMAL_CONTEXT
+
+        # Deliberately trigger an InvalidOperation in a separate context
+        bad_ctx = _EVALUATION_DECIMAL_CONTEXT.copy()
+        try:
+            from decimal import Decimal
+
+            Decimal("bad").quantize(Decimal("0.01"), context=bad_ctx)
+        except InvalidOperation:
+            pass  # expected
+        # Now check that _EVALUATION_DECIMAL_CONTEXT copy clears flags
+        result = quantize_decimal_value(self.INPUT, self.SCALE)
+        assert result == self.EXPECTED

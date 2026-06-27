@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 from pathlib import Path
+
+import pytest
 
 from cold_storage.evaluation.cli import main
 
@@ -150,3 +153,76 @@ def test_cli_duplicate_exact_path_code(tmp_path: Path) -> None:
         sys.stderr = old_stderr
     assert rc != 0
     assert "EVAL_COMPARISON_PATH_DUPLICATE" in stderr.getvalue()
+
+
+# ── P0-5: CLI malformed path tests ──────────────────────────────────────
+
+
+@pytest.fixture
+def _malformed_manifest(request: pytest.FixtureRequest, tmp_path: Path) -> Path:
+    """Build a minimal manifest with a malformed path at the given rule type."""
+    rule_type: str = request.param[0]
+    bad_value: object = request.param[1]
+    manifest = {
+        "schema_version": "1.0",
+        "suite_id": "cli-test",
+        "suite_revision": 1,
+        "scenarios": [{"id": "test-scenario", "comparisons": []}],
+        "comparison": {
+            "exact_paths": [],
+            "decimal_paths": [],
+            "ignored_paths": [],
+        },
+    }
+    key_map = {"exact": "exact_paths", "decimal": "decimal_paths", "ignored": "ignored_paths"}
+    manifest["comparison"][key_map[rule_type]] = [{"path": bad_value}]
+    if rule_type == "decimal":
+        manifest["comparison"]["decimal_paths"][0]["scale"] = 2  # type: ignore[index]
+    p = tmp_path / "manifest.json"
+    import json
+
+    p.write_text(json.dumps(manifest, indent=2), "utf-8")
+    return p
+
+
+@pytest.mark.parametrize(
+    "_malformed_manifest",
+    [
+        ("exact", []),
+        ("exact", {}),
+        ("exact", None),
+        ("exact", True),
+        ("exact", 123),
+        ("decimal", []),
+        ("decimal", {}),
+        ("decimal", None),
+        ("decimal", True),
+        ("decimal", 123),
+        ("ignored", []),
+        ("ignored", {}),
+        ("ignored", None),
+        ("ignored", True),
+        ("ignored", 123),
+    ],
+    indirect=True,
+)
+def test_cli_malformed_path_rejected(_malformed_manifest: Path) -> None:
+    """CLI must reject malformed comparison paths in all three rule types."""
+    import io
+
+    from cold_storage.evaluation.cli import main
+
+    stderr = io.StringIO()
+    old_stderr = sys.stderr
+    try:
+        sys.stderr = stderr
+        rc = main(["--manifest", str(_malformed_manifest), "validate"])
+    finally:
+        sys.stderr = old_stderr
+    assert rc != 0
+    err_text = stderr.getvalue()
+    assert "EVAL_SCHEMA_INVALID" in err_text, f"Got: {err_text}"
+    assert "Traceback" not in err_text
+    assert "TypeError" not in err_text
+    assert "AttributeError" not in err_text
+    assert "KeyError" not in err_text
