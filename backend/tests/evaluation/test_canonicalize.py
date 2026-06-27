@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
+
 from cold_storage.evaluation.canonicalize import (
     canonical_json_bytes,
     canonicalize_json,
+    quantize_decimal_value,
     sha256_canonical_json,
 )
+from cold_storage.evaluation.errors import DecimalPolicyError
 from cold_storage.evaluation.models import (
     DecimalPathRule,
     IgnoredPathRule,
@@ -37,7 +41,7 @@ def test_unicode_serialization_stable() -> None:
 
 
 def test_decimal_quantize() -> None:
-    """Decimal quantization must produce exact values."""
+    """Decimal quantization must produce fixed-scale strings."""
     rule = (
         DecimalPathRule(
             path="$.value",
@@ -51,7 +55,61 @@ def test_decimal_quantize() -> None:
         {"value": 123.456},
         decimal_paths=rule,
     )
-    assert result["value"] == 123.46
+    assert result["value"] == "123.46"
+
+
+def test_fixed_scale() -> None:
+    """Decimal quantization must preserve trailing zeros."""
+    rule = (
+        DecimalPathRule(
+            path="$.value",
+            mode="quantize",
+            scale=2,
+            unit="m2",
+            rationale="test",
+        ),
+    )
+    result = canonicalize_json(
+        {"value": 1.2},
+        decimal_paths=rule,
+    )
+    assert result["value"] == "1.20"
+
+
+def test_scale_zero() -> None:
+    """Scale=0 must produce an integer string."""
+    rule = (
+        DecimalPathRule(
+            path="$.value",
+            mode="quantize",
+            scale=0,
+            unit="count",
+            rationale="test",
+        ),
+    )
+    result = canonicalize_json(
+        {"value": 1},
+        decimal_paths=rule,
+    )
+    assert result["value"] == "1"
+
+
+def test_numeric_string_rounding() -> None:
+    """ROUND_HALF_EVEN: 1.205 at scale=2 must round to 1.20, not 1.21."""
+    rule = (
+        DecimalPathRule(
+            path="$.value",
+            mode="quantize",
+            scale=2,
+            unit="m2",
+            rationale="test",
+        ),
+    )
+    result = canonicalize_json(
+        {"value": "1.205"},
+        decimal_paths=rule,
+    )
+    assert result["value"] == "1.20"
 
 
 def test_float_bool_not_confused() -> None:
@@ -106,7 +164,7 @@ def test_hash_differs_when_value_changes() -> None:
 
 
 def test_decimal_not_applied_to_bool() -> None:
-    """Decimal quantization must not alter bool values."""
+    """Decimal quantization must reject bool values at decimal paths."""
     rule = (
         DecimalPathRule(
             path="$.flag",
@@ -116,8 +174,57 @@ def test_decimal_not_applied_to_bool() -> None:
             rationale="test",
         ),
     )
+    with pytest.raises(DecimalPolicyError):
+        canonicalize_json(
+            {"flag": True},
+            decimal_paths=rule,
+        )
+
+
+def test_quantize_rejects_bool() -> None:
+    """quantize_decimal_value must reject boolean values."""
+    with pytest.raises(DecimalPolicyError):
+        quantize_decimal_value(True, 2)
+
+
+def test_quantize_rejects_none() -> None:
+    """quantize_decimal_value must reject None."""
+    with pytest.raises(DecimalPolicyError):
+        quantize_decimal_value(None, 2)
+
+
+def test_quantize_rejects_nan() -> None:
+    """quantize_decimal_value must reject NaN."""
+    with pytest.raises(DecimalPolicyError):
+        quantize_decimal_value(float("nan"), 2)
+
+
+def test_quantize_rejects_inf() -> None:
+    """quantize_decimal_value must reject infinity."""
+    with pytest.raises(DecimalPolicyError):
+        quantize_decimal_value(float("inf"), 2)
+
+
+def test_quantize_rejects_neg_inf() -> None:
+    """quantize_decimal_value must reject negative infinity."""
+    with pytest.raises(DecimalPolicyError):
+        quantize_decimal_value(float("-inf"), 2)
+
+
+def test_scale_20() -> None:
+    """Scale=20 must produce a fixed-scale string with 20 decimal places."""
+    rule = (
+        DecimalPathRule(
+            path="$.value",
+            mode="quantize",
+            scale=20,
+            unit="precision",
+            rationale="test",
+        ),
+    )
     result = canonicalize_json(
-        {"flag": True},
+        {"value": 3.141592653589793},
         decimal_paths=rule,
     )
-    assert result["flag"] is True
+    # The value is quantized to 20 decimal places.
+    assert result["value"] == "3.14159265358979300000"
