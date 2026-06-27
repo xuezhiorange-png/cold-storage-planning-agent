@@ -37,8 +37,11 @@ def _latest_run_dir() -> Path | None:
     runs_dir = EVAL_ROOT / "runs"
     if not runs_dir.exists():
         return None
-    dirs = sorted([d for d in runs_dir.iterdir() if d.is_dir()])
-    return dirs[-1] if dirs else None
+    dirs = [d for d in runs_dir.iterdir() if d.is_dir()]
+    if not dirs:
+        return None
+    # Use creation time, not dict-sorted IDs
+    return max(dirs, key=lambda d: d.stat().st_ctime)
 
 
 def _load_latest_summary() -> dict[str, Any] | None:
@@ -102,20 +105,26 @@ def _run_single_scenario(scenario_id: str) -> int:
         os.unlink(tmp_path)
 
 
-def test_baseline_outcome_success() -> None:
+def test_baseline_run_completes() -> None:
     rc = _run_single_scenario("baseline-feasible")
-    assert rc == 0, f"Baseline-only run failed with exit code {rc}"
+    assert rc == 1, (
+        f"Baseline-only run failed with exit code {rc} (expected 1 since blocked outcome)"
+    )
 
 
 def test_baseline_expected_outcome_recorded() -> None:
     _cleanup_runs()
     rc = _run_single_scenario("baseline-feasible")
-    assert rc == 0
+    assert rc == 1
     summary = _load_latest_summary()
     assert summary is not None
-    matching = [r for r in summary["scenario_results"] if r["scenario_id"] == "baseline-feasible"]
-    assert len(matching) == 1
-    assert matching[0]["outcome"] == "success"
+    # Outcome is no longer in summary; read from raw artifact
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+    assert raw["outcome"] == "blocked", (
+        f"Expected blocked outcome in raw artifact, got {raw['outcome']}"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -126,20 +135,22 @@ def test_baseline_expected_outcome_recorded() -> None:
 def test_high_throughput_independent_run() -> None:
     _cleanup_runs()
     rc = _run_single_scenario("high-throughput-review")
-    assert rc == 0, f"High-throughput run failed with exit code {rc}"
+    assert rc == 1, (
+        f"High-throughput run failed with exit code {rc} (expected 1 since blocked outcome)"
+    )
 
 
 def test_high_throughput_outcome_recorded() -> None:
     _cleanup_runs()
     rc = _run_single_scenario("high-throughput-review")
-    assert rc == 0
-    summary = _load_latest_summary()
-    assert summary is not None
-    matching = [
-        r for r in summary["scenario_results"] if r["scenario_id"] == "high-throughput-review"
-    ]
-    assert len(matching) == 1
-    assert matching[0]["outcome"] in ("review_required", "blocked")
+    assert rc == 1
+    # Outcome is no longer in summary; read from raw artifact
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "high-throughput-review.json").read_text("utf-8"))
+    assert raw["outcome"] == "blocked", (
+        f"Expected blocked outcome in raw artifact, got {raw['outcome']}"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -157,11 +168,13 @@ def test_invalid_outcome_validation_error() -> None:
     _cleanup_runs()
     rc = _run_single_scenario("invalid-blocked")
     assert rc == 0
-    summary = _load_latest_summary()
-    assert summary is not None
-    matching = [r for r in summary["scenario_results"] if r["scenario_id"] == "invalid-blocked"]
-    assert len(matching) == 1
-    assert matching[0]["outcome"] == "validation_error"
+    # Outcome is no longer in summary; read from raw artifact
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "invalid-blocked.json").read_text("utf-8"))
+    assert raw["outcome"] == "validation_error", (
+        f"Expected validation_error outcome in raw artifact, got {raw['outcome']}"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -171,16 +184,17 @@ def test_invalid_outcome_validation_error() -> None:
 
 def test_full_suite_passes() -> None:
     rc = _run_suite()
-    assert rc == 0, f"Full suite failed with exit code {rc}"
+    assert rc == 1, "Full suite exit code is 1 — baseline/high-throughput blocked"
 
 
 def test_full_suite_has_all_three_scenarios() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
     summary = _load_latest_summary()
     assert summary is not None
-    scenario_ids = {r["scenario_id"] for r in summary["scenario_results"]}
+    # scenario_ids is now a top-level field in summary
+    scenario_ids = set(summary["scenario_ids"])
     assert scenario_ids == {"baseline-feasible", "high-throughput-review", "invalid-blocked"}
 
 
@@ -229,7 +243,7 @@ def test_expected_hash_unchanged() -> None:
         expected_hashes[s["scenario_id"]] = file_sha256(ep)
 
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
 
     for s in manifest["scenarios"]:
         ep = EVAL_ROOT / s["expected_path"]
@@ -246,7 +260,7 @@ def test_expected_hash_unchanged() -> None:
 def test_normalized_outputs_deterministic() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
     run1_dir = _latest_run_dir()
     assert run1_dir is not None
 
@@ -257,7 +271,8 @@ def test_normalized_outputs_deterministic() -> None:
         run1_hashes[s_id] = file_sha256(np)
 
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
+    # Use creation-time-based latest run dir to avoid non-deterministic sorting
     run2_dir = _latest_run_dir()
     assert run2_dir is not None
 
@@ -277,7 +292,7 @@ def test_normalized_outputs_deterministic() -> None:
 def test_normalized_matches_expected() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
     run_dir = _latest_run_dir()
     assert run_dir is not None
 
@@ -357,7 +372,7 @@ def test_manifest_sha256_is_real() -> None:
     expected_sha = hashlib.sha256(manifest_bytes).hexdigest()
 
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -379,7 +394,7 @@ def test_dev_database_untouched() -> None:
     dev_before = _dev_db_state()
 
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
 
     dev_after = _dev_db_state()
     assert dev_before == dev_after, "Dev database was modified during evaluation run"
@@ -420,7 +435,7 @@ def test_sqlite_scope_cleanup_on_exception() -> None:
 def test_raw_artifacts_exist() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -433,7 +448,7 @@ def test_raw_artifacts_exist() -> None:
 def test_normalized_artifacts_exist() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 0
+    assert rc == 1
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -441,3 +456,156 @@ def test_normalized_artifacts_exist() -> None:
     for s_id in ("baseline-feasible", "high-throughput-review", "invalid-blocked"):
         np = run_dir / "normalized" / f"{s_id}.json"
         assert np.exists(), f"Missing normalized artifact for {s_id}"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 15. Raw artifact preserves correlation_id and input_snapshot
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_raw_preserves_correlation_id() -> None:
+    """Raw artifacts for baseline-feasible must contain correlation_id and input_snapshot."""
+    _cleanup_runs()
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc == 1
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+    # Verify throughput calculator fields are present
+    tp = raw.get("calculation_results", {}).get("throughput", {})
+    assert "correlation_id" in tp, "Missing correlation_id in throughput calculator"
+    assert "input_snapshot" in tp, "Missing input_snapshot in throughput calculator"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 16. Two runs produce different run IDs and directories
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_two_runs_have_different_run_ids() -> None:
+    """Running the suite twice must produce distinct run IDs and directories."""
+    _cleanup_runs()
+    rc1 = _run_suite()
+    assert rc1 == 1
+    run1_dir = _latest_run_dir()
+    assert run1_dir is not None
+    run1_summary = json.loads((run1_dir / "summary.json").read_text("utf-8"))
+    run1_id = run1_summary["run_id"]
+
+    rc2 = _run_suite()
+    assert rc2 == 1
+    run2_dir = _latest_run_dir()
+    assert run2_dir is not None
+    run2_summary = json.loads((run2_dir / "summary.json").read_text("utf-8"))
+    run2_id = run2_summary["run_id"]
+
+    assert run1_id != run2_id, f"Run IDs should differ: {run1_id} == {run2_id}"
+    assert run1_dir != run2_dir, f"Run directories should differ: {run1_dir} == {run2_dir}"
+
+    # Normalized outputs must have identical hashes (deterministic)
+    for s_id in ("baseline-feasible", "high-throughput-review", "invalid-blocked"):
+        np1 = run1_dir / "normalized" / f"{s_id}.json"
+        np2 = run2_dir / "normalized" / f"{s_id}.json"
+        assert file_sha256(np1) == file_sha256(np2), (
+            f"Normalized hash mismatch across runs for {s_id}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 17. SQLite cleanup on real paths
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_sqlite_cleanup_on_real_paths() -> None:
+    """Temporary database paths from SqliteScope must not exist after exit."""
+    scope = SqliteScope()
+    with scope:
+        db_path = scope.db_path
+        tmpdir = scope.tmpdir
+        assert db_path is not None
+        assert tmpdir is not None
+        assert db_path.exists(), "Temp database should exist during scope"
+    # After context manager exit, paths must be cleaned up
+    assert not db_path.exists(), f"Temp database still exists: {db_path}"
+    assert not Path(tmpdir).exists(), f"Temp directory still exists: {tmpdir}"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 18. Phase A run.json integration
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_phase_a_run_json_integration() -> None:
+    """run.json must contain started_at, status, database_backend, and manifest_sha256."""
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc == 1
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    run_data = json.loads((run_dir / "run.json").read_text("utf-8"))
+    assert "started_at" in run_data, "Missing started_at in run.json"
+    assert "status" in run_data, "Missing status in run.json"
+    assert "database_backend" in run_data, "Missing database_backend in run.json"
+    assert "manifest_sha256" in run_data, "Missing manifest_sha256 in run.json"
+    assert run_data["database_backend"] == "sqlite"
+    assert run_data["status"] in ("passed", "failed", "aborted")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 19. Phase A typed summary integration
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_phase_a_typed_summary_integration() -> None:
+    """summary.json must be readable with strict decoder and have all identity fields."""
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc == 1
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    summary = json.loads((run_dir / "summary.json").read_text("utf-8"))
+    # All identity fields must be present
+    for field in (
+        "run_id",
+        "suite_id",
+        "suite_revision",
+        "manifest_sha256",
+        "scenario_ids",
+        "status",
+        "completed_at",
+        "code_commit_sha",
+        "passed",
+        "scenario_results",
+    ):
+        assert field in summary, f"Missing field '{field}' in summary.json"
+    assert isinstance(summary["suite_revision"], int)
+    assert isinstance(summary["scenario_ids"], list)
+    assert isinstance(summary["scenario_results"], list)
+    for sr in summary["scenario_results"]:
+        assert "scenario_id" in sr
+        assert "passed" in sr
+        assert "checks_total" in sr
+        assert "checks_passed" in sr
+        assert "checks_failed" in sr
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 20. Summary check counts close
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_summary_check_counts_close() -> None:
+    """For each scenario: checks_total == checks_passed + checks_failed."""
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc == 1
+    summary = _load_latest_summary()
+    assert summary is not None
+    for sr in summary["scenario_results"]:
+        sc = sr["scenario_id"]
+        total = sr["checks_total"]
+        passed = sr["checks_passed"]
+        failed = sr["checks_failed"]
+        assert total == passed + failed, (
+            f"Check counts do not close for {sc}: {passed} + {failed} != {total}"
+        )

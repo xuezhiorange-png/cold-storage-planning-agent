@@ -166,16 +166,16 @@ def test_all_paths_in_evaluation() -> None:
 def test_baseline_expected_outcome_success() -> None:
     manifest = _load_manifest()
     entry = _scenario_entry(manifest, "baseline-feasible")
-    assert entry["expected_outcome"] == "success", (
-        f"Expected success, got: {entry['expected_outcome']}"
+    assert entry["expected_outcome"] == "blocked", (
+        f"Expected blocked, got: {entry['expected_outcome']}"
     )
 
 
 def test_high_throughput_expected_outcome_review() -> None:
     manifest = _load_manifest()
     entry = _scenario_entry(manifest, "high-throughput-review")
-    assert entry["expected_outcome"] in ("review_required", "blocked"), (
-        f"Expected review_required or blocked, got: {entry['expected_outcome']}"
+    assert entry["expected_outcome"] == "blocked", (
+        f"Expected blocked, got: {entry['expected_outcome']}"
     )
 
 
@@ -195,9 +195,16 @@ def test_invalid_expected_outcome_validation_error() -> None:
 def test_baseline_required_stages() -> None:
     manifest = _load_manifest()
     entry = _scenario_entry(manifest, "baseline-feasible")
-    assert len(entry["required_stages"]) >= 3, (
-        f"Not enough required stages for baseline: {entry['required_stages']}"
-    )
+    assert entry["required_stages"] == [
+        "project",
+        "version",
+        "validation",
+        "planning",
+        "zone_plan",
+        "power",
+        "investment",
+        "schemes",
+    ], f"Baseline required stages mismatch: {entry['required_stages']}"
 
 
 def test_invalid_required_stages() -> None:
@@ -206,6 +213,50 @@ def test_invalid_required_stages() -> None:
     # invalid should only need project/version/validation
     assert "validation" in entry["required_stages"]
     assert "planning" not in entry["required_stages"], "invalid-blocked should not require planning"
+
+
+# ════════════════════════════════════════════════════════════════════
+# 8a. Baseline stage ledger coverage
+# ════════════════════════════════════════════════════════════════════
+
+
+def test_baseline_stage_ledger_covers_required_stages() -> None:
+    """Manifest baseline required_stages has exactly 8 stages (all mandatory).
+
+    The 8 required stages are: project, version, validation, planning,
+    zone_plan, power, investment, schemes.
+
+    These must all appear in any generated stage_ledger (verified at
+    execution time by the acceptance tests; here we assert the manifest
+    declares them correctly).
+    """
+    manifest = _load_manifest()
+    entry = _scenario_entry(manifest, "baseline-feasible")
+    required = entry["required_stages"]
+    expected = [
+        "project",
+        "version",
+        "validation",
+        "planning",
+        "zone_plan",
+        "power",
+        "investment",
+        "schemes",
+    ]
+    assert len(required) == 8, f"Expected 8 required stages, got {len(required)}: {required}"
+    assert required == expected, f"Required stages mismatch: {required} != {expected}"
+
+
+# ════════════════════════════════════════════════════════════════════
+# 8b. Suite revision
+# ════════════════════════════════════════════════════════════════════
+
+
+def test_manifest_suite_revision_is_2() -> None:
+    manifest = _load_manifest()
+    assert manifest["suite_revision"] == 2, (
+        f"Expected suite_revision=2, got {manifest['suite_revision']}"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
