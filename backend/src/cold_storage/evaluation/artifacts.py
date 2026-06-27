@@ -3,16 +3,19 @@
 Each run directory contains::
 
     evaluation/runs/<run-id>/
-    ├── run.json              # Run-level metadata
-    ├── raw/                  # Raw production service outputs
+    ├── run.json              # Managed by EvaluationRunDirectory (Phase A contract)
+    ├── raw/                  # Raw production service outputs (this module)
     │   ├── baseline-feasible.json
     │   ├── high-throughput-review.json
     │   └── invalid-blocked.json
-    ├── normalized/           # Normalized comparison artefacts
+    ├── normalized/           # Canonicalized comparison artefacts (this module)
     │   ├── baseline-feasible.json
     │   ├── high-throughput-review.json
     │   └── invalid-blocked.json
-    └── summary.json          # Run summary (written last)
+    └── summary.json          # Managed by EvaluationRunDirectory.write_summary (Phase A contract)
+
+This module is responsible ONLY for raw/ and normalized/ artifacts.
+run.json and summary.json are managed exclusively by EvaluationRunDirectory.
 """
 
 from __future__ import annotations
@@ -21,14 +24,6 @@ import json
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
-
-
-def write_run_json(run_dir: Path, run_data: dict[str, Any]) -> Path:
-    """Write run.json with deterministic key ordering."""
-    path = run_dir / "run.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    _write_json(path, run_data)
-    return path
 
 
 def write_raw(scenario_id: str, run_dir: Path, raw_data: dict[str, Any]) -> Path:
@@ -43,7 +38,7 @@ def write_raw(scenario_id: str, run_dir: Path, raw_data: dict[str, Any]) -> Path
 def write_normalized(
     scenario_id: str,
     run_dir: Path,
-    normalized: dict[str, Any],
+    normalized: Any,
 ) -> Path:
     """Write normalized comparison artefact for a scenario."""
     dir_path = run_dir / "normalized"
@@ -53,14 +48,7 @@ def write_normalized(
     return path
 
 
-def write_summary_json(run_dir: Path, summary: dict[str, Any]) -> Path:
-    """Write summary.json with deterministic key ordering."""
-    path = run_dir / "summary.json"
-    _write_json(path, summary)
-    return path
-
-
-def _write_json(path: Path, data: dict[str, Any]) -> None:
+def _write_json(path: Path, data: Any) -> None:
     """Write JSON with consistent formatting: sorted keys, trailing newline."""
     text = json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False)
     path.write_text(text + "\n", encoding="utf-8")
