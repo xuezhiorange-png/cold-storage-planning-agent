@@ -8,12 +8,10 @@ import math
 from decimal import (
     ROUND_HALF_EVEN,
     Clamped,
+    Context,
     Decimal,
-    Inexact,
     InvalidOperation,
     Overflow,
-    Rounded,
-    localcontext,
 )
 from math import isfinite, isnan
 
@@ -25,9 +23,18 @@ from cold_storage.evaluation.models import DecimalMode, DecimalPathRule, Ignored
 JsonValue = dict[str, "JsonValue"] | list["JsonValue"] | str | int | float | bool | None
 JsonScalar = str | int | float | bool | None
 
-# Frozen precision for Decimal quantization — sufficient for all allowed scales.
-_FROZEN_PRECISION = 50
-_FROZEN_ROUNDING = ROUND_HALF_EVEN
+# Frozen Decimal context for deterministic evaluation quantization.
+# Created from scratch (not from getcontext()) so ambient settings cannot
+# leak in.  Every parameter is explicitly set.
+_EVALUATION_DECIMAL_CONTEXT = Context(
+    prec=50,
+    rounding=ROUND_HALF_EVEN,
+    Emin=-999,
+    Emax=999,
+    capitals=1,
+    clamp=0,
+    traps=[Clamped, Overflow, InvalidOperation],
+)
 
 
 def quantize_decimal_value(
@@ -84,24 +91,6 @@ def quantize_decimal_value(
             field=rule.path,
         )
 
-    # Guard against huge exponent that could cause unbounded resource use
-    if isinstance(value, (int, float)):
-        try:
-            exponent = math.floor(math.log10(abs(float(value)))) if value else 0
-        except (ValueError, OverflowError):
-            raise DecimalPolicyError(
-                code="EVAL_DECIMAL_QUANTIZE_FAILED",
-                message=f"Cannot determine magnitude for value '{value}'",
-                field=str(value),
-            ) from None
-        max_exponent = 100
-        if exponent > max_exponent:
-            raise DecimalPolicyError(
-                code="EVAL_DECIMAL_QUANTIZE_FAILED",
-                message=f"Value '{value}' has exponent {exponent} exceeding max {max_exponent}",
-                field=str(value),
-            )
-
     # Parse to Decimal
     try:
         if isinstance(value, float):
@@ -117,8 +106,38 @@ def quantize_decimal_value(
                     message=f"Cannot quantize non-finite float: {value}",
                     field=str(value),
                 )
+            # Magnitude check for float (after finite check)
+            try:
+                exponent = math.floor(math.log10(abs(value))) if value else 0
+            except (ValueError, OverflowError):
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_QUANTIZE_FAILED",
+                    message=f"Cannot determine magnitude for value '{value}'",
+                    field=str(value),
+                ) from None
+            if exponent > 100:
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_QUANTIZE_FAILED",
+                    message=f"Value '{value}' has exponent {exponent} exceeding max 100",
+                    field=str(value),
+                )
             d = Decimal(str(value))
         elif isinstance(value, int):
+            # Magnitude check for int
+            try:
+                exponent = math.floor(math.log10(abs(float(value)))) if value else 0
+            except (ValueError, OverflowError):
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_QUANTIZE_FAILED",
+                    message=f"Cannot determine magnitude for value '{value}'",
+                    field=str(value),
+                ) from None
+            if exponent > 100:
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_QUANTIZE_FAILED",
+                    message=f"Value '{value}' has exponent {exponent} exceeding max 100",
+                    field=str(value),
+                )
             d = Decimal(value)
         elif isinstance(value, str):
             if not value:
@@ -157,25 +176,24 @@ def quantize_decimal_value(
             field=str(value),
         )
 
-    # Quantize inside a frozen localcontext so ambient Decimal settings
-    # (precision, rounding, traps) cannot change the result.
+    # Quantize inside a frozen Context (not localcontext — localcontext
+    # copies ambient settings like Emax/Emin).
     try:
-        with localcontext() as ctx:
-            ctx.prec = _FROZEN_PRECISION
-            ctx.rounding = _FROZEN_ROUNDING
-            ctx.traps[Clamped] = True
-            ctx.traps[Overflow] = True
-            # Inexact / Rounded are informational; we keep them enabled to
-            # detect unexpected precision loss.
-            ctx.traps[Inexact] = False
-            ctx.traps[Rounded] = False
-            quantized = d.quantize(Decimal(10) ** -scale, context=ctx)
+        quantized = d.quantize(Decimal(10) ** -scale, context=_EVALUATION_DECIMAL_CONTEXT)
     except (InvalidOperation, ValueError, OverflowError) as exc:
         raise DecimalPolicyError(
             code="EVAL_DECIMAL_QUANTIZE_FAILED",
             message=f"Quantization failed for value '{value}' at scale {scale}: {exc}",
             field=str(value),
         ) from exc
+
+    # Post-quantize finite check — guard against trap misconfiguration
+    if not quantized.is_finite():
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_NON_FINITE",
+            message=f"Quantization produced non-finite result for value '{value}' at scale {scale}",
+            field=str(value),
+        )
 
     return str(quantized)
 
