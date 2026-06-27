@@ -330,6 +330,36 @@ class EvaluationRunDirectory:
                 field="status",
             )
 
+        # PASSED summary must cover all declared scenarios
+        if summary.status == RunStatus.PASSED:
+            if len(summary.scenario_results) != len(summary.scenario_ids):
+                raise RunSummaryInvalidError(
+                    code="EVAL_RUN_SUMMARY_INVALID",
+                    message=(
+                        f"PASSED summary with {len(summary.scenario_results)} "
+                        f"scenario results, expected {len(summary.scenario_ids)}"
+                    ),
+                    field="scenario_results",
+                )
+            result_ids = {sr.scenario_id for sr in summary.scenario_results}
+            for sid in summary.scenario_ids:
+                if sid not in result_ids:
+                    raise RunSummaryInvalidError(
+                        code="EVAL_RUN_SUMMARY_INVALID",
+                        message=f"PASSED summary missing scenario result for '{sid}'",
+                        field="scenario_results",
+                    )
+            for sr in summary.scenario_results:
+                if not sr.passed:
+                    raise RunSummaryInvalidError(
+                        code="EVAL_RUN_SUMMARY_INVALID",
+                        message=(
+                            f"PASSED summary contains non-passed scenario "
+                            f"result: '{sr.scenario_id}'"
+                        ),
+                        field="scenario_results",
+                    )
+
         _atomic_write(
             self._base / context.run_id / "summary.json",
             _summary_to_dict(summary),
