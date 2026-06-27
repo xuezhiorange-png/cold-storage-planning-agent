@@ -5,12 +5,14 @@ from __future__ import annotations
 import pytest
 
 from cold_storage.evaluation.compare import (
-    ArrayIndexSegment,
     ComparisonMismatchKind,
-    ObjectKeySegment,
     compare_evaluation_result,
+)
+from cold_storage.evaluation.json_path import (
+    ArrayIndexSegment,
+    ObjectKeySegment,
     parse_json_path,
-    resolve_path,
+    resolve_json_path,
 )
 from cold_storage.evaluation.models import (
     ComparisonPolicy,
@@ -150,14 +152,7 @@ def test_decimal_quantize_success() -> None:
 
 
 def test_decimal_mismatch() -> None:
-    """Decimal mismatch beyond tolerance must fail.
-
-    Note: the canonicalisation step quantises both values to fixed-scale
-    strings.  The recursive comparison then sees two different strings and
-    reports EXACT_MISMATCH (not DECIMAL_MISMATCH) because the path format
-    inside the recursive walker (``$area``) differs from the policy path
-    format (``$.area``), so the decimal-path override lookup doesn't match.
-    """
+    """Decimal mismatch must produce DECIMAL_MISMATCH kind."""
     policy = _policy(
         decimal=[
             {
@@ -175,8 +170,7 @@ def test_decimal_mismatch() -> None:
         policy,
     )
     assert not result.passed
-    # The quantized strings differ → EXACT_MISMATCH
-    assert result.mismatches[0].kind == ComparisonMismatchKind.EXACT_MISMATCH
+    assert result.mismatches[0].kind == ComparisonMismatchKind.DECIMAL_MISMATCH
 
 
 # ── New recursive comparison tests ──────────────────────────────────────────
@@ -267,7 +261,7 @@ def test_resolve_path_works() -> None:
     """resolve_path must correctly resolve a parsed path."""
     obj = {"a": [{"b": 42}]}
     parsed = parse_json_path("$.a[0].b")
-    value, found = resolve_path(obj, parsed)
+    value, found = resolve_json_path(obj, parsed)
     assert found is True
     assert value == 42
 
@@ -276,6 +270,6 @@ def test_resolve_path_missing() -> None:
     """resolve_path must return (None, False) for a missing path."""
     obj = {"a": 1}
     parsed = parse_json_path("$.b")
-    value, found = resolve_path(obj, parsed)
+    value, found = resolve_json_path(obj, parsed)
     assert found is False
     assert value is None
