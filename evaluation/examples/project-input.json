@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "name": "Example Blueberry Processing Facility",
+    "factory_profile": {
+      "factory_name": "示例加工厂",
+      "planting_area_mu": 5000,
+      "main_variety": "蓝莓",
+      "daily_inbound_mass_kg": 25000,
+      "daily_operating_hours": 16,
+      "cold_storage_days": 30
+    }
+  }
+}

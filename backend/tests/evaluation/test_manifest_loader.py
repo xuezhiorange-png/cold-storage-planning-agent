@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -16,8 +15,8 @@ from cold_storage.evaluation.errors import (
     ManifestSchemaError,
 )
 from cold_storage.evaluation.manifest import load_evaluation_manifest
+from cold_storage.evaluation.models import EvaluationManifest
 
-_EVAL_ROOT = Path.cwd().parent / "evaluation"
 _VALID_SCENARIO = {
     "scenario_id": "baseline-feasible",
     "fixture_revision": 1,
@@ -45,215 +44,297 @@ def _make_manifest(scenarios: list | None = None) -> dict:
     }
 
 
-def test_loads_valid_manifest() -> None:
-    """Valid manifest with referenced files loads correctly."""
-    manifest = load_evaluation_manifest(
-        _EVAL_ROOT / "manifest.example.json",
-        evaluation_root=_EVAL_ROOT,
+def _write_and_load(
+    manifest: dict, tmp_path: Path, require_files: bool = False
+) -> EvaluationManifest:
+    """Write a manifest dict to a temp file and load it."""
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(manifest))
+    result = load_evaluation_manifest(
+        str(path),
+        evaluation_root=tmp_path,
+        require_referenced_files=require_files,
     )
+    assert isinstance(result, EvaluationManifest)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Happy path
+# ---------------------------------------------------------------------------
+
+
+def test_loads_valid_manifest(tmp_path: Path) -> None:
+    """Valid manifest loads and returns a typed model."""
+    manifest = _write_and_load(_make_manifest(), tmp_path)
     assert manifest.schema_version == "1.0"
-    assert len(manifest.scenarios) >= 1
+    assert manifest.suite_id == "cold-storage-pilot-v1"
+    assert manifest.suite_revision == 1
+    assert len(manifest.scenarios) == 1
 
 
-def test_duplicate_scenario_id_rejected() -> None:
-    """Duplicate scenario IDs must fail."""
-    dup = dict(_VALID_SCENARIO)
-    data = _make_manifest([dup, dict(dup, project_input_path="examples/project-input.json")])
-    tmp = _write_json(data)
-    with pytest.raises(ManifestSchemaError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
+def test_loads_valid_manifest_with_existing_files(tmp_path: Path) -> None:
+    """With require_referenced_files=True, referenced files must exist."""
+    examples = tmp_path / "examples"
+    examples.mkdir()
+    (examples / "project-input.json").write_text("{}")
+    (examples / "expected-output.json").write_text("{}")
+
+    manifest = _write_and_load(_make_manifest(), tmp_path, require_files=True)
+    assert manifest.schema_version == "1.0"
 
 
-def test_duplicate_exact_path_rejected() -> None:
-    """Duplicate exact path in same scenario must fail."""
-    data = _make_manifest(
-        [
-            {
-                **_VALID_SCENARIO,
-                "comparison_policy": {
-                    "exact_paths": [
-                        {"path": "$.summary.value"},
-                        {"path": "$.summary.value"},
-                    ],
-                    "decimal_paths": [],
-                    "ignored_paths": [],
-                    "artifact_checks": [],
-                },
-            }
-        ]
-    )
-    tmp = _write_json(data)
-    with pytest.raises(ManifestSchemaError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
+# ---------------------------------------------------------------------------
+# JSON and file errors
+# ---------------------------------------------------------------------------
 
 
-def test_same_path_in_exact_and_ignored_rejected() -> None:
-    """Same path in exact and ignored must fail."""
-    data = _make_manifest(
-        [
-            {
-                **_VALID_SCENARIO,
-                "comparison_policy": {
-                    "exact_paths": [{"path": "$.summary.value"}],
-                    "decimal_paths": [],
-                    "ignored_paths": [{"path": "$.summary.value", "reason": "test"}],
-                    "artifact_checks": [],
-                },
-            }
-        ]
-    )
-    tmp = _write_json(data)
-    with pytest.raises(ConflictingComparisonPathError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
-
-
-def test_same_path_in_decimal_and_ignored_rejected() -> None:
-    """Same path in decimal and ignored must fail."""
-    data = _make_manifest(
-        [
-            {
-                **_VALID_SCENARIO,
-                "comparison_policy": {
-                    "exact_paths": [],
-                    "decimal_paths": [
-                        {
-                            "path": "$.summary.total_area_m2",
-                            "mode": "quantize",
-                            "scale": 2,
-                            "unit": "m2",
-                            "rationale": "test",
-                        }
-                    ],
-                    "ignored_paths": [
-                        {"path": "$.summary.total_area_m2", "reason": "test"},
-                    ],
-                    "artifact_checks": [],
-                },
-            }
-        ]
-    )
-    tmp = _write_json(data)
-    with pytest.raises(ConflictingComparisonPathError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
-
-
-def test_ignored_rule_missing_reason_rejected() -> None:
-    """Ignored rule without reason must fail."""
-    data = _make_manifest(
-        [
-            {
-                **_VALID_SCENARIO,
-                "comparison_policy": {
-                    "exact_paths": [],
-                    "decimal_paths": [],
-                    "ignored_paths": [{"path": "$.metadata.generated_at"}],
-                    "artifact_checks": [],
-                },
-            }
-        ]
-    )
-    tmp = _write_json(data)
-    with pytest.raises(ManifestSchemaError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
-
-
-def test_decimal_rule_missing_unit_rejected() -> None:
-    """Decimal rule without unit must fail."""
-    data = _make_manifest(
-        [
-            {
-                **_VALID_SCENARIO,
-                "comparison_policy": {
-                    "exact_paths": [],
-                    "decimal_paths": [
-                        {
-                            "path": "$.summary.total_area_m2",
-                            "mode": "quantize",
-                            "scale": 2,
-                            "rationale": "test",
-                        }
-                    ],
-                    "ignored_paths": [],
-                    "artifact_checks": [],
-                },
-            }
-        ]
-    )
-    tmp = _write_json(data)
-    with pytest.raises(ManifestSchemaError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
-
-
-def test_decimal_rule_missing_rationale_rejected() -> None:
-    """Decimal rule without rationale must fail."""
-    data = _make_manifest(
-        [
-            {
-                **_VALID_SCENARIO,
-                "comparison_policy": {
-                    "exact_paths": [],
-                    "decimal_paths": [
-                        {
-                            "path": "$.summary.total_area_m2",
-                            "mode": "quantize",
-                            "scale": 2,
-                            "unit": "m2",
-                        }
-                    ],
-                    "ignored_paths": [],
-                    "artifact_checks": [],
-                },
-            }
-        ]
-    )
-    tmp = _write_json(data)
-    with pytest.raises(ManifestSchemaError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
-
-
-def test_root_ignore_path_rejected() -> None:
-    """Ignoring the root path '$' must fail."""
-    data = _make_manifest(
-        [
-            {
-                **_VALID_SCENARIO,
-                "comparison_policy": {
-                    "exact_paths": [],
-                    "decimal_paths": [],
-                    "ignored_paths": [{"path": "$", "reason": "test"}],
-                    "artifact_checks": [],
-                },
-            }
-        ]
-    )
-    tmp = _write_json(data)
-    with pytest.raises(IgnorePolicyError, match="Cannot ignore the root path"):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
-
-
-def test_missing_manifest_rejected() -> None:
-    """Non-existent manifest file must fail."""
+def test_missing_manifest_file_rejected(tmp_path: Path) -> None:
+    """Non-existent manifest file raises ManifestFileNotFoundError."""
     with pytest.raises(ManifestFileNotFoundError):
-        load_evaluation_manifest("/nonexistent/manifest.json", evaluation_root=Path.cwd())
+        load_evaluation_manifest(
+            str(tmp_path / "nonexistent.json"),
+            evaluation_root=tmp_path,
+        )
 
 
-def test_invalid_json_rejected() -> None:
-    """Invalid JSON file must fail."""
-    tmp = Path(tempfile.mkstemp(suffix=".json")[1])
-    tmp.write_bytes(b"not json at all")
+def test_invalid_json_rejected(tmp_path: Path) -> None:
+    """Non-JSON file raises ManifestJsonDecodeError."""
+    path = tmp_path / "bad.json"
+    path.write_text("not json")
     with pytest.raises(ManifestJsonDecodeError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
+        load_evaluation_manifest(str(path), evaluation_root=tmp_path)
 
 
-def test_unknown_schema_version_semantic() -> None:
-    """Unknown schema version in semantic validation must fail."""
-    data = dict(_make_manifest(), schema_version="3.0-beta")
-    tmp = _write_json(data)
+# ---------------------------------------------------------------------------
+# Schema validation
+# ---------------------------------------------------------------------------
+
+
+def test_unknown_schema_version_rejected(tmp_path: Path) -> None:
+    """Unknown schema_version raises ManifestSchemaError."""
+    manifest = _make_manifest()
+    manifest["schema_version"] = "9.9"
     with pytest.raises(ManifestSchemaError):
-        load_evaluation_manifest(tmp, evaluation_root=_EVAL_ROOT, require_referenced_files=False)
+        _write_and_load(manifest, tmp_path)
 
 
-def _write_json(data: dict) -> Path:
-    tmp = Path(tempfile.mkstemp(suffix=".json")[1])
-    tmp.write_text(json.dumps(data), "utf-8")
-    return tmp
+def test_unknown_root_field_rejected(tmp_path: Path) -> None:
+    """Extra root field raises ManifestSchemaError."""
+    manifest = _make_manifest()
+    manifest["extra_field"] = "surprise"
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_unknown_nested_field_rejected(tmp_path: Path) -> None:
+    """Extra nested field raises ManifestSchemaError."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["extra_nested"] = "nope"
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_invalid_expected_outcome_rejected(tmp_path: Path) -> None:
+    """Unknown expected_outcome raises ManifestSchemaError."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["expected_outcome"] = "magic_success"
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_invalid_required_stage_rejected(tmp_path: Path) -> None:
+    """Unknown required_stages value raises ManifestSchemaError."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["required_stages"] = ["non_existent_stage"]
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_revision_zero_rejected(tmp_path: Path) -> None:
+    """suite_revision = 0 raises ManifestSchemaError."""
+    manifest = _make_manifest()
+    manifest["suite_revision"] = 0
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_invalid_kebab_case_id_rejected(tmp_path: Path) -> None:
+    """Non-kebab-case scenario_id raises ManifestSchemaError."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["scenario_id"] = "Bad_ID with spaces"
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Semantic validation
+# ---------------------------------------------------------------------------
+
+
+def test_duplicate_scenario_id_rejected(tmp_path: Path) -> None:
+    """Duplicate scenario IDs fail (caught by schema uniqueItems then Python for differing data)."""
+    manifest = _make_manifest([_VALID_SCENARIO, _VALID_SCENARIO])
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_duplicate_exact_path_rejected(tmp_path: Path) -> None:
+    """Duplicate exact_path entries must fail (caught by schema uniqueItems)."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [
+            {"path": "$.summary.requires_review"},
+            {"path": "$.summary.requires_review"},
+        ],
+        "decimal_paths": [],
+        "ignored_paths": [],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_path_in_exact_and_decimal_rejected(tmp_path: Path) -> None:
+    """Same path in exact and decimal must fail."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [{"path": "$.summary.total_area_m2"}],
+        "decimal_paths": [
+            {
+                "path": "$.summary.total_area_m2",
+                "mode": "quantize",
+                "scale": 2,
+                "unit": "m2",
+                "rationale": "Testing conflict detection",
+            }
+        ],
+        "ignored_paths": [],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ConflictingComparisonPathError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_path_in_exact_and_ignored_rejected(tmp_path: Path) -> None:
+    """Same path in exact and ignored must fail."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [{"path": "$.summary.requires_review"}],
+        "decimal_paths": [],
+        "ignored_paths": [
+            {
+                "path": "$.summary.requires_review",
+                "reason": "Testing conflict detection",
+            }
+        ],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ConflictingComparisonPathError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_path_in_decimal_and_ignored_rejected(tmp_path: Path) -> None:
+    """Same path in decimal and ignored must fail."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [],
+        "decimal_paths": [
+            {
+                "path": "$.summary.total_area_m2",
+                "mode": "quantize",
+                "scale": 2,
+                "unit": "m2",
+                "rationale": "area",
+            }
+        ],
+        "ignored_paths": [
+            {
+                "path": "$.summary.total_area_m2",
+                "reason": "Testing conflict detection",
+            }
+        ],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ConflictingComparisonPathError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_ignored_rule_missing_reason_rejected(tmp_path: Path) -> None:
+    """Ignored path without reason raises IgnorePolicyError."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [],
+        "decimal_paths": [],
+        "ignored_paths": [{"path": "$.metadata.generated_at", "reason": ""}],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError, match="EVAL_SCHEMA_INVALID"):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_decimal_rule_missing_unit_rejected(tmp_path: Path) -> None:
+    """Decimal path without unit must fail (caught by schema minLength)."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [],
+        "decimal_paths": [
+            {
+                "path": "$.summary.total_area_m2",
+                "mode": "quantize",
+                "scale": 2,
+                "unit": "",
+                "rationale": "Testing",
+            }
+        ],
+        "ignored_paths": [],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError, match="EVAL_SCHEMA_INVALID"):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_decimal_rule_missing_rationale_rejected(tmp_path: Path) -> None:
+    """Decimal path without rationale must fail (caught by schema minLength)."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [],
+        "decimal_paths": [
+            {
+                "path": "$.summary.total_area_m2",
+                "mode": "quantize",
+                "scale": 2,
+                "unit": "m2",
+                "rationale": "",
+            }
+        ],
+        "ignored_paths": [],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(ManifestSchemaError, match="EVAL_SCHEMA_INVALID"):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_root_ignored_rejected(tmp_path: Path) -> None:
+    """Ignoring root path must fail."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": [],
+        "decimal_paths": [],
+        "ignored_paths": [{"path": "$", "reason": "Testing root ignore rejection"}],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    with pytest.raises(IgnorePolicyError, match="EVAL_IGNORE_POLICY_INVALID"):
+        _write_and_load(manifest, tmp_path)

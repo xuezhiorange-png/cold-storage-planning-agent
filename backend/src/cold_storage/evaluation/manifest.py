@@ -39,8 +39,11 @@ from cold_storage.evaluation.paths import resolve_and_verify_path
 
 SCHEMA_VERSION = "1.0"
 
-# Eval root relative -> absolute (manifest.py is at backend/src/cold_storage/evaluation/manifest.py)
+# Schema location (fixed — part of the package, not user data)
 _HERE = Path(__file__).resolve().parent  # backend/src/cold_storage/evaluation/
+_DEFAULT_SCHEMA_PATH = _HERE.parents[3] / "evaluation" / "manifest.schema.json"
+
+# Eval root for data files (fixtures, expected outputs)
 _DEFAULT_EVAL_ROOT = _HERE.parents[3] / "evaluation"  # repo root / evaluation/
 
 
@@ -98,7 +101,7 @@ def load_evaluation_manifest(
             field=str(path),
         ) from exc
     # 3. JSON Schema validation
-    schema_path = root / "manifest.schema.json"
+    schema_path = _DEFAULT_SCHEMA_PATH
     if not schema_path.exists():
         raise ManifestSchemaError(
             code="EVAL_SCHEMA_INVALID",
@@ -118,7 +121,7 @@ def load_evaluation_manifest(
     _validate_semantic(raw, root, require_referenced_files)
 
     # 5. Convert to models
-    return _to_manifest(raw, root)
+    return _to_manifest(raw, root, require_referenced_files)
 
 
 def validate_manifest_structure(manifest_path: str | Path) -> dict[str, Any]:
@@ -336,7 +339,7 @@ def _validate_comparison_policy(scenario_id: str, policy: dict[str, Any]) -> Non
             )
 
 
-def _to_manifest(raw: dict[str, Any], root: Path) -> EvaluationManifest:
+def _to_manifest(raw: dict[str, Any], root: Path, require_files: bool = True) -> EvaluationManifest:
     """Convert validated raw dict to immutable models."""
     scenarios: list[EvaluationScenario] = []
     for s in raw.get("scenarios", []):
@@ -370,17 +373,18 @@ def _to_manifest(raw: dict[str, Any], root: Path) -> EvaluationManifest:
         # Resolve paths using the evaluation root
         stages = tuple(EvaluationStage(stage) for stage in s.get("required_stages", []))
         doc_refs = tuple(
-            resolve_and_verify_path(Path(d), evaluation_root=root, allow_missing=False)
+            resolve_and_verify_path(Path(d), evaluation_root=root, allow_missing=not require_files)
             for d in s.get("document_refs", [])
         )
 
+        allow_missing = not require_files
         scenario = EvaluationScenario(
             scenario_id=s["scenario_id"],
             fixture_revision=s["fixture_revision"],
             project_input_path=resolve_and_verify_path(
                 Path(s["project_input_path"]),
                 evaluation_root=root,
-                allow_missing=False,
+                allow_missing=allow_missing,
             ),
             document_refs=doc_refs,
             required_stages=stages,
@@ -388,7 +392,7 @@ def _to_manifest(raw: dict[str, Any], root: Path) -> EvaluationManifest:
             expected_path=resolve_and_verify_path(
                 Path(s["expected_path"]),
                 evaluation_root=root,
-                allow_missing=False,
+                allow_missing=allow_missing,
             ),
             comparison_policy=ComparisonPolicy(
                 exact_paths=exact,

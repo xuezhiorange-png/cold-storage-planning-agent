@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "cold-storage-pilot-example",
+  "suite_revision": 1,
+  "scenarios": [
+    {
+      "scenario_id": "example-validation",
+      "fixture_revision": 1,
+      "project_input_path": "examples/project-input.json",
+      "document_refs": [],
+      "required_stages": ["project", "validation", "planning"],
+      "expected_outcome": "success",
+      "expected_path": "examples/expected-output.json",
+      "comparison_policy": {
+        "exact_paths": [
+          { "path": "$.summary.requires_review" },
+          { "path": "$.summary.total_position_count" }
+        ],
+        "decimal_paths": [
+          {
+            "path": "$.summary.total_area_m2",
+            "mode": "quantize",
+            "scale": 2,
+            "unit": "m2",
+            "rationale": "API contract exposes two-decimal planning area"
+          }
+        ],
+        "ignored_paths": [
+          {
+            "path": "$.metadata.generated_at",
+            "reason": "Runtime-generated timestamp, not deterministic"
+          }
+        ],
+        "artifact_checks": [
+          {
+            "artifact_selector": "reports.zh-CN.pdf",
+            "required_status": "completed",
+            "require_non_zero_size": true,
+            "require_integrity_hash": true
+          }
+        ]
+      },
+      "provenance": {
+        "source": "reviewed evaluation contract",
+        "rationale": "Example validation scenario for Phase A harness testing"
+      }
+    }
+  ]
+}
