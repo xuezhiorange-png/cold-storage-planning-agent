@@ -12,7 +12,7 @@ from cold_storage.evaluation.errors import (
     RunStateError,
     RunSummaryStatusInvalidError,
 )
-from cold_storage.evaluation.models import EvaluationRunSummary, RunStatus
+from cold_storage.evaluation.models import EvaluationRunSummary, RunStatus, ScenarioRunSummary
 from cold_storage.evaluation.run_directory import EvaluationRunContext, EvaluationRunDirectory
 
 
@@ -25,6 +25,18 @@ def make_summary(
     status: RunStatus = RunStatus.PASSED,
     passed: bool = True,
 ) -> EvaluationRunSummary:
+    scenario_results = ()
+    if status == RunStatus.PASSED:
+        scenario_results = tuple(
+            ScenarioRunSummary(
+                scenario_id=sid,
+                passed=True,
+                checks_total=5,
+                checks_passed=5,
+                checks_failed=0,
+            )
+            for sid in context.scenario_ids
+        )
     return EvaluationRunSummary(
         run_id=context.run_id,
         suite_id=context.suite_id,
@@ -35,7 +47,7 @@ def make_summary(
         completed_at="2026-06-27T12:00:00+00:00",
         code_commit_sha=context.code_commit_sha,
         passed=passed,
-        scenario_results=(),
+        scenario_results=scenario_results,
     )
 
 
@@ -455,6 +467,16 @@ def test_read_verified_summary_checks_status_non_passed(tmp_path: Path) -> None:
     raw = json.loads(summary_path.read_text("utf-8"))
     raw["status"] = "passed"
     raw["passed"] = True
+    # Must also add proper scenario results for PASSED status
+    raw["scenario_results"] = [
+        {
+            "scenario_id": "s1",
+            "passed": True,
+            "checks_total": 5,
+            "checks_passed": 5,
+            "checks_failed": 0,
+        }
+    ]
     summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
 
     with pytest.raises(RunSummaryStatusInvalidError):
