@@ -244,8 +244,21 @@ def _preflight_duplicate_comparison_paths(raw: dict[str, Any]) -> None:
         if isinstance(exact_paths_raw, list):
             for ridx, rule in enumerate(exact_paths_raw):
                 p = rule.get("path", "") if isinstance(rule, dict) else ""
+                if not isinstance(p, str):
+                    scenario_id = (
+                        scenario.get("scenario_id", "") if isinstance(scenario, dict) else ""
+                    )
+                    sid_label = f"'{scenario_id}'" if scenario_id else f"index {sidx}"
+                    raise ManifestSchemaError(
+                        code="EVAL_SCHEMA_INVALID",
+                        message=(
+                            f"exact_path path must be a string in scenario "
+                            f"{sid_label}, got {type(p).__name__}"
+                        ),
+                        field=f"scenarios/{sidx}/exact_paths/{ridx}/path",
+                    )
                 if p in seen_exact:
-                    sid = scenario.get("scenario_id", "")
+                    sid = scenario.get("scenario_id", "") if isinstance(scenario, dict) else ""
                     raise DuplicateComparisonPathError(
                         code="EVAL_COMPARISON_PATH_DUPLICATE",
                         message=f"Duplicate exact path '{p}' in scenario '{sid}'",
@@ -258,8 +271,21 @@ def _preflight_duplicate_comparison_paths(raw: dict[str, Any]) -> None:
         if isinstance(decimal_paths_raw, list):
             for ridx, rule in enumerate(decimal_paths_raw):
                 p = rule.get("path", "") if isinstance(rule, dict) else ""
+                if not isinstance(p, str):
+                    scenario_id = (
+                        scenario.get("scenario_id", "") if isinstance(scenario, dict) else ""
+                    )
+                    sid_label = f"'{scenario_id}'" if scenario_id else f"index {sidx}"
+                    raise ManifestSchemaError(
+                        code="EVAL_SCHEMA_INVALID",
+                        message=(
+                            f"decimal_path path must be a string in scenario "
+                            f"{sid_label}, got {type(p).__name__}"
+                        ),
+                        field=f"scenarios/{sidx}/decimal_paths/{ridx}/path",
+                    )
                 if p in seen_decimal:
-                    sid = scenario.get("scenario_id", "")
+                    sid = scenario.get("scenario_id", "") if isinstance(scenario, dict) else ""
                     raise DuplicateComparisonPathError(
                         code="EVAL_COMPARISON_PATH_DUPLICATE",
                         message=f"Duplicate decimal path '{p}' in scenario '{sid}'",
@@ -272,6 +298,19 @@ def _preflight_duplicate_comparison_paths(raw: dict[str, Any]) -> None:
         if isinstance(ignored_paths_raw, list):
             for ridx, rule in enumerate(ignored_paths_raw):
                 p = rule.get("path", "") if isinstance(rule, dict) else ""
+                if not isinstance(p, str):
+                    scenario_id = (
+                        scenario.get("scenario_id", "") if isinstance(scenario, dict) else ""
+                    )
+                    sid_label = f"'{scenario_id}'" if scenario_id else f"index {sidx}"
+                    raise ManifestSchemaError(
+                        code="EVAL_SCHEMA_INVALID",
+                        message=(
+                            f"ignored_path path must be a string in scenario "
+                            f"{sid_label}, got {type(p).__name__}"
+                        ),
+                        field=f"scenarios/{sidx}/ignored_paths/{ridx}/path",
+                    )
                 if p in seen_ignored:
                     sid = scenario.get("scenario_id", "")
                     raise DuplicateComparisonPathError(
