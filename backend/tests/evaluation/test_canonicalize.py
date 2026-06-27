@@ -663,3 +663,162 @@ class TestDecimalAmbientContextIsolation:
         # Now check that _EVALUATION_DECIMAL_CONTEXT copy clears flags
         result = quantize_decimal_value(self.INPUT, self.SCALE)
         assert result == self.EXPECTED
+
+
+# ── P0-1: scale=20 hostile ambient context tests ────────────────────────
+
+
+class TestDecimalHostileContextScale20:
+    """quantize_decimal_value must produce correct scale=20 results
+    regardless of ambient Decimal context."""
+
+    VALUE = "1.23456789012345678901"
+    SCALE = 20
+    EXPECTED = "1.23456789012345678901"
+
+    def _check(self) -> None:
+        result = quantize_decimal_value(self.VALUE, self.SCALE)
+        assert result == self.EXPECTED
+        # Verify exactly 20 decimal places
+        _, _, frac = result.partition(".")
+        assert len(frac) == 20, f"Expected 20 decimal places, got {len(frac)}: {result}"
+
+    def test_default_context(self) -> None:
+        self._check()
+
+    def test_ambient_prec_2(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        orig = ctx.prec
+        try:
+            ctx.prec = 2
+            self._check()
+        finally:
+            ctx.prec = orig
+
+    def test_ambient_prec_1000(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        orig = ctx.prec
+        try:
+            ctx.prec = 1000
+            self._check()
+        finally:
+            ctx.prec = orig
+
+    def test_ambient_emax_10(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        orig = ctx.Emax
+        try:
+            ctx.Emax = 10
+            self._check()
+        finally:
+            ctx.Emax = orig
+
+    def test_ambient_emin_negative_10(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        orig = ctx.Emin
+        try:
+            ctx.Emin = -10
+            self._check()
+        finally:
+            ctx.Emin = orig
+
+    def test_ambient_clamp_1(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        orig = ctx.clamp
+        try:
+            ctx.clamp = 1
+            self._check()
+        finally:
+            ctx.clamp = orig
+
+    def test_ambient_round_down(self) -> None:
+        from decimal import ROUND_DOWN, getcontext
+
+        ctx = getcontext()
+        orig = ctx.rounding
+        try:
+            ctx.rounding = ROUND_DOWN
+            self._check()
+        finally:
+            ctx.rounding = orig
+
+    def test_ambient_invalid_operation_trap_disabled(self) -> None:
+        from decimal import InvalidOperation, getcontext
+
+        ctx = getcontext()
+        orig_traps = ctx.traps.copy()
+        try:
+            ctx.traps[InvalidOperation] = False
+            self._check()
+        finally:
+            ctx.traps.update(orig_traps)
+
+    def test_combined_hostile_settings(self) -> None:
+        """Multiple hostile ambient settings combined must not affect result."""
+        from decimal import ROUND_DOWN, InvalidOperation, getcontext
+
+        ctx = getcontext()
+        orig_prec = ctx.prec
+        orig_rounding = ctx.rounding
+        orig_emax = ctx.Emax
+        orig_emin = ctx.Emin
+        orig_clamp = ctx.clamp
+        orig_traps = ctx.traps.copy()
+        try:
+            ctx.prec = 2
+            ctx.rounding = ROUND_DOWN
+            ctx.Emax = 10
+            ctx.Emin = -10
+            ctx.clamp = 1
+            ctx.traps[InvalidOperation] = False
+            self._check()
+        finally:
+            ctx.prec = orig_prec
+            ctx.rounding = orig_rounding
+            ctx.Emax = orig_emax
+            ctx.Emin = orig_emin
+            ctx.clamp = orig_clamp
+            ctx.traps.update(orig_traps)
+
+    def test_canonical_bytes_stable_under_hostile_context(self) -> None:
+        """Canonical bytes must be stable under hostile ambient context."""
+        from decimal import ROUND_DOWN, getcontext
+
+        ctx = getcontext()
+        orig_prec = ctx.prec
+        orig_rounding = ctx.rounding
+        try:
+            ctx.prec = 2
+            ctx.rounding = ROUND_DOWN
+            result1 = quantize_decimal_value(self.VALUE, self.SCALE)
+        finally:
+            ctx.prec = orig_prec
+            ctx.rounding = orig_rounding
+        # Reset
+        result2 = quantize_decimal_value(self.VALUE, self.SCALE)
+        assert result1 == result2
+        assert result1 == self.EXPECTED
+
+    def test_non_finite_stable_error(self) -> None:
+        """Non-finite input must raise stable error under hostile context."""
+        from decimal import getcontext
+
+        ctx = getcontext()
+        orig = ctx.prec
+        try:
+            ctx.prec = 1000
+            with pytest.raises(DecimalPolicyError) as exc:
+                quantize_decimal_value(float("inf"), self.SCALE)
+            assert exc.value.code == "EVAL_DECIMAL_NON_FINITE"
+        finally:
+            ctx.prec = orig

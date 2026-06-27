@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from cold_storage.evaluation.errors import (
+    EvaluationError,
     RunIdentityMismatchError,
     RunManifestMismatchError,
     RunStateError,
@@ -1339,3 +1340,193 @@ def test_tampered_database_backend_rejected_in_read(tmp_path: Path) -> None:
             run_id=ctx.run_id,
             expected_manifest_sha256=ctx.manifest_sha256,
         )
+
+
+# ── P0-3: create_run validation before file system ──────────────────────
+
+
+def test_create_run_rejects_suite_revision_zero(tmp_path: Path) -> None:
+    """suite_revision=0 must be rejected before any directory is created."""
+    rd = _run_dir(tmp_path)
+    base_before = set(tmp_path.rglob("*"))
+    with pytest.raises(EvaluationError) as exc:
+        rd.create_run("suite-1", 0, "a" * 64, ("s1",))
+    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    base_after = set(tmp_path.rglob("*"))
+    assert base_before == base_after, "No file system side-effects on invalid input"
+
+
+def test_create_run_rejects_suite_revision_negative(tmp_path: Path) -> None:
+    """suite_revision=-1 must be rejected before any directory is created."""
+    rd = _run_dir(tmp_path)
+    base_before = set(tmp_path.rglob("*"))
+    with pytest.raises(EvaluationError) as exc:
+        rd.create_run("suite-1", -1, "a" * 64, ("s1",))
+    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    base_after = set(tmp_path.rglob("*"))
+    run_dirs = [p for p in base_after - base_before if "runs" in str(p)]
+    assert not run_dirs, f"Unexpected dirs created: {run_dirs}"
+
+
+def test_create_run_rejects_suite_revision_bool(tmp_path: Path) -> None:
+    """suite_revision=True must be rejected (bool is not int)."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError) as exc:
+        rd.create_run("suite-1", True, "a" * 64, ("s1",))  # type: ignore[arg-type]
+    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+
+
+def test_create_run_rejects_invalid_manifest_sha(tmp_path: Path) -> None:
+    """Non-64-hex manifest_sha256 must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError) as exc:
+        rd.create_run("suite-1", 1, "short", ("s1",))
+    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+
+
+def test_create_run_rejects_empty_scenario_id(tmp_path: Path) -> None:
+    """Empty scenario ID must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError):
+        rd.create_run("suite-1", 1, "a" * 64, ("",))
+
+
+def test_create_run_rejects_whitespace_scenario_id(tmp_path: Path) -> None:
+    """Whitespace-only scenario ID must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError):
+        rd.create_run("suite-1", 1, "a" * 64, ("   ",))
+
+
+def test_create_run_rejects_duplicate_scenario_ids(tmp_path: Path) -> None:
+    """Duplicate scenario IDs must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError) as exc:
+        rd.create_run("suite-1", 1, "a" * 64, ("s1", "s1"))
+    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+
+
+def test_create_run_rejects_invalid_database_backend(tmp_path: Path) -> None:
+    """Invalid database_backend must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError) as exc:
+        rd.create_run("suite-1", 1, "a" * 64, ("s1",), database_backend="mongo")
+    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+
+
+def test_create_run_rejects_empty_code_commit_sha(tmp_path: Path) -> None:
+    """Empty string code_commit_sha must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError):
+        rd.create_run("suite-1", 1, "a" * 64, ("s1",), code_commit_sha="")
+
+
+def test_create_run_rejects_whitespace_code_commit_sha(tmp_path: Path) -> None:
+    """Whitespace-only code_commit_sha must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError):
+        rd.create_run("suite-1", 1, "a" * 64, ("s1",), code_commit_sha="   ")
+
+
+def test_create_run_rejects_empty_suite_id(tmp_path: Path) -> None:
+    """Empty suite_id must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError):
+        rd.create_run("", 1, "a" * 64, ("s1",))
+
+
+def test_create_run_rejects_whitespace_suite_id(tmp_path: Path) -> None:
+    """Whitespace-only suite_id must be rejected."""
+    rd = _run_dir(tmp_path)
+    with pytest.raises(EvaluationError):
+        rd.create_run("   ", 1, "a" * 64, ("s1",))
+
+
+# ── P0-4: Optional commit identity exact comparison ──────────────────────
+
+
+def test_code_commit_sha_none_none_equal(tmp_path: Path) -> None:
+    """None == None must pass identity check."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",), code_commit_sha=None)
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
+    rd.write_summary(ctx, summary)
+    r = rd.read_verified_summary(
+        run_id=ctx.run_id,
+        expected_manifest_sha256=ctx.manifest_sha256,
+    )
+    assert r.code_commit_sha is None
+
+
+def test_code_commit_sha_none_vs_empty_run_json(tmp_path: Path) -> None:
+    """None in summary vs '' in run.json must fail identity check."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",), code_commit_sha="abc")
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    # Tamper run.json code_commit_sha to empty string
+    run_json_path = rd.run_dir(ctx.run_id) / "run.json"
+    data = json.loads(run_json_path.read_text("utf-8"))
+    data["code_commit_sha"] = ""
+    run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
+
+    # The strict decoder now rejects empty code_commit_sha as RunSummaryInvalidError
+    with pytest.raises(RunSummaryInvalidError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_code_commit_sha_strict_decoder_rejects_empty(tmp_path: Path) -> None:
+    """Strict run.json decoder must reject empty code_commit_sha."""
+    from cold_storage.evaluation.run_directory import _decode_run_context_strict
+
+    with pytest.raises(RunSummaryInvalidError):
+        _decode_run_context_strict(
+            {
+                "run_id": "abcdef123456",
+                "suite_id": "s",
+                "suite_revision": 1,
+                "manifest_sha256": "a" * 64,
+                "started_at": "2026-06-27T12:00:00+00:00",
+                "status": "created",
+                "scenario_ids": ["s1"],
+                "code_commit_sha": "",
+            }
+        )
+
+
+def test_code_commit_sha_summary_strict_decoder_rejects_empty(tmp_path: Path) -> None:
+    """Strict summary decoder must reject empty code_commit_sha."""
+    from cold_storage.evaluation.run_directory import _dict_to_summary_strict
+
+    d = {
+        "run_id": "abcdef123456",
+        "suite_id": "s",
+        "suite_revision": 1,
+        "manifest_sha256": "a" * 64,
+        "scenario_ids": ["s1"],
+        "status": "passed",
+        "completed_at": "2026-06-27T12:00:00+00:00",
+        "passed": True,
+        "code_commit_sha": "",
+        "scenario_results": [
+            {
+                "scenario_id": "s1",
+                "passed": True,
+                "checks_total": 1,
+                "checks_passed": 1,
+                "checks_failed": 0,
+            }
+        ],
+    }
+    with pytest.raises(RunSummaryInvalidError):
+        _dict_to_summary_strict(d)

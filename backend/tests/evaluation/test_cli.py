@@ -160,27 +160,114 @@ def test_cli_duplicate_exact_path_code(tmp_path: Path) -> None:
 
 @pytest.fixture
 def _malformed_manifest(request: pytest.FixtureRequest, tmp_path: Path) -> Path:
-    """Build a minimal manifest with a malformed path at the given rule type."""
+    """Build a fully valid manifest with a malformed path at the given rule type.
+
+    The fixture creates reference files at the expected paths so the manifest
+    itself passes schema validation.  Only the comparison ``path`` value is
+    malformed, isolating the defect under test.
+    """
     rule_type: str = request.param[0]
     bad_value: object = request.param[1]
+
+    # Create reference files at required paths
+    examples_dir = tmp_path / "examples"
+    examples_dir.mkdir()
+    minimal_json = json.dumps({"key": "value"}, indent=2)
+    (examples_dir / "project-input.json").write_text(minimal_json, "utf-8")
+    (examples_dir / "expected-output.json").write_text(minimal_json, "utf-8")
+
+    exact_paths: list[dict] = []
+    decimal_paths: list[dict] = []
+    ignored_paths: list[dict] = []
+
+    if rule_type == "exact":
+        exact_paths = [{"path": bad_value}]
+    elif rule_type == "decimal":
+        decimal_paths = [
+            {
+                "path": bad_value,
+                "mode": "quantize",
+                "scale": 2,
+                "unit": "kW",
+                "rationale": "fixed-scale numeric comparison for CLI regression",
+            }
+        ]
+    elif rule_type == "ignored":
+        ignored_paths = [
+            {
+                "path": bad_value,
+                "reason": "runtime-generated value excluded from comparison",
+            }
+        ]
+
     manifest = {
         "schema_version": "1.0",
-        "suite_id": "cli-test",
+        "suite_id": "cli-malformed-path-test",
         "suite_revision": 1,
-        "scenarios": [{"id": "test-scenario", "comparisons": []}],
-        "comparison": {
-            "exact_paths": [],
-            "decimal_paths": [],
-            "ignored_paths": [],
-        },
+        "scenarios": [
+            {
+                "scenario_id": "malformed-path-case",
+                "fixture_revision": 1,
+                "project_input_path": "examples/project-input.json",
+                "document_refs": [],
+                "required_stages": ["planning"],
+                "expected_outcome": "success",
+                "expected_path": "examples/expected-output.json",
+                "comparison_policy": {
+                    "exact_paths": exact_paths,
+                    "decimal_paths": decimal_paths,
+                    "ignored_paths": ignored_paths,
+                    "artifact_checks": [],
+                },
+                "provenance": {
+                    "source": "repository-owned synthetic CLI regression fixture",
+                    "rationale": "isolates malformed comparison path validation",
+                },
+            }
+        ],
     }
-    key_map = {"exact": "exact_paths", "decimal": "decimal_paths", "ignored": "ignored_paths"}
-    manifest["comparison"][key_map[rule_type]] = [{"path": bad_value}]
-    if rule_type == "decimal":
-        manifest["comparison"]["decimal_paths"][0]["scale"] = 2  # type: ignore[index]
-    p = tmp_path / "manifest.json"
-    import json
 
+    p = tmp_path / "manifest.json"
+    p.write_text(json.dumps(manifest, indent=2), "utf-8")
+    return p
+
+
+@pytest.fixture
+def _control_manifest(tmp_path: Path) -> Path:
+    """Build a fully valid manifest with a legal path for control tests."""
+    examples_dir = tmp_path / "examples"
+    examples_dir.mkdir()
+    minimal_json = json.dumps({"key": "value"}, indent=2)
+    (examples_dir / "project-input.json").write_text(minimal_json, "utf-8")
+    (examples_dir / "expected-output.json").write_text(minimal_json, "utf-8")
+
+    manifest = {
+        "schema_version": "1.0",
+        "suite_id": "cli-control-test",
+        "suite_revision": 1,
+        "scenarios": [
+            {
+                "scenario_id": "control-case",
+                "fixture_revision": 1,
+                "project_input_path": "examples/project-input.json",
+                "document_refs": [],
+                "required_stages": ["planning"],
+                "expected_outcome": "success",
+                "expected_path": "examples/expected-output.json",
+                "comparison_policy": {
+                    "exact_paths": [{"path": "$.value"}],
+                    "decimal_paths": [],
+                    "ignored_paths": [],
+                    "artifact_checks": [],
+                },
+                "provenance": {
+                    "source": "repository-owned synthetic CLI control fixture",
+                    "rationale": "demonstrates that the fixture itself is valid",
+                },
+            }
+        ],
+    }
+    p = tmp_path / "manifest.json"
     p.write_text(json.dumps(manifest, indent=2), "utf-8")
     return p
 
@@ -226,3 +313,11 @@ def test_cli_malformed_path_rejected(_malformed_manifest: Path) -> None:
     assert "TypeError" not in err_text
     assert "AttributeError" not in err_text
     assert "KeyError" not in err_text
+
+
+def test_cli_control_manifest_accepted(_control_manifest: Path) -> None:
+    """A fully valid manifest with a legal path must pass CLI validate (exit 0)."""
+    from cold_storage.evaluation.cli import main
+
+    rc = main(["--manifest", str(_control_manifest), "validate"])
+    assert rc == 0, f"Control fixture should pass but got exit code {rc}"
