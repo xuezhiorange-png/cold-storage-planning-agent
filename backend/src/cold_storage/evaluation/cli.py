@@ -1,4 +1,13 @@
-"""CLI skeleton for evaluation tooling."""
+"""CLI for evaluation tooling.
+
+Entry point::
+
+    PYTHONPATH=src uv run python -m cold_storage.evaluation.cli \\
+        --manifest ../evaluation/manifest.json validate
+
+    PYTHONPATH=src uv run python -m cold_storage.evaluation.cli \\
+        --manifest ../evaluation/manifest.json run --database sqlite
+"""
 
 from __future__ import annotations
 
@@ -6,10 +15,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from cold_storage.evaluation.errors import (
-    EvaluationError,
-)
-from cold_storage.evaluation.manifest import load_evaluation_manifest
+from cold_storage.evaluation.errors import EvaluationError
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,7 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     """
     parser = argparse.ArgumentParser(
         prog="eval",
-        description="Cold storage evaluation tooling — Phase A",
+        description="Cold storage evaluation tooling — Phase B",
     )
     parser.add_argument(
         "--manifest",
@@ -31,9 +37,13 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # validate
-    validate_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "validate",
-        help="Strictly validate a manifest file",
+        help="Strictly validate a manifest file (zero side effects)",
+    )
+    validate_parser = subparsers.add_parser(
+        "validate-verbose",
+        help="Validate and print detailed manifest info",
     )
     validate_parser.add_argument(
         "--evaluation-root",
@@ -63,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         "--database",
         type=str,
         default=None,
-        help="Database backend: 'sqlite' (default: temp SQLite)",
+        help="Database backend (only 'sqlite' supported in Phase B)",
     )
     run_parser.add_argument(
         "--evaluation-root",
@@ -77,6 +87,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "validate":
             return _do_validate(args)
+        elif args.command == "validate-verbose":
+            return _do_validate_verbose(args)
         elif args.command == "inspect":
             return _do_inspect(args)
         elif args.command == "run":
@@ -92,13 +104,27 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _do_validate(args: argparse.Namespace) -> int:
-    """Validate manifest using the authoritative single pipeline.
+    """Validate manifest — zero side effects, exit code only.
 
-    Routes through ``load_evaluation_manifest()`` which runs all
-    validation in the correct order (preflight → JSON Schema →
-    semantic → path safety → model conversion), preserving stable
-    error codes.
+    Returns 0 if valid, 1 if invalid.
     """
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    manifest_path = Path(args.manifest)
+    try:
+        load_evaluation_manifest(manifest_path, require_referenced_files=True)
+        return 0
+    except EvaluationError:
+        raise
+    except Exception as exc:
+        print(f"Manifest validation failed: {exc}", file=sys.stderr)
+        return 1
+
+
+def _do_validate_verbose(args: argparse.Namespace) -> int:
+    """Validate manifest and print info."""
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
     manifest_path = Path(args.manifest)
     eval_root = Path(args.evaluation_root) if args.evaluation_root else None
 
@@ -118,6 +144,10 @@ def _do_validate(args: argparse.Namespace) -> int:
 
 def _do_inspect(args: argparse.Namespace) -> int:
     """Print stable JSON summary of the manifest."""
+    import json
+
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
     manifest_path = Path(args.manifest)
     eval_root = Path(args.evaluation_root) if args.evaluation_root else None
 
@@ -126,8 +156,6 @@ def _do_inspect(args: argparse.Namespace) -> int:
         evaluation_root=eval_root,
         require_referenced_files=True,
     )
-
-    import json
 
     summary = {
         "schema_version": manifest.schema_version,
@@ -142,16 +170,17 @@ def _do_inspect(args: argparse.Namespace) -> int:
 
 
 def _do_run(args: argparse.Namespace) -> int:
-    """Run evaluation scenarios through the production pipeline."""
+    """Run evaluation scenarios through the production pipeline.
+
+    The CLI only parses args and passes them to ``run_manifest()``,
+    which owns the per-scenario SQLite lifecycle (each scenario gets
+    its own isolated temporary database).
+    """
     from cold_storage.evaluation.evaluate import run_manifest
 
-    database_url: str | None = None
-    if hasattr(args, "database") and args.database == "sqlite":
-        import tempfile
-
-        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
-        database_url = f"sqlite:///{tmp.name}"
-        tmp.close()  # release handle so SQLAlchemy can use it
+    database_backend = "sqlite"
+    if hasattr(args, "database") and args.database:
+        database_backend = args.database
 
     eval_root = (
         Path(args.evaluation_root)
@@ -161,7 +190,7 @@ def _do_run(args: argparse.Namespace) -> int:
 
     return run_manifest(
         Path(args.manifest),
-        database_url=database_url,
+        database_backend=database_backend,
         eval_root_override=eval_root,
     )
 

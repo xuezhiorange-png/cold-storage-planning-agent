@@ -63,7 +63,7 @@ def test_run_not_implemented() -> None:
     tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")  # noqa: SIM115
     tmp.write("{}")
     tmp.close()
-    rc = main(["--manifest", str(tmp), "run"])
+    rc = main(["--manifest", tmp.name, "run"])
     assert rc != 0  # Invalid manifest should fail
 
 
