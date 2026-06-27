@@ -131,18 +131,12 @@ def parse_json_path(path_str: str) -> ParsedJsonPath:
                     message=f"Empty array index in JSONPath: '{path_str}'",
                     field=path_str,
                 )
-            # Array index must match 0|[1-9][0-9]* - strict ASCII digit check
-            if not idx_str.isdigit():
+            # Array index must match 0|[1-9][0-9]* — strict ASCII grammar
+            _ARRAY_INDEX_RE = re.compile(r"^(0|[1-9][0-9]*)$")
+            if not _ARRAY_INDEX_RE.fullmatch(idx_str):
                 raise JsonPathInvalidError(
                     code="EVAL_JSON_PATH_INVALID",
                     message=f"Invalid array index '{idx_str}' in JSONPath: '{path_str}'",
-                    field=path_str,
-                )
-            if len(idx_str) > 1 and idx_str[0] == "0":
-                raise JsonPathInvalidError(
-                    code="EVAL_JSON_PATH_INVALID",
-                    message=f"Invalid array index '{idx_str}' in JSONPath: '{path_str}' "
-                    f"(leading zero not allowed)",
                     field=path_str,
                 )
             try:

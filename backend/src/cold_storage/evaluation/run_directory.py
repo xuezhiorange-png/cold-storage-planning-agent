@@ -372,29 +372,56 @@ def _decode_run_context_strict(value: object) -> EvaluationRunContext:
             message=f"Invalid run status in run.json: '{status_str}': {exc}",
         ) from exc
 
-    # started_at ISO-8601 with timezone
-    if started_at:
-        try:
-            parsed_dt = datetime.fromisoformat(started_at)
-        except (ValueError, TypeError) as exc:
-            raise RunSummaryInvalidError(
-                code="EVAL_RUN_SUMMARY_INVALID",
-                message=f"Invalid started_at in run.json: '{started_at}': {exc}",
-            ) from exc
-        if parsed_dt.tzinfo is None or parsed_dt.utcoffset() is None:
-            raise RunSummaryInvalidError(
-                code="EVAL_RUN_SUMMARY_INVALID",
-                message=f"started_at must include timezone offset in run.json, got '{started_at}'",
-            )
+    # suite_revision ≥ 1
+    if suite_revision < 1:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=(f"suite_revision must be ≥ 1 in run.json, got {suite_revision}"),
+        )
 
-    # Scenario IDs
+    # started_at ISO-8601 with timezone — must be non-empty
+    if not started_at:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message="started_at must be non-empty in run.json",
+        )
+    try:
+        parsed_dt = datetime.fromisoformat(started_at)
+    except (ValueError, TypeError) as exc:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Invalid started_at in run.json: '{started_at}': {exc}",
+        ) from exc
+    if parsed_dt.tzinfo is None or parsed_dt.utcoffset() is None:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"started_at must include timezone offset in run.json, got '{started_at}'",
+        )
+
+    # Scenario IDs — must be list, non-empty strings, no duplicates
     scenario_ids_raw = value.get("scenario_ids")
     if not isinstance(scenario_ids_raw, list):
         raise RunSummaryInvalidError(
             code="EVAL_RUN_SUMMARY_INVALID",
             message=f"Expected list for 'scenario_ids', got {type(scenario_ids_raw).__name__}",
         )
-    scenario_ids = tuple(_expect_str(s, "scenario_ids[]") for s in scenario_ids_raw)
+    seen_scenario_ids: set[str] = set()
+    scenario_ids_list: list[str] = []
+    for index, s_raw in enumerate(scenario_ids_raw):
+        s = _expect_str(s_raw, f"scenario_ids[{index}]")
+        if not s:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Empty scenario ID at index {index} in run.json",
+            )
+        if s in seen_scenario_ids:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Duplicate scenario ID '{s}' in run.json",
+            )
+        seen_scenario_ids.add(s)
+        scenario_ids_list.append(s)
+    scenario_ids = tuple(scenario_ids_list)
 
     # Optional fields
     database_backend_raw = value.get("database_backend")
@@ -668,6 +695,16 @@ class EvaluationRunDirectory:
                 ),
                 field="suite_revision",
             )
+        # code_commit_sha must match context
+        if summary.code_commit_sha != context.code_commit_sha:
+            raise RunIdentityMismatchError(
+                code="EVAL_RUN_IDENTITY_MISMATCH",
+                message=(
+                    f"Summary code_commit_sha '{summary.code_commit_sha}' "
+                    f"does not match context '{context.code_commit_sha}'"
+                ),
+                field="code_commit_sha",
+            )
         if summary.scenario_ids != context.scenario_ids:
             raise RunIdentityMismatchError(
                 code="EVAL_RUN_IDENTITY_MISMATCH",
@@ -738,13 +775,7 @@ class EvaluationRunDirectory:
             ) from exc
 
         # Strict conversion to typed model (calls validate_run_summary internally)
-        try:
-            summary = _dict_to_summary_strict(raw_summary)
-        except (KeyError, TypeError, ValueError, AssertionError) as exc:
-            raise RunSummaryInvalidError(
-                code="EVAL_RUN_SUMMARY_INVALID",
-                message=f"Summary structure is invalid for run '{run_id}': {exc}",
-            ) from exc
+        summary = _dict_to_summary_strict(raw_summary)
 
         # Validate identity against expected parameters
         if summary.run_id != run_id:
@@ -1010,96 +1041,120 @@ def _summary_to_dict(summary: EvaluationRunSummary) -> dict[str, Any]:
     }
 
 
-def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
-    """Convert a deserialized dict to a typed summary with strict validation.
+def _dict_to_summary_strict(value: object) -> EvaluationRunSummary:
+    """Convert a deserialized JSON value to a typed summary with strict validation.
 
-    Rejects unknown fields, wrong types, and structurally invalid data.
+    Accepts only a ``dict`` root.  Rejects unknown fields, wrong types,
+    and structurally invalid data.
     Delegates contract invariants to ``validate_run_summary()``.
     """
+    # Reject non-dict root
+    if not isinstance(value, dict):
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=(f"Summary root must be a dict, got {type(value).__name__}"),
+            field="$",
+        )
+
+    d: dict[str, Any] = value
     # Reject unknown root-level fields
     extra = set(d) - _KNOWN_SUMMARY_FIELDS
     if extra:
-        raise ValueError(f"Unknown summary fields: {sorted(extra)}")
-
-    def _expect_string(v: object, field: str) -> str:
-        if not isinstance(v, str):
-            raise TypeError(f"Expected str for '{field}', got {type(v).__name__}")
-        return v
-
-    def _expect_int(v: object, field: str) -> int:
-        if isinstance(v, bool) or not isinstance(v, int):
-            raise TypeError(f"Expected int for '{field}', got {type(v).__name__}")
-        return v
-
-    def _expect_bool(v: object, field: str) -> bool:
-        if not isinstance(v, bool):
-            raise TypeError(f"Expected bool for '{field}', got {type(v).__name__}")
-        return v
-
-    run_id = _expect_string(d.get("run_id"), "run_id")
-    suite_id = _expect_string(d.get("suite_id"), "suite_id")
-    suite_revision = _expect_int(d.get("suite_revision"), "suite_revision")
-    manifest_sha256 = _expect_string(d.get("manifest_sha256"), "manifest_sha256")
-    status_str = _expect_string(d.get("status"), "status")
-    status = RunStatus(status_str)
-    completed_at = _expect_string(d.get("completed_at", ""), "completed_at")
-    passed = _expect_bool(d.get("passed"), "passed")
-    code_commit_sha_raw = d.get("code_commit_sha")
-    code_commit_sha: str | None = (
-        _expect_string(code_commit_sha_raw, "code_commit_sha")
-        if code_commit_sha_raw is not None
-        else None
-    )
-
-    scenario_ids_raw = d.get("scenario_ids", [])
-    if not isinstance(scenario_ids_raw, list):
-        raise TypeError(f"Expected list for 'scenario_ids', got {type(scenario_ids_raw).__name__}")
-    scenario_ids = tuple(_expect_string(s, "scenario_ids[]") for s in scenario_ids_raw)
-
-    scenario_results_raw = d.get("scenario_results", [])
-    if not isinstance(scenario_results_raw, list):
-        raise TypeError(
-            f"Expected list for 'scenario_results', got {type(scenario_results_raw).__name__}"
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Unknown summary fields: {sorted(extra)}",
+            field="$",
         )
 
-    scenario_results_list: list[ScenarioRunSummary] = []
-    for sr in scenario_results_raw:
-        if not isinstance(sr, dict):
-            raise TypeError(f"Expected dict for scenario_result, got {type(sr).__name__}")
+    try:
 
-        # Reject unknown fields inside scenario result objects
-        extra_sr = set(sr) - _KNOWN_RESULT_FIELDS
-        if extra_sr:
-            raise ValueError(f"Unknown scenario result fields: {sorted(extra_sr)}")
+        def _expect_string(v: object, field: str) -> str:
+            if not isinstance(v, str):
+                raise TypeError(f"Expected str for '{field}', got {type(v).__name__}")
+            return v
 
-        sr_id = _expect_string(sr.get("scenario_id"), "scenario_result.scenario_id")
-        sr_passed = _expect_bool(sr.get("passed"), "scenario_result.passed")
-        checks_total = _expect_int(sr.get("checks_total"), "scenario_result.checks_total")
-        checks_passed = _expect_int(sr.get("checks_passed"), "scenario_result.checks_passed")
-        checks_failed = _expect_int(sr.get("checks_failed"), "scenario_result.checks_failed")
+        def _expect_int(v: object, field: str) -> int:
+            if isinstance(v, bool) or not isinstance(v, int):
+                raise TypeError(f"Expected int for '{field}', got {type(v).__name__}")
+            return v
 
-        scenario_results_list.append(
-            ScenarioRunSummary(
-                scenario_id=sr_id,
-                passed=sr_passed,
-                checks_total=checks_total,
-                checks_passed=checks_passed,
-                checks_failed=checks_failed,
+        def _expect_bool(v: object, field: str) -> bool:
+            if not isinstance(v, bool):
+                raise TypeError(f"Expected bool for '{field}', got {type(v).__name__}")
+            return v
+
+        run_id = _expect_string(d.get("run_id"), "run_id")
+        suite_id = _expect_string(d.get("suite_id"), "suite_id")
+        suite_revision = _expect_int(d.get("suite_revision"), "suite_revision")
+        manifest_sha256 = _expect_string(d.get("manifest_sha256"), "manifest_sha256")
+        status_str = _expect_string(d.get("status"), "status")
+        status = RunStatus(status_str)
+        completed_at = _expect_string(d.get("completed_at", ""), "completed_at")
+        passed = _expect_bool(d.get("passed"), "passed")
+        code_commit_sha_raw = d.get("code_commit_sha")
+        code_commit_sha: str | None = (
+            _expect_string(code_commit_sha_raw, "code_commit_sha")
+            if code_commit_sha_raw is not None
+            else None
+        )
+
+        scenario_ids_raw = d.get("scenario_ids", [])
+        if not isinstance(scenario_ids_raw, list):
+            raise TypeError(
+                f"Expected list for 'scenario_ids', got {type(scenario_ids_raw).__name__}"
             )
-        )
+        scenario_ids = tuple(_expect_string(s, "scenario_ids[]") for s in scenario_ids_raw)
 
-    summary = EvaluationRunSummary(
-        run_id=run_id,
-        suite_id=suite_id,
-        suite_revision=suite_revision,
-        manifest_sha256=manifest_sha256,
-        scenario_ids=scenario_ids,
-        status=status,
-        completed_at=completed_at,
-        code_commit_sha=code_commit_sha,
-        passed=passed,
-        scenario_results=tuple(scenario_results_list),
-    )
+        scenario_results_raw = d.get("scenario_results", [])
+        if not isinstance(scenario_results_raw, list):
+            raise TypeError(
+                f"Expected list for 'scenario_results', got {type(scenario_results_raw).__name__}"
+            )
+
+        scenario_results_list: list[ScenarioRunSummary] = []
+        for sr in scenario_results_raw:
+            if not isinstance(sr, dict):
+                raise TypeError(f"Expected dict for scenario_result, got {type(sr).__name__}")
+
+            # Reject unknown fields inside scenario result objects
+            extra_sr = set(sr) - _KNOWN_RESULT_FIELDS
+            if extra_sr:
+                raise ValueError(f"Unknown scenario result fields: {sorted(extra_sr)}")
+
+            sr_id = _expect_string(sr.get("scenario_id"), "scenario_result.scenario_id")
+            sr_passed = _expect_bool(sr.get("passed"), "scenario_result.passed")
+            checks_total = _expect_int(sr.get("checks_total"), "scenario_result.checks_total")
+            checks_passed = _expect_int(sr.get("checks_passed"), "scenario_result.checks_passed")
+            checks_failed = _expect_int(sr.get("checks_failed"), "scenario_result.checks_failed")
+
+            scenario_results_list.append(
+                ScenarioRunSummary(
+                    scenario_id=sr_id,
+                    passed=sr_passed,
+                    checks_total=checks_total,
+                    checks_passed=checks_passed,
+                    checks_failed=checks_failed,
+                )
+            )
+
+        summary = EvaluationRunSummary(
+            run_id=run_id,
+            suite_id=suite_id,
+            suite_revision=suite_revision,
+            manifest_sha256=manifest_sha256,
+            scenario_ids=scenario_ids,
+            status=status,
+            completed_at=completed_at,
+            code_commit_sha=code_commit_sha,
+            passed=passed,
+            scenario_results=tuple(scenario_results_list),
+        )
+    except (ValueError, TypeError, KeyError, AssertionError) as exc:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Summary structure is invalid: {exc}",
+            field="$",
+        ) from exc
 
     # Run contract invariants via the centralised validator.
     # For read-back we allow the stored status (may be terminal only).

@@ -178,8 +178,11 @@ def quantize_decimal_value(
 
     # Quantize inside a frozen Context (not localcontext — localcontext
     # copies ambient settings like Emax/Emin).
+    # Use a fresh copy each invocation so concurrent/prior flags don't leak.
+    ctx = _EVALUATION_DECIMAL_CONTEXT.copy()
+    ctx.clear_flags()
     try:
-        quantized = d.quantize(Decimal(10) ** -scale, context=_EVALUATION_DECIMAL_CONTEXT)
+        quantized = d.quantize(Decimal(10) ** -scale, context=ctx)
     except (InvalidOperation, ValueError, OverflowError) as exc:
         raise DecimalPolicyError(
             code="EVAL_DECIMAL_QUANTIZE_FAILED",
