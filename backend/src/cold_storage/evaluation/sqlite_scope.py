@@ -17,6 +17,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Import scheme ORM to register its tables on Base.metadata before create_all
+import cold_storage.modules.schemes.infrastructure.orm as _scheme_orm  # noqa: F401
 from cold_storage.modules.projects.infrastructure.orm import Base
 
 
