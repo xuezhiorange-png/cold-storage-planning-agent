@@ -23,9 +23,36 @@ from cold_storage.evaluation.errors import (
 from cold_storage.evaluation.models import EvaluationRunSummary, RunStatus, ScenarioRunSummary
 
 _VALID_RUN_ID_RE = re.compile(r"^[a-f0-9]{12}$")
+_VALID_MANIFEST_SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 
-# Default validation/quantization constants
-_FROZEN_PRECISION = 50
+# Allowed database backend values.
+_VALID_DATABASE_BACKENDS: set[str | None] = {None, "sqlite", "postgresql"}
+
+# ── Summary contract: terminal statuses only ───────────────────────
+_TERMINAL_STATUSES = {RunStatus.PASSED, RunStatus.FAILED, RunStatus.ABORTED}
+
+# ── Helper: known summary root fields ──────────────────────────────
+_KNOWN_SUMMARY_FIELDS = {
+    "run_id",
+    "suite_id",
+    "suite_revision",
+    "manifest_sha256",
+    "scenario_ids",
+    "status",
+    "completed_at",
+    "code_commit_sha",
+    "passed",
+    "scenario_results",
+}
+
+# ── Helper: known scenario_result fields ───────────────────────────
+_KNOWN_RESULT_FIELDS = {
+    "scenario_id",
+    "passed",
+    "checks_total",
+    "checks_passed",
+    "checks_failed",
+}
 
 
 def _validate_run_id(run_id: str) -> None:
@@ -67,6 +94,374 @@ def _resolve_run_directory(base: Path, run_id: str) -> Path:
             field="run_id",
         )
     return run_resolved
+
+
+# ────────────────────────────────────────────────────────────────
+#  Centralised summary contract validator (P0-1)
+# ────────────────────────────────────────────────────────────────
+
+
+def validate_run_summary(
+    summary: EvaluationRunSummary,
+    *,
+    declared_scenario_ids: tuple[str, ...] = (),
+    allow_running: bool = False,
+) -> None:
+    """Validate an ``EvaluationRunSummary`` against all contract invariants.
+
+    Called by ``write_summary()``, ``_dict_to_summary_strict()``, and
+    optionally ``read_verified_summary()`` so every write path enforces
+    the same rules.
+
+    Args:
+        summary: The typed summary to validate.
+        declared_scenario_ids: The full set of scenario IDs declared
+            for this run.  Required when ``summary.status == PASSED``.
+        allow_running: When True, RUNNING status is permitted (non-terminal).
+            Default False — only PASSED/FAILED/ABORTED are legal final states.
+
+    Raises:
+        RunSummaryStatusInvalidError: On passed/status mismatch.
+        RunSummaryInvalidError: On structural invariant violations.
+    """
+    # ── Terminal status only ────────────────────────────────────
+    if not allow_running and summary.status not in _TERMINAL_STATUSES:
+        raise RunSummaryStatusInvalidError(
+            code="EVAL_RUN_SUMMARY_STATUS_INVALID",
+            message=(
+                "Summary status must be terminal "
+                f"(PASSED/FAILED/ABORTED), got '{summary.status.value}'"
+            ),
+            field="status",
+        )
+
+    # ── passed/status bidirectional invariant ───────────────────
+    if summary.passed and summary.status != RunStatus.PASSED:
+        raise RunSummaryStatusInvalidError(
+            code="EVAL_RUN_SUMMARY_STATUS_INVALID",
+            message=f"passed=True but status is '{summary.status.value}'",
+            field="status",
+        )
+    if not summary.passed and summary.status == RunStatus.PASSED:
+        raise RunSummaryStatusInvalidError(
+            code="EVAL_RUN_SUMMARY_STATUS_INVALID",
+            message=f"status=PASSED but passed={summary.passed}",
+            field="status",
+        )
+    # ── completed_at — terminal summaries require it ────────────
+    if summary.status in _TERMINAL_STATUSES:
+        if not summary.completed_at:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=(
+                    f"Terminal summary '{summary.status.value}' must have non-empty completed_at"
+                ),
+                field="completed_at",
+            )
+        try:
+            parsed_dt = datetime.fromisoformat(summary.completed_at)
+        except (ValueError, TypeError) as exc:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Invalid completed_at format: '{summary.completed_at}': {exc}",
+                field="completed_at",
+            ) from exc
+        if parsed_dt.tzinfo is None or parsed_dt.utcoffset() is None:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"completed_at must include timezone offset, got '{summary.completed_at}'",
+                field="completed_at",
+            )
+
+    # ── Scenario result invariants ──────────────────────────────
+    seen_result_ids: set[str] = set()
+    for sr in summary.scenario_results:
+        # scenario_id non-empty
+        if not sr.scenario_id:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message="Scenario result has empty scenario_id",
+                field="scenario_results",
+            )
+
+        # No duplicate
+        if sr.scenario_id in seen_result_ids:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Duplicate scenario result ID: '{sr.scenario_id}'",
+                field="scenario_results",
+            )
+        seen_result_ids.add(sr.scenario_id)
+
+        # No undeclared ID
+        if declared_scenario_ids and sr.scenario_id not in declared_scenario_ids:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Undeclared scenario result ID: '{sr.scenario_id}'",
+                field="scenario_results",
+            )
+
+        # Count invariants
+        if sr.checks_total < 0:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Negative checks_total for scenario '{sr.scenario_id}': {sr.checks_total}",
+                field="scenario_results",
+            )
+        if sr.checks_passed < 0:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=(
+                    f"Negative checks_passed for scenario '{sr.scenario_id}': {sr.checks_passed}"
+                ),
+                field="scenario_results",
+            )
+        if sr.checks_failed < 0:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=(
+                    f"Negative checks_failed for scenario '{sr.scenario_id}': {sr.checks_failed}"
+                ),
+                field="scenario_results",
+            )
+        if sr.checks_passed + sr.checks_failed != sr.checks_total:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=(
+                    f"Check counts do not close for scenario '{sr.scenario_id}': "
+                    f"{sr.checks_passed} + {sr.checks_failed} != {sr.checks_total}"
+                ),
+                field="scenario_results",
+            )
+        if sr.passed != (sr.checks_failed == 0):
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=(
+                    f"Scenario '{sr.scenario_id}' passed={sr.passed} "
+                    f"but checks_failed={sr.checks_failed}"
+                ),
+                field="scenario_results",
+            )
+
+    # ── PASSED scenario completeness ────────────────────────────
+    if summary.status == RunStatus.PASSED and declared_scenario_ids:
+        if len(summary.scenario_results) != len(declared_scenario_ids):
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=(
+                    f"PASSED summary with {len(summary.scenario_results)} "
+                    f"scenario results, expected {len(declared_scenario_ids)}"
+                ),
+                field="scenario_results",
+            )
+        result_ids = {sr.scenario_id for sr in summary.scenario_results}
+        for sid in declared_scenario_ids:
+            if sid not in result_ids:
+                raise RunSummaryInvalidError(
+                    code="EVAL_RUN_SUMMARY_INVALID",
+                    message=f"PASSED summary missing scenario result for '{sid}'",
+                    field="scenario_results",
+                )
+        for sr in summary.scenario_results:
+            if not sr.passed:
+                raise RunSummaryInvalidError(
+                    code="EVAL_RUN_SUMMARY_INVALID",
+                    message=(
+                        f"PASSED summary contains non-passed scenario result: '{sr.scenario_id}'"
+                    ),
+                    field="scenario_results",
+                )
+            # PASSED scenario should have at least one check
+            if sr.checks_total == 0:
+                raise RunSummaryInvalidError(
+                    code="EVAL_RUN_SUMMARY_INVALID",
+                    message=(
+                        f"PASSED scenario '{sr.scenario_id}' has "
+                        f"checks_total=0 (empty-pass not allowed)"
+                    ),
+                    field="scenario_results",
+                )
+
+
+# ────────────────────────────────────────────────────────────────
+#  Strict run.json decoder (P0-2)
+# ────────────────────────────────────────────────────────────────
+
+
+def _decode_run_context_strict(value: object) -> EvaluationRunContext:
+    """Strictly decode and validate a persisted ``run.json`` value.
+
+    Accepts only a ``dict`` with exactly the known fields, proper types,
+    and valid semantic content.  Rejects unknown fields, wrong types,
+    and malformed values with ``RunSummaryInvalidError``.
+
+    Raises:
+        RunSummaryInvalidError: On any structural or type violation.
+    """
+
+    # Must be a dict
+    if not isinstance(value, dict):
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Run.json root must be a dict, got {type(value).__name__}",
+        )
+
+    # Reject unknown root fields
+    _KNOWN_RUN_FIELDS = {
+        "run_id",
+        "suite_id",
+        "suite_revision",
+        "manifest_sha256",
+        "started_at",
+        "status",
+        "scenario_ids",
+        "database_backend",
+        "code_commit_sha",
+    }
+    extra = set(value) - _KNOWN_RUN_FIELDS
+    if extra:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Unknown run.json fields: {sorted(extra)}",
+        )
+
+    def _expect_str(v: object, field: str) -> str:
+        if not isinstance(v, str):
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Expected str for '{field}', got {type(v).__name__}",
+            )
+        return v
+
+    def _expect_int(v: object, field: str) -> int:
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Expected int for '{field}', got {type(v).__name__}",
+            )
+        return v
+
+    # Required string fields
+    run_id = _expect_str(value.get("run_id"), "run_id")
+    suite_id = _expect_str(value.get("suite_id"), "suite_id")
+    manifest_sha256 = _expect_str(value.get("manifest_sha256"), "manifest_sha256")
+    started_at = _expect_str(value.get("started_at"), "started_at")
+    status_str = _expect_str(value.get("status"), "status")
+    suite_revision = _expect_int(value.get("suite_revision"), "suite_revision")
+
+    # Run ID format
+    if not _VALID_RUN_ID_RE.match(run_id):
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Invalid run_id format in run.json: '{run_id}'",
+        )
+
+    # Manifest SHA-256 format
+    if not _VALID_MANIFEST_SHA256_RE.match(manifest_sha256):
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Invalid manifest_sha256 format in run.json: '{manifest_sha256[:16]}...'",
+        )
+
+    # Status
+    try:
+        status = RunStatus(status_str)
+    except ValueError as exc:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Invalid run status in run.json: '{status_str}': {exc}",
+        ) from exc
+
+    # started_at ISO-8601 with timezone
+    if started_at:
+        try:
+            parsed_dt = datetime.fromisoformat(started_at)
+        except (ValueError, TypeError) as exc:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"Invalid started_at in run.json: '{started_at}': {exc}",
+            ) from exc
+        if parsed_dt.tzinfo is None or parsed_dt.utcoffset() is None:
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message=f"started_at must include timezone offset in run.json, got '{started_at}'",
+            )
+
+    # Scenario IDs
+    scenario_ids_raw = value.get("scenario_ids")
+    if not isinstance(scenario_ids_raw, list):
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Expected list for 'scenario_ids', got {type(scenario_ids_raw).__name__}",
+        )
+    scenario_ids = tuple(_expect_str(s, "scenario_ids[]") for s in scenario_ids_raw)
+
+    # Optional fields
+    database_backend_raw = value.get("database_backend")
+    database_backend: str | None = (
+        _expect_str(database_backend_raw, "database_backend")
+        if database_backend_raw is not None
+        else None
+    )
+    if database_backend is not None and database_backend not in {
+        b for b in _VALID_DATABASE_BACKENDS if b is not None
+    }:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Invalid database_backend in run.json: '{database_backend}'",
+        )
+
+    code_commit_sha_raw = value.get("code_commit_sha")
+    code_commit_sha: str | None = (
+        _expect_str(code_commit_sha_raw, "code_commit_sha")
+        if code_commit_sha_raw is not None
+        else None
+    )
+
+    return EvaluationRunContext(
+        run_id=run_id,
+        suite_id=suite_id,
+        suite_revision=suite_revision,
+        manifest_sha256=manifest_sha256,
+        started_at=started_at,
+        status=status,
+        scenario_ids=scenario_ids,
+        database_backend=database_backend,
+        code_commit_sha=code_commit_sha,
+    )
+
+
+# ────────────────────────────────────────────────────────────────
+#  Load persisted run.json
+# ────────────────────────────────────────────────────────────────
+
+
+def _load_run_json_strict(run_dir: Path, run_id: str) -> EvaluationRunContext:
+    """Read, decode and validate the ``run.json`` under *run_dir*.
+
+    Raises:
+        RunSummaryInvalidError: If the file is missing, malformed, or
+            fails strict decoding.
+    """
+    run_json_path = run_dir / "run.json"
+    try:
+        raw = json.loads(run_json_path.read_text("utf-8"))
+    except FileNotFoundError:
+        raise RunSummaryNotFoundError(
+            code="EVAL_RUN_SUMMARY_NOT_FOUND",
+            message=f"Run metadata (run.json) not found for run '{run_id}'",
+        ) from None
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=f"Run.json is invalid for run '{run_id}': {exc}",
+        ) from exc
+    return _decode_run_context_strict(raw)
+
+
+# ────────────────────────────────────────────────────────────────
+#  EvaluationRunDirectory
+# ────────────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,7 +552,8 @@ class EvaluationRunDirectory:
         - running -> passed | failed | aborted
 
         Validates run ID format, path containment, and that the run
-        directory and run.json already exist before modifying state.
+        directory and run.json already exist (and are decodable) before
+        modifying state.
         """
         # Validate run ID and path containment
         run_dir = _resolve_run_directory(self._base, context.run_id)
@@ -167,23 +563,15 @@ class EvaluationRunDirectory:
                 message=f"Run directory does not exist for run '{context.run_id}'",
             )
 
-        run_json_path = run_dir / "run.json"
-        if not run_json_path.exists():
-            raise RunStateError(
-                code="EVAL_RUN_STATE_INVALID",
-                message=f"Run metadata (run.json) not found for run '{context.run_id}'",
-            )
-
-        # Verify persisted identity matches context (prevents stale/fabricated context)
+        # Strictly decode persisted run.json
         try:
-            run_meta: dict[str, Any] = json.loads(run_json_path.read_text("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            persisted = _load_run_json_strict(run_dir, context.run_id)
+        except (RunSummaryNotFoundError, RunSummaryInvalidError) as exc:
             raise RunStateError(
                 code="EVAL_RUN_STATE_INVALID",
-                message=f"Run.json is invalid for run '{context.run_id}': {exc}",
+                message=f"Run metadata is invalid for run '{context.run_id}': {exc}",
             ) from exc
-
-        _verify_context_against_run_meta(context, run_meta)
+        _verify_context_against_run_meta(context, _context_to_dict(persisted))
 
         allowed = self._allowed_transitions(context.status, new_status)
         if not allowed:
@@ -203,7 +591,7 @@ class EvaluationRunDirectory:
             database_backend=context.database_backend,
             code_commit_sha=context.code_commit_sha,
         )
-        _atomic_write(run_json_path, _context_to_dict(updated))
+        _atomic_write(run_dir / "run.json", _context_to_dict(updated))
         return updated
 
     def write_summary(
@@ -227,47 +615,23 @@ class EvaluationRunDirectory:
         - summary.suite_revision must equal context.suite_revision
         - summary.scenario_ids must equal context.scenario_ids
         - summary.status must equal context.status
-        - passed=True requires summary.status == PASSED
         """
-        if context.status not in (
-            RunStatus.RUNNING,
-            RunStatus.PASSED,
-            RunStatus.FAILED,
-            RunStatus.ABORTED,
-        ):
-            raise RunStateError(
-                code="EVAL_RUN_STATE_INVALID",
-                message=f"Cannot write summary in status '{context.status.value}'",
-            )
-
-        # Validate run ID and path containment
+        # Validate run ID and path containment → get resolved run_dir
         run_dir = _resolve_run_directory(self._base, context.run_id)
-        run_json_path = run_dir / "run.json"
+        summary_path = run_dir / "summary.json"
 
         # Fail closed: run.json must exist
-        if not run_json_path.exists():
-            raise RunSummaryNotFoundError(
-                code="EVAL_RUN_SUMMARY_NOT_FOUND",
-                message=f"Run metadata (run.json) not found for run '{context.run_id}'",
-            )
         if not run_dir.exists():
             raise RunSummaryNotFoundError(
                 code="EVAL_RUN_SUMMARY_NOT_FOUND",
                 message=f"Run directory does not exist for run '{context.run_id}'",
             )
 
-        # Verify persisted identity matches context
-        try:
-            run_meta: dict[str, Any] = json.loads(run_json_path.read_text("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise RunSummaryInvalidError(
-                code="EVAL_RUN_SUMMARY_INVALID",
-                message=f"Run.json is invalid for run '{context.run_id}': {exc}",
-            ) from exc
+        # Strictly decode persisted run.json
+        persisted = _load_run_json_strict(run_dir, context.run_id)
+        _verify_context_against_run_meta(context, _context_to_dict(persisted))
 
-        _verify_context_against_run_meta(context, run_meta)
-
-        # Validate identity
+        # Validate identity fields between summary and context
         if summary.run_id != context.run_id:
             raise RunIdentityMismatchError(
                 code="EVAL_RUN_IDENTITY_MISMATCH",
@@ -322,48 +686,14 @@ class EvaluationRunDirectory:
                 field="status",
             )
 
-        # passed=True requires status == PASSED
-        if summary.passed and summary.status != RunStatus.PASSED:
-            raise RunSummaryStatusInvalidError(
-                code="EVAL_RUN_SUMMARY_STATUS_INVALID",
-                message=f"Summary claims passed=True but status is '{summary.status.value}'",
-                field="status",
-            )
-
-        # PASSED summary must cover all declared scenarios
-        if summary.status == RunStatus.PASSED:
-            if len(summary.scenario_results) != len(summary.scenario_ids):
-                raise RunSummaryInvalidError(
-                    code="EVAL_RUN_SUMMARY_INVALID",
-                    message=(
-                        f"PASSED summary with {len(summary.scenario_results)} "
-                        f"scenario results, expected {len(summary.scenario_ids)}"
-                    ),
-                    field="scenario_results",
-                )
-            result_ids = {sr.scenario_id for sr in summary.scenario_results}
-            for sid in summary.scenario_ids:
-                if sid not in result_ids:
-                    raise RunSummaryInvalidError(
-                        code="EVAL_RUN_SUMMARY_INVALID",
-                        message=f"PASSED summary missing scenario result for '{sid}'",
-                        field="scenario_results",
-                    )
-            for sr in summary.scenario_results:
-                if not sr.passed:
-                    raise RunSummaryInvalidError(
-                        code="EVAL_RUN_SUMMARY_INVALID",
-                        message=(
-                            f"PASSED summary contains non-passed scenario "
-                            f"result: '{sr.scenario_id}'"
-                        ),
-                        field="scenario_results",
-                    )
-
-        _atomic_write(
-            self._base / context.run_id / "summary.json",
-            _summary_to_dict(summary),
+        # Centralised summary contract validation
+        validate_run_summary(
+            summary,
+            declared_scenario_ids=context.scenario_ids,
+            allow_running=False,
         )
+
+        _atomic_write(summary_path, _summary_to_dict(summary))
 
     def read_verified_summary(
         self,
@@ -380,7 +710,7 @@ class EvaluationRunDirectory:
         - Expected suite ID (optional)
         - Expected suite revision (optional)
         - Persisted run.json (run ID, suite ID, suite revision, manifest hash,
-          scenario IDs, status, code commit SHA)
+          scenario IDs, status, code commit SHA, database backend)
 
         Raises:
             RunSummaryNotFoundError: Summary file does not exist or run.json does not exist.
@@ -392,17 +722,11 @@ class EvaluationRunDirectory:
         _validate_run_id(run_id)
         run_dir = _resolve_run_directory(self._base, run_id)
         summary_path = run_dir / "summary.json"
-        run_json_path = run_dir / "run.json"
 
         if not summary_path.exists():
             raise RunSummaryNotFoundError(
                 code="EVAL_RUN_SUMMARY_NOT_FOUND",
                 message=f"Summary file not found for run '{run_id}'",
-            )
-        if not run_json_path.exists():
-            raise RunSummaryNotFoundError(
-                code="EVAL_RUN_SUMMARY_NOT_FOUND",
-                message=f"Run metadata not found for run '{run_id}'",
             )
 
         try:
@@ -413,7 +737,7 @@ class EvaluationRunDirectory:
                 message=f"Summary JSON is invalid for run '{run_id}': {exc}",
             ) from exc
 
-        # Strict conversion to typed model
+        # Strict conversion to typed model (calls validate_run_summary internally)
         try:
             summary = _dict_to_summary_strict(raw_summary)
         except (KeyError, TypeError, ValueError, AssertionError) as exc:
@@ -465,16 +789,9 @@ class EvaluationRunDirectory:
                 field="suite_revision",
             )
 
-        # Verify complete identity against persisted run.json
-        try:
-            run_meta: dict[str, Any] = json.loads(run_json_path.read_text("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise RunSummaryInvalidError(
-                code="EVAL_RUN_SUMMARY_INVALID",
-                message=f"Run.json is invalid for run '{run_id}': {exc}",
-            ) from exc
-
-        _verify_summary_against_run_meta(run_id, summary, run_meta)
+        # Verify complete identity against persisted run.json (via strict decoder)
+        persisted = _load_run_json_strict(run_dir, run_id)
+        _verify_summary_against_run_meta(run_id, summary, _context_to_dict(persisted))
 
         return summary
 
@@ -495,13 +812,17 @@ class EvaluationRunDirectory:
         return next_status in transitions.get(current, set())
 
 
+# ── Identity verification helpers ──────────────────────────────────
+
+
 def _verify_context_against_run_meta(
     context: EvaluationRunContext,
     run_meta: dict[str, Any],
 ) -> None:
     """Verify that a context matches persisted run.json metadata.
 
-    Checks every identity field that should be cross-referenced.
+    Checks every identity field that should be cross-referenced, including
+    ``database_backend``.
     Raises:
         RunIdentityMismatchError: On any field mismatch.
     """
@@ -538,6 +859,16 @@ def _verify_context_against_run_meta(
             code="EVAL_RUN_IDENTITY_MISMATCH",
             message=f"Context code_commit_sha '{ctx_sha}' does not match run.json '{run_sha}'",
             field="code_commit_sha",
+        )
+
+    # Database backend (P0-2 addition)
+    ctx_db = context.database_backend
+    run_db = run_meta.get("database_backend")
+    if ctx_db != run_db:
+        raise RunIdentityMismatchError(
+            code="EVAL_RUN_IDENTITY_MISMATCH",
+            message=f"Context database_backend '{ctx_db}' does not match run.json '{run_db}'",
+            field="database_backend",
         )
 
 
@@ -586,7 +917,7 @@ def _verify_summary_against_run_meta(
             field="scenario_ids",
         )
 
-    # Status: always check (not only for passed)
+    # Passed consistency
     run_status_str = run_meta.get("status", "")
     if summary.status.value != run_status_str:
         raise RunSummaryStatusInvalidError(
@@ -597,14 +928,19 @@ def _verify_summary_against_run_meta(
             ),
             field="status",
         )
-
-    # Passed consistency
     if summary.passed and run_status_str != "passed":
         raise RunSummaryStatusInvalidError(
             code="EVAL_RUN_SUMMARY_STATUS_INVALID",
             message=(f"Summary claims passed but run.json status is '{run_status_str}'"),
             field="status",
         )
+
+    # Database backend is not directly accessible from summary;
+    # it is validated via run.json in _load_run_json_strict and
+    # _verify_context_against_run_meta during write paths.
+
+
+# ── Generator, I/O, serialisation helpers ─────────────────────────
 
 
 def _generate_run_id() -> str:
@@ -678,21 +1014,10 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
     """Convert a deserialized dict to a typed summary with strict validation.
 
     Rejects unknown fields, wrong types, and structurally invalid data.
+    Delegates contract invariants to ``validate_run_summary()``.
     """
     # Reject unknown root-level fields
-    _known_fields = {
-        "run_id",
-        "suite_id",
-        "suite_revision",
-        "manifest_sha256",
-        "scenario_ids",
-        "status",
-        "completed_at",
-        "code_commit_sha",
-        "passed",
-        "scenario_results",
-    }
-    extra = set(d) - _known_fields
+    extra = set(d) - _KNOWN_SUMMARY_FIELDS
     if extra:
         raise ValueError(f"Unknown summary fields: {sorted(extra)}")
 
@@ -726,31 +1051,11 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
         else None
     )
 
-    # ── passed/status bidirectional invariant ────────────────────
-    # summary.passed == (summary.status == RunStatus.PASSED)
-    if passed and status != RunStatus.PASSED:
-        raise ValueError(f"passed=True but status is '{status.value}'")
-    if not passed and status == RunStatus.PASSED:
-        raise ValueError(f"status=PASSED but passed={passed}")
-
-    # ── completed_at must be valid ISO-8601 with UTC offset ──────
-    from datetime import datetime
-
-    if completed_at:
-        try:
-            parsed_dt = datetime.fromisoformat(completed_at)
-        except (ValueError, TypeError) as exc:
-            raise ValueError(f"Invalid completed_at format: '{completed_at}': {exc}") from exc
-        if parsed_dt.tzinfo is None or parsed_dt.utcoffset() is None:
-            raise ValueError(f"completed_at must include timezone offset, got '{completed_at}'")
-
     scenario_ids_raw = d.get("scenario_ids", [])
     if not isinstance(scenario_ids_raw, list):
         raise TypeError(f"Expected list for 'scenario_ids', got {type(scenario_ids_raw).__name__}")
     scenario_ids = tuple(_expect_string(s, "scenario_ids[]") for s in scenario_ids_raw)
 
-    # Validate scenario result IDs
-    seen_result_ids: set[str] = set()
     scenario_results_raw = d.get("scenario_results", [])
     if not isinstance(scenario_results_raw, list):
         raise TypeError(
@@ -763,50 +1068,15 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
             raise TypeError(f"Expected dict for scenario_result, got {type(sr).__name__}")
 
         # Reject unknown fields inside scenario result objects
-        _known_result_fields = {
-            "scenario_id",
-            "passed",
-            "checks_total",
-            "checks_passed",
-            "checks_failed",
-        }
-        extra = set(sr) - _known_result_fields
-        if extra:
-            raise ValueError(f"Unknown scenario result fields: {sorted(extra)}")
+        extra_sr = set(sr) - _KNOWN_RESULT_FIELDS
+        if extra_sr:
+            raise ValueError(f"Unknown scenario result fields: {sorted(extra_sr)}")
 
         sr_id = _expect_string(sr.get("scenario_id"), "scenario_result.scenario_id")
-        if sr_id in seen_result_ids:
-            raise ValueError(f"Duplicate scenario result ID: '{sr_id}'")
-        seen_result_ids.add(sr_id)
-        if sr_id not in scenario_ids:
-            raise ValueError(f"Undeclared scenario result ID: '{sr_id}'")
-
         sr_passed = _expect_bool(sr.get("passed"), "scenario_result.passed")
         checks_total = _expect_int(sr.get("checks_total"), "scenario_result.checks_total")
         checks_passed = _expect_int(sr.get("checks_passed"), "scenario_result.checks_passed")
         checks_failed = _expect_int(sr.get("checks_failed"), "scenario_result.checks_failed")
-
-        # Count invariants
-        if checks_total < 0:
-            raise ValueError(f"Negative checks_total for scenario '{sr_id}': {checks_total}")
-        if checks_passed < 0:
-            raise ValueError(f"Negative checks_passed for scenario '{sr_id}': {checks_passed}")
-        if checks_failed < 0:
-            raise ValueError(f"Negative checks_failed for scenario '{sr_id}': {checks_failed}")
-        if checks_passed + checks_failed != checks_total:
-            raise ValueError(
-                f"Check counts do not close for scenario '{sr_id}': "
-                f"{checks_passed} + {checks_failed} != {checks_total}"
-            )
-        if sr_passed and checks_failed > 0:
-            raise ValueError(
-                f"Scenario '{sr_id}' claims passed but has {checks_failed} failed checks"
-            )
-        # passed == (checks_failed == 0)
-        if sr_passed != (checks_failed == 0):
-            raise ValueError(
-                f"Scenario '{sr_id}' passed={sr_passed} but checks_failed={checks_failed}"
-            )
 
         scenario_results_list.append(
             ScenarioRunSummary(
@@ -818,24 +1088,7 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
             )
         )
 
-    # PASSED summary must cover all declared scenarios
-    if status == RunStatus.PASSED:
-        if len(scenario_results_list) != len(scenario_ids):
-            raise ValueError(
-                f"PASSED summary with {len(scenario_results_list)} scenario results "
-                f"expected {len(scenario_ids)}"
-            )
-        result_ids = {sr.scenario_id for sr in scenario_results_list}
-        for sid in scenario_ids:
-            if sid not in result_ids:
-                raise ValueError(f"PASSED summary missing scenario result for '{sid}'")
-        for sr in scenario_results_list:
-            if not sr.passed:
-                raise ValueError(
-                    f"PASSED summary contains non-passed scenario result: '{sr.scenario_id}'"
-                )
-
-    return EvaluationRunSummary(
+    summary = EvaluationRunSummary(
         run_id=run_id,
         suite_id=suite_id,
         suite_revision=suite_revision,
@@ -847,3 +1100,9 @@ def _dict_to_summary_strict(d: dict[str, Any]) -> EvaluationRunSummary:
         passed=passed,
         scenario_results=tuple(scenario_results_list),
     )
+
+    # Run contract invariants via the centralised validator.
+    # For read-back we allow the stored status (may be terminal only).
+    validate_run_summary(summary, declared_scenario_ids=scenario_ids, allow_running=False)
+
+    return summary
