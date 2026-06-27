@@ -1,6 +1,6 @@
 # Task 11 — Evaluation and Pilot Readiness
 
-Status: Phase B first review corrections implemented; awaiting re-review
+Status: Phase B second review corrections implemented; awaiting re-review
 
 Issue: #20
 
