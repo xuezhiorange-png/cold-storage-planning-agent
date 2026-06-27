@@ -136,3 +136,33 @@ class EvaluationManifest:
     suite_id: str
     suite_revision: int
     scenarios: tuple[EvaluationScenario, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioRunSummary:
+    """Per-scenario outcome in an evaluation run."""
+
+    scenario_id: str
+    passed: bool
+    checks_total: int
+    checks_passed: int
+    checks_failed: int
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluationRunSummary:
+    """Typed summary envelope for an evaluation run.
+
+    All fields are validated when reading back to detect stale/mismatched data.
+    """
+
+    run_id: str
+    suite_id: str
+    suite_revision: int
+    manifest_sha256: str
+    scenario_ids: tuple[str, ...]
+    status: RunStatus
+    completed_at: str
+    code_commit_sha: str | None
+    passed: bool
+    scenario_results: tuple[ScenarioRunSummary, ...]
