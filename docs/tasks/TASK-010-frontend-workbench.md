@@ -1,8 +1,12 @@
 # Task 10 — Frontend Planning Workbench
 
-Status: implemented; awaiting engineering review
+Status: completed; merged
 
-Issue: #18
+Issue: #18 (closed)
+
+PR: #19
+
+Merged commit: `09e374156de00b5bb81f0b552aecbbafc0c8a0a2`
 
 Branch: `codex/task-10-frontend-workbench`
 
