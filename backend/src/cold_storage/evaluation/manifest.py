@@ -35,7 +35,10 @@ from cold_storage.evaluation.models import (
     IgnoredPathRule,
     ManifestProvenance,
 )
-from cold_storage.evaluation.paths import resolve_and_verify_path
+from cold_storage.evaluation.paths import (
+    EvaluationReferenceKind,
+    resolve_and_verify_path,
+)
 
 SCHEMA_VERSION = "1.0"
 
@@ -193,15 +196,36 @@ def _validate_semantic(
         for field_name, ref in [
             ("project_input_path", scenario.get("project_input_path", "")),
         ]:
-            _validate_ref(sid, field_name, ref, root, require_files)
+            _validate_ref(
+                sid,
+                field_name,
+                ref,
+                root,
+                require_files,
+                reference_kind=EvaluationReferenceKind.PROJECT_INPUT,
+            )
 
         for field_name, ref in [
             ("expected_path", scenario.get("expected_path", "")),
         ]:
-            _validate_ref(sid, field_name, ref, root, require_files)
+            _validate_ref(
+                sid,
+                field_name,
+                ref,
+                root,
+                require_files,
+                reference_kind=EvaluationReferenceKind.EXPECTED_OUTPUT,
+            )
 
         for ref in scenario.get("document_refs", []):
-            _validate_ref(sid, "document_ref", ref, root, require_files)
+            _validate_ref(
+                sid,
+                "document_ref",
+                ref,
+                root,
+                require_files,
+                reference_kind=EvaluationReferenceKind.DOCUMENT,
+            )
 
 
 def _validate_ref(
@@ -210,12 +234,14 @@ def _validate_ref(
     ref_str: str,
     root: Path,
     require_files: bool,
+    reference_kind: EvaluationReferenceKind | None = None,
 ) -> None:
     """Validate a single referenced path."""
     try:
         resolve_and_verify_path(
             Path(ref_str),
             evaluation_root=root,
+            reference_kind=reference_kind,
             allow_missing=not require_files,
         )
     except UnsafeEvaluationPathError:
@@ -373,7 +399,12 @@ def _to_manifest(raw: dict[str, Any], root: Path, require_files: bool = True) ->
         # Resolve paths using the evaluation root
         stages = tuple(EvaluationStage(stage) for stage in s.get("required_stages", []))
         doc_refs = tuple(
-            resolve_and_verify_path(Path(d), evaluation_root=root, allow_missing=not require_files)
+            resolve_and_verify_path(
+                Path(d),
+                evaluation_root=root,
+                reference_kind=EvaluationReferenceKind.DOCUMENT,
+                allow_missing=not require_files,
+            )
             for d in s.get("document_refs", [])
         )
 
@@ -384,6 +415,7 @@ def _to_manifest(raw: dict[str, Any], root: Path, require_files: bool = True) ->
             project_input_path=resolve_and_verify_path(
                 Path(s["project_input_path"]),
                 evaluation_root=root,
+                reference_kind=EvaluationReferenceKind.PROJECT_INPUT,
                 allow_missing=allow_missing,
             ),
             document_refs=doc_refs,
@@ -392,6 +424,7 @@ def _to_manifest(raw: dict[str, Any], root: Path, require_files: bool = True) ->
             expected_path=resolve_and_verify_path(
                 Path(s["expected_path"]),
                 evaluation_root=root,
+                reference_kind=EvaluationReferenceKind.EXPECTED_OUTPUT,
                 allow_missing=allow_missing,
             ),
             comparison_policy=ComparisonPolicy(
