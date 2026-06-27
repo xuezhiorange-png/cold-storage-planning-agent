@@ -1,12 +1,12 @@
 """Per-scenario production workflow orchestration.
 
 Runs each manifest scenario through real production services and produces
-a normalized output dictionary with a complete stage execution ledger.
+a ScenarioExecutionResult with raw output and normalized stage ledger.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -41,6 +41,27 @@ from cold_storage.modules.calculations.domain.zone_planning import (
 from cold_storage.modules.projects.infrastructure.database import (
     DatabaseProjectService,
 )
+
+# ---------------------------------------------------------------------------
+# ScenarioExecutionResult
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioExecutionResult:
+    """Complete result of running one evaluation scenario.
+
+    raw_output: Full production service output including correlation_id,
+        input_snapshot, calculated_at — untouched by normalization.
+    outcome: success | review_required | blocked | validation_error
+    stage_ledger: dict mapping stage name → {status, review_required, ...}
+    """
+
+    raw_output: dict[str, Any]
+    outcome: str
+    stage_ledger: dict[str, dict[str, Any]]
+    errors: list[str] = field(default_factory=list)
+
 
 # ---------------------------------------------------------------------------
 # Stage-ledger entry builder
@@ -119,14 +140,14 @@ def run_evaluation_scenario(
     scenario: EvaluationScenario,
     fixture: dict[str, Any],
     scope: SqliteScope,
-) -> dict[str, Any]:
+) -> ScenarioExecutionResult:
     """Run a single evaluation scenario through production services.
 
-    Returns a normalized dict with:
-      - scenario_id, fixture_revision, outcome
+    Returns a ScenarioExecutionResult with:
+      - raw_output: complete production service output (no fields removed)
+      - outcome: success | review_required | blocked | validation_error
       - stage_ledger: dict mapping stage name → status/review_required
-      - per-stage output details
-      - errors list
+      - errors: list of error strings
     """
     engine = scope.engine
     Session = scope.Session
@@ -171,7 +192,12 @@ def run_evaluation_scenario(
             stage_ledger["project"] = _stage_entry("failed", error=str(exc))
             errors.append(f"project: {exc}")
             result["outcome"] = "blocked"
-            return result
+            return ScenarioExecutionResult(
+                raw_output=result,
+                outcome="blocked",
+                stage_ledger=stage_ledger,
+                errors=errors,
+            )
 
         # ------------------------------------------------------------------
         # Stage: version
@@ -194,7 +220,12 @@ def run_evaluation_scenario(
             stage_ledger["version"] = _stage_entry("failed", error=str(exc))
             errors.append(f"version: {exc}")
             result["outcome"] = "blocked"
-            return result
+            return ScenarioExecutionResult(
+                raw_output=result,
+                outcome="blocked",
+                stage_ledger=stage_ledger,
+                errors=errors,
+            )
 
         # ------------------------------------------------------------------
         # Stage: validation
@@ -213,7 +244,12 @@ def run_evaluation_scenario(
         if not is_valid:
             stage_ledger["validation"] = _stage_entry("passed", detail="validation_error")
             result["outcome"] = "validation_error"
-            return result
+            return ScenarioExecutionResult(
+                raw_output=result,
+                outcome="validation_error",
+                stage_ledger=stage_ledger,
+                errors=errors,
+            )
         else:
             stage_ledger["validation"] = _stage_entry("passed", detail="valid")
 
@@ -223,7 +259,6 @@ def run_evaluation_scenario(
         if "planning" in scenario.required_stages:
             try:
                 calc_svc = CoreCalculationService()
-                # Build ThroughputCalcInput from fixture
                 tp_input = ThroughputCalcInput(
                     peak_output_kg_per_day=_to_decimal(inputs_raw.get("daily_inbound_mass_kg", 0)),
                     processing_hours_per_day=_to_decimal(
@@ -236,7 +271,6 @@ def run_evaluation_scenario(
                         )
                     ),
                 )
-                # Build InventoryCalcInput
                 inv_input = InventoryCalcInput(
                     daily_inbound_quantity=_to_decimal(
                         inputs_raw.get(
@@ -255,20 +289,17 @@ def run_evaluation_scenario(
                     storage_ratio=_to_decimal(inputs_raw.get("storage_ratio", 1.0)),
                     inventory_peak_factor=_to_decimal(inputs_raw.get("inventory_peak_factor", 1.0)),
                 )
-                # Build PalletCalcInput
                 pallet_input = PalletCalcInput(
                     design_inventory=_to_decimal(inputs_raw.get("design_inventory", 200000)),
                     net_product_per_pallet=_to_decimal(
                         inputs_raw.get("net_product_per_pallet", 1000)
                     ),
                 )
-                # Build PrecoolingCalcInput
                 precool_input = PrecoolingCalcInput(
                     precooled_quantity_per_day=_to_decimal(
                         inputs_raw.get("daily_inbound_mass_kg", 0)
                     ),
                 )
-                # Build InstalledPowerCalcInput
                 power_input = InstalledPowerCalcInput(
                     compressor_input_power_kw_e=_to_decimal(
                         fixture.get("installed_power_input", {}).get(
@@ -290,7 +321,6 @@ def run_evaluation_scenario(
                     installed_power_input=power_input,
                 )
 
-                # Store calculation results
                 calc_results: dict[str, Any] = {
                     "success": orchestration_result.success,
                 }
@@ -311,9 +341,8 @@ def run_evaluation_scenario(
                             if hasattr(calced_at, "isoformat")
                             else str(calced_at)
                         )
-                        # Remove non-deterministic fields
-                        obj_dict.pop("correlation_id", None)
-                        obj_dict.pop("input_snapshot", None)
+                        # Preserve ALL fields including correlation_id and input_snapshot
+                        # for raw output.  Normalization handles exclusions later.
                         calc_results[calc_name] = _json_safe(obj_dict)
                         if getattr(calc_obj, "requires_review", False):
                             stage_review = True
@@ -325,13 +354,6 @@ def run_evaluation_scenario(
                     detail="core_calculations_complete",
                 )
 
-                # Phase B: we do not persist calculation records because the
-                # DatabaseProjectService.record_calculation() expects the old
-                # CalculationResult type with `.input` field, while the new
-                # domain calculators produce CalculationResult with
-                # `.input_snapshot`.  Scheme persistence will be addressed in
-                # Phase C when the full pipeline is connected.
-
                 if not orchestration_result.success:
                     result.setdefault("outcome", "blocked")
             except Exception as exc:
@@ -342,10 +364,10 @@ def run_evaluation_scenario(
         # ------------------------------------------------------------------
         # Stage: zone_plan (ColdRoomZonePlanner)
         # ------------------------------------------------------------------
+        zone_result = None  # scoped for downstream stages
         if "zone_plan" in scenario.required_stages:
             try:
                 zone_planner = ColdRoomZonePlanner()
-                # Zone planning needs more input fields than just daily_inbound_mass_kg
                 zone_plan_input = ColdRoomZonePlanInput(
                     daily_inbound_mass_kg=float(inputs_raw.get("daily_inbound_mass_kg", 10000)),
                     working_time_h_per_day=float(inputs_raw.get("working_time_h_per_day", 16)),
@@ -406,12 +428,43 @@ def run_evaluation_scenario(
                     review_required=zone_result.requires_review,
                     detail="zone_plan_complete",
                 )
-
-                # Zone plan is not persisted via record_calculation (type mismatch).
-                # Phase C will handle the full pipeline.
             except Exception as exc:
                 errors.append(f"zone_plan: {exc}")
                 stage_ledger["zone_plan"] = _stage_entry("failed", error=str(exc))
+                result["outcome"] = "blocked"
+
+        # ------------------------------------------------------------------
+        # Stage: power (installed power calculator)
+        # ------------------------------------------------------------------
+        power_result = None  # scoped for downstream stages
+        if "power" in scenario.required_stages:
+            try:
+                from cold_storage.modules.calculations.domain.power import (
+                    calculate_installed_power,
+                )
+
+                power_input = InstalledPowerCalcInput(
+                    compressor_input_power_kw_e=_to_decimal(
+                        fixture.get("installed_power_input", {}).get(
+                            "compressor_input_power_kw_e", 0
+                        )
+                    ),
+                    processing_equipment_power_kw_e=_to_decimal(
+                        fixture.get("installed_power_input", {}).get(
+                            "processing_equipment_power_kw_e", 0
+                        )
+                    ),
+                )
+                power_result = calculate_installed_power(power_input)
+                result["power"] = _json_safe(asdict(power_result))
+                stage_ledger["power"] = _stage_entry(
+                    "passed" if power_result.success else "failed",
+                    review_required=power_result.requires_review,
+                    detail="power_configuration_complete",
+                )
+            except Exception as exc:
+                errors.append(f"power: {exc}")
+                stage_ledger["power"] = _stage_entry("failed", error=str(exc))
                 result["outcome"] = "blocked"
 
         # ------------------------------------------------------------------
@@ -419,8 +472,8 @@ def run_evaluation_scenario(
         # ------------------------------------------------------------------
         if "investment" in scenario.required_stages:
             try:
-                # Need zone plan results first
                 if "zone_plan" in stage_ledger and stage_ledger["zone_plan"]["status"] == "passed":
+                    assert zone_result is not None  # guaranteed by stage ledger
                     zones = zone_result.result.get("zones", [])
                     if zones:
                         total_area = round(
@@ -443,6 +496,21 @@ def run_evaluation_scenario(
                             2,
                         )
                         position_count = sum(int(z.get("position_count", 0)) for z in zones)
+
+                        # Use real power result — total_installed_power_kw_e from the
+                        # power stage result dict, which stores it as a float.
+                        if (
+                            "power" in stage_ledger
+                            and stage_ledger["power"]["status"] == "passed"
+                            and power_result is not None
+                        ):
+                            total_power_val = power_result.result.get(
+                                "total_installed_power_kw_e", 0
+                            )
+                            total_power_kw = float(total_power_val)
+                        else:
+                            total_power_kw = 0.0
+
                         investment_estimator = InvestmentEstimator()
                         invest_result = investment_estimator.estimate(
                             InvestmentEstimateInput(
@@ -450,7 +518,7 @@ def run_evaluation_scenario(
                                 refrigerated_area_m2=refrigerated_area,
                                 frozen_area_m2=frozen_area,
                                 position_count=position_count,
-                                total_power_kw=0.0,  # placeholder — power not yet computed
+                                total_power_kw=total_power_kw,
                             )
                         )
                         result["investment"] = _json_safe(asdict(invest_result))
@@ -459,9 +527,6 @@ def run_evaluation_scenario(
                             review_required=invest_result.requires_review,
                             detail="investment_estimate_complete",
                         )
-
-                        # Investment is not persisted via record_calculation (type mismatch).
-                        # Phase C will handle the full pipeline.
                     else:
                         stage_ledger["investment"] = _stage_entry(
                             "failed", detail="no_zones_from_zone_plan"
@@ -500,13 +565,11 @@ def run_evaluation_scenario(
                             project_id=project.id,
                             version=version.version_number,
                             profile_codes=scheme_config.get("profile_codes", []),
-                            weight_set_id="demo-weight-set-001",
+                            weight_set_id=scheme_config.get("weight_set_id", "demo-weight-set-001"),
                             profile_parameters=scheme_config.get("profile_parameters", {}),
                         )
-                        # Remove non-deterministic fields
+                        # Preserve raw output — normalization handles exclusions
                         if isinstance(scheme_result, dict):
-                            scheme_result.pop("created_at", None)
-                            scheme_result.pop("updated_at", None)
                             for cand in scheme_result.get("candidates", []):
                                 if isinstance(cand, dict):
                                     cand.pop("candidate_id", None)
@@ -524,73 +587,33 @@ def run_evaluation_scenario(
                 result["outcome"] = "blocked"
 
         # ------------------------------------------------------------------
-        # Stage: power (power configuration)
+        # Final outcome determination — production contract semantics
         # ------------------------------------------------------------------
-        if "power" in scenario.required_stages:
-            try:
-                from cold_storage.modules.calculations.domain.power import (
-                    calculate_installed_power,
-                )
-
-                # Use zone plan results if available, otherwise use fixture data
-                if "zone_plan" in stage_ledger and stage_ledger["zone_plan"]["status"] == "passed":
-                    zones = zone_result.result.get("zones", [])
-                else:
-                    zones = fixture.get("zone_area_specs", [])
-                power_input = InstalledPowerCalcInput(
-                    compressor_input_power_kw_e=_to_decimal(
-                        fixture.get("installed_power_input", {}).get(
-                            "compressor_input_power_kw_e", 0
-                        )
-                    ),
-                    processing_equipment_power_kw_e=_to_decimal(
-                        fixture.get("installed_power_input", {}).get(
-                            "processing_equipment_power_kw_e", 0
-                        )
-                    ),
-                )
-                power_result = calculate_installed_power(power_input)
-                result["power"] = _json_safe(asdict(power_result))
-                stage_ledger["power"] = _stage_entry(
-                    "passed" if power_result.success else "failed",
-                    review_required=power_result.requires_review,
-                    detail="power_configuration_complete",
-                )
-            except Exception as exc:
-                errors.append(f"power: {exc}")
-                stage_ledger["power"] = _stage_entry("failed", error=str(exc))
-                result["outcome"] = "blocked"
-
-        # ------------------------------------------------------------------
-        # Final outcome determination
-        # ------------------------------------------------------------------
-        # Check if any required stage failed or was blocked
+        # 1. Any required stage failed/blocked → blocked
         all_required_passed = all(
             stage_ledger.get(stage, {}).get("status") == "passed"
             for stage in scenario.required_stages
         )
         if not all_required_passed:
             result["outcome"] = "blocked"
+        # 2. Any required stage has requires_review=true → review_required
+        elif any(
+            stage_ledger.get(stage, {}).get("review_required", False)
+            for stage in scenario.required_stages
+        ):
+            result["outcome"] = "review_required"
+        # 3. Otherwise → success
         else:
-            # Only promote review_required from stages that explicitly
-            # indicate review need (zone_plan, schemes), not from
-            # individual calculator review flags in the 'planning'
-            # meta-stage which may include informational warnings
-            # (e.g. NO_SAFETY_STOCK).
-            review_promoting_stages = {"zone_plan", "schemes", "investment", "power"}
-            any_review_required = any(
-                stage_ledger.get(stage, {}).get("review_required", False)
-                for stage in scenario.required_stages
-                if stage in review_promoting_stages
-            )
-            if any_review_required:
-                result["outcome"] = "review_required"
-            else:
-                result["outcome"] = "success"
+            result["outcome"] = "success"
 
     except Exception as exc:
         errors.append(f"unexpected_error: {exc}")
         result["outcome"] = "blocked"
 
     result["errors"] = errors
-    return result
+    return ScenarioExecutionResult(
+        raw_output=result,
+        outcome=result["outcome"],
+        stage_ledger=stage_ledger,
+        errors=errors,
+    )
