@@ -97,6 +97,103 @@ def _resolve_run_directory(base: Path, run_id: str) -> Path:
 
 
 # ────────────────────────────────────────────────────────────────
+#  Run creation input validator (P0-3)
+# ────────────────────────────────────────────────────────────────
+
+
+def validate_run_creation_inputs(
+    *,
+    suite_id: str,
+    suite_revision: int,
+    manifest_sha256: str,
+    scenario_ids: tuple[str, ...],
+    database_backend: str | None = None,
+    code_commit_sha: str | None = None,
+) -> None:
+    """Validate all run creation inputs *before* any file system side-effects.
+
+    Raises:
+        EvaluationError: On any input violation.
+    """
+    from cold_storage.evaluation.errors import EvaluationError
+
+    # suite_id: must be non-empty string (strip-checked)
+    if not isinstance(suite_id, str) or not suite_id.strip():
+        raise EvaluationError(
+            code="EVAL_RUN_ID_INVALID",
+            message=f"suite_id must be a non-empty string, got {suite_id!r}",
+            field="suite_id",
+        )
+
+    # suite_revision: true int >= 1
+    if isinstance(suite_revision, bool) or not isinstance(suite_revision, int):
+        raise EvaluationError(
+            code="EVAL_RUN_ID_INVALID",
+            message=f"suite_revision must be an int, got {type(suite_revision).__name__}",
+            field="suite_revision",
+        )
+    if suite_revision < 1:
+        raise EvaluationError(
+            code="EVAL_RUN_ID_INVALID",
+            message=f"suite_revision must be >= 1, got {suite_revision}",
+            field="suite_revision",
+        )
+
+    # manifest_sha256: 64 lowercase hex chars
+    if not isinstance(manifest_sha256, str) or not _VALID_MANIFEST_SHA256_RE.match(manifest_sha256):
+        raise EvaluationError(
+            code="EVAL_RUN_ID_INVALID",
+            message=f"manifest_sha256 must be 64 hex chars, got {manifest_sha256!r}",
+            field="manifest_sha256",
+        )
+
+    # scenario_ids: tuple of non-empty trimmed strings, no duplicates
+    if not isinstance(scenario_ids, tuple):
+        raise EvaluationError(
+            code="EVAL_RUN_ID_INVALID",
+            message=f"scenario_ids must be a tuple, got {type(scenario_ids).__name__}",
+            field="scenario_ids",
+        )
+    seen: set[str] = set()
+    for idx, sid in enumerate(scenario_ids):
+        if not isinstance(sid, str) or not sid.strip():
+            raise EvaluationError(
+                code="EVAL_RUN_ID_INVALID",
+                message=(
+                    f"scenario_ids[{idx}] must be a non-empty, non-whitespace string, got {sid!r}"
+                ),
+                field="scenario_ids",
+            )
+        if sid in seen:
+            raise EvaluationError(
+                code="EVAL_RUN_ID_INVALID",
+                message=f"Duplicate scenario_id: '{sid}'",
+                field="scenario_ids",
+            )
+        seen.add(sid)
+
+    # database_backend: only None / sqlite / postgresql
+    _VALID_DATABASE_BACKENDS_CREATE: set[str | None] = {None, "sqlite", "postgresql"}
+    if database_backend not in _VALID_DATABASE_BACKENDS_CREATE:
+        raise EvaluationError(
+            code="EVAL_RUN_ID_INVALID",
+            message=f"Invalid database_backend: '{database_backend}'",
+            field="database_backend",
+        )
+
+    # code_commit_sha: None, or non-empty non-whitespace string
+    if code_commit_sha is not None:  # noqa: SIM102
+        if not isinstance(code_commit_sha, str) or not code_commit_sha.strip():
+            raise EvaluationError(
+                code="EVAL_RUN_ID_INVALID",
+                message=(
+                    f"code_commit_sha must be None or non-empty string, got {code_commit_sha!r}"
+                ),
+                field="code_commit_sha",
+            )
+
+
+# ────────────────────────────────────────────────────────────────
 #  Centralised summary contract validator (P0-1)
 # ────────────────────────────────────────────────────────────────
 
@@ -439,11 +536,16 @@ def _decode_run_context_strict(value: object) -> EvaluationRunContext:
         )
 
     code_commit_sha_raw = value.get("code_commit_sha")
-    code_commit_sha: str | None = (
-        _expect_str(code_commit_sha_raw, "code_commit_sha")
-        if code_commit_sha_raw is not None
-        else None
-    )
+    if code_commit_sha_raw is not None:
+        code_commit_sha_str = _expect_str(code_commit_sha_raw, "code_commit_sha")
+        if not code_commit_sha_str.strip():
+            raise RunSummaryInvalidError(
+                code="EVAL_RUN_SUMMARY_INVALID",
+                message="'code_commit_sha' must be None or non-empty, non-whitespace string",
+            )
+        code_commit_sha = code_commit_sha_str
+    else:
+        code_commit_sha = None
 
     return EvaluationRunContext(
         run_id=run_id,
@@ -536,7 +638,19 @@ class EvaluationRunDirectory:
 
         Returns the run context.  Raises ``RunDirectoryExistsError`` if the
         directory already exists (UUID collision) or cannot be created.
+
+        All inputs are validated *before* any file system side-effects.
         """
+        # Validate inputs first — no file system side-effects before this passes
+        validate_run_creation_inputs(
+            suite_id=suite_id,
+            suite_revision=suite_revision,
+            manifest_sha256=manifest_sha256,
+            scenario_ids=scenario_ids,
+            database_backend=database_backend,
+            code_commit_sha=code_commit_sha,
+        )
+
         run_id = _generate_run_id()
         run_dir = self._base / run_id
 
@@ -882,13 +996,14 @@ def _verify_context_against_run_meta(
             field="scenario_ids",
         )
 
-    # Code commit sha
-    ctx_sha = context.code_commit_sha or ""
-    run_sha = run_meta.get("code_commit_sha") or ""
-    if ctx_sha != run_sha:
+    # Code commit sha — exact comparison, no or "" coercion
+    if context.code_commit_sha != run_meta.get("code_commit_sha"):
         raise RunIdentityMismatchError(
             code="EVAL_RUN_IDENTITY_MISMATCH",
-            message=f"Context code_commit_sha '{ctx_sha}' does not match run.json '{run_sha}'",
+            message=(
+                f"Context code_commit_sha '{context.code_commit_sha}' "
+                f"does not match run.json '{run_meta.get('code_commit_sha')}'"
+            ),
             field="code_commit_sha",
         )
 
@@ -916,7 +1031,6 @@ def _verify_summary_against_run_meta(
         ("run_id", summary.run_id, run_meta.get("run_id", "")),
         ("suite_id", summary.suite_id, run_meta.get("suite_id", "")),
         ("manifest_sha256", summary.manifest_sha256, run_meta.get("manifest_sha256", "")),
-        ("code_commit_sha", summary.code_commit_sha or "", run_meta.get("code_commit_sha") or ""),
     ]
     for field_name, summary_val, run_val in fields_to_check:
         if summary_val != run_val:
@@ -927,6 +1041,17 @@ def _verify_summary_against_run_meta(
                 ),
                 field=field_name,
             )
+
+    # Code commit sha — exact comparison, no or "" coercion
+    if summary.code_commit_sha != run_meta.get("code_commit_sha"):
+        raise RunIdentityMismatchError(
+            code="EVAL_RUN_IDENTITY_MISMATCH",
+            message=(
+                f"Summary code_commit_sha '{summary.code_commit_sha}' "
+                f"does not match run.json '{run_meta.get('code_commit_sha')}'"
+            ),
+            field="code_commit_sha",
+        )
 
     # Suite revision
     if summary.suite_revision != run_meta.get("suite_revision"):
@@ -1092,11 +1217,13 @@ def _dict_to_summary_strict(value: object) -> EvaluationRunSummary:
         completed_at = _expect_string(d.get("completed_at", ""), "completed_at")
         passed = _expect_bool(d.get("passed"), "passed")
         code_commit_sha_raw = d.get("code_commit_sha")
-        code_commit_sha: str | None = (
-            _expect_string(code_commit_sha_raw, "code_commit_sha")
-            if code_commit_sha_raw is not None
-            else None
-        )
+        if code_commit_sha_raw is not None:
+            ccs = _expect_string(code_commit_sha_raw, "code_commit_sha")
+            if not ccs.strip():
+                raise ValueError(f"code_commit_sha must be non-empty, got {ccs!r}")
+            code_commit_sha: str | None = ccs
+        else:
+            code_commit_sha = None
 
         scenario_ids_raw = d.get("scenario_ids", [])
         if not isinstance(scenario_ids_raw, list):
