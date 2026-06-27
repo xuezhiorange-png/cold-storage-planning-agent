@@ -165,6 +165,12 @@ input {
   overflow-x: auto;
 }
 
+/* ── Table scroll wrapper for responsive tables ─── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .zone-table,
 .investment-table,
 .power-table,

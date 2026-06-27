@@ -4,6 +4,11 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
 import App from './App.vue'
+import { router } from './app/router'
 import './style.css'
 
-createApp(App).use(createPinia()).use(ElementPlus).mount('#app')
+const app = createApp(App)
+app.use(createPinia())
+app.use(router)
+app.use(ElementPlus)
+app.mount('#app')
