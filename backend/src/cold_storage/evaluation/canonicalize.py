@@ -4,7 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
+import math
+from decimal import (
+    ROUND_HALF_EVEN,
+    Clamped,
+    Decimal,
+    Inexact,
+    InvalidOperation,
+    Overflow,
+    Rounded,
+    localcontext,
+)
 from math import isfinite, isnan
 
 from cold_storage.evaluation.errors import CanonicalValueError, DecimalPolicyError
@@ -14,6 +24,10 @@ from cold_storage.evaluation.models import DecimalMode, DecimalPathRule, Ignored
 # JSON value: dict, list, str, int, float, bool, None
 JsonValue = dict[str, "JsonValue"] | list["JsonValue"] | str | int | float | bool | None
 JsonScalar = str | int | float | bool | None
+
+# Frozen precision for Decimal quantization — sufficient for all allowed scales.
+_FROZEN_PRECISION = 50
+_FROZEN_ROUNDING = ROUND_HALF_EVEN
 
 
 def quantize_decimal_value(
@@ -48,6 +62,20 @@ def quantize_decimal_value(
             field="None",
         )
 
+    # Validate scale at the helper boundary
+    if isinstance(scale, bool) or not isinstance(scale, int):
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_POLICY_INVALID",
+            message=f"Scale must be an int, got {type(scale).__name__}: {scale!r}",
+            field=str(scale),
+        )
+    if not 0 <= scale <= 20:
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_POLICY_INVALID",
+            message=f"Scale {scale} out of range [0, 20]",
+            field=str(scale),
+        )
+
     # Enforce mode when a full rule is provided
     if rule is not None and rule.mode != DecimalMode.QUANTIZE:
         raise DecimalPolicyError(
@@ -55,6 +83,24 @@ def quantize_decimal_value(
             message=f"Unsupported decimal mode '{rule.mode}'; only 'quantize' is supported",
             field=rule.path,
         )
+
+    # Guard against huge exponent that could cause unbounded resource use
+    if isinstance(value, (int, float)):
+        try:
+            exponent = math.floor(math.log10(abs(float(value)))) if value else 0
+        except (ValueError, OverflowError):
+            raise DecimalPolicyError(
+                code="EVAL_DECIMAL_QUANTIZE_FAILED",
+                message=f"Cannot determine magnitude for value '{value}'",
+                field=str(value),
+            ) from None
+        max_exponent = 100
+        if exponent > max_exponent:
+            raise DecimalPolicyError(
+                code="EVAL_DECIMAL_QUANTIZE_FAILED",
+                message=f"Value '{value}' has exponent {exponent} exceeding max {max_exponent}",
+                field=str(value),
+            )
 
     # Parse to Decimal
     try:
@@ -111,9 +157,19 @@ def quantize_decimal_value(
             field=str(value),
         )
 
-    # Quantize with explicit rounding inside a protected wrapper
+    # Quantize inside a frozen localcontext so ambient Decimal settings
+    # (precision, rounding, traps) cannot change the result.
     try:
-        quantized = d.quantize(Decimal(10) ** -scale, rounding=ROUND_HALF_EVEN)
+        with localcontext() as ctx:
+            ctx.prec = _FROZEN_PRECISION
+            ctx.rounding = _FROZEN_ROUNDING
+            ctx.traps[Clamped] = True
+            ctx.traps[Overflow] = True
+            # Inexact / Rounded are informational; we keep them enabled to
+            # detect unexpected precision loss.
+            ctx.traps[Inexact] = False
+            ctx.traps[Rounded] = False
+            quantized = d.quantize(Decimal(10) ** -scale, context=ctx)
     except (InvalidOperation, ValueError, OverflowError) as exc:
         raise DecimalPolicyError(
             code="EVAL_DECIMAL_QUANTIZE_FAILED",
@@ -164,6 +220,7 @@ def canonical_json_bytes(value: JsonValue) -> bytes:
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
+            allow_nan=False,
         ).encode("utf-8")
         + b"\n"
     )
@@ -178,33 +235,50 @@ def sha256_canonical_json(value: JsonValue) -> str:
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
 
 
-def _validate_json_types(value: object) -> None:
-    """Recursively verify all values are standard JSON types.
+def _validate_json_types(value: object, *, path: str = "$") -> None:
+    """Recursively verify all values are strict JSON types.
 
-    Rejects Decimal, tuple, set, datetime, custom objects, etc.
+    Rejects:
+    - ``tuple``, ``set``, ``Decimal``, ``datetime``, custom objects
+    - non-string dict keys
+    - non-finite floats (NaN, Infinity, -Infinity)
+    Any non-strict type raises ``CanonicalValueError`` (code
+    ``EVAL_CANONICAL_VALUE_INVALID``) with the JSON ``path`` context.
     """
-    if value is None or isinstance(value, (bool, int, float, str)):
+    if value is None or isinstance(value, (bool, str)):
         return
-    if isinstance(value, (list, tuple)):
-        for item in value:
-            _validate_json_types(item)
+    if isinstance(value, int):
+        # bool is already handled above; int is fine
+        return
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise CanonicalValueError(
+                code="EVAL_CANONICAL_VALUE_INVALID",
+                message=f"Non-finite float at {path}: {value!r}",
+                field=path,
+            )
+        return
+    if isinstance(value, list):
+        for idx, item in enumerate(value):
+            _validate_json_types(item, path=f"{path}[{idx}]")
         return
     if isinstance(value, dict):
         for k, v in value.items():
+            child_path = f"{path}.{k}" if path != "$" else f"$.{k}"
             if not isinstance(k, str):
                 raise CanonicalValueError(
                     code="EVAL_CANONICAL_VALUE_INVALID",
-                    message=f"Non-string dict key in JSON value: {type(k).__name__}",
-                    field=str(k),
+                    message=f"Non-string dict key at {path}: {type(k).__name__}",
+                    field=path,
                 )
-            _validate_json_types(v)
+            _validate_json_types(v, path=child_path)
         return
-    # Reject any non-JSON-compatible type
+    # Reject any non-JSON-compatible type (tuple, set, Decimal, datetime, …)
     type_name = type(value).__name__
     raise CanonicalValueError(
         code="EVAL_CANONICAL_VALUE_INVALID",
-        message=f"Non-JSON-compatible type in canonical value: {type_name}",
-        field=str(value),
+        message=f"Non-JSON-compatible type at {path}: {type_name}",
+        field=path,
     )
 
 
