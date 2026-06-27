@@ -118,8 +118,16 @@ class DecimalValueInvalidError(DecimalPolicyError):
 
 
 class DecimalNonFiniteError(DecimalPolicyError):
-    """Decimal quantization received non-finite float."""
+    """Decimal quantization received non-finite value."""
 
 
 class DecimalQuantizeFailedError(DecimalPolicyError):
     """Decimal quantization operation failed."""
+
+
+class JsonPathInvalidError(EvaluationError):
+    """Invalid JSONPath syntax in comparison policy."""
+
+
+class RunIdInvalidError(RunDirectoryError):
+    """Run ID has invalid format or is a path traversal attempt."""
