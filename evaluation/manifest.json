@@ -87,7 +87,7 @@
     },
     {
       "scenario_id": "invalid-blocked",
-      "fixture_revision": 1,
+      "fixture_revision": 2,
       "project_input_path": "fixtures/projects/invalid-blocked.v1.json",
       "document_refs": [],
       "required_stages": ["project", "version", "validation"],
@@ -118,7 +118,7 @@
       },
       "provenance": {
         "source": "evaluation/fixtures/projects/invalid-blocked.v1.json",
-        "rationale": "Synthetic project with invalid inputs (negative mass, missing fields) that fails validation at the input stage"
+        "rationale": "Synthetic project with missing required fields that fails production validate_inputs"
       }
     }
   ]

@@ -1,5 +1,5 @@
 {
-  "fixture_revision": 1,
+  "fixture_revision": 2,
   "outcome": "validation_error",
   "project": {
     "location": "Synthetic Location C",
@@ -27,7 +27,8 @@
       "working_time_h_per_day",
       "utilization_factor",
       "finished_storage_days",
-      "packaging_storage_days"
+      "packaging_storage_days",
+      "reserve_factor"
     ],
     "tentative_fields": [],
     "valid": false
