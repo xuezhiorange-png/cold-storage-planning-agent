@@ -12,6 +12,7 @@ from cold_storage.evaluation.canonicalize import (
 )
 from cold_storage.evaluation.errors import DecimalPolicyError
 from cold_storage.evaluation.models import (
+    DecimalMode,
     DecimalPathRule,
     IgnoredPathRule,
 )
@@ -822,3 +823,82 @@ class TestDecimalHostileContextScale20:
             assert exc.value.code == "EVAL_DECIMAL_NON_FINITE"
         finally:
             ctx.prec = orig
+
+
+# ── P0-3: Real canonical value/bytes/SHA stability under hostile context ──
+
+
+class TestCanonicalPipelineHostileContext:
+    """Full canonical pipeline under hostile ambient Decimal context."""
+
+    PAYLOAD = {"value": "1.23456789012345678901", "nested": {"stable": True}}
+    RULE = DecimalPathRule(
+        path="$.value",
+        mode=DecimalMode.QUANTIZE,
+        scale=20,
+        unit="unit",
+        rationale="hostile-context regression",
+    )
+
+    @staticmethod
+    def _hostile() -> None:
+        from decimal import ROUND_DOWN, InvalidOperation, getcontext
+
+        ctx = getcontext()
+        ctx.prec = 2
+        ctx.rounding = ROUND_DOWN
+        ctx.Emax = 10
+        ctx.Emin = -10
+        ctx.clamp = 1
+        ctx.traps[InvalidOperation] = False
+
+    def test_canonical_value_stable(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        saved = (ctx.prec, ctx.rounding, ctx.Emax, ctx.Emin, ctx.clamp, ctx.traps.copy())
+        try:
+            default = canonicalize_json(self.PAYLOAD, decimal_paths=(self.RULE,))
+            self._hostile()
+            hostile = canonicalize_json(self.PAYLOAD, decimal_paths=(self.RULE,))
+            assert hostile == default
+            assert hostile["value"] == "1.23456789012345678901"
+        finally:
+            ctx.prec, ctx.rounding, ctx.Emax, ctx.Emin, ctx.clamp = saved[:5]
+            ctx.traps.update(saved[5])
+
+    def test_canonical_bytes_stable(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        saved = (ctx.prec, ctx.rounding, ctx.Emax, ctx.Emin, ctx.clamp, ctx.traps.copy())
+        try:
+            default = canonical_json_bytes(
+                canonicalize_json(self.PAYLOAD, decimal_paths=(self.RULE,))
+            )
+            self._hostile()
+            hostile = canonical_json_bytes(
+                canonicalize_json(self.PAYLOAD, decimal_paths=(self.RULE,))
+            )
+            assert hostile == default
+        finally:
+            ctx.prec, ctx.rounding, ctx.Emax, ctx.Emin, ctx.clamp = saved[:5]
+            ctx.traps.update(saved[5])
+
+    def test_sha256_stable(self) -> None:
+        from decimal import getcontext
+
+        ctx = getcontext()
+        saved = (ctx.prec, ctx.rounding, ctx.Emax, ctx.Emin, ctx.clamp, ctx.traps.copy())
+        try:
+            default = sha256_canonical_json(
+                canonicalize_json(self.PAYLOAD, decimal_paths=(self.RULE,))
+            )
+            self._hostile()
+            hostile = sha256_canonical_json(
+                canonicalize_json(self.PAYLOAD, decimal_paths=(self.RULE,))
+            )
+            assert hostile == default
+        finally:
+            ctx.prec, ctx.rounding, ctx.Emax, ctx.Emin, ctx.clamp = saved[:5]
+            ctx.traps.update(saved[5])

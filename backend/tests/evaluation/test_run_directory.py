@@ -9,6 +9,7 @@ import pytest
 from cold_storage.evaluation.errors import (
     EvaluationError,
     RunIdentityMismatchError,
+    RunInputInvalidError,
     RunManifestMismatchError,
     RunStateError,
     RunSummaryInvalidError,
@@ -600,8 +601,6 @@ def test_invalid_run_id_path_traversal_rejected(tmp_path: Path) -> None:
     """Run ID with path traversal characters must be rejected."""
     rd = _run_dir(tmp_path)
 
-    from cold_storage.evaluation.errors import EvaluationError
-
     with pytest.raises(EvaluationError) as exc_info:
         rd.run_dir("../etc/passwd")
     assert exc_info.value.code == "EVAL_RUN_ID_INVALID"
@@ -659,7 +658,6 @@ def test_transition_rejects_missing_run_json(tmp_path: Path) -> None:
 
 def test_fabricated_context_transition_rejected(tmp_path: Path) -> None:
     """Fabricated context with run_id=../outside must be rejected by transition_status."""
-    from cold_storage.evaluation.errors import EvaluationError
     from cold_storage.evaluation.models import RunStatus
 
     rd = _run_dir(tmp_path)
@@ -682,7 +680,6 @@ def test_fabricated_context_transition_rejected(tmp_path: Path) -> None:
 
 def test_fabricated_context_write_summary_rejected(tmp_path: Path) -> None:
     """Fabricated context with run_id=../outside must be rejected by write_summary."""
-    from cold_storage.evaluation.errors import EvaluationError
     from cold_storage.evaluation.models import RunStatus
 
     rd = _run_dir(tmp_path)
@@ -717,7 +714,6 @@ def test_fabricated_context_write_summary_rejected(tmp_path: Path) -> None:
 
 def test_absolute_run_id_rejected(tmp_path: Path) -> None:
     """Absolute path as run ID must be rejected."""
-    from cold_storage.evaluation.errors import EvaluationError
 
     rd = _run_dir(tmp_path)
     with pytest.raises(EvaluationError) as exc_info:
@@ -727,7 +723,6 @@ def test_absolute_run_id_rejected(tmp_path: Path) -> None:
 
 def test_slash_containing_run_id_rejected(tmp_path: Path) -> None:
     """Run ID with slash must be rejected."""
-    from cold_storage.evaluation.errors import EvaluationError
 
     rd = _run_dir(tmp_path)
     with pytest.raises(EvaluationError) as exc_info:
@@ -1349,9 +1344,10 @@ def test_create_run_rejects_suite_revision_zero(tmp_path: Path) -> None:
     """suite_revision=0 must be rejected before any directory is created."""
     rd = _run_dir(tmp_path)
     base_before = set(tmp_path.rglob("*"))
-    with pytest.raises(EvaluationError) as exc:
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 0, "a" * 64, ("s1",))
-    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "suite_revision"
     base_after = set(tmp_path.rglob("*"))
     assert base_before == base_after, "No file system side-effects on invalid input"
 
@@ -1360,9 +1356,10 @@ def test_create_run_rejects_suite_revision_negative(tmp_path: Path) -> None:
     """suite_revision=-1 must be rejected before any directory is created."""
     rd = _run_dir(tmp_path)
     base_before = set(tmp_path.rglob("*"))
-    with pytest.raises(EvaluationError) as exc:
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", -1, "a" * 64, ("s1",))
-    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "suite_revision"
     base_after = set(tmp_path.rglob("*"))
     run_dirs = [p for p in base_after - base_before if "runs" in str(p)]
     assert not run_dirs, f"Unexpected dirs created: {run_dirs}"
@@ -1371,75 +1368,91 @@ def test_create_run_rejects_suite_revision_negative(tmp_path: Path) -> None:
 def test_create_run_rejects_suite_revision_bool(tmp_path: Path) -> None:
     """suite_revision=True must be rejected (bool is not int)."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError) as exc:
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", True, "a" * 64, ("s1",))  # type: ignore[arg-type]
-    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "suite_revision"
 
 
 def test_create_run_rejects_invalid_manifest_sha(tmp_path: Path) -> None:
     """Non-64-hex manifest_sha256 must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError) as exc:
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 1, "short", ("s1",))
-    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "manifest_sha256"
 
 
 def test_create_run_rejects_empty_scenario_id(tmp_path: Path) -> None:
     """Empty scenario ID must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError):
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 1, "a" * 64, ("",))
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "scenario_ids[0]"
 
 
 def test_create_run_rejects_whitespace_scenario_id(tmp_path: Path) -> None:
     """Whitespace-only scenario ID must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError):
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 1, "a" * 64, ("   ",))
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "scenario_ids[0]"
 
 
 def test_create_run_rejects_duplicate_scenario_ids(tmp_path: Path) -> None:
     """Duplicate scenario IDs must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError) as exc:
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 1, "a" * 64, ("s1", "s1"))
-    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field is not None and "scenario_ids" in exc.value.field
 
 
 def test_create_run_rejects_invalid_database_backend(tmp_path: Path) -> None:
     """Invalid database_backend must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError) as exc:
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 1, "a" * 64, ("s1",), database_backend="mongo")
-    assert exc.value.code in ("EVAL_RUN_ID_INVALID", "EVAL_RUN_SUMMARY_INVALID")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "database_backend"
 
 
 def test_create_run_rejects_empty_code_commit_sha(tmp_path: Path) -> None:
     """Empty string code_commit_sha must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError):
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 1, "a" * 64, ("s1",), code_commit_sha="")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "code_commit_sha"
 
 
 def test_create_run_rejects_whitespace_code_commit_sha(tmp_path: Path) -> None:
     """Whitespace-only code_commit_sha must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError):
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("suite-1", 1, "a" * 64, ("s1",), code_commit_sha="   ")
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "code_commit_sha"
 
 
 def test_create_run_rejects_empty_suite_id(tmp_path: Path) -> None:
     """Empty suite_id must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError):
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("", 1, "a" * 64, ("s1",))
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "suite_id"
 
 
 def test_create_run_rejects_whitespace_suite_id(tmp_path: Path) -> None:
     """Whitespace-only suite_id must be rejected."""
     rd = _run_dir(tmp_path)
-    with pytest.raises(EvaluationError):
+    with pytest.raises(RunInputInvalidError) as exc:
         rd.create_run("   ", 1, "a" * 64, ("s1",))
+    assert exc.value.code == "EVAL_RUN_INPUT_INVALID"
+    assert exc.value.field == "suite_id"
 
 
 # ── P0-4: Optional commit identity exact comparison ──────────────────────
