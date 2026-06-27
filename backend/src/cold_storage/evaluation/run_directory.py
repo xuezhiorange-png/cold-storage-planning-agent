@@ -14,6 +14,7 @@ from typing import Any
 from cold_storage.evaluation.errors import (
     RunDirectoryExistsError,
     RunIdentityMismatchError,
+    RunIdentityValidationIssue,
     RunManifestMismatchError,
     RunStateError,
     RunSummaryInvalidError,
@@ -116,27 +117,45 @@ class RunIdentityValues:
 def _check_suite_id(suite_id: object) -> str:
     """Validate and return non-empty non-whitespace suite_id or raise."""
     if not isinstance(suite_id, str):
-        raise ValueError(f"suite_id must be a string, got {type(suite_id).__name__}")
+        raise RunIdentityValidationIssue(
+            field="suite_id",
+            message=f"suite_id must be a string, got {type(suite_id).__name__}",
+        )
     if not suite_id.strip():
-        raise ValueError(f"suite_id must be non-empty, got {suite_id!r}")
+        raise RunIdentityValidationIssue(
+            field="suite_id",
+            message=f"suite_id must be non-empty, got {suite_id!r}",
+        )
     return suite_id
 
 
 def _check_suite_revision(suite_revision: object) -> int:
     """Validate and return int >= 1 suite_revision or raise."""
     if isinstance(suite_revision, bool) or not isinstance(suite_revision, int):
-        raise ValueError(f"suite_revision must be an int, got {type(suite_revision).__name__}")
+        raise RunIdentityValidationIssue(
+            field="suite_revision",
+            message=f"suite_revision must be an int, got {type(suite_revision).__name__}",
+        )
     if suite_revision < 1:
-        raise ValueError(f"suite_revision must be >= 1, got {suite_revision}")
+        raise RunIdentityValidationIssue(
+            field="suite_revision",
+            message=f"suite_revision must be >= 1, got {suite_revision}",
+        )
     return suite_revision
 
 
 def _check_manifest_sha256(manifest_sha256: object) -> str:
     """Validate and return 64-hex-char manifest_sha256 or raise."""
     if not isinstance(manifest_sha256, str):
-        raise ValueError(f"manifest_sha256 must be a string, got {type(manifest_sha256).__name__}")
+        raise RunIdentityValidationIssue(
+            field="manifest_sha256",
+            message=f"manifest_sha256 must be a string, got {type(manifest_sha256).__name__}",
+        )
     if not _VALID_MANIFEST_SHA256_RE.match(manifest_sha256):
-        raise ValueError(f"manifest_sha256 must be 64 lowercase hex chars, got {manifest_sha256!r}")
+        raise RunIdentityValidationIssue(
+            field="manifest_sha256",
+            message=f"manifest_sha256 must be 64 lowercase hex chars, got {manifest_sha256!r}",
+        )
     return manifest_sha256
 
 
@@ -145,16 +164,28 @@ def _check_scenario_ids(scenario_ids: object) -> tuple[str, ...]:
     if isinstance(scenario_ids, list):
         scenario_ids = tuple(scenario_ids)
     if not isinstance(scenario_ids, tuple):
-        raise ValueError(f"scenario_ids must be a tuple or list, got {type(scenario_ids).__name__}")
+        raise RunIdentityValidationIssue(
+            field="scenario_ids",
+            message=f"scenario_ids must be a tuple or list, got {type(scenario_ids).__name__}",
+        )
     seen: set[str] = set()
     result: list[str] = []
     for idx, sid in enumerate(scenario_ids):
         if not isinstance(sid, str):
-            raise ValueError(f"scenario_ids[{idx}] must be a string, got {type(sid).__name__}")
+            raise RunIdentityValidationIssue(
+                field=f"scenario_ids[{idx}]",
+                message=f"scenario_ids[{idx}] must be a string, got {type(sid).__name__}",
+            )
         if not sid.strip():
-            raise ValueError(f"scenario_ids[{idx}] must be non-empty non-whitespace, got {sid!r}")
+            raise RunIdentityValidationIssue(
+                field=f"scenario_ids[{idx}]",
+                message=f"scenario_ids[{idx}] must be non-empty non-whitespace, got {sid!r}",
+            )
         if sid in seen:
-            raise ValueError(f"scenario_ids[{idx}] Duplicate scenario_id: '{sid}'")
+            raise RunIdentityValidationIssue(
+                field=f"scenario_ids[{idx}]",
+                message=f"scenario_ids[{idx}] Duplicate scenario_id: '{sid}'",
+            )
         seen.add(sid)
         result.append(sid)
     return tuple(result)
@@ -165,10 +196,17 @@ def _check_database_backend(backend: object) -> str | None:
     if backend is None:
         return None
     if not isinstance(backend, str):
-        raise ValueError(f"database_backend must be None or a string, got {type(backend).__name__}")
+        raise RunIdentityValidationIssue(
+            field="database_backend",
+            message=f"database_backend must be None or a string, got {type(backend).__name__}",
+        )
     if backend not in {"sqlite", "postgresql"}:
-        raise ValueError(
-            f"database_backend '{backend}' is not supported (must be None, sqlite, or postgresql)"
+        raise RunIdentityValidationIssue(
+            field="database_backend",
+            message=(
+                f"database_backend '{backend}' is not supported "
+                f"(must be None, sqlite, or postgresql)"
+            ),
         )
     return backend
 
@@ -178,17 +216,23 @@ def _check_code_commit_sha(sha: object) -> str | None:
     if sha is None:
         return None
     if not isinstance(sha, str):
-        raise ValueError(f"code_commit_sha must be None or a string, got {type(sha).__name__}")
+        raise RunIdentityValidationIssue(
+            field="code_commit_sha",
+            message=f"code_commit_sha must be None or a string, got {type(sha).__name__}",
+        )
     if not sha.strip():
-        raise ValueError(f"code_commit_sha must be non-empty non-whitespace, got {sha!r}")
+        raise RunIdentityValidationIssue(
+            field="code_commit_sha",
+            message=f"code_commit_sha must be non-empty non-whitespace, got {sha!r}",
+        )
     return sha
 
 
 def validate_run_identity_values(values: RunIdentityValues) -> None:
     """Validate all run identity fields with shared semantic rules.
 
-    Raises ``ValueError`` with a descriptive message on the first violation.
-    Callers are expected to catch and re-raise with their own error codes.
+    Raises ``RunIdentityValidationIssue`` with ``field`` and ``message``
+    stored directly (not parsed from formatted text).
     """
     _check_suite_id(values.suite_id)
     _check_suite_revision(values.suite_revision)
@@ -225,13 +269,11 @@ def validate_run_creation_inputs(
                 code_commit_sha=code_commit_sha,
             )
         )
-    except ValueError as exc:
-        msg = str(exc)
-        field = msg.partition(" ")[0]
+    except RunIdentityValidationIssue as exc:
         raise RunInputInvalidError(
             code="EVAL_RUN_INPUT_INVALID",
-            message=msg,
-            field=field,
+            message=exc.message,
+            field=exc.field,
         ) from exc
 
 
@@ -500,6 +542,7 @@ def _decode_run_context_strict(value: object) -> EvaluationRunContext:
         raise RunSummaryInvalidError(
             code="EVAL_RUN_SUMMARY_INVALID",
             message=f"Invalid manifest_sha256 format in run.json: '{manifest_sha256[:16]}...'",
+            field="manifest_sha256",
         )
 
     # Status
@@ -550,6 +593,7 @@ def _decode_run_context_strict(value: object) -> EvaluationRunContext:
             raise RunSummaryInvalidError(
                 code="EVAL_RUN_SUMMARY_INVALID",
                 message=f"Invalid database_backend in run.json: '{database_backend_str}'",
+                field="database_backend",
             )
         database_backend = database_backend_str
     else:
@@ -562,6 +606,7 @@ def _decode_run_context_strict(value: object) -> EvaluationRunContext:
             raise RunSummaryInvalidError(
                 code="EVAL_RUN_SUMMARY_INVALID",
                 message="'code_commit_sha' must be None or non-empty, non-whitespace string",
+                field="code_commit_sha",
             )
         code_commit_sha = code_commit_sha_str
     else:
@@ -579,11 +624,11 @@ def _decode_run_context_strict(value: object) -> EvaluationRunContext:
                 code_commit_sha=code_commit_sha,
             )
         )
-    except ValueError as exc:
+    except RunIdentityValidationIssue as exc:
         raise RunSummaryInvalidError(
             code="EVAL_RUN_SUMMARY_INVALID",
-            message=str(exc),
-            field=str(exc).partition(" ")[0],
+            message=exc.message,
+            field=exc.field,
         ) from exc
 
     return EvaluationRunContext(
@@ -750,6 +795,7 @@ class EvaluationRunDirectory:
             raise RunStateError(
                 code="EVAL_RUN_STATE_INVALID",
                 message=f"Run metadata is invalid for run '{context.run_id}': {exc}",
+                field=getattr(exc, "field", None),
             ) from exc
         _verify_context_against_run_meta(context, _context_to_dict(persisted))
 
@@ -1259,7 +1305,10 @@ def _dict_to_summary_strict(value: object) -> EvaluationRunSummary:
         if code_commit_sha_raw is not None:
             ccs = _expect_string(code_commit_sha_raw, "code_commit_sha")
             if not ccs.strip():
-                raise ValueError(f"code_commit_sha must be non-empty, got {ccs!r}")
+                raise RunIdentityValidationIssue(
+                    field="code_commit_sha",
+                    message=f"code_commit_sha must be non-empty, got {ccs!r}",
+                )
             code_commit_sha: str | None = ccs
         else:
             code_commit_sha = None
@@ -1321,6 +1370,12 @@ def _dict_to_summary_strict(value: object) -> EvaluationRunSummary:
             message=f"Summary structure is invalid: {exc}",
             field="$",
         ) from exc
+    except RunIdentityValidationIssue as exc:
+        raise RunSummaryInvalidError(
+            code="EVAL_RUN_SUMMARY_INVALID",
+            message=exc.message,
+            field=exc.field,
+        ) from exc
 
     # Run shared identity validation on suite/scenario fields
     try:
@@ -1334,11 +1389,11 @@ def _dict_to_summary_strict(value: object) -> EvaluationRunSummary:
                 code_commit_sha=code_commit_sha,
             )
         )
-    except ValueError as exc:
+    except RunIdentityValidationIssue as exc:
         raise RunSummaryInvalidError(
             code="EVAL_RUN_SUMMARY_INVALID",
-            message=str(exc),
-            field=str(exc).partition(" ")[0],
+            message=exc.message,
+            field=exc.field,
         ) from exc
 
     # Run contract invariants via the centralised validator.

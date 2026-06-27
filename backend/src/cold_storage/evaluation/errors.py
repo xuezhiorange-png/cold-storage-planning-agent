@@ -134,9 +134,27 @@ class RunIdInvalidError(RunDirectoryError):
 
 
 class RunInputInvalidError(RunDirectoryError):
-    """Invalid input to create_run or other run creation boundary.
+    """Run creation input validation error."""
 
-    Used for semantically invalid field values (suite_id, suite_revision,
-    manifest_sha256, scenario_ids, database_backend, code_commit_sha).
-    The ``field`` attribute identifies the offending field.
+
+class RunIdentityValidationIssue(Exception):
+    """Structured internal validation issue carrying *field* and *message* separately.
+
+    Never exposed to public API callers.  Caught internally and converted to
+    the appropriate public error type with the exact *field* preserved.
+
+    Args:
+        field: The exact field name that failed validation (e.g. ``"suite_id"``,
+            ``"scenario_ids[0]"``, ``"manifest_sha256"``).
+        message: Human-readable description of the violation.
+
+    Note:
+        *field* is NOT parsed from a formatted string — it is stored directly
+        on the exception object.  Public API contract guarantees every error
+        exposes the same field value as the internal issue.
     """
+
+    def __init__(self, *, field: str, message: str) -> None:
+        self.field = field
+        self.message = message
+        super().__init__(message)
