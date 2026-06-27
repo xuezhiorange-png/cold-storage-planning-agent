@@ -53,6 +53,7 @@ def parse_json_path(path_str: str) -> ParsedJsonPath:
       $.matrix[0][1]    repeated array index
 
     Object keys must match the identifier grammar ``[a-zA-Z_][a-zA-Z0-9_]*``.
+    Array indexes must match ``0|[1-9][0-9]*`` (no leading zeros, no sign).
 
     Does NOT support:
       wildcards, recursive descent, filters, negative indexes, slices,
@@ -61,6 +62,12 @@ def parse_json_path(path_str: str) -> ParsedJsonPath:
     Raises:
         JsonPathInvalidError: If the path uses unsupported syntax.
     """
+    if not isinstance(path_str, str):
+        raise JsonPathInvalidError(
+            code="EVAL_JSON_PATH_INVALID",
+            message=f"JSONPath must be a string, got {type(path_str).__name__}",
+            field=str(path_str),
+        )
     if not path_str:
         raise JsonPathInvalidError(
             code="EVAL_JSON_PATH_INVALID",
@@ -122,6 +129,20 @@ def parse_json_path(path_str: str) -> ParsedJsonPath:
                 raise JsonPathInvalidError(
                     code="EVAL_JSON_PATH_INVALID",
                     message=f"Empty array index in JSONPath: '{path_str}'",
+                    field=path_str,
+                )
+            # Array index must match 0|[1-9][0-9]* - strict ASCII digit check
+            if not idx_str.isdigit():
+                raise JsonPathInvalidError(
+                    code="EVAL_JSON_PATH_INVALID",
+                    message=f"Invalid array index '{idx_str}' in JSONPath: '{path_str}'",
+                    field=path_str,
+                )
+            if len(idx_str) > 1 and idx_str[0] == "0":
+                raise JsonPathInvalidError(
+                    code="EVAL_JSON_PATH_INVALID",
+                    message=f"Invalid array index '{idx_str}' in JSONPath: '{path_str}' "
+                    f"(leading zero not allowed)",
                     field=path_str,
                 )
             try:
