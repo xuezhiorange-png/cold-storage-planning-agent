@@ -251,10 +251,12 @@ def test_parse_jsonpath_index() -> None:
 
 
 def test_parse_jsonpath_unsupported() -> None:
-    """Negative index and wildcard must raise ValueError."""
-    with pytest.raises(ValueError):
+    """Negative index and wildcard must raise JsonPathInvalidError."""
+    from cold_storage.evaluation.errors import JsonPathInvalidError
+
+    with pytest.raises(JsonPathInvalidError):
         parse_json_path("$[-1]")
-    with pytest.raises(ValueError):
+    with pytest.raises(JsonPathInvalidError):
         parse_json_path("$[*]")
 
 
@@ -434,11 +436,12 @@ def test_array_path_format() -> None:
 
 
 def test_unsupported_jsonpath_raises_stable_error() -> None:
-    """Unsupported JSONPath grammar must raise EvaluationError (not bare ValueError)."""
-    from cold_storage.evaluation.errors import EvaluationError
+    """Unsupported JSONPath grammar must raise JsonPathInvalidError (not bare ValueError)."""
+    from cold_storage.evaluation.errors import JsonPathInvalidError
 
-    with pytest.raises((ValueError, EvaluationError)):
+    with pytest.raises(JsonPathInvalidError) as exc_info:
         parse_json_path("$[*]")
+    assert exc_info.value.code == "EVAL_JSON_PATH_INVALID"
 
 
 def test_repeated_array_index_path() -> None:
