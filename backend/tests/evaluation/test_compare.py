@@ -18,6 +18,7 @@ from cold_storage.evaluation.models import (
     ComparisonPolicy,
     DecimalMode,
     DecimalPathRule,
+    ExactPathRule,
     IgnoredPathRule,
 )
 
@@ -273,3 +274,190 @@ def test_resolve_path_missing() -> None:
     value, found = resolve_json_path(obj, parsed)
     assert found is False
     assert value is None
+
+
+# ── Exact path validation tests (P0-1) ─────────────────────────────────
+
+
+def test_exact_path_expected_missing_actual() -> None:
+    """Exact path declared in expected but absent in actual must fail."""
+    policy = ComparisonPolicy(
+        exact_paths=(ExactPathRule(path="$.required"),),
+        decimal_paths=(),
+        ignored_paths=(),
+        artifact_checks=(),
+    )
+    result = compare_evaluation_result(
+        {"required": 42},
+        {"other": 1},
+        policy,
+    )
+    assert not result.passed
+    assert any(m.kind == ComparisonMismatchKind.MISSING_ACTUAL for m in result.mismatches)
+
+
+def test_exact_path_actual_missing_expected() -> None:
+    """Exact path in actual but missing from expected must fail with MISSING_EXPECTED."""
+    policy = ComparisonPolicy(
+        exact_paths=(ExactPathRule(path="$.extra"),),
+        decimal_paths=(),
+        ignored_paths=(),
+        artifact_checks=(),
+    )
+    result = compare_evaluation_result(
+        {"known": 1},
+        {"known": 1, "extra": 2},
+        policy,
+    )
+    assert not result.passed
+    assert any(
+        m.kind == ComparisonMismatchKind.MISSING_EXPECTED and m.path == "$.extra"
+        for m in result.mismatches
+    )
+
+
+def test_exact_path_both_missing() -> None:
+    """Exact path absent from both sides must fail (MISSING_EXPECTED)."""
+    policy = ComparisonPolicy(
+        exact_paths=(ExactPathRule(path="$.required"),),
+        decimal_paths=(),
+        ignored_paths=(),
+        artifact_checks=(),
+    )
+    result = compare_evaluation_result(
+        {},
+        {},
+        policy,
+    )
+    assert not result.passed
+    assert any(
+        m.kind == ComparisonMismatchKind.MISSING_EXPECTED and m.path == "$.required"
+        for m in result.mismatches
+    )
+
+
+def test_exact_path_present_passes() -> None:
+    """Exact path present on both sides with matching values must pass."""
+    policy = ComparisonPolicy(
+        exact_paths=(ExactPathRule(path="$.value"),),
+        decimal_paths=(),
+        ignored_paths=(),
+        artifact_checks=(),
+    )
+    result = compare_evaluation_result(
+        {"value": 42},
+        {"value": 42},
+        policy,
+    )
+    assert result.passed
+
+
+def test_decimal_match_returns_passed() -> None:
+    """Decimal paths with matching quantized values must pass."""
+    policy = _policy(
+        decimal=[
+            {
+                "path": "$.area",
+                "mode": "quantize",
+                "scale": 2,
+                "unit": "m2",
+                "rationale": "Testing decimal match",
+            }
+        ],
+    )
+    result = compare_evaluation_result(
+        {"area": 100.004},
+        {"area": 100.001},
+        policy,
+    )
+    assert result.passed
+
+
+def test_decimal_mismatch_no_duplicate_exact() -> None:
+    """Decimal mismatch must not also report EXACT_MISMATCH for the same path."""
+    policy = _policy(
+        decimal=[
+            {
+                "path": "$.area",
+                "mode": "quantize",
+                "scale": 2,
+                "unit": "m2",
+                "rationale": "Test",
+            }
+        ],
+    )
+    result = compare_evaluation_result(
+        {"area": 100.00},
+        {"area": 200.00},
+        policy,
+    )
+    assert not result.passed
+    kinds = [m.kind for m in result.mismatches]
+    assert ComparisonMismatchKind.DECIMAL_MISMATCH in kinds
+    assert ComparisonMismatchKind.EXACT_MISMATCH not in kinds
+
+
+def test_root_path_format_uses_dot() -> None:
+    """Root child paths must use $.field format, not $field."""
+    policy = _policy()
+    result = compare_evaluation_result(
+        {"area": 100},
+        {"area": 200},
+        policy,
+    )
+    assert not result.passed
+    assert any("$.area" in m.path for m in result.mismatches)
+
+
+def test_nested_path_format() -> None:
+    """Nested paths must use $.a.b format."""
+    policy = _policy()
+    result = compare_evaluation_result(
+        {"a": {"b": 1}},
+        {"a": {"b": 2}},
+        policy,
+    )
+    assert not result.passed
+    assert any("$.a.b" in m.path for m in result.mismatches)
+
+
+def test_array_path_format() -> None:
+    """Array paths must use $[0] format."""
+    policy = _policy()
+    result = compare_evaluation_result(
+        {"items": [1, 2, 3]},
+        {"items": [1, 99, 3]},
+        policy,
+    )
+    assert not result.passed
+    assert any("$.items[1]" in m.path for m in result.mismatches)
+
+
+def test_unsupported_jsonpath_raises_stable_error() -> None:
+    """Unsupported JSONPath grammar must raise EvaluationError (not bare ValueError)."""
+    from cold_storage.evaluation.errors import EvaluationError
+
+    with pytest.raises((ValueError, EvaluationError)):
+        parse_json_path("$[*]")
+
+
+def test_repeated_array_index_path() -> None:
+    """Matrix-style path $.matrix[0][1] must work."""
+    parsed = parse_json_path("$.matrix[0][1]")
+    assert len(parsed.segments) == 3
+    assert parsed.segments[0].key == "matrix"  # type: ignore[attr-defined]
+    assert parsed.segments[1].index == 0  # type: ignore[attr-defined]
+    assert parsed.segments[2].index == 1  # type: ignore[attr-defined]
+
+
+def test_ignored_path_uses_same_parser() -> None:
+    """Ignored path must use the same parser as exact/decimal paths."""
+    policy = _policy(
+        ignored=[{"path": "$.metadata", "reason": "runtime timestamp excluded"}],
+    )
+    result = compare_evaluation_result(
+        {"value": 42, "metadata": {"ts": "now"}},
+        {"value": 42, "metadata": {"ts": "later"}},
+        policy,
+    )
+    assert result.passed

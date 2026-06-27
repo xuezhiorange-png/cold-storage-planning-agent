@@ -253,3 +253,326 @@ def test_code_commit_sha_persisted(tmp_path: Path) -> None:
     run_json = rd.run_dir(ctx.run_id) / "run.json"
     data = json.loads(run_json.read_text("utf-8"))
     assert data["code_commit_sha"] == "abc123def456"
+
+
+# ── P0-2: Summary status and identity tests ─────────────────────────────
+
+
+def test_write_summary_rejects_running_context_with_passed_status(tmp_path: Path) -> None:
+    """RUNNING context with PASSED summary status must be rejected."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+
+    summary = EvaluationRunSummary(
+        run_id=ctx.run_id,
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        scenario_ids=ctx.scenario_ids,
+        status=RunStatus.PASSED,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha=ctx.code_commit_sha,
+        passed=True,
+        scenario_results=(),
+    )
+    with pytest.raises(RunSummaryStatusInvalidError):
+        rd.write_summary(ctx, summary)
+
+
+def test_write_summary_rejects_passed_context_with_running_status(tmp_path: Path) -> None:
+    """PASSED context with RUNNING summary status must be rejected."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+
+    summary = EvaluationRunSummary(
+        run_id=ctx.run_id,
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        scenario_ids=ctx.scenario_ids,
+        status=RunStatus.RUNNING,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha=ctx.code_commit_sha,
+        passed=False,
+        scenario_results=(),
+    )
+    with pytest.raises(RunSummaryStatusInvalidError):
+        rd.write_summary(ctx, summary)
+
+
+def test_stale_context_rejected_by_persisted_run_json(tmp_path: Path) -> None:
+    """Stale context with status=PASSED but persisted run.json running must be rejected."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+
+    # Write summary while RUNNING (allowed with RUNNING status)
+    summary = EvaluationRunSummary(
+        run_id=ctx.run_id,
+        suite_id=ctx.suite_id,
+        suite_revision=ctx.suite_revision,
+        manifest_sha256=ctx.manifest_sha256,
+        scenario_ids=ctx.scenario_ids,
+        status=RunStatus.RUNNING,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha=ctx.code_commit_sha,
+        passed=False,
+        scenario_results=(),
+    )
+    rd.write_summary(ctx, summary)
+
+    # Tamper the context (simulate stale in-memory context)
+
+    # Now try to write a PASSED summary with the stale RUNNING context
+    stale_ctx = ctx  # context still says RUNNING
+    passed_summary = EvaluationRunSummary(
+        run_id=stale_ctx.run_id,
+        suite_id=stale_ctx.suite_id,
+        suite_revision=stale_ctx.suite_revision,
+        manifest_sha256=stale_ctx.manifest_sha256,
+        scenario_ids=stale_ctx.scenario_ids,
+        status=RunStatus.PASSED,
+        completed_at="2026-06-27T12:00:00+00:00",
+        code_commit_sha=stale_ctx.code_commit_sha,
+        passed=True,
+        scenario_results=(),
+    )
+    with pytest.raises(RunSummaryStatusInvalidError):
+        rd.write_summary(stale_ctx, passed_summary)
+
+
+def test_read_verified_summary_checks_suite_id(tmp_path: Path) -> None:
+    """read_verified_summary must reject summary with mismatched suite_id."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["suite_id"] = "tampered-suite"
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    with pytest.raises(RunIdentityMismatchError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_read_verified_summary_checks_suite_revision(tmp_path: Path) -> None:
+    """read_verified_summary must reject summary with mismatched suite_revision."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["suite_revision"] = 99
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    with pytest.raises(RunIdentityMismatchError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+            expected_suite_revision=1,
+        )
+
+
+def test_read_verified_summary_checks_scenario_ids(tmp_path: Path) -> None:
+    """read_verified_summary must reject summary with mismatched scenario_ids."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["scenario_ids"] = ["different-scenario"]
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    with pytest.raises(RunIdentityMismatchError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_read_verified_summary_checks_code_commit_sha(tmp_path: Path) -> None:
+    """read_verified_summary must reject summary with mismatched code_commit_sha."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run(
+        "suite-1",
+        1,
+        "a" * 64,
+        ("s1",),
+        code_commit_sha="abc123",
+    )
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    ctx = rd.transition_status(ctx, RunStatus.PASSED)
+    summary = make_summary(ctx, status=RunStatus.PASSED, passed=True)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["code_commit_sha"] = "tampered-sha"
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    with pytest.raises(RunIdentityMismatchError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_read_verified_summary_checks_status_non_passed(tmp_path: Path) -> None:
+    """Status verification must work for non-passed summaries too."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["status"] = "passed"
+    raw["passed"] = True
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    with pytest.raises(RunSummaryStatusInvalidError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_strict_summary_unknown_field_rejected(tmp_path: Path) -> None:
+    """Unknown root field in summary JSON must raise RunSummaryInvalidError."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["_unknown_field"] = "should not be here"
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    from cold_storage.evaluation.errors import RunSummaryInvalidError
+
+    with pytest.raises(RunSummaryInvalidError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_strict_summary_missing_required_field(tmp_path: Path) -> None:
+    """Missing required field in summary must raise RunSummaryInvalidError."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    del raw["passed"]
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    from cold_storage.evaluation.errors import RunSummaryInvalidError
+
+    with pytest.raises(RunSummaryInvalidError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_strict_summary_string_as_bool_rejected(tmp_path: Path) -> None:
+    """String where bool expected must raise RunSummaryInvalidError."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["passed"] = "yes"
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    from cold_storage.evaluation.errors import RunSummaryInvalidError
+
+    with pytest.raises(RunSummaryInvalidError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_strict_summary_bool_as_int_rejected(tmp_path: Path) -> None:
+    """Bool where int expected must raise RunSummaryInvalidError."""
+    rd = _run_dir(tmp_path)
+    ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+    ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+    summary = make_summary(ctx, status=RunStatus.RUNNING, passed=False)
+    rd.write_summary(ctx, summary)
+
+    import json
+
+    summary_path = rd.run_dir(ctx.run_id) / "summary.json"
+    raw = json.loads(summary_path.read_text("utf-8"))
+    raw["suite_revision"] = True  # bool where int expected
+    summary_path.write_text(json.dumps(raw, indent=2), "utf-8")
+
+    from cold_storage.evaluation.errors import RunSummaryInvalidError
+
+    with pytest.raises(RunSummaryInvalidError):
+        rd.read_verified_summary(
+            run_id=ctx.run_id,
+            expected_manifest_sha256=ctx.manifest_sha256,
+        )
+
+
+def test_invalid_run_id_path_traversal_rejected(tmp_path: Path) -> None:
+    """Run ID with path traversal characters must be rejected."""
+    rd = _run_dir(tmp_path)
+
+    from cold_storage.evaluation.errors import EvaluationError
+
+    with pytest.raises(EvaluationError) as exc_info:
+        rd.run_dir("../etc/passwd")
+    assert exc_info.value.code == "EVAL_RUN_ID_INVALID"
+
+    with pytest.raises(EvaluationError) as exc_info:
+        rd.read_verified_summary(
+            run_id="../etc/passwd",
+            expected_manifest_sha256="a" * 64,
+        )
+    assert exc_info.value.code == "EVAL_RUN_ID_INVALID"

@@ -228,3 +228,109 @@ def test_scale_20() -> None:
     )
     # The value is quantized to 20 decimal places.
     assert result["value"] == "3.14159265358979300000"
+
+
+# ── P0-4: Decimal fail-closed tests ────────────────────────────────────
+
+
+def test_quantize_string_nan_rejected() -> None:
+    """String 'NaN' must be rejected with EVAL_DECIMAL_NON_FINITE."""
+    with pytest.raises(DecimalPolicyError) as exc_info:
+        quantize_decimal_value("NaN", 2)
+    assert exc_info.value.code == "EVAL_DECIMAL_NON_FINITE"
+
+
+def test_quantize_string_infinity_rejected() -> None:
+    """String 'Infinity' must be rejected with EVAL_DECIMAL_NON_FINITE."""
+    with pytest.raises(DecimalPolicyError) as exc_info:
+        quantize_decimal_value("Infinity", 2)
+    assert exc_info.value.code == "EVAL_DECIMAL_NON_FINITE"
+
+
+def test_quantize_string_neg_infinity_rejected() -> None:
+    """String '-Infinity' must be rejected with EVAL_DECIMAL_NON_FINITE."""
+    with pytest.raises(DecimalPolicyError) as exc_info:
+        quantize_decimal_value("-Infinity", 2)
+    assert exc_info.value.code == "EVAL_DECIMAL_NON_FINITE"
+
+
+def test_quantize_string_snan_rejected() -> None:
+    """String 'sNaN' must be rejected with EVAL_DECIMAL_NON_FINITE."""
+    with pytest.raises(DecimalPolicyError) as exc_info:
+        quantize_decimal_value("sNaN", 2)
+    assert exc_info.value.code == "EVAL_DECIMAL_NON_FINITE"
+
+
+def test_quantize_empty_string_rejected() -> None:
+    """Empty string must be rejected with EVAL_DECIMAL_VALUE_INVALID."""
+    with pytest.raises(DecimalPolicyError) as exc_info:
+        quantize_decimal_value("", 2)
+    assert exc_info.value.code == "EVAL_DECIMAL_VALUE_INVALID"
+
+
+def test_quantize_whitespace_string_rejected() -> None:
+    """Whitespace-only string must be rejected."""
+    with pytest.raises(DecimalPolicyError):
+        quantize_decimal_value("   ", 2)
+
+
+def test_quantize_non_numeric_string_rejected() -> None:
+    """Non-numeric string must be rejected with EVAL_DECIMAL_QUANTIZE_FAILED."""
+    with pytest.raises(DecimalPolicyError) as exc_info:
+        quantize_decimal_value("not-a-number", 2)
+    assert exc_info.value.code == "EVAL_DECIMAL_QUANTIZE_FAILED"
+
+
+def test_quantize_large_exponent_rejected() -> None:
+    """Very large exponent must be rejected deterministically."""
+    with pytest.raises(DecimalPolicyError):
+        quantize_decimal_value("1e999999", 2)
+
+
+def test_quantize_large_negative_exponent_handled() -> None:
+    """Very large negative exponent produces 0.00 after quantize at scale 2."""
+    result = quantize_decimal_value("1e-999", 2)
+    assert result == "0.00"
+
+
+def test_quantize_half_even_positive_tie() -> None:
+    """ROUND_HALF_EVEN: 2.5 at scale=0 must round to 2 (even)."""
+    result = quantize_decimal_value(2.5, 0)
+    assert result == "2"
+
+
+def test_quantize_half_even_negative_tie() -> None:
+    """ROUND_HALF_EVEN: 3.5 at scale=0 must round to 4 (odd → nearest even)."""
+    result = quantize_decimal_value(3.5, 0)
+    assert result == "4"
+
+
+def test_canonical_bytes_rejects_decimal() -> None:
+    """canonical_json_bytes must reject Decimal objects."""
+    from decimal import Decimal
+
+    from cold_storage.evaluation.errors import CanonicalValueError
+
+    with pytest.raises(CanonicalValueError) as exc_info:
+        canonical_json_bytes({"value": Decimal("3.14")})
+    assert exc_info.value.code == "EVAL_CANONICAL_VALUE_INVALID"
+
+
+def test_quantize_enforces_mode() -> None:
+    """DecimalPathRule with unsupported mode must fail during canonicalization."""
+    from cold_storage.evaluation.models import DecimalMode, DecimalPathRule
+
+    rule = (
+        DecimalPathRule(
+            path="$.value",
+            mode=DecimalMode.QUANTIZE,
+            scale=2,
+            unit="m2",
+            rationale="Test mode enforcement",
+        ),
+    )
+    result = canonicalize_json(
+        {"value": 1.23},
+        decimal_paths=rule,
+    )
+    assert result["value"] == "1.23"

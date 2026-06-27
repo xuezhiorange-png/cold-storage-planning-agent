@@ -450,3 +450,110 @@ def test_good_rationale_passes(tmp_path: Path) -> None:
     manifest = _make_manifest([scenario])
     result = _write_and_load(manifest, tmp_path)
     assert result is not None
+
+
+# ── P0-5: Malformed container and provenance tests ─────────────────────
+
+
+def test_scenarios_is_object_rejected(tmp_path: Path) -> None:
+    """Scenarios must be a list, not an object."""
+    data = dict(_make_manifest())
+    data["scenarios"] = {"scenario_id": "test"}
+    path = tmp_path / "manifest.json"
+    import json
+
+    path.write_text(json.dumps(data))
+
+    from cold_storage.evaluation.errors import ManifestSchemaError
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    with pytest.raises(ManifestSchemaError):
+        load_evaluation_manifest(str(path), evaluation_root=tmp_path)
+
+
+def test_scenario_is_string_rejected(tmp_path: Path) -> None:
+    """Each scenario must be an object, not a string."""
+    data = dict(_make_manifest())
+    data["scenarios"] = ["just-a-string"]
+    path = tmp_path / "manifest.json"
+    import json
+
+    path.write_text(json.dumps(data))
+
+    from cold_storage.evaluation.errors import ManifestSchemaError
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    with pytest.raises(ManifestSchemaError):
+        load_evaluation_manifest(str(path), evaluation_root=tmp_path)
+
+
+def test_comparison_policy_is_list_rejected(tmp_path: Path) -> None:
+    """comparison_policy must be an object."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = ["not-an-object"]
+    manifest = _make_manifest([scenario])
+    path = tmp_path / "manifest.json"
+    import json
+
+    path.write_text(json.dumps(manifest))
+
+    from cold_storage.evaluation.errors import ManifestSchemaError
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    with pytest.raises(ManifestSchemaError):
+        load_evaluation_manifest(str(path), evaluation_root=tmp_path)
+
+
+def test_exact_paths_is_object_rejected(tmp_path: Path) -> None:
+    """exact_paths must be a list."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["comparison_policy"] = {
+        "exact_paths": {"path": "$.test"},
+        "decimal_paths": [],
+        "ignored_paths": [],
+        "artifact_checks": [],
+    }
+    manifest = _make_manifest([scenario])
+    path = tmp_path / "manifest.json"
+    import json
+
+    path.write_text(json.dumps(manifest))
+
+    from cold_storage.evaluation.errors import ManifestSchemaError
+    from cold_storage.evaluation.manifest import load_evaluation_manifest
+
+    with pytest.raises(ManifestSchemaError):
+        load_evaluation_manifest(str(path), evaluation_root=tmp_path)
+
+
+def test_empty_provenance_source_rejected(tmp_path: Path) -> None:
+    """Provenance with empty source must be rejected."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["provenance"] = {"source": "", "rationale": "baseline"}
+    manifest = _make_manifest([scenario])
+    from cold_storage.evaluation.errors import ManifestSchemaError
+
+    with pytest.raises((ManifestSchemaError,)):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_empty_provenance_rationale_rejected(tmp_path: Path) -> None:
+    """Provenance with empty rationale must be rejected."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["provenance"] = {"source": "reviewed", "rationale": ""}
+    manifest = _make_manifest([scenario])
+    from cold_storage.evaluation.errors import ManifestSchemaError
+
+    with pytest.raises(ManifestSchemaError):
+        _write_and_load(manifest, tmp_path)
+
+
+def test_whitespace_provenance_source_rejected(tmp_path: Path) -> None:
+    """Provenance with whitespace-only source must be rejected."""
+    scenario = dict(_VALID_SCENARIO)
+    scenario["provenance"] = {"source": "   ", "rationale": "baseline"}
+    manifest = _make_manifest([scenario])
+    from cold_storage.evaluation.errors import ManifestSemanticError
+
+    with pytest.raises(ManifestSemanticError):
+        _write_and_load(manifest, tmp_path)
