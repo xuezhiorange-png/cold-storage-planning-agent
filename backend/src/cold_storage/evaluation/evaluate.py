@@ -29,6 +29,7 @@ from cold_storage.evaluation.models import (
 )
 from cold_storage.evaluation.run_directory import EvaluationRunDirectory
 from cold_storage.modules.calculations.application.service import (
+    CoreCalculationOrchestrationResult,
     CoreCalculationService,
 )
 from cold_storage.modules.calculations.domain.inventory import (
@@ -55,19 +56,19 @@ from cold_storage.modules.schemes.application.service import SchemeService
 from cold_storage.modules.schemes.infrastructure.repository import SchemeRepository
 
 
-def _to_decimal(value: object) -> Decimal | None:
+def _to_decimal(value: object) -> Decimal:
     """Convert a value to Decimal, or None if not possible."""
     if value is None:
-        return None
+        return Decimal("0")
     if isinstance(value, Decimal):
         return value
     if isinstance(value, bool):
         return Decimal(str(int(value)))
     if isinstance(value, (int, float)):
         return Decimal(str(value))
-    if isinstance(value, str):
+    if isinstance(value, str) and value:
         return Decimal(value)
-    return None
+    return Decimal("0")
 
 
 def run_evaluation_scenario(
@@ -155,7 +156,7 @@ def run_evaluation_scenario(
 
         # Run core calculations using CoreCalculationService
         calc_svc = CoreCalculationService()
-        calc_inputs = {}
+        calc_inputs: dict[str, Any] = {}
         calc_inputs["throughput_input"] = (
             ThroughputCalcInput(
                 peak_output_kg_per_day=_to_decimal(
@@ -338,11 +339,11 @@ def run_evaluation_scenario(
 
 
 def _seed_scheme_calculations(
-    session,
+    session: Any,  # noqa: ANN401
     project_id: str,
     version_id: str,
     fixture: dict[str, Any],
-    orchestration_result,
+    orchestration_result: CoreCalculationOrchestrationResult | None,  # noqa: ANN401
 ) -> None:
     """Seed the calculation runs that SchemeService requires.
 
@@ -373,13 +374,15 @@ def _seed_scheme_calculations(
         },
     ]
 
+    if not orchestration_result:
+        return
     if orchestration_result.cooling_load:
         cl = orchestration_result.cooling_load
         records_data.append(
             {
                 "calculator_name": "cooling_load",
                 "calculator_version": cl.calculator_version,
-                "input_snapshot": cl.input,
+                "input_snapshot": cl.input_snapshot,
                 "result_snapshot": cl.result,
             }
         )
@@ -399,7 +402,7 @@ def _seed_scheme_calculations(
             {
                 "calculator_name": "equipment",
                 "calculator_version": eq.calculator_version,
-                "input_snapshot": eq.input,
+                "input_snapshot": eq.input_snapshot,
                 "result_snapshot": eq.result,
             }
         )
