@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
+from math import isfinite, isnan
 
+from cold_storage.evaluation.errors import (
+    DecimalPolicyError,
+)
 from cold_storage.evaluation.models import (
     DecimalMode,
     DecimalPathRule,
@@ -14,6 +18,81 @@ from cold_storage.evaluation.models import (
 
 # JSON value: dict, list, str, int, float, bool, None
 JsonValue = dict[str, "JsonValue"] | list["JsonValue"] | str | int | float | bool | None
+JsonScalar = str | int | float | bool | None
+
+
+def quantize_decimal_value(
+    value: JsonScalar,
+    scale: int,
+) -> str:
+    """Quantize a numeric value to a fixed-scale deterministic string.
+
+    Args:
+        value: The value to quantize (int, float, or numeric string).
+        scale: Number of decimal places (0-20).
+
+    Returns:
+        A deterministic fixed-scale string representation.
+
+    Raises:
+        DecimalPolicyError: On bool, non-numeric, NaN, Infinity, etc.
+    """
+    if isinstance(value, bool):
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_VALUE_INVALID",
+            message=f"Cannot quantize boolean value: {value}",
+            field=str(value),
+        )
+    if value is None:
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_VALUE_INVALID",
+            message="Cannot quantize None",
+            field="None",
+        )
+
+    # Parse to Decimal
+    try:
+        if isinstance(value, float):
+            if isnan(value):
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_NON_FINITE",
+                    message="Cannot quantize NaN",
+                    field=str(value),
+                )
+            if not isfinite(value):
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_NON_FINITE",
+                    message=f"Cannot quantize non-finite float: {value}",
+                    field=str(value),
+                )
+            d = Decimal(str(value))
+        elif isinstance(value, int):
+            d = Decimal(value)
+        elif isinstance(value, str):
+            # Empty string is not valid
+            if not value:
+                raise DecimalPolicyError(
+                    code="EVAL_DECIMAL_VALUE_INVALID",
+                    message="Cannot quantize empty string",
+                    field="",
+                )
+            d = Decimal(value)
+        else:
+            raise DecimalPolicyError(
+                code="EVAL_DECIMAL_VALUE_INVALID",
+                message=f"Unsupported type for decimal quantization: {type(value).__name__}",
+                field=str(value),
+            )
+    except (ValueError, TypeError, InvalidOperation) as exc:
+        raise DecimalPolicyError(
+            code="EVAL_DECIMAL_QUANTIZE_FAILED",
+            message=f"Cannot quantize value '{value}': {exc}",
+            field=str(value),
+        ) from exc
+
+    # Quantize with explicit rounding
+    quantized = d.quantize(Decimal(10) ** -scale, rounding=ROUND_HALF_EVEN)
+    return str(quantized)
 
 
 def canonicalize_json(
@@ -25,7 +104,7 @@ def canonicalize_json(
     """Canonicalize a deserialized JSON value for deterministic comparison.
 
     The input is not mutated.  The output uses stable key ordering, removes
-    ignored paths, and quantizes decimal-policy values.
+    ignored paths, and quantizes decimal-policy values (as strings).
 
     Args:
         value: The JSON value to canonicalize.
@@ -44,14 +123,17 @@ def canonicalize_json(
 
 
 def canonical_json_bytes(value: JsonValue) -> bytes:
-    """Serialize a canonicalized JSON value to deterministic bytes."""
+    """Serialize a canonicalized JSON value to deterministic bytes.
+
+    Raises:
+        TypeError: If value contains non-standard JSON types.
+    """
     return (
         json.dumps(
             value,
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
-            default=str,
         ).encode("utf-8")
         + b"\n"
     )
@@ -93,14 +175,9 @@ def _canonicalize(
 
     if path in decimal:
         scale, mode = decimal[path]
-        if isinstance(value, bool):
-            return value
-        try:
-            d = Decimal(str(value))
-            quantized = d.quantize(Decimal(10) ** -scale)
-            return float(quantized) if not scale else float(quantized)
-        except (ValueError, TypeError):
-            return value
+        # Quantize to fixed-scale string (fail-closed for invalid values)
+        quantized = quantize_decimal_value(value, scale)
+        return quantized
 
     return value
 
