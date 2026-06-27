@@ -1,0 +1,80 @@
+{
+  "synthetic": true,
+  "fixture_revision": 1,
+  "provenance": {
+    "generator": "manual",
+    "generated_at": "2026-06-27T00:00:00+00:00",
+    "description": "Synthetic high-throughput review-triggering cold storage project for pilot evaluation"
+  },
+  "project": {
+    "name": "Synthetic High-Throughput Blueberry Cold Storage",
+    "location": "Synthetic Location B",
+    "product_category": "blueberry"
+  },
+  "version": {
+    "change_summary": "Phase B evaluation fixture — high throughput review scenario",
+    "created_by": "evaluation-system"
+  },
+  "inputs": {
+    "daily_inbound_mass_kg": 50000,
+    "working_time_h_per_day": 16,
+    "utilization_factor": 0.9,
+    "finished_storage_days": 14,
+    "packaging_storage_days": 5,
+    "reserve_factor": 1.3
+  },
+  "zone_area_specs": [
+    {
+      "zone_code": "Z1",
+      "zone_name": "Quick Freezing Area",
+      "temperature_level": "-18~-25℃",
+      "area_m2": 1200.0,
+      "position_count": 240,
+      "storage_capacity_kg": 240000.0,
+      "process_compatibility": "quick_freezing",
+      "hygiene_zone": "high"
+    },
+    {
+      "zone_code": "Z2",
+      "zone_name": "Cold Storage Area",
+      "temperature_level": "0~4℃",
+      "area_m2": 2000.0,
+      "position_count": 400,
+      "storage_capacity_kg": 400000.0,
+      "process_compatibility": "general",
+      "hygiene_zone": "standard"
+    }
+  ],
+  "throughput_input": {
+    "peak_output_kg_per_day": "50000",
+    "processing_hours_per_day": "16",
+    "shift_count": 2,
+    "effective_working_ratio": "0.9",
+    "labour_efficiency_kg_per_person_hour": "150",
+    "available_workers": 0
+  },
+  "inventory_input": {
+    "daily_inbound_quantity": "50000",
+    "daily_outbound_quantity": "45000",
+    "turnover_days": "14",
+    "safety_stock_days": "5"
+  },
+  "pallet_input": {
+    "design_inventory": "640000",
+    "net_product_per_pallet": "1000"
+  },
+  "precooling_input": {
+    "precooled_quantity_per_day": "50000"
+  },
+  "cooling_load_input": null,
+  "equipment_input": null,
+  "installed_power_input": {
+    "compressor_input_power_kw_e": "300.0",
+    "processing_equipment_power_kw_e": "50.0"
+  },
+  "scheme_run": {
+    "profile_codes": ["ammonia_co2_cascade", "freon_r507"],
+    "weight_set_id": "demo-balanced",
+    "profile_parameters": {}
+  }
+}

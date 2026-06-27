@@ -1,0 +1,90 @@
+{
+  "synthetic": true,
+  "fixture_revision": 1,
+  "provenance": {
+    "generator": "manual",
+    "generated_at": "2026-06-27T00:00:00+00:00",
+    "description": "Synthetic baseline-feasible cold storage project for pilot evaluation"
+  },
+  "project": {
+    "name": "Synthetic Baseline Blueberry Cold Storage",
+    "location": "Synthetic Location A",
+    "product_category": "blueberry"
+  },
+  "version": {
+    "change_summary": "Phase B evaluation fixture — baseline feasible scenario",
+    "created_by": "evaluation-system"
+  },
+  "inputs": {
+    "daily_inbound_mass_kg": 10000,
+    "working_time_h_per_day": 8,
+    "utilization_factor": 0.85,
+    "finished_storage_days": 7,
+    "packaging_storage_days": 3,
+    "reserve_factor": 1.2
+  },
+  "zone_area_specs": [
+    {
+      "zone_code": "Z1",
+      "zone_name": "Quick Freezing Area",
+      "temperature_level": "-18~-25℃",
+      "area_m2": 300.0,
+      "position_count": 60,
+      "storage_capacity_kg": 60000.0,
+      "process_compatibility": "quick_freezing",
+      "hygiene_zone": "high"
+    },
+    {
+      "zone_code": "Z2",
+      "zone_name": "Cold Storage Area",
+      "temperature_level": "0~4℃",
+      "area_m2": 500.0,
+      "position_count": 100,
+      "storage_capacity_kg": 100000.0,
+      "process_compatibility": "general",
+      "hygiene_zone": "standard"
+    },
+    {
+      "zone_code": "Z3",
+      "zone_name": "Packaging Area",
+      "temperature_level": "0~4℃",
+      "area_m2": 200.0,
+      "position_count": 40,
+      "storage_capacity_kg": 40000.0,
+      "process_compatibility": "general",
+      "hygiene_zone": "standard"
+    }
+  ],
+  "throughput_input": {
+    "peak_output_kg_per_day": "10000",
+    "processing_hours_per_day": "8",
+    "shift_count": 1,
+    "effective_working_ratio": "0.85",
+    "labour_efficiency_kg_per_person_hour": "150",
+    "available_workers": 0
+  },
+  "inventory_input": {
+    "daily_inbound_quantity": "10000",
+    "daily_outbound_quantity": "9000",
+    "turnover_days": "7",
+    "safety_stock_days": "3"
+  },
+  "pallet_input": {
+    "design_inventory": "200000",
+    "net_product_per_pallet": "1000"
+  },
+  "precooling_input": {
+    "precooled_quantity_per_day": "10000"
+  },
+  "cooling_load_input": null,
+  "equipment_input": null,
+  "installed_power_input": {
+    "compressor_input_power_kw_e": "87.0",
+    "processing_equipment_power_kw_e": "15.0"
+  },
+  "scheme_run": {
+    "profile_codes": ["ammonia_co2_cascade", "freon_r507"],
+    "weight_set_id": "demo-balanced",
+    "profile_parameters": {}
+  }
+}

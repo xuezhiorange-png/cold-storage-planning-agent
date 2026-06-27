@@ -1,0 +1,535 @@
+{
+  "scenario_id": "baseline-feasible",
+  "fixture_revision": 1,
+  "outcome": "review_required",
+  "project": {
+    "id": "ef0b4fbc-e500-44b7-b321-c10589021d60",
+    "code": "P0001",
+    "name": "Synthetic Baseline Blueberry Cold Storage",
+    "location": "Synthetic Location A",
+    "product_category": "blueberry"
+  },
+  "version": {
+    "id": "782c56f1-63e5-4163-8cbf-7ef733261c2d",
+    "version_number": 1,
+    "status": "draft",
+    "change_summary": "Phase B evaluation fixture — baseline feasible scenario"
+  },
+  "validation_result": {
+    "valid": true,
+    "missing_fields": [],
+    "tentative_fields": []
+  },
+  "calculation_results": {
+    "success": true,
+    "has_review_flags": true,
+    "throughput": {
+      "success": true,
+      "calculator_name": "throughput",
+      "calculator_version": "1.0.0",
+      "input_snapshot": {
+        "peak_output_kg_per_day": "10000",
+        "processing_hours_per_day": "8",
+        "shift_count": 1,
+        "effective_working_ratio": "0.85",
+        "labour_efficiency_kg_per_person_hour": "150",
+        "available_workers": 0
+      },
+      "result": {
+        "required_hourly_throughput_kg_h": 1250.0,
+        "available_hourly_throughput_kg_h": 1470.59,
+        "capacity_utilisation_ratio": 0.85,
+        "required_labour_hours": 66.67,
+        "required_worker_count": 9,
+        "capacity_shortfall_workers": 0
+      },
+      "steps": [
+        {
+          "step_id": "TH-001",
+          "formula": "peak_output_kg_per_day / processing_hours_per_day",
+          "description": "Required hourly throughput (kg/h)",
+          "inputs": {
+            "peak_output_kg_per_day": "10000",
+            "processing_hours_per_day": "8"
+          },
+          "output_name": "required_hourly_throughput_kg_h",
+          "output_value": "1250.00"
+        },
+        {
+          "step_id": "TH-002",
+          "formula": "required_hourly_throughput / effective_working_ratio",
+          "description": "Available (design) hourly throughput (kg/h)",
+          "inputs": {
+            "required_hourly_throughput_kg_h": "1250.00",
+            "effective_working_ratio": "0.85"
+          },
+          "output_name": "available_hourly_throughput_kg_h",
+          "output_value": "1470.59"
+        },
+        {
+          "step_id": "TH-003",
+          "formula": "required / available  (capacity utilisation)",
+          "description": "Capacity utilisation ratio",
+          "inputs": {
+            "required_hourly_throughput_kg_h": "1250.00",
+            "available_hourly_throughput_kg_h": "1470.59"
+          },
+          "output_name": "capacity_utilisation_ratio",
+          "output_value": "0.8500"
+        },
+        {
+          "step_id": "TH-004",
+          "formula": "peak_output / labour_efficiency",
+          "description": "Required total labour person-hours per day",
+          "inputs": {
+            "peak_output_kg_per_day": "10000",
+            "labour_efficiency_kg_per_person_hour": "150"
+          },
+          "output_name": "required_labour_hours",
+          "output_value": "66.67"
+        },
+        {
+          "step_id": "TH-005",
+          "formula": "ceil(peak_output / (efficiency × hours))",
+          "description": "Required worker count",
+          "inputs": {
+            "peak_output_kg_per_day": "10000",
+            "labour_efficiency": "150",
+            "processing_hours_per_day": "8"
+          },
+          "output_name": "required_worker_count",
+          "output_value": "9"
+        },
+        {
+          "step_id": "TH-006",
+          "formula": "max(required_workers - available_workers, 0)",
+          "description": "Worker capacity shortfall",
+          "inputs": {
+            "required_worker_count": "9",
+            "available_workers": "0"
+          },
+          "output_name": "capacity_shortfall_workers",
+          "output_value": "0"
+        }
+      ],
+      "coefficient_references": [],
+      "assumptions": [],
+      "warnings": [
+        {
+          "code": "DEMO_COEFFICIENT",
+          "message": "effective_working_ratio uses demo default 0.85",
+          "details": {
+            "effective_working_ratio": "0.85"
+          }
+        }
+      ],
+      "requires_review": true,
+      "calculated_at": "2026-06-27T15:39:27.007814+00:00",
+      "correlation_id": "4bcec774-3425-4719-b646-b24ea9e30e5c"
+    },
+    "inventory": {
+      "success": true,
+      "calculator_name": "inventory",
+      "calculator_version": "1.0.0",
+      "input_snapshot": {
+        "daily_inbound_quantity": "10000",
+        "daily_outbound_quantity": "9000",
+        "turnover_days": "7",
+        "safety_stock_days": "3",
+        "storage_ratio": "1.0",
+        "inventory_peak_factor": "1.0"
+      },
+      "result": {
+        "base_inventory": 70000.0,
+        "safety_inventory": 30000.0,
+        "peak_inventory": 100000.0,
+        "design_inventory": 100000.0
+      },
+      "steps": [
+        {
+          "step_id": "INV-001",
+          "formula": "daily_inbound_quantity × turnover_days",
+          "description": "Base inventory quantity",
+          "inputs": {
+            "daily_inbound_quantity": "10000",
+            "turnover_days": "7"
+          },
+          "output_name": "base_inventory",
+          "output_value": "70000.00"
+        },
+        {
+          "step_id": "INV-002",
+          "formula": "daily_inbound_quantity × safety_stock_days",
+          "description": "Safety stock quantity",
+          "inputs": {
+            "daily_inbound_quantity": "10000",
+            "safety_stock_days": "3"
+          },
+          "output_name": "safety_inventory",
+          "output_value": "30000.00"
+        },
+        {
+          "step_id": "INV-003",
+          "formula": "(base + safety) × inventory_peak_factor",
+          "description": "Peak inventory with seasonal/demand factor",
+          "inputs": {
+            "base_inventory": "70000.00",
+            "safety_inventory": "30000.00",
+            "inventory_peak_factor": "1.0"
+          },
+          "output_name": "peak_inventory",
+          "output_value": "100000.00"
+        },
+        {
+          "step_id": "INV-004",
+          "formula": "peak_inventory × storage_ratio",
+          "description": "Design inventory (storage-ready quantity)",
+          "inputs": {
+            "peak_inventory": "100000.00",
+            "storage_ratio": "1.0"
+          },
+          "output_name": "design_inventory",
+          "output_value": "100000.00"
+        }
+      ],
+      "coefficient_references": [],
+      "assumptions": [],
+      "warnings": [
+        {
+          "code": "PEAK_FACTOR_DEFAULT",
+          "message": "inventory_peak_factor is 1.0 (no peak adjustment)",
+          "details": {
+            "inventory_peak_factor": "1.0"
+          }
+        }
+      ],
+      "requires_review": true,
+      "calculated_at": "2026-06-27T15:39:27.007988+00:00",
+      "correlation_id": "4cc4565a-6dcc-4183-bc51-d0260fe16f9b"
+    },
+    "pallets": {
+      "success": true,
+      "calculator_name": "pallets",
+      "calculator_version": "1.0.0",
+      "input_snapshot": {
+        "design_inventory": "200000",
+        "net_product_per_pallet": "1000",
+        "pallet_utilization_ratio": "1.0",
+        "pallet_turnover_ratio": "1.0",
+        "stacking_level": 1,
+        "reserve_ratio": "0.10"
+      },
+      "result": {
+        "effective_capacity_per_pallet": 1000.0,
+        "net_pallet_quantity": 200,
+        "reserve_pallet_quantity": 20,
+        "design_pallet_quantity": 220,
+        "required_pallet_positions": 220,
+        "adjusted_pallet_positions": 220
+      },
+      "steps": [
+        {
+          "step_id": "PL-001",
+          "formula": "net_product_per_pallet × pallet_utilization_ratio",
+          "description": "Effective product capacity per pallet",
+          "inputs": {
+            "net_product_per_pallet": "1000",
+            "pallet_utilization_ratio": "1.0"
+          },
+          "output_name": "effective_capacity_per_pallet",
+          "output_value": "1000.00"
+        },
+        {
+          "step_id": "PL-002",
+          "formula": "ceil(design_inventory / effective_capacity_per_pallet)",
+          "description": "Net pallet count required",
+          "inputs": {
+            "design_inventory": "200000",
+            "effective_capacity_per_pallet": "1000.00"
+          },
+          "output_name": "net_pallet_quantity",
+          "output_value": "200"
+        },
+        {
+          "step_id": "PL-003",
+          "formula": "ceil(net_pallet_quantity × reserve_ratio)",
+          "description": "Reserve pallet count",
+          "inputs": {
+            "net_pallet_quantity": "200",
+            "reserve_ratio": "0.10"
+          },
+          "output_name": "reserve_pallet_quantity",
+          "output_value": "20"
+        },
+        {
+          "step_id": "PL-004",
+          "formula": "net_pallet_quantity + reserve_pallet_quantity",
+          "description": "Total design pallet count",
+          "inputs": {
+            "net_pallet_quantity": "200",
+            "reserve_pallet_quantity": "20"
+          },
+          "output_name": "design_pallet_quantity",
+          "output_value": "220"
+        },
+        {
+          "step_id": "PL-005",
+          "formula": "ceil(design_pallet_quantity / stacking_level)",
+          "description": "Required pallet positions (floor-level)",
+          "inputs": {
+            "design_pallet_quantity": "220",
+            "stacking_level": "1"
+          },
+          "output_name": "required_pallet_positions",
+          "output_value": "220"
+        },
+        {
+          "step_id": "PL-006",
+          "formula": "ceil(required_positions / pallet_turnover_ratio)",
+          "description": "Adjusted positions with turnover effect",
+          "inputs": {
+            "required_pallet_positions": "220",
+            "pallet_turnover_ratio": "1.0"
+          },
+          "output_name": "adjusted_pallet_positions",
+          "output_value": "220"
+        }
+      ],
+      "coefficient_references": [],
+      "assumptions": [],
+      "warnings": [],
+      "requires_review": false,
+      "calculated_at": "2026-06-27T15:39:27.008115+00:00",
+      "correlation_id": "6a959527-4d81-4a58-b603-89e071cea677"
+    },
+    "precooling": {
+      "success": true,
+      "calculator_name": "precooling",
+      "calculator_version": "1.0.0",
+      "input_snapshot": {
+        "precooled_quantity_per_day": "10000",
+        "precooled_ratio": "1.0",
+        "batch_capacity": "500",
+        "batch_duration": "4",
+        "loading_unloading_duration": "1",
+        "available_precooling_hours": "16",
+        "simultaneous_batch_count": 1,
+        "reserve_capacity_ratio": "1.10"
+      },
+      "result": {
+        "required_precooling_quantity": 10000.0,
+        "effective_cycle_duration": 5.0,
+        "available_cycles_per_day": 3.2,
+        "required_batches_per_day": 22.0,
+        "required_simultaneous_capacity": 11000.0,
+        "required_precooling_positions": 22,
+        "required_precooling_rooms": 22,
+        "capacity_margin": 1000.0
+      },
+      "steps": [
+        {
+          "step_id": "PC-001",
+          "formula": "precooled_quantity_per_day × precooled_ratio",
+          "description": "Required daily precooling quantity",
+          "inputs": {
+            "precooled_quantity_per_day": "10000",
+            "precooled_ratio": "1.0"
+          },
+          "output_name": "required_precooling_quantity",
+          "output_value": "10000.00"
+        },
+        {
+          "step_id": "PC-002",
+          "formula": "batch_duration + loading_unloading_duration",
+          "description": "Effective precooling cycle duration (hours)",
+          "inputs": {
+            "batch_duration": "4",
+            "loading_unloading_duration": "1"
+          },
+          "output_name": "effective_cycle_duration",
+          "output_value": "5.00"
+        },
+        {
+          "step_id": "PC-003",
+          "formula": "available_precooling_hours / effective_cycle_duration",
+          "description": "Available batch cycles per day",
+          "inputs": {
+            "available_precooling_hours": "16",
+            "effective_cycle_duration": "5.00"
+          },
+          "output_name": "available_cycles_per_day",
+          "output_value": "3.20"
+        },
+        {
+          "step_id": "PC-004",
+          "formula": "ceil(required_qty / batch_capacity) × reserve_ratio",
+          "description": "Required batches per day (with reserve)",
+          "inputs": {
+            "required_precooling_quantity": "10000.00",
+            "batch_capacity": "500",
+            "reserve_capacity_ratio": "1.10"
+          },
+          "output_name": "required_batches_per_day",
+          "output_value": "22.00"
+        },
+        {
+          "step_id": "PC-005",
+          "formula": "required_batches_per_day × batch_capacity",
+          "description": "Required simultaneous precooling capacity (kg)",
+          "inputs": {
+            "required_batches_per_day": "22.00",
+            "batch_capacity": "500"
+          },
+          "output_name": "required_simultaneous_capacity",
+          "output_value": "11000.00"
+        },
+        {
+          "step_id": "PC-006",
+          "formula": "ceil(required_batches_per_day) → simultaneous positions",
+          "description": "Required precooling positions",
+          "inputs": {
+            "required_batches_per_day": "22.00"
+          },
+          "output_name": "required_precooling_positions",
+          "output_value": "22"
+        },
+        {
+          "step_id": "PC-007",
+          "formula": "ceil(required_positions / simultaneous_batch_count)",
+          "description": "Required precooling rooms",
+          "inputs": {
+            "required_precooling_positions": "22",
+            "simultaneous_batch_count": "1"
+          },
+          "output_name": "required_precooling_rooms",
+          "output_value": "22"
+        },
+        {
+          "step_id": "PC-008",
+          "formula": "total_capacity - required_quantity",
+          "description": "Capacity margin (surplus)",
+          "inputs": {
+            "total_capacity": "11000",
+            "required_precooling_quantity": "10000.00"
+          },
+          "output_name": "capacity_margin",
+          "output_value": "1000.00"
+        }
+      ],
+      "coefficient_references": [],
+      "assumptions": [],
+      "warnings": [],
+      "requires_review": false,
+      "calculated_at": "2026-06-27T15:39:27.008212+00:00",
+      "correlation_id": "d67d1ed3-4e55-4c88-84b4-a3db8b167f13"
+    },
+    "installed_power": {
+      "success": true,
+      "calculator_name": "installed_power",
+      "calculator_version": "1.0.0",
+      "input_snapshot": {
+        "compressor_input_power_kw_e": "87.0",
+        "evaporator_fan_power_kw_e": "0",
+        "condenser_fan_power_kw_e": "0",
+        "pump_power_kw_e": "0",
+        "defrost_power_kw_e": "0",
+        "processing_equipment_power_kw_e": "15.0",
+        "lighting_power_kw_e": "0",
+        "other_auxiliary_power_kw_e": "0",
+        "refrigeration_demand_factor": "0.90",
+        "production_demand_factor": "0.90",
+        "equipment_item_count": 0
+      },
+      "result": {
+        "refrigeration_system_installed_power_kw_e": 87.0,
+        "process_equipment_installed_power_kw_e": 15.0,
+        "lighting_installed_power_kw_e": 0.0,
+        "auxiliary_installed_power_kw_e": 0.0,
+        "total_installed_power_kw_e": 102.0,
+        "estimated_peak_demand_kw_e": 91.8,
+        "equipment_items": []
+      },
+      "steps": [
+        {
+          "step_id": "PW-REFRIG",
+          "formula": "P_refrig = compressor + evaporator_fans + condenser_fans + pumps + defrost",
+          "description": "Refrigeration system installed power",
+          "inputs": {
+            "compressor": "87.0",
+            "evaporator_fans": "0",
+            "condenser_fans": "0",
+            "pumps": "0",
+            "defrost": "0"
+          },
+          "output_name": "refrigeration_system_installed_power_kw_e",
+          "output_value": "87.0"
+        },
+        {
+          "step_id": "PW-PROC",
+          "formula": "P_process = processing_equipment_power",
+          "description": "Processing equipment installed power",
+          "inputs": {
+            "processing_equipment": "15.0"
+          },
+          "output_name": "process_equipment_installed_power_kw_e",
+          "output_value": "15.0"
+        },
+        {
+          "step_id": "PW-LIGHT",
+          "formula": "P_lighting = lighting_power",
+          "description": "Lighting installed power",
+          "inputs": {
+            "lighting": "0"
+          },
+          "output_name": "lighting_installed_power_kw_e",
+          "output_value": "0"
+        },
+        {
+          "step_id": "PW-AUX",
+          "formula": "P_aux = other_auxiliary_power",
+          "description": "Auxiliary installed power",
+          "inputs": {
+            "auxiliary": "0"
+          },
+          "output_name": "auxiliary_installed_power_kw_e",
+          "output_value": "0"
+        },
+        {
+          "step_id": "PW-TOTAL",
+          "formula": "P_total = refrigeration + processing + lighting + auxiliary",
+          "description": "Total installed electrical power",
+          "inputs": {
+            "refrigeration": "87.0",
+            "processing": "15.0",
+            "lighting": "0",
+            "auxiliary": "0"
+          },
+          "output_name": "total_installed_power_kw_e",
+          "output_value": "102.0"
+        },
+        {
+          "step_id": "PW-DEMAND",
+          "formula": "peak_demand = refrig×df_ref + process×df_proc + lighting + aux",
+          "description": "Estimated peak demand (kW(e))",
+          "inputs": {
+            "refrigeration_demand_factor": "0.90",
+            "production_demand_factor": "0.90"
+          },
+          "output_name": "estimated_peak_demand_kw_e",
+          "output_value": "91.800"
+        }
+      ],
+      "coefficient_references": [],
+      "assumptions": [],
+      "warnings": [],
+      "requires_review": false,
+      "calculated_at": "2026-06-27T15:39:27.008332+00:00",
+      "correlation_id": "48bec597-5ee8-4a6b-a4e2-40bd7aacfaa4"
+    }
+  },
+  "scheme_run": {
+    "status": "blocked",
+    "error": "Source snapshot invalid: Missing required field 'design_cooling_load_kw_r' in cooling_load snapshot"
+  },
+  "errors": []
+}

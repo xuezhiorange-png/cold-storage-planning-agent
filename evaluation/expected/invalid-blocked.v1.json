@@ -1,0 +1,30 @@
+{
+  "scenario_id": "invalid-blocked",
+  "fixture_revision": 1,
+  "outcome": "validation_error",
+  "project": {
+    "id": "6ee7bd36-1907-4710-ab29-f86d3e480fb5",
+    "code": "P0001",
+    "name": "Synthetic Invalid Project",
+    "location": "Synthetic Location C",
+    "product_category": "blueberry"
+  },
+  "version": {
+    "id": "285957bf-e3a7-4f9a-97ee-f0474911b4cc",
+    "version_number": 1,
+    "status": "draft",
+    "change_summary": "Phase B evaluation fixture — invalid blocked scenario"
+  },
+  "validation_result": {
+    "valid": false,
+    "missing_fields": [
+      "working_time_h_per_day",
+      "utilization_factor",
+      "finished_storage_days",
+      "packaging_storage_days"
+    ],
+    "tentative_fields": []
+  },
+  "calculation_results": {},
+  "scheme_run": null
+}

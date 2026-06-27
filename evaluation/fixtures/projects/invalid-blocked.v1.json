@@ -1,0 +1,31 @@
+{
+  "synthetic": true,
+  "fixture_revision": 1,
+  "provenance": {
+    "generator": "manual",
+    "generated_at": "2026-06-27T00:00:00+00:00",
+    "description": "Synthetic invalid-blocked cold storage project — missing required input fields"
+  },
+  "project": {
+    "name": "Synthetic Invalid Project",
+    "location": "Synthetic Location C",
+    "product_category": "blueberry"
+  },
+  "version": {
+    "change_summary": "Phase B evaluation fixture — invalid blocked scenario",
+    "created_by": "evaluation-system"
+  },
+  "inputs": {
+    "daily_inbound_mass_kg": -1,
+    "reserve_factor": 0
+  },
+  "zone_area_specs": [],
+  "throughput_input": null,
+  "inventory_input": null,
+  "pallet_input": null,
+  "precooling_input": null,
+  "cooling_load_input": null,
+  "equipment_input": null,
+  "installed_power_input": null,
+  "scheme_run": null
+}

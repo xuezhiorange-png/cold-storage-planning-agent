@@ -1,0 +1,139 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "task-eleven-phase-b",
+  "suite_revision": 1,
+  "scenarios": [
+    {
+      "scenario_id": "baseline-feasible",
+      "fixture_revision": 1,
+      "project_input_path": "fixtures/projects/baseline-feasible.v1.json",
+      "document_refs": [],
+      "required_stages": ["project", "version", "validation", "planning", "zone_plan", "schemes", "investment", "power"],
+      "expected_outcome": "review_required",
+      "expected_path": "expected/baseline-feasible.v1.json",
+      "comparison_policy": {
+        "exact_paths": [
+          {"path": "$.outcome"},
+          {"path": "$.fixture_revision"},
+          {"path": "$.scenario_id"},
+          {"path": "$.project.name"},
+          {"path": "$.project.product_category"},
+          {"path": "$.version.version_number"},
+          {"path": "$.version.status"},
+          {"path": "$.validation_result.valid"},
+          {"path": "$.calculation_results.success"}
+        ],
+        "decimal_paths": [],
+        "ignored_paths": [
+          {"path": "$.project.code", "reason": "Sequential numeric code depends on database seeding order across scenarios"},
+          {"path": "$.errors", "reason": "Empty errors array may vary by run context"},
+          {"path": "$.project.id", "reason": "Database-generated UUID"},
+          {"path": "$.version.id", "reason": "Database-generated UUID"},
+          {"path": "$.version.created_at", "reason": "Non-deterministic timestamp"},
+          {"path": "$.version.updated_at", "reason": "Non-deterministic timestamp"},
+          {"path": "$.scheme_run", "reason": "Scheme generation not configured for Phase B core fixture evaluation"},
+          {"path": "$.calculation_results.throughput.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.throughput.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.throughput.input", "reason": "Input snapshot contains runtime-only metadata"},
+          {"path": "$.calculation_results.inventory.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.inventory.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.pallets.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.pallets.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.precooling.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.precooling.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.installed_power.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.installed_power.correlation_id", "reason": "UUID generated at runtime"}
+        ],
+        "artifact_checks": []
+      },
+      "provenance": {
+        "source": "evaluation/fixtures/projects/baseline-feasible.v1.json",
+        "rationale": "Synthetic baseline project with moderate throughput for deterministic evaluation"
+      }
+    },
+    {
+      "scenario_id": "high-throughput-review",
+      "fixture_revision": 1,
+      "project_input_path": "fixtures/projects/high-throughput-review.v1.json",
+      "document_refs": [],
+      "required_stages": ["project", "version", "validation", "planning", "zone_plan"],
+      "expected_outcome": "review_required",
+      "expected_path": "expected/high-throughput-review.v1.json",
+      "comparison_policy": {
+        "exact_paths": [
+          {"path": "$.outcome"},
+          {"path": "$.fixture_revision"},
+          {"path": "$.scenario_id"},
+          {"path": "$.project.name"},
+          {"path": "$.project.product_category"},
+          {"path": "$.version.version_number"},
+          {"path": "$.version.status"},
+          {"path": "$.validation_result.valid"},
+          {"path": "$.calculation_results.success"}
+        ],
+        "decimal_paths": [],
+        "ignored_paths": [
+          {"path": "$.project.code", "reason": "Sequential numeric code depends on database seeding order across scenarios"},
+          {"path": "$.errors", "reason": "Empty errors array may vary by run context"},
+          {"path": "$.scheme_run", "reason": "Scheme generation not configured for Phase B core fixture evaluation"},
+          {"path": "$.project.id", "reason": "Database-generated UUID"},
+          {"path": "$.version.id", "reason": "Database-generated UUID"},
+          {"path": "$.version.created_at", "reason": "Non-deterministic timestamp"},
+          {"path": "$.version.updated_at", "reason": "Non-deterministic timestamp"},
+          {"path": "$.calculation_results.throughput.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.throughput.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.throughput.input", "reason": "Input snapshot contains runtime-only metadata"},
+          {"path": "$.calculation_results.inventory.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.inventory.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.pallets.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.pallets.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.precooling.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.precooling.correlation_id", "reason": "UUID generated at runtime"},
+          {"path": "$.calculation_results.installed_power.calculated_at", "reason": "Non-deterministic runtime timestamp"},
+          {"path": "$.calculation_results.installed_power.correlation_id", "reason": "UUID generated at runtime"}
+        ],
+        "artifact_checks": []
+      },
+      "provenance": {
+        "source": "evaluation/fixtures/projects/high-throughput-review.v1.json",
+        "rationale": "Synthetic high-throughput project that triggers review flags in calculations"
+      }
+    },
+    {
+      "scenario_id": "invalid-blocked",
+      "fixture_revision": 1,
+      "project_input_path": "fixtures/projects/invalid-blocked.v1.json",
+      "document_refs": [],
+      "required_stages": ["project", "version", "validation"],
+      "expected_outcome": "validation_error",
+      "expected_path": "expected/invalid-blocked.v1.json",
+      "comparison_policy": {
+        "exact_paths": [
+          {"path": "$.outcome"},
+          {"path": "$.fixture_revision"},
+          {"path": "$.scenario_id"},
+          {"path": "$.project.name"},
+          {"path": "$.project.product_category"},
+          {"path": "$.version.version_number"},
+          {"path": "$.version.status"},
+          {"path": "$.validation_result.valid"}
+        ],
+        "decimal_paths": [],
+        "ignored_paths": [
+          {"path": "$.project.code", "reason": "Sequential numeric code depends on database seeding order across scenarios"},
+          {"path": "$.errors", "reason": "Empty errors array may vary by run context"},
+          {"path": "$.calculation_results", "reason": "No calculations run for invalid inputs"},
+          {"path": "$.project.id", "reason": "Database-generated UUID"},
+          {"path": "$.version.id", "reason": "Database-generated UUID"},
+          {"path": "$.version.created_at", "reason": "Non-deterministic timestamp"},
+          {"path": "$.version.updated_at", "reason": "Non-deterministic timestamp"}
+        ],
+        "artifact_checks": []
+      },
+      "provenance": {
+        "source": "evaluation/fixtures/projects/invalid-blocked.v1.json",
+        "rationale": "Synthetic project with invalid inputs (negative mass, missing fields) that fails validation at the input stage"
+      }
+    }
+  ]
+}
