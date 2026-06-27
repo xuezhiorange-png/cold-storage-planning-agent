@@ -11,6 +11,7 @@ These tests verify items not already covered by the seventh-round test suite:
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -201,6 +202,7 @@ class TestTransitionIdentityTamper:
         with pytest.raises(RunStateError) as exc_info:
             rd.transition_status(ctx, RunStatus.PASSED)
         assert exc_info.value.code == "EVAL_RUN_STATE_INVALID"
+        assert exc_info.value.field == "scenario_ids[0]"
 
     def test_transition_rejects_duplicate_scenario_ids(self, tmp_path: Path) -> None:
         rd, ctx = self._setup_tampered(
@@ -209,6 +211,7 @@ class TestTransitionIdentityTamper:
         with pytest.raises(RunStateError) as exc_info:
             rd.transition_status(ctx, RunStatus.PASSED)
         assert exc_info.value.code == "EVAL_RUN_STATE_INVALID"
+        assert exc_info.value.field == "scenario_ids[1]"
 
     def test_transition_rejects_invalid_revision(self, tmp_path: Path) -> None:
         rd, ctx = self._setup_tampered(tmp_path, tamper_field="suite_revision", tamper_value=0)
@@ -390,3 +393,119 @@ class TestDictToSummaryStrictExactContracts:
             _dict_to_summary_strict(d)
         assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
         assert exc_info.value.field == "code_commit_sha"
+
+
+# ── P0-2: write_summary identity tampering tests ──────────────────────
+
+
+class TestWriteSummaryTamper:
+    """write_summary must reject tampered identity in run.json before writing summary."""
+
+    def _setup(
+        self, tmp_path: Path, *, tamper_field: str, tamper_value: object
+    ) -> tuple[EvaluationRunDirectory, EvaluationRunContext, Path]:
+        rd = _run_dir(tmp_path)
+        ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+        ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+        ctx = rd.transition_status(ctx, RunStatus.FAILED)
+        run_dir = rd.run_dir(ctx.run_id)
+        raw = json.loads((run_dir / "run.json").read_text("utf-8"))
+        raw[tamper_field] = tamper_value
+        (run_dir / "run.json").write_text(json.dumps(raw, indent=2), "utf-8")
+        return rd, ctx, run_dir
+
+    def test_write_summary_rejects_whitespace_suite_id(self, tmp_path: Path) -> None:
+        """write_summary must reject whitespace suite_id in run.json."""
+        rd, ctx, run_dir = self._setup(tmp_path, tamper_field="suite_id", tamper_value=" ")
+        summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        # Snapshot directory before write attempt
+        before = sorted(os.listdir(run_dir))
+        summary_path = run_dir / "summary.json"
+        assert not summary_path.exists()
+        with pytest.raises(RunSummaryInvalidError) as exc_info:
+            rd.write_summary(ctx, summary)
+        assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
+        assert exc_info.value.field == "suite_id"
+        # Verify no summary.json was written and directory is unchanged
+        assert not summary_path.exists()
+        after = sorted(os.listdir(run_dir))
+        assert before == after
+
+    def test_write_summary_rejects_duplicate_scenario_ids(self, tmp_path: Path) -> None:
+        """write_summary must reject duplicate scenario_ids in run.json."""
+        rd, ctx, run_dir = self._setup(
+            tmp_path, tamper_field="scenario_ids", tamper_value=["s1", "s1"]
+        )
+        summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        before = sorted(os.listdir(run_dir))
+        summary_path = run_dir / "summary.json"
+        assert not summary_path.exists()
+        with pytest.raises(RunSummaryInvalidError) as exc_info:
+            rd.write_summary(ctx, summary)
+        assert exc_info.value.code == "EVAL_RUN_SUMMARY_INVALID"
+        assert exc_info.value.field == "scenario_ids[1]"
+        # Verify no summary.json was written and directory is unchanged
+        assert not summary_path.exists()
+        after = sorted(os.listdir(run_dir))
+        assert before == after
+
+    def test_write_summary_rejects_whitespace_suite_id_with_existing_summary(
+        self, tmp_path: Path
+    ) -> None:
+        """write_summary must not overwrite existing summary.json when run.json is tampered."""
+        rd = _run_dir(tmp_path)
+        ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+        ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+        ctx = rd.transition_status(ctx, RunStatus.FAILED)
+        run_dir = rd.run_dir(ctx.run_id)
+        # Write a valid summary first
+        valid_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        rd.write_summary(ctx, valid_summary)
+        summary_path = run_dir / "summary.json"
+        assert summary_path.exists()
+        import hashlib
+
+        original_hash = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+        # Tamper run.json
+        raw = json.loads((run_dir / "run.json").read_text("utf-8"))
+        raw["suite_id"] = " "
+        (run_dir / "run.json").write_text(json.dumps(raw, indent=2), "utf-8")
+        # Attempt write_summary with slightly different summary
+        altered_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        with pytest.raises(RunSummaryInvalidError) as exc_info:
+            rd.write_summary(ctx, altered_summary)
+        assert exc_info.value.field == "suite_id"
+        # Verify existing summary.json is unchanged
+        assert summary_path.exists()
+        assert hashlib.sha256(summary_path.read_bytes()).hexdigest() == original_hash
+
+    def test_write_summary_rejects_duplicate_scenario_ids_with_existing_summary(
+        self, tmp_path: Path
+    ) -> None:
+        "write_summary must not overwrite existing summary.json"
+        " with duplicate scenario_ids in run.json."
+        rd = _run_dir(tmp_path)
+        ctx = rd.create_run("suite-1", 1, "a" * 64, ("s1",))
+        ctx = rd.transition_status(ctx, RunStatus.RUNNING)
+        ctx = rd.transition_status(ctx, RunStatus.FAILED)
+        run_dir = rd.run_dir(ctx.run_id)
+        # Write a valid summary first
+        valid_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        rd.write_summary(ctx, valid_summary)
+        summary_path = run_dir / "summary.json"
+        assert summary_path.exists()
+        import hashlib
+
+        original_hash = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+        # Tamper run.json
+        raw = json.loads((run_dir / "run.json").read_text("utf-8"))
+        raw["scenario_ids"] = ["s1", "s1"]
+        (run_dir / "run.json").write_text(json.dumps(raw, indent=2), "utf-8")
+        # Attempt write_summary with slightly different summary
+        altered_summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
+        with pytest.raises(RunSummaryInvalidError) as exc_info:
+            rd.write_summary(ctx, altered_summary)
+        assert exc_info.value.field == "scenario_ids[1]"
+        # Verify existing summary.json is unchanged
+        assert summary_path.exists()
+        assert hashlib.sha256(summary_path.read_bytes()).hexdigest() == original_hash

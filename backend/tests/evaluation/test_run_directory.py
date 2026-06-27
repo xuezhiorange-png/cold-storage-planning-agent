@@ -360,8 +360,9 @@ def test_stale_context_rejected_by_persisted_run_json(tmp_path: Path) -> None:
         ),
     )
     # The stale context should fail when run.json is verified against context
-    with pytest.raises((RunSummaryStatusInvalidError, RunIdentityMismatchError)):
+    with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         rd.write_summary(stale_ctx, passed_summary)
+    assert exc_info.value.field == "status"
 
 
 def test_read_verified_summary_checks_suite_id(tmp_path: Path) -> None:
@@ -761,7 +762,7 @@ def test_passed_summary_empty_scenario_results_rejected(tmp_path: Path) -> None:
 
 
 def test_passed_status_with_false_passed_rejected():
-    """status=PASSED with passed=False must raise ValueError in strict conversion."""
+    """passed=False with status=PASSED must raise RunSummaryStatusInvalidError."""
     from cold_storage.evaluation.run_directory import _dict_to_summary_strict
 
     d = {
@@ -783,21 +784,13 @@ def test_passed_status_with_false_passed_rejected():
             }
         ],
     }
-    with pytest.raises(
-        (
-            ValueError,
-            KeyError,
-            TypeError,
-            AssertionError,
-            RunSummaryInvalidError,
-            RunSummaryStatusInvalidError,
-        )
-    ):
+    with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "status"
 
 
 def test_failed_status_with_passed_true_rejected():
-    """passed=True with status=FAILED must raise ValueError in strict conversion."""
+    """passed=True with status=FAILED must raise RunSummaryStatusInvalidError."""
     from cold_storage.evaluation.run_directory import _dict_to_summary_strict
 
     d = {
@@ -811,21 +804,13 @@ def test_failed_status_with_passed_true_rejected():
         "passed": True,
         "scenario_results": [],
     }
-    with pytest.raises(
-        (
-            ValueError,
-            KeyError,
-            TypeError,
-            AssertionError,
-            RunSummaryInvalidError,
-            RunSummaryStatusInvalidError,
-        )
-    ):
+    with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "status"
 
 
 def test_aborted_status_with_passed_true_rejected():
-    """ABORTED status with passed=True must raise ValueError in strict conversion."""
+    """ABORTED status with passed=True must raise RunSummaryStatusInvalidError."""
     from cold_storage.evaluation.run_directory import _dict_to_summary_strict
 
     d = {
@@ -839,17 +824,9 @@ def test_aborted_status_with_passed_true_rejected():
         "passed": True,
         "scenario_results": [],
     }
-    with pytest.raises(
-        (
-            ValueError,
-            KeyError,
-            TypeError,
-            AssertionError,
-            RunSummaryInvalidError,
-            RunSummaryStatusInvalidError,
-        )
-    ):
+    with pytest.raises(RunSummaryStatusInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "status"
 
 
 def test_negative_checks_total_rejected():
@@ -875,8 +852,9 @@ def test_negative_checks_total_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "scenario_results"
 
 
 def test_check_counts_not_close_rejected():
@@ -902,8 +880,9 @@ def test_check_counts_not_close_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "scenario_results"
 
 
 def test_unknown_scenario_result_field_rejected():
@@ -930,8 +909,9 @@ def test_unknown_scenario_result_field_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "$"
 
 
 def test_naive_completed_at_rejected():
@@ -949,8 +929,9 @@ def test_naive_completed_at_rejected():
         "passed": False,
         "scenario_results": [],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "completed_at"
 
 
 def test_offset_aware_completed_at_accepted():
@@ -995,8 +976,9 @@ def test_passed_missing_scenario_result_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "scenario_results"
 
 
 def test_passed_non_passed_scenario_result_rejected():
@@ -1022,8 +1004,9 @@ def test_passed_non_passed_scenario_result_rejected():
             }
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "scenario_results"
 
 
 def test_duplicate_scenario_result_rejected():
@@ -1056,8 +1039,9 @@ def test_duplicate_scenario_result_rejected():
             },
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "scenario_results"
 
 
 def test_undeclared_scenario_result_rejected():
@@ -1090,8 +1074,9 @@ def test_undeclared_scenario_result_rejected():
             },
         ],
     }
-    with pytest.raises((ValueError, KeyError, TypeError, AssertionError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError) as exc_info:
         _dict_to_summary_strict(d)
+    assert exc_info.value.field == "scenario_results"
 
 
 # ── P0-1: Summary root type validation through public API ────────────────
@@ -1304,7 +1289,7 @@ def test_tampered_run_json_started_at_rejected_in_write_summary(tmp_path: Path) 
     run_json_path.write_text(json.dumps(data, indent=2), "utf-8")
 
     summary = make_summary(ctx, status=RunStatus.FAILED, passed=False)
-    with pytest.raises((RunStateError, RunSummaryInvalidError)):
+    with pytest.raises(RunSummaryInvalidError):
         rd.write_summary(ctx, summary)
 
 
