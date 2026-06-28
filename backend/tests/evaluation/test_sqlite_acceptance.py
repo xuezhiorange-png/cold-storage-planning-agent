@@ -13,7 +13,6 @@ that must come from a formal production service — not from evaluation.
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import os
@@ -701,40 +700,45 @@ def test_structured_blocker_in_stage_ledger() -> None:
     assert inner["field"] == "scheme_source_calculations"
 
 
-def test_schemeservice_not_called() -> None:
-    """SchemeService.generate_scheme_run MUST NOT be invoked.
+def test_real_baseline_runner_does_not_call_scheme_service() -> None:
+    """Real baseline runner MUST NOT invoke SchemeService.generate_scheme_run.
 
-    The prerequisite gate raises before any import or instantiation
-    of SchemeService — this test proves zero invocations.
+    The prerequisite gate raises before any import or instantiation of
+    SchemeService.  This test runs the full baseline scenario through the
+    real CLI runner and proves the service was never touched.
+
+    Also verifies the structured blocker from the *same* real run.
     """
-    import contextlib
     from unittest.mock import patch
 
-    from cold_storage.evaluation.execute import (
-        _require_scheme_production_prerequisite,
-    )
+    _cleanup_runs()
 
-    call_count = 0
+    with patch(
+        "cold_storage.modules.schemes.application.service.SchemeService.generate_scheme_run"
+    ) as generate:
+        rc = _run_single_scenario("baseline-feasible")
+        assert rc != 0, (
+            f"Baseline run should fail (exit != 0) because SchemeService "
+            f"needs production-orchestration-persisted records. Got exit code {rc}."
+        )
+        generate.assert_not_called()
 
-    def fake_generate(*args: object, **kwargs: object) -> None:
-        nonlocal call_count
-        call_count += 1
+    # Verify blocker from the same real run — must NOT depend on
+    # calling the capability helper directly.
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
 
-    with (
-        patch(
-            "cold_storage.modules.schemes.application.service.SchemeService.generate_scheme_run",
-            side_effect=fake_generate,
-        ),
-        contextlib.suppress(Exception),
-    ):
-        # _require_scheme_production_prerequisite raises before we reach
-        # SchemeService at all — call_count must remain 0
-        _require_scheme_production_prerequisite()
+    blocker = raw["blocker"]
+    assert blocker["stage"] == "schemes"
+    assert blocker["error_class"] == "EvaluationPrerequisiteMissingError"
+    assert blocker["code"] == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert blocker["field"] == "scheme_source_calculations"
+    assert blocker["details"]["prerequisite_issue"] == 22
 
-    assert call_count == 0, (
-        f"SchemeService.generate_scheme_run was called {call_count} times "
-        f"(expected 0 — prerequisite gate must fire before service call)"
-    )
+    schemes = raw["stage_ledger"]["schemes"]
+    assert schemes["status"] == "blocked"
+    assert schemes["review_required"] is False
 
 
 def test_unknown_exception_not_misclassified() -> None:
@@ -858,12 +862,9 @@ def test_tampered_blocked_run_metadata_is_rejected() -> None:
         assert exc.field == "suite_revision"
 
 
-def test_tampered_blocked_summary_is_rejected() -> None:
-    """Tampered summary.json must be rejected by Phase A identity verifier."""
-    from cold_storage.evaluation.errors import RunIdentityMismatchError
-    from cold_storage.evaluation.run_directory import (
-        _verify_summary_against_run_meta,
-    )
+def test_read_verified_summary_success() -> None:
+    """Real blocked run must be readable via public read_verified_summary()."""
+    from cold_storage.evaluation.run_directory import EvaluationRunDirectory
 
     _cleanup_runs()
     rc = _run_suite()
@@ -873,50 +874,126 @@ def test_tampered_blocked_summary_is_rejected() -> None:
     assert run_dir is not None
     run_id = run_dir.name
 
-    # Load genuine summary and run meta
+    manifest_bytes = MANIFEST_PATH.read_bytes()
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+
+    run_directory = EvaluationRunDirectory(str(EVAL_ROOT / "runs"))
+    summary = run_directory.read_verified_summary(
+        run_id=run_id,
+        expected_manifest_sha256=manifest_sha256,
+        expected_suite_id="task-eleven-phase-b",
+        expected_suite_revision=2,
+    )
+
+    # Verify typed identity fields
+    assert summary.run_id == run_id
+    assert summary.suite_id == "task-eleven-phase-b"
+    assert summary.suite_revision == 2
+    assert summary.manifest_sha256 == manifest_sha256
+    assert len(summary.scenario_ids) == 3
+    assert summary.status == RunStatus.FAILED  # blocked suite → failed
+    assert summary.passed is False
+    assert isinstance(summary.scenario_results, tuple)
+    assert len(summary.scenario_results) == 3
+
+
+def test_read_verified_summary_rejects_tampered_manifest_hash() -> None:
+    """Tampered manifest_sha256 in summary.json must be rejected by public reader."""
+    from cold_storage.evaluation.errors import RunManifestMismatchError
+    from cold_storage.evaluation.run_directory import EvaluationRunDirectory
+
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
+
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    run_id = run_dir.name
+
+    manifest_bytes = MANIFEST_PATH.read_bytes()
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+
+    # Tamper the persisted summary.json
     summary_path = run_dir / "summary.json"
-    summary = json.loads(summary_path.read_text("utf-8"))
-    run_meta = json.loads((run_dir / "run.json").read_text("utf-8"))
+    original = summary_path.read_text("utf-8")
+    tampered_summary = json.loads(original)
+    # Replace with all zeros — guaranteed mismatch
+    tampered_summary["manifest_sha256"] = "0" * 64
+    summary_path.write_text(json.dumps(tampered_summary))
 
-    # Tamper manifest_sha256 in summary
-    from cold_storage.evaluation.models import EvaluationRunSummary
-
-    tampered = copy.deepcopy(summary)
-    tampered["manifest_sha256"] = "0" * 64
-
-    # Build typed summary and verify it gets rejected
-    from cold_storage.evaluation.models import ScenarioRunSummary
-
-    scenario_results = tuple(
-        ScenarioRunSummary(
-            scenario_id=sr["scenario_id"],
-            passed=sr["passed"],
-            checks_total=sr["checks_total"],
-            checks_passed=sr["checks_passed"],
-            checks_failed=sr["checks_failed"],
+    run_directory = EvaluationRunDirectory(str(EVAL_ROOT / "runs"))
+    try:
+        run_directory.read_verified_summary(
+            run_id=run_id,
+            expected_manifest_sha256=manifest_sha256,
+            expected_suite_id="task-eleven-phase-b",
+            expected_suite_revision=2,
         )
-        for sr in tampered["scenario_results"]
-    )
+        raise AssertionError("Tampered summary with fake manifest_sha256 was accepted")
+    except RunManifestMismatchError as exc:
+        assert exc.code == "EVAL_RUN_MANIFEST_MISMATCH"
+        assert exc.field == "manifest_sha256"
 
-    typed_summary = EvaluationRunSummary(
-        run_id=tampered["run_id"],
-        suite_id=tampered["suite_id"],
-        suite_revision=tampered["suite_revision"],
-        manifest_sha256=tampered["manifest_sha256"],
-        scenario_ids=tuple(tampered["scenario_ids"]),
-        status=RunStatus(tampered["status"]),
-        completed_at=tampered["completed_at"],
-        code_commit_sha=tampered["code_commit_sha"],
-        passed=tampered["passed"],
-        scenario_results=scenario_results,
-    )
+    # Restore original
+    summary_path.write_text(original)
+
+
+def test_read_verified_summary_rejects_tampered_identity() -> None:
+    """Tampered suite_id/suite_revision in summary.json must be rejected by public reader."""
+    from cold_storage.evaluation.errors import RunIdentityMismatchError
+    from cold_storage.evaluation.run_directory import EvaluationRunDirectory
+
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
+
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    run_id = run_dir.name
+
+    manifest_bytes = MANIFEST_PATH.read_bytes()
+    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+
+    run_directory = EvaluationRunDirectory(str(EVAL_ROOT / "runs"))
+
+    # ---- suite_id tamper ----
+    summary_path = run_dir / "summary.json"
+    original = summary_path.read_text("utf-8")
+    tampered = json.loads(original)
+    tampered["suite_id"] = "wrong-suite-id"
+    summary_path.write_text(json.dumps(tampered))
 
     try:
-        _verify_summary_against_run_meta(run_id, typed_summary, run_meta)
-        raise AssertionError("Tampered summary with fake manifest_sha256 was accepted")
+        run_directory.read_verified_summary(
+            run_id=run_id,
+            expected_manifest_sha256=manifest_sha256,
+            expected_suite_id="task-eleven-phase-b",
+            expected_suite_revision=2,
+        )
+        raise AssertionError("Tampered summary with wrong suite_id was accepted")
     except RunIdentityMismatchError as exc:
         assert exc.code == "EVAL_RUN_IDENTITY_MISMATCH"
-        assert exc.field == "manifest_sha256"
+        assert exc.field == "suite_id"
+
+    # ---- suite_revision tamper ----
+    tampered = json.loads(original)
+    tampered["suite_revision"] = 99
+    summary_path.write_text(json.dumps(tampered))
+
+    try:
+        run_directory.read_verified_summary(
+            run_id=run_id,
+            expected_manifest_sha256=manifest_sha256,
+            expected_suite_id="task-eleven-phase-b",
+            expected_suite_revision=2,
+        )
+        raise AssertionError("Tampered summary with wrong suite_revision was accepted")
+    except RunIdentityMismatchError as exc:
+        assert exc.code == "EVAL_RUN_IDENTITY_MISMATCH"
+        assert exc.field == "suite_revision"
+
+    # Restore original
+    summary_path.write_text(original)
 
 
 def test_stale_blocked_run_context_is_rejected() -> None:
