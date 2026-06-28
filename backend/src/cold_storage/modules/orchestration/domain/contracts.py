@@ -163,15 +163,14 @@ class OrchestrationRequestCommand:
 
     project_id: str
     project_version_id: str
-    coefficient_resolution_context: _FrozenMapping
+    coefficient_resolution_context: Mapping[str, object]
     actor: str
     correlation_id: str
 
     def __post_init__(self) -> None:
         # Defensive freeze: ensure the coefficient context is deeply immutable
         frozen = deep_freeze(self.coefficient_resolution_context)
-        if frozen is not self.coefficient_resolution_context:
-            object.__setattr__(self, "coefficient_resolution_context", frozen)
+        object.__setattr__(self, "coefficient_resolution_context", frozen)
 
 
 # ── Preflight Failure ───────────────────────────────────────────────────────
@@ -187,13 +186,12 @@ class PreflightFailure:
     error_class: str
     code: str
     field: str
-    details: _FrozenMapping
+    details: Mapping[str, object]
     occurred_at: datetime
 
     def __post_init__(self) -> None:
         frozen = deep_freeze(self.details)
-        if frozen is not self.details:
-            object.__setattr__(self, "details", frozen)
+        object.__setattr__(self, "details", frozen)
 
 
 # ── Execution Snapshot Candidate ────────────────────────────────────────────
@@ -207,7 +205,7 @@ class ExecutionSnapshotCandidate:
     project_id: str
     project_version_id: str
     version_number: int
-    input_snapshot: _FrozenMapping
+    input_snapshot: Mapping[str, object]
     input_snapshot_hash: str
     schema_version: str
     captured_status: str
@@ -215,8 +213,7 @@ class ExecutionSnapshotCandidate:
 
     def __post_init__(self) -> None:
         frozen = deep_freeze(self.input_snapshot)
-        if frozen is not self.input_snapshot:
-            object.__setattr__(self, "input_snapshot", frozen)
+        object.__setattr__(self, "input_snapshot", frozen)
 
 
 # ── Coefficient Context Candidate ───────────────────────────────────────────
@@ -228,14 +225,13 @@ class CoefficientContextCandidate:
 
     project_id: str
     project_version_id: str
-    content: _FrozenMapping
+    content: Mapping[str, object]
     content_hash: str
     schema_version: str
 
     def __post_init__(self) -> None:
         frozen = deep_freeze(self.content)
-        if frozen is not self.content:
-            object.__setattr__(self, "content", frozen)
+        object.__setattr__(self, "content", frozen)
 
 
 # ── Orchestration Identity Candidate ────────────────────────────────────────
@@ -250,12 +246,11 @@ class OrchestrationIdentityCandidate:
     execution_snapshot_id: str
     coefficient_context_id: str
     definition_version: str
-    calculator_version_vector: _FrozenMapping
+    calculator_version_vector: Mapping[str, object]
 
     def __post_init__(self) -> None:
         frozen = deep_freeze(self.calculator_version_vector)
-        if frozen is not self.calculator_version_vector:
-            object.__setattr__(self, "calculator_version_vector", frozen)
+        object.__setattr__(self, "calculator_version_vector", frozen)
 
 
 # ── Orchestration Attempt Candidate ─────────────────────────────────────────
@@ -287,18 +282,14 @@ class StageExecutionDiagnostic:
     requires_review: bool
     input_hash: str | None
     result_hash: str | None
-    blocker: _FrozenMapping | None = None
-    error: _FrozenMapping | None = None
+    blocker: Mapping[str, object] | None = None
+    error: Mapping[str, object] | None = None
 
     def __post_init__(self) -> None:
         if self.blocker is not None:
-            frozen = deep_freeze(self.blocker)
-            if frozen is not self.blocker:
-                object.__setattr__(self, "blocker", frozen)
+            object.__setattr__(self, "blocker", deep_freeze(self.blocker))
         if self.error is not None:
-            frozen = deep_freeze(self.error)
-            if frozen is not self.error:
-                object.__setattr__(self, "error", frozen)
+            object.__setattr__(self, "error", deep_freeze(self.error))
 
 
 # ── Stage Persisted Result ──────────────────────────────────────────────────
@@ -334,14 +325,16 @@ class SourceBindingCandidate:
     equipment_calculation_id: str
     power_calculation_id: str
     investment_calculation_id: str
-    per_calculation_result_hashes: _FrozenMapping
+    per_calculation_result_hashes: Mapping[str, str]
     combined_source_hash: str
     schema_version: str
 
     def __post_init__(self) -> None:
-        frozen = deep_freeze(self.per_calculation_result_hashes)
-        if frozen is not self.per_calculation_result_hashes:
-            object.__setattr__(self, "per_calculation_result_hashes", frozen)
+        object.__setattr__(
+            self,
+            "per_calculation_result_hashes",
+            deep_freeze(self.per_calculation_result_hashes),
+        )
 
 
 # ── Orchestration Result ────────────────────────────────────────────────────

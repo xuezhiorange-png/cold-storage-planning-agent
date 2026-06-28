@@ -13,6 +13,7 @@ Coverage:
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -342,3 +343,372 @@ class TestStructuredErrors:
         e = ProjectVersionNotFoundError("v-1")
         assert isinstance(e, OrchestrationDomainError)
         assert isinstance(e, Exception)
+
+
+# ── Deep immutability ───────────────────────────────────────────────────────
+
+
+class TestDeepImmutability:
+    """DTOs are recursively immutable — external mutation cannot affect them."""
+
+    def test_dto_not_affected_by_original_dict_mutation(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import \
+            OrchestrationRequestCommand
+
+        ctx = {"key": "original"}
+        cmd = OrchestrationRequestCommand(
+            project_id="p-1",
+            project_version_id="pv-1",
+            coefficient_resolution_context=ctx,
+            actor="test",
+            correlation_id="c-1",
+        )
+        # Mutate original
+        ctx["key"] = "changed"
+        ctx["extra"] = "added"
+        # DTO unchanged
+        assert cmd.coefficient_resolution_context["key"] == "original"
+        assert "extra" not in cmd.coefficient_resolution_context
+
+    def test_dto_mapping_immutable(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import \
+            OrchestrationRequestCommand
+
+        ctx = {"key": "v"}
+        cmd = OrchestrationRequestCommand(
+            project_id="p-1",
+            project_version_id="pv-1",
+            coefficient_resolution_context=ctx,
+            actor="test",
+            correlation_id="c-1",
+        )
+        # Attempting to mutate the frozen mapping should fail
+        with pytest.raises(TypeError):
+            cmd.coefficient_resolution_context["key"] = "new"  # type: ignore[index]
+
+    def test_payload_deep_frozen(self) -> None:
+        """Payload dict mutations don't affect SourceSnapshotContentV1."""
+        payload = {"zones": [{"zone_code": "A"}]}
+        c = SourceSnapshotContentV1(
+            schema_version="1.0",
+            calculation_type="zone",
+            calculator_name="cold_room_zone_plan",
+            calculator_version="1.0.0",
+            project_id="p-1",
+            project_version_id="pv-1",
+            execution_snapshot_id="es-1",
+            coefficient_context_id="cc-1",
+            orchestration_identity_id="oi-1",
+            orchestration_run_attempt_id="oa-1",
+            input_hash="abc123",
+            requires_review=False,
+            payload=payload,
+            provenance=SourceSnapshotProvenanceV1(
+                execution_snapshot_id="es-1",
+                coefficient_context_id="cc-1",
+                orchestration_identity_id="oi-1",
+                orchestration_run_attempt_id="oa-1",
+                upstream_calculation_ids={},
+            ),
+        )
+        payload["zones"] = [{"zone_code": "Z"}]
+        payload["new_field"] = "corrupt"
+        assert c.payload["zones"][0]["zone_code"] == "A"
+        assert "new_field" not in c.payload
+
+    def test_execution_snapshot_deep_frozen(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import \
+            ExecutionSnapshotCandidate
+
+        snap = {"a": {"b": 1}}
+        candidate = ExecutionSnapshotCandidate(
+            project_id="p-1",
+            project_version_id="pv-1",
+            version_number=1,
+            input_snapshot=snap,
+            input_snapshot_hash="h1",
+            schema_version="1.0",
+            captured_status="approved",
+        )
+        snap["a"]["b"] = 99
+        assert candidate.input_snapshot["a"]["b"] == 1
+
+
+# ── Provenance key validation ───────────────────────────────────────────────
+
+
+class TestProvenanceKeyValidation:
+    """Provenance upstream_calculation_ids must match stage-specific key sets."""
+
+    def test_zone_non_empty_rejected(self) -> None:
+        with pytest.raises(ValueError, match="extra keys"):
+            SourceSnapshotContentV1(
+                schema_version="1.0",
+                calculation_type="zone",
+                calculator_name="cold_room_zone_plan",
+                calculator_version="1.0.0",
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id="es-1",
+                coefficient_context_id="cc-1",
+                orchestration_identity_id="oi-1",
+                orchestration_run_attempt_id="oa-1",
+                input_hash="abc",
+                requires_review=False,
+                payload={},
+                provenance=SourceSnapshotProvenanceV1(
+                    execution_snapshot_id="es-1",
+                    coefficient_context_id="cc-1",
+                    orchestration_identity_id="oi-1",
+                    orchestration_run_attempt_id="oa-1",
+                    upstream_calculation_ids={"zone": "calc-1"},
+                ),
+            )
+
+    def test_cooling_load_missing_zone_rejected(self) -> None:
+        with pytest.raises(ValueError, match="missing keys.*zone"):
+            SourceSnapshotContentV1(
+                schema_version="1.0",
+                calculation_type="cooling_load",
+                calculator_name="cooling_load",
+                calculator_version="1.0.0",
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id="es-1",
+                coefficient_context_id="cc-1",
+                orchestration_identity_id="oi-1",
+                orchestration_run_attempt_id="oa-1",
+                input_hash="abc",
+                requires_review=False,
+                payload={},
+                provenance=SourceSnapshotProvenanceV1(
+                    execution_snapshot_id="es-1",
+                    coefficient_context_id="cc-1",
+                    orchestration_identity_id="oi-1",
+                    orchestration_run_attempt_id="oa-1",
+                    upstream_calculation_ids={},
+                ),
+            )
+
+    def test_equipment_extra_zone_rejected(self) -> None:
+        with pytest.raises(ValueError, match="extra keys.*zone"):
+            SourceSnapshotContentV1(
+                schema_version="1.0",
+                calculation_type="equipment",
+                calculator_name="equipment",
+                calculator_version="1.0.0",
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id="es-1",
+                coefficient_context_id="cc-1",
+                orchestration_identity_id="oi-1",
+                orchestration_run_attempt_id="oa-1",
+                input_hash="abc",
+                requires_review=False,
+                payload={},
+                provenance=SourceSnapshotProvenanceV1(
+                    execution_snapshot_id="es-1",
+                    coefficient_context_id="cc-1",
+                    orchestration_identity_id="oi-1",
+                    orchestration_run_attempt_id="oa-1",
+                    upstream_calculation_ids={
+                        "cooling_load": "calc-cl",
+                        "zone": "calc-z",
+                    },
+                ),
+            )
+
+    def test_null_upstream_id_rejected(self) -> None:
+        with pytest.raises(ValueError, match="is None"):
+            SourceSnapshotContentV1(
+                schema_version="1.0",
+                calculation_type="cooling_load",
+                calculator_name="cooling_load",
+                calculator_version="1.0.0",
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id="es-1",
+                coefficient_context_id="cc-1",
+                orchestration_identity_id="oi-1",
+                orchestration_run_attempt_id="oa-1",
+                input_hash="abc",
+                requires_review=False,
+                payload={},
+                provenance=SourceSnapshotProvenanceV1(
+                    execution_snapshot_id="es-1",
+                    coefficient_context_id="cc-1",
+                    orchestration_identity_id="oi-1",
+                    orchestration_run_attempt_id="oa-1",
+                    upstream_calculation_ids={"zone": None},  # type: ignore[dict-item]
+                ),
+            )
+
+    def test_whitespace_id_rejected(self) -> None:
+        with pytest.raises(ValueError, match="empty/whitespace"):
+            SourceSnapshotContentV1(
+                schema_version="1.0",
+                calculation_type="cooling_load",
+                calculator_name="cooling_load",
+                calculator_version="1.0.0",
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id="es-1",
+                coefficient_context_id="cc-1",
+                orchestration_identity_id="oi-1",
+                orchestration_run_attempt_id="oa-1",
+                input_hash="abc",
+                requires_review=False,
+                payload={},
+                provenance=SourceSnapshotProvenanceV1(
+                    execution_snapshot_id="es-1",
+                    coefficient_context_id="cc-1",
+                    orchestration_identity_id="oi-1",
+                    orchestration_run_attempt_id="oa-1",
+                    upstream_calculation_ids={"zone": "   "},
+                ),
+            )
+
+    def test_identity_mismatch_rejected(self) -> None:
+        with pytest.raises(ValueError, match="Content-provenance identity mismatch"):
+            SourceSnapshotContentV1(
+                schema_version="1.0",
+                calculation_type="zone",
+                calculator_name="cold_room_zone_plan",
+                calculator_version="1.0.0",
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id="es-1",
+                coefficient_context_id="cc-1",
+                orchestration_identity_id="oi-1",
+                orchestration_run_attempt_id="oa-1",
+                input_hash="abc",
+                requires_review=False,
+                payload={},
+                provenance=SourceSnapshotProvenanceV1(
+                    execution_snapshot_id="es-WRONG",
+                    coefficient_context_id="cc-1",
+                    orchestration_identity_id="oi-1",
+                    orchestration_run_attempt_id="oa-1",
+                    upstream_calculation_ids={},
+                ),
+            )
+
+
+# ── Canonical datetime ──────────────────────────────────────────────────────
+
+
+class TestCanonicalDatetime:
+    """Canonical JSON datetime rules: naive rejected, UTC → Z suffix."""
+
+    def test_naive_datetime_rejected(self) -> None:
+        dt = datetime(2026, 6, 28, 12, 0, 0)
+        with pytest.raises(TypeError, match="Naive datetime"):
+            canonical_json_bytes({"dt": dt})
+
+    def test_utc_datetime_z_suffix(self) -> None:
+        dt = datetime(2026, 6, 28, 12, 0, 0, tzinfo=timezone.utc)
+        b = canonical_json_bytes({"dt": dt})
+        assert '"2026-06-28T12:00:00Z"' in b.decode()
+
+    def test_plus0800_converts_to_z(self) -> None:
+        tz = timezone(timedelta(hours=8))
+        dt = datetime(2026, 6, 28, 12, 0, 0, tzinfo=tz)
+        b = canonical_json_bytes({"dt": dt})
+        # 12:00 +08:00 = 04:00 UTC
+        assert '"2026-06-28T04:00:00Z"' in b.decode()
+
+    def test_different_timezone_same_utc_same_hash(self) -> None:
+        # 12:00+08:00 = 04:00 UTC
+        tz8 = timezone(timedelta(hours=8))
+        dt1 = datetime(2026, 6, 28, 12, 0, 0, tzinfo=tz8)
+
+        # 04:00+00:00 = 04:00 UTC
+        dt2 = datetime(2026, 6, 28, 4, 0, 0, tzinfo=timezone.utc)
+
+        b1 = canonical_json_bytes({"dt": dt1})
+        b2 = canonical_json_bytes({"dt": dt2})
+        assert b1 == b2
+
+
+# ── Canonical UUID ──────────────────────────────────────────────────────────
+
+
+class TestCanonicalUUID:
+    """UUIDs canonicalize to lowercase."""
+
+    def test_uuid_lowercase(self) -> None:
+        import uuid
+
+        u = uuid.UUID("ABCD1234-ABCD-ABCD-ABCD-ABCD1234ABCD")
+        b = canonical_json_bytes({"id": u})
+        assert '"abcd1234-abcd-abcd-abcd-abcd1234abcd"' in b.decode()
+
+
+# ── Canonical Mapping ───────────────────────────────────────────────────────
+
+
+class TestCanonicalMapping:
+    """FrozenMapping and other Mapping subtypes are supported."""
+
+    def test_frozen_mapping_canonicalizes(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import \
+            deep_freeze
+
+        fm = deep_freeze({"b": 2, "a": 1})
+        b = canonical_json_bytes(fm)
+        # Should serialize as JSON object with sorted keys
+        assert b.decode() == '{"a":1,"b":2}'
+
+    def test_duplicate_logical_key_rejected(self) -> None:
+        with pytest.raises(ValueError, match="Duplicate logical key"):
+            # 'Key' and 'key' normalize to the same canonical key
+            canonical_json_bytes({"Key": 1, "key": 2})
+
+
+# ── New DTOs exist and are frozen ───────────────────────────────────────────
+
+
+class TestNewDTOs:
+    """Phase 1 DTOs from approved design exist and are frozen."""
+
+    def test_orchestration_request_command(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            OrchestrationRequestCommand,
+        )
+
+        cmd = OrchestrationRequestCommand(
+            project_id="p-1",
+            project_version_id="pv-1",
+            coefficient_resolution_context={},
+            actor="test",
+            correlation_id="c-1",
+        )
+        with pytest.raises(FrozenInstanceError):
+            cmd.project_id = "changed"  # type: ignore[misc]
+
+    def test_preflight_failure(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            PreflightFailure,
+        )
+
+        pf = PreflightFailure(
+            request_id="r-1",
+            project_id="p-1",
+            project_version_id="pv-1",
+            error_class="TestError",
+            code="TEST",
+            field="test_field",
+            details={"reason": "test"},
+            occurred_at=datetime(2026, 6, 28, 12, 0, 0, tzinfo=UTC),
+        )
+        assert pf.code == "TEST"
+
+    def test_calculation_type_enum(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            CalculationType,
+        )
+
+        assert CalculationType.ZONE == "zone"
+        assert CalculationType.POWER == "power"
+        assert CalculationType.INVESTMENT == "investment"
+        assert len(CalculationType) == 5
