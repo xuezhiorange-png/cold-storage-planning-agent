@@ -2,7 +2,7 @@
 
 **Issue:** [#22](https://github.com/xuezhiorange-png/cold-storage-planning-agent/issues/22)
 **Date:** 2026-06-28
-**Review:** 4587046149 — second-round engineering review addressed
+**Review:** 4587054607 — third-round engineering review addressed
 **Status:** Design phase — awaiting re-review
 **Type:** Architecture design only — no production implementation
 **Unblocks:** Task 11 Phase B (PR #21)
@@ -11,266 +11,525 @@
 
 ## 1. Status and Decision Record
 
-This document is a **design artefact only**.  It freezes the architecture
-contract for a formal production calculation orchestration service that
-SchemeService requires before it can be called from the evaluation runner.
-No production code, migrations, API routes, or runtime behaviour is changed
-by this document — implementation requires a separate reviewed task and PR.
+This document is a **design artefact only**.  No production code, migrations,
+API routes, or runtime behaviour is changed — implementation requires a
+separate reviewed task and PR.
 
-**Changes in this revision (vs 70b24c6):**
+**Changes in this revision (vs 7df4ded):**
 
-1. `result_hash` made non-self-referential — split into `SourceSnapshotContentV1` (hashed) + `SourceSnapshotEnvelopeV1` (carries hash).
-2. `CalculationRunRecord.source_binding_id` removed — SourceBinding is one-way owner.
-3. SourceBinding materialized ONLY for COMPLETED runs — BLOCKED/FAILED produce no binding.
-4. Identity/attempt split — `OrchestrationIdentityRecord` (fingerprint UNIQUE) + `OrchestrationRunAttemptRecord` (1:N).
-5. Executable preparation order — OrchestrationService internally captures snapshot and resolves context.
-6. UnitOfWork ownership — service owns transaction lifecycle; caller provides factory, not session.
-7. Equipment snapshot no longer carries `installed_power_kw_e` — power stage is sole authority.
-8. Transactional audit outbox replaces best-effort audit — terminal status + outbox intent same transaction.
-9. Five-stage DAG terminology unified; Task 11's 8 stages acknowledged as different abstraction.
-10. ProjectVersion status contract frozen — no TBD, no caller override.
-11. Approved weight-set sub-task fixed in implementation breakdown.
-12. Legacy CHECK constraint, SchemeRun FK, and safe downgrade rules frozen.
+1. `execution_identity_hash` added to fingerprint — project/version isolation prevents cross-project collision.
+2. Preflight rejection separated from execution BLOCKED — `OrchestrationRequestRecord` + `PreflightFailure`.
+3. Snapshot/context materialized AFTER fingerprint check — no orphan artifacts on idempotent hit.
+4. Partial UNIQUE index enforces at most one RUNNING attempt per identity; CAS stale takeover.
+5. `StageExecutionDiagnostic` vs `StagePersistedResult` — rollback-safe semantics.
+6. SourceBinding strict slot/type/project/version verification; `combined_source_hash` single formula.
+7. Audit outbox with `claimed_at`/`attempt_count`/idempotent materialization.
+8. `project_version_id` as sole authoritative lookup key; `version_number` is captured metadata only.
+9. SchemeService accepts `weight_set_revision_id` — revision hash/version bound to SchemeRun.
+10. `SchemeRun` CHECK constraint; `SchemeSourceArchiveV1` artifact for safe downgrade.
+11. Post-approval Issue #22 acceptance-criteria synchronization gate.
+12. Lifecycle entities explicitly split: domain DTOs (immutable) vs ORM records (mutable).
 
 ---
 
-## 2. Problem Statement
-
-**Current blocked state (Task 11 Phase B, PR #21):**
-
-The evaluation runner must exercise all 8 required production stages.
-The final stage, `schemes`, invokes `SchemeService.generate_scheme_run()`.
-SchemeService currently selects "latest `CalculationRunRecord` by
-`calculator_name` DESC" — it cannot verify that all records came from the
-same orchestration run, share the same coefficient context, or have
-matching hashes.
-
-The evaluation runner is blocked by an explicit prerequisite gate
-(`EvaluationPrerequisiteMissingError`), waiting for a formal production
-orchestration service that:
-
-1. Captures an immutable `ProjectVersionExecutionSnapshot`.
-2. Resolves and materializes a `CoefficientContextRecord`.
-3. Executes the five-stage calculation DAG: zone → cooling_load → equipment → power → investment.
-4. Persists results with full hashes and provenance.
-5. Materializes a `SourceBindingRecord` **only when all five stages pass**.
-6. Exposes `source_binding_id` to SchemeService for explicit trust-boundary verification.
-
-**Abstraction note:** Task 11's 8 required stages (`project`, `version`, `validation`,
-`planning`, `zone_plan`, `power`, `investment`, `schemes`) operate at the evaluation
-harness level.  Issue #22's 5 calculation stages (`zone`, `cooling_load`, `equipment`,
-`power`, `investment`) operate at the production orchestration level.  The former wraps
-the latter plus scaffolding (project/version lifecycle, validation, planning aggregation,
-scheme generation).  They are different abstractions and are not contradictory.
-
----
-
-## 3. Existing-System Inventory
+## 2. Problem Statement and Abstraction Note
 
 Same as previous revision.  Key unchanged facts:
 
-- `DatabaseProjectService.record_calculation()` owns its own session — cannot be used for multi-record transactions.
-- `SchemeService` reads `CalculationRunRecord` by `calculator_name` ORDER BY `created_at DESC` — no cross-record binding.
-- `CoefficientSet` is in-memory only — no persistent identity or content hash.
-- All coefficient sets are demo/unverified — no approved catalog covering all required codes.
+Task 11's 8 required stages (`project`, `version`, `validation`, `planning`,
+`zone_plan`, `power`, `investment`, `schemes`) operate at the evaluation
+harness level.  Issue #22's 5 calculation stages (`zone`, `cooling_load`,
+`equipment`, `power`, `investment`) operate at the production orchestration
+level.  They are different abstractions and are not contradictory.
 
 ---
 
-## 4. Confirmed Capability Gaps
+## 3. Existing-System Inventory and Confirmed Gaps
 
-Same 11 gaps as previous revision (G1–G11).  No changes.
+Same as previous revisions.  No changes to the inventory or the 11 capability
+gaps (G1–G11).
 
 ---
 
-## 5. Scope and Non-Goals
+## 4. Scope and Non-Goals
 
-### In scope
+### In scope (this design)
 
-- Five-stage calculation DAG contracts
-- SourceBindingRecord (one-way owner, COMPLETED-only)
-- Transaction-aware UnitOfWork and repositories
-- Identity/attempt split with fingerprint idempotency
-- ProjectVersionExecutionSnapshot lifecycle
-- CoefficientContextRecord with content hash
-- SourceSnapshotContentV1/EnvelopeV1 adapters (non-self-referential hashes)
-- Transactional audit outbox
-- Legacy migration strategy with CHECK constraints
-- Safe downgrade rules
-- Approved weight-set governance sub-task
-- Error taxonomy
-- Test matrix
-- Task 11 resumption criteria
+- Request/preflight contracts and audit
+- Execution identity/fingerprint with project isolation
+- Five-stage calculation DAG
+- SourceBindingRecord (one-way, COMPLETED only) with strict verification
+- Identity/attempt lease with single-RUNNING constraint and CAS takeover
+- UnitOfWork ownership model
+- SourceSnapshotContentV1/EnvelopeV1 (non-self-referential hash)
+- Transactional audit outbox with idempotent dispatcher
+- ProjectVersion authoritative lookup by `project_version_id`
+- Approved weight-set revision binding
+- SchemeRun CHECK constraint and archive artifact
+- Legacy migration strategy
+- Post-approval Issue #22 sync gate
 
 ### Out of scope
 
-- Implementation (separate task/PR)
+- Implementation
 - Scheme generation/scoring logic
 - Evaluation/CLI changes
 - API endpoint design
-- Equipment model selection
 - Frontend changes
 
 ---
 
-## 6. Architecture Decision
+## 5. Architecture Decision
 
-### 6.1 Module layout
+### 5.1 Module layout
 
 ```
 backend/src/cold_storage/modules/orchestration/
 ├── application/
 │   ├── __init__.py
 │   ├── service.py              # OrchestrationService
-│   ├── unit_of_work.py         # OrchestrationUnitOfWork (context manager)
+│   ├── unit_of_work.py         # OrchestrationUnitOfWork
 │   └── outbox_dispatcher.py    # AuditOutboxDispatcher
 ├── domain/
 │   ├── __init__.py
-│   ├── contracts.py             # OrchestrationInput, OrchestrationResult, StageResult
+│   ├── contracts.py             # DTOs (frozen dataclass)
 │   ├── dag.py                   # Five-stage DAG
-│   ├── errors.py                # OrchestrationError hierarchy
-│   ├── fingerprint.py           # OrchestrationFingerprint
-│   ├── snapshots.py             # SourceSnapshotContentV1, SourceSnapshotEnvelopeV1
-│   └── hash_chain.py            # Hash helpers
+│   ├── errors.py
+│   ├── fingerprint.py
+│   ├── snapshots.py             # SourceSnapshotContentV1/EnvelopeV1
+│   └── hash_chain.py
 └── infrastructure/
     ├── __init__.py
-    ├── repositories.py          # All repositories (no sessions, no commits)
-    └── orm.py                   # All ORM records
+    ├── repositories.py          # No sessions, no commits
+    └── orm.py                   # Mutable ORM records
 ```
 
-### 6.2 UnitOfWork ownership
+### 5.2 Execution order (frozen)
 
-```python
-class OrchestrationUnitOfWork:
-    """Transaction boundary owned by OrchestrationService.
-
-    Provides a SQLAlchemy Session.  The service calls begin/commit/rollback/close.
-    Callers provide a factory — never a pre-existing session with pending work.
-    """
-
-    def __enter__(self) -> OrchestrationUnitOfWork: ...
-    def __exit__(self, ...) -> None: ...
-    @property
-    def session(self) -> Session: ...
-
-
-class OrchestrationUnitOfWorkFactory:
-    def create(self) -> OrchestrationUnitOfWork: ...
-
-
-class OrchestrationService:
-    def __init__(self, uow_factory: OrchestrationUnitOfWorkFactory, ...) -> None: ...
-
-    def run(self, input: OrchestrationInput) -> OrchestrationResult:
-        # Service owns the full lifecycle:
-        uow = self._uow_factory.create()
-        with uow:
-            # ... do work ...
-            uow.commit()
-        return result
+```
+1. Load ProjectVersion by project_version_id; cross-check project_id.
+2. Validate ProjectVersion status (draft/archived → preflight rejection).
+3. Build in-memory ExecutionSnapshotCandidate; compute execution_identity_hash.
+4. Resolve in-memory CoefficientContextCandidate; compute coefficient_context_hash.
+5. Compute orchestration_fingerprint from execution_identity_hash + coefficient_context_hash + versions.
+6. Query existing OrchestrationIdentityRecord by fingerprint.
+   → If authoritative COMPLETED exists: return idempotent result
+     (NO snapshot/context persisted).
+7. Get-or-create ExecutionSnapshotRecord (idempotent — UNIQUE constraint).
+8. Get-or-create CoefficientContextRecord (idempotent — UNIQUE constraint).
+9. Create OrchestrationIdentityRecord (fingerprint UNIQUE).
+10. Acquire execution attempt lease:
+    - Check no other RUNNING attempt for this identity.
+    - If stale RUNNING exists: CAS takeover (mark ABANDONED, create new attempt_number+1).
+    - Create OrchestrationRunAttemptRecord(status=RUNNING).
+11. Execute five-stage calculation DAG within all-or-nothing UnitOfWork.
+12. On COMPLETED: materialize SourceBindingRecord.
+13. On FAILED/BLOCKED: write terminal status in independent UnitOfWork.
 ```
 
-**Callers must NOT pass a pre-existing Session with uncommitted work.**
-Repositories receive the current UoW's session, never create sessions,
-never commit, never rollback, never close.
+### 5.3 UnitOfWork ownership
 
-### 6.3 Explicitly NOT allowed
+`OrchestrationService` owns the full transaction lifecycle via
+`OrchestrationUnitOfWork`.  Callers provide a factory — never a
+pre-existing session with pending work.  Repositories never create
+sessions, commit, rollback, or close.
 
-- ❌ Orchestration inside SchemeService, evaluation, API routes, or CLI.
-- ❌ `DatabaseProjectService.record_calculation()` in orchestration path.
-- ❌ SchemeService querying "latest by calculator_name DESC" for production.
-- ❌ Implicit defaults or zero-value fallbacks.
-- ❌ Callers injecting sessions with pending work.
+---
+
+## 6. Data Model Overview
+
+```
+OrchestrationRequestRecord
+    │ PREFLIGHT_REJECTED
+    └── ACCEPTED
+        │
+        ▼
+ProjectVersionExecutionSnapshot
+    │ UNIQUE(project_version_id, input_snapshot_hash, schema_version)
+    ▼
+CoefficientContextRecord
+    │ UNIQUE(project_version_id, content_hash)
+    ▼
+OrchestrationIdentityRecord
+    │ UNIQUE(fingerprint)
+    │ 1:N
+    ▼
+OrchestrationRunAttemptRecord
+    │ UNIQUE(identity_id, attempt_number)
+    │ UNIQUE partial: (identity_id) WHERE status='RUNNING'
+    │ 1:N
+    ▼
+CalculationRunRecord × 5
+    │ (NO reverse FK to SourceBinding)
+    ▼ (COMPLETED only)
+SourceBindingRecord
+    │ UNIQUE(orchestration_identity_id, orchestration_run_attempt_id)
+    ▼
+SchemeRun
+    │ CHECK(source_binding_id ↔ source_contract_version)
+    ▼
+SchemeSourceArchiveV1 (safe downgrade artifact)
+
+Audit chain:
+OrchestrationRequest / Identity / Attempt / Calculation / Binding
+    │ same transaction
+    ▼
+AuditOutboxEvent
+    │ at-least-once dispatch + idempotent materialization
+    ▼
+AuditEventRecord (outbox_event_id UNIQUE NOT NULL)
+```
+
+### 6.1 Entity lifecycle semantics
+
+**Domain DTOs** (contracts.py, snapshots.py): frozen `@dataclass` — never mutated.
+**ORM records** (orm.py): mutable where lifecycle fields change (status, heartbeat, completed_at).
+
+Immutable fields on ORM records:
+- `OrchestrationIdentityRecord.fingerprint`
+- `OrchestrationIdentityRecord.execution_snapshot_id`
+- `OrchestrationIdentityRecord.coefficient_context_id`
+- `OrchestrationRunAttemptRecord.identity_id`
+- `OrchestrationRunAttemptRecord.attempt_number`
+
+Mutable fields on ORM records:
+- `OrchestrationIdentityRecord.authoritative_completed_attempt_id`
+- `OrchestrationRunAttemptRecord.status`
+- `OrchestrationRunAttemptRecord.heartbeat_at`
+- `OrchestrationRunAttemptRecord.completed_at`
+- `OrchestrationRunAttemptRecord.source_binding_id`
+- `OrchestrationRunAttemptRecord.failure_code`
+- `OrchestrationRunAttemptRecord.failure_details`
 
 ---
 
 ## 7. Public Application Contract
 
-### 7.1 Preparation order (orchestration-owned)
-
-`OrchestrationService.run()` internally performs preparation.  Callers do NOT
-pre-create snapshots or contexts:
-
-```
-1. Read ProjectVersion by project_id + version_number
-2. Capture ProjectVersionExecutionSnapshot
-3. Resolve and materialize CoefficientContextRecord
-4. Determine calculator version vector
-5. Compute orchestration fingerprint
-6. Get-or-create OrchestrationIdentityRecord (fingerprint UNIQUE)
-7. Acquire execution attempt lease (new OrchestrationRunAttemptRecord)
-8. Execute five-stage calculation DAG
-9. On COMPLETED: materialize SourceBindingRecord
-```
-
-### 7.2 OrchestrationInput (caller-provided)
+### 7.1 OrchestrationInput
 
 ```python
 @dataclass(frozen=True, slots=True)
 class OrchestrationInput:
     project_id: str
-    project_version_id: str
+    project_version_id: str              # sole authoritative lookup key
     coefficient_resolution_context: CoefficientResolutionContext
-        # product_type, location_region, zone/process scope
-        # — NOT a pre-resolved CoefficientContextRecord
     actor: str
     correlation_id: str
 ```
+
+Callers do NOT provide pre-created IDs.  `OrchestrationService` internally
+captures snapshot and resolves context.
+
+### 7.2 Request/preflight model
+
+```python
+@dataclass(frozen=True, slots=True)
+class OrchestrationRequestRecord:
+    id: str
+    project_id: str
+    project_version_id: str
+    request_fingerprint: str             # SHA-256(project_id + project_version_id + correlation_id + timestamp)
+    actor: str
+    correlation_id: str
+    status: str                          # PENDING | PREFLIGHT_REJECTED | ACCEPTED
+    failure_code: str | None
+    failure_field: str | None
+    failure_details: dict | None
+    created_at: datetime
+    completed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class PreflightFailure:
+    request_id: str
+    project_id: str
+    project_version_id: str
+    error_class: str
+    code: str
+    field: str
+    details: dict
+    occurred_at: datetime
+```
+
+**Preflight rejection** (before any identity/attempt exists):
+- ProjectVersion `draft` → `ProjectVersionNotReadyError`
+- ProjectVersion `archived` → `ProjectVersionArchivedError`
+- ProjectVersion status unknown → `ProjectVersionStatusInvalidError`
+- input snapshot schema unsupported → `SchemaNotSupportedError`
+- coefficient resolution context invalid → `CoefficientResolutionError`
+- No approved coefficient for required code → `CoefficientNotApprovedError`
+- Ambiguous coefficient → `AmbiguousCoefficientError`
+
+Preflight rejection creates:
+- `OrchestrationRequestRecord(status=PREFLIGHT_REJECTED)` with failure details
+- `AuditOutboxEvent(action=orchestration_request_rejected, request_id=...)`
+
+Preflight rejection does NOT create:
+- `OrchestrationIdentityRecord`
+- `OrchestrationRunAttemptRecord`
+- `CalculationRunRecord`
+- `SourceBindingRecord`
+
+**Execution BLOCKED** (after identity + attempt exist):
+- Calculator structured blocker (missing upstream result)
+- DAG-stage input mapping failure after entering execution
+
+Execution BLOCKED writes:
+- `OrchestrationRunAttemptRecord.status=BLOCKED` with failure details
+- `AuditOutboxEvent(action=orchestration_blocked, identity_id=..., attempt_id=...)`
 
 ### 7.3 OrchestrationResult
 
 ```python
 @dataclass(frozen=True, slots=True)
 class OrchestrationResult:
-    identity_id: str                     # OrchestrationIdentityRecord.id
-    attempt_id: str                      # OrchestrationRunAttemptRecord.id
-    attempt_number: int
-    status: str                          # COMPLETED | BLOCKED | FAILED
+    request_id: str
+    identity_id: str | None              # NULL on preflight rejection
+    attempt_id: str | None               # NULL on preflight rejection
+    attempt_number: int | None
+    status: str                          # PREFLIGHT_REJECTED | COMPLETED | BLOCKED | FAILED
     requires_review: bool
-    stages: dict[str, StageResult]       # keyed by calculator_name
-    source_binding_id: str | None        # NON-NULL only when status=COMPLETED
-    fingerprint: str
+
+    # COMPLETED: populated with five persisted stage results
+    # BLOCKED/FAILED: empty list
+    persisted_stages: tuple[StagePersistedResult, ...]
+
+    # BLOCKED/FAILED: carries execution diagnostics (no persisted IDs)
+    diagnostics: tuple[StageExecutionDiagnostic, ...]
+
+    source_binding_id: str | None        # NON-NULL only for COMPLETED
+    fingerprint: str | None              # NULL on preflight rejection
     started_at: datetime
     completed_at: datetime
-```
 
-### 7.4 StageResult
 
-```python
 @dataclass(frozen=True, slots=True)
-class StageResult:
+class StagePersistedResult:
+    """Only exists after COMPLETED transaction commits."""
     calculator_name: str
-    status: str                          # passed | failed | blocked | skipped
-    requires_review: bool
-    calculation_run_id: str | None       # NULL if blocked before execution
-    input_hash: str | None               # NULL if blocked before execution
-    result_hash: str | None              # NULL if blocked before execution
+    calculation_run_id: str
+    input_hash: str
+    result_hash: str
     calculator_version: str
     snapshot_schema_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class StageExecutionDiagnostic:
+    """In-memory diagnostic — does NOT claim persistence."""
+    calculator_name: str
+    execution_status: str                 # passed | blocked | failed | skipped
+    requires_review: bool
+    input_hash: str | None
+    result_hash: str | None
+    blocker: dict | None                  # StructuredBlocker
+    error: dict | None                    # StructuredError
 ```
 
 **Rules:**
-- `passed` → `calculation_run_id`, `input_hash`, `result_hash` all NON-NULL.
-- `blocked` (before calculator call) → `calculation_run_id` = NULL, hashes = NULL.
-- `failed` (calculator or persistence failure) → `calculation_run_id` = NULL, hashes = NULL.
-- `skipped` (upstream blocker) → same as blocked.
+- COMPLETED: `persisted_stages` has five entries, `source_binding_id` non-null.
+- BLOCKED/FAILED: `persisted_stages` empty, `source_binding_id` = NULL.
+- `diagnostics` records what happened in-memory but makes no persistence claims.
+- Rollback after some stages passed → no `CalculationRunRecord` exists → `persisted_stages` is empty.
 
-### 7.5 SourceBindingRecord — COMPLETED only
+---
+
+## 8. Execution DAG
+
+### 8.1 Five-stage calculation DAG (unchanged)
+
+```
+zone → cooling_load → equipment → power → investment
+```
+
+### 8.2 Task 11 stage mapping (unchanged)
+
+| Task 11 stage | Issue #22 relationship |
+|---|---|
+| project, version, validation, planning | Existing evaluation scaffolding |
+| zone_plan | Issue #22 stage: zone |
+| power | Issue #22 stage: power |
+| investment | Issue #22 stage: investment |
+| schemes | Post-Issue-22 — calls SchemeService with source_binding_id |
+
+---
+
+## 9. Fingerprint with Project/Version Isolation
+
+### 9.1 Execution identity hash
 
 ```python
-@dataclass(frozen=True, slots=True)
-class SourceBindingRecord:
-    """ONE-WAY owner of five calculation records.  CalculationRunRecord does
-    NOT reference back to SourceBinding."""
+execution_identity_hash = SHA-256(
+    canonical_json({
+        "project_id": project_id,
+        "project_version_id": project_version_id,
+        "version_number": version_number,
+        "input_snapshot_hash": input_snapshot_hash,
+        "execution_snapshot_schema_version": execution_snapshot_schema_version,
+    })
+)
+```
 
+### 9.2 Orchestration fingerprint
+
+```python
+orchestration_fingerprint = SHA-256(
+    canonical_json({
+        "execution_identity_hash": execution_identity_hash,
+        "coefficient_context_hash": coefficient_context_hash,
+        "orchestration_definition_version": orchestration_definition_version,
+        "calculator_version_vector": calculator_version_vector,
+        "input_mapping_schema_version": input_mapping_schema_version,
+        "source_snapshot_schema_version": source_snapshot_schema_version,
+    })
+)
+```
+
+All components are computed via `canonical_json()` with the frozen
+specification (sorted keys, Decimal strings, RFC 3339 UTC with Z suffix).
+
+**Guarantees:**
+- Different project_id + same inputs → different fingerprint.
+- Same project, different project_version_id + same inputs → different fingerprint.
+- Same ProjectVersion, same identity/context/versions → same fingerprint.
+- `version_number` inconsistent with `project_version_id` → fail closed.
+
+### 9.3 Orphan-free materialization
+
+Fingerprint is computed **in memory** before any persistence.  Only when
+no existing COMPLETED identity is found are snapshot and context persisted:
+
+1. Compute execution_identity_hash and coefficient_context_hash in memory.
+2. Compute orchestration_fingerprint.
+3. Query `OrchestrationIdentityRecord WHERE fingerprint = ?`.
+4. If authoritative COMPLETED exists → return immediately (NO persistence).
+5. If new identity needed:
+   - `INSERT … ON CONFLICT DO NOTHING` for ExecutionSnapshot (UNIQUE on project_version_id, input_snapshot_hash, schema_version).
+   - `INSERT … ON CONFLICT DO NOTHING` for CoefficientContext (UNIQUE on project_version_id, content_hash).
+   - `INSERT … ON CONFLICT DO NOTHING` for OrchestrationIdentity (UNIQUE on fingerprint).
+
+**Unique keys:**
+
+| Record | UNIQUE constraint |
+|---|---|
+| ProjectVersionExecutionSnapshot | (project_version_id, input_snapshot_hash, schema_version) |
+| CoefficientContextRecord | (project_version_id, content_hash) |
+| OrchestrationIdentityRecord | (fingerprint) |
+
+Concurrent get-or-create returns the same authoritative artifact.
+
+---
+
+## 10. Identity, Attempt, and Concurrency
+
+### 10.1 OrchestrationIdentityRecord
+
+```python
+class OrchestrationIdentityRecord:          # ORM — mutable fields
+    id: str
+    fingerprint: str                        # UNIQUE — immutable
+    execution_snapshot_id: str              # immutable
+    coefficient_context_id: str             # immutable
+    orchestration_definition_version: str   # immutable
+    calculator_version_vector: str          # immutable
+    input_mapping_schema_version: str       # immutable
+    source_snapshot_schema_version: str     # immutable
+    authoritative_completed_attempt_id: str | None  # mutable
+    created_at: datetime                    # immutable
+```
+
+### 10.2 OrchestrationRunAttemptRecord
+
+```python
+class OrchestrationRunAttemptRecord:        # ORM — mutable fields
+    id: str
+    identity_id: str                        # immutable
+    attempt_number: int                     # immutable
+    status: str                             # mutable: RUNNING | COMPLETED | BLOCKED | FAILED | ABANDONED
+    requires_review: bool
+    source_binding_id: str | None           # mutable — set on COMPLETED
+    started_at: datetime
+    heartbeat_at: datetime                  # mutable — updated periodically for RUNNING
+    completed_at: datetime | None           # mutable
+    actor: str
+    correlation_id: str
+    failure_code: str | None                # mutable
+    failure_details: dict | None            # mutable
+```
+
+**UNIQUE(identity_id, attempt_number)**
+
+### 10.3 Single RUNNING attempt constraint
+
+```sql
+CREATE UNIQUE INDEX uq_orchestration_attempt_one_running
+    ON orchestration_run_attempts (identity_id)
+    WHERE status = 'RUNNING';
+```
+
+PostgreSQL: native partial unique index.
+SQLite: partial unique index (SQLite ≥ 3.25 supports `WHERE` on indexes).
+
+At most one RUNNING attempt per identity at any time.
+
+### 10.4 Atomic stale takeover (CAS)
+
+```
+def takeover_stale_attempt(identity_id: str, stale_attempt_id: str,
+                            observed_heartbeat: datetime, now: datetime,
+                            lease_timeout: timedelta) -> bool:
+    """
+    Atomically mark a stale RUNNING attempt as ABANDONED.
+    Returns True if takeover succeeded, False if CAS failed.
+    """
+
+    # Only proceed if lease is truly expired
+    if (now - observed_heartbeat) < lease_timeout:
+        return False  # lease still valid — do NOT takeover
+
+    # CAS: only update if status is still RUNNING and heartbeat unchanged
+    result = session.execute(
+        update(OrchestrationRunAttemptRecord)
+        .where(
+            OrchestrationRunAttemptRecord.id == stale_attempt_id,
+            OrchestrationRunAttemptRecord.status == "RUNNING",
+            OrchestrationRunAttemptRecord.heartbeat_at == observed_heartbeat,
+        )
+        .values(status="ABANDONED", completed_at=now)
+    )
+    return result.rowcount == 1
+```
+
+- CAS succeeds (1 row updated) → old attempt marked ABANDONED → create attempt_number + 1.
+- CAS fails (0 rows) → another worker beat us, or heartbeat changed → reload current state → do NOT create new attempt.
+
+### 10.5 State behaviour (updated)
+
+| Existing state | Same fingerprint | Action |
+|---|---|---|
+| COMPLETED (authoritative) | ✓ | Return existing result (NO new attempt) |
+| RUNNING (lease valid) | ✓ | Return IN_PROGRESS/CONFLICT |
+| RUNNING (lease expired) | ✓ | CAS takeover → new attempt_number + 1 |
+| FAILED | ✓ | New attempt_number + 1 |
+| BLOCKED (same prereq) | ✓ | Return existing result |
+| BLOCKED (prereq changed → different fingerprint) | ✗ | New identity, attempt_number = 1 |
+
+---
+
+## 11. SourceBinding Strict Verification
+
+### 11.1 SourceBindingRecord (unchanged — one-way)
+
+```python
+class SourceBindingRecord:
     id: str
     project_id: str
     project_version_id: str
     execution_snapshot_id: str
-    orchestration_identity_id: str          # FK → OrchestrationIdentityRecord
-    orchestration_run_attempt_id: str        # FK → OrchestrationRunAttemptRecord
+    orchestration_identity_id: str
+    orchestration_run_attempt_id: str
     orchestration_fingerprint: str
 
-    # One-way references to calculation records
     zone_calculation_id: str
     cooling_load_calculation_id: str
     equipment_calculation_id: str
@@ -279,17 +538,145 @@ class SourceBindingRecord:
 
     per_calculation_result_hashes: dict[str, str]
     combined_source_hash: str
-    schema_version: str                     # "1.0"
+    schema_version: str
     created_at: datetime
 ```
 
-**Binding rules:**
-- Created ONLY when orchestration status = COMPLETED (all five stages passed).
-- BLOCKED/FAILED → `source_binding_id` = NULL, no SourceBindingRecord exists.
-- SchemeService MUST NOT be called when `source_binding_id` is NULL.
-- `CalculationRunRecord` does NOT carry `source_binding_id` — no reverse FK.
+### 11.2 Binding slot → calculation type mapping (frozen)
 
-### 7.6 SchemeService contract — FROZEN
+| Slot | Expected calculation_type | Expected calculator_name |
+|---|---|---|
+| zone_calculation_id | zone | formal zone calculator name |
+| cooling_load_calculation_id | cooling_load | cooling_load |
+| equipment_calculation_id | equipment | equipment |
+| power_calculation_id | power | installed_power |
+| investment_calculation_id | investment | investment |
+
+### 11.3 Per-record verification (SchemeService)
+
+For each slot in the binding, the referenced record must satisfy ALL:
+
+1. `record.id` == binding slot's calculation ID.
+2. `record.project_id` == binding.project_id.
+3. `record.project_version_id` == binding.project_version_id.
+4. `record.execution_snapshot_id` == binding.execution_snapshot_id.
+5. `record.orchestration_identity_id` == binding.orchestration_identity_id.
+6. `record.orchestration_run_attempt_id` == binding.orchestration_run_attempt_id.
+7. `record.calculator_name` matches the slot's expected calculator_name.
+8. `record.schema_version` is supported.
+9. `record.result_hash` recomputes to `binding.per_calculation_result_hashes[type]`.
+10. `record.requires_review` == the `requires_review` in SourceSnapshotContentV1.
+
+Any slot pointing to a record with wrong calculation type or calculator_name
+→ fail closed.  No lenient matching.
+
+### 11.4 combined_source_hash — single formula
+
+```
+combined_source_hash = SHA-256(
+    canonical_json({
+        "zone":          zone_result_hash,
+        "cooling_load":  cooling_load_result_hash,
+        "equipment":     equipment_result_hash,
+        "power":         power_result_hash,
+        "investment":    investment_result_hash,
+    })
+)
+```
+
+Where each value is `CalculationRunRecord.result_hash` (i.e.,
+`SHA-256(canonical_json(SourceSnapshotContentV1))`).
+
+Type key set is exactly these five.  No extra keys.  No missing keys.
+Not payload.  Not envelope.  Not raw database JSON.
+
+---
+
+## 12. Transactional Audit Outbox — Idempotent Dispatcher
+
+### 12.1 AuditOutboxEvent
+
+| Field | Notes |
+|---|---|
+| id | PK |
+| request_id | FK → OrchestrationRequestRecord (nullable — preflight events) |
+| identity_id | FK → OrchestrationIdentityRecord (nullable) |
+| attempt_id | FK → OrchestrationRunAttemptRecord (nullable) |
+| calculation_run_id | FK → CalculationRunRecord (nullable) |
+| source_binding_id | FK → SourceBindingRecord (nullable) |
+| action | orchestration_request_rejected / orchestration_started / calculation_completed / source_binding_materialized / orchestration_completed / orchestration_failed / orchestration_blocked |
+| payload | JSON |
+| status | PENDING | PROCESSING | PUBLISHED |
+| claimed_at | datetime (nullable) |
+| claimed_by | str (nullable — worker ID) |
+| attempt_count | int DEFAULT 0 |
+| next_retry_at | datetime (nullable) |
+| last_error_code | str (nullable) |
+| published_at | datetime (nullable) |
+| created_at | datetime |
+
+### 12.2 AuditEventRecord extension
+
+| Field | Notes |
+|---|---|
+| outbox_event_id | VARCHAR(36) UNIQUE NOT NULL — exactly one per outbox event |
+
+### 12.3 Dispatcher contract
+
+**Claim (atomic):**
+
+PostgreSQL:
+```sql
+UPDATE audit_outbox
+SET status = 'PROCESSING', claimed_at = NOW(), claimed_by = :worker_id,
+    attempt_count = attempt_count + 1
+WHERE id IN (
+    SELECT id FROM audit_outbox
+    WHERE status = 'PENDING'
+       OR (status = 'PROCESSING' AND claimed_at < :lease_timeout)
+    ORDER BY created_at
+    LIMIT :batch_size
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING *
+```
+
+SQLite: single-transaction `UPDATE … WHERE status='PENDING' OR (status='PROCESSING' AND claimed_at < :timeout)` + retry.
+
+**Deliver:**
+1. Materialize `AuditEventRecord` with `outbox_event_id`.
+2. Mark outbox `status='PUBLISHED'`, `published_at=NOW()`.
+
+**Crash recovery:**
+- `AuditEventRecord` inserted but outbox not yet PUBLISHED:
+  - On retry, INSERT AuditEventRecord fails with UNIQUE violation on `outbox_event_id`.
+  - Dispatcher catches unique conflict → outbox was already delivered → mark PUBLISHED.
+- Outbox `PROCESSING` lease expired: re-claimed by next dispatcher cycle.
+
+**Guarantee:** At-least-once delivery + idempotent materialization.
+At most one `AuditEventRecord` per `outbox_event_id`.
+
+---
+
+## 13. ProjectVersion Authoritative Lookup
+
+`project_version_id` is the **sole authoritative lookup key**.
+
+```
+1. Load ProjectVersionRecord by project_version_id.
+2. Verify record.project_id == input.project_id.
+3. Capture version_number into ExecutionSnapshot as metadata only.
+4. All subsequent resolution uses project_version_id — never (project_id + version_number).
+```
+
+`version_number` is captured metadata for human readability and SchemeService
+legacy-facing parameter cross-check.  It is NOT a parallel identity.
+
+---
+
+## 14. Approved Weight-Set Revision Binding
+
+### 14.1 SchemeService contract — FROZEN CHANGE
 
 ```python
 def generate_scheme_run(
@@ -297,727 +684,336 @@ def generate_scheme_run(
     *,
     project_id: str,
     version: int,
-    source_binding_id: str,          # REQUIRED for production path
+    source_binding_id: str,
+    weight_set_revision_id: str,        # NOT weight_set_id
     profile_codes: list[str],
-    weight_set_id: str,
     profile_parameters: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
 ```
 
 **Flow:**
+1. Load `SchemeWeightSetRevisionRecord` by `weight_set_revision_id`.
+2. Verify `status == "approved"`.
+3. Verify `generator_compatibility_version` matches current SchemeService.
+4. Recompute `content_hash`.
+5. Generate SchemeRun.
+6. Persist in SchemeRun:
+   - `weight_set_revision_id`
+   - `weight_set_content_hash`
+   - `weight_set_generator_compatibility_version`
 
-1. Load `SourceBindingRecord` by `source_binding_id`.
-2. Verify `project_id` and `version` match.
-3. Load exactly the five calculation records by their IDs from the binding.
-4. Verify every record's `orchestration_identity_id` and `orchestration_run_attempt_id` match the binding.
-5. Verify `result_hash` recomputes to `per_calculation_result_hashes[type]`.
-6. Verify `combined_source_hash` recomputes.
-7. Verify `schema_version` supported and `coefficient_context_id` matches.
-8. Reject legacy/unbound/hash-missing records.
+### 14.2 Task 11 fixture resolution
+
+```
+1. Resolve by weight_set_code="baseline-balanced" + status="approved".
+2. Get the latest approved compatible revision.
+3. Pass the exact revision_id to SchemeService.
+```
+
+Fixture does NOT hard-code UUIDs.  Fixture does NOT pass bare `weight_set_code`.
 
 ---
 
-## 8. Execution DAG
+## 15. SchemeRun Database Integrity and Archive
 
-### 8.1 Five-stage calculation DAG
+### 15.1 CHECK constraint
 
-```
-Preparation (orchestration-owned):
-  ProjectVersion → ExecutionSnapshot → CoefficientContext → Identity + Fingerprint
-
-Calculation (five stages):
-  zone → cooling_load → equipment → power → investment
-
-Post-calculation (COMPLETED only):
-  SourceBindingRecord → SchemeService
-```
-
-### 8.2 Per-node definition
-
-| Stage | Upstream | Calculator | Key output |
-|---|---|---|---|
-| zone | ExecutionSnapshot only | ColdRoomZonePlanner.plan() | zones, areas, positions |
-| cooling_load | zone + coefficient context | calculate_cooling_load() | design_cooling_load_kw_r |
-| equipment | cooling_load + coefficient context | equipment calculator | compressor capacities kW(r), compressor_input_power_kw_e |
-| power | equipment.compressor_input_power_kw_e + ProjectVersion loads | InstalledPowerCalculator | **total_installed_power_kw_e** |
-| investment | zone areas + power.total_installed_power_kw_e + coefficient context | InvestmentEstimator.estimate() | total_investment_cny |
-
-### 8.3 Task 11 stage mapping
-
-| Task 11 stage | Issue #22 relationship |
-|---|---|
-| project | Existing — evaluation wraps DatabaseProjectService.create_project() |
-| version | Existing — evaluation wraps DatabaseProjectService.create_version() |
-| validation | Existing — evaluation wraps validate_inputs() |
-| planning | Existing — evaluation wraps CoreCalculationService |
-| zone_plan | **Issue #22 stage: zone** |
-| power | **Issue #22 stage: power** |
-| investment | **Issue #22 stage: investment** |
-| schemes | Post-Issue-22 — calls SchemeService with source_binding_id |
-
----
-
-## 9. Versioned SourceSnapshot Adapters
-
-### 9.1 Non-self-referential hash design
-
-```python
-@dataclass(frozen=True, slots=True)
-class SourceSnapshotContentV1:
-    """The content that is hashed — does NOT contain result_hash."""
-    schema_version: str
-    calculation_type: str
-    calculator_name: str
-    calculator_version: str
-    source_input_hash: str           # SHA-256 of canonicalized calculator input
-    requires_review: bool
-    warning_codes: tuple[str, ...]
-    payload: dict[str, object]       # typed per calculation_type
-
-
-@dataclass(frozen=True, slots=True)
-class SourceSnapshotEnvelopeV1:
-    """Carries content + its hash.  result_hash is NOT part of content."""
-    content: SourceSnapshotContentV1
-    result_hash: str                 # SHA-256(canonical_json(content))
+```sql
+ALTER TABLE scheme_runs ADD CONSTRAINT ck_scheme_run_source_mode
+CHECK (
+    -- Legacy (no source binding)
+    (source_binding_id IS NULL
+     AND source_contract_version IS NULL
+     AND weight_set_revision_id IS NULL
+     AND weight_set_content_hash IS NULL)
+    OR
+    -- Production
+    (source_binding_id IS NOT NULL
+     AND source_contract_version IS NOT NULL
+     AND weight_set_revision_id IS NOT NULL
+     AND weight_set_content_hash IS NOT NULL
+     AND weight_set_generator_compatibility_version IS NOT NULL)
+);
 ```
 
-**Hash computation (sole definition):**
-```
-result_hash = SHA-256(canonical_json(SourceSnapshotContentV1))
-```
+### 15.2 SchemeSourceArchiveV1
 
-This exact same value is stored in all three locations:
-1. `CalculationRunRecord.result_hash`
-2. `SourceBindingRecord.per_calculation_result_hashes[type]`
-3. Re-computed by `SchemeService` during strict verification
-
-No separate payload-only or full-snapshot hash variants.  One definition.
-
-### 9.2 Canonical JSON specification (frozen)
-
-| Rule | Detail |
-|---|---|
-| Key ordering | Unicode code point order (sorted) |
-| Separators | `(",", ":")` — no whitespace |
-| Encoding | UTF-8, `ensure_ascii=False` |
-| Decimal | Canonical decimal string (e.g. `"3.14"`), never float |
-| NaN/Infinity | Forbidden — raises error |
-| datetime | UTC RFC 3339 with fixed `Z` suffix |
-| list | Preserve order |
-| set | Forbidden in contract |
-| UUID | Lowercase canonical string |
-| Excluded | `created_at`, `correlation_id` and other non-business identity fields unless explicitly listed in field tables |
-
-### 9.3 Field mapping tables
-
-**ZoneSourceSnapshotContentV1.payload:**
-
-| Field | Source | Type |
-|---|---|---|
-| `total_daily_throughput_kg_day` | calculator result | Decimal |
-| `zones[].zone_code` | calculator result | str |
-| `zones[].zone_name` | calculator result | str |
-| `zones[].temperature_level` | calculator result | str |
-| `zones[].area_m2` | calculator result | Decimal |
-| `zones[].position_count` | calculator result | int |
-| `zones[].storage_capacity_kg` | calculator result | Decimal |
-| `zones[].process_compatibility` | calculator result | str |
-| `zones[].hygiene_zone` | calculator result | str |
-
-**CoolingLoadSourceSnapshotContentV1.payload:**
-
-| Field | Source | Type |
-|---|---|---|
-| `design_cooling_load_kw_r` | sum per-zone after diversity + margin | Decimal |
-| `sensible_load_kw_r` | sum per-zone sensible | Decimal |
-| `latent_load_kw_r` | sum per-zone latent | Decimal |
-| `infiltration_load_kw_r` | sum per-zone infiltration | Decimal |
-
-**EquipmentSourceSnapshotContentV1.payload:**
-
-| Field | Source | Type |
-|---|---|---|
-| `compressor_operating_capacity_kw_r` | total across systems | Decimal |
-| `compressor_installed_capacity_kw_r` | operating × redundancy | Decimal |
-| `condenser_heat_rejection_kw` | total across systems | Decimal |
-| `compressor_input_power_kw_e` | from COP derivation | Decimal |
-
-**⚠️ `installed_power_kw_e` is NOT in Equipment payload.**  Power is the sole
-authority for installed power.  `compressor_input_power_kw_e` is one input to
-the power stage — it is not the full facility installed power.
-
-**PowerSourceSnapshotContentV1.payload:**
-
-| Field | Source | Type |
-|---|---|---|
-| `total_installed_power_kw_e` | sum of all load categories | Decimal |
-| `estimated_peak_demand_kw_e` | after demand factors | Decimal |
-| `load_breakdown.refrigeration_compressors_kw_e` | from equipment stage | Decimal |
-| `load_breakdown.evaporator_fans_kw_e` | from equipment stage | Decimal |
-| `load_breakdown.condenser_fans_kw_e` | from equipment stage | Decimal |
-| `load_breakdown.defrost_kw_e` | from equipment stage | Decimal |
-| `load_breakdown.lighting_kw_e` | from ProjectVersion | Decimal |
-| `load_breakdown.processing_equipment_kw_e` | from ProjectVersion | Decimal |
-| `load_breakdown.auxiliary_kw_e` | from ProjectVersion | Decimal |
-| `source_equipment_calculation_id` | equipment CalculationRunRecord.id | str |
-
-**InvestmentSourceSnapshotContentV1.payload:**
-
-| Field | Source | Type |
-|---|---|---|
-| `total_investment_cny` | from estimator | Decimal |
-| `zone_investments` | from estimator | dict[str, Decimal] |
-| `source_power_calculation_id` | power CalculationRunRecord.id | str |
-| `source_zone_calculation_id` | zone CalculationRunRecord.id | str |
-
-### 9.4 SchemeService power mapping (frozen)
-
-SchemeService schemes use `installed_power_kw_e` from:
-- **`PowerSourceSnapshotContentV1.payload.total_installed_power_kw_e`**
-
-SchemeService MUST NOT:
-- Read `installed_power_kw_e` from Equipment snapshot.
-- Fallback to Equipment when Power is missing.
-- Use `compressor_input_power_kw_e` as facility installed power.
-
----
-
-## 10. Data Model Overview
-
-```
-ProjectVersion
-    │ capture (once, immutable)
-    ▼
-ProjectVersionExecutionSnapshot
-    │
-    ▼
-CoefficientContextRecord
-    │ content_hash, revision_bindings
-    ▼
-OrchestrationIdentityRecord         ← fingerprint UNIQUE
-    │ 1:N
-    ▼
-OrchestrationRunAttemptRecord       ← UNIQUE(identity_id, attempt_number)
-    │ 1:N (calculation stages)
-    ▼
-CalculationRunRecord × 5            ← FK → identity + attempt (NOT → source_binding)
-    │
-    │ one-way reference (COMPLETED only)
-    ▼
-SourceBindingRecord                 ← FK → identity + attempt
-    │
-    ▼
-SchemeRun                           ← FK → source_binding (NOT NULL for production)
-    │
-    ▼
-AuditOutboxEvent                    ← references identity/attempt/calculation/binding
-    │ dispatched asynchronously
-    ▼
-AuditEventRecord
-```
-
-**FK direction rules:**
-- `CalculationRunRecord` → `OrchestrationIdentityRecord` + `OrchestrationRunAttemptRecord` (child)
-- `SourceBindingRecord` → `OrchestrationIdentityRecord` + `OrchestrationRunAttemptRecord` (child)
-- `SourceBindingRecord` → 5 × `CalculationRunRecord` (one-way, parent)
-- `CalculationRunRecord` does NOT reference `SourceBindingRecord` (no reverse FK)
-- `SchemeRun` → `SourceBindingRecord` (child)
-
----
-
-## 11. Identity, Attempt, and Retry Lifecycle
-
-### 11.1 OrchestrationIdentityRecord
+For safe downgrade when SchemeRun references SourceBinding:
 
 ```python
 @dataclass(frozen=True)
-class OrchestrationIdentityRecord:
-    id: str
-    fingerprint: str                         # UNIQUE
-    execution_snapshot_id: str
-    coefficient_context_id: str
-    orchestration_definition_version: str
-    calculator_version_vector: str           # canonical sorted
-    input_mapping_schema_version: str
-    source_snapshot_schema_version: str
-    authoritative_completed_attempt_id: str | None
-    created_at: datetime
+class SchemeSourceArchiveV1:
+    scheme_run_id: str
+    source_binding_id: str
+    source_contract_version: str
+    project_id: str
+    project_version_id: str
+    execution_snapshot_hash: str
+    coefficient_context_hash: str
+    # Five calculation IDs
+    zone_calculation_id: str
+    cooling_load_calculation_id: str
+    equipment_calculation_id: str
+    power_calculation_id: str
+    investment_calculation_id: str
+    # Five result hashes
+    zone_result_hash: str
+    cooling_load_result_hash: str
+    equipment_result_hash: str
+    power_result_hash: str
+    investment_result_hash: str
+    combined_source_hash: str
+    weight_set_revision_id: str
+    weight_set_content_hash: str
+    archive_schema_version: str
+    archived_at: datetime
+    archive_hash: str                  # SHA-256 of all fields above
 ```
 
-### 11.2 OrchestrationRunAttemptRecord
+### 15.3 Safe downgrade rules
 
-```python
-@dataclass(frozen=True)
-class OrchestrationRunAttemptRecord:
-    id: str
-    identity_id: str                         # FK → OrchestrationIdentityRecord
-    attempt_number: int                      # 1-based, monotonically increasing
-    status: str                              # RUNNING | COMPLETED | BLOCKED | FAILED | ABANDONED
-    requires_review: bool
-    source_binding_id: str | None            # NON-NULL only when COMPLETED
-    started_at: datetime
-    heartbeat_at: datetime
-    completed_at: datetime | None
-    actor: str
-    correlation_id: str
-    failure_code: str | None
-    failure_details: dict | None
-```
+| Condition | Action |
+|---|---|
+| No production SchemeRun references SourceBinding | Downgrade allowed |
+| Production SchemeRun exists | Downgrade **BLOCKED** |
+| After explicit archive/export | Source rows still NOT auto-deleted |
+| Source rows removable | Only via separate reviewed migration, AFTER archive verified |
+| `archive_hash` | Must be verifiable |
+| Historical query | Must be able to read either online binding or archive artifact |
 
-**UNIQUE(identity_id, attempt_number)**
+---
 
-### 11.3 Fingerprint computation
+## 16. CalculationRunRecord CHECK
 
-```
-fingerprint = SHA-256(
-    execution_snapshot.input_snapshot_hash      # 64 hex
-    + coefficient_context.content_hash          # 64 hex
-    + orchestration_definition_version           # e.g. "1.0.0"
-    + calculator_version_vector                  # sorted: "cooling_load=1.0.0,equipment=1.0.0,..."
-    + input_mapping_schema_version               # "1.0"
-    + source_snapshot_schema_version             # "1.0"
+```sql
+CHECK (
+    -- Legacy: all new fields NULL
+    (orchestration_identity_id IS NULL
+     AND orchestration_run_attempt_id IS NULL
+     AND execution_snapshot_id IS NULL
+     AND coefficient_context_id IS NULL
+     AND input_hash IS NULL
+     AND result_hash IS NULL
+     AND provenance IS NULL
+     AND schema_version IS NULL)
+    OR
+    -- Orchestrated: all new fields NON-NULL
+    (orchestration_identity_id IS NOT NULL
+     AND orchestration_run_attempt_id IS NOT NULL
+     AND execution_snapshot_id IS NOT NULL
+     AND coefficient_context_id IS NOT NULL
+     AND input_hash IS NOT NULL
+     AND result_hash IS NOT NULL
+     AND provenance IS NOT NULL
+     AND schema_version IS NOT NULL)
 )
 ```
 
-Snapshot and context MUST be materialized before fingerprint computation.
-
-### 11.4 State behaviour
-
-| Existing state | Same fingerprint | Action |
-|---|---|---|
-| COMPLETED (authoritative) | ✓ | Return existing `OrchestrationResult` — no new attempt |
-| RUNNING (lease valid) | ✓ | Return IN_PROGRESS/CONFLICT |
-| RUNNING (lease expired) | ✓ | Mark old ABANDONED; create attempt_number + 1 |
-| FAILED | ✓ | Create attempt_number + 1 |
-| BLOCKED | ✓ (same prereq) | Return existing BLOCKED result |
-| BLOCKED | ✗ (prereq changed → different fingerprint) | New identity, attempt_number = 1 |
-
-Calculator version change → fingerprint changes → new identity.
-Coefficient revision change → coefficient_context_hash changes → new identity.
-Input change → execution_snapshot_hash changes → new identity.
-
-### 11.5 Concurrency
-
-**PostgreSQL:** `INSERT … ON CONFLICT (fingerprint) DO NOTHING` on `OrchestrationIdentityRecord`.
-For attempt lease: UNIQUE(identity_id, attempt_number) — first writer wins.
-
-**SQLite:** `INSERT OR IGNORE` + `busy_timeout` + retry on `SQLITE_BUSY`.
-UNIQUE constraint is the correctness mechanism — database is the single source of truth.
+No `source_binding_id` column — SourceBinding is one-way owner.
 
 ---
 
-## 12. UnitOfWork and Transaction Ownership
+## 17. Error Taxonomy (updated)
 
-### 12.1 Transaction boundaries
-
-| Transaction | Content | UnitOfWork |
-|---|---|---|
-| Preparation | ExecutionSnapshot + CoefficientContext + Identity + RUNNING attempt + audit outbox(orchestration_started) | Same UoW |
-| Calculation | 5 × CalculationRunRecord + SourceBinding (COMPLETED only) + attempt.status=COMPLETED + audit outbox events | Same UoW (all-or-nothing) |
-| Terminal failure | attempt.status=FAILED/BLOCKED + audit outbox(orchestration_failed/blocked) | Independent UoW |
-
-### 12.2 Transactional audit outbox
-
-```python
-@dataclass
-class AuditOutboxEvent:
-    id: str
-    identity_id: str | None
-    attempt_id: str | None
-    calculation_run_id: str | None
-    source_binding_id: str | None
-    action: str                    # orchestration_started | calculation_completed |
-                                    # source_binding_materialized | orchestration_completed |
-                                    # orchestration_failed | orchestration_blocked
-    payload: dict
-    published: bool                # default False
-    created_at: datetime
-```
-
-**Rules:**
-- Outbox events are written in the SAME transaction as the business state they describe.
-- Terminal status and outbox intent are transactionally consistent — no "lost audit on rollback".
-- `AuditOutboxDispatcher` (background or synchronous) reads unpublished events and
-  materializes them into `AuditEventRecord`.  Marks `published=True` on success.
-- Dispatcher retries on failure.  `AuditEventRecord` is created exactly once per outbox event.
-- Terminal status does not depend on outbox delivery success.
-- Outbox delivery failure does not roll back terminal status.
-
----
-
-## 13. ProjectVersion Execution Snapshot
-
-### 13.1 Design
-
-```python
-@dataclass(frozen=True)
-class ProjectVersionExecutionSnapshot:
-    id: str
-    project_id: str
-    project_version_id: str
-    version_number: int
-    version_status: str          # copied from ProjectVersionRecord at capture
-    input_snapshot: dict
-    input_snapshot_hash: str
-    schema_version: str          # "1.0"
-    captured_at: datetime
-```
-
-### 13.2 Status contract (frozen)
-
-| Status | Issue #22 orchestration allowed? |
-|---|---|
-| `generated` | ✓ |
-| `under_review` | ✓ |
-| `reviewed` | ✓ |
-| `approved` | ✓ |
-| `draft` | ✗ → `ProjectVersionNotReadyError` |
-| `archived` | ✗ → `ProjectVersionArchivedError` |
-| unknown | ✗ → `ProjectVersionStatusInvalidError` |
-
-**Task 11 baseline fixture:** `approved` ProjectVersion required.
-**No generic caller override.**  If special execution is needed in future,
-an explicit `AuthorizedExecutionOverride` type with actor, reason,
-authorization scope, and audit event must be designed separately.
-
----
-
-## 14. Coefficient Context
-
-Same design as previous revision with the following clarifications:
-
-- `content_hash` = SHA-256(canonical JSON of `revision_bindings` + `scope_context` + `resolution_policy_version`).
-- `captured_at` excluded from content hash.
-- Immutable after creation.
-- New orchestration runs MUST re-resolve — never reuse stale context unless
-  the caller explicitly specifies a `coefficient_context_id`.
-
----
-
-## 15. Approved Scheme Weight-Set Governance
-
-**Fixed sub-task C of Issue #22 implementation:**
-
-```python
-@dataclass(frozen=True)
-class SchemeWeightSetRevisionRecord:
-    id: str
-    weight_set_code: str             # e.g. "baseline-balanced"
-    revision_number: int
-    status: str                      # approved
-    weights: dict
-    content_hash: str
-    generator_compatibility_version: str
-    reviewed_by: str | None
-    reviewed_at: datetime | None
-    approved_by: str | None
-    approved_at: datetime | None
-    supersedes_revision_id: str | None
-    created_at: datetime
-```
-
-**Baseline usage:**
-- `weight_set_code = "baseline-balanced"`
-- `status = "approved"`
-- `generator_compatibility_version` matching current SchemeService
-- Resolved by code + status filter — fixture does NOT hard-code UUID
-
-**Task 11 resumption requires:** approved weight set exists; content hash
-bound to SchemeRun; `demo-weight-set-001` NOT used for baseline.
-
----
-
-## 16. Review Propagation
-
-```
-stage.requires_review = calculator.requires_review   (only — no warning-based promotion)
-
-Orchestration aggregation:
-  1. Any stage failed?       → FAILED
-  2. Any stage blocked?      → BLOCKED
-  3. Any stage review=true?  → COMPLETED + requires_review=true
-  4. Else                    → COMPLETED + requires_review=false
-```
-
----
-
-## 17. Error Taxonomy
-
-Same as previous revision, plus:
+New preflight-specific errors:
 
 | Exception | code | field |
 |---|---|---|
 | `ProjectVersionNotReadyError` | PROJ_VERSION_NOT_READY | version_status |
 | `ProjectVersionArchivedError` | PROJ_VERSION_ARCHIVED | project_version_id |
 | `ProjectVersionStatusInvalidError` | PROJ_VERSION_STATUS_INVALID | version_status |
-| `WeightSetNotApprovedError` | WEIGHT_SET_NOT_APPROVED | weight_set_code |
+| `SchemaNotSupportedError` | SCHEMA_NOT_SUPPORTED | schema_version |
+| `CoefficientResolutionError` | COEFF_RESOLUTION_FAILED | coefficient_code |
+| `CoefficientNotApprovedError` | COEFF_NOT_APPROVED | coefficient_code |
+| `AmbiguousCoefficientError` | COEFF_AMBIGUOUS | coefficient_code |
+| `WeightSetNotApprovedError` | WEIGHT_SET_NOT_APPROVED | weight_set_revision_id |
+| `WeightSetIncompatibleError` | WEIGHT_SET_INCOMPATIBLE | generator_compatibility_version |
+| `SourceBindingSlotTypeError` | SOURCE_BINDING_SLOT_TYPE | slot_name |
 
 ---
 
-## 18. CalculationRunRecord — Updated Fields
+## 18. Post-Approval Issue #22 Synchronization Gate
 
-| Field | New | Nullable | Notes |
-|---|---|---|---|
-| `orchestration_identity_id` | NEW | NULL | FK → OrchestrationIdentityRecord |
-| `orchestration_run_attempt_id` | NEW | NULL | FK → OrchestrationRunAttemptRecord |
-| `execution_snapshot_id` | NEW | NULL | FK → ProjectVersionExecutionSnapshot |
-| `coefficient_context_id` | NEW | NULL | FK → CoefficientContextRecord |
-| `input_hash` | NEW | NULL | SHA-256 of canonicalized input |
-| `result_hash` | NEW | NULL | SHA-256(SourceSnapshotContentV1) |
-| `provenance` | NEW | NULL | JSON |
-| `schema_version` | NEW | NULL | e.g. "1.0" |
+**Design review acceptance does NOT automatically modify Issue #22.**
+After this design is accepted and before implementation begins, the
+following must be updated in Issue #22's acceptance criteria:
 
-**DELETED from design:** `source_binding_id` — SourceBinding is one-way owner.
+1. Change "four categories" (zone, cooling_load, equipment, investment)
+   → "five categories" (zone, cooling_load, equipment, **power**, investment).
+2. Add: `power` CalculationRunRecord required.
+3. Add: `SourceBindingRecord` materialization.
+4. Add: `OrchestrationIdentityRecord` + `OrchestrationRunAttemptRecord`.
+5. Add: Approved weight-set revision.
+6. Add: Transactional audit outbox.
+7. Add: Legacy row CHECK constraint.
 
-**Provenance JSON:**
-```json
-{
-  "orchestration_identity_id": "...",
-  "orchestration_run_attempt_id": "...",
-  "coefficient_context_id": "...",
-  "execution_snapshot_id": "...",
-  "upstream_calculation_ids": {
-    "zone": "...",
-    "cooling_load": "..."
-  },
-  "orchestration_fingerprint": "..."
-}
-```
-
-### 18.1 Legacy CHECK constraint
-
-```sql
-CHECK (
-    -- Legacy row: all new fields NULL
-    (
-        orchestration_identity_id IS NULL
-        AND orchestration_run_attempt_id IS NULL
-        AND execution_snapshot_id IS NULL
-        AND coefficient_context_id IS NULL
-        AND input_hash IS NULL
-        AND result_hash IS NULL
-        AND provenance IS NULL
-        AND schema_version IS NULL
-    )
-    OR
-    -- Orchestrated row: all new fields NON-NULL
-    (
-        orchestration_identity_id IS NOT NULL
-        AND orchestration_run_attempt_id IS NOT NULL
-        AND execution_snapshot_id IS NOT NULL
-        AND coefficient_context_id IS NOT NULL
-        AND input_hash IS NOT NULL
-        AND result_hash IS NOT NULL
-        AND provenance IS NOT NULL
-        AND schema_version IS NOT NULL
-    )
-)
-```
-
-PostgreSQL: native CHECK constraint.
-SQLite: CHECK constraint (supported in SQLite ≥ 3.25) or application-level validation.
+This gate is a **mandatory prerequisite** before any production code
+is written.  It is listed as sub-task **N** in the implementation breakdown.
 
 ---
 
-## 19. SchemeRun SourceBinding FK and Safe Downgrade
-
-### 19.1 SchemeRun
-
-| New field | Nullable | Notes |
-|---|---|---|
-| `source_binding_id` | NULLABLE (legacy) | FK → SourceBindingRecord |
-| `source_contract_version` | NULLABLE | "1.0" for production rows |
-
-**Production path:** `source_binding_id` NOT NULL — enforced by application.
-Legacy demo SchemeRun rows: `source_binding_id` = NULL.  Application-level
-CHECK distinguishes production from legacy rows.
-
-### 19.2 Safe downgrade
-
-| Condition | Rule |
-|---|---|
-| Any `SchemeRun.source_binding_id` references a `SourceBindingRecord` | **Downgrade BLOCKED** |
-| Downgrade precondition | Caller must first detect references and export/archive |
-| Dangling references | **Not acceptable** — downgrade must fail with clear error |
-| Historical SchemeRun | Must retain source identity and hash evidence even after export |
-| Auto-deletion | **Forbidden** — SourceBinding with active references must not be dropped |
-
-Downgrade command MUST check references before proceeding.  Error message
-MUST identify which SchemeRun rows block the downgrade.
-
----
-
-## 20. Migration Assessment
-
-### 20.1 New tables
-
-| Table | Indexes |
-|---|---|
-| `project_version_execution_snapshots` | |
-| `coefficient_contexts` | |
-| `orchestration_identities` | UNIQUE(fingerprint) |
-| `orchestration_run_attempts` | UNIQUE(identity_id, attempt_number) |
-| `source_bindings` | UNIQUE(orchestration_identity_id, orchestration_run_attempt_id) |
-| `audit_outbox` | INDEX(published, created_at) |
-
-### 20.2 Altered tables
-
-| Table | Change |
-|---|---|
-| `calculation_runs` | ADD 8 nullable columns + CHECK constraint |
-| `scheme_runs` | ADD `source_binding_id` (nullable), `source_contract_version` (nullable) |
-
-### 20.3 Order
-
-1. CREATE new tables (no FKs to them yet).
-2. ALTER `calculation_runs` ADD columns (all nullable).
-3. CREATE FKs from `calculation_runs` to new tables.
-4. ALTER `scheme_runs` ADD columns.
-5. Add CHECK constraint (PostgreSQL) or application guard (SQLite).
-6. Precondition for production usage: all referenced records exist.
-
----
-
-## 21. Test Matrix (new items)
-
-| # | Test |
-|---|---|
-| T1 | `result_hash` = SHA-256(SourceSnapshotContentV1) — no self-reference |
-| T2 | Same `result_hash` across CalculationRunRecord, SourceBinding, SchemeService |
-| T3 | Tampered snapshot content → `result_hash` mismatch detected |
-| T4 | Tampered snapshot envelope hash → mismatch detected |
-| T5 | `CalculationRunRecord` has no `source_binding_id` column |
-| T6 | BLOCKED orchestration → no SourceBindingRecord; `source_binding_id` = NULL |
-| T7 | FAILED orchestration → no SourceBindingRecord; `source_binding_id` = NULL |
-| T8 | COMPLETED orchestration → SourceBindingRecord materialized |
-| T9 | Same fingerprint COMPLETED → idempotent return; no new attempt |
-| T10 | Same fingerprint FAILED → new attempt_number |
-| T11 | Same fingerprint RUNNING (stale) → new attempt |
-| T12 | ExecutionSnapshot + CoefficientContext materialized before fingerprint |
-| T13 | UnitOfWork not committing caller's other pending work |
-| T14 | Equipment snapshot has no `installed_power_kw_e` |
-| T15 | SchemeService `installed_power_kw_e` reads Power snapshot ONLY |
-| T16 | Power missing → SchemeService rejects, no Equipment fallback |
-| T17 | Transaction B rollback → no calculation/binding residue |
-| T18 | Terminal status + audit outbox in same transaction |
-| T19 | Outbox dispatcher retries; AuditEventRecord created exactly once |
-| T20 | Outbox delivery failure → terminal status unaffected |
-| T21 | `draft` ProjectVersion → `ProjectVersionNotReadyError` |
-| T22 | `archived` ProjectVersion → `ProjectVersionArchivedError` |
-| T23 | Approved weight set resolver returns correct revision |
-| T24 | Legacy `calculation_runs` row passes CHECK (all NULL) |
-| T25 | Orchestrated row passes CHECK (all NON-NULL) |
-| T26 | Partially-filled row fails CHECK |
-| T27 | Downgrade blocked when SchemeRun references SourceBinding |
-
----
-
-## 22. Implementation Work Breakdown
+## 19. Implementation Work Breakdown
 
 All sub-tasks are design-level only — no implementation in this PR.
 
-### A. Execution snapshot and orchestration contracts
-- Scope: `ProjectVersionExecutionSnapshot`, `OrchestrationInput/Result`, `StageResult`, `OrchestrationFingerprint`
+### A. Request/preflight contracts and audit
+- Scope: `OrchestrationInput`, `OrchestrationRequestRecord`, `PreflightFailure`, preflight error types
 - Dependencies: None
-- Files: `modules/orchestration/domain/contracts.py`, `fingerprint.py`
-- Schema: `project_version_execution_snapshots`
-- Non-goals: No API, no CLI
+- Files: `modules/orchestration/domain/contracts.py`, `errors.py`
+- Schema: `orchestration_requests` table
+- Non-goals: No execution logic
 
-### B. Materialized coefficient context and approved catalog
-- Scope: `CoefficientContextRecord`, approved revision seed
-- Dependencies: A, coefficient registry (Task 3)
+### B. Execution snapshot identity and get-or-create
+- Scope: `ProjectVersionExecutionSnapshot`, `execution_identity_hash`, idempotent get-or-create
+- Dependencies: A
+- Files: `modules/orchestration/domain/fingerprint.py`, `infrastructure/repositories.py`
+- Schema: `project_version_execution_snapshots` + UNIQUE constraint
+- Non-goals: No coefficient resolution
+
+### C. Materialized coefficient context and approved catalog
+- Scope: `CoefficientContextRecord`, approved revision seed, idempotent get-or-create
+- Dependencies: B, coefficient registry
 - Files: `modules/orchestration/domain/coefficient_context.py`, `modules/coefficients/`
-- Schema: `coefficient_contexts`
+- Schema: `coefficient_contexts` + UNIQUE(project_version_id, content_hash)
 - Non-goals: No demo fallback
 
-### C. Approved scheme weight-set governance
-- Scope: `SchemeWeightSetRevisionRecord`, approved baseline weight set
+### D. Approved scheme weight-set governance
+- Scope: `SchemeWeightSetRevisionRecord`, baseline-balanced approved revision
 - Dependencies: scheme module
 - Files: `modules/schemes/`
 - Non-goals: No demo-weight-set-001 in baseline
 
-### D. Production input adapters
+### E. Production input adapters
 - Scope: Map ExecutionSnapshot + CoefficientContext → calculator inputs
-- Dependencies: A, B
+- Dependencies: B, C
 - Files: `modules/orchestration/application/adapters.py`
 - Non-goals: No zero-fallback
 
-### E. Five-stage calculation DAG
-- Scope: DAG executor calling five calculators in sequence
-- Dependencies: A, B, D
+### F. Five-stage calculation DAG
+- Scope: Sequential DAG executor
+- Dependencies: B, C, E
 - Files: `modules/orchestration/application/service.py`, `domain/dag.py`
-- Non-goals: No parallel execution (sequential is correct for dependencies)
+- Non-goals: No parallel execution
 
-### F. Identity, attempt lease and retry lifecycle
-- Scope: `OrchestrationIdentityRecord`, `OrchestrationRunAttemptRecord`, retry logic
-- Dependencies: A
+### G. Orchestration identity and attempt lease
+- Scope: `OrchestrationIdentityRecord`, `OrchestrationRunAttemptRecord`, single-RUNNING constraint, CAS takeover
+- Dependencies: B, C
 - Files: `modules/orchestration/infrastructure/repositories.py`, `orm.py`
-- Schema: `orchestration_identities`, `orchestration_run_attempts`
-- Non-goals: No distributed locking beyond DB constraints
+- Schema: `orchestration_identities`, `orchestration_run_attempts` + partial UNIQUE index
+- Non-goals: No distributed locking
 
-### G. Transaction-aware UnitOfWork and repositories
-- Scope: `OrchestrationUnitOfWork`, all repositories
-- Dependencies: E, F
+### H. UnitOfWork and transaction-aware repositories
+- Scope: `OrchestrationUnitOfWork`, all repositories (no sessions, no commits)
+- Dependencies: F, G
 - Files: `modules/orchestration/application/unit_of_work.py`, `infrastructure/repositories.py`
 - Non-goals: No callers passing sessions with pending work
 
-### H. SourceSnapshot content/envelope adapters
-- Scope: Five `SourceSnapshotContentV1` + `SourceSnapshotEnvelopeV1` with field mapping
-- Dependencies: E
+### I. SourceSnapshot content/envelope adapters
+- Scope: Five `SourceSnapshotContentV1` + `SourceSnapshotEnvelopeV1`
+- Dependencies: F
 - Files: `modules/orchestration/domain/snapshots.py`
 - Non-goals: No self-referential hash
 
-### I. SourceBinding persistence and SchemeService integration
-- Scope: `SourceBindingRecord` (one-way), SchemeService `source_binding_id`
-- Dependencies: F, G, H
+### J. SourceBinding persistence and strict verification
+- Scope: `SourceBindingRecord` (one-way), SchemeService integration with slot/type/project/version verification
+- Dependencies: G, H, I
 - Files: `modules/orchestration/infrastructure/repositories.py`, `modules/schemes/application/service.py`
 - Schema: `source_bindings`
 - Non-goals: No reverse FK from CalculationRunRecord
 
-### J. Power-to-Scheme mapping
-- Scope: Ensure SchemeService reads `installed_power_kw_e` from Power snapshot ONLY
-- Dependencies: H, I
-- Files: `modules/schemes/application/service.py` (mapping), tests
+### K. Power-to-Scheme mapping
+- Scope: SchemeService reads installed_power_kw_e from Power snapshot ONLY
+- Dependencies: I, J
+- Files: `modules/schemes/application/service.py`, tests
 - Non-goals: No Equipment fallback
 
-### K. Transactional audit outbox
-- Scope: `AuditOutboxEvent`, `AuditOutboxDispatcher`
-- Dependencies: G
+### L. Transactional audit outbox and idempotent dispatcher
+- Scope: `AuditOutboxEvent`, `AuditOutboxDispatcher` with claim/retry/idempotent materialization
+- Dependencies: H
 - Files: `modules/orchestration/application/outbox_dispatcher.py`, `infrastructure/orm.py`
-- Schema: `audit_outbox`
-- Non-goals: No external message broker dependency
+- Schema: `audit_outbox`, ALTER `audit_events` ADD `outbox_event_id` UNIQUE NOT NULL
+- Non-goals: No external message broker
 
-### L. SQLite/PostgreSQL migration and concurrency tests
-- Scope: Full integration on both backends
-- Dependencies: I, J, K
+### M. SQLite/PostgreSQL constraints and concurrency tests
+- Scope: Full integration tests on both backends
+- Dependencies: J, K, L
 - Files: `tests/integration/test_orchestration.py`
 - Non-goals: No production deployment
 
-### M. Task 11 Phase B resumption
+### N. Issue #22 acceptance-criteria synchronization
+- Scope: Update Issue #22 body from "four categories" → "five categories" + all new contracts
+- Dependencies: Design review accepted
+- No code changes
+- Mandatory gate before implementation
+
+### O. Task 11 Phase B resumption
 - Scope: Rebase PR #21, remove prerequisite gate, wire OrchestrationService
-- Dependencies: A–L complete
+- Dependencies: A–N complete
 - Files: PR #21 (rebase), evaluation runner
-- Non-goals: No Phase C/D content
+- Non-goals: No Phase C/D
 
 ---
 
-## 23. Task 11 Phase B Resumption Criteria
+## 20. Test Matrix (new items this round)
+
+| # | Test |
+|---|---|
+| T28 | Different project_id + same inputs → different fingerprint |
+| T29 | Same project, different project_version_id + same inputs → different fingerprint |
+| T30 | Same ProjectVersion, same identity/context/versions → same fingerprint |
+| T31 | version_number inconsistent with project_version_id → fail closed |
+| T32 | Preflight rejection (draft/archived/invalid status) → no identity/attempt created |
+| T33 | Preflight rejection → request-level audit outbox created |
+| T34 | Preflight rejection → typed PreflightFailure returned |
+| T35 | Blocker after identity/attempt exists → attempt.status=BLOCKED |
+| T36 | Idempotent hit on COMPLETED → no snapshot/context persisted |
+| T37 | Concurrent snapshot/context get-or-create → same authoritative artifact returned |
+| T38 | Single RUNNING attempt per identity enforced by partial UNIQUE index |
+| T39 | CAS stale takeover: matching heartbeat → ABANDONED + new attempt |
+| T40 | CAS stale takeover: heartbeat changed → CAS fails → no new attempt |
+| T41 | Transaction B rollback → persisted_stages empty, diagnostics populated |
+| T42 | Diagnostics never claim persisted calculation_run_id |
+| T43 | SourceBinding slot points to wrong calculation type → fail closed |
+| T44 | Binding record project/version/snapshot mismatch → fail closed |
+| T45 | combined_source_hash exact and stable across runs |
+| T46 | Outbox multi-dispatcher atomic claim → no duplicate materialization |
+| T47 | Outbox crash recovery: AuditEvent exists but outbox not published → idempotent |
+| T48 | AuditEventRecord.outbox_event_id UNIQUE constraint enforced |
+| T49 | project_version_id sole lookup; version_number mismatch cross-checked |
+| T50 | Approved weight-set revision resolved by code + status; hash bound to SchemeRun |
+| T51 | Unapproved weight-set revision → SchemeService rejects |
+| T52 | Incompatible generator_version → SchemeService rejects |
+| T53 | SchemeRun CHECK: legacy (all NULL) passes |
+| T54 | SchemeRun CHECK: production (all NON-NULL) passes |
+| T55 | SchemeRun CHECK: mixed (partial NULL) fails |
+| T56 | SchemeSourceArchiveV1 archive_hash verifiable |
+| T57 | Downgrade blocked when production SchemeRun references SourceBinding |
+
+---
+
+## 21. Task 11 Phase B Resumption Criteria
 
 Issue #22 is complete when:
 
 1. Independent production PR merged (separate from PR #21).
 2. Five CalculationRunRecord types produced by OrchestrationService.
 3. SourceBindingRecord materialized for COMPLETED runs — one-way owner.
-4. SchemeService consumes via `source_binding_id` with strict verification.
-5. Approved coefficient context produces `requires_review=false`.
-6. Approved weight set exists; `demo-weight-set-001` not used.
-7. Non-self-referential `result_hash` consistent across all three locations.
-8. Legacy/unbound/hash-missing rows rejected by production path.
-9. Terminal status + audit outbox transactionally consistent.
-10. Downgrade blocked when SchemeRun references SourceBinding.
-11. SQLite + PostgreSQL tests pass.
-12. Task 11 baseline: all 8 stages passed, `outcome=success`.
+4. SchemeService consumes via `source_binding_id` + `weight_set_revision_id`.
+5. Approved coefficient context + approved weight set → `requires_review=false`.
+6. Non-self-referential `result_hash` consistent across all three locations.
+7. Fingerprint isolates project/version identity — no cross-project collision.
+8. Preflight rejection vs execution BLOCKED separated.
+9. Orphan-free snapshot/context: idempotent hit creates no artifacts.
+10. Single RUNNING attempt constraint; CAS stale takeover.
+11. Rollback-safe: persisted_stages empty after rollback.
+12. SourceBinding strict slot/type/project/version verification.
+13. combined_source_hash single formula, exact five keys.
+14. Outbox at-least-once + idempotent materialization.
+15. Legacy CHECK constraint enforced.
+16. SchemeRun CHECK + SchemeSourceArchiveV1 + safe downgrade.
+17. SQLite + PostgreSQL tests pass.
+18. Task 11 baseline: all 8 stages passed, `outcome=success`.
+19. Issue #22 acceptance criteria synchronized (sub-task N).
 
 ---
 
@@ -1026,13 +1022,8 @@ Issue #22 is complete when:
 | File | Content |
 |---|---|
 | `backend/src/cold_storage/modules/projects/infrastructure/orm.py` | CalculationRunRecord, AuditEventRecord |
-| `backend/src/cold_storage/modules/calculations/domain/zone_planning.py` | ColdRoomZonePlanner |
-| `backend/src/cold_storage/modules/calculations/domain/cooling_load.py` | calculate_cooling_load |
-| `backend/src/cold_storage/modules/calculations/domain/equipment.py` | Equipment calculator |
-| `backend/src/cold_storage/modules/calculations/domain/power.py` | InstalledPower calculator |
-| `backend/src/cold_storage/modules/calculations/domain/investment.py` | InvestmentEstimator |
-| `backend/src/cold_storage/modules/schemes/application/service.py` | SchemeService (integration point) |
+| `backend/src/cold_storage/modules/calculations/domain/` | All calculators |
+| `backend/src/cold_storage/modules/schemes/application/service.py` | SchemeService integration point |
 | `docs/architecture/ADR-011-engineering-coefficient-registry.md` | Coefficient registry |
-| `docs/architecture/ADR-013-cooling-load-equipment.md` | Cooling load/equipment design |
+| `docs/architecture/ADR-013-cooling-load-equipment.md` | Cooling load/equipment |
 | `docs/audit/coefficient-inventory.md` | Coefficient inventory |
-| `docs/audit/gap-analysis.md` | Known gaps |
