@@ -37,8 +37,8 @@
     "processing_equipment_power_kw_e": "15.0"
   },
   "scheme_run": {
-    "profile_codes": ["ammonia_co2_cascade", "freon_r507"],
-    "weight_set_id": "demo-balanced",
+    "profile_codes": ["balanced"],
+    "weight_set_id": "demo-weight-set-001",
     "profile_parameters": {}
   }
 }
