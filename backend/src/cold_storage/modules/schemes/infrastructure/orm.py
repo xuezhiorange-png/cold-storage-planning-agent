@@ -38,10 +38,14 @@ class SchemeWeightSetRevisionRecord(Base):
     """
 
     __tablename__ = "scheme_weight_set_revisions"
-    __table_args__ = (UniqueConstraint("code", "revision", name="uq_weight_set_code_revision"),)
+    __table_args__ = (
+        UniqueConstraint("code", "revision", name="uq_scheme_weight_set_revision_code_revision"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    weight_set_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    weight_set_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("scheme_weight_sets.id"), nullable=False
+    )
     code: Mapped[str] = mapped_column(String(120), nullable=False)
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")

@@ -294,7 +294,30 @@ class AuditOutboxRecord(Base):
     """Transactional outbox for audit events."""
 
     __tablename__ = "orchestration_audit_outbox"
-    __table_args__ = (UniqueConstraint("event_identity", name="uq_outbox_event_identity"),)
+    __table_args__ = (
+        UniqueConstraint("event_identity", name="uq_outbox_event_identity"),
+        CheckConstraint(
+            "("
+            " status = 'PENDING'"
+            " AND claimed_at IS NULL"
+            " AND claimed_by IS NULL"
+            " AND claim_expires_at IS NULL"
+            " AND published_at IS NULL"
+            ")"
+            " OR ("
+            " status = 'PROCESSING'"
+            " AND claimed_at IS NOT NULL"
+            " AND claimed_by IS NOT NULL"
+            " AND claim_expires_at IS NOT NULL"
+            " AND published_at IS NULL"
+            ")"
+            " OR ("
+            " status = 'PUBLISHED'"
+            " AND published_at IS NOT NULL"
+            ")",
+            name="ck_outbox_status_nullity",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     event_identity: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -309,9 +332,10 @@ class AuditOutboxRecord(Base):
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    available_at: Mapped[datetime] = mapped_column(
+    next_retry_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     claimed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     claim_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

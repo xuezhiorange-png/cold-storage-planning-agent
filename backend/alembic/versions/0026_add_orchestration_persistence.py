@@ -287,7 +287,8 @@ def upgrade() -> None:
         sa.Column("payload", sa.JSON(), nullable=False),
         sa.Column("status", sa.String(50), nullable=False, server_default="PENDING"),
         sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("available_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("next_retry_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("claimed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("claimed_by", sa.String(100), nullable=True),
         sa.Column("claim_expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_error_code", sa.String(100), nullable=True),
@@ -298,11 +299,35 @@ def upgrade() -> None:
         sa.UniqueConstraint("event_identity", name="uq_outbox_event_identity"),
     )
 
+    # ── Outbox status nullability CHECK ─────────────────────────────────
+    _create_check_constraint(
+        "orchestration_audit_outbox",
+        "ck_outbox_status_nullity",
+        "(\n"
+        "    status = 'PENDING'\n"
+        "    AND claimed_at IS NULL\n"
+        "    AND claimed_by IS NULL\n"
+        "    AND claim_expires_at IS NULL\n"
+        "    AND published_at IS NULL\n"
+        ")\n"
+        "OR (\n"
+        "    status = 'PROCESSING'\n"
+        "    AND claimed_at IS NOT NULL\n"
+        "    AND claimed_by IS NOT NULL\n"
+        "    AND claim_expires_at IS NOT NULL\n"
+        "    AND published_at IS NULL\n"
+        ")\n"
+        "OR (\n"
+        "    status = 'PUBLISHED'\n"
+        "    AND published_at IS NOT NULL\n"
+        ")",
+    )
+
     # ── Scheme Weight Set Revisions ─────────────────────────────────────
     op.create_table(
         "scheme_weight_set_revisions",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("weight_set_id", sa.String(36), nullable=False),
+        sa.Column("weight_set_id", sa.String(36), sa.ForeignKey("scheme_weight_sets.id"), nullable=False),
         sa.Column("code", sa.String(120), nullable=False),
         sa.Column("revision", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(50), nullable=False, server_default="draft"),
@@ -313,7 +338,7 @@ def upgrade() -> None:
         sa.Column("approved_by", sa.String(100), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint(
-            "code", "revision", name="uq_weight_set_code_revision"
+            "code", "revision", name="uq_scheme_weight_set_revision_code_revision"
         ),
     )
 
@@ -558,7 +583,7 @@ def upgrade() -> None:
     # Step 0: add nullable column
     with op.batch_alter_table("audit_events") as batch_op:
         batch_op.add_column(
-            sa.Column("outbox_event_id", sa.String(36), nullable=True)
+            sa.Column("outbox_event_id", sa.String(128), nullable=True)
         )
 
     # Step 1: backfill legacy rows with stable, deterministic IDs
@@ -638,6 +663,7 @@ def downgrade() -> None:
 
     # ── Outbox FKs ──────────────────────────────────────────────────────
     with op.batch_alter_table("orchestration_audit_outbox") as batch_op:
+        batch_op.drop_constraint("ck_outbox_status_nullity", type_="check")
         batch_op.drop_constraint("fk_outbox_source_binding", type_="foreignkey")
         batch_op.drop_constraint("fk_outbox_calc_run", type_="foreignkey")
         batch_op.drop_constraint("fk_outbox_attempt", type_="foreignkey")
