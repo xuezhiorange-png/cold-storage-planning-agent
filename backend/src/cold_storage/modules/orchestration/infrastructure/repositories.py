@@ -7,6 +7,9 @@ caller's transaction boundary.  They MUST NOT call ``session.commit()``,
 Concrete SQLAlchemy implementations are provided for all protocols
 needed by Transaction A (request + snapshot + context + identity +
 attempt).
+
+Concurrent-safety: get-or-create methods use savepoint-based retry
+for SQLite and INSERT ... ON CONFLICT for PostgreSQL.
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -22,8 +26,28 @@ from cold_storage.modules.orchestration.domain.contracts import (
     RequestStatus,
 )
 
-
 # ── Orchestration Request ───────────────────────────────────────────────────
+
+
+def _ensure_str(value: object) -> str:
+    """Safe cast from dict[str, object] to str."""
+    if not isinstance(value, str):
+        raise TypeError(f"Expected str, got {type(value).__name__}")
+    return value
+
+
+def _ensure_datetime(value: object) -> datetime:
+    """Safe cast from dict[str, object] to datetime.
+
+    SQLite stores naive datetimes — add UTC timezone if missing.
+    """
+    if not isinstance(value, datetime):
+        raise TypeError(f"Expected datetime, got {type(value).__name__}")
+    if value.tzinfo is None:
+        from datetime import UTC
+
+        return value.replace(tzinfo=UTC)
+    return value
 
 
 class OrchestrationRequestRepository(ABC):
@@ -158,12 +182,14 @@ class ExecutionSnapshotRepository(ABC):
         version_number: int,
         input_snapshot: dict[str, object],
     ) -> str:
-        """Return existing record ID or create a new one."""
+        """Return existing record ID or create a new one (concurrent-safe)."""
         ...
 
 
 class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
     """Session-bound repository for ``ProjectVersionExecutionSnapshotRecord``."""
+
+    _MAX_RETRIES = 3
 
     def get_or_create(
         self,
@@ -185,7 +211,7 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
             ProjectVersionExecutionSnapshotRecord,
         )
 
-        # Try to find existing
+        # Try to find existing first
         existing = session.execute(
             select(ProjectVersionExecutionSnapshotRecord.id).where(
                 ProjectVersionExecutionSnapshotRecord.project_version_id == project_version_id,
@@ -194,22 +220,61 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
             )
         ).scalar()
         if existing:
-            return existing
+            return str(existing)
 
-        # Create new
-        record = ProjectVersionExecutionSnapshotRecord(
-            id=str(uuid4()),
-            project_id=project_id,
-            project_version_id=project_version_id,
-            version_number=version_number,
-            input_snapshot=input_snapshot,
-            input_snapshot_hash=input_snapshot_hash,
-            schema_version=schema_version,
-            captured_status="approved",
+        return self._insert_with_retry(
+            session,
+            ProjectVersionExecutionSnapshotRecord,
+            dict(
+                id=str(uuid4()),
+                project_id=project_id,
+                project_version_id=project_version_id,
+                version_number=version_number,
+                input_snapshot=input_snapshot,
+                input_snapshot_hash=input_snapshot_hash,
+                schema_version=schema_version,
+                captured_status="approved",
+            ),
+            select_filter={
+                "project_version_id": project_version_id,
+                "input_snapshot_hash": input_snapshot_hash,
+                "schema_version": schema_version,
+            },
         )
-        session.add(record)
-        session.flush()
-        return record.id
+
+    def _insert_with_retry(
+        self,
+        session: Session,
+        model_cls: type[Any],
+        fields: dict[str, object],
+        select_filter: dict[str, object],
+    ) -> str:
+        """Concurrent-safe insert: savepoint → insert → retry on conflict → re-read."""
+        from sqlalchemy import select
+        from sqlalchemy.exc import IntegrityError
+
+        for _attempt_no in range(self._MAX_RETRIES):
+            try:
+                session.begin_nested()
+                record = model_cls(**fields)
+                session.add(record)
+                session.flush()
+                session.commit()  # commit the savepoint
+                return str(record.id)
+            except IntegrityError:
+                session.rollback()  # rollback savepoint only
+                # Re-read — another transaction may have inserted
+                stmt = select(model_cls.id)
+                for k, v in select_filter.items():
+                    stmt = stmt.where(getattr(model_cls, k) == v)
+                existing = session.execute(stmt).scalar()
+                if existing:
+                    return str(existing)
+                continue
+
+        raise RuntimeError(
+            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
+        )
 
 
 # ── Coefficient Context ─────────────────────────────────────────────────────
@@ -230,12 +295,14 @@ class CoefficientContextRepository(ABC):
         schema_version: str,
         project_id: str,
     ) -> str:
-        """Return existing record ID or create a new one."""
+        """Return existing record ID or create a new one (concurrent-safe)."""
         ...
 
 
 class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
     """Session-bound repository for ``CoefficientContextRecord``."""
+
+    _MAX_RETRIES = 3
 
     def get_or_create(
         self,
@@ -263,19 +330,56 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
             )
         ).scalar()
         if existing:
-            return existing
+            return str(existing)
 
-        record = CoefficientContextRecord(
-            id=str(uuid4()),
-            project_id=project_id,
-            project_version_id=project_version_id,
-            content=content,
-            content_hash=content_hash,
-            schema_version=schema_version,
+        return self._insert_with_retry(
+            session,
+            CoefficientContextRecord,
+            dict(
+                id=str(uuid4()),
+                project_id=project_id,
+                project_version_id=project_version_id,
+                content=content,
+                content_hash=content_hash,
+                schema_version=schema_version,
+            ),
+            select_filter={
+                "project_version_id": project_version_id,
+                "content_hash": content_hash,
+            },
         )
-        session.add(record)
-        session.flush()
-        return record.id
+
+    def _insert_with_retry(
+        self,
+        session: Session,
+        model_cls: type[Any],
+        fields: dict[str, object],
+        select_filter: dict[str, object],
+    ) -> str:
+        from sqlalchemy import select
+        from sqlalchemy.exc import IntegrityError
+
+        for _attempt_no in range(self._MAX_RETRIES):
+            try:
+                session.begin_nested()
+                record = model_cls(**fields)
+                session.add(record)
+                session.flush()
+                session.commit()
+                return str(record.id)
+            except IntegrityError:
+                session.rollback()
+                stmt = select(model_cls.id)
+                for k, v in select_filter.items():
+                    stmt = stmt.where(getattr(model_cls, k) == v)
+                existing = session.execute(stmt).scalar()
+                if existing:
+                    return str(existing)
+                continue
+
+        raise RuntimeError(
+            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
+        )
 
 
 # ── Orchestration Identity ──────────────────────────────────────────────────
@@ -296,7 +400,7 @@ class OrchestrationIdentityRepository(ABC):
         definition_version: str,
         calculator_version_vector: dict[str, str],
     ) -> str:
-        """Return existing identity ID or create a new one."""
+        """Return existing identity ID or create a new one (concurrent-safe)."""
         ...
 
     @abstractmethod
@@ -313,6 +417,8 @@ class OrchestrationIdentityRepository(ABC):
 
 class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository):
     """Session-bound repository for ``OrchestrationIdentityRecord``."""
+
+    _MAX_RETRIES = 3
 
     def get_or_create(
         self,
@@ -339,20 +445,54 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
             )
         ).scalar()
         if existing:
-            return existing
+            return str(existing)
 
-        record = OrchestrationIdentityRecord(
-            id=str(uuid4()),
-            fingerprint=fingerprint,
-            execution_snapshot_id=execution_snapshot_id,
-            coefficient_context_id=coefficient_context_id,
-            definition_version=definition_version,
-            calculator_version_vector=calculator_version_vector,
-            status="ACTIVE",
+        return self._insert_with_retry(
+            session,
+            OrchestrationIdentityRecord,
+            dict(
+                id=str(uuid4()),
+                fingerprint=fingerprint,
+                execution_snapshot_id=execution_snapshot_id,
+                coefficient_context_id=coefficient_context_id,
+                definition_version=definition_version,
+                calculator_version_vector=calculator_version_vector,
+                status="ACTIVE",
+            ),
+            select_filter={"fingerprint": fingerprint},
         )
-        session.add(record)
-        session.flush()
-        return record.id
+
+    def _insert_with_retry(
+        self,
+        session: Session,
+        model_cls: type[Any],
+        fields: dict[str, object],
+        select_filter: dict[str, object],
+    ) -> str:
+        from sqlalchemy import select
+        from sqlalchemy.exc import IntegrityError
+
+        for _attempt_no in range(self._MAX_RETRIES):
+            try:
+                session.begin_nested()
+                record = model_cls(**fields)
+                session.add(record)
+                session.flush()
+                session.commit()
+                return str(record.id)
+            except IntegrityError:
+                session.rollback()
+                stmt = select(model_cls.id)
+                for k, v in select_filter.items():
+                    stmt = stmt.where(getattr(model_cls, k) == v)
+                existing = session.execute(stmt).scalar()
+                if existing:
+                    return str(existing)
+                continue
+
+        raise RuntimeError(
+            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
+        )
 
     def set_authoritative_attempt(
         self,
@@ -387,10 +527,34 @@ class OrchestrationAttemptRepository(ABC):
         /,
         *,
         identity_id: str,
-        attempt_number: int,
         heartbeat_at: datetime,
     ) -> str:
-        """Create a new RUNNING attempt and return its ID."""
+        """Acquire a new RUNNING attempt for the identity.
+
+        - If no RUNNING attempt exists, creates attempt_number = max+1.
+        - If a RUNNING attempt exists with expired lease, CAS-takes over.
+        - Raises ``AttemptAlreadyRunningError`` if a live RUNNING attempt exists.
+        - Raises ``AttemptTakeoverConflictError`` if CAS fails.
+        """
+        ...
+
+    @abstractmethod
+    def find_running_attempt(
+        self, session: Session, /, identity_id: str
+    ) -> dict[str, object] | None:
+        """Return the current RUNNING attempt for an identity (if any)."""
+        ...
+
+    @abstractmethod
+    def find_authoritative_completed(
+        self, session: Session, /, identity_id: str
+    ) -> dict[str, object] | None:
+        """Return the authoritative COMPLETED attempt (if any)."""
+        ...
+
+    @abstractmethod
+    def get_max_attempt_number(self, session: Session, /, identity_id: str) -> int:
+        """Return the max attempt_number for the identity (0 if none)."""
         ...
 
     @abstractmethod
@@ -426,31 +590,139 @@ class OrchestrationAttemptRepository(ABC):
 class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
     """Session-bound repository for ``OrchestrationRunAttemptRecord``."""
 
+    _LEASE_TIMEOUT_SECONDS = 300  # 5 minutes
+    _MAX_ACQUIRE_RETRIES = 3
+
     def acquire(
         self,
         session: Session,
         /,
         *,
         identity_id: str,
-        attempt_number: int,
         heartbeat_at: datetime,
     ) -> str:
+        from datetime import UTC
+        from datetime import datetime as _dt
         from uuid import uuid4
+
+        from cold_storage.modules.orchestration.domain.errors import (
+            AttemptAlreadyRunningError,
+            AttemptTakeoverConflictError,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        attempt_number = self.get_max_attempt_number(session, identity_id) + 1
+
+        for _retry in range(self._MAX_ACQUIRE_RETRIES):
+            # Check for existing RUNNING attempt
+            running = self.find_running_attempt(session, identity_id)
+            if running is not None:
+                running_id: str = _ensure_str(running["id"])
+                running_heartbeat: datetime = _ensure_datetime(running["heartbeat_at"])
+                # Check if lease is expired
+                age = (_dt.now(UTC) - running_heartbeat).total_seconds()
+                if age > self._LEASE_TIMEOUT_SECONDS:
+                    # Try CAS takeover
+                    now = _dt.now(UTC)
+                    if self.takeover_stale(
+                        session,
+                        attempt_id=running_id,
+                        observed_heartbeat=running_heartbeat,
+                        now=now,
+                    ):
+                        # Successfully abandoned old attempt; continue to create new
+                        pass
+                    else:
+                        # CAS failed — someone else took over
+                        raise AttemptTakeoverConflictError(running_id)
+                else:
+                    # Running attempt is still live
+                    raise AttemptAlreadyRunningError(identity_id)
+
+            # Create new attempt
+            record = OrchestrationRunAttemptRecord(
+                id=str(uuid4()),
+                identity_id=identity_id,
+                attempt_number=attempt_number,
+                status="RUNNING",
+                heartbeat_at=heartbeat_at,
+            )
+            try:
+                session.add(record)
+                session.flush()
+                return record.id
+            except Exception:
+                session.rollback()
+                continue
+
+        raise RuntimeError(
+            f"Failed to acquire attempt for identity {identity_id} "
+            f"after {self._MAX_ACQUIRE_RETRIES} retries"
+        )
+
+    def find_running_attempt(
+        self, session: Session, /, identity_id: str
+    ) -> dict[str, object] | None:
+        from sqlalchemy import select
 
         from cold_storage.modules.orchestration.infrastructure.orm import (
             OrchestrationRunAttemptRecord,
         )
 
-        record = OrchestrationRunAttemptRecord(
-            id=str(uuid4()),
-            identity_id=identity_id,
-            attempt_number=attempt_number,
-            status="RUNNING",
-            heartbeat_at=heartbeat_at,
+        row = session.execute(
+            select(OrchestrationRunAttemptRecord).where(
+                OrchestrationRunAttemptRecord.identity_id == identity_id,
+                OrchestrationRunAttemptRecord.status == "RUNNING",
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            return None
+        return {"id": row.id, "heartbeat_at": row.heartbeat_at, "status": row.status}
+
+    def find_authoritative_completed(
+        self, session: Session, /, identity_id: str
+    ) -> dict[str, object] | None:
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationIdentityRecord,
+            OrchestrationRunAttemptRecord,
         )
-        session.add(record)
-        session.flush()
-        return record.id
+
+        identity = session.execute(
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
+        ).scalar_one_or_none()
+        if identity is None or identity.authoritative_attempt_id is None:
+            return None
+
+        attempt = session.execute(
+            select(OrchestrationRunAttemptRecord).where(
+                OrchestrationRunAttemptRecord.id == identity.authoritative_attempt_id
+            )
+        ).scalar_one_or_none()
+        if attempt is None:
+            return None
+        return {
+            "id": attempt.id,
+            "attempt_number": attempt.attempt_number,
+            "status": attempt.status,
+        }
+
+    def get_max_attempt_number(self, session: Session, /, identity_id: str) -> int:
+        from sqlalchemy import func, select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        max_num = session.execute(
+            select(func.max(OrchestrationRunAttemptRecord.attempt_number)).where(
+                OrchestrationRunAttemptRecord.identity_id == identity_id
+            )
+        ).scalar()
+        return max_num if max_num is not None else 0
 
     def update_status(
         self,
@@ -509,7 +781,6 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             )
             .values(status="ABANDONED", completed_at=now)
         )
-        # rowcount on CursorResult returns the number of matched rows
         return result.rowcount is not None and result.rowcount > 0  # type: ignore[attr-defined]
 
 

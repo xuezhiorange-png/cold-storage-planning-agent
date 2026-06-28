@@ -13,14 +13,17 @@ Implements the first vertical core closure from approved design:
 
 All repository operations are session-bound.  The service owns the
 UnitOfWork lifecycle via the injected factory.
+
+The request_id is threaded explicitly through a frozen
+``TransactionAContext`` — never discovered after the fact via
+``_find_pending_request_id()``.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
-
-from sqlalchemy.orm import Session
 
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
@@ -61,8 +64,7 @@ from cold_storage.modules.orchestration.infrastructure.repositories import (
 class ProjectVersionReadPort(Protocol):
     """Read-only port for loading ProjectVersion and its input data."""
 
-    def load_by_id(self, session: Session, project_version_id: str) -> _LoadedVersion | None:
-        ...
+    def load_by_id(self, session: object, project_version_id: str) -> _LoadedVersion | None: ...
 
 
 class _LoadedVersion:
@@ -104,6 +106,15 @@ class PreflightAccepted:
         self.attempt_id = attempt_id
 
 
+@dataclass(frozen=True, slots=True)
+class TransactionAContext:
+    """Immutable context carrying the durable request identity through
+    the full Transaction A lifecycle."""
+
+    request_id: str
+    request_fingerprint: str
+
+
 # ── Service ─────────────────────────────────────────────────────────────────
 
 _ORCHESTRATION_DEFINITION_VERSION = "1.0.0"
@@ -114,6 +125,8 @@ _CALCULATOR_VERSION_VECTOR: dict[str, str] = {
     "power": "1.0.0",
     "investment": "1.0.0",
 }
+_INPUT_MAPPING_SCHEMA_VERSION = "1.0.0"
+_SOURCE_SNAPSHOT_SCHEMA_VERSION = "1.0.0"
 _SNAPSHOT_SCHEMA_VERSION = "1.0.0"
 _COEFFICIENT_SCHEMA_VERSION = "1.0.0"
 
@@ -149,6 +162,7 @@ class OrchestrationService:
         self._version_port = version_port
         self._snapshot_port = snapshot_port
         self._coefficient_port = coefficient_port
+        self._last_request_id: str = ""
 
     # ── Transaction A: request → ACCEPTED ───────────────────────────────
 
@@ -165,10 +179,10 @@ class OrchestrationService:
             try:
                 return self._transaction_a(command, uow)
             except OrchestrationDomainError as domain_exc:
-                self._transaction_rejection(command, uow, domain_exc)
+                self._transaction_rejection(domain_exc, uow)
                 uow.commit()
                 raise PreflightFailure(
-                    request_id="",
+                    request_id=self._last_request_id,
                     project_id=command.project_id,
                     project_version_id=command.project_version_id,
                     error_class=type(domain_exc).__name__,
@@ -188,17 +202,22 @@ class OrchestrationService:
     ) -> PreflightAccepted:
         session = uow.session
 
-        # 1 — Validate + create PENDING request
+        # 1 — Validate + create PENDING request; capture context immediately
         _validate_command_identity(command)
         fingerprint = _compute_request_fingerprint(command)
-        request_id = self._request_repo.add(
-            session,
-            requested_project_id=command.project_id,
-            requested_project_version_id=command.project_version_id,
+        ctx = TransactionAContext(
+            request_id=self._request_repo.add(
+                session,
+                requested_project_id=command.project_id,
+                requested_project_version_id=command.project_version_id,
+                request_fingerprint=fingerprint,
+                actor=command.actor,
+                correlation_id=command.correlation_id,
+            ),
             request_fingerprint=fingerprint,
-            actor=command.actor,
-            correlation_id=command.correlation_id,
         )
+        # Stash for rejection path (must be set after every add())
+        self._last_request_id = ctx.request_id
 
         # 2 — Load + validate ProjectVersion
         version = self._version_port.load_by_id(session, command.project_version_id)
@@ -214,7 +233,7 @@ class OrchestrationService:
             project_version_id=command.project_version_id,
             version_status=version.status,
         )
-        self._coefficient_port.validate_resolution(
+        resolved_coeff = self._coefficient_port.resolve(
             project_id=command.project_id,
             project_version_id=command.project_version_id,
             coefficient_resolution_context=dict(command.coefficient_resolution_context),
@@ -232,11 +251,9 @@ class OrchestrationService:
             input_snapshot=version.input_snapshot,
         )
 
-        # 5 — Get-or-create coefficient context (approved coefficients only)
-        # In this phase, the coefficient port populates a minimal context.
-        # Full resolution comes in later subtasks.
-        coefficient_content = _build_coefficient_context(command)
-        coefficient_hash = result_hash(coefficient_content)
+        # 5 — Get-or-create coefficient context (from resolved candidate, NOT forged)
+        coefficient_content = dict(resolved_coeff.content)
+        coefficient_hash = resolved_coeff.content_hash
         coefficient_id = self._coefficient_repo.get_or_create(
             session,
             project_version_id=command.project_version_id,
@@ -246,9 +263,14 @@ class OrchestrationService:
             project_id=command.project_id,
         )
 
-        # 6 — Get-or-create identity
+        # 6 — Get-or-create identity (fingerprint uses frozen design fields)
         orchestration_fingerprint = _compute_orchestration_fingerprint(
-            snapshot_id, coefficient_id
+            execution_identity_hash=input_snapshot_hash,
+            coefficient_context_hash=coefficient_hash,
+            definition_version=_ORCHESTRATION_DEFINITION_VERSION,
+            calculator_version_vector=_CALCULATOR_VERSION_VECTOR,
+            input_mapping_schema_version=_INPUT_MAPPING_SCHEMA_VERSION,
+            source_snapshot_schema_version=_SOURCE_SNAPSHOT_SCHEMA_VERSION,
         )
         identity_id = self._identity_repo.get_or_create(
             session,
@@ -259,18 +281,17 @@ class OrchestrationService:
             calculator_version_vector=_CALCULATOR_VERSION_VECTOR,
         )
 
-        # 7 — Acquire RUNNING attempt
+        # 7 — Acquire RUNNING attempt (with full acquisition logic)
         attempt_id = self._attempt_repo.acquire(
             session,
             identity_id=identity_id,
-            attempt_number=1,
             heartbeat_at=datetime.now(UTC),
         )
 
         # 8 — Transition request → ACCEPTED
         self._request_repo.update_status(
             session,
-            request_id,
+            ctx.request_id,
             status=RequestStatus.ACCEPTED,
             resolved_project_id=command.project_id,
             resolved_project_version_id=command.project_version_id,
@@ -283,26 +304,26 @@ class OrchestrationService:
             session,
             event_type="orchestration.request.accepted",
             aggregate_type="OrchestrationRequest",
-            aggregate_id=request_id,
+            aggregate_id=ctx.request_id,
             payload={
                 "identity_id": identity_id,
                 "attempt_id": attempt_id,
                 "fingerprint": orchestration_fingerprint,
             },
-            request_id=request_id,
+            request_id=ctx.request_id,
             identity_id=identity_id,
             attempt_id=attempt_id,
         )
 
         uow.commit()
-        return PreflightAccepted(request_id, fingerprint, identity_id, attempt_id)
+        return PreflightAccepted(ctx.request_id, fingerprint, identity_id, attempt_id)
 
     # ── Transaction C: attempt → terminal ───────────────────────────────
 
     def mark_attempt_blocked(
         self, attempt_id: str, *, failure_code: str, failure_details: dict[str, object]
     ) -> None:
-        """Mark a RUNNING attempt as BLOCKED (Transaction C)."""
+        """Mark a RUNNING attempt as BLOCKED (Transaction C) + outbox."""
         with self._uow_factory() as uow:
             self._attempt_repo.update_status(
                 uow.session,
@@ -311,12 +332,23 @@ class OrchestrationService:
                 failure_code=failure_code,
                 failure_details=failure_details,
             )
+            self._outbox_repo.add(
+                uow.session,
+                event_type="orchestration.attempt.blocked",
+                aggregate_type="OrchestrationRunAttempt",
+                aggregate_id=attempt_id,
+                payload={
+                    "failure_code": failure_code,
+                    "failure_details": failure_details,
+                },
+                attempt_id=attempt_id,
+            )
             uow.commit()
 
     def mark_attempt_failed(
         self, attempt_id: str, *, failure_code: str, failure_details: dict[str, object]
     ) -> None:
-        """Mark a RUNNING attempt as FAILED (Transaction C)."""
+        """Mark a RUNNING attempt as FAILED (Transaction C) + outbox."""
         with self._uow_factory() as uow:
             self._attempt_repo.update_status(
                 uow.session,
@@ -325,37 +357,33 @@ class OrchestrationService:
                 failure_code=failure_code,
                 failure_details=failure_details,
             )
+            self._outbox_repo.add(
+                uow.session,
+                event_type="orchestration.attempt.failed",
+                aggregate_type="OrchestrationRunAttempt",
+                aggregate_id=attempt_id,
+                payload={
+                    "failure_code": failure_code,
+                    "failure_details": failure_details,
+                },
+                attempt_id=attempt_id,
+            )
             uow.commit()
 
     # ── Preflight rejection persistence ─────────────────────────────────
 
     def _transaction_rejection(
         self,
-        command: OrchestrationRequestCommand,
-        uow: SqlAlchemyOrchestrationUnitOfWork,
         exc: OrchestrationDomainError,
+        uow: SqlAlchemyOrchestrationUnitOfWork,
     ) -> None:
-        """Persist a preflight rejection atomically (P0-3: nested try).
+        """Persist a preflight rejection atomically using the durable request_id.
 
-        If any step fails, the entire transaction rolls back.
+        The request_id was set in ``_transaction_a`` before the failure
+        occurred.  There is no fuzzy ``_find_pending_request_id`` lookup.
         """
         session = uow.session
-
-        # Find the pending request (created before the failure in _transaction_a)
-        request_id = _find_pending_request_id(
-            session, command.project_id, command.project_version_id
-        )
-        if not request_id:
-            # Fallback: create a minimal request for the rejection
-            fingerprint = _compute_request_fingerprint(command)
-            request_id = self._request_repo.add(
-                session,
-                requested_project_id=command.project_id or "__unvalidated__",
-                requested_project_version_id=command.project_version_id or "__unvalidated__",
-                request_fingerprint=fingerprint,
-                actor=command.actor or "__unvalidated__",
-                correlation_id=command.correlation_id or "__unvalidated__",
-            )
+        request_id = self._last_request_id
 
         # P0-3: nested try/except — if rejection persistence fails, we roll back
         try:
@@ -428,45 +456,26 @@ def _compute_request_fingerprint(command: OrchestrationRequestCommand) -> str:
     )
 
 
-def _compute_orchestration_fingerprint(snapshot_id: str, coefficient_id: str) -> str:
+def _compute_orchestration_fingerprint(
+    *,
+    execution_identity_hash: str,
+    coefficient_context_hash: str,
+    definition_version: str,
+    calculator_version_vector: dict[str, str],
+    input_mapping_schema_version: str,
+    source_snapshot_schema_version: str,
+) -> str:
+    """Compute the orchestration fingerprint from the frozen design fields.
+
+    Uses real content hashes and version vectors — never DB random IDs.
+    """
     return result_hash(
         {
-            "execution_snapshot_id": snapshot_id,
-            "coefficient_context_id": coefficient_id,
+            "execution_identity_hash": execution_identity_hash,
+            "coefficient_context_hash": coefficient_context_hash,
+            "orchestration_definition_version": definition_version,
+            "calculator_version_vector": calculator_version_vector,
+            "input_mapping_schema_version": input_mapping_schema_version,
+            "source_snapshot_schema_version": source_snapshot_schema_version,
         }
     )
-
-
-def _build_coefficient_context(command: OrchestrationRequestCommand) -> dict[str, object]:
-    """Build a minimal approved coefficient context.
-
-    In later subtasks this will resolve from the production coefficient
-    catalog.  For now it captures the caller's resolution context and
-    the approved version scope.
-    """
-    ctx = dict(command.coefficient_resolution_context)
-    ctx.setdefault("source_type", "approved")
-    ctx.setdefault("validity_status", "approved")
-    ctx.setdefault("project_id", command.project_id)
-    ctx.setdefault("project_version_id", command.project_version_id)
-    ctx.setdefault("schema_version", _COEFFICIENT_SCHEMA_VERSION)
-    return ctx
-
-
-def _find_pending_request_id(
-    session: Session, project_id: str, project_version_id: str
-) -> str | None:
-    """Find the most recent PENDING request for the given project+version."""
-    from sqlalchemy import select
-
-    from cold_storage.modules.orchestration.infrastructure.orm import (
-        OrchestrationRequestRecord,
-    )
-
-    return session.execute(
-        select(OrchestrationRequestRecord.id).where(
-            OrchestrationRequestRecord.requested_project_id == project_id,
-            OrchestrationRequestRecord.requested_project_version_id == project_version_id,
-            OrchestrationRequestRecord.status == "PENDING",
-        )
-    ).scalar()
