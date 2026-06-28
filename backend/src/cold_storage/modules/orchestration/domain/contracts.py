@@ -175,22 +175,45 @@ class OrchestrationRequestCommand:
 # ── Preflight Failure ───────────────────────────────────────────────────────
 
 
-@dataclass(frozen=True, slots=True)
-class PreflightFailure:
-    """Typed preflight rejection result (approved design §9.3)."""
+class PreflightFailure(Exception):
+    """Typed preflight rejection result (approved design §9.3).
 
-    request_id: str
-    project_id: str
-    project_version_id: str
-    error_class: str
-    code: str
-    field: str
-    details: Mapping[str, object]
-    occurred_at: datetime
+    Inherits from ``Exception`` so it can be raised after the
+    rejection has been atomically persisted.  Callers MUST NOT
+    catch this — it signals that the outcome is already durable.
+    """
 
-    def __post_init__(self) -> None:
-        frozen = deep_freeze(self.details)
-        object.__setattr__(self, "details", frozen)
+    __slots__ = (
+        "request_id",
+        "project_id",
+        "project_version_id",
+        "error_class",
+        "code",
+        "field",
+        "details",
+        "occurred_at",
+    )
+
+    def __init__(
+        self,
+        request_id: str,
+        project_id: str,
+        project_version_id: str,
+        error_class: str,
+        code: str,
+        field: str,
+        details: Mapping[str, object],
+        occurred_at: datetime,
+    ) -> None:
+        super().__init__(code)
+        self.request_id = request_id
+        self.project_id = project_id
+        self.project_version_id = project_version_id
+        self.error_class = error_class
+        self.code = code
+        self.field = field
+        self.details = deep_freeze(details)
+        self.occurred_at = occurred_at
 
 
 # ── Execution Snapshot Candidate ────────────────────────────────────────────

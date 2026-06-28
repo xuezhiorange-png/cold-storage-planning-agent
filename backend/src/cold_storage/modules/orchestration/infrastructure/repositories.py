@@ -213,9 +213,19 @@ class AuditOutboxRepository(ABC):
         aggregate_type: str,
         aggregate_id: str,
         payload: dict[str, object],
+        request_id: str | None = None,
+        identity_id: str | None = None,
+        attempt_id: str | None = None,
+        calculation_run_id: str | None = None,
+        source_binding_id: str | None = None,
         available_at: datetime | None = None,
     ) -> str:
-        """Insert a PENDING outbox event and return its ID."""
+        """Insert a PENDING outbox event and return its ID.
+
+        FK fields (request_id, identity_id, attempt_id, calculation_run_id,
+        source_binding_id) are nullable and set by the caller to link the
+        event to the appropriate aggregate stage.
+        """
         ...
 
     @abstractmethod
@@ -270,3 +280,141 @@ class CalculationRunRepository(ABC):
     ) -> str:
         """Insert a new orchestrated CalculationRunRecord and return its ID."""
         ...
+
+
+# ── Concrete SQLAlchemy implementations ─────────────────────────────────────
+
+
+class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
+    """Session-bound repository for ``OrchestrationRequestRecord``."""
+
+    def add(
+        self,
+        session: Session,
+        /,
+        *,
+        project_id: str,
+        project_version_id: str,
+        request_fingerprint: str,
+        actor: str,
+        correlation_id: str,
+    ) -> str:
+        from uuid import uuid4
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRequestRecord,
+        )
+
+        record = OrchestrationRequestRecord(
+            id=str(uuid4()),
+            project_id=project_id,
+            project_version_id=project_version_id,
+            request_fingerprint=request_fingerprint,
+            actor=actor,
+            correlation_id=correlation_id,
+            status="PENDING",
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+    def update_status(
+        self,
+        session: Session,
+        /,
+        request_id: str,
+        *,
+        status: RequestStatus,
+        failure_code: str | None = None,
+        failure_field: str | None = None,
+        failure_details: dict[str, object] | None = None,
+        resolved_identity_id: str | None = None,
+        resolved_attempt_id: str | None = None,
+    ) -> None:
+        from datetime import UTC, datetime
+
+        from sqlalchemy import update
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRequestRecord,
+        )
+
+        values: dict[str, object] = {
+            "status": str(status.value),
+            "failure_code": failure_code,
+            "failure_field": failure_field,
+            "failure_details": failure_details,
+            "resolved_identity_id": resolved_identity_id,
+            "resolved_attempt_id": resolved_attempt_id,
+            "completed_at": datetime.now(UTC),
+        }
+        session.execute(
+            update(OrchestrationRequestRecord)
+            .where(OrchestrationRequestRecord.id == request_id)
+            .values(**{k: v for k, v in values.items() if v is not None or k == "status"}),
+        )
+
+
+class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
+    """Session-bound repository for ``AuditOutboxRecord``.
+
+    Implements request-level append only.  claim / retry / dispatcher
+    are not implemented in this phase.
+    """
+
+    def add(
+        self,
+        session: Session,
+        /,
+        *,
+        event_type: str,
+        aggregate_type: str,
+        aggregate_id: str,
+        payload: dict[str, object],
+        request_id: str | None = None,
+        identity_id: str | None = None,
+        attempt_id: str | None = None,
+        calculation_run_id: str | None = None,
+        source_binding_id: str | None = None,
+        available_at: datetime | None = None,
+    ) -> str:
+        from uuid import uuid4
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            AuditOutboxRecord,
+        )
+
+        record = AuditOutboxRecord(
+            id=str(uuid4()),
+            event_identity=str(uuid4()),
+            event_type=event_type,
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+            request_id=request_id,
+            identity_id=identity_id,
+            attempt_id=attempt_id,
+            calculation_run_id=calculation_run_id,
+            source_binding_id=source_binding_id,
+            payload=payload,
+            status="PENDING",
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
+        raise NotImplementedError("Outbox claim not implemented in this phase")
+
+    def mark_published(self, session: Session, /, event_id: str) -> None:
+        raise NotImplementedError("Outbox dispatcher not implemented in this phase")
+
+    def mark_failed(
+        self,
+        session: Session,
+        /,
+        event_id: str,
+        *,
+        error_code: str,
+        next_retry_at: datetime,
+    ) -> None:
+        raise NotImplementedError("Outbox retry not implemented in this phase")
