@@ -553,3 +553,74 @@ class TestConcurrentAttempt:
                     heartbeat_at=datetime.now(UTC),
                 )
             assert r1.identity_id in str(exc_info.value)
+
+
+class TestServiceReentry:
+    """P0-1: Concurrent service reentry — request IDs must not cross-talk."""
+
+    def test_interleaved_failures_preserve_correct_request_ids(
+        self, service, session_factory
+    ) -> None:
+        """Two interleaved failed requests using the same service instance
+        must have distinct request IDs, distinct rejection outbox events,
+        and distinct PreflightFailure.request_id values."""
+        # Seed one project — both requests reference it but with nonexistent versions
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        failures: list[PreflightFailure] = []
+
+        # Interleave two calls — both should fail with version not found
+        for version_id in ("pv-nonexistent-a", "pv-nonexistent-b"):
+            try:
+                service.execute(_make_command(project_version_id=version_id))
+            except PreflightFailure as pf:
+                failures.append(pf)
+
+        assert len(failures) == 2
+
+        # Request IDs must differ
+        assert failures[0].request_id != failures[1].request_id, (
+            f"Shared request_id across reentrant calls: "
+            f"{failures[0].request_id!r}"
+        )
+
+        # Each request ID must be non-empty
+        for pf in failures:
+            assert pf.request_id != "", "request_id must not be empty"
+
+        # Verify database: two distinct requests, two distinct outbox events
+        with session_factory() as s:
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                OrchestrationRequestRecord,
+                AuditOutboxRecord,
+            )
+
+            req_ids = {pf.request_id for pf in failures}
+            rows = (
+                s.execute(
+                    select(OrchestrationRequestRecord).where(
+                        OrchestrationRequestRecord.id.in_(req_ids)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(rows) == 2
+            for row in rows:
+                assert row.status == "PREFLIGHT_REJECTED"
+
+            events = (
+                s.execute(
+                    select(AuditOutboxRecord).where(
+                        AuditOutboxRecord.request_id.in_(req_ids)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(events) == 2
+            event_request_ids = {e.request_id for e in events}
+            assert event_request_ids == req_ids, (
+                "Outbox events not bound to correct requests"
+            )
