@@ -14,12 +14,11 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
-from textwrap import dedent
 
 import pytest
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import NullPool
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -276,19 +275,20 @@ class TestCalculationRunRejection:
         import uuid
 
         cid = str(uuid.uuid4())
-        with engine.connect() as conn:
-            # Insert with some orchestration fields but not all -> must fail
-            with pytest.raises(Exception):
-                conn.execute(
-                    text(
-                        "INSERT INTO calculation_runs (id, project_id, project_version_id, "
-                        "status, requires_review, calculator_name, calculation_type, "
-                        "created_at, orchestration_identity_id) "
-                        "VALUES (:id, 'p-1', 'pv-1', 'completed', false, 'zone', 'zone', now(), :oid)"
-                    ),
-                    {"id": cid, "oid": str(uuid.uuid4())},
-                )
-                conn.commit()
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            conn.execute(
+                text(
+                    "INSERT INTO calculation_runs (id, project_id, "
+                    "project_version_id, calculator_name, calculator_version, "
+                    "input_snapshot, result_snapshot, formulas, coefficients, "
+                    "assumptions, warnings, source_references, requires_review, "
+                    "created_at, calculation_type, orchestration_identity_id) "
+                    "VALUES (:id, 'p-1', 'pv-1', 'zone', '1.0', '{}', '{}', "
+                    "'[]', '[]', '[]', '[]', '[]', false, now(), 'zone', :oid)"
+                ),
+                {"id": cid, "oid": str(uuid.uuid4())},
+            )
+            conn.commit()
         engine.dispose()
 
 
@@ -298,22 +298,21 @@ class TestSchemeRunRejection:
         import uuid
 
         sid = str(uuid.uuid4())
-        with engine.connect() as conn:
-            with pytest.raises(Exception):
-                # production with source_binding_id but NULL combined_source_hash -> rejected
-                conn.execute(
-                    text(
-                        "INSERT INTO scheme_runs (id, project_id, project_version_id, "
-                        "weight_set_id, generator_version, source_snapshot_hash, status, "
-                        "requires_review, input_snapshot, assumption_snapshot, "
-                        "comparison_snapshot, candidates_snapshot, warning_messages, "
-                        "created_at, source_mode, source_binding_id) "
-                        "VALUES (:id, 'p-1', 'pv-1', 'ws-1', '1.0', 'h1', 'pending', "
-                        "false, '{}', '{}', '{}', '{}', '[]', now(), 'production', 'sb-1')"
-                    ),
-                    {"id": sid},
-                )
-                conn.commit()
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            # production with source_binding_id but NULL combined_source_hash -> rejected
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_runs (id, project_id, project_version_id, "
+                    "weight_set_id, generator_version, source_snapshot_hash, status, "
+                    "requires_review, input_snapshot, assumption_snapshot, "
+                    "comparison_snapshot, candidates_snapshot, warning_messages, "
+                    "created_at, source_mode, source_binding_id) "
+                    "VALUES (:id, 'p-1', 'pv-1', 'ws-1', '1.0', 'h1', 'pending', "
+                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'production', 'sb-1')"
+                ),
+                {"id": sid},
+            )
+            conn.commit()
         engine.dispose()
 
 
@@ -323,20 +322,19 @@ class TestRequestRejection:
         import uuid
 
         rid = str(uuid.uuid4())
-        with engine.connect() as conn:
-            with pytest.raises(Exception):
-                # ACCEPTED without resolved_attempt_id -> rejected
-                conn.execute(
-                    text(
-                        "INSERT INTO orchestration_requests (id, project_id, "
-                        "project_version_id, request_fingerprint, actor, correlation_id, "
-                        "status, resolved_identity_id, created_at) "
-                        "VALUES (:id, 'p-1', 'pv-1', 'fp', 'me', 'cid', "
-                        "'ACCEPTED', 'oi-1', now())"
-                    ),
-                    {"id": rid},
-                )
-                conn.commit()
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            # ACCEPTED without resolved_attempt_id -> rejected
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests (id, project_id, "
+                    "project_version_id, request_fingerprint, actor, correlation_id, "
+                    "status, resolved_identity_id, created_at) "
+                    "VALUES (:id, 'p-1', 'pv-1', 'fp', 'me', 'cid', "
+                    "'ACCEPTED', 'oi-1', now())"
+                ),
+                {"id": rid},
+            )
+            conn.commit()
         engine.dispose()
 
 
@@ -414,7 +412,7 @@ class TestOneRunning:
             conn.commit()
 
             a2 = str(_uuid.uuid4())
-            with pytest.raises(Exception):
+            with pytest.raises(IntegrityError):
                 # Second RUNNING for same identity -> must fail
                 conn.execute(
                     text(
@@ -429,7 +427,6 @@ class TestOneRunning:
 
     def test_one_failed_one_running_accepted(self, migrated_pg) -> None:
         engine = _pg_engine(migrated_pg)
-        import uuid
 
         oid = _setup_identity_for_attempt_test(engine)
         import uuid as _uuid
@@ -460,7 +457,6 @@ class TestOneRunning:
 
     def test_one_completed_one_running_accepted(self, migrated_pg) -> None:
         engine = _pg_engine(migrated_pg)
-        import uuid
 
         oid = _setup_identity_for_attempt_test(engine)
         import uuid as _uuid
@@ -556,19 +552,18 @@ class TestInvalidForeignKey:
         import uuid
 
         cid = str(uuid.uuid4())
-        with engine.connect() as conn:
-            with pytest.raises(Exception):
-                conn.execute(
-                    text(
-                        "INSERT INTO calculation_runs (id, project_id, project_version_id, "
-                        "status, requires_review, calculator_name, calculation_type, "
-                        "created_at, orchestration_identity_id) "
-                        "VALUES (:id, 'p-1', 'pv-1', 'completed', false, 'zone', 'zone', "
-                        "now(), 'nonexistent-identity-id')"
-                    ),
-                    {"id": cid},
-                )
-                conn.commit()
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            conn.execute(
+                text(
+                    "INSERT INTO calculation_runs (id, project_id, project_version_id, "
+                    "status, requires_review, calculator_name, calculation_type, "
+                    "created_at, orchestration_identity_id) "
+                    "VALUES (:id, 'p-1', 'pv-1', 'completed', false, 'zone', 'zone', "
+                    "now(), 'nonexistent-identity-id')"
+                ),
+                {"id": cid},
+            )
+            conn.commit()
         engine.dispose()
 
 
@@ -620,7 +615,7 @@ class TestAuditEventBackfillValues:
 
             # Verify UNIQUE — try duplicate backfill insert
             dup_id = str(uuid.uuid4())
-            with pytest.raises(Exception):
+            with pytest.raises(IntegrityError):
                 conn.execute(
                     text(
                         "INSERT INTO audit_events (id, actor, action, entity_type, "
