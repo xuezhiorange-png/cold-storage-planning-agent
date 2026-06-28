@@ -905,7 +905,7 @@ Identical payload alone does not guarantee an identical `result_hash`.
 5. Investment items in different order → sorted by `item_name` → same hash.
 6. Adding a new unknown field to calculator `result` → payload unchanged → same hash.
 7. CalculationRunRecord database ID changes → business payload unchanged → provenance changes (upstream calculation IDs differ) → complete SourceSnapshotContentV1 changes → result_hash changes.
-8. Calculator output dictionary key order changes, but normalized payload and provenance remain identical → complete SourceSnapshotContentV1 identical → result_hash identical.
+8. Calculator-result dictionary key order changes → normalized business payload remains identical.  When every other hashed `SourceSnapshotContentV1` field also remains identical — including calculator identity/version, snapshot schema version, input hash, `requires_review`, and provenance — the complete `SourceSnapshotContentV1` remains identical → `result_hash` remains identical.
 9. Identical complete `SourceSnapshotContentV1` — same calculator identity/version, same snapshot schema version, same input hash, same `requires_review`, same normalized payload, same provenance (same execution identity and upstream calculation IDs) — → same `result_hash`.
 
 Canonical hash inputs (complete SourceSnapshotContentV1 objects) are frozen as part of implementation tests.
@@ -1628,7 +1628,8 @@ Every subtask below requires a separate implementation review. This PR does not 
 - same normalized payload + same provenance but different requires_review → different result_hash;
 - same normalized payload + same provenance but different schema version → different result_hash;
 - same normalized payload + same provenance but different calculator version → different result_hash;
-- calculator output field order changes do not alter normalized payload or result_hash;
+- calculator output dictionary key order changes → normalized business payload unchanged;
+- calculator output dictionary key order changes + every other hashed content field unchanged (calculator identity/version, snapshot schema version, input hash, requires_review, provenance) → complete SourceSnapshotContentV1 unchanged → result_hash unchanged;
 - zone detail order changes → canonical sort → hash unchanged;
 - CalculationRunRecord database ID changes → provenance differs → result_hash changes;
 - Zone provenance `upstream_calculation_ids` is exactly `{}`;
