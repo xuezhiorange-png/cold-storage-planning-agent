@@ -14,9 +14,9 @@ Implements the first vertical core closure from approved design:
 All repository operations are session-bound.  The service owns the
 UnitOfWork lifecycle via the injected factory.
 
-The request_id is threaded explicitly through a frozen
-``TransactionAContext`` — never discovered after the fact via
-``_find_pending_request_id()``.
+The request_id is threaded through a frozen ``TransactionAContext``
+and carried via ``TransactionRejected`` internal exception — never
+stored in mutable instance state.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from typing import Protocol
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
     ExecutionSnapshotPreflightPort,
+    ResolvedCoefficientContextCandidate,
 )
 from cold_storage.modules.orchestration.application.unit_of_work import (
     SqlAlchemyOrchestrationUnitOfWork,
@@ -40,6 +41,9 @@ from cold_storage.modules.orchestration.domain.contracts import (
     RequestStatus,
 )
 from cold_storage.modules.orchestration.domain.errors import (
+    AmbiguousCoefficientError,
+    CoefficientNotApprovedError,
+    CoefficientResolutionError,
     OrchestrationDomainError,
     OrchestrationRequestIdentityError,
     ProjectVersionArchivedError,
@@ -115,6 +119,19 @@ class TransactionAContext:
     request_fingerprint: str
 
 
+class TransactionRejected(Exception):
+    """Internal signal carrying the durable request_id of a failed
+    Transaction A.  Raised from ``_transaction_a`` and caught in
+    ``execute`` to persist rejection atomically."""
+
+    __slots__ = ("request_id", "domain_error")
+
+    def __init__(self, request_id: str, domain_error: OrchestrationDomainError) -> None:
+        super().__init__(domain_error.code)
+        self.request_id = request_id
+        self.domain_error = domain_error
+
+
 # ── Service ─────────────────────────────────────────────────────────────────
 
 _ORCHESTRATION_DEFINITION_VERSION = "1.0.0"
@@ -129,6 +146,7 @@ _INPUT_MAPPING_SCHEMA_VERSION = "1.0.0"
 _SOURCE_SNAPSHOT_SCHEMA_VERSION = "1.0.0"
 _SNAPSHOT_SCHEMA_VERSION = "1.0.0"
 _COEFFICIENT_SCHEMA_VERSION = "1.0.0"
+_SUPPORTED_COEFFICIENT_SCHEMA_VERSIONS: frozenset[str] = frozenset({"1.0.0"})
 
 
 class OrchestrationService:
@@ -136,6 +154,9 @@ class OrchestrationService:
 
     Receives a UnitOfWork factory and owns the transaction lifecycle.
     Repositories are session-bound and never manage transactions.
+
+    The service carries NO mutable per-request state.  All request-scoped
+    data lives in local variables or ``TransactionAContext``.
     """
 
     def __init__(
@@ -162,7 +183,6 @@ class OrchestrationService:
         self._version_port = version_port
         self._snapshot_port = snapshot_port
         self._coefficient_port = coefficient_port
-        self._last_request_id: str = ""
 
     # ── Transaction A: request → ACCEPTED ───────────────────────────────
 
@@ -178,19 +198,21 @@ class OrchestrationService:
         with self._uow_factory() as uow:
             try:
                 return self._transaction_a(command, uow)
-            except OrchestrationDomainError as domain_exc:
-                self._transaction_rejection(domain_exc, uow)
+            except TransactionRejected as rejected:
+                self._transaction_rejection(
+                    rejected.request_id, rejected.domain_error, uow
+                )
                 uow.commit()
                 raise PreflightFailure(
-                    request_id=self._last_request_id,
+                    request_id=rejected.request_id,
                     project_id=command.project_id,
                     project_version_id=command.project_version_id,
-                    error_class=type(domain_exc).__name__,
-                    code=domain_exc.code,
-                    field=domain_exc.field,
-                    details=domain_exc.details,
+                    error_class=type(rejected.domain_error).__name__,
+                    code=rejected.domain_error.code,
+                    field=rejected.domain_error.field,
+                    details=rejected.domain_error.details,
                     occurred_at=datetime.now(UTC),
-                ) from domain_exc
+                ) from rejected.domain_error
             except Exception:
                 uow.rollback()
                 raise
@@ -216,16 +238,22 @@ class OrchestrationService:
             ),
             request_fingerprint=fingerprint,
         )
-        # Stash for rejection path (must be set after every add())
-        self._last_request_id = ctx.request_id
 
         # 2 — Load + validate ProjectVersion
         version = self._version_port.load_by_id(session, command.project_version_id)
         if version is None:
-            raise ProjectVersionNotFoundError(command.project_version_id)
+            raise TransactionRejected(
+                ctx.request_id, ProjectVersionNotFoundError(command.project_version_id)
+            )
         if version.project_id != command.project_id:
-            raise ProjectVersionProjectMismatchError(version.project_id, command.project_id)
-        _validate_version_status(version, command.project_version_id)
+            raise TransactionRejected(
+                ctx.request_id,
+                ProjectVersionProjectMismatchError(version.project_id, command.project_id),
+            )
+        try:
+            _validate_version_status(version, command.project_version_id)
+        except OrchestrationDomainError as exc:
+            raise TransactionRejected(ctx.request_id, exc) from exc
 
         # 3 — Preflight ports
         self._snapshot_port.validate_candidate(
@@ -238,6 +266,9 @@ class OrchestrationService:
             project_version_id=command.project_version_id,
             coefficient_resolution_context=dict(command.coefficient_resolution_context),
         )
+
+        # P0-5: Validate the resolved coefficient candidate
+        _validate_coefficient_candidate(resolved_coeff, command)
 
         # 4 — Get-or-create execution snapshot
         input_snapshot_hash = result_hash(version.input_snapshot)
@@ -288,7 +319,7 @@ class OrchestrationService:
             heartbeat_at=datetime.now(UTC),
         )
 
-        # 8 — Transition request → ACCEPTED
+        # 8 — Transition request → ACCEPTED (with rowcount check)
         self._request_repo.update_status(
             session,
             ctx.request_id,
@@ -374,16 +405,16 @@ class OrchestrationService:
 
     def _transaction_rejection(
         self,
+        request_id: str,
         exc: OrchestrationDomainError,
         uow: SqlAlchemyOrchestrationUnitOfWork,
     ) -> None:
-        """Persist a preflight rejection atomically using the durable request_id.
+        """Persist a preflight rejection atomically using the explicit request_id.
 
-        The request_id was set in ``_transaction_a`` before the failure
-        occurred.  There is no fuzzy ``_find_pending_request_id`` lookup.
+        The request_id is carried via ``TransactionRejected`` from
+        ``_transaction_a`` — never read from instance state.
         """
         session = uow.session
-        request_id = self._last_request_id
 
         # P0-3: nested try/except — if rejection persistence fails, we roll back
         try:
@@ -442,6 +473,62 @@ def _validate_version_status(version: _LoadedVersion, pv_id: str) -> None:
     if status == "archived":
         raise ProjectVersionArchivedError(pv_id)
     raise ProjectVersionStatusInvalidError(pv_id, status)
+
+
+def _validate_coefficient_candidate(
+    candidate: ResolvedCoefficientContextCandidate,
+    command: OrchestrationRequestCommand,
+) -> None:
+    """P0-5: Validate that the resolved coefficient candidate is authoritative.
+
+    The caller must not self-attest approval — the resolver must return
+    a candidate whose identity fields match the command and whose content
+    hash is self-consistent.
+    """
+    if candidate.project_id != command.project_id:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Candidate project_id {candidate.project_id!r} != "
+            f"command project_id {command.project_id!r}",
+        )
+    if candidate.project_version_id != command.project_version_id:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Candidate project_version_id {candidate.project_version_id!r} != "
+            f"command project_version_id {command.project_version_id!r}",
+        )
+    if candidate.content_hash != result_hash(candidate.content):
+        raise CoefficientResolutionError(
+            "hash",
+            f"Content hash mismatch: candidate claims {candidate.content_hash!r}, "
+            f"computed {result_hash(candidate.content)!r}",
+        )
+    if not candidate.approved_revision_ids:
+        raise CoefficientNotApprovedError("empty_approved_revisions")
+    if len(candidate.approved_revision_ids) != len(set(candidate.approved_revision_ids)):
+        raise AmbiguousCoefficientError("duplicate_approved_revisions")
+    if candidate.schema_version not in _SUPPORTED_COEFFICIENT_SCHEMA_VERSIONS:
+        raise CoefficientResolutionError(
+            "schema",
+            f"Unsupported coefficient schema version {candidate.schema_version!r}",
+        )
+    # Content must not self-attest approval without resolver backing
+    if candidate.content.get("source_type") == "approved" and not candidate.approved_revision_ids:
+        raise CoefficientNotApprovedError("self_attested_approved")
+    # If content carries identity fields, they must match typed fields
+    content_pid = candidate.content.get("project_id")
+    if content_pid is not None and content_pid != candidate.project_id:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Content project_id {content_pid!r} != typed {candidate.project_id!r}",
+        )
+    content_pvid = candidate.content.get("project_version_id")
+    if content_pvid is not None and content_pvid != candidate.project_version_id:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Content project_version_id {content_pvid!r} != "
+            f"typed {candidate.project_version_id!r}",
+        )
 
 
 def _compute_request_fingerprint(command: OrchestrationRequestCommand) -> str:
