@@ -581,8 +581,7 @@ class TestServiceReentry:
 
         # Request IDs must differ
         assert failures[0].request_id != failures[1].request_id, (
-            f"Shared request_id across reentrant calls: "
-            f"{failures[0].request_id!r}"
+            f"Shared request_id across reentrant calls: {failures[0].request_id!r}"
         )
 
         # Each request ID must be non-empty
@@ -592,8 +591,8 @@ class TestServiceReentry:
         # Verify database: two distinct requests, two distinct outbox events
         with session_factory() as s:
             from cold_storage.modules.orchestration.infrastructure.orm import (
-                OrchestrationRequestRecord,
                 AuditOutboxRecord,
+                OrchestrationRequestRecord,
             )
 
             req_ids = {pf.request_id for pf in failures}
@@ -612,15 +611,361 @@ class TestServiceReentry:
 
             events = (
                 s.execute(
-                    select(AuditOutboxRecord).where(
-                        AuditOutboxRecord.request_id.in_(req_ids)
-                    )
+                    select(AuditOutboxRecord).where(AuditOutboxRecord.request_id.in_(req_ids))
                 )
                 .scalars()
                 .all()
             )
             assert len(events) == 2
             event_request_ids = {e.request_id for e in events}
-            assert event_request_ids == req_ids, (
-                "Outbox events not bound to correct requests"
+            assert event_request_ids == req_ids, "Outbox events not bound to correct requests"
+
+
+# ── Durable Rejection: All Domain Error Paths ────────────────────────────
+
+
+class TestDurableRejectionAllPaths:
+    """P0-1: Every domain error after durable request creation must produce
+    PREFLIGHT_REJECTED + outbox + zero downstream rows."""
+
+    def test_snapshot_port_failure(self, service, session_factory) -> None:
+        """Snapshot preflight failure → durable rejection."""
+        from cold_storage.modules.orchestration.domain.errors import (
+            ExecutionSnapshotSchemaError,
+        )
+
+        service._snapshot_port.validate_candidate.side_effect = ExecutionSnapshotSchemaError(
+            "v9.9.9"
+        )
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command())
+
+        pf = pf_exc.value
+        assert pf.error_class == "ExecutionSnapshotSchemaError"
+        assert pf.request_id != ""
+
+        with session_factory() as s:
+            req = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == pf.request_id
+                )
+            ).scalar_one()
+            assert req.status == "PREFLIGHT_REJECTED"
+
+            ev = s.execute(
+                select(AuditOutboxRecord).where(
+                    AuditOutboxRecord.request_id == pf.request_id,
+                    AuditOutboxRecord.event_type == "orchestration.request.rejected",
+                )
+            ).scalar_one()
+            assert ev is not None
+
+            # Zero downstream rows
+            from sqlalchemy import func
+
+            assert (
+                s.execute(select(func.count()).select_from(OrchestrationIdentityRecord)).scalar()
+                == 0
             )
+            assert (
+                s.execute(select(func.count()).select_from(OrchestrationRunAttemptRecord)).scalar()
+                == 0
+            )
+
+    def test_coefficient_resolver_failure(self, service, session_factory) -> None:
+        """Coefficient resolver failure → durable rejection."""
+        from cold_storage.modules.orchestration.domain.errors import (
+            CoefficientResolutionError,
+        )
+
+        service._coefficient_port.resolve.side_effect = CoefficientResolutionError(
+            "resolver", "coefficient catalog unavailable"
+        )
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command())
+
+        pf = pf_exc.value
+        assert pf.error_class == "CoefficientResolutionError"
+        assert pf.request_id != ""
+
+        with session_factory() as s:
+            req = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == pf.request_id
+                )
+            ).scalar_one()
+            assert req.status == "PREFLIGHT_REJECTED"
+
+            ev = s.execute(
+                select(AuditOutboxRecord).where(
+                    AuditOutboxRecord.request_id == pf.request_id,
+                    AuditOutboxRecord.event_type == "orchestration.request.rejected",
+                )
+            ).scalar_one()
+            assert ev is not None
+
+            from sqlalchemy import func
+
+            assert (
+                s.execute(select(func.count()).select_from(OrchestrationIdentityRecord)).scalar()
+                == 0
+            )
+
+    def test_attempt_live_running_conflict(self, service, session_factory) -> None:
+        """Live RUNNING attempt → durable rejection."""
+        with session_factory() as s:
+            _seed_project_and_version(s)
+        service.execute(_make_command(correlation_id="c1"))
+
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command(correlation_id="c2"))
+
+        pf = pf_exc.value
+        assert pf.error_class == "AttemptAlreadyRunningError"
+        assert pf.request_id != ""
+
+        with session_factory() as s:
+            req = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == pf.request_id
+                )
+            ).scalar_one()
+            assert req.status == "PREFLIGHT_REJECTED"
+
+            ev = s.execute(
+                select(AuditOutboxRecord).where(
+                    AuditOutboxRecord.request_id == pf.request_id,
+                    AuditOutboxRecord.event_type == "orchestration.request.rejected",
+                )
+            ).scalar_one()
+            assert ev is not None
+
+    def test_empty_approved_revisions(self, service, session_factory) -> None:
+        """Empty approved revision IDs → durable rejection."""
+        from cold_storage.modules.orchestration.application.ports import (
+            ResolvedCoefficientContextCandidate as RCC,
+        )
+
+        candidate = _make_resolved_coefficient()
+        service._coefficient_port.resolve.return_value = RCC(
+            project_id=candidate.project_id,
+            project_version_id=candidate.project_version_id,
+            schema_version=candidate.schema_version,
+            content=candidate.content,
+            content_hash=candidate.content_hash,
+            approved_revision_ids=(),
+        )
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command())
+
+        pf = pf_exc.value
+        assert pf.error_class == "CoefficientNotApprovedError"
+
+        with session_factory() as s:
+            req = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == pf.request_id
+                )
+            ).scalar_one()
+            assert req.status == "PREFLIGHT_REJECTED"
+            from sqlalchemy import func
+
+            assert (
+                s.execute(select(func.count()).select_from(OrchestrationIdentityRecord)).scalar()
+                == 0
+            )
+
+    def test_duplicate_approved_revisions(self, service, session_factory) -> None:
+        """Duplicate approved revision IDs → durable rejection."""
+        from cold_storage.modules.orchestration.application.ports import (
+            ResolvedCoefficientContextCandidate as RCC,
+        )
+
+        candidate = _make_resolved_coefficient()
+        service._coefficient_port.resolve.return_value = RCC(
+            project_id=candidate.project_id,
+            project_version_id=candidate.project_version_id,
+            schema_version=candidate.schema_version,
+            content=candidate.content,
+            content_hash=candidate.content_hash,
+            approved_revision_ids=("rev-001", "rev-001"),
+        )
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command())
+
+        pf = pf_exc.value
+        assert pf.error_class == "AmbiguousCoefficientError"
+
+        with session_factory() as s:
+            req = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == pf.request_id
+                )
+            ).scalar_one()
+            assert req.status == "PREFLIGHT_REJECTED"
+
+    def test_unsupported_coefficient_schema(self, service, session_factory) -> None:
+        """Unsupported schema version → durable rejection."""
+        from cold_storage.modules.orchestration.application.ports import (
+            ResolvedCoefficientContextCandidate as RCC,
+        )
+
+        service._coefficient_port.resolve.return_value = RCC(
+            project_id="p-1",
+            project_version_id="pv-1",
+            schema_version="9.9.9",
+            content={"schema_version": "9.9.9"},
+            content_hash=result_hash({"schema_version": "9.9.9"}),
+            approved_revision_ids=("rev-001",),
+        )
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command())
+
+        pf = pf_exc.value
+        assert pf.error_class == "CoefficientResolutionError"
+
+        with session_factory() as s:
+            req = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == pf.request_id
+                )
+            ).scalar_one()
+            assert req.status == "PREFLIGHT_REJECTED"
+
+    def test_content_schema_mismatch(self, service, session_factory) -> None:
+        """Content schema_version != typed schema_version → durable rejection."""
+        from cold_storage.modules.orchestration.application.ports import (
+            ResolvedCoefficientContextCandidate as RCC,
+        )
+
+        service._coefficient_port.resolve.return_value = RCC(
+            project_id="p-1",
+            project_version_id="pv-1",
+            schema_version="1.0.0",
+            content={"schema_version": "2.0.0"},
+            content_hash=result_hash({"schema_version": "2.0.0"}),
+            approved_revision_ids=("rev-001",),
+        )
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command())
+
+        pf = pf_exc.value
+        assert pf.error_class == "CoefficientResolutionError"
+
+
+# ── True Service Reentry (threading.Barrier) ────────────────────────────
+
+
+class TestTrueServiceReentry:
+    """P0-2: Deterministic interleaving via threading.Barrier — proves
+    same service instance does not cross-talk request IDs."""
+
+    def test_concurrent_rejection_no_request_id_crosstalk(self, service, session_factory) -> None:
+        """Two threads interleave on the same service instance.
+        Both threads call execute with different version IDs that trigger
+        preflight rejection. Each must get its own request_id."""
+        import threading
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        errors: list[Exception] = []
+        results: dict[str, PreflightFailure | None] = {}
+
+        def call_a():
+            try:
+                results["a"] = None
+                service.execute(
+                    _make_command(
+                        project_version_id="pv-nonexistent-a",
+                        correlation_id="thread-a",
+                    )
+                )
+            except PreflightFailure as pf:
+                results["a"] = pf
+            except Exception as e:
+                errors.append(e)
+
+        def call_b():
+            try:
+                results["b"] = None
+                service.execute(
+                    _make_command(
+                        project_version_id="pv-nonexistent-b",
+                        correlation_id="thread-b",
+                    )
+                )
+            except PreflightFailure as pf:
+                results["b"] = pf
+            except Exception as e:
+                errors.append(e)
+
+        barrier = threading.Barrier(2, timeout=10)
+
+        def thread_a():
+            barrier.wait()
+            call_a()
+
+        def thread_b():
+            barrier.wait()
+            call_b()
+
+        t_a = threading.Thread(target=thread_a, name="reentry-a")
+        t_b = threading.Thread(target=thread_b, name="reentry-b")
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=15)
+        t_b.join(timeout=15)
+
+        assert not errors, f"Thread errors: {errors}"
+        assert results.get("a") is not None, "Thread A did not produce a result"
+        assert results.get("b") is not None, "Thread B did not produce a result"
+
+        pf_a = results["a"]
+        pf_b = results["b"]
+        assert pf_a is not None and pf_b is not None
+        assert pf_a.request_id != pf_b.request_id, (
+            f"Request IDs must differ: {pf_a.request_id!r} vs {pf_b.request_id!r}"
+        )
+        assert pf_a.request_id != ""
+        assert pf_b.request_id != ""
+
+        # Each thread's request should independently be PREFLIGHT_REJECTED
+        with session_factory() as s:
+            for pf in (pf_a, pf_b):
+                req = s.execute(
+                    select(OrchestrationRequestRecord).where(
+                        OrchestrationRequestRecord.id == pf.request_id
+                    )
+                ).scalar_one()
+                assert req.status == "PREFLIGHT_REJECTED", (
+                    f"Request {pf.request_id} not REJECTED: {req.status}"
+                )
+                ev = s.execute(
+                    select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
+                ).scalar_one()
+                assert ev is not None, f"No outbox event for request {pf.request_id}"

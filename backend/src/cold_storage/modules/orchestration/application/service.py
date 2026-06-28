@@ -17,6 +17,13 @@ UnitOfWork lifecycle via the injected factory.
 The request_id is threaded through a frozen ``TransactionAContext``
 and carried via ``TransactionRejected`` internal exception — never
 stored in mutable instance state.
+
+Durable rejection contract (P0-1):
+  After creating the durable PENDING request, a downstream savepoint
+  wraps all preflight + get-or-create + attempt acquisition work.
+  Any ``OrchestrationDomainError`` rolls back the downstream savepoint,
+  leaving ONLY the PENDING request.  ``execute()`` then persists
+  ``PREFLIGHT_REJECTED`` + outbox, yielding zero downstream rows.
 """
 
 from __future__ import annotations
@@ -24,6 +31,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
+
+from sqlalchemy.orm import Session
 
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
@@ -197,11 +206,11 @@ class OrchestrationService:
         """
         with self._uow_factory() as uow:
             try:
-                return self._transaction_a(command, uow)
+                result = self._transaction_a(command, uow)
+                uow.commit()
+                return result
             except TransactionRejected as rejected:
-                self._transaction_rejection(
-                    rejected.request_id, rejected.domain_error, uow
-                )
+                self._transaction_rejection(rejected.request_id, rejected.domain_error, uow)
                 uow.commit()
                 raise PreflightFailure(
                     request_id=rejected.request_id,
@@ -239,23 +248,39 @@ class OrchestrationService:
             request_fingerprint=fingerprint,
         )
 
-        # 2 — Load + validate ProjectVersion
-        version = self._version_port.load_by_id(session, command.project_version_id)
-        if version is None:
-            raise TransactionRejected(
-                ctx.request_id, ProjectVersionNotFoundError(command.project_version_id)
-            )
-        if version.project_id != command.project_id:
-            raise TransactionRejected(
-                ctx.request_id,
-                ProjectVersionProjectMismatchError(version.project_id, command.project_id),
-            )
+        # 2 — Create downstream savepoint: all work after durable request creation
+        #     is wrapped so domain failures roll back downstream rows while the
+        #     PENDING request survives for rejection persistence.
+        downstream = session.begin_nested()
         try:
-            _validate_version_status(version, command.project_version_id)
+            result = self._transaction_a_downstream(command, ctx, session)
+            downstream.commit()
+            return result
         except OrchestrationDomainError as exc:
+            downstream.rollback()
             raise TransactionRejected(ctx.request_id, exc) from exc
 
-        # 3 — Preflight ports
+    def _transaction_a_downstream(
+        self,
+        command: OrchestrationRequestCommand,
+        ctx: TransactionAContext,
+        session: Session,
+    ) -> PreflightAccepted:
+        """All downstream work after durable request creation.
+
+        Any ``OrchestrationDomainError`` triggers downstream savepoint
+        rollback → only the PENDING request survives → rejection persists.
+        """
+
+        # 3 — Load + validate ProjectVersion
+        version = self._version_port.load_by_id(session, command.project_version_id)
+        if version is None:
+            raise ProjectVersionNotFoundError(command.project_version_id)
+        if version.project_id != command.project_id:
+            raise ProjectVersionProjectMismatchError(version.project_id, command.project_id)
+        _validate_version_status(version, command.project_version_id)
+
+        # 4 — Preflight ports (domain errors now surface as TransactionRejected)
         self._snapshot_port.validate_candidate(
             project_id=command.project_id,
             project_version_id=command.project_version_id,
@@ -270,7 +295,7 @@ class OrchestrationService:
         # P0-5: Validate the resolved coefficient candidate
         _validate_coefficient_candidate(resolved_coeff, command)
 
-        # 4 — Get-or-create execution snapshot
+        # 5 — Get-or-create execution snapshot
         input_snapshot_hash = result_hash(version.input_snapshot)
         snapshot_id = self._snapshot_repo.get_or_create(
             session,
@@ -282,7 +307,7 @@ class OrchestrationService:
             input_snapshot=version.input_snapshot,
         )
 
-        # 5 — Get-or-create coefficient context (from resolved candidate, NOT forged)
+        # 6 — Get-or-create coefficient context (from resolved candidate, NOT forged)
         coefficient_content = dict(resolved_coeff.content)
         coefficient_hash = resolved_coeff.content_hash
         coefficient_id = self._coefficient_repo.get_or_create(
@@ -294,7 +319,7 @@ class OrchestrationService:
             project_id=command.project_id,
         )
 
-        # 6 — Get-or-create identity (fingerprint uses frozen design fields)
+        # 7 — Get-or-create identity (fingerprint uses frozen design fields)
         orchestration_fingerprint = _compute_orchestration_fingerprint(
             execution_identity_hash=input_snapshot_hash,
             coefficient_context_hash=coefficient_hash,
@@ -312,14 +337,14 @@ class OrchestrationService:
             calculator_version_vector=_CALCULATOR_VERSION_VECTOR,
         )
 
-        # 7 — Acquire RUNNING attempt (with full acquisition logic)
+        # 8 — Acquire RUNNING attempt (with full acquisition logic)
         attempt_id = self._attempt_repo.acquire(
             session,
             identity_id=identity_id,
             heartbeat_at=datetime.now(UTC),
         )
 
-        # 8 — Transition request → ACCEPTED (with rowcount check)
+        # 9 — Transition request → ACCEPTED (with rowcount check)
         self._request_repo.update_status(
             session,
             ctx.request_id,
@@ -330,7 +355,7 @@ class OrchestrationService:
             resolved_attempt_id=attempt_id,
         )
 
-        # 9 — Write request-level outbox event
+        # 10 — Write request-level outbox event
         self._outbox_repo.add(
             session,
             event_type="orchestration.request.accepted",
@@ -346,13 +371,16 @@ class OrchestrationService:
             attempt_id=attempt_id,
         )
 
-        uow.commit()
-        return PreflightAccepted(ctx.request_id, fingerprint, identity_id, attempt_id)
+        return PreflightAccepted(ctx.request_id, ctx.request_fingerprint, identity_id, attempt_id)
 
     # ── Transaction C: attempt → terminal ───────────────────────────────
 
     def mark_attempt_blocked(
-        self, attempt_id: str, *, failure_code: str, failure_details: dict[str, object]
+        self,
+        attempt_id: str,
+        *,
+        failure_code: str,
+        failure_details: dict[str, object],
     ) -> None:
         """Mark a RUNNING attempt as BLOCKED (Transaction C) + outbox."""
         with self._uow_factory() as uow:
@@ -377,7 +405,11 @@ class OrchestrationService:
             uow.commit()
 
     def mark_attempt_failed(
-        self, attempt_id: str, *, failure_code: str, failure_details: dict[str, object]
+        self,
+        attempt_id: str,
+        *,
+        failure_code: str,
+        failure_details: dict[str, object],
     ) -> None:
         """Mark a RUNNING attempt as FAILED (Transaction C) + outbox."""
         with self._uow_factory() as uow:
@@ -484,7 +516,17 @@ def _validate_coefficient_candidate(
     The caller must not self-attest approval — the resolver must return
     a candidate whose identity fields match the command and whose content
     hash is self-consistent.
+
+    Checks:
+      - project_id / project_version_id match command
+      - content_hash == result_hash(content)
+      - approved_revision_ids non-empty, no duplicates, canonical order
+      - schema_version supported
+      - content schema_version matches typed schema_version
+      - content identity fields (project_id, project_version_id) match typed fields
+      - content must not self-attest 'approved' without resolver backing
     """
+    # Identity match
     if candidate.project_id != command.project_id:
         raise CoefficientResolutionError(
             "mismatch",
@@ -497,25 +539,42 @@ def _validate_coefficient_candidate(
             f"Candidate project_version_id {candidate.project_version_id!r} != "
             f"command project_version_id {command.project_version_id!r}",
         )
+
+    # Content hash self-consistency
     if candidate.content_hash != result_hash(candidate.content):
         raise CoefficientResolutionError(
             "hash",
             f"Content hash mismatch: candidate claims {candidate.content_hash!r}, "
             f"computed {result_hash(candidate.content)!r}",
         )
-    if not candidate.approved_revision_ids:
-        raise CoefficientNotApprovedError("empty_approved_revisions")
-    if len(candidate.approved_revision_ids) != len(set(candidate.approved_revision_ids)):
-        raise AmbiguousCoefficientError("duplicate_approved_revisions")
+
+    # Schema version support
     if candidate.schema_version not in _SUPPORTED_COEFFICIENT_SCHEMA_VERSIONS:
         raise CoefficientResolutionError(
             "schema",
             f"Unsupported coefficient schema version {candidate.schema_version!r}",
         )
-    # Content must not self-attest approval without resolver backing
-    if candidate.content.get("source_type") == "approved" and not candidate.approved_revision_ids:
+
+    # Content schema_version must match typed schema_version
+    content_schema = candidate.content.get("schema_version")
+    if content_schema is not None and content_schema != candidate.schema_version:
+        raise CoefficientResolutionError(
+            "schema",
+            f"Content schema_version {content_schema!r} != typed {candidate.schema_version!r}",
+        )
+
+    # Approved revision IDs validation
+    if not candidate.approved_revision_ids:
+        raise CoefficientNotApprovedError("empty_approved_revisions")
+    if len(candidate.approved_revision_ids) != len(set(candidate.approved_revision_ids)):
+        raise AmbiguousCoefficientError("duplicate_approved_revisions")
+
+    # Content must not self-attest approved without resolver backing
+    source_type = candidate.content.get("source_type")
+    if source_type == "approved" and not candidate.approved_revision_ids:
         raise CoefficientNotApprovedError("self_attested_approved")
-    # If content carries identity fields, they must match typed fields
+
+    # Content identity fields must match typed fields
     content_pid = candidate.content.get("project_id")
     if content_pid is not None and content_pid != candidate.project_id:
         raise CoefficientResolutionError(

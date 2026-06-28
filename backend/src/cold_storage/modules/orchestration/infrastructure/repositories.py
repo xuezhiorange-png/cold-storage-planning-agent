@@ -52,11 +52,65 @@ def _ensure_datetime(value: object) -> datetime:
 
 
 def _is_target_unique_violation(
-    exc: sa_exc.IntegrityError, constraint_name: str
+    exc: sa_exc.IntegrityError,
+    *,
+    postgres_constraint_name: str | None = None,
+    sqlite_table: str | None = None,
+    sqlite_column_sets: frozenset[tuple[str, ...]] | None = None,
 ) -> bool:
-    """Return True if *exc* is caused by a violation of *constraint_name*."""
-    msg = str(exc.orig) if exc.orig is not None else ""
-    return constraint_name in msg
+    """Return True if *exc* matches the target unique constraint.
+
+    PostgreSQL:
+      Only matches when ``diag.constraint_name`` equals *postgres_constraint_name*.
+      No substring or prefix matching.
+
+    SQLite:
+      Verifies the error is a UNIQUE constraint violation (SQLite error code 1555
+      or 2067), then validates the reported table name and that the column set
+      is one of the expected *sqlite_column_sets*.
+
+    Non-target FK, CHECK, NOT NULL, and other UNIQUE violations are never matched
+    and must propagate to the caller.
+    """
+    if exc.orig is None:
+        return False
+
+    # ── PostgreSQL ───────────────────────────────────────────────────────
+    pg_name: str | None = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+    if pg_name is not None:
+        if postgres_constraint_name is None:
+            return False
+        return pg_name == postgres_constraint_name
+
+    # ── SQLite ───────────────────────────────────────────────────────────
+    orig_str = str(exc.orig)
+
+    # Must be a UNIQUE constraint error (not FK, CHECK, NOT NULL, etc.)
+    if "UNIQUE constraint failed" not in orig_str:
+        return False
+
+    if sqlite_table is None or sqlite_column_sets is None:
+        return False
+
+    # Extract table and columns: "UNIQUE constraint failed: table.col1, table.col2"
+    parts = orig_str.split("UNIQUE constraint failed:", 1)
+    if len(parts) < 2:
+        return False
+
+    detail = parts[1].strip()
+    entries = [e.strip() for e in detail.split(",")]
+    table_cols: dict[str, set[str]] = {}
+    for entry in entries:
+        if "." in entry:
+            tbl, col = entry.rsplit(".", 1)
+            table_cols.setdefault(tbl, set()).add(col)
+
+    columns_for_table = table_cols.get(sqlite_table, set())
+    if not columns_for_table:
+        return False
+
+    target_sets = {frozenset(s) for s in sqlite_column_sets}
+    return frozenset(columns_for_table) in target_sets
 
 
 # ── Orchestration Request ───────────────────────────────────────────────────
@@ -176,9 +230,7 @@ class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
         stmt = (
             update(OrchestrationRequestRecord)
             .where(OrchestrationRequestRecord.id == request_id)
-            .values(
-                **{k: v for k, v in values.items() if v is not None or k == "status"}
-            )
+            .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
         )
         result = session.execute(stmt)
         if hasattr(result, "rowcount") and result.rowcount == 0:
@@ -215,6 +267,10 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
 
     _MAX_RETRIES = 3
     _TARGET_CONSTRAINT = "uq_exec_snapshot_version_hash_schema"
+    _SQLITE_TABLE = "orchestration_execution_snapshots"
+    _SQLITE_COLUMN_SETS: frozenset[tuple[str, ...]] = frozenset(
+        {("project_version_id", "input_snapshot_hash", "schema_version")}
+    )
 
     def get_or_create(
         self,
@@ -239,10 +295,8 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
         # Try to find existing first
         existing = session.execute(
             select(ProjectVersionExecutionSnapshotRecord.id).where(
-                ProjectVersionExecutionSnapshotRecord.project_version_id
-                == project_version_id,
-                ProjectVersionExecutionSnapshotRecord.input_snapshot_hash
-                == input_snapshot_hash,
+                ProjectVersionExecutionSnapshotRecord.project_version_id == project_version_id,
+                ProjectVersionExecutionSnapshotRecord.input_snapshot_hash == input_snapshot_hash,
                 ProjectVersionExecutionSnapshotRecord.schema_version == schema_version,
             )
         ).scalar()
@@ -293,7 +347,12 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
                 return str(record.id)
             except sa_exc.IntegrityError as exc:
                 nested.rollback()
-                if not _is_target_unique_violation(exc, self._TARGET_CONSTRAINT):
+                if not _is_target_unique_violation(
+                    exc,
+                    postgres_constraint_name=self._TARGET_CONSTRAINT,
+                    sqlite_table=self._SQLITE_TABLE,
+                    sqlite_column_sets=self._SQLITE_COLUMN_SETS,
+                ):
                     raise
                 # Re-read — another transaction may have inserted
                 stmt = select(model_cls.id)
@@ -305,8 +364,7 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
                 continue
 
         raise RuntimeError(
-            f"Failed to get-or-create {model_cls.__name__} "
-            f"after {self._MAX_RETRIES} retries"
+            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
         )
 
 
@@ -337,6 +395,10 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
 
     _MAX_RETRIES = 3
     _TARGET_CONSTRAINT = "uq_coeff_context_version_hash"
+    _SQLITE_TABLE = "orchestration_coefficient_contexts"
+    _SQLITE_COLUMN_SETS: frozenset[tuple[str, ...]] = frozenset(
+        {("project_version_id", "content_hash")}
+    )
 
     def get_or_create(
         self,
@@ -402,7 +464,12 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
                 return str(record.id)
             except sa_exc.IntegrityError as exc:
                 nested.rollback()
-                if not _is_target_unique_violation(exc, self._TARGET_CONSTRAINT):
+                if not _is_target_unique_violation(
+                    exc,
+                    postgres_constraint_name=self._TARGET_CONSTRAINT,
+                    sqlite_table=self._SQLITE_TABLE,
+                    sqlite_column_sets=self._SQLITE_COLUMN_SETS,
+                ):
                     raise
                 stmt = select(model_cls.id)
                 for k, v in select_filter.items():
@@ -413,8 +480,7 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
                 continue
 
         raise RuntimeError(
-            f"Failed to get-or-create {model_cls.__name__} "
-            f"after {self._MAX_RETRIES} retries"
+            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
         )
 
 
@@ -456,6 +522,8 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
 
     _MAX_RETRIES = 3
     _TARGET_CONSTRAINT = "uq_orch_identity_fingerprint"
+    _SQLITE_TABLE = "orchestration_identities"
+    _SQLITE_COLUMN_SETS: frozenset[tuple[str, ...]] = frozenset({("fingerprint",)})
 
     def get_or_create(
         self,
@@ -518,7 +586,12 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
                 return str(record.id)
             except sa_exc.IntegrityError as exc:
                 nested.rollback()
-                if not _is_target_unique_violation(exc, self._TARGET_CONSTRAINT):
+                if not _is_target_unique_violation(
+                    exc,
+                    postgres_constraint_name=self._TARGET_CONSTRAINT,
+                    sqlite_table=self._SQLITE_TABLE,
+                    sqlite_column_sets=self._SQLITE_COLUMN_SETS,
+                ):
                     raise
                 stmt = select(model_cls.id)
                 for k, v in select_filter.items():
@@ -529,8 +602,7 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
                 continue
 
         raise RuntimeError(
-            f"Failed to get-or-create {model_cls.__name__} "
-            f"after {self._MAX_RETRIES} retries"
+            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
         )
 
     def set_authoritative_attempt(
@@ -633,8 +705,13 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
 
     _LEASE_TIMEOUT_SECONDS = 300  # 5 minutes
     _MAX_ACQUIRE_RETRIES = 3
-    _TARGET_CONSTRAINTS = frozenset(
-        {"uq_attempt_identity_number", "uq_attempt_one_running"}
+    _TARGET_CONSTRAINTS = frozenset({"uq_attempt_identity_number", "uq_attempt_one_running"})
+    _SQLITE_TABLE = "orchestration_run_attempts"
+    _SQLITE_COLUMN_SETS: frozenset[tuple[str, ...]] = frozenset(
+        {
+            ("identity_id", "attempt_number"),
+            ("identity_id",),  # partial unique index WHERE status='RUNNING'
+        }
     )
 
     def acquire(
@@ -662,9 +739,7 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             running = self.find_running_attempt(session, identity_id)
             if running is not None:
                 running_id: str = _ensure_str(running["id"])
-                running_heartbeat: datetime = _ensure_datetime(
-                    running["heartbeat_at"]
-                )
+                running_heartbeat: datetime = _ensure_datetime(running["heartbeat_at"])
                 age = (_dt.now(UTC) - running_heartbeat).total_seconds()
                 if age > self._LEASE_TIMEOUT_SECONDS:
                     now = _dt.now(UTC)
@@ -702,7 +777,16 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                 return record.id
             except sa_exc.IntegrityError as exc:
                 nested.rollback()
-                if not _is_target_unique_violation(exc, "uq_attempt_"):
+                if not _is_target_unique_violation(
+                    exc,
+                    postgres_constraint_name=None,  # multiple targets → check below
+                    sqlite_table=self._SQLITE_TABLE,
+                    sqlite_column_sets=self._SQLITE_COLUMN_SETS,
+                ):
+                    raise
+                # Additionally for PG: check both constraint names
+                pg_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+                if pg_name is not None and pg_name not in self._TARGET_CONSTRAINTS:
                     raise
                 # Conflict — retry with fresh state
                 continue
@@ -739,9 +823,7 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
         )
 
         identity = session.execute(
-            select(OrchestrationIdentityRecord).where(
-                OrchestrationIdentityRecord.id == identity_id
-            )
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
         ).scalar_one_or_none()
         if identity is None or identity.authoritative_attempt_id is None:
             return None
@@ -803,9 +885,7 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
         session.execute(
             update(OrchestrationRunAttemptRecord)
             .where(OrchestrationRunAttemptRecord.id == attempt_id)
-            .values(
-                **{k: v for k, v in values.items() if v is not None or k == "status"}
-            )
+            .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
         )
 
     def takeover_stale(
@@ -894,9 +974,7 @@ class AuditOutboxRepository(ABC):
         ...
 
     @abstractmethod
-    def claim(
-        self, session: Session, /, *, worker_id: str, limit: int = 10
-    ) -> Sequence[str]:
+    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
         """Atomically claim up to ``limit`` eligible outbox events."""
         ...
 
@@ -962,9 +1040,7 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
         session.flush()
         return record.id
 
-    def claim(
-        self, session: Session, /, *, worker_id: str, limit: int = 10
-    ) -> Sequence[str]:
+    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
         raise NotImplementedError("Outbox claim not implemented in this phase")
 
     def mark_published(self, session: Session, /, event_id: str) -> None:
