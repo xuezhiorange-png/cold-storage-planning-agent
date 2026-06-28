@@ -13,6 +13,7 @@ that must come from a formal production service — not from evaluation.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -22,6 +23,7 @@ from typing import Any
 
 from cold_storage.evaluation.artifacts import file_sha256
 from cold_storage.evaluation.cli import main
+from cold_storage.evaluation.models import RunStatus
 from cold_storage.evaluation.sqlite_scope import SqliteScope, assert_temp_db_cleaned
 
 EVAL_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "evaluation"
@@ -137,15 +139,24 @@ def test_baseline_outcome_blocked_by_prerequisite() -> None:
     assert raw["outcome"] == "blocked", (
         f"Expected blocked outcome (schemes fail-closed), got {raw['outcome']}"
     )
-    # Verify schemes stage shows the prerequisite error
+    # Verify structured blocker in raw artifact
+    blocker = raw.get("blocker", {})
+    assert blocker.get("error_class") == "EvaluationPrerequisiteMissingError", (
+        f"Expected EvaluationPrerequisiteMissingError, got {blocker}"
+    )
+    assert blocker.get("code") == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert blocker.get("field") == "scheme_source_calculations"
+    assert blocker.get("details", {}).get("prerequisite_issue") == 22
+    # Verify structured blocker in stage ledger
     sl = raw.get("stage_ledger", {})
     schemes_stage = sl.get("schemes", {})
-    assert schemes_stage.get("status") == "failed", (
-        f"Expected schemes stage to be failed, got {schemes_stage}"
+    assert schemes_stage.get("status") == "blocked", (
+        f"Expected schemes stage to be blocked, got {schemes_stage}"
     )
-    assert "SchemeService requires" in schemes_stage.get("error", ""), (
-        "Schemes error must mention prerequisite blocker"
-    )
+    sb = schemes_stage.get("blocker", {})
+    assert sb.get("error_class") == "EvaluationPrerequisiteMissingError"
+    assert sb.get("code") == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert sb.get("field") == "scheme_source_calculations"
 
 
 def test_baseline_manifest_declares_success() -> None:
@@ -639,3 +650,319 @@ def test_prerequisite_blocker_no_dev_db_touch() -> None:
         "Dev database was modified during blocked baseline run — "
         "evaluation must not write to cold_storage_dev.db"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 19. P0 — Explicit prerequisite blocker in real runner path
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_structured_blocker_in_raw_artifact() -> None:
+    """Real baseline run must produce structured blocker in raw output."""
+    _cleanup_runs()
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc != 0
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+
+    blocker = raw["blocker"]
+    assert blocker["stage"] == "schemes"
+    assert blocker["error_class"] == "EvaluationPrerequisiteMissingError"
+    assert blocker["code"] == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert blocker["field"] == "scheme_source_calculations"
+    details = blocker["details"]
+    assert details["required_calculation_types"] == [
+        "zone",
+        "investment",
+        "cooling_load",
+        "equipment",
+    ]
+    assert details["missing_capability"] == ("formal_application_orchestration_and_persistence")
+    assert details["task_status"] == "blocked"
+    assert details["prerequisite_issue"] == 22
+
+
+def test_structured_blocker_in_stage_ledger() -> None:
+    """Stage ledger must carry structured blocker sub-dict."""
+    _cleanup_runs()
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc != 0
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+
+    schemes = raw["stage_ledger"]["schemes"]
+    assert schemes["status"] == "blocked"
+    assert schemes["review_required"] is False
+    inner = schemes["blocker"]
+    assert inner["error_class"] == "EvaluationPrerequisiteMissingError"
+    assert inner["code"] == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert inner["field"] == "scheme_source_calculations"
+
+
+def test_schemeservice_not_called() -> None:
+    """SchemeService.generate_scheme_run MUST NOT be invoked.
+
+    The prerequisite gate raises before any import or instantiation
+    of SchemeService — this test proves zero invocations.
+    """
+    import contextlib
+    from unittest.mock import patch
+
+    from cold_storage.evaluation.execute import (
+        _require_scheme_production_prerequisite,
+    )
+
+    call_count = 0
+
+    def fake_generate(*args: object, **kwargs: object) -> None:
+        nonlocal call_count
+        call_count += 1
+
+    with (
+        patch(
+            "cold_storage.modules.schemes.application.service.SchemeService.generate_scheme_run",
+            side_effect=fake_generate,
+        ),
+        contextlib.suppress(Exception),
+    ):
+        # _require_scheme_production_prerequisite raises before we reach
+        # SchemeService at all — call_count must remain 0
+        _require_scheme_production_prerequisite()
+
+    assert call_count == 0, (
+        f"SchemeService.generate_scheme_run was called {call_count} times "
+        f"(expected 0 — prerequisite gate must fire before service call)"
+    )
+
+
+def test_unknown_exception_not_misclassified() -> None:
+    """Unknown RuntimeError must NOT produce EvaluationPrerequisiteMissingError.
+
+    The schemes stage must distinguish the explicit prerequisite blocker
+    from unexpected runtime failures.  A generic Exception must appear as
+    'unexpected_error', never as EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING.
+    """
+    from unittest.mock import patch
+
+    with patch(
+        "cold_storage.evaluation.execute._require_scheme_production_prerequisite",
+        side_effect=RuntimeError("unexpected"),
+    ):
+        _cleanup_runs()
+        rc = _run_single_scenario("baseline-feasible")
+        assert rc != 0
+
+        run_dir = _latest_run_dir()
+        assert run_dir is not None
+        raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+
+        schemes = raw["stage_ledger"]["schemes"]
+        # Must NOT have the prerequisite blocker classification
+        assert schemes.get("error_class") == "RuntimeError", f"Expected RuntimeError, got {schemes}"
+        assert schemes.get("kind") == "unexpected_error", (
+            f"Expected kind=unexpected_error, got {schemes}"
+        )
+        # Must NOT contain the prerequisite code anywhere
+        assert "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING" not in str(schemes), (
+            "Unknown error must not be disguised as prerequisite blocker"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 20. P1 — Phase A strict reader/verifier integration
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_blocked_run_passes_phase_a_strict_verification() -> None:
+    """Real blocked run must be readable and verifiable via Phase A strict API."""
+    from cold_storage.evaluation.run_directory import (
+        EvaluationRunContext,
+        _load_run_json_strict,
+        _verify_context_against_run_meta,
+    )
+
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
+
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+
+    # Strictly decode run.json using Phase A formal entry point
+    run_id = run_dir.name  # directory name is the run ID
+    ctx = _load_run_json_strict(run_dir, run_id)
+    assert isinstance(ctx, EvaluationRunContext)
+    assert ctx.run_id == run_id
+    assert isinstance(ctx.suite_id, str) and ctx.suite_id
+    assert isinstance(ctx.suite_revision, int) and ctx.suite_revision >= 1
+    assert len(ctx.manifest_sha256) == 64
+    assert ctx.status.value in ("passed", "failed", "aborted")
+    assert isinstance(ctx.scenario_ids, tuple)
+    assert len(ctx.scenario_ids) == 3
+
+    # Verify context against persisted run.json
+    run_meta = json.loads((run_dir / "run.json").read_text("utf-8"))
+    _verify_context_against_run_meta(ctx, run_meta)
+    # No exception → verification passed
+
+
+def test_tampered_blocked_run_metadata_is_rejected() -> None:
+    """Tampered run.json must be rejected by strict decoder."""
+    from cold_storage.evaluation.errors import RunSummaryInvalidError
+    from cold_storage.evaluation.run_directory import (
+        _decode_run_context_strict,
+        _load_run_json_strict,
+    )
+
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
+
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    run_id = run_dir.name
+
+    # First, verify the real artifact passes
+    _load_run_json_strict(run_dir, run_id)
+
+    # Tamper with run_id (must fail regex ^[a-f0-9]{12}$)
+    run_json_path = run_dir / "run.json"
+    original = run_json_path.read_text("utf-8")
+    tampered = original.replace(
+        f'"run_id": "{run_id}"',
+        '"run_id": "tampered-run-id"',
+    )
+    run_json_path.write_text(tampered)
+
+    # Strict decoder must reject
+    try:
+        _load_run_json_strict(run_dir, run_id)
+        raise AssertionError("Tampered run.json was accepted")
+    except RunSummaryInvalidError as exc:
+        assert exc.code == "EVAL_RUN_SUMMARY_INVALID"
+        assert exc.field is None  # run_id validation is generic
+
+    # Also test _decode_run_context_strict with malformed suite_revision
+    run_json_path.write_text(original)  # restore for next tamper
+    original_data = json.loads(original)
+    original_data["suite_revision"] = -1  # must be >= 1
+    run_json_path.write_text(json.dumps(original_data))
+
+    try:
+        _decode_run_context_strict(json.loads(run_json_path.read_text("utf-8")))
+        raise AssertionError("Tampered run.json with suite_revision=-1 was accepted")
+    except RunSummaryInvalidError as exc:
+        assert exc.code == "EVAL_RUN_SUMMARY_INVALID"
+        assert exc.field == "suite_revision"
+
+
+def test_tampered_blocked_summary_is_rejected() -> None:
+    """Tampered summary.json must be rejected by Phase A identity verifier."""
+    from cold_storage.evaluation.errors import RunIdentityMismatchError
+    from cold_storage.evaluation.run_directory import (
+        _verify_summary_against_run_meta,
+    )
+
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
+
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    run_id = run_dir.name
+
+    # Load genuine summary and run meta
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text("utf-8"))
+    run_meta = json.loads((run_dir / "run.json").read_text("utf-8"))
+
+    # Tamper manifest_sha256 in summary
+    from cold_storage.evaluation.models import EvaluationRunSummary
+
+    tampered = copy.deepcopy(summary)
+    tampered["manifest_sha256"] = "0" * 64
+
+    # Build typed summary and verify it gets rejected
+    from cold_storage.evaluation.models import ScenarioRunSummary
+
+    scenario_results = tuple(
+        ScenarioRunSummary(
+            scenario_id=sr["scenario_id"],
+            passed=sr["passed"],
+            checks_total=sr["checks_total"],
+            checks_passed=sr["checks_passed"],
+            checks_failed=sr["checks_failed"],
+        )
+        for sr in tampered["scenario_results"]
+    )
+
+    typed_summary = EvaluationRunSummary(
+        run_id=tampered["run_id"],
+        suite_id=tampered["suite_id"],
+        suite_revision=tampered["suite_revision"],
+        manifest_sha256=tampered["manifest_sha256"],
+        scenario_ids=tuple(tampered["scenario_ids"]),
+        status=RunStatus(tampered["status"]),
+        completed_at=tampered["completed_at"],
+        code_commit_sha=tampered["code_commit_sha"],
+        passed=tampered["passed"],
+        scenario_results=scenario_results,
+    )
+
+    try:
+        _verify_summary_against_run_meta(run_id, typed_summary, run_meta)
+        raise AssertionError("Tampered summary with fake manifest_sha256 was accepted")
+    except RunIdentityMismatchError as exc:
+        assert exc.code == "EVAL_RUN_IDENTITY_MISMATCH"
+        assert exc.field == "manifest_sha256"
+
+
+def test_stale_blocked_run_context_is_rejected() -> None:
+    """Context from run A must not pass verification against run B's run.json."""
+    from cold_storage.evaluation.errors import RunIdentityMismatchError
+    from cold_storage.evaluation.run_directory import (
+        _verify_context_against_run_meta,
+    )
+
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
+    run_a_dir = _latest_run_dir()
+    assert run_a_dir is not None
+    run_a_meta = json.loads((run_a_dir / "run.json").read_text("utf-8"))
+
+    # Second run
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
+    run_b_dir = _latest_run_dir()
+    assert run_b_dir is not None
+    run_b_meta = json.loads((run_b_dir / "run.json").read_text("utf-8"))
+
+    # Build context from run B
+    from cold_storage.evaluation.run_directory import EvaluationRunContext
+
+    ctx_b = EvaluationRunContext(
+        run_id=run_b_meta["run_id"],
+        suite_id=run_b_meta["suite_id"],
+        suite_revision=run_b_meta["suite_revision"],
+        manifest_sha256=run_b_meta["manifest_sha256"],
+        started_at=run_b_meta["started_at"],
+        status=RunStatus(run_b_meta["status"]),
+        scenario_ids=tuple(run_b_meta["scenario_ids"]),
+        database_backend=run_b_meta.get("database_backend"),
+        code_commit_sha=run_b_meta.get("code_commit_sha"),
+    )
+
+    # Verify ctx_b against run_a's run.json → must fail
+    try:
+        _verify_context_against_run_meta(ctx_b, run_a_meta)
+        raise AssertionError("Stale context from run B accepted against run A's run.json")
+    except RunIdentityMismatchError as exc:
+        assert exc.code == "EVAL_RUN_IDENTITY_MISMATCH"
+        # The failing field is run_id (first field checked or one that differs)
+        assert exc.field in ("run_id",)
+    except Exception:
+        raise  # unexpected
