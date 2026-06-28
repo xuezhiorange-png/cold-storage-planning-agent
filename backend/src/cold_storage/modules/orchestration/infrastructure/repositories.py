@@ -1,9 +1,12 @@
 """Orchestration repository protocols — session-bound, never commits.
 
 Repository methods accept a SQLAlchemy Session and operate within the
-caller's transaction boundary.  They MUST NOT call ``session.commit()``.
+caller's transaction boundary.  They MUST NOT call ``session.commit()``,
+``session.rollback()``, ``session.close()``, or create sessions.
 
-Full implementation in later phases.
+Concrete SQLAlchemy implementations are provided for all protocols
+needed by Transaction A (request + snapshot + context + identity +
+attempt).
 """
 
 from __future__ import annotations
@@ -20,6 +23,9 @@ from cold_storage.modules.orchestration.domain.contracts import (
 )
 
 
+# ── Orchestration Request ───────────────────────────────────────────────────
+
+
 class OrchestrationRequestRepository(ABC):
     """Read/write ``OrchestrationRequestRecord`` rows."""
 
@@ -29,8 +35,8 @@ class OrchestrationRequestRepository(ABC):
         session: Session,
         /,
         *,
-        project_id: str,
-        project_version_id: str,
+        requested_project_id: str,
+        requested_project_version_id: str,
         request_fingerprint: str,
         actor: str,
         correlation_id: str,
@@ -49,11 +55,91 @@ class OrchestrationRequestRepository(ABC):
         failure_code: str | None = None,
         failure_field: str | None = None,
         failure_details: dict[str, object] | None = None,
+        resolved_project_id: str | None = None,
+        resolved_project_version_id: str | None = None,
         resolved_identity_id: str | None = None,
         resolved_attempt_id: str | None = None,
     ) -> None:
         """Update request status and optional resolution/failure metadata."""
         ...
+
+
+class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
+    """Session-bound repository for ``OrchestrationRequestRecord``."""
+
+    def add(
+        self,
+        session: Session,
+        /,
+        *,
+        requested_project_id: str,
+        requested_project_version_id: str,
+        request_fingerprint: str,
+        actor: str,
+        correlation_id: str,
+    ) -> str:
+        from uuid import uuid4
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRequestRecord,
+        )
+
+        record = OrchestrationRequestRecord(
+            id=str(uuid4()),
+            requested_project_id=requested_project_id,
+            requested_project_version_id=requested_project_version_id,
+            request_fingerprint=request_fingerprint,
+            actor=actor,
+            correlation_id=correlation_id,
+            status="PENDING",
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+    def update_status(
+        self,
+        session: Session,
+        /,
+        request_id: str,
+        *,
+        status: RequestStatus,
+        failure_code: str | None = None,
+        failure_field: str | None = None,
+        failure_details: dict[str, object] | None = None,
+        resolved_project_id: str | None = None,
+        resolved_project_version_id: str | None = None,
+        resolved_identity_id: str | None = None,
+        resolved_attempt_id: str | None = None,
+    ) -> None:
+        from datetime import UTC, datetime
+
+        from sqlalchemy import update
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRequestRecord,
+        )
+
+        values: dict[str, object] = {
+            "status": status.value,
+            "failure_code": failure_code,
+            "failure_field": failure_field,
+            "failure_details": failure_details,
+            "resolved_project_id": resolved_project_id,
+            "resolved_project_version_id": resolved_project_version_id,
+            "resolved_identity_id": resolved_identity_id,
+            "resolved_attempt_id": resolved_attempt_id,
+            "completed_at": datetime.now(UTC),
+        }
+        stmt = (
+            update(OrchestrationRequestRecord)
+            .where(OrchestrationRequestRecord.id == request_id)
+            .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
+        )
+        session.execute(stmt)
+
+
+# ── Execution Snapshot ──────────────────────────────────────────────────────
 
 
 class ExecutionSnapshotRepository(ABC):
@@ -76,6 +162,59 @@ class ExecutionSnapshotRepository(ABC):
         ...
 
 
+class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
+    """Session-bound repository for ``ProjectVersionExecutionSnapshotRecord``."""
+
+    def get_or_create(
+        self,
+        session: Session,
+        /,
+        *,
+        project_version_id: str,
+        input_snapshot_hash: str,
+        schema_version: str,
+        project_id: str,
+        version_number: int,
+        input_snapshot: dict[str, object],
+    ) -> str:
+        from uuid import uuid4
+
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            ProjectVersionExecutionSnapshotRecord,
+        )
+
+        # Try to find existing
+        existing = session.execute(
+            select(ProjectVersionExecutionSnapshotRecord.id).where(
+                ProjectVersionExecutionSnapshotRecord.project_version_id == project_version_id,
+                ProjectVersionExecutionSnapshotRecord.input_snapshot_hash == input_snapshot_hash,
+                ProjectVersionExecutionSnapshotRecord.schema_version == schema_version,
+            )
+        ).scalar()
+        if existing:
+            return existing
+
+        # Create new
+        record = ProjectVersionExecutionSnapshotRecord(
+            id=str(uuid4()),
+            project_id=project_id,
+            project_version_id=project_version_id,
+            version_number=version_number,
+            input_snapshot=input_snapshot,
+            input_snapshot_hash=input_snapshot_hash,
+            schema_version=schema_version,
+            captured_status="approved",
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+
+# ── Coefficient Context ─────────────────────────────────────────────────────
+
+
 class CoefficientContextRepository(ABC):
     """Read/write ``CoefficientContextRecord`` rows."""
 
@@ -93,6 +232,53 @@ class CoefficientContextRepository(ABC):
     ) -> str:
         """Return existing record ID or create a new one."""
         ...
+
+
+class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
+    """Session-bound repository for ``CoefficientContextRecord``."""
+
+    def get_or_create(
+        self,
+        session: Session,
+        /,
+        *,
+        project_version_id: str,
+        content_hash: str,
+        content: dict[str, object],
+        schema_version: str,
+        project_id: str,
+    ) -> str:
+        from uuid import uuid4
+
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            CoefficientContextRecord,
+        )
+
+        existing = session.execute(
+            select(CoefficientContextRecord.id).where(
+                CoefficientContextRecord.project_version_id == project_version_id,
+                CoefficientContextRecord.content_hash == content_hash,
+            )
+        ).scalar()
+        if existing:
+            return existing
+
+        record = CoefficientContextRecord(
+            id=str(uuid4()),
+            project_id=project_id,
+            project_version_id=project_version_id,
+            content=content,
+            content_hash=content_hash,
+            schema_version=schema_version,
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+
+# ── Orchestration Identity ──────────────────────────────────────────────────
 
 
 class OrchestrationIdentityRepository(ABC):
@@ -123,6 +309,72 @@ class OrchestrationIdentityRepository(ABC):
     ) -> None:
         """Set the authoritative completed attempt for an identity."""
         ...
+
+
+class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository):
+    """Session-bound repository for ``OrchestrationIdentityRecord``."""
+
+    def get_or_create(
+        self,
+        session: Session,
+        /,
+        *,
+        fingerprint: str,
+        execution_snapshot_id: str,
+        coefficient_context_id: str,
+        definition_version: str,
+        calculator_version_vector: dict[str, str],
+    ) -> str:
+        from uuid import uuid4
+
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationIdentityRecord,
+        )
+
+        existing = session.execute(
+            select(OrchestrationIdentityRecord.id).where(
+                OrchestrationIdentityRecord.fingerprint == fingerprint,
+            )
+        ).scalar()
+        if existing:
+            return existing
+
+        record = OrchestrationIdentityRecord(
+            id=str(uuid4()),
+            fingerprint=fingerprint,
+            execution_snapshot_id=execution_snapshot_id,
+            coefficient_context_id=coefficient_context_id,
+            definition_version=definition_version,
+            calculator_version_vector=calculator_version_vector,
+            status="ACTIVE",
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+    def set_authoritative_attempt(
+        self,
+        session: Session,
+        /,
+        identity_id: str,
+        attempt_id: str,
+    ) -> None:
+        from sqlalchemy import update
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationIdentityRecord,
+        )
+
+        session.execute(
+            update(OrchestrationIdentityRecord)
+            .where(OrchestrationIdentityRecord.id == identity_id)
+            .values(authoritative_attempt_id=attempt_id)
+        )
+
+
+# ── Orchestration Attempt ───────────────────────────────────────────────────
 
 
 class OrchestrationAttemptRepository(ABC):
@@ -167,8 +419,101 @@ class OrchestrationAttemptRepository(ABC):
         observed_heartbeat: datetime,
         now: datetime,
     ) -> bool:
-        """CAS-transition an expired RUNNING attempt to ABANDONED. Returns True on success."""
+        """CAS-transition an expired RUNNING attempt to ABANDONED."""
         ...
+
+
+class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
+    """Session-bound repository for ``OrchestrationRunAttemptRecord``."""
+
+    def acquire(
+        self,
+        session: Session,
+        /,
+        *,
+        identity_id: str,
+        attempt_number: int,
+        heartbeat_at: datetime,
+    ) -> str:
+        from uuid import uuid4
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        record = OrchestrationRunAttemptRecord(
+            id=str(uuid4()),
+            identity_id=identity_id,
+            attempt_number=attempt_number,
+            status="RUNNING",
+            heartbeat_at=heartbeat_at,
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+    def update_status(
+        self,
+        session: Session,
+        /,
+        attempt_id: str,
+        *,
+        status: AttemptStatus,
+        source_binding_id: str | None = None,
+        failure_code: str | None = None,
+        failure_details: dict[str, object] | None = None,
+        completed_at: datetime | None = None,
+    ) -> None:
+        from datetime import UTC, datetime
+
+        from sqlalchemy import update
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        values: dict[str, object] = {
+            "status": status.value,
+            "source_binding_id": source_binding_id,
+            "failure_code": failure_code,
+            "failure_details": failure_details,
+            "completed_at": completed_at or datetime.now(UTC),
+        }
+        session.execute(
+            update(OrchestrationRunAttemptRecord)
+            .where(OrchestrationRunAttemptRecord.id == attempt_id)
+            .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
+        )
+
+    def takeover_stale(
+        self,
+        session: Session,
+        /,
+        *,
+        attempt_id: str,
+        observed_heartbeat: datetime,
+        now: datetime,
+    ) -> bool:
+        from sqlalchemy import update
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        result = session.execute(
+            update(OrchestrationRunAttemptRecord)
+            .where(
+                OrchestrationRunAttemptRecord.id == attempt_id,
+                OrchestrationRunAttemptRecord.heartbeat_at == observed_heartbeat,
+                OrchestrationRunAttemptRecord.status == "RUNNING",
+            )
+            .values(status="ABANDONED", completed_at=now)
+        )
+        # rowcount on CursorResult returns the number of matched rows
+        return result.rowcount is not None and result.rowcount > 0  # type: ignore[attr-defined]
+
+
+# ── Source Binding ──────────────────────────────────────────────────────────
 
 
 class SourceBindingRepository(ABC):
@@ -200,6 +545,9 @@ class SourceBindingRepository(ABC):
         ...
 
 
+# ── Audit Outbox ────────────────────────────────────────────────────────────
+
+
 class AuditOutboxRepository(ABC):
     """Read/write ``AuditOutboxRecord`` rows."""
 
@@ -220,12 +568,7 @@ class AuditOutboxRepository(ABC):
         source_binding_id: str | None = None,
         available_at: datetime | None = None,
     ) -> str:
-        """Insert a PENDING outbox event and return its ID.
-
-        FK fields (request_id, identity_id, attempt_id, calculation_run_id,
-        source_binding_id) are nullable and set by the caller to link the
-        event to the appropriate aggregate stage.
-        """
+        """Insert a PENDING outbox event and return its ID."""
         ...
 
     @abstractmethod
@@ -252,113 +595,10 @@ class AuditOutboxRepository(ABC):
         ...
 
 
-class CalculationRunRepository(ABC):
-    """Read/write ``CalculationRunRecord`` rows (extended for orchestration fields)."""
-
-    @abstractmethod
-    def add(
-        self,
-        session: Session,
-        /,
-        *,
-        project_id: str,
-        project_version_id: str,
-        calculator_name: str,
-        calculator_version: str,
-        calculation_type: str,
-        input_snapshot: dict[str, object],
-        result_snapshot: dict[str, object],
-        requires_review: bool,
-        orchestration_identity_id: str,
-        orchestration_run_attempt_id: str,
-        execution_snapshot_id: str,
-        coefficient_context_id: str,
-        input_hash: str,
-        result_hash: str,
-        provenance: dict[str, object],
-        schema_version: str,
-    ) -> str:
-        """Insert a new orchestrated CalculationRunRecord and return its ID."""
-        ...
-
-
-# ── Concrete SQLAlchemy implementations ─────────────────────────────────────
-
-
-class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
-    """Session-bound repository for ``OrchestrationRequestRecord``."""
-
-    def add(
-        self,
-        session: Session,
-        /,
-        *,
-        project_id: str,
-        project_version_id: str,
-        request_fingerprint: str,
-        actor: str,
-        correlation_id: str,
-    ) -> str:
-        from uuid import uuid4
-
-        from cold_storage.modules.orchestration.infrastructure.orm import (
-            OrchestrationRequestRecord,
-        )
-
-        record = OrchestrationRequestRecord(
-            id=str(uuid4()),
-            project_id=project_id,
-            project_version_id=project_version_id,
-            request_fingerprint=request_fingerprint,
-            actor=actor,
-            correlation_id=correlation_id,
-            status="PENDING",
-        )
-        session.add(record)
-        session.flush()
-        return record.id
-
-    def update_status(
-        self,
-        session: Session,
-        /,
-        request_id: str,
-        *,
-        status: RequestStatus,
-        failure_code: str | None = None,
-        failure_field: str | None = None,
-        failure_details: dict[str, object] | None = None,
-        resolved_identity_id: str | None = None,
-        resolved_attempt_id: str | None = None,
-    ) -> None:
-        from datetime import UTC, datetime
-
-        from sqlalchemy import update
-
-        from cold_storage.modules.orchestration.infrastructure.orm import (
-            OrchestrationRequestRecord,
-        )
-
-        values: dict[str, object] = {
-            "status": str(status.value),
-            "failure_code": failure_code,
-            "failure_field": failure_field,
-            "failure_details": failure_details,
-            "resolved_identity_id": resolved_identity_id,
-            "resolved_attempt_id": resolved_attempt_id,
-            "completed_at": datetime.now(UTC),
-        }
-        session.execute(
-            update(OrchestrationRequestRecord)
-            .where(OrchestrationRequestRecord.id == request_id)
-            .values(**{k: v for k, v in values.items() if v is not None or k == "status"}),
-        )
-
-
 class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
     """Session-bound repository for ``AuditOutboxRecord``.
 
-    Implements request-level append only.  claim / retry / dispatcher
+    Implements request/attempt-level append.  claim / retry / dispatcher
     are not implemented in this phase.
     """
 
@@ -418,3 +658,36 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
         next_retry_at: datetime,
     ) -> None:
         raise NotImplementedError("Outbox retry not implemented in this phase")
+
+
+# ── Calculation Run ─────────────────────────────────────────────────────────
+
+
+class CalculationRunRepository(ABC):
+    """Read/write ``CalculationRunRecord`` rows (extended for orchestration fields)."""
+
+    @abstractmethod
+    def add(
+        self,
+        session: Session,
+        /,
+        *,
+        project_id: str,
+        project_version_id: str,
+        calculator_name: str,
+        calculator_version: str,
+        calculation_type: str,
+        input_snapshot: dict[str, object],
+        result_snapshot: dict[str, object],
+        requires_review: bool,
+        orchestration_identity_id: str,
+        orchestration_run_attempt_id: str,
+        execution_snapshot_id: str,
+        coefficient_context_id: str,
+        input_hash: str,
+        result_hash: str,
+        provenance: dict[str, object],
+        schema_version: str,
+    ) -> str:
+        """Insert a new orchestrated CalculationRunRecord and return its ID."""
+        ...
