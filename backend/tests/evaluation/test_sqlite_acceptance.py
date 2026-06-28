@@ -107,22 +107,22 @@ def _run_single_scenario(scenario_id: str) -> int:
 
 def test_baseline_run_completes() -> None:
     rc = _run_single_scenario("baseline-feasible")
-    assert rc == 1, (
-        f"Baseline-only run failed with exit code {rc} (expected 1 since blocked outcome)"
+    assert rc == 0, (
+        f"Baseline-only run failed with exit code {rc} (expected 0 since review_required is a pass)"
     )
 
 
 def test_baseline_expected_outcome_recorded() -> None:
     _cleanup_runs()
     rc = _run_single_scenario("baseline-feasible")
-    assert rc == 1
+    assert rc == 0
     summary = _load_latest_summary()
     assert summary is not None
     # Outcome is no longer in summary; read from raw artifact
     run_dir = _latest_run_dir()
     assert run_dir is not None
     raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
-    assert raw["outcome"] == "blocked", (
+    assert raw["outcome"] == "review_required", (
         f"Expected blocked outcome in raw artifact, got {raw['outcome']}"
     )
 
@@ -135,20 +135,20 @@ def test_baseline_expected_outcome_recorded() -> None:
 def test_high_throughput_independent_run() -> None:
     _cleanup_runs()
     rc = _run_single_scenario("high-throughput-review")
-    assert rc == 1, (
-        f"High-throughput run failed with exit code {rc} (expected 1 since blocked outcome)"
+    assert rc == 0, (
+        f"High-throughput run exited with code {rc} (expected 0 — review_required is a pass)"
     )
 
 
 def test_high_throughput_outcome_recorded() -> None:
     _cleanup_runs()
     rc = _run_single_scenario("high-throughput-review")
-    assert rc == 1
+    assert rc == 0
     # Outcome is no longer in summary; read from raw artifact
     run_dir = _latest_run_dir()
     assert run_dir is not None
     raw = json.loads((run_dir / "raw" / "high-throughput-review.json").read_text("utf-8"))
-    assert raw["outcome"] == "blocked", (
+    assert raw["outcome"] == "review_required", (
         f"Expected blocked outcome in raw artifact, got {raw['outcome']}"
     )
 
@@ -184,13 +184,15 @@ def test_invalid_outcome_validation_error() -> None:
 
 def test_full_suite_passes() -> None:
     rc = _run_suite()
-    assert rc == 1, "Full suite exit code is 1 — baseline/high-throughput blocked"
+    assert rc == 0, (
+        "Full suite exit code is 0 — all scenarios pass (review_required is not a failure)"
+    )
 
 
 def test_full_suite_has_all_three_scenarios() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
     summary = _load_latest_summary()
     assert summary is not None
     # scenario_ids is now a top-level field in summary
@@ -243,7 +245,7 @@ def test_expected_hash_unchanged() -> None:
         expected_hashes[s["scenario_id"]] = file_sha256(ep)
 
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
 
     for s in manifest["scenarios"]:
         ep = EVAL_ROOT / s["expected_path"]
@@ -260,7 +262,7 @@ def test_expected_hash_unchanged() -> None:
 def test_normalized_outputs_deterministic() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
     run1_dir = _latest_run_dir()
     assert run1_dir is not None
 
@@ -271,7 +273,7 @@ def test_normalized_outputs_deterministic() -> None:
         run1_hashes[s_id] = file_sha256(np)
 
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
     # Use creation-time-based latest run dir to avoid non-deterministic sorting
     run2_dir = _latest_run_dir()
     assert run2_dir is not None
@@ -292,7 +294,7 @@ def test_normalized_outputs_deterministic() -> None:
 def test_normalized_matches_expected() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
 
@@ -372,7 +374,7 @@ def test_manifest_sha256_is_real() -> None:
     expected_sha = hashlib.sha256(manifest_bytes).hexdigest()
 
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -394,7 +396,7 @@ def test_dev_database_untouched() -> None:
     dev_before = _dev_db_state()
 
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
 
     dev_after = _dev_db_state()
     assert dev_before == dev_after, "Dev database was modified during evaluation run"
@@ -435,7 +437,7 @@ def test_sqlite_scope_cleanup_on_exception() -> None:
 def test_raw_artifacts_exist() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -448,7 +450,7 @@ def test_raw_artifacts_exist() -> None:
 def test_normalized_artifacts_exist() -> None:
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -467,7 +469,7 @@ def test_raw_preserves_correlation_id() -> None:
     """Raw artifacts for baseline-feasible must contain correlation_id and input_snapshot."""
     _cleanup_runs()
     rc = _run_single_scenario("baseline-feasible")
-    assert rc == 1
+    assert rc == 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
     raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
@@ -486,14 +488,14 @@ def test_two_runs_have_different_run_ids() -> None:
     """Running the suite twice must produce distinct run IDs and directories."""
     _cleanup_runs()
     rc1 = _run_suite()
-    assert rc1 == 1
+    assert rc1 == 0
     run1_dir = _latest_run_dir()
     assert run1_dir is not None
     run1_summary = json.loads((run1_dir / "summary.json").read_text("utf-8"))
     run1_id = run1_summary["run_id"]
 
     rc2 = _run_suite()
-    assert rc2 == 1
+    assert rc2 == 0
     run2_dir = _latest_run_dir()
     assert run2_dir is not None
     run2_summary = json.loads((run2_dir / "summary.json").read_text("utf-8"))
@@ -539,7 +541,7 @@ def test_phase_a_run_json_integration() -> None:
     """run.json must contain started_at, status, database_backend, and manifest_sha256."""
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
     run_data = json.loads((run_dir / "run.json").read_text("utf-8"))
@@ -560,7 +562,7 @@ def test_phase_a_typed_summary_integration() -> None:
     """summary.json must be readable with strict decoder and have all identity fields."""
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
     summary = json.loads((run_dir / "summary.json").read_text("utf-8"))
@@ -598,7 +600,7 @@ def test_summary_check_counts_close() -> None:
     """For each scenario: checks_total == checks_passed + checks_failed."""
     _cleanup_runs()
     rc = _run_suite()
-    assert rc == 1
+    assert rc == 0
     summary = _load_latest_summary()
     assert summary is not None
     for sr in summary["scenario_results"]:
