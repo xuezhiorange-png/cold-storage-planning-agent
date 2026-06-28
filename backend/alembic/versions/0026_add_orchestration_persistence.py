@@ -618,7 +618,7 @@ def upgrade() -> None:
             "  SELECT outbox_event_id, COUNT(*) as cnt"
             "  FROM audit_events"
             "  GROUP BY outbox_event_id"
-            "  HAVING cnt > 1"
+            "  HAVING COUNT(*) > 1"
             ") sub"
         )
     ).scalar()
