@@ -11,11 +11,14 @@ from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,8 +41,12 @@ class OrchestrationRequestRecord(Base):
     actor: Mapped[str] = mapped_column(String(100), nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
-    resolved_identity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    resolved_attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    resolved_identity_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_identities.id"), nullable=True
+    )
+    resolved_attempt_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_run_attempts.id"), nullable=True
+    )
     failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_field: Mapped[str | None] = mapped_column(String(200), nullable=True)
     failure_details: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
@@ -47,6 +54,39 @@ class OrchestrationRequestRecord(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "("
+            " status = 'PENDING'"
+            " AND resolved_identity_id IS NULL"
+            " AND resolved_attempt_id IS NULL"
+            " AND failure_code IS NULL"
+            " AND failure_field IS NULL"
+            " AND failure_details IS NULL"
+            " AND completed_at IS NULL"
+            ")"
+            " OR ("
+            " status = 'PREFLIGHT_REJECTED'"
+            " AND resolved_identity_id IS NULL"
+            " AND resolved_attempt_id IS NULL"
+            " AND failure_code IS NOT NULL"
+            " AND failure_field IS NOT NULL"
+            " AND failure_details IS NOT NULL"
+            " AND completed_at IS NOT NULL"
+            ")"
+            " OR ("
+            " status = 'ACCEPTED'"
+            " AND resolved_identity_id IS NOT NULL"
+            " AND resolved_attempt_id IS NOT NULL"
+            " AND failure_code IS NULL"
+            " AND failure_field IS NULL"
+            " AND failure_details IS NULL"
+            " AND completed_at IS NOT NULL"
+            ")",
+            name="ck_orch_request_status_nullity",
+        ),
+    )
 
 
 # ── Execution Snapshot ──────────────────────────────────────────────────────
@@ -129,7 +169,11 @@ class OrchestrationIdentityRecord(Base):
     definition_version: Mapped[str] = mapped_column(String(50), nullable=False)
     calculator_version_vector: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="ACTIVE")
-    authoritative_attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    authoritative_attempt_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("orchestration_run_attempts.id", use_alter=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
@@ -144,7 +188,13 @@ class OrchestrationRunAttemptRecord(Base):
     __tablename__ = "orchestration_run_attempts"
     __table_args__ = (
         UniqueConstraint("identity_id", "attempt_number", name="uq_attempt_identity_number"),
-        # PostgreSQL partial index; SQLite equivalent enforced via application + constraint test
+        Index(
+            "uq_attempt_one_running",
+            "identity_id",
+            unique=True,
+            sqlite_where=text("status = 'RUNNING'"),
+            postgresql_where=text("status = 'RUNNING'"),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -160,7 +210,11 @@ class OrchestrationRunAttemptRecord(Base):
     lease_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    source_binding_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    source_binding_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("orchestration_source_bindings.id", use_alter=True),
+        nullable=True,
+    )
     failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_details: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     started_at: Mapped[datetime] = mapped_column(
@@ -182,6 +236,11 @@ class SourceBindingRecord(Base):
             "orchestration_run_attempt_id",
             name="uq_source_binding_identity_attempt",
         ),
+        Index("ix_source_binding_zone_calculation_id", "zone_calculation_id"),
+        Index("ix_source_binding_cooling_load_calculation_id", "cooling_load_calculation_id"),
+        Index("ix_source_binding_equipment_calculation_id", "equipment_calculation_id"),
+        Index("ix_source_binding_power_calculation_id", "power_calculation_id"),
+        Index("ix_source_binding_investment_calculation_id", "investment_calculation_id"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)

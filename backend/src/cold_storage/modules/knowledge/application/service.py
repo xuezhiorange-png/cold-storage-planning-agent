@@ -890,5 +890,6 @@ class KnowledgeService:
             after_snapshot=after_snapshot,
             event_metadata={},
             created_at=datetime.now(UTC),
+            outbox_event_id=f"legacy-audit:{str(uuid.uuid4())}",
         )
         self._session.add(event)

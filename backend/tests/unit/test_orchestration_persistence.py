@@ -404,6 +404,7 @@ class TestSchemeRunNullityCheck:
             weight_set_revision_id="wsr-1",
             weight_set_content_hash="h1",
             weight_set_generator_compatibility_version="1.0",
+            combined_source_hash="h1",
         )
         session.add(r)
         session.flush()

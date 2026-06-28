@@ -89,10 +89,18 @@ class CalculationRunRecord(Base):
 
     # ── Orchestration fields (all nullable — all-null for legacy, all-required for orchestrated) ──
     calculation_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    orchestration_identity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    orchestration_run_attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    execution_snapshot_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    coefficient_context_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    orchestration_identity_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_identities.id"), nullable=True
+    )
+    orchestration_run_attempt_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_run_attempts.id"), nullable=True
+    )
+    execution_snapshot_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_execution_snapshots.id"), nullable=True
+    )
+    coefficient_context_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_coefficient_contexts.id"), nullable=True
+    )
     input_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     provenance: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
@@ -162,4 +170,12 @@ class AuditEventRecord(Base):
     )
 
     # ── Outbox idempotency — one outbox event materializes at most one AuditEventRecord ──
-    outbox_event_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True)
+    outbox_event_id: Mapped[str] = mapped_column(
+        String(36), nullable=False, unique=True
+    )
+
+
+# Ensure orchestration tables are registered on Base.metadata so
+# ForeignKey references from CalculationRunRecord resolve during
+# metadata.create_all().
+import cold_storage.modules.orchestration.infrastructure.orm  # noqa: E402, F401
