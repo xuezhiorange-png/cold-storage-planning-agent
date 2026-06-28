@@ -641,8 +641,10 @@ class TestAuditEventHistoryBackfill:
                     {"id": dup_id, "oid": oid},
                 )
                 conn.commit()
+            # Must rollback after IntegrityError; transaction is aborted
+            conn.rollback()
 
-            # Repeated upgrade must be idempotent — same backfill values
+            # Verify no duplicates exist
             dup_count = conn.execute(
                 text(
                     "SELECT COUNT(*) FROM ("
@@ -655,6 +657,32 @@ class TestAuditEventHistoryBackfill:
             ).scalar()
             assert dup_count == 0, "Duplicate outbox_event_id values found"
         engine.dispose()
+
+        # Verify repeated upgrade is idempotent
+        r2 = _run_alembic(db_url, "upgrade", "head")
+        assert r2.returncode == 0, f"Re-upgrade failed: {r2.stderr}"
+
+        engine3 = _pg_engine(db_url)
+        with engine3.connect() as conn3:
+            # Revision still 0026
+            rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev == "0026_add_orchestration_persistence", f"Revision changed: {rev}"
+
+            # AuditEvent still backfilled with same value
+            row2 = conn3.execute(
+                text(
+                    "SELECT outbox_event_id, actor, action, entity_type, entity_id "
+                    "FROM audit_events WHERE id = :id"
+                ),
+                {"id": aud_id},
+            ).fetchone()
+            assert row2 is not None
+            assert row2[0] == f"legacy-audit:{aud_id}"
+            assert row2[1] == original_actor
+            assert row2[2] == original_action
+            assert row2[3] == original_entity_type
+            assert row2[4] == original_entity_id
+        engine3.dispose()
 
 
 class TestAuditEventPostMigration:

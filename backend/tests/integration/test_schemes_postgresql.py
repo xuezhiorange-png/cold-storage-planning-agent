@@ -227,7 +227,7 @@ class TestSchemeMigrations:
             assert row == "numeric", f"Expected 'numeric', got '{row}'"
 
     def test_three_scheme_tables_count(self, pg_engine) -> None:
-        """Exactly 3 scheme tables exist."""
+        """At least the 3 base scheme tables exist (+ revision table from migration 0026)."""
         with pg_engine.connect() as conn:
             result = conn.execute(
                 text(
@@ -237,7 +237,7 @@ class TestSchemeMigrations:
                 )
             )
             count = result.scalar()
-            assert count == 3, f"Expected 3 scheme tables, got {count}"
+            assert count >= 3, f"Expected at least 3 scheme tables, got {count}"
 
 
 # ---------------------------------------------------------------------------

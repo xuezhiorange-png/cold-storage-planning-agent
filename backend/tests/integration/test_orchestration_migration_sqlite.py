@@ -2,11 +2,23 @@
 
 Verifies: CHECK constraints, FK names, index names, partial unique index,
 downgrade blocker using ``alembic upgrade head`` (NOT ``metadata.create_all``).
+
+SQLite-only: skipped automatically when DATABASE_BACKEND is postgresql.
 """
 
 from __future__ import annotations
 
 import os
+
+import pytest
+
+if os.environ.get("DATABASE_BACKEND") == "postgresql":
+    pytest.skip(
+        "SQLite migration tests cannot run on PostgreSQL — use "
+        "test_orchestration_migration_postgresql.py instead",
+        allow_module_level=True,
+    )
+
 import subprocess
 import sys
 import tempfile

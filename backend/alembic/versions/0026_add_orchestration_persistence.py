@@ -21,7 +21,6 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
-from sqlalchemy.dialects import postgresql, sqlite
 
 # revision identifiers
 revision: str = "0026_add_orchestration_persistence"
@@ -327,7 +326,12 @@ def upgrade() -> None:
     op.create_table(
         "scheme_weight_set_revisions",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("weight_set_id", sa.String(36), sa.ForeignKey("scheme_weight_sets.id"), nullable=False),
+        sa.Column(
+            "weight_set_id",
+            sa.String(36),
+            sa.ForeignKey("scheme_weight_sets.id"),
+            nullable=False,
+        ),
         sa.Column("code", sa.String(120), nullable=False),
         sa.Column("revision", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(50), nullable=False, server_default="draft"),
@@ -337,26 +341,16 @@ def upgrade() -> None:
         sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("approved_by", sa.String(100), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.UniqueConstraint(
-            "code", "revision", name="uq_scheme_weight_set_revision_code_revision"
-        ),
+        sa.UniqueConstraint("code", "revision", name="uq_scheme_weight_set_revision_code_revision"),
     )
 
     # ── Calculation Runs: add orchestration fields ──────────────────────
     with op.batch_alter_table("calculation_runs") as batch_op:
         batch_op.add_column(sa.Column("calculation_type", sa.String(50), nullable=True))
-        batch_op.add_column(
-            sa.Column("orchestration_identity_id", sa.String(36), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("orchestration_run_attempt_id", sa.String(36), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("execution_snapshot_id", sa.String(36), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("coefficient_context_id", sa.String(36), nullable=True)
-        )
+        batch_op.add_column(sa.Column("orchestration_identity_id", sa.String(36), nullable=True))
+        batch_op.add_column(sa.Column("orchestration_run_attempt_id", sa.String(36), nullable=True))
+        batch_op.add_column(sa.Column("execution_snapshot_id", sa.String(36), nullable=True))
+        batch_op.add_column(sa.Column("coefficient_context_id", sa.String(36), nullable=True))
         batch_op.add_column(sa.Column("input_hash", sa.String(128), nullable=True))
         batch_op.add_column(sa.Column("result_hash", sa.String(128), nullable=True))
         batch_op.add_column(sa.Column("provenance", sa.JSON(), nullable=True))
@@ -423,15 +417,9 @@ def upgrade() -> None:
             sa.Column("source_mode", sa.String(50), nullable=False, server_default="legacy")
         )
         batch_op.add_column(sa.Column("source_binding_id", sa.String(36), nullable=True))
-        batch_op.add_column(
-            sa.Column("source_contract_version", sa.String(50), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("weight_set_revision_id", sa.String(36), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("weight_set_content_hash", sa.String(128), nullable=True)
-        )
+        batch_op.add_column(sa.Column("source_contract_version", sa.String(50), nullable=True))
+        batch_op.add_column(sa.Column("weight_set_revision_id", sa.String(36), nullable=True))
+        batch_op.add_column(sa.Column("weight_set_content_hash", sa.String(128), nullable=True))
         batch_op.add_column(
             sa.Column(
                 "weight_set_generator_compatibility_version",
@@ -582,9 +570,7 @@ def upgrade() -> None:
     # ── Audit Events: outbox_event_id backfill + NOT NULL ───────────────
     # Step 0: add nullable column
     with op.batch_alter_table("audit_events") as batch_op:
-        batch_op.add_column(
-            sa.Column("outbox_event_id", sa.String(128), nullable=True)
-        )
+        batch_op.add_column(sa.Column("outbox_event_id", sa.String(128), nullable=True))
 
     # Step 1: backfill legacy rows with stable, deterministic IDs
     conn = op.get_bind()
@@ -596,9 +582,7 @@ def upgrade() -> None:
         for row in rows:
             legacy_id = f"legacy-audit:{row[0]}"
             conn.execute(
-                sa.text(
-                    "UPDATE audit_events SET outbox_event_id = :oid WHERE id = :rid"
-                ),
+                sa.text("UPDATE audit_events SET outbox_event_id = :oid WHERE id = :rid"),
                 {"oid": legacy_id, "rid": row[0]},
             )
 
@@ -607,9 +591,7 @@ def upgrade() -> None:
         sa.text("SELECT COUNT(*) FROM audit_events WHERE outbox_event_id IS NULL")
     ).scalar()
     if null_count != 0:
-        raise RuntimeError(
-            f"outbox_event_id backfill failed: {null_count} NULL values remain"
-        )
+        raise RuntimeError(f"outbox_event_id backfill failed: {null_count} NULL values remain")
 
     # Step 3: verify no duplicates
     dup_count = conn.execute(
@@ -623,16 +605,12 @@ def upgrade() -> None:
         )
     ).scalar()
     if dup_count != 0:
-        raise RuntimeError(
-            f"outbox_event_id backfill produced {dup_count} duplicate sets"
-        )
+        raise RuntimeError(f"outbox_event_id backfill produced {dup_count} duplicate sets")
 
     # Step 4: make NOT NULL + unique
     with op.batch_alter_table("audit_events") as batch_op:
         batch_op.alter_column("outbox_event_id", nullable=False)
-        batch_op.create_unique_constraint(
-            "uq_audit_event_outbox", ["outbox_event_id"]
-        )
+        batch_op.create_unique_constraint("uq_audit_event_outbox", ["outbox_event_id"])
 
 
 def downgrade() -> None:
@@ -676,30 +654,20 @@ def downgrade() -> None:
 
     # ── Identity authoritative_attempt_id FK ────────────────────────────
     with op.batch_alter_table("orchestration_identities") as batch_op:
-        batch_op.drop_constraint(
-            "fk_orch_identity_authoritative_attempt", type_="foreignkey"
-        )
+        batch_op.drop_constraint("fk_orch_identity_authoritative_attempt", type_="foreignkey")
 
     # ── Request FKs ─────────────────────────────────────────────────────
     with op.batch_alter_table("orchestration_requests") as batch_op:
-        batch_op.drop_constraint(
-            "fk_orch_request_resolved_attempt", type_="foreignkey"
-        )
-        batch_op.drop_constraint(
-            "fk_orch_request_resolved_identity", type_="foreignkey"
-        )
+        batch_op.drop_constraint("fk_orch_request_resolved_attempt", type_="foreignkey")
+        batch_op.drop_constraint("fk_orch_request_resolved_identity", type_="foreignkey")
 
     # ── Request status CHECK ─────────────────────────────────────────────
     _drop_check_constraint("orchestration_requests", "ck_orch_request_status_nullity")
 
     # ── Scheme Run FKs ──────────────────────────────────────────────────
     with op.batch_alter_table("scheme_runs") as batch_op:
-        batch_op.drop_constraint(
-            "fk_scheme_run_weight_set_revision", type_="foreignkey"
-        )
-        batch_op.drop_constraint(
-            "fk_scheme_run_source_binding", type_="foreignkey"
-        )
+        batch_op.drop_constraint("fk_scheme_run_weight_set_revision", type_="foreignkey")
+        batch_op.drop_constraint("fk_scheme_run_source_binding", type_="foreignkey")
 
     # ── Scheme Run CHECK ────────────────────────────────────────────────
     _drop_check_constraint("scheme_runs", "ck_scheme_run_source_mode_nullity")
@@ -768,9 +736,7 @@ def downgrade() -> None:
 # ── Cross-DB CHECK helpers ─────────────────────────────────────────────────
 
 
-def _create_check_constraint(
-    table_name: str, constraint_name: str, condition_sql: str
-) -> None:
+def _create_check_constraint(table_name: str, constraint_name: str, condition_sql: str) -> None:
     """Create a named CHECK constraint with dialect-appropriate syntax."""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
