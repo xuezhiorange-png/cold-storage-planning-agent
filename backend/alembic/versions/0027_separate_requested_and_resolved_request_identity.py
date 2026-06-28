@@ -44,7 +44,7 @@ def downgrade() -> None:
 
 
 def _block_downgrade_if_unresolvable_requests() -> None:
-    """Block downgrade when PREFLIGHT_REJECTED records have unresolvable
+    """Block downgrade when orchestration_requests contain unresolvable
     requested_project_id or requested_project_version_id.
 
     The new schema allows storing unresolvable caller-provided identity
@@ -52,41 +52,73 @@ def _block_downgrade_if_unresolvable_requests() -> None:
     would put those values into FK-constrained ``project_id`` /
     ``project_version_id`` columns, which would fail.
 
-    This check runs BEFORE any schema mutation.
+    Checks (before any schema mutation):
+    1. requested_project_id not in projects
+    2. requested_project_version_id not in project_versions
+    3. project_version exists but belongs to a different project
     """
     from sqlalchemy import text as _sa_text
 
     conn = op.get_bind()
-    dialect_name = op.get_context().dialect.name
+    revision_id = "0027_separate_requested_and_resolved_request_identity"
 
-    # Check for rows where requested_project_id can't be resolved
-    if dialect_name == "sqlite":
-        unresolvable = conn.execute(
-            _sa_text(
-                "SELECT COUNT(*) FROM orchestration_requests r "
-                "WHERE r.requested_project_id IS NOT NULL "
-                "AND NOT EXISTS ("
-                "  SELECT 1 FROM projects p WHERE p.id = r.requested_project_id"
-                ")"
-            )
-        ).scalar()
-    else:
-        unresolvable = conn.execute(
-            _sa_text(
-                "SELECT COUNT(*) FROM orchestration_requests r "
-                "WHERE r.requested_project_id IS NOT NULL "
-                "AND NOT EXISTS ("
-                "  SELECT 1 FROM projects p WHERE p.id = r.requested_project_id"
-                ")"
-            )
-        ).scalar()
+    # Check 1: requested_project_id not resolvable
+    unresolved_project = conn.execute(
+        _sa_text(
+            "SELECT COUNT(*) FROM orchestration_requests r "
+            "WHERE r.requested_project_id IS NOT NULL "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM projects p WHERE p.id = r.requested_project_id"
+            ")"
+        )
+    ).scalar()
 
-    if unresolvable:
+    # Check 2: requested_project_version_id not resolvable
+    unresolved_version = conn.execute(
+        _sa_text(
+            "SELECT COUNT(*) FROM orchestration_requests r "
+            "WHERE r.requested_project_version_id IS NOT NULL "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM project_versions pv "
+            "  WHERE pv.id = r.requested_project_version_id"
+            ")"
+        )
+    ).scalar()
+
+    # Check 3: project_version exists but belongs to a different project
+    version_project_mismatch = conn.execute(
+        _sa_text(
+            "SELECT COUNT(*) FROM orchestration_requests r "
+            "JOIN project_versions pv ON pv.id = r.requested_project_version_id "
+            "WHERE r.requested_project_id IS NOT NULL "
+            "AND pv.project_id != r.requested_project_id"
+        )
+    ).scalar()
+
+    if unresolved_project or unresolved_version or version_project_mismatch:
+        reasons: list[str] = []
+        if unresolved_project:
+            reasons.append(
+                f"{unresolved_project} rows have requested_project_id "
+                "not found in projects"
+            )
+        if unresolved_version:
+            reasons.append(
+                f"{unresolved_version} rows have requested_project_version_id "
+                "not found in project_versions"
+            )
+        if version_project_mismatch:
+            reasons.append(
+                f"{version_project_mismatch} rows have "
+                "requested_project_version_id belonging to a different project"
+            )
+
         raise RuntimeError(
-            f"Cannot downgrade: {unresolvable} orchestration_requests have "
-            "requested_project_id that cannot be resolved to "
-            "the projects table.  Downgrade would create FK violations.  "
-            "Remove affected records first or use --force-downgrade."
+            f"Cannot downgrade migration {revision_id}: "
+            + "; ".join(reasons)
+            + ". These records cannot be safely restored to the old schema "
+            "because the old schema requires FK-constrained project_id and "
+            "project_version_id. Remove affected records first."
         )
 
 
