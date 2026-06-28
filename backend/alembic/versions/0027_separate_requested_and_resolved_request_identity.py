@@ -158,18 +158,20 @@ def _sqlite_upgrade() -> None:
             status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
             resolved_project_id VARCHAR(36) REFERENCES projects(id),
             resolved_project_version_id VARCHAR(36) REFERENCES project_versions(id),
-            resolved_identity_id VARCHAR(36)
-                CONSTRAINT fk_orch_request_resolved_identity
-                REFERENCES orchestration_identities(id),
-            resolved_attempt_id VARCHAR(36)
-                CONSTRAINT fk_orch_request_resolved_attempt
-                REFERENCES orchestration_run_attempts(id),
+            resolved_identity_id VARCHAR(36),
+            resolved_attempt_id VARCHAR(36),
             failure_code VARCHAR(100),
             failure_field VARCHAR(200),
             failure_details JSON,
             created_at DATETIME NOT NULL,
             completed_at DATETIME,
-            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _NEW_CHECK + """)
+            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _NEW_CHECK + """),
+            CONSTRAINT fk_orch_request_resolved_identity
+                FOREIGN KEY (resolved_identity_id)
+                REFERENCES orchestration_identities(id),
+            CONSTRAINT fk_orch_request_resolved_attempt
+                FOREIGN KEY (resolved_attempt_id)
+                REFERENCES orchestration_run_attempts(id)
         )
     """))
     conn.execute(_sa_text("""
@@ -214,18 +216,20 @@ def _sqlite_downgrade() -> None:
             actor VARCHAR(100) NOT NULL,
             correlation_id VARCHAR(128) NOT NULL,
             status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-            resolved_identity_id VARCHAR(36)
-                CONSTRAINT fk_orch_request_resolved_identity
-                REFERENCES orchestration_identities(id),
-            resolved_attempt_id VARCHAR(36)
-                CONSTRAINT fk_orch_request_resolved_attempt
-                REFERENCES orchestration_run_attempts(id),
+            resolved_identity_id VARCHAR(36),
+            resolved_attempt_id VARCHAR(36),
             failure_code VARCHAR(100),
             failure_field VARCHAR(200),
             failure_details JSON,
             created_at DATETIME NOT NULL,
             completed_at DATETIME,
-            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _OLD_CHECK + """)
+            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _OLD_CHECK + """),
+            CONSTRAINT fk_orch_request_resolved_identity
+                FOREIGN KEY (resolved_identity_id)
+                REFERENCES orchestration_identities(id),
+            CONSTRAINT fk_orch_request_resolved_attempt
+                FOREIGN KEY (resolved_attempt_id)
+                REFERENCES orchestration_run_attempts(id)
         )
     """))
     conn.execute(_sa_text("""
