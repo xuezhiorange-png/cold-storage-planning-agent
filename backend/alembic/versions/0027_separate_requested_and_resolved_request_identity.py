@@ -34,11 +34,61 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    _block_downgrade_if_unresolvable_requests()
     dialect_name = op.get_context().dialect.name
     if dialect_name == "sqlite":
         _sqlite_downgrade()
     else:
         _pg_downgrade()
+
+
+def _block_downgrade_if_unresolvable_requests() -> None:
+    """Block downgrade when PREFLIGHT_REJECTED records have unresolvable
+    requested_project_id or requested_project_version_id.
+
+    The new schema allows storing unresolvable caller-provided identity
+    (requested_* columns have no FK).  Rolling back to the old schema
+    would put those values into FK-constrained ``project_id`` /
+    ``project_version_id`` columns, which would fail.
+
+    This check runs BEFORE any schema mutation.
+    """
+    from sqlalchemy import text as _sa_text
+
+    conn = op.get_bind()
+    dialect_name = op.get_context().dialect.name
+
+    # Check for rows where requested_project_id can't be resolved
+    if dialect_name == "sqlite":
+        unresolvable = conn.execute(
+            _sa_text(
+                "SELECT COUNT(*) FROM orchestration_requests r "
+                "WHERE r.requested_project_id IS NOT NULL "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM projects p WHERE p.id = r.requested_project_id"
+                ")"
+            )
+        ).scalar()
+    else:
+        unresolvable = conn.execute(
+            _sa_text(
+                "SELECT COUNT(*) FROM orchestration_requests r "
+                "WHERE r.requested_project_id IS NOT NULL "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM projects p WHERE p.id = r.requested_project_id"
+                ")"
+            )
+        ).scalar()
+
+    if unresolvable:
+        raise RuntimeError(
+            "Cannot downgrade: {} orchestration_requests have "
+            "requested_project_id that cannot be resolved to "
+            "the projects table.  Downgrade would create FK violations.  "
+            "Remove affected records first or use --force-downgrade.".format(
+                unresolvable
+            )
+        )
 
 
 # ── PostgreSQL ──────────────────────────────────────────────────────────────
@@ -92,43 +142,106 @@ def _pg_downgrade() -> None:
 
 
 def _sqlite_upgrade() -> None:
-    with op.batch_alter_table("orchestration_requests") as batch:
-        batch.alter_column("project_id", new_column_name="requested_project_id")
-        batch.alter_column("project_version_id", new_column_name="requested_project_version_id")
-        batch.add_column(sa.Column("resolved_project_id", sa.String(36), nullable=True))
-        batch.add_column(
-            sa.Column("resolved_project_version_id", sa.String(36), nullable=True)
+    """SQLite upgrade: recreate table to move FKs from requested_* to resolved_*."""
+    from sqlalchemy import text as _sa_text
+
+    conn = op.get_bind()
+
+    conn.execute(_sa_text("""
+        CREATE TABLE _alembic_tmp_orch_req (
+            id VARCHAR(36) PRIMARY KEY,
+            requested_project_id VARCHAR(36) NOT NULL,
+            requested_project_version_id VARCHAR(36) NOT NULL,
+            request_fingerprint VARCHAR(128) NOT NULL,
+            actor VARCHAR(100) NOT NULL,
+            correlation_id VARCHAR(128) NOT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+            resolved_project_id VARCHAR(36) REFERENCES projects(id),
+            resolved_project_version_id VARCHAR(36) REFERENCES project_versions(id),
+            resolved_identity_id VARCHAR(36),
+            resolved_attempt_id VARCHAR(36),
+            failure_code VARCHAR(100),
+            failure_field VARCHAR(200),
+            failure_details JSON,
+            created_at DATETIME NOT NULL,
+            completed_at DATETIME,
+            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _NEW_CHECK + """)
         )
-        # batch_alter_table copies the table, so old CHECK is dropped.
-        # Add the new CHECK after the batch context exits.
-    _add_sqlite_check(_NEW_CHECK)
+    """))
+    conn.execute(_sa_text("""
+        INSERT INTO _alembic_tmp_orch_req
+            (id, requested_project_id, requested_project_version_id,
+             request_fingerprint, actor, correlation_id, status,
+             resolved_project_id, resolved_project_version_id,
+             resolved_identity_id, resolved_attempt_id,
+             failure_code, failure_field, failure_details,
+             created_at, completed_at)
+        SELECT id, project_id, project_version_id,
+               request_fingerprint, actor, correlation_id, status,
+               NULL, NULL,
+               resolved_identity_id, resolved_attempt_id,
+               failure_code, failure_field, failure_details,
+               created_at, completed_at
+        FROM orchestration_requests
+    """))
+    conn.execute(_sa_text("DROP TABLE orchestration_requests"))
+    conn.execute(_sa_text(
+        "ALTER TABLE _alembic_tmp_orch_req RENAME TO orchestration_requests"
+    ))
+    # Recreate indexes
+    conn.execute(_sa_text(
+        "CREATE INDEX IF NOT EXISTS ix_orchestration_requests_request_fingerprint "
+        "ON orchestration_requests (request_fingerprint)"
+    ))
 
 
 def _sqlite_downgrade() -> None:
-    with op.batch_alter_table("orchestration_requests") as batch:
-        batch.drop_column("resolved_project_version_id")
-        batch.drop_column("resolved_project_id")
-        batch.alter_column("requested_project_id", new_column_name="project_id")
-        batch.alter_column("requested_project_version_id", new_column_name="project_version_id")
-    _add_sqlite_check(_OLD_CHECK)
+    """SQLite downgrade: recreate table to restore old schema."""
+    from sqlalchemy import text as _sa_text
 
+    conn = op.get_bind()
 
-def _add_sqlite_check(check_sql: str) -> None:
-    """Add the CHECK constraint via raw SQL.
-
-    ``batch_alter_table`` drops CHECKs during the copy, so we add them
-    back via raw SQL which works across all SQLite versions.
-    """
-    # Using raw SQL because alembic's create_check_constraint doesn't work
-    # on SQLite (no ALTER ADD CONSTRAINT support).
-    op.execute(
-        "CREATE TABLE IF NOT EXISTS __temp_orch_req AS "
-        "SELECT * FROM orchestration_requests LIMIT 0"
-    )
-    # The batch_alter_table already recreated the table; we just need to
-    # ensure the CHECK exists. Since the table was recreated fresh by
-    # batch mode, there's no constraint to drop first.
-    pass
+    conn.execute(_sa_text("""
+        CREATE TABLE _alembic_tmp_orch_req (
+            id VARCHAR(36) PRIMARY KEY,
+            project_id VARCHAR(36) NOT NULL REFERENCES projects(id),
+            project_version_id VARCHAR(36) NOT NULL REFERENCES project_versions(id),
+            request_fingerprint VARCHAR(128) NOT NULL,
+            actor VARCHAR(100) NOT NULL,
+            correlation_id VARCHAR(128) NOT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+            resolved_identity_id VARCHAR(36),
+            resolved_attempt_id VARCHAR(36),
+            failure_code VARCHAR(100),
+            failure_field VARCHAR(200),
+            failure_details JSON,
+            created_at DATETIME NOT NULL,
+            completed_at DATETIME,
+            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _OLD_CHECK + """)
+        )
+    """))
+    conn.execute(_sa_text("""
+        INSERT INTO _alembic_tmp_orch_req
+            (id, project_id, project_version_id,
+             request_fingerprint, actor, correlation_id, status,
+             resolved_identity_id, resolved_attempt_id,
+             failure_code, failure_field, failure_details,
+             created_at, completed_at)
+        SELECT id, requested_project_id, requested_project_version_id,
+               request_fingerprint, actor, correlation_id, status,
+               resolved_identity_id, resolved_attempt_id,
+               failure_code, failure_field, failure_details,
+               created_at, completed_at
+        FROM orchestration_requests
+    """))
+    conn.execute(_sa_text("DROP TABLE orchestration_requests"))
+    conn.execute(_sa_text(
+        "ALTER TABLE _alembic_tmp_orch_req RENAME TO orchestration_requests"
+    ))
+    conn.execute(_sa_text(
+        "CREATE INDEX IF NOT EXISTS ix_orchestration_requests_request_fingerprint "
+        "ON orchestration_requests (request_fingerprint)"
+    ))
 
 
 # ── CHECK definitions ──────────────────────────────────────────────────────

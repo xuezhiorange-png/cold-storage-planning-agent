@@ -7,8 +7,8 @@ close, or create sessions.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 from collections.abc import Generator
+from contextlib import contextmanager
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -39,7 +39,7 @@ class SqlAlchemyOrchestrationUnitOfWork:
 class SqlAlchemyOrchestrationUnitOfWorkFactory:
     """Creates UnitOfWork instances from a session factory."""
 
-    def __init__(self, session_factory: "sessionmaker[Session]") -> None:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
     @contextmanager
