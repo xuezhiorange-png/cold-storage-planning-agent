@@ -8,12 +8,27 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
+from uuid import uuid4
 
 from cold_storage.evaluation.models import EvaluationScenario
 from cold_storage.evaluation.sqlite_scope import SqliteScope
 from cold_storage.modules.calculations.application.service import (
     CoreCalculationService,
+)
+from cold_storage.modules.calculations.domain.cooling_load import (
+    CoefficientSet,
+    CoolingLoadCalcInput,
+    ZoneCoolingLoadInput,
+    calculate_cooling_load,
+)
+from cold_storage.modules.calculations.domain.equipment import (
+    EquipmentCapabilityCalcInput,
+    EquipmentCoefficientSet,
+    TemperatureSystemInput,
+    ZoneEquipmentInput,
+    calculate_equipment_capability,
 )
 from cold_storage.modules.calculations.domain.inventory import (
     InventoryCalcInput,
@@ -27,6 +42,7 @@ from cold_storage.modules.calculations.domain.pallets import (
 )
 from cold_storage.modules.calculations.domain.power import (
     InstalledPowerCalcInput,
+    calculate_installed_power,
 )
 from cold_storage.modules.calculations.domain.precooling import (
     PrecoolingCalcInput,
@@ -40,6 +56,10 @@ from cold_storage.modules.calculations.domain.zone_planning import (
 )
 from cold_storage.modules.projects.infrastructure.database import (
     DatabaseProjectService,
+)
+from cold_storage.modules.projects.infrastructure.orm import (
+    CalculationRunRecord,
+    ProjectVersionRecord,
 )
 
 # ---------------------------------------------------------------------------
@@ -89,8 +109,6 @@ def _stage_entry(
 
 
 def _to_decimal(value: object) -> Any:
-    from decimal import Decimal
-
     if value is None:
         return Decimal("0")
     if isinstance(value, Decimal):
@@ -111,16 +129,16 @@ def _to_decimal(value: object) -> Any:
 
 def _json_safe(obj: Any) -> Any:
     """Convert an object to a JSON-safe primitive."""
-    from datetime import datetime
-    from decimal import Decimal
+    from datetime import datetime as dt
+    from decimal import Decimal as D
 
     if obj is None:
         return None
     if isinstance(obj, (str, int, float, bool)):
         return obj
-    if isinstance(obj, Decimal):
+    if isinstance(obj, D):
         return str(obj)
-    if isinstance(obj, datetime):
+    if isinstance(obj, dt):
         return obj.isoformat()
     if isinstance(obj, dict):
         return {k: _json_safe(v) for k, v in obj.items()}
@@ -130,6 +148,124 @@ def _json_safe(obj: Any) -> Any:
         return _json_safe(obj.__dict__)
     return str(obj)
 
+
+# ---------------------------------------------------------------------------
+# Helper: temperature_band → temperature_level mapping for SchemeService
+# ---------------------------------------------------------------------------
+
+
+def _map_temperature_level(temperature_band: str, zone_code: str) -> str:
+    """Map zone_plan temperature_band to SchemeService-compatible temperature_level."""
+    t = str(temperature_band).strip()
+    if t == "-18℃" or t == "-25℃":
+        return "frozen"
+    if "precooling" in str(zone_code).lower():
+        return "precooling"
+    if t in ("8~10℃", "1~3℃", "0~5℃"):
+        return "medium_temperature"
+    if t == "常温":
+        return "ambient"
+    return "medium_temperature"
+
+
+def _map_process_compatibility(zone_code: str, function: str) -> str:
+    """Derive process_compatibility from zone function."""
+    f = str(function).lower()
+    c = str(zone_code).lower()
+    if "precooling" in c or "precooling" in f or "预冷" in function:
+        return "raw"
+    if "raw" in c or "原果" in function or "暂存" in function:
+        return "raw"
+    if "frozen" in c or "冻果" in function or "冷冻" in function:
+        return "finished"
+    if any(kw in f for kw in ("finished", "storage", "成品", "冷藏", "cold room")):
+        return "finished"
+    return "general"
+
+
+# ---------------------------------------------------------------------------
+# Helper: persist a CalculationRunRecord
+# ---------------------------------------------------------------------------
+
+
+def _persist_calculation(
+    *,
+    session: Any,
+    project_id: str,
+    version_number: int,
+    calculator_name: str,
+    calculator_version: str,
+    input_snapshot: dict[str, Any],
+    result_snapshot: dict[str, Any],
+    formulas: list[dict[str, Any]],
+    coefficients: list[dict[str, Any]],
+    assumptions: list[str],
+    warnings: list[dict[str, Any]],
+    source_references: list[dict[str, Any]],
+    requires_review: bool,
+) -> CalculationRunRecord:
+    """Create and persist a CalculationRunRecord."""
+    version_record = (
+        session.query(ProjectVersionRecord)
+        .filter_by(
+            project_id=project_id,
+            version_number=version_number,
+        )
+        .first()
+    )
+    if version_record is None:
+        raise ValueError(
+            f"ProjectVersionRecord not found for project={project_id} version={version_number}"
+        )
+
+    record = CalculationRunRecord(
+        id=str(uuid4()),
+        project_id=project_id,
+        project_version_id=version_record.id,
+        calculator_name=calculator_name,
+        calculator_version=calculator_version,
+        input_snapshot=input_snapshot,
+        result_snapshot=result_snapshot,
+        formulas=formulas,
+        coefficients=coefficients,
+        assumptions=assumptions,
+        warnings=warnings,
+        source_references=source_references,
+        requires_review=requires_review,
+        created_at=datetime.now(UTC),
+    )
+    session.add(record)
+    session.commit()
+    return record
+
+
+# ---------------------------------------------------------------------------
+# Cooling load coefficient defaults (demo)
+# ---------------------------------------------------------------------------
+
+DEMO_COOLING_COEFFICIENTS: dict[str, Any] = {
+    "wall_u_value": "0.35",
+    "roof_u_value": "0.30",
+    "floor_u_value": "0.40",
+    "product_specific_heat": "3.60",
+    "respiration_heat": "0.05",
+    "air_change_rate": "0.5",
+    "worker_heat_gain": "120",
+    "design_margin_ratio": "1.15",
+    "diversity_factor": "0.85",
+    "motor_efficiency": "0.90",
+}
+
+# ---------------------------------------------------------------------------
+# Equipment coefficient defaults (demo)
+# ---------------------------------------------------------------------------
+
+DEMO_EQUIPMENT_COEFFICIENTS = EquipmentCoefficientSet(
+    redundancy_ratio=Decimal("1.20"),
+    evaporator_capacity_margin=Decimal("1.15"),
+    condenser_capacity_margin=Decimal("1.10"),
+    compressor_cop=Decimal("3.5"),
+)
 
 # ---------------------------------------------------------------------------
 # Scenario executor
@@ -428,6 +564,58 @@ def run_evaluation_scenario(
                     review_required=zone_result.requires_review,
                     detail="zone_plan_complete",
                 )
+
+                # Persist zone result as CalculationRunRecord for SchemeService
+                if zone_result.success:
+                    try:
+                        zones_raw = zone_result.result.get("zones", [])
+                        zone_results_for_scheme = []
+                        for z in zones_raw:
+                            zc = str(z.get("zone_code", ""))
+                            zn = str(z.get("zone_name", "Unknown"))
+                            tb = str(z.get("temperature_band", ""))
+                            zfunc = str(z.get("function", ""))
+                            zone_results_for_scheme.append(
+                                {
+                                    "zone_code": zc,
+                                    "zone_name": zn,
+                                    "temperature_level": _map_temperature_level(tb, zc),
+                                    "area_m2": float(z.get("required_area_m2", 0)),
+                                    "position_count": int(z.get("position_count", 0)),
+                                    "storage_capacity_kg": float(
+                                        z.get("design_storage_mass_kg", 0)
+                                    ),
+                                    "process_compatibility": _map_process_compatibility(zc, zfunc),
+                                    "hygiene_zone": "standard",
+                                }
+                            )
+
+                        zone_result_snapshot: dict[str, Any] = {
+                            "zone_results": zone_results_for_scheme,
+                            "total_daily_throughput_kg_day": float(
+                                zone_result.result.get("daily_inbound_mass_kg", 0)
+                            ),
+                        }
+
+                        with Session() as session:
+                            _persist_calculation(
+                                session=session,
+                                project_id=project.id,
+                                version_number=version.version_number,
+                                calculator_name="zone",
+                                calculator_version=zone_result.calculator_version,
+                                input_snapshot=asdict(zone_plan_input),
+                                result_snapshot=zone_result_snapshot,
+                                formulas=[asdict(f) for f in zone_result.formula_references],
+                                coefficients=zone_result.coefficients,
+                                assumptions=zone_result.assumptions,
+                                warnings=[asdict(w) for w in zone_result.warnings],
+                                source_references=zone_result.source_references,
+                                requires_review=zone_result.requires_review,
+                            )
+                    except Exception as exc:
+                        errors.append(f"zone_persist: {exc}")
+
             except Exception as exc:
                 errors.append(f"zone_plan: {exc}")
                 stage_ledger["zone_plan"] = _stage_entry("failed", error=str(exc))
@@ -439,10 +627,6 @@ def run_evaluation_scenario(
         power_result = None  # scoped for downstream stages
         if "power" in scenario.required_stages:
             try:
-                from cold_storage.modules.calculations.domain.power import (
-                    calculate_installed_power,
-                )
-
                 power_input = InstalledPowerCalcInput(
                     compressor_input_power_kw_e=_to_decimal(
                         fixture.get("installed_power_input", {}).get(
@@ -456,7 +640,7 @@ def run_evaluation_scenario(
                     ),
                 )
                 power_result = calculate_installed_power(power_input)
-                result["power"] = _json_safe(asdict(power_result))
+                result["power"] = _json_safe(power_result.to_dict())
                 stage_ledger["power"] = _stage_entry(
                     "passed" if power_result.success else "failed",
                     review_required=power_result.requires_review,
@@ -466,6 +650,236 @@ def run_evaluation_scenario(
                 errors.append(f"power: {exc}")
                 stage_ledger["power"] = _stage_entry("failed", error=str(exc))
                 result["outcome"] = "blocked"
+
+        # ------------------------------------------------------------------
+        # Stage: cooling_load (persisted for SchemeService, not an eval stage)
+        # ------------------------------------------------------------------
+        cooling_load_result = None
+        if (
+            "zone_plan" in stage_ledger
+            and stage_ledger["zone_plan"]["status"] == "passed"
+            and zone_result is not None
+            and zone_result.success
+        ):
+            try:
+                zones = zone_result.result.get("zones", [])
+                if zones:
+                    # Build TemperatureLevel mapping
+                    from cold_storage.modules.calculations.domain.cooling_load import (
+                        TemperatureLevel as TL,
+                    )
+
+                    temp_map = {
+                        "-18℃": TL.LOW_TEMPERATURE,
+                        "0~4℃": TL.MEDIUM_TEMPERATURE,
+                        "0~5℃": TL.MEDIUM_TEMPERATURE,
+                    }
+
+                    cl_zones: list[ZoneCoolingLoadInput] = []
+                    for z in zones:
+                        zc = str(z.get("zone_code", "Z1"))
+                        zn = str(z.get("zone_name", "Unknown"))
+                        tb = str(z.get("temperature_band", ""))
+                        if tb == "常温":
+                            continue
+                        area = Decimal(str(z.get("required_area_m2", 100)))
+                        tl = temp_map.get(tb, TL.MEDIUM_TEMPERATURE)
+
+                        cl_zones.append(
+                            ZoneCoolingLoadInput(
+                                zone_code=zc,
+                                zone_name=zn,
+                                temperature_level=tl,
+                                zone_area=area,
+                                room_height=Decimal("6.0"),
+                                wall_area=area * Decimal("1.5"),
+                                roof_area=area,
+                                floor_area=area,
+                                u_value_wall=Decimal("0.35"),
+                                u_value_roof=Decimal("0.30"),
+                                u_value_floor=Decimal("0.40"),
+                                outdoor_design_temperature=Decimal("35.0"),
+                                room_design_temperature=(
+                                    Decimal("-18.0") if tb == "-18℃" else Decimal("0.0")
+                                ),
+                                operating_hours_per_day=Decimal(
+                                    str(inputs_raw.get("working_time_h_per_day", 16))
+                                ),
+                                product_mass_per_day=Decimal("0"),
+                                product_entry_temperature=Decimal("20.0"),
+                                product_target_temperature=Decimal("0.0"),
+                                cooling_duration=Decimal("8.0"),
+                                packaging_mass=Decimal("0"),
+                                worker_count=0,
+                                worker_heat_gain=Decimal("120"),
+                                lighting_power=Decimal("0"),
+                                equipment_power=Decimal("0"),
+                                fan_motor_power=Decimal("0"),
+                                motor_efficiency=Decimal("0.90"),
+                            )
+                        )
+
+                    cs = CoefficientSet(
+                        wall_u_value=Decimal("0.35"),
+                        roof_u_value=Decimal("0.30"),
+                        floor_u_value=Decimal("0.40"),
+                        product_specific_heat=Decimal("3.60"),
+                        respiration_heat=Decimal("0.05"),
+                        air_change_rate=Decimal("0.5"),
+                        worker_heat_gain=Decimal("120"),
+                        design_margin_ratio=Decimal("1.15"),
+                        diversity_factor=Decimal("0.85"),
+                        motor_efficiency=Decimal("0.90"),
+                    )
+
+                    cl_input = CoolingLoadCalcInput(zones=cl_zones, coefficients=cs)
+                    cooling_load_result = calculate_cooling_load(cl_input)
+
+                    # Compute derived values for SchemeService
+                    zone_list = cooling_load_result.result.get("zones", [])
+                    sensible_total = 0.0
+                    latent_total = 0.0
+                    infiltration_total = 0.0
+                    for zr in zone_list:
+                        sensible_total += float(
+                            zr.get("transmission_load_kw_r", 0)
+                            + zr.get("product_load_kw_r", 0)
+                            + zr.get("sensible_infiltration_load_kw_r", 0)
+                            + zr.get("internal_load_kw_r", 0)
+                            + zr.get("defrost_load_kw_r", 0)
+                        )
+                        latent_total += float(zr.get("latent_infiltration_load_kw_r", 0))
+                        infiltration_total += float(zr.get("infiltration_load_kw_r", 0))
+
+                    cooling_result_snapshot: dict[str, Any] = {
+                        "design_cooling_load_kw_r": float(
+                            cooling_load_result.result.get("design_refrigeration_load_kw_r", 0)
+                        ),
+                        "sensible_load_kw_r": sensible_total,
+                        "latent_load_kw_r": latent_total,
+                        "infiltration_load_kw_r": infiltration_total,
+                    }
+
+                    # Persist as CalculationRunRecord
+                    with Session() as session:
+                        _persist_calculation(
+                            session=session,
+                            project_id=project.id,
+                            version_number=version.version_number,
+                            calculator_name="cooling_load",
+                            calculator_version=cooling_load_result.calculator_version,
+                            input_snapshot=cooling_load_result.input_snapshot,
+                            result_snapshot=cooling_result_snapshot,
+                            formulas=[s.to_dict() for s in cooling_load_result.steps],
+                            coefficients=[
+                                c.to_dict() for c in cooling_load_result.coefficient_references
+                            ],
+                            assumptions=cooling_load_result.assumptions,
+                            warnings=[w.to_dict() for w in cooling_load_result.warnings],
+                            source_references=[],
+                            requires_review=cooling_load_result.requires_review,
+                        )
+                else:
+                    errors.append("cooling_load: no zones from zone_plan")
+            except Exception as exc:
+                errors.append(f"cooling_load: {exc}")
+
+        # ------------------------------------------------------------------
+        # Stage: equipment (persisted for SchemeService, not an eval stage)
+        # ------------------------------------------------------------------
+        equipment_result = None
+        if cooling_load_result is not None and cooling_load_result.success:
+            try:
+                # Group zone cooling load results into temperature systems
+                cl_zones_raw: Any = cooling_load_result.result.get("zones", [])
+                level_groups: dict[str, list[dict[str, Any]]] = {}
+                for zr in cl_zones_raw:
+                    tl_str: str = str(zr.get("temperature_level", "medium_temperature"))
+                    level_groups.setdefault(tl_str, []).append(zr)
+
+                systems: list[TemperatureSystemInput] = []
+                for level_code, level_zones in level_groups.items():
+                    zone_inputs: list[ZoneEquipmentInput] = []
+                    for zr in level_zones:
+                        design_load = Decimal(str(zr.get("subtotal_load_kw_r", 0)))
+                        zone_inputs.append(
+                            ZoneEquipmentInput(
+                                zone_code=str(zr.get("zone_code", "")),
+                                zone_name=str(zr.get("zone_name", "")),
+                                design_cooling_load_kw_r=design_load,
+                                evaporator_count=1,
+                                evaporation_temperature_c=(
+                                    Decimal("-25")
+                                    if level_code == "low_temperature"
+                                    else Decimal("-10")
+                                ),
+                                defrost_method=(
+                                    "hot_gas" if level_code == "low_temperature" else "off_cycle"
+                                ),
+                            )
+                        )
+
+                    systems.append(
+                        TemperatureSystemInput(
+                            system_code=f"sys-{level_code}",
+                            system_name=f"{level_code.replace('_', ' ').title()} System",
+                            design_evaporating_temperature=(
+                                Decimal("-25")
+                                if level_code == "low_temperature"
+                                else Decimal("-10")
+                            ),
+                            zones=zone_inputs,
+                        )
+                    )
+
+                if systems:
+                    eq_input = EquipmentCapabilityCalcInput(
+                        systems=systems,
+                        coefficients=DEMO_EQUIPMENT_COEFFICIENTS,
+                    )
+                    equipment_result = calculate_equipment_capability(eq_input)
+
+                    equipment_result_snapshot: dict[str, Any] = {
+                        "compressor_operating_capacity_kw_r": float(
+                            equipment_result.result.get("total_design_load_kw_r", 0)
+                        ),
+                        "compressor_installed_capacity_kw_r": float(
+                            equipment_result.result.get("total_compressor_capacity_kw_r", 0)
+                        ),
+                        "compressor_standby_capacity_kw_r": float(
+                            equipment_result.result.get("total_compressor_capacity_kw_r", 0)
+                            - equipment_result.result.get("total_design_load_kw_r", 0)
+                        ),
+                        "condenser_heat_rejection_kw": float(
+                            equipment_result.result.get("total_condenser_rejection_kw", 0)
+                        ),
+                        "installed_power_kw_e": float(
+                            equipment_result.result.get("total_compressor_input_power_kw_e", 0)
+                        ),
+                    }
+
+                    with Session() as session:
+                        _persist_calculation(
+                            session=session,
+                            project_id=project.id,
+                            version_number=version.version_number,
+                            calculator_name="equipment",
+                            calculator_version=equipment_result.calculator_version,
+                            input_snapshot=equipment_result.input_snapshot,
+                            result_snapshot=equipment_result_snapshot,
+                            formulas=[s.to_dict() for s in equipment_result.steps],
+                            coefficients=[
+                                c.to_dict() for c in equipment_result.coefficient_references
+                            ],
+                            assumptions=equipment_result.assumptions,
+                            warnings=[w.to_dict() for w in equipment_result.warnings],
+                            source_references=[],
+                            requires_review=equipment_result.requires_review,
+                        )
+                else:
+                    errors.append("equipment: no temperature systems to process")
+            except Exception as exc:
+                errors.append(f"equipment: {exc}")
 
         # ------------------------------------------------------------------
         # Stage: investment (InvestmentEstimator)
@@ -498,7 +912,7 @@ def run_evaluation_scenario(
                         position_count = sum(int(z.get("position_count", 0)) for z in zones)
 
                         # Use real power result — total_installed_power_kw_e from the
-                        # power stage result dict, which stores it as a float.
+                        # power stage result dict.  REQUIRED: no zero-value fallback.
                         if (
                             "power" in stage_ledger
                             and stage_ledger["power"]["status"] == "passed"
@@ -509,7 +923,20 @@ def run_evaluation_scenario(
                             )
                             total_power_kw = float(total_power_val)
                         else:
-                            total_power_kw = 0.0
+                            # Power stage not available — cannot compute investment.
+                            # This is an explicit error, not a silent fallback.
+                            stage_ledger["investment"] = _stage_entry(
+                                "failed",
+                                detail="power_stage_not_available_for_investment",
+                                error=(
+                                    "Power result required for"
+                                    " investment calculation but not available."
+                                ),
+                            )
+                            errors.append("investment: power stage result not available")
+                            raise RuntimeError(
+                                "Power stage result required for investment calculation"
+                            )
 
                         investment_estimator = InvestmentEstimator()
                         invest_result = investment_estimator.estimate(
@@ -527,6 +954,36 @@ def run_evaluation_scenario(
                             review_required=invest_result.requires_review,
                             detail="investment_estimate_complete",
                         )
+
+                        # Persist investment result as CalculationRunRecord
+                        if invest_result.success:
+                            try:
+                                invest_result_snapshot: dict[str, Any] = {
+                                    "total_investment_cny": float(
+                                        invest_result.result.get("total_investment_cny", 0)
+                                    ),
+                                    "zone_investments": {},
+                                }
+                                with Session() as session:
+                                    _persist_calculation(
+                                        session=session,
+                                        project_id=project.id,
+                                        version_number=version.version_number,
+                                        calculator_name="investment",
+                                        calculator_version=invest_result.calculator_version,
+                                        input_snapshot=invest_result.input,
+                                        result_snapshot=invest_result_snapshot,
+                                        formulas=[
+                                            asdict(f) for f in invest_result.formula_references
+                                        ],
+                                        coefficients=invest_result.coefficients,
+                                        assumptions=invest_result.assumptions,
+                                        warnings=[asdict(w) for w in invest_result.warnings],
+                                        source_references=invest_result.source_references,
+                                        requires_review=invest_result.requires_review,
+                                    )
+                            except Exception as exc:
+                                errors.append(f"investment_persist: {exc}")
                     else:
                         stage_ledger["investment"] = _stage_entry(
                             "failed", detail="no_zones_from_zone_plan"
@@ -568,11 +1025,7 @@ def run_evaluation_scenario(
                             weight_set_id=scheme_config.get("weight_set_id", "demo-weight-set-001"),
                             profile_parameters=scheme_config.get("profile_parameters", {}),
                         )
-                        # Preserve raw output — normalization handles exclusions
-                        if isinstance(scheme_result, dict):
-                            for cand in scheme_result.get("candidates", []):
-                                if isinstance(cand, dict):
-                                    cand.pop("candidate_id", None)
+                        # Preserve raw output — candidate_id MUST be preserved
                         result["scheme_run"] = _json_safe(scheme_result)
                         stage_ledger["schemes"] = _stage_entry(
                             "passed",
