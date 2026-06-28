@@ -1221,4 +1221,287 @@ class TestDowngradeBlocker:
             ).scalar()
             assert fk_result == 1, "FK fk_calc_run_orch_identity missing"
 
-        engine2.dispose()
+
+# ── Downgrade Gate Tests ─────────────────────────────────────────────────
+
+
+class TestDowngradeGatePG:
+    """P0-4/P0-8: PostgreSQL downgrade blocker — mirrors SQLite tests."""
+
+    def test_blocked_with_unresolvable_requested_project(
+        self, pg_database_factory
+    ) -> None:
+        """Downgrade blocked when PREFLIGHT_REJECTED record has unresolvable
+        requested_project_id."""
+        db_url = pg_database_factory(prefix="dg_proj")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0, f"Upgrade failed: {r.stderr}"
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            rev_before = conn.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar()
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": "nonexistent-project-id",
+                    "rpvid": "nonexistent-version-id",
+                },
+            )
+            conn.commit()
+
+        # Attempt downgrade — must be blocked
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode != 0, (
+            f"Downgrade should have been blocked\\n"
+            f"stdout: {r.stdout}\\nstderr: {r.stderr}"
+        )
+        assert "Cannot downgrade" in (r.stderr + r.stdout), (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
+
+        # Verify atomicity: nothing changed
+        with engine.connect() as conn:
+            rev_after = conn.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar()
+            assert rev_after == rev_before, (
+                f"Revision changed from {rev_before} to {rev_after}"
+            )
+            # CHECK constraint still present
+            ck = conn.execute(
+                text(
+                    "SELECT 1 FROM pg_constraint "
+                    "WHERE conname = 'ck_orch_request_status_nullity'"
+                )
+            ).scalar()
+            assert ck == 1, "CHECK ck_orch_request_status_nullity missing"
+            # Table still exists
+            tbl = conn.execute(
+                text(
+                    "SELECT 1 FROM pg_tables "
+                    "WHERE tablename = 'orchestration_requests'"
+                )
+            ).scalar()
+            assert tbl == 1, "orchestration_requests table missing"
+        engine.dispose()
+
+    def test_blocked_with_valid_project_invalid_version(
+        self, pg_database_factory
+    ) -> None:
+        """Downgrade blocked when requested_project exists but
+        requested_version does not."""
+        db_url = pg_database_factory(prefix="dg_ver")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0
+
+        pid = str(_uuid_mod.uuid4())
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            # Create a valid project
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, 'T1', 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.commit()
+
+            rev_before = conn.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar()
+
+            # Insert request with valid project but invalid version
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": pid,
+                    "rpvid": "nonexistent-version-id",
+                },
+            )
+            conn.commit()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode != 0, (
+            f"Downgrade should be blocked when version invalid\\n{r.stderr}"
+        )
+
+        with engine.connect() as conn:
+            rev_after = conn.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar()
+            assert rev_after == rev_before
+        engine.dispose()
+
+    def test_blocked_with_version_project_mismatch(
+        self, pg_database_factory
+    ) -> None:
+        """Downgrade blocked when requested version exists but belongs to
+        a different project."""
+        db_url = pg_database_factory(prefix="dg_mis")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0
+
+        pid_a = str(_uuid_mod.uuid4())
+        pid_b = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, :code, 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid_a, "code": "TA"},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, :code, 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid_b, "code": "TB"},
+            )
+            # Version belongs to pid_b, not pid_a
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions "
+                    "(id, project_id, version_number, change_summary, status, "
+                    "created_by, created_at, updated_at, input_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', "
+                    "now(), now(), '{}')"
+                ),
+                {"id": pvid, "pid": pid_b},
+            )
+            conn.commit()
+
+            rev_before = conn.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar()
+
+            # Request references pid_a (valid project) + pvid (belongs to pid_b)
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": pid_a,
+                    "rpvid": pvid,
+                },
+            )
+            conn.commit()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode != 0, (
+            f"Downgrade should be blocked on project/version mismatch\\n{r.stderr}"
+        )
+
+        with engine.connect() as conn:
+            rev_after = conn.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar()
+            assert rev_after == rev_before
+        engine.dispose()
+
+    def test_all_resolvable_allows_downgrade(
+        self, pg_database_factory
+    ) -> None:
+        """Downgrade succeeds when all requested identities are resolvable."""
+        db_url = pg_database_factory(prefix="dg_ok")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0
+
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, 'T_OK', 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions "
+                    "(id, project_id, version_number, change_summary, status, "
+                    "created_by, created_at, updated_at, input_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', "
+                    "now(), now(), '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            # Resolvable request
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": pid,
+                    "rpvid": pvid,
+                },
+            )
+            conn.commit()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode == 0, (
+            f"Downgrade should succeed with resolvable data\\n{r.stderr}"
+        )
+
+        # Verify we're on revision 0026
+        with engine.connect() as conn:
+            rev = conn.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar()
+            assert rev == "0026_add_orchestration_persistence", (
+                f"Expected revision 0026, got {rev}"
+            )
+        engine.dispose()
