@@ -36,6 +36,31 @@ class SourceSnapshotProvenanceV1:
     orchestration_run_attempt_id: str
     upstream_calculation_ids: Mapping[str, str] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import deep_freeze
+
+        frozen = deep_freeze(self.upstream_calculation_ids)
+        if frozen is not self.upstream_calculation_ids:
+            object.__setattr__(self, "upstream_calculation_ids", frozen)
+
+        # ── Validate identity IDs are non-null, non-empty, non-whitespace ──
+        for field_name in (
+            "execution_snapshot_id",
+            "coefficient_context_id",
+            "orchestration_identity_id",
+            "orchestration_run_attempt_id",
+        ):
+            value = getattr(self, field_name)
+            if not isinstance(value, str):
+                raise TypeError(
+                    f"SourceSnapshotProvenanceV1.{field_name} must be str, "
+                    f"got {type(value).__name__}"
+                )
+            if not value.strip():
+                raise ValueError(
+                    f"SourceSnapshotProvenanceV1.{field_name} must not be empty or whitespace"
+                )
+
 
 @dataclass(frozen=True, slots=True)
 class SourceSnapshotContentV1:

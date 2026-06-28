@@ -59,8 +59,9 @@ def result_hash(obj: object) -> str:
 def _canonicalize(value: object) -> JsonValue:
     """Recursively canonicalize a Python object into a JSON-safe value."""
     if isinstance(value, (dict, Mapping)):
-        # Detect duplicate logical keys after normalization
-        _check_duplicate_keys(value)
+        # Generic payload mappings preserve original keys — no lowercase collision detection.
+        # Semantic mappings (calculator_version_vector, upstream_calculation_ids, etc.)
+        # are validated separately by semantic_normalize_stage_key_mapping().
         return {k: _canonicalize(v) for k, v in sorted(value.items())}
     if isinstance(value, (list, tuple)):
         return [_canonicalize(v) for v in value]
@@ -121,3 +122,47 @@ def _check_duplicate_keys(mapping: Mapping[str, object]) -> None:
                 f"both normalize to {normalized!r}"
             )
         seen[normalized] = original_key
+
+
+def semantic_normalize_stage_key_mapping(
+    pairs: list[tuple[str, str]],
+    *,
+    allowed_keys: frozenset[str],
+) -> dict[str, str]:
+    """Normalize stage-key pairs with collision detection and key validation.
+
+    Use this for semantic mappings where case-insensitive key collisions
+    are meaningful (e.g., calculator_version_vector, upstream_calculation_ids,
+    per_calculation_result_hashes).
+
+    Rules:
+    - Keys are normalized to lowercase.
+    - Duplicate keys after normalization → REJECTED.
+    - Unknown keys → REJECTED.
+    - This is separate from generic canonical JSON which preserves original keys.
+
+    Accepts a list of (key, value) pairs so that tests can feed
+    pairs like ``[("ZONE", "v1"), ("zone", "v2")]`` to trigger collision
+    detection — a Python dict would collapse them silently.
+    """
+    seen_keys: set[str] = set()
+    normalized: dict[str, str] = {}
+
+    for original_key, value in pairs:
+        norm_key = original_key.lower().strip()
+        if not norm_key:
+            raise ValueError(f"Semantic stage key {original_key!r} is empty after normalization")
+        if norm_key not in allowed_keys:
+            raise ValueError(
+                f"Unknown semantic stage key {original_key!r} "
+                f"(normalized: {norm_key!r}); allowed: {sorted(allowed_keys)}"
+            )
+        if norm_key in seen_keys:
+            raise ValueError(
+                f"Duplicate logical stage key: {original_key!r} normalizes to "
+                f"{norm_key!r} which already appeared"
+            )
+        seen_keys.add(norm_key)
+        normalized[norm_key] = value
+
+    return normalized
