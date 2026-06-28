@@ -1,0 +1,12 @@
+{
+  "summary": {
+    "total_area_m2": 850.00,
+    "total_position_count": 300,
+    "total_investment_cny": 3000000,
+    "total_power_kw": 1350,
+    "requires_review": false
+  },
+  "metadata": {
+    "generated_at": "placeholder-timestamp"
+  }
+}

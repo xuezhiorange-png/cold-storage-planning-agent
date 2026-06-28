@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Cold Storage Evaluation Manifest",
+  "description": "Schema for evaluation manifests in Task 11. Phase A — contract and harness.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "suite_id", "suite_revision", "scenarios"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "Must be exactly '1.0' for Phase A."
+    },
+    "suite_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$",
+      "description": "Stable kebab-case identifier for the evaluation suite."
+    },
+    "suite_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Positive integer revision of this suite."
+    },
+    "scenarios": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Scenario" },
+      "uniqueItems": true
+    }
+  },
+  "definitions": {
+    "Scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_id",
+        "fixture_revision",
+        "project_input_path",
+        "document_refs",
+        "required_stages",
+        "expected_outcome",
+        "expected_path",
+        "comparison_policy",
+        "provenance"
+      ],
+      "properties": {
+        "scenario_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$"
+        },
+        "fixture_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "project_input_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "document_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "required_stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvaluationStage"
+          },
+          "uniqueItems": true
+        },
+        "expected_outcome": {
+          "$ref": "#/definitions/ExpectedOutcome"
+        },
+        "expected_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "comparison_policy": {
+          "$ref": "#/definitions/ComparisonPolicy"
+        },
+        "provenance": {
+          "$ref": "#/definitions/ManifestProvenance"
+        }
+      }
+    },
+    "EvaluationStage": {
+      "type": "string",
+      "enum": [
+        "project",
+        "version",
+        "validation",
+        "planning",
+        "zone_plan",
+        "schemes",
+        "investment",
+        "power",
+        "audit",
+        "reports",
+        "knowledge",
+        "agent"
+      ]
+    },
+    "ExpectedOutcome": {
+      "type": "string",
+      "enum": [
+        "success",
+        "review_required",
+        "validation_error",
+        "blocked",
+        "feature_unavailable"
+      ]
+    },
+    "ComparisonPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact_paths", "decimal_paths", "ignored_paths", "artifact_checks"],
+      "properties": {
+        "exact_paths": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ExactPathRule" },
+          "uniqueItems": true
+        },
+        "decimal_paths": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DecimalPathRule" }
+        },
+        "ignored_paths": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/IgnoredPathRule" }
+        },
+        "artifact_checks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ArtifactCheckRule" }
+        }
+      }
+    },
+    "ExactPathRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^\\$(\\.(?!\\.)[a-zA-Z_][a-zA-Z0-9_]*|\\[\\d+\\])*$",
+          "description": "Simple JSONPath: root $.field or $[0] — no wildcards, no recursive descent."
+        }
+      }
+    },
+    "DecimalPathRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mode", "scale", "unit", "rationale"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^\\$(\\.(?!\\.)[a-zA-Z_][a-zA-Z0-9_]*|\\[\\d+\\])*$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["quantize"]
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "IgnoredPathRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "reason"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^\\$(\\.(?!\\.)[a-zA-Z_][a-zA-Z0-9_]*|\\[\\d+\\])*$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ArtifactCheckRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_selector",
+        "required_status",
+        "require_non_zero_size",
+        "require_integrity_hash"
+      ],
+      "properties": {
+        "artifact_selector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_status": {
+          "type": "string",
+          "enum": ["pending", "rendering", "completed", "failed"]
+        },
+        "require_non_zero_size": {
+          "type": "boolean"
+        },
+        "require_integrity_hash": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ManifestProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "rationale"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

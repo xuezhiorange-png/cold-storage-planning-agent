@@ -426,8 +426,8 @@ class SchemeService:
         # 2. Load all required calculations from DB
         calculations = self._load_all_calculations(project_version_id)
 
-        # Verify all required calculation types exist
-        for calc_type in _REQUIRED_CALC_TYPES:
+        # Verify all required calculation types exist (sorted for determinism)
+        for calc_type in sorted(_REQUIRED_CALC_TYPES):
             if calc_type not in calculations:
                 raise SourceCalculationMissingError(calc_type)
 

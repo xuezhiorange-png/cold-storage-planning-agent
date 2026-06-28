@@ -1,0 +1,44 @@
+{
+  "synthetic": true,
+  "fixture_revision": 2,
+  "provenance": {
+    "generator": "manual",
+    "generated_at": "2026-06-27T00:00:00+00:00",
+    "description": "Synthetic baseline-feasible cold storage project for pilot evaluation — inputs use non-demo coefficient values to avoid review flags"
+  },
+  "project": {
+    "name": "Synthetic Baseline Blueberry Cold Storage",
+    "location": "Synthetic Location A",
+    "product_category": "blueberry"
+  },
+  "version": {
+    "change_summary": "Phase B evaluation fixture — baseline feasible scenario",
+    "created_by": "evaluation-system"
+  },
+  "inputs": {
+    "daily_inbound_mass_kg": 10000,
+    "working_time_h_per_day": 8,
+    "utilization_factor": 0.95,
+    "effective_working_ratio": 0.95,
+    "finished_storage_days": 7,
+    "packaging_storage_days": 3,
+    "reserve_factor": 1.2,
+    "design_inventory": 200000,
+    "net_product_per_pallet": 1000
+  },
+  "throughput_input": null,
+  "inventory_input": null,
+  "pallet_input": null,
+  "precooling_input": null,
+  "cooling_load_input": null,
+  "equipment_input": null,
+  "installed_power_input": {
+    "compressor_input_power_kw_e": "87.0",
+    "processing_equipment_power_kw_e": "15.0"
+  },
+  "scheme_run": {
+    "profile_codes": ["balanced"],
+    "weight_set_id": "demo-weight-set-001",
+    "profile_parameters": {}
+  }
+}

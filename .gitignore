@@ -56,3 +56,7 @@ frontend/dist/
 
 .config/gh/
 data/
+
+# Evaluation generated output — keep .gitkeep, ignore run dirs
+evaluation/runs/*
+!evaluation/runs/.gitkeep

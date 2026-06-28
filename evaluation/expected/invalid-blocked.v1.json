@@ -1,0 +1,41 @@
+{
+  "fixture_revision": 2,
+  "outcome": "validation_error",
+  "project": {
+    "location": "Synthetic Location C",
+    "name": "Synthetic Invalid Project",
+    "product_category": "blueberry"
+  },
+  "scenario_id": "invalid-blocked",
+  "stage_ledger": {
+    "project": {
+      "review_required": false,
+      "status": "passed"
+    },
+    "validation": {
+      "detail": "validation_error",
+      "review_required": false,
+      "status": "passed"
+    },
+    "version": {
+      "review_required": false,
+      "status": "passed"
+    }
+  },
+  "validation_result": {
+    "missing_fields": [
+      "working_time_h_per_day",
+      "utilization_factor",
+      "finished_storage_days",
+      "packaging_storage_days",
+      "reserve_factor"
+    ],
+    "tentative_fields": [],
+    "valid": false
+  },
+  "version": {
+    "change_summary": "Phase B evaluation fixture — invalid blocked scenario",
+    "status": "draft",
+    "version_number": 1
+  }
+}

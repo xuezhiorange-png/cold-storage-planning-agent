@@ -1,0 +1,1242 @@
+{
+  "calculation_results": {
+    "installed_power": {
+      "assumptions": [],
+      "calculator_name": "installed_power",
+      "calculator_version": "1.0.0",
+      "coefficient_references": [],
+      "requires_review": false,
+      "result": {
+        "auxiliary_installed_power_kw_e": 0.0,
+        "equipment_items": [],
+        "estimated_peak_demand_kw_e": 315.0,
+        "lighting_installed_power_kw_e": 0.0,
+        "process_equipment_installed_power_kw_e": 50.0,
+        "refrigeration_system_installed_power_kw_e": 300.0,
+        "total_installed_power_kw_e": 350.0
+      },
+      "steps": [
+        {
+          "description": "Refrigeration system installed power",
+          "formula": "P_refrig = compressor + evaporator_fans + condenser_fans + pumps + defrost",
+          "inputs": {
+            "compressor": "300.0",
+            "condenser_fans": "0",
+            "defrost": "0",
+            "evaporator_fans": "0",
+            "pumps": "0"
+          },
+          "output_name": "refrigeration_system_installed_power_kw_e",
+          "output_value": "300.0",
+          "step_id": "PW-REFRIG"
+        },
+        {
+          "description": "Processing equipment installed power",
+          "formula": "P_process = processing_equipment_power",
+          "inputs": {
+            "processing_equipment": "50.0"
+          },
+          "output_name": "process_equipment_installed_power_kw_e",
+          "output_value": "50.0",
+          "step_id": "PW-PROC"
+        },
+        {
+          "description": "Lighting installed power",
+          "formula": "P_lighting = lighting_power",
+          "inputs": {
+            "lighting": "0"
+          },
+          "output_name": "lighting_installed_power_kw_e",
+          "output_value": "0",
+          "step_id": "PW-LIGHT"
+        },
+        {
+          "description": "Auxiliary installed power",
+          "formula": "P_aux = other_auxiliary_power",
+          "inputs": {
+            "auxiliary": "0"
+          },
+          "output_name": "auxiliary_installed_power_kw_e",
+          "output_value": "0",
+          "step_id": "PW-AUX"
+        },
+        {
+          "description": "Total installed electrical power",
+          "formula": "P_total = refrigeration + processing + lighting + auxiliary",
+          "inputs": {
+            "auxiliary": "0",
+            "lighting": "0",
+            "processing": "50.0",
+            "refrigeration": "300.0"
+          },
+          "output_name": "total_installed_power_kw_e",
+          "output_value": "350.0",
+          "step_id": "PW-TOTAL"
+        },
+        {
+          "description": "Estimated peak demand (kW(e))",
+          "formula": "peak_demand = refrig×df_ref + process×df_proc + lighting + aux",
+          "inputs": {
+            "production_demand_factor": "0.90",
+            "refrigeration_demand_factor": "0.90"
+          },
+          "output_name": "estimated_peak_demand_kw_e",
+          "output_value": "315.000",
+          "step_id": "PW-DEMAND"
+        }
+      ],
+      "success": true,
+      "warnings": []
+    },
+    "inventory": {
+      "assumptions": [],
+      "calculator_name": "inventory",
+      "calculator_version": "1.0.0",
+      "coefficient_references": [],
+      "requires_review": true,
+      "result": {
+        "base_inventory": 700000.0,
+        "design_inventory": 950000.0,
+        "peak_inventory": 950000.0,
+        "safety_inventory": 250000.0
+      },
+      "steps": [
+        {
+          "description": "Base inventory quantity",
+          "formula": "daily_inbound_quantity × turnover_days",
+          "inputs": {
+            "daily_inbound_quantity": "50000",
+            "turnover_days": "14"
+          },
+          "output_name": "base_inventory",
+          "output_value": "700000.00",
+          "step_id": "INV-001"
+        },
+        {
+          "description": "Safety stock quantity",
+          "formula": "daily_inbound_quantity × safety_stock_days",
+          "inputs": {
+            "daily_inbound_quantity": "50000",
+            "safety_stock_days": "5"
+          },
+          "output_name": "safety_inventory",
+          "output_value": "250000.00",
+          "step_id": "INV-002"
+        },
+        {
+          "description": "Peak inventory with seasonal/demand factor",
+          "formula": "(base + safety) × inventory_peak_factor",
+          "inputs": {
+            "base_inventory": "700000.00",
+            "inventory_peak_factor": "1.0",
+            "safety_inventory": "250000.00"
+          },
+          "output_name": "peak_inventory",
+          "output_value": "950000.00",
+          "step_id": "INV-003"
+        },
+        {
+          "description": "Design inventory (storage-ready quantity)",
+          "formula": "peak_inventory × storage_ratio",
+          "inputs": {
+            "peak_inventory": "950000.00",
+            "storage_ratio": "1.0"
+          },
+          "output_name": "design_inventory",
+          "output_value": "950000.00",
+          "step_id": "INV-004"
+        }
+      ],
+      "success": true,
+      "warnings": [
+        {
+          "code": "PEAK_FACTOR_DEFAULT",
+          "details": {
+            "inventory_peak_factor": "1.0"
+          },
+          "message": "inventory_peak_factor is 1.0 (no peak adjustment)"
+        }
+      ]
+    },
+    "pallets": {
+      "assumptions": [],
+      "calculator_name": "pallets",
+      "calculator_version": "1.0.0",
+      "coefficient_references": [],
+      "requires_review": false,
+      "result": {
+        "adjusted_pallet_positions": 704,
+        "design_pallet_quantity": 704,
+        "effective_capacity_per_pallet": 1000.0,
+        "net_pallet_quantity": 640,
+        "required_pallet_positions": 704,
+        "reserve_pallet_quantity": 64
+      },
+      "steps": [
+        {
+          "description": "Effective product capacity per pallet",
+          "formula": "net_product_per_pallet × pallet_utilization_ratio",
+          "inputs": {
+            "net_product_per_pallet": "1000",
+            "pallet_utilization_ratio": "1.0"
+          },
+          "output_name": "effective_capacity_per_pallet",
+          "output_value": "1000.00",
+          "step_id": "PL-001"
+        },
+        {
+          "description": "Net pallet count required",
+          "formula": "ceil(design_inventory / effective_capacity_per_pallet)",
+          "inputs": {
+            "design_inventory": "640000",
+            "effective_capacity_per_pallet": "1000.00"
+          },
+          "output_name": "net_pallet_quantity",
+          "output_value": "640",
+          "step_id": "PL-002"
+        },
+        {
+          "description": "Reserve pallet count",
+          "formula": "ceil(net_pallet_quantity × reserve_ratio)",
+          "inputs": {
+            "net_pallet_quantity": "640",
+            "reserve_ratio": "0.10"
+          },
+          "output_name": "reserve_pallet_quantity",
+          "output_value": "64",
+          "step_id": "PL-003"
+        },
+        {
+          "description": "Total design pallet count",
+          "formula": "net_pallet_quantity + reserve_pallet_quantity",
+          "inputs": {
+            "net_pallet_quantity": "640",
+            "reserve_pallet_quantity": "64"
+          },
+          "output_name": "design_pallet_quantity",
+          "output_value": "704",
+          "step_id": "PL-004"
+        },
+        {
+          "description": "Required pallet positions (floor-level)",
+          "formula": "ceil(design_pallet_quantity / stacking_level)",
+          "inputs": {
+            "design_pallet_quantity": "704",
+            "stacking_level": "1"
+          },
+          "output_name": "required_pallet_positions",
+          "output_value": "704",
+          "step_id": "PL-005"
+        },
+        {
+          "description": "Adjusted positions with turnover effect",
+          "formula": "ceil(required_positions / pallet_turnover_ratio)",
+          "inputs": {
+            "pallet_turnover_ratio": "1.0",
+            "required_pallet_positions": "704"
+          },
+          "output_name": "adjusted_pallet_positions",
+          "output_value": "704",
+          "step_id": "PL-006"
+        }
+      ],
+      "success": true,
+      "warnings": []
+    },
+    "precooling": {
+      "assumptions": [],
+      "calculator_name": "precooling",
+      "calculator_version": "1.0.0",
+      "coefficient_references": [],
+      "requires_review": false,
+      "result": {
+        "available_cycles_per_day": 3.2,
+        "capacity_margin": 5000.0,
+        "effective_cycle_duration": 5.0,
+        "required_batches_per_day": 110.0,
+        "required_precooling_positions": 110,
+        "required_precooling_quantity": 50000.0,
+        "required_precooling_rooms": 110,
+        "required_simultaneous_capacity": 55000.0
+      },
+      "steps": [
+        {
+          "description": "Required daily precooling quantity",
+          "formula": "precooled_quantity_per_day × precooled_ratio",
+          "inputs": {
+            "precooled_quantity_per_day": "50000",
+            "precooled_ratio": "1.0"
+          },
+          "output_name": "required_precooling_quantity",
+          "output_value": "50000.00",
+          "step_id": "PC-001"
+        },
+        {
+          "description": "Effective precooling cycle duration (hours)",
+          "formula": "batch_duration + loading_unloading_duration",
+          "inputs": {
+            "batch_duration": "4",
+            "loading_unloading_duration": "1"
+          },
+          "output_name": "effective_cycle_duration",
+          "output_value": "5.00",
+          "step_id": "PC-002"
+        },
+        {
+          "description": "Available batch cycles per day",
+          "formula": "available_precooling_hours / effective_cycle_duration",
+          "inputs": {
+            "available_precooling_hours": "16",
+            "effective_cycle_duration": "5.00"
+          },
+          "output_name": "available_cycles_per_day",
+          "output_value": "3.20",
+          "step_id": "PC-003"
+        },
+        {
+          "description": "Required batches per day (with reserve)",
+          "formula": "ceil(required_qty / batch_capacity) × reserve_ratio",
+          "inputs": {
+            "batch_capacity": "500",
+            "required_precooling_quantity": "50000.00",
+            "reserve_capacity_ratio": "1.10"
+          },
+          "output_name": "required_batches_per_day",
+          "output_value": "110.00",
+          "step_id": "PC-004"
+        },
+        {
+          "description": "Required simultaneous precooling capacity (kg)",
+          "formula": "required_batches_per_day × batch_capacity",
+          "inputs": {
+            "batch_capacity": "500",
+            "required_batches_per_day": "110.00"
+          },
+          "output_name": "required_simultaneous_capacity",
+          "output_value": "55000.00",
+          "step_id": "PC-005"
+        },
+        {
+          "description": "Required precooling positions",
+          "formula": "ceil(required_batches_per_day) → simultaneous positions",
+          "inputs": {
+            "required_batches_per_day": "110.00"
+          },
+          "output_name": "required_precooling_positions",
+          "output_value": "110",
+          "step_id": "PC-006"
+        },
+        {
+          "description": "Required precooling rooms",
+          "formula": "ceil(required_positions / simultaneous_batch_count)",
+          "inputs": {
+            "required_precooling_positions": "110",
+            "simultaneous_batch_count": "1"
+          },
+          "output_name": "required_precooling_rooms",
+          "output_value": "110",
+          "step_id": "PC-007"
+        },
+        {
+          "description": "Capacity margin (surplus)",
+          "formula": "total_capacity - required_quantity",
+          "inputs": {
+            "required_precooling_quantity": "50000.00",
+            "total_capacity": "55000"
+          },
+          "output_name": "capacity_margin",
+          "output_value": "5000.00",
+          "step_id": "PC-008"
+        }
+      ],
+      "success": true,
+      "warnings": []
+    },
+    "success": true,
+    "throughput": {
+      "assumptions": [],
+      "calculator_name": "throughput",
+      "calculator_version": "1.0.0",
+      "coefficient_references": [],
+      "requires_review": false,
+      "result": {
+        "available_hourly_throughput_kg_h": 3472.22,
+        "capacity_shortfall_workers": 0,
+        "capacity_utilisation_ratio": 0.9,
+        "required_hourly_throughput_kg_h": 3125.0,
+        "required_labour_hours": 333.33,
+        "required_worker_count": 21
+      },
+      "steps": [
+        {
+          "description": "Required hourly throughput (kg/h)",
+          "formula": "peak_output_kg_per_day / processing_hours_per_day",
+          "inputs": {
+            "peak_output_kg_per_day": "50000",
+            "processing_hours_per_day": "16"
+          },
+          "output_name": "required_hourly_throughput_kg_h",
+          "output_value": "3125.00",
+          "step_id": "TH-001"
+        },
+        {
+          "description": "Available (design) hourly throughput (kg/h)",
+          "formula": "required_hourly_throughput / effective_working_ratio",
+          "inputs": {
+            "effective_working_ratio": "0.9",
+            "required_hourly_throughput_kg_h": "3125.00"
+          },
+          "output_name": "available_hourly_throughput_kg_h",
+          "output_value": "3472.22",
+          "step_id": "TH-002"
+        },
+        {
+          "description": "Capacity utilisation ratio",
+          "formula": "required / available  (capacity utilisation)",
+          "inputs": {
+            "available_hourly_throughput_kg_h": "3472.22",
+            "required_hourly_throughput_kg_h": "3125.00"
+          },
+          "output_name": "capacity_utilisation_ratio",
+          "output_value": "0.9000",
+          "step_id": "TH-003"
+        },
+        {
+          "description": "Required total labour person-hours per day",
+          "formula": "peak_output / labour_efficiency",
+          "inputs": {
+            "labour_efficiency_kg_per_person_hour": "150",
+            "peak_output_kg_per_day": "50000"
+          },
+          "output_name": "required_labour_hours",
+          "output_value": "333.33",
+          "step_id": "TH-004"
+        },
+        {
+          "description": "Required worker count",
+          "formula": "ceil(peak_output / (efficiency × hours))",
+          "inputs": {
+            "labour_efficiency": "150",
+            "peak_output_kg_per_day": "50000",
+            "processing_hours_per_day": "16"
+          },
+          "output_name": "required_worker_count",
+          "output_value": "21",
+          "step_id": "TH-005"
+        },
+        {
+          "description": "Worker capacity shortfall",
+          "formula": "max(required_workers - available_workers, 0)",
+          "inputs": {
+            "available_workers": "0",
+            "required_worker_count": "21"
+          },
+          "output_name": "capacity_shortfall_workers",
+          "output_value": "0",
+          "step_id": "TH-006"
+        }
+      ],
+      "success": true,
+      "warnings": []
+    }
+  },
+  "fixture_revision": 1,
+  "investment": {
+    "assumptions": [
+      "投资测算使用演示单价，并按用户指定投资分项归并，仅用于方案早期比较。",
+      "住宿及生活区暂未给出独立公式，当前暂列0；1000平方米附加面积已计入土建及钢结构。",
+      "未包含土地、融资、税费、正式设计费和不可预见的专项工程费用。"
+    ],
+    "calculator_name": "investment_estimate",
+    "calculator_version": "1.0.0",
+    "coefficients": [
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "building_envelope_cost_cny_m2",
+        "name": "土建及钢结构单价",
+        "notes": "按总面积加1000平方米估算土建及钢结构投资",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "CNY/m2",
+        "validity_status": "unverified",
+        "value": 900,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "refrigeration_cost_cny_m2",
+        "name": "冷库制冷设备单价",
+        "notes": "按总面积估算冷库制冷设备投资",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "CNY/m2",
+        "validity_status": "unverified",
+        "value": 1400,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "power_distribution_cost_cny_kw",
+        "name": "高低压配电单价",
+        "notes": "按总用电量估算高低压配电投资",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "CNY/kW",
+        "validity_status": "unverified",
+        "value": 650,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "monitoring_opening_supplies_cny",
+        "name": "监控及开厂物资固定投资",
+        "notes": "监控及开厂物资按固定20万元估算",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "CNY",
+        "validity_status": "unverified",
+        "value": 200000,
+        "version": "demo-1"
+      }
+    ],
+    "errors": [],
+    "formula_references": [
+      {
+        "description": "按面积和板位数量估算分项投资",
+        "expression": "area_or_position_quantity * demo_unit_cost",
+        "formula_id": "IE-001",
+        "formula_version": "1.0.0"
+      }
+    ],
+    "requires_review": true,
+    "result": {
+      "items": [
+        {
+          "amount_cny": 6263811.0,
+          "item_name": "土建及钢结构"
+        },
+        {
+          "amount_cny": 8343706.0,
+          "item_name": "冷库制冷设备"
+        },
+        {
+          "amount_cny": 227500.0,
+          "item_name": "高低压配电"
+        },
+        {
+          "amount_cny": 0,
+          "item_name": "住宿及生活区"
+        },
+        {
+          "amount_cny": 200000,
+          "item_name": "监控及开厂物资"
+        }
+      ],
+      "total_investment_cny": 15035017.0
+    },
+    "source_references": [],
+    "success": true,
+    "warnings": [
+      {
+        "code": "DEMO_INVESTMENT_REQUIRES_REVIEW",
+        "details": {
+          "requires_review": true
+        },
+        "message": "投资测算使用未审核演示单价，需造价和专业工程人员复核。"
+      }
+    ]
+  },
+  "outcome": "review_required",
+  "power": {
+    "assumptions": [],
+    "calculator_name": "installed_power",
+    "calculator_version": "1.0.0",
+    "coefficient_references": [],
+    "requires_review": false,
+    "result": {
+      "auxiliary_installed_power_kw_e": 0.0,
+      "equipment_items": [],
+      "estimated_peak_demand_kw_e": 315.0,
+      "lighting_installed_power_kw_e": 0.0,
+      "process_equipment_installed_power_kw_e": 50.0,
+      "refrigeration_system_installed_power_kw_e": 300.0,
+      "total_installed_power_kw_e": 350.0
+    },
+    "steps": [
+      {
+        "description": "Refrigeration system installed power",
+        "formula": "P_refrig = compressor + evaporator_fans + condenser_fans + pumps + defrost",
+        "inputs": {
+          "compressor": "300.0",
+          "condenser_fans": "0",
+          "defrost": "0",
+          "evaporator_fans": "0",
+          "pumps": "0"
+        },
+        "output_name": "refrigeration_system_installed_power_kw_e",
+        "output_value": "300.0",
+        "step_id": "PW-REFRIG"
+      },
+      {
+        "description": "Processing equipment installed power",
+        "formula": "P_process = processing_equipment_power",
+        "inputs": {
+          "processing_equipment": "50.0"
+        },
+        "output_name": "process_equipment_installed_power_kw_e",
+        "output_value": "50.0",
+        "step_id": "PW-PROC"
+      },
+      {
+        "description": "Lighting installed power",
+        "formula": "P_lighting = lighting_power",
+        "inputs": {
+          "lighting": "0"
+        },
+        "output_name": "lighting_installed_power_kw_e",
+        "output_value": "0",
+        "step_id": "PW-LIGHT"
+      },
+      {
+        "description": "Auxiliary installed power",
+        "formula": "P_aux = other_auxiliary_power",
+        "inputs": {
+          "auxiliary": "0"
+        },
+        "output_name": "auxiliary_installed_power_kw_e",
+        "output_value": "0",
+        "step_id": "PW-AUX"
+      },
+      {
+        "description": "Total installed electrical power",
+        "formula": "P_total = refrigeration + processing + lighting + auxiliary",
+        "inputs": {
+          "auxiliary": "0",
+          "lighting": "0",
+          "processing": "50.0",
+          "refrigeration": "300.0"
+        },
+        "output_name": "total_installed_power_kw_e",
+        "output_value": "350.0",
+        "step_id": "PW-TOTAL"
+      },
+      {
+        "description": "Estimated peak demand (kW(e))",
+        "formula": "peak_demand = refrig×df_ref + process×df_proc + lighting + aux",
+        "inputs": {
+          "production_demand_factor": "0.90",
+          "refrigeration_demand_factor": "0.90"
+        },
+        "output_name": "estimated_peak_demand_kw_e",
+        "output_value": "315.000",
+        "step_id": "PW-DEMAND"
+      }
+    ],
+    "success": true,
+    "warnings": []
+  },
+  "project": {
+    "location": "Synthetic Location B",
+    "name": "Synthetic High-Throughput Blueberry Cold Storage",
+    "product_category": "blueberry"
+  },
+  "scenario_id": "high-throughput-review",
+  "stage_ledger": {
+    "investment": {
+      "detail": "investment_estimate_complete",
+      "review_required": true,
+      "status": "passed"
+    },
+    "planning": {
+      "detail": "core_calculations_complete",
+      "review_required": true,
+      "status": "passed"
+    },
+    "power": {
+      "detail": "power_configuration_complete",
+      "review_required": false,
+      "status": "passed"
+    },
+    "project": {
+      "review_required": false,
+      "status": "passed"
+    },
+    "schemes": {
+      "detail": "scheme_generation_complete",
+      "review_required": false,
+      "status": "passed"
+    },
+    "validation": {
+      "detail": "valid",
+      "review_required": false,
+      "status": "passed"
+    },
+    "version": {
+      "review_required": false,
+      "status": "passed"
+    },
+    "zone_plan": {
+      "detail": "zone_plan_complete",
+      "review_required": true,
+      "status": "passed"
+    }
+  },
+  "validation_result": {
+    "missing_fields": [],
+    "tentative_fields": [],
+    "valid": true
+  },
+  "version": {
+    "change_summary": "Phase B evaluation fixture — high throughput review scenario",
+    "status": "draft",
+    "version_number": 1
+  },
+  "zone_plan": {
+    "assumptions": [
+      "仅已知产量时，V1 使用演示暂存小时数和演示面积承载指标生成概念规划。",
+      "所有区域面积为概念设计阶段估算值，需结合工艺、货架、通道、消防和建筑条件复核。"
+    ],
+    "calculator_name": "cold_room_zone_plan",
+    "calculator_version": "1.0.0",
+    "coefficients": [
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "raw_holding_hours",
+        "name": "原果暂存小时数",
+        "notes": "按日入库量折算的演示暂存时间",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "h",
+        "validity_status": "unverified",
+        "value": 6.6666666667,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "raw_area_loading",
+        "name": "原果暂存单位面积承载量",
+        "notes": "包含通道和操作冗余的演示面积指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/m2",
+        "validity_status": "unverified",
+        "value": 240,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "primary_precooling_area_loading",
+        "name": "一级预冷间单位面积日处理量",
+        "notes": "8~10℃预冷段演示面积指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/day/m2",
+        "validity_status": "unverified",
+        "value": 620,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "secondary_precooling_area_loading",
+        "name": "二级预冷间单位面积日处理量",
+        "notes": "1~3℃预冷段演示面积指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/day/m2",
+        "validity_status": "unverified",
+        "value": 550,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "sorting_area_loading",
+        "name": "分选包装间单位面积日处理量",
+        "notes": "8~10℃分选包装演示面积指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/day/m2",
+        "validity_status": "unverified",
+        "value": 420,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "coating_area_loading",
+        "name": "覆膜间单位面积日处理量",
+        "notes": "1~3℃覆膜作业演示面积指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/day/m2",
+        "validity_status": "unverified",
+        "value": 500,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "storage_area_loading",
+        "name": "成品间单位面积储量",
+        "notes": "由演示有效容积储量、净高和利用系数折算",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/m2",
+        "validity_status": "unverified",
+        "value": 216,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "secondary_fruit_ratio",
+        "name": "次果比例",
+        "notes": "按日处理量估算次果暂存量的演示比例",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "ratio",
+        "validity_status": "unverified",
+        "value": 0.08,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "secondary_fruit_area_loading",
+        "name": "次果暂存单位面积承载量",
+        "notes": "8~10℃次果暂存演示面积指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/m2",
+        "validity_status": "unverified",
+        "value": 220,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "frozen_fruit_ratio",
+        "name": "冻果比例",
+        "notes": "按日处理量估算冻果量的演示比例",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "ratio",
+        "validity_status": "unverified",
+        "value": 0.05,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "frozen_storage_days",
+        "name": "冻果暂存天数",
+        "notes": "冻果间演示库存天数",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "day",
+        "validity_status": "unverified",
+        "value": 14,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "frozen_area_loading",
+        "name": "冻果间单位面积储量",
+        "notes": "-18℃冻果间演示面积指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/m2",
+        "validity_status": "unverified",
+        "value": 320,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "office_area_per_t_day",
+        "name": "办公室单位日处理吨位面积",
+        "notes": "按产能粗估办公面积的演示指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "m2/(t/day)",
+        "validity_status": "unverified",
+        "value": 1.2,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "changing_area_per_t_day",
+        "name": "更衣室单位日处理吨位面积",
+        "notes": "按产能粗估更衣面积的演示指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "m2/(t/day)",
+        "validity_status": "unverified",
+        "value": 0.8,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "packaging_area_per_t_day",
+        "name": "包材库单位吨日库存面积",
+        "notes": "按日处理吨位和包材库存天数粗估包材库面积的演示指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "m2/(t/day*day)",
+        "validity_status": "unverified",
+        "value": 0.6685,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "precooling_position_daily_capacity_kg",
+        "name": "预冷板位单位日处理量",
+        "notes": "预冷间板位数量演示指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/day/position",
+        "validity_status": "unverified",
+        "value": 1250,
+        "version": "demo-1"
+      },
+      {
+        "approval_status": "unverified",
+        "category": "cold_room_zone_planning",
+        "code": "storage_position_capacity_kg",
+        "name": "存储板位单位容量",
+        "notes": "存储区域板位数量演示指标",
+        "requires_review": true,
+        "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+        "source_type": "demo",
+        "unit": "kg/position",
+        "validity_status": "unverified",
+        "value": 500,
+        "version": "demo-1"
+      }
+    ],
+    "errors": [],
+    "formula_references": [
+      {
+        "description": "日处理量",
+        "expression": "daily_mass",
+        "formula_id": "ZP-001",
+        "formula_version": "1.0.0"
+      },
+      {
+        "description": "按区域承载指标折算面积",
+        "expression": "storage_mass / demo_area_loading",
+        "formula_id": "ZP-002",
+        "formula_version": "1.0.0"
+      }
+    ],
+    "requires_review": true,
+    "result": {
+      "daily_inbound_mass_kg": 50000.0,
+      "design_daily_mass_kg": 50000.0,
+      "planning_parameters": {
+        "auxiliary_packaging_storage_days": 30,
+        "finished_storage_days": 14.0,
+        "frozen_fruit_ratio": 0.1,
+        "frozen_storage_days": 5.0,
+        "main_packaging_storage_days": 3,
+        "packaging_area_factor": 1.5,
+        "packing_area_factor": 1.5,
+        "pallet_base_area_m2": 1.56,
+        "precooling_position_area_m2": 5.6,
+        "primary_precooling_hours_per_pallet": 1.0,
+        "primary_precooling_pallet_weight_kg": 220.0,
+        "primary_precooling_working_hours_per_day": 6.0,
+        "raw_storage_ratio": 0.4,
+        "secondary_precooling_hours_per_pallet": 2.0,
+        "secondary_precooling_pallet_weight_kg": 400.0,
+        "secondary_precooling_working_hours_per_day": 16.0,
+        "storage_area_factor": 1.2
+      },
+      "total_area_m2": 5959.79,
+      "total_required_area_m2": 5959.79,
+      "zones": [
+        {
+          "area_basis": {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "office_area_per_t_day",
+            "name": "办公室单位日处理吨位面积",
+            "notes": "按产能粗估办公面积的演示指标",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "m2/(t/day)",
+            "validity_status": "unverified",
+            "value": 1.2,
+            "version": "demo-1"
+          },
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 0,
+          "function": "生产管理、品控记录、访客和日常办公",
+          "position_count": 0,
+          "required_area_m2": 60,
+          "requires_review": true,
+          "temperature_band": "常温",
+          "zone_code": "office",
+          "zone_name": "办公室"
+        },
+        {
+          "area_basis": {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "changing_area_per_t_day",
+            "name": "更衣室单位日处理吨位面积",
+            "notes": "按产能粗估更衣面积的演示指标",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "m2/(t/day)",
+            "validity_status": "unverified",
+            "value": 0.8,
+            "version": "demo-1"
+          },
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 0,
+          "function": "人员更衣、洗手消毒和进入洁净作业区缓冲",
+          "position_count": 0,
+          "required_area_m2": 100,
+          "requires_review": true,
+          "temperature_band": "常温",
+          "zone_code": "changing_room",
+          "zone_name": "更衣室"
+        },
+        {
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 0,
+          "function": "田间热初步去除，承接原果入厂后第一段降温",
+          "hours_per_pallet": 1.0,
+          "pallet_weight_kg": 220.0,
+          "position_count": 40,
+          "position_daily_capacity_kg_day": 1320.0,
+          "position_hourly_capacity_kg_h": 220.0,
+          "raw_position_count": 38,
+          "required_area_m2": 224.0,
+          "requires_review": true,
+          "temperature_band": "8~10℃",
+          "working_hours_per_day": 6.0,
+          "zone_code": "primary_precooling_room",
+          "zone_name": "一级预冷间"
+        },
+        {
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 0,
+          "function": "进入低温链前的二段降温和温度均衡",
+          "hours_per_pallet": 2.0,
+          "pallet_weight_kg": 400.0,
+          "position_count": 16,
+          "position_daily_capacity_kg_day": 3200.0,
+          "position_hourly_capacity_kg_h": 200.0,
+          "raw_position_count": 16,
+          "required_area_m2": 89.6,
+          "requires_review": true,
+          "temperature_band": "1~3℃",
+          "working_hours_per_day": 16.0,
+          "zone_code": "secondary_precooling_room",
+          "zone_name": "二级预冷间"
+        },
+        {
+          "area_basis": {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "raw_area_loading",
+            "name": "原果暂存单位面积承载量",
+            "notes": "包含通道和操作冗余的演示面积指标",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 240,
+            "version": "demo-1"
+          },
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 20000.0,
+          "function": "原果短时暂存，平衡收货与预冷节拍",
+          "pallet_weight_kg": 220.0,
+          "position_count": 91,
+          "required_area_m2": 170.35,
+          "requires_review": true,
+          "temperature_band": "8~10℃",
+          "zone_code": "raw_fruit_buffer",
+          "zone_name": "原果暂存间"
+        },
+        {
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 0,
+          "function": "分选、称重、包装和在线周转",
+          "packing_table_area_m2": 19.25,
+          "person_daily_capacity_kg_day": 360.0,
+          "position_count": 0,
+          "required_area_m2": 1357.12,
+          "requires_review": true,
+          "table_count": 47,
+          "temperature_band": "8~10℃",
+          "worker_count": 139,
+          "zone_code": "sorting_packaging_room",
+          "zone_name": "分选包装间"
+        },
+        {
+          "area_basis": {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "coating_area_loading",
+            "name": "覆膜间单位面积日处理量",
+            "notes": "1~3℃覆膜作业演示面积指标",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/day/m2",
+            "validity_status": "unverified",
+            "value": 500,
+            "version": "demo-1"
+          },
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 0,
+          "function": "覆膜作业和覆膜后低温缓冲",
+          "position_count": 0,
+          "required_area_m2": 120,
+          "requires_review": true,
+          "temperature_band": "1~3℃",
+          "zone_code": "coating_room",
+          "zone_name": "覆膜间"
+        },
+        {
+          "area_basis": {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "storage_area_loading",
+            "name": "成品间单位面积储量",
+            "notes": "由演示有效容积储量、净高和利用系数折算",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 216,
+            "version": "demo-1"
+          },
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 700000.0,
+          "function": "成品周转储存，按库存天数配置",
+          "pallet_weight_kg": 400.0,
+          "position_count": 1750,
+          "required_area_m2": 3276.0,
+          "requires_review": true,
+          "temperature_band": "1~3℃",
+          "zone_code": "finished_goods_room",
+          "zone_name": "成品间"
+        },
+        {
+          "area_basis": {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "secondary_fruit_area_loading",
+            "name": "次果暂存单位面积承载量",
+            "notes": "8~10℃次果暂存演示面积指标",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 220,
+            "version": "demo-1"
+          },
+          "daily_throughput_kg_day": 5000.0,
+          "design_storage_mass_kg": 20000.0,
+          "function": "次果临时存放和后续处置等待",
+          "position_count": 0,
+          "required_area_m2": 62.9,
+          "requires_review": true,
+          "temperature_band": "8~10℃",
+          "zone_code": "secondary_fruit_buffer",
+          "zone_name": "次果暂存间"
+        },
+        {
+          "area_basis": {
+            "approval_status": "unverified",
+            "category": "cold_room_zone_planning",
+            "code": "frozen_area_loading",
+            "name": "冻果间单位面积储量",
+            "notes": "-18℃冻果间演示面积指标",
+            "requires_review": true,
+            "source_reference": "V1演示规划系数，未作为国家标准或企业正式标准",
+            "source_type": "demo",
+            "unit": "kg/m2",
+            "validity_status": "unverified",
+            "value": 320,
+            "version": "demo-1"
+          },
+          "daily_throughput_kg_day": 5000.0,
+          "design_storage_mass_kg": 25000.0,
+          "function": "冻果库存和冻结品低温储存",
+          "pallet_weight_kg": 600.0,
+          "position_count": 42,
+          "required_area_m2": 78.62,
+          "requires_review": true,
+          "temperature_band": "-18℃",
+          "zone_code": "frozen_fruit_room",
+          "zone_name": "冻果间"
+        },
+        {
+          "daily_throughput_kg_day": 50000.0,
+          "design_storage_mass_kg": 0,
+          "function": "包装材料、纸箱、托盘和辅料存放",
+          "position_count": 180,
+          "required_area_m2": 421.2,
+          "requires_review": true,
+          "temperature_band": "常温",
+          "zone_code": "packaging_material_storage",
+          "zone_name": "包材库"
+        }
+      ]
+    },
+    "source_references": [],
+    "success": true,
+    "warnings": [
+      {
+        "code": "DEMO_ASSUMPTIONS_REQUIRE_REVIEW",
+        "details": {
+          "requires_review": true
+        },
+        "message": "冷间分区规划使用未审核演示系数，不能作为正式设计依据。"
+      }
+    ]
+  }
+}
