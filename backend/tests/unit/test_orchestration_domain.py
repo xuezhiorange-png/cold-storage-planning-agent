@@ -205,13 +205,17 @@ class TestCanonicalHash:
     def test_provenance_change_changes_hash(self) -> None:
         c1 = self._make_content()
         c2 = self._make_content(
+            execution_snapshot_id="es-2",  # must match provenance
+            coefficient_context_id="cc-1",
+            orchestration_identity_id="oi-1",
+            orchestration_run_attempt_id="oa-1",
             provenance=SourceSnapshotProvenanceV1(
-                execution_snapshot_id="es-2",  # different
+                execution_snapshot_id="es-2",  # different, but consistent
                 coefficient_context_id="cc-1",
                 orchestration_identity_id="oi-1",
                 orchestration_run_attempt_id="oa-1",
                 upstream_calculation_ids={},
-            )
+            ),
         )
         assert result_hash(c1) != result_hash(c2)
 

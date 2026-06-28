@@ -10,6 +10,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from cold_storage.modules.orchestration.domain.contracts import (
+    validate_content_provenance_identity_consistency,
+    validate_provenance_keys,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class SourceSnapshotProvenanceV1:
@@ -39,6 +44,13 @@ class SourceSnapshotContentV1:
     ``result_hash = SHA-256(canonical_json(self))``.
     The hash covers ALL fields in this DTO — metadata, payload, provenance,
     and ``requires_review``.
+
+    Deep immutability: ``payload`` is deeply frozen on construction.
+    External mutation of the original payload dict cannot affect this DTO.
+
+    Provenance validation: ``upstream_calculation_ids`` are verified against
+    the frozen key set for ``calculation_type``.  Content-level identity
+    fields must match provenance identity fields exactly.
     """
 
     schema_version: str
@@ -55,6 +67,33 @@ class SourceSnapshotContentV1:
     requires_review: bool
     payload: Mapping[str, object]
     provenance: SourceSnapshotProvenanceV1
+
+    def __post_init__(self) -> None:
+        # ── Deep-freeze payload ─────────────────────────────────────────
+        from cold_storage.modules.orchestration.domain.contracts import deep_freeze
+
+        frozen_payload = deep_freeze(self.payload)
+        if frozen_payload is not self.payload:
+            object.__setattr__(self, "payload", frozen_payload)
+
+        # ── Validate provenance key set ─────────────────────────────────
+        validate_provenance_keys(
+            self.calculation_type,
+            self.provenance.upstream_calculation_ids,
+        )
+
+        # ── Validate content/provenance identity consistency ─────────────
+        validate_content_provenance_identity_consistency(
+            calculation_type=self.calculation_type,
+            execution_snapshot_id=self.execution_snapshot_id,
+            coefficient_context_id=self.coefficient_context_id,
+            orchestration_identity_id=self.orchestration_identity_id,
+            orchestration_run_attempt_id=self.orchestration_run_attempt_id,
+            provenance_execution_snapshot_id=self.provenance.execution_snapshot_id,
+            provenance_coefficient_context_id=self.provenance.coefficient_context_id,
+            provenance_orchestration_identity_id=self.provenance.orchestration_identity_id,
+            provenance_orchestration_run_attempt_id=self.provenance.orchestration_run_attempt_id,
+        )
 
 
 @dataclass(frozen=True, slots=True)
