@@ -1,8 +1,11 @@
 # Task 11 — Evaluation and Pilot Readiness
 
-Status: Phase B second review corrections implemented; awaiting re-review
+Status: Phase B blocked by missing formal production calculation and persistence integration
 
 Issue: #20
+Prerequisite Issue: #22
+Blocking Review: 4586924145
+Blocked Head: dd02edc1196229e264df8c1a3dde0ca8be9162b6
 
 Branch: `codex/task-11-evaluation`
 
@@ -342,3 +345,32 @@ Task 11 is complete only when:
 - Do not commit real customer data or confidential documents.
 - Do not weaken existing tests or comparison rules to make a fixture pass.
 - Do not merge, turn Ready, or start Task 12 before engineering review authorizes it.
+
+## 15. Phase B BLOCKED — Prerequisite
+
+Phase B acceptance is blocked by a missing formal production orchestration
+and persistence service.  See [Issue #22](https://github.com/xuezhiorange-png/cold-storage-planning-agent/issues/22).
+
+**What is blocked:**
+- The evaluation runner cannot complete the ``schemes`` required stage because
+  ``SchemeService`` needs ``zone``, ``cooling_load``, ``equipment``, and
+  ``investment`` ``CalculationRunRecord`` entries persisted by a formal
+  production service.
+- The evaluation module MUST NOT fabricate its own records or synthesize
+  its own engineering inputs.
+
+**What is preserved:**
+- Phase A infrastructure (manifest, path safety, canonicalization, comparison)
+- EvaluationRunDirectory, typed summaries, strict identity, state transitions
+- Per-scenario SQLite isolation, real manifest SHA-256, raw/normalized dirs
+- ``canonicalize_json()``, expected immutability, check count conservation
+- Synthetic fixture governance
+
+**Frozen baseline contract:**
+- ``baseline-feasible`` expected outcome: **success**
+- All 8 required stages declared
+- No downgrade to ``review_required`` or ``blocked`` accepted
+- Current production calculators use demo/unapproved coefficients and cannot
+  yet produce a no-review baseline
+
+**Next step:** Complete prerequisite Issue #22, then resume Phase B.
