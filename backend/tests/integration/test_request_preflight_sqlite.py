@@ -84,9 +84,7 @@ class _FakeVersionPort(ProjectVersionReadPort):
 
     def load_by_id(self, session: Session, project_version_id: str) -> _LoadedVersion | None:
         record = session.execute(
-            select(ProjectVersionRecord).where(
-                ProjectVersionRecord.id == project_version_id
-            )
+            select(ProjectVersionRecord).where(ProjectVersionRecord.id == project_version_id)
         ).scalar_one_or_none()
         if record is None:
             return None
@@ -94,8 +92,12 @@ class _FakeVersionPort(ProjectVersionReadPort):
 
 
 def _seed_project_and_version(
-    session: Session, *, project_id: str = "p-1", version_id: str = "pv-1",
-    project_name: str = "Test Project", status: str = "approved"
+    session: Session,
+    *,
+    project_id: str = "p-1",
+    version_id: str = "pv-1",
+    project_name: str = "Test Project",
+    status: str = "approved",
 ) -> None:
     """Seed a project and approved ProjectVersion into the database."""
 
@@ -221,9 +223,7 @@ class TestRequestPersistence:
 
         # Request must be PREFLIGHT_REJECTED
         row = session.execute(
-            select(OrchestrationRequestRecord).where(
-                OrchestrationRequestRecord.id == pf.request_id
-            )
+            select(OrchestrationRequestRecord).where(OrchestrationRequestRecord.id == pf.request_id)
         ).scalar_one()
         assert row.status == "PREFLIGHT_REJECTED"
         assert row.failure_code == "PROJ_VERSION_NOT_FOUND"
@@ -241,11 +241,13 @@ class TestRequestPersistence:
         pf = pf_exc.value
 
         # One outbox event for the rejection
-        events = session.execute(
-            select(AuditOutboxRecord).where(
-                AuditOutboxRecord.request_id == pf.request_id
+        events = (
+            session.execute(
+                select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(events) == 1
         ev = events[0]
         assert ev.event_type == "orchestration.request.rejected"
@@ -273,16 +275,18 @@ class TestRequestPersistence:
         assert r1.request_id != r2.request_id
         assert r1.fingerprint == r2.fingerprint
 
-        rows = session.execute(
-            select(OrchestrationRequestRecord).where(
-                OrchestrationRequestRecord.project_id == "p-1"
+        rows = (
+            session.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.project_id == "p-1"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 2
 
-    def test_atomic_rollback_on_unexpected_error(
-        self, session, request_repo, outbox_repo
-    ) -> None:
+    def test_atomic_rollback_on_unexpected_error(self, session, request_repo, outbox_repo) -> None:
         """When a non-domain exception occurs, nothing should be persisted."""
 
         class ExplodingPort(ExecutionSnapshotPreflightPort):
@@ -303,9 +307,7 @@ class TestRequestPersistence:
             svc.preflight_and_persist(_make_command(), uow)
 
         # Nothing persisted
-        rows = session.execute(
-            select(OrchestrationRequestRecord)
-        ).scalars().all()
+        rows = session.execute(select(OrchestrationRequestRecord)).scalars().all()
         # The request was created during _preflight() but rolled back
         assert len(rows) == 0
 

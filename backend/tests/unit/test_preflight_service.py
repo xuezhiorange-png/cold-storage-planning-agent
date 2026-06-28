@@ -212,9 +212,7 @@ class TestCommandIdentityValidation:
     def test_valid_command_passes(self) -> None:
         cmd = _make_command()
         svc = _make_service(
-            version_port=_FakeVersionPort(
-                {"pv-1": _LoadedVersion("p-1", "approved")}
-            )
+            version_port=_FakeVersionPort({"pv-1": _LoadedVersion("p-1", "approved")})
         )
         uow = _FakeUoW()
         result = svc.preflight_and_persist(cmd, uow)
@@ -359,9 +357,7 @@ class TestPreflightRejections:
 
     def test_project_version_project_mismatch(self) -> None:
         svc = _make_service(
-            version_port=_FakeVersionPort(
-                {"pv-1": _LoadedVersion("other-project", "approved")}
-            )
+            version_port=_FakeVersionPort({"pv-1": _LoadedVersion("other-project", "approved")})
         )
         uow = _FakeUoW()
         with pytest.raises(PreflightFailure) as exc_info:
@@ -372,11 +368,7 @@ class TestPreflightRejections:
         assert pf.field == "project_id"
 
     def test_project_version_draft_rejected(self) -> None:
-        svc = _make_service(
-            version_port=_FakeVersionPort(
-                {"pv-1": _LoadedVersion("p-1", "draft")}
-            )
-        )
+        svc = _make_service(version_port=_FakeVersionPort({"pv-1": _LoadedVersion("p-1", "draft")}))
         uow = _FakeUoW()
         with pytest.raises(PreflightFailure) as exc_info:
             svc.preflight_and_persist(_make_command(), uow)
@@ -386,9 +378,7 @@ class TestPreflightRejections:
 
     def test_project_version_archived_rejected(self) -> None:
         svc = _make_service(
-            version_port=_FakeVersionPort(
-                {"pv-1": _LoadedVersion("p-1", "archived")}
-            )
+            version_port=_FakeVersionPort({"pv-1": _LoadedVersion("p-1", "archived")})
         )
         uow = _FakeUoW()
         with pytest.raises(PreflightFailure) as exc_info:
@@ -399,9 +389,7 @@ class TestPreflightRejections:
 
     def test_project_version_unknown_status_rejected(self) -> None:
         svc = _make_service(
-            version_port=_FakeVersionPort(
-                {"pv-1": _LoadedVersion("p-1", "deprecated")}
-            )
+            version_port=_FakeVersionPort({"pv-1": _LoadedVersion("p-1", "deprecated")})
         )
         uow = _FakeUoW()
         with pytest.raises(PreflightFailure) as exc_info:
@@ -430,7 +418,7 @@ class TestTransactionBehavior:
         uow = _FakeUoW()
         with pytest.raises(PreflightFailure):
             svc.preflight_and_persist(_make_command(), uow)
-        assert uow._committed is True    # rejection is committed
+        assert uow._committed is True  # rejection is committed
         assert uow._rolled_back is False
 
     def test_unexpected_exception_rolls_back(self) -> None:
@@ -491,9 +479,7 @@ class TestTransactionBehavior:
 class TestPreflightFailureFields:
     def test_failure_contains_all_contract_fields(self) -> None:
         svc = _make_service(
-            version_port=_FakeVersionPort(
-                {"pv-1": _LoadedVersion("other-p", "draft")}
-            )
+            version_port=_FakeVersionPort({"pv-1": _LoadedVersion("other-p", "draft")})
         )
         uow = _FakeUoW()
         with pytest.raises(PreflightFailure) as pf_exc:
