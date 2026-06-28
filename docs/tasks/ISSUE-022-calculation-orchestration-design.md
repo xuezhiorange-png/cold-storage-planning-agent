@@ -3,8 +3,8 @@
 **Issue:** #22
 **Draft PR:** #23
 **Date:** 2026-06-28
-**Review addressed:** 4587054607
-**Reviewed Head:** `7df4ded32a28a1dbd012362b494640da8cd4f0b9`
+**Review addressed:** 4587131728
+**Previous Head:** `a89606e64d9638592646fe9962793253b6c6238c`
 **Status:** Design phase — awaiting re-review
 **Type:** Design only — no production implementation
 **Unblocks after implementation and independent review:** Task 11 Phase B (PR #21)
@@ -661,117 +661,201 @@ The same exact `result_hash` value is stored in `CalculationRunRecord`, copied i
 
 ### 13.5 Adapter field-bridge contracts and per-type payload schemas
 
-Every adapter maps a real calculator’s `CalculationResult` output to
-`SourceSnapshotContentV1.payload`.  All adapters operate under the
-following frozen rules.
+Every adapter maps a real calculator's `CalculationResult.result` dict to
+`SourceSnapshotContentV1.payload`.  All adapters use an explicit **allowlist**:
+unknown calculator output fields are ignored and do not enter the hashed payload.
 
 #### 13.5.0 Universal adapter rules
 
 | Rule | Detail |
 |---|---|
-| Field policy | Explicit **allowlist**.  Unknown calculator output fields are ignored and do not enter the hashed payload unless a schema version is revised. |
-| Rejected fields | Any calculator output field named `installed_power_kw_e` that does not belong to the Power snapshot is explicitly excluded. |
-| Schema evolution | Adding, removing, or renaming a payload field, or changing its unit, requires a new `snapshot_schema_version`. |
-| Canonical JSON | All payload values use the canonical JSON rules in §5.  Key order follows this table from top to bottom.  Arrays are sorted by the declared sort key before hashing. |
-| Numeric | `Decimal` string representation; no binary floats; `NaN`/`Infinity` rejected. |
-| Units | Every payload value has an explicit declared unit. |
-| Nullability | All fields are NOT NULL unless explicitly marked nullable.  A nullable field omitted from calculator output is written as `null` in the canonical payload JSON. |
-| Derived fields | Must be accompanied by the derivation formula.  Derived fields are recomputed during verification — not trusted from adapter output. |
-| Aggregation | Where a value is a sum across zones, the aggregation rule is stated.  The adapter outputs the aggregated value; the verifier recomputes from per-zone detail to confirm correctness. |
+| Field policy | Explicit allowlist — only listed fields enter payload |
+| Unknown fields | Ignored; do NOT enter payload; no schema version change needed |
+| Excluded fields | Must be documented per adapter with exclusion rationale |
+| Schema evolution | Adding/removing/renaming a payload field, or changing its unit → new `snapshot_schema_version` |
+| Canonical JSON | Sorted by key from table top-to-bottom; arrays sorted by declared sort key |
+| Numeric | Decimal string; no binary floats; NaN/Infinity rejected |
+| Nullability | NOT NULL unless marked nullable; nullable field absent from calculator output → written as `null` |
+| Source path | Written as `CalculationResult.result["key"]` or `result["key"][].subkey` |
+| Derived fields | Tagged `derived` with exact formula; verifier recomputes from source fields |
+| Database IDs | Prohibited in business payload — belong in `SourceBindingRecord` or `provenance` |
 
-#### 13.5.1 ZoneSourceSnapshot payload (`calculation_type = "zone"`, `calculator_name = "cold_room_zone_plan"`)
+#### 13.5.1 ZoneSourceSnapshot payload
 
-| # | Payload key | Source field (calculator) | Type | Unit | Nullable | Aggregation | Sort key |
+Source: `CalculationResult.result` from `ColdRoomZonePlanner.plan()`
+(`calculation_type = "zone"`, `calculator_name = "cold_room_zone_plan"`)
+
+| # | Payload key | Source path | Classification | Type | Unit | Nullable | Sort key |
 |---|---|---|---|---|---|---|---|
-| 1 | `total_daily_throughput_kg_day` | `result.total_daily_throughput_kg_day` | Decimal | kg/day | No | Direct read | — |
-| 2 | `zones` | `result.zones` (list) | list[dict] | — | No | — | `zone_code` ASC |
-| 2.1 | `zones[].zone_code` | `zone.zone_code` | str | — | No | — | — |
-| 2.2 | `zones[].zone_name` | `zone.zone_name` | str | — | No | — | — |
-| 2.3 | `zones[].temperature_level` | `zone.temperature_level` | str | — | No | — | — |
-| 2.4 | `zones[].area_m2` | `zone.area_m2` | Decimal | m² | No | — | — |
-| 2.5 | `zones[].position_count` | `zone.position_count` | int | — | No | — | — |
-| 2.6 | `zones[].storage_capacity_kg` | `zone.storage_capacity_kg` | Decimal | kg | No | — | — |
-| 2.7 | `zones[].process_compatibility` | `zone.process_compatibility` | str | — | No | — | — |
-| 2.8 | `zones[].hygiene_zone` | `zone.hygiene_zone` | str | — | No | — | — |
+| 1 | `daily_inbound_mass_kg` | `result["daily_inbound_mass_kg"]` | direct | Decimal | kg/day | No | — |
+| 2 | `design_daily_mass_kg` | `result["design_daily_mass_kg"]` | direct | Decimal | kg/day | No | — |
+| 3 | `total_required_area_m2` | `result["total_required_area_m2"]` | direct | Decimal | m² | No | — |
+| 4 | `total_area_m2` | `result["total_area_m2"]` | direct | Decimal | m² | No | — |
+| 5 | `planning_parameters` | `result["planning_parameters"]` | direct | dict | — | No | — |
+| 6 | `zones` | `result["zones"]` | direct | list[dict] | — | No | `zone_code` ASC |
+| 6.1 | `zones[].zone_code` | `zone["zone_code"]` | direct | str | — | No | — |
+| 6.2 | `zones[].zone_name` | `zone["zone_name"]` | direct | str | — | No | — |
+| 6.3 | `zones[].temperature_band` | `zone["temperature_band"]` | direct | str | — | No | — |
+| 6.4 | `zones[].function` | `zone["function"]` | direct | str | — | No | — |
+| 6.5 | `zones[].daily_throughput_kg_day` | `zone["daily_throughput_kg_day"]` | direct | Decimal | kg/day | No | — |
+| 6.6 | `zones[].design_storage_mass_kg` | `zone["design_storage_mass_kg"]` | direct | Decimal | kg | No | — |
+| 6.7 | `zones[].position_count` | `zone["position_count"]` | direct | int | — | No | — |
+| 6.8 | `zones[].required_area_m2` | `zone["required_area_m2"]` | direct | Decimal | m² | No | — |
+| 6.9 | `zones[].requires_review` | `zone["requires_review"]` | direct | bool | — | No | — |
+| 6.a | `zones[].pallet_weight_kg` | `zone["pallet_weight_kg"]` | direct | Decimal | kg | **Yes** | — |
+| 6.b | `zones[].hours_per_pallet` | `zone["hours_per_pallet"]` | direct | Decimal | h | **Yes** | — |
+| 6.c | `zones[].working_hours_per_day` | `zone["working_hours_per_day"]` | direct | Decimal | h/day | **Yes** | — |
+| 6.d | `zones[].position_hourly_capacity_kg_h` | `zone["position_hourly_capacity_kg_h"]` | direct | Decimal | kg/h | **Yes** | — |
+| 6.e | `zones[].position_daily_capacity_kg_day` | `zone["position_daily_capacity_kg_day"]` | direct | Decimal | kg/day | **Yes** | — |
+| 6.f | `zones[].raw_position_count` | `zone["raw_position_count"]` | direct | int | — | **Yes** | — |
+| 6.g | `zones[].area_basis` | `zone["area_basis"]` | direct | dict | — | **Yes** | — |
+| 6.h | `zones[].worker_count` | `zone["worker_count"]` | direct | int | — | **Yes** | — |
+| 6.i | `zones[].table_count` | `zone["table_count"]` | direct | int | — | **Yes** | — |
+| 6.j | `zones[].person_daily_capacity_kg_day` | `zone["person_daily_capacity_kg_day"]` | direct | Decimal | kg/day | **Yes** | — |
+| 6.k | `zones[].packing_table_area_m2` | `zone["packing_table_area_m2"]` | direct | Decimal | m² | **Yes** | — |
 
-Zone adapter INCLUDES only the fields listed above from the `ColdRoomZonePlanner.plan()` result.  The zones array is sorted by `zone_code` before canonical JSON serialization so that detail-order changes do not produce hash drift.
+Zone zones use a **unified field set** with nullable optional fields.
+Zones are sorted by `zone_code` ASC before canonical JSON serialization.
+Duplicate `zone_code` within the same zone list → adapter fails closed.
 
-#### 13.5.2 CoolingLoadSourceSnapshot payload (`calculation_type = "cooling_load"`, `calculator_name = "cooling_load"`)
+#### 13.5.2 CoolingLoadSourceSnapshot payload
 
-| # | Payload key | Source | Type | Unit | Nullable | Aggregation |
-|---|---|---|---|---|---|---|
-| 1 | `design_cooling_load_kw_r` | Sum of per-zone `design_cooling_load_kw_r` after per-level diversity factor and design margin | Decimal | kW(r) | No | SUM(per-zone after diversity) × design_margin |
-| 2 | `sensible_load_kw_r` | Sum of per-zone `sensible_load_kw_r` | Decimal | kW(r) | No | SUM(per-zone) |
-| 3 | `latent_load_kw_r` | Sum of per-zone `latent_load_kw_r` | Decimal | kW(r) | No | SUM(per-zone) |
-| 4 | `infiltration_load_kw_r` | Sum of per-zone `infiltration_load_kw_r` | Decimal | kW(r) | No | SUM(per-zone) |
-| 5 | `zones` | Per-zone breakdown from calculator output | list[dict] | — | Yes (nullable) | — |
-| 5.1 | `zones[].zone_code` | `zone.zone_code` | str | — | No | — |
-| 5.2 | `zones[].design_cooling_load_kw_r` | per-zone design load after diversity | Decimal | kW(r) | No | — |
-| 5.3 | `zones[].sensible_load_kw_r` | per-zone sensible | Decimal | kW(r) | No | — |
-| 5.4 | `zones[].latent_load_kw_r` | per-zone latent | Decimal | kW(r) | No | — |
-| 5.5 | `zones[].infiltration_load_kw_r` | per-zone infiltration | Decimal | kW(r) | No | — |
+Source: `CalculationResult.result` from `calculate_cooling_load()`
+(`calculation_type = "cooling_load"`, `calculator_name = "cooling_load"`)
 
-The project-level totals are declared authoritative and must match the sum of the per-zone breakdown.  Zones are sorted by `zone_code`.  `requires_review` and `warnings` are carried in `SourceSnapshotContentV1` envelope fields — not in payload.
+| # | Payload key | Source path | Classification | Type | Unit | Nullable | Sort key |
+|---|---|---|---|---|---|---|---|
+| 1 | `zones` | `result["zones"]` | direct | list[dict] | — | No | `zone_code` ASC |
+| 1.1 | `zones[].zone_code` | `zone["zone_code"]` | direct | str | — | No | — |
+| 1.2 | `zones[].zone_name` | `zone["zone_name"]` | direct | str | — | No | — |
+| 1.3 | `zones[].temperature_level` | `zone["temperature_level"]` | direct | str | — | No | — |
+| 1.4 | `zones[].transmission_load_kw_r` | `zone["transmission_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.5 | `zones[].wall_transmission_load_kw_r` | `zone["wall_transmission_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.6 | `zones[].roof_transmission_load_kw_r` | `zone["roof_transmission_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.7 | `zones[].floor_transmission_load_kw_r` | `zone["floor_transmission_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.8 | `zones[].product_load_kw_r` | `zone["product_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.9 | `zones[].infiltration_load_kw_r` | `zone["infiltration_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.10 | `zones[].sensible_infiltration_load_kw_r` | `zone["sensible_infiltration_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.11 | `zones[].latent_infiltration_load_kw_r` | `zone["latent_infiltration_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.12 | `zones[].internal_load_kw_r` | `zone["internal_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.13 | `zones[].people_load_kw_r` | `zone["people_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.14 | `zones[].lighting_load_kw_r` | `zone["lighting_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.15 | `zones[].internal_equipment_load_kw_r` | `zone["internal_equipment_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.16 | `zones[].evaporator_fan_load_kw_r` | `zone["evaporator_fan_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.17 | `zones[].defrost_load_kw_r` | `zone["defrost_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 1.18 | `zones[].subtotal_load_kw_r` | `zone["subtotal_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 2 | `temperature_levels` | `result["temperature_levels"]` | direct | list[dict] | — | No | `temperature_level_code` ASC |
+| 2.1 | `temperature_levels[].temperature_level_code` | direct | str | — | No | — |
+| 2.2 | `temperature_levels[].room_count` | direct | int | — | No | — |
+| 2.3 | `temperature_levels[].subtotal_load_kw_r` | direct | Decimal | kW(r) | No | — |
+| 2.4 | `temperature_levels[].diversified_load_kw_r` | direct | Decimal | kW(r) | No | — |
+| 2.5 | `temperature_levels[].zones` | direct | list[str] | — | No | — |
+| 3 | `total_subtotal_load_kw_r` | `result["total_subtotal_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 4 | `diversity_factor` | `result["diversity_factor"]` | direct | str | — | No | — |
+| 5 | `total_diversified_load_kw_r` | `result["total_diversified_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 6 | `design_margin_ratio` | `result["design_margin_ratio"]` | direct | str | — | No | — |
+| 7 | `design_margin_kw_r` | `result["design_margin_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 8 | `design_refrigeration_load_kw_r` | `result["design_refrigeration_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
 
-#### 13.5.3 EquipmentSourceSnapshot payload (`calculation_type = "equipment"`, `calculator_name = "equipment"`)
+`requires_review` and `warnings` are in `SourceSnapshotContentV1` envelope — not payload.
 
-**EXCLUDED fields:**
+#### 13.5.3 EquipmentSourceSnapshot payload
 
-| Excluded field | Reason |
-|---|---|
-| `installed_power_kw_e` | This is **compressor input power** in the equipment calculator context — NOT whole-project authoritative installed power.  The Power snapshot owns `total_installed_power_kw_e`. |
+Source: `CalculationResult.result` from equipment calculator
+(`calculation_type = "equipment"`, `calculator_name = "equipment"`)
 
-**INCLUDED fields:**
+**EXCLUDED:** No fields excluded from payload — however the field `total_compressor_input_power_kw_e` in the calculator result is **compressor input power only**, NOT whole-facility installed power. SchemeService MUST NOT use this slot for `installed_power_kw_e`.
 
-| # | Payload key | Source | Type | Unit | Nullable |
-|---|---|---|---|---|---|
-| 1 | `compressor_operating_capacity_kw_r` | Total across all temperature systems | Decimal | kW(r) | No |
-| 2 | `compressor_installed_capacity_kw_r` | Operating × redundancy ratio | Decimal | kW(r) | No |
-| 3 | `compressor_standby_capacity_kw_r` | Installed − operating | Decimal | kW(r) | No |
-| 4 | `condenser_heat_rejection_kw` | Total across all systems | Decimal | kW | No |
-| 5 | `compressor_input_power_kw_e` | From COP derivation | Decimal | kW(e) | No |
+| # | Payload key | Source path | Classification | Type | Unit | Nullable | Sort key |
+|---|---|---|---|---|---|---|---|
+| 1 | `systems` | `result["systems"]` | direct | list[dict] | — | No | `system_code` ASC |
+| 1.1 | `systems[].system_code` | `system["system_code"]` | direct | str | — | No | — |
+| 1.2 | `systems[].system_name` | `system["system_name"]` | direct | str | — | No | — |
+| 1.3 | `systems[].design_evaporating_temperature_c` | `system["design_evaporating_temperature_c"]` | direct | str | °C | No | — |
+| 1.4 | `systems[].zones` | `system["zones"]` | direct | list[dict] | — | No | `zone_code` ASC |
+| 1.5 | `systems[].system_simultaneous_load_kw_r` | direct | Decimal | kW(r) | No | — |
+| 1.6 | `systems[].evaporator_total_capacity_kw_r` | direct | Decimal | kW(r) | No | — |
+| 1.7 | `systems[].evaporator_count` | direct | int | — | No | — |
+| 1.8 | `systems[].single_evaporator_capacity_kw_r` | direct | Decimal | kW(r) | No | — |
+| 1.9 | `systems[].compressor_operating_capacity_kw_r` | direct | Decimal | kW(r) | No | — |
+| 1.10 | `systems[].compressor_installed_capacity_kw_r` | direct | Decimal | kW(r) | No | — |
+| 1.11 | `systems[].compressor_standby_capacity_kw_r` | direct | Decimal | kW(r) | No | — |
+| 1.12 | `systems[].compressor_input_power_kw_e` | direct | Decimal | kW(e) | No | — |
+| 1.13 | `systems[].condenser_heat_rejection_kw` | direct | Decimal | kW | No | — |
+| 1.14 | `systems[].defrost_methods` | direct | list[str] | — | No | — |
+| 2 | `total_design_load_kw_r` | `result["total_design_load_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 3 | `total_compressor_capacity_kw_r` | `result["total_compressor_capacity_kw_r"]` | direct | Decimal | kW(r) | No | — |
+| 4 | `total_compressor_input_power_kw_e` | `result["total_compressor_input_power_kw_e"]` | direct | Decimal | kW(e) | No | — |
+| 5 | `total_condenser_rejection_kw` | `result["total_condenser_rejection_kw"]` | direct | Decimal | kW | No | — |
 
-Equipment adapter MUST NOT include any field named `installed_power_kw_e`, `total_installed_power_kw_e`, or any variant implying whole-facility installed power.  SchemeService must never read installed power from the Equipment snapshot.
+⚠️ `total_compressor_input_power_kw_e` is compressor input power — NOT facility installed power.
 
-#### 13.5.4 PowerSourceSnapshot payload (`calculation_type = "power"`, `calculator_name = "installed_power"`)
+#### 13.5.4 PowerSourceSnapshot payload
 
-| # | Payload key | Source | Type | Unit | Nullable |
-|---|---|---|---|---|---|
-| 1 | `total_installed_power_kw_e` | Sum of all load categories | Decimal | kW(e) | No |
-| 2 | `estimated_peak_demand_kw_e` | After demand factors | Decimal | kW(e) | No |
-| 3 | `load_breakdown` | Structured breakdown | dict | — | No |
-| 3.1 | `load_breakdown.refrigeration_compressors_kw_e` | From equipment stage | Decimal | kW(e) | No |
-| 3.2 | `load_breakdown.evaporator_fans_kw_e` | From equipment stage | Decimal | kW(e) | No |
-| 3.3 | `load_breakdown.condenser_fans_kw_e` | From equipment stage | Decimal | kW(e) | No |
-| 3.4 | `load_breakdown.defrost_kw_e` | From equipment stage | Decimal | kW(e) | No |
-| 3.5 | `load_breakdown.lighting_kw_e` | From ProjectVersion inputs | Decimal | kW(e) | No |
-| 3.6 | `load_breakdown.processing_equipment_kw_e` | From ProjectVersion inputs | Decimal | kW(e) | No |
-| 3.7 | `load_breakdown.auxiliary_kw_e` | From ProjectVersion inputs | Decimal | kW(e) | No |
-| 4 | `source_equipment_calculation_id` | Equipment CalculationRunRecord ID | str | — | No |
+Source: `CalculationResult.result` from `calculate_installed_power()`
+(`calculation_type = "power"`, `calculator_name = "installed_power"`)
 
-Power adapter MUST INCLUDE `total_installed_power_kw_e`.  SchemeService installed-power reads only the Power slot.  Power slot missing → fail closed.  Equipment slot must not serve as fallback.
+| # | Payload key | Source path | Classification | Type | Unit | Nullable | Sort key |
+|---|---|---|---|---|---|---|---|
+| 1 | `refrigeration_system_installed_power_kw_e` | `result["refrigeration_system_installed_power_kw_e"]` | direct | Decimal | kW(e) | No | — |
+| 2 | `process_equipment_installed_power_kw_e` | `result["process_equipment_installed_power_kw_e"]` | direct | Decimal | kW(e) | No | — |
+| 3 | `lighting_installed_power_kw_e` | `result["lighting_installed_power_kw_e"]` | direct | Decimal | kW(e) | No | — |
+| 4 | `auxiliary_installed_power_kw_e` | `result["auxiliary_installed_power_kw_e"]` | direct | Decimal | kW(e) | No | — |
+| 5 | `total_installed_power_kw_e` | `result["total_installed_power_kw_e"]` | direct | Decimal | kW(e) | No | — |
+| 6 | `estimated_peak_demand_kw_e` | `result["estimated_peak_demand_kw_e"]` | direct | Decimal | kW(e) | No | — |
+| 7 | `equipment_items` | `result["equipment_items"]` | direct | list[dict] | — | Yes | `(category, name, quantity, unit_power_kw_e, demand_factor)` ASC |
 
-#### 13.5.5 InvestmentSourceSnapshot payload (`calculation_type = "investment"`, `calculator_name = "investment_estimate"`)
+Power adapter MUST INCLUDE `total_installed_power_kw_e`.  SchemeService installed-power reads ONLY the Power slot.  Power slot missing → fail closed.  Equipment slot MUST NOT serve as fallback.
 
-Note: `calculation_type = "investment"` is the orchestration/source-binding business type. `calculator_name = "investment_estimate"` is the specific calculator implementation identity.
+#### 13.5.5 InvestmentSourceSnapshot payload
 
-| # | Payload key | Source | Type | Unit | Nullable |
-|---|---|---|---|---|---|
-| 1 | `total_investment_cny` | Estimator output | Decimal | CNY | No |
-| 2 | `zone_investments` | Per-zone breakdown from estimator | dict[str, Decimal] | CNY | Yes |
-| 3 | `source_power_calculation_id` | Power CalculationRunRecord ID | str | — | No |
-| 4 | `source_zone_calculation_id` | Zone CalculationRunRecord ID | str | — | No |
+Source: `CalculationResult.result` from `InvestmentEstimator.estimate()`
+(`calculation_type = "investment"`, `calculator_name = "investment_estimate"`)
 
-#### 13.5.6 Adapter verification contract
+| # | Payload key | Source path | Classification | Type | Unit | Nullable | Sort key |
+|---|---|---|---|---|---|---|---|
+| 1 | `total_investment_cny` | `result["total_investment_cny"]` | direct | Decimal | CNY | No | — |
+| 2 | `items` | `result["items"]` | direct | list[dict] | — | No | `item_name` ASC |
+| 2.1 | `items[].item_name` | `item["item_name"]` | direct | str | — | No | — |
+| 2.2 | `items[].amount_cny` | `item["amount_cny"]` | direct | Decimal | CNY | No | — |
 
-For each adapter, two independent implementations given identical calculator output MUST produce identical `SourceSnapshotContentV1` and therefore identical `result_hash`.  The verification tests:
+Upstream calculation IDs (power, zone) are provenance metadata — NOT in business payload.
+They belong in `SourceBindingRecord` or `SourceSnapshotContentV1.provenance`, not `payload`.
 
-- Fixed known calculator output → deterministic canonical payload;
-- Calculator output field order changes → canonical sort produces same hash;
-- Zone detail order changes → canonical sort produces same hash;
-- Unknown calculator output field added → payload unchanged;
-- Excluded field present in calculator output → absent from payload;
-- Schema version changes when a payload field is added, removed, or renamed.
+#### 13.5.6 Golden mapping examples
+
+For each adapter, given a fixed `CalculationResult.result` input, the adapter
+MUST produce a deterministic `payload`.  Two independent implementations given
+identical input MUST produce identical `SourceSnapshotContentV1` and `result_hash`.
+
+**Required golden scenarios:**
+
+1. Zone zones in original order `[B, A, C]` → payload zones sorted `[A, B, C]` → same hash as `[A, C, B]`.
+2. CoolingLoad temperature_levels in different order → sorted by `temperature_level_code` → same hash.
+3. Equipment systems in different order → sorted by `system_code` → same hash.
+4. Power equipment_items in different order → sorted by composite key → same hash.
+5. Investment items in different order → sorted by `item_name` → same hash.
+6. Adding a new unknown field to calculator `result` → payload unchanged → same hash.
+7. CalculationRunRecord database ID changes → business payload unchanged → same hash (IDs are not in payload).
+
+Canonical hash inputs (payload objects) are frozen as part of implementation tests.
+Implementation tests MUST lock specific expected SHA-256 values.
+
+#### 13.5.7 Provenance contract
+
+The following are **NOT** business payload fields — they belong in `SourceSnapshotContentV1.provenance` (a separate `Mapping[str, object]` on the content struct) or in `SourceBindingRecord`:
+
+- `source_equipment_calculation_id`
+- `source_power_calculation_id`
+- `source_zone_calculation_id`
+- Any database-generated `CalculationRunRecord.id`
+
+`provenance` enters `SourceSnapshotContentV1` and therefore participates in `result_hash`.
+This means `result_hash` is **execution-bound** (depends on upstream calculation IDs),
+not purely output-deterministic.  This is intentional: a) tamper detection requires
+binding to specific upstream records; b) two orchestration runs producing identical
+business results will have different `result_hash` values because their upstream
+calculation IDs differ.
 
 ### 13.6 Semantic boundaries (reaffirmed)
 
@@ -985,7 +1069,29 @@ _REQUIRED_CALC_TYPES = frozenset({"zone", "investment", "cooling_load", "equipme
 This four-type set is used by both `generate_scheme_run()` (production) and
 `generate_demo_scheme_comparison()` (demo).  Issue #22 must separate them.
 
-**Decision: Scheme A — two distinct type sets.**
+**Decision: Demo path uses five types with deterministic demo power seed.**
+
+```python
+DEMO_REQUIRED_CALC_TYPES = frozenset(
+    {"zone", "investment", "cooling_load", "equipment", "power"}
+)
+```
+
+The demo path requires exactly five calculation types.  When
+`generate_demo_scheme_comparison()` is called, the demo seed data MUST include
+a deterministic demo power record.  Missing power in demo → fail closed
+(same as production).
+
+**Invariants:**
+
+| Path | Authoritative type set | Power required | SourceBinding required |
+|---|---|---|---|
+| Production (`source_binding_id`) | `PRODUCTION_SOURCE_SLOTS` (5) | Yes — fail closed | Yes |
+| Demo (`generate_demo_scheme_comparison`) | `DEMO_REQUIRED_CALC_TYPES` (5) | Yes — demo power seed | No |
+
+The same `_REQUIRED_CALC_TYPES` constant must not serve both paths.
+Production must never silently fall back to demo data.
+There is no "4 or 5", no "TBD", no "may retain four types".
 
 Production path uses five SourceBinding slots as the authoritative set:
 
@@ -1015,16 +1121,6 @@ include a demo power record (or demo path retains the current four-type set
 and power is not required for demo).  The demo path MUST NOT accept
 production SourceBinding records, and the production path MUST NOT fall
 back to demo data.
-
-**Invariants:**
-
-| Path | Authoritative type set | Power required | SourceBinding required |
-|---|---|---|---|
-| Production (`source_binding_id`) | `PRODUCTION_SOURCE_SLOTS` (5) | Yes — fail closed if missing | Yes |
-| Demo (`generate_demo_scheme_comparison`) | `DEMO_REQUIRED_CALC_TYPES` (4 or 5) | TBD — at minimum a demo power seed record | No |
-
-The same `_REQUIRED_CALC_TYPES` constant must not serve both paths.
-Production must never silently fall back to demo data.
 
 ### 17.1 Formal production contract
 
@@ -1432,7 +1528,8 @@ Every subtask below requires a separate implementation review. This PR does not 
 - Power slot missing → SchemeService fail closed;
 - Equipment power must not serve as Power fallback;
 - production path uses five PRODUCTION_SOURCE_SLOTS;
-- demo path uses independent DEMO_REQUIRED_CALC_TYPES (or demo power seed);
+- demo path uses five DEMO_REQUIRED_CALC_TYPES with demo power seed;
+- demo power missing → fail closed;
 - unknown calculator output field excluded from payload;
 - adding a payload field requires schema version increment;
 - `calculation_type="investment"` correctly bound to `calculator_name="investment_estimate"`.
@@ -1500,19 +1597,11 @@ No Phase C, Phase D, or Task 12 work is authorized by this design.
 
 ---
 
-## 26. Review 4587054607 closure map
+## 26. Review 4587131728 closure map
 
-1. Project/version fingerprint isolation -> Sections 6 and 8.
-2. Preflight rejection versus execution BLOCKED -> Section 9.
-3. Orphan-free snapshot/context materialization -> Section 8.
-4. One RUNNING attempt and heartbeat CAS takeover -> Section 11.
-5. Rollback-safe persisted stages and diagnostics -> Sections 12 and 14.
-6. Strict SourceBinding type/identity verification -> Section 16.
-7. Sole combined source hash -> Section 16.4.
-8. Idempotent outbox dispatcher -> Section 20.
-9. Authoritative ProjectVersion lookup -> Section 6.1.
-10. Approved weight-set revision binding -> Section 17.
-11. SchemeRun CHECK and archive artifact -> Sections 18 and 19.
-12. Post-approval Issue #22 synchronization -> Section 24 and work item N.
+1. Real calculator output alignment (§13.5) — all five payload tables rebuilt from actual `CalculationResult.result` field names.
+2. Demo path frozen to single strategy (§17.0) — five types, deterministic demo power seed, no "4 or 5".
+3. Database IDs moved from business payload to provenance (§13.5.7) — `result_hash` is execution-bound, not purely output-deterministic.
+4. Document metadata updated to current review head.
 
 This document is ready for engineering re-review. It does not authorize implementation.
