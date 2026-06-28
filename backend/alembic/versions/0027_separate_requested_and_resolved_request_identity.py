@@ -147,6 +147,7 @@ def _sqlite_upgrade() -> None:
 
     conn = op.get_bind()
 
+    # Drop and recreate with new schema (raw SQL for clean FK migration)
     conn.execute(_sa_text("""
         CREATE TABLE _alembic_tmp_orch_req (
             id VARCHAR(36) PRIMARY KEY,
@@ -165,13 +166,7 @@ def _sqlite_upgrade() -> None:
             failure_details JSON,
             created_at DATETIME NOT NULL,
             completed_at DATETIME,
-            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _NEW_CHECK + """),
-            CONSTRAINT fk_orch_request_resolved_identity
-                FOREIGN KEY (resolved_identity_id)
-                REFERENCES orchestration_identities(id),
-            CONSTRAINT fk_orch_request_resolved_attempt
-                FOREIGN KEY (resolved_attempt_id)
-                REFERENCES orchestration_run_attempts(id)
+            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _NEW_CHECK + """)
         )
     """))
     conn.execute(_sa_text("""
@@ -194,6 +189,20 @@ def _sqlite_upgrade() -> None:
     conn.execute(_sa_text(
         "ALTER TABLE _alembic_tmp_orch_req RENAME TO orchestration_requests"
     ))
+    # Add named FKs via batch to preserve Alembic constraint tracking
+    with op.batch_alter_table("orchestration_requests") as batch_op:
+        batch_op.create_foreign_key(
+            "fk_orch_request_resolved_identity",
+            "orchestration_identities",
+            ["resolved_identity_id"],
+            ["id"],
+        )
+        batch_op.create_foreign_key(
+            "fk_orch_request_resolved_attempt",
+            "orchestration_run_attempts",
+            ["resolved_attempt_id"],
+            ["id"],
+        )
     # Recreate indexes
     conn.execute(_sa_text(
         "CREATE INDEX IF NOT EXISTS ix_orchestration_requests_request_fingerprint "
@@ -202,58 +211,84 @@ def _sqlite_upgrade() -> None:
 
 
 def _sqlite_downgrade() -> None:
-    """SQLite downgrade: recreate table to restore old schema."""
+    """SQLite downgrade: recreate table via Alembic create_table so 0026's
+    downgrade can find named constraints."""
     from sqlalchemy import text as _sa_text
 
     conn = op.get_bind()
 
-    conn.execute(_sa_text("""
-        CREATE TABLE _alembic_tmp_orch_req (
-            id VARCHAR(36) PRIMARY KEY,
-            project_id VARCHAR(36) NOT NULL REFERENCES projects(id),
-            project_version_id VARCHAR(36) NOT NULL REFERENCES project_versions(id),
-            request_fingerprint VARCHAR(128) NOT NULL,
-            actor VARCHAR(100) NOT NULL,
-            correlation_id VARCHAR(128) NOT NULL,
-            status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-            resolved_identity_id VARCHAR(36),
-            resolved_attempt_id VARCHAR(36),
-            failure_code VARCHAR(100),
-            failure_field VARCHAR(200),
-            failure_details JSON,
-            created_at DATETIME NOT NULL,
-            completed_at DATETIME,
-            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _OLD_CHECK + """),
-            CONSTRAINT fk_orch_request_resolved_identity
-                FOREIGN KEY (resolved_identity_id)
-                REFERENCES orchestration_identities(id),
-            CONSTRAINT fk_orch_request_resolved_attempt
-                FOREIGN KEY (resolved_attempt_id)
-                REFERENCES orchestration_run_attempts(id)
-        )
-    """))
-    conn.execute(_sa_text("""
-        INSERT INTO _alembic_tmp_orch_req
-            (id, project_id, project_version_id,
-             request_fingerprint, actor, correlation_id, status,
-             resolved_identity_id, resolved_attempt_id,
-             failure_code, failure_field, failure_details,
-             created_at, completed_at)
-        SELECT id, requested_project_id, requested_project_version_id,
-               request_fingerprint, actor, correlation_id, status,
-               resolved_identity_id, resolved_attempt_id,
-               failure_code, failure_field, failure_details,
-               created_at, completed_at
-        FROM orchestration_requests
-    """))
+    # Preserve data in temp table
+    conn.execute(_sa_text(
+        "CREATE TABLE _alembic_tmp_orch_req AS "
+        "SELECT "
+        "  id, requested_project_id AS project_id, "
+        "  requested_project_version_id AS project_version_id, "
+        "  request_fingerprint, actor, correlation_id, status, "
+        "  resolved_identity_id, resolved_attempt_id, "
+        "  failure_code, failure_field, failure_details, "
+        "  created_at, completed_at "
+        "FROM orchestration_requests"
+    ))
     conn.execute(_sa_text("DROP TABLE orchestration_requests"))
+
+    # Recreate using Alembic's op.create_table to match 0026 schema exactly
+    op.create_table(
+        "orchestration_requests",
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column(
+            "project_id", sa.String(36), sa.ForeignKey("projects.id"), nullable=False
+        ),
+        sa.Column(
+            "project_version_id",
+            sa.String(36),
+            sa.ForeignKey("project_versions.id"),
+            nullable=False,
+        ),
+        sa.Column("request_fingerprint", sa.String(128), nullable=False, index=True),
+        sa.Column("actor", sa.String(100), nullable=False),
+        sa.Column("correlation_id", sa.String(128), nullable=False),
+        sa.Column(
+            "status", sa.String(50), nullable=False, server_default="PENDING"
+        ),
+        sa.Column("resolved_identity_id", sa.String(36), nullable=True),
+        sa.Column("resolved_attempt_id", sa.String(36), nullable=True),
+        sa.Column("failure_code", sa.String(100), nullable=True),
+        sa.Column("failure_field", sa.String(200), nullable=True),
+        sa.Column("failure_details", sa.JSON(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+    )
+
+    # Restore data
     conn.execute(_sa_text(
-        "ALTER TABLE _alembic_tmp_orch_req RENAME TO orchestration_requests"
+        "INSERT INTO orchestration_requests "
+        "(id, project_id, project_version_id, request_fingerprint, actor, "
+        " correlation_id, status, resolved_identity_id, resolved_attempt_id, "
+        " failure_code, failure_field, failure_details, created_at, completed_at) "
+        "SELECT id, project_id, project_version_id, request_fingerprint, actor, "
+        " correlation_id, status, resolved_identity_id, resolved_attempt_id, "
+        " failure_code, failure_field, failure_details, created_at, completed_at "
+        "FROM _alembic_tmp_orch_req"
     ))
-    conn.execute(_sa_text(
-        "CREATE INDEX IF NOT EXISTS ix_orchestration_requests_request_fingerprint "
-        "ON orchestration_requests (request_fingerprint)"
-    ))
+    conn.execute(_sa_text("DROP TABLE _alembic_tmp_orch_req"))
+
+    # Add CHECK and extra FKs exactly as 0026 upgrade did (named, tracked)
+    with op.batch_alter_table("orchestration_requests") as batch_op:
+        batch_op.create_check_constraint(
+            "ck_orch_request_status_nullity", _OLD_CHECK
+        )
+        batch_op.create_foreign_key(
+            "fk_orch_request_resolved_identity",
+            "orchestration_identities",
+            ["resolved_identity_id"],
+            ["id"],
+        )
+        batch_op.create_foreign_key(
+            "fk_orch_request_resolved_attempt",
+            "orchestration_run_attempts",
+            ["resolved_attempt_id"],
+            ["id"],
+        )
 
 
 # ── CHECK definitions ──────────────────────────────────────────────────────
