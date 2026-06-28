@@ -166,9 +166,11 @@ def test_all_paths_in_evaluation() -> None:
 def test_baseline_expected_outcome_success() -> None:
     manifest = _load_manifest()
     entry = _scenario_entry(manifest, "baseline-feasible")
-    assert entry["expected_outcome"] == "review_required", (
-        f"Expected review_required (production hardcoded review: zone_planning + investment), "
-        f"got: {entry['expected_outcome']}"
+    assert entry["expected_outcome"] == "success", (
+        f"Frozen baseline contract requires success. "
+        f"Got: {entry['expected_outcome']}. "
+        f"Phase B is BLOCKED until formal production orchestration delivers "
+        f"no-review baseline."
     )
 
 
