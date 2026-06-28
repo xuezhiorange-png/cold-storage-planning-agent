@@ -158,8 +158,12 @@ def _sqlite_upgrade() -> None:
             status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
             resolved_project_id VARCHAR(36) REFERENCES projects(id),
             resolved_project_version_id VARCHAR(36) REFERENCES project_versions(id),
-            resolved_identity_id VARCHAR(36),
-            resolved_attempt_id VARCHAR(36),
+            resolved_identity_id VARCHAR(36)
+                CONSTRAINT fk_orch_request_resolved_identity
+                REFERENCES orchestration_identities(id),
+            resolved_attempt_id VARCHAR(36)
+                CONSTRAINT fk_orch_request_resolved_attempt
+                REFERENCES orchestration_run_attempts(id),
             failure_code VARCHAR(100),
             failure_field VARCHAR(200),
             failure_details JSON,
@@ -210,8 +214,12 @@ def _sqlite_downgrade() -> None:
             actor VARCHAR(100) NOT NULL,
             correlation_id VARCHAR(128) NOT NULL,
             status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-            resolved_identity_id VARCHAR(36),
-            resolved_attempt_id VARCHAR(36),
+            resolved_identity_id VARCHAR(36)
+                CONSTRAINT fk_orch_request_resolved_identity
+                REFERENCES orchestration_identities(id),
+            resolved_attempt_id VARCHAR(36)
+                CONSTRAINT fk_orch_request_resolved_attempt
+                REFERENCES orchestration_run_attempts(id),
             failure_code VARCHAR(100),
             failure_field VARCHAR(200),
             failure_details JSON,
