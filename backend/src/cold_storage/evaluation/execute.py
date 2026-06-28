@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from cold_storage.evaluation.errors import EvaluationPrerequisiteMissingError
 from cold_storage.evaluation.models import EvaluationScenario
 from cold_storage.evaluation.sqlite_scope import SqliteScope
 from cold_storage.modules.calculations.application.service import (
@@ -138,6 +139,37 @@ def _json_safe(obj: Any) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Prerequisite capability gate for SchemeService
+# ---------------------------------------------------------------------------
+
+
+def _require_scheme_production_prerequisite() -> None:
+    """Raise EvaluationPrerequisiteMissingError — explicit capability gate.
+
+    This is a harness-level blocker, NOT a business outcome.
+    Issue #22 must deliver a formal production orchestration service
+    that persists zone/cooling_load/equipment/investment records
+    before SchemeService can be called from evaluation.
+    """
+    raise EvaluationPrerequisiteMissingError(
+        "Formal production orchestration and persistence required by "
+        "SchemeService is not available.",
+        field="scheme_source_calculations",
+        details={
+            "required_calculation_types": [
+                "zone",
+                "investment",
+                "cooling_load",
+                "equipment",
+            ],
+            "missing_capability": "formal_application_orchestration_and_persistence",
+            "task_status": "blocked",
+            "prerequisite_issue": 22,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Scenario executor
 # ---------------------------------------------------------------------------
 
@@ -162,7 +194,6 @@ def run_evaluation_scenario(
     not a business outcome.
     """
     engine = scope.engine
-    Session = scope.Session
 
     errors: list[str] = []
     stage_ledger: dict[str, dict[str, Any]] = {}
@@ -573,62 +604,52 @@ def run_evaluation_scenario(
         # ------------------------------------------------------------------
         # Stage: schemes (SchemeService)
         #
-        # Fail-closed with EvaluationPrerequisiteMissingError because the
-        # formal production orchestration service that persists zone,
-        # cooling_load, equipment, and investment CalculationRunRecord
-        # entries is not yet implemented.  The evaluation module MUST NOT
-        # fabricate those records.
+        # Explicit prerequisite gate: raises EvaluationPrerequisiteMissingError
+        # BEFORE SchemeService is instantiated.  This is a harness-level
+        # blocker — NOT a business outcome and NOT diagnosed by probing
+        # SchemeService for its internal errors.
+        #
+        # Issue #22 must deliver a formal production orchestration service
+        # before SchemeService can be called from evaluation.
         # ------------------------------------------------------------------
         if "schemes" in scenario.required_stages:
             scheme_config = fixture.get("scheme_run")
             if scheme_config:
                 try:
-                    from cold_storage.bootstrap.scheme_seed import demo_weight_set
-                    from cold_storage.modules.schemes.application.service import (
-                        SchemeService,
-                    )
-                    from cold_storage.modules.schemes.infrastructure.repository import (
-                        SchemeRepository,
-                    )
-
-                    with Session() as session:
-                        repo = SchemeRepository(session)
-                        repo.save_weight_set(demo_weight_set())
-                        session.commit()
-
-                        scheme_svc = SchemeService(session)
-                        scheme_result = scheme_svc.generate_scheme_run(
-                            project_id=project.id,
-                            version=version.version_number,
-                            profile_codes=scheme_config.get("profile_codes", []),
-                            weight_set_id=scheme_config.get("weight_set_id", "demo-weight-set-001"),
-                            profile_parameters=scheme_config.get("profile_parameters", {}),
-                        )
-                        result["scheme_run"] = _json_safe(scheme_result)
-                        stage_ledger["schemes"] = _stage_entry(
-                            "passed",
-                            detail="scheme_generation_complete",
-                        )
+                    _require_scheme_production_prerequisite()
+                    # Unreachable until Issue #22 is complete.
+                    # SchemeService.generate_scheme_run(...) is guarded here.
+                except EvaluationPrerequisiteMissingError as exc:
+                    errors.append(f"schemes: {exc}")
+                    result["blocker"] = {
+                        "stage": "schemes",
+                        "error_class": type(exc).__name__,
+                        "code": exc.code,
+                        "field": exc.field,
+                        "details": exc.details,
+                    }
+                    stage_ledger["schemes"] = {
+                        "status": "blocked",
+                        "review_required": False,
+                        "blocker": {
+                            "error_class": type(exc).__name__,
+                            "code": exc.code,
+                            "field": exc.field,
+                        },
+                    }
+                    result["outcome"] = "blocked"
                 except Exception as exc:
-                    # SchemeService will fail because zone/investment/
-                    # cooling_load/equipment CalculationRunRecord entries
-                    # do not exist.  This is the EXPECTED fail-closed
-                    # behaviour until the formal production prerequisite
-                    # is delivered.
-                    err_msg = str(exc)
-                    errors.append(f"schemes: {err_msg}")
-                    stage_ledger["schemes"] = _stage_entry(
-                        "failed",
-                        error=(
-                            "SchemeService requires zone/investment/cooling_load/"
-                            "equipment CalculationRunRecord entries persisted by a "
-                            "formal production orchestration service.  "
-                            "Task 11 is BLOCKED by this prerequisite.  "
-                            f"Raw error: {err_msg}"
-                        ),
-                        review_required=False,
-                    )
-                    # Schemes failure blocks the run
+                    # Unknown / unexpected exception — NOT a prerequisite blocker.
+                    # Must NOT be disguised as Issue #22 prerequisite.
+                    errors.append(f"schemes: {exc}")
+                    stage_ledger["schemes"] = {
+                        "status": "failed",
+                        "review_required": False,
+                        "error": str(exc),
+                        "error_class": type(exc).__name__,
+                        "kind": "unexpected_error",
+                        "stage": "schemes",
+                    }
                     result["outcome"] = "blocked"
 
         # ------------------------------------------------------------------
