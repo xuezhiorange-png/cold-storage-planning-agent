@@ -8,8 +8,8 @@ Concrete SQLAlchemy implementations are provided for all protocols
 needed by Transaction A (request + snapshot + context + identity +
 attempt).
 
-Concurrent-safety: get-or-create methods use savepoint-based retry
-for SQLite and INSERT ... ON CONFLICT for PostgreSQL.
+Concurrent-safety: get-or-create methods use nested-transaction retry
+targeting only the specific unique constraint for each entity.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import exc as sa_exc
 from sqlalchemy.orm import Session
 
 from cold_storage.modules.orchestration.domain.contracts import (
@@ -26,7 +27,7 @@ from cold_storage.modules.orchestration.domain.contracts import (
     RequestStatus,
 )
 
-# ── Orchestration Request ───────────────────────────────────────────────────
+# ── Helpers ─────────────────────────────────────────────────────────────────
 
 
 def _ensure_str(value: object) -> str:
@@ -48,6 +49,17 @@ def _ensure_datetime(value: object) -> datetime:
 
         return value.replace(tzinfo=UTC)
     return value
+
+
+def _is_target_unique_violation(
+    exc: sa_exc.IntegrityError, constraint_name: str
+) -> bool:
+    """Return True if *exc* is caused by a violation of *constraint_name*."""
+    msg = str(exc.orig) if exc.orig is not None else ""
+    return constraint_name in msg
+
+
+# ── Orchestration Request ───────────────────────────────────────────────────
 
 
 class OrchestrationRequestRepository(ABC):
@@ -84,7 +96,10 @@ class OrchestrationRequestRepository(ABC):
         resolved_identity_id: str | None = None,
         resolved_attempt_id: str | None = None,
     ) -> None:
-        """Update request status and optional resolution/failure metadata."""
+        """Update request status and optional resolution/failure metadata.
+
+        Raises ``PersistenceInvariantError`` when 0 rows are affected.
+        """
         ...
 
 
@@ -140,6 +155,9 @@ class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
 
         from sqlalchemy import update
 
+        from cold_storage.modules.orchestration.domain.errors import (
+            PersistenceInvariantError,
+        )
         from cold_storage.modules.orchestration.infrastructure.orm import (
             OrchestrationRequestRecord,
         )
@@ -158,9 +176,15 @@ class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
         stmt = (
             update(OrchestrationRequestRecord)
             .where(OrchestrationRequestRecord.id == request_id)
-            .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
+            .values(
+                **{k: v for k, v in values.items() if v is not None or k == "status"}
+            )
         )
-        session.execute(stmt)
+        result = session.execute(stmt)
+        if hasattr(result, "rowcount") and result.rowcount == 0:
+            raise PersistenceInvariantError(
+                f"update_status affected 0 rows for request_id={request_id!r}"
+            )
 
 
 # ── Execution Snapshot ──────────────────────────────────────────────────────
@@ -190,6 +214,7 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
     """Session-bound repository for ``ProjectVersionExecutionSnapshotRecord``."""
 
     _MAX_RETRIES = 3
+    _TARGET_CONSTRAINT = "uq_exec_snapshot_version_hash_schema"
 
     def get_or_create(
         self,
@@ -214,8 +239,10 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
         # Try to find existing first
         existing = session.execute(
             select(ProjectVersionExecutionSnapshotRecord.id).where(
-                ProjectVersionExecutionSnapshotRecord.project_version_id == project_version_id,
-                ProjectVersionExecutionSnapshotRecord.input_snapshot_hash == input_snapshot_hash,
+                ProjectVersionExecutionSnapshotRecord.project_version_id
+                == project_version_id,
+                ProjectVersionExecutionSnapshotRecord.input_snapshot_hash
+                == input_snapshot_hash,
                 ProjectVersionExecutionSnapshotRecord.schema_version == schema_version,
             )
         ).scalar()
@@ -249,20 +276,25 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
         fields: dict[str, object],
         select_filter: dict[str, object],
     ) -> str:
-        """Concurrent-safe insert: savepoint → insert → retry on conflict → re-read."""
+        """Concurrent-safe insert using nested transaction handle.
+
+        Only retries on the target unique constraint violation.
+        All other IntegrityError subclasses propagate immediately.
+        """
         from sqlalchemy import select
-        from sqlalchemy.exc import IntegrityError
 
         for _attempt_no in range(self._MAX_RETRIES):
+            nested = session.begin_nested()
             try:
-                session.begin_nested()
                 record = model_cls(**fields)
                 session.add(record)
                 session.flush()
-                session.commit()  # commit the savepoint
+                nested.commit()
                 return str(record.id)
-            except IntegrityError:
-                session.rollback()  # rollback savepoint only
+            except sa_exc.IntegrityError as exc:
+                nested.rollback()
+                if not _is_target_unique_violation(exc, self._TARGET_CONSTRAINT):
+                    raise
                 # Re-read — another transaction may have inserted
                 stmt = select(model_cls.id)
                 for k, v in select_filter.items():
@@ -273,7 +305,8 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
                 continue
 
         raise RuntimeError(
-            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
+            f"Failed to get-or-create {model_cls.__name__} "
+            f"after {self._MAX_RETRIES} retries"
         )
 
 
@@ -303,6 +336,7 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
     """Session-bound repository for ``CoefficientContextRecord``."""
 
     _MAX_RETRIES = 3
+    _TARGET_CONSTRAINT = "uq_coeff_context_version_hash"
 
     def get_or_create(
         self,
@@ -357,18 +391,19 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
         select_filter: dict[str, object],
     ) -> str:
         from sqlalchemy import select
-        from sqlalchemy.exc import IntegrityError
 
         for _attempt_no in range(self._MAX_RETRIES):
+            nested = session.begin_nested()
             try:
-                session.begin_nested()
                 record = model_cls(**fields)
                 session.add(record)
                 session.flush()
-                session.commit()
+                nested.commit()
                 return str(record.id)
-            except IntegrityError:
-                session.rollback()
+            except sa_exc.IntegrityError as exc:
+                nested.rollback()
+                if not _is_target_unique_violation(exc, self._TARGET_CONSTRAINT):
+                    raise
                 stmt = select(model_cls.id)
                 for k, v in select_filter.items():
                     stmt = stmt.where(getattr(model_cls, k) == v)
@@ -378,7 +413,8 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
                 continue
 
         raise RuntimeError(
-            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
+            f"Failed to get-or-create {model_cls.__name__} "
+            f"after {self._MAX_RETRIES} retries"
         )
 
 
@@ -419,6 +455,7 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
     """Session-bound repository for ``OrchestrationIdentityRecord``."""
 
     _MAX_RETRIES = 3
+    _TARGET_CONSTRAINT = "uq_orch_identity_fingerprint"
 
     def get_or_create(
         self,
@@ -470,18 +507,19 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
         select_filter: dict[str, object],
     ) -> str:
         from sqlalchemy import select
-        from sqlalchemy.exc import IntegrityError
 
         for _attempt_no in range(self._MAX_RETRIES):
+            nested = session.begin_nested()
             try:
-                session.begin_nested()
                 record = model_cls(**fields)
                 session.add(record)
                 session.flush()
-                session.commit()
+                nested.commit()
                 return str(record.id)
-            except IntegrityError:
-                session.rollback()
+            except sa_exc.IntegrityError as exc:
+                nested.rollback()
+                if not _is_target_unique_violation(exc, self._TARGET_CONSTRAINT):
+                    raise
                 stmt = select(model_cls.id)
                 for k, v in select_filter.items():
                     stmt = stmt.where(getattr(model_cls, k) == v)
@@ -491,7 +529,8 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
                 continue
 
         raise RuntimeError(
-            f"Failed to get-or-create {model_cls.__name__} after {self._MAX_RETRIES} retries"
+            f"Failed to get-or-create {model_cls.__name__} "
+            f"after {self._MAX_RETRIES} retries"
         )
 
     def set_authoritative_attempt(
@@ -531,10 +570,12 @@ class OrchestrationAttemptRepository(ABC):
     ) -> str:
         """Acquire a new RUNNING attempt for the identity.
 
-        - If no RUNNING attempt exists, creates attempt_number = max+1.
-        - If a RUNNING attempt exists with expired lease, CAS-takes over.
-        - Raises ``AttemptAlreadyRunningError`` if a live RUNNING attempt exists.
-        - Raises ``AttemptTakeoverConflictError`` if CAS fails.
+        - Each retry re-reads RUNNING attempt and max(attempt_number)+1.
+        - If a live RUNNING attempt exists, raises ``AttemptAlreadyRunningError``.
+        - If an expired RUNNING attempt exists, CAS-takes over.
+        - CAS conflict → bounded retry with fresh state.
+        - Insert uses independent savepoint; only target unique constraints
+          (uq_attempt_identity_number, uq_attempt_one_running) trigger retry.
         """
         ...
 
@@ -592,6 +633,9 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
 
     _LEASE_TIMEOUT_SECONDS = 300  # 5 minutes
     _MAX_ACQUIRE_RETRIES = 3
+    _TARGET_CONSTRAINTS = frozenset(
+        {"uq_attempt_identity_number", "uq_attempt_one_running"}
+    )
 
     def acquire(
         self,
@@ -613,18 +657,16 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             OrchestrationRunAttemptRecord,
         )
 
-        attempt_number = self.get_max_attempt_number(session, identity_id) + 1
-
         for _retry in range(self._MAX_ACQUIRE_RETRIES):
-            # Check for existing RUNNING attempt
+            # Re-read fresh state each retry
             running = self.find_running_attempt(session, identity_id)
             if running is not None:
                 running_id: str = _ensure_str(running["id"])
-                running_heartbeat: datetime = _ensure_datetime(running["heartbeat_at"])
-                # Check if lease is expired
+                running_heartbeat: datetime = _ensure_datetime(
+                    running["heartbeat_at"]
+                )
                 age = (_dt.now(UTC) - running_heartbeat).total_seconds()
                 if age > self._LEASE_TIMEOUT_SECONDS:
-                    # Try CAS takeover
                     now = _dt.now(UTC)
                     if self.takeover_stale(
                         session,
@@ -632,16 +674,17 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                         observed_heartbeat=running_heartbeat,
                         now=now,
                     ):
-                        # Successfully abandoned old attempt; continue to create new
+                        # Successfully abandoned; fall through to create
                         pass
                     else:
-                        # CAS failed — someone else took over
-                        raise AttemptTakeoverConflictError(running_id)
+                        # CAS lost — retry with fresh state
+                        continue
                 else:
-                    # Running attempt is still live
                     raise AttemptAlreadyRunningError(identity_id)
 
-            # Create new attempt
+            # Recompute attempt_number each iteration
+            attempt_number = self.get_max_attempt_number(session, identity_id) + 1
+
             record = OrchestrationRunAttemptRecord(
                 id=str(uuid4()),
                 identity_id=identity_id,
@@ -649,18 +692,22 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                 status="RUNNING",
                 heartbeat_at=heartbeat_at,
             )
+
+            # Independent savepoint for the insert
+            nested = session.begin_nested()
             try:
                 session.add(record)
                 session.flush()
+                nested.commit()
                 return record.id
-            except Exception:
-                session.rollback()
+            except sa_exc.IntegrityError as exc:
+                nested.rollback()
+                if not _is_target_unique_violation(exc, "uq_attempt_"):
+                    raise
+                # Conflict — retry with fresh state
                 continue
 
-        raise RuntimeError(
-            f"Failed to acquire attempt for identity {identity_id} "
-            f"after {self._MAX_ACQUIRE_RETRIES} retries"
-        )
+        raise AttemptTakeoverConflictError(identity_id)
 
     def find_running_attempt(
         self, session: Session, /, identity_id: str
@@ -692,7 +739,9 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
         )
 
         identity = session.execute(
-            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
+            select(OrchestrationIdentityRecord).where(
+                OrchestrationIdentityRecord.id == identity_id
+            )
         ).scalar_one_or_none()
         if identity is None or identity.authoritative_attempt_id is None:
             return None
@@ -754,7 +803,9 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
         session.execute(
             update(OrchestrationRunAttemptRecord)
             .where(OrchestrationRunAttemptRecord.id == attempt_id)
-            .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
+            .values(
+                **{k: v for k, v in values.items() if v is not None or k == "status"}
+            )
         )
 
     def takeover_stale(
@@ -843,7 +894,9 @@ class AuditOutboxRepository(ABC):
         ...
 
     @abstractmethod
-    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
+    def claim(
+        self, session: Session, /, *, worker_id: str, limit: int = 10
+    ) -> Sequence[str]:
         """Atomically claim up to ``limit`` eligible outbox events."""
         ...
 
@@ -867,11 +920,7 @@ class AuditOutboxRepository(ABC):
 
 
 class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
-    """Session-bound repository for ``AuditOutboxRecord``.
-
-    Implements request/attempt-level append.  claim / retry / dispatcher
-    are not implemented in this phase.
-    """
+    """Session-bound repository for ``AuditOutboxRecord``."""
 
     def add(
         self,
@@ -913,7 +962,9 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
         session.flush()
         return record.id
 
-    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
+    def claim(
+        self, session: Session, /, *, worker_id: str, limit: int = 10
+    ) -> Sequence[str]:
         raise NotImplementedError("Outbox claim not implemented in this phase")
 
     def mark_published(self, session: Session, /, event_id: str) -> None:
