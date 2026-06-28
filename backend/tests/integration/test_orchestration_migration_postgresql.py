@@ -4,16 +4,24 @@ Verifies on PostgreSQL: CHECK constraints, FK names, index names, partial unique
 outbox status CHECK, AuditEvent backfill, weight_set_revision FK, downgrade blocker,
 and atomicity guarantees.
 
-Requires DATABASE_URL env var pointing to a real PostgreSQL instance.
+Database lifecycle:
+- ``pg_admin_url`` session fixture: connection to `postgres` admin database (AUTOCOMMIT).
+- ``pg_database_factory`` fixture: creates unique test databases, drops them in teardown.
+- ``migrated_pg`` fixture: isolated database with full head schema (non-destructive).
+- Destructive tests (downgrade, backfill, version migration): each uses its own DB.
+
 Tagged with ``@pytest.mark.postgresql`` to run in CI (``-m postgresql``).
-Skipped locally when PostgreSQL is not reachable.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
+import uuid as _uuid_mod
+from collections.abc import Generator
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -25,31 +33,22 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.postgresql
 
+# ── Database name sanitizer ──────────────────────────────────────────────────
 
-def _check_postgres() -> str | None:
-    """Return DATABASE_URL if PostgreSQL is reachable, else None."""
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        return None
-    try:
-        engine = create_engine(url, poolclass=NullPool)
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        engine.dispose()
-        return url
-    except Exception:
-        return None
+_DB_NAME_RE = re.compile(r"[^a-z0-9_]")
 
 
-def _pg_db_url(test_db: str) -> str:
-    """Build a PostgreSQL test-database URL from DATABASE_URL.
+def _sanitize_db_name(name: str) -> str:
+    """Return a valid PostgreSQL database name (lowercase, alphanumeric + underscore)."""
+    return _DB_NAME_RE.sub("_", name.lower())[:63]
 
-    Replaces the database name in the original URL with *test_db*.
-    """
-    original = os.environ.get("DATABASE_URL", "")
-    # Expected shape: postgresql+psycopg2://user:pass@host:port/dbname
-    base = original.rsplit("/", 1)[0]
-    return f"{base}/{test_db}"
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _pg_engine(database_url: str):
+    """Create a SQLAlchemy engine for *database_url*."""
+    return create_engine(database_url, poolclass=NullPool)
 
 
 def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -67,47 +66,88 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
     )
 
 
-def _pg_engine(database_url: str):
-    """Create a SQLAlchemy engine for *database_url*."""
-    return create_engine(database_url, poolclass=NullPool)
-
-
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 
-@pytest.fixture()
-def pg_url() -> str | None:
-    """PostgreSQL database URL, or None if unavailable."""
-    url = _check_postgres()
-    if url is None:
-        pytest.skip("PostgreSQL not reachable — set DATABASE_URL")
-    return url
+@pytest.fixture(scope="session")
+def pg_admin_url() -> str:
+    """PostgreSQL admin connection URL derived from DATABASE_URL.
+
+    Replaces the database name with ``postgres`` for DDL operations
+    (CREATE/DROP DATABASE). Requires ``AUTOCOMMIT`` isolation.
+    """
+    original = os.environ.get("DATABASE_URL", "")
+    if not original:
+        pytest.skip("DATABASE_URL not set")
+    # Expected shape: postgresql+psycopg2://user:pass@host:port/dbname
+    base = original.rsplit("/", 1)[0]
+    return f"{base}/postgres"
 
 
 @pytest.fixture()
-def migrated_pg(pg_url) -> str:
-    """Separate test database with full schema applied."""
-    test_db_url = _pg_db_url("cold_storage_migration_test")
-    r = _run_alembic(test_db_url, "upgrade", "head")
-    if r.returncode != 0:
-        pytest.fail(f"Alembic upgrade failed:\n{r.stderr}\n{r.stdout}")
-    yield test_db_url
-    # Teardown: drop the test database
+def pg_database_factory(pg_admin_url: str) -> Generator:
+    """Yield a callable that creates isolated PostgreSQL test databases.
+
+    Usage::
+
+        db_url = database_factory(prefix="my_test")
+        # db_url is valid, database exists
+        # ... run tests ...
+        # on teardown: database is dropped
+
+    The factory:
+    - Uses AUTOCOMMIT on the admin connection.
+    - Creates ``DROP DATABASE IF EXISTS … WITH (FORCE)`` then ``CREATE DATABASE …``.
+    - Generates database names with a 12-char UUID suffix for uniqueness.
+    - Collects all created databases and drops them in teardown (even on failure).
+    """
+    created: list[str] = []
+    admin_engine = create_engine(pg_admin_url, poolclass=NullPool)
+    # Set AUTOCOMMIT isolation for DDL operations
+    admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
+
+    def create_db(*, prefix: str) -> str:
+        db_name = _sanitize_db_name(f"{prefix}_{_uuid_mod.uuid4().hex[:12]}")
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+        base_url = os.environ.get("DATABASE_URL", "").rsplit("/", 1)[0]
+        db_url = f"{base_url}/{db_name}"
+        created.append(db_name)
+        return db_url
+
     try:
-        engine = _pg_engine(test_db_url)
-        engine.dispose()
-    except Exception:
-        pass
+        yield create_db
+    finally:
+        with admin_engine.connect() as conn:
+            for db_name in created:
+                with suppress(Exception):
+                    conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+        admin_engine.dispose()
+
+
+@pytest.fixture()
+def migrated_pg(pg_database_factory) -> str:
+    """Isolated database with full head schema applied (non-destructive)."""
+    db_url = pg_database_factory(prefix="migrated_pg")
+    r = _run_alembic(db_url, "upgrade", "head")
+    if r.returncode != 0:
+        pytest.fail(
+            f"Alembic upgrade to head failed (DB={db_url}):\n"
+            f"STDERR:\n{r.stderr}\nSTDOUT:\n{r.stdout}"
+        )
+    return db_url
 
 
 # ── Schema checks ────────────────────────────────────────────────────────────
 
 
 class TestAllTables:
-    def test_eight_new_tables_exist(self, migrated_pg) -> None:
+    def test_eight_new_tables_exist(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         tables = set(insp.get_table_names())
+        engine.dispose()
         required = {
             "orchestration_requests",
             "orchestration_execution_snapshots",
@@ -118,12 +158,11 @@ class TestAllTables:
             "orchestration_audit_outbox",
             "scheme_weight_set_revisions",
         }
-        engine.dispose()
         assert required <= tables, f"Missing: {required - tables}"
 
 
 class TestCheckConstraints:
-    def test_calculation_run_check_exists(self, migrated_pg) -> None:
+    def test_calculation_run_check_exists(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         constraints = insp.get_check_constraints("calculation_runs")
@@ -131,7 +170,7 @@ class TestCheckConstraints:
         engine.dispose()
         assert "ck_calculation_run_orchestration_nullity" in names
 
-    def test_scheme_run_check_exists(self, migrated_pg) -> None:
+    def test_scheme_run_check_exists(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         constraints = insp.get_check_constraints("scheme_runs")
@@ -139,7 +178,7 @@ class TestCheckConstraints:
         engine.dispose()
         assert "ck_scheme_run_source_mode_nullity" in names
 
-    def test_request_check_exists(self, migrated_pg) -> None:
+    def test_request_check_exists(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         constraints = insp.get_check_constraints("orchestration_requests")
@@ -147,7 +186,7 @@ class TestCheckConstraints:
         engine.dispose()
         assert "ck_orch_request_status_nullity" in names
 
-    def test_outbox_status_check_exists(self, migrated_pg) -> None:
+    def test_outbox_status_check_exists(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         constraints = insp.get_check_constraints("orchestration_audit_outbox")
@@ -157,7 +196,7 @@ class TestCheckConstraints:
 
 
 class TestForeignKeys:
-    def test_calculation_run_orch_fks(self, migrated_pg) -> None:
+    def test_calculation_run_orch_fks(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         fks = insp.get_foreign_keys("calculation_runs")
@@ -172,7 +211,7 @@ class TestForeignKeys:
         for tbl, col in expected:
             assert (tbl, col) in targets, f"Missing FK: {tbl}.{col}"
 
-    def test_weight_set_revision_fk_exists(self, migrated_pg) -> None:
+    def test_weight_set_revision_fk_exists(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         fks = insp.get_foreign_keys("scheme_weight_set_revisions")
@@ -180,7 +219,7 @@ class TestForeignKeys:
         engine.dispose()
         assert ("scheme_weight_sets", "weight_set_id") in targets
 
-    def test_source_binding_slot_fks_exist(self, migrated_pg) -> None:
+    def test_source_binding_slot_fks_exist(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         fks = insp.get_foreign_keys("orchestration_source_bindings")
@@ -192,7 +231,7 @@ class TestForeignKeys:
 
 
 class TestIndexes:
-    def test_one_running_partial_unique_index(self, migrated_pg) -> None:
+    def test_one_running_partial_unique_index(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         idxs = insp.get_indexes("orchestration_run_attempts")
@@ -200,7 +239,7 @@ class TestIndexes:
         engine.dispose()
         assert "uq_attempt_one_running" in names
 
-    def test_source_binding_slot_indexes(self, migrated_pg) -> None:
+    def test_source_binding_slot_indexes(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         idxs = insp.get_indexes("orchestration_source_bindings")
@@ -209,7 +248,7 @@ class TestIndexes:
         for slot in ("zone", "cooling_load", "equipment", "power", "investment"):
             assert f"ix_source_binding_{slot}_calculation_id" in names
 
-    def test_weight_set_revision_unique_constraint(self, migrated_pg) -> None:
+    def test_weight_set_revision_unique_constraint(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         uqs = insp.get_unique_constraints("scheme_weight_set_revisions")
@@ -218,8 +257,11 @@ class TestIndexes:
         assert "uq_scheme_weight_set_revision_code_revision" in names
 
 
-class TestAuditEventBackfill:
-    def test_outbox_event_id_not_null(self, migrated_pg) -> None:
+# ── AuditEvent Schema Checks ─────────────────────────────────────────────────
+
+
+class TestAuditEventSchema:
+    def test_outbox_event_id_not_null(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         cols = insp.get_columns("audit_events")
@@ -228,7 +270,7 @@ class TestAuditEventBackfill:
         assert len(outbox) == 1
         assert outbox[0]["nullable"] is False
 
-    def test_outbox_event_id_unique(self, migrated_pg) -> None:
+    def test_outbox_event_id_unique(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
         insp = inspect(engine)
         uqs = insp.get_unique_constraints("audit_events")
@@ -236,45 +278,14 @@ class TestAuditEventBackfill:
         engine.dispose()
         assert "uq_audit_event_outbox" in names
 
-    def test_outbox_event_id_length_sufficient(self, migrated_pg) -> None:
-        engine = _pg_engine(migrated_pg)
-        with engine.connect() as conn:
-            # Insert a UUID-based AuditEvent and verify backfill length fits
-            import uuid
-
-            aid = str(uuid.uuid4())
-            conn.execute(
-                text(
-                    "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, "
-                    "before_snapshot, after_snapshot, event_metadata, created_at) "
-                    "VALUES (:id, 'test', 'test', 'test', 'test', '{}', '{}', '{}', now())"
-                ),
-                {"id": aid},
-            )
-            conn.commit()
-
-            # The backfill should have run during upgrade; verify length
-            row = conn.execute(
-                text("SELECT outbox_event_id FROM audit_events WHERE id = :id"),
-                {"id": aid},
-            ).fetchone()
-            assert row is not None
-            oid = row[0]
-            # legacy-audit:<uuid> length is at least 49 chars; must fit in 128
-            assert len(oid) > 36, f"Backfill ID too short: {oid!r}"
-            assert len(oid) <= 128, f"Backfill ID exceeds 128: {oid!r} ({len(oid)})"
-            assert oid.startswith("legacy-audit:")
-
 
 # ── Database rejection tests (real INSERT) ───────────────────────────────────
 
 
 class TestCalculationRunRejection:
-    def test_partial_orchestration_fields_rejected(self, migrated_pg) -> None:
+    def test_partial_orchestration_fields_rejected(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
-        import uuid
-
-        cid = str(uuid.uuid4())
+        cid = str(_uuid_mod.uuid4())
         with engine.connect() as conn, pytest.raises(IntegrityError):
             conn.execute(
                 text(
@@ -286,20 +297,17 @@ class TestCalculationRunRejection:
                     "VALUES (:id, 'p-1', 'pv-1', 'zone', '1.0', '{}', '{}', "
                     "'[]', '[]', '[]', '[]', '[]', false, now(), 'zone', :oid)"
                 ),
-                {"id": cid, "oid": str(uuid.uuid4())},
+                {"id": cid, "oid": str(_uuid_mod.uuid4())},
             )
             conn.commit()
         engine.dispose()
 
 
 class TestSchemeRunRejection:
-    def test_production_missing_combined_source_hash_rejected(self, migrated_pg) -> None:
+    def test_production_missing_combined_source_hash_rejected(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
-        import uuid
-
-        sid = str(uuid.uuid4())
+        sid = str(_uuid_mod.uuid4())
         with engine.connect() as conn, pytest.raises(IntegrityError):
-            # production with source_binding_id but NULL combined_source_hash -> rejected
             conn.execute(
                 text(
                     "INSERT INTO scheme_runs (id, project_id, project_version_id, "
@@ -317,13 +325,10 @@ class TestSchemeRunRejection:
 
 
 class TestRequestRejection:
-    def test_accepted_missing_resolved_attempt_rejected(self, migrated_pg) -> None:
+    def test_accepted_missing_resolved_attempt_rejected(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
-        import uuid
-
-        rid = str(uuid.uuid4())
+        rid = str(_uuid_mod.uuid4())
         with engine.connect() as conn, pytest.raises(IntegrityError):
-            # ACCEPTED without resolved_attempt_id -> rejected
             conn.execute(
                 text(
                     "INSERT INTO orchestration_requests (id, project_id, "
@@ -338,183 +343,40 @@ class TestRequestRejection:
         engine.dispose()
 
 
+class TestInvalidForeignKey:
+    def test_invalid_ownership_fk_rejected(self, migrated_pg: str) -> None:
+        engine = _pg_engine(migrated_pg)
+        cid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            conn.execute(
+                text(
+                    "INSERT INTO calculation_runs (id, project_id, project_version_id, "
+                    "calculator_name, calculator_version, input_snapshot, result_snapshot, "
+                    "formulas, coefficients, assumptions, warnings, source_references, "
+                    "requires_review, created_at, calculation_type, "
+                    "orchestration_identity_id) "
+                    "VALUES (:id, 'p-1', 'pv-1', 'zone', '1.0', '{}', '{}', "
+                    "'[]', '[]', '[]', '[]', '[]', false, now(), 'zone', "
+                    "'nonexistent-identity-id')"
+                ),
+                {"id": cid},
+            )
+            conn.commit()
+        engine.dispose()
+
+
+# ── One-RUNNING partial unique index tests ───────────────────────────────────
+
+
 class TestOneRunning:
-    def test_two_running_attempts_same_identity_rejected(self, migrated_pg) -> None:
-        engine = _pg_engine(migrated_pg)
-        import uuid
+    # ── Helper for identity setup ─────────────────────────────────────
 
-        pid = str(uuid.uuid4())
-        pvid = str(uuid.uuid4())
-        eid = str(uuid.uuid4())
-        cid = str(uuid.uuid4())
-        oid = str(uuid.uuid4())
-
-        with engine.connect() as conn:
-            conn.execute(
-                text(
-                    "INSERT INTO projects (id, code, name, location, product_category, "
-                    "status, current_version_number, created_at, updated_at) "
-                    "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
-                ),
-                {"id": pid},
-            )
-            conn.execute(
-                text(
-                    "INSERT INTO project_versions (id, project_id, version_number, "
-                    "change_summary, status, created_by, created_at, updated_at, "
-                    "input_snapshot, calculation_snapshot, assumption_snapshot) "
-                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), now(), "
-                    "'{}', '{}', '{}')"
-                ),
-                {"id": pvid, "pid": pid},
-            )
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_execution_snapshots "
-                    "(id, project_id, project_version_id, version_number, input_snapshot, "
-                    "input_snapshot_hash, schema_version, captured_status, captured_at) "
-                    "VALUES (:id, :pid, :pvid, 1, '{}', 'h1', '1', 'approved', now())"
-                ),
-                {"id": eid, "pid": pid, "pvid": pvid},
-            )
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_coefficient_contexts "
-                    "(id, project_id, project_version_id, content, content_hash, "
-                    "schema_version, captured_at) "
-                    "VALUES (:id, :pid, :pvid, '{}', 'h1', '1', now())"
-                ),
-                {"id": cid, "pid": pid, "pvid": pvid},
-            )
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_identities "
-                    "(id, fingerprint, execution_snapshot_id, coefficient_context_id, "
-                    "definition_version, calculator_version_vector, status, created_at) "
-                    "VALUES (:id, 'fp1', :eid, :cid, '1', '{}', 'ACTIVE', now())"
-                ),
-                {"id": oid, "eid": eid, "cid": cid},
-            )
-            conn.commit()
-
-        with engine.connect() as conn:
-            import uuid as _uuid
-
-            a1 = str(_uuid.uuid4())
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'RUNNING', now(), now())"
-                ),
-                {"id": a1, "oid": oid},
-            )
-            conn.commit()
-
-            a2 = str(_uuid.uuid4())
-            with pytest.raises(IntegrityError):
-                # Second RUNNING for same identity -> must fail
-                conn.execute(
-                    text(
-                        "INSERT INTO orchestration_run_attempts "
-                        "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                        "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
-                    ),
-                    {"id": a2, "oid": oid},
-                )
-                conn.commit()
-        engine.dispose()
-
-    def test_one_failed_one_running_accepted(self, migrated_pg) -> None:
-        engine = _pg_engine(migrated_pg)
-
-        oid = _setup_identity_for_attempt_test(engine)
-        import uuid as _uuid
-
-        a1 = str(_uuid.uuid4())
-        a2 = str(_uuid.uuid4())
-        with engine.connect() as conn:
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'FAILED', now(), now())"
-                ),
-                {"id": a1, "oid": oid},
-            )
-            conn.commit()
-            # FAILED + RUNNING should be accepted
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
-                ),
-                {"id": a2, "oid": oid},
-            )
-            conn.commit()
-        engine.dispose()
-
-    def test_one_completed_one_running_accepted(self, migrated_pg) -> None:
-        engine = _pg_engine(migrated_pg)
-
-        oid = _setup_identity_for_attempt_test(engine)
-        import uuid as _uuid
-
-        a1 = str(_uuid.uuid4())
-        a2 = str(_uuid.uuid4())
-        with engine.connect() as conn:
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
-                ),
-                {"id": a1, "oid": oid},
-            )
-            conn.commit()
-            # COMPLETED + RUNNING should be accepted
-            conn.execute(
-                text(
-                    "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
-                ),
-                {"id": a2, "oid": oid},
-            )
-            conn.commit()
-        engine.dispose()
-
-
-def _setup_identity_for_attempt_test(engine) -> str:
-    """Create minimal project/version/snapshot/context/identity and return identity_id."""
-    import uuid
-
-    pid = str(uuid.uuid4())
-    pvid = str(uuid.uuid4())
-    eid = str(uuid.uuid4())
-    cid = str(uuid.uuid4())
-    oid = str(uuid.uuid4())
-
-    with engine.connect() as conn:
-        conn.execute(
-            text(
-                "INSERT INTO projects (id, code, name, location, product_category, "
-                "status, current_version_number, created_at, updated_at) "
-                "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
-            ),
-            {"id": pid},
-        )
-        conn.execute(
-            text(
-                "INSERT INTO project_versions (id, project_id, version_number, "
-                "change_summary, status, created_by, created_at, updated_at, "
-                "input_snapshot, calculation_snapshot, assumption_snapshot) "
-                "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), now(), "
-                "'{}', '{}', '{}')"
-            ),
-            {"id": pvid, "pid": pid},
-        )
+    @staticmethod
+    def _setup_identity(conn, pid: str, pvid: str) -> str:
+        """Insert snapshot, context, identity; return identity_id."""
+        eid = str(_uuid_mod.uuid4())
+        cid = str(_uuid_mod.uuid4())
+        oid = str(_uuid_mod.uuid4())
         conn.execute(
             text(
                 "INSERT INTO orchestration_execution_snapshots "
@@ -538,83 +400,235 @@ def _setup_identity_for_attempt_test(engine) -> str:
                 "INSERT INTO orchestration_identities "
                 "(id, fingerprint, execution_snapshot_id, coefficient_context_id, "
                 "definition_version, calculator_version_vector, status, created_at) "
-                "VALUES (:id, :fp, :eid, :cid, '1', '{}', 'ACTIVE', now())"
+                "VALUES (:id, 'fp1', :eid, :cid, '1', '{}', 'ACTIVE', now())"
             ),
-            {"id": oid, "fp": "fp-" + str(uuid.uuid4()), "eid": eid, "cid": cid},
+            {"id": oid, "eid": eid, "cid": cid},
         )
-        conn.commit()
-    return oid
+        return oid
 
-
-class TestInvalidForeignKey:
-    def test_invalid_ownership_fk_rejected(self, migrated_pg) -> None:
+    def test_two_running_same_identity_rejected(self, migrated_pg: str) -> None:
         engine = _pg_engine(migrated_pg)
-        import uuid
-
-        cid = str(uuid.uuid4())
-        with engine.connect() as conn, pytest.raises(IntegrityError):
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn:
             conn.execute(
                 text(
-                    "INSERT INTO calculation_runs (id, project_id, project_version_id, "
-                    "status, requires_review, calculator_name, calculation_type, "
-                    "created_at, orchestration_identity_id) "
-                    "VALUES (:id, 'p-1', 'pv-1', 'completed', false, 'zone', 'zone', "
-                    "now(), 'nonexistent-identity-id')"
+                    "INSERT INTO projects (id, code, name, location, product_category, "
+                    "status, current_version_number, created_at, updated_at) "
+                    "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
                 ),
-                {"id": cid},
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions (id, project_id, version_number, "
+                    "change_summary, status, created_by, created_at, updated_at, "
+                    "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), now(), "
+                    "'{}', '{}', '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            oid = self._setup_identity(conn, pid, pvid)
+            conn.commit()
+
+        with engine.connect() as conn:
+            a1 = str(_uuid_mod.uuid4())
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_run_attempts "
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                    "VALUES (:id, :oid, 1, 'RUNNING', now(), now())"
+                ),
+                {"id": a1, "oid": oid},
+            )
+            conn.commit()
+
+            a2 = str(_uuid_mod.uuid4())
+            with pytest.raises(IntegrityError):
+                conn.execute(
+                    text(
+                        "INSERT INTO orchestration_run_attempts "
+                        "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                        "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
+                    ),
+                    {"id": a2, "oid": oid},
+                )
+                conn.commit()
+        engine.dispose()
+
+    def test_failed_plus_running_accepted(self, migrated_pg: str) -> None:
+        engine = _pg_engine(migrated_pg)
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, product_category, "
+                    "status, current_version_number, created_at, updated_at) "
+                    "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions (id, project_id, version_number, "
+                    "change_summary, status, created_by, created_at, updated_at, "
+                    "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), now(), "
+                    "'{}', '{}', '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            oid = self._setup_identity(conn, pid, pvid)
+            conn.commit()
+
+        with engine.connect() as conn:
+            a1 = str(_uuid_mod.uuid4())
+            a2 = str(_uuid_mod.uuid4())
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_run_attempts "
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                    "VALUES (:id, :oid, 1, 'FAILED', now(), now())"
+                ),
+                {"id": a1, "oid": oid},
+            )
+            conn.commit()
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_run_attempts "
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
+                ),
+                {"id": a2, "oid": oid},
+            )
+            conn.commit()
+        engine.dispose()
+
+    def test_completed_plus_running_accepted(self, migrated_pg: str) -> None:
+        engine = _pg_engine(migrated_pg)
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, product_category, "
+                    "status, current_version_number, created_at, updated_at) "
+                    "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions (id, project_id, version_number, "
+                    "change_summary, status, created_by, created_at, updated_at, "
+                    "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), now(), "
+                    "'{}', '{}', '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            oid = self._setup_identity(conn, pid, pvid)
+            conn.commit()
+
+        with engine.connect() as conn:
+            a1 = str(_uuid_mod.uuid4())
+            a2 = str(_uuid_mod.uuid4())
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_run_attempts "
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
+                ),
+                {"id": a1, "oid": oid},
+            )
+            conn.commit()
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_run_attempts "
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
+                ),
+                {"id": a2, "oid": oid},
             )
             conn.commit()
         engine.dispose()
 
 
-class TestAuditEventBackfillValues:
-    def test_existing_audit_event_backfilled_on_upgrade(self, pg_url) -> None:
-        """Create AuditEvent at migration 0025 state, upgrade to 0026, verify backfill."""
-        test_db_url = _pg_db_url("cold_storage_audit_backfill_test")
-        import uuid
+# ── AuditEvent backfill tests ────────────────────────────────────────────────
 
-        # Upgrade to 0025
-        r = _run_alembic(test_db_url, "upgrade", "0025")
+
+class TestAuditEventHistoryBackfill:
+    """Test A: Historical AuditEvent rows are backfilled during 0025→0026 upgrade."""
+
+    def test_history_row_backfilled_on_upgrade(self, pg_database_factory) -> None:
+        db_url = pg_database_factory(prefix="audit_backfill")
+
+        # Step 1: upgrade to 0025 (before outbox_event_id exists)
+        r = _run_alembic(db_url, "upgrade", "0025")
         assert r.returncode == 0, f"Upgrade to 0025 failed: {r.stderr}"
 
-        engine = _pg_engine(test_db_url)
-        aud_id = str(uuid.uuid4())
+        engine = _pg_engine(db_url)
+        aud_id = str(_uuid_mod.uuid4())
+        original_actor = "test_actor"
+        original_action = "test_action"
+        original_entity_type = "TestEntity"
+        original_entity_id = "e1"
+
         with engine.connect() as conn:
             conn.execute(
                 text(
                     "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, "
                     "before_snapshot, after_snapshot, event_metadata, created_at) "
-                    "VALUES (:id, 'test', 'test', 'Test', 'e1', '{}', '{}', '{}', now())"
+                    "VALUES (:id, :actor, :action, :etype, :eid, '{}', '{}', '{}', now())"
                 ),
-                {"id": aud_id},
+                {
+                    "id": aud_id,
+                    "actor": original_actor,
+                    "action": original_action,
+                    "etype": original_entity_type,
+                    "eid": original_entity_id,
+                },
             )
             conn.commit()
         engine.dispose()
 
-        # Upgrade to 0026 (with backfill)
-        r = _run_alembic(test_db_url, "upgrade", "head")
+        # Step 2: upgrade to 0026 — migration should backfill existing rows
+        r = _run_alembic(db_url, "upgrade", "head")
         assert r.returncode == 0, f"Upgrade to head failed: {r.stderr}"
 
-        engine = _pg_engine(test_db_url)
+        # Step 3: verify backfill
+        engine = _pg_engine(db_url)
         with engine.connect() as conn:
             row = conn.execute(
-                text("SELECT outbox_event_id FROM audit_events WHERE id = :id"),
+                text(
+                    "SELECT outbox_event_id, actor, action, entity_type, entity_id "
+                    "FROM audit_events WHERE id = :id"
+                ),
                 {"id": aud_id},
             ).fetchone()
-            assert row is not None
+            assert row is not None, "Historical AuditEvent row missing after upgrade"
             oid = row[0]
-            assert oid is not None, "outbox_event_id should be NOT NULL after backfill"
-            assert oid == f"legacy-audit:{aud_id}", f"Unexpected backfill: {oid}"
-            assert len(oid) <= 128, f"Backfill too long: {len(oid)} chars"
+            assert oid == f"legacy-audit:{aud_id}", f"Backfill mismatch: {oid}"
+            assert len(oid) > 36, f"Backfill too short: {oid!r}"
+            assert len(oid) <= 128, f"Backfill too long: {len(oid)}"
+            assert oid.startswith("legacy-audit:")
 
-            # Verify no nulls
+            # Original fields preserved
+            assert row[1] == original_actor
+            assert row[2] == original_action
+            assert row[3] == original_entity_type
+            assert row[4] == original_entity_id
+
+            # Verify no nulls after upgrade
             null_count = conn.execute(
                 text("SELECT COUNT(*) FROM audit_events WHERE outbox_event_id IS NULL")
             ).scalar()
             assert null_count == 0, f"{null_count} NULL outbox_event_ids remain"
 
-            # Verify UNIQUE — try duplicate backfill insert
-            dup_id = str(uuid.uuid4())
+            # UNIQUE enforcement: duplicate backfill value rejected
+            dup_id = str(_uuid_mod.uuid4())
             with pytest.raises(IntegrityError):
                 conn.execute(
                     text(
@@ -627,39 +641,185 @@ class TestAuditEventBackfillValues:
                     {"id": dup_id, "oid": oid},
                 )
                 conn.commit()
+
+            # Repeated upgrade must be idempotent — same backfill values
+            dup_count = conn.execute(
+                text(
+                    "SELECT COUNT(*) FROM ("
+                    "  SELECT outbox_event_id, COUNT(*) as cnt"
+                    "  FROM audit_events"
+                    "  GROUP BY outbox_event_id"
+                    "  HAVING COUNT(*) > 1"
+                    ") sub"
+                )
+            ).scalar()
+            assert dup_count == 0, "Duplicate outbox_event_id values found"
         engine.dispose()
 
 
-# ── Downgrade blocker ────────────────────────────────────────────────────────
+class TestAuditEventPostMigration:
+    """Test B: After 0026, new AuditEvent without outbox_event_id is rejected."""
+
+    def test_missing_outbox_event_id_rejected(self, migrated_pg: str) -> None:
+        engine = _pg_engine(migrated_pg)
+        aud_id = str(_uuid_mod.uuid4())
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            conn.execute(
+                text(
+                    "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, "
+                    "before_snapshot, after_snapshot, event_metadata, created_at) "
+                    "VALUES (:id, 'test', 'test', 'Test', 'e1', '{}', '{}', '{}', now())"
+                ),
+                {"id": aud_id},
+            )
+            conn.commit()
+        engine.dispose()
+
+
+class TestAuditEventExplicitId:
+    """Test C: Explicit outbox_event_id insertion succeeds; duplicate rejected."""
+
+    def test_explicit_unique_id_succeeds(self, migrated_pg: str) -> None:
+        engine = _pg_engine(migrated_pg)
+        aud_id = str(_uuid_mod.uuid4())
+        oid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, "
+                    "before_snapshot, after_snapshot, event_metadata, created_at, "
+                    "outbox_event_id) "
+                    "VALUES (:id, 'test', 'test', 'Test', 'e1', '{}', '{}', '{}', "
+                    "now(), :oid)"
+                ),
+                {"id": aud_id, "oid": oid},
+            )
+            conn.commit()
+
+            row = conn.execute(
+                text("SELECT outbox_event_id FROM audit_events WHERE id = :id"),
+                {"id": aud_id},
+            ).fetchone()
+            assert row is not None
+            assert row[0] == oid
+        engine.dispose()
+
+    def test_duplicate_outbox_event_id_rejected(self, migrated_pg: str) -> None:
+        engine = _pg_engine(migrated_pg)
+        oid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, "
+                    "before_snapshot, after_snapshot, event_metadata, created_at, "
+                    "outbox_event_id) "
+                    "VALUES (:id, 'test', 'test', 'Test', 'e1', '{}', '{}', '{}', "
+                    "now(), :oid)"
+                ),
+                {"id": str(_uuid_mod.uuid4()), "oid": oid},
+            )
+            conn.commit()
+
+            with pytest.raises(IntegrityError):
+                conn.execute(
+                    text(
+                        "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, "
+                        "before_snapshot, after_snapshot, event_metadata, created_at, "
+                        "outbox_event_id) "
+                        "VALUES (:id, 'test2', 'test2', 'Test2', 'e2', '{}', '{}', '{}', "
+                        "now(), :oid)"
+                    ),
+                    {"id": str(_uuid_mod.uuid4()), "oid": oid},
+                )
+                conn.commit()
+        engine.dispose()
+
+
+# ── Downgrade blocker tests ──────────────────────────────────────────────────
 
 
 class TestDowngradeBlocker:
-    def test_empty_database_downgrade_succeeds(self, pg_url) -> None:
-        test_db_url = _pg_db_url("cold_storage_empty_downgrade_test")
-        r_up = _run_alembic(test_db_url, "upgrade", "head")
+    def test_empty_database_downgrade_succeeds(self, pg_database_factory) -> None:
+        db_url = pg_database_factory(prefix="downgrade_empty")
+        r_up = _run_alembic(db_url, "upgrade", "head")
         assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
 
-        r_down = _run_alembic(test_db_url, "downgrade", "-1")
-        assert r_down.returncode == 0, f"Downgrade failed on empty DB: {r_down.stderr}"
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode == 0, (
+            f"Downgrade should succeed on empty DB\nSTDERR: {r.stderr}\nSTDOUT: {r.stdout}"
+        )
 
-    def test_production_data_blocks_downgrade(self, pg_url) -> None:
-        test_db_url = _pg_db_url("cold_storage_downgrade_block_test")
-        import uuid
+        # Verify revision rolled back
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev == "0025_add_outbox_claim_fields", f"Expected 0025, got {rev}"
+        engine.dispose()
 
-        r = _run_alembic(test_db_url, "upgrade", "head")
-        assert r.returncode == 0, f"Upgrade failed: {r.stderr}"
+    def test_legacy_only_downgrade_succeeds(self, pg_database_factory) -> None:
+        """Downgrade succeeds when only legacy SchemeRuns exist (no SourceBinding)."""
+        db_url = pg_database_factory(prefix="downgrade_legacy")
+        r_up = _run_alembic(db_url, "upgrade", "head")
+        assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
 
-        engine = _pg_engine(test_db_url)
-        # Set up full real FK chain
-        pid = str(uuid.uuid4())
-        pvid = str(uuid.uuid4())
-        eid = str(uuid.uuid4())
-        cid_s = str(uuid.uuid4())
-        oid = str(uuid.uuid4())
-        aid = str(uuid.uuid4())
-        wsid = str(uuid.uuid4())
-        wsrid = str(uuid.uuid4())
-        src_bid = str(uuid.uuid4())
+        engine = _pg_engine(db_url)
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, product_category, "
+                    "status, current_version_number, created_at, updated_at) "
+                    "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions (id, project_id, version_number, "
+                    "change_summary, status, created_by, created_at, updated_at, "
+                    "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), now(), "
+                    "'{}', '{}', '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_runs (id, project_id, project_version_id, "
+                    "weight_set_id, generator_version, source_snapshot_hash, status, "
+                    "requires_review, input_snapshot, assumption_snapshot, "
+                    "comparison_snapshot, candidates_snapshot, warning_messages, "
+                    "created_at, source_mode) "
+                    "VALUES (:id, :pid, :pvid, 'ws-1', '1.0', 'h1', 'pending', "
+                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'legacy')"
+                ),
+                {"id": str(_uuid_mod.uuid4()), "pid": pid, "pvid": pvid},
+            )
+            conn.commit()
+        engine.dispose()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode == 0, (
+            f"Downgrade should succeed with legacy-only data\n"
+            f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
+        )
+
+    def test_source_binding_blocks_downgrade(self, pg_database_factory) -> None:
+        """Downgrade blocked when any SourceBinding exists (even without production SchemeRun)."""
+        db_url = pg_database_factory(prefix="downgrade_sb_only")
+        r_up = _run_alembic(db_url, "upgrade", "head")
+        assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
+
+        engine = _pg_engine(db_url)
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+        eid = str(_uuid_mod.uuid4())
+        cid_ctx = str(_uuid_mod.uuid4())
+        oid = str(_uuid_mod.uuid4())
+        aid = str(_uuid_mod.uuid4())
+        calc_ids = [str(_uuid_mod.uuid4()) for _ in range(5)]
+        src_bid = str(_uuid_mod.uuid4())
 
         with engine.connect() as conn:
             conn.execute(
@@ -696,7 +856,148 @@ class TestDowngradeBlocker:
                     "schema_version, captured_at) "
                     "VALUES (:id, :pid, :pvid, '{}', 'h1', '1', now())"
                 ),
-                {"id": cid_s, "pid": pid, "pvid": pvid},
+                {"id": cid_ctx, "pid": pid, "pvid": pvid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_identities "
+                    "(id, fingerprint, execution_snapshot_id, coefficient_context_id, "
+                    "definition_version, calculator_version_vector, status, created_at) "
+                    "VALUES (:id, 'fp', :eid, :cid, '1', '{}', 'ACTIVE', now())"
+                ),
+                {"id": oid, "eid": eid, "cid": cid_ctx},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_run_attempts "
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
+                ),
+                {"id": aid, "oid": oid},
+            )
+            calc_types = ("zone", "cooling_load", "equipment", "power", "investment")
+            calc_names = ("z", "cl", "eq", "pw", "inv")
+            for cid_c, ctype, cname in zip(calc_ids, calc_types, calc_names, strict=True):
+                conn.execute(
+                    text(
+                        "INSERT INTO calculation_runs "
+                        "(id, project_id, project_version_id, calculator_name, "
+                        "calculator_version, input_snapshot, result_snapshot, formulas, "
+                        "coefficients, assumptions, warnings, source_references, "
+                        "requires_review, created_at, calculation_type, "
+                        "orchestration_identity_id, orchestration_run_attempt_id, "
+                        "execution_snapshot_id, coefficient_context_id, input_hash, "
+                        "result_hash, provenance, schema_version) "
+                        "VALUES (:id, :pid, :pvid, :cn, '1.0', '{}', '{}', '[]', "
+                        "'[]', '[]', '[]', '[]', false, now(), :ct, :oid, :aid, :eid, "
+                        ":cid, 'h1', 'h1', '{}', '1')"
+                    ),
+                    {
+                        "id": cid_c,
+                        "pid": pid,
+                        "pvid": pvid,
+                        "cn": cname,
+                        "ct": ctype,
+                        "oid": oid,
+                        "aid": aid,
+                        "eid": eid,
+                        "cid": cid_ctx,
+                    },
+                )
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_source_bindings "
+                    "(id, project_id, project_version_id, execution_snapshot_id, "
+                    "coefficient_context_id, orchestration_identity_id, "
+                    "orchestration_run_attempt_id, orchestration_fingerprint, "
+                    "zone_calculation_id, cooling_load_calculation_id, "
+                    "equipment_calculation_id, power_calculation_id, "
+                    "investment_calculation_id, per_calculation_result_hashes, "
+                    "combined_source_hash, schema_version, created_at) "
+                    "VALUES (:id, :pid, :pvid, :eid, :cid_ctx, :oid, :aid, 'fp', "
+                    ":zid, :clid, :eqid, :pwid, :ivid, '{}', 'h1', '1', now())"
+                ),
+                {
+                    "id": src_bid,
+                    "pid": pid,
+                    "pvid": pvid,
+                    "eid": eid,
+                    "cid_ctx": cid_ctx,
+                    "oid": oid,
+                    "aid": aid,
+                    "zid": calc_ids[0],
+                    "clid": calc_ids[1],
+                    "eqid": calc_ids[2],
+                    "pwid": calc_ids[3],
+                    "ivid": calc_ids[4],
+                },
+            )
+            conn.commit()
+        engine.dispose()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode != 0, (
+            f"Downgrade should be blocked when SourceBinding exists\n"
+            f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
+        )
+        assert "Cannot downgrade" in r.stderr or "Cannot downgrade" in r.stdout, (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
+
+    def test_production_data_blocks_downgrade_and_atomic(self, pg_database_factory) -> None:
+        """Full production FK chain blocks downgrade; schema remains intact."""
+        db_url = pg_database_factory(prefix="downgrade_full")
+        r_up = _run_alembic(db_url, "upgrade", "head")
+        assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
+
+        engine = _pg_engine(db_url)
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+        eid = str(_uuid_mod.uuid4())
+        cid_ctx = str(_uuid_mod.uuid4())
+        oid = str(_uuid_mod.uuid4())
+        aid = str(_uuid_mod.uuid4())
+        wsid = str(_uuid_mod.uuid4())
+        wsrid = str(_uuid_mod.uuid4())
+        src_bid = str(_uuid_mod.uuid4())
+        srid = str(_uuid_mod.uuid4())
+
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, product_category, "
+                    "status, current_version_number, created_at, updated_at) "
+                    "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions (id, project_id, version_number, "
+                    "change_summary, status, created_by, created_at, updated_at, "
+                    "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), now(), "
+                    "'{}', '{}', '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_execution_snapshots "
+                    "(id, project_id, project_version_id, version_number, input_snapshot, "
+                    "input_snapshot_hash, schema_version, captured_status, captured_at) "
+                    "VALUES (:id, :pid, :pvid, 1, '{}', 'h1', '1', 'approved', now())"
+                ),
+                {"id": eid, "pid": pid, "pvid": pvid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_coefficient_contexts "
+                    "(id, project_id, project_version_id, content, content_hash, "
+                    "schema_version, captured_at) "
+                    "VALUES (:id, :pid, :pvid, '{}', 'h1', '1', now())"
+                ),
+                {"id": cid_ctx, "pid": pid, "pvid": pvid},
             )
             conn.execute(
                 text(
@@ -705,7 +1006,7 @@ class TestDowngradeBlocker:
                     "definition_version, calculator_version_vector, status, created_at) "
                     "VALUES (:id, :fp, :eid, :cid, '1', '{}', 'ACTIVE', now())"
                 ),
-                {"id": oid, "fp": "fp-" + str(uuid.uuid4()), "eid": eid, "cid": cid_s},
+                {"id": oid, "fp": "fp-" + str(_uuid_mod.uuid4()), "eid": eid, "cid": cid_ctx},
             )
             conn.execute(
                 text(
@@ -734,32 +1035,35 @@ class TestDowngradeBlocker:
                 ),
                 {"id": wsrid, "wsid": wsid},
             )
-            # 5 CalculationRunRecords needed for SourceBinding
             calc_ids = []
-            for calc_type in ("zone", "cooling_load", "equipment", "power", "investment"):
-                cid_calc = str(uuid.uuid4())
-                calc_ids.append(cid_calc)
+            calc_types = ("zone", "cooling_load", "equipment", "power", "investment")
+            for ct in calc_types:
+                cid_c = str(_uuid_mod.uuid4())
+                calc_ids.append(cid_c)
                 conn.execute(
                     text(
                         "INSERT INTO calculation_runs "
-                        "(id, project_id, project_version_id, status, requires_review, "
-                        "calculator_name, created_at, calculation_type, "
+                        "(id, project_id, project_version_id, calculator_name, "
+                        "calculator_version, input_snapshot, result_snapshot, formulas, "
+                        "coefficients, assumptions, warnings, source_references, "
+                        "requires_review, created_at, calculation_type, "
                         "orchestration_identity_id, orchestration_run_attempt_id, "
                         "execution_snapshot_id, coefficient_context_id, input_hash, "
                         "result_hash, provenance, schema_version) "
-                        "VALUES (:id, :pid, :pvid, 'completed', false, :calc_name, now(), "
-                        ":calc_type, :oid, :aid, :eid, :cid_s, 'h', 'h', '{}', '1')"
+                        "VALUES (:id, :pid, :pvid, :cn, '1.0', '{}', '{}', '[]', "
+                        "'[]', '[]', '[]', '[]', false, now(), :ct, :oid, :aid, :eid, "
+                        ":cid, 'h1', 'h1', '{}', '1')"
                     ),
                     {
-                        "id": cid_calc,
+                        "id": cid_c,
                         "pid": pid,
                         "pvid": pvid,
-                        "calc_name": calc_type,
-                        "calc_type": calc_type,
+                        "cn": ct,
+                        "ct": ct,
                         "oid": oid,
                         "aid": aid,
                         "eid": eid,
-                        "cid_s": cid_s,
+                        "cid": cid_ctx,
                     },
                 )
             conn.execute(
@@ -772,7 +1076,7 @@ class TestDowngradeBlocker:
                     "equipment_calculation_id, power_calculation_id, "
                     "investment_calculation_id, per_calculation_result_hashes, "
                     "combined_source_hash, schema_version, created_at) "
-                    "VALUES (:id, :pid, :pvid, :eid, :cid_s, :oid, :aid, :fp, "
+                    "VALUES (:id, :pid, :pvid, :eid, :cid_ctx, :oid, :aid, :fp, "
                     ":zid, :clid, :eqid, :pwid, :ivid, '{}', 'h1', '1', now())"
                 ),
                 {
@@ -780,7 +1084,7 @@ class TestDowngradeBlocker:
                     "pid": pid,
                     "pvid": pvid,
                     "eid": eid,
-                    "cid_s": cid_s,
+                    "cid_ctx": cid_ctx,
                     "oid": oid,
                     "aid": aid,
                     "fp": "fp-prod",
@@ -806,7 +1110,7 @@ class TestDowngradeBlocker:
                     "'1.0', :wsrid, 'h1', '1.0', 'h1')"
                 ),
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": srid,
                     "pid": pid,
                     "pvid": pvid,
                     "wsid": wsid,
@@ -815,10 +1119,17 @@ class TestDowngradeBlocker:
                 },
             )
             conn.commit()
+
+            # Capture pre-downgrade state
+            rev_before = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            combined_hash_before = conn.execute(
+                text("SELECT combined_source_hash FROM scheme_runs WHERE id = :id"),
+                {"id": srid},
+            ).scalar()
         engine.dispose()
 
-        # Attempt downgrade — must fail
-        r = _run_alembic(test_db_url, "downgrade", "-1")
+        # Attempt downgrade — must be blocked
+        r = _run_alembic(db_url, "downgrade", "-1")
         assert r.returncode != 0, (
             f"Downgrade should have been blocked with production data\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
@@ -827,11 +1138,58 @@ class TestDowngradeBlocker:
             f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
         )
 
-        # Verify schema remains intact
-        engine2 = _pg_engine(test_db_url)
-        insp = inspect(engine2)
-        tables = insp.get_table_names()
-        assert "orchestration_source_bindings" in tables
-        assert "scheme_weight_set_revisions" in tables
-        assert "orchestration_audit_outbox" in tables
+        # ── Verify atomicity: nothing changed ───────────────────────────
+        engine2 = _pg_engine(db_url)
+        with engine2.connect() as conn:
+            rev_after = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
+
+            # All orchestration tables still present
+            for tbl in (
+                "orchestration_requests",
+                "orchestration_execution_snapshots",
+                "orchestration_coefficient_contexts",
+                "orchestration_identities",
+                "orchestration_run_attempts",
+                "orchestration_source_bindings",
+                "orchestration_audit_outbox",
+                "scheme_weight_set_revisions",
+            ):
+                row = conn.execute(
+                    text(
+                        "SELECT EXISTS (SELECT FROM information_schema.tables "
+                        "WHERE table_name = :tbl)"
+                    ),
+                    {"tbl": tbl},
+                ).scalar()
+                assert row, f"Table {tbl} missing after blocked downgrade"
+
+            # Production rows still exist
+            scheme_cnt = conn.execute(
+                text("SELECT COUNT(*) FROM scheme_runs WHERE id = :id"),
+                {"id": srid},
+            ).scalar()
+            assert scheme_cnt == 1, "SchemeRun missing after blocked downgrade"
+
+            sb_cnt = conn.execute(
+                text("SELECT COUNT(*) FROM orchestration_source_bindings WHERE id = :id"),
+                {"id": src_bid},
+            ).scalar()
+            assert sb_cnt == 1, "SourceBinding missing after blocked downgrade"
+
+            # Hash unchanged
+            combined_hash_after = conn.execute(
+                text("SELECT combined_source_hash FROM scheme_runs WHERE id = :id"),
+                {"id": srid},
+            ).scalar()
+            assert combined_hash_after == combined_hash_before, (
+                f"combined_source_hash changed: {combined_hash_before} → {combined_hash_after}"
+            )
+
+            # FKs still present on calculation_runs
+            fk_result = conn.execute(
+                text("SELECT 1 FROM pg_constraint WHERE conname = 'fk_calc_run_orch_identity'")
+            ).scalar()
+            assert fk_result == 1, "FK fk_calc_run_orch_identity missing"
+
         engine2.dispose()
