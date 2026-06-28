@@ -656,9 +656,63 @@ class TestCanonicalMapping:
         assert b.decode() == '{"a":1,"b":2}'
 
     def test_duplicate_logical_key_rejected(self) -> None:
-        with pytest.raises(ValueError, match="Duplicate logical key"):
-            # 'Key' and 'key' normalize to the same canonical key
-            canonical_json_bytes({"Key": 1, "key": 2})
+        # Generic payload preserves original keys — no lowercase collision
+        result = canonical_json_bytes({"A": 1, "a": 2})
+        decoded = result.decode()
+        assert '"A"' in decoded
+        assert '"a"' in decoded
+
+    def test_generic_payload_keys_preserved(self) -> None:
+        # "Key" and "key" are distinct keys in generic payload — both preserved
+        result = canonical_json_bytes({"Key": 1, "key": 2})
+        decoded = result.decode()
+        assert '"Key"' in decoded
+        assert '"key"' in decoded
+
+    def test_semantic_stage_key_collision_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.fingerprint import (
+            semantic_normalize_stage_key_mapping,
+        )
+
+        allowed = frozenset({"zone", "cooling_load", "equipment", "power", "investment"})
+
+        # Valid: no collision
+        result = semantic_normalize_stage_key_mapping(
+            [("zone", "v1"), ("power", "v2")],
+            allowed_keys=allowed,
+        )
+        assert result == {"zone": "v1", "power": "v2"}
+
+        # Collision detected
+        with pytest.raises(ValueError, match="Duplicate logical stage key"):
+            semantic_normalize_stage_key_mapping(
+                [("ZONE", "v1"), ("zone", "v2")],
+                allowed_keys=allowed,
+            )
+
+    def test_semantic_stage_key_unknown_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.fingerprint import (
+            semantic_normalize_stage_key_mapping,
+        )
+
+        allowed = frozenset({"zone", "power"})
+        with pytest.raises(ValueError, match="Unknown semantic stage key"):
+            semantic_normalize_stage_key_mapping(
+                [("cooling_load", "v1")],
+                allowed_keys=allowed,
+            )
+
+    def test_semantic_stage_key_empty_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.fingerprint import (
+            semantic_normalize_stage_key_mapping,
+        )
+
+        allowed = frozenset({"zone"})
+        with pytest.raises(ValueError, match="empty after normalization"):
+            semantic_normalize_stage_key_mapping(
+                [("  ", "v1")],
+                allowed_keys=allowed,
+            )
 
 
 # ── New DTOs exist and are frozen ───────────────────────────────────────────

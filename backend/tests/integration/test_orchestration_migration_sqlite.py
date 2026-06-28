@@ -241,4 +241,4 @@ class TestAuditEventAndWeightSet:
         assert "scheme_weight_set_revisions" in insp.get_table_names()
         uqs = insp.get_unique_constraints("scheme_weight_set_revisions")
         names = {c["name"] for c in uqs if c.get("name")}
-        assert "uq_weight_set_code_revision" in names
+        assert "uq_scheme_weight_set_revision_code_revision" in names
