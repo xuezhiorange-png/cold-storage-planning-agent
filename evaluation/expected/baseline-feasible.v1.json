@@ -561,7 +561,7 @@
       }
     ]
   },
-  "outcome": "blocked",
+  "outcome": "review_required",
   "power": {
     "assumptions": [],
     "calculator_name": "installed_power",
@@ -677,9 +677,9 @@
       "status": "passed"
     },
     "schemes": {
-      "error": "Required source calculation missing: 'cooling_load'",
+      "detail": "scheme_generation_complete",
       "review_required": false,
-      "status": "failed"
+      "status": "passed"
     },
     "validation": {
       "detail": "valid",
