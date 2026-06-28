@@ -137,6 +137,44 @@ class RunInputInvalidError(RunDirectoryError):
     """Run creation input validation error."""
 
 
+class EvaluationPrerequisiteMissingError(EvaluationError):
+    """A required production prerequisite is not yet available.
+
+    Raised when the evaluation runner needs a formal production
+    orchestration/persistence capability that has not yet been
+    implemented.  The evaluation module MUST NOT fabricate its own
+    CalculationRunRecord or engineer its own input synthesis.
+
+    This is a structured blocker — not a business outcome.
+    The baseline contract still requires ``success``; this error
+    marks the *evaluation harness* as blocked, not the scenario
+    as ``blocked``.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        field: str = "scheme_source_calculations",
+        details: dict[str, object] | None = None,
+    ) -> None:
+        self.details = details or {
+            "required_calculation_types": [
+                "zone",
+                "investment",
+                "cooling_load",
+                "equipment",
+            ],
+            "missing_capability": "formal_application_orchestration_and_persistence",
+            "task_status": "blocked",
+        }
+        super().__init__(
+            code="EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING",
+            message=message,
+            field=field,
+        )
+
+
 class RunIdentityValidationIssue(Exception):
     """Structured internal validation issue carrying *field* and *message* separately.
 
