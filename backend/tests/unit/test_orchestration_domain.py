@@ -352,8 +352,7 @@ class TestDeepImmutability:
     """DTOs are recursively immutable — external mutation cannot affect them."""
 
     def test_dto_not_affected_by_original_dict_mutation(self) -> None:
-        from cold_storage.modules.orchestration.domain.contracts import \
-            OrchestrationRequestCommand
+        from cold_storage.modules.orchestration.domain.contracts import OrchestrationRequestCommand
 
         ctx = {"key": "original"}
         cmd = OrchestrationRequestCommand(
@@ -371,8 +370,7 @@ class TestDeepImmutability:
         assert "extra" not in cmd.coefficient_resolution_context
 
     def test_dto_mapping_immutable(self) -> None:
-        from cold_storage.modules.orchestration.domain.contracts import \
-            OrchestrationRequestCommand
+        from cold_storage.modules.orchestration.domain.contracts import OrchestrationRequestCommand
 
         ctx = {"key": "v"}
         cmd = OrchestrationRequestCommand(
@@ -417,8 +415,7 @@ class TestDeepImmutability:
         assert "new_field" not in c.payload
 
     def test_execution_snapshot_deep_frozen(self) -> None:
-        from cold_storage.modules.orchestration.domain.contracts import \
-            ExecutionSnapshotCandidate
+        from cold_storage.modules.orchestration.domain.contracts import ExecutionSnapshotCandidate
 
         snap = {"a": {"b": 1}}
         candidate = ExecutionSnapshotCandidate(
@@ -606,7 +603,7 @@ class TestCanonicalDatetime:
             canonical_json_bytes({"dt": dt})
 
     def test_utc_datetime_z_suffix(self) -> None:
-        dt = datetime(2026, 6, 28, 12, 0, 0, tzinfo=timezone.utc)
+        dt = datetime(2026, 6, 28, 12, 0, 0, tzinfo=UTC)
         b = canonical_json_bytes({"dt": dt})
         assert '"2026-06-28T12:00:00Z"' in b.decode()
 
@@ -623,7 +620,7 @@ class TestCanonicalDatetime:
         dt1 = datetime(2026, 6, 28, 12, 0, 0, tzinfo=tz8)
 
         # 04:00+00:00 = 04:00 UTC
-        dt2 = datetime(2026, 6, 28, 4, 0, 0, tzinfo=timezone.utc)
+        dt2 = datetime(2026, 6, 28, 4, 0, 0, tzinfo=UTC)
 
         b1 = canonical_json_bytes({"dt": dt1})
         b2 = canonical_json_bytes({"dt": dt2})
@@ -651,8 +648,7 @@ class TestCanonicalMapping:
     """FrozenMapping and other Mapping subtypes are supported."""
 
     def test_frozen_mapping_canonicalizes(self) -> None:
-        from cold_storage.modules.orchestration.domain.contracts import \
-            deep_freeze
+        from cold_storage.modules.orchestration.domain.contracts import deep_freeze
 
         fm = deep_freeze({"b": 2, "a": 1})
         b = canonical_json_bytes(fm)

@@ -10,12 +10,10 @@ of source objects never affects a constructed DTO.
 
 from __future__ import annotations
 
-import uuid as _uuid
-from collections.abc import Mapping
-from dataclasses import dataclass, field
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
 
 from cold_storage.modules.orchestration.domain.dag import STAGE_UPSTREAM_PROVENANCE_KEYS
 
@@ -108,9 +106,7 @@ def deep_freeze(value: object) -> object:
     - everything else → returned as-is
     """
     if isinstance(value, dict):
-        return _FrozenMapping(
-            {str(k): deep_freeze(v) for k, v in sorted(value.items())}
-        )
+        return _FrozenMapping({str(k): deep_freeze(v) for k, v in sorted(value.items())})
     if isinstance(value, (list, tuple)):
         return tuple(deep_freeze(v) for v in value)
     if isinstance(value, _FrozenMapping):
@@ -118,20 +114,23 @@ def deep_freeze(value: object) -> object:
     return value
 
 
-class _FrozenMapping(Mapping):
+class _FrozenMapping(Mapping[str, object]):
     """Immutable, hashable mapping that deep-freezes on construction."""
 
     __slots__ = ("_data", "_hash")
 
+    _data: dict[str, object]
+    _hash: int
+
     def __init__(self, data: dict[str, object]) -> None:
         object.__setattr__(self, "_data", data)
-        h = hash(tuple(sorted(data.items())))
+        h: int = hash(tuple(sorted(data.items())))
         object.__setattr__(self, "_hash", h)
 
     def __getitem__(self, key: str) -> object:
         return self._data[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._data)
 
     def __len__(self) -> int:
@@ -396,9 +395,7 @@ def validate_provenance_keys(
     for key in allowed:
         value = upstream_calculation_ids[key]
         if value is None:
-            raise ValueError(
-                f"Provenance key {key!r} for {calculation_type!r} is None"
-            )
+            raise ValueError(f"Provenance key {key!r} for {calculation_type!r} is None")
         if not isinstance(value, str):
             raise ValueError(
                 f"Provenance key {key!r} for {calculation_type!r} "
@@ -406,9 +403,7 @@ def validate_provenance_keys(
             )
         stripped = value.strip()
         if not stripped:
-            raise ValueError(
-                f"Provenance key {key!r} for {calculation_type!r} is empty/whitespace"
-            )
+            raise ValueError(f"Provenance key {key!r} for {calculation_type!r} is empty/whitespace")
 
 
 def validate_content_provenance_identity_consistency(
@@ -431,14 +426,18 @@ def validate_content_provenance_identity_consistency(
 
     def _check(field: str, content_val: str, provenance_val: str) -> None:
         if content_val != provenance_val:
-            mismatches.append(
-                f"{field}: content={content_val!r} != provenance={provenance_val!r}"
-            )
+            mismatches.append(f"{field}: content={content_val!r} != provenance={provenance_val!r}")
 
     _check("execution_snapshot_id", execution_snapshot_id, provenance_execution_snapshot_id)
     _check("coefficient_context_id", coefficient_context_id, provenance_coefficient_context_id)
-    _check("orchestration_identity_id", orchestration_identity_id, provenance_orchestration_identity_id)
-    _check("orchestration_run_attempt_id", orchestration_run_attempt_id, provenance_orchestration_run_attempt_id)
+    _check(
+        "orchestration_identity_id", orchestration_identity_id, provenance_orchestration_identity_id
+    )
+    _check(
+        "orchestration_run_attempt_id",
+        orchestration_run_attempt_id,
+        provenance_orchestration_run_attempt_id,
+    )
 
     if mismatches:
         raise ValueError(

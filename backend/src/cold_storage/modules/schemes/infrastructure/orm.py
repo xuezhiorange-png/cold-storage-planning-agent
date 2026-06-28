@@ -22,12 +22,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cold_storage.modules.projects.infrastructure.orm import Base
-
 # Ensure orchestration tables are registered on Base.metadata so
 # ForeignKey references (source_binding_id, weight_set_revision_id)
 # resolve during metadata.create_all().
 import cold_storage.modules.orchestration.infrastructure.orm  # noqa: F401
+from cold_storage.modules.projects.infrastructure.orm import Base
 
 
 class SchemeWeightSetRevisionRecord(Base):
@@ -39,9 +38,7 @@ class SchemeWeightSetRevisionRecord(Base):
     """
 
     __tablename__ = "scheme_weight_set_revisions"
-    __table_args__ = (
-        UniqueConstraint("code", "revision", name="uq_weight_set_code_revision"),
-    )
+    __table_args__ = (UniqueConstraint("code", "revision", name="uq_weight_set_code_revision"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     weight_set_id: Mapped[str] = mapped_column(String(36), nullable=False)
@@ -50,12 +47,8 @@ class SchemeWeightSetRevisionRecord(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")
     content: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     content_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    generator_compatibility_version: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )
-    approved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    generator_compatibility_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     approved_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)

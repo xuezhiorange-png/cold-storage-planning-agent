@@ -170,9 +170,7 @@ class AuditEventRecord(Base):
     )
 
     # ── Outbox idempotency — one outbox event materializes at most one AuditEventRecord ──
-    outbox_event_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, unique=True
-    )
+    outbox_event_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
 
 
 # Ensure orchestration tables are registered on Base.metadata so
