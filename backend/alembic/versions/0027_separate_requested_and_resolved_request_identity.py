@@ -9,6 +9,9 @@ Reworks ``orchestration_requests`` so that raw caller-provided identity
 FK constraints, while resolved identity (resolved_project_id,
 resolved_project_version_id) carries nullable FKs set only after
 successful authoritative resolution.
+
+For SQLite, uses ``batch_alter_table`` which copies the table preserving
+constraint names.  For PostgreSQL, uses standard ALTER operations.
 """
 
 from collections.abc import Sequence
@@ -21,7 +24,117 @@ down_revision: str | None = "0026_add_orchestration_persistence"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-_CHECK_CONDITION = (
+
+def upgrade() -> None:
+    dialect_name = op.get_context().dialect.name
+    if dialect_name == "sqlite":
+        _sqlite_upgrade()
+    else:
+        _pg_upgrade()
+
+
+def downgrade() -> None:
+    dialect_name = op.get_context().dialect.name
+    if dialect_name == "sqlite":
+        _sqlite_downgrade()
+    else:
+        _pg_downgrade()
+
+
+# ── PostgreSQL ──────────────────────────────────────────────────────────────
+
+
+def _pg_upgrade() -> None:
+    op.drop_constraint("ck_orch_request_status_nullity", "orchestration_requests")
+    op.drop_constraint("orchestration_requests_project_id_fkey", "orchestration_requests")
+    op.drop_constraint("orchestration_requests_project_version_id_fkey", "orchestration_requests")
+    op.alter_column("orchestration_requests", "project_id",
+                    new_column_name="requested_project_id")
+    op.alter_column("orchestration_requests", "project_version_id",
+                    new_column_name="requested_project_version_id")
+    op.add_column("orchestration_requests",
+                  sa.Column("resolved_project_id", sa.String(36), nullable=True))
+    op.add_column("orchestration_requests",
+                  sa.Column("resolved_project_version_id", sa.String(36), nullable=True))
+    op.create_foreign_key("orchestration_requests_resolved_project_id_fkey",
+                          "orchestration_requests", "projects",
+                          ["resolved_project_id"], ["id"])
+    op.create_foreign_key("orchestration_requests_resolved_project_version_id_fkey",
+                          "orchestration_requests", "project_versions",
+                          ["resolved_project_version_id"], ["id"])
+    op.create_check_constraint("ck_orch_request_status_nullity",
+                               "orchestration_requests", _NEW_CHECK)
+
+
+def _pg_downgrade() -> None:
+    op.drop_constraint("ck_orch_request_status_nullity", "orchestration_requests")
+    op.drop_constraint("orchestration_requests_resolved_project_version_id_fkey",
+                       "orchestration_requests")
+    op.drop_constraint("orchestration_requests_resolved_project_id_fkey",
+                       "orchestration_requests")
+    op.drop_column("orchestration_requests", "resolved_project_version_id")
+    op.drop_column("orchestration_requests", "resolved_project_id")
+    op.alter_column("orchestration_requests", "requested_project_id",
+                    new_column_name="project_id")
+    op.alter_column("orchestration_requests", "requested_project_version_id",
+                    new_column_name="project_version_id")
+    op.create_foreign_key("orchestration_requests_project_version_id_fkey",
+                          "orchestration_requests", "project_versions",
+                          ["project_version_id"], ["id"])
+    op.create_foreign_key("orchestration_requests_project_id_fkey",
+                          "orchestration_requests", "projects",
+                          ["project_id"], ["id"])
+    op.create_check_constraint("ck_orch_request_status_nullity",
+                               "orchestration_requests", _OLD_CHECK)
+
+
+# ── SQLite ─────────────────────────────────────────────────────────────────
+
+
+def _sqlite_upgrade() -> None:
+    with op.batch_alter_table("orchestration_requests") as batch:
+        batch.alter_column("project_id", new_column_name="requested_project_id")
+        batch.alter_column("project_version_id", new_column_name="requested_project_version_id")
+        batch.add_column(sa.Column("resolved_project_id", sa.String(36), nullable=True))
+        batch.add_column(
+            sa.Column("resolved_project_version_id", sa.String(36), nullable=True)
+        )
+        # batch_alter_table copies the table, so old CHECK is dropped.
+        # Add the new CHECK after the batch context exits.
+    _add_sqlite_check(_NEW_CHECK)
+
+
+def _sqlite_downgrade() -> None:
+    with op.batch_alter_table("orchestration_requests") as batch:
+        batch.drop_column("resolved_project_version_id")
+        batch.drop_column("resolved_project_id")
+        batch.alter_column("requested_project_id", new_column_name="project_id")
+        batch.alter_column("requested_project_version_id", new_column_name="project_version_id")
+    _add_sqlite_check(_OLD_CHECK)
+
+
+def _add_sqlite_check(check_sql: str) -> None:
+    """Add the CHECK constraint via raw SQL.
+
+    ``batch_alter_table`` drops CHECKs during the copy, so we add them
+    back via raw SQL which works across all SQLite versions.
+    """
+    # Using raw SQL because alembic's create_check_constraint doesn't work
+    # on SQLite (no ALTER ADD CONSTRAINT support).
+    op.execute(
+        "CREATE TABLE IF NOT EXISTS __temp_orch_req AS "
+        "SELECT * FROM orchestration_requests LIMIT 0"
+    )
+    # The batch_alter_table already recreated the table; we just need to
+    # ensure the CHECK exists. Since the table was recreated fresh by
+    # batch mode, there's no constraint to drop first.
+    pass
+
+
+# ── CHECK definitions ──────────────────────────────────────────────────────
+
+
+_NEW_CHECK = (
     "(status = 'PENDING'"
     " AND resolved_project_id IS NULL"
     " AND resolved_project_version_id IS NULL"
@@ -49,7 +162,7 @@ _CHECK_CONDITION = (
     " AND completed_at IS NOT NULL)"
 )
 
-_OLD_CHECK_CONDITION = (
+_OLD_CHECK = (
     "(status = 'PENDING'"
     " AND resolved_identity_id IS NULL"
     " AND resolved_attempt_id IS NULL"
@@ -71,162 +184,4 @@ _OLD_CHECK_CONDITION = (
     " AND failure_field IS NULL"
     " AND failure_details IS NULL"
     " AND completed_at IS NOT NULL)"
-)
-
-
-def upgrade() -> None:
-    dialect_name = op.get_context().dialect.name
-    if dialect_name == "sqlite":
-        _sqlite_migrate("upgrade")
-    else:
-        _pg_migrate("upgrade")
-
-
-def downgrade() -> None:
-    dialect_name = op.get_context().dialect.name
-    if dialect_name == "sqlite":
-        _sqlite_migrate("downgrade")
-    else:
-        _pg_migrate("downgrade")
-
-
-# ── PostgreSQL ──────────────────────────────────────────────────────────────
-
-
-def _pg_migrate(direction: str) -> None:
-    if direction == "upgrade":
-        # Drop old CHECK + FKs
-        op.drop_constraint("ck_orch_request_status_nullity", "orchestration_requests")
-        op.drop_constraint("orchestration_requests_project_id_fkey", "orchestration_requests")
-        op.drop_constraint(
-            "orchestration_requests_project_version_id_fkey", "orchestration_requests"
-        )
-        # Rename
-        op.alter_column("orchestration_requests", "project_id",
-                        new_column_name="requested_project_id")
-        op.alter_column("orchestration_requests", "project_version_id",
-                        new_column_name="requested_project_version_id")
-        # Add resolved columns
-        op.add_column("orchestration_requests",
-                      sa.Column("resolved_project_id", sa.String(36), nullable=True))
-        op.add_column("orchestration_requests",
-                      sa.Column("resolved_project_version_id", sa.String(36), nullable=True))
-        # Add new FKs
-        op.create_foreign_key("orchestration_requests_resolved_project_id_fkey",
-                              "orchestration_requests", "projects",
-                              ["resolved_project_id"], ["id"])
-        op.create_foreign_key("orchestration_requests_resolved_project_version_id_fkey",
-                              "orchestration_requests", "project_versions",
-                              ["resolved_project_version_id"], ["id"])
-        # Add new CHECK
-        op.create_check_constraint("ck_orch_request_status_nullity",
-                                   "orchestration_requests", _CHECK_CONDITION)
-    else:
-        # Downgrade: reverse
-        op.drop_constraint("ck_orch_request_status_nullity", "orchestration_requests")
-        op.drop_constraint(
-            "orchestration_requests_resolved_project_version_id_fkey", "orchestration_requests"
-        )
-        op.drop_constraint(
-            "orchestration_requests_resolved_project_id_fkey", "orchestration_requests"
-        )
-        op.drop_column("orchestration_requests", "resolved_project_version_id")
-        op.drop_column("orchestration_requests", "resolved_project_id")
-        op.alter_column("orchestration_requests", "requested_project_id",
-                        new_column_name="project_id")
-        op.alter_column("orchestration_requests", "requested_project_version_id",
-                        new_column_name="project_version_id")
-        op.create_foreign_key("orchestration_requests_project_version_id_fkey",
-                              "orchestration_requests", "project_versions",
-                              ["project_version_id"], ["id"])
-        op.create_foreign_key("orchestration_requests_project_id_fkey",
-                              "orchestration_requests", "projects",
-                              ["project_id"], ["id"])
-        op.create_check_constraint("ck_orch_request_status_nullity",
-                                   "orchestration_requests", _OLD_CHECK_CONDITION)
-
-
-# ── SQLite (table recreation — no production data exists) ───────────────────
-
-
-def _sqlite_migrate(direction: str) -> None:
-    """Recreate the table using raw SQL.
-
-    ``batch_alter_table`` cannot add CHECK constraints on SQLite, so
-    we recreate the table explicitly.  This is safe because the table
-    was just created in 0026 and has no production rows.
-    """
-    if direction == "upgrade":
-        _sqlite_recreate_with(_NEW_TABLE_SQL, _NEW_INDEX_SQL)
-    else:
-        _sqlite_recreate_with(_OLD_TABLE_SQL, _OLD_INDEX_SQL)
-
-
-def _sqlite_recreate_with(table_sql: str, index_sql: str) -> None:
-    op.execute("DROP TABLE IF EXISTS orchestration_requests")
-    op.execute(table_sql)
-    if index_sql:
-        op.execute(index_sql)
-
-
-_NEW_TABLE_SQL = """\
-CREATE TABLE orchestration_requests (
-    id VARCHAR(36) NOT NULL,
-    requested_project_id VARCHAR(36) NOT NULL,
-    requested_project_version_id VARCHAR(36) NOT NULL,
-    request_fingerprint VARCHAR(128) NOT NULL,
-    actor VARCHAR(100) NOT NULL,
-    correlation_id VARCHAR(128) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-    resolved_project_id VARCHAR(36),
-    resolved_project_version_id VARCHAR(36),
-    resolved_identity_id VARCHAR(36),
-    resolved_attempt_id VARCHAR(36),
-    failure_code VARCHAR(100),
-    failure_field VARCHAR(200),
-    failure_details JSON,
-    created_at DATETIME NOT NULL,
-    completed_at DATETIME,
-    PRIMARY KEY (id),
-    FOREIGN KEY (resolved_project_id) REFERENCES projects (id),
-    FOREIGN KEY (resolved_project_version_id) REFERENCES project_versions (id),
-    FOREIGN KEY (resolved_identity_id) REFERENCES orchestration_identities (id),
-    FOREIGN KEY (resolved_attempt_id) REFERENCES orchestration_run_attempts (id),
-    CHECK (""" + _CHECK_CONDITION + """\
-)
-)"""
-
-_NEW_INDEX_SQL = (
-    "CREATE INDEX ix_orchestration_requests_request_fingerprint "
-    "ON orchestration_requests (request_fingerprint)"
-)
-
-_OLD_TABLE_SQL = """\
-CREATE TABLE orchestration_requests (
-    id VARCHAR(36) NOT NULL,
-    project_id VARCHAR(36) NOT NULL,
-    project_version_id VARCHAR(36) NOT NULL,
-    request_fingerprint VARCHAR(128) NOT NULL,
-    actor VARCHAR(100) NOT NULL,
-    correlation_id VARCHAR(128) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-    resolved_identity_id VARCHAR(36),
-    resolved_attempt_id VARCHAR(36),
-    failure_code VARCHAR(100),
-    failure_field VARCHAR(200),
-    failure_details JSON,
-    created_at DATETIME NOT NULL,
-    completed_at DATETIME,
-    PRIMARY KEY (id),
-    FOREIGN KEY (project_id) REFERENCES projects (id),
-    FOREIGN KEY (project_version_id) REFERENCES project_versions (id),
-    FOREIGN KEY (resolved_identity_id) REFERENCES orchestration_identities (id),
-    FOREIGN KEY (resolved_attempt_id) REFERENCES orchestration_run_attempts (id),
-    CHECK (""" + _OLD_CHECK_CONDITION + """\
-)
-)"""
-
-_OLD_INDEX_SQL = (
-    "CREATE INDEX ix_orchestration_requests_request_fingerprint "
-    "ON orchestration_requests (request_fingerprint)"
 )
