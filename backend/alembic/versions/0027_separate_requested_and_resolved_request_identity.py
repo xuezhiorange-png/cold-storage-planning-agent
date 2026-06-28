@@ -16,8 +16,9 @@ constraint names.  For PostgreSQL, uses standard ALTER operations.
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision: str = "0027_separate_requested_and_resolved_request_identity"
 down_revision: str | None = "0026_add_orchestration_persistence"
@@ -82,12 +83,10 @@ def _block_downgrade_if_unresolvable_requests() -> None:
 
     if unresolvable:
         raise RuntimeError(
-            "Cannot downgrade: {} orchestration_requests have "
+            f"Cannot downgrade: {unresolvable} orchestration_requests have "
             "requested_project_id that cannot be resolved to "
             "the projects table.  Downgrade would create FK violations.  "
-            "Remove affected records first or use --force-downgrade.".format(
-                unresolvable
-            )
+            "Remove affected records first or use --force-downgrade."
         )
 
 
