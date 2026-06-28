@@ -12,10 +12,10 @@ Coverage:
 
 from __future__ import annotations
 
-import pytest
 from dataclasses import FrozenInstanceError
 from decimal import Decimal
-from datetime import datetime, timezone
+
+import pytest
 
 from cold_storage.modules.orchestration.domain.dag import (
     ALLOWED_STAGES,
@@ -26,21 +26,19 @@ from cold_storage.modules.orchestration.domain.dag import (
     validate_registry_consistency,
     validate_stage_acyclic,
 )
+from cold_storage.modules.orchestration.domain.errors import (
+    OrchestrationDomainError,
+    ProjectVersionNotFoundError,
+    TamperedContentError,
+)
 from cold_storage.modules.orchestration.domain.fingerprint import (
     canonical_json_bytes,
     result_hash,
 )
 from cold_storage.modules.orchestration.domain.snapshots import (
     SourceSnapshotContentV1,
-    SourceSnapshotEnvelopeV1,
     SourceSnapshotProvenanceV1,
 )
-from cold_storage.modules.orchestration.domain.errors import (
-    OrchestrationDomainError,
-    ProjectVersionNotFoundError,
-    TamperedContentError,
-)
-
 
 # ── DAG ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +49,13 @@ class TestDAG:
     def test_exactly_five_stages(self) -> None:
         assert len(ORCHESTRATION_STAGE_ORDER) == 5
         assert len(ALLOWED_STAGES) == 5
-        assert ORCHESTRATION_STAGE_ORDER == ("zone", "cooling_load", "equipment", "power", "investment")
+        assert ORCHESTRATION_STAGE_ORDER == (
+            "zone",
+            "cooling_load",
+            "equipment",
+            "power",
+            "investment",
+        )
 
     def test_calculator_bindings_exact(self) -> None:
         assert CALCULATOR_BINDINGS["zone"] == "cold_room_zone_plan"
@@ -252,14 +256,12 @@ class TestCanonicalHash:
 
     def test_decimal_canonicalization(self) -> None:
         # Decimal("1.50") normalizes to the same string as Decimal("1.5")
-        from decimal import Decimal
         data_a = {"value": Decimal("1.50")}
         data_b = {"value": Decimal("1.5")}
         # Both should produce the same canonical bytes
         assert canonical_json_bytes(data_a) == canonical_json_bytes(data_b)
 
     def test_non_finite_float_rejected(self) -> None:
-        import math
         with pytest.raises(ValueError, match="Non-finite"):
             canonical_json_bytes({"val": float("nan")})
         with pytest.raises(ValueError, match="Non-finite"):

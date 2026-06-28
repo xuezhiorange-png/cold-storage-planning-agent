@@ -7,13 +7,15 @@ NOT parse ``message`` text to determine error class.
 
 from __future__ import annotations
 
-from typing import Mapping
+from collections.abc import Mapping
 
 
 class OrchestrationDomainError(Exception):
     """Base for all orchestration domain errors."""
 
-    def __init__(self, code: str, message: str, *, field: str, details: Mapping[str, object] | None = None) -> None:
+    def __init__(
+        self, code: str, message: str, *, field: str, details: Mapping[str, object] | None = None
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.field = field
@@ -26,7 +28,9 @@ class OrchestrationDomainError(Exception):
 class OrchestrationRequestIdentityError(OrchestrationDomainError):
     """Request identity validation failure (preflight)."""
 
-    def __init__(self, field: str = "", message: str = "Invalid orchestration request identity") -> None:
+    def __init__(
+        self, field: str = "", message: str = "Invalid orchestration request identity"
+    ) -> None:
         super().__init__("ORCH_REQUEST_IDENTITY_INVALID", message, field=field)
 
 
@@ -50,7 +54,10 @@ class ProjectVersionProjectMismatchError(OrchestrationDomainError):
             "PROJ_VERSION_PROJECT_MISMATCH",
             f"Version belongs to project {version_project_id!r}, not {request_project_id!r}",
             field="project_id",
-            details={"version_project_id": version_project_id, "request_project_id": request_project_id},
+            details={
+                "version_project_id": version_project_id,
+                "request_project_id": request_project_id,
+            },
         )
 
 

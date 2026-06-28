@@ -1,6 +1,16 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -77,6 +87,46 @@ class CalculationRunRecord(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
+    # ── Orchestration fields (all nullable — all-null for legacy, all-required for orchestrated) ──
+    calculation_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    orchestration_identity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    orchestration_run_attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    execution_snapshot_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    coefficient_context_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    input_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    provenance: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    schema_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "("
+            " orchestration_identity_id IS NULL"
+            " AND orchestration_run_attempt_id IS NULL"
+            " AND execution_snapshot_id IS NULL"
+            " AND coefficient_context_id IS NULL"
+            " AND input_hash IS NULL"
+            " AND result_hash IS NULL"
+            " AND provenance IS NULL"
+            " AND schema_version IS NULL"
+            " AND calculation_type IS NULL"
+            ")"
+            " OR"
+            "("
+            " orchestration_identity_id IS NOT NULL"
+            " AND orchestration_run_attempt_id IS NOT NULL"
+            " AND execution_snapshot_id IS NOT NULL"
+            " AND coefficient_context_id IS NOT NULL"
+            " AND input_hash IS NOT NULL"
+            " AND result_hash IS NOT NULL"
+            " AND provenance IS NOT NULL"
+            " AND schema_version IS NOT NULL"
+            " AND calculation_type IS NOT NULL"
+            ")",
+            name="ck_calculation_run_orchestration_nullity",
+        ),
+    )
+
 
 class EngineeringCoefficientRecord(Base):
     __tablename__ = "engineering_coefficients"
@@ -110,3 +160,6 @@ class AuditEventRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+
+    # ── Outbox idempotency — one outbox event materializes at most one AuditEventRecord ──
+    outbox_event_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True)

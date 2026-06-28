@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -44,6 +45,28 @@ class SchemeWeightSetRecord(Base):
 
 class SchemeRunRecord(Base):
     __tablename__ = "scheme_runs"
+    __table_args__ = (
+        CheckConstraint(
+            "("
+            " source_mode = 'legacy'"
+            " AND source_binding_id IS NULL"
+            " AND source_contract_version IS NULL"
+            " AND weight_set_revision_id IS NULL"
+            " AND weight_set_content_hash IS NULL"
+            " AND weight_set_generator_compatibility_version IS NULL"
+            ")"
+            " OR"
+            "("
+            " source_mode = 'production'"
+            " AND source_binding_id IS NOT NULL"
+            " AND source_contract_version IS NOT NULL"
+            " AND weight_set_revision_id IS NOT NULL"
+            " AND weight_set_content_hash IS NOT NULL"
+            " AND weight_set_generator_compatibility_version IS NOT NULL"
+            ")",
+            name="ck_scheme_run_source_mode_nullity",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"))
@@ -64,6 +87,17 @@ class SchemeRunRecord(Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     content_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    # ── Production source identity (all null for legacy, all required for production) ──
+    source_mode: Mapped[str] = mapped_column(String(50), default="legacy")
+    source_binding_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    source_contract_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    weight_set_revision_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    weight_set_content_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    weight_set_generator_compatibility_version: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )
+    combined_source_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     candidates: Mapped[list["SchemeCandidateRecord"]] = relationship(back_populates="scheme_run")
 

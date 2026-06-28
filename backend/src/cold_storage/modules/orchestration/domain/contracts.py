@@ -6,8 +6,8 @@ carry no database session, ORM references, or mutable state.
 
 from enum import StrEnum
 
-
 # ── Request status ──────────────────────────────────────────────────────────
+
 
 class RequestStatus(StrEnum):
     """Orchestration request lifecycle status."""
@@ -18,6 +18,7 @@ class RequestStatus(StrEnum):
 
 
 # ── Identity / attempt statuses ─────────────────────────────────────────────
+
 
 class IdentityStatus(StrEnum):
     """OrchestrationIdentityRecord lifecycle status."""
@@ -38,6 +39,7 @@ class AttemptStatus(StrEnum):
 
 # ── Stage execution status ──────────────────────────────────────────────────
 
+
 class StageExecutionStatus(StrEnum):
     """Per-stage calculator execution outcome."""
 
@@ -49,6 +51,7 @@ class StageExecutionStatus(StrEnum):
 
 # ── Outbox status ───────────────────────────────────────────────────────────
 
+
 class OutboxStatus(StrEnum):
     """Audit outbox event dispatch status."""
 
@@ -58,6 +61,7 @@ class OutboxStatus(StrEnum):
 
 
 # ── SchemeRun source mode ───────────────────────────────────────────────────
+
 
 class SourceMode(StrEnum):
     """SchemeRun source identity mode."""

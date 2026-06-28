@@ -6,11 +6,11 @@ Approved design (PR #23, Head b30ccf8):
 
 from __future__ import annotations
 
-from typing import FrozenSet, Mapping, Sequence, Tuple
+from collections.abc import Mapping
 
 # ── Exact five-stage order ──────────────────────────────────────────────────
 
-ORCHESTRATION_STAGE_ORDER: Tuple[str, ...] = (
+ORCHESTRATION_STAGE_ORDER: tuple[str, ...] = (
     "zone",
     "cooling_load",
     "equipment",
@@ -30,7 +30,7 @@ CALCULATOR_BINDINGS: Mapping[str, str] = {
 
 # ── Exact dependencies: each value is the tuple of preceding stages ─────────
 
-STAGE_DEPENDENCIES: Mapping[str, Tuple[str, ...]] = {
+STAGE_DEPENDENCIES: Mapping[str, tuple[str, ...]] = {
     "zone": (),
     "cooling_load": ("zone",),
     "equipment": ("cooling_load",),
@@ -40,7 +40,7 @@ STAGE_DEPENDENCIES: Mapping[str, Tuple[str, ...]] = {
 
 # ── Upstream calculation IDs provenance keys per stage ──────────────────────
 
-STAGE_UPSTREAM_PROVENANCE_KEYS: Mapping[str, FrozenSet[str]] = {
+STAGE_UPSTREAM_PROVENANCE_KEYS: Mapping[str, frozenset[str]] = {
     "zone": frozenset(),
     "cooling_load": frozenset({"zone"}),
     "equipment": frozenset({"cooling_load"}),
@@ -50,10 +50,11 @@ STAGE_UPSTREAM_PROVENANCE_KEYS: Mapping[str, FrozenSet[str]] = {
 
 # ── Allowed keys ────────────────────────────────────────────────────────────
 
-ALLOWED_STAGES: FrozenSet[str] = frozenset(ORCHESTRATION_STAGE_ORDER)
+ALLOWED_STAGES: frozenset[str] = frozenset(ORCHESTRATION_STAGE_ORDER)
 
 
 # ── Validation helpers ──────────────────────────────────────────────────────
+
 
 def validate_stage_acyclic() -> None:
     """Verify the DAG is acyclic and every dependency is a preceding stage."""

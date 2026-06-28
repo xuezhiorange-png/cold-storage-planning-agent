@@ -21,12 +21,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Mapping
+from typing import Any
 from uuid import UUID
-
 
 # ── Type aliases ────────────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ def _canonicalize(value: object) -> JsonValue:
     if isinstance(value, (list, tuple)):
         return [_canonicalize(v) for v in value]
     if isinstance(value, Enum):
-        return value.value
+        return str(value.value)
     if isinstance(value, Decimal):
         # Normalize and produce canonical string.
         # as_tuple() returns (sign, digits_tuple, exponent).
@@ -81,7 +81,7 @@ def _canonicalize(value: object) -> JsonValue:
         )
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
+            value = value.replace(tzinfo=UTC)
         return value.isoformat()
     if isinstance(value, date):
         return value.isoformat()
@@ -92,5 +92,8 @@ def _canonicalize(value: object) -> JsonValue:
     if value is None:
         return value
     if hasattr(value, "__dataclass_fields__"):
-        return {f.name: _canonicalize(getattr(value, f.name)) for f in sorted(value.__dataclass_fields__.values(), key=lambda f: f.name)}
+        return {
+            f.name: _canonicalize(getattr(value, f.name))
+            for f in sorted(value.__dataclass_fields__.values(), key=lambda f: f.name)
+        }
     raise TypeError(f"Cannot canonicalize type {type(value).__name__}: {value!r}")
