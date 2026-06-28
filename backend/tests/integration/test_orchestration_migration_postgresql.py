@@ -331,11 +331,12 @@ class TestRequestRejection:
         with engine.connect() as conn, pytest.raises(IntegrityError):
             conn.execute(
                 text(
-                    "INSERT INTO orchestration_requests (id, project_id, "
-                    "project_version_id, request_fingerprint, actor, correlation_id, "
-                    "status, resolved_identity_id, created_at) "
+                    "INSERT INTO orchestration_requests (id, requested_project_id, "
+                    "requested_project_version_id, request_fingerprint, actor, "
+                    "correlation_id, status, resolved_project_id, "
+                    "resolved_project_version_id, resolved_identity_id, created_at) "
                     "VALUES (:id, 'p-1', 'pv-1', 'fp', 'me', 'cid', "
-                    "'ACCEPTED', 'oi-1', now())"
+                    "'ACCEPTED', 'p-1', 'pv-1', 'oi-1', now())"
                 ),
                 {"id": rid},
             )
