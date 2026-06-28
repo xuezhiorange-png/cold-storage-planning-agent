@@ -509,6 +509,256 @@ class TestDowngradeGate:
         )
         db_path.unlink(missing_ok=True)
 
+    def test_blocked_with_valid_project_invalid_version(self) -> None:
+        """Downgrade blocked when requested_project_id exists but
+        requested_project_version_id does not."""
+        import sqlite3 as _sql
+        import uuid as _uuid
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
+        tmp.close()
+        db_path = Path(tmp.name)
+
+        env = os.environ.copy()
+        env["SQLITE_PATH"] = str(db_path)
+
+        r_up = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            timeout=60,
+        )
+        assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
+
+        conn = _sql.connect(str(db_path))
+        conn.execute("PRAGMA foreign_keys=ON")
+
+        # Create a valid project but no project_version
+        pid = str(_uuid.uuid4())
+        conn.execute(
+            "INSERT INTO projects (id, code, name, location, product_category, "
+            "status, current_version_number, created_at, updated_at) "
+            "VALUES (?, 'T', 'Test', 'TL', 'fruit', 'draft', 0, "
+            "datetime('now'), datetime('now'))",
+            (pid,),
+        )
+        # Insert request with valid project but nonexistent version
+        conn.execute(
+            "INSERT INTO orchestration_requests "
+            "(id, requested_project_id, requested_project_version_id, "
+            "request_fingerprint, actor, correlation_id, status, "
+            "failure_code, failure_field, failure_details, completed_at, "
+            "created_at) "
+            "VALUES (?, ?, ?, 'fp', 'test', 'corr', 'PREFLIGHT_REJECTED', "
+            "'ERR', 'field', '{}', datetime('now'), datetime('now'))",
+            (str(_uuid.uuid4()), pid, "nonexistent-version"),
+        )
+        conn.commit()
+
+        rev_before = conn.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0]
+        conn.close()
+
+        r = subprocess.run(
+            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert r.returncode != 0, (
+            f"Downgrade should be blocked with invalid version\n"
+            f"stdout: {r.stdout}\nstderr: {r.stderr}"
+        )
+        assert "Cannot downgrade" in (r.stderr + r.stdout), (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
+        assert "requested_project_version_id" in (r.stderr + r.stdout), (
+            f"Expected version_id mention; got stderr={r.stderr!r}"
+        )
+
+        # Verify atomicity
+        conn2 = _sql.connect(str(db_path))
+        conn2.execute("PRAGMA foreign_keys=ON")
+        rev_after = conn2.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0]
+        assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
+        conn2.close()
+        db_path.unlink(missing_ok=True)
+
+    def test_blocked_with_version_project_mismatch(self) -> None:
+        """Downgrade blocked when project_version exists but belongs to
+        a different project than requested_project_id."""
+        import sqlite3 as _sql
+        import uuid as _uuid
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
+        tmp.close()
+        db_path = Path(tmp.name)
+
+        env = os.environ.copy()
+        env["SQLITE_PATH"] = str(db_path)
+
+        r_up = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            timeout=60,
+        )
+        assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
+
+        conn = _sql.connect(str(db_path))
+        conn.execute("PRAGMA foreign_keys=ON")
+
+        pid_a = str(_uuid.uuid4())
+        pid_b = str(_uuid.uuid4())
+        pvid = str(_uuid.uuid4())
+
+        conn.execute(
+            "INSERT INTO projects (id, code, name, location, product_category, "
+            "status, current_version_number, created_at, updated_at) "
+            "VALUES (?, 'TA', 'TestA', 'TL', 'fruit', 'draft', 0, "
+            "datetime('now'), datetime('now'))",
+            (pid_a,),
+        )
+        conn.execute(
+            "INSERT INTO projects (id, code, name, location, product_category, "
+            "status, current_version_number, created_at, updated_at) "
+            "VALUES (?, 'TB', 'TestB', 'TL', 'fruit', 'draft', 0, "
+            "datetime('now'), datetime('now'))",
+            (pid_b,),
+        )
+        # Version belongs to project B
+        conn.execute(
+            "INSERT INTO project_versions (id, project_id, version_number, "
+            "change_summary, status, created_by, created_at, updated_at, "
+            "input_snapshot, calculation_snapshot, assumption_snapshot) "
+            "VALUES (?, ?, 1, '', 'approved', 'sys', datetime('now'), "
+            "datetime('now'), '{}', '{}', '{}')",
+            (pvid, pid_b),
+        )
+        # Request claims project A but version belongs to project B
+        conn.execute(
+            "INSERT INTO orchestration_requests "
+            "(id, requested_project_id, requested_project_version_id, "
+            "request_fingerprint, actor, correlation_id, status, "
+            "failure_code, failure_field, failure_details, completed_at, "
+            "created_at) "
+            "VALUES (?, ?, ?, 'fp', 'test', 'corr', 'PREFLIGHT_REJECTED', "
+            "'ERR', 'field', '{}', datetime('now'), datetime('now'))",
+            (str(_uuid.uuid4()), pid_a, pvid),
+        )
+        conn.commit()
+
+        rev_before = conn.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0]
+        conn.close()
+
+        r = subprocess.run(
+            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert r.returncode != 0, (
+            f"Downgrade should be blocked with version-project mismatch\n"
+            f"stdout: {r.stdout}\nstderr: {r.stderr}"
+        )
+        assert "Cannot downgrade" in (r.stderr + r.stdout), (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
+        assert "different project" in (r.stderr + r.stdout), (
+            f"Expected 'different project' in message; got stderr={r.stderr!r}"
+        )
+
+        conn2 = _sql.connect(str(db_path))
+        conn2.execute("PRAGMA foreign_keys=ON")
+        rev_after = conn2.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0]
+        assert rev_after == rev_before, (
+            f"Revision changed from {rev_before} to {rev_after}"
+        )
+        conn2.close()
+        db_path.unlink(missing_ok=True)
+
+    def test_all_resolvable_allows_downgrade(self) -> None:
+        """Downgrade succeeds when all requested project/version IDs are resolvable."""
+        import sqlite3 as _sql
+        import uuid as _uuid
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
+        tmp.close()
+        db_path = Path(tmp.name)
+
+        env = os.environ.copy()
+        env["SQLITE_PATH"] = str(db_path)
+
+        r_up = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            timeout=60,
+        )
+        assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
+
+        conn = _sql.connect(str(db_path))
+        conn.execute("PRAGMA foreign_keys=ON")
+
+        pid = str(_uuid.uuid4())
+        pvid = str(_uuid.uuid4())
+
+        conn.execute(
+            "INSERT INTO projects (id, code, name, location, product_category, "
+            "status, current_version_number, created_at, updated_at) "
+            "VALUES (?, 'T', 'Test', 'TL', 'fruit', 'draft', 0, "
+            "datetime('now'), datetime('now'))",
+            (pid,),
+        )
+        conn.execute(
+            "INSERT INTO project_versions (id, project_id, version_number, "
+            "change_summary, status, created_by, created_at, updated_at, "
+            "input_snapshot, calculation_snapshot, assumption_snapshot) "
+            "VALUES (?, ?, 1, '', 'approved', 'sys', datetime('now'), "
+            "datetime('now'), '{}', '{}', '{}')",
+            (pvid, pid),
+        )
+        # All IDs resolvable
+        conn.execute(
+            "INSERT INTO orchestration_requests "
+            "(id, requested_project_id, requested_project_version_id, "
+            "request_fingerprint, actor, correlation_id, status, "
+            "created_at) "
+            "VALUES (?, ?, ?, 'fp', 'test', 'corr', 'PENDING', "
+            "datetime('now'))",
+            (str(_uuid.uuid4()), pid, pvid),
+        )
+        conn.commit()
+        conn.close()
+
+        r = subprocess.run(
+            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert r.returncode == 0, (
+            f"Downgrade should succeed with resolvable data\n"
+            f"stdout: {r.stdout}\nstderr: {r.stderr}"
+        )
+        db_path.unlink(missing_ok=True)
+
 
 class TestAuditEventAndWeightSet:
     def test_outbox_event_id_not_null(self, migrated_engine) -> None:
