@@ -4,10 +4,11 @@
 **Draft PR:** #23
 **Date:** 2026-06-28
 **Review addressed:** 4587180512
-**Previous Head:** `5d737fc91042979e75f80049c1cd76595749f737`
-**Current Head:** `efd2d0db31a6ea51de40951399ed04c5ee8803cb`
+**Post-review verification comment addressed:** 4825272784
+**Previous Head:** `7ea40b0cc0232ff3eb214c0118ed6cd79f2f8a7f`
 **Status:** Design phase — awaiting re-review
 **Type:** Design only — no production implementation
+**Authoritative Head:** The current revision Head is maintained in PR #23 metadata; this document does not embed a self-referential commit SHA.
 **Unblocks after implementation and independent review:** Task 11 Phase B (PR #21)
 
 ---
@@ -886,9 +887,14 @@ They belong in `SourceBindingRecord` or `SourceSnapshotContentV1.provenance`, no
 
 #### 13.5.6 Golden mapping examples
 
-For each adapter, given a fixed `CalculationResult.result` input, the adapter
-MUST produce a deterministic `payload`.  Two independent implementations given
-identical input MUST produce identical `SourceSnapshotContentV1` and `result_hash`.
+For each adapter, a fixed `CalculationResult.result` produces a deterministic
+**normalized business payload**.  Two independent implementations given the same
+calculator result and the same adapter schema version MUST produce the same
+normalized payload.
+
+Identical **complete** `SourceSnapshotContentV1` — including all metadata,
+`requires_review`, payload, and provenance — MUST produce the same `result_hash`.
+Identical payload alone does not guarantee an identical `result_hash`.
 
 **Required golden scenarios:**
 
@@ -900,7 +906,7 @@ identical input MUST produce identical `SourceSnapshotContentV1` and `result_has
 6. Adding a new unknown field to calculator `result` → payload unchanged → same hash.
 7. CalculationRunRecord database ID changes → business payload unchanged → provenance changes (upstream calculation IDs differ) → complete SourceSnapshotContentV1 changes → result_hash changes.
 8. Calculator output dictionary key order changes, but normalized payload and provenance remain identical → complete SourceSnapshotContentV1 identical → result_hash identical.
-9. Same business payload + same provenance (same upstream calculation IDs, same execution identity) → same SourceSnapshotContentV1 → same result_hash.
+9. Identical complete `SourceSnapshotContentV1` — same calculator identity/version, same snapshot schema version, same input hash, same `requires_review`, same normalized payload, same provenance (same execution identity and upstream calculation IDs) — → same `result_hash`.
 
 Canonical hash inputs (complete SourceSnapshotContentV1 objects) are frozen as part of implementation tests.
 Implementation tests MUST lock specific expected SHA-256 values.
@@ -916,7 +922,7 @@ class SourceSnapshotProvenanceV1:
     coefficient_context_id: str
     orchestration_identity_id: str
     orchestration_run_attempt_id: str
-    upstream_calculation_ids: dict[str, str | None]
+    upstream_calculation_ids: Mapping[str, str]
 ```
 
 `upstream_calculation_ids` is an explicit fixed-key mapping.  Each stage may only include
@@ -933,8 +939,8 @@ its real upstream dependencies:
 Rules:
 
 - The exact key set is frozen per stage.  Unknown provenance keys MUST be rejected.
-- A `None` value means the upstream is not applicable for that stage (used for
-  stages like `zone` that have no upstream `CalculationRunRecord`).
+- All upstream calculation ID values are non-null canonical ID strings.
+- Zone uses an empty mapping `{}` — no placeholder key, no null value.
 - Canonical JSON serialization MUST include the fixed key set.
 - Adding, removing, or renaming a provenance key requires a schema version increment.
 
@@ -1617,12 +1623,19 @@ Every subtask below requires a separate implementation review. This PR does not 
 - combined source hash is exact and stable;
 - Power installed power is used and equipment compressor power fallback is rejected;
 - five adapters given identical complete SourceSnapshotContentV1 produce identical result_hash;
-- same business payload + same provenance (same upstream calculation IDs, same execution identity) → same result_hash;
-- same business payload + different upstream calculation IDs → different provenance → different result_hash;
-- same business payload + different coefficient context → different result_hash;
+- identical complete SourceSnapshotContentV1 → same result_hash;
+- same normalized payload + different execution provenance → different result_hash;
+- same normalized payload + same provenance but different requires_review → different result_hash;
+- same normalized payload + same provenance but different schema version → different result_hash;
+- same normalized payload + same provenance but different calculator version → different result_hash;
 - calculator output field order changes do not alter normalized payload or result_hash;
 - zone detail order changes → canonical sort → hash unchanged;
 - CalculationRunRecord database ID changes → provenance differs → result_hash changes;
+- Zone provenance `upstream_calculation_ids` is exactly `{}`;
+- Zone provenance containing any upstream key is rejected;
+- non-Zone provenance containing a null upstream ID is rejected;
+- non-Zone provenance missing a required upstream key is rejected;
+- non-Zone provenance containing an extra upstream key is rejected;
 - equipment `installed_power_kw_e` absent from EquipmentSourceSnapshot payload;
 - Power payload includes `total_installed_power_kw_e`;
 - Power slot missing → SchemeService fail closed;
