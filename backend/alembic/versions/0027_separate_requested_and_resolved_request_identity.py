@@ -97,44 +97,69 @@ def _pg_upgrade() -> None:
     op.drop_constraint("ck_orch_request_status_nullity", "orchestration_requests")
     op.drop_constraint("orchestration_requests_project_id_fkey", "orchestration_requests")
     op.drop_constraint("orchestration_requests_project_version_id_fkey", "orchestration_requests")
-    op.alter_column("orchestration_requests", "project_id",
-                    new_column_name="requested_project_id")
-    op.alter_column("orchestration_requests", "project_version_id",
-                    new_column_name="requested_project_version_id")
-    op.add_column("orchestration_requests",
-                  sa.Column("resolved_project_id", sa.String(36), nullable=True))
-    op.add_column("orchestration_requests",
-                  sa.Column("resolved_project_version_id", sa.String(36), nullable=True))
-    op.create_foreign_key("orchestration_requests_resolved_project_id_fkey",
-                          "orchestration_requests", "projects",
-                          ["resolved_project_id"], ["id"])
-    op.create_foreign_key("orchestration_requests_resolved_project_version_id_fkey",
-                          "orchestration_requests", "project_versions",
-                          ["resolved_project_version_id"], ["id"])
-    op.create_check_constraint("ck_orch_request_status_nullity",
-                               "orchestration_requests", _NEW_CHECK)
+    op.alter_column("orchestration_requests", "project_id", new_column_name="requested_project_id")
+    op.alter_column(
+        "orchestration_requests",
+        "project_version_id",
+        new_column_name="requested_project_version_id",
+    )
+    op.add_column(
+        "orchestration_requests", sa.Column("resolved_project_id", sa.String(36), nullable=True)
+    )
+    op.add_column(
+        "orchestration_requests",
+        sa.Column("resolved_project_version_id", sa.String(36), nullable=True),
+    )
+    op.create_foreign_key(
+        "orchestration_requests_resolved_project_id_fkey",
+        "orchestration_requests",
+        "projects",
+        ["resolved_project_id"],
+        ["id"],
+    )
+    op.create_foreign_key(
+        "orchestration_requests_resolved_project_version_id_fkey",
+        "orchestration_requests",
+        "project_versions",
+        ["resolved_project_version_id"],
+        ["id"],
+    )
+    op.create_check_constraint(
+        "ck_orch_request_status_nullity", "orchestration_requests", _NEW_CHECK
+    )
 
 
 def _pg_downgrade() -> None:
     op.drop_constraint("ck_orch_request_status_nullity", "orchestration_requests")
-    op.drop_constraint("orchestration_requests_resolved_project_version_id_fkey",
-                       "orchestration_requests")
-    op.drop_constraint("orchestration_requests_resolved_project_id_fkey",
-                       "orchestration_requests")
+    op.drop_constraint(
+        "orchestration_requests_resolved_project_version_id_fkey", "orchestration_requests"
+    )
+    op.drop_constraint("orchestration_requests_resolved_project_id_fkey", "orchestration_requests")
     op.drop_column("orchestration_requests", "resolved_project_version_id")
     op.drop_column("orchestration_requests", "resolved_project_id")
-    op.alter_column("orchestration_requests", "requested_project_id",
-                    new_column_name="project_id")
-    op.alter_column("orchestration_requests", "requested_project_version_id",
-                    new_column_name="project_version_id")
-    op.create_foreign_key("orchestration_requests_project_version_id_fkey",
-                          "orchestration_requests", "project_versions",
-                          ["project_version_id"], ["id"])
-    op.create_foreign_key("orchestration_requests_project_id_fkey",
-                          "orchestration_requests", "projects",
-                          ["project_id"], ["id"])
-    op.create_check_constraint("ck_orch_request_status_nullity",
-                               "orchestration_requests", _OLD_CHECK)
+    op.alter_column("orchestration_requests", "requested_project_id", new_column_name="project_id")
+    op.alter_column(
+        "orchestration_requests",
+        "requested_project_version_id",
+        new_column_name="project_version_id",
+    )
+    op.create_foreign_key(
+        "orchestration_requests_project_version_id_fkey",
+        "orchestration_requests",
+        "project_versions",
+        ["project_version_id"],
+        ["id"],
+    )
+    op.create_foreign_key(
+        "orchestration_requests_project_id_fkey",
+        "orchestration_requests",
+        "projects",
+        ["project_id"],
+        ["id"],
+    )
+    op.create_check_constraint(
+        "ck_orch_request_status_nullity", "orchestration_requests", _OLD_CHECK
+    )
 
 
 # ── SQLite ─────────────────────────────────────────────────────────────────
@@ -147,7 +172,9 @@ def _sqlite_upgrade() -> None:
     conn = op.get_bind()
 
     # Drop and recreate with new schema (raw SQL for clean FK migration)
-    conn.execute(_sa_text("""
+    conn.execute(
+        _sa_text(
+            """
         CREATE TABLE _alembic_tmp_orch_req (
             id VARCHAR(36) PRIMARY KEY,
             requested_project_id VARCHAR(36) NOT NULL,
@@ -165,10 +192,15 @@ def _sqlite_upgrade() -> None:
             failure_details JSON,
             created_at DATETIME NOT NULL,
             completed_at DATETIME,
-            CONSTRAINT ck_orch_request_status_nullity CHECK (""" + _NEW_CHECK + """)
+            CONSTRAINT ck_orch_request_status_nullity CHECK ("""
+            + _NEW_CHECK
+            + """)
         )
-    """))
-    conn.execute(_sa_text("""
+    """
+        )
+    )
+    conn.execute(
+        _sa_text("""
         INSERT INTO _alembic_tmp_orch_req
             (id, requested_project_id, requested_project_version_id,
              request_fingerprint, actor, correlation_id, status,
@@ -183,11 +215,10 @@ def _sqlite_upgrade() -> None:
                failure_code, failure_field, failure_details,
                created_at, completed_at
         FROM orchestration_requests
-    """))
+    """)
+    )
     conn.execute(_sa_text("DROP TABLE orchestration_requests"))
-    conn.execute(_sa_text(
-        "ALTER TABLE _alembic_tmp_orch_req RENAME TO orchestration_requests"
-    ))
+    conn.execute(_sa_text("ALTER TABLE _alembic_tmp_orch_req RENAME TO orchestration_requests"))
     # Add named FKs via batch to preserve Alembic constraint tracking
     with op.batch_alter_table("orchestration_requests") as batch_op:
         batch_op.create_foreign_key(
@@ -203,10 +234,12 @@ def _sqlite_upgrade() -> None:
             ["id"],
         )
     # Recreate indexes
-    conn.execute(_sa_text(
-        "CREATE INDEX IF NOT EXISTS ix_orchestration_requests_request_fingerprint "
-        "ON orchestration_requests (request_fingerprint)"
-    ))
+    conn.execute(
+        _sa_text(
+            "CREATE INDEX IF NOT EXISTS ix_orchestration_requests_request_fingerprint "
+            "ON orchestration_requests (request_fingerprint)"
+        )
+    )
 
 
 def _sqlite_downgrade() -> None:
@@ -217,26 +250,26 @@ def _sqlite_downgrade() -> None:
     conn = op.get_bind()
 
     # Preserve data in temp table
-    conn.execute(_sa_text(
-        "CREATE TABLE _alembic_tmp_orch_req AS "
-        "SELECT "
-        "  id, requested_project_id AS project_id, "
-        "  requested_project_version_id AS project_version_id, "
-        "  request_fingerprint, actor, correlation_id, status, "
-        "  resolved_identity_id, resolved_attempt_id, "
-        "  failure_code, failure_field, failure_details, "
-        "  created_at, completed_at "
-        "FROM orchestration_requests"
-    ))
+    conn.execute(
+        _sa_text(
+            "CREATE TABLE _alembic_tmp_orch_req AS "
+            "SELECT "
+            "  id, requested_project_id AS project_id, "
+            "  requested_project_version_id AS project_version_id, "
+            "  request_fingerprint, actor, correlation_id, status, "
+            "  resolved_identity_id, resolved_attempt_id, "
+            "  failure_code, failure_field, failure_details, "
+            "  created_at, completed_at "
+            "FROM orchestration_requests"
+        )
+    )
     conn.execute(_sa_text("DROP TABLE orchestration_requests"))
 
     # Recreate using Alembic's op.create_table to match 0026 schema exactly
     op.create_table(
         "orchestration_requests",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column(
-            "project_id", sa.String(36), sa.ForeignKey("projects.id"), nullable=False
-        ),
+        sa.Column("project_id", sa.String(36), sa.ForeignKey("projects.id"), nullable=False),
         sa.Column(
             "project_version_id",
             sa.String(36),
@@ -246,9 +279,7 @@ def _sqlite_downgrade() -> None:
         sa.Column("request_fingerprint", sa.String(128), nullable=False, index=True),
         sa.Column("actor", sa.String(100), nullable=False),
         sa.Column("correlation_id", sa.String(128), nullable=False),
-        sa.Column(
-            "status", sa.String(50), nullable=False, server_default="PENDING"
-        ),
+        sa.Column("status", sa.String(50), nullable=False, server_default="PENDING"),
         sa.Column("resolved_identity_id", sa.String(36), nullable=True),
         sa.Column("resolved_attempt_id", sa.String(36), nullable=True),
         sa.Column("failure_code", sa.String(100), nullable=True),
@@ -259,23 +290,23 @@ def _sqlite_downgrade() -> None:
     )
 
     # Restore data
-    conn.execute(_sa_text(
-        "INSERT INTO orchestration_requests "
-        "(id, project_id, project_version_id, request_fingerprint, actor, "
-        " correlation_id, status, resolved_identity_id, resolved_attempt_id, "
-        " failure_code, failure_field, failure_details, created_at, completed_at) "
-        "SELECT id, project_id, project_version_id, request_fingerprint, actor, "
-        " correlation_id, status, resolved_identity_id, resolved_attempt_id, "
-        " failure_code, failure_field, failure_details, created_at, completed_at "
-        "FROM _alembic_tmp_orch_req"
-    ))
+    conn.execute(
+        _sa_text(
+            "INSERT INTO orchestration_requests "
+            "(id, project_id, project_version_id, request_fingerprint, actor, "
+            " correlation_id, status, resolved_identity_id, resolved_attempt_id, "
+            " failure_code, failure_field, failure_details, created_at, completed_at) "
+            "SELECT id, project_id, project_version_id, request_fingerprint, actor, "
+            " correlation_id, status, resolved_identity_id, resolved_attempt_id, "
+            " failure_code, failure_field, failure_details, created_at, completed_at "
+            "FROM _alembic_tmp_orch_req"
+        )
+    )
     conn.execute(_sa_text("DROP TABLE _alembic_tmp_orch_req"))
 
     # Add CHECK and extra FKs exactly as 0026 upgrade did (named, tracked)
     with op.batch_alter_table("orchestration_requests") as batch_op:
-        batch_op.create_check_constraint(
-            "ck_orch_request_status_nullity", _OLD_CHECK
-        )
+        batch_op.create_check_constraint("ck_orch_request_status_nullity", _OLD_CHECK)
         batch_op.create_foreign_key(
             "fk_orch_request_resolved_identity",
             "orchestration_identities",

@@ -462,8 +462,18 @@ class TestDowngradeGate:
             "VALUES (?, ?, ?, ?, ?, ?, ?, 'fp', ?, ?, ?, ?, ?, '{}', 'h1', "
             "'1', datetime('now'))",
             (
-                src_bid, pid, pvid, eid, cid_ctx, oid, aid,
-                calc_ids[0], calc_ids[1], calc_ids[2], calc_ids[3], calc_ids[4],
+                src_bid,
+                pid,
+                pvid,
+                eid,
+                cid_ctx,
+                oid,
+                aid,
+                calc_ids[0],
+                calc_ids[1],
+                calc_ids[2],
+                calc_ids[3],
+                calc_ids[4],
             ),
         )
 
