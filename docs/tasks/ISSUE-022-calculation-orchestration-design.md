@@ -1,12 +1,12 @@
 # ISSUE-022: Formal Calculation Orchestration and Persistence Design
 
-**Issue:** #22  
-**Draft PR:** #23  
-**Date:** 2026-06-28  
-**Review addressed:** 4587054607  
-**Reviewed Head:** `7df4ded32a28a1dbd012362b494640da8cd4f0b9`  
-**Status:** Design phase — awaiting re-review  
-**Type:** Design only — no production implementation  
+**Issue:** #22
+**Draft PR:** #23
+**Date:** 2026-06-28
+**Review addressed:** 4587054607
+**Reviewed Head:** `7df4ded32a28a1dbd012362b494640da8cd4f0b9`
+**Status:** Design phase — awaiting re-review
+**Type:** Design only — no production implementation
 **Unblocks after implementation and independent review:** Task 11 Phase B (PR #21)
 
 ---
@@ -202,7 +202,7 @@ The record is immutable after insert.
 ### 6.3 Execution identity hash
 
 ```python
-execution_identity_hash = SHA_256(
+execution_identity_hash = SHA-256(
     canonical_json({
         "project_id": project_id,
         "project_version_id": project_version_id,
@@ -253,7 +253,7 @@ Callers cannot supply `coefficient_context_id`. The service always resolves and 
 ### 8.1 Fingerprint
 
 ```python
-orchestration_fingerprint = SHA_256(
+orchestration_fingerprint = SHA-256(
     canonical_json({
         "execution_identity_hash": execution_identity_hash,
         "coefficient_context_hash": coefficient_context_hash,
@@ -344,7 +344,7 @@ class OrchestrationRequestRecord:
 `request_fingerprint` is an audit correlation hash, not the orchestration idempotency key:
 
 ```python
-request_fingerprint = SHA_256(
+request_fingerprint = SHA-256(
     canonical_json({
         "project_id": input.project_id,
         "project_version_id": input.project_version_id,
@@ -644,7 +644,7 @@ class SourceSnapshotEnvelopeV1:
 ```
 
 ```python
-result_hash = SHA_256(canonical_json(SourceSnapshotContentV1))
+result_hash = SHA-256(canonical_json(SourceSnapshotContentV1))
 ```
 
 The same exact `result_hash` value is stored in `CalculationRunRecord`, copied into the binding’s per-calculation hash map, and recomputed by SchemeService. No alternate payload-only or envelope hash is permitted.
@@ -833,7 +833,7 @@ Any mismatch fails closed. No “latest row”, timestamp-based fallback, type c
 ### 16.4 Sole combined source hash formula
 
 ```python
-combined_source_hash = SHA_256(
+combined_source_hash = SHA-256(
     canonical_json({
         "zone": zone_result_hash,
         "cooling_load": cooling_load_result_hash,
