@@ -438,19 +438,22 @@ class SqlAlchemyCoefficientResolutionAdapter:
            If still ambiguous (same revision_number), raise AmbiguousCoefficientError.
         """
         if len(revisions) == 1:
-            return revisions[0]
+            # Even with a single revision, check for self-supersession
+            rev = revisions[0]
+            if rev.supersedes_revision_id == rev.id:
+                raise CoefficientResolutionError(
+                    "supersession",
+                    f"Self-loop detected: revision {rev.id!r} supersedes itself",
+                )
+            return rev
 
         definition_id = revisions[0].coefficient_definition_id
 
         # Validate DAG
         adj = _validate_supersession_dag(revisions, definition_id)
 
-        # Compute superseded IDs
-        superseded_ids: set[str] = set()
-        for sid in adj:
-            superseded_ids.add(sid)
-        for targets in adj.values():
-            superseded_ids.update(targets)
+        # Compute superseded IDs — only the targets of supersession edges
+        superseded_ids: set[str] = set(adj.keys())
 
         # Find terminal heads (not superseded by any other revision)
         terminal = _find_terminal_heads(revisions, superseded_ids)
