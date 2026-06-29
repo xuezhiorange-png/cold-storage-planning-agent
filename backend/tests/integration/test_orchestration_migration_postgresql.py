@@ -775,7 +775,7 @@ class TestDowngradeBlocker:
         r_up = _run_alembic(db_url, "upgrade", "head")
         assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode == 0, (
             f"Downgrade should succeed on empty DB\nSTDERR: {r.stderr}\nSTDOUT: {r.stdout}"
         )

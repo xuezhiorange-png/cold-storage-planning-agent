@@ -24,7 +24,6 @@ from cold_storage.modules.orchestration.application.ports import (
     ResolvedCoefficientContextCandidate,
 )
 from cold_storage.modules.orchestration.domain.errors import (
-    AmbiguousCoefficientError,
     CoefficientNotApprovedError,
     CoefficientResolutionError,
 )
