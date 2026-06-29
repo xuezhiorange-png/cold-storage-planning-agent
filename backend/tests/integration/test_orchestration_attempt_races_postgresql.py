@@ -131,66 +131,67 @@ def _seed_identity(
 class TestAttemptIdentityNumberRace:
     """Two sessions compete for the same attempt_number.
 
-    Session A reads max N, Session B inserts N+1 and commits,
-    Session A tries N+1 → UNIQUE violation → savepoint rollback →
-    reread max → insert N+2.
+    A pre-existing COMPLETED attempt seeds the identity_number sequence.
+    Session B acquires the next RUNNING attempt (N+1).  Session A then
+    tries to acquire — finds Session B's live RUNNING attempt and raises
+    ``AttemptAlreadyRunningError`` (the one-running guard fires before
+    the identity_number path is even reached).  This verifies the
+    realistic end-to-end outcome of a race: exactly one RUNNING attempt
+    succeeds; the other is rejected.
     """
 
     def test_identity_number_race(self, pg_database: str, pg_session_factory) -> None:
         with pg_session_factory() as s:
             _seed_identity(s)
+            # Pre-seed a COMPLETED attempt so the one-running check
+            # passes for the first acquire and we have a meaningful
+            # attempt_number base (1).
+            rec = OrchestrationRunAttemptRecord(
+                id="att-seed",
+                identity_id="ident-1",
+                attempt_number=1,
+                status="COMPLETED",
+                heartbeat_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                completed_at=datetime.now(UTC),
+            )
+            s.add(rec)
+            s.commit()
 
         repo = _REPO
         now = datetime.now(UTC)
 
-        # Session A reads max attempt_number (should be 0)
-        with pg_session_factory() as session_a:
-            max_a = repo.get_max_attempt_number(session_a, "ident-1")
-            assert max_a == 0
-
-            # Session B inserts attempt_number=1 and commits
-            with pg_session_factory() as session_b:
-                max_b = repo.get_max_attempt_number(session_b, "ident-1")
-                assert max_b == 0
-                attempt_b_id = repo.acquire(
-                    session_b,
-                    identity_id="ident-1",
-                    heartbeat_at=now,
-                )
-                session_b.commit()
-
-            # Verify Session B's attempt is committed
-            with pg_session_factory() as s:
-                row = s.execute(
-                    select(OrchestrationRunAttemptRecord).where(
-                        OrchestrationRunAttemptRecord.id == attempt_b_id
-                    )
-                ).scalar_one()
-                assert row.attempt_number == 1
-                assert row.status == "RUNNING"
-
-            # Session A now tries to acquire — its stale max was 0,
-            # so it attempts attempt_number=1 which conflicts.
-            # The repo.acquire logic: re-reads max each retry iteration,
-            # so it should re-read max=1, try attempt_number=2, succeed.
-            # But first we need to test the savepoint retry path.
-            #
-            # To force the UNIQUE violation path we need to manually
-            # insert with the stale number.  We do this by reading the
-            # old max in the same session, then calling acquire which
-            # internally re-reads.  Since acquire re-reads fresh each
-            # iteration, the first attempt will get max=1 → try 2 → succeed.
-            #
-            # Instead, test the raw savepoint retry by manually inserting
-            # a conflicting row in a nested transaction.
-            attempt_a_id = repo.acquire(
-                session_a,
+        # Session B acquires a RUNNING attempt (should get attempt_number=2)
+        with pg_session_factory() as session_b:
+            attempt_b_id = repo.acquire(
+                session_b,
                 identity_id="ident-1",
-                heartbeat_at=now + timedelta(seconds=1),
+                heartbeat_at=now,
             )
-            session_a.commit()
+            session_b.commit()
 
-        # Verify both attempts exist with different numbers
+        # Verify Session B's attempt is committed
+        with pg_session_factory() as s:
+            row = s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == attempt_b_id
+                )
+            ).scalar_one()
+            assert row.attempt_number == 2
+            assert row.status == "RUNNING"
+
+        # Session A tries to acquire — Session B has a live RUNNING
+        # attempt, so acquire()'s one-running check raises immediately.
+        with pg_session_factory() as session_a:
+            with pytest.raises(AttemptAlreadyRunningError):
+                repo.acquire(
+                    session_a,
+                    identity_id="ident-1",
+                    heartbeat_at=now + timedelta(seconds=1),
+                )
+            session_a.rollback()
+
+        # Verify: the pre-seeded COMPLETED attempt + Session B's RUNNING
         with pg_session_factory() as s:
             attempts = (
                 s.execute(
@@ -203,10 +204,10 @@ class TestAttemptIdentityNumberRace:
             )
             assert len(attempts) == 2
             assert attempts[0].attempt_number == 1
-            assert attempts[0].id == attempt_b_id
-            assert attempts[0].status == "RUNNING"
+            assert attempts[0].id == "att-seed"
+            assert attempts[0].status == "COMPLETED"
             assert attempts[1].attempt_number == 2
-            assert attempts[1].id == attempt_a_id
+            assert attempts[1].id == attempt_b_id
             assert attempts[1].status == "RUNNING"
 
     def test_raw_savepoint_retry_on_identity_number_conflict(
