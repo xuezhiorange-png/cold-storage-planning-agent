@@ -1230,9 +1230,7 @@ class TestDowngradeBlocker:
 class TestDowngradeGatePG:
     """P0-4/P0-8: PostgreSQL downgrade blocker — mirrors SQLite tests."""
 
-    def test_blocked_with_unresolvable_requested_project(
-        self, pg_database_factory
-    ) -> None:
+    def test_blocked_with_unresolvable_requested_project(self, pg_database_factory) -> None:
         """Downgrade blocked when PREFLIGHT_REJECTED record has unresolvable
         requested_project_id."""
         db_url = pg_database_factory(prefix="dg_proj")
@@ -1241,9 +1239,7 @@ class TestDowngradeGatePG:
 
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
-            rev_before = conn.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar()
+            rev_before = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
             conn.execute(
                 text(
                     "INSERT INTO orchestration_requests "
@@ -1265,8 +1261,7 @@ class TestDowngradeGatePG:
         # Attempt downgrade — must be blocked
         r = _run_alembic(db_url, "downgrade", "-1")
         assert r.returncode != 0, (
-            f"Downgrade should have been blocked\\n"
-            f"stdout: {r.stdout}\\nstderr: {r.stderr}"
+            f"Downgrade should have been blocked\\nstdout: {r.stdout}\\nstderr: {r.stderr}"
         )
         assert "Cannot downgrade" in (r.stderr + r.stdout), (
             f"Expected blocker message; got stderr={r.stderr!r}"
@@ -1274,33 +1269,21 @@ class TestDowngradeGatePG:
 
         # Verify atomicity: nothing changed
         with engine.connect() as conn:
-            rev_after = conn.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar()
-            assert rev_after == rev_before, (
-                f"Revision changed from {rev_before} to {rev_after}"
-            )
+            rev_after = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
             # CHECK constraint still present
             ck = conn.execute(
-                text(
-                    "SELECT 1 FROM pg_constraint "
-                    "WHERE conname = 'ck_orch_request_status_nullity'"
-                )
+                text("SELECT 1 FROM pg_constraint WHERE conname = 'ck_orch_request_status_nullity'")
             ).scalar()
             assert ck == 1, "CHECK ck_orch_request_status_nullity missing"
             # Table still exists
             tbl = conn.execute(
-                text(
-                    "SELECT 1 FROM pg_tables "
-                    "WHERE tablename = 'orchestration_requests'"
-                )
+                text("SELECT 1 FROM pg_tables WHERE tablename = 'orchestration_requests'")
             ).scalar()
             assert tbl == 1, "orchestration_requests table missing"
         engine.dispose()
 
-    def test_blocked_with_valid_project_invalid_version(
-        self, pg_database_factory
-    ) -> None:
+    def test_blocked_with_valid_project_invalid_version(self, pg_database_factory) -> None:
         """Downgrade blocked when requested_project exists but
         requested_version does not."""
         db_url = pg_database_factory(prefix="dg_ver")
@@ -1323,9 +1306,7 @@ class TestDowngradeGatePG:
             )
             conn.commit()
 
-            rev_before = conn.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar()
+            rev_before = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
 
             # Insert request with valid project but invalid version
             conn.execute(
@@ -1347,20 +1328,14 @@ class TestDowngradeGatePG:
             conn.commit()
 
         r = _run_alembic(db_url, "downgrade", "-1")
-        assert r.returncode != 0, (
-            f"Downgrade should be blocked when version invalid\\n{r.stderr}"
-        )
+        assert r.returncode != 0, f"Downgrade should be blocked when version invalid\\n{r.stderr}"
 
         with engine.connect() as conn:
-            rev_after = conn.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar()
+            rev_after = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
             assert rev_after == rev_before
         engine.dispose()
 
-    def test_blocked_with_version_project_mismatch(
-        self, pg_database_factory
-    ) -> None:
+    def test_blocked_with_version_project_mismatch(self, pg_database_factory) -> None:
         """Downgrade blocked when requested version exists but belongs to
         a different project."""
         db_url = pg_database_factory(prefix="dg_mis")
@@ -1406,9 +1381,7 @@ class TestDowngradeGatePG:
             )
             conn.commit()
 
-            rev_before = conn.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar()
+            rev_before = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
 
             # Request references pid_a (valid project) + pvid (belongs to pid_b)
             conn.execute(
@@ -1435,15 +1408,11 @@ class TestDowngradeGatePG:
         )
 
         with engine.connect() as conn:
-            rev_after = conn.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar()
+            rev_after = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
             assert rev_after == rev_before
         engine.dispose()
 
-    def test_all_resolvable_allows_downgrade(
-        self, pg_database_factory
-    ) -> None:
+    def test_all_resolvable_allows_downgrade(self, pg_database_factory) -> None:
         """Downgrade succeeds when all requested identities are resolvable."""
         db_url = pg_database_factory(prefix="dg_ok")
         r = _run_alembic(db_url, "upgrade", "head")
@@ -1494,16 +1463,10 @@ class TestDowngradeGatePG:
             conn.commit()
 
         r = _run_alembic(db_url, "downgrade", "-1")
-        assert r.returncode == 0, (
-            f"Downgrade should succeed with resolvable data\\n{r.stderr}"
-        )
+        assert r.returncode == 0, f"Downgrade should succeed with resolvable data\\n{r.stderr}"
 
         # Verify we're on revision 0026
         with engine.connect() as conn:
-            rev = conn.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar()
-            assert rev == "0026_add_orchestration_persistence", (
-                f"Expected revision 0026, got {rev}"
-            )
+            rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev == "0026_add_orchestration_persistence", f"Expected revision 0026, got {rev}"
         engine.dispose()

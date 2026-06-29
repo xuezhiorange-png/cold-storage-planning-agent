@@ -71,9 +71,7 @@ def _canonicalize_decimal(raw: object) -> str:
     canonical form.  Rejects non-finite and unparseable values.
     """
     if raw is None:
-        raise CoefficientResolutionError(
-            "invalid_value", "Decimal value is required but was None"
-        )
+        raise CoefficientResolutionError("invalid_value", "Decimal value is required but was None")
     try:
         d = Decimal(str(raw))
     except (InvalidOperation, ValueError, TypeError) as exc:
@@ -83,9 +81,7 @@ def _canonicalize_decimal(raw: object) -> str:
         ) from exc
     # Reject non-finite
     if not d.is_finite():
-        raise CoefficientResolutionError(
-            "invalid_value", f"Non-finite decimal {d!r} not allowed"
-        )
+        raise CoefficientResolutionError("invalid_value", f"Non-finite decimal {d!r} not allowed")
     normalized = d.normalize()
     # Use 'f' format for stable representation
     return format(normalized, "f")
@@ -98,9 +94,7 @@ def _canonicalize_json(raw: object) -> dict[str, object] | list[object]:
     Returns a Python object that canonical_json_bytes will sort.
     """
     if raw is None:
-        raise CoefficientResolutionError(
-            "invalid_value", "JSON value is required but was None"
-        )
+        raise CoefficientResolutionError("invalid_value", "JSON value is required but was None")
     parsed: object
     if isinstance(raw, (dict, list)):
         # Already a structured object (from ORM JSON column)
@@ -178,8 +172,7 @@ def _validate_supersession_dag(
         if target_id not in rev_by_id:
             raise CoefficientResolutionError(
                 "supersession",
-                f"Supersession target {target_id!r} not found in definition "
-                f"{definition_id!r}",
+                f"Supersession target {target_id!r} not found in definition {definition_id!r}",
             )
         if target_id == sid:
             raise CoefficientResolutionError(
@@ -202,8 +195,7 @@ def _validate_supersession_dag(
             if color[neighbor] == GRAY:
                 raise CoefficientResolutionError(
                     "supersession",
-                    f"Supersession cycle detected involving revisions "
-                    f"{node!r} and {neighbor!r}",
+                    f"Supersession cycle detected involving revisions {node!r} and {neighbor!r}",
                 )
             if color[neighbor] == WHITE:
                 dfs(neighbor)
@@ -296,14 +288,16 @@ class SqlAlchemyCoefficientResolutionAdapter:
         for rev in rows:
             def_ids_set.add(rev.coefficient_definition_id)
 
-        def_rows = db.execute(
-            select(CoefficientDefinitionRecord).where(
-                CoefficientDefinitionRecord.id.in_(list(def_ids_set))
+        def_rows = (
+            db.execute(
+                select(CoefficientDefinitionRecord).where(
+                    CoefficientDefinitionRecord.id.in_(list(def_ids_set))
+                )
             )
-        ).scalars().all()
-        definitions: dict[str, CoefficientDefinitionRecord] = {
-            d.id: d for d in def_rows
-        }
+            .scalars()
+            .all()
+        )
+        definitions: dict[str, CoefficientDefinitionRecord] = {d.id: d for d in def_rows}
 
         # 2 — Apply scope/applicability filtering
         filtered: list[CoefficientRevisionRecord] = []
@@ -347,9 +341,7 @@ class SqlAlchemyCoefficientResolutionAdapter:
         for def_id, revisions in by_definition.items():
             definition = definitions[def_id]
             selected = self._select_authoritative(revisions)
-            coefficient_items.append(
-                self._build_item(definition.code, def_id, selected)
-            )
+            coefficient_items.append(self._build_item(definition.code, def_id, selected))
 
         # 5 — Canonical order: by definition.code ASC
         coefficient_items.sort(key=lambda it: str(it.get("code", "")))
@@ -475,9 +467,7 @@ class SqlAlchemyCoefficientResolutionAdapter:
         best_number = terminal[0].revision_number
         candidates = [r for r in terminal if r.revision_number == best_number]
         if len(candidates) > 1:
-            raise AmbiguousCoefficientError(
-                f"ambiguous_revisions:{definition_id}"
-            )
+            raise AmbiguousCoefficientError(f"ambiguous_revisions:{definition_id}")
 
         return terminal[0]
 

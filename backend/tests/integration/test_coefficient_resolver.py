@@ -16,21 +16,19 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from cold_storage.modules.coefficients.infrastructure.orm import (
     CoefficientDefinitionRecord,
     CoefficientRevisionRecord,
 )
 from cold_storage.modules.orchestration.domain.errors import (
-    AmbiguousCoefficientError,
     CoefficientNotApprovedError,
     CoefficientResolutionError,
 )
 from cold_storage.modules.orchestration.infrastructure.coefficient_resolver import (
     SqlAlchemyCoefficientResolutionAdapter,
 )
-
 
 # ── Test helpers ─────────────────────────────────────────────────────────
 
@@ -147,11 +145,17 @@ class TestScopeProduct:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="PROD_COEFF", scope_type="product")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1", revision_number=1,
+                s,
+                rev_id="r1",
+                definition_id="d1",
+                revision_number=1,
                 applicable_product_type="blueberry",
             )
             _seed_approved_revision(
-                s, rev_id="r2", definition_id="d1", revision_number=2,
+                s,
+                rev_id="r2",
+                definition_id="d1",
+                revision_number=2,
                 applicable_product_type="strawberry",
             )
             s.commit()
@@ -169,7 +173,9 @@ class TestScopeProduct:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="PROD_COEFF", scope_type="product")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1",
+                s,
+                rev_id="r1",
+                definition_id="d1",
                 applicable_product_type="blueberry",
             )
             s.commit()
@@ -191,7 +197,9 @@ class TestScopeZone:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="ZONE_COEFF", scope_type="zone")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1",
+                s,
+                rev_id="r1",
+                definition_id="d1",
                 applicable_zone_type="precooling",
             )
             s.commit()
@@ -274,13 +282,17 @@ class TestSupersession:
             _seed_definition(s, def_id="d1", code="SINGLE")
             _seed_approved_revision(s, rev_id="r1", definition_id="d1", revision_number=1)
             _seed_approved_revision(
-                s, rev_id="r2", definition_id="d1", revision_number=2,
+                s,
+                rev_id="r2",
+                definition_id="d1",
+                revision_number=2,
                 supersedes_revision_id="r1",
             )
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1", project_version_id="pv-1",
+            project_id="p-1",
+            project_version_id="pv-1",
             coefficient_resolution_context={},
             session=tmp_session_factory(),
         )
@@ -291,17 +303,24 @@ class TestSupersession:
             _seed_definition(s, def_id="d1", code="LEVELS")
             _seed_approved_revision(s, rev_id="r1", definition_id="d1", revision_number=1)
             _seed_approved_revision(
-                s, rev_id="r2", definition_id="d1", revision_number=2,
+                s,
+                rev_id="r2",
+                definition_id="d1",
+                revision_number=2,
                 supersedes_revision_id="r1",
             )
             _seed_approved_revision(
-                s, rev_id="r3", definition_id="d1", revision_number=3,
+                s,
+                rev_id="r3",
+                definition_id="d1",
+                revision_number=3,
                 supersedes_revision_id="r2",
             )
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1", project_version_id="pv-1",
+            project_id="p-1",
+            project_version_id="pv-1",
             coefficient_resolution_context={},
             session=tmp_session_factory(),
         )
@@ -312,7 +331,9 @@ class TestSupersession:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="LOOP")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1",
+                s,
+                rev_id="r1",
+                definition_id="d1",
                 revision_number=1,
                 supersedes_revision_id="r1",  # self-loop
             )
@@ -320,7 +341,8 @@ class TestSupersession:
 
         with pytest.raises(CoefficientResolutionError, match="supersession"):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -329,18 +351,25 @@ class TestSupersession:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="CYCLE")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1", revision_number=1,
+                s,
+                rev_id="r1",
+                definition_id="d1",
+                revision_number=1,
                 supersedes_revision_id="r2",
             )
             _seed_approved_revision(
-                s, rev_id="r2", definition_id="d1", revision_number=2,
+                s,
+                rev_id="r2",
+                definition_id="d1",
+                revision_number=2,
                 supersedes_revision_id="r1",  # A→B→A cycle
             )
             s.commit()
 
         with pytest.raises(CoefficientResolutionError, match="cycle"):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -349,15 +378,22 @@ class TestSupersession:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="MULTI")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1", revision_number=1,
+                s,
+                rev_id="r1",
+                definition_id="d1",
+                revision_number=1,
             )
             _seed_approved_revision(
-                s, rev_id="r2", definition_id="d1", revision_number=2,  # higher number wins
+                s,
+                rev_id="r2",
+                definition_id="d1",
+                revision_number=2,  # higher number wins
             )
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1", project_version_id="pv-1",
+            project_id="p-1",
+            project_version_id="pv-1",
             coefficient_resolution_context={},
             session=tmp_session_factory(),
         )
@@ -371,14 +407,18 @@ class TestSupersession:
             _seed_definition(s, def_id="d1", code="WITHDRAWN")
             _seed_approved_revision(s, rev_id="r1", definition_id="d1", revision_number=1)
             _seed_approved_revision(
-                s, rev_id="r2", definition_id="d1", revision_number=2,
+                s,
+                rev_id="r2",
+                definition_id="d1",
+                revision_number=2,
                 supersedes_revision_id="r1",
                 withdrawn_at=now,  # r2 is withdrawn
             )
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1", project_version_id="pv-1",
+            project_id="p-1",
+            project_version_id="pv-1",
             coefficient_resolution_context={},
             session=tmp_session_factory(),
         )
@@ -393,16 +433,20 @@ class TestValueCanonicalization:
 
     def test_decimal_equivalent_forms_same_hash(self, resolver, tmp_session_factory) -> None:
         """1.0 and 1.00 should produce identical coefficient value in content."""
+
         def _resolve_with_value(value: str):
             with tmp_session_factory() as s:
                 _seed_definition(s, def_id=f"d_{value}", code=f"EQ_{value}")
                 _seed_approved_revision(
-                    s, rev_id=f"r_{value}", definition_id=f"d_{value}",
+                    s,
+                    rev_id=f"r_{value}",
+                    definition_id=f"d_{value}",
                     value_decimal=value,
                 )
                 s.commit()
             return resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -419,6 +463,7 @@ class TestValueCanonicalization:
         def _build(value: str) -> str:
             with tmp_session_factory() as s:
                 from sqlalchemy import delete as sa_delete
+
                 s.execute(sa_delete(CoefficientDefinitionRecord))
                 s.execute(sa_delete(CoefficientRevisionRecord))
                 s.commit()
@@ -426,7 +471,8 @@ class TestValueCanonicalization:
                 _seed_approved_revision(s, rev_id="r1", definition_id="d1", value_decimal=value)
                 s.commit()
             candidate = resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -434,14 +480,16 @@ class TestValueCanonicalization:
 
         h1 = _build("1.0")
         h2 = _build("2.0")
-        assert h1 != h2, f"Different values should produce different hashes"
+        assert h1 != h2, "Different values should produce different hashes"
 
     def test_json_value_in_content(self, resolver, tmp_session_factory) -> None:
         import json as _json
+
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="JSON")
             # Override value_type via direct ORM manipulation
             from sqlalchemy import update as sa_update
+
             s.execute(
                 sa_update(CoefficientDefinitionRecord)
                 .where(CoefficientDefinitionRecord.id == "d1")
@@ -464,7 +512,8 @@ class TestValueCanonicalization:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1", project_version_id="pv-1",
+            project_id="p-1",
+            project_version_id="pv-1",
             coefficient_resolution_context={},
             session=tmp_session_factory(),
         )
@@ -486,7 +535,8 @@ class TestCallerIsolation:
         # Even with caller context claiming approved, only DB state matters
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={"status": "approved"},
                 session=tmp_session_factory(),
             )
@@ -499,7 +549,8 @@ class TestCallerIsolation:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1", project_version_id="pv-1",
+            project_id="p-1",
+            project_version_id="pv-1",
             coefficient_resolution_context={
                 "approved_revision_ids": ["fake-rev-999"],
             },
@@ -520,7 +571,8 @@ class TestInactiveDraftExpired:
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -533,7 +585,8 @@ class TestInactiveDraftExpired:
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -544,14 +597,17 @@ class TestInactiveDraftExpired:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="EXPIRED")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1",
+                s,
+                rev_id="r1",
+                definition_id="d1",
                 valid_to=past,  # Expired 10 days ago
             )
             s.commit()
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -561,14 +617,17 @@ class TestInactiveDraftExpired:
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="FUTURE")
             _seed_approved_revision(
-                s, rev_id="r1", definition_id="d1",
+                s,
+                rev_id="r1",
+                definition_id="d1",
                 valid_from=future,
             )
             s.commit()
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -587,7 +646,8 @@ class TestMultiDefinition:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1", project_version_id="pv-1",
+            project_id="p-1",
+            project_version_id="pv-1",
             coefficient_resolution_context={},
             session=tmp_session_factory(),
         )
@@ -608,7 +668,8 @@ class TestUnsupportedScope:
 
         with pytest.raises(CoefficientResolutionError, match="unsupported_scope"):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )
@@ -621,7 +682,8 @@ class TestUnsupportedScope:
 
         with pytest.raises(CoefficientResolutionError, match="unsupported_scope"):
             resolver.resolve(
-                project_id="p-1", project_version_id="pv-1",
+                project_id="p-1",
+                project_version_id="pv-1",
                 coefficient_resolution_context={},
                 session=tmp_session_factory(),
             )

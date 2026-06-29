@@ -76,9 +76,7 @@ def _is_target_unique_violation(
         return False
 
     # ── PostgreSQL ───────────────────────────────────────────────────────
-    pg_name: str | None = getattr(
-        getattr(exc.orig, "diag", None), "constraint_name", None
-    )
+    pg_name: str | None = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
     if pg_name is not None:
         if postgres_constraint_names is None:
             return False

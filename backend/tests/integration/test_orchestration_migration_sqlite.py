@@ -556,9 +556,7 @@ class TestDowngradeGate:
         )
         conn.commit()
 
-        rev_before = conn.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()[0]
+        rev_before = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         conn.close()
 
         r = subprocess.run(
@@ -583,9 +581,7 @@ class TestDowngradeGate:
         # Verify atomicity
         conn2 = _sql.connect(str(db_path))
         conn2.execute("PRAGMA foreign_keys=ON")
-        rev_after = conn2.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()[0]
+        rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
         conn2.close()
         db_path.unlink(missing_ok=True)
@@ -655,9 +651,7 @@ class TestDowngradeGate:
         )
         conn.commit()
 
-        rev_before = conn.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()[0]
+        rev_before = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         conn.close()
 
         r = subprocess.run(
@@ -681,12 +675,8 @@ class TestDowngradeGate:
 
         conn2 = _sql.connect(str(db_path))
         conn2.execute("PRAGMA foreign_keys=ON")
-        rev_after = conn2.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()[0]
-        assert rev_after == rev_before, (
-            f"Revision changed from {rev_before} to {rev_after}"
-        )
+        rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+        assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
         conn2.close()
         db_path.unlink(missing_ok=True)
 
@@ -754,8 +744,7 @@ class TestDowngradeGate:
             timeout=60,
         )
         assert r.returncode == 0, (
-            f"Downgrade should succeed with resolvable data\n"
-            f"stdout: {r.stdout}\nstderr: {r.stderr}"
+            f"Downgrade should succeed with resolvable data\nstdout: {r.stdout}\nstderr: {r.stderr}"
         )
         db_path.unlink(missing_ok=True)
 

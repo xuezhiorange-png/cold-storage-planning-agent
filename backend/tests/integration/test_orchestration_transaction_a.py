@@ -76,6 +76,7 @@ from cold_storage.modules.projects.infrastructure.orm import (
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
+
 def _make_resolved_coefficient(
     *,
     project_id: str = "p-1",
