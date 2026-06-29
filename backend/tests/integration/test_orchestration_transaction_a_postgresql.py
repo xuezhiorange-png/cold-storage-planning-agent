@@ -163,12 +163,24 @@ def _make_resolved_coefficient(
     project_version_id: str = "pv-1",
     extra: dict[str, object] | None = None,
 ) -> ResolvedCoefficientContextCandidate:
+    coefficient_item = {
+        "definition_id": "def-001",
+        "code": "PEAK_FACTOR",
+        "revision_id": "rev-001",
+        "revision_number": 1,
+        "unit": "dimensionless",
+        "source_type": "standard",
+        "status": "approved",
+        "value_decimal": "1.0",
+    }
     content: dict[str, object] = {
         "source_type": "catalog",
         "validity_status": "approved",
         "project_id": project_id,
         "project_version_id": project_version_id,
         "schema_version": "1.0.0",
+        "coefficient_count": 1,
+        "coefficients": [coefficient_item],
     }
     if extra:
         content.update(extra)
