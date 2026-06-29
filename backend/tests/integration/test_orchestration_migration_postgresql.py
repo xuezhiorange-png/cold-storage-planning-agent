@@ -16,12 +16,9 @@ Tagged with ``@pytest.mark.postgresql`` to run in CI (``-m postgresql``).
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 import uuid as _uuid_mod
-from collections.abc import Generator
-from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -32,16 +29,6 @@ from sqlalchemy.pool import NullPool
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.postgresql
-
-# ── Database name sanitizer ──────────────────────────────────────────────────
-
-_DB_NAME_RE = re.compile(r"[^a-z0-9_]")
-
-
-def _sanitize_db_name(name: str) -> str:
-    """Return a valid PostgreSQL database name (lowercase, alphanumeric + underscore)."""
-    return _DB_NAME_RE.sub("_", name.lower())[:63]
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,80 +53,10 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
     )
 
 
-# ── Fixtures ─────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="session")
-def pg_admin_url() -> str:
-    """PostgreSQL admin connection URL derived from DATABASE_URL.
-
-    Replaces the database name with ``postgres`` for DDL operations
-    (CREATE/DROP DATABASE). Requires ``AUTOCOMMIT`` isolation.
-    """
-    original = os.environ.get("DATABASE_URL", "")
-    if not original:
-        pytest.skip("DATABASE_URL not set")
-    # Expected shape: postgresql+psycopg2://user:pass@host:port/dbname
-    base = original.rsplit("/", 1)[0]
-    return f"{base}/postgres"
-
-
 @pytest.fixture()
-def pg_database_factory(pg_admin_url: str) -> Generator:
-    """Yield a callable that creates isolated PostgreSQL test databases.
-
-    Usage::
-
-        db_url = database_factory(prefix="my_test")
-        # db_url is valid, database exists
-        # ... run tests ...
-        # on teardown: database is dropped
-
-    The factory:
-    - Uses AUTOCOMMIT on the admin connection.
-    - Creates ``DROP DATABASE IF EXISTS … WITH (FORCE)`` then ``CREATE DATABASE …``.
-    - Generates database names with a 12-char UUID suffix for uniqueness.
-    - Collects all created databases and drops them in teardown (even on failure).
-    """
-    created: list[str] = []
-    admin_engine = create_engine(pg_admin_url, poolclass=NullPool)
-    # Set AUTOCOMMIT isolation for DDL operations
-    admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
-
-    def create_db(*, prefix: str) -> str:
-        db_name = _sanitize_db_name(f"{prefix}_{_uuid_mod.uuid4().hex[:12]}")
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
-            conn.execute(text(f"CREATE DATABASE {db_name}"))
-        base_url = os.environ.get("DATABASE_URL", "").rsplit("/", 1)[0]
-        db_url = f"{base_url}/{db_name}"
-        created.append(db_name)
-        return db_url
-
-    try:
-        yield create_db
-    finally:
-        with admin_engine.connect() as conn:
-            for db_name in created:
-                with suppress(Exception):
-                    conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
-        admin_engine.dispose()
-
-
-@pytest.fixture()
-def migrated_pg(pg_database_factory) -> str:
-    """Isolated database with full head schema applied (non-destructive)."""
-    db_url = pg_database_factory(prefix="migrated_pg")
-    r = _run_alembic(db_url, "upgrade", "head")
-    if r.returncode != 0:
-        pytest.fail(
-            f"Alembic upgrade to head failed (DB={db_url}):\n"
-            f"STDERR:\n{r.stderr}\nSTDOUT:\n{r.stdout}"
-        )
-    return db_url
-
-
-# ── Schema checks ────────────────────────────────────────────────────────────
+def migrated_pg(pg_database: str) -> str:
+    """Alias for conftest ``pg_database`` to minimise test-method churn."""
+    return pg_database
 
 
 class TestAllTables:

@@ -349,16 +349,17 @@ class TestCallerConflictValidation:
                 required_codes=(),
             )
 
-    def test_zone_type_empty_frozen_passes(self) -> None:
-        """When frozen zone_types is empty, caller can have any zone_type."""
-        _validate_caller_conflicts(
-            caller_ctx={"zone_type": "freezer"},
-            product_category=None,
-            product_type=None,
-            zone_types=(),
-            process_types=(),
-            required_codes=(),
-        )
+    def test_zone_type_empty_frozen_rejects_caller(self) -> None:
+        """Frozen zone_types empty + caller non-empty → criteria_conflict."""
+        with pytest.raises(CoefficientResolutionError, match="zone_type"):
+            _validate_caller_conflicts(
+                caller_ctx={"zone_type": "freezer"},
+                product_category=None,
+                product_type=None,
+                zone_types=(),
+                process_types=(),
+                required_codes=(),
+            )
 
     # -- process_type --
 
@@ -441,16 +442,17 @@ class TestCallerConflictValidation:
             required_codes=("a", "b"),
         )
 
-    def test_required_codes_empty_frozen_passes(self) -> None:
-        """When frozen required_codes is empty, caller can have any required_codes."""
-        _validate_caller_conflicts(
-            caller_ctx={"required_codes": ["a"]},
-            product_category=None,
-            product_type=None,
-            zone_types=(),
-            process_types=(),
-            required_codes=(),
-        )
+    def test_required_codes_empty_frozen_rejects_caller(self) -> None:
+        """Frozen required_codes empty + caller non-empty → criteria_conflict."""
+        with pytest.raises(CoefficientResolutionError, match="required_codes"):
+            _validate_caller_conflicts(
+                caller_ctx={"required_codes": ["a"]},
+                product_category=None,
+                product_type=None,
+                zone_types=(),
+                process_types=(),
+                required_codes=(),
+            )
 
     # -- self-attestation fields ignored --
 

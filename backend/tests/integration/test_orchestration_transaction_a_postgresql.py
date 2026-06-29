@@ -20,21 +20,11 @@ Tagged with @pytest.mark.postgresql for CI (-m postgresql).
 
 from __future__ import annotations
 
-import os
-import re
-import subprocess
-import sys
-import uuid as _uuid_mod
-from collections.abc import Generator
-from contextlib import suppress
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy import create_engine, select, text
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy import select
 
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
@@ -73,11 +63,7 @@ from cold_storage.modules.projects.infrastructure.orm import (
     ProjectVersionRecord,
 )
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
-
 pytestmark = pytest.mark.postgresql
-
-_DB_NAME_RE = re.compile(r"[^a-z0-9_]")
 
 # Authoritative required codes for the default calculator version vector
 # (must match service._AUTHORITATIVE_REQUIRED_CODES exactly)
@@ -101,84 +87,6 @@ _CV_VECTOR: dict[str, str] = {
     "power": "1.0.0",
     "investment": "1.0.0",
 }
-
-
-def _sanitize(name: str) -> str:
-    return _DB_NAME_RE.sub("_", name.lower())[:63]
-
-
-# ── PostgreSQL fixtures ──────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="session")
-def pg_admin_url() -> str:
-    url = os.environ.get("DATABASE_URL", "")
-    if not url:
-        pytest.skip("DATABASE_URL not set")
-    base = url.rsplit("/", 1)[0]
-    return f"{base}/postgres"
-
-
-@pytest.fixture()
-def pg_database_factory(pg_admin_url: str) -> Generator:
-    """Yield a callable that creates isolated PostgreSQL test databases.
-
-    Uses AUTOCOMMIT isolation and text() for DDL operations.
-    Collects all created databases and drops them on teardown.
-    """
-    created: list[str] = []
-    admin_engine = create_engine(pg_admin_url, poolclass=NullPool)
-    admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
-
-    def create_db(*, prefix: str) -> str:
-        db_name = _sanitize(f"{prefix}_{_uuid_mod.uuid4().hex[:12]}")
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
-            conn.execute(text(f"CREATE DATABASE {db_name}"))
-        base_url = os.environ.get("DATABASE_URL", "").rsplit("/", 1)[0]
-        db_url = f"{base_url}/{db_name}"
-        created.append(db_name)
-        return db_url
-
-    try:
-        yield create_db
-    finally:
-        with admin_engine.connect() as conn:
-            for db_name in created:
-                with suppress(Exception):
-                    conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
-        admin_engine.dispose()
-
-
-def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    env["DATABASE_URL"] = database_url
-    env["DATABASE_BACKEND"] = "postgresql"
-    return subprocess.run(
-        [sys.executable, "-m", "alembic", *args],
-        cwd=BACKEND_DIR,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-
-
-@pytest.fixture()
-def pg_database(pg_database_factory) -> str:
-    """Isolated database with full head schema."""
-    db_url = pg_database_factory(prefix="pg_ta")
-    r = _run_alembic(db_url, "upgrade", "head")
-    if r.returncode != 0:
-        pytest.fail(f"Alembic upgrade failed:\nSTDERR:\n{r.stderr}\nSTDOUT:\n{r.stdout}")
-    return db_url
-
-
-@pytest.fixture()
-def pg_session_factory(pg_database: str):
-    engine = create_engine(pg_database, poolclass=NullPool)
-    yield sessionmaker(bind=engine, expire_on_commit=False)
-    engine.dispose()
 
 
 def _make_resolved_coefficient(
