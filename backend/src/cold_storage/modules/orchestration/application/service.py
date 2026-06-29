@@ -28,6 +28,7 @@ Durable rejection contract (P0-1):
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -342,7 +343,7 @@ class OrchestrationService:
         )
 
         # P0-5: Validate the resolved coefficient candidate
-        _validate_coefficient_candidate(resolved_coeff, command)
+        _validate_coefficient_candidate(resolved_coeff, command, frozen_criteria)
 
         # 5 — Get-or-create execution snapshot
         input_snapshot_hash = result_hash(version.input_snapshot)
@@ -609,14 +610,87 @@ def _extract_caller_value(
         for alias in aliases:
             if alias in caller_ctx and caller_ctx[alias] is not None:
                 values_seen.append(caller_ctx[alias])
-        # Check all values are equivalent
+        # Check all values are equivalent using semantic normalization
+        _check_alias_consistency(values_seen, primary_key)
+    return found_value
+
+
+# ── Alias normalization keys ──────────────────────────────────────────────
+_ZONE_PROCESS_KEYS: frozenset[str] = frozenset(
+    {
+        "zone_type",
+        "zone_types",
+        "process_type",
+        "process_types",
+    }
+)
+_PRODUCT_KEYS: frozenset[str] = frozenset({"product_type", "product_category"})
+_CODES_KEYS: frozenset[str] = frozenset({"required_codes", "required_coefficient_codes"})
+
+
+def _check_alias_consistency(
+    values_seen: list[object],
+    primary_key: str,
+) -> None:
+    """Normalize multiple alias values and verify they are semantically equivalent.
+
+    Raises CoefficientResolutionError("invalid_criteria", ...) when a value
+    fails normalization, or ("criteria_conflict", ...) when canonical forms differ.
+    """
+    canonical: list[object] = []
+
+    if primary_key in _ZONE_PROCESS_KEYS:
+        for val in values_seen:
+            try:
+                canonical.append(validate_string_sequence(val, field_name=f"caller_{primary_key}"))
+            except CoefficientResolutionError as exc:
+                raise CoefficientResolutionError(
+                    "invalid_criteria",
+                    f"Caller {primary_key} value {val!r} is not a valid string sequence",
+                ) from exc
+        if len(set(canonical)) > 1:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller context aliases for {primary_key!r} disagree: {values_seen}",
+            )
+
+    elif primary_key in _PRODUCT_KEYS:
+        for val in values_seen:
+            if not isinstance(val, str):
+                raise CoefficientResolutionError(
+                    "invalid_criteria",
+                    f"Caller {primary_key} value {val!r} must"
+                    f" be a string, got {type(val).__name__}",
+                )
+            canonical.append(val.strip())
+        if len(set(canonical)) > 1:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller context aliases for {primary_key!r} disagree: {values_seen}",
+            )
+
+    elif primary_key in _CODES_KEYS:
+        for val in values_seen:
+            try:
+                canonical.append(validate_required_codes(val, field_name=f"caller_{primary_key}"))
+            except CoefficientResolutionError as exc:
+                raise CoefficientResolutionError(
+                    "invalid_criteria",
+                    f"Caller {primary_key} value {val!r} is not valid",
+                ) from exc
+        if len(set(canonical)) > 1:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller context aliases for {primary_key!r} disagree: {values_seen}",
+            )
+
+    else:
+        # Fallback: string comparison for unrecognized keys
         if len(set(str(v) for v in values_seen)) > 1:
             raise CoefficientResolutionError(
                 "criteria_conflict",
-                f"Caller context aliases for {primary_key!r} disagree: "
-                f"{dict((a, caller_ctx.get(a)) for a in aliases if a in caller_ctx)}",
+                f"Caller context aliases for {primary_key!r} disagree: {values_seen}",
             )
-    return found_value
 
 
 def _validate_caller_conflicts(
@@ -760,20 +834,35 @@ def _derive_frozen_criteria(
     # ── Product type from snapshot ──────────────────────────────────────
     product_type: str | None = None
     raw_pt = input_snapshot.get("product_type")
-    if isinstance(raw_pt, str) and raw_pt.strip():
-        product_type = raw_pt.strip()
+    if raw_pt is not None:
+        if not isinstance(raw_pt, str):
+            raise CoefficientResolutionError(
+                "invalid_criteria",
+                f"Snapshot product_type must be str, got {type(raw_pt).__name__}",
+            )
+        stripped_pt = raw_pt.strip()
+        if not stripped_pt:
+            raise CoefficientResolutionError(
+                "invalid_criteria",
+                "Snapshot product_type must not be blank",
+            )
+        product_type = stripped_pt
 
     # ── Zone types from snapshot ────────────────────────────────────────
-    zone_types: tuple[str, ...] = ()
     raw_zt = input_snapshot.get("zone_types")
-    if isinstance(raw_zt, list):
-        zone_types = tuple(str(z) for z in raw_zt if isinstance(z, str) and z.strip())
+    zone_types: tuple[str, ...] = (
+        validate_string_sequence(raw_zt, field_name="snapshot_zone_types")
+        if raw_zt is not None
+        else ()
+    )
 
     # ── Process types from snapshot ─────────────────────────────────────
-    process_types: tuple[str, ...] = ()
     raw_pr = input_snapshot.get("process_types")
-    if isinstance(raw_pr, list):
-        process_types = tuple(str(p) for p in raw_pr if isinstance(p, str) and p.strip())
+    process_types: tuple[str, ...] = (
+        validate_string_sequence(raw_pr, field_name="snapshot_process_types")
+        if raw_pr is not None
+        else ()
+    )
 
     # ── Required codes: authoritative from registry ─────────────────────
     # Snapshot MAY carry required_coefficient_codes, but it MUST exactly
@@ -826,6 +915,7 @@ def _derive_frozen_criteria(
 def _validate_coefficient_candidate(
     candidate: ResolvedCoefficientContextCandidate,
     command: OrchestrationRequestCommand,
+    frozen_criteria: FrozenCoefficientResolutionCriteria,
 ) -> None:
     """P0-5: Validate that the resolved coefficient candidate is authoritative.
 
@@ -908,24 +998,84 @@ def _validate_coefficient_candidate(
     _validate_coefficient_content_structure(candidate)
 
     # ── Audit fields: verify requirement registry reference ──────────
+    # ALL 4 requirement metadata fields are MANDATORY — no skip-on-missing.
+
+    # 1. requirement_registry_version
     content_req_version = candidate.content.get("requirement_registry_version")
-    if (
-        content_req_version is not None
-        and str(content_req_version) != _REQUIREMENT_REGISTRY_VERSION
-    ):
+    if not isinstance(content_req_version, str) or not content_req_version.strip():
+        raise CoefficientResolutionError(
+            "mismatch",
+            "Content requirement_registry_version is missing or not a non-empty string",
+        )
+    if content_req_version != frozen_criteria.requirement_registry_version:
         raise CoefficientResolutionError(
             "mismatch",
             f"Content requirement_registry_version {content_req_version!r} != "
-            f"authoritative {_REQUIREMENT_REGISTRY_VERSION!r}",
+            f"frozen {frozen_criteria.requirement_registry_version!r}",
         )
 
-    content_req_codes = candidate.content.get("required_codes")
-    if isinstance(content_req_codes, (list, tuple)) and list(_AUTHORITATIVE_REQUIRED_CODES) != list(
-        content_req_codes
-    ):
+    # 2. calculator_version_vector
+    content_calc_vec = candidate.content.get("calculator_version_vector")
+    if not isinstance(content_calc_vec, Mapping):
         raise CoefficientResolutionError(
             "mismatch",
-            "Content required_codes != authoritative set",
+            f"Content calculator_version_vector must be a Mapping, "
+            f"got {type(content_calc_vec).__name__}",
+        )
+    for k, v in content_calc_vec.items():
+        if not isinstance(k, str) or not k.strip():
+            raise CoefficientResolutionError(
+                "mismatch",
+                f"Content calculator_version_vector has non-string or blank key: {k!r}",
+            )
+        if not isinstance(v, str) or not v.strip():
+            raise CoefficientResolutionError(
+                "mismatch",
+                f"Content calculator_version_vector[{k!r}] has non-string or blank value: {v!r}",
+            )
+    frozen_vec = dict(frozen_criteria.calculator_version_vector)
+    if dict(content_calc_vec) != frozen_vec:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Content calculator_version_vector {dict(content_calc_vec)!r} != "
+            f"frozen {frozen_vec!r}",
+        )
+
+    # 3. required_codes
+    content_req_codes = candidate.content.get("required_codes")
+    if not isinstance(content_req_codes, (list, tuple)):
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Content required_codes must be list or tuple, got {type(content_req_codes).__name__}",
+        )
+    validated_codes = validate_required_codes(
+        content_req_codes, field_name="content_required_codes"
+    )
+    if validated_codes != frozen_criteria.required_codes:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Content required_codes {list(validated_codes)!r} != "
+            f"frozen {list(frozen_criteria.required_codes)!r}",
+        )
+
+    # 4. requirement_hash
+    content_req_hash = candidate.content.get("requirement_hash")
+    if not isinstance(content_req_hash, str) or not content_req_hash.strip():
+        raise CoefficientResolutionError(
+            "mismatch",
+            "Content requirement_hash is missing or not a non-empty string",
+        )
+    expected_hash = result_hash(
+        {
+            "registry_version": frozen_criteria.requirement_registry_version,
+            "calculator_version_vector": dict(frozen_criteria.calculator_version_vector),
+            "required_codes": list(frozen_criteria.required_codes),
+        }
+    )
+    if content_req_hash != expected_hash:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Content requirement_hash {content_req_hash!r} != recomputed {expected_hash!r}",
         )
 
 
