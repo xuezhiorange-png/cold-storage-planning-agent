@@ -20,6 +20,16 @@ Covers:
 from __future__ import annotations
 
 import os
+
+import pytest
+
+if os.environ.get("DATABASE_BACKEND") == "postgresql":
+    pytest.skip(
+        "SQLite Transaction A tests cannot run on PostgreSQL — use "
+        "test_orchestration_transaction_a_postgresql.py instead",
+        allow_module_level=True,
+    )
+
 import subprocess
 import sys
 import tempfile
@@ -27,7 +37,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
