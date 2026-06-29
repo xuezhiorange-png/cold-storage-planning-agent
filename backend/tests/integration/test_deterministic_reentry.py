@@ -6,25 +6,34 @@ sessions, and no crosstalk — even when using the same service instance.
 
 Protocol:
   Thread A:
-    1. Create request + flush
-    2. Commit to release DB lock (critical for SQLite single-writer)
-    3. Signal A_CREATED
-    4. Wait for B_COMMITTED
-    5. Persist rejection + outbox  (new transaction)
-    6. Commit
+    1. Create request + flush + commit (via service checkpoint)
+    2. Signal A_CREATED
+    3. Wait for B_COMMITTED
+    4. Persist rejection + outbox  (new transaction)
+    5. Commit
 
   Thread B:
     1. Wait for A_CREATED
-    2. Create request + flush + commit
-    3. Persist rejection + outbox
-    4. Commit
-    5. Signal B_COMMITTED
+    2. Create request + flush + commit + persist rejection + outbox
+    3. Commit
+    4. Signal B_COMMITTED
+
+The checkpoint lives at the SERVICE level (_CheckpointOrchestrationService),
+not in the repository.  The repository only performs add + flush (no commit).
+The service subclass commits the request to release the DB write lock, then
+signals and waits before proceeding with downstream work.
 
 Assertions:
   - Same service instance (shared)
   - Two independent UoW / sessions
   - Distinct request IDs
   - failure.request_id == request.id for each thread
+  - Full PreflightFailure field mapping (project_id, project_version_id,
+    error_class, code)
+  - Full DB request field mapping (requested_project_version_id, actor,
+    correlation_id, request_fingerprint)
+  - Full outbox field mapping (request_id, event_type, payload.error_class,
+    payload.code)
   - No crosstalk (each request sees only its own state)
   - Both threads exit; timeout prevents deadlock
 
@@ -55,7 +64,11 @@ from cold_storage.modules.orchestration.application.ports import (
 from cold_storage.modules.orchestration.application.service import (
     OrchestrationService,
     ProjectVersionReadPort,
+    TransactionAContext,
+    TransactionRejected,
+    _compute_request_fingerprint,
     _LoadedVersion,
+    _validate_command_identity,
 )
 from cold_storage.modules.orchestration.application.unit_of_work import (
     SqlAlchemyOrchestrationUnitOfWorkFactory,
@@ -64,13 +77,13 @@ from cold_storage.modules.orchestration.domain.contracts import (
     OrchestrationRequestCommand,
     PreflightFailure,
 )
+from cold_storage.modules.orchestration.domain.errors import OrchestrationDomainError
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
 from cold_storage.modules.orchestration.infrastructure.orm import (
     AuditOutboxRecord,
     OrchestrationRequestRecord,
 )
 from cold_storage.modules.orchestration.infrastructure.repositories import (
-    OrchestrationRequestRepository,
     SqlAlchemyAuditOutboxRepository,
     SqlAlchemyCoefficientContextRepository,
     SqlAlchemyExecutionSnapshotRepository,
@@ -146,6 +159,7 @@ def _make_resolved_coefficient(
         "coefficient_count": len(coefficients),
         "coefficients": coefficients,
         "requirement_registry_version": _REGISTRY_VERSION,
+        "calculator_version_vector": dict(_CV_VECTOR),
         "required_codes": list(_REQUIRED_CODES),
         "requirement_hash": req_hash,
     }
@@ -179,102 +193,87 @@ class _RealVersionPort(ProjectVersionReadPort):
         )
 
 
-# ── BlockingRequestRepository ────────────────────────────────────────
+# ── _CheckpointOrchestrationService ──────────────────────────────────
 
 
-class BlockingRequestRepository(OrchestrationRequestRepository):
-    """Test-only wrapper that blocks after ``add()`` + ``flush()``.
+class _CheckpointOrchestrationService(OrchestrationService):
+    """Test-only subclass that inserts a checkpoint between request
+    creation and downstream work in ``_transaction_a``.
 
-    After the inner repo's ``add()`` (which does ``session.add`` +
-    ``session.flush``), the session is committed to release the DB
-    write lock (critical for SQLite single-writer semantics).  Then
-    ``request_created`` is signalled and the thread waits for
-    ``allow_continue`` before returning.
+    After ``request_repo.add()`` (flush), the session is committed to
+    release the DB write lock (critical for SQLite single-writer).
+    The checkpoint then signals ``request_created`` and waits for
+    ``allow_continue`` before proceeding with downstream work.
 
     Only the *first* caller blocks; subsequent callers pass through
     without waiting.  This ensures Thread A blocks while Thread B
     can proceed immediately.
 
-    Does NOT call ``rollback`` — only ``commit`` to release the lock.
+    Transaction lifecycle is managed at the SERVICE level — the
+    repository only performs ``add`` + ``flush`` (no commit).
     """
 
     def __init__(
         self,
-        inner: OrchestrationRequestRepository,
-        request_created: threading.Event,
-        allow_continue: threading.Event,
+        *,
+        request_created: threading.Event | None = None,
+        allow_continue: threading.Event | None = None,
+        **kwargs,
     ) -> None:
-        self._inner = inner
+        super().__init__(**kwargs)
         self._request_created = request_created
         self._allow_continue = allow_continue
-        self._should_block = True
-        self._guard = threading.Lock()
+        self._first_checkpoint = True
+        self._checkpoint_lock = threading.Lock()
 
-    # -- OrchestrationRequestRepository interface ----------------------
+    # -- Override _transaction_a to insert checkpoint -----------------
 
-    def add(
-        self,
-        session,
-        /,
-        *,
-        requested_project_id: str,
-        requested_project_version_id: str,
-        request_fingerprint: str,
-        actor: str,
-        correlation_id: str,
-    ) -> str:
-        request_id = self._inner.add(
-            session,
-            requested_project_id=requested_project_id,
-            requested_project_version_id=requested_project_version_id,
-            request_fingerprint=request_fingerprint,
-            actor=actor,
-            correlation_id=correlation_id,
+    def _transaction_a(self, command, uow):  # type: ignore[override]
+        session = uow.session
+
+        # 1 — Validate + create PENDING request; capture context immediately
+        _validate_command_identity(command)
+        fingerprint = _compute_request_fingerprint(command)
+        ctx = TransactionAContext(
+            request_id=self._request_repo.add(
+                session,
+                requested_project_id=command.project_id,
+                requested_project_version_id=command.project_version_id,
+                request_fingerprint=fingerprint,
+                actor=command.actor,
+                correlation_id=command.correlation_id,
+            ),
+            request_fingerprint=fingerprint,
         )
-        # Commit to release the DB write lock so other threads can write.
-        # The service will start a fresh transaction for downstream work.
+
+        # Commit the request to release the DB write lock so other
+        # threads can write.  The session auto-begins a new transaction.
         session.commit()
-        # Decide under the lock whether *this* caller should block,
-        # but release the lock before waiting so the other thread can
-        # acquire it and pass through.
+
+        # Checkpoint: only the first caller blocks; release lock before
+        # waiting so the other thread can acquire it and pass through.
         should_block = False
-        with self._guard:
-            if self._should_block:
-                self._should_block = False
+        with self._checkpoint_lock:
+            if self._first_checkpoint:
+                self._first_checkpoint = False
                 should_block = True
         if should_block:
-            self._request_created.set()
-            if not self._allow_continue.wait(timeout=30):
-                raise TimeoutError("Timed out waiting for allow_continue signal")
-        return request_id
+            if self._request_created is not None:
+                self._request_created.set()
+            if self._allow_continue is not None and not self._allow_continue.wait(timeout=30):
+                raise TimeoutError("Timed out waiting for allow_continue")
 
-    def update_status(  # type: ignore[override]
-        self,
-        session,
-        /,
-        request_id: str,
-        *,
-        status=None,
-        failure_code=None,
-        failure_field=None,
-        failure_details=None,
-        resolved_project_id=None,
-        resolved_project_version_id=None,
-        resolved_identity_id=None,
-        resolved_attempt_id=None,
-    ) -> None:
-        self._inner.update_status(
-            session,
-            request_id,
-            status=status,
-            failure_code=failure_code,
-            failure_field=failure_field,
-            failure_details=failure_details,
-            resolved_project_id=resolved_project_id,
-            resolved_project_version_id=resolved_project_version_id,
-            resolved_identity_id=resolved_identity_id,
-            resolved_attempt_id=resolved_attempt_id,
-        )
+        # 2 — Create downstream savepoint: all work after durable request
+        #     creation is wrapped so domain failures roll back downstream
+        #     rows while the PENDING request survives for rejection.
+        downstream = session.begin_nested()
+        try:
+            result = self._transaction_a_downstream(command, ctx, session)
+            downstream.commit()
+            return result
+        except OrchestrationDomainError as exc:
+            downstream.rollback()
+            raise TransactionRejected(ctx.request_id, exc) from exc
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
@@ -332,14 +331,25 @@ def reentry_session_factory(reentry_engine):
     return sessionmaker(bind=reentry_engine, expire_on_commit=False)
 
 
-def _make_service(session_factory, request_repo):
-    """Build an OrchestrationService wired for reentry testing."""
+def _make_service(
+    session_factory,
+    request_repo,
+    *,
+    request_created: threading.Event | None = None,
+    allow_continue: threading.Event | None = None,
+):
+    """Build an OrchestrationService wired for reentry testing.
+
+    When ``request_created`` and ``allow_continue`` are provided, returns
+    a ``_CheckpointOrchestrationService`` that pauses between request
+    creation and downstream work.
+    """
     uow_factory = SqlAlchemyOrchestrationUnitOfWorkFactory(session_factory)
 
     coeff_port = MagicMock(spec=CoefficientResolutionPreflightPort)
     coeff_port.resolve.return_value = _make_resolved_coefficient()
 
-    return OrchestrationService(
+    kwargs = dict(
         uow_factory=uow_factory,
         request_repo=request_repo,
         outbox_repo=SqlAlchemyAuditOutboxRepository(),
@@ -351,6 +361,14 @@ def _make_service(session_factory, request_repo):
         snapshot_port=MagicMock(spec=ExecutionSnapshotPreflightPort),
         coefficient_port=coeff_port,
     )
+
+    if request_created is not None or allow_continue is not None:
+        return _CheckpointOrchestrationService(
+            request_created=request_created,
+            allow_continue=allow_continue,
+            **kwargs,
+        )
+    return OrchestrationService(**kwargs)
 
 
 # ── Seed helper ──────────────────────────────────────────────────────
@@ -399,15 +417,16 @@ def _seed_project_and_version(session, *, project_id="p-1", version_id="pv-1"):
 class TestDeterministicReentry:
     """Two-thread deterministic reentry with threading.Event.
 
-    Thread A creates a request (add + flush + commit), signals
-    A_CREATED, then waits for B_COMMITTED before proceeding with
-    rejection.
+    Thread A creates a request (add + flush + commit via service
+    checkpoint), signals A_CREATED, then waits for B_COMMITTED before
+    proceeding with rejection.
 
     Thread B waits for A_CREATED, then runs its own full execute()
     (create + reject + commit) and signals B_COMMITTED.
 
-    Both use the same ``OrchestrationService`` instance but get
-    independent UoW / sessions from the session factory.
+    Both use the same ``_CheckpointOrchestrationService`` instance but
+    get independent UoW / sessions from the session factory.  The
+    checkpoint is at the service level, not in the repository.
     """
 
     def test_concurrent_reentry_distinct_request_ids_no_crosstalk(
@@ -419,13 +438,14 @@ class TestDeterministicReentry:
         a_created = threading.Event()
         b_committed = threading.Event()
 
-        # -- Build service with blocking request repo ------------------
-        blocking_repo = BlockingRequestRepository(
-            inner=SqlAlchemyOrchestrationRequestRepository(),
+        # -- Build service with checkpoint at service level -------------
+        plain_repo = SqlAlchemyOrchestrationRequestRepository()
+        service = _make_service(
+            reentry_session_factory,
+            plain_repo,
             request_created=a_created,
             allow_continue=b_committed,
         )
-        service = _make_service(reentry_session_factory, blocking_repo)
 
         # -- Seed project + version ------------------------------------
         with reentry_session_factory() as s:
@@ -510,9 +530,42 @@ class TestDeterministicReentry:
         assert pf_a.request_id != ""
         assert pf_b.request_id != ""
 
+        # -- Assert: PreflightFailure field mapping for A ---------------
+        assert pf_a.project_id == "p-1"
+        assert pf_a.project_version_id == "pv-nonexistent-a"
+        assert pf_a.error_class == "ProjectVersionNotFoundError"
+        assert pf_a.code == "PROJ_VERSION_NOT_FOUND"
+
+        # -- Assert: PreflightFailure field mapping for B ---------------
+        assert pf_b.project_id == "p-1"
+        assert pf_b.project_version_id == "pv-nonexistent-b"
+        assert pf_b.error_class == "ProjectVersionNotFoundError"
+        assert pf_b.code == "PROJ_VERSION_NOT_FOUND"
+
         # -- Assert: no crosstalk — each failure references its own request
+        # Compute expected fingerprints for full field assertions
+        cmd_a = OrchestrationRequestCommand(
+            project_id="p-1",
+            project_version_id="pv-nonexistent-a",
+            coefficient_resolution_context={},
+            actor="thread-a",
+            correlation_id="reentry-a",
+        )
+        cmd_b = OrchestrationRequestCommand(
+            project_id="p-1",
+            project_version_id="pv-nonexistent-b",
+            coefficient_resolution_context={},
+            actor="thread-b",
+            correlation_id="reentry-b",
+        )
+        fp_a = _compute_request_fingerprint(cmd_a)
+        fp_b = _compute_request_fingerprint(cmd_b)
+
         with reentry_session_factory() as s:
-            for pf in (pf_a, pf_b):
+            for pf, expected_pv_id, expected_actor, expected_corr, expected_fp in (
+                (pf_a, "pv-nonexistent-a", "thread-a", "reentry-a", fp_a),
+                (pf_b, "pv-nonexistent-b", "thread-b", "reentry-b", fp_b),
+            ):
                 req = s.execute(
                     select(OrchestrationRequestRecord).where(
                         OrchestrationRequestRecord.id == pf.request_id
@@ -523,12 +576,20 @@ class TestDeterministicReentry:
                 )
                 # failure.request_id must match the persisted request
                 assert req.id == pf.request_id
+                # Full field mapping on DB request
+                assert req.requested_project_version_id == expected_pv_id
+                assert req.actor == expected_actor
+                assert req.correlation_id == expected_corr
+                assert req.request_fingerprint == expected_fp
 
                 ev = s.execute(
                     select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
                 ).scalar_one_or_none()
                 assert ev is not None, f"No outbox event for request {pf.request_id}"
                 assert ev.event_type == "orchestration.request.rejected"
+                assert ev.request_id == pf.request_id
+                assert ev.payload["error_class"] == "ProjectVersionNotFoundError"
+                assert ev.payload["code"] == "PROJ_VERSION_NOT_FOUND"
 
 
 # ── PostgreSQL version ───────────────────────────────────────────────
@@ -538,7 +599,7 @@ class TestDeterministicReentry:
 class TestDeterministicReentryPostgreSQL:
     """Same deterministic reentry test against PostgreSQL.
 
-    PostgreSQL supports concurrent writers so the BlockingRequestRepository
+    PostgreSQL supports concurrent writers so the checkpoint service
     does NOT need to commit before blocking — the lock is held at the row
     level, not the connection level.  Uses shared PG fixtures from
     ``tests/integration/conftest.py``.
@@ -547,13 +608,16 @@ class TestDeterministicReentryPostgreSQL:
     @pytest.fixture()
     def pg_reentry_service(self, pg_session_factory):
         """OrchestrationService wired for PG reentry testing."""
-        blocking_repo = BlockingRequestRepository(
-            inner=SqlAlchemyOrchestrationRequestRepository(),
-            request_created=threading.Event(),
-            allow_continue=threading.Event(),
+        a_created = threading.Event()
+        b_committed = threading.Event()
+        plain_repo = SqlAlchemyOrchestrationRequestRepository()
+        service = _make_service(
+            pg_session_factory,
+            plain_repo,
+            request_created=a_created,
+            allow_continue=b_committed,
         )
-        service = _make_service(pg_session_factory, blocking_repo)
-        return service, blocking_repo
+        return service, a_created, b_committed
 
     def test_concurrent_reentry_pg(
         self,
@@ -563,9 +627,7 @@ class TestDeterministicReentryPostgreSQL:
         if not os.environ.get("DATABASE_URL"):
             pytest.skip("DATABASE_URL not set")
 
-        service, blocking_repo = pg_reentry_service
-        a_created = blocking_repo._request_created
-        b_committed = blocking_repo._allow_continue
+        service, a_created, b_committed = pg_reentry_service
 
         # Seed
         with pg_session_factory() as s:
@@ -638,8 +700,39 @@ class TestDeterministicReentryPostgreSQL:
         assert pf_a.request_id != ""
         assert pf_b.request_id != ""
 
+        # PreflightFailure field mapping
+        assert pf_a.project_id == "p-1"
+        assert pf_a.project_version_id == "pv-nonexistent-a"
+        assert pf_a.error_class == "ProjectVersionNotFoundError"
+        assert pf_a.code == "PROJ_VERSION_NOT_FOUND"
+
+        assert pf_b.project_id == "p-1"
+        assert pf_b.project_version_id == "pv-nonexistent-b"
+        assert pf_b.error_class == "ProjectVersionNotFoundError"
+        assert pf_b.code == "PROJ_VERSION_NOT_FOUND"
+
+        cmd_a = OrchestrationRequestCommand(
+            project_id="p-1",
+            project_version_id="pv-nonexistent-a",
+            coefficient_resolution_context={},
+            actor="thread-a",
+            correlation_id="reentry-a",
+        )
+        cmd_b = OrchestrationRequestCommand(
+            project_id="p-1",
+            project_version_id="pv-nonexistent-b",
+            coefficient_resolution_context={},
+            actor="thread-b",
+            correlation_id="reentry-b",
+        )
+        fp_a = _compute_request_fingerprint(cmd_a)
+        fp_b = _compute_request_fingerprint(cmd_b)
+
         with pg_session_factory() as s:
-            for pf in (pf_a, pf_b):
+            for pf, expected_pv_id, expected_actor, expected_corr, expected_fp in (
+                (pf_a, "pv-nonexistent-a", "thread-a", "reentry-a", fp_a),
+                (pf_b, "pv-nonexistent-b", "thread-b", "reentry-b", fp_b),
+            ):
                 req = s.execute(
                     select(OrchestrationRequestRecord).where(
                         OrchestrationRequestRecord.id == pf.request_id
@@ -649,9 +742,16 @@ class TestDeterministicReentryPostgreSQL:
                     f"Request {pf.request_id} status: {req.status}"
                 )
                 assert req.id == pf.request_id
+                assert req.requested_project_version_id == expected_pv_id
+                assert req.actor == expected_actor
+                assert req.correlation_id == expected_corr
+                assert req.request_fingerprint == expected_fp
 
                 ev = s.execute(
                     select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
                 ).scalar_one_or_none()
                 assert ev is not None, f"No outbox event for request {pf.request_id}"
                 assert ev.event_type == "orchestration.request.rejected"
+                assert ev.request_id == pf.request_id
+                assert ev.payload["error_class"] == "ProjectVersionNotFoundError"
+                assert ev.payload["code"] == "PROJ_VERSION_NOT_FOUND"
