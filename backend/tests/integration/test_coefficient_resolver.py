@@ -114,6 +114,7 @@ def _criteria(
     *,
     project_id: str = "p-1",
     project_version_id: str = "pv-1",
+    product_category: str | None = None,
     product_type: str | None = None,
     zone_types: tuple[str, ...] = (),
     process_types: tuple[str, ...] = (),
@@ -123,6 +124,7 @@ def _criteria(
     return FrozenCoefficientResolutionCriteria(
         project_id=project_id,
         project_version_id=project_version_id,
+        product_category=product_category,
         product_type=product_type,
         zone_types=zone_types,
         process_types=process_types,
@@ -288,8 +290,7 @@ class TestRequiredCompleteness:
             session=tmp_session_factory(),
         )
         codes = {item["code"] for item in candidate.content["coefficients"]}
-        assert "REQUIRED" in codes
-        # EXTRA may or may not be included (resolver returns all applicable)
+        assert codes == {"REQUIRED"}, f"Only REQUIRED should be in context, got {codes}"
 
 
 class TestSupersession:

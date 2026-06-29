@@ -85,6 +85,29 @@ from cold_storage.modules.projects.infrastructure.orm import (
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
+# Authoritative required codes for the default calculator version vector
+# (must match service._AUTHORITATIVE_REQUIRED_CODES exactly)
+_REQUIRED_CODES: tuple[str, ...] = (
+    "area.auxiliary_area_ratio",
+    "area.circulation_allowance_ratio",
+    "investment.building_unit_cost",
+    "investment.electrical_installation_ratio",
+    "investment.other_expenses_ratio",
+    "investment.refrigeration_equipment_ratio",
+    "pallet.net_load_kg",
+    "pallet.turnover_factor",
+    "power.design_margin_ratio",
+    "power.standby_ratio",
+)
+_REGISTRY_VERSION = "1.0.0"
+_CV_VECTOR: dict[str, str] = {
+    "zone": "1.0.0",
+    "cooling_load": "1.0.0",
+    "equipment": "1.0.0",
+    "power": "1.0.0",
+    "investment": "1.0.0",
+}
+
 
 def _make_resolved_coefficient(
     *,
@@ -92,24 +115,43 @@ def _make_resolved_coefficient(
     project_version_id: str = "pv-1",
     extra: dict[str, object] | None = None,
 ) -> ResolvedCoefficientContextCandidate:
-    coefficient_item = {
-        "definition_id": "def-001",
-        "code": "PEAK_FACTOR",
-        "revision_id": "rev-001",
-        "revision_number": 1,
-        "unit": "dimensionless",
-        "source_type": "standard",
-        "status": "approved",
-        "value_decimal": "1.0",
-    }
+    coefficients: list[dict[str, object]] = []
+    revision_ids: list[str] = []
+    for i, code in enumerate(_REQUIRED_CODES, 1):
+        rev_id = f"rev-{i:03d}"
+        revision_ids.append(rev_id)
+        coefficients.append(
+            {
+                "definition_id": f"def-{i:03d}",
+                "code": code,
+                "revision_id": rev_id,
+                "revision_number": 1,
+                "unit": "dimensionless",
+                "source_type": "standard",
+                "status": "approved",
+                "value_decimal": "1.0",
+            }
+        )
+
+    req_hash = result_hash(
+        {
+            "registry_version": _REGISTRY_VERSION,
+            "calculator_version_vector": dict(_CV_VECTOR),
+            "required_codes": list(_REQUIRED_CODES),
+        }
+    )
+
     content: dict[str, object] = {
         "source_type": "catalog",
         "validity_status": "approved",
         "project_id": project_id,
         "project_version_id": project_version_id,
         "schema_version": "1.0.0",
-        "coefficient_count": 1,
-        "coefficients": [coefficient_item],
+        "coefficient_count": len(coefficients),
+        "coefficients": coefficients,
+        "requirement_registry_version": _REGISTRY_VERSION,
+        "required_codes": list(_REQUIRED_CODES),
+        "requirement_hash": req_hash,
     }
     if extra:
         content.update(extra)
@@ -119,7 +161,7 @@ def _make_resolved_coefficient(
         schema_version="1.0.0",
         content=content,
         content_hash=result_hash(content),
-        approved_revision_ids=("rev-001",),
+        approved_revision_ids=tuple(revision_ids),
     )
 
 
@@ -198,8 +240,13 @@ class _RealVersionPort(ProjectVersionReadPort):
         ).scalar_one_or_none()
         if record is None:
             return None
+        project_record = session.execute(
+            select(ProjectRecord).where(ProjectRecord.id == record.project_id)
+        ).scalar_one_or_none()
+        product_category = project_record.product_category if project_record else ""
         return _LoadedVersion(
             project_id=record.project_id,
+            project_product_category=product_category,
             status=record.status,
             version_number=record.version_number,
             input_snapshot=record.input_snapshot or {},

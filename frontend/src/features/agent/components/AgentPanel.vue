@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watchEffect } from 'vue'
 
 import { useAgent } from '../composables/useAgent'
 
@@ -49,14 +49,21 @@ function onDrawerKeydown(event: KeyboardEvent): void {
   }
 }
 
-/* Focus close button as first focusable element when drawer opens */
-watch(isOpen, (open) => {
-  if (open && closeButtonRef.value) {
-    closeButtonRef.value.focus()
-  } else if (open && drawerRef.value) {
-    drawerRef.value.focus()
-  }
-}, { flush: 'post' })
+/* Focus close button when drawer opens.
+   watchEffect with flush:'post' tracks both isOpen and closeButtonRef,
+   so it re-runs when the Teleport content renders and the ref is set.
+   This is more reliable than a plain watch on isOpen alone because
+   the ref may not be populated at watch-pre time in jsdom/Teleport. */
+watchEffect(
+  () => {
+    if (isOpen.value && closeButtonRef.value) {
+      closeButtonRef.value.focus()
+    } else if (isOpen.value && drawerRef.value) {
+      drawerRef.value.focus()
+    }
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>
