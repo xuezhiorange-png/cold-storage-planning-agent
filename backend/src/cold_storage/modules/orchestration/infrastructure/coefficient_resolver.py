@@ -566,10 +566,19 @@ class SqlAlchemyCoefficientResolutionAdapter:
         if revision.source_title:
             item["source_title"] = revision.source_title
         if revision.approved_at:
-            item["approved_at"] = revision.approved_at.isoformat()
+            approved = revision.approved_at
+            if approved.tzinfo is None:
+                approved = approved.replace(tzinfo=UTC)
+            item["approved_at"] = approved.astimezone(UTC).isoformat().replace("+00:00", "Z")
         if revision.valid_from:
-            item["valid_from"] = revision.valid_from.isoformat()
+            vf = revision.valid_from
+            if vf.tzinfo is None:
+                vf = vf.replace(tzinfo=UTC)
+            item["valid_from"] = vf.astimezone(UTC).isoformat().replace("+00:00", "Z")
         if revision.valid_to:
-            item["valid_to"] = revision.valid_to.isoformat()
+            vt = revision.valid_to
+            if vt.tzinfo is None:
+                vt = vt.replace(tzinfo=UTC)
+            item["valid_to"] = vt.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
         return item
