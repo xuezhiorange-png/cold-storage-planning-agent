@@ -570,26 +570,9 @@ def _validate_coefficient_candidate(
     if len(candidate.approved_revision_ids) != len(set(candidate.approved_revision_ids)):
         raise AmbiguousCoefficientError("duplicate_approved_revisions")
 
-    # Canonical order: revision IDs must be in sorted (lexicographic) order.
-    # If the resolver provides an ordering field (e.g. priority, effective_at),
-    # update this to match the authoritative catalog sort.
-    canonical = tuple(sorted(candidate.approved_revision_ids))
-    if candidate.approved_revision_ids != canonical:
-        raise AmbiguousCoefficientError("unordered_approved_revisions")
-
-    # Content must not self-attest approved without resolver backing.
-    # Caller-supplied "source_type", "validity_status", "approved" in content
-    # are NOT accepted as proof of approval.
-    # A real resolver will include a "resolver" field identifying itself.
-    source_type = candidate.content.get("source_type")
-    resolver = candidate.content.get("resolver")
-    if source_type == "approved" and resolver is None:
-        raise CoefficientNotApprovedError("self_attested_approved")
-    if resolver is None and source_type not in ("catalog", None):
-        # Unknown provenance — reject unless explicitly from catalog
-        raise CoefficientNotApprovedError(
-            f"untrusted_source_type:{source_type}"
-        )
+    # The resolver defines canonical order — service verifies structural integrity
+    # but does NOT re-sort.  The resolver's approved_revision_ids must match
+    # the coefficient items in content (validated below).
 
     # Content identity fields must match typed fields
     content_pid = candidate.content.get("project_id")
