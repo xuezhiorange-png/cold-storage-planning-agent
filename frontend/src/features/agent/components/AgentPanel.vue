@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useAgent } from '../composables/useAgent'
 
@@ -8,7 +8,43 @@ const { isOpen, availability, toggle, close, setToggleRef } = useAgent()
 const drawerRef = ref<HTMLElement | null>(null)
 const closeButtonRef = ref<HTMLButtonElement | null>(null)
 
-/* ── Focus management ────────────────────────────── */
+/* ── Focus management via MutationObserver ─────────
+   Uses a MutationObserver to detect when the close button
+   is added to the DOM by Teleport, then focuses it.
+   This is more reliable than Vue reactivity (watch/watchEffect)
+   across different jsdom versions and Node runtimes. */
+
+let focusObserver: MutationObserver | null = null
+
+function setupFocusObserver(): void {
+  if (typeof document === 'undefined') return
+  focusObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of Array.from(mutation.addedNodes)) {
+        if (!(node instanceof HTMLElement)) continue
+        const btn =
+          node.matches?.('.agent-panel__close-btn')
+            ? node
+            : node.querySelector?.('.agent-panel__close-btn')
+        if (btn instanceof HTMLButtonElement) {
+          closeButtonRef.value = btn
+          btn.focus()
+          return
+        }
+      }
+    }
+  })
+  focusObserver.observe(document.body, { childList: true, subtree: true })
+}
+
+onMounted(setupFocusObserver)
+
+onUnmounted(() => {
+  focusObserver?.disconnect()
+  focusObserver = null
+})
+
+/* ── Keyboard / focus trap ───────────────────────── */
 
 function getFocusableElements(): HTMLElement[] {
   if (!drawerRef.value) return []
@@ -48,22 +84,6 @@ function onDrawerKeydown(event: KeyboardEvent): void {
     }
   }
 }
-
-/* Focus close button when drawer opens.
-   watchEffect with flush:'post' tracks both isOpen and closeButtonRef,
-   so it re-runs when the Teleport content renders and the ref is set.
-   This is more reliable than a plain watch on isOpen alone because
-   the ref may not be populated at watch-pre time in jsdom/Teleport. */
-watchEffect(
-  () => {
-    if (isOpen.value && closeButtonRef.value) {
-      closeButtonRef.value.focus()
-    } else if (isOpen.value && drawerRef.value) {
-      drawerRef.value.focus()
-    }
-  },
-  { flush: 'post' },
-)
 </script>
 
 <template>
