@@ -290,6 +290,7 @@ class OrchestrationService:
             project_id=command.project_id,
             project_version_id=command.project_version_id,
             coefficient_resolution_context=dict(command.coefficient_resolution_context),
+            session=session,
         )
 
         # P0-5: Validate the resolved coefficient candidate
@@ -579,9 +580,16 @@ def _validate_coefficient_candidate(
     # Content must not self-attest approved without resolver backing.
     # Caller-supplied "source_type", "validity_status", "approved" in content
     # are NOT accepted as proof of approval.
+    # A real resolver will include a "resolver" field identifying itself.
     source_type = candidate.content.get("source_type")
-    if source_type == "approved":
+    resolver = candidate.content.get("resolver")
+    if source_type == "approved" and resolver is None:
         raise CoefficientNotApprovedError("self_attested_approved")
+    if resolver is None and source_type not in ("catalog", None):
+        # Unknown provenance — reject unless explicitly from catalog
+        raise CoefficientNotApprovedError(
+            f"untrusted_source_type:{source_type}"
+        )
 
     # Content identity fields must match typed fields
     content_pid = candidate.content.get("project_id")

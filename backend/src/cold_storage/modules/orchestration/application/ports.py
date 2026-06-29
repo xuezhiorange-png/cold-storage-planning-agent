@@ -51,6 +51,9 @@ class CoefficientResolutionPreflightPort(Protocol):
     Returns a typed ``ResolvedCoefficientContextCandidate`` with verified
     approved revisions.  The caller must not forge ``source_type=approved``
     in the payload — that field comes from the catalog.
+
+    The resolver may receive the current Transaction A session (or None
+    for test doubles).  It MUST NOT create sessions, commit, or rollback.
     """
 
     def resolve(
@@ -59,6 +62,7 @@ class CoefficientResolutionPreflightPort(Protocol):
         project_id: str,
         project_version_id: str,
         coefficient_resolution_context: dict[str, object],
+        session: object | None = None,
     ) -> ResolvedCoefficientContextCandidate:
         """Return a verified coefficient candidate.
 

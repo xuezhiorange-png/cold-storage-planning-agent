@@ -887,7 +887,14 @@ class TestTrueServiceReentry:
     def test_concurrent_rejection_no_request_id_crosstalk(self, service, session_factory) -> None:
         """Two threads interleave on the same service instance.
         Both threads call execute with different version IDs that trigger
-        preflight rejection. Each must get its own request_id."""
+        preflight rejection. Each must get its own request_id.
+
+        Skipped on SQLite StaticPool — requires PostgreSQL for threading."""
+        import os
+
+        if os.environ.get("DATABASE_BACKEND") != "postgresql":
+            pytest.skip("Threading reentry requires PostgreSQL")
+
         import threading
 
         with session_factory() as s:
