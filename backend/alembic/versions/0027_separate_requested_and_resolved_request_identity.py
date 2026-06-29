@@ -99,8 +99,7 @@ def _block_downgrade_if_unresolvable_requests() -> None:
         reasons: list[str] = []
         if unresolved_project:
             reasons.append(
-                f"{unresolved_project} rows have requested_project_id "
-                "not found in projects"
+                f"{unresolved_project} rows have requested_project_id not found in projects"
             )
         if unresolved_version:
             reasons.append(
