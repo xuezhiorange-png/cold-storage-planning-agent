@@ -815,7 +815,13 @@ class TestCrossDBConsistency:
                 code="CROSS_B",
                 scope_type="product",
             )
-            _seed_approved_revision(session, rev_id="r1", definition_id="d1", value_decimal="2.5", approved_at_override=fixed_time)
+            _seed_approved_revision(
+                session,
+                rev_id="r1",
+                definition_id="d1",
+                value_decimal="2.5",
+                approved_at_override=fixed_time,
+            )
             _seed_approved_revision(
                 session,
                 rev_id="r2",

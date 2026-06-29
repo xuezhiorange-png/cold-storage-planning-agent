@@ -70,6 +70,7 @@ def _seed_identity(
             created_at=datetime.now(UTC),
         )
     )
+    session.flush()  # Ensure PK visible for FK checks
     session.add(
         ProjectVersionRecord(
             id=version_id,
@@ -82,6 +83,7 @@ def _seed_identity(
             input_snapshot={"throughput_t": "25.0"},
         )
     )
+    session.flush()  # Ensure PK visible for FK checks
     snap = ProjectVersionExecutionSnapshotRecord(
         id="snap-1",
         project_id=project_id,
@@ -102,6 +104,7 @@ def _seed_identity(
         schema_version="1.0.0",
     )
     session.add(coeff)
+    session.flush()  # Ensure PK visible for FK checks
     identity = OrchestrationIdentityRecord(
         id=identity_id,
         fingerprint=fingerprint,
