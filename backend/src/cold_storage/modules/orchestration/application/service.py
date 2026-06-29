@@ -38,6 +38,8 @@ from cold_storage.modules.orchestration.application.coefficient_contracts import
     FrozenCoefficientResolutionCriteria,
     canonical_revision_ids,
     coefficient_item_sort_key,
+    derive_required_codes_for_version_vector,
+    validate_required_codes,
 )
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
@@ -80,24 +82,43 @@ from cold_storage.modules.orchestration.infrastructure.repositories import (
 
 
 class ProjectVersionReadPort(Protocol):
-    """Read-only port for loading ProjectVersion and its input data."""
+    """Read-only port for loading ProjectVersion and its input data.
+
+    Implementations MUST load ``project_product_category`` from
+    ``ProjectRecord`` (the authoritative source), not from the
+    ``input_snapshot`` or caller.
+    """
 
     def load_by_id(self, session: object, project_version_id: str) -> _LoadedVersion | None: ...
 
 
 class _LoadedVersion:
-    """Value object returned by ``ProjectVersionReadPort.load_by_id``."""
+    """Value object returned by ``ProjectVersionReadPort.load_by_id``.
 
-    __slots__ = ("project_id", "status", "version_number", "input_snapshot")
+    ``project_product_category`` comes from ``ProjectRecord.product_category``
+    (the authoritative source).  If the snapshot also contains a
+    ``product_category`` field, it must match — otherwise a typed rejection
+    is raised.
+    """
+
+    __slots__ = (
+        "project_id",
+        "project_product_category",
+        "status",
+        "version_number",
+        "input_snapshot",
+    )
 
     def __init__(
         self,
         project_id: str,
+        project_product_category: str,
         status: str,
         version_number: int = 0,
         input_snapshot: dict[str, object] | None = None,
     ) -> None:
         self.project_id = project_id
+        self.project_product_category = project_product_category
         self.status = status
         self.version_number = version_number
         self.input_snapshot: dict[str, object] = input_snapshot or {}
@@ -161,6 +182,21 @@ _SOURCE_SNAPSHOT_SCHEMA_VERSION = "1.0.0"
 _SNAPSHOT_SCHEMA_VERSION = "1.0.0"
 _COEFFICIENT_SCHEMA_VERSION = "1.0.0"
 _SUPPORTED_COEFFICIENT_SCHEMA_VERSIONS: frozenset[str] = frozenset({"1.0.0"})
+
+# Registry version — bumped when REQUIRED_COEFFICIENTS_BY_CALCULATOR_VERSION changes
+_REQUIREMENT_REGISTRY_VERSION = "1.0.0"
+
+# Authoritative required codes derived from the calculator version vector
+_AUTHORITATIVE_REQUIRED_CODES: tuple[str, ...] = derive_required_codes_for_version_vector(
+    _CALCULATOR_VERSION_VECTOR,
+)
+_AUTHORITATIVE_REQUIREMENT_HASH: str = result_hash(
+    {
+        "registry_version": _REQUIREMENT_REGISTRY_VERSION,
+        "calculator_version_vector": dict(_CALCULATOR_VERSION_VECTOR),
+        "required_codes": list(_AUTHORITATIVE_REQUIRED_CODES),
+    }
+)
 
 
 class OrchestrationService:
@@ -277,7 +313,7 @@ class OrchestrationService:
         rollback → only the PENDING request survives → rejection persists.
         """
 
-        # 3 — Load + validate ProjectVersion
+        # 3 — Load + validate ProjectVersion (now includes ProjectRecord authority)
         version = self._version_port.load_by_id(session, command.project_version_id)
         if version is None:
             raise ProjectVersionNotFoundError(command.project_version_id)
@@ -293,6 +329,7 @@ class OrchestrationService:
         )
 
         # Derive frozen coefficient resolution criteria from ProjectVersion
+        # and ProjectRecord authority
         frozen_criteria = _derive_frozen_criteria(
             command=command,
             version=version,
@@ -519,13 +556,166 @@ def _validate_version_status(version: _LoadedVersion, pv_id: str) -> None:
 
 
 # ── Frozen coefficient resolution criteria derivation ───────────────────────
+#
+# Authoritative required codes come from the calculator-version registry
+# (``REQUIRED_COEFFICIENTS_BY_CALCULATOR_VERSION``).  The snapshot MAY
+# carry a ``required_coefficient_codes`` reference, but if present it
+# MUST exactly match the authoritative set.  Empty snapshot override
+# cannot erase a non-empty authoritative set.
 
-# Frozen required coefficient codes by project product_category.
-# This is the authoritative read-only contract — caller-controlled
-# required_codes are NEVER accepted.
-_FROZEN_REQUIRED_COEFFICIENTS_BY_PRODUCT: dict[str, tuple[str, ...]] = {
-    "blueberry": ("PEAK_FACTOR",),
+
+# ── Caller conflict validation helpers ──────────────────────────────────────
+# All recognized caller context aliases that must not conflict with frozen criteria.
+_CALLER_CONTEXT_ALIASES: dict[str, tuple[str, ...]] = {
+    "product_type": ("product_type",),
+    "product_category": ("product_category",),
+    "zone_type": ("zone_type", "zone_types"),
+    "zone_types": ("zone_type", "zone_types"),
+    "process_type": ("process_type", "process_types"),
+    "process_types": ("process_type", "process_types"),
+    "required_codes": ("required_codes", "required_coefficient_codes"),
+    "required_coefficient_codes": ("required_codes", "required_coefficient_codes"),
 }
+
+# Caller self-attestation fields that must be completely ignored
+_IGNORED_CALLER_FIELDS: frozenset[str] = frozenset(
+    {
+        "approved_revision_ids",
+        "status",
+        "validity_status",
+        "approved",
+    }
+)
+
+
+def _extract_caller_value(
+    caller_ctx: dict[str, object],
+    primary_key: str,
+) -> object | None:
+    """Extract a value from caller context, checking all aliases for the key."""
+    aliases = _CALLER_CONTEXT_ALIASES.get(primary_key, (primary_key,))
+    found_value: object | None = None
+    found_count = 0
+    for alias in aliases:
+        if alias in caller_ctx:
+            val = caller_ctx[alias]
+            if val is not None:
+                found_value = val
+                found_count += 1
+    # If multiple aliases are present, they must agree
+    if found_count > 1:
+        values_seen: list[object] = []
+        for alias in aliases:
+            if alias in caller_ctx and caller_ctx[alias] is not None:
+                values_seen.append(caller_ctx[alias])
+        # Check all values are equivalent
+        if len(set(str(v) for v in values_seen)) > 1:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller context aliases for {primary_key!r} disagree: "
+                f"{dict((a, caller_ctx.get(a)) for a in aliases if a in caller_ctx)}",
+            )
+    return found_value
+
+
+def _validate_caller_conflicts(
+    *,
+    caller_ctx: dict[str, object],
+    product_category: str | None,
+    product_type: str | None,
+    zone_types: tuple[str, ...],
+    process_types: tuple[str, ...],
+    required_codes: tuple[str, ...],
+) -> None:
+    """Validate that caller context does not conflict with frozen criteria.
+
+    All recognized aliases are checked.  Approval/status/revision self-attestation
+    fields are ignored.  Type errors are rejected.
+    """
+    # Product category conflict
+    caller_pc = _extract_caller_value(caller_ctx, "product_category")
+    if caller_pc is not None and product_category is not None:
+        if not isinstance(caller_pc, str):
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller product_category must be str, got {type(caller_pc).__name__}",
+            )
+        if caller_pc.strip() != product_category:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller product_category {caller_pc!r} != frozen {product_category!r}",
+            )
+
+    # Product type conflict
+    caller_pt = _extract_caller_value(caller_ctx, "product_type")
+    if caller_pt is not None and product_type is not None:
+        if not isinstance(caller_pt, str):
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller product_type must be str, got {type(caller_pt).__name__}",
+            )
+        if caller_pt.strip() != product_type:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller product_type {caller_pt!r} != frozen {product_type!r}",
+            )
+
+    # Zone type conflict
+    caller_zt = _extract_caller_value(caller_ctx, "zone_type")
+    if caller_zt is not None and zone_types:
+        if isinstance(caller_zt, str):
+            caller_zt_list = [caller_zt.strip()]
+        elif isinstance(caller_zt, (list, tuple)):
+            caller_zt_list = [str(z).strip() for z in caller_zt if isinstance(z, str) and z.strip()]
+        else:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller zone_type must be str or list, got {type(caller_zt).__name__}",
+            )
+        frozen_zt = sorted(zone_types)
+        if sorted(caller_zt_list) != frozen_zt:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller zone_types {sorted(caller_zt_list)!r} != frozen {frozen_zt!r}",
+            )
+
+    # Process type conflict
+    caller_pr = _extract_caller_value(caller_ctx, "process_type")
+    if caller_pr is not None and process_types:
+        if isinstance(caller_pr, str):
+            caller_pr_list = [caller_pr.strip()]
+        elif isinstance(caller_pr, (list, tuple)):
+            caller_pr_list = [str(p).strip() for p in caller_pr if isinstance(p, str) and p.strip()]
+        else:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller process_type must be str or list, got {type(caller_pr).__name__}",
+            )
+        frozen_pr = sorted(process_types)
+        if sorted(caller_pr_list) != frozen_pr:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller process_types {sorted(caller_pr_list)!r} != frozen {frozen_pr!r}",
+            )
+
+    # Required codes conflict
+    caller_req = _extract_caller_value(caller_ctx, "required_codes")
+    if caller_req is not None and required_codes:
+        if isinstance(caller_req, (list, tuple)):
+            validated = validate_required_codes(caller_req, field_name="caller_required_codes")
+            frozen_set = set(required_codes)
+            caller_set = set(validated)
+            if caller_set != frozen_set:
+                raise CoefficientResolutionError(
+                    "criteria_conflict",
+                    f"Caller required_codes {sorted(caller_set)!r}"
+                    f" != frozen {sorted(frozen_set)!r}",
+                )
+        else:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Caller required_codes must be list/tuple, got {type(caller_req).__name__}",
+            )
 
 
 def _derive_frozen_criteria(
@@ -534,72 +724,93 @@ def _derive_frozen_criteria(
     version: _LoadedVersion,
 ) -> FrozenCoefficientResolutionCriteria:
     """Derive authoritative coefficient resolution criteria from the frozen
-    ProjectVersion and project data — never from the caller's
-    coefficient_resolution_context.
+    ProjectVersion, ProjectRecord authority, and the calculator-version
+    registry.
 
     The caller's context is validated for consistency; conflicts raise
     a typed CoefficientResolutionError.
+
+    The authoritative required codes come from
+    ``REQUIRED_COEFFICIENTS_BY_CALCULATOR_VERSION`` via
+    ``_CALCULATOR_VERSION_VECTOR``.  The snapshot MAY carry a
+    ``required_coefficient_codes`` field, but if present it MUST
+    exactly match the authoritative set.
     """
     input_snapshot = version.input_snapshot
 
-    # Extract product_type from project input_snapshot
+    # ── Product category from ProjectRecord (authoritative) ─────────────
+    product_category: str | None = version.project_product_category
+
+    # If snapshot also has product_category, it must match
+    snapshot_pc = input_snapshot.get("product_category")
+    if snapshot_pc is not None:
+        if not isinstance(snapshot_pc, str):
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Snapshot product_category must be str, got {type(snapshot_pc).__name__}",
+            )
+        if snapshot_pc.strip() != product_category:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Snapshot product_category {snapshot_pc!r} != ProjectRecord {product_category!r}",
+            )
+
+    # ── Product type from snapshot ──────────────────────────────────────
     product_type: str | None = None
     raw_pt = input_snapshot.get("product_type")
     if isinstance(raw_pt, str) and raw_pt.strip():
         product_type = raw_pt.strip()
 
-    # Extract zone_types from input_snapshot
+    # ── Zone types from snapshot ────────────────────────────────────────
     zone_types: tuple[str, ...] = ()
     raw_zt = input_snapshot.get("zone_types")
     if isinstance(raw_zt, list):
         zone_types = tuple(str(z) for z in raw_zt if isinstance(z, str) and z.strip())
 
-    # Extract process_types from input_snapshot
+    # ── Process types from snapshot ─────────────────────────────────────
     process_types: tuple[str, ...] = ()
     raw_pr = input_snapshot.get("process_types")
     if isinstance(raw_pr, list):
         process_types = tuple(str(p) for p in raw_pr if isinstance(p, str) and p.strip())
 
-    # Derive required codes from frozen registry (by product_category)
-    # The caller's required_codes are validated but never become authority.
-    required_codes: tuple[str, ...] = ()
-    product_category = input_snapshot.get("product_category")
-    if isinstance(product_category, str) and product_category.strip():
-        required_codes = _FROZEN_REQUIRED_COEFFICIENTS_BY_PRODUCT.get(product_category.strip(), ())
+    # ── Required codes: authoritative from registry ─────────────────────
+    # Snapshot MAY carry required_coefficient_codes, but it MUST exactly
+    # match the authoritative set.  Empty snapshot override cannot erase
+    # a non-empty authoritative set.
+    required_codes = _AUTHORITATIVE_REQUIRED_CODES
 
-    # Also check input_snapshot for explicit required_coefficient_codes override
     raw_req = input_snapshot.get("required_coefficient_codes")
-    if isinstance(raw_req, list):
-        required_codes = tuple(str(c) for c in raw_req if isinstance(c, str) and c.strip())
-
-    # Validate caller context does not conflict with frozen criteria
-    caller_ctx = dict(command.coefficient_resolution_context)
-
-    caller_product = caller_ctx.get("product_type")
-    if (
-        caller_product is not None
-        and product_type is not None
-        and str(caller_product) != product_type
-    ):
-        raise CoefficientResolutionError(
-            "criteria_conflict",
-            f"Caller product_type {caller_product!r} != frozen {product_type!r}",
+    if raw_req is not None:
+        validated_snapshot_req = validate_required_codes(
+            raw_req, field_name="snapshot_required_coefficient_codes"
         )
-
-    caller_required = caller_ctx.get("required_codes")
-    if isinstance(caller_required, list) and required_codes:
-        caller_codes = set(str(c) for c in caller_required)
-        frozen_codes = set(required_codes)
-        if caller_codes != frozen_codes:
+        if set(validated_snapshot_req) != set(required_codes):
             raise CoefficientResolutionError(
                 "criteria_conflict",
-                f"Callee required_codes {sorted(caller_codes)!r}"
-                f" != frozen {sorted(frozen_codes)!r}",
+                f"Snapshot required_coefficient_codes {sorted(validated_snapshot_req)!r} "
+                f"!= authoritative {sorted(required_codes)!r}",
             )
+
+    # ── Validate caller context conflicts ───────────────────────────────
+    caller_ctx = dict(command.coefficient_resolution_context)
+
+    # Ignored self-attestation fields — strip them before validation
+    for ignored_field in _IGNORED_CALLER_FIELDS:
+        caller_ctx.pop(ignored_field, None)
+
+    _validate_caller_conflicts(
+        caller_ctx=caller_ctx,
+        product_category=product_category,
+        product_type=product_type,
+        zone_types=zone_types,
+        process_types=process_types,
+        required_codes=required_codes,
+    )
 
     return FrozenCoefficientResolutionCriteria(
         project_id=command.project_id,
         project_version_id=command.project_version_id,
+        product_category=product_category,
         product_type=product_type,
         zone_types=zone_types,
         process_types=process_types,
@@ -690,6 +901,15 @@ def _validate_coefficient_candidate(
 
     # ── Structural integrity checks ──────────────────────────────────
     _validate_coefficient_content_structure(candidate)
+
+    # ── Audit fields: verify requirement registry reference ──────────
+    content_req_version = candidate.content.get("requirement_registry_version")
+    if content_req_version is not None and content_req_version != _REQUIREMENT_REGISTRY_VERSION:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"Content requirement_registry_version {content_req_version!r} != "
+            f"service {_REQUIREMENT_REGISTRY_VERSION!r}",
+        )
 
 
 def _validate_coefficient_content_structure(
