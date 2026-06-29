@@ -22,7 +22,11 @@ from cold_storage.modules.coefficients.infrastructure.orm import (
     CoefficientDefinitionRecord,
     CoefficientRevisionRecord,
 )
+from cold_storage.modules.orchestration.application.coefficient_contracts import (
+    FrozenCoefficientResolutionCriteria,
+)
 from cold_storage.modules.orchestration.domain.errors import (
+    AmbiguousCoefficientError,
     CoefficientNotApprovedError,
     CoefficientResolutionError,
 )
@@ -103,6 +107,29 @@ def _seed_approved_revision(
     return rev
 
 
+# ── Test helpers ────────────────────────────────────────────────────────────
+
+
+def _criteria(
+    *,
+    project_id: str = "p-1",
+    project_version_id: str = "pv-1",
+    product_type: str | None = None,
+    zone_types: tuple[str, ...] = (),
+    process_types: tuple[str, ...] = (),
+    required_codes: tuple[str, ...] = (),
+) -> FrozenCoefficientResolutionCriteria:
+    """Build frozen criteria for test resolver calls."""
+    return FrozenCoefficientResolutionCriteria(
+        project_id=project_id,
+        project_version_id=project_version_id,
+        product_type=product_type,
+        zone_types=zone_types,
+        process_types=process_types,
+        required_codes=required_codes,
+    )
+
+
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
 
@@ -125,9 +152,7 @@ class TestScopeGlobal:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={"product_type": "blueberry"},
+            criteria=_criteria(required_codes=("PEAK_FACTOR",), product_type="blueberry"),
             session=tmp_session_factory(),
         )
         assert len(candidate.approved_revision_ids) == 1
@@ -161,9 +186,7 @@ class TestScopeProduct:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={"product_type": "blueberry"},
+            criteria=_criteria(required_codes=("PROD_COEFF",), product_type="blueberry"),
             session=tmp_session_factory(),
         )
         # Only r1 (blueberry) should be selected
@@ -183,9 +206,7 @@ class TestScopeProduct:
         # No revision matches strawberry — should raise
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={"product_type": "strawberry"},
+                criteria=_criteria(required_codes=("PROD_COEFF",), product_type="strawberry"),
                 session=tmp_session_factory(),
             )
 
@@ -205,9 +226,7 @@ class TestScopeZone:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={"zone_type": "precooling"},
+            criteria=_criteria(required_codes=("ZONE_COEFF",), zone_types=("precooling",)),
             session=tmp_session_factory(),
         )
         assert "r1" in candidate.approved_revision_ids
@@ -227,11 +246,13 @@ class TestRequiredCompleteness:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={
-                "required_codes": ["CODE_A", "CODE_B", "CODE_C"],
-            },
+            criteria=_criteria(
+                required_codes=(
+                    "CODE_A",
+                    "CODE_B",
+                    "CODE_C",
+                )
+            ),
             session=tmp_session_factory(),
         )
         codes = {item["code"] for item in candidate.content["coefficients"]}
@@ -245,11 +266,12 @@ class TestRequiredCompleteness:
 
         with pytest.raises(CoefficientNotApprovedError, match="required_coefficient_missing"):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={
-                    "required_codes": ["CODE_A", "CODE_B"],
-                },
+                criteria=_criteria(
+                    required_codes=(
+                        "CODE_A",
+                        "CODE_B",
+                    )
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -262,11 +284,7 @@ class TestRequiredCompleteness:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={
-                "required_codes": ["REQUIRED"],
-            },
+            criteria=_criteria(required_codes=("REQUIRED",)),
             session=tmp_session_factory(),
         )
         codes = {item["code"] for item in candidate.content["coefficients"]}
@@ -291,9 +309,9 @@ class TestSupersession:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={},
+            criteria=_criteria(
+                required_codes=("SINGLE",),
+            ),
             session=tmp_session_factory(),
         )
         assert candidate.approved_revision_ids == ("r2",)
@@ -319,9 +337,9 @@ class TestSupersession:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={},
+            criteria=_criteria(
+                required_codes=("LEVELS",),
+            ),
             session=tmp_session_factory(),
         )
         # r3 supersedes r2 which supersedes r1 → r3 is terminal
@@ -341,9 +359,9 @@ class TestSupersession:
 
         with pytest.raises(CoefficientResolutionError, match="supersession"):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("LOOP",),
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -368,13 +386,14 @@ class TestSupersession:
 
         with pytest.raises(CoefficientResolutionError, match="cycle"):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("CYCLE",),
+                ),
                 session=tmp_session_factory(),
             )
 
-    def test_multiple_terminal_heads_highest_wins(self, resolver, tmp_session_factory) -> None:
+    def test_multiple_terminal_heads_rejected(self, resolver, tmp_session_factory) -> None:
+        """Multiple un-superseded terminal heads → AmbiguousCoefficientError."""
         with tmp_session_factory() as s:
             _seed_definition(s, def_id="d1", code="MULTI")
             _seed_approved_revision(
@@ -387,18 +406,17 @@ class TestSupersession:
                 s,
                 rev_id="r2",
                 definition_id="d1",
-                revision_number=2,  # higher number wins
+                revision_number=2,
             )
             s.commit()
 
-        candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={},
-            session=tmp_session_factory(),
-        )
-        # r2 has higher revision_number, should be selected
-        assert candidate.approved_revision_ids == ("r2",)
+        with pytest.raises(AmbiguousCoefficientError, match="ambiguous"):
+            resolver.resolve(
+                criteria=_criteria(
+                    required_codes=("MULTI",),
+                ),
+                session=tmp_session_factory(),
+            )
 
     def test_superseded_revision_withdrawn(self, resolver, tmp_session_factory) -> None:
         """Superseding revision that is withdrawn should not be terminal."""
@@ -417,9 +435,9 @@ class TestSupersession:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={},
+            criteria=_criteria(
+                required_codes=("WITHDRAWN",),
+            ),
             session=tmp_session_factory(),
         )
         # r2 is withdrawn so not included, r1 is not superseded
@@ -435,8 +453,9 @@ class TestValueCanonicalization:
         """1.0 and 1.00 should produce identical coefficient value in content."""
 
         def _resolve_with_value(value: str):
+            code = f"EQ_{value}"
             with tmp_session_factory() as s:
-                _seed_definition(s, def_id=f"d_{value}", code=f"EQ_{value}")
+                _seed_definition(s, def_id=f"d_{value}", code=code)
                 _seed_approved_revision(
                     s,
                     rev_id=f"r_{value}",
@@ -445,9 +464,7 @@ class TestValueCanonicalization:
                 )
                 s.commit()
             return resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(required_codes=(code,)),
                 session=tmp_session_factory(),
             )
 
@@ -471,9 +488,9 @@ class TestValueCanonicalization:
                 _seed_approved_revision(s, rev_id="r1", definition_id="d1", value_decimal=value)
                 s.commit()
             candidate = resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("CHG",),
+                ),
                 session=tmp_session_factory(),
             )
             return candidate.content_hash
@@ -512,9 +529,9 @@ class TestValueCanonicalization:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={},
+            criteria=_criteria(
+                required_codes=("JSON",),
+            ),
             session=tmp_session_factory(),
         )
         coeffs = candidate.content["coefficients"]
@@ -535,9 +552,9 @@ class TestCallerIsolation:
         # Even with caller context claiming approved, only DB state matters
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={"status": "approved"},
+                criteria=_criteria(
+                    required_codes=("ISO",),
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -549,11 +566,9 @@ class TestCallerIsolation:
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={
-                "approved_revision_ids": ["fake-rev-999"],
-            },
+            criteria=_criteria(
+                required_codes=("ISO2",),
+            ),
             session=tmp_session_factory(),
         )
         # Must still use r1 from DB, not fake-rev-999 from caller
@@ -571,9 +586,9 @@ class TestInactiveDraftExpired:
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("INACTIVE",),
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -585,9 +600,9 @@ class TestInactiveDraftExpired:
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("DRAFT",),
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -606,9 +621,9 @@ class TestInactiveDraftExpired:
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("EXPIRED",),
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -626,9 +641,9 @@ class TestInactiveDraftExpired:
 
         with pytest.raises(CoefficientNotApprovedError):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("FUTURE",),
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -641,17 +656,26 @@ class TestMultiDefinition:
             _seed_definition(s, def_id="d1", code="CODE_A")
             _seed_definition(s, def_id="d2", code="CODE_B")
             _seed_approved_revision(s, rev_id="r1a", definition_id="d1", revision_number=1)
-            _seed_approved_revision(s, rev_id="r1b", definition_id="d1", revision_number=2)
+            _seed_approved_revision(
+                s,
+                rev_id="r1b",
+                definition_id="d1",
+                revision_number=2,
+                supersedes_revision_id="r1a",
+            )
             _seed_approved_revision(s, rev_id="r2a", definition_id="d2", revision_number=1)
             s.commit()
 
         candidate = resolver.resolve(
-            project_id="p-1",
-            project_version_id="pv-1",
-            coefficient_resolution_context={},
+            criteria=_criteria(
+                required_codes=(
+                    "CODE_A",
+                    "CODE_B",
+                ),
+            ),
             session=tmp_session_factory(),
         )
-        # d1: r1b (higher revision_number)
+        # d1: r1b supersedes r1a → single terminal head
         # d2: r2a (only one)
         assert set(candidate.approved_revision_ids) == {"r1b", "r2a"}
         assert candidate.content["coefficient_count"] == 2
@@ -668,9 +692,9 @@ class TestUnsupportedScope:
 
         with pytest.raises(CoefficientResolutionError, match="unsupported_scope"):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("PROJ_SCOPE",),
+                ),
                 session=tmp_session_factory(),
             )
 
@@ -682,8 +706,8 @@ class TestUnsupportedScope:
 
         with pytest.raises(CoefficientResolutionError, match="unsupported_scope"):
             resolver.resolve(
-                project_id="p-1",
-                project_version_id="pv-1",
-                coefficient_resolution_context={},
+                criteria=_criteria(
+                    required_codes=("PV_SCOPE",),
+                ),
                 session=tmp_session_factory(),
             )
