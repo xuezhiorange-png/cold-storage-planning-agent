@@ -213,11 +213,15 @@ class _HeartbeatMutatingHooks:
     ) -> None:
         if running_attempt is not None:
             self.lookup_count += 1
+            # Mutate heartbeat to a DIFFERENT stale time each iteration.
+            # Keeps age > _LEASE_TIMEOUT_SECONDS so acquire() still tries
+            # CAS takeover, but the CAS WHERE clause won't match.
+            new_stale = datetime.now(UTC) - timedelta(minutes=10, seconds=self.lookup_count)
             with self._sf() as s:
                 s.execute(
                     OrchestrationRunAttemptRecord.__table__.update()
                     .where(OrchestrationRunAttemptRecord.id == running_attempt["id"])
-                    .values(heartbeat_at=datetime.now(UTC))
+                    .values(heartbeat_at=new_stale)
                 )
                 s.commit()
 
