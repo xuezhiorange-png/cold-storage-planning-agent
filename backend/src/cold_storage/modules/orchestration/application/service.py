@@ -40,6 +40,7 @@ from cold_storage.modules.orchestration.application.coefficient_contracts import
     coefficient_item_sort_key,
     derive_required_codes_for_version_vector,
     validate_required_codes,
+    validate_string_sequence,
 )
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
@@ -662,54 +663,55 @@ def _validate_caller_conflicts(
 
     # Zone type conflict
     caller_zt = _extract_caller_value(caller_ctx, "zone_type")
-    if caller_zt is not None and zone_types:
-        if isinstance(caller_zt, str):
-            caller_zt_list = [caller_zt.strip()]
-        elif isinstance(caller_zt, (list, tuple)):
-            caller_zt_list = [str(z).strip() for z in caller_zt if isinstance(z, str) and z.strip()]
-        else:
+    if caller_zt is not None:
+        caller_zt_tuple = validate_string_sequence(caller_zt, field_name="caller_zone_type")
+        if not zone_types and caller_zt_tuple:
             raise CoefficientResolutionError(
                 "criteria_conflict",
-                f"Caller zone_type must be str or list, got {type(caller_zt).__name__}",
+                f"Frozen zone_types is empty but caller provides {sorted(caller_zt_tuple)!r}",
             )
-        frozen_zt = sorted(zone_types)
-        if sorted(caller_zt_list) != frozen_zt:
-            raise CoefficientResolutionError(
-                "criteria_conflict",
-                f"Caller zone_types {sorted(caller_zt_list)!r} != frozen {frozen_zt!r}",
-            )
+        if zone_types:
+            frozen_zt = sorted(zone_types)
+            if sorted(caller_zt_tuple) != frozen_zt:
+                raise CoefficientResolutionError(
+                    "criteria_conflict",
+                    f"Caller zone_types {sorted(caller_zt_tuple)!r} != frozen {frozen_zt!r}",
+                )
 
     # Process type conflict
     caller_pr = _extract_caller_value(caller_ctx, "process_type")
-    if caller_pr is not None and process_types:
-        if isinstance(caller_pr, str):
-            caller_pr_list = [caller_pr.strip()]
-        elif isinstance(caller_pr, (list, tuple)):
-            caller_pr_list = [str(p).strip() for p in caller_pr if isinstance(p, str) and p.strip()]
-        else:
+    if caller_pr is not None:
+        caller_pr_tuple = validate_string_sequence(caller_pr, field_name="caller_process_type")
+        if not process_types and caller_pr_tuple:
             raise CoefficientResolutionError(
                 "criteria_conflict",
-                f"Caller process_type must be str or list, got {type(caller_pr).__name__}",
+                f"Frozen process_types is empty but caller provides {sorted(caller_pr_tuple)!r}",
             )
-        frozen_pr = sorted(process_types)
-        if sorted(caller_pr_list) != frozen_pr:
-            raise CoefficientResolutionError(
-                "criteria_conflict",
-                f"Caller process_types {sorted(caller_pr_list)!r} != frozen {frozen_pr!r}",
-            )
+        if process_types:
+            frozen_pr = sorted(process_types)
+            if sorted(caller_pr_tuple) != frozen_pr:
+                raise CoefficientResolutionError(
+                    "criteria_conflict",
+                    f"Caller process_types {sorted(caller_pr_tuple)!r} != frozen {frozen_pr!r}",
+                )
 
     # Required codes conflict
     caller_req = _extract_caller_value(caller_ctx, "required_codes")
-    if caller_req is not None and required_codes:
+    if caller_req is not None:
+        if not required_codes:
+            # frozen empty + caller non-empty → conflict
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                "Frozen required_codes is empty but caller provides required_codes",
+            )
         if isinstance(caller_req, (list, tuple)):
             validated = validate_required_codes(caller_req, field_name="caller_required_codes")
-            frozen_set = set(required_codes)
-            caller_set = set(validated)
-            if caller_set != frozen_set:
+            frozen_list = list(required_codes)
+            caller_list = list(validated)
+            if caller_list != frozen_list:
                 raise CoefficientResolutionError(
                     "criteria_conflict",
-                    f"Caller required_codes {sorted(caller_set)!r}"
-                    f" != frozen {sorted(frozen_set)!r}",
+                    f"Caller required_codes {caller_list!r} != frozen {frozen_list!r}",
                 )
         else:
             raise CoefficientResolutionError(
@@ -814,7 +816,10 @@ def _derive_frozen_criteria(
         product_type=product_type,
         zone_types=zone_types,
         process_types=process_types,
+        requirement_registry_version=_REQUIREMENT_REGISTRY_VERSION,
+        calculator_version_vector=dict(_CALCULATOR_VERSION_VECTOR),
         required_codes=required_codes,
+        requirement_hash=_AUTHORITATIVE_REQUIREMENT_HASH,
     )
 
 
@@ -904,11 +909,23 @@ def _validate_coefficient_candidate(
 
     # ── Audit fields: verify requirement registry reference ──────────
     content_req_version = candidate.content.get("requirement_registry_version")
-    if content_req_version is not None and content_req_version != _REQUIREMENT_REGISTRY_VERSION:
+    if (
+        content_req_version is not None
+        and str(content_req_version) != _REQUIREMENT_REGISTRY_VERSION
+    ):
         raise CoefficientResolutionError(
             "mismatch",
             f"Content requirement_registry_version {content_req_version!r} != "
-            f"service {_REQUIREMENT_REGISTRY_VERSION!r}",
+            f"authoritative {_REQUIREMENT_REGISTRY_VERSION!r}",
+        )
+
+    content_req_codes = candidate.content.get("required_codes")
+    if isinstance(content_req_codes, (list, tuple)) and list(_AUTHORITATIVE_REQUIRED_CODES) != list(
+        content_req_codes
+    ):
+        raise CoefficientResolutionError(
+            "mismatch",
+            "Content required_codes != authoritative set",
         )
 
 

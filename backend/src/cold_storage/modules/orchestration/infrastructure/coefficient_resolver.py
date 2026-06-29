@@ -352,6 +352,10 @@ class SqlAlchemyCoefficientResolutionAdapter:
             "project_version_id": project_version_id,
             "coefficient_count": len(coefficient_items),
             "coefficients": coefficient_items,
+            "requirement_registry_version": criteria.requirement_registry_version,
+            "calculator_version_vector": dict(criteria.calculator_version_vector),
+            "required_codes": list(criteria.required_codes),
+            "requirement_hash": criteria.requirement_hash,
         }
 
         approved_ids = canonical_revision_ids(coefficient_items)

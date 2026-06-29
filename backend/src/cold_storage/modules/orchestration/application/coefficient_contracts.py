@@ -44,6 +44,25 @@ class CalculatorCoefficientRequirement:
 # seed data (area.*, pallet.*, power.*, investment.*).
 # Changing this registry changes the orchestration definition/version
 # fingerprint authority via _CALCULATOR_VERSION_VECTOR.
+#
+# Formal contract (frozen 2026-06-29):
+#   calculator_name: zone/cooling_load/equipment/power/investment
+#   calculator_version: 1.0.0 (matches _CALCULATOR_VERSION_VECTOR)
+#   Each code's purpose and consumer:
+#     area.circulation_allowance_ratio — zone calculator, circulation area ratio
+#     area.auxiliary_area_ratio — zone calculator, auxiliary area ratio
+#     pallet.net_load_kg — equipment calculator, net pallet load
+#     pallet.turnover_factor — equipment calculator, pallet turnover
+#     power.design_margin_ratio — cooling_load/power calculator, design margin
+#     power.standby_ratio — power calculator, standby power ratio
+#     investment.building_unit_cost — investment calculator, building cost/m²
+#     investment.refrigeration_equipment_ratio — investment, refrigeration cost/m²
+#     investment.electrical_installation_ratio — investment, electrical cost/m²
+#     investment.other_expenses_ratio — investment, other expenses ratio
+#
+# Registry version must be bumped when any entry changes.
+# This is a new authority frozen in this phase — not derived from existing
+# production calculator consumer code, which is not yet implemented (Task 11+).
 
 REQUIRED_COEFFICIENTS_BY_CALCULATOR_VERSION: Mapping[
     tuple[str, str],
@@ -114,15 +133,18 @@ class FrozenCoefficientRequirementSet:
 
 @dataclass(frozen=True, slots=True)
 class FrozenCoefficientResolutionCriteria:
-    """Authoritative resolution criteria derived from a frozen ProjectVersion.
+    """Authoritative resolution criteria derived from a frozen ProjectVersion
+    and the calculator-coefficient requirement registry.
 
-    All fields are extracted from the ProjectVersion input_snapshot and
-    related project data — never from caller self-attestation.  The caller's
-    coefficient_resolution_context is informational only; conflicts with
-    frozen criteria are rejected with a typed error.
+    All fields are extracted from the ProjectVersion input_snapshot,
+    ProjectRecord, and the frozen requirement registry — never from caller
+    self-attestation.
 
-    ``product_category`` comes from ProjectRecord (authoritative), not
-    from the snapshot or caller.
+    ``product_category`` comes from ProjectRecord (authoritative).
+    ``requirement_registry_version``, ``calculator_version_vector``,
+    ``required_codes``, and ``requirement_hash`` come from the frozen
+    requirement registry.  These are passed through to the resolver and
+    persisted in the coefficient context content.
     """
 
     project_id: str
@@ -131,7 +153,15 @@ class FrozenCoefficientResolutionCriteria:
     product_type: str | None = None
     zone_types: tuple[str, ...] = ()
     process_types: tuple[str, ...] = ()
+    requirement_registry_version: str = ""
+    calculator_version_vector: Mapping[str, str] = ()  # type: ignore[assignment]
     required_codes: tuple[str, ...] = ()
+    requirement_hash: str = ""
+
+    def __post_init__(self) -> None:
+        # Ensure calculator_version_vector is always a Mapping (not bare tuple)
+        if not isinstance(self.calculator_version_vector, Mapping):
+            object.__setattr__(self, "calculator_version_vector", {})
 
 
 # ── Canonical item contracts ────────────────────────────────────────────
@@ -202,6 +232,70 @@ def validate_required_codes(
             raise CoefficientResolutionError(
                 field_name,
                 f"required_codes[{i}] duplicate: {stripped!r}",
+            )
+        seen.add(stripped)
+        validated.append(stripped)
+
+    return tuple(sorted(validated))
+
+
+def validate_string_sequence(
+    raw: object,
+    *,
+    field_name: str,
+) -> tuple[str, ...]:
+    """Validate and canonicalize a raw string sequence (zone_types, process_types).
+
+    Rules:
+    - Accepts a single non-empty string or list/tuple of strings
+    - Every member must be a non-empty string (after strip)
+    - No duplicates
+    - No blank or non-string members
+    - No silent filtering — all members validated
+    - Returns canonical sorted tuple
+    - Illegal input raises ``CoefficientResolutionError``
+    """
+    from cold_storage.modules.orchestration.domain.errors import (
+        CoefficientResolutionError,
+    )
+
+    if raw is None:
+        return ()
+
+    # Single string
+    if isinstance(raw, str):
+        stripped = raw.strip()
+        if not stripped:
+            raise CoefficientResolutionError(
+                field_name,
+                f"{field_name} must not be blank",
+            )
+        return (stripped,)
+
+    if not isinstance(raw, (list, tuple)):
+        raise CoefficientResolutionError(
+            field_name,
+            f"{field_name} must be a string, list, or tuple, got {type(raw).__name__}",
+        )
+
+    validated: list[str] = []
+    seen: set[str] = set()
+    for i, item in enumerate(raw):
+        if not isinstance(item, str):
+            raise CoefficientResolutionError(
+                field_name,
+                f"{field_name}[{i}] must be a string, got {type(item).__name__}: {item!r}",
+            )
+        stripped = item.strip()
+        if not stripped:
+            raise CoefficientResolutionError(
+                field_name,
+                f"{field_name}[{i}] must not be blank, got {item!r}",
+            )
+        if stripped in seen:
+            raise CoefficientResolutionError(
+                field_name,
+                f"{field_name}[{i}] duplicate: {stripped!r}",
             )
         seen.add(stripped)
         validated.append(stripped)
