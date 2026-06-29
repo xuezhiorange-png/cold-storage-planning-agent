@@ -1,30 +1,38 @@
-"""PostgreSQL attempt race-condition integration tests.
+"""PostgreSQL attempt acquire race-condition integration tests.
 
 Verifies that concurrent attempt acquisition correctly handles:
-  1. uq_attempt_identity_number race — two sessions competing for the
-     same attempt_number → one gets UNIQUE violation → savepoint rollback
-     → reread → insert with next number.
+  1. uq_attempt_identity_number race — two sessions competing for the same
+     attempt_number → one gets UNIQUE violation → savepoint rollback →
+     reread → AttemptAlreadyRunningError.
   2. uq_attempt_one_running race — two sessions both trying to create a
-     RUNNING attempt for the same identity → partial unique index enforces
-     at most one RUNNING per identity.
+     RUNNING attempt → one gets UNIQUE violation → savepoint rollback →
+     AttemptAlreadyRunningError.
   3. Stale takeover CAS — heartbeat-based compare-and-swap for expired
-     RUNNING attempts, including CAS conflict and retry exhaustion.
-  4. Non-target integrity errors — FK, CHECK, NOT NULL violations
+     RUNNING attempts, including concurrent CAS conflict.
+  4. Bounded retry exhaustion — CAS conflict leads to retry exhaustion.
+  5. Non-target integrity errors — FK, CHECK, NOT NULL violations
      propagate as-is and are NOT caught by the attempt retry logic.
 
 Requires a real PostgreSQL instance.  Tagged with ``@pytest.mark.postgresql``.
+
+Thread-synchronization approach:
+  Uses ``threading.Event`` for deterministic interleaving.  Each hook in
+  thread A/B uses events to pause/resume, ensuring the race window is
+  hit reliably rather than depending on OS scheduling luck.
 """
 
 from __future__ import annotations
 
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from cold_storage.modules.orchestration.domain.errors import (
     AttemptAlreadyRunningError,
+    AttemptTakeoverConflictError,
 )
 from cold_storage.modules.orchestration.infrastructure.orm import (
     CoefficientContextRecord,
@@ -41,8 +49,6 @@ from cold_storage.modules.projects.infrastructure.orm import (
 )
 
 pytestmark = pytest.mark.postgresql
-
-_REPO = SqlAlchemyOrchestrationAttemptRepository()
 
 
 # ── Seed helpers ──────────────────────────────────────────────────────
@@ -70,7 +76,7 @@ def _seed_identity(
             created_at=datetime.now(UTC),
         )
     )
-    session.flush()  # Ensure PK visible for FK checks
+    session.flush()
     session.add(
         ProjectVersionRecord(
             id=version_id,
@@ -83,7 +89,7 @@ def _seed_identity(
             input_snapshot={"throughput_t": "25.0"},
         )
     )
-    session.flush()  # Ensure PK visible for FK checks
+    session.flush()
     snap = ProjectVersionExecutionSnapshotRecord(
         id="snap-1",
         project_id=project_id,
@@ -104,7 +110,7 @@ def _seed_identity(
         schema_version="1.0.0",
     )
     session.add(coeff)
-    session.flush()  # Ensure PK visible for FK checks
+    session.flush()
     identity = OrchestrationIdentityRecord(
         id=identity_id,
         fingerprint=fingerprint,
@@ -125,73 +131,205 @@ def _seed_identity(
     return identity_id
 
 
+# ── Hook classes for deterministic thread synchronization ─────────────
+
+
+class _IdentityNumberRaceHooks:
+    """Pauses thread A after computing next attempt_number.
+
+    Thread A signals ``a_read_number``; thread B waits for it before
+    calling ``acquire()``.  Thread B signals ``b_committed`` after its
+    session commits, unblocking thread A.
+    """
+
+    def __init__(self) -> None:
+        self.a_read_number = threading.Event()
+        self.b_committed = threading.Event()
+        self.thread_a_id: int | None = None
+
+    def after_running_lookup(self, **_kw: object) -> None:
+        pass
+
+    def after_next_number_read(self, **_kw: object) -> None:
+        if threading.get_ident() == self.thread_a_id:
+            self.a_read_number.set()
+            self.b_committed.wait(timeout=10)
+
+    def before_attempt_flush(self, **_kw: object) -> None:
+        pass
+
+    def after_integrity_conflict(self, **_kw: object) -> None:
+        pass
+
+
+class _OneRunningRaceHooks:
+    """Pauses both threads before ``session.flush()``, then releases in order.
+
+    Both threads signal ``*_at_flush`` when they reach the flush point.
+    The test releases thread A first (``release_a``), waits for it to
+    complete, then releases thread B (``release_b``).
+    """
+
+    def __init__(self) -> None:
+        self.a_at_flush = threading.Event()
+        self.b_at_flush = threading.Event()
+        self.release_a = threading.Event()
+        self.release_b = threading.Event()
+        self.thread_ids: dict[str, int] = {}
+
+    def after_running_lookup(self, **_kw: object) -> None:
+        pass
+
+    def after_next_number_read(self, **_kw: object) -> None:
+        pass
+
+    def before_attempt_flush(self, **_kw: object) -> None:
+        tid = threading.get_ident()
+        if tid == self.thread_ids.get("a"):
+            self.a_at_flush.set()
+            self.release_a.wait(timeout=10)
+        elif tid == self.thread_ids.get("b"):
+            self.b_at_flush.set()
+            self.release_b.wait(timeout=10)
+
+    def after_integrity_conflict(self, **_kw: object) -> None:
+        pass
+
+
+class _HeartbeatMutatingHooks:
+    """Mutates the running attempt's heartbeat on every ``after_running_lookup``.
+
+    Because the mutation is committed in a *separate* session, the CAS
+    ``UPDATE … WHERE heartbeat_at = observed`` inside ``takeover_stale()``
+    sees the new value (READ COMMITTED) and returns ``rowcount=0``.
+    """
+
+    def __init__(self, session_factory) -> None:
+        self._sf = session_factory
+        self.lookup_count = 0
+
+    def after_running_lookup(
+        self, *, running_attempt: dict[str, object] | None, **_kw: object
+    ) -> None:
+        if running_attempt is not None:
+            self.lookup_count += 1
+            with self._sf() as s:
+                s.execute(
+                    OrchestrationRunAttemptRecord.__table__.update()
+                    .where(OrchestrationRunAttemptRecord.id == running_attempt["id"])
+                    .values(heartbeat_at=datetime.now(UTC))
+                )
+                s.commit()
+
+    def after_next_number_read(self, **_kw: object) -> None:
+        pass
+
+    def before_attempt_flush(self, **_kw: object) -> None:
+        pass
+
+    def after_integrity_conflict(self, **_kw: object) -> None:
+        pass
+
+
 # ── Test 1: uq_attempt_identity_number race ──────────────────────────
 
 
-class TestAttemptIdentityNumberRace:
-    """Two sessions compete for the same attempt_number.
+class TestIdentityNumberRace:
+    """True dual-transaction race for ``uq_attempt_identity_number``.
 
-    A pre-existing COMPLETED attempt seeds the identity_number sequence.
-    Session B acquires the next RUNNING attempt (N+1).  Session A then
-    tries to acquire — finds Session B's live RUNNING attempt and raises
-    ``AttemptAlreadyRunningError`` (the one-running guard fires before
-    the identity_number path is even reached).  This verifies the
-    realistic end-to-end outcome of a race: exactly one RUNNING attempt
-    succeeds; the other is rejected.
+    Setup: pre-seed identity with ONE COMPLETED attempt (number=1).
+
+    Thread A pauses after computing ``next_attempt_number=2``.
+    Thread B runs ``acquire()`` to completion (inserts 2, commits).
+    Thread A resumes → tries to insert 2 → UNIQUE violation → savepoint
+    rollback → re-reads → sees B's live RUNNING →
+    ``AttemptAlreadyRunningError``.
     """
 
     def test_identity_number_race(self, pg_database: str, pg_session_factory) -> None:
+        # ── Setup ─────────────────────────────────────────────────────
         with pg_session_factory() as s:
             _seed_identity(s)
-            # Pre-seed a COMPLETED attempt so the one-running check
-            # passes for the first acquire and we have a meaningful
-            # attempt_number base (1).
-            rec = OrchestrationRunAttemptRecord(
-                id="att-seed",
-                identity_id="ident-1",
-                attempt_number=1,
-                status="COMPLETED",
-                heartbeat_at=datetime.now(UTC),
-                started_at=datetime.now(UTC),
-                completed_at=datetime.now(UTC),
+            s.add(
+                OrchestrationRunAttemptRecord(
+                    id="att-seed",
+                    identity_id="ident-1",
+                    attempt_number=1,
+                    status="COMPLETED",
+                    heartbeat_at=datetime.now(UTC),
+                    started_at=datetime.now(UTC),
+                    completed_at=datetime.now(UTC),
+                )
             )
-            s.add(rec)
             s.commit()
 
-        repo = _REPO
+        hooks = _IdentityNumberRaceHooks()
+        repo = SqlAlchemyOrchestrationAttemptRepository(hooks=hooks)
         now = datetime.now(UTC)
+        result_a: dict[str, object] = {}
+        result_b: dict[str, object] = {}
 
-        # Session B acquires a RUNNING attempt (should get attempt_number=2)
-        with pg_session_factory() as session_b:
-            attempt_b_id = repo.acquire(
-                session_b,
-                identity_id="ident-1",
-                heartbeat_at=now,
-            )
-            session_b.commit()
+        # ── Thread A ──────────────────────────────────────────────────
+        def _thread_a() -> None:
+            try:
+                hooks.thread_a_id = threading.get_ident()
+                with pg_session_factory() as session:
+                    try:
+                        aid = repo.acquire(
+                            session,
+                            identity_id="ident-1",
+                            heartbeat_at=now,
+                        )
+                        session.commit()
+                        result_a["attempt_id"] = aid
+                    except AttemptAlreadyRunningError as exc:
+                        result_a["error"] = exc
+                        # Verify session is still usable after the error.
+                        cnt = session.execute(
+                            select(func.count()).select_from(OrchestrationRunAttemptRecord)
+                        ).scalar()
+                        result_a["session_usable"] = cnt is not None
+            except Exception as exc:  # noqa: BLE001
+                result_a["unexpected"] = exc
 
-        # Verify Session B's attempt is committed
-        with pg_session_factory() as s:
-            row = s.execute(
-                select(OrchestrationRunAttemptRecord).where(
-                    OrchestrationRunAttemptRecord.id == attempt_b_id
-                )
-            ).scalar_one()
-            assert row.attempt_number == 2
-            assert row.status == "RUNNING"
+        # ── Thread B ──────────────────────────────────────────────────
+        def _thread_b() -> None:
+            try:
+                hooks.a_read_number.wait(timeout=10)
+                with pg_session_factory() as session:
+                    aid = repo.acquire(
+                        session,
+                        identity_id="ident-1",
+                        heartbeat_at=now + timedelta(seconds=1),
+                    )
+                    session.commit()
+                    result_b["attempt_id"] = aid
+            except Exception as exc:  # noqa: BLE001
+                result_b["unexpected"] = exc
+            finally:
+                hooks.b_committed.set()
 
-        # Session A tries to acquire — Session B has a live RUNNING
-        # attempt, so acquire()'s one-running check raises immediately.
-        with pg_session_factory() as session_a:
-            with pytest.raises(AttemptAlreadyRunningError):
-                repo.acquire(
-                    session_a,
-                    identity_id="ident-1",
-                    heartbeat_at=now + timedelta(seconds=1),
-                )
-            session_a.rollback()
+        # ── Run ───────────────────────────────────────────────────────
+        t_a = threading.Thread(target=_thread_a)
+        t_b = threading.Thread(target=_thread_b)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
 
-        # Verify: the pre-seeded COMPLETED attempt + Session B's RUNNING
+        assert not t_a.is_alive(), "Thread A deadlocked"
+        assert not t_b.is_alive(), "Thread B deadlocked"
+
+        # ── Assertions ────────────────────────────────────────────────
+        assert "error" in result_a, f"Expected AttemptAlreadyRunningError, got: {result_a}"
+        assert isinstance(result_a["error"], AttemptAlreadyRunningError)
+        assert result_a.get("session_usable") is True
+        assert "unexpected" not in result_a
+
+        assert "attempt_id" in result_b, f"Thread B failed: {result_b}"
+        assert "unexpected" not in result_b
+
+        # Database: exactly 2 attempts, no duplicate attempt numbers.
         with pg_session_factory() as s:
             attempts = (
                 s.execute(
@@ -204,402 +342,296 @@ class TestAttemptIdentityNumberRace:
             )
             assert len(attempts) == 2
             assert attempts[0].attempt_number == 1
-            assert attempts[0].id == "att-seed"
             assert attempts[0].status == "COMPLETED"
             assert attempts[1].attempt_number == 2
-            assert attempts[1].id == attempt_b_id
             assert attempts[1].status == "RUNNING"
-
-    def test_raw_savepoint_retry_on_identity_number_conflict(
-        self, pg_database: str, pg_session_factory
-    ) -> None:
-        """Verify savepoint rollback + retry when uq_attempt_identity_number fires."""
-        with pg_session_factory() as s:
-            _seed_identity(s)
-
-        with pg_session_factory() as session:
-            # Pre-insert attempt_number=1
-            nested_pre = session.begin_nested()
-            rec1 = OrchestrationRunAttemptRecord(
-                id="att-pre",
-                identity_id="ident-1",
-                attempt_number=1,
-                status="COMPLETED",
-                heartbeat_at=datetime.now(UTC),
-                started_at=datetime.now(UTC),
-                completed_at=datetime.now(UTC),
-            )
-            session.add(rec1)
-            session.flush()
-            nested_pre.commit()
-
-            # Now try to insert attempt_number=1 again — triggers
-            # uq_attempt_identity_number UNIQUE violation.
-            nested = session.begin_nested()
-            rec2 = OrchestrationRunAttemptRecord(
-                id="att-conflict",
-                identity_id="ident-1",
-                attempt_number=1,  # duplicate
-                status="RUNNING",
-                heartbeat_at=datetime.now(UTC),
-            )
-            session.add(rec2)
-            with pytest.raises(IntegrityError) as exc_info:
-                session.flush()
-
-            # Verify it's the expected constraint
-            assert "uq_attempt_identity_number" in str(exc_info.value)
-
-            # Rollback the savepoint — session remains usable
-            nested.rollback()
-
-            # Re-read max and insert with the correct number
-            from sqlalchemy import func
-
-            max_num = session.execute(
-                select(func.max(OrchestrationRunAttemptRecord.attempt_number)).where(
-                    OrchestrationRunAttemptRecord.identity_id == "ident-1"
-                )
-            ).scalar()
-            assert max_num == 1
-
-            rec3 = OrchestrationRunAttemptRecord(
-                id="att-retry",
-                identity_id="ident-1",
-                attempt_number=max_num + 1,
-                status="RUNNING",
-                heartbeat_at=datetime.now(UTC),
-            )
-            session.add(rec3)
-            session.flush()
-
-            # Verify both attempts committed
-            rows = (
-                session.execute(
-                    select(OrchestrationRunAttemptRecord)
-                    .where(OrchestrationRunAttemptRecord.identity_id == "ident-1")
-                    .order_by(OrchestrationRunAttemptRecord.attempt_number)
-                )
-                .scalars()
-                .all()
-            )
-            assert len(rows) == 2
-            assert rows[0].attempt_number == 1
-            assert rows[0].status == "COMPLETED"
-            assert rows[1].attempt_number == 2
-            assert rows[1].status == "RUNNING"
-
-            session.commit()
+            numbers = [a.attempt_number for a in attempts]
+            assert len(numbers) == len(set(numbers)), "Duplicate attempt numbers"
 
 
 # ── Test 2: uq_attempt_one_running race ──────────────────────────────
 
 
-class TestAttemptOneRunningRace:
-    """Both sessions try to create RUNNING → one gets
-    uq_attempt_one_running violation → rollback → read current RUNNING.
+class TestOneRunningRace:
+    """True dual-transaction race for ``uq_attempt_one_running``.
+
+    Both threads see no RUNNING attempt (fresh identity).
+    Both pause just before ``session.flush()``.
+    Thread A is released first → flushes + commits.
+    Thread B is released → flush → ``uq_attempt_one_running`` → savepoint
+    rollback → re-reads → sees A's live RUNNING →
+    ``AttemptAlreadyRunningError``.
     """
 
     def test_one_running_race(self, pg_database: str, pg_session_factory) -> None:
-        """Two sessions both try acquire() — one should get
-        AttemptAlreadyRunningError after retry exhaustion."""
+        # ── Setup ─────────────────────────────────────────────────────
         with pg_session_factory() as s:
             _seed_identity(s)
 
+        hooks = _OneRunningRaceHooks()
+        repo = SqlAlchemyOrchestrationAttemptRepository(hooks=hooks)
         now = datetime.now(UTC)
+        result_a: dict[str, object] = {}
+        result_b: dict[str, object] = {}
 
-        # Session A acquires a RUNNING attempt
-        with pg_session_factory() as session_a:
-            attempt_a_id = _REPO.acquire(
-                session_a,
-                identity_id="ident-1",
-                heartbeat_at=now,
-            )
-            session_a.commit()
+        # ── Thread A ──────────────────────────────────────────────────
+        def _thread_a() -> None:
+            try:
+                hooks.thread_ids["a"] = threading.get_ident()
+                with pg_session_factory() as session:
+                    try:
+                        aid = repo.acquire(
+                            session,
+                            identity_id="ident-1",
+                            heartbeat_at=now,
+                        )
+                        session.commit()
+                        result_a["attempt_id"] = aid
+                    except AttemptAlreadyRunningError as exc:
+                        result_a["error"] = exc
+            except Exception as exc:  # noqa: BLE001
+                result_a["unexpected"] = exc
 
-        # Verify there is one RUNNING attempt
+        # ── Thread B ──────────────────────────────────────────────────
+        def _thread_b() -> None:
+            try:
+                hooks.thread_ids["b"] = threading.get_ident()
+                with pg_session_factory() as session:
+                    try:
+                        aid = repo.acquire(
+                            session,
+                            identity_id="ident-1",
+                            heartbeat_at=now + timedelta(seconds=1),
+                        )
+                        session.commit()
+                        result_b["attempt_id"] = aid
+                    except AttemptAlreadyRunningError as exc:
+                        result_b["error"] = exc
+                        # Verify session is still usable.
+                        cnt = session.execute(
+                            select(func.count()).select_from(OrchestrationRunAttemptRecord)
+                        ).scalar()
+                        result_b["session_usable"] = cnt is not None
+            except Exception as exc:  # noqa: BLE001
+                result_b["unexpected"] = exc
+
+        # ── Run ───────────────────────────────────────────────────────
+        t_a = threading.Thread(target=_thread_a)
+        t_b = threading.Thread(target=_thread_b)
+        t_a.start()
+        t_b.start()
+
+        # Wait for both threads to reach the flush point.
+        assert hooks.a_at_flush.wait(timeout=10), "Thread A did not reach before_attempt_flush"
+        assert hooks.b_at_flush.wait(timeout=10), "Thread B did not reach before_attempt_flush"
+
+        # Release A first → A inserts RUNNING, commits.
+        hooks.release_a.set()
+        t_a.join(timeout=10)
+        assert not t_a.is_alive(), "Thread A deadlocked"
+
+        # Release B → B tries to insert → conflict.
+        hooks.release_b.set()
+        t_b.join(timeout=10)
+        assert not t_b.is_alive(), "Thread B deadlocked"
+
+        # ── Assertions ────────────────────────────────────────────────
+        assert "attempt_id" in result_a, f"Thread A failed: {result_a}"
+        assert "unexpected" not in result_a
+
+        assert "error" in result_b, f"Expected AttemptAlreadyRunningError for B, got: {result_b}"
+        assert isinstance(result_b["error"], AttemptAlreadyRunningError)
+        assert result_b.get("session_usable") is True
+        assert "unexpected" not in result_b
+
+        # Database: exactly 1 RUNNING attempt (A's).
         with pg_session_factory() as s:
-            running = _REPO.find_running_attempt(s, "ident-1")
-            assert running is not None
-            assert running["id"] == attempt_a_id
-
-        # Session B tries to acquire — should get AttemptAlreadyRunningError
-        # because the existing RUNNING attempt is not expired (heartbeat is fresh)
-        with pg_session_factory() as session_b:
-            with pytest.raises(AttemptAlreadyRunningError):
-                _REPO.acquire(
-                    session_b,
-                    identity_id="ident-1",
-                    heartbeat_at=now + timedelta(seconds=1),
+            running = (
+                s.execute(
+                    select(OrchestrationRunAttemptRecord).where(
+                        OrchestrationRunAttemptRecord.identity_id == "ident-1",
+                        OrchestrationRunAttemptRecord.status == "RUNNING",
+                    )
                 )
-            session_b.rollback()
-
-        # Verify still only one RUNNING attempt
-        with pg_session_factory() as s:
-            running = _REPO.find_running_attempt(s, "ident-1")
-            assert running is not None
-            assert running["id"] == attempt_a_id
-
-    def test_raw_one_running_partial_unique_index(
-        self, pg_database: str, pg_session_factory
-    ) -> None:
-        """Verify the partial unique index fires on direct insert."""
-        with pg_session_factory() as s:
-            _seed_identity(s)
-
-        with pg_session_factory() as session:
-            # Insert first RUNNING attempt
-            rec1 = OrchestrationRunAttemptRecord(
-                id="att-running-1",
-                identity_id="ident-1",
-                attempt_number=1,
-                status="RUNNING",
-                heartbeat_at=datetime.now(UTC),
+                .scalars()
+                .all()
             )
-            session.add(rec1)
-            session.flush()
-
-            # Attempt to insert second RUNNING attempt — triggers
-            # uq_attempt_one_running partial unique index
-            nested = session.begin_nested()
-            rec2 = OrchestrationRunAttemptRecord(
-                id="att-running-2",
-                identity_id="ident-1",
-                attempt_number=2,
-                status="RUNNING",
-                heartbeat_at=datetime.now(UTC),
-            )
-            session.add(rec2)
-            with pytest.raises(IntegrityError) as exc_info:
-                session.flush()
-
-            assert "uq_attempt_one_running" in str(exc_info.value)
-            nested.rollback()
-
-            # Verify only one RUNNING attempt exists
-            running = _REPO.find_running_attempt(session, "ident-1")
-            assert running is not None
-            assert running["id"] == "att-running-1"
-
-            session.commit()
+            assert len(running) == 1
+            assert running[0].id == result_a["attempt_id"]
 
 
-# ── Test 3: Stale takeover CAS ───────────────────────────────────────
+# ── Test 3: Stale takeover CAS ────────────────────────────────────────
 
 
-class TestStaleTakeoverCAS:
-    """Stale attempt CAS takeover: success, conflict, and retry exhaustion."""
+class TestStaleLeaseConcurrent:
+    """Stale attempt CAS takeover via ``acquire()``."""
 
-    def test_takeover_success(self, pg_database: str, pg_session_factory) -> None:
-        """CAS takeover succeeds when heartbeat matches observed value."""
+    def test_stale_lease_takeover_success(self, pg_database: str, pg_session_factory) -> None:
+        """``acquire()`` finds an expired RUNNING attempt → CAS takeover →
+        inserts a new RUNNING attempt."""
         with pg_session_factory() as s:
             _seed_identity(s)
 
         stale_time = datetime.now(UTC) - timedelta(minutes=10)
-
-        # Create an expired RUNNING attempt
         with pg_session_factory() as session:
-            rec = OrchestrationRunAttemptRecord(
-                id="att-stale",
-                identity_id="ident-1",
-                attempt_number=1,
-                status="RUNNING",
-                heartbeat_at=stale_time,
-            )
-            session.add(rec)
-            session.commit()
-
-        # CAS takeover — observed heartbeat matches
-        with pg_session_factory() as session:
-            now = datetime.now(UTC)
-            success = _REPO.takeover_stale(
-                session,
-                attempt_id="att-stale",
-                observed_heartbeat=stale_time,
-                now=now,
+            session.add(
+                OrchestrationRunAttemptRecord(
+                    id="att-stale",
+                    identity_id="ident-1",
+                    attempt_number=1,
+                    status="RUNNING",
+                    heartbeat_at=stale_time,
+                )
             )
             session.commit()
 
-        assert success is True
+        repo = SqlAlchemyOrchestrationAttemptRepository()
+        now = datetime.now(UTC)
 
-        # Verify attempt is now ABANDONED
+        with pg_session_factory() as session:
+            new_id = repo.acquire(session, identity_id="ident-1", heartbeat_at=now)
+            session.commit()
+
+        # Old attempt is ABANDONED, new is RUNNING.
         with pg_session_factory() as s:
-            row = s.execute(
+            old = s.execute(
                 select(OrchestrationRunAttemptRecord).where(
                     OrchestrationRunAttemptRecord.id == "att-stale"
                 )
             ).scalar_one()
-            assert row.status == "ABANDONED"
-            assert row.completed_at is not None
-
-    def test_takeover_cas_conflict(self, pg_database: str, pg_session_factory) -> None:
-        """CAS takeover fails when heartbeat has changed since observation."""
-        with pg_session_factory() as s:
-            _seed_identity(s)
-
-        original_time = datetime.now(UTC) - timedelta(minutes=10)
-        updated_time = datetime.now(UTC) - timedelta(minutes=5)
-
-        # Create an expired RUNNING attempt
-        with pg_session_factory() as session:
-            rec = OrchestrationRunAttemptRecord(
-                id="att-stale-conflict",
-                identity_id="ident-1",
-                attempt_number=1,
-                status="RUNNING",
-                heartbeat_at=original_time,
-            )
-            session.add(rec)
-            session.commit()
-
-        # Simulate another session updating the heartbeat
-        with pg_session_factory() as session:
-            session.execute(
-                OrchestrationRunAttemptRecord.__table__.update()
-                .where(OrchestrationRunAttemptRecord.id == "att-stale-conflict")
-                .values(heartbeat_at=updated_time)
-            )
-            session.commit()
-
-        # CAS takeover with stale observed_heartbeat — should fail
-        with pg_session_factory() as session:
-            success = _REPO.takeover_stale(
-                session,
-                attempt_id="att-stale-conflict",
-                observed_heartbeat=original_time,  # stale observation
-                now=datetime.now(UTC),
-            )
-            session.commit()
-
-        assert success is False
-
-        # Verify attempt is still RUNNING (not ABANDONED)
-        with pg_session_factory() as s:
-            row = s.execute(
-                select(OrchestrationRunAttemptRecord).where(
-                    OrchestrationRunAttemptRecord.id == "att-stale-conflict"
-                )
-            ).scalar_one()
-            assert row.status == "RUNNING"
-
-    def test_acquire_retry_exhaustion(self, pg_database: str, pg_session_factory) -> None:
-        """acquire() retries on uq_attempt_one_running conflict and
-        eventually raises AttemptTakeoverConflictError."""
-        with pg_session_factory() as s:
-            _seed_identity(s)
-
-        now = datetime.now(UTC)
-
-        # Session A creates a RUNNING attempt
-        with pg_session_factory() as session_a:
-            attempt_id = _REPO.acquire(
-                session_a,
-                identity_id="ident-1",
-                heartbeat_at=now,
-            )
-            session_a.commit()
-
-        # Make the attempt appear expired for the CAS path
-        with pg_session_factory() as session:
-            stale_time = datetime.now(UTC) - timedelta(minutes=10)
-            session.execute(
-                OrchestrationRunAttemptRecord.__table__.update()
-                .where(OrchestrationRunAttemptRecord.id == attempt_id)
-                .values(heartbeat_at=stale_time)
-            )
-            session.commit()
-
-        # Session B tries to acquire.  The acquire loop:
-        #   1. Finds expired RUNNING attempt → CAS takeover → success (ABANDONED)
-        #   2. Inserts new RUNNING attempt → returns
-        # This should succeed, not exhaust retries.
-        with pg_session_factory() as session_b:
-            attempt_b_id = _REPO.acquire(
-                session_b,
-                identity_id="ident-1",
-                heartbeat_at=now + timedelta(seconds=1),
-            )
-            session_b.commit()
-
-        # Verify: old attempt is ABANDONED, new attempt is RUNNING
-        with pg_session_factory() as s:
-            old = s.execute(
-                select(OrchestrationRunAttemptRecord).where(
-                    OrchestrationRunAttemptRecord.id == attempt_id
-                )
-            ).scalar_one()
             assert old.status == "ABANDONED"
+            assert old.completed_at is not None
 
             new = s.execute(
                 select(OrchestrationRunAttemptRecord).where(
-                    OrchestrationRunAttemptRecord.id == attempt_b_id
+                    OrchestrationRunAttemptRecord.id == new_id
                 )
             ).scalar_one()
             assert new.status == "RUNNING"
+            assert new.attempt_number == 2
 
-    def test_acquire_cas_conflict_leads_to_retry_exhaustion(
-        self, pg_database: str, pg_session_factory
-    ) -> None:
-        """When CAS takeover is stolen by another session, acquire retries
-        and eventually raises AttemptTakeoverConflictError after all
-        retries are exhausted."""
+    def test_concurrent_stale_cas_race(self, pg_database: str, pg_session_factory) -> None:
+        """Two threads race to CAS-takeover the same stale attempt.
+
+        Exactly one succeeds; the other re-reads → sees the winner's live
+        RUNNING → ``AttemptAlreadyRunningError``.
+        """
         with pg_session_factory() as s:
             _seed_identity(s)
 
-        now = datetime.now(UTC)
-
-        # Create an expired RUNNING attempt
         stale_time = datetime.now(UTC) - timedelta(minutes=10)
         with pg_session_factory() as session:
-            rec = OrchestrationRunAttemptRecord(
-                id="att-exhaust",
-                identity_id="ident-1",
-                attempt_number=1,
-                status="RUNNING",
-                heartbeat_at=stale_time,
+            session.add(
+                OrchestrationRunAttemptRecord(
+                    id="att-stale-race",
+                    identity_id="ident-1",
+                    attempt_number=1,
+                    status="RUNNING",
+                    heartbeat_at=stale_time,
+                )
             )
-            session.add(rec)
             session.commit()
 
-        # Simulate a concurrent CAS conflict: each time the acquire loop
-        # reads the attempt, the heartbeat changes (another session wins).
-        # We achieve this by hooking the session to update the heartbeat
-        # between the read and the CAS update.
-        #
-        # Since we can't easily intercept SQLAlchemy in that way, we
-        # instead verify the exhaustion path by ensuring the attempt
-        # remains RUNNING with a changed heartbeat after the CAS call.
-        #
-        # Directly test takeover_stale with mismatched heartbeat → returns False.
-        # After _MAX_ACQUIRE_RETRIES (3) consecutive failures → raises.
-        #
-        # Simpler approach: create a scenario where acquire finds an
-        # expired attempt, CAS fails, retry finds the same expired attempt
-        # (because we keep the heartbeat unchanged but the CAS WHERE clause
-        # includes status='RUNNING' AND heartbeat_at=observed — if heartbeat
-        # doesn't match, CAS returns rowcount=0 → False → continue).
-        #
-        # The actual acquire code: reads heartbeat → calls takeover_stale
-        # with that exact heartbeat → if heartbeat changed between read and
-        # CAS, rowcount=0 → False → continue loop.
-        #
-        # To force this reliably, we update the heartbeat right after
-        # the read in a separate thread/session.  For a simpler test,
-        # verify that takeover_stale returns False when heartbeat doesn't match.
+        repo = SqlAlchemyOrchestrationAttemptRepository()
+        now = datetime.now(UTC)
+        result_a: dict[str, object] = {}
+        result_b: dict[str, object] = {}
+        barrier = threading.Barrier(2, timeout=10)
+
+        def _thread_fn(heartbeat: datetime, result: dict[str, object]) -> None:
+            try:
+                barrier.wait()
+                with pg_session_factory() as session:
+                    try:
+                        aid = repo.acquire(
+                            session,
+                            identity_id="ident-1",
+                            heartbeat_at=heartbeat,
+                        )
+                        session.commit()
+                        result["attempt_id"] = aid
+                    except AttemptAlreadyRunningError as exc:
+                        result["error"] = exc
+            except Exception as exc:  # noqa: BLE001
+                result["unexpected"] = exc
+
+        t_a = threading.Thread(target=_thread_fn, args=(now, result_a))
+        t_b = threading.Thread(target=_thread_fn, args=(now + timedelta(seconds=1), result_b))
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=30)
+        t_b.join(timeout=30)
+
+        assert not t_a.is_alive(), "Thread A deadlocked"
+        assert not t_b.is_alive(), "Thread B deadlocked"
+
+        successes = [r for r in (result_a, result_b) if "attempt_id" in r]
+        errors = [r for r in (result_a, result_b) if "error" in r]
+        assert len(successes) == 1, f"Expected 1 success: {successes}"
+        assert len(errors) == 1, f"Expected 1 error: {errors}"
+        assert isinstance(errors[0]["error"], AttemptAlreadyRunningError)
+
+        # Database: exactly 1 RUNNING attempt.
+        with pg_session_factory() as s:
+            running = (
+                s.execute(
+                    select(OrchestrationRunAttemptRecord).where(
+                        OrchestrationRunAttemptRecord.identity_id == "ident-1",
+                        OrchestrationRunAttemptRecord.status == "RUNNING",
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(running) == 1
+
+
+# ── Test 4: Bounded retry exhaustion ─────────────────────────────────
+
+
+class TestBoundedRetryExhaustion:
+    """CAS conflict on every retry → ``AttemptTakeoverConflictError``."""
+
+    def test_retry_exhaustion_via_heartbeat_mutation(
+        self, pg_database: str, pg_session_factory
+    ) -> None:
+        """Hooks mutate heartbeat on every ``after_running_lookup`` so that
+        ``takeover_stale()`` CAS always misses → after
+        ``_MAX_ACQUIRE_RETRIES`` (3) attempts:
+        ``AttemptTakeoverConflictError``.
+        """
+        with pg_session_factory() as s:
+            _seed_identity(s)
+
+        stale_time = datetime.now(UTC) - timedelta(minutes=10)
+        with pg_session_factory() as session:
+            session.add(
+                OrchestrationRunAttemptRecord(
+                    id="att-exhaust",
+                    identity_id="ident-1",
+                    attempt_number=1,
+                    status="RUNNING",
+                    heartbeat_at=stale_time,
+                )
+            )
+            session.commit()
+
+        hooks = _HeartbeatMutatingHooks(pg_session_factory)
+        repo = SqlAlchemyOrchestrationAttemptRepository(hooks=hooks)
 
         with pg_session_factory() as session:
-            # CAS with wrong heartbeat → False
-            result = _REPO.takeover_stale(
-                session,
-                attempt_id="att-exhaust",
-                observed_heartbeat=now,  # wrong — actual is stale_time
-                now=datetime.now(UTC),
-            )
-            session.commit()
+            with pytest.raises(AttemptTakeoverConflictError):
+                repo.acquire(
+                    session,
+                    identity_id="ident-1",
+                    heartbeat_at=datetime.now(UTC),
+                )
+            session.rollback()
 
-        assert result is False
+        # Each retry fires after_running_lookup once.
+        assert hooks.lookup_count >= 3, f"Expected ≥3 lookups, got {hooks.lookup_count}"
 
-        # Verify attempt still RUNNING
+        # Attempt is still RUNNING — CAS never succeeded.
         with pg_session_factory() as s:
             row = s.execute(
                 select(OrchestrationRunAttemptRecord).where(
@@ -609,49 +641,44 @@ class TestStaleTakeoverCAS:
             assert row.status == "RUNNING"
 
 
-# ── Test 4: Non-target integrity errors propagate ────────────────────
+# ── Test 5: Non-target integrity errors propagate ────────────────────
 
 
 class TestNonTargetIntegrityErrors:
     """FK, CHECK, NOT NULL violations must propagate as-is — NOT caught
-    by the attempt retry logic (which only targets uq_attempt_* constraints).
+    by the attempt retry logic (which only targets ``uq_attempt_*``
+    constraints).
     """
 
-    def test_fk_violation_propagates(self, pg_database: str, pg_session_factory) -> None:
-        """FK violation on identity_id → IntegrityError propagates (not caught)."""
+    def test_fk_violation_through_acquire(self, pg_database: str, pg_session_factory) -> None:
+        """``acquire()`` with non-existent identity_id → FK ``IntegrityError``
+        propagates (not caught by the retry logic)."""
+        repo = SqlAlchemyOrchestrationAttemptRepository()
         with pg_session_factory() as session:
             nested = session.begin_nested()
-            rec = OrchestrationRunAttemptRecord(
-                id="att-fk-bad",
-                identity_id="nonexistent-identity",
-                attempt_number=1,
-                status="RUNNING",
-                heartbeat_at=datetime.now(UTC),
-            )
-            session.add(rec)
             with pytest.raises(IntegrityError) as exc_info:
-                session.flush()
-
-            # Must be an FK violation, NOT a unique constraint
+                repo.acquire(
+                    session,
+                    identity_id="nonexistent-identity",
+                    heartbeat_at=datetime.now(UTC),
+                )
             err_str = str(exc_info.value)
             assert "uq_attempt_identity_number" not in err_str
             assert "uq_attempt_one_running" not in err_str
-            # FK violations reference the foreign key
             assert (
                 "orchestration_run_attempts_identity_id_fkey" in err_str
                 or "foreign key" in err_str.lower()
             )
-
             nested.rollback()
 
     def test_not_null_violation_propagates(self, pg_database: str, pg_session_factory) -> None:
-        """NOT NULL violation on required column → IntegrityError propagates."""
+        """NOT NULL violation on required column → ``IntegrityError``
+        propagates."""
         with pg_session_factory() as s:
             _seed_identity(s)
 
         with pg_session_factory() as session:
             nested = session.begin_nested()
-            # attempt_number is NOT NULL — omitting it should fail
             rec = OrchestrationRunAttemptRecord(
                 id="att-nn-bad",
                 identity_id="ident-1",
@@ -662,25 +689,15 @@ class TestNonTargetIntegrityErrors:
             session.add(rec)
             with pytest.raises(IntegrityError) as exc_info:
                 session.flush()
-
             err_str = str(exc_info.value)
-            # Must NOT be caught as a target unique violation
             assert "uq_attempt_identity_number" not in err_str
             assert "uq_attempt_one_running" not in err_str
-
             nested.rollback()
 
     def test_check_violation_propagates(self, pg_database: str, pg_session_factory) -> None:
-        """CHECK constraint violation on a related table propagates.
-
-        We test this via the OrchestrationRequestRecord CHECK constraint
-        (ck_orch_request_status_nullity) to demonstrate that non-target
-        CHECK violations are not swallowed by the attempt retry logic.
-        """
+        """CHECK constraint violation on a related table propagates."""
         with pg_session_factory() as session:
             nested = session.begin_nested()
-            # Insert a request with inconsistent CHECK state:
-            # status='PENDING' but failure_code IS NOT NULL violates the CHECK
             from cold_storage.modules.orchestration.infrastructure.orm import (
                 OrchestrationRequestRecord,
             )
@@ -698,25 +715,20 @@ class TestNonTargetIntegrityErrors:
             session.add(rec)
             with pytest.raises(IntegrityError) as exc_info:
                 session.flush()
-
             err_str = str(exc_info.value)
-            # Must be a CHECK violation, not a unique constraint
             assert "uq_attempt_identity_number" not in err_str
             assert "uq_attempt_one_running" not in err_str
             assert "ck_orch_request_status_nullity" in err_str or "check" in err_str.lower()
-
             nested.rollback()
 
     def test_non_target_unique_violation_propagates(
         self, pg_database: str, pg_session_factory
     ) -> None:
-        """A UNIQUE violation on a non-target constraint propagates
-        (not caught by the attempt retry logic)."""
+        """A UNIQUE violation on a non-target constraint propagates."""
         with pg_session_factory() as s:
             _seed_identity(s)
 
         with pg_session_factory() as session:
-            # Insert an attempt with a specific fingerprint
             rec1 = OrchestrationRunAttemptRecord(
                 id="att-uniq-1",
                 identity_id="ident-1",
@@ -727,11 +739,6 @@ class TestNonTargetIntegrityErrors:
             session.add(rec1)
             session.flush()
 
-            # Now try to insert another attempt with the same
-            # (identity_id, attempt_number) — this IS a target constraint,
-            # but let's instead test a non-target unique constraint.
-            # The uq_orch_identity_fingerprint on OrchestrationIdentityRecord
-            # is a non-target constraint for the attempt repo.
             nested = session.begin_nested()
             dup_identity = OrchestrationIdentityRecord(
                 id="ident-dup",
@@ -745,12 +752,9 @@ class TestNonTargetIntegrityErrors:
             session.add(dup_identity)
             with pytest.raises(IntegrityError) as exc_info:
                 session.flush()
-
             err_str = str(exc_info.value)
-            # This is uq_orch_identity_fingerprint, NOT a target attempt constraint
             assert "uq_orch_identity_fingerprint" in err_str
             assert "uq_attempt_identity_number" not in err_str
             assert "uq_attempt_one_running" not in err_str
-
             nested.rollback()
             session.commit()
