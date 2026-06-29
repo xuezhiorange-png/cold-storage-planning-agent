@@ -20,12 +20,17 @@ Tagged with @pytest.mark.postgresql for CI (-m postgresql).
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from cold_storage.modules.coefficients.infrastructure.orm import (
+    CoefficientDefinitionRecord,
+    CoefficientRevisionRecord,
+)
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
     ExecutionSnapshotPreflightPort,
@@ -33,6 +38,7 @@ from cold_storage.modules.orchestration.application.ports import (
 )
 from cold_storage.modules.orchestration.application.service import (
     OrchestrationService,
+    PreflightAccepted,
     ProjectVersionReadPort,
     _LoadedVersion,
 )
@@ -44,8 +50,12 @@ from cold_storage.modules.orchestration.domain.contracts import (
     PreflightFailure,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
+from cold_storage.modules.orchestration.infrastructure.coefficient_resolver import (
+    SqlAlchemyCoefficientResolutionAdapter,
+)
 from cold_storage.modules.orchestration.infrastructure.orm import (
     AuditOutboxRecord,
+    CoefficientContextRecord,
     OrchestrationIdentityRecord,
     OrchestrationRequestRecord,
     OrchestrationRunAttemptRecord,
@@ -130,6 +140,7 @@ def _make_resolved_coefficient(
         "coefficient_count": len(coefficients),
         "coefficients": coefficients,
         "requirement_registry_version": _REGISTRY_VERSION,
+        "calculator_version_vector": dict(_CV_VECTOR),
         "required_codes": list(_REQUIRED_CODES),
         "requirement_hash": req_hash,
     }
@@ -591,3 +602,196 @@ class TestServiceReentryPG:
                     select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
                 ).scalar_one()
                 assert ev is not None
+
+
+# ── Real resolver fixtures and helpers ──────────────────────────────────────
+
+
+def _seed_catalog_definitions(session_factory) -> None:
+    """Seed CoefficientDefinitionRecord + CoefficientRevisionRecord for all
+    10 authoritative required codes so the real adapter can resolve them."""
+    with session_factory() as session:
+        for code in _REQUIRED_CODES:
+            def_id = uuid.uuid4().hex
+            session.add(
+                CoefficientDefinitionRecord(
+                    id=def_id,
+                    code=code,
+                    name=code.replace(".", " ").replace("_", " ").title(),
+                    description=f"Test definition for {code}",
+                    category=code.split(".")[0],
+                    canonical_unit="ratio",
+                    value_type="decimal",
+                    scope_type="global",
+                    is_active=True,
+                )
+            )
+            session.add(
+                CoefficientRevisionRecord(
+                    id=uuid.uuid4().hex,
+                    coefficient_definition_id=def_id,
+                    revision_number=1,
+                    value_decimal="1.0",
+                    unit="ratio",
+                    status="approved",
+                    source_type="standard",
+                    approved_at=datetime.now(UTC),
+                    approved_by="test-seed",
+                    created_by="test-seed",
+                )
+            )
+        session.commit()
+
+
+@pytest.fixture()
+def pg_real_resolver_service(pg_session_factory):
+    """Fully wired OrchestrationService with a REAL
+    SqlAlchemyCoefficientResolutionAdapter on PostgreSQL.
+
+    Returns ``(service, session_factory)`` so tests can seed and query.
+    """
+    uow_factory = SqlAlchemyOrchestrationUnitOfWorkFactory(pg_session_factory)
+
+    class _PGVersionPort(ProjectVersionReadPort):
+        def load_by_id(self, session, project_version_id):
+            record = session.execute(
+                select(ProjectVersionRecord).where(ProjectVersionRecord.id == project_version_id)
+            ).scalar_one_or_none()
+            if record is None:
+                return None
+            project_record = session.execute(
+                select(ProjectRecord).where(ProjectRecord.id == record.project_id)
+            ).scalar_one_or_none()
+            product_category = project_record.product_category if project_record else ""
+            return _LoadedVersion(
+                project_id=record.project_id,
+                project_product_category=product_category,
+                status=record.status,
+                version_number=record.version_number,
+                input_snapshot=record.input_snapshot or {},
+            )
+
+    coeff_port = SqlAlchemyCoefficientResolutionAdapter()
+
+    service = OrchestrationService(
+        uow_factory=uow_factory,
+        request_repo=SqlAlchemyOrchestrationRequestRepository(),
+        outbox_repo=SqlAlchemyAuditOutboxRepository(),
+        snapshot_repo=SqlAlchemyExecutionSnapshotRepository(),
+        coefficient_repo=SqlAlchemyCoefficientContextRepository(),
+        identity_repo=SqlAlchemyOrchestrationIdentityRepository(),
+        attempt_repo=SqlAlchemyOrchestrationAttemptRepository(),
+        version_port=_PGVersionPort(),
+        snapshot_port=MagicMock(spec=ExecutionSnapshotPreflightPort),
+        coefficient_port=coeff_port,
+    )
+    return service, pg_session_factory
+
+
+# ── Real adapter tests ─────────────────────────────────────────────────────
+
+
+class TestRealResolverSuccessPathPG:
+    """Verify the real SqlAlchemyCoefficientResolutionAdapter end-to-end."""
+
+    def test_real_adapter_success_path(self, pg_real_resolver_service) -> None:
+        service, session_factory = pg_real_resolver_service
+
+        # Seed project + version + catalog definitions
+        with session_factory() as s:
+            _seed_project_and_version(s)
+        _seed_catalog_definitions(session_factory)
+
+        # Execute Transaction A
+        result = service.execute(_make_command())
+        assert isinstance(result, PreflightAccepted)
+        assert result.request_id
+        assert result.identity_id
+        assert result.attempt_id
+
+        # Query persisted coefficient context
+        with session_factory() as s:
+            ctx = s.execute(
+                select(CoefficientContextRecord).where(
+                    CoefficientContextRecord.project_version_id == "pv-1"
+                )
+            ).scalar_one()
+            content = ctx.content
+            assert "requirement_registry_version" in content
+            assert "calculator_version_vector" in content
+            assert "required_codes" in content
+            assert "requirement_hash" in content
+            assert content["requirement_registry_version"] == _REGISTRY_VERSION
+            assert content["calculator_version_vector"] == dict(_CV_VECTOR)
+            assert tuple(content["required_codes"]) == _REQUIRED_CODES
+
+            # Coefficient content hash matches identity fingerprint binding
+            identity = s.execute(
+                select(OrchestrationIdentityRecord).where(
+                    OrchestrationIdentityRecord.id == result.identity_id
+                )
+            ).scalar_one()
+            assert identity.coefficient_context_id == ctx.id
+
+            # Request → identity → attempt relationships
+            request = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == result.request_id
+                )
+            ).scalar_one()
+            assert request.status == "ACCEPTED"
+            assert request.resolved_identity_id == result.identity_id
+            assert request.resolved_attempt_id == result.attempt_id
+
+            attempt = s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == result.attempt_id
+                )
+            ).scalar_one()
+            assert attempt.identity_id == result.identity_id
+            assert attempt.status == "RUNNING"
+
+
+class TestRealResolverRejectionPathPG:
+    """Verify that missing catalog definitions produce a durable rejection."""
+
+    def test_real_adapter_rejection_path(self, pg_real_resolver_service) -> None:
+        service, session_factory = pg_real_resolver_service
+
+        # Seed project + version but NO catalog definitions (empty catalog)
+        with session_factory() as s:
+            _seed_project_and_version(s)
+
+        # Execute → should get PreflightFailure
+        with pytest.raises(PreflightFailure) as pf_exc:
+            service.execute(_make_command())
+
+        pf = pf_exc.value
+        assert pf.request_id != ""
+
+        # Assert persisted PREFLIGHT_REJECTED + one rejection outbox
+        with session_factory() as s:
+            req = s.execute(
+                select(OrchestrationRequestRecord).where(
+                    OrchestrationRequestRecord.id == pf.request_id
+                )
+            ).scalar_one()
+            assert req.status == "PREFLIGHT_REJECTED"
+            assert req.failure_code is not None
+
+            outbox_count = s.execute(
+                select(func.count())
+                .select_from(AuditOutboxRecord)
+                .where(AuditOutboxRecord.request_id == pf.request_id)
+            ).scalar()
+            assert outbox_count == 1
+
+            # Zero downstream rows
+            assert (
+                s.execute(select(func.count()).select_from(OrchestrationIdentityRecord)).scalar()
+                == 0
+            )
+            assert (
+                s.execute(select(func.count()).select_from(OrchestrationRunAttemptRecord)).scalar()
+                == 0
+            )
