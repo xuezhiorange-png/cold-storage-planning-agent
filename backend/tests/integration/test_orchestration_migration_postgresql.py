@@ -830,7 +830,7 @@ class TestDowngradeBlocker:
             conn.commit()
         engine.dispose()
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode == 0, (
             f"Downgrade should succeed with legacy-only data\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
@@ -966,7 +966,7 @@ class TestDowngradeBlocker:
             conn.commit()
         engine.dispose()
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode != 0, (
             f"Downgrade should be blocked when SourceBinding exists\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
@@ -1160,7 +1160,7 @@ class TestDowngradeBlocker:
         engine.dispose()
 
         # Attempt downgrade — must be blocked
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode != 0, (
             f"Downgrade should have been blocked with production data\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"

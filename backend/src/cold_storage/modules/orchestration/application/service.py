@@ -521,11 +521,15 @@ def _validate_coefficient_candidate(
     Checks:
       - project_id / project_version_id match command
       - content_hash == result_hash(content)
-      - approved_revision_ids non-empty, no duplicates, canonical order
+      - approved_revision_ids non-empty, no duplicates
       - schema_version supported
       - content schema_version matches typed schema_version
-      - content identity fields (project_id, project_version_id) match typed fields
-      - content must not self-attest 'approved' without resolver backing
+      - content identity fields match typed fields
+      - coefficients is a list, coefficient_count matches
+      - each coefficient item is a mapping with required fields
+      - code, definition_id, revision_id are unique
+      - approved_revision_ids matches content revision IDs exactly (order + set)
+      - items in canonical order (by code then revision_id)
     """
     # Identity match
     if candidate.project_id != command.project_id:
@@ -570,10 +574,6 @@ def _validate_coefficient_candidate(
     if len(candidate.approved_revision_ids) != len(set(candidate.approved_revision_ids)):
         raise AmbiguousCoefficientError("duplicate_approved_revisions")
 
-    # The resolver defines canonical order — service verifies structural integrity
-    # but does NOT re-sort.  The resolver's approved_revision_ids must match
-    # the coefficient items in content (validated below).
-
     # Content identity fields must match typed fields
     content_pid = candidate.content.get("project_id")
     if content_pid is not None and content_pid != candidate.project_id:
@@ -587,6 +587,115 @@ def _validate_coefficient_candidate(
             "mismatch",
             f"Content project_version_id {content_pvid!r} != "
             f"typed {candidate.project_version_id!r}",
+        )
+
+    # ── Structural integrity checks ──────────────────────────────────
+    _validate_coefficient_content_structure(candidate)
+
+
+def _validate_coefficient_content_structure(
+    candidate: ResolvedCoefficientContextCandidate,
+) -> None:
+    """Verify that the coefficient content has correct structure.
+
+    Checks coefficient list type, count, item structure, field uniqueness,
+    and that approved_revision_ids matches content revision IDs exactly.
+    """
+    from cold_storage.modules.orchestration.infrastructure.coefficient_resolver import (
+        canonical_revision_ids,
+        coefficient_item_sort_key,
+    )
+
+    content = candidate.content
+
+    # coefficients must be a list
+    coefficients = content.get("coefficients")
+    if not isinstance(coefficients, list):
+        raise CoefficientResolutionError(
+            "structure",
+            f"coefficients must be a list, got {type(coefficients).__name__}",
+        )
+
+    # coefficient_count must match
+    expected_count = len(coefficients)
+    declared_count = content.get("coefficient_count")
+    if declared_count != expected_count:
+        raise CoefficientResolutionError(
+            "structure",
+            f"coefficient_count {declared_count!r} != len(coefficients) {expected_count}",
+        )
+
+    if expected_count == 0:
+        raise CoefficientNotApprovedError("empty_coefficients_list")
+
+    # Each item must be a mapping with required fields
+    codes: set[str] = set()
+    def_ids: set[str] = set()
+    rev_ids: list[str] = []
+
+    for i, item in enumerate(coefficients):
+        if not isinstance(item, dict):
+            raise CoefficientResolutionError(
+                "structure",
+                f"coefficient item [{i}] must be a mapping, got {type(item).__name__}",
+            )
+
+        code = item.get("code")
+        if not isinstance(code, str) or not code.strip():
+            raise CoefficientResolutionError(
+                "structure",
+                f"coefficient item [{i}] missing or invalid 'code' field",
+            )
+        if code in codes:
+            raise CoefficientResolutionError(
+                "structure",
+                f"Duplicate coefficient code {code!r} at item [{i}]",
+            )
+        codes.add(code)
+
+        def_id = item.get("definition_id")
+        if not isinstance(def_id, str) or not def_id.strip():
+            raise CoefficientResolutionError(
+                "structure",
+                f"coefficient item [{i}] missing or invalid 'definition_id' field",
+            )
+        if def_id in def_ids:
+            raise CoefficientResolutionError(
+                "structure",
+                f"Duplicate definition_id {def_id!r} at item [{i}]",
+            )
+        def_ids.add(def_id)
+
+        rev_id = item.get("revision_id")
+        if not isinstance(rev_id, str) or not rev_id.strip():
+            raise CoefficientResolutionError(
+                "structure",
+                f"coefficient item [{i}] missing or invalid 'revision_id' field",
+            )
+        rev_ids.append(str(rev_id))
+
+    # No duplicate revision IDs
+    if len(rev_ids) != len(set(rev_ids)):
+        raise CoefficientResolutionError(
+            "structure",
+            "Duplicate revision_id in coefficient items",
+        )
+
+    # approved_revision_ids must match content revision IDs exactly
+    content_revision_ids = canonical_revision_ids(coefficients)
+    if candidate.approved_revision_ids != content_revision_ids:
+        raise CoefficientResolutionError(
+            "mismatch",
+            f"approved_revision_ids {candidate.approved_revision_ids!r} != "
+            f"content revision_ids {content_revision_ids!r}",
+        )
+
+    # Items must be in canonical order
+    sorted_items = sorted(coefficients, key=coefficient_item_sort_key)
+    if coefficients != sorted_items:
+        raise CoefficientResolutionError(
+            "structure",
+            "Coefficient items are not in canonical order (by code then revision_id)",
         )
 
 
