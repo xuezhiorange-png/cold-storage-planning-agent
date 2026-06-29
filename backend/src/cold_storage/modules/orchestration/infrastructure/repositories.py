@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from sqlalchemy import exc as sa_exc
 from sqlalchemy.orm import Session
@@ -121,6 +121,21 @@ def _is_target_unique_violation(
 
     target_sets = {frozenset(s) for s in sqlite_column_sets}
     return frozenset(columns_for_table) in target_sets
+
+
+# ── Test hooks protocol ─────────────────────────────────────────────────────
+
+
+@runtime_checkable
+class AttemptAcquireTestHooks(Protocol):
+    """Optional injection points for testing concurrent acquire() paths."""
+
+    def after_running_lookup(
+        self, *, identity_id: str, running_attempt: dict[str, object] | None
+    ) -> None: ...
+    def after_next_number_read(self, *, identity_id: str, next_attempt_number: int) -> None: ...
+    def before_attempt_flush(self, *, identity_id: str, attempt_number: int) -> None: ...
+    def after_integrity_conflict(self, *, constraint_name: str | None) -> None: ...
 
 
 # ── Orchestration Request ───────────────────────────────────────────────────
@@ -713,6 +728,9 @@ class OrchestrationAttemptRepository(ABC):
 class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
     """Session-bound repository for ``OrchestrationRunAttemptRecord``."""
 
+    def __init__(self, hooks: AttemptAcquireTestHooks | None = None) -> None:
+        self._hooks = hooks
+
     _LEASE_TIMEOUT_SECONDS = 300  # 5 minutes
     _MAX_ACQUIRE_RETRIES = 3
     _TARGET_CONSTRAINTS = frozenset({"uq_attempt_identity_number", "uq_attempt_one_running"})
@@ -747,6 +765,8 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
         for _retry in range(self._MAX_ACQUIRE_RETRIES):
             # Re-read fresh state each retry
             running = self.find_running_attempt(session, identity_id)
+            if self._hooks:
+                self._hooks.after_running_lookup(identity_id=identity_id, running_attempt=running)
             if running is not None:
                 running_id: str = _ensure_str(running["id"])
                 running_heartbeat: datetime = _ensure_datetime(running["heartbeat_at"])
@@ -769,6 +789,10 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
 
             # Recompute attempt_number each iteration
             attempt_number = self.get_max_attempt_number(session, identity_id) + 1
+            if self._hooks:
+                self._hooks.after_next_number_read(
+                    identity_id=identity_id, next_attempt_number=attempt_number
+                )
 
             record = OrchestrationRunAttemptRecord(
                 id=str(uuid4()),
@@ -782,11 +806,20 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             nested = session.begin_nested()
             try:
                 session.add(record)
+                if self._hooks:
+                    self._hooks.before_attempt_flush(
+                        identity_id=identity_id, attempt_number=attempt_number
+                    )
                 session.flush()
                 nested.commit()
                 return record.id
             except sa_exc.IntegrityError as exc:
                 nested.rollback()
+                pg_name: str | None = getattr(
+                    getattr(exc.orig, "diag", None), "constraint_name", None
+                )
+                if self._hooks:
+                    self._hooks.after_integrity_conflict(constraint_name=pg_name)
                 if not _is_target_unique_violation(
                     exc,
                     postgres_constraint_names=self._TARGET_CONSTRAINTS,
