@@ -665,9 +665,11 @@ class TestAuditEventHistoryBackfill:
 
         engine3 = _pg_engine(db_url)
         with engine3.connect() as conn3:
-            # Revision still 0026
+            # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            assert rev == "0026_add_orchestration_persistence", f"Revision changed: {rev}"
+            assert rev == "0027_separate_requested_and_resolved_request_identity", (
+                f"Revision changed: {rev}"
+            )
 
             # AuditEvent still backfilled with same value
             row2 = conn3.execute(
