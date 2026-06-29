@@ -804,6 +804,8 @@ class TestCrossDBConsistency:
         from cold_storage.modules.orchestration.domain.fingerprint import result_hash
 
         # ── Seed shared test data ─────────────────────────────────────
+        fixed_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
         def _seed_data(session: Session) -> None:
             _clear_tables(session)
             _seed_definition(session, def_id="d1", code="CROSS_A", scope_type="global")
@@ -813,13 +815,14 @@ class TestCrossDBConsistency:
                 code="CROSS_B",
                 scope_type="product",
             )
-            _seed_approved_revision(session, rev_id="r1", definition_id="d1", value_decimal="2.5")
+            _seed_approved_revision(session, rev_id="r1", definition_id="d1", value_decimal="2.5", approved_at_override=fixed_time)
             _seed_approved_revision(
                 session,
                 rev_id="r2",
                 definition_id="d2",
                 value_decimal="0.75",
                 applicable_product_type="blueberry",
+                approved_at_override=fixed_time,
             )
             session.commit()
 
