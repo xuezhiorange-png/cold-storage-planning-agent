@@ -54,46 +54,58 @@ def _ensure_datetime(value: object) -> datetime:
 def _is_target_unique_violation(
     exc: sa_exc.IntegrityError,
     *,
-    postgres_constraint_name: str | None = None,
+    postgres_constraint_names: frozenset[str] | None = None,
     sqlite_table: str | None = None,
     sqlite_column_sets: frozenset[tuple[str, ...]] | None = None,
 ) -> bool:
-    """Return True if *exc* matches the target unique constraint.
+    """Return True if *exc* matches a target unique constraint.
 
     PostgreSQL:
-      Only matches when ``diag.constraint_name`` equals *postgres_constraint_name*.
-      No substring or prefix matching.
+      Reads ``diag.constraint_name`` and requires an exact match against one of
+      *postgres_constraint_names*.  No substring or prefix matching.
 
     SQLite:
-      Verifies the error is a UNIQUE constraint violation (SQLite error code 1555
-      or 2067), then validates the reported table name and that the column set
-      is one of the expected *sqlite_column_sets*.
+      Reads ``sqlite_errorcode`` (SQLITE_CONSTRAINT_UNIQUE / PRIMARYKEY only).
+      Then parses the error message to extract the table and column set, and
+      requires an exact match against *sqlite_column_sets*.
 
-    Non-target FK, CHECK, NOT NULL, and other UNIQUE violations are never matched
-    and must propagate to the caller.
+    Non-target FK, CHECK, NOT NULL, and non-target UNIQUE violations are never
+    matched and must propagate to the caller.
     """
     if exc.orig is None:
         return False
 
     # ── PostgreSQL ───────────────────────────────────────────────────────
-    pg_name: str | None = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+    pg_name: str | None = getattr(
+        getattr(exc.orig, "diag", None), "constraint_name", None
+    )
     if pg_name is not None:
-        if postgres_constraint_name is None:
+        if postgres_constraint_names is None:
             return False
-        return pg_name == postgres_constraint_name
+        return pg_name in postgres_constraint_names
 
     # ── SQLite ───────────────────────────────────────────────────────────
-    orig_str = str(exc.orig)
+    # Verify the SQLite extended error code is UNIQUE or PRIMARY KEY constraint
+    sqlite_errcode = getattr(exc.orig, "sqlite_errorcode", None)
+    if sqlite_errcode is None:
+        return False
 
-    # Must be a UNIQUE constraint error (not FK, CHECK, NOT NULL, etc.)
-    if "UNIQUE constraint failed" not in orig_str:
+    # SQLITE_CONSTRAINT_UNIQUE = 2067, SQLITE_CONSTRAINT_PRIMARYKEY = 1555
+    _SQLITE_UNIQUE = 2067
+    _SQLITE_PRIMARYKEY = 1555
+
+    if sqlite_errcode not in {_SQLITE_UNIQUE, _SQLITE_PRIMARYKEY}:
         return False
 
     if sqlite_table is None or sqlite_column_sets is None:
         return False
 
-    # Extract table and columns: "UNIQUE constraint failed: table.col1, table.col2"
-    parts = orig_str.split("UNIQUE constraint failed:", 1)
+    # Parse table and columns from: "UNIQUE constraint failed: table.col1, table.col2"
+    orig_str = str(exc.orig)
+    if "UNIQUE constraint failed" not in orig_str and "PRIMARY KEY" not in orig_str:
+        return False
+
+    parts = orig_str.split(":", 1)
     if len(parts) < 2:
         return False
 
@@ -266,7 +278,7 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
     """Session-bound repository for ``ProjectVersionExecutionSnapshotRecord``."""
 
     _MAX_RETRIES = 3
-    _TARGET_CONSTRAINT = "uq_exec_snapshot_version_hash_schema"
+    _TARGET_CONSTRAINT = frozenset({"uq_exec_snapshot_version_hash_schema"})
     _SQLITE_TABLE = "orchestration_execution_snapshots"
     _SQLITE_COLUMN_SETS: frozenset[tuple[str, ...]] = frozenset(
         {("project_version_id", "input_snapshot_hash", "schema_version")}
@@ -349,7 +361,7 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
                 nested.rollback()
                 if not _is_target_unique_violation(
                     exc,
-                    postgres_constraint_name=self._TARGET_CONSTRAINT,
+                    postgres_constraint_names=self._TARGET_CONSTRAINT,
                     sqlite_table=self._SQLITE_TABLE,
                     sqlite_column_sets=self._SQLITE_COLUMN_SETS,
                 ):
@@ -394,7 +406,7 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
     """Session-bound repository for ``CoefficientContextRecord``."""
 
     _MAX_RETRIES = 3
-    _TARGET_CONSTRAINT = "uq_coeff_context_version_hash"
+    _TARGET_CONSTRAINT = frozenset({"uq_coeff_context_version_hash"})
     _SQLITE_TABLE = "orchestration_coefficient_contexts"
     _SQLITE_COLUMN_SETS: frozenset[tuple[str, ...]] = frozenset(
         {("project_version_id", "content_hash")}
@@ -466,7 +478,7 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
                 nested.rollback()
                 if not _is_target_unique_violation(
                     exc,
-                    postgres_constraint_name=self._TARGET_CONSTRAINT,
+                    postgres_constraint_names=self._TARGET_CONSTRAINT,
                     sqlite_table=self._SQLITE_TABLE,
                     sqlite_column_sets=self._SQLITE_COLUMN_SETS,
                 ):
@@ -521,7 +533,7 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
     """Session-bound repository for ``OrchestrationIdentityRecord``."""
 
     _MAX_RETRIES = 3
-    _TARGET_CONSTRAINT = "uq_orch_identity_fingerprint"
+    _TARGET_CONSTRAINT = frozenset({"uq_orch_identity_fingerprint"})
     _SQLITE_TABLE = "orchestration_identities"
     _SQLITE_COLUMN_SETS: frozenset[tuple[str, ...]] = frozenset({("fingerprint",)})
 
@@ -588,7 +600,7 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
                 nested.rollback()
                 if not _is_target_unique_violation(
                     exc,
-                    postgres_constraint_name=self._TARGET_CONSTRAINT,
+                    postgres_constraint_names=self._TARGET_CONSTRAINT,
                     sqlite_table=self._SQLITE_TABLE,
                     sqlite_column_sets=self._SQLITE_COLUMN_SETS,
                 ):
@@ -779,14 +791,10 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                 nested.rollback()
                 if not _is_target_unique_violation(
                     exc,
-                    postgres_constraint_name=None,  # multiple targets → check below
+                    postgres_constraint_names=self._TARGET_CONSTRAINTS,
                     sqlite_table=self._SQLITE_TABLE,
                     sqlite_column_sets=self._SQLITE_COLUMN_SETS,
                 ):
-                    raise
-                # Additionally for PG: check both constraint names
-                pg_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
-                if pg_name is not None and pg_name not in self._TARGET_CONSTRAINTS:
                     raise
                 # Conflict — retry with fresh state
                 continue

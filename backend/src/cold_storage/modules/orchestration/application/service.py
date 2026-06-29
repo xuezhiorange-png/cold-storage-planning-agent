@@ -569,9 +569,18 @@ def _validate_coefficient_candidate(
     if len(candidate.approved_revision_ids) != len(set(candidate.approved_revision_ids)):
         raise AmbiguousCoefficientError("duplicate_approved_revisions")
 
-    # Content must not self-attest approved without resolver backing
+    # Canonical order: revision IDs must be in sorted (lexicographic) order.
+    # If the resolver provides an ordering field (e.g. priority, effective_at),
+    # update this to match the authoritative catalog sort.
+    canonical = tuple(sorted(candidate.approved_revision_ids))
+    if candidate.approved_revision_ids != canonical:
+        raise AmbiguousCoefficientError("unordered_approved_revisions")
+
+    # Content must not self-attest approved without resolver backing.
+    # Caller-supplied "source_type", "validity_status", "approved" in content
+    # are NOT accepted as proof of approval.
     source_type = candidate.content.get("source_type")
-    if source_type == "approved" and not candidate.approved_revision_ids:
+    if source_type == "approved":
         raise CoefficientNotApprovedError("self_attested_approved")
 
     # Content identity fields must match typed fields
