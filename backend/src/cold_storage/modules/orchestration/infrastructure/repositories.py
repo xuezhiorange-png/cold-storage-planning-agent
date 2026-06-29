@@ -17,6 +17,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime
+from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
 from sqlalchemy import exc as sa_exc
@@ -123,6 +124,57 @@ def _is_target_unique_violation(
     return frozenset(columns_for_table) in target_sets
 
 
+# ── Attempt insert conflict classifier ────────────────────────────────────
+
+
+class AttemptInsertConflictKind(StrEnum):
+    """Classifies IntegrityError on attempt INSERT for targeted recovery."""
+
+    IDENTITY_NUMBER = "identity_number"
+    ONE_RUNNING = "one_running"
+    NON_TARGET = "non_target"
+
+
+def _classify_attempt_insert_integrity_error(
+    exc: sa_exc.IntegrityError,
+) -> AttemptInsertConflictKind:
+    """Classify an IntegrityError from attempt INSERT.
+
+    Returns IDENTITY_NUMBER if the violation is on uq_attempt_identity_number,
+    ONE_RUNNING if on uq_attempt_one_running (partial unique index),
+    or NON_TARGET for any other constraint violation.
+    """
+    pg_name: str | None = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+    if pg_name == "uq_attempt_identity_number":
+        return AttemptInsertConflictKind.IDENTITY_NUMBER
+    if pg_name == "uq_attempt_one_running":
+        return AttemptInsertConflictKind.ONE_RUNNING
+
+    # SQLite: parse message to determine which column set matches.
+    sqlite_errcode = getattr(exc.orig, "sqlite_errorcode", None)
+    if sqlite_errcode is not None:
+        _SQLITE_UNIQUE = 2067
+        _SQLITE_PRIMARYKEY = 1555
+        if sqlite_errcode in {_SQLITE_UNIQUE, _SQLITE_PRIMARYKEY}:
+            orig_str = str(exc.orig)
+            if "UNIQUE constraint failed" in orig_str:
+                parts = orig_str.split(":", 1)
+                if len(parts) >= 2:
+                    detail = parts[1].strip()
+                    entries = [e.strip() for e in detail.split(",")]
+                    cols = set()
+                    for entry in entries:
+                        if "." in entry:
+                            _, col = entry.rsplit(".", 1)
+                            cols.add(col)
+                    if cols == {"identity_id", "attempt_number"}:
+                        return AttemptInsertConflictKind.IDENTITY_NUMBER
+                    if cols == {"identity_id"}:
+                        return AttemptInsertConflictKind.ONE_RUNNING
+
+    return AttemptInsertConflictKind.NON_TARGET
+
+
 # ── Test hooks protocol ─────────────────────────────────────────────────────
 
 
@@ -131,11 +183,42 @@ class AttemptAcquireTestHooks(Protocol):
     """Optional injection points for testing concurrent acquire() paths."""
 
     def after_running_lookup(
-        self, *, identity_id: str, running_attempt: dict[str, object] | None
+        self,
+        *,
+        identity_id: str,
+        running_attempt: dict[str, object] | None,
+        retry_index: int,
     ) -> None: ...
-    def after_next_number_read(self, *, identity_id: str, next_attempt_number: int) -> None: ...
-    def before_attempt_flush(self, *, identity_id: str, attempt_number: int) -> None: ...
-    def after_integrity_conflict(self, *, constraint_name: str | None) -> None: ...
+    def after_next_number_read(
+        self,
+        *,
+        identity_id: str,
+        next_attempt_number: int,
+        retry_index: int,
+    ) -> None: ...
+    def before_attempt_flush(
+        self,
+        *,
+        identity_id: str,
+        attempt_number: int,
+        retry_index: int,
+    ) -> None: ...
+    def after_integrity_conflict(
+        self,
+        *,
+        constraint_name: str | None,
+        identity_id: str,
+        attempt_number: int,
+        retry_index: int,
+    ) -> None: ...
+    def after_retry_state_refresh(
+        self,
+        *,
+        identity_id: str,
+        running_attempt: dict[str, object] | None,
+        max_attempt_number: int,
+        retry_index: int,
+    ) -> None: ...
 
 
 # ── Orchestration Request ───────────────────────────────────────────────────
@@ -762,14 +845,20 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             OrchestrationRunAttemptRecord,
         )
 
-        for _retry in range(self._MAX_ACQUIRE_RETRIES):
+        stale_attempt_id: str | None = None
+        for retry_idx in range(self._MAX_ACQUIRE_RETRIES):
             # Re-read fresh state each retry
             running = self.find_running_attempt(session, identity_id)
             if self._hooks:
-                self._hooks.after_running_lookup(identity_id=identity_id, running_attempt=running)
+                self._hooks.after_running_lookup(
+                    identity_id=identity_id,
+                    running_attempt=running,
+                    retry_index=retry_idx,
+                )
             if running is not None:
                 running_id: str = _ensure_str(running["id"])
                 running_heartbeat: datetime = _ensure_datetime(running["heartbeat_at"])
+                stale_attempt_id = running_id
                 age = (_dt.now(UTC) - running_heartbeat).total_seconds()
                 if age > self._LEASE_TIMEOUT_SECONDS:
                     now = _dt.now(UTC)
@@ -791,7 +880,9 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             attempt_number = self.get_max_attempt_number(session, identity_id) + 1
             if self._hooks:
                 self._hooks.after_next_number_read(
-                    identity_id=identity_id, next_attempt_number=attempt_number
+                    identity_id=identity_id,
+                    next_attempt_number=attempt_number,
+                    retry_index=retry_idx,
                 )
 
             record = OrchestrationRunAttemptRecord(
@@ -808,7 +899,9 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                 session.add(record)
                 if self._hooks:
                     self._hooks.before_attempt_flush(
-                        identity_id=identity_id, attempt_number=attempt_number
+                        identity_id=identity_id,
+                        attempt_number=attempt_number,
+                        retry_index=retry_idx,
                     )
                 session.flush()
                 nested.commit()
@@ -819,18 +912,32 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                     getattr(exc.orig, "diag", None), "constraint_name", None
                 )
                 if self._hooks:
-                    self._hooks.after_integrity_conflict(constraint_name=pg_name)
-                if not _is_target_unique_violation(
-                    exc,
-                    postgres_constraint_names=self._TARGET_CONSTRAINTS,
-                    sqlite_table=self._SQLITE_TABLE,
-                    sqlite_column_sets=self._SQLITE_COLUMN_SETS,
-                ):
+                    self._hooks.after_integrity_conflict(
+                        constraint_name=pg_name,
+                        identity_id=identity_id,
+                        attempt_number=attempt_number,
+                        retry_index=retry_idx,
+                    )
+                kind = _classify_attempt_insert_integrity_error(exc)
+                if kind is AttemptInsertConflictKind.NON_TARGET:
                     raise
-                # Conflict — retry with fresh state
+                # Target conflict — re-read state and retry
+                refreshed_running = self.find_running_attempt(session, identity_id)
+                max_num = self.get_max_attempt_number(session, identity_id)
+                if self._hooks:
+                    self._hooks.after_retry_state_refresh(
+                        identity_id=identity_id,
+                        running_attempt=refreshed_running,
+                        max_attempt_number=max_num,
+                        retry_index=retry_idx,
+                    )
                 continue
 
-        raise AttemptTakeoverConflictError(identity_id)
+        raise AttemptTakeoverConflictError(
+            identity_id=identity_id,
+            attempt_id=stale_attempt_id,
+            retry_count=self._MAX_ACQUIRE_RETRIES,
+        )
 
     def find_running_attempt(
         self, session: Session, /, identity_id: str
