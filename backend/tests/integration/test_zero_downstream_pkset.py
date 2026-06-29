@@ -157,6 +157,7 @@ def _make_resolved_coefficient(
         "coefficient_count": len(coefficients),
         "coefficients": coefficients,
         "requirement_registry_version": _REGISTRY_VERSION,
+        "calculator_version_vector": dict(_CV_VECTOR),
         "required_codes": list(_REQUIRED_CODES),
         "requirement_hash": req_hash,
     }
