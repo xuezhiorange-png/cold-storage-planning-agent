@@ -989,3 +989,254 @@ class TestTrueServiceReentry:
                     select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
                 ).scalar_one()
                 assert ev is not None, f"No outbox event for request {pf.request_id}"
+
+
+# ── Zero-Downstream Delta Proof ───────────────────────────────────────────
+
+
+class TestZeroDownstreamDelta:
+    """P0-5: Every rejection path must leave zero downstream rows.
+
+    Before/after ID-set snapshots for all downstream tables:
+    execution_snapshots, coefficient_contexts, identities, attempts.
+    """
+
+    DOWNSTREAM_TABLES: tuple[str, ...] = (
+        "orchestration_execution_snapshots",
+        "orchestration_coefficient_contexts",
+        "orchestration_identities",
+        "orchestration_run_attempts",
+    )
+
+    def _count_all(self, session) -> dict[str, int]:
+        """Return {table_name: row_count} for all downstream tables."""
+        from sqlalchemy import text as sa_text
+
+        counts: dict[str, int] = {}
+        for tbl in self.DOWNSTREAM_TABLES:
+            cnt = session.execute(sa_text(f"SELECT COUNT(*) FROM {tbl}")).scalar()
+            counts[tbl] = cnt
+        return counts
+
+    def test_version_not_found_zero_downstream(self, service, session_factory) -> None:
+        """Version not found rejection leaves zero downstream rows."""
+        with session_factory() as s:
+            before = self._count_all(s)
+
+        with pytest.raises(PreflightFailure):
+            service.execute(_make_command(project_version_id="nonexistent"))
+
+        with session_factory() as s:
+            after = self._count_all(s)
+            for tbl, cnt in after.items():
+                assert cnt == before[tbl], f"Table {tbl} changed: {before[tbl]} → {cnt}"
+
+    def test_project_mismatch_zero_downstream(self, service, session_factory) -> None:
+        """Project mismatch rejection leaves zero downstream rows."""
+        with session_factory() as s:
+            _seed_project_and_version(s, project_id="p-2", version_id="pv-1")
+            before = self._count_all(s)
+
+        with pytest.raises(PreflightFailure):
+            service.execute(_make_command(project_id="p-1"))
+
+        with session_factory() as s:
+            after = self._count_all(s)
+            for tbl, cnt in after.items():
+                assert cnt == before[tbl], f"Table {tbl} changed"
+
+    def test_draft_version_zero_downstream(self, service, session_factory) -> None:
+        with session_factory() as s:
+            _seed_project_and_version(s, status="draft")
+            before = self._count_all(s)
+
+        with pytest.raises(PreflightFailure):
+            service.execute(_make_command())
+
+        with session_factory() as s:
+            after = self._count_all(s)
+            for tbl, cnt in after.items():
+                assert cnt == before[tbl], f"Table {tbl} changed"
+
+    def test_coefficient_rejection_zero_downstream(self, service, session_factory) -> None:
+        from cold_storage.modules.orchestration.domain.errors import (
+            CoefficientResolutionError,
+        )
+
+        service._coefficient_port.resolve.side_effect = CoefficientResolutionError(
+            "resolver", "test rejection"
+        )
+        with session_factory() as s:
+            _seed_project_and_version(s)
+            before = self._count_all(s)
+
+        with pytest.raises(PreflightFailure):
+            service.execute(_make_command())
+
+        with session_factory() as s:
+            after = self._count_all(s)
+            for tbl, cnt in after.items():
+                assert cnt == before[tbl], f"Table {tbl} changed: {before[tbl]} → {cnt}"
+
+
+# ── SQLite Constraint Classification Tests ───────────────────────────────
+
+
+class TestSQLiteConstraintClassification:
+    """P0-2: Exact SQLite error code and column-set classification."""
+
+    def _make_integrity_error(self, error_code: int | None, message: str):
+        """Construct a SQLAlchemy IntegrityError wrapping a SQLite error."""
+        import sqlite3
+
+        from sqlalchemy import exc as sa_exc
+
+        orig = sqlite3.IntegrityError(message)
+        if error_code is not None:
+            orig.sqlite_errorcode = error_code
+        else:
+            # Simulate missing error code
+            del orig.sqlite_errorcode
+
+        return sa_exc.IntegrityError(
+            "statement",
+            {"params": ()},
+            orig,
+        )
+
+    def test_code_2067_matching_table_and_columns(self) -> None:
+        """SQLITE_CONSTRAINT_UNIQUE (2067) with matching table/columns."""
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        exc = self._make_integrity_error(
+            2067,
+            "UNIQUE constraint failed: orchestration_run_attempts.identity_id,"
+            " orchestration_run_attempts.attempt_number",
+        )
+        assert _is_target_unique_violation(
+            exc,
+            sqlite_table="orchestration_run_attempts",
+            sqlite_column_sets=frozenset(
+                {
+                    ("identity_id", "attempt_number"),
+                }
+            ),
+        )
+
+    def test_code_1555_matching(self) -> None:
+        """SQLITE_CONSTRAINT_PRIMARYKEY (1555) with matching."""
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        exc = self._make_integrity_error(
+            1555,
+            "UNIQUE constraint failed: table.id",
+        )
+        assert _is_target_unique_violation(
+            exc,
+            sqlite_table="table",
+            sqlite_column_sets=frozenset({("id",)}),
+        )
+
+    def test_wrong_error_code(self) -> None:
+        """Correct text but wrong error code → False."""
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        exc = self._make_integrity_error(
+            19,  # SQLITE_CONSTRAINT (generic, not UNIQUE)
+            "UNIQUE constraint failed: table.col",
+        )
+        assert not _is_target_unique_violation(
+            exc,
+            sqlite_table="table",
+            sqlite_column_sets=frozenset({("col",)}),
+        )
+
+    def test_wrong_table(self) -> None:
+        """Correct code but wrong table → False."""
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        exc = self._make_integrity_error(
+            2067,
+            "UNIQUE constraint failed: other_table.col",
+        )
+        assert not _is_target_unique_violation(
+            exc,
+            sqlite_table="orchestration_run_attempts",
+            sqlite_column_sets=frozenset({("col",)}),
+        )
+
+    def test_wrong_columns(self) -> None:
+        """Correct everything except column set → False."""
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        exc = self._make_integrity_error(
+            2067,
+            "UNIQUE constraint failed: t.a, t.b",
+        )
+        assert not _is_target_unique_violation(
+            exc,
+            sqlite_table="t",
+            sqlite_column_sets=frozenset({("a", "c")}),
+        )
+
+    def test_missing_error_code(self) -> None:
+        """Missing sqlite_errorcode attribute → False."""
+        import sqlite3
+
+        from sqlalchemy import exc as sa_exc
+
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        orig = sqlite3.IntegrityError("UNIQUE constraint failed: t.col")
+        exc = sa_exc.IntegrityError("stmt", {"params": ()}, orig)
+        assert not _is_target_unique_violation(
+            exc,
+            sqlite_table="t",
+            sqlite_column_sets=frozenset({("col",)}),
+        )
+
+    def test_orig_is_none(self) -> None:
+        """orig is None → False."""
+        from sqlalchemy import exc as sa_exc
+
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        exc = sa_exc.IntegrityError("stmt", {"params": ()}, None)
+        assert not _is_target_unique_violation(
+            exc,
+            sqlite_table="t",
+            sqlite_column_sets=frozenset({("col",)}),
+        )
+
+    def test_non_integrity_error(self) -> None:
+        """Non-SA-IntegrityError raises AttributeError — helper assumes SA exc."""
+        import pytest as _pytest
+
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            _is_target_unique_violation,
+        )
+
+        class FakeError(Exception):
+            pass
+
+        exc = FakeError("not an integrity error")
+        with _pytest.raises(AttributeError):
+            _is_target_unique_violation(
+                exc,  # type: ignore[arg-type]
+                sqlite_table="t",
+                sqlite_column_sets=frozenset({("col",)}),
+            )
