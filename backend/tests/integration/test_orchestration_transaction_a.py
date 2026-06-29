@@ -240,7 +240,7 @@ def _seed_project_and_version(
                 created_by="test",
                 status=status,
                 created_at=datetime.now(UTC),
-                input_snapshot={"throughput_t": "25.0"},
+                input_snapshot={"throughput_t": "25.0", "product_category": "blueberry"},
             )
         )
     session.commit()
@@ -347,17 +347,20 @@ class TestTransactionASuccess:
             _seed_project_and_version(s)
         r1 = service.execute(_make_command(correlation_id="c1"))
 
-        # Mark first attempt as COMPLETED so second acquire succeeds
-        service._attempt_repo.update_status(
-            session_factory(),
-            r1.attempt_id,
-            status=AttemptStatus.COMPLETED,
-        )
-        service._identity_repo.set_authoritative_attempt(
-            session_factory(),
-            r1.identity_id,
-            r1.attempt_id,
-        )
+        # Mark first attempt as COMPLETED so second acquire succeeds.
+        # Repositories do NOT commit — we must commit the session ourselves.
+        with session_factory() as s:
+            service._attempt_repo.update_status(
+                s,
+                r1.attempt_id,
+                status=AttemptStatus.COMPLETED,
+            )
+            service._identity_repo.set_authoritative_attempt(
+                s,
+                r1.identity_id,
+                r1.attempt_id,
+            )
+            s.commit()
 
         # Second call with different correlation_id → different request
         r2 = service.execute(_make_command(correlation_id="c2"))
