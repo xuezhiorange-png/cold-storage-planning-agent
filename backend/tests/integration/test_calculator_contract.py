@@ -8,17 +8,24 @@ This test is the catalog-side enforcement of ADR-026.  If a code is added to
 the registry but missing from the catalog seed data, this test will fail.
 
 Uses the ``tmp_session_factory`` fixture (SQLite-backed) from the root conftest
-and seeds real ``CoefficientDefinitionRecord`` rows.
+and seeds real ``CoefficientDefinitionRecord`` rows via the canonical
+:func:`~cold_storage.modules.coefficients.domain.catalog.seed_catalog`.
 """
 
 from __future__ import annotations
 
-import uuid
-
 import pytest
+from sqlalchemy import select
 
+from cold_storage.modules.coefficients.domain.catalog import (
+    COEFFICIENT_CATALOG,
+)
 from cold_storage.modules.coefficients.infrastructure.orm import (
     CoefficientDefinitionRecord,
+    CoefficientRevisionRecord,
+)
+from cold_storage.modules.coefficients.infrastructure.seed import (
+    seed_catalog,
 )
 from cold_storage.modules.orchestration.application.coefficient_contracts import (
     REQUIRED_COEFFICIENTS_BY_CALCULATOR_VERSION,
@@ -55,26 +62,6 @@ def _all_registry_codes() -> set[str]:
     for required in REQUIRED_COEFFICIENTS_BY_CALCULATOR_VERSION.values():
         codes.update(required)
     return codes
-
-
-def _seed_definitions(session_factory) -> None:
-    """Seed CoefficientDefinitionRecord rows for every code in the registry."""
-    codes = _all_registry_codes()
-    with session_factory() as session:
-        for code in sorted(codes):
-            record = CoefficientDefinitionRecord(
-                id=uuid.uuid4().hex,
-                code=code,
-                name=code.replace(".", " ").replace("_", " ").title(),
-                description=f"Test definition for {code}",
-                category=code.split(".")[0],
-                canonical_unit="ratio",
-                value_type="decimal",
-                scope_type="global",
-                is_active=True,
-            )
-            session.add(record)
-        session.commit()
 
 
 # ── Tests ────────────────────────────────────────────────────────────────
@@ -129,7 +116,8 @@ class TestCalculatorCoefficientContract:
         tmp_session_factory,
     ) -> None:
         """Every code in the registry must exist as an active definition."""
-        _seed_definitions(tmp_session_factory)
+        with tmp_session_factory() as session:
+            seed_catalog(session)
 
         required_codes = _all_registry_codes()
         with tmp_session_factory() as session:
@@ -147,6 +135,60 @@ class TestCalculatorCoefficientContract:
 
         inactive = {r.code for r in rows if not r.is_active}
         assert not inactive, f"Inactive CoefficientDefinitionRecord for codes: {sorted(inactive)}"
+
+    def test_catalog_definitions_have_correct_metadata(
+        self,
+        tmp_session_factory,
+    ) -> None:
+        """Seeded catalog definitions must have correct metadata fields."""
+        with tmp_session_factory() as session:
+            seed_catalog(session)
+
+        expected_by_code = {entry["code"]: entry for entry in COEFFICIENT_CATALOG}
+
+        with tmp_session_factory() as session:
+            rows = session.execute(select(CoefficientDefinitionRecord)).scalars().all()
+
+        for row in rows:
+            expected = expected_by_code[row.code]
+            assert row.value_type == expected["value_type"], (
+                f"{row.code}: value_type={row.value_type!r}, expected={expected['value_type']!r}"
+            )
+            assert row.canonical_unit == expected["canonical_unit"], (
+                f"{row.code}: canonical_unit={row.canonical_unit!r}, "
+                f"expected={expected['canonical_unit']!r}"
+            )
+            assert row.scope_type == expected["scope_type"], (
+                f"{row.code}: scope_type={row.scope_type!r}, expected={expected['scope_type']!r}"
+            )
+            assert row.is_active is True, f"{row.code}: is_active={row.is_active!r}, expected=True"
+
+    def test_each_code_has_exactly_one_approved_revision(
+        self,
+        tmp_session_factory,
+    ) -> None:
+        """Each catalog code must have exactly one approved revision after seeding."""
+        with tmp_session_factory() as session:
+            seed_catalog(session)
+
+        with tmp_session_factory() as session:
+            defs = session.execute(select(CoefficientDefinitionRecord)).scalars().all()
+            for defn in defs:
+                revisions = (
+                    session.execute(
+                        select(CoefficientRevisionRecord).where(
+                            CoefficientRevisionRecord.coefficient_definition_id == defn.id
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                assert len(revisions) == 1, (
+                    f"{defn.code}: expected 1 revision, got {len(revisions)}"
+                )
+                assert revisions[0].status == "approved", (
+                    f"{defn.code}: revision status={revisions[0].status!r}, expected='approved'"
+                )
 
     def test_derive_required_codes_returns_consistent_results(self) -> None:
         """derive_required_codes_for_version_vector returns sorted, deduplicated codes."""
