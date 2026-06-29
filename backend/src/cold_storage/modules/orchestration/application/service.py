@@ -1058,24 +1058,32 @@ def _validate_coefficient_candidate(
             f"frozen {list(frozen_criteria.required_codes)!r}",
         )
 
-    # 4. requirement_hash
+    # 4. requirement_hash — dual binding
+    #    (a) Verify frozen criteria itself is self-consistent
+    #    (b) Verify candidate content matches frozen criteria exactly
     content_req_hash = candidate.content.get("requirement_hash")
     if not isinstance(content_req_hash, str) or not content_req_hash.strip():
         raise CoefficientResolutionError(
             "mismatch",
             "Content requirement_hash is missing or not a non-empty string",
         )
-    expected_hash = result_hash(
+    recomputed = result_hash(
         {
             "registry_version": frozen_criteria.requirement_registry_version,
             "calculator_version_vector": dict(frozen_criteria.calculator_version_vector),
             "required_codes": list(frozen_criteria.required_codes),
         }
     )
-    if content_req_hash != expected_hash:
+    if frozen_criteria.requirement_hash != recomputed:
+        raise CoefficientResolutionError(
+            "criteria_integrity",
+            "Frozen requirement_hash is inconsistent with frozen requirement metadata",
+        )
+    if content_req_hash != frozen_criteria.requirement_hash:
         raise CoefficientResolutionError(
             "mismatch",
-            f"Content requirement_hash {content_req_hash!r} != recomputed {expected_hash!r}",
+            f"Candidate requirement_hash {content_req_hash!r}"
+            f" != frozen {frozen_criteria.requirement_hash!r}",
         )
 
 
