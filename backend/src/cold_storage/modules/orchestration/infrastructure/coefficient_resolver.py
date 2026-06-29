@@ -5,25 +5,28 @@ coefficient_revisions) from the current Transaction A session to
 produce a ``ResolvedCoefficientContextCandidate``.
 
 Key behaviours:
+- Accepts ``FrozenCoefficientResolutionCriteria`` derived from the frozen
+  ProjectVersion — never caller-provided scope/required-codes.
 - Filters by definition scope_type and revision applicability
-  (product_type, zone_type, process_type) from frozen ProjectVersion inputs.
-- Enforces required coefficient completeness — every required code
-  must resolve to exactly one authoritative approved revision.
-- Per definition, selects exactly ONE authoritative revision via
-  supersession DAG validation (cycle detection, multi-head rejection).
+  (product_type, zone_type, process_type) — fail-closed on missing fields.
+- Returns exactly the authoritative required coefficient set — no extra
+  definitions, no missing codes.
+- Per definition, exactly ONE terminal head is selected via supersession
+  DAG validation.  Multiple terminal heads → AmbiguousCoefficientError
+  regardless of revision_number.
 - Includes real value_decimal / value_json in canonical content,
   with Decimal normalization and JSON structural canonicalization.
+  Validates value-type integrity (decimal/json exclusivity).
 - Canonical order: by definition.code ASC.
 - Never trusts caller-supplied approval flags.
-- Raises typed errors on missing definitions, ambiguous revisions,
-  supersession integrity violations, and invalid values.
+- Raises typed errors on missing/ambiguous/duplicate/mis-scoped revisions
+  and invalid values.
 """
 
 from __future__ import annotations
 
 import json
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -34,6 +37,10 @@ from cold_storage.modules.coefficients.infrastructure.orm import (
     CoefficientDefinitionRecord,
     CoefficientRevisionRecord,
 )
+from cold_storage.modules.orchestration.application.coefficient_contracts import (
+    FrozenCoefficientResolutionCriteria,
+    canonical_revision_ids,
+)
 from cold_storage.modules.orchestration.application.ports import (
     ResolvedCoefficientContextCandidate,
 )
@@ -43,22 +50,6 @@ from cold_storage.modules.orchestration.domain.errors import (
     CoefficientResolutionError,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
-
-# ── Frozen canonical order helpers ────────────────────────────────────────
-
-
-def coefficient_item_sort_key(item: Mapping[str, object]) -> tuple[str, str]:
-    """Sort coefficient items by definition code then revision_id."""
-    return (str(item.get("code", "")), str(item.get("revision_id", "")))
-
-
-def canonical_revision_ids(
-    items: Sequence[Mapping[str, object]],
-) -> tuple[str, ...]:
-    """Return sorted revision IDs from canonical-order coefficient items."""
-    sorted_items = sorted(items, key=coefficient_item_sort_key)
-    return tuple(str(it["revision_id"]) for it in sorted_items)
-
 
 # ── Value canonicalization ────────────────────────────────────────────────
 
@@ -156,8 +147,7 @@ def _validate_supersession_dag(
 
     Raises:
         CoefficientResolutionError: on missing target, cross-definition
-            edge, self-loop, cycle, or multiple terminal heads.
-        AmbiguousCoefficientError: on multiple un-superseded heads.
+            edge, self-loop, or cycle.
     """
     # Map: superseding_rev_id → supersedes_rev_id
     edges: dict[str, str] = {}
@@ -225,6 +215,9 @@ class SqlAlchemyCoefficientResolutionAdapter:
     Queries ``coefficient_definitions`` JOIN ``coefficient_revisions``
     within the caller's session.  Selects one authoritative revision
     per definition.  Never trusts caller-provided approval flags.
+
+    Accepts ``FrozenCoefficientResolutionCriteria`` — scope and required
+    codes are authoritative, never taken from the caller.
     """
 
     _SUPPORTED_SCHEMA_VERSIONS: frozenset[str] = frozenset({"1.0.0"})
@@ -232,9 +225,7 @@ class SqlAlchemyCoefficientResolutionAdapter:
     def resolve(
         self,
         *,
-        project_id: str,
-        project_version_id: str,
-        coefficient_resolution_context: dict[str, object],
+        criteria: FrozenCoefficientResolutionCriteria,
         session: object | None = None,
     ) -> ResolvedCoefficientContextCandidate:
         if session is None or not isinstance(session, Session):
@@ -246,15 +237,13 @@ class SqlAlchemyCoefficientResolutionAdapter:
         # Narrow type for type checker
         db: Session = session
 
-        # Derive applicability criteria from frozen ProjectVersion inputs
-        # (read from coefficient_resolution_context, validated against DB)
-        product_type = coefficient_resolution_context.get("product_type")
-        zone_type = coefficient_resolution_context.get("zone_type")
-        process_type = coefficient_resolution_context.get("process_type")
-        required_codes: list[str] | None = None
-        raw_required = coefficient_resolution_context.get("required_codes")
-        if isinstance(raw_required, list):
-            required_codes = [str(c) for c in raw_required]
+        # Authoritative criteria from frozen ProjectVersion
+        project_id = criteria.project_id
+        project_version_id = criteria.project_version_id
+        product_type = criteria.product_type
+        zone_types = criteria.zone_types
+        process_types = criteria.process_types
+        required_codes = criteria.required_codes
 
         now = datetime.now(UTC)
 
@@ -299,7 +288,7 @@ class SqlAlchemyCoefficientResolutionAdapter:
         )
         definitions: dict[str, CoefficientDefinitionRecord] = {d.id: d for d in def_rows}
 
-        # 2 — Apply scope/applicability filtering
+        # 2 — Apply scope/applicability filtering (fail-closed)
         filtered: list[CoefficientRevisionRecord] = []
         for rev in rows:
             definition = definitions.get(rev.coefficient_definition_id)
@@ -311,42 +300,51 @@ class SqlAlchemyCoefficientResolutionAdapter:
                     f"not found for its revisions",
                 )
 
-            if not self._matches_scope(definition, rev, product_type, zone_type, process_type):
+            if not self._matches_scope(definition, rev, product_type, zone_types, process_types):
                 continue
             filtered.append(rev)
-
-        if not filtered:
-            raise CoefficientNotApprovedError("no_applicable_approved_revisions")
 
         # Group by definition_id
         by_definition: dict[str, list[CoefficientRevisionRecord]] = defaultdict(list)
         for rev in filtered:
             by_definition[rev.coefficient_definition_id].append(rev)
 
-        # 3 — Enforce required coefficient completeness
-        available_codes: set[str] = set()
+        # 3 — Build definition code map from applicable definitions
+        def_code_map: dict[str, str] = {}
         for def_id in by_definition:
             definition = definitions[def_id]
-            available_codes.add(definition.code)
+            def_code_map[def_id] = definition.code
 
-        if required_codes is not None:
-            missing = set(required_codes) - available_codes
+        # 4 — Enforce required coefficient completeness
+        #     Only return exact required set — no extras
+        available_codes: dict[str, str] = {}  # code → def_id
+        for def_id in by_definition:
+            code = def_code_map[def_id]
+            available_codes[code] = def_id
+
+        if required_codes:
+            missing = set(required_codes) - set(available_codes)
             if missing:
                 raise CoefficientNotApprovedError(
                     f"required_coefficient_missing:{','.join(sorted(missing))}"
                 )
 
-        # 4 — Select one authoritative revision per definition
+        # 5 — Select exactly ONE authoritative revision per required code,
+        #     with value-type and unit validation
         coefficient_items: list[dict[str, object]] = []
-        for def_id, revisions in by_definition.items():
-            definition = definitions[def_id]
+        for code in required_codes:
+            resolved_def_id: str | None = available_codes.get(code)
+            if resolved_def_id is None:
+                raise CoefficientNotApprovedError(f"required_coefficient_missing:{code}")
+            revisions = by_definition[resolved_def_id]
+            definition = definitions[resolved_def_id]
             selected = self._select_authoritative(revisions)
-            coefficient_items.append(self._build_item(definition.code, def_id, selected))
+            coefficient_items.append(self._build_item(definition, selected))
 
-        # 5 — Canonical order: by definition.code ASC
+        # 6 — Canonical order: by definition.code ASC
         coefficient_items.sort(key=lambda it: str(it.get("code", "")))
 
-        # 6 — Build canonical content
+        # 7 — Build canonical content
         content: dict[str, object] = {
             "source_type": "catalog",
             "schema_version": "1.0.0",
@@ -371,34 +369,45 @@ class SqlAlchemyCoefficientResolutionAdapter:
         self,
         definition: CoefficientDefinitionRecord,
         revision: CoefficientRevisionRecord,
-        product_type: object,
-        zone_type: object,
-        process_type: object,
+        product_type: str | None,
+        zone_types: tuple[str, ...],
+        process_types: tuple[str, ...],
     ) -> bool:
-        """Check whether *revision* is applicable given the scope constraints."""
+        """Check whether *revision* is applicable — FAIL-CLOSED.
+
+        For non-global scopes, both the frozen criterion AND the revision
+        applicability field MUST be present.  If either is missing, the
+        revision is NOT matched (fail-closed).
+        """
         scope = definition.scope_type
 
         # Global scope matches everything
         if scope == "global":
             return True
 
-        # Product scope: revision must match the product type
+        # Product scope: both sides must be present and match
         if scope == "product":
-            if product_type is not None and revision.applicable_product_type is not None:
-                return str(revision.applicable_product_type) == str(product_type)
-            return True  # No filter applied if either is None
+            if product_type is None:
+                return False  # No frozen criterion — fail closed
+            if revision.applicable_product_type is None:
+                return False  # No revision applicability — fail closed
+            return str(revision.applicable_product_type) == product_type
 
-        # Zone scope: revision must match the zone type
+        # Zone scope: revision must match one of the frozen zone types
         if scope == "zone":
-            if zone_type is not None and revision.applicable_zone_type is not None:
-                return str(revision.applicable_zone_type) == str(zone_type)
-            return True
+            if not zone_types:
+                return False  # No frozen criterion — fail closed
+            if revision.applicable_zone_type is None:
+                return False  # No revision applicability — fail closed
+            return revision.applicable_zone_type in zone_types
 
-        # Process scope: revision must match the process type
+        # Process scope: revision must match one of the frozen process types
         if scope == "process":
-            if process_type is not None and revision.applicable_process_type is not None:
-                return str(revision.applicable_process_type) == str(process_type)
-            return True
+            if not process_types:
+                return False  # No frozen criterion — fail closed
+            if revision.applicable_process_type is None:
+                return False  # No revision applicability — fail closed
+            return revision.applicable_process_type in process_types
 
         # Project and project_version scope: fail closed until binding model exists
         if scope in ("project", "project_version"):
@@ -421,16 +430,15 @@ class SqlAlchemyCoefficientResolutionAdapter:
         """Select exactly one authoritative revision from a per-definition group.
 
         Rules:
-        1. Validate supersession DAG (cycles, missing targets, cross-def edges).
+        1. Validate supersession DAG (cycles, missing targets).
         2. Build terminal heads (revisions not superseded by any other).
-        3. If no terminal heads → catalog integrity error (all superseded cycle).
-        4. If one terminal head → that's the authoritative revision.
-        5. If multiple terminal heads → apply frozen tie-breaking:
-           revision_number DESC, then revision_id ASC.
-           If still ambiguous (same revision_number), raise AmbiguousCoefficientError.
+        3. If no terminal heads → catalog integrity error.
+        4. If exactly one terminal head → that's the authoritative revision.
+        5. If multiple terminal heads → AmbiguousCoefficientError
+           (NO tie-breaking by revision_number).
         """
         if len(revisions) == 1:
-            # Even with a single revision, check for self-supersession
+            # Check for self-supersession
             rev = revisions[0]
             if rev.supersedes_revision_id == rev.id:
                 raise CoefficientResolutionError(
@@ -444,7 +452,7 @@ class SqlAlchemyCoefficientResolutionAdapter:
         # Validate DAG
         adj = _validate_supersession_dag(revisions, definition_id)
 
-        # Compute superseded IDs — only the targets of supersession edges
+        # Compute superseded IDs — targets of supersession edges
         superseded_ids: set[str] = set(adj.keys())
 
         # Find terminal heads (not superseded by any other revision)
@@ -461,26 +469,80 @@ class SqlAlchemyCoefficientResolutionAdapter:
         if len(terminal) == 1:
             return terminal[0]
 
-        # Multiple terminal heads — apply frozen tie-breaking
-        terminal.sort(key=lambda r: (-r.revision_number, r.id))
-
-        best_number = terminal[0].revision_number
-        candidates = [r for r in terminal if r.revision_number == best_number]
-        if len(candidates) > 1:
-            raise AmbiguousCoefficientError(f"ambiguous_revisions:{definition_id}")
-
-        return terminal[0]
+        # Multiple terminal heads → ambiguity — NO tie-breaking
+        raise AmbiguousCoefficientError(f"ambiguous_revisions:{definition_id}")
 
     def _build_item(
         self,
-        code: str,
-        definition_id: str,
+        definition: CoefficientDefinitionRecord,
         revision: CoefficientRevisionRecord,
     ) -> dict[str, object]:
-        """Build a single coefficient item for the canonical content."""
+        """Build a single coefficient item with value-type and unit validation.
+
+        Validates that:
+        - value_type (decimal/json) matches the actual value fields
+        - value fields are mutually exclusive (not both present)
+        - at least one value is present
+        - revision unit is consistent with definition canonical_unit (frozen check)
+        """
+        # ── Value-type validation ──────────────────────────────────────
+        value_type = definition.value_type
+        has_decimal = revision.value_decimal is not None
+        has_json = revision.value_json is not None
+
+        if value_type == "decimal":
+            if not has_decimal:
+                raise CoefficientResolutionError(
+                    "invalid_value",
+                    f"Coefficient {definition.code!r} has value_type='decimal' but "
+                    f"revision {revision.id!r} has no value_decimal",
+                )
+            if has_json:
+                raise CoefficientResolutionError(
+                    "invalid_value",
+                    f"Coefficient {definition.code!r} has value_type='decimal' but "
+                    f"revision {revision.id!r} also has value_json",
+                )
+        elif value_type == "json":
+            if not has_json:
+                raise CoefficientResolutionError(
+                    "invalid_value",
+                    f"Coefficient {definition.code!r} has value_type='json' but "
+                    f"revision {revision.id!r} has no value_json",
+                )
+            if has_decimal:
+                raise CoefficientResolutionError(
+                    "invalid_value",
+                    f"Coefficient {definition.code!r} has value_type='json' but "
+                    f"revision {revision.id!r} also has value_decimal",
+                )
+        else:
+            raise CoefficientResolutionError(
+                "unsupported_value_type",
+                f"Unknown value_type {value_type!r} for definition {definition.code!r}",
+            )
+
+        if not has_decimal and not has_json:
+            raise CoefficientResolutionError(
+                "invalid_value",
+                f"Coefficient {definition.code!r} revision {revision.id!r} "
+                f"has neither value_decimal nor value_json",
+            )
+
+        # ── Unit validation (frozen) ───────────────────────────────────
+        # Revision unit must equal canonical_unit (no auto-conversion)
+        if revision.unit != definition.canonical_unit:
+            raise CoefficientResolutionError(
+                "invalid_unit",
+                f"Coefficient {definition.code!r} revision {revision.id!r} "
+                f"unit {revision.unit!r} != canonical_unit "
+                f"{definition.canonical_unit!r}",
+            )
+
+        # ── Build item ─────────────────────────────────────────────────
         item: dict[str, object] = {
-            "definition_id": definition_id,
-            "code": code,
+            "definition_id": definition.id,
+            "code": definition.code,
             "revision_id": revision.id,
             "revision_number": revision.revision_number,
             "unit": revision.unit,
@@ -488,7 +550,7 @@ class SqlAlchemyCoefficientResolutionAdapter:
             "status": revision.status,
         }
 
-        # Real coefficient values — canonicalized, must affect content_hash
+        # Real coefficient values — canonicalized
         if revision.value_decimal is not None:
             item["value_decimal"] = _canonicalize_decimal(revision.value_decimal)
         if revision.value_json is not None:

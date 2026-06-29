@@ -34,6 +34,11 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from cold_storage.modules.orchestration.application.coefficient_contracts import (
+    FrozenCoefficientResolutionCriteria,
+    canonical_revision_ids,
+    coefficient_item_sort_key,
+)
 from cold_storage.modules.orchestration.application.ports import (
     CoefficientResolutionPreflightPort,
     ExecutionSnapshotPreflightPort,
@@ -286,10 +291,15 @@ class OrchestrationService:
             project_version_id=command.project_version_id,
             version_status=version.status,
         )
+
+        # Derive frozen coefficient resolution criteria from ProjectVersion
+        frozen_criteria = _derive_frozen_criteria(
+            command=command,
+            version=version,
+        )
+
         resolved_coeff = self._coefficient_port.resolve(
-            project_id=command.project_id,
-            project_version_id=command.project_version_id,
-            coefficient_resolution_context=dict(command.coefficient_resolution_context),
+            criteria=frozen_criteria,
             session=session,
         )
 
@@ -508,6 +518,95 @@ def _validate_version_status(version: _LoadedVersion, pv_id: str) -> None:
     raise ProjectVersionStatusInvalidError(pv_id, status)
 
 
+# ── Frozen coefficient resolution criteria derivation ───────────────────────
+
+# Frozen required coefficient codes by project product_category.
+# This is the authoritative read-only contract — caller-controlled
+# required_codes are NEVER accepted.
+_FROZEN_REQUIRED_COEFFICIENTS_BY_PRODUCT: dict[str, tuple[str, ...]] = {
+    "blueberry": ("PEAK_FACTOR",),
+}
+
+
+def _derive_frozen_criteria(
+    *,
+    command: OrchestrationRequestCommand,
+    version: _LoadedVersion,
+) -> FrozenCoefficientResolutionCriteria:
+    """Derive authoritative coefficient resolution criteria from the frozen
+    ProjectVersion and project data — never from the caller's
+    coefficient_resolution_context.
+
+    The caller's context is validated for consistency; conflicts raise
+    a typed CoefficientResolutionError.
+    """
+    input_snapshot = version.input_snapshot
+
+    # Extract product_type from project input_snapshot
+    product_type: str | None = None
+    raw_pt = input_snapshot.get("product_type")
+    if isinstance(raw_pt, str) and raw_pt.strip():
+        product_type = raw_pt.strip()
+
+    # Extract zone_types from input_snapshot
+    zone_types: tuple[str, ...] = ()
+    raw_zt = input_snapshot.get("zone_types")
+    if isinstance(raw_zt, list):
+        zone_types = tuple(str(z) for z in raw_zt if isinstance(z, str) and z.strip())
+
+    # Extract process_types from input_snapshot
+    process_types: tuple[str, ...] = ()
+    raw_pr = input_snapshot.get("process_types")
+    if isinstance(raw_pr, list):
+        process_types = tuple(str(p) for p in raw_pr if isinstance(p, str) and p.strip())
+
+    # Derive required codes from frozen registry (by product_category)
+    # The caller's required_codes are validated but never become authority.
+    required_codes: tuple[str, ...] = ()
+    product_category = input_snapshot.get("product_category")
+    if isinstance(product_category, str) and product_category.strip():
+        required_codes = _FROZEN_REQUIRED_COEFFICIENTS_BY_PRODUCT.get(product_category.strip(), ())
+
+    # Also check input_snapshot for explicit required_coefficient_codes override
+    raw_req = input_snapshot.get("required_coefficient_codes")
+    if isinstance(raw_req, list):
+        required_codes = tuple(str(c) for c in raw_req if isinstance(c, str) and c.strip())
+
+    # Validate caller context does not conflict with frozen criteria
+    caller_ctx = dict(command.coefficient_resolution_context)
+
+    caller_product = caller_ctx.get("product_type")
+    if (
+        caller_product is not None
+        and product_type is not None
+        and str(caller_product) != product_type
+    ):
+        raise CoefficientResolutionError(
+            "criteria_conflict",
+            f"Caller product_type {caller_product!r} != frozen {product_type!r}",
+        )
+
+    caller_required = caller_ctx.get("required_codes")
+    if isinstance(caller_required, list) and required_codes:
+        caller_codes = set(str(c) for c in caller_required)
+        frozen_codes = set(required_codes)
+        if caller_codes != frozen_codes:
+            raise CoefficientResolutionError(
+                "criteria_conflict",
+                f"Callee required_codes {sorted(caller_codes)!r}"
+                f" != frozen {sorted(frozen_codes)!r}",
+            )
+
+    return FrozenCoefficientResolutionCriteria(
+        project_id=command.project_id,
+        project_version_id=command.project_version_id,
+        product_type=product_type,
+        zone_types=zone_types,
+        process_types=process_types,
+        required_codes=required_codes,
+    )
+
+
 def _validate_coefficient_candidate(
     candidate: ResolvedCoefficientContextCandidate,
     command: OrchestrationRequestCommand,
@@ -601,10 +700,6 @@ def _validate_coefficient_content_structure(
     Checks coefficient list type, count, item structure, field uniqueness,
     and that approved_revision_ids matches content revision IDs exactly.
     """
-    from cold_storage.modules.orchestration.infrastructure.coefficient_resolver import (
-        canonical_revision_ids,
-        coefficient_item_sort_key,
-    )
 
     content = candidate.content
 

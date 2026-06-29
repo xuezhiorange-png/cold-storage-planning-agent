@@ -12,6 +12,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
+from cold_storage.modules.orchestration.application.coefficient_contracts import (
+    FrozenCoefficientResolutionCriteria,
+)
+
 
 class ExecutionSnapshotPreflightPort(Protocol):
     """Validate that the approved ProjectVersion can be captured as a valid
@@ -52,6 +56,10 @@ class CoefficientResolutionPreflightPort(Protocol):
     approved revisions.  The caller must not forge ``source_type=approved``
     in the payload — that field comes from the catalog.
 
+    ``criteria`` is derived from the frozen ProjectVersion — the resolver
+    MUST NOT accept caller-provided product_type / zone_type / process_type /
+    required_codes as authoritative.
+
     The resolver may receive the current Transaction A session (or None
     for test doubles).  It MUST NOT create sessions, commit, or rollback.
     """
@@ -59,9 +67,7 @@ class CoefficientResolutionPreflightPort(Protocol):
     def resolve(
         self,
         *,
-        project_id: str,
-        project_version_id: str,
-        coefficient_resolution_context: dict[str, object],
+        criteria: FrozenCoefficientResolutionCriteria,
         session: object | None = None,
     ) -> ResolvedCoefficientContextCandidate:
         """Return a verified coefficient candidate.
