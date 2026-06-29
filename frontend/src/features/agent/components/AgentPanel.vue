@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { useAgent } from '../composables/useAgent'
 
@@ -51,16 +51,12 @@ function onDrawerKeydown(event: KeyboardEvent): void {
 
 /* Focus close button as first focusable element when drawer opens */
 watch(isOpen, (open) => {
-  if (open) {
-    nextTick(() => {
-      if (closeButtonRef.value) {
-        closeButtonRef.value.focus()
-      } else {
-        drawerRef.value?.focus()
-      }
-    })
+  if (open && closeButtonRef.value) {
+    closeButtonRef.value.focus()
+  } else if (open && drawerRef.value) {
+    drawerRef.value.focus()
   }
-})
+}, { flush: 'post' })
 </script>
 
 <template>
