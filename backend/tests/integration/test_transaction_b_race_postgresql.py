@@ -1002,16 +1002,14 @@ class TestConcurrentCalcRunAttemptTypeUniqueness:
             runs = (
                 s.execute(
                     select(CalculationRunRecord).where(
-                        CalculationRunRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        CalculationRunRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
                 )
                 .scalars()
                 .all()
             )
             assert len(runs) == 5, (
-                f"Expected 5 CalculationRuns (uq_calculation_run_attempt_type), "
-                f"got {len(runs)}"
+                f"Expected 5 CalculationRuns (uq_calculation_run_attempt_type), got {len(runs)}"
             )
 
 
@@ -1071,8 +1069,7 @@ class TestConcurrentSourceBindingUniqueness:
             bindings = (
                 s.execute(
                     select(SourceBindingRecord).where(
-                        SourceBindingRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        SourceBindingRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
                 )
                 .scalars()
@@ -1092,9 +1089,7 @@ class TestLoserRollbackZeroDelta:
     contributes zero new rows to any table.
     """
 
-    def test_loser_contributes_zero_new_rows(
-        self, pg_service, pg_session_factory
-    ) -> None:
+    def test_loser_contributes_zero_new_rows(self, pg_service, pg_session_factory) -> None:
         """Snapshot row counts before, run both threads, assert only +1
         SourceBinding, +5 CalculationRuns, +1 completion outbox.
         """
@@ -1108,8 +1103,7 @@ class TestLoserRollbackZeroDelta:
             runs_before = (
                 s.execute(
                     select(CalculationRunRecord).where(
-                        CalculationRunRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        CalculationRunRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
                 )
                 .scalars()
@@ -1118,8 +1112,7 @@ class TestLoserRollbackZeroDelta:
             bindings_before = (
                 s.execute(
                     select(SourceBindingRecord).where(
-                        SourceBindingRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        SourceBindingRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
                 )
                 .scalars()
@@ -1175,8 +1168,7 @@ class TestLoserRollbackZeroDelta:
             runs_after = (
                 s.execute(
                     select(CalculationRunRecord).where(
-                        CalculationRunRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        CalculationRunRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
                 )
                 .scalars()
@@ -1185,8 +1177,7 @@ class TestLoserRollbackZeroDelta:
             bindings_after = (
                 s.execute(
                     select(SourceBindingRecord).where(
-                        SourceBindingRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        SourceBindingRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
                 )
                 .scalars()
@@ -1207,9 +1198,7 @@ class TestLoserRollbackZeroDelta:
         binding_delta = len(bindings_after) - len(bindings_before)
         outbox_delta = len(outbox_after) - len(outbox_before)
 
-        assert run_delta == 5, (
-            f"Expected +5 CalculationRuns (winner only), got delta={run_delta}"
-        )
+        assert run_delta == 5, f"Expected +5 CalculationRuns (winner only), got delta={run_delta}"
         assert binding_delta == 1, (
             f"Expected +1 SourceBinding (winner only), got delta={binding_delta}"
         )
@@ -1308,9 +1297,7 @@ class TestReplayCompletedAttemptNoNewRows:
     events after the replay.
     """
 
-    def test_replay_creates_no_new_rows_or_outbox(
-        self, pg_service, pg_session_factory
-    ) -> None:
+    def test_replay_creates_no_new_rows_or_outbox(self, pg_service, pg_session_factory) -> None:
         """Run Transaction B successfully, snapshot all counts, replay,
         assert zero delta on every table.
         """
@@ -1323,26 +1310,30 @@ class TestReplayCompletedAttemptNoNewRows:
                 r.id
                 for r in s.execute(
                     select(CalculationRunRecord).where(
-                        CalculationRunRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        CalculationRunRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
             binding_pks_before = set(
                 b.id
                 for b in s.execute(
                     select(SourceBindingRecord).where(
-                        SourceBindingRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        SourceBindingRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
             outbox_count_before = len(
                 s.execute(
                     select(AuditOutboxRecord).where(
                         AuditOutboxRecord.attempt_id == result_a.attempt_id
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
 
         # Replay — must fail
@@ -1355,26 +1346,30 @@ class TestReplayCompletedAttemptNoNewRows:
                 r.id
                 for r in s.execute(
                     select(CalculationRunRecord).where(
-                        CalculationRunRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        CalculationRunRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
             binding_pks_after = set(
                 b.id
                 for b in s.execute(
                     select(SourceBindingRecord).where(
-                        SourceBindingRecord.orchestration_run_attempt_id
-                        == result_a.attempt_id
+                        SourceBindingRecord.orchestration_run_attempt_id == result_a.attempt_id
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
             outbox_count_after = len(
                 s.execute(
                     select(AuditOutboxRecord).where(
                         AuditOutboxRecord.attempt_id == result_a.attempt_id
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
 
         new_run_pks = run_pks_after - run_pks_before
@@ -1387,9 +1382,7 @@ class TestReplayCompletedAttemptNoNewRows:
         assert len(new_binding_pks) == 0, (
             f"Replay created {len(new_binding_pks)} new SourceBinding(s): {new_binding_pks}"
         )
-        assert new_outbox == 0, (
-            f"Replay created {new_outbox} new outbox event(s)"
-        )
+        assert new_outbox == 0, f"Replay created {new_outbox} new outbox event(s)"
 
 
 # ── Class 9: Concurrent attempt number race on uq_attempt_identity_number ───
@@ -1401,9 +1394,7 @@ class TestConcurrentAttemptNumberRace:
     exactly 1 succeeds, the other gets an IntegrityError.
     """
 
-    def test_concurrent_attempt_creation_same_number(
-        self, pg_session_factory
-    ) -> None:
+    def test_concurrent_attempt_creation_same_number(self, pg_session_factory) -> None:
         """Both threads insert an OrchestrationRunAttemptRecord with the
         same (identity_id, attempt_number=1).  PostgreSQL enforces
         uq_attempt_identity_number: exactly 1 insert succeeds, the other
@@ -1454,12 +1445,8 @@ class TestConcurrentAttemptNumberRace:
         successes = [k for k in results if "attempt_id" in results[k]]
         ie_errors = [k for k in results if results[k].get("error") == "IntegrityError"]
 
-        assert len(successes) == 1, (
-            f"Expected 1 success, got {len(successes)}: {results}"
-        )
-        assert len(ie_errors) == 1, (
-            f"Expected 1 IntegrityError, got {len(ie_errors)}: {results}"
-        )
+        assert len(successes) == 1, f"Expected 1 success, got {len(successes)}: {results}"
+        assert len(ie_errors) == 1, f"Expected 1 IntegrityError, got {len(ie_errors)}: {results}"
 
         # Verify only 1 row with attempt_number=99 for this identity
         with pg_session_factory() as s:

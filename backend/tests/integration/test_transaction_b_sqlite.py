@@ -1873,9 +1873,7 @@ class TestTransactionBStageRollbackZeroDeltaProof:
         )
 
         # ── Assert: rejection outbox event details ──────────────────
-        rejection_events = _load_rejection_outbox_events(
-            session_factory, result_a.attempt_id
-        )
+        rejection_events = _load_rejection_outbox_events(session_factory, result_a.attempt_id)
         assert len(rejection_events) == 1, (
             f"Expected 1 rejection outbox for attempt, got {len(rejection_events)}"
         )
@@ -1898,91 +1896,59 @@ class TestTransactionBStageRollbackZeroDeltaProof:
 
     # ── 1. Failure after zone persisted ─────────────────────────────
 
-    def test_01_failure_after_zone_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_01_failure_after_zone_pk_set_proof(self, session_factory, engine) -> None:
         """Failure after zone stage → PK-set unchanged, rejection outbox verified."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
             calculator_port=_FailAfterStageCalculatorPort("zone"),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 2. Failure after cooling_load persisted ─────────────────────
 
-    def test_02_failure_after_cooling_load_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_02_failure_after_cooling_load_pk_set_proof(self, session_factory, engine) -> None:
         """Failure after cooling_load stage → PK-set unchanged, rejection outbox verified."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
             calculator_port=_FailAfterStageCalculatorPort("cooling_load"),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 3. Failure after equipment persisted ────────────────────────
 
-    def test_03_failure_after_equipment_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_03_failure_after_equipment_pk_set_proof(self, session_factory, engine) -> None:
         """Failure after equipment stage → PK-set unchanged, rejection outbox verified."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
             calculator_port=_FailAfterStageCalculatorPort("equipment"),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 4. Failure after power persisted ────────────────────────────
 
-    def test_04_failure_after_power_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_04_failure_after_power_pk_set_proof(self, session_factory, engine) -> None:
         """Failure after power stage → PK-set unchanged, rejection outbox verified."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
             calculator_port=_FailAfterStageCalculatorPort("power"),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 5. Failure after investment persisted ───────────────────────
 
-    def test_05_failure_after_investment_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_05_failure_after_investment_pk_set_proof(self, session_factory, engine) -> None:
         """Failure after investment stage (verifier fails) → PK-set unchanged."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         failing_verifier = MagicMock(spec=VerificationReadPort)
         failing_verifier.load_verification_state.side_effect = RuntimeError(
             "Simulated verification failure after investment"
         )
-        svc = _make_txb_service(
-            session_factory, verification_read_port=failing_verifier
-        )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        svc = _make_txb_service(session_factory, verification_read_port=failing_verifier)
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 6. Before SourceBinding insert ──────────────────────────────
 
@@ -1990,18 +1956,14 @@ class TestTransactionBStageRollbackZeroDeltaProof:
         self, session_factory, engine
     ) -> None:
         """SourceBinding add() raises → PK-set unchanged, rejection outbox verified."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
             source_binding_repo=_FailingSourceBindingRepository(
                 SqlAlchemySourceBindingRepository()
             ),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 7. After SourceBinding flush / before commit (CAS returns False) ──
 
@@ -2016,72 +1978,46 @@ class TestTransactionBStageRollbackZeroDeltaProof:
         primary UoW is rolled back, so no new CalculationRun, SourceBinding,
         or outbox rows persist.
         """
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
-            attempt_repo=_CasFalseAttemptRepository(
-                SqlAlchemyOrchestrationAttemptRepository()
-            ),
+            attempt_repo=_CasFalseAttemptRepository(SqlAlchemyOrchestrationAttemptRepository()),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 8. Attempt completion CAS failure (raises) ──────────────────
 
-    def test_08_failure_on_attempt_cas_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_08_failure_on_attempt_cas_pk_set_proof(self, session_factory, engine) -> None:
         """Attempt CAS raises TransactionBFailure → PK-set unchanged."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
             attempt_repo=_FailingAttemptCompletionRepository(
                 SqlAlchemyOrchestrationAttemptRepository()
             ),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 9. Identity authoritative CAS failure ───────────────────────
 
-    def test_09_failure_on_identity_cas_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_09_failure_on_identity_cas_pk_set_proof(self, session_factory, engine) -> None:
         """Identity CAS raises TransactionBFailure → PK-set unchanged."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
             identity_repo=_FailingIdentityAuthorityRepository(
                 SqlAlchemyOrchestrationIdentityRepository()
             ),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
 
     # ── 10. Completion outbox failure ───────────────────────────────
 
-    def test_10_failure_on_completion_outbox_pk_set_proof(
-        self, session_factory, engine
-    ) -> None:
+    def test_10_failure_on_completion_outbox_pk_set_proof(self, session_factory, engine) -> None:
         """Completion outbox add fails → PK-set unchanged."""
-        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(
-            session_factory
-        )
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
         svc = _make_txb_service(
             session_factory,
-            outbox_repo=_FailingCompletionOutboxRepository(
-                SqlAlchemyAuditOutboxRepository()
-            ),
+            outbox_repo=_FailingCompletionOutboxRepository(SqlAlchemyAuditOutboxRepository()),
         )
-        self._run_and_assert(
-            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
-        )
+        self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)

@@ -964,7 +964,8 @@ class TestTransactionB0028PostgreSQLConstraints:
     @staticmethod
     def _seed_orchestration_fk(conn, *, ident_id, attempt_id, snap_id, coeff_id):
         """Insert FK dependency rows for orchestration tables."""
-        conn.execute(text("""
+        conn.execute(
+            text("""
             INSERT INTO orchestration_execution_snapshots (
                 id, project_id, project_version_id,
                 version_number, input_snapshot,
@@ -974,8 +975,11 @@ class TestTransactionB0028PostgreSQLConstraints:
                 1, '{}'::jsonb,
                 'snap-h', '1.0.0', 'approved'
             ) ON CONFLICT (id) DO NOTHING
-        """), {"snap": snap_id})
-        conn.execute(text("""
+        """),
+            {"snap": snap_id},
+        )
+        conn.execute(
+            text("""
             INSERT INTO orchestration_coefficient_contexts (
                 id, project_id, project_version_id,
                 content, content_hash, schema_version
@@ -983,8 +987,11 @@ class TestTransactionB0028PostgreSQLConstraints:
                 :coeff, 'fk-p-1', 'fk-pv-1',
                 '{}'::jsonb, 'coeff-h', '1.0.0'
             ) ON CONFLICT (id) DO NOTHING
-        """), {"coeff": coeff_id})
-        conn.execute(text("""
+        """),
+            {"coeff": coeff_id},
+        )
+        conn.execute(
+            text("""
             INSERT INTO orchestration_identities (
                 id, fingerprint, execution_snapshot_id,
                 coefficient_context_id, definition_version,
@@ -993,15 +1000,19 @@ class TestTransactionB0028PostgreSQLConstraints:
                 :ident, :fp, :snap, :coeff,
                 '1.0.0', '{}'::jsonb, 'ACTIVE'
             ) ON CONFLICT (id) DO NOTHING
-        """), {"ident": ident_id, "fp": f'fp-{ident_id[:8]}',
-                "snap": snap_id, "coeff": coeff_id})
-        conn.execute(text("""
+        """),
+            {"ident": ident_id, "fp": f"fp-{ident_id[:8]}", "snap": snap_id, "coeff": coeff_id},
+        )
+        conn.execute(
+            text("""
             INSERT INTO orchestration_run_attempts (
                 id, identity_id, attempt_number, status
             ) VALUES (
                 :att, :ident, 1, 'RUNNING'
             ) ON CONFLICT (id) DO NOTHING
-        """), {"att": attempt_id, "ident": ident_id})
+        """),
+            {"att": attempt_id, "ident": ident_id},
+        )
 
     def test_orchestrated_row_missing_fingerprint_rejected(self, pg_engine) -> None:
         """INSERT with all orchestration fields EXCEPT fingerprint as NULL →
@@ -1014,8 +1025,10 @@ class TestTransactionB0028PostgreSQLConstraints:
         with pg_engine.connect() as conn:
             self._seed_orchestration_fk(
                 conn,
-                ident_id=ident_id, attempt_id=attempt_id,
-                snap_id=snap_id, coeff_id=coeff_id,
+                ident_id=ident_id,
+                attempt_id=attempt_id,
+                snap_id=snap_id,
+                coeff_id=coeff_id,
             )
             conn.commit()
             with pytest.raises(IntegrityError) as exc_info:
@@ -1104,8 +1117,10 @@ class TestTransactionB0028PostgreSQLConstraints:
         with pg_engine.connect() as conn:
             self._seed_orchestration_fk(
                 conn,
-                ident_id=ident_id, attempt_id=attempt_id,
-                snap_id=snap_id, coeff_id=coeff_id,
+                ident_id=ident_id,
+                attempt_id=attempt_id,
+                snap_id=snap_id,
+                coeff_id=coeff_id,
             )
             conn.commit()
             with pytest.raises(IntegrityError) as exc_info:
@@ -1159,8 +1174,10 @@ class TestTransactionB0028PostgreSQLConstraints:
         with pg_engine.connect() as conn:
             self._seed_orchestration_fk(
                 conn,
-                ident_id=ident_id, attempt_id=attempt_id,
-                snap_id=snap_id, coeff_id=coeff_id,
+                ident_id=ident_id,
+                attempt_id=attempt_id,
+                snap_id=snap_id,
+                coeff_id=coeff_id,
             )
             conn.commit()
 

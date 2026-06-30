@@ -1365,9 +1365,7 @@ class TestVerifierUpstreamProvenanceExact:
         """zone upstream = {} → pass (zone is DAG root, no dependencies)."""
         state = _build_state()
         zone_run = state.calculation_runs["zone"]
-        assert zone_run.upstream_calculation_ids == {}, (
-            "Zone must have empty upstream (DAG root)"
-        )
+        assert zone_run.upstream_calculation_ids == {}, "Zone must have empty upstream (DAG root)"
         candidate = _build_candidate(state)
         verifier = _make_verifier(state)
         _run_verify(verifier, candidate)
@@ -1555,9 +1553,7 @@ class TestVerifierPowerAuthorityNegative:
 
     def test_power_wrong_calculator_name(self) -> None:
         """Power calculator_name != 'installed_power' → SourceBindingSlotTypeError."""
-        state = _build_state_with_modified_run(
-            "power", calculator_name="wrong_power_calc"
-        )
+        state = _build_state_with_modified_run("power", calculator_name="wrong_power_calc")
         candidate = _build_candidate(state)
         verifier = _make_verifier(state)
         with pytest.raises(SourceBindingSlotTypeError):
@@ -1662,9 +1658,7 @@ class TestVerifierPowerAuthorityNegative:
         eq_run = tampered_runs["equipment"]
         tampered_result = dict(eq_run.result_snapshot)
         tampered_result["compressor_operating_capacity_kw"] = "0.0"  # fallback sentinel
-        tampered_runs["equipment"] = dataclasses.replace(
-            eq_run, result_snapshot=tampered_result
-        )
+        tampered_runs["equipment"] = dataclasses.replace(eq_run, result_snapshot=tampered_result)
         # Do NOT recompute hash — stored hash is from original data
         tampered_state = _build_state(calculation_runs=tampered_runs)
         candidate = _build_candidate(state)
