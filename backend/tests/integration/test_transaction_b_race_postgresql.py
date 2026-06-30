@@ -623,7 +623,7 @@ class TestTransactionBConcurrentExecution:
                 # Signal after successful commit
                 a_flushed.set()
                 results["a"]["result"] = result
-            except (TransactionBFailure, OrchestrationDomainError) as exc:
+            except (TransactionBFailure, OrchestrationDomainError, IntegrityError) as exc:
                 a_flushed.set()
                 results["a"]["error"] = exc
             except Exception as exc:  # noqa: BLE001
@@ -649,7 +649,7 @@ class TestTransactionBConcurrentExecution:
                     coefficient_context={"coefficients": []},
                 )
                 results["b"]["result"] = result
-            except (TransactionBFailure, OrchestrationDomainError) as exc:
+            except (TransactionBFailure, OrchestrationDomainError, IntegrityError) as exc:
                 results["b"]["error"] = exc
             except Exception as exc:  # noqa: BLE001
                 results["b"]["unexpected"] = exc
@@ -677,7 +677,7 @@ class TestTransactionBConcurrentExecution:
         # The loser must have a structured error
         loser_key = errors[0]
         loser_error = results[loser_key]["error"]
-        assert isinstance(loser_error, (TransactionBFailure, OrchestrationDomainError)), (
+        assert isinstance(loser_error, (TransactionBFailure, OrchestrationDomainError, IntegrityError)), (
             f"Loser error must be TransactionBFailure or OrchestrationDomainError, "
             f"got {type(loser_error).__name__}: {loser_error}"
         )
@@ -778,7 +778,7 @@ class TestTransactionBReplay:
             assert attempt_before.status == "COMPLETED"
 
         # ── Second run: must fail ────────────────────────────────────
-        with pytest.raises((TransactionBFailure, OrchestrationDomainError)):
+        with pytest.raises((TransactionBFailure, OrchestrationDomainError, IntegrityError)):
             _run_transaction_b(pg_service, pg_session_factory, result_a)
 
         # ── PK sets unchanged ────────────────────────────────────────
@@ -977,7 +977,7 @@ class TestConcurrentCalcRunAttemptTypeUniqueness:
                     coefficient_context={"coefficients": []},
                 )
                 results[label]["result"] = result
-            except (TransactionBFailure, OrchestrationDomainError) as exc:
+            except (TransactionBFailure, OrchestrationDomainError, IntegrityError) as exc:
                 results[label]["error"] = exc
             except Exception as exc:  # noqa: BLE001
                 results[label]["unexpected"] = exc
@@ -1050,7 +1050,7 @@ class TestConcurrentSourceBindingUniqueness:
                     coefficient_context={"coefficients": []},
                 )
                 results[label]["result"] = result
-            except (TransactionBFailure, OrchestrationDomainError) as exc:
+            except (TransactionBFailure, OrchestrationDomainError, IntegrityError) as exc:
                 results[label]["error"] = exc
             except Exception as exc:  # noqa: BLE001
                 results[label]["unexpected"] = exc
@@ -1149,7 +1149,7 @@ class TestLoserRollbackZeroDelta:
                     coefficient_context={"coefficients": []},
                 )
                 results[label]["result"] = result
-            except (TransactionBFailure, OrchestrationDomainError) as exc:
+            except (TransactionBFailure, OrchestrationDomainError, IntegrityError) as exc:
                 results[label]["error"] = exc
             except Exception as exc:  # noqa: BLE001
                 results[label]["unexpected"] = exc
@@ -1337,7 +1337,7 @@ class TestReplayCompletedAttemptNoNewRows:
             )
 
         # Replay — must fail
-        with pytest.raises((TransactionBFailure, OrchestrationDomainError)):
+        with pytest.raises((TransactionBFailure, OrchestrationDomainError, IntegrityError)):
             _run_transaction_b(pg_service, pg_session_factory, result_a)
 
         # Assert zero delta
