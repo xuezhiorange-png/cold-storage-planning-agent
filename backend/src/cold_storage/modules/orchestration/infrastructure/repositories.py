@@ -1093,6 +1093,59 @@ class SourceBindingRepository(ABC):
         ...
 
 
+class SqlAlchemySourceBindingRepository(SourceBindingRepository):
+    """Session-bound repository for ``SourceBindingRecord``."""
+
+    def add(
+        self,
+        session: Session,
+        /,
+        *,
+        project_id: str,
+        project_version_id: str,
+        execution_snapshot_id: str,
+        coefficient_context_id: str,
+        orchestration_identity_id: str,
+        orchestration_run_attempt_id: str,
+        orchestration_fingerprint: str,
+        zone_calculation_id: str,
+        cooling_load_calculation_id: str,
+        equipment_calculation_id: str,
+        power_calculation_id: str,
+        investment_calculation_id: str,
+        per_calculation_result_hashes: dict[str, str],
+        combined_source_hash: str,
+        schema_version: str,
+    ) -> str:
+        from uuid import uuid4
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            SourceBindingRecord,
+        )
+
+        record = SourceBindingRecord(
+            id=str(uuid4()),
+            project_id=project_id,
+            project_version_id=project_version_id,
+            execution_snapshot_id=execution_snapshot_id,
+            coefficient_context_id=coefficient_context_id,
+            orchestration_identity_id=orchestration_identity_id,
+            orchestration_run_attempt_id=orchestration_run_attempt_id,
+            orchestration_fingerprint=orchestration_fingerprint,
+            zone_calculation_id=zone_calculation_id,
+            cooling_load_calculation_id=cooling_load_calculation_id,
+            equipment_calculation_id=equipment_calculation_id,
+            power_calculation_id=power_calculation_id,
+            investment_calculation_id=investment_calculation_id,
+            per_calculation_result_hashes=per_calculation_result_hashes,
+            combined_source_hash=combined_source_hash,
+            schema_version=schema_version,
+        )
+        session.add(record)
+        session.flush()
+        return record.id
+
+
 # ── Audit Outbox ────────────────────────────────────────────────────────────
 
 
@@ -1235,3 +1288,64 @@ class CalculationRunRepository(ABC):
     ) -> str:
         """Insert a new orchestrated CalculationRunRecord and return its ID."""
         ...
+
+
+class SqlAlchemyCalculationRunRepository(CalculationRunRepository):
+    """Session-bound repository for ``CalculationRunRecord``."""
+
+    def add(
+        self,
+        session: Session,
+        /,
+        *,
+        project_id: str,
+        project_version_id: str,
+        calculator_name: str,
+        calculator_version: str,
+        calculation_type: str,
+        input_snapshot: dict[str, object],
+        result_snapshot: dict[str, object],
+        requires_review: bool,
+        orchestration_identity_id: str,
+        orchestration_run_attempt_id: str,
+        execution_snapshot_id: str,
+        coefficient_context_id: str,
+        input_hash: str,
+        result_hash: str,
+        provenance: dict[str, object],
+        schema_version: str,
+    ) -> str:
+        from uuid import uuid4
+
+        from cold_storage.modules.projects.infrastructure.orm import (
+            CalculationRunRecord,
+        )
+
+        record = CalculationRunRecord(
+            id=str(uuid4()),
+            project_id=project_id,
+            project_version_id=project_version_id,
+            calculator_name=calculator_name,
+            calculator_version=calculator_version,
+            calculation_type=calculation_type,
+            input_snapshot=input_snapshot,
+            result_snapshot=result_snapshot,
+            requires_review=requires_review,
+            orchestration_identity_id=orchestration_identity_id,
+            orchestration_run_attempt_id=orchestration_run_attempt_id,
+            execution_snapshot_id=execution_snapshot_id,
+            coefficient_context_id=coefficient_context_id,
+            input_hash=input_hash,
+            result_hash=result_hash,
+            provenance=provenance,
+            schema_version=schema_version,
+            # ORM NOT NULL columns not in ABC — supply defaults
+            formulas=[],
+            coefficients=[],
+            assumptions=[],
+            warnings=[],
+            source_references=[],
+        )
+        session.add(record)
+        session.flush()
+        return record.id
