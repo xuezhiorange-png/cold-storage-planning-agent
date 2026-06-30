@@ -424,7 +424,10 @@ def _seed_project_and_version(
                 name="Test Project",
                 location="test",
                 product_category="blueberry",
+                status="active",
+                current_version_number=1,
                 created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
     existing_v = session.execute(
