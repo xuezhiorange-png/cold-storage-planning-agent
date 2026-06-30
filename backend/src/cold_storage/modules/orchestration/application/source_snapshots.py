@@ -18,9 +18,9 @@ import hashlib
 import json
 import math
 from decimal import Decimal
-from typing import ClassVar
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ── Canonical JSON / hashing ────────────────────────────────────────────────
 
@@ -61,24 +61,38 @@ class SourceSnapshotContentV1(BaseModel):
     """Base source snapshot content with common binding fields.
 
     Frozen and strict: no mutation, no unknown fields after construction.
+
+    Business payload is carried in ``result_snapshot`` (the raw calculator
+    result dict), ``formulas``, ``coefficients``, ``assumptions``,
+    ``warnings``, and ``source_references`` — all as opaque dicts/lists.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    SOURCE_SNAPSHOT_SCHEMA_VERSION: ClassVar[str] = "1.0.0"
-
+    # ── Binding fields (all required) ───────────────────────────────────
     project_id: str
     project_version_id: str
     execution_snapshot_id: str
     coefficient_context_id: str
     orchestration_identity_id: str
     orchestration_attempt_id: str
+    orchestration_fingerprint: str
     calculation_type: str
     calculator_id: str
     calculator_version: str
-    source_snapshot_schema_version: str
+    source_snapshot_schema_version: Literal["1.0.0"]
     requires_review: bool
-    upstream_calculation_ids: dict[str, str]
+    upstream_calculation_ids: dict[str, str] = Field(default_factory=dict)
+
+    # ── Business payload fields (opaque) ────────────────────────────────
+    result_snapshot: dict[str, Any]
+    formulas: list[dict[str, Any]]
+    coefficients: list[dict[str, Any]]
+    assumptions: list[str]
+    warnings: list[dict[str, Any]]
+    source_references: list[dict[str, Any]]
+
+    # ── Validators ──────────────────────────────────────────────────────
 
     @field_validator(
         "project_id",
@@ -87,10 +101,10 @@ class SourceSnapshotContentV1(BaseModel):
         "coefficient_context_id",
         "orchestration_identity_id",
         "orchestration_attempt_id",
+        "orchestration_fingerprint",
         "calculation_type",
         "calculator_id",
         "calculator_version",
-        "source_snapshot_schema_version",
         mode="after",
     )
     @classmethod
@@ -98,6 +112,30 @@ class SourceSnapshotContentV1(BaseModel):
         if not v.strip():
             raise ValueError("must not be empty or whitespace")
         return v
+
+    @field_validator(
+        "result_snapshot",
+        "formulas",
+        "coefficients",
+        "warnings",
+        "source_references",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_decimals_in_payload(cls, v: object) -> object:
+        """Canonicalize Decimals to strings and reject non-finite values.
+
+        Using ``mode="before"`` prevents Pydantic from silently converting
+        ``float`` → ``Decimal`` which would introduce binary drift.
+        """
+        return _coerce_decimals_deep(v)
+
+    @field_validator("assumptions", mode="before")
+    @classmethod
+    def _coerce_decimals_in_assumptions(cls, v: object) -> object:
+        return _coerce_decimals_deep(v)
+
+    # ── Canonical output ────────────────────────────────────────────────
 
     def to_canonical_dict(self) -> dict[str, object]:
         """Produce the canonical, deterministic representation for hashing.
@@ -110,10 +148,9 @@ class SourceSnapshotContentV1(BaseModel):
             canonicalized[key] = _canonicalize_value(raw[key])
         return canonicalized
 
-    @staticmethod
-    def result_hash(content: dict[str, object]) -> str:
-        """Compute SHA-256 of the canonical JSON encoding of *content*."""
-        canonical = _canonicalize_value(content)
+    def result_hash(self) -> str:
+        """Compute SHA-256 of the canonical JSON encoding of this snapshot."""
+        canonical = self.to_canonical_dict()
         payload = json.dumps(
             canonical,
             ensure_ascii=False,
@@ -121,6 +158,36 @@ class SourceSnapshotContentV1(BaseModel):
             sort_keys=True,
         ).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
+
+
+# ── Decimal coercion helper ─────────────────────────────────────────────────
+
+
+def _coerce_decimals_deep(v: object) -> object:
+    """Recursively convert Decimals to strings; reject floats and non-finite values.
+
+    Called by ``mode="before"`` validators to prevent Pydantic's built-in
+    ``float → Decimal`` auto-conversion.
+    """
+    if isinstance(v, Decimal):
+        if v.is_nan() or v.is_infinite():
+            raise ValueError(f"Non-finite Decimal not allowed: {v!r}")
+        normalized = v.normalize()
+        _sign, _digits, exp = normalized.as_tuple()
+        if isinstance(exp, int) and exp > 0:
+            return str(int(normalized))
+        return str(normalized)
+    if isinstance(v, float):
+        if math.isnan(v) or math.isinf(v):
+            raise ValueError(f"Non-finite float not allowed: {v!r}")
+        raise TypeError(f"Binary float {v!r} not allowed — use Decimal or str instead")
+    if isinstance(v, dict):
+        return {k: _coerce_decimals_deep(val) for k, val in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_coerce_decimals_deep(item) for item in v]
+    if isinstance(v, (str, int, bool)) or v is None:
+        return v
+    raise TypeError(f"Cannot process type {type(v).__name__}: {v!r}")
 
 
 # ── Stage-specific subclasses ───────────────────────────────────────────────
@@ -133,42 +200,10 @@ class ZoneSourceSnapshotV1(SourceSnapshotContentV1):
     Calculator: cold_room_zone_plan.
     """
 
-    calculation_type: str = "zone"
-    calculator_id: str = "cold_room_zone_plan"
-    upstream_calculation_ids: dict[str, str] = {}
-
-    # Business payload fields (zone-specific calculator output)
-    room_length_m: Decimal
-    room_width_m: Decimal
-    room_height_m: Decimal
-    floor_area_m2: Decimal
-    volume_m3: Decimal
-    storage_capacity_kg: Decimal
-    target_storage_temp_c: Decimal
-    target_product_type: str
-
-    @field_validator(
-        "room_length_m",
-        "room_width_m",
-        "room_height_m",
-        "floor_area_m2",
-        "volume_m3",
-        "storage_capacity_kg",
-        "target_storage_temp_c",
-        mode="after",
-    )
-    @classmethod
-    def _reject_non_finite_decimal(cls, v: Decimal) -> Decimal:
-        if v.is_nan() or v.is_infinite():
-            raise ValueError(f"Non-finite Decimal not allowed: {v!r}")
-        return v
-
-    @field_validator("target_product_type", mode="after")
-    @classmethod
-    def _require_non_empty_product_type(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("must not be empty or whitespace")
-        return v
+    calculation_type: Literal["zone"] = "zone"
+    calculator_id: Literal["cold_room_zone_plan"] = "cold_room_zone_plan"
+    calculator_version: Literal["1.0.0"] = "1.0.0"
+    upstream_calculation_ids: dict[str, str] = Field(default_factory=dict)
 
 
 class CoolingLoadSourceSnapshotV1(SourceSnapshotContentV1):
@@ -178,31 +213,9 @@ class CoolingLoadSourceSnapshotV1(SourceSnapshotContentV1):
     Calculator: cooling_load.
     """
 
-    calculation_type: str = "cooling_load"
-    calculator_id: str = "cooling_load"
-
-    # Business payload fields (cooling load calculator output)
-    transmission_load_kw: Decimal
-    product_load_kw: Decimal
-    internal_load_kw: Decimal
-    infiltration_load_kw: Decimal
-    total_cooling_load_kw: Decimal
-    safety_factor: Decimal
-
-    @field_validator(
-        "transmission_load_kw",
-        "product_load_kw",
-        "internal_load_kw",
-        "infiltration_load_kw",
-        "total_cooling_load_kw",
-        "safety_factor",
-        mode="after",
-    )
-    @classmethod
-    def _reject_non_finite_decimal(cls, v: Decimal) -> Decimal:
-        if v.is_nan() or v.is_infinite():
-            raise ValueError(f"Non-finite Decimal not allowed: {v!r}")
-        return v
+    calculation_type: Literal["cooling_load"] = "cooling_load"
+    calculator_id: Literal["cooling_load"] = "cooling_load"
+    calculator_version: Literal["1.0.0"] = "1.0.0"
 
 
 class EquipmentSourceSnapshotV1(SourceSnapshotContentV1):
@@ -212,43 +225,9 @@ class EquipmentSourceSnapshotV1(SourceSnapshotContentV1):
     Calculator: equipment.
     """
 
-    calculation_type: str = "equipment"
-    calculator_id: str = "equipment"
-
-    # Business payload fields (equipment calculator output)
-    condensing_unit_model: str
-    evaporator_model: str
-    refrigerant_type: str
-    evaporating_temp_c: Decimal
-    condensing_temp_c: Decimal
-    cooling_capacity_kw: Decimal
-    number_of_evaporators: int
-
-    @field_validator("condensing_unit_model", "evaporator_model", "refrigerant_type", mode="after")
-    @classmethod
-    def _require_non_empty_str_field(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("must not be empty or whitespace")
-        return v
-
-    @field_validator(
-        "evaporating_temp_c",
-        "condensing_temp_c",
-        "cooling_capacity_kw",
-        mode="after",
-    )
-    @classmethod
-    def _reject_non_finite_decimal(cls, v: Decimal) -> Decimal:
-        if v.is_nan() or v.is_infinite():
-            raise ValueError(f"Non-finite Decimal not allowed: {v!r}")
-        return v
-
-    @field_validator("number_of_evaporators", mode="after")
-    @classmethod
-    def _require_positive_int(cls, v: int) -> int:
-        if v < 1:
-            raise ValueError(f"must be >= 1, got {v}")
-        return v
+    calculation_type: Literal["equipment"] = "equipment"
+    calculator_id: Literal["equipment"] = "equipment"
+    calculator_version: Literal["1.0.0"] = "1.0.0"
 
 
 class PowerSourceSnapshotV1(SourceSnapshotContentV1):
@@ -258,31 +237,9 @@ class PowerSourceSnapshotV1(SourceSnapshotContentV1):
     Calculator: installed_power.
     """
 
-    calculation_type: str = "power"
-    calculator_id: str = "installed_power"
-
-    # Business payload fields (power calculator output)
-    total_installed_power_kw_e: Decimal
-    compressor_power_kw_e: Decimal
-    condenser_fan_power_kw_e: Decimal
-    evaporator_fan_power_kw_e: Decimal
-    lighting_power_kw_e: Decimal
-    defrost_power_kw_e: Decimal
-
-    @field_validator(
-        "total_installed_power_kw_e",
-        "compressor_power_kw_e",
-        "condenser_fan_power_kw_e",
-        "evaporator_fan_power_kw_e",
-        "lighting_power_kw_e",
-        "defrost_power_kw_e",
-        mode="after",
-    )
-    @classmethod
-    def _reject_non_finite_decimal(cls, v: Decimal) -> Decimal:
-        if v.is_nan() or v.is_infinite():
-            raise ValueError(f"Non-finite Decimal not allowed: {v!r}")
-        return v
+    calculation_type: Literal["power"] = "power"
+    calculator_id: Literal["installed_power"] = "installed_power"
+    calculator_version: Literal["1.0.0"] = "1.0.0"
 
 
 class InvestmentSourceSnapshotV1(SourceSnapshotContentV1):
@@ -292,34 +249,6 @@ class InvestmentSourceSnapshotV1(SourceSnapshotContentV1):
     Calculator: investment_estimate.
     """
 
-    calculation_type: str = "investment"
-    calculator_id: str = "investment_estimate"
-
-    # Business payload fields (investment calculator output)
-    equipment_cost_usd: Decimal
-    installation_cost_usd: Decimal
-    electrical_cost_usd: Decimal
-    insulation_cost_usd: Decimal
-    total_investment_usd: Decimal
-    currency: str
-
-    @field_validator(
-        "equipment_cost_usd",
-        "installation_cost_usd",
-        "electrical_cost_usd",
-        "insulation_cost_usd",
-        "total_investment_usd",
-        mode="after",
-    )
-    @classmethod
-    def _reject_non_finite_decimal(cls, v: Decimal) -> Decimal:
-        if v.is_nan() or v.is_infinite():
-            raise ValueError(f"Non-finite Decimal not allowed: {v!r}")
-        return v
-
-    @field_validator("currency", mode="after")
-    @classmethod
-    def _require_non_empty_currency(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("must not be empty or whitespace")
-        return v
+    calculation_type: Literal["investment"] = "investment"
+    calculator_id: Literal["investment_estimate"] = "investment_estimate"
+    calculator_version: Literal["1.0.0"] = "1.0.0"
