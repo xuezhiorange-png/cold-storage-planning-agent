@@ -33,14 +33,18 @@ class OrchestrationRequestRecord(Base):
     __tablename__ = "orchestration_requests"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False)
-    project_version_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("project_versions.id"), nullable=False
-    )
+    requested_project_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    requested_project_version_id: Mapped[str] = mapped_column(String(36), nullable=False)
     request_fingerprint: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     actor: Mapped[str] = mapped_column(String(100), nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
+    resolved_project_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("projects.id"), nullable=True
+    )
+    resolved_project_version_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("project_versions.id"), nullable=True
+    )
     resolved_identity_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("orchestration_identities.id"), nullable=True
     )
@@ -59,6 +63,8 @@ class OrchestrationRequestRecord(Base):
         CheckConstraint(
             "("
             " status = 'PENDING'"
+            " AND resolved_project_id IS NULL"
+            " AND resolved_project_version_id IS NULL"
             " AND resolved_identity_id IS NULL"
             " AND resolved_attempt_id IS NULL"
             " AND failure_code IS NULL"
@@ -77,6 +83,8 @@ class OrchestrationRequestRecord(Base):
             ")"
             " OR ("
             " status = 'ACCEPTED'"
+            " AND resolved_project_id IS NOT NULL"
+            " AND resolved_project_version_id IS NOT NULL"
             " AND resolved_identity_id IS NOT NULL"
             " AND resolved_attempt_id IS NOT NULL"
             " AND failure_code IS NULL"

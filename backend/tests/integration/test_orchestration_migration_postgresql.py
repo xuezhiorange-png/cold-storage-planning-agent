@@ -16,12 +16,9 @@ Tagged with ``@pytest.mark.postgresql`` to run in CI (``-m postgresql``).
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 import uuid as _uuid_mod
-from collections.abc import Generator
-from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -32,16 +29,6 @@ from sqlalchemy.pool import NullPool
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.postgresql
-
-# ── Database name sanitizer ──────────────────────────────────────────────────
-
-_DB_NAME_RE = re.compile(r"[^a-z0-9_]")
-
-
-def _sanitize_db_name(name: str) -> str:
-    """Return a valid PostgreSQL database name (lowercase, alphanumeric + underscore)."""
-    return _DB_NAME_RE.sub("_", name.lower())[:63]
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,80 +53,10 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
     )
 
 
-# ── Fixtures ─────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="session")
-def pg_admin_url() -> str:
-    """PostgreSQL admin connection URL derived from DATABASE_URL.
-
-    Replaces the database name with ``postgres`` for DDL operations
-    (CREATE/DROP DATABASE). Requires ``AUTOCOMMIT`` isolation.
-    """
-    original = os.environ.get("DATABASE_URL", "")
-    if not original:
-        pytest.skip("DATABASE_URL not set")
-    # Expected shape: postgresql+psycopg2://user:pass@host:port/dbname
-    base = original.rsplit("/", 1)[0]
-    return f"{base}/postgres"
-
-
 @pytest.fixture()
-def pg_database_factory(pg_admin_url: str) -> Generator:
-    """Yield a callable that creates isolated PostgreSQL test databases.
-
-    Usage::
-
-        db_url = database_factory(prefix="my_test")
-        # db_url is valid, database exists
-        # ... run tests ...
-        # on teardown: database is dropped
-
-    The factory:
-    - Uses AUTOCOMMIT on the admin connection.
-    - Creates ``DROP DATABASE IF EXISTS … WITH (FORCE)`` then ``CREATE DATABASE …``.
-    - Generates database names with a 12-char UUID suffix for uniqueness.
-    - Collects all created databases and drops them in teardown (even on failure).
-    """
-    created: list[str] = []
-    admin_engine = create_engine(pg_admin_url, poolclass=NullPool)
-    # Set AUTOCOMMIT isolation for DDL operations
-    admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
-
-    def create_db(*, prefix: str) -> str:
-        db_name = _sanitize_db_name(f"{prefix}_{_uuid_mod.uuid4().hex[:12]}")
-        with admin_engine.connect() as conn:
-            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
-            conn.execute(text(f"CREATE DATABASE {db_name}"))
-        base_url = os.environ.get("DATABASE_URL", "").rsplit("/", 1)[0]
-        db_url = f"{base_url}/{db_name}"
-        created.append(db_name)
-        return db_url
-
-    try:
-        yield create_db
-    finally:
-        with admin_engine.connect() as conn:
-            for db_name in created:
-                with suppress(Exception):
-                    conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
-        admin_engine.dispose()
-
-
-@pytest.fixture()
-def migrated_pg(pg_database_factory) -> str:
-    """Isolated database with full head schema applied (non-destructive)."""
-    db_url = pg_database_factory(prefix="migrated_pg")
-    r = _run_alembic(db_url, "upgrade", "head")
-    if r.returncode != 0:
-        pytest.fail(
-            f"Alembic upgrade to head failed (DB={db_url}):\n"
-            f"STDERR:\n{r.stderr}\nSTDOUT:\n{r.stdout}"
-        )
-    return db_url
-
-
-# ── Schema checks ────────────────────────────────────────────────────────────
+def migrated_pg(pg_database: str) -> str:
+    """Alias for conftest ``pg_database`` to minimise test-method churn."""
+    return pg_database
 
 
 class TestAllTables:
@@ -331,11 +248,12 @@ class TestRequestRejection:
         with engine.connect() as conn, pytest.raises(IntegrityError):
             conn.execute(
                 text(
-                    "INSERT INTO orchestration_requests (id, project_id, "
-                    "project_version_id, request_fingerprint, actor, correlation_id, "
-                    "status, resolved_identity_id, created_at) "
+                    "INSERT INTO orchestration_requests (id, requested_project_id, "
+                    "requested_project_version_id, request_fingerprint, actor, "
+                    "correlation_id, status, resolved_project_id, "
+                    "resolved_project_version_id, resolved_identity_id, created_at) "
                     "VALUES (:id, 'p-1', 'pv-1', 'fp', 'me', 'cid', "
-                    "'ACCEPTED', 'oi-1', now())"
+                    "'ACCEPTED', 'p-1', 'pv-1', 'oi-1', now())"
                 ),
                 {"id": rid},
             )
@@ -664,9 +582,11 @@ class TestAuditEventHistoryBackfill:
 
         engine3 = _pg_engine(db_url)
         with engine3.connect() as conn3:
-            # Revision still 0026
+            # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            assert rev == "0026_add_orchestration_persistence", f"Revision changed: {rev}"
+            assert rev == "0027_separate_requested_and_resolved_request_identity", (
+                f"Revision changed: {rev}"
+            )
 
             # AuditEvent still backfilled with same value
             row2 = conn3.execute(
@@ -772,7 +692,7 @@ class TestDowngradeBlocker:
         r_up = _run_alembic(db_url, "upgrade", "head")
         assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode == 0, (
             f"Downgrade should succeed on empty DB\nSTDERR: {r.stderr}\nSTDOUT: {r.stdout}"
         )
@@ -827,7 +747,7 @@ class TestDowngradeBlocker:
             conn.commit()
         engine.dispose()
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode == 0, (
             f"Downgrade should succeed with legacy-only data\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
@@ -963,7 +883,7 @@ class TestDowngradeBlocker:
             conn.commit()
         engine.dispose()
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode != 0, (
             f"Downgrade should be blocked when SourceBinding exists\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
@@ -1157,7 +1077,7 @@ class TestDowngradeBlocker:
         engine.dispose()
 
         # Attempt downgrade — must be blocked
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0025")
         assert r.returncode != 0, (
             f"Downgrade should have been blocked with production data\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
@@ -1220,4 +1140,250 @@ class TestDowngradeBlocker:
             ).scalar()
             assert fk_result == 1, "FK fk_calc_run_orch_identity missing"
 
-        engine2.dispose()
+
+# ── Downgrade Gate Tests ─────────────────────────────────────────────────
+
+
+class TestDowngradeGatePG:
+    """P0-4/P0-8: PostgreSQL downgrade blocker — mirrors SQLite tests."""
+
+    def test_blocked_with_unresolvable_requested_project(self, pg_database_factory) -> None:
+        """Downgrade blocked when PREFLIGHT_REJECTED record has unresolvable
+        requested_project_id."""
+        db_url = pg_database_factory(prefix="dg_proj")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0, f"Upgrade failed: {r.stderr}"
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            rev_before = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": "nonexistent-project-id",
+                    "rpvid": "nonexistent-version-id",
+                },
+            )
+            conn.commit()
+
+        # Attempt downgrade — must be blocked
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode != 0, (
+            f"Downgrade should have been blocked\\nstdout: {r.stdout}\\nstderr: {r.stderr}"
+        )
+        assert "Cannot downgrade" in (r.stderr + r.stdout), (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
+
+        # Verify atomicity: nothing changed
+        with engine.connect() as conn:
+            rev_after = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
+            # CHECK constraint still present
+            ck = conn.execute(
+                text("SELECT 1 FROM pg_constraint WHERE conname = 'ck_orch_request_status_nullity'")
+            ).scalar()
+            assert ck == 1, "CHECK ck_orch_request_status_nullity missing"
+            # Table still exists
+            tbl = conn.execute(
+                text("SELECT 1 FROM pg_tables WHERE tablename = 'orchestration_requests'")
+            ).scalar()
+            assert tbl == 1, "orchestration_requests table missing"
+        engine.dispose()
+
+    def test_blocked_with_valid_project_invalid_version(self, pg_database_factory) -> None:
+        """Downgrade blocked when requested_project exists but
+        requested_version does not."""
+        db_url = pg_database_factory(prefix="dg_ver")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0
+
+        pid = str(_uuid_mod.uuid4())
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            # Create a valid project
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, 'T1', 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.commit()
+
+            rev_before = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+
+            # Insert request with valid project but invalid version
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": pid,
+                    "rpvid": "nonexistent-version-id",
+                },
+            )
+            conn.commit()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode != 0, f"Downgrade should be blocked when version invalid\\n{r.stderr}"
+
+        with engine.connect() as conn:
+            rev_after = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev_after == rev_before
+        engine.dispose()
+
+    def test_blocked_with_version_project_mismatch(self, pg_database_factory) -> None:
+        """Downgrade blocked when requested version exists but belongs to
+        a different project."""
+        db_url = pg_database_factory(prefix="dg_mis")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0
+
+        pid_a = str(_uuid_mod.uuid4())
+        pid_b = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, :code, 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid_a, "code": "TA"},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, :code, 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid_b, "code": "TB"},
+            )
+            # Version belongs to pid_b, not pid_a
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions "
+                    "(id, project_id, version_number, change_summary, status, "
+                    "created_by, created_at, updated_at, input_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', "
+                    "now(), now(), '{}')"
+                ),
+                {"id": pvid, "pid": pid_b},
+            )
+            conn.commit()
+
+            rev_before = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+
+            # Request references pid_a (valid project) + pvid (belongs to pid_b)
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": pid_a,
+                    "rpvid": pvid,
+                },
+            )
+            conn.commit()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode != 0, (
+            f"Downgrade should be blocked on project/version mismatch\\n{r.stderr}"
+        )
+
+        with engine.connect() as conn:
+            rev_after = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev_after == rev_before
+        engine.dispose()
+
+    def test_all_resolvable_allows_downgrade(self, pg_database_factory) -> None:
+        """Downgrade succeeds when all requested identities are resolvable."""
+        db_url = pg_database_factory(prefix="dg_ok")
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0
+
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, "
+                    "product_category, status, current_version_number, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, 'T_OK', 'Test', 'TL', 'fruit', 'draft', 0, "
+                    "now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions "
+                    "(id, project_id, version_number, change_summary, status, "
+                    "created_by, created_at, updated_at, input_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', "
+                    "now(), now(), '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            # Resolvable request
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_requests "
+                    "(id, requested_project_id, requested_project_version_id, "
+                    "request_fingerprint, actor, correlation_id, status, "
+                    "failure_code, failure_field, failure_details, completed_at, "
+                    "created_at) "
+                    "VALUES (:id, :rpid, :rpvid, 'fp', 'test', 'corr', "
+                    "'PREFLIGHT_REJECTED', 'ERR', 'field', '{}', now(), now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "rpid": pid,
+                    "rpvid": pvid,
+                },
+            )
+            conn.commit()
+
+        r = _run_alembic(db_url, "downgrade", "-1")
+        assert r.returncode == 0, f"Downgrade should succeed with resolvable data\\n{r.stderr}"
+
+        # Verify we're on revision 0026
+        with engine.connect() as conn:
+            rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev == "0026_add_orchestration_persistence", f"Expected revision 0026, got {rev}"
+        engine.dispose()

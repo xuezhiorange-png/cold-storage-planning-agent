@@ -205,12 +205,22 @@ class AttemptAlreadyRunningError(OrchestrationDomainError):
 class AttemptTakeoverConflictError(OrchestrationDomainError):
     """CAS takeover failed — heartbeat changed since observation."""
 
-    def __init__(self, attempt_id: str) -> None:
+    def __init__(
+        self,
+        *,
+        identity_id: str,
+        attempt_id: str | None = None,
+        retry_count: int,
+    ) -> None:
         super().__init__(
             "ORCH_ATTEMPT_TAKEOVER_CONFLICT",
-            f"CAS takeover conflict for attempt {attempt_id!r}",
+            f"Attempt acquisition conflict for identity {identity_id!r}",
             field="heartbeat_at",
-            details={"attempt_id": attempt_id},
+            details={
+                "identity_id": identity_id,
+                "attempt_id": attempt_id,
+                "retry_count": retry_count,
+            },
         )
 
 
