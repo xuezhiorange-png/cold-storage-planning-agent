@@ -868,7 +868,8 @@ class TransactionBExecutor:
 
         # 1 — Load authoritative version vector from identity repo (P0-6)
         calculator_version_vector = self._identity_repo.get_calculator_version_vector(
-            session, identity_id=orchestration_identity_id,
+            session,
+            identity_id=orchestration_identity_id,
         )
         self._validate_version_vector(calculator_version_vector)
 
@@ -1096,7 +1097,8 @@ class TransactionBExecutor:
         if not cas_identity_ok:
             raise TransactionBFailure(
                 "TXB_CAS_IDENTITY_FAILED",
-                "set_authoritative_attempt CAS failed (identity not ACTIVE or attempt not COMPLETED)",
+                "set_authoritative_attempt CAS failed "
+                "(identity not ACTIVE or attempt not COMPLETED)",
                 field="identity_authoritative_attempt",
                 details={
                     "identity_id": orchestration_identity_id,
