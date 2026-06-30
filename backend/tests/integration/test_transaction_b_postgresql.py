@@ -940,7 +940,10 @@ class TestTransactionB0028PostgreSQLConstraints:
                         id, code, name, location,
                         product_category, status,
                         current_version_number, created_at, updated_at
-                    ) VALUES ('fk-p-1', 'T_FK', 'FK Project', 'test', 'blueberry', 'active', 0, NOW(), NOW())
+                    ) VALUES (
+                        'fk-p-1', 'T_FK', 'FK Project', 'test',
+                        'blueberry', 'active', 0, NOW(), NOW()
+                    )
                     ON CONFLICT (id) DO NOTHING
                 """)
             )
@@ -958,11 +961,63 @@ class TestTransactionB0028PostgreSQLConstraints:
             )
             conn.commit()
 
+    @staticmethod
+    def _seed_orchestration_fk(conn, *, ident_id, attempt_id, snap_id, coeff_id):
+        """Insert FK dependency rows for orchestration tables."""
+        conn.execute(text("""
+            INSERT INTO orchestration_execution_snapshots (
+                id, project_id, project_version_id,
+                version_number, input_snapshot,
+                input_snapshot_hash, schema_version, captured_status
+            ) VALUES (
+                :snap, 'fk-p-1', 'fk-pv-1',
+                1, '{}'::jsonb,
+                'snap-h', '1.0.0', 'approved'
+            ) ON CONFLICT (id) DO NOTHING
+        """), {"snap": snap_id})
+        conn.execute(text("""
+            INSERT INTO orchestration_coefficient_contexts (
+                id, project_id, project_version_id,
+                content, content_hash, schema_version
+            ) VALUES (
+                :coeff, 'fk-p-1', 'fk-pv-1',
+                '{}'::jsonb, 'coeff-h', '1.0.0'
+            ) ON CONFLICT (id) DO NOTHING
+        """), {"coeff": coeff_id})
+        conn.execute(text("""
+            INSERT INTO orchestration_identities (
+                id, fingerprint, execution_snapshot_id,
+                coefficient_context_id, definition_version,
+                calculator_version_vector, status
+            ) VALUES (
+                :ident, :fp, :snap, :coeff,
+                '1.0.0', '{}'::jsonb, 'ACTIVE'
+            ) ON CONFLICT (id) DO NOTHING
+        """), {"ident": ident_id, "fp": f'fp-{ident_id[:8]}',
+                "snap": snap_id, "coeff": coeff_id})
+        conn.execute(text("""
+            INSERT INTO orchestration_run_attempts (
+                id, identity_id, attempt_number, status
+            ) VALUES (
+                :att, :ident, 1, 'RUNNING'
+            ) ON CONFLICT (id) DO NOTHING
+        """), {"att": attempt_id, "ident": ident_id})
+
     def test_orchestrated_row_missing_fingerprint_rejected(self, pg_engine) -> None:
         """INSERT with all orchestration fields EXCEPT fingerprint as NULL →
         IntegrityError with ck_calculation_run_fingerprint_nullity.
         """
+        ident_id = uuid.uuid4().hex
+        attempt_id = uuid.uuid4().hex
+        snap_id = uuid.uuid4().hex
+        coeff_id = uuid.uuid4().hex
         with pg_engine.connect() as conn:
+            self._seed_orchestration_fk(
+                conn,
+                ident_id=ident_id, attempt_id=attempt_id,
+                snap_id=snap_id, coeff_id=coeff_id,
+            )
+            conn.commit()
             with pytest.raises(IntegrityError) as exc_info:
                 conn.execute(
                     text("""
@@ -990,10 +1045,10 @@ class TestTransactionB0028PostgreSQLConstraints:
                         "id": uuid.uuid4().hex,
                         "pid": "fk-p-1",
                         "pvid": "fk-pv-1",
-                        "ident_id": uuid.uuid4().hex,
-                        "attempt_id": uuid.uuid4().hex,
-                        "snap_id": uuid.uuid4().hex,
-                        "coeff_id": uuid.uuid4().hex,
+                        "ident_id": ident_id,
+                        "attempt_id": attempt_id,
+                        "snap_id": snap_id,
+                        "coeff_id": coeff_id,
                     },
                 )
                 conn.commit()
@@ -1042,7 +1097,17 @@ class TestTransactionB0028PostgreSQLConstraints:
         """INSERT with some orchestration fields NULL → IntegrityError with
         ck_calculation_run_orchestration_nullity.
         """
+        ident_id = uuid.uuid4().hex
+        attempt_id = uuid.uuid4().hex
+        snap_id = uuid.uuid4().hex
+        coeff_id = uuid.uuid4().hex
         with pg_engine.connect() as conn:
+            self._seed_orchestration_fk(
+                conn,
+                ident_id=ident_id, attempt_id=attempt_id,
+                snap_id=snap_id, coeff_id=coeff_id,
+            )
+            conn.commit()
             with pytest.raises(IntegrityError) as exc_info:
                 conn.execute(
                     text("""
@@ -1070,8 +1135,8 @@ class TestTransactionB0028PostgreSQLConstraints:
                         "id": uuid.uuid4().hex,
                         "pid": "fk-p-1",
                         "pvid": "fk-pv-1",
-                        "ident_id": uuid.uuid4().hex,
-                        "attempt_id": uuid.uuid4().hex,
+                        "ident_id": ident_id,
+                        "attempt_id": attempt_id,
                     },
                 )
                 conn.commit()
@@ -1092,6 +1157,13 @@ class TestTransactionB0028PostgreSQLConstraints:
         coeff_id = uuid.uuid4().hex
 
         with pg_engine.connect() as conn:
+            self._seed_orchestration_fk(
+                conn,
+                ident_id=ident_id, attempt_id=attempt_id,
+                snap_id=snap_id, coeff_id=coeff_id,
+            )
+            conn.commit()
+
             # First row: should succeed
             conn.execute(
                 text("""
