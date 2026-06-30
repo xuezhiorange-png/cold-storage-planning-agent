@@ -995,10 +995,10 @@ class TestTransactionB0028PostgreSQLConstraints:
             INSERT INTO orchestration_identities (
                 id, fingerprint, execution_snapshot_id,
                 coefficient_context_id, definition_version,
-                calculator_version_vector, status
+                calculator_version_vector, status, created_at
             ) VALUES (
                 :ident, :fp, :snap, :coeff,
-                '1.0.0', '{}'::jsonb, 'ACTIVE'
+                '1.0.0', '{}'::jsonb, 'ACTIVE', NOW()
             ) ON CONFLICT (id) DO NOTHING
         """),
             {"ident": ident_id, "fp": f"fp-{ident_id[:8]}", "snap": snap_id, "coeff": coeff_id},
@@ -1006,9 +1006,9 @@ class TestTransactionB0028PostgreSQLConstraints:
         conn.execute(
             text("""
             INSERT INTO orchestration_run_attempts (
-                id, identity_id, attempt_number, status
+                id, identity_id, attempt_number, status, heartbeat_at, started_at
             ) VALUES (
-                :att, :ident, 1, 'RUNNING'
+                :att, :ident, 1, 'RUNNING', NOW(), NOW()
             ) ON CONFLICT (id) DO NOTHING
         """),
             {"att": attempt_id, "ident": ident_id},
@@ -1315,8 +1315,7 @@ class TestTransactionB0028PostgreSQLConstraints:
             conn.execute(
                 text("""
                     INSERT INTO orchestration_run_attempts (
-                        id, identity_id, attempt_number, status,
-                        heartbeat_at, started_at
+                        id, identity_id, attempt_number, status, heartbeat_at, started_at
                     ) VALUES (
                         :aid, :iid, 99, 'RUNNING', NOW(), NOW()
                     ) ON CONFLICT DO NOTHING
