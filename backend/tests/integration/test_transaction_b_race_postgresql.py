@@ -6,10 +6,19 @@ fixture pattern from conftest.py.
 Covers:
 - Concurrent execution: two threads run Transaction B on the same RUNNING
   attempt → exactly 1 success, exactly 1 structured error.
-- Replay on completed attempt: second call on COMPLETED attempt → fail closed.
-- Non-target IntegrityError propagation: a non-target IntegrityError
-  (FK violation on an unrelated table) must NOT be swallowed as idempotent
-  success.
+- calc_run UNIQUENESS: uq_calculation_run_attempt_type enforced under
+  concurrent race — exactly 5 CalculationRuns per attempt.
+- SourceBinding UNIQUENESS: uq_source_binding_identity_attempt enforced
+  under concurrent race — exactly 1 SourceBinding.
+- Loser rollback: the losing thread's UoW rolls back completely — zero
+  PK-set delta for the loser's contributions.
+- Non-target IntegrityError propagation: both FK-UNIQUE and NOT NULL
+  violations must NOT be swallowed as idempotent success.
+- Replay on completed attempt: second call on COMPLETED attempt → fail
+  closed — zero new CalculationRun rows, zero new SourceBinding rows,
+  zero new outbox events.
+- Concurrent attempt number race: uq_attempt_identity_number enforced
+  when two threads insert with the same (identity_id, attempt_number).
 
 Tagged with @pytest.mark.postgresql for CI (-m postgresql).
 """
@@ -32,7 +41,7 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from cold_storage.modules.orchestration.application.ports import (
@@ -924,3 +933,546 @@ class TestTransactionBNonTargetIntegrityError:
         finally:
             # Restore original method
             SqlAlchemyCalculationRunRepository.add = original_add
+
+
+# ── Class 4: Concurrent calc_run UNIQUENESS (attempt_id, calculation_type) ──
+
+
+class TestConcurrentCalcRunAttemptTypeUniqueness:
+    """Two concurrent Transaction B executions on the same attempt must
+    honour uq_calculation_run_attempt_type — at most 5 CalculationRuns
+    per attempt regardless of how many threads race.
+    """
+
+    def test_concurrent_same_attempt_calc_run_count(self, pg_service, pg_session_factory) -> None:
+        """Both threads try Transaction B on the same RUNNING attempt.
+
+        The uq_calculation_run_attempt_type UNIQUE constraint on
+        (orchestration_run_attempt_id, calculation_type) ensures only one
+        row per (attempt, stage).  The loser must get a structured error
+        and the DB must contain exactly 5 CalculationRuns.
+        """
+        result_a = _run_transaction_a(pg_service, pg_session_factory)
+        snap_id, coeff_id, orch_fp = _load_identity_context(
+            pg_session_factory, result_a.identity_id
+        )
+
+        barrier = threading.Barrier(2, timeout=60)
+        results: dict[str, dict[str, object]] = {"a": {}, "b": {}}
+
+        def _worker(label: str) -> None:
+            try:
+                svc = _build_service(pg_session_factory)
+                barrier.wait()  # both start at the same instant
+                result = svc.execute_transaction_b(
+                    request_id=result_a.request_id,
+                    project_id="p-1",
+                    project_version_id="pv-1",
+                    execution_snapshot_id=snap_id,
+                    coefficient_context_id=coeff_id,
+                    orchestration_identity_id=result_a.identity_id,
+                    orchestration_attempt_id=result_a.attempt_id,
+                    orchestration_fingerprint=orch_fp,
+                    execution_snapshot={"throughput_t": "25.0"},
+                    coefficient_context={"coefficients": []},
+                )
+                results[label]["result"] = result
+            except (TransactionBFailure, OrchestrationDomainError) as exc:
+                results[label]["error"] = exc
+            except Exception as exc:  # noqa: BLE001
+                results[label]["unexpected"] = exc
+
+        threads = [threading.Thread(target=_worker, args=(k,)) for k in ("a", "b")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=120)
+
+        for k in ("a", "b"):
+            assert not threads[{"a": 0, "b": 1}[k]].is_alive(), f"Thread {k} deadlocked"
+            assert "unexpected" not in results[k], f"Unexpected in {k}: {results[k]}"
+
+        successes = [k for k in results if "result" in results[k]]
+        errors = [k for k in results if "error" in results[k]]
+        assert len(successes) == 1, f"Expected 1 success, got {len(successes)}: {results}"
+        assert len(errors) == 1, f"Expected 1 error, got {len(errors)}: {results}"
+
+        # Exactly 5 CalculationRuns — the UNIQUE constraint prevented doubles
+        with pg_session_factory() as s:
+            runs = (
+                s.execute(
+                    select(CalculationRunRecord).where(
+                        CalculationRunRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(runs) == 5, (
+                f"Expected 5 CalculationRuns (uq_calculation_run_attempt_type), "
+                f"got {len(runs)}"
+            )
+
+
+# ── Class 5: SourceBinding identity/attempt uniqueness race ─────────────────
+
+
+class TestConcurrentSourceBindingUniqueness:
+    """Concurrent Transaction B executions must produce exactly 1
+    SourceBinding due to uq_source_binding_identity_attempt.
+    """
+
+    def test_concurrent_same_attempt_single_source_binding(
+        self, pg_service, pg_session_factory
+    ) -> None:
+        """Two threads race; exactly one SourceBinding must exist after."""
+        result_a = _run_transaction_a(pg_service, pg_session_factory)
+        snap_id, coeff_id, orch_fp = _load_identity_context(
+            pg_session_factory, result_a.identity_id
+        )
+
+        barrier = threading.Barrier(2, timeout=60)
+        results: dict[str, dict[str, object]] = {"a": {}, "b": {}}
+
+        def _worker(label: str) -> None:
+            try:
+                svc = _build_service(pg_session_factory)
+                barrier.wait()
+                result = svc.execute_transaction_b(
+                    request_id=result_a.request_id,
+                    project_id="p-1",
+                    project_version_id="pv-1",
+                    execution_snapshot_id=snap_id,
+                    coefficient_context_id=coeff_id,
+                    orchestration_identity_id=result_a.identity_id,
+                    orchestration_attempt_id=result_a.attempt_id,
+                    orchestration_fingerprint=orch_fp,
+                    execution_snapshot={"throughput_t": "25.0"},
+                    coefficient_context={"coefficients": []},
+                )
+                results[label]["result"] = result
+            except (TransactionBFailure, OrchestrationDomainError) as exc:
+                results[label]["error"] = exc
+            except Exception as exc:  # noqa: BLE001
+                results[label]["unexpected"] = exc
+
+        threads = [threading.Thread(target=_worker, args=(k,)) for k in ("a", "b")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=120)
+
+        for k in ("a", "b"):
+            assert "unexpected" not in results[k], f"Unexpected in {k}: {results[k]}"
+
+        # Exactly 1 SourceBinding — uq_source_binding_identity_attempt enforced
+        with pg_session_factory() as s:
+            bindings = (
+                s.execute(
+                    select(SourceBindingRecord).where(
+                        SourceBindingRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(bindings) == 1, (
+                f"Expected 1 SourceBinding (uq_source_binding_identity_attempt), "
+                f"got {len(bindings)}"
+            )
+
+
+# ── Class 6: Loser rollback — zero PK-set delta ────────────────────────────
+
+
+class TestLoserRollbackZeroDelta:
+    """The losing thread's UoW must roll back completely — the loser
+    contributes zero new rows to any table.
+    """
+
+    def test_loser_contributes_zero_new_rows(
+        self, pg_service, pg_session_factory
+    ) -> None:
+        """Snapshot row counts before, run both threads, assert only +1
+        SourceBinding, +5 CalculationRuns, +1 completion outbox.
+        """
+        result_a = _run_transaction_a(pg_service, pg_session_factory)
+        snap_id, coeff_id, orch_fp = _load_identity_context(
+            pg_session_factory, result_a.identity_id
+        )
+
+        # Snapshot row counts before concurrent execution
+        with pg_session_factory() as s:
+            runs_before = (
+                s.execute(
+                    select(CalculationRunRecord).where(
+                        CalculationRunRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            bindings_before = (
+                s.execute(
+                    select(SourceBindingRecord).where(
+                        SourceBindingRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            outbox_before = (
+                s.execute(
+                    select(AuditOutboxRecord).where(
+                        AuditOutboxRecord.attempt_id == result_a.attempt_id,
+                        AuditOutboxRecord.event_type == "orchestration.attempt.completed",
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        barrier = threading.Barrier(2, timeout=60)
+        results: dict[str, dict[str, object]] = {"a": {}, "b": {}}
+
+        def _worker(label: str) -> None:
+            try:
+                svc = _build_service(pg_session_factory)
+                barrier.wait()
+                result = svc.execute_transaction_b(
+                    request_id=result_a.request_id,
+                    project_id="p-1",
+                    project_version_id="pv-1",
+                    execution_snapshot_id=snap_id,
+                    coefficient_context_id=coeff_id,
+                    orchestration_identity_id=result_a.identity_id,
+                    orchestration_attempt_id=result_a.attempt_id,
+                    orchestration_fingerprint=orch_fp,
+                    execution_snapshot={"throughput_t": "25.0"},
+                    coefficient_context={"coefficients": []},
+                )
+                results[label]["result"] = result
+            except (TransactionBFailure, OrchestrationDomainError) as exc:
+                results[label]["error"] = exc
+            except Exception as exc:  # noqa: BLE001
+                results[label]["unexpected"] = exc
+
+        threads = [threading.Thread(target=_worker, args=(k,)) for k in ("a", "b")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=120)
+
+        for k in ("a", "b"):
+            assert "unexpected" not in results[k], f"Unexpected in {k}: {results[k]}"
+
+        # After: exactly +5 CalculationRuns, +1 SourceBinding, +1 outbox
+        with pg_session_factory() as s:
+            runs_after = (
+                s.execute(
+                    select(CalculationRunRecord).where(
+                        CalculationRunRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            bindings_after = (
+                s.execute(
+                    select(SourceBindingRecord).where(
+                        SourceBindingRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            outbox_after = (
+                s.execute(
+                    select(AuditOutboxRecord).where(
+                        AuditOutboxRecord.attempt_id == result_a.attempt_id,
+                        AuditOutboxRecord.event_type == "orchestration.attempt.completed",
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        run_delta = len(runs_after) - len(runs_before)
+        binding_delta = len(bindings_after) - len(bindings_before)
+        outbox_delta = len(outbox_after) - len(outbox_before)
+
+        assert run_delta == 5, (
+            f"Expected +5 CalculationRuns (winner only), got delta={run_delta}"
+        )
+        assert binding_delta == 1, (
+            f"Expected +1 SourceBinding (winner only), got delta={binding_delta}"
+        )
+        assert outbox_delta == 1, (
+            f"Expected +1 completion outbox (winner only), got delta={outbox_delta}"
+        )
+
+
+# ── Class 7: Non-target IntegrityError propagation (NOT NULL variant) ───────
+
+
+class TestNonTargetIntegrityErrorNotNull:
+    """A non-target IntegrityError caused by a NOT NULL violation must
+    propagate as-is — not be swallowed as idempotent success.
+    """
+
+    def test_not_null_violation_propagates(self, pg_session_factory) -> None:
+        """Inject a NOT NULL violation by monkey-patching the source binding
+        repo to insert a record with a NULL required column.  The resulting
+        IntegrityError must propagate.
+        """
+        with pg_session_factory() as s:
+            _seed_project_and_version(s)
+
+        svc_tx_a = _build_service(pg_session_factory)
+        result_a = svc_tx_a.execute(_make_command(correlation_id="notnull-test"))
+        snap_id, coeff_id, orch_fp = _load_identity_context(
+            pg_session_factory, result_a.identity_id
+        )
+
+        original_add = SqlAlchemySourceBindingRepository.add
+
+        def _injecting_add(repo_self, session, /, **kwargs: Any) -> str:
+            result_id = original_add(repo_self, session, **kwargs)
+            # Execute raw SQL that violates NOT NULL on a FK column
+            session.execute(
+                text(
+                    "INSERT INTO orchestration_source_bindings"
+                    " (id, project_id, project_version_id, execution_snapshot_id,"
+                    "  coefficient_context_id, orchestration_identity_id,"
+                    "  orchestration_run_attempt_id, orchestration_fingerprint,"
+                    "  zone_calculation_id, cooling_load_calculation_id,"
+                    "  equipment_calculation_id, power_calculation_id,"
+                    "  investment_calculation_id, per_calculation_result_hashes,"
+                    "  combined_source_hash, schema_version)"
+                    " VALUES (:id, NULL, :pvid, :esid, :ccid, :oid, :aid, :fp,"
+                    "  :zcid, :clcid, :eqcid, :pcid, :invcid, :hashes, :csh, :sv)"
+                ),
+                {
+                    "id": f"bad-binding-{uuid.uuid4().hex[:8]}",
+                    "pvid": "pv-1",
+                    "esid": snap_id,
+                    "ccid": coeff_id,
+                    "oid": result_a.identity_id,
+                    "aid": result_a.attempt_id,
+                    "fp": orch_fp,
+                    "zcid": "fake-calc-001",
+                    "clcid": "fake-calc-002",
+                    "eqcid": "fake-calc-003",
+                    "pcid": "fake-calc-004",
+                    "invcid": "fake-calc-005",
+                    "hashes": "{}",
+                    "csh": "fake-hash",
+                    "sv": "1.0.0",
+                },
+            )
+            session.flush()
+            return result_id
+
+        SqlAlchemySourceBindingRepository.add = _injecting_add
+        try:
+            svc_inject = _build_service(pg_session_factory, calculator_port=_FakeCalculatorPort())
+            with pytest.raises(IntegrityError):
+                svc_inject.execute_transaction_b(
+                    request_id=result_a.request_id,
+                    project_id="p-1",
+                    project_version_id="pv-1",
+                    execution_snapshot_id=snap_id,
+                    coefficient_context_id=coeff_id,
+                    orchestration_identity_id=result_a.identity_id,
+                    orchestration_attempt_id=result_a.attempt_id,
+                    orchestration_fingerprint=orch_fp,
+                    execution_snapshot={"throughput_t": "25.0"},
+                    coefficient_context={"coefficients": []},
+                )
+        finally:
+            SqlAlchemySourceBindingRepository.add = original_add
+
+
+# ── Class 8: Replay on COMPLETED — no new rows / no new outbox ──────────────
+
+
+class TestReplayCompletedAttemptNoNewRows:
+    """Replay on a COMPLETED attempt must fail closed: zero new
+    CalculationRun rows, zero new SourceBinding rows, zero new outbox
+    events after the replay.
+    """
+
+    def test_replay_creates_no_new_rows_or_outbox(
+        self, pg_service, pg_session_factory
+    ) -> None:
+        """Run Transaction B successfully, snapshot all counts, replay,
+        assert zero delta on every table.
+        """
+        result_a = _run_transaction_a(pg_service, pg_session_factory)
+        _run_transaction_b(pg_service, pg_session_factory, result_a)
+
+        # Snapshot after successful first run
+        with pg_session_factory() as s:
+            run_pks_before = set(
+                r.id
+                for r in s.execute(
+                    select(CalculationRunRecord).where(
+                        CalculationRunRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                ).scalars().all()
+            )
+            binding_pks_before = set(
+                b.id
+                for b in s.execute(
+                    select(SourceBindingRecord).where(
+                        SourceBindingRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                ).scalars().all()
+            )
+            outbox_count_before = len(
+                s.execute(
+                    select(AuditOutboxRecord).where(
+                        AuditOutboxRecord.attempt_id == result_a.attempt_id
+                    )
+                ).scalars().all()
+            )
+
+        # Replay — must fail
+        with pytest.raises((TransactionBFailure, OrchestrationDomainError)):
+            _run_transaction_b(pg_service, pg_session_factory, result_a)
+
+        # Assert zero delta
+        with pg_session_factory() as s:
+            run_pks_after = set(
+                r.id
+                for r in s.execute(
+                    select(CalculationRunRecord).where(
+                        CalculationRunRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                ).scalars().all()
+            )
+            binding_pks_after = set(
+                b.id
+                for b in s.execute(
+                    select(SourceBindingRecord).where(
+                        SourceBindingRecord.orchestration_run_attempt_id
+                        == result_a.attempt_id
+                    )
+                ).scalars().all()
+            )
+            outbox_count_after = len(
+                s.execute(
+                    select(AuditOutboxRecord).where(
+                        AuditOutboxRecord.attempt_id == result_a.attempt_id
+                    )
+                ).scalars().all()
+            )
+
+        new_run_pks = run_pks_after - run_pks_before
+        new_binding_pks = binding_pks_after - binding_pks_before
+        new_outbox = outbox_count_after - outbox_count_before
+
+        assert len(new_run_pks) == 0, (
+            f"Replay created {len(new_run_pks)} new CalculationRun(s): {new_run_pks}"
+        )
+        assert len(new_binding_pks) == 0, (
+            f"Replay created {len(new_binding_pks)} new SourceBinding(s): {new_binding_pks}"
+        )
+        assert new_outbox == 0, (
+            f"Replay created {new_outbox} new outbox event(s)"
+        )
+
+
+# ── Class 9: Concurrent attempt number race on uq_attempt_identity_number ───
+
+
+class TestConcurrentAttemptNumberRace:
+    """Two threads racing to create an attempt with the same
+    (identity_id, attempt_number) must honour uq_attempt_identity_number —
+    exactly 1 succeeds, the other gets an IntegrityError.
+    """
+
+    def test_concurrent_attempt_creation_same_number(
+        self, pg_session_factory
+    ) -> None:
+        """Both threads insert an OrchestrationRunAttemptRecord with the
+        same (identity_id, attempt_number=1).  PostgreSQL enforces
+        uq_attempt_identity_number: exactly 1 insert succeeds, the other
+        raises IntegrityError.
+        """
+        # Seed project data
+        with pg_session_factory() as s:
+            _seed_project_and_version(s)
+
+        # Create a valid identity via Transaction A
+        svc = _build_service(pg_session_factory)
+        result_a = svc.execute(_make_command(correlation_id="attempt-race"))
+
+        identity_id = result_a.identity_id
+
+        barrier = threading.Barrier(2, timeout=60)
+        results: dict[str, dict[str, object]] = {"a": {}, "b": {}}
+
+        def _worker(label: str) -> None:
+            try:
+                barrier.wait()
+                with pg_session_factory() as s:
+                    attempt_id = f"attempt-{label}-{uuid.uuid4().hex[:8]}"
+                    s.add(
+                        OrchestrationRunAttemptRecord(
+                            id=attempt_id,
+                            identity_id=identity_id,
+                            attempt_number=99,  # same number for both
+                            status="RUNNING",
+                        )
+                    )
+                    s.commit()
+                    results[label]["attempt_id"] = attempt_id
+            except IntegrityError:
+                results[label]["error"] = "IntegrityError"
+            except Exception as exc:  # noqa: BLE001
+                results[label]["unexpected"] = exc
+
+        threads = [threading.Thread(target=_worker, args=(k,)) for k in ("a", "b")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=60)
+
+        for k in ("a", "b"):
+            assert "unexpected" not in results[k], f"Unexpected in {k}: {results[k]}"
+
+        successes = [k for k in results if "attempt_id" in results[k]]
+        ie_errors = [k for k in results if results[k].get("error") == "IntegrityError"]
+
+        assert len(successes) == 1, (
+            f"Expected 1 success, got {len(successes)}: {results}"
+        )
+        assert len(ie_errors) == 1, (
+            f"Expected 1 IntegrityError, got {len(ie_errors)}: {results}"
+        )
+
+        # Verify only 1 row with attempt_number=99 for this identity
+        with pg_session_factory() as s:
+            rows = (
+                s.execute(
+                    select(OrchestrationRunAttemptRecord).where(
+                        OrchestrationRunAttemptRecord.identity_id == identity_id,
+                        OrchestrationRunAttemptRecord.attempt_number == 99,
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(rows) == 1, (
+                f"Expected 1 attempt with number 99, got {len(rows)} (uq_attempt_identity_number)"
+            )

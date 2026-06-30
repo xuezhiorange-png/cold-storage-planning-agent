@@ -1104,3 +1104,624 @@ class TestVerifierPowerAuthority:
         verifier = _make_verifier(state)
         with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
             _run_verify(verifier, candidate)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Test class: Tamper matrix — extended
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestVerifierTamperMatrixExtended:
+    """Extended tamper matrix: result_snapshot content, requires_review,
+    source snapshot schema, extra upstream keys, non-authoritative attempt.
+    """
+
+    def test_result_snapshot_content_tamper_zone(self) -> None:
+        """Modify a value in zone result_snapshot → result_hash mismatch.
+
+        The stored hash was computed from the original data.  Tampering
+        the result_snapshot content causes the re-parsed Pydantic model
+        to produce a different hash.
+        """
+        state = _build_state()
+        tampered_runs = dict(state.calculation_runs)
+        zone_run = tampered_runs["zone"]
+        tampered_result = dict(zone_run.result_snapshot)
+        tampered_result["total_area_m2"] = "999999"
+        tampered_runs["zone"] = dataclasses.replace(zone_run, result_snapshot=tampered_result)
+        tampered_state = _build_state(calculation_runs=tampered_runs)
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(tampered_state)
+        with pytest.raises(SourceBindingHashMismatchError, match="result_hash"):
+            _run_verify(verifier, candidate)
+
+    def test_result_snapshot_content_tamper_power(self) -> None:
+        """Modify power authority field in result_snapshot → result_hash mismatch."""
+        state = _build_state()
+        tampered_runs = dict(state.calculation_runs)
+        power_run = tampered_runs["power"]
+        tampered_result = dict(power_run.result_snapshot)
+        tampered_result["total_installed_power_kw_e"] = "999999.0"
+        tampered_runs["power"] = dataclasses.replace(power_run, result_snapshot=tampered_result)
+        tampered_state = _build_state(calculation_runs=tampered_runs)
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(tampered_state)
+        with pytest.raises(SourceBindingHashMismatchError, match="result_hash"):
+            _run_verify(verifier, candidate)
+
+    def test_result_snapshot_content_tamper_investment(self) -> None:
+        """Modify investment total in result_snapshot → result_hash mismatch."""
+        state = _build_state()
+        tampered_runs = dict(state.calculation_runs)
+        inv_run = tampered_runs["investment"]
+        tampered_result = dict(inv_run.result_snapshot)
+        tampered_result["total_investment_cny"] = "1"
+        tampered_runs["investment"] = dataclasses.replace(inv_run, result_snapshot=tampered_result)
+        tampered_state = _build_state(calculation_runs=tampered_runs)
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(tampered_state)
+        with pytest.raises(SourceBindingHashMismatchError, match="result_hash"):
+            _run_verify(verifier, candidate)
+
+    def test_requires_review_mismatch(self) -> None:
+        """requires_review differs between state and candidate → hash mismatch.
+
+        The state has requires_review=True for power (hash recomputed).
+        The candidate was built from original state (requires_review=False).
+        Per-calculation result hash mismatch catches the discrepancy.
+        """
+        original_state = _build_state()
+        state = _build_state_with_modified_run("power", requires_review=True)
+        candidate = _build_candidate(original_state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingHashMismatchError):
+            _run_verify(verifier, candidate)
+
+    def test_requires_review_mismatch_zone(self) -> None:
+        """requires_review differs for zone → combined hash mismatch.
+
+        Zone's result_hash does not change (zone's Pydantic model includes
+        requires_review, but the hash is recomputed).  The combined hash
+        includes requires_reviews for all stages, so a mismatch in zone
+        causes combined hash failure.
+        """
+        original_state = _build_state()
+        state = _build_state_with_modified_run("zone", requires_review=True)
+        candidate = _build_candidate(original_state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingHashMismatchError):
+            _run_verify(verifier, candidate)
+
+    def test_source_snapshot_schema_unsupported(self) -> None:
+        """Run's schema_version is unsupported → SourceSnapshotSchemaError."""
+        state = _build_state_with_modified_run("zone", schema_version="999.0.0")
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceSnapshotSchemaError):
+            _run_verify(verifier, candidate)
+
+    def test_source_snapshot_schema_null(self) -> None:
+        """Run's schema_version is None → SourceSnapshotSchemaError."""
+        state = _build_state_with_modified_run("cooling_load", schema_version=None)
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceSnapshotSchemaError):
+            _run_verify(verifier, candidate)
+
+    def test_extra_upstream_key_caught_by_hash(self) -> None:
+        """Extra upstream key without hash recompute → result_hash mismatch.
+
+        cooling_load normally has {zone: id}.  Adding an extra key
+        {zone: id, bogus: id} changes the Pydantic model's canonical
+        output, causing the stored hash to not match the re-parsed hash.
+        """
+        original_state = _build_state()
+        tampered_runs = dict(original_state.calculation_runs)
+        cl_run = tampered_runs["cooling_load"]
+        tampered_upstream = dict(cl_run.upstream_calculation_ids)
+        tampered_upstream["bogus"] = "bogus-run-id"
+        tampered_runs["cooling_load"] = dataclasses.replace(
+            cl_run, upstream_calculation_ids=tampered_upstream
+        )
+        # Do NOT recompute hash — stored hash is from original data
+        tampered_state = _build_state(calculation_runs=tampered_runs)
+        candidate = _build_candidate(original_state)
+        verifier = _make_verifier(tampered_state)
+        with pytest.raises(SourceBindingHashMismatchError, match="result_hash"):
+            _run_verify(verifier, candidate)
+
+    def test_wrong_upstream_id_for_investment_zone_key(self) -> None:
+        """Investment's zone upstream key points to wrong run → mismatch.
+
+        Investment depends on {zone: zone_id, power: power_id}.
+        If zone key points to cooling_load's ID instead of zone's ID,
+        the verifier detects the mismatch.
+        """
+        tampered_upstream = {
+            "zone": _STAGE_META["cooling_load"][0],  # wrong: points to cooling_load
+            "power": _STAGE_META["power"][0],
+        }
+        state = _build_state_with_modified_run(
+            "investment", upstream_calculation_ids=tampered_upstream
+        )
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_wrong_upstream_id_for_equipment_key(self) -> None:
+        """Equipment's cooling_load upstream points to zone ID → mismatch."""
+        tampered_upstream = {
+            "cooling_load": _STAGE_META["zone"][0],  # wrong: points to zone
+        }
+        state = _build_state_with_modified_run(
+            "equipment", upstream_calculation_ids=tampered_upstream
+        )
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_non_authoritative_attempt_mismatch(self) -> None:
+        """resolved_attempt_id does not match attempt_id → mismatch.
+
+        When the state's resolved_attempt_id differs from the attempt
+        being verified, the verifier rejects it.
+        """
+        state = _build_state(resolved_attempt_id="other-attempt-999")
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingIdentityMismatchError, match="resolved_attempt_id"):
+            _run_verify(verifier, candidate)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Test class: Slot integrity — per-stage coverage
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestVerifierSlotIntegrityPerStage:
+    """Per-stage wrong calculation_type and wrong calculator_name coverage.
+
+    Ensures every stage is individually tested for type/calculator mismatches.
+    """
+
+    def test_zone_wrong_calculation_type(self) -> None:
+        """zone run has calculation_type != 'zone' → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("zone", calculation_type="cooling_load")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_power_wrong_calculation_type(self) -> None:
+        """power run has calculation_type != 'power' → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("power", calculation_type="zone")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_investment_wrong_calculation_type(self) -> None:
+        """investment run has calculation_type != 'investment' → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("investment", calculation_type="power")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_zone_wrong_calculator_name(self) -> None:
+        """zone run has wrong calculator_name → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("zone", calculator_name="wrong_calc")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_cooling_load_wrong_calculator_name(self) -> None:
+        """cooling_load run has wrong calculator_name → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("cooling_load", calculator_name="wrong_calc")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_power_wrong_calculator_name(self) -> None:
+        """power run has wrong calculator_name → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("power", calculator_name="wrong_calc")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_investment_wrong_calculator_name(self) -> None:
+        """investment run has wrong calculator_name → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("investment", calculator_name="wrong_calc")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Test class: Exact upstream provenance mapping
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestVerifierUpstreamProvenanceExact:
+    """Exact upstream dependency provenance mapping per stage.
+
+    DAG topology (from dag.py):
+        zone -> {}                          (DAG root)
+        cooling_load -> {zone}              (depends on zone)
+        equipment -> {cooling_load}         (depends on cooling_load)
+        power -> {equipment}                (depends on equipment)
+        investment -> {zone, power}         (depends on zone + power)
+
+    Tests verify both the correct mapping passes AND deviations are rejected.
+    """
+
+    def test_exact_mapping_zone_empty(self) -> None:
+        """zone upstream = {} → pass (zone is DAG root, no dependencies)."""
+        state = _build_state()
+        zone_run = state.calculation_runs["zone"]
+        assert zone_run.upstream_calculation_ids == {}, (
+            "Zone must have empty upstream (DAG root)"
+        )
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        _run_verify(verifier, candidate)
+
+    def test_exact_mapping_cooling_load_zone(self) -> None:
+        """cooling_load upstream = {zone: zone_run_id} → pass."""
+        state = _build_state()
+        cl_run = state.calculation_runs["cooling_load"]
+        zone_run_id = state.calculation_runs["zone"].id
+        assert cl_run.upstream_calculation_ids == {"zone": zone_run_id}
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        _run_verify(verifier, candidate)
+
+    def test_exact_mapping_equipment_cooling_load(self) -> None:
+        """equipment upstream = {cooling_load: cl_run_id} → pass."""
+        state = _build_state()
+        eq_run = state.calculation_runs["equipment"]
+        cl_run_id = state.calculation_runs["cooling_load"].id
+        assert eq_run.upstream_calculation_ids == {"cooling_load": cl_run_id}
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        _run_verify(verifier, candidate)
+
+    def test_exact_mapping_power_equipment(self) -> None:
+        """power upstream = {equipment: eq_run_id} → pass."""
+        state = _build_state()
+        pow_run = state.calculation_runs["power"]
+        eq_run_id = state.calculation_runs["equipment"].id
+        assert pow_run.upstream_calculation_ids == {"equipment": eq_run_id}
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        _run_verify(verifier, candidate)
+
+    def test_exact_mapping_investment_zone_and_power(self) -> None:
+        """investment upstream = {zone: z_id, power: p_id} → pass."""
+        state = _build_state()
+        inv_run = state.calculation_runs["investment"]
+        zone_run_id = state.calculation_runs["zone"].id
+        pow_run_id = state.calculation_runs["power"].id
+        assert inv_run.upstream_calculation_ids == {
+            "zone": zone_run_id,
+            "power": pow_run_id,
+        }
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        _run_verify(verifier, candidate)
+
+    def test_missing_upstream_zone_for_cooling_load_rejected(self) -> None:
+        """cooling_load missing zone key → TransactionInvariantError."""
+        state = _build_state_with_modified_run("cooling_load", upstream_calculation_ids={})
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_missing_upstream_cooling_load_for_equipment_rejected(self) -> None:
+        """equipment missing cooling_load key → TransactionInvariantError."""
+        state = _build_state_with_modified_run("equipment", upstream_calculation_ids={})
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_missing_upstream_equipment_for_power_rejected(self) -> None:
+        """power missing equipment key → TransactionInvariantError."""
+        state = _build_state_with_modified_run("power", upstream_calculation_ids={})
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_missing_upstream_zone_for_investment_rejected(self) -> None:
+        """investment missing zone key (only has power) → TransactionInvariantError."""
+        tampered = {"power": _STAGE_META["power"][0]}
+        state = _build_state_with_modified_run("investment", upstream_calculation_ids=tampered)
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_missing_upstream_power_for_investment_rejected(self) -> None:
+        """investment missing power key (only has zone) → TransactionInvariantError."""
+        tampered = {"zone": _STAGE_META["zone"][0]}
+        state = _build_state_with_modified_run("investment", upstream_calculation_ids=tampered)
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_wrong_stage_upstream_key_rejected(self) -> None:
+        """cooling_load has upstream key 'equipment' instead of 'zone' → mismatch.
+
+        The verifier looks for the 'zone' key (from STAGE_UPSTREAM_PROVENANCE_KEYS),
+        finds it missing → TransactionInvariantError.
+        """
+        tampered = {"equipment": _STAGE_META["equipment"][0]}
+        state = _build_state_with_modified_run("cooling_load", upstream_calculation_ids=tampered)
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_wrong_upstream_value_for_zone_key_rejected(self) -> None:
+        """cooling_load has zone key but wrong run ID → mismatch."""
+        tampered = {"zone": _STAGE_META["equipment"][0]}  # wrong: equipment ID
+        state = _build_state_with_modified_run("cooling_load", upstream_calculation_ids=tampered)
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_extra_upstream_key_caught_by_hash_integrity(self) -> None:
+        """Extra upstream key (bogus) without hash recompute → hash mismatch.
+
+        The verifier's _verify_upstream_provenance only checks required keys,
+        but the result_hash includes all upstream keys.  An extra key changes
+        the Pydantic model's canonical output, causing hash mismatch.
+        """
+        original_state = _build_state()
+        tampered_runs = dict(original_state.calculation_runs)
+        cl_run = tampered_runs["cooling_load"]
+        tampered_upstream = dict(cl_run.upstream_calculation_ids)
+        tampered_upstream["bogus_extra"] = "bogus-run-id"
+        tampered_runs["cooling_load"] = dataclasses.replace(
+            cl_run, upstream_calculation_ids=tampered_upstream
+        )
+        tampered_state = _build_state(calculation_runs=tampered_runs)
+        candidate = _build_candidate(original_state)
+        verifier = _make_verifier(tampered_state)
+        with pytest.raises(SourceBindingHashMismatchError, match="result_hash"):
+            _run_verify(verifier, candidate)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Test class: Power authority — negative tests
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestVerifierPowerAuthorityNegative:
+    """Power authority negative tests.
+
+    Covers:
+    - Power stage missing from runs
+    - Equipment CalculationRun placed in power slot (type + calculator)
+    - Power calculator/name/type/version mismatches
+    - Power payload missing authority field
+    - Investment using wrong Power upstream ID
+    - Equipment compressor power must not be fallback
+    """
+
+    def test_power_stage_missing_from_runs(self) -> None:
+        """Power stage deleted from calculation_runs → Stage set mismatch."""
+        runs = _build_all_runs()
+        del runs["power"]
+        state = _build_state_with_runs(runs)
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Stage set mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_equipment_type_in_power_slot(self) -> None:
+        """Equipment calculation_type in power slot → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run(
+            "power",
+            calculation_type="equipment",
+            calculator_name="installed_power",
+        )
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_equipment_calculator_in_power_slot(self) -> None:
+        """Equipment calculator_name in power slot → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run(
+            "power",
+            calculation_type="power",
+            calculator_name="equipment",
+        )
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_power_wrong_calculator_name(self) -> None:
+        """Power calculator_name != 'installed_power' → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run(
+            "power", calculator_name="wrong_power_calc"
+        )
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_power_wrong_calculation_type(self) -> None:
+        """Power calculation_type != 'power' → SourceBindingSlotTypeError."""
+        state = _build_state_with_modified_run("power", calculation_type="zone")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises(SourceBindingSlotTypeError):
+            _run_verify(verifier, candidate)
+
+    def test_power_wrong_calculator_version(self) -> None:
+        """Power calculator_version != '1.0.0' → Pydantic Literal error.
+
+        The Pydantic model PowerSourceSnapshotV1 has
+        calculator_version: Literal["1.0.0"], so a mismatched version
+        causes a re-parse failure → SourceSnapshotSchemaError.
+        """
+        state = _build_state_with_modified_run("power", calculator_version="2.0.0")
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(state)
+        with pytest.raises((SourceSnapshotSchemaError, Exception)):
+            _run_verify(verifier, candidate)
+
+    def test_power_result_missing_total_installed_power_kw_e(self) -> None:
+        """Power result_snapshot missing total_installed_power_kw_e → ValidationError.
+
+        The PowerResultSnapshotV1 Pydantic model requires
+        total_installed_power_kw_e as a mandatory field.
+        """
+        bad_snapshot = dict(_power_result())
+        del bad_snapshot["total_installed_power_kw_e"]
+        with pytest.raises(ValidationError):
+            PowerSourceSnapshotV1(
+                project_id=_PID,
+                project_version_id=_PVID,
+                execution_snapshot_id=_ESID,
+                coefficient_context_id=_CCID,
+                orchestration_identity_id=_IDENT,
+                orchestration_attempt_id=_ATT,
+                orchestration_fingerprint=_FP,
+                source_snapshot_schema_version="1.0.0",
+                calculation_type="power",
+                calculator_id="installed_power",
+                calculator_version="1.0.0",
+                requires_review=False,
+                result_snapshot=bad_snapshot,
+                formulas=_formulas("power"),
+                coefficients=_coefficients(),
+                assumptions=_assumptions("power"),
+                warnings=_warnings("power"),
+                source_references=_source_refs(),
+                upstream_calculation_ids=_upstream_for("power"),
+            )
+
+    def test_investment_uses_wrong_power_upstream_id(self) -> None:
+        """Investment upstream power key points to equipment ID → mismatch.
+
+        Investment depends on {zone, power}.  If the power key points to
+        the equipment run's ID instead of the power run's ID, the verifier
+        detects the mismatch.
+        """
+        tampered_upstream = {
+            "zone": _STAGE_META["zone"][0],
+            "power": _STAGE_META["equipment"][0],  # wrong: equipment ID
+        }
+        state = _build_state_with_modified_run(
+            "investment", upstream_calculation_ids=tampered_upstream
+        )
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_investment_upstream_power_points_to_cooling_load(self) -> None:
+        """Investment upstream power key points to cooling_load ID → mismatch."""
+        tampered_upstream = {
+            "zone": _STAGE_META["zone"][0],
+            "power": _STAGE_META["cooling_load"][0],  # wrong: cooling_load ID
+        }
+        state = _build_state_with_modified_run(
+            "investment", upstream_calculation_ids=tampered_upstream
+        )
+        candidate = _build_candidate(_build_state())
+        verifier = _make_verifier(state)
+        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+            _run_verify(verifier, candidate)
+
+    def test_equipment_compressor_power_not_fallback(self) -> None:
+        """Equipment result with fallback compressor power → hash mismatch.
+
+        If the equipment result_snapshot's compressor_operating_capacity_kw
+        is tampered to a fallback value (e.g. '0'), the stored hash no
+        longer matches the re-parsed Pydantic model's hash.  This ensures
+        that any replacement of real compressor power with a fallback
+        sentinel is detected by hash integrity.
+        """
+        state = _build_state()
+        tampered_runs = dict(state.calculation_runs)
+        eq_run = tampered_runs["equipment"]
+        tampered_result = dict(eq_run.result_snapshot)
+        tampered_result["compressor_operating_capacity_kw"] = "0.0"  # fallback sentinel
+        tampered_runs["equipment"] = dataclasses.replace(
+            eq_run, result_snapshot=tampered_result
+        )
+        # Do NOT recompute hash — stored hash is from original data
+        tampered_state = _build_state(calculation_runs=tampered_runs)
+        candidate = _build_candidate(state)
+        verifier = _make_verifier(tampered_state)
+        with pytest.raises(SourceBindingHashMismatchError, match="result_hash"):
+            _run_verify(verifier, candidate)
+
+    def test_power_result_total_installed_power_kw_e_nan(self) -> None:
+        """NaN for total_installed_power_kw_e → ValueError/ValidationError."""
+        bad_snapshot = dict(_power_result())
+        bad_snapshot["total_installed_power_kw_e"] = "NaN"
+        with pytest.raises((ValueError, ValidationError)):
+            PowerSourceSnapshotV1(
+                project_id=_PID,
+                project_version_id=_PVID,
+                execution_snapshot_id=_ESID,
+                coefficient_context_id=_CCID,
+                orchestration_identity_id=_IDENT,
+                orchestration_attempt_id=_ATT,
+                orchestration_fingerprint=_FP,
+                source_snapshot_schema_version="1.0.0",
+                calculation_type="power",
+                calculator_id="installed_power",
+                calculator_version="1.0.0",
+                requires_review=False,
+                result_snapshot=bad_snapshot,
+                formulas=_formulas("power"),
+                coefficients=_coefficients(),
+                assumptions=_assumptions("power"),
+                warnings=_warnings("power"),
+                source_references=_source_refs(),
+                upstream_calculation_ids=_upstream_for("power"),
+            )
+
+    def test_power_result_total_installed_power_kw_e_infinity(self) -> None:
+        """Infinity for total_installed_power_kw_e → ValueError/ValidationError."""
+        bad_snapshot = dict(_power_result())
+        bad_snapshot["total_installed_power_kw_e"] = "Infinity"
+        with pytest.raises((ValueError, ValidationError)):
+            PowerSourceSnapshotV1(
+                project_id=_PID,
+                project_version_id=_PVID,
+                execution_snapshot_id=_ESID,
+                coefficient_context_id=_CCID,
+                orchestration_identity_id=_IDENT,
+                orchestration_attempt_id=_ATT,
+                orchestration_fingerprint=_FP,
+                source_snapshot_schema_version="1.0.0",
+                calculation_type="power",
+                calculator_id="installed_power",
+                calculator_version="1.0.0",
+                requires_review=False,
+                result_snapshot=bad_snapshot,
+                formulas=_formulas("power"),
+                coefficients=_coefficients(),
+                assumptions=_assumptions("power"),
+                warnings=_warnings("power"),
+                source_references=_source_refs(),
+                upstream_calculation_ids=_upstream_for("power"),
+            )

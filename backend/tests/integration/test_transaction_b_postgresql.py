@@ -939,9 +939,8 @@ class TestTransactionB0028PostgreSQLConstraints:
                     INSERT INTO projects (
                         id, code, name, location,
                         product_category, status,
-                        current_version_number, created_at
-                    )
-                    VALUES ('fk-p-1', 'T_FK', 'FK Project', 'test', 'blueberry', 'active', 0, NOW())
+                        current_version_number, created_at, updated_at
+                    ) VALUES ('fk-p-1', 'T_FK', 'FK Project', 'test', 'blueberry', 'active', 0, NOW(), NOW())
                     ON CONFLICT (id) DO NOTHING
                 """)
             )
@@ -949,10 +948,10 @@ class TestTransactionB0028PostgreSQLConstraints:
                 text("""
                     INSERT INTO project_versions (
                         id, project_id, version_number, change_summary,
-                        created_by, status, created_at, input_snapshot
+                        created_by, status, created_at, updated_at, input_snapshot
                     ) VALUES (
                         'fk-pv-1', 'fk-p-1', 1, 'test version',
-                        'test', 'approved', NOW(), '{}'::jsonb
+                        'test', 'approved', NOW(), NOW(), '{}'::jsonb
                     )
                     ON CONFLICT (id) DO NOTHING
                 """)
