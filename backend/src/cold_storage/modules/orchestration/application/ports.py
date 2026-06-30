@@ -198,8 +198,15 @@ class OrchestrationIdentityRepository(ABC):
         /,
         identity_id: str,
         attempt_id: str,
-    ) -> None:
-        """Set the authoritative completed attempt for an identity."""
+    ) -> bool:
+        """Set the authoritative completed attempt for an identity (CAS).
+
+        Returns True if exactly one row was updated, False otherwise.
+        The update is guarded by:
+        - identity.status = 'ACTIVE'
+        - attempt belongs to the identity
+        - attempt.status = 'COMPLETED'
+        """
         ...
 
     @abstractmethod

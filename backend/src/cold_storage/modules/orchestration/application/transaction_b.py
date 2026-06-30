@@ -856,7 +856,6 @@ class TransactionBExecutor:
         orchestration_fingerprint: str,
         execution_snapshot: dict[str, Any],
         coefficient_context: dict[str, Any],
-        calculator_version_vector: dict[str, str],
     ) -> OrchestrationResult:
         """Execute Transaction B atomically.
 
@@ -867,7 +866,10 @@ class TransactionBExecutor:
         """
         started_at = datetime.now(UTC)
 
-        # 1 — Validate version vector key set (P0-8)
+        # 1 — Load authoritative version vector from identity repo (P0-6)
+        calculator_version_vector = self._identity_repo.get_calculator_version_vector(
+            session, identity_id=orchestration_identity_id,
+        )
         self._validate_version_vector(calculator_version_vector)
 
         persisted_stages: list[StagePersistedResult] = []
@@ -913,8 +915,8 @@ class TransactionBExecutor:
                     details={"stage_name": stage_name, "error": str(exc)},
                 ) from exc
 
-            # Validate calculator identity (P0-8)
-            self._validate_calculator_identity(stage_name, exec_result)
+            # Validate calculator identity (P0-8, P0-6)
+            self._validate_calculator_identity(stage_name, exec_result, calculator_version_vector)
 
             # Build typed snapshot (P0-1 — typed snapshots as ONLY production path)
             snapshot = self._build_typed_snapshot(
@@ -1085,12 +1087,22 @@ class TransactionBExecutor:
                 details={"attempt_id": orchestration_attempt_id},
             )
 
-        # 7 — Set identity.authoritative_attempt_id
-        self._identity_repo.set_authoritative_attempt(
+        # 7 — Set identity.authoritative_attempt_id (CAS, P0-7)
+        cas_identity_ok = self._identity_repo.set_authoritative_attempt(
             session,
             identity_id=orchestration_identity_id,
             attempt_id=orchestration_attempt_id,
         )
+        if not cas_identity_ok:
+            raise TransactionBFailure(
+                "TXB_CAS_IDENTITY_FAILED",
+                "set_authoritative_attempt CAS failed (identity not ACTIVE or attempt not COMPLETED)",
+                field="identity_authoritative_attempt",
+                details={
+                    "identity_id": orchestration_identity_id,
+                    "attempt_id": orchestration_attempt_id,
+                },
+            )
 
         # 8 — Persist completion outbox event
         self._outbox_repo.add(
@@ -1168,9 +1180,15 @@ class TransactionBExecutor:
         self,
         stage_name: str,
         exec_result: StageExecutionResult,
+        version_vector: dict[str, str],
     ) -> None:
-        """Validate that calculator_name, version, and type match expectations."""
-        expected_name, expected_version, expected_type = _EXPECTED_CALCULATOR_IDENTITY[stage_name]
+        """Validate that calculator_name, version, and type match expectations.
+
+        The calculator_version is validated against the authoritative
+        version vector from the identity record (P0-6).
+        """
+        expected_name, _expected_version, expected_type = _EXPECTED_CALCULATOR_IDENTITY[stage_name]
+        expected_version = version_vector[stage_name]
         if exec_result.calculator_name != expected_name:
             raise TransactionBFailure(
                 "TXB_CALCULATOR_IDENTITY_MISMATCH",
@@ -1238,7 +1256,7 @@ class TransactionBExecutor:
         calculation_type.
         """
         snapshot_cls = _STAGE_SNAPSHOT_CLS[stage_name]
-        calc_name, calc_version, calc_type = _EXPECTED_CALCULATOR_IDENTITY[stage_name]
+        calc_name, _calc_version, calc_type = _EXPECTED_CALCULATOR_IDENTITY[stage_name]
         return snapshot_cls(
             project_id=project_id,
             project_version_id=project_version_id,
@@ -1250,7 +1268,7 @@ class TransactionBExecutor:
             source_snapshot_schema_version="1.0.0",
             calculation_type=calc_type,
             calculator_id=calc_name,
-            calculator_version=calc_version,
+            calculator_version=exec_result.calculator_version,
             requires_review=exec_result.requires_review,
             result_snapshot=exec_result.result_snapshot,
             formulas=exec_result.formulas,  # type: ignore[arg-type]

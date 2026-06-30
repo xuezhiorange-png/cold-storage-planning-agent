@@ -623,18 +623,30 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
         /,
         identity_id: str,
         attempt_id: str,
-    ) -> None:
-        from sqlalchemy import update
+    ) -> bool:
+        from sqlalchemy import select, update
 
         from cold_storage.modules.orchestration.infrastructure.orm import (
             OrchestrationIdentityRecord,
+            OrchestrationRunAttemptRecord,
         )
 
-        session.execute(
+        result = session.execute(
             update(OrchestrationIdentityRecord)
-            .where(OrchestrationIdentityRecord.id == identity_id)
+            .where(
+                OrchestrationIdentityRecord.id == identity_id,
+                OrchestrationIdentityRecord.status == "ACTIVE",
+                OrchestrationIdentityRecord.id.in_(
+                    select(OrchestrationRunAttemptRecord.identity_id).where(
+                        OrchestrationRunAttemptRecord.id == attempt_id,
+                        OrchestrationRunAttemptRecord.identity_id == identity_id,
+                        OrchestrationRunAttemptRecord.status == "COMPLETED",
+                    )
+                ),
+            )
             .values(authoritative_attempt_id=attempt_id)
         )
+        return bool(result.rowcount == 1)  # type: ignore[attr-defined]
 
     def get_calculator_version_vector(
         self,
