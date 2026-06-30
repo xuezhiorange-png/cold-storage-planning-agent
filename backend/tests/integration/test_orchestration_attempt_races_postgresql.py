@@ -220,8 +220,8 @@ class _OneRunningConflictHooks:
         self.thread_ids: dict[str, int] = {}
         # Captured state
         self.captured_constraints: list[str | None] = []
-        self.a_running_lookup: dict[str, object] | None = None
-        self.b_running_lookup: dict[str, object] | None = None
+        self.a_running_lookups: list[dict[str, object] | None] = []
+        self.b_running_lookups: list[dict[str, object] | None] = []
         self.a_attempt_number: int | None = None
         self.b_attempt_number: int | None = None
         self.retry_state_refreshes: list[dict[str, object]] = []
@@ -231,9 +231,9 @@ class _OneRunningConflictHooks:
     ) -> None:
         tid = threading.get_ident()
         if tid == self.thread_ids.get("a"):
-            self.a_running_lookup = running_attempt
+            self.a_running_lookups.append(running_attempt)
         elif tid == self.thread_ids.get("b"):
-            self.b_running_lookup = running_attempt
+            self.b_running_lookups.append(running_attempt)
 
     def after_next_number_read(
         self, *, identity_id: str, next_attempt_number: int, retry_index: int
@@ -608,9 +608,9 @@ class TestOneRunningConflict:
         assert isinstance(result_b["error"], AttemptAlreadyRunningError)
         assert result_b.get("session_usable") is True
 
-        # Both threads had no initial RUNNING
-        assert hooks.a_running_lookup is None
-        assert hooks.b_running_lookup is None
+        # Both threads initially saw no RUNNING
+        assert hooks.a_running_lookups[0] is None
+        assert hooks.b_running_lookups[0] is None
 
         # Numbers were different
         assert hooks.a_attempt_number == 2
