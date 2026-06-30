@@ -53,6 +53,8 @@ from cold_storage.modules.orchestration.application.unit_of_work import (
 from cold_storage.modules.orchestration.domain.contracts import (
     OrchestrationRequestCommand,
 )
+from cold_storage.modules.orchestration.domain.dag import ORCHESTRATION_STAGE_ORDER
+from cold_storage.modules.orchestration.domain.errors import OrchestrationDomainError
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
 from cold_storage.modules.orchestration.infrastructure.orm import (
     AuditOutboxRecord,
@@ -1034,3 +1036,691 @@ class TestTransactionBRollback:
                 )
             ).scalar_one()
             assert attempt.status == "FAILED"
+
+
+# ========================================================================
+# Stage-level failure injection with PK-set zero-delta proof
+# and terminal transaction atomicity tests
+# ========================================================================
+
+
+# ── Failure injection components ──────────────────────────────────────────
+
+
+class _FailAfterStageCalculatorPort:
+    """Executes stages up to and including *fail_after_stage* normally,
+    raises ``RuntimeError`` on the **next** stage in the DAG order."""
+
+    def __init__(self, fail_after_stage: str) -> None:
+        self._fail_after_stage = fail_after_stage
+        self._real = _FakeCalculatorPort()
+        self._stages = list(ORCHESTRATION_STAGE_ORDER)
+
+    def execute_stage(self, *, stage_name: str, **kwargs: Any) -> StageExecutionResult:
+        current_idx = self._stages.index(stage_name)
+        fail_idx = self._stages.index(self._fail_after_stage)
+        if current_idx > fail_idx:
+            raise RuntimeError(f"Simulated failure after stage {self._fail_after_stage!r}")
+        return self._real.execute_stage(stage_name=stage_name, **kwargs)
+
+
+class _FailingCalculationRunRepository:
+    """Wraps real repo, raises after the *fail_after_n*-th ``add()`` call."""
+
+    def __init__(
+        self,
+        real: SqlAlchemyCalculationRunRepository,
+        *,
+        fail_after_n: int = 0,
+    ) -> None:
+        self._real = real
+        self._fail_after_n = fail_after_n
+        self._add_count = 0
+
+    def add(self, session: Any, /, **kwargs: Any) -> str:
+        if self._add_count >= self._fail_after_n:
+            raise RuntimeError("Simulated CalculationRun add failure")
+        self._add_count += 1
+        return self._real.add(session, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
+class _FailingSourceBindingRepository:
+    """Wraps real repo, raises ``TransactionBFailure`` on ``add()``."""
+
+    def __init__(self, real: SqlAlchemySourceBindingRepository) -> None:
+        self._real = real
+
+    def add(self, session: Any, /, **kwargs: Any) -> str:
+        raise TransactionBFailure(
+            "TXB_SOURCE_BINDING_FAILED",
+            "Simulated source binding failure",
+            field="source_binding",
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
+class _FailingAttemptCompletionRepository:
+    """Wraps real repo, raises ``TransactionBFailure`` on ``complete_attempt_cas()``."""
+
+    def __init__(self, real: SqlAlchemyOrchestrationAttemptRepository) -> None:
+        self._real = real
+
+    def complete_attempt_cas(self, session: Any, /, **kwargs: Any) -> bool:
+        raise TransactionBFailure(
+            "TXB_CAS_FAILED",
+            "Simulated attempt CAS failure",
+            field="attempt_status",
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
+class _FailingIdentityAuthorityRepository:
+    """Wraps real repo, raises ``TransactionBFailure`` on ``set_authoritative_attempt()``."""
+
+    def __init__(self, real: SqlAlchemyOrchestrationIdentityRepository) -> None:
+        self._real = real
+
+    def set_authoritative_attempt(self, session: Any, /, **kwargs: Any) -> bool:
+        raise TransactionBFailure(
+            "TXB_CAS_IDENTITY_FAILED",
+            "Simulated identity CAS failure",
+            field="identity_authoritative_attempt",
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
+class _FailingCompletionOutboxRepository:
+    """Wraps real repo, raises ``TransactionBFailure`` on ``add()`` for completion events only."""
+
+    def __init__(self, real: SqlAlchemyAuditOutboxRepository) -> None:
+        self._real = real
+
+    def add(self, session: Any, /, *, event_type: str, **kwargs: Any) -> str:
+        if event_type == "orchestration.attempt.completed":
+            raise TransactionBFailure(
+                "TXB_OUTBOX_FAILED",
+                "Simulated completion outbox failure",
+                field="outbox",
+            )
+        return self._real.add(session, event_type=event_type, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
+class _DomainErrorCalculatorPort:
+    """Calculator that raises ``OrchestrationDomainError`` on every stage."""
+
+    def execute_stage(self, **kwargs: Any) -> StageExecutionResult:
+        raise OrchestrationDomainError(
+            "DOMAIN_BLOCKER",
+            "Engineering domain blocker: missing required parameter",
+            field="execution_snapshot",
+            details={"missing_key": "throughput_t"},
+        )
+
+
+# ── PK-set capture helpers ────────────────────────────────────────────────
+
+
+def _capture_calc_run_pks(session_factory: Any) -> set[str]:
+    """Capture the set of all CalculationRunRecord primary keys."""
+    with session_factory() as s:
+        return set(s.execute(select(CalculationRunRecord.id)).scalars().all())
+
+
+def _capture_source_binding_pks(session_factory: Any) -> set[str]:
+    """Capture the set of all SourceBindingRecord primary keys."""
+    with session_factory() as s:
+        return set(s.execute(select(SourceBindingRecord.id)).scalars().all())
+
+
+def _capture_outbox_pks(session_factory: Any) -> set[str]:
+    """Capture the set of all AuditOutboxRecord primary keys."""
+    with session_factory() as s:
+        return set(s.execute(select(AuditOutboxRecord.id)).scalars().all())
+
+
+# ── Service builder helper ────────────────────────────────────────────────
+
+
+def _make_txb_service(
+    session_factory: Any,
+    *,
+    calculator_port: Any = None,
+    source_binding_repo: Any = None,
+    attempt_repo: Any = None,
+    identity_repo: Any = None,
+    outbox_repo: Any = None,
+    verification_read_port: Any = None,
+) -> OrchestrationService:
+    """Build an ``OrchestrationService`` with optional repo/port overrides."""
+    uow_factory = SqlAlchemyOrchestrationUnitOfWorkFactory(session_factory)
+    coeff_port = MagicMock(spec=CoefficientResolutionPreflightPort)
+    coeff_port.resolve.return_value = _make_resolved_coefficient()
+
+    return OrchestrationService(
+        uow_factory=uow_factory,
+        request_repo=SqlAlchemyOrchestrationRequestRepository(),
+        outbox_repo=outbox_repo or SqlAlchemyAuditOutboxRepository(),
+        snapshot_repo=SqlAlchemyExecutionSnapshotRepository(),
+        coefficient_repo=SqlAlchemyCoefficientContextRepository(),
+        identity_repo=identity_repo or SqlAlchemyOrchestrationIdentityRepository(),
+        attempt_repo=attempt_repo or SqlAlchemyOrchestrationAttemptRepository(),
+        version_port=_RealVersionPort(),
+        snapshot_port=MagicMock(spec=ExecutionSnapshotPreflightPort),
+        coefficient_port=coeff_port,
+        calc_run_repo=SqlAlchemyCalculationRunRepository(),
+        source_binding_repo=source_binding_repo or SqlAlchemySourceBindingRepository(),
+        calculator_port=calculator_port or _FakeCalculatorPort(),
+        verification_read_port=verification_read_port or SqlAlchemyVerificationReadPort(),
+    )
+
+
+# ── Historical data seeder ────────────────────────────────────────────────
+
+
+def _seed_historical_and_prepare_test(
+    session_factory: Any,
+) -> tuple[Any, str, str, str]:
+    """Seed historical data via successful Transaction B, then prepare a new attempt.
+
+    Returns ``(result_a_test, snap_id, coeff_id, orch_fp)`` for the failing test.
+    """
+    svc = _make_txb_service(session_factory)
+
+    with session_factory() as s:
+        _seed_project_and_version(s)
+
+    # Historical: Transaction A + B (succeeds)
+    result_a_hist = svc.execute(_make_command(correlation_id="hist"))
+    snap_id_hist, coeff_id_hist, orch_fp_hist = _load_identity_context(
+        session_factory, result_a_hist.identity_id
+    )
+    svc.execute_transaction_b(
+        request_id=result_a_hist.request_id,
+        project_id="p-1",
+        project_version_id="pv-1",
+        execution_snapshot_id=snap_id_hist,
+        coefficient_context_id=coeff_id_hist,
+        orchestration_identity_id=result_a_hist.identity_id,
+        orchestration_attempt_id=result_a_hist.attempt_id,
+        orchestration_fingerprint=orch_fp_hist,
+        execution_snapshot={"throughput_t": "25.0"},
+        coefficient_context={"coefficients": []},
+    )
+
+    # Prepare test attempt: Transaction A only
+    result_a_test = svc.execute(_make_command(correlation_id="fail"))
+    snap_id_test, coeff_id_test, orch_fp_test = _load_identity_context(
+        session_factory, result_a_test.identity_id
+    )
+
+    return result_a_test, snap_id_test, coeff_id_test, orch_fp_test
+
+
+# ── Test class 1: PK-set zero-delta proof ─────────────────────────────────
+
+
+class TestTransactionBStageFailureRollbackPKSet:
+    """Stage-level failure injection with PK-set zero-delta proof.
+
+    For each test:
+    - Seed historical data (successful Transaction B)
+    - Capture PK sets before the failing call
+    - Run failing Transaction B
+    - Capture PK sets after
+    - Assert: calc and binding PK sets unchanged
+    - Assert: only new outbox is the terminal failure event
+    - Assert: historical data untouched
+    """
+
+    def _run_failing_txb(
+        self,
+        session_factory: Any,
+        svc: OrchestrationService,
+        result_a: Any,
+        snap_id: str,
+        coeff_id: str,
+        orch_fp: str,
+    ) -> tuple[set[str], set[str], set[str], set[str], set[str], set[str]]:
+        """Run failing Transaction B and return PK sets before/after."""
+        calc_pks_before = _capture_calc_run_pks(session_factory)
+        binding_pks_before = _capture_source_binding_pks(session_factory)
+        outbox_pks_before = _capture_outbox_pks(session_factory)
+
+        with pytest.raises((TransactionBFailure, RuntimeError, OrchestrationDomainError)):
+            svc.execute_transaction_b(
+                request_id=result_a.request_id,
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id=snap_id,
+                coefficient_context_id=coeff_id,
+                orchestration_identity_id=result_a.identity_id,
+                orchestration_attempt_id=result_a.attempt_id,
+                orchestration_fingerprint=orch_fp,
+                execution_snapshot={"throughput_t": "25.0"},
+                coefficient_context={"coefficients": []},
+            )
+
+        calc_pks_after = _capture_calc_run_pks(session_factory)
+        binding_pks_after = _capture_source_binding_pks(session_factory)
+        outbox_pks_after = _capture_outbox_pks(session_factory)
+
+        return (
+            calc_pks_before,
+            calc_pks_after,
+            binding_pks_before,
+            binding_pks_after,
+            outbox_pks_before,
+            outbox_pks_after,
+        )
+
+    def _assert_pk_set_unchanged(
+        self,
+        calc_before: set[str],
+        calc_after: set[str],
+        binding_before: set[str],
+        binding_after: set[str],
+        outbox_before: set[str],
+        outbox_after: set[str],
+    ) -> None:
+        """Assert PK-set zero-delta for calc/binding; only terminal failure outbox added."""
+        assert calc_after == calc_before, "CalculationRun PK set must be unchanged"
+        assert binding_after == binding_before, "SourceBinding PK set must be unchanged"
+        new_outbox = outbox_after - outbox_before
+        assert len(new_outbox) == 1, (
+            f"Expected exactly 1 new outbox event (terminal failure), got {len(new_outbox)}"
+        )
+
+    # ── Tests 1-6: Calculator stage failures ──────────────────────────────
+
+    def test_failure_before_zone_execution(self, session_factory, engine) -> None:
+        """Calculator raises on zone -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(session_factory, calculator_port=_FailingCalculatorPort())
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_after_zone_persisted(self, session_factory, engine) -> None:
+        """Fail after zone, before cooling_load -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            calculator_port=_FailAfterStageCalculatorPort("zone"),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_after_cooling_load_persisted(self, session_factory, engine) -> None:
+        """Fail after cooling_load, before equipment -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            calculator_port=_FailAfterStageCalculatorPort("cooling_load"),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_after_equipment_persisted(self, session_factory, engine) -> None:
+        """Fail after equipment, before power -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            calculator_port=_FailAfterStageCalculatorPort("equipment"),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_after_power_persisted(self, session_factory, engine) -> None:
+        """Fail after power, before investment -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            calculator_port=_FailAfterStageCalculatorPort("power"),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_after_investment_persisted(self, session_factory, engine) -> None:
+        """All 5 stages succeed, verifier fails -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        failing_verifier = MagicMock(spec=VerificationReadPort)
+        failing_verifier.load_verification_state.side_effect = RuntimeError(
+            "Simulated verification failure after investment"
+        )
+        svc = _make_txb_service(session_factory, verification_read_port=failing_verifier)
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    # ── Tests 7-10: Repository failures ───────────────────────────────────
+
+    def test_failure_before_source_binding_insert(self, session_factory, engine) -> None:
+        """SourceBinding repo raises on add() -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            source_binding_repo=_FailingSourceBindingRepository(
+                SqlAlchemySourceBindingRepository()
+            ),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_on_attempt_cas(self, session_factory, engine) -> None:
+        """Attempt CAS fails -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            attempt_repo=_FailingAttemptCompletionRepository(
+                SqlAlchemyOrchestrationAttemptRepository()
+            ),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_on_identity_cas(self, session_factory, engine) -> None:
+        """Identity CAS fails -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            identity_repo=_FailingIdentityAuthorityRepository(
+                SqlAlchemyOrchestrationIdentityRepository()
+            ),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    def test_failure_on_completion_outbox(self, session_factory, engine) -> None:
+        """Completion outbox add fails -> PK-set unchanged."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+        svc = _make_txb_service(
+            session_factory,
+            outbox_repo=_FailingCompletionOutboxRepository(SqlAlchemyAuditOutboxRepository()),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+    # ── Test 11: Historical data preservation ─────────────────────────────
+
+    def test_failure_preserves_historical_data(self, session_factory, engine) -> None:
+        """Seed historical data, fail, verify historical data untouched."""
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+
+        # Capture historical data
+        hist_calc_pks = _capture_calc_run_pks(session_factory)
+        hist_binding_pks = _capture_source_binding_pks(session_factory)
+        hist_outbox_pks = _capture_outbox_pks(session_factory)
+
+        assert len(hist_calc_pks) >= 5, "Historical 5 CalculationRuns expected"
+        assert len(hist_binding_pks) >= 1, "Historical 1 SourceBinding expected"
+        assert len(hist_outbox_pks) >= 1, "Historical outbox event expected"
+
+        # Run failing Transaction B
+        svc = _make_txb_service(
+            session_factory,
+            source_binding_repo=_FailingSourceBindingRepository(
+                SqlAlchemySourceBindingRepository()
+            ),
+        )
+
+        cb, ca, bb, ba, ob, oa = self._run_failing_txb(
+            session_factory, svc, result_a, snap_id, coeff_id, orch_fp
+        )
+
+        # Assert historical data untouched
+        assert hist_calc_pks.issubset(ca), "Historical CalculationRuns must be preserved"
+        assert hist_binding_pks.issubset(ba), "Historical SourceBindings must be preserved"
+        assert hist_outbox_pks.issubset(oa), "Historical outbox events must be preserved"
+
+        # Assert PK-set zero-delta
+        self._assert_pk_set_unchanged(cb, ca, bb, ba, ob, oa)
+
+
+# ── Test class 2: Terminal atomicity ──────────────────────────────────────
+
+
+class TestTransactionBTerminalAtomicity:
+    """Terminal transaction atomicity tests."""
+
+    def test_domain_blocker_produces_failed_status(self, session_factory, engine) -> None:
+        """Engineering domain error -> attempt.status=FAILED, failure_code set,
+        terminal outbox emitted."""
+        svc = _make_txb_service(session_factory)
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+        result_a = svc.execute(_make_command(correlation_id="domain-blocker"))
+        snap_id, coeff_id, orch_fp = _load_identity_context(session_factory, result_a.identity_id)
+
+        svc_fail = _make_txb_service(session_factory, calculator_port=_DomainErrorCalculatorPort())
+
+        with pytest.raises(OrchestrationDomainError):
+            svc_fail.execute_transaction_b(
+                request_id=result_a.request_id,
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id=snap_id,
+                coefficient_context_id=coeff_id,
+                orchestration_identity_id=result_a.identity_id,
+                orchestration_attempt_id=result_a.attempt_id,
+                orchestration_fingerprint=orch_fp,
+                execution_snapshot={"throughput_t": "25.0"},
+                coefficient_context={"coefficients": []},
+            )
+
+        with session_factory() as s:
+            attempt = s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == result_a.attempt_id
+                )
+            ).scalar_one()
+            assert attempt.status == "FAILED"
+            assert attempt.failure_code is not None
+
+            terminal_events = (
+                s.execute(
+                    select(AuditOutboxRecord).where(
+                        AuditOutboxRecord.attempt_id == result_a.attempt_id,
+                        AuditOutboxRecord.event_type == "orchestration.attempt.failed",
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(terminal_events) == 1
+
+    def test_unexpected_calculator_failure_produces_failed(self, session_factory, engine) -> None:
+        """RuntimeError from calculator -> attempt.status=FAILED."""
+        svc = _make_txb_service(session_factory)
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+        result_a = svc.execute(_make_command(correlation_id="unexpected-fail"))
+        snap_id, coeff_id, orch_fp = _load_identity_context(session_factory, result_a.identity_id)
+
+        svc_fail = _make_txb_service(session_factory, calculator_port=_FailingCalculatorPort())
+
+        with pytest.raises((TransactionBFailure, RuntimeError)):
+            svc_fail.execute_transaction_b(
+                request_id=result_a.request_id,
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id=snap_id,
+                coefficient_context_id=coeff_id,
+                orchestration_identity_id=result_a.identity_id,
+                orchestration_attempt_id=result_a.attempt_id,
+                orchestration_fingerprint=orch_fp,
+                execution_snapshot={"throughput_t": "25.0"},
+                coefficient_context={"coefficients": []},
+            )
+
+        with session_factory() as s:
+            attempt = s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == result_a.attempt_id
+                )
+            ).scalar_one()
+            assert attempt.status == "FAILED"
+
+    def test_verification_integrity_failure_produces_failed(self, session_factory, engine) -> None:
+        """Verifier raises -> attempt.status=FAILED."""
+        svc = _make_txb_service(session_factory)
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+        result_a = svc.execute(_make_command(correlation_id="verifier-integrity-fail"))
+        snap_id, coeff_id, orch_fp = _load_identity_context(session_factory, result_a.identity_id)
+
+        failing_verifier = MagicMock(spec=VerificationReadPort)
+        failing_verifier.load_verification_state.side_effect = RuntimeError(
+            "Simulated verification integrity failure"
+        )
+        svc_fail = _make_txb_service(session_factory, verification_read_port=failing_verifier)
+
+        with pytest.raises((TransactionBFailure, RuntimeError)):
+            svc_fail.execute_transaction_b(
+                request_id=result_a.request_id,
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id=snap_id,
+                coefficient_context_id=coeff_id,
+                orchestration_identity_id=result_a.identity_id,
+                orchestration_attempt_id=result_a.attempt_id,
+                orchestration_fingerprint=orch_fp,
+                execution_snapshot={"throughput_t": "25.0"},
+                coefficient_context={"coefficients": []},
+            )
+
+        with session_factory() as s:
+            attempt = s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == result_a.attempt_id
+                )
+            ).scalar_one()
+            assert attempt.status == "FAILED"
+
+    def test_attempt_update_succeeds_but_outbox_flush_fails(self, session_factory, engine) -> None:
+        """Completion outbox fails, terminal outbox succeeds -> attempt=FAILED."""
+        svc = _make_txb_service(session_factory)
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+        result_a = svc.execute(_make_command(correlation_id="outbox-flush-fail"))
+        snap_id, coeff_id, orch_fp = _load_identity_context(session_factory, result_a.identity_id)
+
+        # _FailingCompletionOutboxRepository: fails on completion, succeeds on failure
+        real_outbox = SqlAlchemyAuditOutboxRepository()
+        svc_fail = _make_txb_service(
+            session_factory,
+            outbox_repo=_FailingCompletionOutboxRepository(real_outbox),
+        )
+
+        with pytest.raises(TransactionBFailure):
+            svc_fail.execute_transaction_b(
+                request_id=result_a.request_id,
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id=snap_id,
+                coefficient_context_id=coeff_id,
+                orchestration_identity_id=result_a.identity_id,
+                orchestration_attempt_id=result_a.attempt_id,
+                orchestration_fingerprint=orch_fp,
+                execution_snapshot={"throughput_t": "25.0"},
+                coefficient_context={"coefficients": []},
+            )
+
+        with session_factory() as s:
+            attempt = s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == result_a.attempt_id
+                )
+            ).scalar_one()
+            # Terminal state must be consistent: attempt is FAILED
+            assert attempt.status == "FAILED"
+            assert attempt.failure_code is not None
+
+            # Terminal failure outbox event is emitted
+            terminal_events = (
+                s.execute(
+                    select(AuditOutboxRecord).where(
+                        AuditOutboxRecord.attempt_id == result_a.attempt_id,
+                        AuditOutboxRecord.event_type == "orchestration.attempt.failed",
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(terminal_events) == 1
+
+    def test_attempt_row_missing(self, session_factory, engine) -> None:
+        """attempt_id doesn't exist -> handled gracefully (exception raised, no crash)."""
+        from sqlalchemy.exc import IntegrityError
+
+        svc = _make_txb_service(session_factory)
+
+        with session_factory() as s:
+            _seed_project_and_version(s)
+        result_a = svc.execute(_make_command(correlation_id="missing-attempt"))
+        snap_id, coeff_id, orch_fp = _load_identity_context(session_factory, result_a.identity_id)
+
+        fake_attempt_id = "non-existent-attempt-id"
+
+        # The attempt check fails (not RUNNING), terminal UoW starts,
+        # but outbox FK constraint fails for missing attempt row.
+        # The important thing is that the error is raised (not swallowed)
+        # and no crash occurs.
+        with pytest.raises((TransactionBFailure, RuntimeError, IntegrityError)):
+            svc.execute_transaction_b(
+                request_id=result_a.request_id,
+                project_id="p-1",
+                project_version_id="pv-1",
+                execution_snapshot_id=snap_id,
+                coefficient_context_id=coeff_id,
+                orchestration_identity_id=result_a.identity_id,
+                orchestration_attempt_id=fake_attempt_id,
+                orchestration_fingerprint=orch_fp,
+                execution_snapshot={"throughput_t": "25.0"},
+                coefficient_context={"coefficients": []},
+            )
+
+        # No crash — the exception was raised gracefully
