@@ -28,7 +28,7 @@ import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from cold_storage.modules.orchestration.domain.errors import (
@@ -771,10 +771,15 @@ class TestStaleLeaseConcurrent:
 class TestBoundedRetryExhaustion:
     """CAS conflict on every retry → AttemptTakeoverConflictError."""
 
-    def test_retry_exhaustion_preserves_session(self, pg_database: str, pg_session_factory) -> None:
+    def test_retry_exhaustion_preserves_session_read_and_write_capability(
+        self, pg_database: str, pg_session_factory
+    ) -> None:
         """Hooks mutate heartbeat on every lookup so CAS always misses.
+
         After exactly _MAX_ACQUIRE_RETRIES (3) attempts, typed error is
-        raised.  Session remains usable (no rollback).
+        raised.  Session remains usable with real ORM write — no
+        session-level rollback, non-empty flush, successful commit,
+        and cross-session persistence verification.
         """
         with pg_session_factory() as s:
             _seed_identity(s)
@@ -809,14 +814,34 @@ class TestBoundedRetryExhaustion:
             assert err.details["attempt_id"] == "att-exhaust"
             assert err.details["retry_count"] == repo._MAX_ACQUIRE_RETRIES
 
-            # Session is still usable — NO session.rollback() needed
+            # ── Session read capability (no rollback needed) ────────
             val = session.execute(
                 select(func.count()).select_from(OrchestrationRunAttemptRecord)
             ).scalar()
             assert val is not None
-            # Also verify we can do a write + flush
-            session.execute(text("SELECT 1"))
+
+            # ── Real ORM write + non-empty flush ────────────────────
+            project = session.execute(
+                select(ProjectRecord).where(ProjectRecord.id == "p-1")
+            ).scalar_one()
+            project.name = "Session Still Writable"
             session.flush()
+
+            # Verify write is visible within this transaction
+            reloaded = session.execute(
+                select(ProjectRecord.name).where(ProjectRecord.id == "p-1")
+            ).scalar_one()
+            assert reloaded == "Session Still Writable"
+
+            # Commit succeeds
+            session.commit()
+
+        # Cross-session persistence verification
+        with pg_session_factory() as s:
+            persisted = s.execute(
+                select(ProjectRecord.name).where(ProjectRecord.id == "p-1")
+            ).scalar_one()
+            assert persisted == "Session Still Writable"
 
         # Precise retry count
         assert hooks.lookup_count == repo._MAX_ACQUIRE_RETRIES
