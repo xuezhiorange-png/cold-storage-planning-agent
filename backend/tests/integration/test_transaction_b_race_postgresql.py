@@ -55,7 +55,6 @@ from cold_storage.modules.orchestration.application.unit_of_work import (
 from cold_storage.modules.orchestration.domain.contracts import (
     OrchestrationRequestCommand,
 )
-from cold_storage.modules.orchestration.domain.dag import ORCHESTRATION_STAGE_ORDER
 from cold_storage.modules.orchestration.domain.errors import OrchestrationDomainError
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
 from cold_storage.modules.orchestration.infrastructure.orm import (
@@ -823,9 +822,7 @@ class TestTransactionBReplay:
 class TestTransactionBNonTargetIntegrityError:
     """Non-target IntegrityError during Transaction B must propagate."""
 
-    def test_non_target_integrity_error_propagated(
-        self, pg_session_factory
-    ) -> None:
+    def test_non_target_integrity_error_propagated(self, pg_session_factory) -> None:
         """Inject a non-target IntegrityError (FK violation) during Transaction B.
 
         Must NOT be swallowed as idempotent success.  Must propagate the
