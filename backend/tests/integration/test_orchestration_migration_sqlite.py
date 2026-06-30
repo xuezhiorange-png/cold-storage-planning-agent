@@ -222,7 +222,7 @@ class TestDowngradeGate:
         conn2.execute("PRAGMA foreign_keys=ON")
 
         rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev_after == "0027_separate_requested_and_resolved_request_identity", (
+        assert rev_after == "0028_add_transaction_b_constraints", (
             f"Expected revision 0027 after blocked 0027→0026 step, got {rev_after}"
         )
 
@@ -586,7 +586,7 @@ class TestDowngradeGate:
         conn2 = _sql.connect(str(db_path))
         conn2.execute("PRAGMA foreign_keys=ON")
         rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev_after == "0027_separate_requested_and_resolved_request_identity", (
+        assert rev_after == "0028_add_transaction_b_constraints", (
             f"Expected revision 0027 after blocked 0027→0026 step, got {rev_after}"
         )
         conn2.close()
@@ -682,7 +682,7 @@ class TestDowngradeGate:
         conn2 = _sql.connect(str(db_path))
         conn2.execute("PRAGMA foreign_keys=ON")
         rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev_after == "0027_separate_requested_and_resolved_request_identity", (
+        assert rev_after == "0028_add_transaction_b_constraints", (
             f"Expected revision 0027 after blocked 0027→0026 step, got {rev_after}"
         )
         conn2.close()
