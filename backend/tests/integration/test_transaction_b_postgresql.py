@@ -933,8 +933,8 @@ class TestTransactionB0028PostgreSQLConstraints:
         with pg_engine.connect() as conn:
             conn.execute(
                 text("""
-                    INSERT INTO projects (id, code, name, location, product_category, created_at)
-                    VALUES ('fk-p-1', 'T_FK', 'FK Project', 'test', 'blueberry', NOW())
+                    INSERT INTO projects (id, code, name, location, product_category, status, created_at)
+                    VALUES ('fk-p-1', 'T_FK', 'FK Project', 'test', 'blueberry', 'active', NOW())
                     ON CONFLICT (id) DO NOTHING
                 """)
             )
