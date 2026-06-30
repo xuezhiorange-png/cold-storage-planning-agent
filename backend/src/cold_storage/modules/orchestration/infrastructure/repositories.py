@@ -807,6 +807,28 @@ class OrchestrationAttemptRepository(ABC):
         """CAS-transition an expired RUNNING attempt to ABANDONED."""
         ...
 
+    @abstractmethod
+    def complete_attempt_cas(
+        self,
+        session: Session,
+        /,
+        *,
+        attempt_id: str,
+        identity_id: str,
+        source_binding_id: str,
+        completed_at: datetime,
+    ) -> bool:
+        """CAS-complete a RUNNING attempt.
+
+        UPDATE orchestration_run_attempts
+        SET status = 'COMPLETED', source_binding_id = :sb_id, completed_at = :now
+        WHERE id = :attempt_id AND identity_id = :identity_id AND status = 'RUNNING'
+
+        Returns True if exactly 1 row was affected (CAS success).
+        Returns False if 0 rows were affected (wrong state or concurrent modification).
+        """
+        ...
+
 
 class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
     """Session-bound repository for ``OrchestrationRunAttemptRecord``."""
@@ -1059,6 +1081,37 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             .values(status="ABANDONED", completed_at=now)
         )
         return result.rowcount is not None and result.rowcount > 0  # type: ignore[attr-defined]
+
+    def complete_attempt_cas(
+        self,
+        session: Session,
+        /,
+        *,
+        attempt_id: str,
+        identity_id: str,
+        source_binding_id: str,
+        completed_at: datetime,
+    ) -> bool:
+        from sqlalchemy import update
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        result = session.execute(
+            update(OrchestrationRunAttemptRecord)
+            .where(
+                OrchestrationRunAttemptRecord.id == attempt_id,
+                OrchestrationRunAttemptRecord.identity_id == identity_id,
+                OrchestrationRunAttemptRecord.status == "RUNNING",
+            )
+            .values(
+                status="COMPLETED",
+                source_binding_id=source_binding_id,
+                completed_at=completed_at,
+            )
+        )
+        return bool(result.rowcount == 1)  # type: ignore[attr-defined]
 
 
 # ── Source Binding ──────────────────────────────────────────────────────────
