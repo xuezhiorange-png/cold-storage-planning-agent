@@ -835,10 +835,10 @@ class TestDowngradeBlocker:
                         "requires_review, created_at, calculation_type, "
                         "orchestration_identity_id, orchestration_run_attempt_id, "
                         "execution_snapshot_id, coefficient_context_id, input_hash, "
-                        "result_hash, provenance, schema_version) "
+                        "result_hash, provenance, schema_version, orchestration_fingerprint) "
                         "VALUES (:id, :pid, :pvid, :cn, '1.0', '{}', '{}', '[]', "
                         "'[]', '[]', '[]', '[]', false, now(), :ct, :oid, :aid, :eid, "
-                        ":cid, 'h1', 'h1', '{}', '1')"
+                        ":cid, 'h1', 'h1', '{}', '1', 'fp')"
                     ),
                     {
                         "id": cid_c,
@@ -997,10 +997,10 @@ class TestDowngradeBlocker:
                         "requires_review, created_at, calculation_type, "
                         "orchestration_identity_id, orchestration_run_attempt_id, "
                         "execution_snapshot_id, coefficient_context_id, input_hash, "
-                        "result_hash, provenance, schema_version) "
+                        "result_hash, provenance, schema_version, orchestration_fingerprint) "
                         "VALUES (:id, :pid, :pvid, :cn, '1.0', '{}', '{}', '[]', "
                         "'[]', '[]', '[]', '[]', false, now(), :ct, :oid, :aid, :eid, "
-                        ":cid, 'h1', 'h1', '{}', '1')"
+                        ":cid, 'h1', 'h1', '{}', '1', 'fp')"
                     ),
                     {
                         "id": cid_c,
@@ -1176,7 +1176,7 @@ class TestDowngradeGatePG:
             conn.commit()
 
         # Attempt downgrade — must be blocked
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0026_add_orchestration_persistence")
         assert r.returncode != 0, (
             f"Downgrade should have been blocked\\nstdout: {r.stdout}\\nstderr: {r.stderr}"
         )
@@ -1244,7 +1244,7 @@ class TestDowngradeGatePG:
             )
             conn.commit()
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0026_add_orchestration_persistence")
         assert r.returncode != 0, f"Downgrade should be blocked when version invalid\\n{r.stderr}"
 
         with engine.connect() as conn:
@@ -1319,7 +1319,7 @@ class TestDowngradeGatePG:
             )
             conn.commit()
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0026_add_orchestration_persistence")
         assert r.returncode != 0, (
             f"Downgrade should be blocked on project/version mismatch\\n{r.stderr}"
         )
@@ -1379,7 +1379,7 @@ class TestDowngradeGatePG:
             )
             conn.commit()
 
-        r = _run_alembic(db_url, "downgrade", "-1")
+        r = _run_alembic(db_url, "downgrade", "0026_add_orchestration_persistence")
         assert r.returncode == 0, f"Downgrade should succeed with resolvable data\\n{r.stderr}"
 
         # Verify we're on revision 0026

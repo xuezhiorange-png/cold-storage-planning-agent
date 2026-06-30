@@ -198,9 +198,9 @@ class TestDowngradeGate:
         ).fetchone()[0]
         conn.close()
 
-        # ── Attempt downgrade — must be blocked ─────────────────────────
+        # ── Attempt downgrade to 0026 — must be blocked by 0027's guard ──
         r = subprocess.run(
-            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            [sys.executable, "-m", "alembic", "downgrade", "0026_add_orchestration_persistence"],  # noqa: E501
             cwd=BACKEND_DIR,
             env=env,
             capture_output=True,
@@ -215,12 +215,16 @@ class TestDowngradeGate:
             f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
         )
 
-        # ── Verify atomicity: nothing changed ───────────────────────────
+        # ── Verify atomicity: the 0027→0026 step was blocked, but the
+        # 0028→0027 step already committed (SQLite has no transactional DDL),
+        # so the revision is now 0027, not 0026. ─────────────────────────
         conn2 = _sql.connect(str(db_path))
         conn2.execute("PRAGMA foreign_keys=ON")
 
         rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
+        assert rev_after == "0027_separate_requested_and_resolved_request_identity", (
+            f"Expected revision 0027 after blocked 0027→0026 step, got {rev_after}"
+        )
 
         # Tables not deleted
         post_table_count = conn2.execute(
@@ -271,7 +275,7 @@ class TestDowngradeGate:
         assert r_up.returncode == 0, f"Upgrade failed: {r_up.stderr}"
 
         r = subprocess.run(
-            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            [sys.executable, "-m", "alembic", "downgrade", "0026_add_orchestration_persistence"],  # noqa: E501
             cwd=BACKEND_DIR,
             env=env,
             capture_output=True,
@@ -280,7 +284,7 @@ class TestDowngradeGate:
         )
         assert r.returncode == 0, f"Downgrade failed on empty DB: {r.stderr}"
 
-        # Verify revision rolled back
+        # Verify revision rolled back to 0026
         import sqlite3 as _sql
 
         conn = _sql.connect(str(db_path))
@@ -344,7 +348,7 @@ class TestDowngradeGate:
 
         # Downgrade should succeed — only legacy data
         r = subprocess.run(
-            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            [sys.executable, "-m", "alembic", "downgrade", "0026_add_orchestration_persistence"],  # noqa: E501
             cwd=BACKEND_DIR,
             env=env,
             capture_output=True,
@@ -445,9 +449,9 @@ class TestDowngradeGate:
                 "calculation_type, orchestration_identity_id, "
                 "orchestration_run_attempt_id, execution_snapshot_id, "
                 "coefficient_context_id, input_hash, result_hash, provenance, "
-                "schema_version) "
+                "schema_version, orchestration_fingerprint) "
                 "VALUES (?, ?, ?, ?, '1.0', '{}', '{}', '[]', '[]', '[]', '[]', "
-                "'[]', 0, datetime('now'), ?, ?, ?, ?, ?, 'h1', 'h1', '{}', '1')",
+                "'[]', 0, datetime('now'), ?, ?, ?, ?, ?, 'h1', 'h1', '{}', '1', 'fp')",  # noqa: E501
                 (cid, pid, pvid, cname, ctype, oid, aid, eid, cid_ctx),
             )
         conn.execute(
@@ -493,7 +497,7 @@ class TestDowngradeGate:
 
         # Downgrade must be blocked due to unresolvable requested_project_id
         r = subprocess.run(
-            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            [sys.executable, "-m", "alembic", "downgrade", "0026_add_orchestration_persistence"],  # noqa: E501
             cwd=BACKEND_DIR,
             env=env,
             capture_output=True,
@@ -560,7 +564,7 @@ class TestDowngradeGate:
         conn.close()
 
         r = subprocess.run(
-            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            [sys.executable, "-m", "alembic", "downgrade", "0026_add_orchestration_persistence"],  # noqa: E501
             cwd=BACKEND_DIR,
             env=env,
             capture_output=True,
@@ -578,11 +582,13 @@ class TestDowngradeGate:
             f"Expected version_id mention; got stderr={r.stderr!r}"
         )
 
-        # Verify atomicity
+        # Verify atomicity: 0028→0027 committed but 0027→0026 blocked
         conn2 = _sql.connect(str(db_path))
         conn2.execute("PRAGMA foreign_keys=ON")
         rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
+        assert rev_after == "0027_separate_requested_and_resolved_request_identity", (
+            f"Expected revision 0027 after blocked 0027→0026 step, got {rev_after}"
+        )
         conn2.close()
         db_path.unlink(missing_ok=True)
 
@@ -655,7 +661,7 @@ class TestDowngradeGate:
         conn.close()
 
         r = subprocess.run(
-            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            [sys.executable, "-m", "alembic", "downgrade", "0026_add_orchestration_persistence"],  # noqa: E501
             cwd=BACKEND_DIR,
             env=env,
             capture_output=True,
@@ -676,7 +682,9 @@ class TestDowngradeGate:
         conn2 = _sql.connect(str(db_path))
         conn2.execute("PRAGMA foreign_keys=ON")
         rev_after = conn2.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev_after == rev_before, f"Revision changed from {rev_before} to {rev_after}"
+        assert rev_after == "0027_separate_requested_and_resolved_request_identity", (
+            f"Expected revision 0027 after blocked 0027→0026 step, got {rev_after}"
+        )
         conn2.close()
         db_path.unlink(missing_ok=True)
 
@@ -736,7 +744,7 @@ class TestDowngradeGate:
         conn.close()
 
         r = subprocess.run(
-            [sys.executable, "-m", "alembic", "downgrade", "-1"],
+            [sys.executable, "-m", "alembic", "downgrade", "0026_add_orchestration_persistence"],  # noqa: E501
             cwd=BACKEND_DIR,
             env=env,
             capture_output=True,
