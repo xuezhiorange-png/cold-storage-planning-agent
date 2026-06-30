@@ -42,6 +42,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from sqlalchemy import select, text
+from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 
 from cold_storage.modules.orchestration.application.ports import (
@@ -1411,6 +1412,16 @@ class TestConcurrentAttemptNumberRace:
         result_a = svc.execute(_make_command(correlation_id="attempt-race"))
 
         identity_id = result_a.identity_id
+
+        # Mark Transaction A's attempt as COMPLETED so uq_attempt_one_running
+        # doesn't block the new RUNNING attempts below.
+        with pg_session_factory() as s:
+            s.execute(
+                sa_update(OrchestrationRunAttemptRecord)
+                .where(OrchestrationRunAttemptRecord.id == result_a.attempt_id)
+                .values(status="COMPLETED")
+            )
+            s.commit()
 
         barrier = threading.Barrier(2, timeout=60)
         results: dict[str, dict[str, object]] = {"a": {}, "b": {}}
