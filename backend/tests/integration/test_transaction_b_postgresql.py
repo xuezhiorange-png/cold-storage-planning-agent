@@ -969,11 +969,11 @@ class TestTransactionB0028PostgreSQLConstraints:
             INSERT INTO orchestration_execution_snapshots (
                 id, project_id, project_version_id,
                 version_number, input_snapshot,
-                input_snapshot_hash, schema_version, captured_status
+                input_snapshot_hash, schema_version, captured_status, captured_at
             ) VALUES (
                 :snap, 'fk-p-1', 'fk-pv-1',
                 1, '{}'::jsonb,
-                'snap-h', '1.0.0', 'approved'
+                'snap-h', '1.0.0', 'approved', NOW()
             ) ON CONFLICT (id) DO NOTHING
         """),
             {"snap": snap_id},
@@ -982,10 +982,10 @@ class TestTransactionB0028PostgreSQLConstraints:
             text("""
             INSERT INTO orchestration_coefficient_contexts (
                 id, project_id, project_version_id,
-                content, content_hash, schema_version
+                content, content_hash, schema_version, captured_at
             ) VALUES (
                 :coeff, 'fk-p-1', 'fk-pv-1',
-                '{}'::jsonb, 'coeff-h', '1.0.0'
+                '{}'::jsonb, 'coeff-h', '1.0.0', NOW()
             ) ON CONFLICT (id) DO NOTHING
         """),
             {"coeff": coeff_id},
