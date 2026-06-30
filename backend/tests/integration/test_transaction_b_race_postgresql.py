@@ -677,7 +677,8 @@ class TestTransactionBConcurrentExecution:
         # The loser must have a structured error
         loser_key = errors[0]
         loser_error = results[loser_key]["error"]
-        assert isinstance(loser_error, (TransactionBFailure, OrchestrationDomainError, IntegrityError)), (
+        _expected = (TransactionBFailure, OrchestrationDomainError, IntegrityError)
+        assert isinstance(loser_error, _expected), (
             f"Loser error must be TransactionBFailure or OrchestrationDomainError, "
             f"got {type(loser_error).__name__}: {loser_error}"
         )
@@ -1382,7 +1383,8 @@ class TestReplayCompletedAttemptNoNewRows:
         assert len(new_binding_pks) == 0, (
             f"Replay created {len(new_binding_pks)} new SourceBinding(s): {new_binding_pks}"
         )
-        assert new_outbox == 0, f"Replay created {new_outbox} new outbox event(s)"
+        # Replay rejection creates exactly 1 rejection outbox event
+        assert new_outbox == 1, f"Replay expected 1 rejection outbox, got {new_outbox}"
 
 
 # ── Class 9: Concurrent attempt number race on uq_attempt_identity_number ───
