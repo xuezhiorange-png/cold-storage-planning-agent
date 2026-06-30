@@ -436,3 +436,42 @@ class TestArchitectureBoundaries:
             assert "_session" not in line, (
                 f"Real data provider imports _session: {rdp}\n  {line.strip()}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Orchestration module boundary tests (P0-5)
+# ---------------------------------------------------------------------------
+
+
+def test_orchestration_application_has_no_infrastructure_imports() -> None:
+    """Orchestration application layer must not import from infrastructure.
+
+    Repository ABCs live in application/ports.py.  The application layer
+    (service.py, transaction_b.py, ports.py) must not pull in
+    infrastructure.repositories or infrastructure.orm.
+    """
+    app_dir = BACKEND_SRC / "modules" / "orchestration" / "application"
+    assert app_dir.exists(), f"{app_dir} not found"
+    forbidden_prefixes = (
+        "from cold_storage.modules.orchestration.infrastructure",
+        "import cold_storage.modules.orchestration.infrastructure",
+    )
+    for path in read_python_files(app_dir):
+        content = path.read_text()
+        for prefix in forbidden_prefixes:
+            assert prefix not in content, (
+                f"Orchestration application imports from infrastructure: {path} — found '{prefix}'"
+            )
+
+
+def test_orchestration_ports_have_no_sqlalchemy_imports() -> None:
+    """ports.py must not import sqlalchemy or sqlalchemy.orm.Session.
+
+    Repository ABCs use ``Any`` for the session parameter, not
+    ``Session``, to keep the application layer free of SQLAlchemy.
+    """
+    ports_file = BACKEND_SRC / "modules" / "orchestration" / "application" / "ports.py"
+    assert ports_file.exists(), f"{ports_file} not found"
+    content = ports_file.read_text()
+    assert "from sqlalchemy" not in content, f"ports.py imports sqlalchemy: {ports_file}"
+    assert "import sqlalchemy" not in content, f"ports.py imports sqlalchemy: {ports_file}"

@@ -22,6 +22,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, ClassVar, Protocol, runtime_checkable
 
+from cold_storage.modules.orchestration.application.ports import (
+    AuditOutboxRepository,
+    CalculationRunRepository,
+    OrchestrationAttemptRepository,
+    OrchestrationIdentityRepository,
+    SourceBindingRepository,
+)
 from cold_storage.modules.orchestration.application.source_snapshots import (
     CoolingLoadSourceSnapshotV1,
     EquipmentSourceSnapshotV1,
@@ -52,13 +59,6 @@ from cold_storage.modules.orchestration.domain.errors import (
     UnsupportedSchemaError,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
-from cold_storage.modules.orchestration.infrastructure.repositories import (
-    AuditOutboxRepository,
-    CalculationRunRepository,
-    OrchestrationAttemptRepository,
-    OrchestrationIdentityRepository,
-    SourceBindingRepository,
-)
 
 # ── Canonical constants ─────────────────────────────────────────────────────
 
@@ -628,11 +628,11 @@ class SourceBindingVerifier:
                     calculator_version=run.calculator_version,
                     requires_review=run.requires_review,
                     result_snapshot=run.result_snapshot,
-                    formulas=run.formulas,
-                    coefficients=run.coefficients,
+                    formulas=run.formulas,  # type: ignore[arg-type]
+                    coefficients=run.coefficients,  # type: ignore[arg-type]
                     assumptions=run.assumptions,
-                    warnings=run.warnings,
-                    source_references=run.source_references,
+                    warnings=run.warnings,  # type: ignore[arg-type]
+                    source_references=run.source_references,  # type: ignore[arg-type]
                     upstream_calculation_ids=dict(run.upstream_calculation_ids),
                 )
             except Exception as exc:
@@ -967,6 +967,12 @@ class TransactionBExecutor:
                     "upstream_calculation_ids": dict(upstream_calc_ids),
                 },
                 schema_version=SOURCE_SNAPSHOT_SCHEMA_VERSION,
+                orchestration_fingerprint=orchestration_fingerprint,
+                formulas=exec_result.formulas,
+                coefficients=exec_result.coefficients,
+                assumptions=exec_result.assumptions,
+                warnings=exec_result.warnings,
+                source_references=exec_result.source_references,
             )
 
             persisted = StagePersistedResult(
@@ -1247,11 +1253,11 @@ class TransactionBExecutor:
             calculator_version=calc_version,
             requires_review=exec_result.requires_review,
             result_snapshot=exec_result.result_snapshot,
-            formulas=exec_result.formulas,
-            coefficients=exec_result.coefficients,
+            formulas=exec_result.formulas,  # type: ignore[arg-type]
+            coefficients=exec_result.coefficients,  # type: ignore[arg-type]
             assumptions=exec_result.assumptions,
-            warnings=exec_result.warnings,
-            source_references=exec_result.source_references,
+            warnings=exec_result.warnings,  # type: ignore[arg-type]
+            source_references=exec_result.source_references,  # type: ignore[arg-type]
             upstream_calculation_ids=dict(upstream_calculation_ids),
         )
 

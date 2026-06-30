@@ -120,6 +120,7 @@ def _make_orch_calc(
         result_hash="def",
         provenance={},
         schema_version="1.0",
+        orchestration_fingerprint="fp-1",
     )
     session.add(r)
     session.flush()

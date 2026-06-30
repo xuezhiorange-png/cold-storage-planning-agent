@@ -14,15 +14,29 @@ targeting only the specific unique constraint for each entity.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from cold_storage.modules.orchestration.application.transaction_b import (
+        VerificationState,
+    )
 
 from sqlalchemy import exc as sa_exc
 from sqlalchemy.orm import Session
 
+from cold_storage.modules.orchestration.application.ports import (
+    AuditOutboxRepository,
+    CalculationRunRepository,
+    CoefficientContextRepository,
+    ExecutionSnapshotRepository,
+    OrchestrationAttemptRepository,
+    OrchestrationIdentityRepository,
+    OrchestrationRequestRepository,
+    SourceBindingRepository,
+)
 from cold_storage.modules.orchestration.domain.contracts import (
     AttemptStatus,
     RequestStatus,
@@ -224,47 +238,6 @@ class AttemptAcquireTestHooks(Protocol):
 # ── Orchestration Request ───────────────────────────────────────────────────
 
 
-class OrchestrationRequestRepository(ABC):
-    """Read/write ``OrchestrationRequestRecord`` rows."""
-
-    @abstractmethod
-    def add(
-        self,
-        session: Session,
-        /,
-        *,
-        requested_project_id: str,
-        requested_project_version_id: str,
-        request_fingerprint: str,
-        actor: str,
-        correlation_id: str,
-    ) -> str:
-        """Insert a new PENDING request and return its ID."""
-        ...
-
-    @abstractmethod
-    def update_status(
-        self,
-        session: Session,
-        /,
-        request_id: str,
-        *,
-        status: RequestStatus,
-        failure_code: str | None = None,
-        failure_field: str | None = None,
-        failure_details: dict[str, object] | None = None,
-        resolved_project_id: str | None = None,
-        resolved_project_version_id: str | None = None,
-        resolved_identity_id: str | None = None,
-        resolved_attempt_id: str | None = None,
-    ) -> None:
-        """Update request status and optional resolution/failure metadata.
-
-        Raises ``PersistenceInvariantError`` when 0 rows are affected.
-        """
-        ...
-
-
 class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
     """Session-bound repository for ``OrchestrationRequestRecord``."""
 
@@ -348,26 +321,6 @@ class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
 
 
 # ── Execution Snapshot ──────────────────────────────────────────────────────
-
-
-class ExecutionSnapshotRepository(ABC):
-    """Read/write ``ProjectVersionExecutionSnapshotRecord`` rows."""
-
-    @abstractmethod
-    def get_or_create(
-        self,
-        session: Session,
-        /,
-        *,
-        project_version_id: str,
-        input_snapshot_hash: str,
-        schema_version: str,
-        project_id: str,
-        version_number: int,
-        input_snapshot: dict[str, object],
-    ) -> str:
-        """Return existing record ID or create a new one (concurrent-safe)."""
-        ...
 
 
 class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
@@ -479,25 +432,6 @@ class SqlAlchemyExecutionSnapshotRepository(ExecutionSnapshotRepository):
 # ── Coefficient Context ─────────────────────────────────────────────────────
 
 
-class CoefficientContextRepository(ABC):
-    """Read/write ``CoefficientContextRecord`` rows."""
-
-    @abstractmethod
-    def get_or_create(
-        self,
-        session: Session,
-        /,
-        *,
-        project_version_id: str,
-        content_hash: str,
-        content: dict[str, object],
-        schema_version: str,
-        project_id: str,
-    ) -> str:
-        """Return existing record ID or create a new one (concurrent-safe)."""
-        ...
-
-
 class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
     """Session-bound repository for ``CoefficientContextRecord``."""
 
@@ -593,36 +527,6 @@ class SqlAlchemyCoefficientContextRepository(CoefficientContextRepository):
 
 
 # ── Orchestration Identity ──────────────────────────────────────────────────
-
-
-class OrchestrationIdentityRepository(ABC):
-    """Read/write ``OrchestrationIdentityRecord`` rows."""
-
-    @abstractmethod
-    def get_or_create(
-        self,
-        session: Session,
-        /,
-        *,
-        fingerprint: str,
-        execution_snapshot_id: str,
-        coefficient_context_id: str,
-        definition_version: str,
-        calculator_version_vector: dict[str, str],
-    ) -> str:
-        """Return existing identity ID or create a new one (concurrent-safe)."""
-        ...
-
-    @abstractmethod
-    def set_authoritative_attempt(
-        self,
-        session: Session,
-        /,
-        identity_id: str,
-        attempt_id: str,
-    ) -> None:
-        """Set the authoritative completed attempt for an identity."""
-        ...
 
 
 class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository):
@@ -732,102 +636,41 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
             .values(authoritative_attempt_id=attempt_id)
         )
 
+    def get_calculator_version_vector(
+        self,
+        session: Session,
+        /,
+        identity_id: str,
+    ) -> dict[str, str]:
+        """Load the calculator_version_vector from the identity record.
+
+        Raises ``PersistenceInvariantError`` if the identity is not found.
+        """
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.domain.errors import (
+            PersistenceInvariantError,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationIdentityRecord,
+        )
+
+        identity = session.execute(
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
+        ).scalar_one_or_none()
+        if identity is None:
+            raise PersistenceInvariantError(
+                f"Identity {identity_id!r} not found for calculator_version_vector lookup"
+            )
+        vector = identity.calculator_version_vector
+        if not isinstance(vector, dict):
+            raise PersistenceInvariantError(
+                f"Identity {identity_id!r} has non-dict calculator_version_vector"
+            )
+        return dict(vector)
+
 
 # ── Orchestration Attempt ───────────────────────────────────────────────────
-
-
-class OrchestrationAttemptRepository(ABC):
-    """Read/write ``OrchestrationRunAttemptRecord`` rows."""
-
-    @abstractmethod
-    def acquire(
-        self,
-        session: Session,
-        /,
-        *,
-        identity_id: str,
-        heartbeat_at: datetime,
-    ) -> str:
-        """Acquire a new RUNNING attempt for the identity.
-
-        - Each retry re-reads RUNNING attempt and max(attempt_number)+1.
-        - If a live RUNNING attempt exists, raises ``AttemptAlreadyRunningError``.
-        - If an expired RUNNING attempt exists, CAS-takes over.
-        - CAS conflict → bounded retry with fresh state.
-        - Insert uses independent savepoint; only target unique constraints
-          (uq_attempt_identity_number, uq_attempt_one_running) trigger retry.
-        """
-        ...
-
-    @abstractmethod
-    def find_running_attempt(
-        self, session: Session, /, identity_id: str
-    ) -> dict[str, object] | None:
-        """Return the current RUNNING attempt for an identity (if any)."""
-        ...
-
-    @abstractmethod
-    def find_authoritative_completed(
-        self, session: Session, /, identity_id: str
-    ) -> dict[str, object] | None:
-        """Return the authoritative COMPLETED attempt (if any)."""
-        ...
-
-    @abstractmethod
-    def get_max_attempt_number(self, session: Session, /, identity_id: str) -> int:
-        """Return the max attempt_number for the identity (0 if none)."""
-        ...
-
-    @abstractmethod
-    def update_status(
-        self,
-        session: Session,
-        /,
-        attempt_id: str,
-        *,
-        status: AttemptStatus,
-        source_binding_id: str | None = None,
-        failure_code: str | None = None,
-        failure_details: dict[str, object] | None = None,
-        completed_at: datetime | None = None,
-    ) -> None:
-        """Transition attempt to terminal status."""
-        ...
-
-    @abstractmethod
-    def takeover_stale(
-        self,
-        session: Session,
-        /,
-        *,
-        attempt_id: str,
-        observed_heartbeat: datetime,
-        now: datetime,
-    ) -> bool:
-        """CAS-transition an expired RUNNING attempt to ABANDONED."""
-        ...
-
-    @abstractmethod
-    def complete_attempt_cas(
-        self,
-        session: Session,
-        /,
-        *,
-        attempt_id: str,
-        identity_id: str,
-        source_binding_id: str,
-        completed_at: datetime,
-    ) -> bool:
-        """CAS-complete a RUNNING attempt.
-
-        UPDATE orchestration_run_attempts
-        SET status = 'COMPLETED', source_binding_id = :sb_id, completed_at = :now
-        WHERE id = :attempt_id AND identity_id = :identity_id AND status = 'RUNNING'
-
-        Returns True if exactly 1 row was affected (CAS success).
-        Returns False if 0 rows were affected (wrong state or concurrent modification).
-        """
-        ...
 
 
 class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
@@ -1117,35 +960,6 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
 # ── Source Binding ──────────────────────────────────────────────────────────
 
 
-class SourceBindingRepository(ABC):
-    """Read/write ``SourceBindingRecord`` rows."""
-
-    @abstractmethod
-    def add(
-        self,
-        session: Session,
-        /,
-        *,
-        project_id: str,
-        project_version_id: str,
-        execution_snapshot_id: str,
-        coefficient_context_id: str,
-        orchestration_identity_id: str,
-        orchestration_run_attempt_id: str,
-        orchestration_fingerprint: str,
-        zone_calculation_id: str,
-        cooling_load_calculation_id: str,
-        equipment_calculation_id: str,
-        power_calculation_id: str,
-        investment_calculation_id: str,
-        per_calculation_result_hashes: dict[str, str],
-        combined_source_hash: str,
-        schema_version: str,
-    ) -> str:
-        """Insert a new SourceBinding and return its ID."""
-        ...
-
-
 class SqlAlchemySourceBindingRepository(SourceBindingRepository):
     """Session-bound repository for ``SourceBindingRecord``."""
 
@@ -1202,40 +1016,22 @@ class SqlAlchemySourceBindingRepository(SourceBindingRepository):
 # ── Audit Outbox ────────────────────────────────────────────────────────────
 
 
-class AuditOutboxRepository(ABC):
-    """Read/write ``AuditOutboxRecord`` rows."""
+class AuditOutboxDispatcher(Protocol):
+    """Dispatcher operations for the audit outbox.
 
-    @abstractmethod
-    def add(
-        self,
-        session: Session,
-        /,
-        *,
-        event_type: str,
-        aggregate_type: str,
-        aggregate_id: str,
-        payload: dict[str, object],
-        request_id: str | None = None,
-        identity_id: str | None = None,
-        attempt_id: str | None = None,
-        calculation_run_id: str | None = None,
-        source_binding_id: str | None = None,
-        available_at: datetime | None = None,
-    ) -> str:
-        """Insert a PENDING outbox event and return its ID."""
-        ...
+    These methods handle claiming and transitioning outbox events
+    (claim / mark_published / mark_failed) and belong in the
+    infrastructure layer.
+    """
 
-    @abstractmethod
     def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
         """Atomically claim up to ``limit`` eligible outbox events."""
         ...
 
-    @abstractmethod
     def mark_published(self, session: Session, /, event_id: str) -> None:
         """Mark a claimed event as PUBLISHED."""
         ...
 
-    @abstractmethod
     def mark_failed(
         self,
         session: Session,
@@ -1249,8 +1045,13 @@ class AuditOutboxRepository(ABC):
         ...
 
 
-class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
-    """Session-bound repository for ``AuditOutboxRecord``."""
+class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatcher):
+    """Session-bound repository for ``AuditOutboxRecord``.
+
+    Inherits ``add()`` from ``AuditOutboxRepository`` (application port) and
+    implements ``claim/mark_published/mark_failed`` from ``AuditOutboxDispatcher``
+    (infrastructure protocol).
+    """
 
     def add(
         self,
@@ -1313,36 +1114,6 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
 # ── Calculation Run ─────────────────────────────────────────────────────────
 
 
-class CalculationRunRepository(ABC):
-    """Read/write ``CalculationRunRecord`` rows (extended for orchestration fields)."""
-
-    @abstractmethod
-    def add(
-        self,
-        session: Session,
-        /,
-        *,
-        project_id: str,
-        project_version_id: str,
-        calculator_name: str,
-        calculator_version: str,
-        calculation_type: str,
-        input_snapshot: dict[str, object],
-        result_snapshot: dict[str, object],
-        requires_review: bool,
-        orchestration_identity_id: str,
-        orchestration_run_attempt_id: str,
-        execution_snapshot_id: str,
-        coefficient_context_id: str,
-        input_hash: str,
-        result_hash: str,
-        provenance: dict[str, object],
-        schema_version: str,
-    ) -> str:
-        """Insert a new orchestrated CalculationRunRecord and return its ID."""
-        ...
-
-
 class SqlAlchemyCalculationRunRepository(CalculationRunRepository):
     """Session-bound repository for ``CalculationRunRecord``."""
 
@@ -1367,6 +1138,12 @@ class SqlAlchemyCalculationRunRepository(CalculationRunRepository):
         result_hash: str,
         provenance: dict[str, object],
         schema_version: str,
+        orchestration_fingerprint: str,
+        formulas: list[dict[str, object]],
+        coefficients: list[dict[str, object]],
+        assumptions: list[str],
+        warnings: list[dict[str, object]],
+        source_references: list[dict[str, object]],
     ) -> str:
         from uuid import uuid4
 
@@ -1392,13 +1169,245 @@ class SqlAlchemyCalculationRunRepository(CalculationRunRepository):
             result_hash=result_hash,
             provenance=provenance,
             schema_version=schema_version,
-            # ORM NOT NULL columns not in ABC — supply defaults
-            formulas=[],
-            coefficients=[],
-            assumptions=[],
-            warnings=[],
-            source_references=[],
+            orchestration_fingerprint=orchestration_fingerprint,
+            formulas=formulas,
+            coefficients=coefficients,
+            assumptions=assumptions,
+            warnings=warnings,
+            source_references=source_references,
         )
         session.add(record)
         session.flush()
         return record.id
+
+
+# ── Verification Read Port ──────────────────────────────────────────────────
+
+# calculator_name → stage_name reverse mapping
+_CALCULATOR_NAME_TO_STAGE: dict[str, str] = {
+    "cold_room_zone_plan": "zone",
+    "cooling_load": "cooling_load",
+    "equipment": "equipment",
+    "installed_power": "power",
+    "investment_estimate": "investment",
+}
+
+_EXPECTED_STAGE_COUNT = 5
+
+
+class SqlAlchemyVerificationReadPort:
+    """SQLAlchemy implementation of the ``VerificationReadPort`` protocol.
+
+    Loads the full verification state (request + identity + attempt + five
+    CalculationRun snapshots) from the database in a fail-closed manner:
+    any missing entity, wrong relationship, or stage count mismatch raises
+    a domain error.
+    """
+
+    def load_verification_state(
+        self,
+        session: Any,
+        /,
+        *,
+        request_id: str,
+        identity_id: str,
+        attempt_id: str,
+    ) -> VerificationState:
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.application.transaction_b import (
+            CalculationRunSnapshot,
+            VerificationState,
+        )
+        from cold_storage.modules.orchestration.domain.dag import (
+            ORCHESTRATION_STAGE_ORDER,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            PersistenceInvariantError,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationIdentityRecord,
+            OrchestrationRequestRecord,
+            OrchestrationRunAttemptRecord,
+        )
+        from cold_storage.modules.projects.infrastructure.orm import (
+            CalculationRunRecord,
+        )
+
+        # ── 1. Load request ──────────────────────────────────────────────
+        request = session.execute(
+            select(OrchestrationRequestRecord).where(OrchestrationRequestRecord.id == request_id)
+        ).scalar_one_or_none()
+        if request is None:
+            raise PersistenceInvariantError(
+                f"Request {request_id!r} not found",
+                details={"request_id": request_id},
+            )
+
+        # ── 2. Load identity ─────────────────────────────────────────────
+        identity = session.execute(
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
+        ).scalar_one_or_none()
+        if identity is None:
+            raise PersistenceInvariantError(
+                f"Identity {identity_id!r} not found",
+                details={"identity_id": identity_id},
+            )
+
+        # ── 3. Validate identity belongs to request ──────────────────────
+        if request.resolved_identity_id != identity_id:
+            raise PersistenceInvariantError(
+                f"Identity {identity_id!r} does not match request "
+                f"{request_id!r} resolved_identity_id "
+                f"{request.resolved_identity_id!r}",
+                details={
+                    "request_id": request_id,
+                    "identity_id": identity_id,
+                    "resolved_identity_id": request.resolved_identity_id,
+                },
+            )
+
+        # ── 4. Load attempt ──────────────────────────────────────────────
+        attempt = session.execute(
+            select(OrchestrationRunAttemptRecord).where(
+                OrchestrationRunAttemptRecord.id == attempt_id
+            )
+        ).scalar_one_or_none()
+        if attempt is None:
+            raise PersistenceInvariantError(
+                f"Attempt {attempt_id!r} not found",
+                details={"attempt_id": attempt_id},
+            )
+
+        # ── 5. Validate attempt belongs to identity ──────────────────────
+        if attempt.identity_id != identity_id:
+            raise PersistenceInvariantError(
+                f"Attempt {attempt_id!r} belongs to identity "
+                f"{attempt.identity_id!r}, not {identity_id!r}",
+                details={
+                    "attempt_id": attempt_id,
+                    "expected_identity_id": identity_id,
+                    "actual_identity_id": attempt.identity_id,
+                },
+            )
+
+        # ── 6. Load calculation runs for the attempt ─────────────────────
+        calc_runs = list(
+            session.execute(
+                select(CalculationRunRecord).where(
+                    CalculationRunRecord.orchestration_run_attempt_id == attempt_id
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        # ── 7. Validate exactly 5 runs and map by stage_name ────────────
+        if len(calc_runs) != _EXPECTED_STAGE_COUNT:
+            raise PersistenceInvariantError(
+                f"Expected {_EXPECTED_STAGE_COUNT} calculation runs for attempt "
+                f"{attempt_id!r}, found {len(calc_runs)}",
+                details={
+                    "attempt_id": attempt_id,
+                    "expected_count": _EXPECTED_STAGE_COUNT,
+                    "actual_count": len(calc_runs),
+                },
+            )
+
+        stage_runs: dict[str, CalculationRunSnapshot] = {}
+        seen_stages: set[str] = set()
+        expected_stages = set(ORCHESTRATION_STAGE_ORDER)
+
+        for run in calc_runs:
+            # Map calculator_name → stage_name
+            stage_name = _CALCULATOR_NAME_TO_STAGE.get(run.calculator_name)
+            if stage_name is None:
+                raise PersistenceInvariantError(
+                    f"Unknown calculator_name {run.calculator_name!r} in "
+                    f"calculation run {run.id!r}",
+                    details={
+                        "calculator_name": run.calculator_name,
+                        "calculation_run_id": run.id,
+                    },
+                )
+
+            # Duplicate stage detection
+            if stage_name in seen_stages:
+                raise PersistenceInvariantError(
+                    f"Duplicate stage {stage_name!r} in calculation runs for "
+                    f"attempt {attempt_id!r}",
+                    details={
+                        "stage_name": stage_name,
+                        "attempt_id": attempt_id,
+                    },
+                )
+            seen_stages.add(stage_name)
+
+            # Extra stage detection (not in the expected 5)
+            if stage_name not in expected_stages:
+                raise PersistenceInvariantError(
+                    f"Unexpected stage {stage_name!r} in calculation runs for "
+                    f"attempt {attempt_id!r}",
+                    details={
+                        "stage_name": stage_name,
+                        "attempt_id": attempt_id,
+                    },
+                )
+
+            # Extract upstream_calculation_ids from provenance
+            provenance = run.provenance or {}
+            upstream_ids: dict[str, str] = {}
+            raw_upstream = provenance.get("upstream_calculation_ids")
+            if isinstance(raw_upstream, dict):
+                upstream_ids = dict(raw_upstream)
+
+            stage_runs[stage_name] = CalculationRunSnapshot(
+                id=run.id,
+                calculator_name=run.calculator_name,
+                calculator_version=run.calculator_version,
+                calculation_type=run.calculation_type or "",
+                result_snapshot=run.result_snapshot,
+                result_hash=run.result_hash,
+                orchestration_identity_id=run.orchestration_identity_id,
+                orchestration_run_attempt_id=run.orchestration_run_attempt_id,
+                execution_snapshot_id=run.execution_snapshot_id,
+                coefficient_context_id=run.coefficient_context_id,
+                orchestration_fingerprint=run.orchestration_fingerprint,
+                requires_review=run.requires_review,
+                schema_version=run.schema_version,
+                project_id=run.project_id,
+                project_version_id=run.project_version_id,
+                formulas=list(run.formulas or []),
+                coefficients=list(run.coefficients or []),
+                assumptions=list(run.assumptions or []),
+                warnings=list(run.warnings or []),
+                source_references=list(run.source_references or []),
+                upstream_calculation_ids=upstream_ids,
+            )
+
+        # Missing stages detection
+        missing_stages = expected_stages - seen_stages
+        if missing_stages:
+            raise PersistenceInvariantError(
+                f"Missing stages {sorted(missing_stages)!r} in calculation runs "
+                f"for attempt {attempt_id!r}",
+                details={
+                    "missing_stages": sorted(missing_stages),
+                    "attempt_id": attempt_id,
+                },
+            )
+
+        # ── 8. Return VerificationState ──────────────────────────────────
+        return VerificationState(
+            request_status=request.status,
+            resolved_identity_id=request.resolved_identity_id,
+            resolved_attempt_id=request.resolved_attempt_id,
+            identity_fingerprint=identity.fingerprint,
+            identity_execution_snapshot_id=identity.execution_snapshot_id,
+            identity_coefficient_context_id=identity.coefficient_context_id,
+            identity_authoritative_attempt_id=identity.authoritative_attempt_id,
+            attempt_identity_id=attempt.identity_id,
+            attempt_status=attempt.status,
+            attempt_source_binding_id=attempt.source_binding_id,
+            calculation_runs=stage_runs,
+        )

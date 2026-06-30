@@ -192,7 +192,7 @@ class TestDowngradeGate:
         conn.commit()
 
         # Capture pre-downgrade state
-        rev_before = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+        conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         table_count = conn.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
         ).fetchone()[0]
@@ -560,7 +560,7 @@ class TestDowngradeGate:
         )
         conn.commit()
 
-        rev_before = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+        conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         conn.close()
 
         r = subprocess.run(
@@ -657,7 +657,7 @@ class TestDowngradeGate:
         )
         conn.commit()
 
-        rev_before = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+        conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         conn.close()
 
         r = subprocess.run(

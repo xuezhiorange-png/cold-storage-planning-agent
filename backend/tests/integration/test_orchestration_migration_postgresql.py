@@ -584,9 +584,7 @@ class TestAuditEventHistoryBackfill:
         with engine3.connect() as conn3:
             # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            assert rev == "0028_add_transaction_b_constraints", (
-                f"Revision changed: {rev}"
-            )
+            assert rev == "0028_add_transaction_b_constraints", f"Revision changed: {rev}"
 
             # AuditEvent still backfilled with same value
             row2 = conn3.execute(

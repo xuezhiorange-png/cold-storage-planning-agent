@@ -44,8 +44,14 @@ from cold_storage.modules.orchestration.application.coefficient_contracts import
     validate_string_sequence,
 )
 from cold_storage.modules.orchestration.application.ports import (
+    AuditOutboxRepository,
+    CoefficientContextRepository,
     CoefficientResolutionPreflightPort,
     ExecutionSnapshotPreflightPort,
+    ExecutionSnapshotRepository,
+    OrchestrationAttemptRepository,
+    OrchestrationIdentityRepository,
+    OrchestrationRequestRepository,
     ResolvedCoefficientContextCandidate,
 )
 from cold_storage.modules.orchestration.application.unit_of_work import (
@@ -71,14 +77,6 @@ from cold_storage.modules.orchestration.domain.errors import (
     ProjectVersionStatusInvalidError,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
-from cold_storage.modules.orchestration.infrastructure.repositories import (
-    AuditOutboxRepository,
-    CoefficientContextRepository,
-    ExecutionSnapshotRepository,
-    OrchestrationAttemptRepository,
-    OrchestrationIdentityRepository,
-    OrchestrationRequestRepository,
-)
 
 # ── ProjectVersion loading port ─────────────────────────────────────────────
 

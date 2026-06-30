@@ -40,9 +40,7 @@ _SLOT_COLUMNS = (
 _SLOT_DISTINCT_CLAUSES = []
 for _i in range(len(_SLOT_COLUMNS)):
     for _j in range(_i + 1, len(_SLOT_COLUMNS)):
-        _SLOT_DISTINCT_CLAUSES.append(
-            f"{_SLOT_COLUMNS[_i]} != {_SLOT_COLUMNS[_j]}"
-        )
+        _SLOT_DISTINCT_CLAUSES.append(f"{_SLOT_COLUMNS[_i]} != {_SLOT_COLUMNS[_j]}")
 
 _SLOT_DISTINCT_CHECK = " AND ".join(_SLOT_DISTINCT_CLAUSES)
 
@@ -126,14 +124,10 @@ def _pg_downgrade() -> None:
     )
 
     # 4. Drop UNIQUE
-    op.drop_constraint(
-        "uq_calculation_run_attempt_type", "calculation_runs", type_="unique"
-    )
+    op.drop_constraint("uq_calculation_run_attempt_type", "calculation_runs", type_="unique")
 
     # 3. Drop fingerprint nullity CHECK
-    op.drop_constraint(
-        "ck_calculation_run_fingerprint_nullity", "calculation_runs", type_="check"
-    )
+    op.drop_constraint("ck_calculation_run_fingerprint_nullity", "calculation_runs", type_="check")
 
     # 2. Restore the original orchestration nullity CHECK (without fingerprint)
     op.drop_constraint(
@@ -155,15 +149,11 @@ def _pg_downgrade() -> None:
 def _sqlite_upgrade() -> None:
     # 1. Add column via batch mode
     with op.batch_alter_table("calculation_runs") as batch_op:
-        batch_op.add_column(
-            sa.Column("orchestration_fingerprint", sa.String(128), nullable=True)
-        )
+        batch_op.add_column(sa.Column("orchestration_fingerprint", sa.String(128), nullable=True))
 
     # 2. Replace orchestration nullity CHECK (drop old, add updated)
     with op.batch_alter_table("calculation_runs") as batch_op:
-        batch_op.drop_constraint(
-            "ck_calculation_run_orchestration_nullity", type_="check"
-        )
+        batch_op.drop_constraint("ck_calculation_run_orchestration_nullity", type_="check")
         batch_op.create_check_constraint(
             "ck_calculation_run_orchestration_nullity",
             sa.text(_UPDATED_ORCHESTRATION_NULLITY_CHECK),
@@ -202,15 +192,11 @@ def _sqlite_downgrade() -> None:
 
     # 3. Drop fingerprint nullity CHECK
     with op.batch_alter_table("calculation_runs") as batch_op:
-        batch_op.drop_constraint(
-            "ck_calculation_run_fingerprint_nullity", type_="check"
-        )
+        batch_op.drop_constraint("ck_calculation_run_fingerprint_nullity", type_="check")
 
     # 2. Restore the original orchestration nullity CHECK (without fingerprint)
     with op.batch_alter_table("calculation_runs") as batch_op:
-        batch_op.drop_constraint(
-            "ck_calculation_run_orchestration_nullity", type_="check"
-        )
+        batch_op.drop_constraint("ck_calculation_run_orchestration_nullity", type_="check")
         batch_op.create_check_constraint(
             "ck_calculation_run_orchestration_nullity",
             sa.text(_ORIGINAL_ORCHESTRATION_NULLITY_CHECK),
