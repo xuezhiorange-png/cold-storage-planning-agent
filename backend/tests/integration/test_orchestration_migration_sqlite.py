@@ -757,6 +757,401 @@ class TestDowngradeGate:
         db_path.unlink(missing_ok=True)
 
 
+class TestTransactionBConstraints0028:
+    """Tests for migration 0028 — Transaction B constraints.
+
+    Verifies: ``ck_calculation_run_fingerprint_nullity`` CHECK,
+    ``uq_calculation_run_attempt_type`` UNIQUE,
+    ``ck_source_binding_slot_distinct`` CHECK, and
+    upgrade/downgrade roundtrip.
+    """
+
+    # ── Helpers ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _make_db():
+        """Create a temp SQLite DB upgraded to head.  Returns ``(path, conn)``."""
+        import sqlite3 as _sql
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
+        tmp.close()
+        db_path = Path(tmp.name)
+
+        env = os.environ.copy()
+        env["SQLITE_PATH"] = str(db_path)
+
+        r = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if r.returncode != 0:
+            db_path.unlink(missing_ok=True)
+            pytest.fail(f"Upgrade failed:\n{r.stderr}\n{r.stdout}")
+
+        conn = _sql.connect(str(db_path))
+        conn.execute("PRAGMA foreign_keys=ON")
+        return db_path, conn
+
+    @staticmethod
+    def _setup_chain(conn, pid=None, pvid=None):
+        """Insert FK chain: project → version → snapshot → context → identity → attempt.
+
+        Returns a dict of all generated IDs.
+        """
+        import uuid as _uuid
+
+        ids = {
+            "pid": pid or str(_uuid.uuid4()),
+            "pvid": pvid or str(_uuid.uuid4()),
+            "eid": str(_uuid.uuid4()),
+            "cid": str(_uuid.uuid4()),
+            "oid": str(_uuid.uuid4()),
+            "aid": str(_uuid.uuid4()),
+        }
+        conn.execute(
+            "INSERT INTO projects (id, code, name, location, product_category, "
+            "status, current_version_number, created_at, updated_at) "
+            "VALUES (?, 'T', 'Test', 'TL', 'fruit', 'draft', 0, "
+            "datetime('now'), datetime('now'))",
+            (ids["pid"],),
+        )
+        conn.execute(
+            "INSERT INTO project_versions (id, project_id, version_number, "
+            "change_summary, status, created_by, created_at, updated_at, "
+            "input_snapshot, calculation_snapshot, assumption_snapshot) "
+            "VALUES (?, ?, 1, '', 'approved', 'sys', datetime('now'), "
+            "datetime('now'), '{}', '{}', '{}')",
+            (ids["pvid"], ids["pid"]),
+        )
+        conn.execute(
+            "INSERT INTO orchestration_execution_snapshots "
+            "(id, project_id, project_version_id, version_number, input_snapshot, "
+            "input_snapshot_hash, schema_version, captured_status, captured_at) "
+            "VALUES (?, ?, ?, 1, '{}', 'h1', '1', 'approved', datetime('now'))",
+            (ids["eid"], ids["pid"], ids["pvid"]),
+        )
+        conn.execute(
+            "INSERT INTO orchestration_coefficient_contexts "
+            "(id, project_id, project_version_id, content, content_hash, "
+            "schema_version, captured_at) "
+            "VALUES (?, ?, ?, '{}', 'h1', '1', datetime('now'))",
+            (ids["cid"], ids["pid"], ids["pvid"]),
+        )
+        conn.execute(
+            "INSERT INTO orchestration_identities "
+            "(id, fingerprint, execution_snapshot_id, coefficient_context_id, "
+            "definition_version, calculator_version_vector, status, created_at) "
+            "VALUES (?, 'fp', ?, ?, '1', '{}', 'ACTIVE', datetime('now'))",
+            (ids["oid"], ids["eid"], ids["cid"]),
+        )
+        conn.execute(
+            "INSERT INTO orchestration_run_attempts "
+            "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+            "VALUES (?, ?, 1, 'COMPLETED', datetime('now'), datetime('now'))",
+            (ids["aid"], ids["oid"]),
+        )
+        return ids
+
+    @staticmethod
+    def _insert_orchestrated_calc_run(conn, ids, calc_type="zone", calc_name="z"):
+        """Insert a fully orchestrated calculation_run.  Returns the new row ID."""
+        import uuid as _uuid
+
+        cid = str(_uuid.uuid4())
+        conn.execute(
+            "INSERT INTO calculation_runs "
+            "(id, project_id, project_version_id, calculator_name, "
+            "calculator_version, input_snapshot, result_snapshot, formulas, "
+            "coefficients, assumptions, warnings, source_references, "
+            "requires_review, created_at, calculation_type, "
+            "orchestration_identity_id, orchestration_run_attempt_id, "
+            "execution_snapshot_id, coefficient_context_id, input_hash, "
+            "result_hash, provenance, schema_version, orchestration_fingerprint) "
+            "VALUES (?, ?, ?, ?, '1.0', '{}', '{}', '[]', '[]', '[]', '[]', "
+            "'[]', 0, datetime('now'), ?, ?, ?, ?, ?, 'h1', 'h1', '{}', '1', 'fp')",
+            (
+                cid,
+                ids["pid"],
+                ids["pvid"],
+                calc_name,
+                calc_type,
+                ids["oid"],
+                ids["aid"],
+                ids["eid"],
+                ids["cid"],
+            ),
+        )
+        return cid
+
+    # ── Tests ────────────────────────────────────────────────────────────
+
+    def test_orchestration_fingerprint_nullity_check_legacy(self) -> None:
+        """Insert legacy row (all NULL orchestration fields) → success."""
+        import uuid as _uuid
+
+        db_path, conn = self._make_db()
+        try:
+            pid = str(_uuid.uuid4())
+            pvid = str(_uuid.uuid4())
+            conn.execute(
+                "INSERT INTO projects (id, code, name, location, product_category, "
+                "status, current_version_number, created_at, updated_at) "
+                "VALUES (?, 'T', 'Test', 'TL', 'fruit', 'draft', 0, "
+                "datetime('now'), datetime('now'))",
+                (pid,),
+            )
+            conn.execute(
+                "INSERT INTO project_versions (id, project_id, version_number, "
+                "change_summary, status, created_by, created_at, updated_at, "
+                "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                "VALUES (?, ?, 1, '', 'approved', 'sys', datetime('now'), "
+                "datetime('now'), '{}', '{}', '{}')",
+                (pvid, pid),
+            )
+            conn.execute(
+                "INSERT INTO calculation_runs "
+                "(id, project_id, project_version_id, calculator_name, "
+                "calculator_version, input_snapshot, result_snapshot, formulas, "
+                "coefficients, assumptions, warnings, source_references, "
+                "requires_review, created_at) "
+                "VALUES (?, ?, ?, 'zone', '1.0', '{}', '{}', "
+                "'[]', '[]', '[]', '[]', '[]', 0, datetime('now'))",
+                (str(_uuid.uuid4()), pid, pvid),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+            db_path.unlink(missing_ok=True)
+
+    def test_orchestration_fingerprint_nullity_check_orchestrated(self) -> None:
+        """Insert orchestrated row with all fields including fingerprint → success."""
+        db_path, conn = self._make_db()
+        try:
+            ids = self._setup_chain(conn)
+            self._insert_orchestrated_calc_run(conn, ids)
+            conn.commit()
+        finally:
+            conn.close()
+            db_path.unlink(missing_ok=True)
+
+    def test_orchestration_fingerprint_nullity_rejects_partial(self) -> None:
+        """Orchestration fields set but fingerprint NULL → CHECK violation."""
+        import sqlite3 as _sql
+        import uuid as _uuid
+
+        db_path, conn = self._make_db()
+        try:
+            ids = self._setup_chain(conn)
+            with pytest.raises(_sql.IntegrityError):
+                conn.execute(
+                    "INSERT INTO calculation_runs "
+                    "(id, project_id, project_version_id, calculator_name, "
+                    "calculator_version, input_snapshot, result_snapshot, formulas, "
+                    "coefficients, assumptions, warnings, source_references, "
+                    "requires_review, created_at, calculation_type, "
+                    "orchestration_identity_id, orchestration_run_attempt_id, "
+                    "execution_snapshot_id, coefficient_context_id, input_hash, "
+                    "result_hash, provenance, schema_version, "
+                    "orchestration_fingerprint) "
+                    "VALUES (?, ?, ?, 'zone', '1.0', '{}', '{}', '[]', '[]', "
+                    "'[]', '[]', '[]', 0, datetime('now'), 'zone', ?, ?, ?, ?, "
+                    "'h1', 'h1', '{}', '1', NULL)",
+                    (
+                        str(_uuid.uuid4()),
+                        ids["pid"],
+                        ids["pvid"],
+                        ids["oid"],
+                        ids["aid"],
+                        ids["eid"],
+                        ids["cid"],
+                    ),
+                )
+                conn.commit()
+        finally:
+            conn.close()
+            db_path.unlink(missing_ok=True)
+
+    def test_attempt_type_unique_constraint(self) -> None:
+        """Two rows with same (attempt_id, calculation_type) → UNIQUE violation."""
+        import sqlite3 as _sql
+
+        db_path, conn = self._make_db()
+        try:
+            ids = self._setup_chain(conn)
+            self._insert_orchestrated_calc_run(conn, ids, calc_type="zone", calc_name="z1")
+            conn.commit()
+            with pytest.raises(_sql.IntegrityError):
+                self._insert_orchestrated_calc_run(conn, ids, calc_type="zone", calc_name="z2")
+                conn.commit()
+        finally:
+            conn.close()
+            db_path.unlink(missing_ok=True)
+
+    def test_source_binding_slot_distinct_check_valid(self) -> None:
+        """Insert source binding with 5 distinct slot IDs → success."""
+        import uuid as _uuid
+
+        db_path, conn = self._make_db()
+        try:
+            ids = self._setup_chain(conn)
+            calc_types = ("zone", "cooling_load", "equipment", "power", "investment")
+            calc_names = ("z", "cl", "eq", "pw", "inv")
+            calc_ids = []
+            for ctype, cname in zip(calc_types, calc_names, strict=True):
+                cid = self._insert_orchestrated_calc_run(
+                    conn, ids, calc_type=ctype, calc_name=cname
+                )
+                calc_ids.append(cid)
+            conn.commit()
+            conn.execute(
+                "INSERT INTO orchestration_source_bindings "
+                "(id, project_id, project_version_id, execution_snapshot_id, "
+                "coefficient_context_id, orchestration_identity_id, "
+                "orchestration_run_attempt_id, orchestration_fingerprint, "
+                "zone_calculation_id, cooling_load_calculation_id, "
+                "equipment_calculation_id, power_calculation_id, "
+                "investment_calculation_id, per_calculation_result_hashes, "
+                "combined_source_hash, schema_version, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 'fp', ?, ?, ?, ?, ?, '{}', 'h1', "
+                "'1', datetime('now'))",
+                (
+                    str(_uuid.uuid4()),
+                    ids["pid"],
+                    ids["pvid"],
+                    ids["eid"],
+                    ids["cid"],
+                    ids["oid"],
+                    ids["aid"],
+                    calc_ids[0],
+                    calc_ids[1],
+                    calc_ids[2],
+                    calc_ids[3],
+                    calc_ids[4],
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+            db_path.unlink(missing_ok=True)
+
+    def test_source_binding_slot_distinct_check_rejects_duplicate(self) -> None:
+        """Insert source binding with duplicate slot IDs → CHECK violation."""
+        import sqlite3 as _sql
+        import uuid as _uuid
+
+        db_path, conn = self._make_db()
+        try:
+            ids = self._setup_chain(conn)
+            # Create 4 calc runs (enough for 5 slots with one duplicate)
+            calc_types = ("zone", "cooling_load", "equipment", "power")
+            calc_names = ("z", "cl", "eq", "pw")
+            calc_ids = []
+            for ctype, cname in zip(calc_types, calc_names, strict=True):
+                cid = self._insert_orchestrated_calc_run(
+                    conn, ids, calc_type=ctype, calc_name=cname
+                )
+                calc_ids.append(cid)
+            conn.commit()
+            # zone and cooling_load share calc_ids[0] → CHECK violation
+            with pytest.raises(_sql.IntegrityError):
+                conn.execute(
+                    "INSERT INTO orchestration_source_bindings "
+                    "(id, project_id, project_version_id, execution_snapshot_id, "
+                    "coefficient_context_id, orchestration_identity_id, "
+                    "orchestration_run_attempt_id, orchestration_fingerprint, "
+                    "zone_calculation_id, cooling_load_calculation_id, "
+                    "equipment_calculation_id, power_calculation_id, "
+                    "investment_calculation_id, per_calculation_result_hashes, "
+                    "combined_source_hash, schema_version, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'fp', ?, ?, ?, ?, ?, '{}', 'h1', "
+                    "'1', datetime('now'))",
+                    (
+                        str(_uuid.uuid4()),
+                        ids["pid"],
+                        ids["pvid"],
+                        ids["eid"],
+                        ids["cid"],
+                        ids["oid"],
+                        ids["aid"],
+                        calc_ids[0],  # zone
+                        calc_ids[0],  # cooling_load — DUPLICATE
+                        calc_ids[2],  # equipment
+                        calc_ids[3],  # power
+                        calc_ids[1],  # investment
+                    ),
+                )
+                conn.commit()
+        finally:
+            conn.close()
+            db_path.unlink(missing_ok=True)
+
+    def test_upgrade_downgrade_roundtrip(self) -> None:
+        """Upgrade to 0028, downgrade to 0027, re-upgrade to 0028 → success."""
+        import sqlite3 as _sql
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
+        tmp.close()
+        db_path = Path(tmp.name)
+
+        env = os.environ.copy()
+        env["SQLITE_PATH"] = str(db_path)
+
+        # Upgrade to head (0028)
+        r = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert r.returncode == 0, f"Upgrade to head failed:\n{r.stderr}\n{r.stdout}"
+
+        conn = _sql.connect(str(db_path))
+        rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+        assert rev == "0028_add_transaction_b_constraints", f"Expected 0028, got {rev}"
+        conn.close()
+
+        # Downgrade to 0027
+        r = subprocess.run(
+            [sys.executable, "-m", "alembic", "downgrade", "0027"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert r.returncode == 0, f"Downgrade to 0027 failed:\n{r.stderr}\n{r.stdout}"
+
+        conn = _sql.connect(str(db_path))
+        rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+        assert rev == "0027_separate_requested_and_resolved_request_identity", (
+            f"Expected 0027, got {rev}"
+        )
+        conn.close()
+
+        # Re-upgrade to head (0028)
+        r = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert r.returncode == 0, f"Re-upgrade to head failed:\n{r.stderr}\n{r.stdout}"
+
+        conn = _sql.connect(str(db_path))
+        rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+        assert rev == "0028_add_transaction_b_constraints", f"Expected 0028, got {rev}"
+        conn.close()
+        db_path.unlink(missing_ok=True)
+
+
 class TestAuditEventAndWeightSet:
     def test_outbox_event_id_not_null(self, migrated_engine) -> None:
         with migrated_engine.connect() as conn:

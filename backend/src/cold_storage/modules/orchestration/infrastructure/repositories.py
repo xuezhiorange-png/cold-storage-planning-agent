@@ -319,6 +319,20 @@ class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
                 f"update_status affected 0 rows for request_id={request_id!r}"
             )
 
+    def get_status(self, session: Session, /, request_id: str) -> str | None:
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRequestRecord,
+        )
+
+        row = session.execute(
+            select(OrchestrationRequestRecord.status).where(
+                OrchestrationRequestRecord.id == request_id
+            )
+        ).scalar_one_or_none()
+        return row
+
 
 # ── Execution Snapshot ──────────────────────────────────────────────────────
 
@@ -910,6 +924,20 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             .where(OrchestrationRunAttemptRecord.id == attempt_id)
             .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
         )
+
+    def get_status(self, session: Session, /, attempt_id: str) -> str | None:
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        row = session.execute(
+            select(OrchestrationRunAttemptRecord.status).where(
+                OrchestrationRunAttemptRecord.id == attempt_id
+            )
+        ).scalar_one_or_none()
+        return row
 
     def takeover_stale(
         self,

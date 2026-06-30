@@ -1385,3 +1385,344 @@ class TestDowngradeGatePG:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
             assert rev == "0026_add_orchestration_persistence", f"Expected revision 0026, got {rev}"
         engine.dispose()
+
+
+# ── 0028 Transaction B constraint tests ───────────────────────────────────
+
+
+class TestTransactionBConstraints0028:
+    """Tests for migration 0028 — Transaction B constraints.
+
+    Verifies: ``ck_calculation_run_fingerprint_nullity`` CHECK,
+    ``uq_calculation_run_attempt_type`` UNIQUE,
+    ``ck_source_binding_slot_distinct`` CHECK, and
+    upgrade/downgrade roundtrip.
+    """
+
+    # ── Helpers ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _setup_chain(conn):
+        """Insert FK chain: project → version → snapshot → context → identity → attempt.
+
+        Returns a dict of all generated IDs.
+        """
+        ids = {
+            "pid": str(_uuid_mod.uuid4()),
+            "pvid": str(_uuid_mod.uuid4()),
+            "eid": str(_uuid_mod.uuid4()),
+            "cid": str(_uuid_mod.uuid4()),
+            "oid": str(_uuid_mod.uuid4()),
+            "aid": str(_uuid_mod.uuid4()),
+        }
+        conn.execute(
+            text(
+                "INSERT INTO projects (id, code, name, location, product_category, "
+                "status, current_version_number, created_at, updated_at) "
+                "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
+            ),
+            {"id": ids["pid"]},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO project_versions (id, project_id, version_number, "
+                "change_summary, status, created_by, created_at, updated_at, "
+                "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), "
+                "now(), '{}', '{}', '{}')"
+            ),
+            {"id": ids["pvid"], "pid": ids["pid"]},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO orchestration_execution_snapshots "
+                "(id, project_id, project_version_id, version_number, input_snapshot, "
+                "input_snapshot_hash, schema_version, captured_status, captured_at) "
+                "VALUES (:id, :pid, :pvid, 1, '{}', 'h1', '1', 'approved', now())"
+            ),
+            {"id": ids["eid"], "pid": ids["pid"], "pvid": ids["pvid"]},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO orchestration_coefficient_contexts "
+                "(id, project_id, project_version_id, content, content_hash, "
+                "schema_version, captured_at) "
+                "VALUES (:id, :pid, :pvid, '{}', 'h1', '1', now())"
+            ),
+            {"id": ids["cid"], "pid": ids["pid"], "pvid": ids["pvid"]},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO orchestration_identities "
+                "(id, fingerprint, execution_snapshot_id, coefficient_context_id, "
+                "definition_version, calculator_version_vector, status, created_at) "
+                "VALUES (:id, 'fp', :eid, :cid, '1', '{}', 'ACTIVE', now())"
+            ),
+            {"id": ids["oid"], "eid": ids["eid"], "cid": ids["cid"]},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO orchestration_run_attempts "
+                "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
+                "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
+            ),
+            {"id": ids["aid"], "oid": ids["oid"]},
+        )
+        return ids
+
+    @staticmethod
+    def _insert_orchestrated_calc_run(conn, ids, calc_type="zone", calc_name="z"):
+        """Insert a fully orchestrated calculation_run.  Returns the new row ID."""
+        cid = str(_uuid_mod.uuid4())
+        conn.execute(
+            text(
+                "INSERT INTO calculation_runs "
+                "(id, project_id, project_version_id, calculator_name, "
+                "calculator_version, input_snapshot, result_snapshot, formulas, "
+                "coefficients, assumptions, warnings, source_references, "
+                "requires_review, created_at, calculation_type, "
+                "orchestration_identity_id, orchestration_run_attempt_id, "
+                "execution_snapshot_id, coefficient_context_id, input_hash, "
+                "result_hash, provenance, schema_version, orchestration_fingerprint) "
+                "VALUES (:id, :pid, :pvid, :cname, '1.0', '{}', '{}', '[]', '[]', "
+                "'[]', '[]', '[]', false, now(), :ctype, :oid, :aid, :eid, :cid, "
+                "'h1', 'h1', '{}', '1', 'fp')"
+            ),
+            {
+                "id": cid,
+                "pid": ids["pid"],
+                "pvid": ids["pvid"],
+                "cname": calc_name,
+                "ctype": calc_type,
+                "oid": ids["oid"],
+                "aid": ids["aid"],
+                "eid": ids["eid"],
+                "cid": ids["cid"],
+            },
+        )
+        return cid
+
+    # ── Tests ────────────────────────────────────────────────────────────
+
+    def test_orchestration_fingerprint_nullity_check_legacy(self, migrated_pg: str) -> None:
+        """Insert legacy row (all NULL orchestration fields) → success."""
+        engine = _pg_engine(migrated_pg)
+        pid = str(_uuid_mod.uuid4())
+        pvid = str(_uuid_mod.uuid4())
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, code, name, location, product_category, "
+                    "status, current_version_number, created_at, updated_at) "
+                    "VALUES (:id, 'T', 'Test', 'TL', 'fruit', 'draft', 0, now(), now())"
+                ),
+                {"id": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO project_versions (id, project_id, version_number, "
+                    "change_summary, status, created_by, created_at, updated_at, "
+                    "input_snapshot, calculation_snapshot, assumption_snapshot) "
+                    "VALUES (:id, :pid, 1, '', 'approved', 'sys', now(), "
+                    "now(), '{}', '{}', '{}')"
+                ),
+                {"id": pvid, "pid": pid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO calculation_runs "
+                    "(id, project_id, project_version_id, calculator_name, "
+                    "calculator_version, input_snapshot, result_snapshot, formulas, "
+                    "coefficients, assumptions, warnings, source_references, "
+                    "requires_review, created_at) "
+                    "VALUES (:id, :pid, :pvid, 'zone', '1.0', '{}', '{}', "
+                    "'[]', '[]', '[]', '[]', '[]', false, now())"
+                ),
+                {"id": str(_uuid_mod.uuid4()), "pid": pid, "pvid": pvid},
+            )
+            conn.commit()
+        engine.dispose()
+
+    def test_orchestration_fingerprint_nullity_check_orchestrated(self, migrated_pg: str) -> None:
+        """Insert orchestrated row with all fields including fingerprint → success."""
+        engine = _pg_engine(migrated_pg)
+        with engine.connect() as conn:
+            ids = self._setup_chain(conn)
+            self._insert_orchestrated_calc_run(conn, ids)
+            conn.commit()
+        engine.dispose()
+
+    def test_orchestration_fingerprint_nullity_rejects_partial(self, migrated_pg: str) -> None:
+        """Orchestration fields set but fingerprint NULL → CHECK violation."""
+        engine = _pg_engine(migrated_pg)
+        with engine.connect() as conn:
+            ids = self._setup_chain(conn)
+            conn.commit()
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            conn.execute(
+                text(
+                    "INSERT INTO calculation_runs "
+                    "(id, project_id, project_version_id, calculator_name, "
+                    "calculator_version, input_snapshot, result_snapshot, formulas, "
+                    "coefficients, assumptions, warnings, source_references, "
+                    "requires_review, created_at, calculation_type, "
+                    "orchestration_identity_id, orchestration_run_attempt_id, "
+                    "execution_snapshot_id, coefficient_context_id, input_hash, "
+                    "result_hash, provenance, schema_version, "
+                    "orchestration_fingerprint) "
+                    "VALUES (:id, :pid, :pvid, 'zone', '1.0', '{}', '{}', '[]', '[]', "
+                    "'[]', '[]', '[]', false, now(), 'zone', :oid, :aid, :eid, :cid, "
+                    "'h1', 'h1', '{}', '1', NULL)"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "pid": ids["pid"],
+                    "pvid": ids["pvid"],
+                    "oid": ids["oid"],
+                    "aid": ids["aid"],
+                    "eid": ids["eid"],
+                    "cid": ids["cid"],
+                },
+            )
+            conn.commit()
+        engine.dispose()
+
+    def test_attempt_type_unique_constraint(self, migrated_pg: str) -> None:
+        """Two rows with same (attempt_id, calculation_type) → UNIQUE violation."""
+        engine = _pg_engine(migrated_pg)
+        with engine.connect() as conn:
+            ids = self._setup_chain(conn)
+            self._insert_orchestrated_calc_run(conn, ids, calc_type="zone", calc_name="z1")
+            conn.commit()
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            self._insert_orchestrated_calc_run(conn, ids, calc_type="zone", calc_name="z2")
+            conn.commit()
+        engine.dispose()
+
+    def test_source_binding_slot_distinct_check_valid(self, migrated_pg: str) -> None:
+        """Insert source binding with 5 distinct slot IDs → success."""
+        engine = _pg_engine(migrated_pg)
+        with engine.connect() as conn:
+            ids = self._setup_chain(conn)
+            calc_types = ("zone", "cooling_load", "equipment", "power", "investment")
+            calc_names = ("z", "cl", "eq", "pw", "inv")
+            calc_ids = []
+            for ctype, cname in zip(calc_types, calc_names, strict=True):
+                cid = self._insert_orchestrated_calc_run(
+                    conn, ids, calc_type=ctype, calc_name=cname
+                )
+                calc_ids.append(cid)
+            conn.commit()
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_source_bindings "
+                    "(id, project_id, project_version_id, execution_snapshot_id, "
+                    "coefficient_context_id, orchestration_identity_id, "
+                    "orchestration_run_attempt_id, orchestration_fingerprint, "
+                    "zone_calculation_id, cooling_load_calculation_id, "
+                    "equipment_calculation_id, power_calculation_id, "
+                    "investment_calculation_id, per_calculation_result_hashes, "
+                    "combined_source_hash, schema_version, created_at) "
+                    "VALUES (:id, :pid, :pvid, :eid, :cid, :oid, :aid, 'fp', "
+                    ":zc, :clc, :ec, :pc, :ic, '{}', 'h1', '1', now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "pid": ids["pid"],
+                    "pvid": ids["pvid"],
+                    "eid": ids["eid"],
+                    "cid": ids["cid"],
+                    "oid": ids["oid"],
+                    "aid": ids["aid"],
+                    "zc": calc_ids[0],
+                    "clc": calc_ids[1],
+                    "ec": calc_ids[2],
+                    "pc": calc_ids[3],
+                    "ic": calc_ids[4],
+                },
+            )
+            conn.commit()
+        engine.dispose()
+
+    def test_source_binding_slot_distinct_check_rejects_duplicate(self, migrated_pg: str) -> None:
+        """Insert source binding with duplicate slot IDs → CHECK violation."""
+        engine = _pg_engine(migrated_pg)
+        with engine.connect() as conn:
+            ids = self._setup_chain(conn)
+            calc_types = ("zone", "cooling_load", "equipment", "power")
+            calc_names = ("z", "cl", "eq", "pw")
+            calc_ids = []
+            for ctype, cname in zip(calc_types, calc_names, strict=True):
+                cid = self._insert_orchestrated_calc_run(
+                    conn, ids, calc_type=ctype, calc_name=cname
+                )
+                calc_ids.append(cid)
+            conn.commit()
+        with engine.connect() as conn, pytest.raises(IntegrityError):
+            # zone and cooling_load share calc_ids[0] → CHECK violation
+            conn.execute(
+                text(
+                    "INSERT INTO orchestration_source_bindings "
+                    "(id, project_id, project_version_id, execution_snapshot_id, "
+                    "coefficient_context_id, orchestration_identity_id, "
+                    "orchestration_run_attempt_id, orchestration_fingerprint, "
+                    "zone_calculation_id, cooling_load_calculation_id, "
+                    "equipment_calculation_id, power_calculation_id, "
+                    "investment_calculation_id, per_calculation_result_hashes, "
+                    "combined_source_hash, schema_version, created_at) "
+                    "VALUES (:id, :pid, :pvid, :eid, :cid, :oid, :aid, 'fp', "
+                    ":zc, :clc, :ec, :pc, :ic, '{}', 'h1', '1', now())"
+                ),
+                {
+                    "id": str(_uuid_mod.uuid4()),
+                    "pid": ids["pid"],
+                    "pvid": ids["pvid"],
+                    "eid": ids["eid"],
+                    "cid": ids["cid"],
+                    "oid": ids["oid"],
+                    "aid": ids["aid"],
+                    "zc": calc_ids[0],
+                    "clc": calc_ids[0],  # DUPLICATE
+                    "ec": calc_ids[2],
+                    "pc": calc_ids[3],
+                    "ic": calc_ids[1],
+                },
+            )
+            conn.commit()
+        engine.dispose()
+
+    def test_upgrade_downgrade_roundtrip(self, pg_database_factory) -> None:
+        """Upgrade to 0028, downgrade to 0027, re-upgrade to 0028 → success."""
+        db_url = pg_database_factory(prefix="rt0028")
+
+        # Upgrade to head (0028)
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0, f"Upgrade to head failed:\n{r.stderr}\n{r.stdout}"
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev == "0028_add_transaction_b_constraints", f"Expected 0028, got {rev}"
+        engine.dispose()
+
+        # Downgrade to 0027
+        r = _run_alembic(db_url, "downgrade", "0027")
+        assert r.returncode == 0, f"Downgrade to 0027 failed:\n{r.stderr}\n{r.stdout}"
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev == "0027_separate_requested_and_resolved_request_identity", (
+                f"Expected 0027, got {rev}"
+            )
+        engine.dispose()
+
+        # Re-upgrade to head (0028)
+        r = _run_alembic(db_url, "upgrade", "head")
+        assert r.returncode == 0, f"Re-upgrade to head failed:\n{r.stderr}\n{r.stdout}"
+
+        engine = _pg_engine(db_url)
+        with engine.connect() as conn:
+            rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert rev == "0028_add_transaction_b_constraints", f"Expected 0028, got {rev}"
+        engine.dispose()

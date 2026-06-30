@@ -194,6 +194,10 @@ def pg_service(pg_session_factory):
         version_port=_PGVersionPort(),
         snapshot_port=MagicMock(spec=ExecutionSnapshotPreflightPort),
         coefficient_port=coeff_port,
+        calc_run_repo=MagicMock(),
+        source_binding_repo=MagicMock(),
+        calculator_port=MagicMock(),
+        verification_read_port=MagicMock(),
     )
 
 
@@ -684,6 +688,10 @@ def pg_real_resolver_service(pg_session_factory):
         version_port=_PGVersionPort(),
         snapshot_port=MagicMock(spec=ExecutionSnapshotPreflightPort),
         coefficient_port=coeff_port,
+        calc_run_repo=MagicMock(),
+        source_binding_repo=MagicMock(),
+        calculator_port=MagicMock(),
+        verification_read_port=MagicMock(),
     )
     return service, pg_session_factory
 

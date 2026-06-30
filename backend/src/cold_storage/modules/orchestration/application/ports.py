@@ -133,6 +133,11 @@ class OrchestrationRequestRepository(ABC):
         """
         ...
 
+    @abstractmethod
+    def get_status(self, session: Any, /, request_id: str) -> str | None:
+        """Return the current status string for a request, or None if not found."""
+        ...
+
 
 class ExecutionSnapshotRepository(ABC):
     """Read/write ``ProjectVersionExecutionSnapshotRecord`` rows."""
@@ -266,6 +271,11 @@ class OrchestrationAttemptRepository(ABC):
         completed_at: datetime | None = None,
     ) -> None:
         """Transition attempt to terminal status."""
+        ...
+
+    @abstractmethod
+    def get_status(self, session: Any, /, attempt_id: str) -> str | None:
+        """Return the current status string for an attempt, or None if not found."""
         ...
 
     @abstractmethod
