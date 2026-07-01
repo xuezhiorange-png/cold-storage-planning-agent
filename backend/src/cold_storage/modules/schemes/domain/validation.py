@@ -103,13 +103,19 @@ def check_temperature_compatibility(
 def check_process_separation(
     candidate: SchemeCandidate, zone_map: dict[str, ZoneResult]
 ) -> SchemeConstraintResult:
-    """Rooms must not merge incompatible process types (raw vs finished)."""
+    """Rooms must not merge incompatible process types (raw vs finished).
+
+    P0-5: Skipped (always passes) when any zone has process_compatibility=None.
+    """
     for rm in candidate.room_modules:
-        compatibilities = set()
+        compatibilities: set[str] = set()
         for zc in rm.zone_codes:
             z = zone_map.get(zc)
-            if z:
+            if z and z.process_compatibility is not None:
                 compatibilities.add(z.process_compatibility)
+        # Skip check if any zone lacks process_compatibility data
+        if not compatibilities:
+            continue
         if "raw" in compatibilities and "finished" in compatibilities:
             return SchemeConstraintResult(
                 constraint_code="process_separation",
@@ -128,13 +134,19 @@ def check_process_separation(
 def check_hygiene_separation(
     candidate: SchemeCandidate, zone_map: dict[str, ZoneResult]
 ) -> SchemeConstraintResult:
-    """Rooms must not merge incompatible hygiene zones."""
+    """Rooms must not merge incompatible hygiene zones.
+
+    P0-5: Skipped (always passes) when any zone has hygiene_zone=None.
+    """
     for rm in candidate.room_modules:
-        hygiene_zones = set()
+        hygiene_zones: set[str] = set()
         for zc in rm.zone_codes:
             z = zone_map.get(zc)
-            if z:
+            if z and z.hygiene_zone is not None:
                 hygiene_zones.add(z.hygiene_zone)
+        # Skip check if any zone lacks hygiene_zone data
+        if not hygiene_zones:
+            continue
         if len(hygiene_zones) > 1:
             return SchemeConstraintResult(
                 constraint_code="hygiene_separation",
@@ -166,7 +178,11 @@ def check_cooling_capacity_adequacy(
 def check_compressor_capacity_adequacy(
     candidate: SchemeCandidate, equipment_result: object
 ) -> SchemeConstraintResult:
-    """Verify both operating and installed capacity."""
+    """Verify both operating and installed capacity.
+
+    P0-5: When equipment_result.compressor_installed_capacity_kw_r is None,
+    the installed-capacity check is skipped (only operating check applies).
+    """
     from cold_storage.modules.schemes.domain.models import EquipmentResult
 
     if not isinstance(equipment_result, EquipmentResult):
@@ -181,10 +197,12 @@ def check_compressor_capacity_adequacy(
         candidate.compressor_installed_capacity_kw_r
         >= equipment_result.compressor_operating_capacity_kw_r
     )
-    installed_ok = (
-        candidate.compressor_installed_capacity_kw_r
-        >= equipment_result.compressor_installed_capacity_kw_r
-    )
+    installed_ok = True
+    if equipment_result.compressor_installed_capacity_kw_r is not None:
+        installed_ok = (
+            candidate.compressor_installed_capacity_kw_r
+            >= equipment_result.compressor_installed_capacity_kw_r
+        )
     passed = op_ok and installed_ok
     return SchemeConstraintResult(
         constraint_code="compressor_capacity_adequacy",

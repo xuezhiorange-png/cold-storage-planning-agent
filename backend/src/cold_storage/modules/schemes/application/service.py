@@ -450,8 +450,14 @@ class SchemeService:
                 area_m2=_to_decimal(z["area_m2"]),
                 position_count=int(str(z["position_count"])),
                 storage_capacity_kg=_to_decimal(z["storage_capacity_kg"]),
-                process_compatibility=str(z.get("process_compatibility", "general")),
-                hygiene_zone=str(z.get("hygiene_zone", "standard")),
+                process_compatibility=(
+                    str(z["process_compatibility"])
+                    if z.get("process_compatibility") is not None
+                    else None
+                ),
+                hygiene_zone=(
+                    str(z["hygiene_zone"]) if z.get("hygiene_zone") is not None else None
+                ),
             )
             for z in zone_snapshots
         ]
@@ -472,6 +478,7 @@ class SchemeService:
 
         # 5. Parse cooling load result
         cool_snap = _cast_dict(cool_calc.result_snapshot)
+        latent_raw = cool_snap.get("latent_load_kw_r")
         cooling_load = CoolingLoadResult(
             design_cooling_load_kw_r=_to_decimal(
                 require_snapshot_field(cool_snap, "design_cooling_load_kw_r", "cooling_load")
@@ -479,12 +486,10 @@ class SchemeService:
             sensible_load_kw_r=_to_decimal(
                 require_snapshot_field(cool_snap, "sensible_load_kw_r", "cooling_load")
             ),
-            latent_load_kw_r=_to_decimal(
-                require_snapshot_field(cool_snap, "latent_load_kw_r", "cooling_load")
-            ),
             infiltration_load_kw_r=_to_decimal(
                 require_snapshot_field(cool_snap, "infiltration_load_kw_r", "cooling_load")
             ),
+            latent_load_kw_r=_to_decimal(latent_raw) if latent_raw is not None else None,
         )
 
         # 6. Parse equipment result
@@ -492,10 +497,9 @@ class SchemeService:
         operating = _to_decimal(
             require_snapshot_field(equip_snap, "compressor_operating_capacity_kw_r", "equipment")
         )
-        installed = _to_decimal(
-            require_snapshot_field(equip_snap, "compressor_installed_capacity_kw_r", "equipment")
-        )
-        standby = installed - operating  # derived: standby = installed - operating
+        installed_raw = equip_snap.get("compressor_installed_capacity_kw_r")
+        installed = _to_decimal(installed_raw) if installed_raw is not None else None
+        standby = (installed or Decimal("0")) - operating
         equipment = EquipmentResult(
             compressor_operating_capacity_kw_r=operating,
             compressor_installed_capacity_kw_r=installed,
