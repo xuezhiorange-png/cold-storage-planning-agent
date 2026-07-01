@@ -2022,3 +2022,384 @@ class TestTransactionBStageRollbackZeroDeltaProof:
             outbox_repo=_FailingCompletionOutboxRepository(SqlAlchemyAuditOutboxRepository()),
         )
         self._run_and_assert(session_factory, svc, result_a, snap_id, coeff_id, orch_fp)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# P0-2: AttemptTerminalDisposition enum authority tests
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class TestTerminalDispositionEnumAuthority:
+    """Verify that AttemptTerminalDisposition is the sole authority for
+    terminal status and event type mapping."""
+
+    def test_blocked_disposition_maps_to_blocked_status_and_event(
+        self, session_factory, engine
+    ) -> None:
+        """TransactionBBlocked.terminal_disposition == BLOCKED maps to
+        BLOCKED status and orchestration.attempt.blocked event."""
+        from cold_storage.modules.orchestration.domain.errors import (
+            AttemptTerminalDisposition,
+        )
+
+        svc = _make_txb_service(session_factory)
+        assert (
+            svc._TERMINAL_STATUS_BY_DISPOSITION[AttemptTerminalDisposition.BLOCKED].value
+            == "BLOCKED"
+        )
+        assert (
+            svc._TERMINAL_EVENT_BY_DISPOSITION[AttemptTerminalDisposition.BLOCKED]
+            == "orchestration.attempt.blocked"
+        )
+
+    def test_failed_disposition_maps_to_failed_status_and_event(
+        self, session_factory, engine
+    ) -> None:
+        """AttemptTerminalDisposition.FAILED maps to FAILED status and
+        orchestration.attempt.failed event."""
+        from cold_storage.modules.orchestration.domain.errors import (
+            AttemptTerminalDisposition,
+        )
+
+        svc = _make_txb_service(session_factory)
+        assert (
+            svc._TERMINAL_STATUS_BY_DISPOSITION[AttemptTerminalDisposition.FAILED].value == "FAILED"
+        )
+        assert (
+            svc._TERMINAL_EVENT_BY_DISPOSITION[AttemptTerminalDisposition.FAILED]
+            == "orchestration.attempt.failed"
+        )
+
+    def test_terminal_method_rejects_raw_string_disposition(self, session_factory, engine) -> None:
+        """_transaction_b_terminal raises TypeError for raw string."""
+        svc = _make_txb_service(session_factory)
+        exc = TransactionBFailure("TEST_CODE", "test", field="test")
+        with pytest.raises(TypeError, match="AttemptTerminalDisposition"):
+            svc._transaction_b_terminal(
+                attempt_id="x",
+                request_id="x",
+                identity_id="x",
+                exc=exc,
+                disposition="BLOCKED",  # type: ignore[arg-type]
+            )
+
+    def test_transaction_b_blocked_exposes_enum_disposition(self) -> None:
+        """TransactionBBlocked.terminal_disposition is the BLOCKED enum."""
+        from cold_storage.modules.orchestration.domain.errors import (
+            AttemptTerminalDisposition,
+        )
+
+        exc = TransactionBBlocked("BLOCKER", "blocked", field="test")
+        assert exc.terminal_disposition is AttemptTerminalDisposition.BLOCKED
+
+    def test_transaction_b_failure_exposes_enum_disposition(self) -> None:
+        """TransactionBFailure.terminal_disposition is the FAILED enum."""
+        from cold_storage.modules.orchestration.domain.errors import (
+            AttemptTerminalDisposition,
+        )
+
+        exc = TransactionBFailure("FAIL", "failed", field="test")
+        assert exc.terminal_disposition is AttemptTerminalDisposition.FAILED
+
+    def test_terminal_event_type_cannot_diverge_from_status(self, session_factory, engine) -> None:
+        """Exhaustive mapping ensures event_type and status always agree."""
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            AttemptTerminalDisposition,
+        )
+
+        svc = _make_txb_service(session_factory)
+        expected_events = {
+            AttemptTerminalDisposition.BLOCKED: "orchestration.attempt.blocked",
+            AttemptTerminalDisposition.FAILED: "orchestration.attempt.failed",
+        }
+        expected_statuses = {
+            AttemptTerminalDisposition.BLOCKED: AttemptStatus.BLOCKED,
+            AttemptTerminalDisposition.FAILED: AttemptStatus.FAILED,
+        }
+        for d in AttemptTerminalDisposition:
+            assert svc._TERMINAL_EVENT_BY_DISPOSITION[d] == expected_events[d]
+            assert svc._TERMINAL_STATUS_BY_DISPOSITION[d] == expected_statuses[d]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# P0-1: Guarded terminal CAS tests (SQLite)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class TestGuardedTerminalCAS:
+    """Verify the guarded terminal CAS in SqlAlchemyAttemptRepository."""
+
+    def test_transitioned_on_running_attempt(self, session_factory, engine) -> None:
+        """CAS transition of RUNNING attempt returns TRANSITIONED."""
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+
+        with session_factory() as session:
+            row = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.identity_id == result_a.identity_id,
+                    OrchestrationRunAttemptRecord.status == "RUNNING",
+                )
+            ).scalar_one_or_none()
+            attempt_id = row.id
+
+            repo = SqlAlchemyOrchestrationAttemptRepository()
+            result = repo.transition_running_to_terminal(
+                session,
+                attempt_id=attempt_id,
+                identity_id=result_a.identity_id,
+                target_status=AttemptStatus.FAILED,
+                failure_code="TEST",
+                failure_details={"test": True},
+                completed_at=datetime.now(UTC),
+            )
+            assert result.outcome == TerminalTransitionOutcome.TRANSITIONED
+            session.commit()
+
+    def test_already_completed_on_winner(self, session_factory, engine) -> None:
+        """CAS on already-COMPLETED attempt returns ALREADY_COMPLETED."""
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+
+        with session_factory() as session:
+            row = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.identity_id == result_a.identity_id,
+                    OrchestrationRunAttemptRecord.status == "RUNNING",
+                )
+            ).scalar_one_or_none()
+            attempt_id = row.id
+            identity_id = result_a.identity_id
+
+            repo = SqlAlchemyOrchestrationAttemptRepository()
+            repo.update_status(
+                session,
+                attempt_id,
+                status=AttemptStatus.COMPLETED,
+                completed_at=datetime.now(UTC),
+            )
+            session.commit()
+
+            result = repo.transition_running_to_terminal(
+                session,
+                attempt_id=attempt_id,
+                identity_id=identity_id,
+                target_status=AttemptStatus.FAILED,
+                failure_code="LOSER",
+                failure_details={},
+                completed_at=datetime.now(UTC),
+            )
+            assert result.outcome == TerminalTransitionOutcome.ALREADY_COMPLETED
+            assert result.observed_status == AttemptStatus.COMPLETED
+
+    def test_already_terminal_on_blocked(self, session_factory, engine) -> None:
+        """CAS on already-BLOCKED attempt returns ALREADY_TERMINAL."""
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+
+        with session_factory() as session:
+            row = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.identity_id == result_a.identity_id,
+                    OrchestrationRunAttemptRecord.status == "RUNNING",
+                )
+            ).scalar_one_or_none()
+            attempt_id = row.id
+
+            repo = SqlAlchemyOrchestrationAttemptRepository()
+            repo.update_status(
+                session,
+                attempt_id,
+                status=AttemptStatus.BLOCKED,
+                failure_code="FIRST",
+                failure_details={},
+            )
+            session.commit()
+
+            result = repo.transition_running_to_terminal(
+                session,
+                attempt_id=attempt_id,
+                identity_id=result_a.identity_id,
+                target_status=AttemptStatus.FAILED,
+                failure_code="SECOND",
+                failure_details={},
+                completed_at=datetime.now(UTC),
+            )
+            assert result.outcome == TerminalTransitionOutcome.ALREADY_TERMINAL
+            assert result.observed_status == AttemptStatus.BLOCKED
+
+    def test_not_found_for_missing_attempt(self, session_factory, engine) -> None:
+        """CAS on non-existent attempt returns NOT_FOUND."""
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+
+        with session_factory() as session:
+            repo = SqlAlchemyOrchestrationAttemptRepository()
+            result = repo.transition_running_to_terminal(
+                session,
+                attempt_id="nonexistent-id",
+                identity_id="nonexistent-identity",
+                target_status=AttemptStatus.FAILED,
+                failure_code="TEST",
+                failure_details={},
+                completed_at=datetime.now(UTC),
+            )
+            assert result.outcome == TerminalTransitionOutcome.NOT_FOUND
+
+    def test_state_conflict_on_identity_mismatch(self, session_factory, engine) -> None:
+        """CAS with wrong identity_id returns STATE_CONFLICT."""
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+
+        with session_factory() as session:
+            row = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.identity_id == result_a.identity_id,
+                    OrchestrationRunAttemptRecord.status == "RUNNING",
+                )
+            ).scalar_one_or_none()
+            attempt_id = row.id
+
+            repo = SqlAlchemyOrchestrationAttemptRepository()
+            result = repo.transition_running_to_terminal(
+                session,
+                attempt_id=attempt_id,
+                identity_id="wrong-identity",
+                target_status=AttemptStatus.FAILED,
+                failure_code="TEST",
+                failure_details={},
+                completed_at=datetime.now(UTC),
+            )
+            assert result.outcome == TerminalTransitionOutcome.STATE_CONFLICT
+            assert result.observed_status == AttemptStatus.RUNNING
+
+    def test_no_outbox_on_already_completed(self, session_factory, engine) -> None:
+        """Terminal CAS on ALREADY_COMPLETED must not write outbox."""
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+
+        with session_factory() as session:
+            row = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.identity_id == result_a.identity_id,
+                    OrchestrationRunAttemptRecord.status == "RUNNING",
+                )
+            ).scalar_one_or_none()
+            attempt_id = row.id
+
+            repo = SqlAlchemyOrchestrationAttemptRepository()
+            repo.update_status(
+                session,
+                attempt_id,
+                status=AttemptStatus.COMPLETED,
+                completed_at=datetime.now(UTC),
+            )
+            session.commit()
+
+            before_count = session.execute(
+                select(func.count()).select_from(AuditOutboxRecord)
+            ).scalar()
+
+            repo.transition_running_to_terminal(
+                session,
+                attempt_id=attempt_id,
+                identity_id=result_a.identity_id,
+                target_status=AttemptStatus.FAILED,
+                failure_code="LOSER",
+                failure_details={},
+                completed_at=datetime.now(UTC),
+            )
+            session.flush()
+
+            after_count = session.execute(
+                select(func.count()).select_from(AuditOutboxRecord)
+            ).scalar()
+            assert after_count == before_count
+
+    def test_terminal_loser_cannot_overwrite_completed_winner(
+        self, session_factory, engine
+    ) -> None:
+        """Winner completes, loser fails.  Loser CAS returns ALREADY_COMPLETED.
+        Attempt stays COMPLETED with winner's source_binding_id."""
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+        from cold_storage.modules.orchestration.domain.contracts import (
+            AttemptStatus,
+        )
+
+        result_a, snap_id, coeff_id, orch_fp = _seed_historical_and_prepare_test(session_factory)
+
+        with session_factory() as session:
+            row = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.identity_id == result_a.identity_id,
+                    OrchestrationRunAttemptRecord.status == "RUNNING",
+                )
+            ).scalar_one_or_none()
+            attempt_id = row.id
+
+            repo = SqlAlchemyOrchestrationAttemptRepository()
+            # Complete the attempt (no source_binding_id since the binding
+            # doesn't actually exist in the test DB)
+            repo.update_status(
+                session,
+                attempt_id,
+                status=AttemptStatus.COMPLETED,
+                completed_at=datetime.now(UTC),
+            )
+            session.commit()
+
+            result = repo.transition_running_to_terminal(
+                session,
+                attempt_id=attempt_id,
+                identity_id=result_a.identity_id,
+                target_status=AttemptStatus.FAILED,
+                failure_code="LOSER_FAILED",
+                failure_details={"reason": "integrity"},
+                completed_at=datetime.now(UTC),
+            )
+            assert result.outcome == TerminalTransitionOutcome.ALREADY_COMPLETED
+
+            final = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == attempt_id
+                )
+            ).scalar_one()
+            assert final.status == "COMPLETED"
+            assert final.source_binding_id is None
+            assert final.failure_code is None
