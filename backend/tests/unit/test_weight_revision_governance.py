@@ -1,10 +1,14 @@
-"""Tests for weight revision database governance (P0-7).
+"""Tests for weight revision database governance (P0-7, P0-3).
 
 Covers:
 - Seed idempotency
 - Criteria parser rejection matrix
 - Approval CAS workflow
 - Idempotent seed on SQLite
+- Allowed status transitions (P0-3)
+- Approved revision immutability (P0-3)
+- Concurrent approval conflict (P0-3)
+- Seed consistency mismatch rejection (P0-3)
 """
 
 from __future__ import annotations
@@ -34,6 +38,9 @@ from cold_storage.modules.schemes.application.weight_revision_governance import 
     seed_production_weight_revision,
 )
 from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+    InvalidStatusTransitionError,
+    RevisionImmutabilityViolationError,
+    SeedConsistencyError,
     SqlAlchemyWeightRevisionApprovalAdapter,
 )
 
@@ -756,3 +763,727 @@ class TestORMCheckConstraints:
         session.add(rev)
         with pytest.raises(sa_exc.IntegrityError):
             session.flush()
+
+
+# ---------------------------------------------------------------------------
+# Allowed status transitions (P0-3)
+# ---------------------------------------------------------------------------
+
+
+class TestStatusTransitions:
+    def _create_draft(self, session: Session, *, rid: str = "tr-001") -> None:
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-tr-001",
+            code="tr-test",
+            name="TR Test",
+            revision=1,
+            status="draft",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id=rid,
+            weight_set_id="ws-tr-001",
+            code="tr-test",
+            revision=1,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        session.add(rev)
+        session.flush()
+
+    def test_draft_to_approved(self, session, adapter) -> None:
+        """draft -> approved is allowed."""
+        self._create_draft(session)
+        result = adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="approved",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        assert result is True
+        session.commit()
+
+    def test_approved_to_superseded(self, session, adapter) -> None:
+        """approved -> superseded is allowed."""
+        self._create_draft(session)
+        adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="approved",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        session.commit()
+
+        result = adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="superseded",
+        )
+        assert result is True
+        session.commit()
+
+    def test_approved_to_revoked(self, session, adapter) -> None:
+        """approved -> revoked is allowed."""
+        self._create_draft(session)
+        adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="approved",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        session.commit()
+
+        result = adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="revoked",
+        )
+        assert result is True
+        session.commit()
+
+    def test_draft_to_superseded_rejected(self, session, adapter) -> None:
+        """draft -> superseded is NOT allowed."""
+        self._create_draft(session)
+        with pytest.raises(InvalidStatusTransitionError):
+            adapter.change_status(
+                session,
+                revision_id="tr-001",
+                target_status="superseded",
+            )
+
+    def test_draft_to_revoked_rejected(self, session, adapter) -> None:
+        """draft -> revoked is NOT allowed."""
+        self._create_draft(session)
+        with pytest.raises(InvalidStatusTransitionError):
+            adapter.change_status(
+                session,
+                revision_id="tr-001",
+                target_status="revoked",
+            )
+
+    def test_approved_to_draft_rejected(self, session, adapter) -> None:
+        """approved -> draft is NOT allowed."""
+        self._create_draft(session)
+        adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="approved",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        session.commit()
+        with pytest.raises(InvalidStatusTransitionError):
+            adapter.change_status(
+                session,
+                revision_id="tr-001",
+                target_status="draft",
+            )
+
+    def test_superseded_to_approved_rejected(self, session, adapter) -> None:
+        """superseded -> approved is NOT allowed."""
+        self._create_draft(session)
+        adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="approved",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        adapter.change_status(
+            session,
+            revision_id="tr-001",
+            target_status="superseded",
+        )
+        session.commit()
+        with pytest.raises(InvalidStatusTransitionError):
+            adapter.change_status(
+                session,
+                revision_id="tr-001",
+                target_status="approved",
+                approved_at=datetime.now(UTC),
+                approved_by="tester2",
+            )
+
+    def test_transition_missing_evidence_rejected(self, session, adapter) -> None:
+        """Transitioning to approved without evidence raises error."""
+        self._create_draft(session)
+        with pytest.raises(WeightRevisionGovernanceError, match="approved_at and approved_by"):
+            adapter.change_status(
+                session,
+                revision_id="tr-001",
+                target_status="approved",
+            )
+
+    def test_nonexistent_revision_returns_false(self, session, adapter) -> None:
+        """Transition on non-existent revision returns False."""
+        result = adapter.change_status(
+            session,
+            revision_id="nonexistent",
+            target_status="approved",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Approved immutability (P0-3)
+# ---------------------------------------------------------------------------
+
+
+class TestApprovedImmutability:
+    def _create_approved(self, session: Session) -> None:
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-imm-001",
+            code="imm-test",
+            name="Imm Test",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-imm-001",
+            weight_set_id="ws-imm-001",
+            code="imm-test",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+    def test_approve_rejects_content_change_on_approved(self, session, adapter) -> None:
+        """Cannot change content on an already-approved revision."""
+        self._create_approved(session)
+        new_content = {**_VALID_CONTENT, "version": "2.0.0"}
+        with pytest.raises(RevisionImmutabilityViolationError, match="immutable fields"):
+            adapter.approve_revision(
+                session,
+                revision_id="rev-imm-001",
+                content=new_content,
+                approved_at=datetime.now(UTC),
+                approved_by="tester2",
+            )
+
+    def test_approve_same_content_on_approved_is_fine(self, session, adapter) -> None:
+        """Re-approving with identical content does not raise immutability error."""
+        self._create_approved(session)
+        # CAS will return False (not draft), but no immutability error
+        result = adapter.approve_revision(
+            session,
+            revision_id="rev-imm-001",
+            content=_VALID_CONTENT,
+            approved_at=datetime.now(UTC),
+            approved_by="tester2",
+        )
+        assert result is False  # CAS conflict — already approved
+
+    def test_draft_revision_can_be_modified(self, session, adapter) -> None:
+        """Draft revisions can be modified freely."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-imm-002",
+            code="imm-draft",
+            name="Imm Draft",
+            revision=1,
+            status="draft",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-imm-002",
+            weight_set_id="ws-imm-002",
+            code="imm-draft",
+            revision=1,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        session.add(rev)
+        session.flush()
+
+        # Approving draft with different content is fine (content is updated)
+        new_content = {**_VALID_CONTENT, "version": "2.0.0"}
+        result = adapter.approve_revision(
+            session,
+            revision_id="rev-imm-002",
+            content=new_content,
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        assert result is True
+
+
+# ---------------------------------------------------------------------------
+# Concurrent approval conflict (P0-3)
+# ---------------------------------------------------------------------------
+
+
+class TestConcurrentApproval:
+    def test_two_drafts_same_weightset_only_one_approved(self, session, adapter) -> None:
+        """Two draft revisions for same weight_set_id+code: exactly one wins."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-conc-001",
+            code="conc-test",
+            name="Conc Test",
+            revision=1,
+            status="draft",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev_a = SchemeWeightSetRevisionRecord(
+            id="rev-conc-A",
+            weight_set_id="ws-conc-001",
+            code="conc-test",
+            revision=1,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        rev_b = SchemeWeightSetRevisionRecord(
+            id="rev-conc-B",
+            weight_set_id="ws-conc-001",
+            code="conc-test",
+            revision=2,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        session.add(rev_a)
+        session.add(rev_b)
+        session.flush()
+        session.commit()
+
+        # Simulate concurrent approval: first session approves A
+        factory = sessionmaker(bind=session.get_bind(), expire_on_commit=False)
+        session_a = factory()
+        session_b = factory()
+
+        now_a = datetime.now(UTC)
+        result_a = adapter.approve_revision(
+            session_a,
+            revision_id="rev-conc-A",
+            content=_VALID_CONTENT,
+            approved_at=now_a,
+            approved_by="user-A",
+        )
+        session_a.commit()
+        assert result_a is True
+
+        # Second session tries to approve B — should fail (CAS + uniqueness)
+        now_b = datetime.now(UTC)
+        result_b = adapter.approve_revision(
+            session_b,
+            revision_id="rev-conc-B",
+            content=_VALID_CONTENT,
+            approved_at=now_b,
+            approved_by="user-B",
+        )
+        session_b.commit()
+        assert result_b is False
+
+        # Verify exactly one approved
+        from sqlalchemy import func, select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRevisionRecord as Rev,
+        )
+
+        approved_count = session.execute(
+            select(func.count())
+            .select_from(Rev)
+            .where(
+                Rev.weight_set_id == "ws-conc-001",
+                Rev.code == "conc-test",
+                Rev.status == "approved",
+            )
+        ).scalar_one()
+        assert approved_count == 1
+
+        session_a.close()
+        session_b.close()
+
+    def test_concurrent_approve_via_governance_layer(self, session) -> None:
+        """Two draft revisions: governance layer raises RevisionAlreadyApprovedError."""
+        from cold_storage.modules.schemes.application.weight_revision_governance import (
+            RevisionAlreadyApprovedError,
+            approve_weight_revision,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-conc-gov",
+            code="conc-gov",
+            name="Conc Gov",
+            revision=1,
+            status="draft",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev_a = SchemeWeightSetRevisionRecord(
+            id="rev-cg-A",
+            weight_set_id="ws-conc-gov",
+            code="conc-gov",
+            revision=1,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        rev_b = SchemeWeightSetRevisionRecord(
+            id="rev-cg-B",
+            weight_set_id="ws-conc-gov",
+            code="conc-gov",
+            revision=2,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        session.add(rev_a)
+        session.add(rev_b)
+        session.flush()
+        session.commit()
+
+        adapter = SqlAlchemyWeightRevisionApprovalAdapter()
+
+        # Approve first via governance layer
+        approve_weight_revision(
+            adapter,
+            None,
+            session,
+            revision_id="rev-cg-A",
+            weight_set_id="ws-conc-gov",
+            code="conc-gov",
+            content=_VALID_CONTENT,
+            approved_by="gov-user",
+        )
+        session.commit()
+
+        # Second should raise RevisionAlreadyApprovedError
+        with pytest.raises(RevisionAlreadyApprovedError):
+            approve_weight_revision(
+                adapter,
+                None,
+                session,
+                revision_id="rev-cg-B",
+                weight_set_id="ws-conc-gov",
+                code="conc-gov",
+                content=_VALID_CONTENT,
+                approved_by="gov-user2",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Seed consistency mismatch rejection (P0-3)
+# ---------------------------------------------------------------------------
+
+
+class TestSeedConsistency:
+    def test_seed_mismatched_content_hash_rejected(self, session, adapter) -> None:
+        """Seed with existing approved revision that has different content hash is rejected."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-seed-mis",
+            code="seed-mis",
+            name="Seed Mismatch",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-seed-mis",
+            weight_set_id="ws-seed-mis",
+            code="seed-mis",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="original-seeder",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+        # Try to seed with different content -> different hash
+        different_content = {**_VALID_CONTENT, "version": "DIFFERENT"}
+        with pytest.raises(SeedConsistencyError, match="content_hash"):
+            adapter.seed_if_not_exists(
+                session,
+                weight_set_id="ws-seed-mis",
+                code="seed-mis",
+                name="Seed Mismatch",
+                revision_id="rev-seed-mis",
+                revision=1,
+                content=different_content,
+                generator_compatibility_version="1.0.0",
+                approved_at=datetime.now(UTC),
+                approved_by="new-seeder",
+            )
+
+    def test_seed_mismatched_code_rejected(self, session, adapter) -> None:
+        """Seed with existing approved revision that has different code is rejected."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-seed-cd",
+            code="seed-cd-original",
+            name="Seed Code",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-seed-cd",
+            weight_set_id="ws-seed-cd",
+            code="seed-cd-original",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="original-seeder",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+        with pytest.raises(SeedConsistencyError, match="code"):
+            adapter.seed_if_not_exists(
+                session,
+                weight_set_id="ws-seed-cd",
+                code="seed-cd-CHANGED",
+                name="Seed Code",
+                revision_id="rev-seed-cd",
+                revision=1,
+                content=_VALID_CONTENT,
+                generator_compatibility_version="1.0.0",
+                approved_at=datetime.now(UTC),
+                approved_by="new-seeder",
+            )
+
+    def test_seed_mismatched_revision_rejected(self, session, adapter) -> None:
+        """Seed with existing approved revision that has different revision number is rejected."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-seed-rv",
+            code="seed-rv",
+            name="Seed Rev",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-seed-rv",
+            weight_set_id="ws-seed-rv",
+            code="seed-rv",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="original-seeder",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+        with pytest.raises(SeedConsistencyError, match="revision"):
+            adapter.seed_if_not_exists(
+                session,
+                weight_set_id="ws-seed-rv",
+                code="seed-rv",
+                name="Seed Rev",
+                revision_id="rev-seed-rv",
+                revision=99,
+                content=_VALID_CONTENT,
+                generator_compatibility_version="1.0.0",
+                approved_at=datetime.now(UTC),
+                approved_by="new-seeder",
+            )
+
+    def test_seed_mismatched_generator_version_rejected(self, session, adapter) -> None:
+        """Seed with mismatched generator_compatibility_version is rejected."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-seed-gv",
+            code="seed-gv",
+            name="Seed GV",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-seed-gv",
+            weight_set_id="ws-seed-gv",
+            code="seed-gv",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="original-seeder",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+        with pytest.raises(SeedConsistencyError, match="generator_compatibility_version"):
+            adapter.seed_if_not_exists(
+                session,
+                weight_set_id="ws-seed-gv",
+                code="seed-gv",
+                name="Seed GV",
+                revision_id="rev-seed-gv",
+                revision=1,
+                content=_VALID_CONTENT,
+                generator_compatibility_version="2.0.0",
+                approved_at=datetime.now(UTC),
+                approved_by="new-seeder",
+            )
+
+    def test_seed_matching_approved_noop(self, session, adapter) -> None:
+        """Seed with matching approved revision is a silent no-op."""
+        from sqlalchemy import func, select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-seed-ok",
+            code="seed-ok",
+            name="Seed OK",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-seed-ok",
+            weight_set_id="ws-seed-ok",
+            code="seed-ok",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="original-seeder",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+        # Seed with identical fields — should be a no-op, no error
+        adapter.seed_if_not_exists(
+            session,
+            weight_set_id="ws-seed-ok",
+            code="seed-ok",
+            name="Seed OK",
+            revision_id="rev-seed-ok",
+            revision=1,
+            content=_VALID_CONTENT,
+            generator_compatibility_version="1.0.0",
+            approved_at=rev.approved_at,
+            approved_by="original-seeder",
+        )
+        session.commit()
+
+        # Still exactly one revision
+        count = session.execute(
+            select(func.count()).select_from(SchemeWeightSetRevisionRecord)
+        ).scalar_one()
+        assert count == 1

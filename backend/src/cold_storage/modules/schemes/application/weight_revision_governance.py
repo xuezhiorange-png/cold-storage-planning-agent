@@ -393,7 +393,7 @@ class WeightRevisionApprovalPort(Protocol):
 
 def approve_weight_revision(
     approval_port: WeightRevisionApprovalPort,
-    read_port: WeightRevisionReadPort,
+    read_port: WeightRevisionReadPort | None,
     session: Any,
     *,
     revision_id: str,
