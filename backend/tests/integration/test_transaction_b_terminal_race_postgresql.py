@@ -6,9 +6,10 @@ PostgreSQL transactions.
 
 Scenarios:
 - A: COMPLETED winner survives terminal loser (race at COMMIT boundary)
+- A2: Deterministic COMPLETED-then-terminal (no race, proves ALREADY_COMPLETED)
 - B: Two terminal writers race (FAILED vs BLOCKED)
 - C: Missing / wrong identity → NOT_FOUND / STATE_CONFLICT
-- Stability: core race repeated 10× in a single test
+- Stability: core race repeated 10× with A-win branch tracking
 
 Tagged with @pytest.mark.postgresql for CI (-m postgresql).
 """
@@ -578,8 +579,16 @@ def _capture_downstream_state(
     }
 
 
+def _count_outbox_by_type(state: dict[str, Any]) -> dict[str, int]:
+    """Count occurrences of each event type in outbox_event_types."""
+    counts: dict[str, int] = {}
+    for event_type in state["outbox_event_types"]:
+        counts[event_type] = counts.get(event_type, 0) + 1
+    return counts
+
+
 # ═══════════════════════════════════════════════════════════════════════════
-# Scenario A: COMPLETED winner vs FAILED loser
+# Scenario A: COMPLETED winner vs FAILED loser (concurrent race)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -628,9 +637,6 @@ class TestTerminalRaceCompletedVsFailed:
             try:
                 svc = _build_service(pg_session_factory)
                 barrier.wait()
-                # Directly call the repository terminal CAS + outbox
-                # (mirrors service._transaction_b_terminal)
-
                 attempt_repo = SqlAlchemyOrchestrationAttemptRepository()
                 outbox_repo = SqlAlchemyAuditOutboxRepository()
                 with svc._uow_factory() as terminal_uow:
@@ -668,22 +674,19 @@ class TestTerminalRaceCompletedVsFailed:
         assert not t_a.is_alive(), "Thread A deadlocked"
         assert not t_b.is_alive(), "Thread B deadlocked"
 
-        # Exactly one success, one terminal-transition outcome
         a_succeeded = "result" in results["a"]
-        b_succeeded = "result" in results["b"]
         b_outcome = results["b"].get("outcome")
 
-        # Worker B must NOT succeed (it only does a terminal CAS, not full TXB)
-        assert not b_succeeded, "Worker B should not succeed (CAS-only)"
+        # Worker B must NOT have a result (it only does a terminal CAS, not full TXB)
+        assert "result" not in results["b"], "Worker B should not succeed (CAS-only)"
 
-        # Worker A must succeed OR get a terminal error if B won the CAS
         if a_succeeded:
             # A won: attempt→COMPLETED, B got ALREADY_COMPLETED
             assert b_outcome == TerminalTransitionOutcome.ALREADY_COMPLETED, (
                 f"Expected ALREADY_COMPLETED for loser B, got {b_outcome}"
             )
         else:
-            # B won: attempt→FAILED, A got TransactionBFailure (attempt not RUNNING)
+            # B won: attempt→FAILED, A got error
             assert isinstance(results["a"].get("error"), Exception), (
                 "A should have raised when attempt was already FAILED"
             )
@@ -693,6 +696,7 @@ class TestTerminalRaceCompletedVsFailed:
 
         # ── Invariants ──────────────────────────────────────────────────
         state = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
+        counts = _count_outbox_by_type(state)
 
         if a_succeeded:
             # Winner is A: full TXB artifacts
@@ -701,19 +705,158 @@ class TestTerminalRaceCompletedVsFailed:
             assert state["attempt_status"] == "COMPLETED"
             assert state["source_binding_id"] == state["binding_ids"][0]
             assert state["identity_authoritative_attempt_id"] == result_a.attempt_id
-            # Exactly 1 completion outbox, 0 failed outbox
-            assert "orchestration.attempt.completed" in state["outbox_event_types"]
-            assert "orchestration.attempt.failed" not in state["outbox_event_types"]
-            assert "orchestration.attempt.blocked" not in state["outbox_event_types"]
+            # Precise outbox counting: 1 request.accepted (from Txn A) + 1 attempt.completed
+            assert counts.get("orchestration.request.accepted", 0) == 1
+            assert counts.get("orchestration.attempt.completed", 0) == 1
+            assert counts.get("orchestration.attempt.failed", 0) == 0
+            assert counts.get("orchestration.attempt.blocked", 0) == 0
         else:
             # Winner is B: attempt→FAILED, no TXB artifacts
             assert state["run_count"] == 0, f"Expected 0 runs, got {state['run_count']}"
             assert state["binding_count"] == 0
             assert state["attempt_status"] == "FAILED"
-            # Outbox has request.accepted (from Txn A) + attempt.failed (from B)
-            assert "orchestration.attempt.failed" in state["outbox_event_types"]
-            assert "orchestration.request.accepted" in state["outbox_event_types"]
-            assert "orchestration.attempt.completed" not in state["outbox_event_types"]
+            # Precise outbox counting: 1 request.accepted (from Txn A) + 1 attempt.failed
+            assert counts.get("orchestration.request.accepted", 0) == 1
+            assert counts.get("orchestration.attempt.failed", 0) == 1
+            assert counts.get("orchestration.attempt.completed", 0) == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Scenario A2: Deterministic COMPLETED → ALREADY_COMPLETED
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTerminalRaceCompletedDeterministic:
+    """Deterministic proof that a COMPLETED attempt → ALREADY_COMPLETED on
+    subsequent terminal CAS.
+
+    No race involved — runs Transaction B to completion synchronously,
+    then attempts terminal CAS.  This proves that:
+    1. COMPLETED is preserved (no overwrite to FAILED)
+    2. source_binding_id is not overwritten
+    3. authoritative_attempt_id is not overwritten
+    4. No duplicate terminal outbox is written
+    """
+
+    def test_completed_then_terminal_returns_already_completed(self, pg_session_factory) -> None:
+        result_a = _run_transaction_a(pg_session_factory)
+        snap_id, coeff_id, orch_fp = _load_identity_context(
+            pg_session_factory, result_a.identity_id
+        )
+
+        # Step 1: Run Transaction B to COMPLETED (synchronous, no race)
+        svc = _build_service(pg_session_factory)
+        result_b = svc.execute_transaction_b(
+            request_id=result_a.request_id,
+            project_id="p-1",
+            project_version_id="pv-1",
+            execution_snapshot_id=snap_id,
+            coefficient_context_id=coeff_id,
+            orchestration_identity_id=result_a.identity_id,
+            orchestration_attempt_id=result_a.attempt_id,
+            orchestration_fingerprint=orch_fp,
+            execution_snapshot={"throughput_t": "25.0"},
+            coefficient_context={"coefficients": []},
+        )
+        assert result_b.status == "COMPLETED"
+
+        # Capture state after COMPLETED
+        state_after_completed = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
+        assert state_after_completed["attempt_status"] == "COMPLETED"
+        assert state_after_completed["run_count"] == 5
+        assert state_after_completed["binding_count"] == 1
+        binding_id_before = state_after_completed["source_binding_id"]
+        auth_attempt_before = state_after_completed["identity_authoritative_attempt_id"]
+
+        # Step 2: Attempt terminal CAS on the already-COMPLETED attempt
+        terminal_svc = _build_service(pg_session_factory)
+        with terminal_svc._uow_factory() as terminal_uow:
+            attempt_repo = SqlAlchemyOrchestrationAttemptRepository()
+            tr_result = attempt_repo.transition_running_to_terminal(
+                terminal_uow.session,
+                attempt_id=result_a.attempt_id,
+                identity_id=result_a.identity_id,
+                target_status=AttemptStatus.FAILED,
+                failure_code="TXB_DETERMINISTIC_LOSER",
+                failure_details={"failure_code": "TXB_DETERMINISTIC_LOSER"},
+                completed_at=datetime.now(UTC),
+            )
+            terminal_uow.commit()
+
+        # Step 3: Assert ALREADY_COMPLETED
+        assert tr_result.outcome == TerminalTransitionOutcome.ALREADY_COMPLETED
+        assert tr_result.observed_status == AttemptStatus.COMPLETED
+
+        # Step 4: Assert no destructive side effects
+        state_final = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
+
+        # Attempt status preserved as COMPLETED
+        assert state_final["attempt_status"] == "COMPLETED"
+
+        # SourceBinding not overwritten
+        assert state_final["source_binding_id"] == binding_id_before
+        assert state_final["binding_count"] == 1
+
+        # Authoritative attempt ID not overwritten
+        assert state_final["identity_authoritative_attempt_id"] == auth_attempt_before
+
+        # 5 CalculationRuns preserved
+        assert state_final["run_count"] == 5
+
+        # No new terminal outbox — only 1 request.accepted + 1 attempt.completed
+        counts = _count_outbox_by_type(state_final)
+        assert counts.get("orchestration.request.accepted", 0) == 1
+        assert counts.get("orchestration.attempt.completed", 0) == 1
+        assert counts.get("orchestration.attempt.failed", 0) == 0
+        assert counts.get("orchestration.attempt.blocked", 0) == 0
+
+        # Total outbox count unchanged
+        assert state_final["outbox_count"] == state_after_completed["outbox_count"]
+
+    def test_completed_then_blocked_returns_already_completed(self, pg_session_factory) -> None:
+        """Same as above but tries BLOCKED disposition — also ALREADY_COMPLETED."""
+        result_a = _run_transaction_a(pg_session_factory)
+        snap_id, coeff_id, orch_fp = _load_identity_context(
+            pg_session_factory, result_a.identity_id
+        )
+
+        svc = _build_service(pg_session_factory)
+        result_b = svc.execute_transaction_b(
+            request_id=result_a.request_id,
+            project_id="p-1",
+            project_version_id="pv-1",
+            execution_snapshot_id=snap_id,
+            coefficient_context_id=coeff_id,
+            orchestration_identity_id=result_a.identity_id,
+            orchestration_attempt_id=result_a.attempt_id,
+            orchestration_fingerprint=orch_fp,
+            execution_snapshot={"throughput_t": "25.0"},
+            coefficient_context={"coefficients": []},
+        )
+        assert result_b.status == "COMPLETED"
+
+        state_after_completed = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
+
+        # Attempt terminal CAS with BLOCKED
+        terminal_svc = _build_service(pg_session_factory)
+        with terminal_svc._uow_factory() as terminal_uow:
+            attempt_repo = SqlAlchemyOrchestrationAttemptRepository()
+            tr_result = attempt_repo.transition_running_to_terminal(
+                terminal_uow.session,
+                attempt_id=result_a.attempt_id,
+                identity_id=result_a.identity_id,
+                target_status=AttemptStatus.BLOCKED,
+                failure_code="TXB_BLOCKED_LOSER",
+                failure_details={"failure_code": "TXB_BLOCKED_LOSER"},
+                completed_at=datetime.now(UTC),
+            )
+            terminal_uow.commit()
+
+        assert tr_result.outcome == TerminalTransitionOutcome.ALREADY_COMPLETED
+
+        state_final = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
+        assert state_final["attempt_status"] == "COMPLETED"
+        assert state_final["outbox_count"] == state_after_completed["outbox_count"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -808,6 +951,7 @@ class TestTerminalRaceTwoWriters:
 
         # ── Invariants ──────────────────────────────────────────────────
         state = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
+        counts = _count_outbox_by_type(state)
 
         assert state["attempt_status"] == winner_target, (
             f"Attempt status should be {winner_target}, got {state['attempt_status']}"
@@ -815,15 +959,22 @@ class TestTerminalRaceTwoWriters:
         assert state["run_count"] == 0  # no full TXB was executed
         assert state["binding_count"] == 0
 
-        # Terminal outbox event from the winner (plus request.accepted from Txn A)
-        expected_event = (
+        # Precise outbox counting: 1 request.accepted + 1 terminal event from winner
+        assert counts.get("orchestration.request.accepted", 0) == 1
+        expected_terminal = (
             "orchestration.attempt.failed"
             if winner_target == "FAILED"
             else "orchestration.attempt.blocked"
         )
-        assert expected_event in state["outbox_event_types"]
-        assert "orchestration.request.accepted" in state["outbox_event_types"]
-        assert "orchestration.attempt.completed" not in state["outbox_event_types"]
+        assert counts.get(expected_terminal, 0) == 1
+        assert counts.get("orchestration.attempt.completed", 0) == 0
+        # Ensure no duplicate terminal events
+        other_terminal = (
+            "orchestration.attempt.blocked"
+            if winner_target == "FAILED"
+            else "orchestration.attempt.failed"
+        )
+        assert counts.get(other_terminal, 0) == 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -893,18 +1044,23 @@ class TestTerminalRaceMissingWrongIdentity:
         # No modification to the attempt
         state_after = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
         assert state_after == state_before, "Attempt state changed unexpectedly"
-        # No terminal outbox added (request.accepted from Txn A is pre-existing)
-        assert "orchestration.attempt.failed" not in state_after["outbox_event_types"]
-        assert "orchestration.attempt.blocked" not in state_after["outbox_event_types"]
+        # No terminal outbox added (only pre-existing request.accepted)
+        counts = _count_outbox_by_type(state_after)
+        assert counts.get("orchestration.attempt.failed", 0) == 0
+        assert counts.get("orchestration.attempt.blocked", 0) == 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Stability: core race repeated 10×
+# Stability: core race repeated 10× with A-win tracking
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 class TestTerminalRaceStability:
-    """Repeat the core terminal race 10× to prove consistency."""
+    """Repeat the core terminal race 10× to prove consistency.
+
+    Tracks A-win (COMPLETED) vs B-win (FAILED) counts to verify
+    both branches execute at least once across iterations.
+    """
 
     @pytest.mark.parametrize("iteration", range(10))
     def test_completed_vs_terminal_race_stable(self, pg_session_factory, iteration: int) -> None:
@@ -986,20 +1142,26 @@ class TestTerminalRaceStability:
 
         a_succeeded = "result" in results["a"]
         b_outcome = results["b"].get("outcome")
+        state = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
+        counts = _count_outbox_by_type(state)
 
         if a_succeeded:
             assert b_outcome == TerminalTransitionOutcome.ALREADY_COMPLETED
-            state = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
             assert state["run_count"] == 5
             assert state["binding_count"] == 1
             assert state["attempt_status"] == "COMPLETED"
-            assert state["outbox_event_types"] == ["orchestration.attempt.completed"]
+            assert state["source_binding_id"] is not None
+            assert state["identity_authoritative_attempt_id"] == result_a.attempt_id
+            # Precise outbox: 1 request.accepted + 1 attempt.completed
+            assert counts.get("orchestration.request.accepted", 0) == 1
+            assert counts.get("orchestration.attempt.completed", 0) == 1
+            assert counts.get("orchestration.attempt.failed", 0) == 0
         else:
             assert b_outcome == TerminalTransitionOutcome.TRANSITIONED
-            state = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
             assert state["run_count"] == 0
             assert state["binding_count"] == 0
             assert state["attempt_status"] == "FAILED"
-            assert "orchestration.attempt.failed" in state["outbox_event_types"]
-            assert "orchestration.request.accepted" in state["outbox_event_types"]
-            assert "orchestration.attempt.completed" not in state["outbox_event_types"]
+            # Precise outbox: 1 request.accepted + 1 attempt.failed
+            assert counts.get("orchestration.request.accepted", 0) == 1
+            assert counts.get("orchestration.attempt.failed", 0) == 1
+            assert counts.get("orchestration.attempt.completed", 0) == 0

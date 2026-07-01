@@ -12,7 +12,10 @@ Skips if DATABASE_BACKEND != "postgresql".
 
 from __future__ import annotations
 
+import json
 import os
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -21,9 +24,6 @@ if os.environ.get("DATABASE_BACKEND") != "postgresql":
         "PostgreSQL golden parity tests require DATABASE_BACKEND=postgresql",
         allow_module_level=True,
     )
-
-from typing import Any
-from unittest.mock import MagicMock
 
 from sqlalchemy import select
 
@@ -79,7 +79,7 @@ from tests.integration.transaction_b_golden import (
 
 pytestmark = pytest.mark.postgresql
 
-# ── Shared fixture data ───────────────────────────────────────────────────
+# ── Required codes & version vector ────────────────────────────────────────
 
 _REQUIRED_CODES: tuple[str, ...] = (
     "area.auxiliary_area_ratio",
@@ -154,66 +154,9 @@ def _make_resolved_coefficient() -> ResolvedCoefficientContextCandidate:
     )
 
 
-def _stage_result_snapshot(stage_name: str) -> dict[str, Any]:
-    """Return the fixed calculator output for a given stage."""
-    return dict(_CALCULATOR_OUTPUTS[stage_name])
+# ── Calculator fixtures ────────────────────────────────────────────────────
 
 
-def _make_formulas(stage: str) -> list[dict[str, Any]]:
-    return [
-        {
-            "formula_id": f"form-{stage}-01",
-            "formula_version": "1.0.0",
-            "expression": f"Q = m * cp * dT ({stage})",
-            "description": f"Heat load calculation for {stage}",
-        },
-    ]
-
-
-def _make_coefficients(stage: str) -> list[dict[str, Any]]:
-    return [
-        {
-            "code": "pallet.net_load_kg",
-            "value": "1000",
-            "unit": "kg",
-            "status": "approved",
-            "source_type": "catalog",
-            "source_reference": "standard-table-1",
-            "requires_review": False,
-            "revision_id": "rev-001",
-        },
-    ]
-
-
-def _make_assumptions(stage: str) -> list[str]:
-    return [f"Assumption for {stage}: standard operating conditions"]
-
-
-def _make_warnings(stage: str) -> list[dict[str, Any]]:
-    return [
-        {
-            "code": f"WARN_{stage.upper()}",
-            "message": f"Review {stage} calculation values",
-            "details": {},
-        },
-    ]
-
-
-def _make_source_references(stage: str) -> list[dict[str, Any]]:
-    return [
-        {
-            "source_type": "standard",
-            "source_reference": f"GB-{stage}-2024",
-            "version": "2024",
-            "validity_status": "approved",
-            "approval_status": "approved",
-            "requires_review": False,
-            "notes": "",
-        },
-    ]
-
-
-# stage_name → (calculator_name, calculator_version, calculation_type)
 _STAGE_DATA: dict[str, tuple[str, str, str]] = {
     "zone": ("cold_room_zone_plan", "1.0.0", "zone"),
     "cooling_load": ("cooling_load", "1.0.0", "cooling_load"),
@@ -239,12 +182,12 @@ class _GoldenCalculatorPort:
             calculator_name=calc_name,
             calculator_version=calc_version,
             calculation_type=calc_type,
-            result_snapshot=_stage_result_snapshot(stage_name),
-            formulas=_make_formulas(stage_name),
-            coefficients=_make_coefficients(stage_name),
-            assumptions=_make_assumptions(stage_name),
-            warnings=_make_warnings(stage_name),
-            source_references=_make_source_references(stage_name),
+            result_snapshot=dict(_CALCULATOR_OUTPUTS[stage_name]),
+            formulas=[],
+            coefficients=[],
+            assumptions=[],
+            warnings=[],
+            source_references=[],
             requires_review=False,
         )
 
@@ -279,7 +222,7 @@ def service(pg_session_factory):
     version_port = _GoldenVersionPort()
 
     coeff_port = MagicMock(spec=CoefficientResolutionPreflightPort)
-    coeff_port.resolve.return_value = _make_resolved_coefficient()
+    coeff_port.return_value = _make_resolved_coefficient()
 
     return OrchestrationService(
         uow_factory=uow_factory,
@@ -303,6 +246,21 @@ def service(pg_session_factory):
 # ── Tests ─────────────────────────────────────────────────────────────────
 
 
+EXPECTED_ARTIFACT_KEYS = {
+    "result_hashes",
+    "combined_source_hash",
+    "canonical_result_snapshots",
+    "upstream_provenance",
+    "requires_review",
+    "calculator_identity",
+    "source_snapshot_schema_version",
+    "binding_schema_version",
+    "authority_chain",
+    "source_binding_slot_ids",
+    "source_snapshot_schema_versions",
+}
+
+
 class TestGoldenParityPostgreSQL:
     """Golden parity tests that run on PostgreSQL."""
 
@@ -316,6 +274,8 @@ class TestGoldenParityPostgreSQL:
         """Run Transaction B with golden IDs and compare artifact against golden JSON.
 
         Must produce IDENTICAL artifact to SQLite (since all IDs are fixed).
+        Golden comparison is unconditional — missing file or degraded
+        structure causes immediate test failure (fail-closed).
         """
 
         # Seed golden prerequisites directly (NOT via Transaction A)
@@ -343,17 +303,10 @@ class TestGoldenParityPostgreSQL:
         with pg_session_factory() as session:
             artifact = read_transaction_b_artifact(session, attempt_id=GOLDEN_ATTEMPT_ID)
 
-        # Verify structure
-        assert set(artifact.keys()) == {
-            "result_hashes",
-            "combined_source_hash",
-            "canonical_result_snapshots",
-            "upstream_provenance",
-            "requires_review",
-            "calculator_identity",
-            "source_snapshot_schema_version",
-            "binding_schema_version",
-        }
+        # Verify structure — must match EXPECTED_ARTIFACT_KEYS exactly
+        assert set(artifact.keys()) == EXPECTED_ARTIFACT_KEYS, (
+            f"Artifact keys mismatch: got {sorted(artifact.keys())}"
+        )
 
         # Verify result hashes are non-empty strings
         for stage_name in ("zone", "cooling_load", "equipment", "power", "investment"):
@@ -361,9 +314,7 @@ class TestGoldenParityPostgreSQL:
             assert len(artifact["result_hashes"][stage_name]) > 0
 
         # Verify calculator identity matches expected
-        from cold_storage.modules.orchestration.domain.dag import ORCHESTRATION_STAGE_ORDER
-
-        for stage_name in ORCHESTRATION_STAGE_ORDER:
+        for stage_name in ("zone", "cooling_load", "equipment", "power", "investment"):
             meta = _CALCULATOR_META[stage_name]
             ci = artifact["calculator_identity"][stage_name]
             assert ci["calculator_name"] == meta["calculator_id"]
@@ -378,9 +329,39 @@ class TestGoldenParityPostgreSQL:
         assert artifact["source_snapshot_schema_version"] == "1.0.0"
         assert artifact["binding_schema_version"] == "1.0.0"
 
-        # Compare with golden JSON (if it exists with new structure —
-        # generated on first run by the user; old structure is ignored)
-        import json
+        # Verify per-stage schema versions
+        for stage_name in ("zone", "cooling_load", "equipment", "power", "investment"):
+            assert artifact["source_snapshot_schema_versions"][stage_name] == "1.0.0"
+
+        # Verify authority chain
+        ac = artifact["authority_chain"]
+        assert ac["project_id"] == GOLDEN_PROJECT_ID
+        assert ac["project_version_id"] == GOLDEN_PROJECT_VERSION_ID
+        assert ac["execution_snapshot_id"] == GOLDEN_SNAPSHOT_ID
+        assert ac["coefficient_context_id"] == GOLDEN_COEFFICIENT_CONTEXT_ID
+        assert ac["orchestration_identity_id"] == GOLDEN_ORCHESTRATION_IDENTITY_ID
+        assert ac["orchestration_attempt_id"] == GOLDEN_ATTEMPT_ID
+        assert ac["orchestration_fingerprint"] == GOLDEN_FINGERPRINT
+
+        # Verify source binding slot IDs point to expected fixed CalculationRun IDs
+        slots = artifact["source_binding_slot_ids"]
+        assert slots["zone"] == "golden-run-zone-001"
+        assert slots["cooling_load"] == "golden-run-cooling-load-001"
+        assert slots["equipment"] == "golden-run-equipment-001"
+        assert slots["power"] == "golden-run-power-001"
+        assert slots["investment"] == "golden-run-investment-001"
+
+        # Verify slot IDs match the run_ids from the 5 CalculationRuns
+        run_ids = sorted(
+            f"golden-run-{s}-001"
+            for s in ("zone", "cooling-load", "equipment", "power", "investment")
+        )
+        slot_run_ids = sorted(slots.values())
+        assert slot_run_ids == run_ids, (
+            f"Slot IDs {slot_run_ids} don't match expected run IDs {run_ids}"
+        )
+
+        # ── UNCONDITIONAL golden comparison (fail-closed) ──────────────
         from pathlib import Path
 
         golden_path = (
@@ -388,8 +369,9 @@ class TestGoldenParityPostgreSQL:
             / "golden"
             / "transaction_b_cross_backend_v1.json"
         )
-        if golden_path.exists():
-            golden = json.loads(golden_path.read_text())
-            # Only compare if golden has the new canonical structure
-            if "result_hashes" in golden:
-                assert_matches_cross_backend_golden(artifact, golden)
+        assert golden_path.exists(), f"Golden artifact file missing: {golden_path}"
+        golden = json.loads(golden_path.read_text())
+        assert "result_hashes" in golden, (
+            "Golden artifact missing 'result_hashes' — file is corrupted"
+        )
+        assert_matches_cross_backend_golden(artifact, golden)

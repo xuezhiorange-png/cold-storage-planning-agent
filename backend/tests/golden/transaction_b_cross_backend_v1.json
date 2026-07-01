@@ -1,12 +1,12 @@
 {
   "result_hashes": {
-    "zone": "4fef1aba07ca26286d6cd4aaff341a287b89c9eea04eeab2d3d77da140d30f07",
-    "cooling_load": "f7af3fd7181b4cc82b0d7b9b480dd59228d4a4f7628459f7a398c3de88f3d3ae",
-    "equipment": "7ceb9e01325fa8cf78399a8401d6bb1b48a953e9a0a023d1985fbd9e0312ee1d",
-    "power": "77446543ca14f0a1d499eaa15fe2f8846dcaf81140892a1a81ab2bb6009b4df8",
-    "investment": "ceed48d45896184ceced7ccb5c535ed2fe123716b05bc3f525dae84ff6c55f4c"
+    "zone": "2922628e3ce4626466c3de40d577dd475be0072367a7217ad7504f73da435a2c",
+    "cooling_load": "d6d76bf4678dccaa9c9ed10d1120224ffa8cd4eae2f9ae5026295a270f9ff975",
+    "equipment": "1aef148a477f0659ce16a0491393a2da700ff4bef28674d0ba2ef0a659e46529",
+    "power": "e67767b6d3d89ec87f8cd232edf63dac7ddb69fee9fe2401650d44705876e949",
+    "investment": "a062da804d2d6b2c548803de40e76d5217ba4a65c737ed69d9f83b71b18c2b58"
   },
-  "combined_source_hash": "13aec8b8345af04b7ad42bcde81dc75cb5d5b861b54f40828e37ce896b65abd4",
+  "combined_source_hash": "4eea28c34e3a3fa96156ff8aedc7d5f06b925791fb96c4dae7847222098fb836",
   "canonical_result_snapshots": {
     "zone": {
       "daily_inbound_mass_kg": "25000",
@@ -159,19 +159,19 @@
       "total_investment_cny": "12500000",
       "items": [
         {
-          "item_name": "土建部分",
+          "item_name": "\u571f\u5efa\u90e8\u5206",
           "amount_cny": "5000000"
         },
         {
-          "item_name": "制冷设备",
+          "item_name": "\u5236\u51b7\u8bbe\u5907",
           "amount_cny": "4500000"
         },
         {
-          "item_name": "电气安装",
+          "item_name": "\u7535\u6c14\u5b89\u88c5",
           "amount_cny": "1500000"
         },
         {
-          "item_name": "其他费用",
+          "item_name": "\u5176\u4ed6\u8d39\u7528",
           "amount_cny": "1500000"
         }
       ]
@@ -228,5 +228,28 @@
     }
   },
   "source_snapshot_schema_version": "1.0.0",
-  "binding_schema_version": "1.0.0"
+  "binding_schema_version": "1.0.0",
+  "authority_chain": {
+    "project_id": "golden-p-001",
+    "project_version_id": "golden-pv-001",
+    "execution_snapshot_id": "golden-snap-001",
+    "coefficient_context_id": "golden-coeff-001",
+    "orchestration_identity_id": "golden-orch-001",
+    "orchestration_attempt_id": "golden-attempt-001",
+    "orchestration_fingerprint": "golden-fp-001"
+  },
+  "source_binding_slot_ids": {
+    "zone": "golden-run-zone-001",
+    "cooling_load": "golden-run-cooling-load-001",
+    "equipment": "golden-run-equipment-001",
+    "power": "golden-run-power-001",
+    "investment": "golden-run-investment-001"
+  },
+  "source_snapshot_schema_versions": {
+    "zone": "1.0.0",
+    "cooling_load": "1.0.0",
+    "equipment": "1.0.0",
+    "power": "1.0.0",
+    "investment": "1.0.0"
+  }
 }

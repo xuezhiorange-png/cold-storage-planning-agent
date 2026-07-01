@@ -517,7 +517,9 @@ def read_transaction_b_artifact(
     Returns a dict with keys sorted by ORCHESTRATION_STAGE_ORDER:
       result_hashes, combined_source_hash, canonical_result_snapshots,
       upstream_provenance, requires_review, calculator_identity,
-      source_snapshot_schema_version, binding_schema_version
+      source_snapshot_schema_version, binding_schema_version,
+      authority_chain, source_binding_slot_ids,
+      source_snapshot_schema_versions
     """
     # Load all CalculationRuns for this attempt
     calc_runs: dict[str, CalculationRunRecord] = {}
@@ -547,6 +549,7 @@ def read_transaction_b_artifact(
     upstream_provenance: dict[str, dict[str, str]] = {}
     requires_review: dict[str, bool] = {}
     calculator_identity: dict[str, dict[str, str]] = {}
+    source_snapshot_schema_versions: dict[str, str] = {}
 
     for stage_name in ORCHESTRATION_STAGE_ORDER:
         run = calc_runs[stage_name]
@@ -560,6 +563,27 @@ def read_transaction_b_artifact(
         }
         provenance = run.provenance or {}
         upstream_provenance[stage_name] = dict(provenance.get("upstream_calculation_ids", {}))
+        source_snapshot_schema_versions[stage_name] = run.schema_version or ""
+
+    # SourceBinding authority chain — the fixed identity linking binding→attempt→identity
+    authority_chain: dict[str, str] = {
+        "project_id": binding.project_id,
+        "project_version_id": binding.project_version_id,
+        "execution_snapshot_id": binding.execution_snapshot_id,
+        "coefficient_context_id": binding.coefficient_context_id,
+        "orchestration_identity_id": binding.orchestration_identity_id,
+        "orchestration_attempt_id": binding.orchestration_run_attempt_id,
+        "orchestration_fingerprint": binding.orchestration_fingerprint,
+    }
+
+    # Five SourceBinding slot IDs — proof that slots point to expected CalculationRuns
+    source_binding_slot_ids: dict[str, str] = {
+        "zone": binding.zone_calculation_id,
+        "cooling_load": binding.cooling_load_calculation_id,
+        "equipment": binding.equipment_calculation_id,
+        "power": binding.power_calculation_id,
+        "investment": binding.investment_calculation_id,
+    }
 
     return {
         "result_hashes": result_hashes,
@@ -570,6 +594,9 @@ def read_transaction_b_artifact(
         "calculator_identity": calculator_identity,
         "source_snapshot_schema_version": binding.schema_version,
         "binding_schema_version": "1.0.0",
+        "authority_chain": authority_chain,
+        "source_binding_slot_ids": source_binding_slot_ids,
+        "source_snapshot_schema_versions": source_snapshot_schema_versions,
     }
 
 
