@@ -1113,7 +1113,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev == "0028_add_transaction_b_constraints", f"Expected 0028, got {rev}"
+        assert rev == "0030_add_weight_revision_governance_constraints", f"Expected 0030, got {rev}"
         conn.close()
 
         # Downgrade to 0027
@@ -1147,7 +1147,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert rev == "0028_add_transaction_b_constraints", f"Expected 0028, got {rev}"
+        assert rev == "0030_add_weight_revision_governance_constraints", f"Expected 0030, got {rev}"
         conn.close()
         db_path.unlink(missing_ok=True)
 
