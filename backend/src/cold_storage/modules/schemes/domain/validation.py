@@ -203,25 +203,33 @@ def check_compressor_capacity_adequacy(
 
 
 def check_electrical_capacity_traceability(
-    candidate: SchemeCandidate, equipment_result: object
+    candidate: SchemeCandidate, power_result: object | None
 ) -> SchemeConstraintResult:
-    from cold_storage.modules.schemes.domain.models import EquipmentResult
+    """Verify installed_power_kw_e > 0 using Power authority.
 
-    if not isinstance(equipment_result, EquipmentResult):
+    The PowerResult is the sole authority for whole-project installed power.
+    Equipment.installed_power_kw_e is NOT used for this check.
+    """
+    from cold_storage.modules.schemes.domain.models import PowerResult
+
+    if not isinstance(power_result, PowerResult):
         return SchemeConstraintResult(
             constraint_code="electrical_capacity_traceability",
             passed=False,
-            detail="Equipment result not available",
+            detail="Power result not available — cannot verify installed power",
+            expected="PowerResult",
+            actual=type(power_result).__name__ if power_result is not None else "None",
         )
-    passed = candidate.installed_power_kw_e >= equipment_result.installed_power_kw_e
+    passed = candidate.installed_power_kw_e > 0
     return SchemeConstraintResult(
         constraint_code="electrical_capacity_traceability",
         passed=passed,
         detail=(
             f"installed_power={candidate.installed_power_kw_e}"
-            f" >= required={equipment_result.installed_power_kw_e}"
+            f" > 0 (from PowerResult.total_installed_power_kw_e"
+            f"={power_result.total_installed_power_kw_e})"
         ),
-        expected=equipment_result.installed_power_kw_e,
+        expected="installed_power_kw_e > 0",
         actual=candidate.installed_power_kw_e,
     )
 
@@ -373,7 +381,7 @@ def validate_candidate(
         ),
         check_compressor_installed_adequacy(candidate),
         check_compressor_capacity_adequacy(candidate, input_data.equipment_result),
-        check_electrical_capacity_traceability(candidate, input_data.equipment_result),
+        check_electrical_capacity_traceability(candidate, input_data.power_result),
         # --- Zone existence ---
         check_zone_code_existence(candidate, zone_map),
         # --- Version / provenance ---

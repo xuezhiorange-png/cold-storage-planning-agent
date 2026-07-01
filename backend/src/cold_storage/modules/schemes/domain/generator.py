@@ -472,6 +472,13 @@ def _build_candidate(
     daily_throughput = input_data.total_daily_throughput_kg_day
     investment = input_data.investment_result.total_investment_cny
 
+    # Power authority: use PowerResult for installed_power_kw_e, NOT EquipmentResult
+    if input_data.power_result is not None:
+        power_kw_e = input_data.power_result.total_installed_power_kw_e
+    else:
+        # Fail-closed: if power_result is missing, use 0 (validation will fail)
+        power_kw_e = Decimal("0")
+
     return SchemeCandidate(
         scheme_code=scheme_code,
         scheme_name=scheme_name,
@@ -487,7 +494,7 @@ def _build_candidate(
         partition_length_proxy_m=total_partition,
         daily_throughput_kg_day=daily_throughput,
         investment_cny=investment,
-        installed_power_kw_e=input_data.equipment_result.installed_power_kw_e,
+        installed_power_kw_e=power_kw_e,
         design_cooling_load_kw_r=total_cooling,
         compressor_operating_capacity_kw_r=total_compressor_operating,
         compressor_installed_capacity_kw_r=total_compressor_installed,

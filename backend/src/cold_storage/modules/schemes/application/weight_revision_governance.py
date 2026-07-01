@@ -2,6 +2,10 @@
 
 Validates that a weight-set revision is approved, immutable, and
 conforms to all governance contracts before allowing production use.
+
+Also provides:
+- approve_weight_revision(): set status=approved with concurrent CAS protection
+- seed_production_weight_revision(): idempotent production seed data
 """
 
 from __future__ import annotations
@@ -9,7 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol
 
 from cold_storage.modules.schemes.application.production_ports import (
     WeightRevisionReadPort,
@@ -100,6 +104,23 @@ class RevisionIncompatibleGeneratorError(WeightRevisionGovernanceError):
 class RevisionTamperedContentError(WeightRevisionGovernanceError):
     def __init__(self) -> None:
         super().__init__("revision_tampered", "Revision content tampered (hash mismatch)")
+
+
+class RevisionAlreadyApprovedError(WeightRevisionGovernanceError):
+    def __init__(self, weight_set_id: str, code: str) -> None:
+        super().__init__(
+            "revision_already_approved",
+            f"Weight set {weight_set_id!r} code {code!r} already has an approved revision",
+        )
+
+
+class RevisionApprovalCASConflictError(WeightRevisionGovernanceError):
+    def __init__(self, weight_set_id: str, code: str) -> None:
+        super().__init__(
+            "revision_approval_cas_conflict",
+            f"CAS conflict: another revision was approved concurrently for "
+            f"weight set {weight_set_id!r} code {code!r}",
+        )
 
 
 # ── Canonical hash ─────────────────────────────────────────────────────────
@@ -228,3 +249,215 @@ def load_and_validate_weight_revision(
 
     validate_weight_revision(revision, generator_version=generator_version)
     return revision
+
+
+# ── Weight revision approval (P0-7) ───────────────────────────────────────
+
+
+class WeightRevisionApprovalPort(Protocol):
+    """Write port for weight revision approval.
+
+    The infrastructure layer implements CAS (Compare-And-Swap) to
+    prevent concurrent duplicate approvals for the same weight_set_id + code.
+    """
+
+    def approve_revision(
+        self,
+        session: Any,
+        *,
+        revision_id: str,
+        content: dict[str, Any],
+        approved_at: Any,
+        approved_by: str,
+    ) -> bool:
+        """Approve a weight revision with CAS protection.
+
+        Returns True if approved, False if CAS conflict (another approved
+        revision exists for the same weight_set_id + code).
+        """
+        ...
+
+    def has_approved_revision(
+        self,
+        session: Any,
+        *,
+        weight_set_id: str,
+        code: str,
+        exclude_revision_id: str | None = None,
+    ) -> bool:
+        """Check if an approved revision already exists for this weight_set_id + code.
+
+        If exclude_revision_id is provided, exclude that revision from the check
+        (useful for idempotent operations).
+        """
+        ...
+
+
+def approve_weight_revision(
+    approval_port: WeightRevisionApprovalPort,
+    read_port: WeightRevisionReadPort,
+    session: Any,
+    *,
+    revision_id: str,
+    weight_set_id: str,
+    code: str,
+    content: dict[str, Any],
+    approved_by: str,
+) -> None:
+    """Approve a weight revision with concurrent CAS protection.
+
+    1. Compute deterministic content hash
+    2. Check no other approved revision exists for same weight_set_id + code (CAS)
+    3. Set status=approved, approved_at, approved_by, content_hash
+    4. Persist via approval port
+
+    Raises RevisionAlreadyApprovedError if another approved revision exists.
+    Raises RevisionApprovalCASConflictError on concurrent CAS failure.
+    """
+    from datetime import UTC, datetime
+
+    # 1. Compute deterministic content hash
+    _compute_content_hash(content)
+
+    # 2. CAS check: no other approved revision for same weight_set_id + code
+    already_approved = approval_port.has_approved_revision(
+        session,
+        weight_set_id=weight_set_id,
+        code=code,
+        exclude_revision_id=revision_id,
+    )
+    if already_approved:
+        raise RevisionAlreadyApprovedError(weight_set_id, code)
+
+    # 3. Attempt CAS approve
+    now = datetime.now(UTC)
+    approved = approval_port.approve_revision(
+        session,
+        revision_id=revision_id,
+        content=content,
+        approved_at=now,
+        approved_by=approved_by,
+    )
+    if not approved:
+        raise RevisionApprovalCASConflictError(weight_set_id, code)
+
+
+# ── Production weight seed helper ─────────────────────────────────────────
+
+# Fixed production weight content — deterministic and versioned
+_PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
+    "criteria": [
+        {
+            "criterion_code": "total_area_m2",
+            "weight": 0.15,
+            "direction": "lower_is_better",
+            "normalization_method": "min_max",
+            "hard_constraint": False,
+            "description": "Total cold room area — smaller is better",
+        },
+        {
+            "criterion_code": "total_position_count",
+            "weight": 0.15,
+            "direction": "higher_is_better",
+            "normalization_method": "min_max",
+            "hard_constraint": False,
+            "description": "Total storage positions — more is better",
+        },
+        {
+            "criterion_code": "room_module_count",
+            "weight": 0.10,
+            "direction": "lower_is_better",
+            "normalization_method": "min_max",
+            "hard_constraint": False,
+            "description": "Number of room modules — fewer is better",
+        },
+        {
+            "criterion_code": "door_count",
+            "weight": 0.10,
+            "direction": "lower_is_better",
+            "normalization_method": "min_max",
+            "hard_constraint": False,
+            "description": "Total door count — fewer is better",
+        },
+        {
+            "criterion_code": "partition_length_proxy_m",
+            "weight": 0.05,
+            "direction": "lower_is_better",
+            "normalization_method": "min_max",
+            "hard_constraint": False,
+            "description": "Partition wall length proxy — shorter is better",
+        },
+        {
+            "criterion_code": "investment_cny",
+            "weight": 0.30,
+            "direction": "lower_is_better",
+            "normalization_method": "min_max",
+            "hard_constraint": False,
+            "description": "Total investment — lower is better",
+        },
+        {
+            "criterion_code": "installed_power_kw_e",
+            "weight": 0.15,
+            "direction": "lower_is_better",
+            "normalization_method": "min_max",
+            "hard_constraint": False,
+            "description": "Installed electrical power — lower is better",
+        },
+    ],
+    "version": "1.0.0",
+    "description": "Production default weight set for cold room scheme scoring",
+}
+
+# Fixed identity values for production seed
+PRODUCTION_WEIGHT_SET_ID: str = "ws-production-default"
+PRODUCTION_WEIGHT_SET_CODE: str = "production-default"
+PRODUCTION_WEIGHT_SET_REVISION_ID: str = "wsr-production-default-v1"
+PRODUCTION_WEIGHT_SET_REVISION: int = 1
+
+
+def get_production_weight_content_hash() -> str:
+    """Compute deterministic content hash for the fixed production weight content."""
+    return _compute_content_hash(_PRODUCTION_WEIGHT_CONTENT)
+
+
+def get_production_weight_criteria() -> tuple[WeightCriterion, ...]:
+    """Return parsed production weight criteria from the fixed content."""
+    return _parse_criteria(_PRODUCTION_WEIGHT_CONTENT["criteria"])
+
+
+def seed_production_weight_revision(
+    approval_port: WeightRevisionApprovalPort,
+    session: Any,
+    *,
+    generator_version: str,  # noqa: ARG001 — kept for interface consistency
+    approved_by: str = "system",
+) -> None:
+    """Idempotently seed an approved production weight revision.
+
+    Creates the fixed production weight revision if it doesn't already
+    exist.  Works for both SQLite and PostgreSQL.
+
+    Content hash is deterministic.  Revision identity is fixed.
+    """
+    # Check if already exists
+    existing = approval_port.has_approved_revision(
+        session,
+        weight_set_id=PRODUCTION_WEIGHT_SET_ID,
+        code=PRODUCTION_WEIGHT_SET_CODE,
+        exclude_revision_id=PRODUCTION_WEIGHT_SET_REVISION_ID,
+    )
+    if existing:
+        return  # Already seeded
+
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+
+    # Approve (CAS will skip if already approved concurrently)
+    approval_port.approve_revision(
+        session,
+        revision_id=PRODUCTION_WEIGHT_SET_REVISION_ID,
+        content=_PRODUCTION_WEIGHT_CONTENT,
+        approved_at=now,
+        approved_by=approved_by,
+    )

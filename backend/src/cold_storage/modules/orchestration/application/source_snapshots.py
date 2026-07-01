@@ -380,6 +380,10 @@ class ZoneEntry(BaseModel):
     required_area_m2: str
     requires_review: bool = True
 
+    # Zone classification fields (used by source-domain mapping)
+    process_compatibility: str | None = None
+    hygiene_zone: str | None = None
+
     # Optional fields that vary by zone type
     pallet_weight_kg: str | None = None
     hours_per_pallet: str | None = None
@@ -488,6 +492,9 @@ class CoolingLoadResultSnapshotV1(BaseModel):
     defrost_additional_load_kw: str
     other_configuration_load_kw: str
 
+    # Optional legacy field used by source-domain mapping
+    latent_load_kw: str | None = None
+
     @field_validator(
         "total_cooling_load_kw",
         "safety_margin_load_kw",
@@ -519,6 +526,7 @@ class EquipmentResultSnapshotV1(BaseModel):
     evaporator_quantity: int
     single_evaporator_capacity_kw: str
     compressor_operating_capacity_kw: str
+    compressor_installed_capacity_kw: str | None = None
     standby_capacity_kw: str
     condenser_heat_rejection_capacity_kw: str
     evaporation_temperature_c: str

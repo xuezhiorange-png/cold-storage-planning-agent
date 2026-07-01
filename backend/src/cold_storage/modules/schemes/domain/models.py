@@ -64,6 +64,18 @@ class EquipmentResult:
     installed_power_kw_e: Decimal
 
 
+@dataclass(frozen=True)
+class PowerResult:
+    """Whole-project installed power authority from Power calculator."""
+
+    total_installed_power_kw_e: Decimal
+    total_estimated_demand_kw: Decimal
+    equipment_rows: list[dict[str, object]]
+    summary_rows: list[dict[str, object]]
+    items: list[dict[str, object]]
+    assumptions: list[dict[str, object]]
+
+
 # ---------------------------------------------------------------------------
 # Scheme generation input
 # ---------------------------------------------------------------------------
@@ -88,6 +100,7 @@ class SchemeGenerationInput:
     total_daily_throughput_kg_day: Decimal
     total_storage_capacity_kg: Decimal
     total_position_count: int
+    power_result: PowerResult | None = None
 
 
 # ---------------------------------------------------------------------------

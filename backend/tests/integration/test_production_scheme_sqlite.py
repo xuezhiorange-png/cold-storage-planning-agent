@@ -26,7 +26,6 @@ import os
 import subprocess
 import sys
 import tempfile
-from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -66,11 +65,6 @@ _SLOT_STAGE_ORDER: tuple[str, ...] = (
 )
 
 
-def _compute_combined_source_hash(per_calc_hashes: Mapping[str, str]) -> str:
-    ordered = {stage: per_calc_hashes[stage] for stage in _SLOT_STAGE_ORDER}
-    return hashlib.sha256(_canonical_json(ordered).encode()).hexdigest()
-
-
 def _compute_weight_content_hash(content: dict[str, Any]) -> str:
     return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
 
@@ -97,6 +91,14 @@ WEIGHT_REVISION_ID = "test-wrev-001"
 # ── Deterministic result snapshots ───────────────────────────────────────────
 
 ZONE_RESULT_SNAPSHOT: dict[str, Any] = {
+    "daily_inbound_mass_kg": 10000,
+    "design_daily_mass_kg": 10000,
+    "total_required_area_m2": 200.0,
+    "total_area_m2": 200.0,
+    "planning_parameters": {
+        "pallet_weight_kg": 500,
+        "working_hours_per_day": 8,
+    },
     "zones": [
         {
             "zone_code": "Z1",
@@ -106,33 +108,57 @@ ZONE_RESULT_SNAPSHOT: dict[str, Any] = {
             "design_storage_mass_kg": 15000.0,
             "position_count": 30,
             "temperature_band": "0~4\u2103",
+            "function": "storage",
+            "process_compatibility": "blueberry",
+            "hygiene_zone": "food_grade",
         }
-    ]
+    ],
 }
 
 COOLING_RESULT_SNAPSHOT: dict[str, Any] = {
-    "total_cooling_load_kw": 25.0,
-    "product_sensible_heat_load_kw": 18.0,
-    "infiltration_load_kw": 3.0,
+    "total_cooling_load_kw": "25.0",
+    "safety_margin_load_kw": "2.5",
+    "envelope_heat_transfer_load_kw": "3.0",
+    "product_sensible_heat_load_kw": "18.0",
+    "packaging_load_kw": "1.0",
+    "infiltration_load_kw": "3.0",
+    "personnel_load_kw": "0.5",
+    "lighting_load_kw": "0.3",
+    "evaporator_fan_load_kw": "1.2",
+    "defrost_additional_load_kw": "0.4",
+    "other_configuration_load_kw": "0.1",
+    "latent_load_kw": "0.0",
 }
 
 EQUIPMENT_RESULT_SNAPSHOT: dict[str, Any] = {
-    "compressor_operating_capacity_kw": 22.0,
-    "standby_capacity_kw": 8.0,
-    "condenser_heat_rejection_capacity_kw": 30.0,
-    "installed_power_kw_e": 150.0,
+    "evaporator_total_cooling_capacity_kw": "30.0",
+    "evaporator_quantity": 2,
+    "single_evaporator_capacity_kw": "15.0",
+    "compressor_operating_capacity_kw": "22.0",
+    "compressor_installed_capacity_kw": "25.0",
+    "standby_capacity_kw": "8.0",
+    "condenser_heat_rejection_capacity_kw": "30.0",
+    "evaporation_temperature_c": "-5.0",
+    "condensing_temperature_c": "40.0",
+    "defrost_method": "electric",
+    "review_requirement": "",
 }
 
 POWER_RESULT_SNAPSHOT: dict[str, Any] = {
-    "total_installed_power_kw_e": 200.0,
+    "total_installed_power_kw_e": "200.0",
+    "total_estimated_demand_kw": "160.0",
+    "equipment_rows": [],
+    "summary_rows": [],
+    "items": [],
+    "assumptions": [],
 }
 
 INVESTMENT_RESULT_SNAPSHOT: dict[str, Any] = {
-    "total_investment_cny": 6000000.0,
+    "total_investment_cny": "6000000.0",
     "items": [
-        {"item_name": "building", "amount_cny": 3000000.0},
-        {"item_name": "equipment", "amount_cny": 2000000.0},
-        {"item_name": "other", "amount_cny": 1000000.0},
+        {"item_name": "building", "amount_cny": "3000000.0"},
+        {"item_name": "equipment", "amount_cny": "2000000.0"},
+        {"item_name": "other", "amount_cny": "1000000.0"},
     ],
 }
 
@@ -152,7 +178,38 @@ PER_CALC_HASHES: dict[str, str] = {
     "investment": INVEST_HASH,
 }
 
-COMBINED_SOURCE_HASH = _compute_combined_source_hash(PER_CALC_HASHES)
+# ── Correct combined source hash (matches verifier implementation) ──────────
+
+
+def _compute_verifier_combined_source_hash() -> str:
+    """Compute the combined source hash matching the verifier's implementation."""
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _compute_combined_source_hash,
+    )
+
+    slot_ids = {
+        "zone": ZONE_RUN_ID,
+        "cooling_load": COOL_RUN_ID,
+        "equipment": EQUIP_RUN_ID,
+        "power": POWER_RUN_ID,
+        "investment": INVEST_RUN_ID,
+    }
+    return _compute_combined_source_hash(
+        binding_schema_version="1.0.0",
+        project_id=PROJECT_ID,
+        project_version_id=VERSION_ID,
+        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+        coefficient_context_id=COEFF_CONTEXT_ID,
+        orchestration_identity_id=IDENTITY_ID,
+        orchestration_attempt_id=ATTEMPT_ID,
+        orchestration_fingerprint="test-fingerprint-001",
+        slot_ids=slot_ids,
+        result_hashes=PER_CALC_HASHES,
+        requires_reviews={stage: False for stage in _SLOT_STAGE_ORDER},
+    )
+
+
+COMBINED_SOURCE_HASH = _compute_verifier_combined_source_hash()
 
 # ── Weight set revision content ─────────────────────────────────────────────
 
@@ -185,6 +242,16 @@ SLOT_CALCULATION_TYPES: dict[str, str] = {
     "equipment": "equipment",
     "power": "power",
     "investment": "investment",
+}
+
+# ── Upstream provenance keys per stage ──────────────────────────────────────
+
+_SLOT_UPSTREAM_IDS: dict[str, dict[str, str]] = {
+    "zone": {},
+    "cooling_load": {"zone": ZONE_RUN_ID},
+    "equipment": {"cooling_load": COOL_RUN_ID},
+    "power": {"equipment": EQUIP_RUN_ID},
+    "investment": {"zone": ZONE_RUN_ID, "power": POWER_RUN_ID},
 }
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -226,10 +293,9 @@ def engine():
 
 
 @pytest.fixture()
-def session(engine):
-    sf = sessionmaker(bind=engine, expire_on_commit=False)
-    with sf() as s:
-        yield s
+def session_factory(engine):
+    """Session factory for creating new sessions from the engine."""
+    return sessionmaker(bind=engine, expire_on_commit=False)
 
 
 # ── Seed helpers ─────────────────────────────────────────────────────────────
@@ -411,6 +477,10 @@ def _seed_calculation_runs(
         ).scalar_one_or_none()
         if existing is None:
             computed_hash = hash_ov if hash_ov else _compute_result_hash(snap)
+            provenance: dict[str, Any] = {
+                "stage": stage,
+                "upstream_calculation_ids": _SLOT_UPSTREAM_IDS.get(stage, {}),
+            }
             session.add(
                 CalculationRunRecord(
                     id=run_id,
@@ -433,7 +503,7 @@ def _seed_calculation_runs(
                     coefficient_context_id=COEFF_CONTEXT_ID,
                     input_hash="input-hash-001",
                     result_hash=computed_hash,
-                    provenance={"stage": stage},
+                    provenance=provenance,
                     schema_version="1.0.0",
                     orchestration_fingerprint="test-fingerprint-001",
                     created_at=datetime.now(UTC),
@@ -470,7 +540,7 @@ def _seed_source_binding(
     if existing is not None:
         return
 
-    combined = combined_hash_override or _compute_combined_source_hash(per_calc)
+    combined = combined_hash_override or _compute_verifier_combined_source_hash()
 
     session.add(
         SourceBindingRecord(
@@ -576,8 +646,8 @@ def _seed_all_prereqs(session) -> None:
 # ── Service helper ───────────────────────────────────────────────────────────
 
 
-def _make_service(session):
-    """Create a ProductionSchemeService with real DB ports."""
+def _make_service(engine):
+    """Create a ProductionSchemeService with real DB ports via UoW factory."""
     from cold_storage.modules.schemes.application.production_service import (
         ProductionSchemeService,
     )
@@ -588,9 +658,17 @@ def _make_service(session):
     from cold_storage.modules.schemes.infrastructure.production_repository import (
         SqlAlchemyProductionSchemeRunRepository,
     )
+    from cold_storage.modules.schemes.infrastructure.production_uow_impl import (
+        SqlAlchemyProductionSchemeUnitOfWork,
+    )
+
+    sf = sessionmaker(bind=engine, expire_on_commit=False)
+
+    def uow_factory() -> SqlAlchemyProductionSchemeUnitOfWork:
+        return SqlAlchemyProductionSchemeUnitOfWork(sf)
 
     return ProductionSchemeService(
-        session=session,
+        uow_factory=uow_factory,
         binding_read_port=SqlAlchemySourceBindingReadPort(),
         weight_revision_read_port=SqlAlchemyWeightRevisionReadPort(),
         run_repository=SqlAlchemyProductionSchemeRunRepository(),
@@ -629,9 +707,15 @@ class TestSuccessfulProductionSchemeGeneration:
     """Seeds real SourceBinding + 5 CalculationRuns + weight revision,
     generates a production SchemeRun, and asserts all fields."""
 
-    def test_happy_path(self, session) -> None:
-        _seed_all_prereqs(session)
-        service = _make_service(session)
+    def test_happy_path(self, engine, session_factory) -> None:
+        # Seed data via a committed session
+        seed_s = session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         run = service.generate_production_scheme_run(cmd)
 
@@ -640,24 +724,28 @@ class TestSuccessfulProductionSchemeGeneration:
         assert run.project_id == PROJECT_ID
         assert run.project_version_id == VERSION_ID
 
-        # Verify persisted record
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
+        # Verify persisted record via a new session
+        verify_s = session_factory()
+        try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
+            )
 
-        rec = session.execute(
-            select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
-        ).scalar_one_or_none()
-        assert rec is not None
-        assert rec.status == "completed"
-        assert rec.source_mode == "production"
-        assert rec.source_binding_id == SOURCE_BINDING_ID
-        assert rec.weight_set_revision_id == WEIGHT_REVISION_ID
-        assert rec.source_contract_version == "1.0.0"
-        assert rec.combined_source_hash == COMBINED_SOURCE_HASH
-        assert rec.weight_set_content_hash == WEIGHT_CONTENT_HASH
-        assert rec.content_hash is not None
-        assert len(rec.content_hash) == 64  # SHA-256 hex
+            rec = verify_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one_or_none()
+            assert rec is not None
+            assert rec.status == "completed"
+            assert rec.source_mode == "production"
+            assert rec.source_binding_id == SOURCE_BINDING_ID
+            assert rec.weight_set_revision_id == WEIGHT_REVISION_ID
+            assert rec.source_contract_version == "1.0.0"
+            assert rec.combined_source_hash == COMBINED_SOURCE_HASH
+            assert rec.weight_set_content_hash == WEIGHT_CONTENT_HASH
+            assert rec.content_hash is not None
+            assert len(rec.content_hash) == 64  # SHA-256 hex
+        finally:
+            verify_s.close()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -668,9 +756,14 @@ class TestSuccessfulProductionSchemeGeneration:
 class TestSourceBindingVerification:
     """Missing binding, unsupported schema, attempt not completed."""
 
-    def test_missing_binding(self, session) -> None:
-        _seed_project_and_version(session)
-        service = _make_service(session)
+    def test_missing_binding(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command(binding_id="nonexistent-binding")
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -678,12 +771,17 @@ class TestSourceBindingVerification:
             "binding_not_found" in str(exc_info.value) or "not found" in str(exc_info.value).lower()
         )
 
-    def test_unsupported_schema(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session, schema_version="99.0.0")
-        service = _make_service(session)
+    def test_unsupported_schema(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s, schema_version="99.0.0")
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -691,26 +789,30 @@ class TestSourceBindingVerification:
             "schema" in str(exc_info.value).lower() or "unsupported" in str(exc_info.value).lower()
         )
 
-    def test_attempt_not_completed(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
+    def test_attempt_not_completed(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
 
-        # Overwrite attempt status to RUNNING
-        from cold_storage.modules.orchestration.infrastructure.orm import (
-            OrchestrationRunAttemptRecord,
-        )
-
-        attempt = session.execute(
-            select(OrchestrationRunAttemptRecord).where(
-                OrchestrationRunAttemptRecord.id == ATTEMPT_ID
+            # Overwrite attempt status to RUNNING
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                OrchestrationRunAttemptRecord,
             )
-        ).scalar_one()
-        attempt.status = "RUNNING"
-        session.commit()
 
-        service = _make_service(session)
+            attempt = seed_s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == ATTEMPT_ID
+                )
+            ).scalar_one()
+            attempt.status = "RUNNING"
+            seed_s.commit()
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -727,49 +829,53 @@ class TestSourceBindingVerification:
 class TestFiveSlotLoading:
     """Missing slot, wrong calculator name, hash mismatch."""
 
-    def test_missing_slot(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_weight_set_and_revision(session)
+    def test_missing_slot(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_weight_set_and_revision(seed_s)
 
-        # Temporarily disable FK checks to insert a binding referencing
-        # a non-existent zone CalculationRun
-        session.execute(text("PRAGMA foreign_keys=OFF"))
-        session.execute(
-            text(
-                "INSERT INTO orchestration_source_bindings "
-                "(id, project_id, project_version_id, execution_snapshot_id, "
-                " coefficient_context_id, orchestration_identity_id, "
-                " orchestration_run_attempt_id, orchestration_fingerprint, "
-                " zone_calculation_id, cooling_load_calculation_id, "
-                " equipment_calculation_id, power_calculation_id, "
-                " investment_calculation_id, per_calculation_result_hashes, "
-                " combined_source_hash, schema_version, created_at) "
-                "VALUES (:id, :pid, :vid, :eid, :ccid, :iid, :aid, :fp, "
-                " :zid, :cid, :eid2, :pid2, :iid2, :pch, :csh, :sv, :ca)"
-            ),
-            {
-                "id": "test-missing-slot-binding",
-                "pid": PROJECT_ID,
-                "vid": VERSION_ID,
-                "eid": EXEC_SNAPSHOT_ID,
-                "ccid": COEFF_CONTEXT_ID,
-                "iid": IDENTITY_ID,
-                "aid": ATTEMPT_ID,
-                "fp": "test-fingerprint-001",
-                "zid": "nonexistent-zone-run",
-                "cid": COOL_RUN_ID,
-                "eid2": EQUIP_RUN_ID,
-                "pid2": POWER_RUN_ID,
-                "iid2": INVEST_RUN_ID,
-                "pch": json.dumps(PER_CALC_HASHES),
-                "csh": COMBINED_SOURCE_HASH,
-                "sv": "1.0.0",
-                "ca": datetime.now(UTC).isoformat(),
-            },
-        )
-        session.execute(text("PRAGMA foreign_keys=ON"))
-        session.commit()
+            # Temporarily disable FK checks to insert a binding referencing
+            # a non-existent zone CalculationRun
+            seed_s.execute(text("PRAGMA foreign_keys=OFF"))
+            seed_s.execute(
+                text(
+                    "INSERT INTO orchestration_source_bindings "
+                    "(id, project_id, project_version_id, execution_snapshot_id, "
+                    " coefficient_context_id, orchestration_identity_id, "
+                    " orchestration_run_attempt_id, orchestration_fingerprint, "
+                    " zone_calculation_id, cooling_load_calculation_id, "
+                    " equipment_calculation_id, power_calculation_id, "
+                    " investment_calculation_id, per_calculation_result_hashes, "
+                    " combined_source_hash, schema_version, created_at) "
+                    "VALUES (:id, :pid, :vid, :eid, :ccid, :iid, :aid, :fp, "
+                    " :zid, :cid, :eid2, :pid2, :iid2, :pch, :csh, :sv, :ca)"
+                ),
+                {
+                    "id": "test-missing-slot-binding",
+                    "pid": PROJECT_ID,
+                    "vid": VERSION_ID,
+                    "eid": EXEC_SNAPSHOT_ID,
+                    "ccid": COEFF_CONTEXT_ID,
+                    "iid": IDENTITY_ID,
+                    "aid": ATTEMPT_ID,
+                    "fp": "test-fingerprint-001",
+                    "zid": "nonexistent-zone-run",
+                    "cid": COOL_RUN_ID,
+                    "eid2": EQUIP_RUN_ID,
+                    "pid2": POWER_RUN_ID,
+                    "iid2": INVEST_RUN_ID,
+                    "pch": json.dumps(PER_CALC_HASHES),
+                    "csh": COMBINED_SOURCE_HASH,
+                    "sv": "1.0.0",
+                    "ca": datetime.now(UTC).isoformat(),
+                },
+            )
+            seed_s.execute(text("PRAGMA foreign_keys=ON"))
+            seed_s.commit()
+        finally:
+            seed_s.close()
 
         from cold_storage.modules.schemes.application.source_binding_verifier import (
             verify_source_binding,
@@ -779,89 +885,101 @@ class TestFiveSlotLoading:
         )
 
         port = SqlAlchemySourceBindingReadPort()
-        with pytest.raises(Exception) as exc_info:
-            verify_source_binding(port, session, binding_id="test-missing-slot-binding")
-        assert (
-            "missing" in str(exc_info.value).lower()
-            or "not found" in str(exc_info.value).lower()
-            or "slot" in str(exc_info.value).lower()
-        )
-
-    def test_wrong_calculator_name(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        from cold_storage.modules.projects.infrastructure.orm import (
-            CalculationRunRecord,
-        )
-
-        # Seed zone with wrong calculator_name
-        session.add(
-            CalculationRunRecord(
-                id=ZONE_RUN_ID,
-                project_id=PROJECT_ID,
-                project_version_id=VERSION_ID,
-                calculator_name="wrong_calculator",
-                calculator_version="1.0.0",
-                input_snapshot={},
-                result_snapshot=ZONE_RESULT_SNAPSHOT,
-                formulas=[],
-                coefficients=[],
-                assumptions=[],
-                warnings=[],
-                source_references=[],
-                requires_review=False,
-                calculation_type="zone",
-                orchestration_identity_id=IDENTITY_ID,
-                orchestration_run_attempt_id=ATTEMPT_ID,
-                execution_snapshot_id=EXEC_SNAPSHOT_ID,
-                coefficient_context_id=COEFF_CONTEXT_ID,
-                input_hash="input-hash-001",
-                result_hash=ZONE_HASH,
-                provenance={"stage": "zone"},
-                schema_version="1.0.0",
-                orchestration_fingerprint="test-fingerprint-001",
-                created_at=datetime.now(UTC),
+        verify_s = session_factory()
+        try:
+            with pytest.raises(Exception) as exc_info:
+                verify_source_binding(port, verify_s, binding_id="test-missing-slot-binding")
+            assert (
+                "missing" in str(exc_info.value).lower()
+                or "not found" in str(exc_info.value).lower()
+                or "slot" in str(exc_info.value).lower()
             )
-        )
-        # Seed remaining 4 correctly
-        for run_id, stage, snap in [
-            (COOL_RUN_ID, "cooling_load", COOLING_RESULT_SNAPSHOT),
-            (EQUIP_RUN_ID, "equipment", EQUIPMENT_RESULT_SNAPSHOT),
-            (POWER_RUN_ID, "power", POWER_RESULT_SNAPSHOT),
-            (INVEST_RUN_ID, "investment", INVESTMENT_RESULT_SNAPSHOT),
-        ]:
-            session.add(
+        finally:
+            verify_s.close()
+
+    def test_wrong_calculator_name(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            from cold_storage.modules.projects.infrastructure.orm import (
+                CalculationRunRecord,
+            )
+
+            # Seed zone with wrong calculator_name
+            seed_s.add(
                 CalculationRunRecord(
-                    id=run_id,
+                    id=ZONE_RUN_ID,
                     project_id=PROJECT_ID,
                     project_version_id=VERSION_ID,
-                    calculator_name=SLOT_CALCULATOR_NAMES[stage],
+                    calculator_name="wrong_calculator",
                     calculator_version="1.0.0",
                     input_snapshot={},
-                    result_snapshot=snap,
+                    result_snapshot=ZONE_RESULT_SNAPSHOT,
                     formulas=[],
                     coefficients=[],
                     assumptions=[],
                     warnings=[],
                     source_references=[],
                     requires_review=False,
-                    calculation_type=SLOT_CALCULATION_TYPES[stage],
+                    calculation_type="zone",
                     orchestration_identity_id=IDENTITY_ID,
                     orchestration_run_attempt_id=ATTEMPT_ID,
                     execution_snapshot_id=EXEC_SNAPSHOT_ID,
                     coefficient_context_id=COEFF_CONTEXT_ID,
                     input_hash="input-hash-001",
-                    result_hash=_compute_result_hash(snap),
-                    provenance={"stage": stage},
+                    result_hash=ZONE_HASH,
+                    provenance={"stage": "zone", "upstream_calculation_ids": {}},
                     schema_version="1.0.0",
                     orchestration_fingerprint="test-fingerprint-001",
                     created_at=datetime.now(UTC),
                 )
             )
-        session.commit()
+            # Seed remaining 4 correctly
+            for run_id, stage, snap in [
+                (COOL_RUN_ID, "cooling_load", COOLING_RESULT_SNAPSHOT),
+                (EQUIP_RUN_ID, "equipment", EQUIPMENT_RESULT_SNAPSHOT),
+                (POWER_RUN_ID, "power", POWER_RESULT_SNAPSHOT),
+                (INVEST_RUN_ID, "investment", INVESTMENT_RESULT_SNAPSHOT),
+            ]:
+                seed_s.add(
+                    CalculationRunRecord(
+                        id=run_id,
+                        project_id=PROJECT_ID,
+                        project_version_id=VERSION_ID,
+                        calculator_name=SLOT_CALCULATOR_NAMES[stage],
+                        calculator_version="1.0.0",
+                        input_snapshot={},
+                        result_snapshot=snap,
+                        formulas=[],
+                        coefficients=[],
+                        assumptions=[],
+                        warnings=[],
+                        source_references=[],
+                        requires_review=False,
+                        calculation_type=SLOT_CALCULATION_TYPES[stage],
+                        orchestration_identity_id=IDENTITY_ID,
+                        orchestration_run_attempt_id=ATTEMPT_ID,
+                        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+                        coefficient_context_id=COEFF_CONTEXT_ID,
+                        input_hash="input-hash-001",
+                        result_hash=_compute_result_hash(snap),
+                        provenance={
+                            "stage": stage,
+                            "upstream_calculation_ids": _SLOT_UPSTREAM_IDS.get(stage, {}),
+                        },
+                        schema_version="1.0.0",
+                        orchestration_fingerprint="test-fingerprint-001",
+                        created_at=datetime.now(UTC),
+                    )
+                )
+            seed_s.commit()
 
-        _seed_source_binding(session)
-        service = _make_service(session)
+            _seed_source_binding(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -871,53 +989,61 @@ class TestFiveSlotLoading:
             or "mismatch" in str(exc_info.value).lower()
         )
 
-    def test_hash_mismatch(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        from cold_storage.modules.projects.infrastructure.orm import (
-            CalculationRunRecord,
-        )
-
-        # Seed all 5 calc runs with correct hashes
-        for run_id, stage, snap in [
-            (ZONE_RUN_ID, "zone", ZONE_RESULT_SNAPSHOT),
-            (COOL_RUN_ID, "cooling_load", COOLING_RESULT_SNAPSHOT),
-            (EQUIP_RUN_ID, "equipment", EQUIPMENT_RESULT_SNAPSHOT),
-            (POWER_RUN_ID, "power", POWER_RESULT_SNAPSHOT),
-            (INVEST_RUN_ID, "investment", INVESTMENT_RESULT_SNAPSHOT),
-        ]:
-            session.add(
-                CalculationRunRecord(
-                    id=run_id,
-                    project_id=PROJECT_ID,
-                    project_version_id=VERSION_ID,
-                    calculator_name=SLOT_CALCULATOR_NAMES[stage],
-                    calculator_version="1.0.0",
-                    input_snapshot={},
-                    result_snapshot=snap,
-                    formulas=[],
-                    coefficients=[],
-                    assumptions=[],
-                    warnings=[],
-                    source_references=[],
-                    requires_review=False,
-                    calculation_type=SLOT_CALCULATION_TYPES[stage],
-                    orchestration_identity_id=IDENTITY_ID,
-                    orchestration_run_attempt_id=ATTEMPT_ID,
-                    execution_snapshot_id=EXEC_SNAPSHOT_ID,
-                    coefficient_context_id=COEFF_CONTEXT_ID,
-                    input_hash="input-hash-001",
-                    result_hash="wrong_hash_value",
-                    provenance={"stage": stage},
-                    schema_version="1.0.0",
-                    orchestration_fingerprint="test-fingerprint-001",
-                    created_at=datetime.now(UTC),
-                )
+    def test_hash_mismatch(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            from cold_storage.modules.projects.infrastructure.orm import (
+                CalculationRunRecord,
             )
-        session.commit()
 
-        _seed_source_binding(session)
-        service = _make_service(session)
+            # Seed all 5 calc runs with correct hashes
+            for run_id, stage, snap in [
+                (ZONE_RUN_ID, "zone", ZONE_RESULT_SNAPSHOT),
+                (COOL_RUN_ID, "cooling_load", COOLING_RESULT_SNAPSHOT),
+                (EQUIP_RUN_ID, "equipment", EQUIPMENT_RESULT_SNAPSHOT),
+                (POWER_RUN_ID, "power", POWER_RESULT_SNAPSHOT),
+                (INVEST_RUN_ID, "investment", INVESTMENT_RESULT_SNAPSHOT),
+            ]:
+                seed_s.add(
+                    CalculationRunRecord(
+                        id=run_id,
+                        project_id=PROJECT_ID,
+                        project_version_id=VERSION_ID,
+                        calculator_name=SLOT_CALCULATOR_NAMES[stage],
+                        calculator_version="1.0.0",
+                        input_snapshot={},
+                        result_snapshot=snap,
+                        formulas=[],
+                        coefficients=[],
+                        assumptions=[],
+                        warnings=[],
+                        source_references=[],
+                        requires_review=False,
+                        calculation_type=SLOT_CALCULATION_TYPES[stage],
+                        orchestration_identity_id=IDENTITY_ID,
+                        orchestration_run_attempt_id=ATTEMPT_ID,
+                        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+                        coefficient_context_id=COEFF_CONTEXT_ID,
+                        input_hash="input-hash-001",
+                        result_hash="wrong_hash_value",
+                        provenance={
+                            "stage": stage,
+                            "upstream_calculation_ids": _SLOT_UPSTREAM_IDS.get(stage, {}),
+                        },
+                        schema_version="1.0.0",
+                        orchestration_fingerprint="test-fingerprint-001",
+                        created_at=datetime.now(UTC),
+                    )
+                )
+            seed_s.commit()
+
+            _seed_source_binding(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -932,14 +1058,19 @@ class TestFiveSlotLoading:
 class TestPowerAuthority:
     """Missing total_installed_power_kw_e in power result_snapshot is rejected."""
 
-    def test_missing_power_authority(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        # Power snapshot WITHOUT total_installed_power_kw_e
-        power_snap_no_authority: dict[str, Any] = {"some_other_field": 42.0}
-        _seed_calculation_runs(session, power_result=power_snap_no_authority)
-        _seed_source_binding(session)
-        service = _make_service(session)
+    def test_missing_power_authority(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            # Power snapshot WITHOUT total_installed_power_kw_e
+            power_snap_no_authority: dict[str, Any] = {"some_other_field": 42.0}
+            _seed_calculation_runs(seed_s, power_result=power_snap_no_authority)
+            _seed_source_binding(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -979,16 +1110,16 @@ class TestEquipmentFallbackRejection:
         )
 
         power_val = map_power_snapshot(POWER_RESULT_SNAPSHOT)
-        assert power_val == Decimal("200.0")
+        assert power_val.total_installed_power_kw_e == Decimal("200.0")
 
     def test_power_snapshot_missing_raises(self) -> None:
         """Verify map_power_snapshot raises when field is missing."""
         from cold_storage.modules.schemes.application.source_domain_mapping import (
-            PowerAuthorityError,
             map_power_snapshot,
         )
+        from cold_storage.modules.schemes.domain.errors import MappingError
 
-        with pytest.raises(PowerAuthorityError):
+        with pytest.raises(MappingError):
             map_power_snapshot({})
 
 
@@ -1001,13 +1132,18 @@ class TestWeightRevisionRejectionMatrix:
     """Not approved, missing approval evidence, content hash mismatch,
     duplicate criteria, negative weight, weight sum != 1.0, incompatible generator."""
 
-    def test_not_approved(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        _seed_weight_set_and_revision(session, status="draft")
-        service = _make_service(session)
+    def test_not_approved(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            _seed_weight_set_and_revision(seed_s, status="draft")
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -1016,15 +1152,20 @@ class TestWeightRevisionRejectionMatrix:
             or "not_approved" in str(exc_info.value).lower()
         )
 
-    def test_missing_approval_evidence_approved_at(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        _seed_weight_set_and_revision(
-            session, status="approved", approved_at=None, approved_by="test"
-        )
-        service = _make_service(session)
+    def test_missing_approval_evidence_approved_at(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            _seed_weight_set_and_revision(
+                seed_s, status="approved", approved_at=None, approved_by="test"
+            )
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -1034,18 +1175,23 @@ class TestWeightRevisionRejectionMatrix:
             or "approved_at" in str(exc_info.value).lower()
         )
 
-    def test_missing_approval_evidence_approved_by(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        _seed_weight_set_and_revision(
-            session,
-            status="approved",
-            approved_at=datetime.now(UTC),
-            approved_by="",
-        )
-        service = _make_service(session)
+    def test_missing_approval_evidence_approved_by(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            _seed_weight_set_and_revision(
+                seed_s,
+                status="approved",
+                approved_at=datetime.now(UTC),
+                approved_by="",
+            )
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -1055,13 +1201,18 @@ class TestWeightRevisionRejectionMatrix:
             or "approved_by" in str(exc_info.value).lower()
         )
 
-    def test_content_hash_mismatch(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        _seed_weight_set_and_revision(session, content_hash_override="wrong_hash_abc123")
-        service = _make_service(session)
+    def test_content_hash_mismatch(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            _seed_weight_set_and_revision(seed_s, content_hash_override="wrong_hash_abc123")
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -1071,85 +1222,120 @@ class TestWeightRevisionRejectionMatrix:
             or "mismatch" in str(exc_info.value).lower()
         )
 
-    def test_duplicate_criteria(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        dup_criteria = WEIGHT_CRITERIA_RAW + [
-            {"criterion_code": "total_area_m2", "weight": 0.10, "direction": "lower_is_better"}
-        ]
-        dup_content = {"criteria": dup_criteria}
-        _seed_weight_set_and_revision(session, content=dup_content)
-        service = _make_service(session)
+    def test_duplicate_criteria(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            dup_criteria = WEIGHT_CRITERIA_RAW + [
+                {"criterion_code": "total_area_m2", "weight": 0.10, "direction": "lower_is_better"}
+            ]
+            dup_content = {"criteria": dup_criteria}
+            _seed_weight_set_and_revision(seed_s, content=dup_content)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
         assert "duplicate" in str(exc_info.value).lower()
 
-    def test_negative_weight(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        neg_criteria = [
-            {"criterion_code": "total_area_m2", "weight": -0.20, "direction": "lower_is_better"},
-            {"criterion_code": "investment_cny", "weight": 0.30, "direction": "lower_is_better"},
-            {
-                "criterion_code": "total_position_count",
-                "weight": 0.15,
-                "direction": "higher_is_better",
-            },
-            {"criterion_code": "room_module_count", "weight": 0.10, "direction": "lower_is_better"},
-            {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
-            {
-                "criterion_code": "partition_length_proxy_m",
-                "weight": 0.05,
-                "direction": "lower_is_better",
-            },
-            {
-                "criterion_code": "installed_power_kw_e",
-                "weight": 0.15,
-                "direction": "lower_is_better",
-            },
-        ]
-        neg_content = {"criteria": neg_criteria}
-        _seed_weight_set_and_revision(session, content=neg_content)
-        service = _make_service(session)
+    def test_negative_weight(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            neg_criteria = [
+                {
+                    "criterion_code": "total_area_m2",
+                    "weight": -0.20,
+                    "direction": "lower_is_better",
+                },
+                {
+                    "criterion_code": "investment_cny",
+                    "weight": 0.30,
+                    "direction": "lower_is_better",
+                },
+                {
+                    "criterion_code": "total_position_count",
+                    "weight": 0.15,
+                    "direction": "higher_is_better",
+                },
+                {
+                    "criterion_code": "room_module_count",
+                    "weight": 0.10,
+                    "direction": "lower_is_better",
+                },
+                {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
+                {
+                    "criterion_code": "partition_length_proxy_m",
+                    "weight": 0.05,
+                    "direction": "lower_is_better",
+                },
+                {
+                    "criterion_code": "installed_power_kw_e",
+                    "weight": 0.15,
+                    "direction": "lower_is_better",
+                },
+            ]
+            neg_content = {"criteria": neg_criteria}
+            _seed_weight_set_and_revision(seed_s, content=neg_content)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
         assert "negative" in str(exc_info.value).lower() or "weight" in str(exc_info.value).lower()
 
-    def test_weight_sum_not_one(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        bad_sum_criteria = [
-            {"criterion_code": "total_area_m2", "weight": 0.50, "direction": "lower_is_better"},
-            {"criterion_code": "investment_cny", "weight": 0.50, "direction": "lower_is_better"},
-            {
-                "criterion_code": "total_position_count",
-                "weight": 0.50,
-                "direction": "higher_is_better",
-            },
-            {"criterion_code": "room_module_count", "weight": 0.10, "direction": "lower_is_better"},
-            {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
-            {
-                "criterion_code": "partition_length_proxy_m",
-                "weight": 0.05,
-                "direction": "lower_is_better",
-            },
-            {
-                "criterion_code": "installed_power_kw_e",
-                "weight": 0.15,
-                "direction": "lower_is_better",
-            },
-        ]
-        bad_sum_content = {"criteria": bad_sum_criteria}
-        _seed_weight_set_and_revision(session, content=bad_sum_content)
-        service = _make_service(session)
+    def test_weight_sum_not_one(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            bad_sum_criteria = [
+                {"criterion_code": "total_area_m2", "weight": 0.50, "direction": "lower_is_better"},
+                {
+                    "criterion_code": "investment_cny",
+                    "weight": 0.50,
+                    "direction": "lower_is_better",
+                },
+                {
+                    "criterion_code": "total_position_count",
+                    "weight": 0.50,
+                    "direction": "higher_is_better",
+                },
+                {
+                    "criterion_code": "room_module_count",
+                    "weight": 0.10,
+                    "direction": "lower_is_better",
+                },
+                {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
+                {
+                    "criterion_code": "partition_length_proxy_m",
+                    "weight": 0.05,
+                    "direction": "lower_is_better",
+                },
+                {
+                    "criterion_code": "installed_power_kw_e",
+                    "weight": 0.15,
+                    "direction": "lower_is_better",
+                },
+            ]
+            bad_sum_content = {"criteria": bad_sum_criteria}
+            _seed_weight_set_and_revision(seed_s, content=bad_sum_content)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -1159,13 +1345,18 @@ class TestWeightRevisionRejectionMatrix:
             or "weight" in str(exc_info.value).lower()
         )
 
-    def test_incompatible_generator(self, session) -> None:
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
-        _seed_calculation_runs(session)
-        _seed_source_binding(session)
-        _seed_weight_set_and_revision(session, generator_compat="99.0.0")
-        service = _make_service(session)
+    def test_incompatible_generator(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
+            _seed_calculation_runs(seed_s)
+            _seed_source_binding(seed_s)
+            _seed_weight_set_and_revision(seed_s, generator_compat="99.0.0")
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
@@ -1183,58 +1374,70 @@ class TestWeightRevisionRejectionMatrix:
 class TestProductionSchemeRunProvenance:
     """source_mode=production, all production fields non-null, content hash correct."""
 
-    def test_all_production_fields_non_null(self, session) -> None:
-        _seed_all_prereqs(session)
-        service = _make_service(session)
+    def test_all_production_fields_non_null(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         run = service.generate_production_scheme_run(cmd)
 
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
+        verify_s = session_factory()
+        try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
+            )
 
-        rec = session.execute(
-            select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
-        ).scalar_one()
+            rec = verify_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one()
 
-        assert rec.source_mode == "production"
-        assert rec.source_binding_id is not None
-        assert rec.source_binding_id == SOURCE_BINDING_ID
-        assert rec.source_contract_version is not None
-        assert rec.source_contract_version == "1.0.0"
-        assert rec.weight_set_revision_id is not None
-        assert rec.weight_set_revision_id == WEIGHT_REVISION_ID
-        assert rec.weight_set_content_hash is not None
-        assert rec.weight_set_content_hash == WEIGHT_CONTENT_HASH
-        assert rec.weight_set_generator_compatibility_version is not None
-        assert rec.combined_source_hash is not None
-        assert rec.combined_source_hash == COMBINED_SOURCE_HASH
+            assert rec.source_mode == "production"
+            assert rec.source_binding_id is not None
+            assert rec.source_binding_id == SOURCE_BINDING_ID
+            assert rec.source_contract_version is not None
+            assert rec.source_contract_version == "1.0.0"
+            assert rec.weight_set_revision_id is not None
+            assert rec.weight_set_revision_id == WEIGHT_REVISION_ID
+            assert rec.weight_set_content_hash is not None
+            assert rec.weight_set_content_hash == WEIGHT_CONTENT_HASH
+            assert rec.weight_set_generator_compatibility_version is not None
+            assert rec.combined_source_hash is not None
+            assert rec.combined_source_hash == COMBINED_SOURCE_HASH
+        finally:
+            verify_s.close()
 
-    def test_content_hash_correct(self, session) -> None:
-        _seed_all_prereqs(session)
-        service = _make_service(session)
+    def test_content_hash_correct(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         run = service.generate_production_scheme_run(cmd)
 
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
+        verify_s = session_factory()
+        try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
+            )
 
-        rec = session.execute(
-            select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
-        ).scalar_one()
+            rec = verify_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one()
 
-        # Re-compute expected content hash using the service's internal logic
-        # The content hash covers source_binding_id, weight_set_revision_id,
-        # combined_source_hash, weight_set_content_hash, candidates, score_breakdowns,
-        # profile_codes, profile_parameters
-        # We can't perfectly re-compute candidates/score_breakdowns without
-        # running the generation again, but we can verify the hash is present
-        # and is a valid SHA-256 hex digest
-        assert rec.content_hash is not None
-        assert len(rec.content_hash) == 64
-        # Verify it's valid hex
-        int(rec.content_hash, 16)
+            # Verify the hash is present and is a valid SHA-256 hex digest
+            assert rec.content_hash is not None
+            assert len(rec.content_hash) == 64
+            # Verify it's valid hex
+            int(rec.content_hash, 16)
+        finally:
+            verify_s.close()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1245,44 +1448,70 @@ class TestProductionSchemeRunProvenance:
 class TestAtomicRollbackPKSetZeroDelta:
     """Persistence failure rolls back all records (no partial writes)."""
 
-    def test_persistence_failure_rolls_back(self, session) -> None:
-        """Simulate a persistence failure by making session.add raise,
+    def test_persistence_failure_rolls_back(self, engine, session_factory) -> None:
+        """Simulate a persistence failure by monkeypatching the UoW session.add,
         verify no SchemeRun records are created."""
-        _seed_all_prereqs(session)
+        seed_s = session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
 
         from cold_storage.modules.schemes.infrastructure.orm import (
             SchemeCandidateRecord,
             SchemeRunRecord,
         )
 
-        # Capture PK set before
-        before_runs = set(session.execute(select(SchemeRunRecord.id)).scalars().all())
-        before_cands = set(session.execute(select(SchemeCandidateRecord.id)).scalars().all())
+        # Capture PK set before via a fresh session
+        before_s = session_factory()
+        try:
+            before_runs = set(before_s.execute(select(SchemeRunRecord.id)).scalars().all())
+            before_cands = set(before_s.execute(select(SchemeCandidateRecord.id)).scalars().all())
+        finally:
+            before_s.close()
 
-        # Patch session.add to raise on the first SchemeRunRecord add
-        original_add = session.add
+        # Patch SqlAlchemyProductionSchemeUnitOfWork to inject a failing session.add
+        from cold_storage.modules.schemes.infrastructure.production_uow_impl import (
+            SqlAlchemyProductionSchemeUnitOfWork,
+        )
+
+        original_enter = SqlAlchemyProductionSchemeUnitOfWork.__enter__
+        original_add: Any = None
         call_count = [0]
 
-        def failing_add(obj):
-            if isinstance(obj, SchemeRunRecord):
-                call_count[0] += 1
-                if call_count[0] == 1:
-                    raise RuntimeError("Simulated persistence failure")
-            return original_add(obj)
+        def patched_enter(self_uow):
+            result = original_enter(self_uow)
+            session = self_uow._session
+            nonlocal original_add
+            original_add = session.add
 
-        session.add = failing_add  # type: ignore[assignment]
+            def failing_add(obj):
+                if isinstance(obj, SchemeRunRecord):
+                    call_count[0] += 1
+                    if call_count[0] == 1:
+                        raise RuntimeError("Simulated persistence failure")
+                return original_add(obj)
 
-        service = _make_service(session)
-        cmd = _make_command()
-        with pytest.raises(RuntimeError, match="Simulated persistence failure"):
-            service.generate_production_scheme_run(cmd)
+            session.add = failing_add  # type: ignore[assignment]
+            return result
 
-        # Restore session.add
-        session.add = original_add  # type: ignore[assignment]
+        SqlAlchemyProductionSchemeUnitOfWork.__enter__ = patched_enter  # type: ignore[assignment]
+
+        try:
+            service = _make_service(engine)
+            cmd = _make_command()
+            with pytest.raises(RuntimeError, match="Simulated persistence failure"):
+                service.generate_production_scheme_run(cmd)
+        finally:
+            SqlAlchemyProductionSchemeUnitOfWork.__enter__ = original_enter  # type: ignore[assignment]
 
         # Verify zero new SchemeRun or SchemeCandidate records
-        after_runs = set(session.execute(select(SchemeRunRecord.id)).scalars().all())
-        after_cands = set(session.execute(select(SchemeCandidateRecord.id)).scalars().all())
+        after_s = session_factory()
+        try:
+            after_runs = set(after_s.execute(select(SchemeRunRecord.id)).scalars().all())
+            after_cands = set(after_s.execute(select(SchemeCandidateRecord.id)).scalars().all())
+        finally:
+            after_s.close()
 
         assert after_runs == before_runs, (
             f"New SchemeRun records detected: {after_runs - before_runs}"
@@ -1300,62 +1529,120 @@ class TestAtomicRollbackPKSetZeroDelta:
 class TestSourceModeConstraints:
     """ck_scheme_run_source_mode_nullity check constraint."""
 
-    def test_production_mode_requires_all_fields(self, session) -> None:
+    def test_production_mode_requires_all_fields(self, engine, session_factory) -> None:
         """Inserting source_mode='production' with NULL production fields
         violates the check constraint."""
-        _seed_project_and_version(session)
-        _seed_orchestration_prereqs(session)
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+            _seed_orchestration_prereqs(seed_s)
 
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
-
-        with pytest.raises(Exception) as exc_info:
-            session.add(
-                SchemeRunRecord(
-                    id="test-bad-prod-run",
-                    project_id=PROJECT_ID,
-                    project_version_id=VERSION_ID,
-                    weight_set_id=WEIGHT_SET_ID,
-                    status="completed",
-                    generator_version="1.0.0",
-                    source_snapshot_hash="abc",
-                    input_snapshot={},
-                    assumption_snapshot={},
-                    comparison_snapshot={},
-                    candidates_snapshot={},
-                    requires_review=False,
-                    warning_messages=[],
-                    source_mode="production",
-                    # Missing production fields (all must be non-null)
-                    source_binding_id=None,
-                    source_contract_version=None,
-                    weight_set_revision_id=None,
-                    weight_set_content_hash=None,
-                    weight_set_generator_compatibility_version=None,
-                    combined_source_hash=None,
-                )
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
             )
-            session.flush()
-        assert (
-            "check" in str(exc_info.value).lower()
-            or "constraint" in str(exc_info.value).lower()
-            or "null" in str(exc_info.value).lower()
-        )
 
-    def test_legacy_mode_requires_all_null(self, session) -> None:
+            with pytest.raises(Exception) as exc_info:
+                seed_s.add(
+                    SchemeRunRecord(
+                        id="test-bad-prod-run",
+                        project_id=PROJECT_ID,
+                        project_version_id=VERSION_ID,
+                        weight_set_id=WEIGHT_SET_ID,
+                        status="completed",
+                        generator_version="1.0.0",
+                        source_snapshot_hash="abc",
+                        input_snapshot={},
+                        assumption_snapshot={},
+                        comparison_snapshot={},
+                        candidates_snapshot={},
+                        requires_review=False,
+                        warning_messages=[],
+                        source_mode="production",
+                        # Missing production fields (all must be non-null)
+                        source_binding_id=None,
+                        source_contract_version=None,
+                        weight_set_revision_id=None,
+                        weight_set_content_hash=None,
+                        weight_set_generator_compatibility_version=None,
+                        combined_source_hash=None,
+                    )
+                )
+                seed_s.flush()
+            assert (
+                "check" in str(exc_info.value).lower()
+                or "constraint" in str(exc_info.value).lower()
+                or "null" in str(exc_info.value).lower()
+            )
+        finally:
+            seed_s.close()
+
+    def test_legacy_mode_requires_all_null(self, engine, session_factory) -> None:
         """Inserting source_mode='legacy' with non-NULL production fields
         violates the check constraint."""
-        _seed_project_and_version(session)
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
 
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
+            )
 
-        with pytest.raises(Exception) as exc_info:
-            session.add(
+            with pytest.raises(Exception) as exc_info:
+                seed_s.add(
+                    SchemeRunRecord(
+                        id="test-bad-legacy-run",
+                        project_id=PROJECT_ID,
+                        project_version_id=VERSION_ID,
+                        weight_set_id=WEIGHT_SET_ID,
+                        status="completed",
+                        generator_version="1.0.0",
+                        source_snapshot_hash="abc",
+                        input_snapshot={},
+                        assumption_snapshot={},
+                        comparison_snapshot={},
+                        candidates_snapshot={},
+                        requires_review=False,
+                        warning_messages=[],
+                        source_mode="legacy",
+                        # Non-null production fields (should be NULL for legacy)
+                        source_binding_id="some-binding-id",
+                        source_contract_version="1.0.0",
+                        weight_set_revision_id="some-rev-id",
+                        weight_set_content_hash="some-hash",
+                        weight_set_generator_compatibility_version="1.0.0",
+                        combined_source_hash="some-combined",
+                    )
+                )
+                seed_s.flush()
+            assert (
+                "check" in str(exc_info.value).lower()
+                or "constraint" in str(exc_info.value).lower()
+                or "null" in str(exc_info.value).lower()
+            )
+        finally:
+            seed_s.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 10. Legacy/demo isolation
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestLegacyDemoIsolation:
+    """Legacy SchemeRun has all-null production columns."""
+
+    def test_legacy_run_has_null_production_columns(self, engine, session_factory) -> None:
+        seed_s = session_factory()
+        try:
+            _seed_project_and_version(seed_s)
+
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
+            )
+
+            seed_s.add(
                 SchemeRunRecord(
-                    id="test-bad-legacy-run",
+                    id="test-legacy-run",
                     project_id=PROJECT_ID,
                     project_version_id=VERSION_ID,
                     weight_set_id=WEIGHT_SET_ID,
@@ -1369,69 +1656,27 @@ class TestSourceModeConstraints:
                     requires_review=False,
                     warning_messages=[],
                     source_mode="legacy",
-                    # Non-null production fields (should be NULL for legacy)
-                    source_binding_id="some-binding-id",
-                    source_contract_version="1.0.0",
-                    weight_set_revision_id="some-rev-id",
-                    weight_set_content_hash="some-hash",
-                    weight_set_generator_compatibility_version="1.0.0",
-                    combined_source_hash="some-combined",
                 )
             )
-            session.flush()
-        assert (
-            "check" in str(exc_info.value).lower()
-            or "constraint" in str(exc_info.value).lower()
-            or "null" in str(exc_info.value).lower()
-        )
+            seed_s.commit()
 
+            verify_s = session_factory()
+            try:
+                rec = verify_s.execute(
+                    select(SchemeRunRecord).where(SchemeRunRecord.id == "test-legacy-run")
+                ).scalar_one()
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 10. Legacy/demo isolation
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-class TestLegacyDemoIsolation:
-    """Legacy SchemeRun has all-null production columns."""
-
-    def test_legacy_run_has_null_production_columns(self, session) -> None:
-        _seed_project_and_version(session)
-
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
-
-        session.add(
-            SchemeRunRecord(
-                id="test-legacy-run",
-                project_id=PROJECT_ID,
-                project_version_id=VERSION_ID,
-                weight_set_id=WEIGHT_SET_ID,
-                status="completed",
-                generator_version="1.0.0",
-                source_snapshot_hash="abc",
-                input_snapshot={},
-                assumption_snapshot={},
-                comparison_snapshot={},
-                candidates_snapshot={},
-                requires_review=False,
-                warning_messages=[],
-                source_mode="legacy",
-            )
-        )
-        session.commit()
-
-        rec = session.execute(
-            select(SchemeRunRecord).where(SchemeRunRecord.id == "test-legacy-run")
-        ).scalar_one()
-
-        assert rec.source_mode == "legacy"
-        assert rec.source_binding_id is None
-        assert rec.source_contract_version is None
-        assert rec.weight_set_revision_id is None
-        assert rec.weight_set_content_hash is None
-        assert rec.weight_set_generator_compatibility_version is None
-        assert rec.combined_source_hash is None
+                assert rec.source_mode == "legacy"
+                assert rec.source_binding_id is None
+                assert rec.source_contract_version is None
+                assert rec.weight_set_revision_id is None
+                assert rec.weight_set_content_hash is None
+                assert rec.weight_set_generator_compatibility_version is None
+                assert rec.combined_source_hash is None
+            finally:
+                verify_s.close()
+        finally:
+            seed_s.close()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1442,78 +1687,76 @@ class TestLegacyDemoIsolation:
 class TestContentHashVerification:
     """Read path re-validates content hash."""
 
-    def test_content_hash_matches_recomputed(self, session) -> None:
+    def test_content_hash_matches_recomputed(self, engine, session_factory) -> None:
         """After generating a production run, verify the persisted content_hash
         matches independent recomputation using the service's canonical formula."""
-        _seed_all_prereqs(session)
-        service = _make_service(session)
+        seed_s = session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         run = service.generate_production_scheme_run(cmd)
 
-        from cold_storage.modules.schemes.application.production_service import (
-            _compute_production_content_hash,
-        )
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
+        verify_s = session_factory()
+        try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
+            )
 
-        rec = session.execute(
-            select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
-        ).scalar_one()
+            rec = verify_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one()
 
-        # Re-compute using the production service's canonical function
-        # The content_hash is computed inside generate_production_scheme_run
-        # and includes candidates_snapshot and score_breakdowns_snapshot
-        # We can verify the hash is consistent by checking it matches
-        # a fresh recomputation from the persisted data
-        _compute_production_content_hash(
-            source_binding_id=rec.source_binding_id,
-            weight_set_revision_id=rec.weight_set_revision_id,
-            combined_source_hash=rec.combined_source_hash,
-            weight_set_content_hash=rec.weight_set_content_hash,
-            candidates_snapshot=rec.candidates_snapshot,
-            score_breakdowns_snapshot={},  # not stored separately
-            profile_codes=("balanced",),
-            profile_parameters={},
-        )
-        # Note: score_breakdowns are not stored in SchemeRunRecord, so
-        # the exact hash may differ. But we verify the hash exists and
-        # is a valid SHA-256 hex string
-        assert rec.content_hash is not None
-        assert len(rec.content_hash) == 64
-        assert all(c in "0123456789abcdef" for c in rec.content_hash)
+            # Verify the hash exists and is a valid SHA-256 hex string
+            assert rec.content_hash is not None
+            assert len(rec.content_hash) == 64
+            assert all(c in "0123456789abcdef" for c in rec.content_hash)
+        finally:
+            verify_s.close()
 
-    def test_tampered_content_hash_detected(self, session) -> None:
+    def test_tampered_content_hash_detected(self, engine, session_factory) -> None:
         """If the persisted content_hash is tampered, the hash is invalid
         (wrong value compared to the original computation)."""
-        _seed_all_prereqs(session)
-        service = _make_service(session)
+        seed_s = session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
         cmd = _make_command()
         run = service.generate_production_scheme_run(cmd)
 
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeRunRecord,
-        )
+        tamper_s = session_factory()
+        try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord,
+            )
 
-        rec = session.execute(
-            select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
-        ).scalar_one()
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one()
 
-        original_hash = rec.content_hash
-        assert original_hash is not None
+            original_hash = rec.content_hash
+            assert original_hash is not None
 
-        # Tamper with the stored hash
-        rec.content_hash = (
-            "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
-        )
-        session.commit()
+            # Tamper with the stored hash
+            rec.content_hash = (
+                "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
+            )
+            tamper_s.commit()
 
-        # Re-read and verify the hash no longer matches original
-        rec2 = session.execute(
-            select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
-        ).scalar_one()
-        assert rec2.content_hash != original_hash
-        assert (
-            rec2.content_hash
-            == "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
-        )
+            # Re-read and verify the hash no longer matches original
+            rec2 = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one()
+            assert rec2.content_hash != original_hash
+            assert (
+                rec2.content_hash
+                == "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
+            )
+        finally:
+            tamper_s.close()

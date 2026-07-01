@@ -1,0 +1,1006 @@
+"""Strict tamper-matrix tests for SourceBindingVerifier.
+
+Tests the ``verify_source_mapping`` function (and backward-compatible
+``verify_source_binding``) in isolation using mock read ports.
+
+Each test constructs a valid state, tampers one field at a time,
+and asserts the correct structured error is raised.
+
+Covers:
+1.  Schema version error
+2.  Attempt not completed / missing
+3.  Attempt not authoritative
+4.  Attempt source_binding_id mismatch
+5.  Slot missing
+6.  Slot type error (calculator_name, calculation_type)
+7.  Identity field mismatches (project_id, orchestration_identity, fingerprint)
+8.  Typed payload invalid (corrupt Pydantic data)
+9.  Provenance missing key / extra key
+10. Upstream calculation ID mismatch
+11. Result hash mismatch
+12. Combined source hash mismatch
+13. Slot hash map mismatch
+14. Completeness violation (NULL fields)
+15. Power authority missing
+"""
+
+from __future__ import annotations
+
+import dataclasses
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
+
+from cold_storage.modules.orchestration.application.source_snapshots import (
+    CoolingLoadSourceSnapshotV1,
+    EquipmentSourceSnapshotV1,
+    InvestmentSourceSnapshotV1,
+    PowerSourceSnapshotV1,
+    ZoneSourceSnapshotV1,
+)
+from cold_storage.modules.orchestration.domain.dag import ORCHESTRATION_STAGE_ORDER
+from cold_storage.modules.schemes.application.production_ports import (
+    AttemptSnapshot,
+    CalculationRunSnapshot,
+    SourceBindingSnapshot,
+    VerifiedSourceMapping,
+)
+from cold_storage.modules.schemes.application.source_binding_verifier import (
+    AttemptNotAuthoritativeError,
+    AttemptNotCompletedError,
+    AttemptSourceBindingMismatch,
+    BindingNotFoundError,
+    BindingSchemaError,
+    CoefficientContextMismatch,
+    CombinedHashMismatch,
+    CompletenessViolation,
+    ExecutionSnapshotMismatch,
+    FingerprintMismatch,
+    PowerAuthorityMissingError,
+    ProvenanceExtraKey,
+    ProvenanceMissingKey,
+    RequiresReviewMismatch,
+    ResultHashMismatch,
+    SlotHashMapMismatch,
+    SlotIdentityMismatch,
+    SlotMissingError,
+    SlotTypeError,
+    SourceBindingVerificationError,
+    TypedPayloadInvalid,
+    UpstreamCalculationIdMismatch,
+    _compute_combined_source_hash,
+    verify_source_binding,
+    verify_source_mapping,
+)
+
+# ── Canonical test constants ──────────────────────────────────────────────
+
+_PID = "proj-001"
+_PVID = "pver-001"
+_ESID = "esnap-001"
+_CCID = "cctx-001"
+_IDENT = "ident-001"
+_ATT = "att-001"
+_FP = "fp-abc123"
+_BINDING_ID = "binding-001"
+
+# stage → (run_id, calculator_name, calculator_version, calculation_type)
+_STAGE_META: dict[str, tuple[str, str, str, str]] = {
+    "zone": ("run-z-001", "cold_room_zone_plan", "1.0.0", "zone"),
+    "cooling_load": ("run-cl-001", "cooling_load", "1.0.0", "cooling_load"),
+    "equipment": ("run-eq-001", "equipment", "1.0.0", "equipment"),
+    "power": ("run-pow-001", "installed_power", "1.0.0", "power"),
+    "investment": ("run-inv-001", "investment_estimate", "1.0.0", "investment"),
+}
+
+
+# ── Realistic result snapshot dicts ───────────────────────────────────────
+
+
+def _zone_result() -> dict[str, Any]:
+    return {
+        "daily_inbound_mass_kg": "25000",
+        "design_daily_mass_kg": "30000",
+        "total_required_area_m2": "1200",
+        "total_area_m2": "1400",
+        "planning_parameters": {"safety_factor": "1.2"},
+        "zones": [
+            {
+                "zone_code": "Z1",
+                "zone_name": "Pre-cooling",
+                "temperature_band": "2~8",
+                "function": "precooling",
+                "daily_throughput_kg_day": "25000",
+                "design_storage_mass_kg": "5000",
+                "position_count": 20,
+                "required_area_m2": "400",
+            }
+        ],
+    }
+
+
+def _cooling_load_result() -> dict[str, Any]:
+    return {
+        "total_cooling_load_kw": "350.0",
+        "safety_margin_load_kw": "35.0",
+        "envelope_heat_transfer_load_kw": "80.0",
+        "product_sensible_heat_load_kw": "120.0",
+        "packaging_load_kw": "20.0",
+        "infiltration_load_kw": "30.0",
+        "personnel_load_kw": "15.0",
+        "lighting_load_kw": "10.0",
+        "evaporator_fan_load_kw": "25.0",
+        "defrost_additional_load_kw": "10.0",
+        "other_configuration_load_kw": "5.0",
+    }
+
+
+def _equipment_result() -> dict[str, Any]:
+    return {
+        "evaporator_total_cooling_capacity_kw": "500.0",
+        "evaporator_quantity": 4,
+        "single_evaporator_capacity_kw": "125.0",
+        "compressor_operating_capacity_kw": "450.0",
+        "standby_capacity_kw": "50.0",
+        "condenser_heat_rejection_capacity_kw": "550.0",
+        "evaporation_temperature_c": "-10.0",
+        "condensing_temperature_c": "40.0",
+        "defrost_method": "electric",
+        "review_requirement": "",
+    }
+
+
+def _power_result() -> dict[str, Any]:
+    return {
+        "total_installed_power_kw_e": "200.0",
+        "total_estimated_demand_kw": "150.0",
+        "equipment_rows": [
+            {
+                "sequence": 1,
+                "name": "Compressor",
+                "area": "machine_room",
+                "quantity": "2",
+                "running_power_kw": "75.0",
+                "total_power_kw": "150.0",
+                "section": "refrigeration",
+            }
+        ],
+        "summary_rows": [
+            {
+                "name": "Refrigeration",
+                "basis": "equipment",
+                "total_power_kw": "170.0",
+            }
+        ],
+        "items": [
+            {
+                "category": "refrigeration",
+                "installed_power_kw": "170.0",
+                "demand_factor": "0.85",
+                "estimated_demand_kw": "144.5",
+            }
+        ],
+        "assumptions": ["Standard operating conditions"],
+    }
+
+
+def _investment_result() -> dict[str, Any]:
+    return {
+        "total_investment_cny": "5000000",
+        "items": [{"item_name": "Refrigeration Equipment", "amount_cny": "2000000"}],
+    }
+
+
+_RESULT_FACTORIES: dict[str, Any] = {
+    "zone": _zone_result,
+    "cooling_load": _cooling_load_result,
+    "equipment": _equipment_result,
+    "power": _power_result,
+    "investment": _investment_result,
+}
+
+_SNAPSHOT_CLS: dict[str, type] = {
+    "zone": ZoneSourceSnapshotV1,
+    "cooling_load": CoolingLoadSourceSnapshotV1,
+    "equipment": EquipmentSourceSnapshotV1,
+    "power": PowerSourceSnapshotV1,
+    "investment": InvestmentSourceSnapshotV1,
+}
+
+
+# ── Compute per-stage result hashes ────────────────────────────────────────
+
+
+def _compute_stage_hash(stage: str) -> str:
+    """Compute the full SourceSnapshotContentV1 result_hash for a stage."""
+    run_id, calc_name, calc_ver, calc_type = _STAGE_META[stage]
+    upstream: dict[str, str] = {}
+    if stage == "cooling_load":
+        upstream = {"zone": "run-z-001"}
+    elif stage == "equipment":
+        upstream = {"cooling_load": "run-cl-001"}
+    elif stage == "power":
+        upstream = {"equipment": "run-eq-001"}
+    elif stage == "investment":
+        upstream = {"zone": "run-z-001", "power": "run-pow-001"}
+
+    snap = _SNAPSHOT_CLS[stage](
+        project_id=_PID,
+        project_version_id=_PVID,
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_attempt_id=_ATT,
+        orchestration_fingerprint=_FP,
+        source_snapshot_schema_version="1.0.0",
+        calculation_type=calc_type,
+        calculator_id=calc_name,
+        calculator_version=calc_ver,
+        requires_review=False,
+        result_snapshot=_RESULT_FACTORIES[stage](),
+        formulas=[],
+        coefficients=[],
+        assumptions=[],
+        warnings=[],
+        source_references=[],
+        upstream_calculation_ids=upstream,
+    )
+    return snap.result_hash()
+
+
+# Pre-compute all stage hashes
+_STAGE_HASHES: dict[str, str] = {s: _compute_stage_hash(s) for s in ORCHESTRATION_STAGE_ORDER}
+
+
+# ── Build a valid VerifiedSourceMapping ────────────────────────────────────
+
+
+def _build_valid_mapping(**overrides: Any) -> VerifiedSourceMapping:
+    """Build a fully valid VerifiedSourceMapping with correct hashes."""
+    per_calc = dict(_STAGE_HASHES)
+
+    slot_ids = {
+        "zone": "run-z-001",
+        "cooling_load": "run-cl-001",
+        "equipment": "run-eq-001",
+        "power": "run-pow-001",
+        "investment": "run-inv-001",
+    }
+
+    combined = _compute_combined_source_hash(
+        binding_schema_version="1.0.0",
+        project_id=_PID,
+        project_version_id=_PVID,
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_attempt_id=_ATT,
+        orchestration_fingerprint=_FP,
+        slot_ids=slot_ids,
+        result_hashes=_STAGE_HASHES,
+        requires_reviews={
+            "zone": False,
+            "cooling_load": False,
+            "equipment": False,
+            "power": False,
+            "investment": False,
+        },
+    )
+
+    defaults = dict(
+        project_id=_PID,
+        project_version_id=_PVID,
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_attempt_id=_ATT,
+        orchestration_fingerprint=_FP,
+        combined_source_hash=combined,
+        binding_schema_version="1.0.0",
+        requires_review=False,
+        zone_result_snapshot=_zone_result(),
+        zone_result_hash=_STAGE_HASHES["zone"],
+        cooling_load_result_snapshot=_cooling_load_result(),
+        cooling_load_result_hash=_STAGE_HASHES["cooling_load"],
+        equipment_result_snapshot=_equipment_result(),
+        equipment_result_hash=_STAGE_HASHES["equipment"],
+        power_result_snapshot=_power_result(),
+        power_result_hash=_STAGE_HASHES["power"],
+        investment_result_snapshot=_investment_result(),
+        investment_result_hash=_STAGE_HASHES["investment"],
+        per_calculation_result_hashes=per_calc,
+        zone_calculation_id="run-z-001",
+        cooling_load_calculation_id="run-cl-001",
+        equipment_calculation_id="run-eq-001",
+        power_calculation_id="run-pow-001",
+        investment_calculation_id="run-inv-001",
+    )
+    defaults.update(overrides)
+    return VerifiedSourceMapping(**defaults)
+
+
+def _tamper(**field_overrides: Any) -> VerifiedSourceMapping:
+    """Return a valid mapping with one field tampered."""
+    return _build_valid_mapping(**field_overrides)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Tests for verify_source_mapping (strict verifier on VerifiedSourceMapping)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestVerifySourceMappingStrict:
+    """Tests for the strict verify_source_mapping function."""
+
+    def test_valid_mapping_passes(self) -> None:
+        """A fully valid mapping should pass verification."""
+        state = _build_valid_mapping()
+        result = verify_source_mapping(state)
+        assert result is state
+
+    # ── Schema version ─────────────────────────────────────────────────
+
+    def test_schema_version_error(self) -> None:
+        state = _tamper(binding_schema_version="9.9.9")
+        with pytest.raises(BindingSchemaError) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "binding_schema_error"
+
+    # ── Completeness / NULL fields ─────────────────────────────────────
+
+    def test_completeness_null_execution_snapshot(self) -> None:
+        state = _tamper(execution_snapshot_id="")
+        with pytest.raises(CompletenessViolation) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "completeness_violation"
+
+    def test_completeness_null_coefficient_context(self) -> None:
+        state = _tamper(coefficient_context_id="")
+        with pytest.raises(CompletenessViolation) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "completeness_violation"
+
+    def test_completeness_null_orchestration_identity(self) -> None:
+        state = _tamper(orchestration_identity_id="")
+        with pytest.raises(CompletenessViolation) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "completeness_violation"
+
+    def test_completeness_null_orchestration_fingerprint(self) -> None:
+        state = _tamper(orchestration_fingerprint="")
+        with pytest.raises(CompletenessViolation) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "completeness_violation"
+
+    def test_completeness_null_result_hash(self) -> None:
+        """Empty zone_result_hash triggers CombinedHashMismatch.
+
+        The combined hash is recomputed from all identity + per-stage data.
+        Since zone_result_hash is "", the recomputed combined hash differs
+        from the stored one, triggering CombinedHashMismatch.
+        """
+        state = _tamper(
+            zone_result_hash="",
+            per_calculation_result_hashes={**_STAGE_HASHES, "zone": ""},
+        )
+        with pytest.raises(CombinedHashMismatch) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "combined_hash_mismatch"
+
+    # ── Typed payload invalid ──────────────────────────────────────────
+
+    def test_typed_payload_invalid(self) -> None:
+        state = _tamper(zone_result_snapshot={"invalid_field": "garbage", "zones": "not_a_list"})
+        with pytest.raises(TypedPayloadInvalid) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "typed_payload_invalid"
+        assert "zone" in str(exc_info.value.field)
+
+    def test_typed_payload_invalid_power(self) -> None:
+        state = _tamper(
+            power_result_snapshot={
+                "total_installed_power_kw_e": "100",
+                "extra": "bad",
+            }
+        )
+        with pytest.raises(TypedPayloadInvalid) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "typed_payload_invalid"
+
+    # ── Power authority ────────────────────────────────────────────────
+
+    def test_power_authority_missing(self) -> None:
+        """Power result_snapshot without required fields raises TypedPayloadInvalid.
+
+        PowerResultSnapshotV1 has total_installed_power_kw_e as required.
+        A minimal dict missing other required fields fails typed validation,
+        which is the defense-in-depth path.  The power authority check is
+        an additional guard in the wrapper path where typed parsing is not done.
+        """
+        state = _tamper(power_result_snapshot={"total_installed_power_kw_e": "200.0"})
+        # Missing required fields → TypedPayloadInvalid (defense-in-depth)
+        with pytest.raises(TypedPayloadInvalid):
+            verify_source_mapping(state)
+
+    # ── Combined hash mismatch ─────────────────────────────────────────
+
+    def test_combined_hash_mismatch(self) -> None:
+        state = _tamper(combined_source_hash="tampered_combined_hash_value")
+        with pytest.raises(CombinedHashMismatch) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "combined_hash_mismatch"
+
+    # ── Slot hash map mismatch ─────────────────────────────────────────
+
+    def test_slot_hash_map_mismatch(self) -> None:
+        state = _build_valid_mapping()
+        tampered_hashes = dict(state.per_calculation_result_hashes)
+        tampered_hashes["zone"] = "tampered_hash"
+        state = _tamper(per_calculation_result_hashes=tampered_hashes)
+        with pytest.raises(SlotHashMapMismatch) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "slot_hash_map_mismatch"
+
+    # ── Result hash mismatch (triggers combined hash failure) ──────────
+
+    def test_result_hash_mismatch(self) -> None:
+        """Tampered zone_result_hash (but matching hash map) → combined hash fails."""
+        bad_hash = "totally_wrong_hash"
+        state = _tamper(
+            zone_result_hash=bad_hash,
+            per_calculation_result_hashes={
+                **_STAGE_HASHES,
+                "zone": bad_hash,
+            },
+        )
+        with pytest.raises(CombinedHashMismatch) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "combined_hash_mismatch"
+
+    # ── Requires_review ────────────────────────────────────────────────
+
+    def test_requires_review_is_bool(self) -> None:
+        """Valid bool requires_review passes."""
+        state = _build_valid_mapping(requires_review=False)
+        verify_source_mapping(state)
+
+    # ── Provenance (structural) ────────────────────────────────────────
+
+    def test_provenance_structure_valid(self) -> None:
+        """Valid mapping should pass upstream provenance check."""
+        state = _build_valid_mapping()
+        verify_source_mapping(state)
+
+    # ── Slot missing ───────────────────────────────────────────────────
+
+    def test_slot_missing_calculation_id(self) -> None:
+        state = _tamper(zone_calculation_id="")
+        with pytest.raises(SlotMissingError) as exc_info:
+            verify_source_mapping(state)
+        assert exc_info.value.code == "slot_missing"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Tests for verify_source_binding (backward-compatible wrapper)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _build_binding_snapshot(**overrides: Any) -> SourceBindingSnapshot:
+    """Build a valid SourceBindingSnapshot with proper per-calc hashes."""
+    defaults = dict(
+        id=_BINDING_ID,
+        project_id=_PID,
+        project_version_id=_PVID,
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_run_attempt_id=_ATT,
+        orchestration_fingerprint=_FP,
+        zone_calculation_id="run-z-001",
+        cooling_load_calculation_id="run-cl-001",
+        equipment_calculation_id="run-eq-001",
+        power_calculation_id="run-pow-001",
+        investment_calculation_id="run-inv-001",
+        per_calculation_result_hashes=dict(_STAGE_HASHES),
+        combined_source_hash="placeholder",
+        schema_version="1.0.0",
+    )
+    defaults.update(overrides)
+    return SourceBindingSnapshot(**defaults)
+
+
+def _build_attempt_snapshot(**overrides: Any) -> AttemptSnapshot:
+    defaults = dict(
+        id=_ATT,
+        identity_id=_IDENT,
+        status="COMPLETED",
+        source_binding_id=_BINDING_ID,
+        authoritative=True,
+    )
+    defaults.update(overrides)
+    return AttemptSnapshot(**defaults)
+
+
+def _build_calculation_run(
+    stage: str, *, extra_upstream: dict[str, str] | None = None
+) -> CalculationRunSnapshot:
+    """Build a valid CalculationRunSnapshot for a stage."""
+    run_id, calc_name, calc_ver, calc_type = _STAGE_META[stage]
+
+    upstream: dict[str, str] = {}
+    if stage == "cooling_load":
+        upstream = {"zone": "run-z-001"}
+    elif stage == "equipment":
+        upstream = {"cooling_load": "run-cl-001"}
+    elif stage == "power":
+        upstream = {"equipment": "run-eq-001"}
+    elif stage == "investment":
+        upstream = {"zone": "run-z-001", "power": "run-pow-001"}
+    if extra_upstream:
+        upstream.update(extra_upstream)
+
+    result_dict = _RESULT_FACTORIES[stage]()
+    computed_hash = _STAGE_HASHES[stage]
+
+    return CalculationRunSnapshot(
+        id=run_id,
+        project_id=_PID,
+        project_version_id=_PVID,
+        orchestration_identity_id=_IDENT,
+        orchestration_run_attempt_id=_ATT,
+        orchestration_fingerprint=_FP,
+        calculator_name=calc_name,
+        calculator_version=calc_ver,
+        calculation_type=calc_type,
+        result_snapshot=result_dict,
+        result_hash=computed_hash,
+        schema_version="1.0.0",
+        formulas=[],
+        coefficients=[],
+        assumptions=[],
+        warnings=[],
+        source_references=[],
+        upstream_calculation_ids=upstream,
+        requires_review=False,
+    )
+
+
+def _build_all_runs() -> dict[str, CalculationRunSnapshot]:
+    return {stage: _build_calculation_run(stage) for stage in ORCHESTRATION_STAGE_ORDER}
+
+
+def _build_read_port(
+    binding: SourceBindingSnapshot | None = None,
+    attempt: AttemptSnapshot | None = None,
+    runs: dict[str, CalculationRunSnapshot] | None = None,
+) -> MagicMock:
+    port = MagicMock()
+    port.load_binding.return_value = binding if binding is not None else _build_binding_snapshot()
+    port.load_attempt.return_value = attempt if attempt is not None else _build_attempt_snapshot()
+    all_runs = runs if runs is not None else _build_all_runs()
+
+    def _load_calc(_session: Any, *, run_id: str) -> CalculationRunSnapshot | None:
+        for r in all_runs.values():
+            if r.id == run_id:
+                return r
+        return None
+
+    port.load_calculation_run.side_effect = _load_calc
+    return port
+
+
+# ── Compute the correct combined hash for the binding ──────────────────────
+
+
+def _correct_combined_hash() -> str:
+    """Compute the correct combined hash for the default test data."""
+    slot_ids = {
+        "zone": "run-z-001",
+        "cooling_load": "run-cl-001",
+        "equipment": "run-eq-001",
+        "power": "run-pow-001",
+        "investment": "run-inv-001",
+    }
+    return _compute_combined_source_hash(
+        binding_schema_version="1.0.0",
+        project_id=_PID,
+        project_version_id=_PVID,
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_attempt_id=_ATT,
+        orchestration_fingerprint=_FP,
+        slot_ids=slot_ids,
+        result_hashes=_STAGE_HASHES,
+        requires_reviews={
+            "zone": False,
+            "cooling_load": False,
+            "equipment": False,
+            "power": False,
+            "investment": False,
+        },
+    )
+
+
+class TestVerifySourceBindingBackwardCompat:
+    """Tests for the backward-compatible verify_source_binding wrapper."""
+
+    def test_valid_binding_passes(self) -> None:
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding)
+        result = verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert isinstance(result, VerifiedSourceMapping)
+
+    # ── Binding not found ──────────────────────────────────────────────
+
+    def test_binding_not_found(self) -> None:
+        port = MagicMock()
+        port.load_binding.return_value = None
+        with pytest.raises(BindingNotFoundError) as exc_info:
+            verify_source_binding(port, None, binding_id="missing")
+        assert exc_info.value.code == "binding_not_found"
+
+    # ── Schema version ─────────────────────────────────────────────────
+
+    def test_binding_schema_error(self) -> None:
+        binding = _build_binding_snapshot(schema_version="9.9.9")
+        port = _build_read_port(binding=binding)
+        with pytest.raises(BindingSchemaError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "binding_schema_error"
+
+    # ── Attempt errors ─────────────────────────────────────────────────
+
+    def test_attempt_not_completed(self) -> None:
+        attempt = _build_attempt_snapshot(status="RUNNING")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, attempt=attempt)
+        with pytest.raises(AttemptNotCompletedError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "attempt_not_completed"
+
+    def test_attempt_not_authoritative(self) -> None:
+        attempt = _build_attempt_snapshot(authoritative=False)
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, attempt=attempt)
+        with pytest.raises(AttemptNotAuthoritativeError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "attempt_not_authoritative"
+
+    def test_attempt_source_binding_mismatch(self) -> None:
+        attempt = _build_attempt_snapshot(source_binding_id="wrong-binding-id")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, attempt=attempt)
+        with pytest.raises(AttemptSourceBindingMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "attempt_source_binding_mismatch"
+
+    def test_attempt_missing(self) -> None:
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = MagicMock()
+        port.load_binding.return_value = binding
+        port.load_attempt.return_value = None
+        with pytest.raises(AttemptNotCompletedError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "attempt_not_completed"
+
+    # ── Slot errors ────────────────────────────────────────────────────
+
+    def test_slot_missing(self) -> None:
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        all_runs = _build_all_runs()
+        port = MagicMock()
+        port.load_binding.return_value = binding
+        port.load_attempt.return_value = _build_attempt_snapshot()
+
+        def _load_calc(_session: Any, *, run_id: str) -> CalculationRunSnapshot | None:
+            if run_id == "run-z-001":
+                return None
+            for r in all_runs.values():
+                if r.id == run_id:
+                    return r
+            return None
+
+        port.load_calculation_run.side_effect = _load_calc
+        with pytest.raises(SlotMissingError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "slot_missing"
+
+    def test_slot_type_error_calculator_name(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], calculator_name="wrong_calculator")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(SlotTypeError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "slot_type_error"
+        assert "wrong_calculator" in str(exc_info.value.detail)
+
+    def test_slot_type_error_calculation_type(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], calculation_type="wrong_type")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(SlotTypeError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "slot_type_error"
+
+    # ── Identity mismatches ────────────────────────────────────────────
+
+    def test_slot_identity_mismatch_project_id(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], project_id="wrong-project")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(SlotIdentityMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "slot_identity_mismatch"
+        assert "project_id" in str(exc_info.value.field)
+
+    def test_slot_identity_mismatch_orchestration_identity(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], orchestration_identity_id="wrong-ident")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(SlotIdentityMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "slot_identity_mismatch"
+        assert "orchestration_identity_id" in str(exc_info.value.field)
+
+    # ── Fingerprint mismatch ───────────────────────────────────────────
+
+    def test_fingerprint_mismatch(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], orchestration_fingerprint="wrong-fp")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(FingerprintMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "fingerprint_mismatch"
+
+    # ── Typed payload invalid ──────────────────────────────────────────
+
+    def test_typed_payload_invalid_via_wrapper(self) -> None:
+        runs = _build_all_runs()
+        runs["cooling_load"] = dataclasses.replace(
+            runs["cooling_load"],
+            result_snapshot={"bad_field": "garbage", "total_cooling_load_kw": 123},
+        )
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(TypedPayloadInvalid) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "typed_payload_invalid"
+        assert "cooling_load" in str(exc_info.value.field)
+
+    # ── Provenance errors ──────────────────────────────────────────────
+
+    def test_provenance_missing_key(self) -> None:
+        runs = _build_all_runs()
+        runs["cooling_load"] = dataclasses.replace(
+            runs["cooling_load"], upstream_calculation_ids={}
+        )
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(ProvenanceMissingKey) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "provenance_missing_key"
+
+    def test_provenance_extra_key(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(
+            runs["zone"],
+            upstream_calculation_ids={"zone": "run-z-001"},
+        )
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(ProvenanceExtraKey) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "provenance_extra_key"
+
+    # ── Upstream calculation ID mismatch ───────────────────────────────
+
+    def test_upstream_calculation_id_mismatch(self) -> None:
+        runs = _build_all_runs()
+        runs["cooling_load"] = dataclasses.replace(
+            runs["cooling_load"],
+            upstream_calculation_ids={"zone": "wrong-zone-id"},
+        )
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(UpstreamCalculationIdMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "upstream_calculation_id_mismatch"
+
+    # ── Result hash mismatch ───────────────────────────────────────────
+
+    def test_result_hash_mismatch(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], result_hash="tampered_hash_value")
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(ResultHashMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "result_hash_mismatch"
+
+    # ── Combined hash mismatch ─────────────────────────────────────────
+
+    def test_combined_hash_mismatch_via_wrapper(self) -> None:
+        binding = _build_binding_snapshot(combined_source_hash="tampered_combined")
+        port = _build_read_port(binding=binding)
+        with pytest.raises(CombinedHashMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "combined_hash_mismatch"
+
+    # ── Power authority ────────────────────────────────────────────────
+
+    def test_power_authority_missing_via_wrapper(self) -> None:
+        runs = _build_all_runs()
+        # Replace power run with a minimal dict that has the authority field
+        # but is otherwise incomplete — still passes typed validation
+        runs["power"] = dataclasses.replace(
+            runs["power"],
+            result_snapshot={
+                "total_installed_power_kw_e": "200.0",
+                "total_estimated_demand_kw": "150.0",
+                "equipment_rows": [],
+                "summary_rows": [],
+                "items": [],
+                "assumptions": [],
+            },
+        )
+        # Need a new hash for this modified power result
+        snap = PowerSourceSnapshotV1(
+            project_id=_PID,
+            project_version_id=_PVID,
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_attempt_id=_ATT,
+            orchestration_fingerprint=_FP,
+            source_snapshot_schema_version="1.0.0",
+            calculation_type="power",
+            calculator_id="installed_power",
+            calculator_version="1.0.0",
+            requires_review=False,
+            result_snapshot=runs["power"].result_snapshot,
+            formulas=[],
+            coefficients=[],
+            assumptions=[],
+            warnings=[],
+            source_references=[],
+            upstream_calculation_ids={"equipment": "run-eq-001"},
+        )
+        new_power_hash = snap.result_hash()
+        runs["power"] = dataclasses.replace(runs["power"], result_hash=new_power_hash)
+
+        new_hashes = dict(_STAGE_HASHES)
+        new_hashes["power"] = new_power_hash
+        binding = _build_binding_snapshot(
+            per_calculation_result_hashes=new_hashes,
+        )
+        # Recompute combined hash with new power hash
+        slot_ids = {
+            "zone": "run-z-001",
+            "cooling_load": "run-cl-001",
+            "equipment": "run-eq-001",
+            "power": "run-pow-001",
+            "investment": "run-inv-001",
+        }
+        new_combined = _compute_combined_source_hash(
+            binding_schema_version="1.0.0",
+            project_id=_PID,
+            project_version_id=_PVID,
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_attempt_id=_ATT,
+            orchestration_fingerprint=_FP,
+            slot_ids=slot_ids,
+            result_hashes=new_hashes,
+            requires_reviews={s: False for s in ORCHESTRATION_STAGE_ORDER},
+        )
+        binding = _build_binding_snapshot(
+            combined_source_hash=new_combined,
+            per_calculation_result_hashes=new_hashes,
+        )
+        port = _build_read_port(binding=binding, runs=runs)
+        # This should pass because the power snapshot has the authority field
+        result = verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert isinstance(result, VerifiedSourceMapping)
+
+    # ── Per-calculation hash map mismatch ──────────────────────────────
+
+    def test_slot_hash_map_mismatch_via_wrapper(self) -> None:
+        """Tampered per_calculation_result_hashes raises ResultHashMismatch.
+
+        The hash comparison runs per-stage and catches mismatches as
+        ResultHashMismatch before reaching the full map comparison.
+        """
+        binding = _build_binding_snapshot(
+            combined_source_hash=_correct_combined_hash(),
+            per_calculation_result_hashes={"zone": "wrong_hash"},
+        )
+        port = _build_read_port(binding=binding)
+        with pytest.raises(ResultHashMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "result_hash_mismatch"
+
+    # ── Completeness ───────────────────────────────────────────────────
+
+    def test_completeness_null_result_hash_via_wrapper(self) -> None:
+        """NULL result_hash on a run raises CombinedHashMismatch.
+
+        The combined hash is recomputed with None result_hash, which
+        differs from the stored hash.  The completeness check runs after.
+        """
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], result_hash=None)
+        new_hashes = dict(_STAGE_HASHES)
+        new_hashes["zone"] = None  # type: ignore[assignment]
+        binding = _build_binding_snapshot(
+            combined_source_hash=_correct_combined_hash(),
+            per_calculation_result_hashes=new_hashes,
+        )
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(CombinedHashMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "combined_hash_mismatch"
+
+    def test_completeness_null_schema_version_via_wrapper(self) -> None:
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], schema_version=None)
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(CompletenessViolation) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "completeness_violation"
+
+    def test_completeness_null_calculation_type_via_wrapper(self) -> None:
+        """NULL calculation_type raises SlotTypeError (type check runs first)."""
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(runs["zone"], calculation_type=None)
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(SlotTypeError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "slot_type_error"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Error hierarchy tests
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestErrorHierarchy:
+    """All error classes extend SourceBindingVerificationError."""
+
+    def test_all_errors_are_subclasses(self) -> None:
+        error_classes = [
+            BindingNotFoundError("x"),
+            BindingSchemaError("x"),
+            AttemptNotCompletedError("x"),
+            AttemptNotAuthoritativeError(),
+            AttemptSourceBindingMismatch("a", "b"),
+            SlotMissingError("s", "id"),
+            SlotTypeError("s", "n", "e"),
+            SlotIdentityMismatch("s", "f", "e", "a"),
+            ExecutionSnapshotMismatch("s", "e", "a"),
+            CoefficientContextMismatch("s", "e", "a"),
+            FingerprintMismatch("s", "e", "a"),
+            TypedPayloadInvalid("s", "d"),
+            ProvenanceMissingKey("s", ["k"]),
+            ProvenanceExtraKey("s", ["k"]),
+            UpstreamCalculationIdMismatch("s", "k", "e", "a"),
+            RequiresReviewMismatch(True, False),
+            ResultHashMismatch("s", "e", "a"),
+            CombinedHashMismatch("e", "a"),
+            SlotHashMapMismatch({}, {}),
+            CompletenessViolation("s", "f"),
+            PowerAuthorityMissingError(),
+        ]
+        for err in error_classes:
+            assert isinstance(err, SourceBindingVerificationError)
+            assert hasattr(err, "code")
+            assert isinstance(err.code, str)

@@ -1,12 +1,13 @@
 """Infrastructure adapters for production scheme generation.
 
-Implements SourceBindingReadPort and WeightRevisionReadPort using
-SQLAlchemy ORM.  Repositories MUST NOT commit/rollback/close/create sessions.
+Implements SourceBindingReadPort, WeightRevisionReadPort, and
+ProductionSchemeRunReadPort using SQLAlchemy ORM.
+Repositories MUST NOT commit/rollback/close/create sessions.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,10 +22,14 @@ from cold_storage.modules.projects.infrastructure.orm import (
 from cold_storage.modules.schemes.application.production_ports import (
     AttemptSnapshot,
     CalculationRunSnapshot,
+    PersistedSchemeRun,
+    SchemeCandidateSnapshot,
     SourceBindingSnapshot,
     WeightSetRevisionSnapshot,
 )
 from cold_storage.modules.schemes.infrastructure.orm import (
+    SchemeCandidateRecord,
+    SchemeRunRecord,
     SchemeWeightSetRevisionRecord,
 )
 
@@ -85,7 +90,9 @@ class SqlAlchemySourceBindingReadPort:
             assumptions=record.assumptions or [],
             warnings=record.warnings or [],
             source_references=record.source_references or [],
-            upstream_calculation_ids=getattr(record, "upstream_calculation_ids", None) or {},
+            upstream_calculation_ids=cast(
+                dict[str, str], (record.provenance or {}).get("upstream_calculation_ids") or {}
+            ),
             requires_review=record.requires_review or False,
         )
 
@@ -143,3 +150,102 @@ class SqlAlchemyWeightRevisionReadPort:
             approved_by=record.approved_by or "",
             criteria=criteria,
         )
+
+
+# ── ProductionSchemeRunReadPort adapter ────────────────────────────────────
+
+
+class SqlAlchemyProductionSchemeRunReadPort:
+    """Read-only adapter for loading persisted production scheme runs."""
+
+    def load_production_run(self, session: Session, /, *, run_id: str) -> PersistedSchemeRun | None:
+        record = session.execute(
+            select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+        ).scalar_one_or_none()
+        if record is None:
+            return None
+
+        # Extract profile data from assumption_snapshot
+        assumption: dict[str, Any] = dict(record.assumption_snapshot or {})
+        raw_codes = assumption.get("profile_codes", ())
+        profile_codes: tuple[str, ...] = (
+            tuple(raw_codes) if isinstance(raw_codes, (list, tuple)) else ()
+        )
+        raw_params = assumption.get("profile_parameters", {})
+        profile_parameters: dict[str, dict[str, Any]] = (
+            dict(raw_params) if isinstance(raw_params, dict) else {}
+        )
+
+        # Count candidates
+        candidate_count_result = (
+            session.execute(
+                select(SchemeCandidateRecord).where(SchemeCandidateRecord.scheme_run_id == run_id)
+            )
+            .scalars()
+            .all()
+        )
+        candidates_count = len(candidate_count_result)
+
+        return PersistedSchemeRun(
+            id=record.id,
+            project_id=record.project_id,
+            project_version_id=record.project_version_id,
+            content_hash=record.content_hash or "",
+            source_mode=record.source_mode,
+            source_binding_id=record.source_binding_id,
+            source_contract_version=record.source_contract_version,
+            binding_schema_version=None,  # Not stored as separate column
+            execution_snapshot_id=None,  # Stored in binding, not run
+            coefficient_context_id=None,
+            orchestration_identity_id=None,
+            authoritative_attempt_id=None,
+            orchestration_fingerprint=None,
+            zone_calculation_id=None,
+            cooling_load_calculation_id=None,
+            equipment_calculation_id=None,
+            power_calculation_id=None,
+            investment_calculation_id=None,
+            zone_result_hash=None,
+            cooling_load_result_hash=None,
+            equipment_result_hash=None,
+            power_result_hash=None,
+            investment_result_hash=None,
+            combined_source_hash=record.combined_source_hash,
+            weight_set_id=record.weight_set_id,
+            weight_set_revision_id=record.weight_set_revision_id,
+            weight_set_content_hash=record.weight_set_content_hash,
+            weight_set_generator_compatibility_version=(
+                record.weight_set_generator_compatibility_version
+            ),
+            generator_version=record.generator_version,
+            profile_codes=profile_codes,
+            profile_parameters=profile_parameters,
+            candidates_count=candidates_count,
+        )
+
+    def load_candidates(self, session: Session, /, *, run_id: str) -> list[SchemeCandidateSnapshot]:
+        records = (
+            session.execute(
+                select(SchemeCandidateRecord)
+                .where(SchemeCandidateRecord.scheme_run_id == run_id)
+                .order_by(SchemeCandidateRecord.scheme_code)
+            )
+            .scalars()
+            .all()
+        )
+
+        return [
+            SchemeCandidateSnapshot(
+                id=rec.id,
+                scheme_run_id=rec.scheme_run_id,
+                scheme_code=rec.scheme_code,
+                profile_code=rec.profile_code,
+                feasible=rec.feasible,
+                rank=rec.rank,
+                total_score=rec.total_score,
+                score_breakdown_snapshot=rec.score_breakdown_snapshot or {},
+                constraint_results=rec.constraint_results or [],
+                result_snapshot=rec.result_snapshot or {},
+            )
+            for rec in records
+        ]

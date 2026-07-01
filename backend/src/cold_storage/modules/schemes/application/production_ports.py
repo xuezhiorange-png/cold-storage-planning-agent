@@ -1,8 +1,9 @@
 """Production scheme generation command and application ports.
 
 Defines the typed immutable command for production scheme generation,
-read ports for SourceBinding and weight-set revision, and the mapping
-from five typed orchestration snapshots to scheme domain inputs.
+read ports for SourceBinding and weight-set revision, the mapping
+from five typed orchestration snapshots to scheme domain inputs, and
+the trusted readback port for production scheme runs.
 """
 
 from __future__ import annotations
@@ -193,13 +194,61 @@ class VerifiedSourceMapping:
 
 @dataclass(frozen=True, slots=True)
 class PersistedSchemeRun:
-    """Minimal read model for a persisted production SchemeRun."""
+    """Complete read model for a persisted production SchemeRun.
+
+    Contains all provenance fields for P0-6 complete production provenance.
+    """
 
     id: str
     project_id: str
     project_version_id: str
     content_hash: str
     source_mode: str
+
+    # Source binding identity
+    source_binding_id: str | None = None
+    source_contract_version: str | None = None
+    binding_schema_version: str | None = None
+
+    # Execution provenance
+    execution_snapshot_id: str | None = None
+    coefficient_context_id: str | None = None
+    orchestration_identity_id: str | None = None
+    authoritative_attempt_id: str | None = None
+    orchestration_fingerprint: str | None = None
+
+    # Five calculation run IDs
+    zone_calculation_id: str | None = None
+    cooling_load_calculation_id: str | None = None
+    equipment_calculation_id: str | None = None
+    power_calculation_id: str | None = None
+    investment_calculation_id: str | None = None
+
+    # Five result hashes
+    zone_result_hash: str | None = None
+    cooling_load_result_hash: str | None = None
+    equipment_result_hash: str | None = None
+    power_result_hash: str | None = None
+    investment_result_hash: str | None = None
+
+    # Combined source hash
+    combined_source_hash: str | None = None
+
+    # Weight set provenance
+    weight_set_id: str | None = None
+    weight_set_revision_id: str | None = None
+    weight_set_content_hash: str | None = None
+    weight_set_generator_compatibility_version: str | None = None
+
+    # Generator
+    generator_version: str | None = None
+
+    # Profile selection
+    profile_codes: tuple[str, ...] = ()
+    profile_parameters: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    # Candidates
+    candidates_count: int = 0
 
 
 class ProductionSchemeRunRepository(Protocol):
@@ -233,9 +282,58 @@ class ProductionSchemeRunRepository(Protocol):
         source_mode: str,
         source_binding_id: str,
         source_contract_version: str,
+        binding_schema_version: str,
+        execution_snapshot_id: str,
+        coefficient_context_id: str,
+        orchestration_identity_id: str,
+        authoritative_attempt_id: str,
+        orchestration_fingerprint: str,
+        zone_calculation_id: str,
+        cooling_load_calculation_id: str,
+        equipment_calculation_id: str,
+        power_calculation_id: str,
+        investment_calculation_id: str,
+        zone_result_hash: str,
+        cooling_load_result_hash: str,
+        equipment_result_hash: str,
+        power_result_hash: str,
+        investment_result_hash: str,
+        combined_source_hash: str,
         weight_set_revision_id: str,
         weight_set_content_hash: str,
         weight_set_generator_compatibility_version: str,
-        combined_source_hash: str,
+        profile_codes: tuple[str, ...],
+        profile_parameters: dict[str, dict[str, Any]],
         candidates: list[dict[str, Any]],
     ) -> PersistedSchemeRun: ...
+
+
+# ── Production scheme run read port ────────────────────────────────────────
+
+
+class ProductionSchemeRunReadPort(Protocol):
+    """Read port for loading persisted production scheme runs and candidates.
+
+    Used by the trusted readback path to independently verify a persisted
+    production SchemeRun's integrity.
+    """
+
+    def load_production_run(self, session: Any, /, *, run_id: str) -> PersistedSchemeRun | None: ...
+
+    def load_candidates(self, session: Any, /, *, run_id: str) -> list[SchemeCandidateSnapshot]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class SchemeCandidateSnapshot:
+    """Read model for a persisted SchemeCandidateRecord."""
+
+    id: str
+    scheme_run_id: str
+    scheme_code: str
+    profile_code: str
+    feasible: bool
+    rank: int | None
+    total_score: Any  # Decimal or None
+    score_breakdown_snapshot: dict[str, Any]
+    constraint_results: list[dict[str, Any]]
+    result_snapshot: dict[str, Any]
