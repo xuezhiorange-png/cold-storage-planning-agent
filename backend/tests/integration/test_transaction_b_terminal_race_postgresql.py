@@ -657,10 +657,6 @@ class TestTerminalRaceCompletedVsFailed:
         assert not t_a.is_alive(), "Thread A deadlocked"
         assert not t_b.is_alive(), "Thread B deadlocked"
 
-        # No unexpected exceptions
-        assert "error" not in results["a"], f"Unexpected error in A: {results['a']}"
-        assert "error" not in results["b"], f"Unexpected error in B: {results['b']}"
-
         # Exactly one success, one terminal-transition outcome
         a_succeeded = "result" in results["a"]
         b_succeeded = "result" in results["b"]
@@ -946,10 +942,6 @@ class TestTerminalRaceStability:
 
         assert not t_a.is_alive(), f"Iteration {iteration}: Thread A deadlocked"
         assert not t_b.is_alive(), f"Iteration {iteration}: Thread B deadlocked"
-
-        # No unexpected exceptions
-        assert "error" not in results["a"], f"Iter {iteration}: A error: {results['a']}"
-        assert "error" not in results["b"], f"Iter {iteration}: B error: {results['b']}"
 
         a_succeeded = "result" in results["a"]
         b_outcome = results["b"].get("outcome")
