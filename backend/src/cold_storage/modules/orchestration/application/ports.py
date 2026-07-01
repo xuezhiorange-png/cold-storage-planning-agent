@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from typing import Any, Protocol
 
 from cold_storage.modules.orchestration.application.coefficient_contracts import (
@@ -21,6 +22,27 @@ from cold_storage.modules.orchestration.domain.contracts import (
     AttemptStatus,
     RequestStatus,
 )
+
+# ── Terminal transition outcome ─────────────────────────────────────────────
+
+
+class TerminalTransitionOutcome(StrEnum):
+    """Result classification for guarded terminal CAS transitions."""
+
+    TRANSITIONED = "TRANSITIONED"
+    ALREADY_COMPLETED = "ALREADY_COMPLETED"
+    ALREADY_TERMINAL = "ALREADY_TERMINAL"
+    NOT_FOUND = "NOT_FOUND"
+    STATE_CONFLICT = "STATE_CONFLICT"
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalTransitionResult:
+    """Structured result from a guarded terminal CAS transition."""
+
+    outcome: TerminalTransitionOutcome
+    observed_status: AttemptStatus | None = None
+
 
 # ── Preflight ports ─────────────────────────────────────────────────────────
 
@@ -270,7 +292,34 @@ class OrchestrationAttemptRepository(ABC):
         failure_details: dict[str, object] | None = None,
         completed_at: datetime | None = None,
     ) -> None:
-        """Transition attempt to terminal status."""
+        """Transition attempt to terminal status.
+
+        .. deprecated::
+            Use :meth:`transition_running_to_terminal` for guarded CAS
+            transitions.  This method is retained for success-path
+            completion (COMPLETED) and legacy callers.
+        """
+        ...
+
+    @abstractmethod
+    def transition_running_to_terminal(
+        self,
+        session: Any,
+        /,
+        *,
+        attempt_id: str,
+        identity_id: str,
+        target_status: AttemptStatus,
+        failure_code: str,
+        failure_details: dict[str, object],
+        completed_at: datetime,
+    ) -> TerminalTransitionResult:
+        """Guarded CAS: transition a RUNNING attempt to BLOCKED or FAILED.
+
+        Uses ``WHERE id = :attempt_id AND identity_id = :identity_id
+        AND status = 'RUNNING'``.  When rowcount == 0, reads the
+        current attempt to classify the outcome.
+        """
         ...
 
     @abstractmethod
@@ -315,6 +364,7 @@ class SourceBindingRepository(ABC):
         session: Any,
         /,
         *,
+        id: str | None = None,
         project_id: str,
         project_version_id: str,
         execution_snapshot_id: str,
@@ -373,6 +423,7 @@ class CalculationRunRepository(ABC):
         session: Any,
         /,
         *,
+        id: str | None = None,
         project_id: str,
         project_version_id: str,
         calculator_name: str,
@@ -397,4 +448,24 @@ class CalculationRunRepository(ABC):
         source_references: list[dict[str, object]],
     ) -> str:
         """Insert a new orchestrated CalculationRunRecord and return its ID."""
+        ...
+
+
+# ── Deterministic ID factory for Transaction B ──────────────────────────────
+
+
+class TransactionBIdFactory(Protocol):
+    """Deterministic ID generation for Transaction B records.
+
+    Production code uses ``UUIDTransactionBIdFactory`` (random UUIDs).
+    Tests inject ``FixedTransactionBIdFactory`` to produce deterministic,
+    golden-verifiable IDs.
+    """
+
+    def calculation_run_id(self, stage_name: str) -> str:
+        """Return a stable ID for a CalculationRun of the given stage."""
+        ...
+
+    def source_binding_id(self) -> str:
+        """Return a stable ID for the SourceBinding record."""
         ...

@@ -28,6 +28,7 @@ from cold_storage.modules.orchestration.application.ports import (
     OrchestrationAttemptRepository,
     OrchestrationIdentityRepository,
     SourceBindingRepository,
+    TransactionBIdFactory,
 )
 from cold_storage.modules.orchestration.application.source_snapshots import (
     CoolingLoadSourceSnapshotV1,
@@ -50,6 +51,7 @@ from cold_storage.modules.orchestration.domain.dag import (
     STAGE_UPSTREAM_PROVENANCE_KEYS,
 )
 from cold_storage.modules.orchestration.domain.errors import (
+    AttemptTerminalDisposition,
     OrchestrationDomainError,
     SourceBindingHashMismatchError,
     SourceBindingIdentityMismatchError,
@@ -216,9 +218,14 @@ class TransactionBFailure(Exception):
 
     Carries a machine-readable ``code``, a ``field`` locator, and structured
     ``details``.  The caller MUST roll back the session after catching this.
+
+    ``terminal_disposition`` is the authoritative terminal classification
+    used by the service layer.  It MUST be derived from the exception type,
+    not from message text.
     """
 
     __slots__ = ("code", "field", "details")
+    terminal_disposition: AttemptTerminalDisposition = AttemptTerminalDisposition.FAILED
 
     def __init__(
         self,
@@ -850,6 +857,24 @@ class SourceBindingVerifier:
 
 
 # ── Transaction B executor ──────────────────────────────────────────────────
+# ── Transaction B ID factory ────────────────────────────────────────────────
+
+
+class UUIDTransactionBIdFactory:
+    """Production ID factory — random UUIDs."""
+
+    def calculation_run_id(self, stage_name: str) -> str:  # noqa: ARG002
+        from uuid import uuid4
+
+        return str(uuid4())
+
+    def source_binding_id(self) -> str:
+        from uuid import uuid4
+
+        return str(uuid4())
+
+
+# ── Transaction B executor ──────────────────────────────────────────────────
 
 
 class TransactionBExecutor:
@@ -871,6 +896,7 @@ class TransactionBExecutor:
         outbox_repo: AuditOutboxRepository,
         calculator_port: CalculatorPort,
         verifier: SourceBindingVerifier,
+        id_factory: TransactionBIdFactory | None = None,
     ) -> None:
         self._calc_run_repo = calculation_run_repo
         self._source_binding_repo = source_binding_repo
@@ -879,6 +905,7 @@ class TransactionBExecutor:
         self._outbox_repo = outbox_repo
         self._calculator_port = calculator_port
         self._verifier = verifier
+        self._id_factory = id_factory or UUIDTransactionBIdFactory()
 
     # ── Public entry point ──────────────────────────────────────────────
 
@@ -988,6 +1015,7 @@ class TransactionBExecutor:
             # Persist CalculationRun with REAL traceability data (P0-1)
             calc_run_id = self._calc_run_repo.add(
                 session,
+                id=self._id_factory.calculation_run_id(stage_name),
                 project_id=project_id,
                 project_version_id=project_version_id,
                 calculator_name=exec_result.calculator_name,
@@ -1095,6 +1123,7 @@ class TransactionBExecutor:
         # 5 — Persist SourceBinding
         source_binding_id = self._source_binding_repo.add(
             session,
+            id=self._id_factory.source_binding_id(),
             project_id=project_id,
             project_version_id=project_version_id,
             execution_snapshot_id=execution_snapshot_id,
@@ -1352,4 +1381,30 @@ def _stage_name_for_calculator(calculator_name: str) -> str:
 class TransactionBBlocked(TransactionBFailure):
     """Engineering domain blocker — terminal disposition is BLOCKED."""
 
-    terminal_disposition: str = "BLOCKED"
+    terminal_disposition = AttemptTerminalDisposition.BLOCKED
+
+
+# ── Test-only fixed ID factory ─────────────────────────────────────────────
+
+
+class FixedTransactionBIdFactory:
+    """Deterministic ID factory for golden-parity tests.
+
+    All stage names map to fixed, predictable IDs so that both
+    SQLite and PostgreSQL integration tests produce identical output.
+    """
+
+    _RUN_IDS: dict[str, str] = {
+        "zone": "golden-run-zone-001",
+        "cooling_load": "golden-run-cooling-load-001",
+        "equipment": "golden-run-equipment-001",
+        "power": "golden-run-power-001",
+        "investment": "golden-run-investment-001",
+    }
+    _BINDING_ID = "golden-source-binding-001"
+
+    def calculation_run_id(self, stage_name: str) -> str:
+        return self._RUN_IDS[stage_name]
+
+    def source_binding_id(self) -> str:
+        return self._BINDING_ID

@@ -20,6 +20,9 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from cold_storage.modules.orchestration.application.ports import (
+        TerminalTransitionResult,
+    )
     from cold_storage.modules.orchestration.application.transaction_b import (
         VerificationState,
     )
@@ -925,6 +928,84 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             .values(**{k: v for k, v in values.items() if v is not None or k == "status"})
         )
 
+    def transition_running_to_terminal(
+        self,
+        session: Session,
+        /,
+        *,
+        attempt_id: str,
+        identity_id: str,
+        target_status: AttemptStatus,
+        failure_code: str,
+        failure_details: dict[str, object],
+        completed_at: datetime,
+    ) -> TerminalTransitionResult:
+        from sqlalchemy import select, update
+
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+            TerminalTransitionResult,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            PersistenceInvariantError,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRunAttemptRecord,
+        )
+
+        if target_status not in (AttemptStatus.BLOCKED, AttemptStatus.FAILED):
+            raise PersistenceInvariantError(
+                f"terminal CAS only allows BLOCKED or FAILED, got {target_status.value!r}"
+            )
+
+        result = session.execute(
+            update(OrchestrationRunAttemptRecord)
+            .where(
+                OrchestrationRunAttemptRecord.id == attempt_id,
+                OrchestrationRunAttemptRecord.identity_id == identity_id,
+                OrchestrationRunAttemptRecord.status == "RUNNING",
+            )
+            .values(
+                status=target_status.value,
+                failure_code=failure_code,
+                failure_details=failure_details,
+                completed_at=completed_at,
+            )
+        )
+        if result.rowcount is not None and result.rowcount > 0:  # type: ignore[attr-defined]
+            return TerminalTransitionResult(outcome=TerminalTransitionOutcome.TRANSITIONED)
+
+        # CAS missed — classify the reason.
+        row = session.execute(
+            select(OrchestrationRunAttemptRecord).where(
+                OrchestrationRunAttemptRecord.id == attempt_id,
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            return TerminalTransitionResult(outcome=TerminalTransitionOutcome.NOT_FOUND)
+
+        if row.identity_id != identity_id:
+            return TerminalTransitionResult(
+                outcome=TerminalTransitionOutcome.STATE_CONFLICT,
+                observed_status=AttemptStatus(row.status),
+            )
+
+        current = AttemptStatus(row.status)
+        if current == AttemptStatus.COMPLETED:
+            return TerminalTransitionResult(
+                outcome=TerminalTransitionOutcome.ALREADY_COMPLETED,
+                observed_status=current,
+            )
+        if current in (AttemptStatus.BLOCKED, AttemptStatus.FAILED):
+            return TerminalTransitionResult(
+                outcome=TerminalTransitionOutcome.ALREADY_TERMINAL,
+                observed_status=current,
+            )
+        return TerminalTransitionResult(
+            outcome=TerminalTransitionOutcome.STATE_CONFLICT,
+            observed_status=current,
+        )
+
     def get_status(self, session: Session, /, attempt_id: str) -> str | None:
         from sqlalchemy import select
 
@@ -1008,6 +1089,7 @@ class SqlAlchemySourceBindingRepository(SourceBindingRepository):
         session: Session,
         /,
         *,
+        id: str | None = None,
         project_id: str,
         project_version_id: str,
         execution_snapshot_id: str,
@@ -1031,7 +1113,7 @@ class SqlAlchemySourceBindingRepository(SourceBindingRepository):
         )
 
         record = SourceBindingRecord(
-            id=str(uuid4()),
+            id=id or str(uuid4()),
             project_id=project_id,
             project_version_id=project_version_id,
             execution_snapshot_id=execution_snapshot_id,
@@ -1162,6 +1244,7 @@ class SqlAlchemyCalculationRunRepository(CalculationRunRepository):
         session: Session,
         /,
         *,
+        id: str | None = None,
         project_id: str,
         project_version_id: str,
         calculator_name: str,
@@ -1192,7 +1275,7 @@ class SqlAlchemyCalculationRunRepository(CalculationRunRepository):
         )
 
         record = CalculationRunRecord(
-            id=str(uuid4()),
+            id=id or str(uuid4()),
             project_id=project_id,
             project_version_id=project_version_id,
             calculator_name=calculator_name,

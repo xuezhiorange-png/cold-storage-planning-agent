@@ -56,6 +56,7 @@ from cold_storage.modules.orchestration.application.ports import (
     OrchestrationRequestRepository,
     ResolvedCoefficientContextCandidate,
     SourceBindingRepository,
+    TransactionBIdFactory,
 )
 from cold_storage.modules.orchestration.application.transaction_b import (
     CalculatorPort,
@@ -78,6 +79,7 @@ from cold_storage.modules.orchestration.domain.contracts import (
 )
 from cold_storage.modules.orchestration.domain.errors import (
     AmbiguousCoefficientError,
+    AttemptTerminalDisposition,
     CoefficientNotApprovedError,
     CoefficientResolutionError,
     OrchestrationDomainError,
@@ -238,6 +240,7 @@ class OrchestrationService:
         source_binding_repo: SourceBindingRepository,
         calculator_port: CalculatorPort,
         verification_read_port: VerificationReadPort,
+        id_factory: TransactionBIdFactory | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._request_repo = request_repo
@@ -253,6 +256,7 @@ class OrchestrationService:
         self._source_binding_repo = source_binding_repo
         self._calculator_port = calculator_port
         self._verification_read_port = verification_read_port
+        self._id_factory = id_factory
 
     # ── Transaction A: request → ACCEPTED ───────────────────────────────
 
@@ -479,6 +483,7 @@ class OrchestrationService:
             outbox_repo=self._outbox_repo,
             calculator_port=self._calculator_port,
             verifier=verifier,
+            id_factory=self._id_factory,
         )
 
         # ── Primary UoW: Transaction B execution ──────────────────────
@@ -534,8 +539,7 @@ class OrchestrationService:
                 request_id=request_id,
                 identity_id=orchestration_identity_id,
                 exc=exc,
-                disposition="BLOCKED",
-                event_type="orchestration.attempt.blocked",
+                disposition=exc.terminal_disposition,
             )
             raise
 
@@ -546,8 +550,7 @@ class OrchestrationService:
                 request_id=request_id,
                 identity_id=orchestration_identity_id,
                 exc=exc,
-                disposition="FAILED",
-                event_type="orchestration.attempt.failed",
+                disposition=AttemptTerminalDisposition.FAILED,
             )
             raise
 
@@ -563,8 +566,7 @@ class OrchestrationService:
                     field="persistence",
                     details={"error_class": type(exc).__name__, "cause": str(exc)},
                 ),
-                disposition="FAILED",
-                event_type="orchestration.attempt.failed",
+                disposition=AttemptTerminalDisposition.FAILED,
                 original_exc=exc,
             )
             raise TransactionBFailure(
@@ -586,8 +588,7 @@ class OrchestrationService:
                     field="unexpected",
                     details={"error_class": type(exc).__name__, "cause": str(exc)},
                 ),
-                disposition="FAILED",
-                event_type="orchestration.attempt.failed",
+                disposition=AttemptTerminalDisposition.FAILED,
                 original_exc=exc,
             )
             raise TransactionBFailure(
@@ -597,6 +598,18 @@ class OrchestrationService:
                 details={"error_class": type(exc).__name__, "cause": str(exc)},
             ) from exc
 
+    # ── Exhaustive disposition → status / event mapping ─────────────────
+
+    _TERMINAL_STATUS_BY_DISPOSITION: dict[AttemptTerminalDisposition, AttemptStatus] = {
+        AttemptTerminalDisposition.BLOCKED: AttemptStatus.BLOCKED,
+        AttemptTerminalDisposition.FAILED: AttemptStatus.FAILED,
+    }
+
+    _TERMINAL_EVENT_BY_DISPOSITION: dict[AttemptTerminalDisposition, str] = {
+        AttemptTerminalDisposition.BLOCKED: "orchestration.attempt.blocked",
+        AttemptTerminalDisposition.FAILED: "orchestration.attempt.failed",
+    }
+
     def _transaction_b_terminal(
         self,
         *,
@@ -604,28 +617,39 @@ class OrchestrationService:
         request_id: str,
         identity_id: str,
         exc: TransactionBFailure | OrchestrationDomainError,
-        disposition: str,
-        event_type: str,
+        disposition: AttemptTerminalDisposition,
         original_exc: Exception | None = None,
     ) -> None:
         """Persist a Transaction B terminal state atomically in an independent UoW.
 
-        Transitions the attempt to BLOCKED or FAILED and emits a matching
-        terminal outbox event.  The disposition parameter is structural,
-        not derived from message text.
+        Transitions the attempt to BLOCKED or FAILED via guarded CAS and
+        emits a matching terminal outbox event.  The ``disposition``
+        parameter MUST be a typed ``AttemptTerminalDisposition`` — raw
+        strings are rejected.
+
+        Only ``TRANSITIONED`` outcome produces a terminal outbox event.
+        ``ALREADY_COMPLETED``, ``ALREADY_TERMINAL``, ``NOT_FOUND``, and
+        ``STATE_CONFLICT`` are silent — no outbox, no overwrite.
         """
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+
+        if not isinstance(disposition, AttemptTerminalDisposition):
+            got = type(disposition).__name__
+            raise TypeError(f"disposition must be AttemptTerminalDisposition, got {got!r}")
         failure_code: str = exc.code
         failure_field: str = exc.field
         failure_details: dict[str, object] = dict(exc.details)
-        terminal_status = (
-            AttemptStatus.BLOCKED if disposition == "BLOCKED" else AttemptStatus.FAILED
-        )
+        terminal_status = self._TERMINAL_STATUS_BY_DISPOSITION[disposition]
+        event_type = self._TERMINAL_EVENT_BY_DISPOSITION[disposition]
 
         with self._uow_factory() as terminal_uow:
-            self._attempt_repo.update_status(
+            result = self._attempt_repo.transition_running_to_terminal(
                 terminal_uow.session,
-                attempt_id,
-                status=terminal_status,
+                attempt_id=attempt_id,
+                identity_id=identity_id,
+                target_status=terminal_status,
                 failure_code=failure_code,
                 failure_details={
                     "failure_code": failure_code,
@@ -633,23 +657,25 @@ class OrchestrationService:
                     "terminal_disposition": disposition,
                     **failure_details,
                 },
+                completed_at=datetime.now(UTC),
             )
-            self._outbox_repo.add(
-                terminal_uow.session,
-                event_type=event_type,
-                aggregate_type="OrchestrationRunAttempt",
-                aggregate_id=attempt_id,
-                payload={
-                    "failure_code": failure_code,
-                    "failure_field": failure_field,
-                    "failure_details": failure_details,
-                    "error_class": type(exc).__name__,
-                    "terminal_disposition": disposition,
-                },
-                request_id=request_id,
-                identity_id=identity_id,
-                attempt_id=attempt_id,
-            )
+            if result.outcome == TerminalTransitionOutcome.TRANSITIONED:
+                self._outbox_repo.add(
+                    terminal_uow.session,
+                    event_type=event_type,
+                    aggregate_type="OrchestrationRunAttempt",
+                    aggregate_id=attempt_id,
+                    payload={
+                        "failure_code": failure_code,
+                        "failure_field": failure_field,
+                        "failure_details": failure_details,
+                        "error_class": type(exc).__name__,
+                        "terminal_disposition": disposition,
+                    },
+                    request_id=request_id,
+                    identity_id=identity_id,
+                    attempt_id=attempt_id,
+                )
             terminal_uow.commit()
 
     # ── Transaction C: attempt → terminal ───────────────────────────────
