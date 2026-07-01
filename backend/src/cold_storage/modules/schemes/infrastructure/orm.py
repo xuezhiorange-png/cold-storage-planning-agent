@@ -30,16 +30,27 @@ from cold_storage.modules.projects.infrastructure.orm import Base
 
 
 class SchemeWeightSetRevisionRecord(Base):
-    """Immutable approved weight-set revision — minimal Phase 1 skeleton.
+    """Immutable approved weight-set revision with governance constraints.
 
-    Full governance (seeds, resolvers, audit) belongs to later phases.
-    This table only establishes the schema and FK target so
-    ``scheme_runs.weight_set_revision_id`` is never a dangling reference.
+    CHECK constraints enforce valid status values and that approved
+    revisions always carry approval evidence (approved_at + approved_by).
+    Active-approved uniqueness is enforced at the application layer
+    because SQLite does not support partial unique indexes.
     """
 
     __tablename__ = "scheme_weight_set_revisions"
     __table_args__ = (
         UniqueConstraint("code", "revision", name="uq_scheme_weight_set_revision_code_revision"),
+        CheckConstraint(
+            "status IN ('draft', 'approved', 'superseded', 'revoked')",
+            name="ck_weight_revision_valid_status",
+        ),
+        CheckConstraint(
+            "(status = 'approved' AND approved_at IS NOT NULL"
+            " AND approved_by IS NOT NULL AND approved_by != '')"
+            " OR status != 'approved'",
+            name="ck_weight_revision_approval_evidence",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -89,6 +100,22 @@ class SchemeRunRecord(Base):
             " AND weight_set_content_hash IS NULL"
             " AND weight_set_generator_compatibility_version IS NULL"
             " AND combined_source_hash IS NULL"
+            " AND binding_schema_version IS NULL"
+            " AND execution_snapshot_id IS NULL"
+            " AND coefficient_context_id IS NULL"
+            " AND orchestration_identity_id IS NULL"
+            " AND authoritative_attempt_id IS NULL"
+            " AND orchestration_fingerprint IS NULL"
+            " AND zone_calculation_id IS NULL"
+            " AND cooling_load_calculation_id IS NULL"
+            " AND equipment_calculation_id IS NULL"
+            " AND power_calculation_id IS NULL"
+            " AND investment_calculation_id IS NULL"
+            " AND zone_result_hash IS NULL"
+            " AND cooling_load_result_hash IS NULL"
+            " AND equipment_result_hash IS NULL"
+            " AND power_result_hash IS NULL"
+            " AND investment_result_hash IS NULL"
             ")"
             " OR"
             "("
@@ -99,6 +126,22 @@ class SchemeRunRecord(Base):
             " AND weight_set_content_hash IS NOT NULL"
             " AND weight_set_generator_compatibility_version IS NOT NULL"
             " AND combined_source_hash IS NOT NULL"
+            " AND binding_schema_version IS NOT NULL"
+            " AND execution_snapshot_id IS NOT NULL"
+            " AND coefficient_context_id IS NOT NULL"
+            " AND orchestration_identity_id IS NOT NULL"
+            " AND authoritative_attempt_id IS NOT NULL"
+            " AND orchestration_fingerprint IS NOT NULL"
+            " AND zone_calculation_id IS NOT NULL"
+            " AND cooling_load_calculation_id IS NOT NULL"
+            " AND equipment_calculation_id IS NOT NULL"
+            " AND power_calculation_id IS NOT NULL"
+            " AND investment_calculation_id IS NOT NULL"
+            " AND zone_result_hash IS NOT NULL"
+            " AND cooling_load_result_hash IS NOT NULL"
+            " AND equipment_result_hash IS NOT NULL"
+            " AND power_result_hash IS NOT NULL"
+            " AND investment_result_hash IS NOT NULL"
             ")",
             name="ck_scheme_run_source_mode_nullity",
         ),
@@ -142,6 +185,24 @@ class SchemeRunRecord(Base):
         String(50), nullable=True
     )
     combined_source_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    # ── Production provenance (all null for legacy, all required for production) ──
+    binding_schema_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    execution_snapshot_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    coefficient_context_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    orchestration_identity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    authoritative_attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    orchestration_fingerprint: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    zone_calculation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    cooling_load_calculation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    equipment_calculation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    power_calculation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    investment_calculation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    zone_result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    cooling_load_result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    equipment_result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    power_result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    investment_result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     candidates: Mapped[list["SchemeCandidateRecord"]] = relationship(back_populates="scheme_run")
 

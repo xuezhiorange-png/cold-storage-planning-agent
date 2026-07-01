@@ -94,6 +94,22 @@ class SqlAlchemyProductionSchemeRunRepository:
             weight_set_content_hash=weight_set_content_hash,
             weight_set_generator_compatibility_version=(weight_set_generator_compatibility_version),
             combined_source_hash=combined_source_hash,
+            binding_schema_version=binding_schema_version,
+            execution_snapshot_id=execution_snapshot_id,
+            coefficient_context_id=coefficient_context_id,
+            orchestration_identity_id=orchestration_identity_id,
+            authoritative_attempt_id=authoritative_attempt_id,
+            orchestration_fingerprint=orchestration_fingerprint,
+            zone_calculation_id=zone_calculation_id,
+            cooling_load_calculation_id=cooling_load_calculation_id,
+            equipment_calculation_id=equipment_calculation_id,
+            power_calculation_id=power_calculation_id,
+            investment_calculation_id=investment_calculation_id,
+            zone_result_hash=zone_result_hash,
+            cooling_load_result_hash=cooling_load_result_hash,
+            equipment_result_hash=equipment_result_hash,
+            power_result_hash=power_result_hash,
+            investment_result_hash=investment_result_hash,
         )
         session.add(run_rec)
 
