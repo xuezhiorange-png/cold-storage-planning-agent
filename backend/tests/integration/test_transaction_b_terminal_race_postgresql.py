@@ -743,6 +743,7 @@ class TestTerminalRaceTwoWriters:
                 svc = _build_service(pg_session_factory)
                 barrier.wait()
                 attempt_repo = SqlAlchemyOrchestrationAttemptRepository()
+                outbox_repo = SqlAlchemyAuditOutboxRepository()
                 with svc._uow_factory() as terminal_uow:
                     tr_result = attempt_repo.transition_running_to_terminal(
                         terminal_uow.session,
@@ -753,6 +754,20 @@ class TestTerminalRaceTwoWriters:
                         failure_details={"failure_code": failure_code},
                         completed_at=datetime.now(UTC),
                     )
+                    if tr_result.outcome == TerminalTransitionOutcome.TRANSITIONED:
+                        event_type = (
+                            "orchestration.attempt.failed"
+                            if target_status == AttemptStatus.FAILED
+                            else "orchestration.attempt.blocked"
+                        )
+                        outbox_repo.add(
+                            terminal_uow.session,
+                            event_type=event_type,
+                            aggregate_type="OrchestrationRunAttempt",
+                            aggregate_id=result_a.attempt_id,
+                            payload={"failure_code": failure_code},
+                            attempt_id=result_a.attempt_id,
+                        )
                     terminal_uow.commit()
                     results[label]["outcome"] = tr_result.outcome
                     results[label]["target"] = target_status.value
