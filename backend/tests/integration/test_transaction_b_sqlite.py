@@ -44,6 +44,7 @@ from cold_storage.modules.orchestration.application.service import (
 )
 from cold_storage.modules.orchestration.application.transaction_b import (
     StageExecutionResult,
+    TransactionBBlocked,
     TransactionBFailure,
     VerificationReadPort,
 )
@@ -1161,10 +1162,10 @@ class _FailingCompletionOutboxRepository:
 
 
 class _DomainErrorCalculatorPort:
-    """Calculator that raises ``OrchestrationDomainError`` on every stage."""
+    """Calculator that raises TransactionBBlocked (engineering domain blocker) on every stage."""
 
     def execute_stage(self, **kwargs: Any) -> StageExecutionResult:
-        raise OrchestrationDomainError(
+        raise TransactionBBlocked(
             "DOMAIN_BLOCKER",
             "Engineering domain blocker: missing required parameter",
             field="execution_snapshot",
@@ -1525,9 +1526,9 @@ class TestTransactionBStageFailureRollbackPKSet:
 class TestTransactionBTerminalAtomicity:
     """Terminal transaction atomicity tests."""
 
-    def test_domain_blocker_produces_failed_status(self, session_factory, engine) -> None:
-        """Engineering domain error -> attempt.status=FAILED, failure_code set,
-        terminal outbox emitted."""
+    def test_domain_blocker_produces_blocked_status(self, session_factory, engine) -> None:
+        """Engineering domain error (TransactionBBlocked) -> attempt.status=BLOCKED,
+        failure_code set, terminal outbox with orchestration.attempt.blocked."""
         svc = _make_txb_service(session_factory)
 
         with session_factory() as s:
@@ -1537,7 +1538,7 @@ class TestTransactionBTerminalAtomicity:
 
         svc_fail = _make_txb_service(session_factory, calculator_port=_DomainErrorCalculatorPort())
 
-        with pytest.raises(OrchestrationDomainError):
+        with pytest.raises(TransactionBBlocked):
             svc_fail.execute_transaction_b(
                 request_id=result_a.request_id,
                 project_id="p-1",
@@ -1557,14 +1558,14 @@ class TestTransactionBTerminalAtomicity:
                     OrchestrationRunAttemptRecord.id == result_a.attempt_id
                 )
             ).scalar_one()
-            assert attempt.status == "FAILED"
+            assert attempt.status == "BLOCKED"
             assert attempt.failure_code is not None
 
             terminal_events = (
                 s.execute(
                     select(AuditOutboxRecord).where(
                         AuditOutboxRecord.attempt_id == result_a.attempt_id,
-                        AuditOutboxRecord.event_type == "orchestration.attempt.failed",
+                        AuditOutboxRecord.event_type == "orchestration.attempt.blocked",
                     )
                 )
                 .scalars()
@@ -1583,7 +1584,7 @@ class TestTransactionBTerminalAtomicity:
 
         svc_fail = _make_txb_service(session_factory, calculator_port=_FailingCalculatorPort())
 
-        with pytest.raises((TransactionBFailure, RuntimeError)):
+        with pytest.raises(TransactionBFailure):
             svc_fail.execute_transaction_b(
                 request_id=result_a.request_id,
                 project_id="p-1",
@@ -1620,7 +1621,7 @@ class TestTransactionBTerminalAtomicity:
         )
         svc_fail = _make_txb_service(session_factory, verification_read_port=failing_verifier)
 
-        with pytest.raises((TransactionBFailure, RuntimeError)):
+        with pytest.raises(TransactionBFailure):
             svc_fail.execute_transaction_b(
                 request_id=result_a.request_id,
                 project_id="p-1",
