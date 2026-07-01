@@ -73,7 +73,10 @@ def _seed_identity(
             name="Test Project",
             location="test",
             product_category="blueberry",
+            status="active",
+            current_version_number=1,
             created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
     )
     session.flush()

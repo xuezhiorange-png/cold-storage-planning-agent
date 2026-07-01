@@ -31,8 +31,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Any, Protocol
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from cold_storage.modules.orchestration.application.coefficient_contracts import (
@@ -44,9 +45,26 @@ from cold_storage.modules.orchestration.application.coefficient_contracts import
     validate_string_sequence,
 )
 from cold_storage.modules.orchestration.application.ports import (
+    AuditOutboxRepository,
+    CalculationRunRepository,
+    CoefficientContextRepository,
     CoefficientResolutionPreflightPort,
     ExecutionSnapshotPreflightPort,
+    ExecutionSnapshotRepository,
+    OrchestrationAttemptRepository,
+    OrchestrationIdentityRepository,
+    OrchestrationRequestRepository,
     ResolvedCoefficientContextCandidate,
+    SourceBindingRepository,
+    TransactionBIdFactory,
+)
+from cold_storage.modules.orchestration.application.transaction_b import (
+    CalculatorPort,
+    SourceBindingVerifier,
+    TransactionBBlocked,
+    TransactionBExecutor,
+    TransactionBFailure,
+    VerificationReadPort,
 )
 from cold_storage.modules.orchestration.application.unit_of_work import (
     SqlAlchemyOrchestrationUnitOfWork,
@@ -55,11 +73,13 @@ from cold_storage.modules.orchestration.application.unit_of_work import (
 from cold_storage.modules.orchestration.domain.contracts import (
     AttemptStatus,
     OrchestrationRequestCommand,
+    OrchestrationResult,
     PreflightFailure,
     RequestStatus,
 )
 from cold_storage.modules.orchestration.domain.errors import (
     AmbiguousCoefficientError,
+    AttemptTerminalDisposition,
     CoefficientNotApprovedError,
     CoefficientResolutionError,
     OrchestrationDomainError,
@@ -71,14 +91,6 @@ from cold_storage.modules.orchestration.domain.errors import (
     ProjectVersionStatusInvalidError,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
-from cold_storage.modules.orchestration.infrastructure.repositories import (
-    AuditOutboxRepository,
-    CoefficientContextRepository,
-    ExecutionSnapshotRepository,
-    OrchestrationAttemptRepository,
-    OrchestrationIdentityRepository,
-    OrchestrationRequestRepository,
-)
 
 # ── ProjectVersion loading port ─────────────────────────────────────────────
 
@@ -224,6 +236,11 @@ class OrchestrationService:
         version_port: ProjectVersionReadPort,
         snapshot_port: ExecutionSnapshotPreflightPort,
         coefficient_port: CoefficientResolutionPreflightPort,
+        calc_run_repo: CalculationRunRepository,
+        source_binding_repo: SourceBindingRepository,
+        calculator_port: CalculatorPort,
+        verification_read_port: VerificationReadPort,
+        id_factory: TransactionBIdFactory | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._request_repo = request_repo
@@ -235,6 +252,11 @@ class OrchestrationService:
         self._version_port = version_port
         self._snapshot_port = snapshot_port
         self._coefficient_port = coefficient_port
+        self._calc_run_repo = calc_run_repo
+        self._source_binding_repo = source_binding_repo
+        self._calculator_port = calculator_port
+        self._verification_read_port = verification_read_port
+        self._id_factory = id_factory
 
     # ── Transaction A: request → ACCEPTED ───────────────────────────────
 
@@ -422,6 +444,239 @@ class OrchestrationService:
         )
 
         return PreflightAccepted(ctx.request_id, ctx.request_fingerprint, identity_id, attempt_id)
+
+    # ── Transaction B: calculator execution ────────────────────────────
+
+    def execute_transaction_b(
+        self,
+        *,
+        request_id: str,
+        project_id: str,
+        project_version_id: str,
+        execution_snapshot_id: str,
+        coefficient_context_id: str,
+        orchestration_identity_id: str,
+        orchestration_attempt_id: str,
+        orchestration_fingerprint: str,
+        execution_snapshot: dict[str, Any],
+        coefficient_context: dict[str, Any],
+    ) -> OrchestrationResult:
+        """Run Transaction B — five-stage calculator execution.
+
+        On success: 5 CalculationRuns + 1 SourceBinding persisted,
+        attempt → COMPLETED, completion outbox event emitted.
+
+        On failure (``TransactionBFailure`` or ``OrchestrationDomainError``):
+        Transaction B UoW is rolled back (partial calculator results
+        discarded), an independent terminal UoW marks the attempt as
+        FAILED and emits a terminal outbox event, then the original
+        error is re-raised.
+        """
+
+        # Build dependencies (fresh per call — no mutable instance state)
+        verifier = SourceBindingVerifier(read_port=self._verification_read_port)
+        executor = TransactionBExecutor(
+            calculation_run_repo=self._calc_run_repo,
+            source_binding_repo=self._source_binding_repo,
+            attempt_repo=self._attempt_repo,
+            identity_repo=self._identity_repo,
+            outbox_repo=self._outbox_repo,
+            calculator_port=self._calculator_port,
+            verifier=verifier,
+            id_factory=self._id_factory,
+        )
+
+        # ── Primary UoW: Transaction B execution ──────────────────────
+        try:
+            with self._uow_factory() as uow:
+                # Pre-condition: verify request is ACCEPTED and attempt is RUNNING
+                request_status = self._request_repo.get_status(uow.session, request_id)
+                if request_status != RequestStatus.ACCEPTED:
+                    raise TransactionBFailure(
+                        "TXB_REQUEST_NOT_ACCEPTED",
+                        f"Request status is {request_status!r}, expected ACCEPTED",
+                        field="request_status",
+                        details={
+                            "request_id": request_id,
+                            "observed_status": request_status,
+                        },
+                    )
+
+                attempt_status = self._attempt_repo.get_status(
+                    uow.session, orchestration_attempt_id
+                )
+                if attempt_status != AttemptStatus.RUNNING:
+                    raise TransactionBFailure(
+                        "TXB_ATTEMPT_NOT_RUNNING",
+                        f"Attempt status is {attempt_status!r}, expected RUNNING",
+                        field="attempt_status",
+                        details={
+                            "attempt_id": orchestration_attempt_id,
+                            "observed_status": attempt_status,
+                        },
+                    )
+
+                result = executor.execute(
+                    uow.session,
+                    request_id=request_id,
+                    project_id=project_id,
+                    project_version_id=project_version_id,
+                    execution_snapshot_id=execution_snapshot_id,
+                    coefficient_context_id=coefficient_context_id,
+                    orchestration_identity_id=orchestration_identity_id,
+                    orchestration_attempt_id=orchestration_attempt_id,
+                    orchestration_fingerprint=orchestration_fingerprint,
+                    execution_snapshot=execution_snapshot,
+                    coefficient_context=coefficient_context,
+                )
+                uow.commit()
+                return result
+
+        except TransactionBBlocked as exc:
+            # ── Engineering blocker → BLOCKED ─────────────────────────
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=exc,
+                disposition=exc.terminal_disposition,
+            )
+            raise
+
+        except (TransactionBFailure, OrchestrationDomainError) as exc:
+            # ── Unexpected failure → FAILED ────────────────────────────
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=exc,
+                disposition=AttemptTerminalDisposition.FAILED,
+            )
+            raise
+
+        except IntegrityError as exc:
+            # ── Raw DB persistence failure → FAILED + terminal UoW ────
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=TransactionBFailure(
+                    "TXB_PERSISTENCE_FAILURE",
+                    f"Raw IntegrityError: {exc}",
+                    field="persistence",
+                    details={"error_class": type(exc).__name__, "cause": str(exc)},
+                ),
+                disposition=AttemptTerminalDisposition.FAILED,
+                original_exc=exc,
+            )
+            raise TransactionBFailure(
+                "TXB_PERSISTENCE_FAILURE",
+                f"Persistence failure: {exc}",
+                field="persistence",
+                details={"error_class": type(exc).__name__, "cause": str(exc)},
+            ) from exc
+
+        except Exception as exc:
+            # ── Unexpected non-typed failure → FAILED + terminal UoW ──
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=TransactionBFailure(
+                    "TXB_UNEXPECTED_FAILURE",
+                    f"Unexpected failure: {exc}",
+                    field="unexpected",
+                    details={"error_class": type(exc).__name__, "cause": str(exc)},
+                ),
+                disposition=AttemptTerminalDisposition.FAILED,
+                original_exc=exc,
+            )
+            raise TransactionBFailure(
+                "TXB_UNEXPECTED_FAILURE",
+                f"Unexpected failure: {exc}",
+                field="unexpected",
+                details={"error_class": type(exc).__name__, "cause": str(exc)},
+            ) from exc
+
+    # ── Exhaustive disposition → status / event mapping ─────────────────
+
+    _TERMINAL_STATUS_BY_DISPOSITION: dict[AttemptTerminalDisposition, AttemptStatus] = {
+        AttemptTerminalDisposition.BLOCKED: AttemptStatus.BLOCKED,
+        AttemptTerminalDisposition.FAILED: AttemptStatus.FAILED,
+    }
+
+    _TERMINAL_EVENT_BY_DISPOSITION: dict[AttemptTerminalDisposition, str] = {
+        AttemptTerminalDisposition.BLOCKED: "orchestration.attempt.blocked",
+        AttemptTerminalDisposition.FAILED: "orchestration.attempt.failed",
+    }
+
+    def _transaction_b_terminal(
+        self,
+        *,
+        attempt_id: str,
+        request_id: str,
+        identity_id: str,
+        exc: TransactionBFailure | OrchestrationDomainError,
+        disposition: AttemptTerminalDisposition,
+        original_exc: Exception | None = None,
+    ) -> None:
+        """Persist a Transaction B terminal state atomically in an independent UoW.
+
+        Transitions the attempt to BLOCKED or FAILED via guarded CAS and
+        emits a matching terminal outbox event.  The ``disposition``
+        parameter MUST be a typed ``AttemptTerminalDisposition`` — raw
+        strings are rejected.
+
+        Only ``TRANSITIONED`` outcome produces a terminal outbox event.
+        ``ALREADY_COMPLETED``, ``ALREADY_TERMINAL``, ``NOT_FOUND``, and
+        ``STATE_CONFLICT`` are silent — no outbox, no overwrite.
+        """
+        from cold_storage.modules.orchestration.application.ports import (
+            TerminalTransitionOutcome,
+        )
+
+        if not isinstance(disposition, AttemptTerminalDisposition):
+            got = type(disposition).__name__
+            raise TypeError(f"disposition must be AttemptTerminalDisposition, got {got!r}")
+        failure_code: str = exc.code
+        failure_field: str = exc.field
+        failure_details: dict[str, object] = dict(exc.details)
+        terminal_status = self._TERMINAL_STATUS_BY_DISPOSITION[disposition]
+        event_type = self._TERMINAL_EVENT_BY_DISPOSITION[disposition]
+
+        with self._uow_factory() as terminal_uow:
+            result = self._attempt_repo.transition_running_to_terminal(
+                terminal_uow.session,
+                attempt_id=attempt_id,
+                identity_id=identity_id,
+                target_status=terminal_status,
+                failure_code=failure_code,
+                failure_details={
+                    "failure_code": failure_code,
+                    "failure_field": failure_field,
+                    "terminal_disposition": disposition,
+                    **failure_details,
+                },
+                completed_at=datetime.now(UTC),
+            )
+            if result.outcome == TerminalTransitionOutcome.TRANSITIONED:
+                self._outbox_repo.add(
+                    terminal_uow.session,
+                    event_type=event_type,
+                    aggregate_type="OrchestrationRunAttempt",
+                    aggregate_id=attempt_id,
+                    payload={
+                        "failure_code": failure_code,
+                        "failure_field": failure_field,
+                        "failure_details": failure_details,
+                        "error_class": type(exc).__name__,
+                        "terminal_disposition": disposition,
+                    },
+                    request_id=request_id,
+                    identity_id=identity_id,
+                    attempt_id=attempt_id,
+                )
+            terminal_uow.commit()
 
     # ── Transaction C: attempt → terminal ───────────────────────────────
 

@@ -1,0 +1,255 @@
+{
+  "result_hashes": {
+    "zone": "2922628e3ce4626466c3de40d577dd475be0072367a7217ad7504f73da435a2c",
+    "cooling_load": "d6d76bf4678dccaa9c9ed10d1120224ffa8cd4eae2f9ae5026295a270f9ff975",
+    "equipment": "1aef148a477f0659ce16a0491393a2da700ff4bef28674d0ba2ef0a659e46529",
+    "power": "e67767b6d3d89ec87f8cd232edf63dac7ddb69fee9fe2401650d44705876e949",
+    "investment": "a062da804d2d6b2c548803de40e76d5217ba4a65c737ed69d9f83b71b18c2b58"
+  },
+  "combined_source_hash": "4eea28c34e3a3fa96156ff8aedc7d5f06b925791fb96c4dae7847222098fb836",
+  "canonical_result_snapshots": {
+    "zone": {
+      "daily_inbound_mass_kg": "25000",
+      "design_daily_mass_kg": "30000",
+      "total_required_area_m2": "1200",
+      "total_area_m2": "1400",
+      "planning_parameters": {
+        "safety_factor": "1.2"
+      },
+      "zones": [
+        {
+          "zone_code": "Z1",
+          "zone_name": "Pre-cooling",
+          "temperature_band": "2~8",
+          "function": "precooling",
+          "daily_throughput_kg_day": "25000",
+          "design_storage_mass_kg": "5000",
+          "position_count": 20,
+          "required_area_m2": "400",
+          "requires_review": false
+        },
+        {
+          "zone_code": "Z2",
+          "zone_name": "Cold Storage",
+          "temperature_band": "0~2",
+          "function": "storage",
+          "daily_throughput_kg_day": "25000",
+          "design_storage_mass_kg": "25000",
+          "position_count": 100,
+          "required_area_m2": "800",
+          "requires_review": false
+        }
+      ]
+    },
+    "cooling_load": {
+      "total_cooling_load_kw": "350.0",
+      "safety_margin_load_kw": "35.0",
+      "envelope_heat_transfer_load_kw": "80.0",
+      "product_sensible_heat_load_kw": "120.0",
+      "packaging_load_kw": "20.0",
+      "infiltration_load_kw": "30.0",
+      "personnel_load_kw": "15.0",
+      "lighting_load_kw": "10.0",
+      "evaporator_fan_load_kw": "25.0",
+      "defrost_additional_load_kw": "10.0",
+      "other_configuration_load_kw": "5.0"
+    },
+    "equipment": {
+      "evaporator_total_cooling_capacity_kw": "500.0",
+      "evaporator_quantity": 4,
+      "single_evaporator_capacity_kw": "125.0",
+      "compressor_operating_capacity_kw": "450.0",
+      "standby_capacity_kw": "50.0",
+      "condenser_heat_rejection_capacity_kw": "550.0",
+      "evaporation_temperature_c": "-10.0",
+      "condensing_temperature_c": "40.0",
+      "defrost_method": "electric",
+      "review_requirement": ""
+    },
+    "power": {
+      "total_installed_power_kw_e": "285.0",
+      "total_estimated_demand_kw": "220.0",
+      "equipment_rows": [
+        {
+          "sequence": 1,
+          "name": "Compressor",
+          "area": "machine_room",
+          "quantity": "2",
+          "running_power_kw": "75.0",
+          "total_power_kw": "150.0",
+          "section": "refrigeration"
+        },
+        {
+          "sequence": 2,
+          "name": "Condenser Fan",
+          "area": "outdoor",
+          "quantity": "4",
+          "running_power_kw": "5.0",
+          "total_power_kw": "20.0",
+          "section": "refrigeration"
+        },
+        {
+          "sequence": 3,
+          "name": "Evaporator Fan",
+          "area": "cold_room",
+          "quantity": "8",
+          "running_power_kw": "3.0",
+          "total_power_kw": "24.0",
+          "section": "refrigeration"
+        },
+        {
+          "sequence": 4,
+          "name": "Lighting",
+          "area": "all",
+          "quantity": "20",
+          "running_power_kw": "1.0",
+          "total_power_kw": "20.0",
+          "section": "auxiliary"
+        },
+        {
+          "sequence": 5,
+          "name": "Defrost Heater",
+          "area": "cold_room",
+          "quantity": "8",
+          "running_power_kw": "8.625",
+          "total_power_kw": "69.0",
+          "section": "auxiliary"
+        },
+        {
+          "sequence": 6,
+          "name": "Door Heater",
+          "area": "entrance",
+          "quantity": "2",
+          "running_power_kw": "1.0",
+          "total_power_kw": "2.0",
+          "section": "auxiliary"
+        }
+      ],
+      "summary_rows": [
+        {
+          "name": "Refrigeration",
+          "basis": "equipment",
+          "total_power_kw": "194.0"
+        },
+        {
+          "name": "Auxiliary",
+          "basis": "area",
+          "total_power_kw": "91.0"
+        }
+      ],
+      "items": [
+        {
+          "category": "refrigeration",
+          "installed_power_kw": "194.0",
+          "demand_factor": "0.85",
+          "estimated_demand_kw": "164.9"
+        },
+        {
+          "category": "auxiliary",
+          "installed_power_kw": "91.0",
+          "demand_factor": "0.60",
+          "estimated_demand_kw": "54.6"
+        }
+      ],
+      "assumptions": [
+        "Standard operating conditions for blueberry cold storage"
+      ]
+    },
+    "investment": {
+      "total_investment_cny": "12500000",
+      "items": [
+        {
+          "item_name": "\u571f\u5efa\u90e8\u5206",
+          "amount_cny": "5000000"
+        },
+        {
+          "item_name": "\u5236\u51b7\u8bbe\u5907",
+          "amount_cny": "4500000"
+        },
+        {
+          "item_name": "\u7535\u6c14\u5b89\u88c5",
+          "amount_cny": "1500000"
+        },
+        {
+          "item_name": "\u5176\u4ed6\u8d39\u7528",
+          "amount_cny": "1500000"
+        }
+      ]
+    }
+  },
+  "upstream_provenance": {
+    "zone": {},
+    "cooling_load": {
+      "zone": "golden-run-zone-001"
+    },
+    "equipment": {
+      "cooling_load": "golden-run-cooling-load-001"
+    },
+    "power": {
+      "equipment": "golden-run-equipment-001"
+    },
+    "investment": {
+      "power": "golden-run-power-001",
+      "zone": "golden-run-zone-001"
+    }
+  },
+  "requires_review": {
+    "zone": false,
+    "cooling_load": false,
+    "equipment": false,
+    "power": false,
+    "investment": false
+  },
+  "calculator_identity": {
+    "zone": {
+      "calculator_name": "cold_room_zone_plan",
+      "calculator_version": "1.0.0",
+      "calculation_type": "zone"
+    },
+    "cooling_load": {
+      "calculator_name": "cooling_load",
+      "calculator_version": "1.0.0",
+      "calculation_type": "cooling_load"
+    },
+    "equipment": {
+      "calculator_name": "equipment",
+      "calculator_version": "1.0.0",
+      "calculation_type": "equipment"
+    },
+    "power": {
+      "calculator_name": "installed_power",
+      "calculator_version": "1.0.0",
+      "calculation_type": "power"
+    },
+    "investment": {
+      "calculator_name": "investment_estimate",
+      "calculator_version": "1.0.0",
+      "calculation_type": "investment"
+    }
+  },
+  "source_snapshot_schema_version": "1.0.0",
+  "binding_schema_version": "1.0.0",
+  "authority_chain": {
+    "project_id": "golden-p-001",
+    "project_version_id": "golden-pv-001",
+    "execution_snapshot_id": "golden-snap-001",
+    "coefficient_context_id": "golden-coeff-001",
+    "orchestration_identity_id": "golden-orch-001",
+    "orchestration_attempt_id": "golden-attempt-001",
+    "orchestration_fingerprint": "golden-fp-001"
+  },
+  "source_binding_slot_ids": {
+    "zone": "golden-run-zone-001",
+    "cooling_load": "golden-run-cooling-load-001",
+    "equipment": "golden-run-equipment-001",
+    "power": "golden-run-power-001",
+    "investment": "golden-run-investment-001"
+  },
+  "source_snapshot_schema_versions": {
+    "zone": "1.0.0",
+    "cooling_load": "1.0.0",
+    "equipment": "1.0.0",
+    "power": "1.0.0",
+    "investment": "1.0.0"
+  }
+}

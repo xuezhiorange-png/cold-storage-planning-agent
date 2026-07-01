@@ -249,6 +249,19 @@ class SourceBindingRecord(Base):
         Index("ix_source_binding_equipment_calculation_id", "equipment_calculation_id"),
         Index("ix_source_binding_power_calculation_id", "power_calculation_id"),
         Index("ix_source_binding_investment_calculation_id", "investment_calculation_id"),
+        CheckConstraint(
+            "zone_calculation_id != cooling_load_calculation_id"
+            " AND zone_calculation_id != equipment_calculation_id"
+            " AND zone_calculation_id != power_calculation_id"
+            " AND zone_calculation_id != investment_calculation_id"
+            " AND cooling_load_calculation_id != equipment_calculation_id"
+            " AND cooling_load_calculation_id != power_calculation_id"
+            " AND cooling_load_calculation_id != investment_calculation_id"
+            " AND equipment_calculation_id != power_calculation_id"
+            " AND equipment_calculation_id != investment_calculation_id"
+            " AND power_calculation_id != investment_calculation_id",
+            name="ck_source_binding_slot_distinct",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)

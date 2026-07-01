@@ -105,8 +105,14 @@ class CalculationRunRecord(Base):
     result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     provenance: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     schema_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    orchestration_fingerprint: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     __table_args__ = (
+        UniqueConstraint(
+            "orchestration_run_attempt_id",
+            "calculation_type",
+            name="uq_calculation_run_attempt_type",
+        ),
         CheckConstraint(
             "("
             " orchestration_identity_id IS NULL"
@@ -118,6 +124,7 @@ class CalculationRunRecord(Base):
             " AND provenance IS NULL"
             " AND schema_version IS NULL"
             " AND calculation_type IS NULL"
+            " AND orchestration_fingerprint IS NULL"
             ")"
             " OR"
             "("
@@ -130,8 +137,16 @@ class CalculationRunRecord(Base):
             " AND provenance IS NOT NULL"
             " AND schema_version IS NOT NULL"
             " AND calculation_type IS NOT NULL"
+            " AND orchestration_fingerprint IS NOT NULL"
             ")",
             name="ck_calculation_run_orchestration_nullity",
+        ),
+        CheckConstraint(
+            "(orchestration_identity_id IS NULL"
+            " AND orchestration_fingerprint IS NULL)"
+            " OR (orchestration_identity_id IS NOT NULL"
+            " AND orchestration_fingerprint IS NOT NULL)",
+            name="ck_calculation_run_fingerprint_nullity",
         ),
     )
 

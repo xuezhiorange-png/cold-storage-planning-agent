@@ -8,6 +8,7 @@ NOT parse ``message`` text to determine error class.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from enum import StrEnum
 
 
 class OrchestrationDomainError(Exception):
@@ -364,3 +365,13 @@ class SchemeSourceArchiveIntegrityError(OrchestrationDomainError):
             field="archive_hash",
             details={"archive_hash": archive_hash},
         )
+
+
+# ── Transaction B terminal disposition ───────────────────────────────────────
+
+
+class AttemptTerminalDisposition(StrEnum):
+    """Structured terminal classification for orchestration attempts."""
+
+    BLOCKED = "BLOCKED"
+    FAILED = "FAILED"
