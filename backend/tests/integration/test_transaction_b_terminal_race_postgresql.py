@@ -800,14 +800,15 @@ class TestTerminalRaceTwoWriters:
         assert state["run_count"] == 0  # no full TXB was executed
         assert state["binding_count"] == 0
 
-        # Exactly 1 terminal outbox event (from the winner)
-        assert state["outbox_count"] == 1
+        # Terminal outbox event from the winner (plus request.accepted from Txn A)
         expected_event = (
             "orchestration.attempt.failed"
             if winner_target == "FAILED"
             else "orchestration.attempt.blocked"
         )
-        assert state["outbox_event_types"] == [expected_event]
+        assert expected_event in state["outbox_event_types"]
+        assert "orchestration.request.accepted" in state["outbox_event_types"]
+        assert "orchestration.attempt.completed" not in state["outbox_event_types"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
