@@ -213,7 +213,7 @@ class SourceSnapshotContentV1(BaseModel):
 
         Keys are sorted.  Decimal values are canonicalized to base-10 strings.
         """
-        raw = self.model_dump()
+        raw = self.model_dump(exclude_none=True)
         canonicalized: dict[str, object] = {}
         for key in sorted(raw):
             canonicalized[key] = _canonicalize_value(raw[key])

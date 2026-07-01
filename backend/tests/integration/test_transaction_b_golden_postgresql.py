@@ -222,7 +222,7 @@ def service(pg_session_factory):
     version_port = _GoldenVersionPort()
 
     coeff_port = MagicMock(spec=CoefficientResolutionPreflightPort)
-    coeff_port.return_value = _make_resolved_coefficient()
+    coeff_port.resolve.return_value = _make_resolved_coefficient()
 
     return OrchestrationService(
         uow_factory=uow_factory,
