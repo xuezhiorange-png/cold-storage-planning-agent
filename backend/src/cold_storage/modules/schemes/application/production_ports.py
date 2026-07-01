@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from decimal import Decimal
 from typing import Any, Protocol
+
+from cold_storage.modules.schemes.domain.models import WeightCriterion
 
 # ── Production command ─────────────────────────────────────────────────────
 
@@ -106,18 +107,6 @@ class SourceBindingReadPort(Protocol):
 
 
 # ── Weight revision read port ──────────────────────────────────────────────
-
-
-@dataclass(frozen=True, slots=True)
-class WeightCriterion:
-    """Single criterion within an approved weight-set revision."""
-
-    criterion_code: str
-    weight: Decimal
-    direction: str  # "higher_is_better" | "lower_is_better" | "binary_pass"
-    normalization_method: str = "min_max"
-    hard_constraint: bool = False
-    description: str = ""
 
 
 @dataclass(frozen=True, slots=True)

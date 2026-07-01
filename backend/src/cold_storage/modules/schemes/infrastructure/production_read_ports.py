@@ -6,6 +6,8 @@ SQLAlchemy ORM.  Repositories MUST NOT commit/rollback/close/create sessions.
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -125,7 +127,7 @@ class SqlAlchemyWeightRevisionReadPort:
             _parse_criteria,
         )
 
-        raw_criteria = record.content.get("criteria", [])
+        raw_criteria: list[dict[str, Any]] = record.content.get("criteria", [])  # type: ignore[assignment]
         criteria = _parse_criteria(raw_criteria) if raw_criteria else ()
 
         return WeightSetRevisionSnapshot(

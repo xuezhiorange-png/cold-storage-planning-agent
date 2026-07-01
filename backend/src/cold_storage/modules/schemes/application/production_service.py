@@ -142,7 +142,8 @@ def _serialize_decimals(obj: Any) -> Any:
 def _to_safe_dict(obj: Any) -> dict[str, Any]:
     """Convert a dataclass to dict with Decimal serialization."""
     if hasattr(obj, "__dataclass_fields__"):
-        return _serialize_decimals(asdict(obj))
+        result: dict[str, Any] = _serialize_decimals(asdict(obj))
+        return result
     return {}
 
 
@@ -206,7 +207,7 @@ class ProductionSchemeService:
         generation_input = map_source_to_generation_input(
             source,
             profile_codes=command.profile_codes,
-            profile_parameters=dict(command.profile_parameters),
+            profile_parameters={k: dict(v) for k, v in command.profile_parameters.items()},
             generator_version=GENERATOR_VERSION,
         )
 
@@ -271,7 +272,7 @@ class ProductionSchemeService:
             candidates_snapshot=candidates_snapshot,
             score_breakdowns_snapshot=score_breakdowns_snapshot,
             profile_codes=command.profile_codes,
-            profile_parameters=dict(command.profile_parameters),
+            profile_parameters={k: dict(v) for k, v in command.profile_parameters.items()},
         )
 
         # 8. Build and persist production SchemeRun
@@ -320,12 +321,12 @@ class ProductionSchemeService:
         sb_map = {sb.scheme_code: sb for sb in score_breakdowns}
         candidate_data: list[dict[str, Any]] = []
         for cand in candidates:
-            sb = sb_map.get(cand.scheme_code)
+            cand_sb = sb_map.get(cand.scheme_code)
             rank = ranks.get(cand.scheme_code)
 
             score_snapshot: dict[str, object] = {}
-            if sb is not None:
-                score_snapshot = _to_safe_dict(sb)
+            if cand_sb is not None:
+                score_snapshot = _to_safe_dict(cand_sb)
 
             candidate_data.append(
                 {

@@ -12,10 +12,10 @@ from decimal import Decimal
 from typing import Any
 
 from cold_storage.modules.schemes.application.production_ports import (
-    WeightCriterion,
     WeightRevisionReadPort,
     WeightSetRevisionSnapshot,
 )
+from cold_storage.modules.schemes.domain.models import WeightCriterion
 
 # ── Governance version ─────────────────────────────────────────────────────
 

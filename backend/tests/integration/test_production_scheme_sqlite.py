@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, event, inspect, select, text
+from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -304,9 +304,7 @@ def _seed_orchestration_prereqs(session) -> None:
 
     # Coefficient context
     existing_cc = session.execute(
-        select(CoefficientContextRecord).where(
-            CoefficientContextRecord.id == COEFF_CONTEXT_ID
-        )
+        select(CoefficientContextRecord).where(CoefficientContextRecord.id == COEFF_CONTEXT_ID)
     ).scalar_one_or_none()
     if not existing_cc:
         session.add(
@@ -326,16 +324,12 @@ def _seed_orchestration_prereqs(session) -> None:
     # Attempt (needs identity_id, but identity needs exec_snapshot_id and
     # coeff_context_id — attempt doesn't depend on identity for FK)
     existing_a = session.execute(
-        select(OrchestrationRunAttemptRecord).where(
-            OrchestrationRunAttemptRecord.id == ATTEMPT_ID
-        )
+        select(OrchestrationRunAttemptRecord).where(OrchestrationRunAttemptRecord.id == ATTEMPT_ID)
     ).scalar_one_or_none()
     if not existing_a:
         # Create a temporary identity first (needed for attempt FK)
         existing_i = session.execute(
-            select(OrchestrationIdentityRecord).where(
-                OrchestrationIdentityRecord.id == IDENTITY_ID
-            )
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == IDENTITY_ID)
         ).scalar_one_or_none()
         if not existing_i:
             session.add(
@@ -372,9 +366,7 @@ def _seed_orchestration_prereqs(session) -> None:
 
         # Link identity → attempt
         identity_rec = session.execute(
-            select(OrchestrationIdentityRecord).where(
-                OrchestrationIdentityRecord.id == IDENTITY_ID
-            )
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == IDENTITY_ID)
         ).scalar_one()
         identity_rec.authoritative_attempt_id = ATTEMPT_ID
         session.commit()
@@ -542,9 +534,7 @@ def _seed_weight_set_and_revision(
 
     # Revision
     existing_rev = session.execute(
-        select(SchemeWeightSetRevisionRecord).where(
-            SchemeWeightSetRevisionRecord.id == revision_id
-        )
+        select(SchemeWeightSetRevisionRecord).where(SchemeWeightSetRevisionRecord.id == revision_id)
     ).scalar_one_or_none()
     if existing_rev is None:
         session.add(
@@ -675,9 +665,9 @@ class TestSourceBindingVerification:
         cmd = _make_command(binding_id="nonexistent-binding")
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "binding_not_found" in str(exc_info.value) or "not found" in str(
-            exc_info.value
-        ).lower()
+        assert (
+            "binding_not_found" in str(exc_info.value) or "not found" in str(exc_info.value).lower()
+        )
 
     def test_unsupported_schema(self, session) -> None:
         _seed_project_and_version(session)
@@ -688,9 +678,9 @@ class TestSourceBindingVerification:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "schema" in str(exc_info.value).lower() or "unsupported" in str(
-            exc_info.value
-        ).lower()
+        assert (
+            "schema" in str(exc_info.value).lower() or "unsupported" in str(exc_info.value).lower()
+        )
 
     def test_attempt_not_completed(self, session) -> None:
         _seed_project_and_version(session)
@@ -715,9 +705,9 @@ class TestSourceBindingVerification:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "attempt" in str(exc_info.value).lower() or "completed" in str(
-            exc_info.value
-        ).lower()
+        assert (
+            "attempt" in str(exc_info.value).lower() or "completed" in str(exc_info.value).lower()
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -782,9 +772,11 @@ class TestFiveSlotLoading:
         port = SqlAlchemySourceBindingReadPort()
         with pytest.raises(Exception) as exc_info:
             verify_source_binding(port, session, binding_id="test-missing-slot-binding")
-        assert "missing" in str(exc_info.value).lower() or "not found" in str(
-            exc_info.value
-        ).lower() or "slot" in str(exc_info.value).lower()
+        assert (
+            "missing" in str(exc_info.value).lower()
+            or "not found" in str(exc_info.value).lower()
+            or "slot" in str(exc_info.value).lower()
+        )
 
     def test_wrong_calculator_name(self, session) -> None:
         _seed_project_and_version(session)
@@ -864,9 +856,11 @@ class TestFiveSlotLoading:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "calculator" in str(exc_info.value).lower() or "type" in str(
-            exc_info.value
-        ).lower() or "mismatch" in str(exc_info.value).lower()
+        assert (
+            "calculator" in str(exc_info.value).lower()
+            or "type" in str(exc_info.value).lower()
+            or "mismatch" in str(exc_info.value).lower()
+        )
 
     def test_hash_mismatch(self, session) -> None:
         _seed_project_and_version(session)
@@ -918,9 +912,7 @@ class TestFiveSlotLoading:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "hash" in str(exc_info.value).lower() or "mismatch" in str(
-            exc_info.value
-        ).lower()
+        assert "hash" in str(exc_info.value).lower() or "mismatch" in str(exc_info.value).lower()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -942,9 +934,11 @@ class TestPowerAuthority:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "power" in str(exc_info.value).lower() or "authority" in str(
-            exc_info.value
-        ).lower() or "total_installed_power" in str(exc_info.value).lower()
+        assert (
+            "power" in str(exc_info.value).lower()
+            or "authority" in str(exc_info.value).lower()
+            or "total_installed_power" in str(exc_info.value).lower()
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1008,9 +1002,10 @@ class TestWeightRevisionRejectionMatrix:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "approved" in str(exc_info.value).lower() or "not_approved" in str(
-            exc_info.value
-        ).lower()
+        assert (
+            "approved" in str(exc_info.value).lower()
+            or "not_approved" in str(exc_info.value).lower()
+        )
 
     def test_missing_approval_evidence_approved_at(self, session) -> None:
         _seed_project_and_version(session)
@@ -1024,9 +1019,11 @@ class TestWeightRevisionRejectionMatrix:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "approval" in str(exc_info.value).lower() or "evidence" in str(
-            exc_info.value
-        ).lower() or "approved_at" in str(exc_info.value).lower()
+        assert (
+            "approval" in str(exc_info.value).lower()
+            or "evidence" in str(exc_info.value).lower()
+            or "approved_at" in str(exc_info.value).lower()
+        )
 
     def test_missing_approval_evidence_approved_by(self, session) -> None:
         _seed_project_and_version(session)
@@ -1043,25 +1040,27 @@ class TestWeightRevisionRejectionMatrix:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "approval" in str(exc_info.value).lower() or "evidence" in str(
-            exc_info.value
-        ).lower() or "approved_by" in str(exc_info.value).lower()
+        assert (
+            "approval" in str(exc_info.value).lower()
+            or "evidence" in str(exc_info.value).lower()
+            or "approved_by" in str(exc_info.value).lower()
+        )
 
     def test_content_hash_mismatch(self, session) -> None:
         _seed_project_and_version(session)
         _seed_orchestration_prereqs(session)
         _seed_calculation_runs(session)
         _seed_source_binding(session)
-        _seed_weight_set_and_revision(
-            session, content_hash_override="wrong_hash_abc123"
-        )
+        _seed_weight_set_and_revision(session, content_hash_override="wrong_hash_abc123")
         service = _make_service(session)
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "hash" in str(exc_info.value).lower() or "tamper" in str(
-            exc_info.value
-        ).lower() or "mismatch" in str(exc_info.value).lower()
+        assert (
+            "hash" in str(exc_info.value).lower()
+            or "tamper" in str(exc_info.value).lower()
+            or "mismatch" in str(exc_info.value).lower()
+        )
 
     def test_duplicate_criteria(self, session) -> None:
         _seed_project_and_version(session)
@@ -1087,11 +1086,23 @@ class TestWeightRevisionRejectionMatrix:
         neg_criteria = [
             {"criterion_code": "total_area_m2", "weight": -0.20, "direction": "lower_is_better"},
             {"criterion_code": "investment_cny", "weight": 0.30, "direction": "lower_is_better"},
-            {"criterion_code": "total_position_count", "weight": 0.15, "direction": "higher_is_better"},
+            {
+                "criterion_code": "total_position_count",
+                "weight": 0.15,
+                "direction": "higher_is_better",
+            },
             {"criterion_code": "room_module_count", "weight": 0.10, "direction": "lower_is_better"},
             {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
-            {"criterion_code": "partition_length_proxy_m", "weight": 0.05, "direction": "lower_is_better"},
-            {"criterion_code": "installed_power_kw_e", "weight": 0.15, "direction": "lower_is_better"},
+            {
+                "criterion_code": "partition_length_proxy_m",
+                "weight": 0.05,
+                "direction": "lower_is_better",
+            },
+            {
+                "criterion_code": "installed_power_kw_e",
+                "weight": 0.15,
+                "direction": "lower_is_better",
+            },
         ]
         neg_content = {"criteria": neg_criteria}
         _seed_weight_set_and_revision(session, content=neg_content)
@@ -1099,9 +1110,7 @@ class TestWeightRevisionRejectionMatrix:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "negative" in str(exc_info.value).lower() or "weight" in str(
-            exc_info.value
-        ).lower()
+        assert "negative" in str(exc_info.value).lower() or "weight" in str(exc_info.value).lower()
 
     def test_weight_sum_not_one(self, session) -> None:
         _seed_project_and_version(session)
@@ -1111,11 +1120,23 @@ class TestWeightRevisionRejectionMatrix:
         bad_sum_criteria = [
             {"criterion_code": "total_area_m2", "weight": 0.50, "direction": "lower_is_better"},
             {"criterion_code": "investment_cny", "weight": 0.50, "direction": "lower_is_better"},
-            {"criterion_code": "total_position_count", "weight": 0.50, "direction": "higher_is_better"},
+            {
+                "criterion_code": "total_position_count",
+                "weight": 0.50,
+                "direction": "higher_is_better",
+            },
             {"criterion_code": "room_module_count", "weight": 0.10, "direction": "lower_is_better"},
             {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
-            {"criterion_code": "partition_length_proxy_m", "weight": 0.05, "direction": "lower_is_better"},
-            {"criterion_code": "installed_power_kw_e", "weight": 0.15, "direction": "lower_is_better"},
+            {
+                "criterion_code": "partition_length_proxy_m",
+                "weight": 0.05,
+                "direction": "lower_is_better",
+            },
+            {
+                "criterion_code": "installed_power_kw_e",
+                "weight": 0.15,
+                "direction": "lower_is_better",
+            },
         ]
         bad_sum_content = {"criteria": bad_sum_criteria}
         _seed_weight_set_and_revision(session, content=bad_sum_content)
@@ -1123,9 +1144,11 @@ class TestWeightRevisionRejectionMatrix:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "sum" in str(exc_info.value).lower() or "1.0" in str(
-            exc_info.value
-        ) or "weight" in str(exc_info.value).lower()
+        assert (
+            "sum" in str(exc_info.value).lower()
+            or "1.0" in str(exc_info.value)
+            or "weight" in str(exc_info.value).lower()
+        )
 
     def test_incompatible_generator(self, session) -> None:
         _seed_project_and_version(session)
@@ -1137,9 +1160,10 @@ class TestWeightRevisionRejectionMatrix:
         cmd = _make_command()
         with pytest.raises(Exception) as exc_info:
             service.generate_production_scheme_run(cmd)
-        assert "generator" in str(exc_info.value).lower() or "incompatible" in str(
-            exc_info.value
-        ).lower()
+        assert (
+            "generator" in str(exc_info.value).lower()
+            or "incompatible" in str(exc_info.value).lower()
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1223,12 +1247,8 @@ class TestAtomicRollbackPKSetZeroDelta:
         )
 
         # Capture PK set before
-        before_runs = set(
-            session.execute(select(SchemeRunRecord.id)).scalars().all()
-        )
-        before_cands = set(
-            session.execute(select(SchemeCandidateRecord.id)).scalars().all()
-        )
+        before_runs = set(session.execute(select(SchemeRunRecord.id)).scalars().all())
+        before_cands = set(session.execute(select(SchemeCandidateRecord.id)).scalars().all())
 
         # Patch session.add to raise on the first SchemeRunRecord add
         original_add = session.add
@@ -1252,12 +1272,8 @@ class TestAtomicRollbackPKSetZeroDelta:
         session.add = original_add  # type: ignore[assignment]
 
         # Verify zero new SchemeRun or SchemeCandidate records
-        after_runs = set(
-            session.execute(select(SchemeRunRecord.id)).scalars().all()
-        )
-        after_cands = set(
-            session.execute(select(SchemeCandidateRecord.id)).scalars().all()
-        )
+        after_runs = set(session.execute(select(SchemeRunRecord.id)).scalars().all())
+        after_cands = set(session.execute(select(SchemeCandidateRecord.id)).scalars().all())
 
         assert after_runs == before_runs, (
             f"New SchemeRun records detected: {after_runs - before_runs}"
@@ -1312,9 +1328,11 @@ class TestSourceModeConstraints:
                 )
             )
             session.flush()
-        assert "check" in str(exc_info.value).lower() or "constraint" in str(
-            exc_info.value
-        ).lower() or "null" in str(exc_info.value).lower()
+        assert (
+            "check" in str(exc_info.value).lower()
+            or "constraint" in str(exc_info.value).lower()
+            or "null" in str(exc_info.value).lower()
+        )
 
     def test_legacy_mode_requires_all_null(self, session) -> None:
         """Inserting source_mode='legacy' with non-NULL production fields
@@ -1352,9 +1370,11 @@ class TestSourceModeConstraints:
                 )
             )
             session.flush()
-        assert "check" in str(exc_info.value).lower() or "constraint" in str(
-            exc_info.value
-        ).lower() or "null" in str(exc_info.value).lower()
+        assert (
+            "check" in str(exc_info.value).lower()
+            or "constraint" in str(exc_info.value).lower()
+            or "null" in str(exc_info.value).lower()
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1437,7 +1457,7 @@ class TestContentHashVerification:
         # and includes candidates_snapshot and score_breakdowns_snapshot
         # We can verify the hash is consistent by checking it matches
         # a fresh recomputation from the persisted data
-        expected_hash = _compute_production_content_hash(
+        _compute_production_content_hash(
             source_binding_id=rec.source_binding_id,
             weight_set_revision_id=rec.weight_set_revision_id,
             combined_source_hash=rec.combined_source_hash,
@@ -1474,7 +1494,9 @@ class TestContentHashVerification:
         assert original_hash is not None
 
         # Tamper with the stored hash
-        rec.content_hash = "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
+        rec.content_hash = (
+            "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
+        )
         session.commit()
 
         # Re-read and verify the hash no longer matches original
@@ -1482,4 +1504,7 @@ class TestContentHashVerification:
             select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
         ).scalar_one()
         assert rec2.content_hash != original_hash
-        assert rec2.content_hash == "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
+        assert (
+            rec2.content_hash
+            == "tampered_hash_00000000000000000000000000000000000000000000000000000000000000"
+        )

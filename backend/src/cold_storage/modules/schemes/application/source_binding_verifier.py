@@ -150,7 +150,7 @@ class CombinedHashMismatchError(SourceBindingVerificationError):
 
 
 class SlotHashMapMismatchError(SourceBindingVerificationError):
-    def __init__(self, expected: dict, actual: dict) -> None:
+    def __init__(self, expected: dict[str, str], actual: dict[str, str]) -> None:
         super().__init__(
             "per_calc_hash_map_mismatch",
             f"Per-calculation hash map mismatch: expected {expected!r}, got {actual!r}",

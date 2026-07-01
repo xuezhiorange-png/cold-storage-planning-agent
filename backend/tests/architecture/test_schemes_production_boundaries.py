@@ -11,8 +11,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 BACKEND_SRC = Path(__file__).resolve().parents[2] / "src" / "cold_storage"
 SCHEMES_DIR = BACKEND_SRC / "modules" / "schemes"
 APP_DIR = SCHEMES_DIR / "application"
@@ -34,9 +32,8 @@ def _get_imports(filepath: Path) -> list[tuple[int, str]]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imports.append((node.lineno, alias.name))
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.append((node.lineno, node.module))
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.append((node.lineno, node.module))
     return imports
 
 
@@ -67,9 +64,7 @@ class TestProductionServiceBoundaries:
         filepath = APP_DIR / "production_service.py"
         assert filepath.exists(), f"{filepath} not found"
         imports = _get_imports(filepath)
-        violations = _imports_from(
-            imports, "cold_storage.modules.orchestration.infrastructure"
-        )
+        violations = _imports_from(imports, "cold_storage.modules.orchestration.infrastructure")
         assert not violations, (
             "production_service imports from orchestration.infrastructure:\n"
             + "\n".join(f"  line {line}: {mod}" for line, mod in violations)
@@ -93,9 +88,7 @@ class TestSourceBindingVerifierBoundaries:
         filepath = APP_DIR / "source_binding_verifier.py"
         assert filepath.exists(), f"{filepath} not found"
         imports = _get_imports(filepath)
-        violations = _imports_from(
-            imports, "cold_storage.modules.orchestration.infrastructure"
-        )
+        violations = _imports_from(imports, "cold_storage.modules.orchestration.infrastructure")
         assert not violations, (
             "source_binding_verifier imports from orchestration.infrastructure:\n"
             + "\n".join(f"  line {line}: {mod}" for line, mod in violations)
@@ -144,9 +137,8 @@ class TestSourceDomainMappingBoundaries:
         assert filepath.exists(), f"{filepath} not found"
         imports = _get_imports(filepath)
         violations = _imports_containing(imports, ".infrastructure")
-        assert not violations, (
-            "source_domain_mapping imports from infrastructure:\n"
-            + "\n".join(f"  line {line}: {mod}" for line, mod in violations)
+        assert not violations, "source_domain_mapping imports from infrastructure:\n" + "\n".join(
+            f"  line {line}: {mod}" for line, mod in violations
         )
 
 
@@ -169,9 +161,8 @@ class TestProductionPortsBoundaries:
         assert filepath.exists(), f"{filepath} not found"
         imports = _get_imports(filepath)
         violations = _imports_containing(imports, ".infrastructure")
-        assert not violations, (
-            "production_ports imports from infrastructure:\n"
-            + "\n".join(f"  line {line}: {mod}" for line, mod in violations)
+        assert not violations, "production_ports imports from infrastructure:\n" + "\n".join(
+            f"  line {line}: {mod}" for line, mod in violations
         )
 
 
@@ -243,8 +234,7 @@ class TestDataAccessPortsBoundary:
                         break
 
         assert not violations, (
-            "Production application modules import forbidden libraries:\n"
-            + "\n".join(violations)
+            "Production application modules import forbidden libraries:\n" + "\n".join(violations)
         )
 
 
