@@ -37,6 +37,13 @@ from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Skip entire module when running under PostgreSQL CI job.
+if os.environ.get("DATABASE_BACKEND") == "postgresql":
+    pytest.skip(
+        "SQLite production scheme tests require DATABASE_BACKEND != postgresql",
+        allow_module_level=True,
+    )
+
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 # ── Canonical hash helpers (mirrors source code exactly) ─────────────────────
@@ -190,6 +197,8 @@ def engine():
         db_path = Path(f.name)
     env = os.environ.copy()
     env["SQLITE_PATH"] = str(db_path)
+    env["DATABASE_BACKEND"] = "sqlite"
+    env.pop("DATABASE_URL", None)
     r = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         cwd=BACKEND_DIR,
