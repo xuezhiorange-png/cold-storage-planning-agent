@@ -41,6 +41,10 @@ from cold_storage.modules.orchestration.domain.dag import (
     STAGE_UPSTREAM_PROVENANCE_KEYS,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
+from cold_storage.modules.orchestration.domain.snapshots import (
+    SourceSnapshotContentV1,
+    SourceSnapshotProvenanceV1,
+)
 from cold_storage.modules.schemes.application.production_ports import (
     CalculationRunSnapshot,
     VerifiedSourceMapping,
@@ -159,7 +163,19 @@ class AttemptNotAuthoritativeError(SourceBindingVerificationError):
         super().__init__(
             code="attempt_not_authoritative",
             field="authoritative",
-            detail="Attempt is not authoritative",
+            detail=(
+                "Attempt is not authoritative "
+                "(NULL authoritative_attempt_id on identity or ID mismatch)"
+            ),
+        )
+
+
+class IdentityNotFoundError(SourceBindingVerificationError):
+    def __init__(self, identity_id: str) -> None:
+        super().__init__(
+            code="identity_not_found",
+            field="orchestration_identity_id",
+            detail=f"OrchestrationIdentity {identity_id!r} not found",
         )
 
 
@@ -582,6 +598,61 @@ def _require_not_null(state: VerifiedSourceMapping, field_name: str) -> None:
         raise CompletenessViolation("_mapping_", field_name)
 
 
+# ── Domain validation error converter ─────────────────────────────────────
+
+
+def _coerce_payload_for_hashing(payload: dict[str, Any]) -> dict[str, Any]:
+    """Convert binary floats in payload to strings for canonical JSON hashing.
+
+    The domain ``result_hash`` rejects binary floats.  Production payloads
+    may contain float values (e.g. ``200.0``).  This helper converts them
+    to their canonical string representation before hashing.
+    """
+    from decimal import Decimal
+
+    result: dict[str, Any] = {}
+    for k, v in payload.items():
+        if isinstance(v, float):
+            # Use Decimal for canonical string conversion
+            d = Decimal(str(v))
+            result[k] = str(d.normalize()) if d != 0 else "0"
+        elif isinstance(v, dict):
+            result[k] = _coerce_payload_for_hashing(v)
+        elif isinstance(v, list):
+            result[k] = [
+                _coerce_payload_for_hashing(item)
+                if isinstance(item, dict)
+                else (str(Decimal(str(item)).normalize()) if isinstance(item, float) else item)
+                for item in v
+            ]
+        else:
+            result[k] = v
+    return result
+
+
+def _raise_domain_validation_error(stage: str, exc: ValueError) -> None:
+    """Convert a domain ValueError to the appropriate verifier error.
+
+    Always raises — never returns.
+    """
+    msg = str(exc).lower()
+    if "missing keys" in msg:
+        # Parse missing keys from the error message
+        import re
+
+        m = re.search(r"missing keys:\s*\[([^\]]+)\]", msg)
+        keys = [k.strip().strip("'\"") for k in m.group(1).split(",")] if m else ["<unknown>"]
+        raise ProvenanceMissingKey(stage, keys) from exc
+    if "extra keys" in msg:
+        import re
+
+        m = re.search(r"extra keys:\s*\[([^\]]+)\]", msg)
+        keys = [k.strip().strip("'\"") for k in m.group(1).split(",")] if m else ["<unknown>"]
+        raise ProvenanceExtraKey(stage, keys) from exc
+    # Fallback: treat as hash mismatch (data is corrupted)
+    raise ResultHashMismatch(stage, "N/A (domain validation failed)", "") from exc
+
+
 # ── Backward-compatible entry point ───────────────────────────────────────
 
 
@@ -593,8 +664,11 @@ def verify_source_binding(
 ) -> VerifiedSourceMapping:
     """Load and independently re-verify a SourceBinding.
 
-    Backward-compatible wrapper that loads state from a read port and then
-    delegates to ``verify_source_mapping``.
+    P0-2: Authoritative attempt is derived from OrchestrationIdentityRecord.
+    P0-1: Rebuilds full SourceSnapshotContentV1 from DB fields and recomputes
+    result_hash via orchestration.domain.fingerprint.result_hash, performing
+    a three-way comparison: computed == CalculationRunRecord.result_hash ==
+    binding.per_calculation_result_hashes[stage].
     """
     binding = read_port.load_binding(session, binding_id=binding_id)
     if binding is None:
@@ -604,16 +678,29 @@ def verify_source_binding(
     if binding.schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
         raise BindingSchemaError(binding.schema_version)
 
-    # Attempt verification
+    # ── P0-2: Authoritative attempt from OrchestrationIdentityRecord ─────
+    authoritative_attempt_id = read_port.load_authoritative_attempt_id(
+        session, identity_id=binding.orchestration_identity_id
+    )
+    if authoritative_attempt_id is None:
+        raise AttemptNotAuthoritativeError()
+    if authoritative_attempt_id != binding.orchestration_run_attempt_id:
+        raise AttemptNotAuthoritativeError()
+
+    # Load attempt
     attempt = read_port.load_attempt(session, attempt_id=binding.orchestration_run_attempt_id)
     if attempt is None:
         raise AttemptNotCompletedError("MISSING")
+    if attempt.id != binding.orchestration_run_attempt_id:
+        raise AttemptNotAuthoritativeError()
+    if attempt.identity_id != binding.orchestration_identity_id:
+        raise AttemptSourceBindingMismatch(binding.orchestration_identity_id, attempt.identity_id)
+    if attempt.source_binding_id is None:
+        raise AttemptSourceBindingMismatch(binding_id, None)
+    if attempt.source_binding_id != binding_id:
+        raise AttemptSourceBindingMismatch(binding_id, attempt.source_binding_id)
     if attempt.status != "COMPLETED":
         raise AttemptNotCompletedError(attempt.status)
-    if not attempt.authoritative:
-        raise AttemptNotAuthoritativeError()
-    if attempt.source_binding_id is not None and attempt.source_binding_id != binding_id:
-        raise AttemptSourceBindingMismatch(binding_id, attempt.source_binding_id)
 
     # Load all five CalculationRuns
     runs: dict[str, CalculationRunSnapshot] = {}
@@ -657,22 +744,55 @@ def verify_source_binding(
             )
         if run.orchestration_fingerprint != binding.orchestration_fingerprint:
             raise FingerprintMismatch(
-                stage, binding.orchestration_fingerprint, run.orchestration_fingerprint
+                stage,
+                binding.orchestration_fingerprint,
+                run.orchestration_fingerprint,
             )
 
-    # Verify result hash via per-calculation hash map
+    # ── P0-1: Rebuild SourceSnapshotContentV1 and recompute hash ─────────
     for stage in _SLOT_STAGE_ORDER:
         run = runs[stage]
-        if stage not in binding.per_calculation_result_hashes:
-            raise SlotHashMapMismatch(
-                binding.per_calculation_result_hashes,
-                {stage: run.result_hash},
+        try:
+            provenance = SourceSnapshotProvenanceV1(
+                execution_snapshot_id=run.execution_snapshot_id,
+                coefficient_context_id=run.coefficient_context_id,
+                orchestration_identity_id=run.orchestration_identity_id,
+                orchestration_run_attempt_id=run.orchestration_run_attempt_id,
+                upstream_calculation_ids=run.upstream_calculation_ids,
             )
-        expected_hash = binding.per_calculation_result_hashes[stage]
-        if expected_hash != run.result_hash:
-            raise ResultHashMismatch(stage, expected_hash, run.result_hash)
+            content = SourceSnapshotContentV1(
+                schema_version=run.schema_version or "1.0.0",
+                calculation_type=run.calculation_type,
+                calculator_name=run.calculator_name,
+                calculator_version=run.calculator_version,
+                project_id=run.project_id,
+                project_version_id=run.project_version_id,
+                execution_snapshot_id=run.execution_snapshot_id,
+                coefficient_context_id=run.coefficient_context_id,
+                orchestration_identity_id=run.orchestration_identity_id,
+                orchestration_run_attempt_id=run.orchestration_run_attempt_id,
+                input_hash=run.input_hash,
+                requires_review=run.requires_review,
+                payload=_coerce_payload_for_hashing(run.result_snapshot),
+                provenance=provenance,
+            )
+            computed_hash = result_hash(content)
+        except ValueError as exc:
+            # Domain validation raised — convert to verifier error
+            _raise_domain_validation_error(stage, exc)
+            raise  # unreachable — _raise_domain_validation_error always raises
 
-    # Re-parse inner typed result snapshots
+        # Three-way compare: computed == run.result_hash == binding.hash_map[stage]
+        if computed_hash != run.result_hash:
+            raise ResultHashMismatch(stage, computed_hash, run.result_hash)
+        if stage not in binding.per_calculation_result_hashes:
+            raise SlotHashMapMismatch(binding.per_calculation_result_hashes, {stage: computed_hash})
+        if computed_hash != binding.per_calculation_result_hashes[stage]:
+            raise ResultHashMismatch(
+                stage,
+                computed_hash,
+                binding.per_calculation_result_hashes[stage],
+            )
     for stage in _SLOT_STAGE_ORDER:
         result_dict = runs[stage].result_snapshot
         snapshot_cls = _RESULT_SNAPSHOT_CLS[stage]

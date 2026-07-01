@@ -57,6 +57,7 @@ from cold_storage.modules.schemes.application.source_binding_verifier import (
     CompletenessViolation,
     ExecutionSnapshotMismatch,
     FingerprintMismatch,
+    IdentityNotFoundError,
     PowerAuthorityMissingError,
     ProvenanceExtraKey,
     ProvenanceMissingKey,
@@ -213,7 +214,24 @@ _SNAPSHOT_CLS: dict[str, type] = {
 
 
 def _compute_stage_hash(stage: str) -> str:
-    """Compute the full SourceSnapshotContentV1 result_hash for a stage."""
+    """Compute the full SourceSnapshotContentV1 result_hash for a stage.
+
+    Uses the domain dataclass from orchestration.domain.snapshots (P0-1)
+    and orchestration.domain.fingerprint.result_hash for recomputation.
+    """
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        result_hash as _domain_result_hash,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotContentV1 as DomainSourceSnapshotContentV1,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotProvenanceV1,
+    )
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _coerce_payload_for_hashing,
+    )
+
     run_id, calc_name, calc_ver, calc_type = _STAGE_META[stage]
     upstream: dict[str, str] = {}
     if stage == "cooling_load":
@@ -225,28 +243,31 @@ def _compute_stage_hash(stage: str) -> str:
     elif stage == "investment":
         upstream = {"zone": "run-z-001", "power": "run-pow-001"}
 
-    snap = _SNAPSHOT_CLS[stage](
+    provenance = SourceSnapshotProvenanceV1(
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_run_attempt_id=_ATT,
+        upstream_calculation_ids=upstream,
+    )
+
+    content = DomainSourceSnapshotContentV1(
+        schema_version="1.0.0",
+        calculation_type=calc_type,
+        calculator_name=calc_name,
+        calculator_version=calc_ver,
         project_id=_PID,
         project_version_id=_PVID,
         execution_snapshot_id=_ESID,
         coefficient_context_id=_CCID,
         orchestration_identity_id=_IDENT,
-        orchestration_attempt_id=_ATT,
-        orchestration_fingerprint=_FP,
-        source_snapshot_schema_version="1.0.0",
-        calculation_type=calc_type,
-        calculator_id=calc_name,
-        calculator_version=calc_ver,
+        orchestration_run_attempt_id=_ATT,
+        input_hash="input-hash-001",
         requires_review=False,
-        result_snapshot=_RESULT_FACTORIES[stage](),
-        formulas=[],
-        coefficients=[],
-        assumptions=[],
-        warnings=[],
-        source_references=[],
-        upstream_calculation_ids=upstream,
+        payload=_coerce_payload_for_hashing(_RESULT_FACTORIES[stage]()),
+        provenance=provenance,
     )
-    return snap.result_hash()
+    return _domain_result_hash(content)
 
 
 # Pre-compute all stage hashes
@@ -323,6 +344,47 @@ def _build_valid_mapping(**overrides: Any) -> VerifiedSourceMapping:
 def _tamper(**field_overrides: Any) -> VerifiedSourceMapping:
     """Return a valid mapping with one field tampered."""
     return _build_valid_mapping(**field_overrides)
+
+
+def _recompute_domain_hash(run: CalculationRunSnapshot) -> str:
+    """Recompute the domain SourceSnapshotContentV1 result_hash for a run."""
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        result_hash as _domain_result_hash,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotContentV1 as DomainSourceSnapshotContentV1,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotProvenanceV1,
+    )
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _coerce_payload_for_hashing,
+    )
+
+    provenance = SourceSnapshotProvenanceV1(
+        execution_snapshot_id=run.execution_snapshot_id,
+        coefficient_context_id=run.coefficient_context_id,
+        orchestration_identity_id=run.orchestration_identity_id,
+        orchestration_run_attempt_id=run.orchestration_run_attempt_id,
+        upstream_calculation_ids=run.upstream_calculation_ids,
+    )
+    content = DomainSourceSnapshotContentV1(
+        schema_version=run.schema_version or "1.0.0",
+        calculation_type=run.calculation_type,
+        calculator_name=run.calculator_name,
+        calculator_version=run.calculator_version,
+        project_id=run.project_id,
+        project_version_id=run.project_version_id,
+        execution_snapshot_id=run.execution_snapshot_id,
+        coefficient_context_id=run.coefficient_context_id,
+        orchestration_identity_id=run.orchestration_identity_id,
+        orchestration_run_attempt_id=run.orchestration_run_attempt_id,
+        input_hash=run.input_hash,
+        requires_review=run.requires_review,
+        payload=_coerce_payload_for_hashing(run.result_snapshot),
+        provenance=provenance,
+    )
+    return _domain_result_hash(content)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -516,7 +578,6 @@ def _build_attempt_snapshot(**overrides: Any) -> AttemptSnapshot:
         identity_id=_IDENT,
         status="COMPLETED",
         source_binding_id=_BINDING_ID,
-        authoritative=True,
     )
     defaults.update(overrides)
     return AttemptSnapshot(**defaults)
@@ -553,6 +614,9 @@ def _build_calculation_run(
         calculator_name=calc_name,
         calculator_version=calc_ver,
         calculation_type=calc_type,
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        input_hash="input-hash-001",
         result_snapshot=result_dict,
         result_hash=computed_hash,
         schema_version="1.0.0",
@@ -574,10 +638,12 @@ def _build_read_port(
     binding: SourceBindingSnapshot | None = None,
     attempt: AttemptSnapshot | None = None,
     runs: dict[str, CalculationRunSnapshot] | None = None,
+    authoritative_attempt_id: str | None = _ATT,
 ) -> MagicMock:
     port = MagicMock()
     port.load_binding.return_value = binding if binding is not None else _build_binding_snapshot()
     port.load_attempt.return_value = attempt if attempt is not None else _build_attempt_snapshot()
+    port.load_authoritative_attempt_id.return_value = authoritative_attempt_id
     all_runs = runs if runs is not None else _build_all_runs()
 
     def _load_calc(_session: Any, *, run_id: str) -> CalculationRunSnapshot | None:
@@ -661,9 +727,17 @@ class TestVerifySourceBindingBackwardCompat:
         assert exc_info.value.code == "attempt_not_completed"
 
     def test_attempt_not_authoritative(self) -> None:
-        attempt = _build_attempt_snapshot(authoritative=False)
+        """NULL authoritative_attempt_id on identity raises AttemptNotAuthoritativeError."""
         binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
-        port = _build_read_port(binding=binding, attempt=attempt)
+        port = _build_read_port(binding=binding, authoritative_attempt_id=None)
+        with pytest.raises(AttemptNotAuthoritativeError) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "attempt_not_authoritative"
+
+    def test_attempt_not_authoritative_id_mismatch(self) -> None:
+        """authoritative_attempt_id on identity does not match binding attempt."""
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, authoritative_attempt_id="wrong-attempt-id")
         with pytest.raises(AttemptNotAuthoritativeError) as exc_info:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
         assert exc_info.value.code == "attempt_not_authoritative"
@@ -676,10 +750,20 @@ class TestVerifySourceBindingBackwardCompat:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
         assert exc_info.value.code == "attempt_source_binding_mismatch"
 
+    def test_attempt_source_binding_null(self) -> None:
+        """NULL source_binding_id on attempt raises AttemptSourceBindingMismatch."""
+        attempt = _build_attempt_snapshot(source_binding_id=None)
+        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        port = _build_read_port(binding=binding, attempt=attempt)
+        with pytest.raises(AttemptSourceBindingMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "attempt_source_binding_mismatch"
+
     def test_attempt_missing(self) -> None:
         binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
         port = MagicMock()
         port.load_binding.return_value = binding
+        port.load_authoritative_attempt_id.return_value = _ATT
         port.load_attempt.return_value = None
         with pytest.raises(AttemptNotCompletedError) as exc_info:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
@@ -692,6 +776,7 @@ class TestVerifySourceBindingBackwardCompat:
         all_runs = _build_all_runs()
         port = MagicMock()
         port.load_binding.return_value = binding
+        port.load_authoritative_attempt_id.return_value = _ATT
         port.load_attempt.return_value = _build_attempt_snapshot()
 
         def _load_calc(_session: Any, *, run_id: str) -> CalculationRunSnapshot | None:
@@ -767,7 +852,34 @@ class TestVerifySourceBindingBackwardCompat:
             runs["cooling_load"],
             result_snapshot={"bad_field": "garbage", "total_cooling_load_kw": 123},
         )
-        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        # Recompute domain hash for modified data (P0-1)
+        new_cool_hash = _recompute_domain_hash(runs["cooling_load"])
+        runs["cooling_load"] = dataclasses.replace(runs["cooling_load"], result_hash=new_cool_hash)
+        new_hashes = dict(_STAGE_HASHES)
+        new_hashes["cooling_load"] = new_cool_hash
+        new_combined = _compute_combined_source_hash(
+            binding_schema_version="1.0.0",
+            project_id=_PID,
+            project_version_id=_PVID,
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_attempt_id=_ATT,
+            orchestration_fingerprint=_FP,
+            slot_ids={
+                "zone": "run-z-001",
+                "cooling_load": "run-cl-001",
+                "equipment": "run-eq-001",
+                "power": "run-pow-001",
+                "investment": "run-inv-001",
+            },
+            result_hashes=new_hashes,
+            requires_reviews={s: False for s in ORCHESTRATION_STAGE_ORDER},
+        )
+        binding = _build_binding_snapshot(
+            combined_source_hash=new_combined,
+            per_calculation_result_hashes=new_hashes,
+        )
         port = _build_read_port(binding=binding, runs=runs)
         with pytest.raises(TypedPayloadInvalid) as exc_info:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
@@ -807,7 +919,34 @@ class TestVerifySourceBindingBackwardCompat:
             runs["cooling_load"],
             upstream_calculation_ids={"zone": "wrong-zone-id"},
         )
-        binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        # Recompute domain hash for modified data (P0-1)
+        new_cool_hash = _recompute_domain_hash(runs["cooling_load"])
+        runs["cooling_load"] = dataclasses.replace(runs["cooling_load"], result_hash=new_cool_hash)
+        new_hashes = dict(_STAGE_HASHES)
+        new_hashes["cooling_load"] = new_cool_hash
+        new_combined = _compute_combined_source_hash(
+            binding_schema_version="1.0.0",
+            project_id=_PID,
+            project_version_id=_PVID,
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_attempt_id=_ATT,
+            orchestration_fingerprint=_FP,
+            slot_ids={
+                "zone": "run-z-001",
+                "cooling_load": "run-cl-001",
+                "equipment": "run-eq-001",
+                "power": "run-pow-001",
+                "investment": "run-inv-001",
+            },
+            result_hashes=new_hashes,
+            requires_reviews={s: False for s in ORCHESTRATION_STAGE_ORDER},
+        )
+        binding = _build_binding_snapshot(
+            combined_source_hash=new_combined,
+            per_calculation_result_hashes=new_hashes,
+        )
         port = _build_read_port(binding=binding, runs=runs)
         with pytest.raises(UpstreamCalculationIdMismatch) as exc_info:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
@@ -850,29 +989,41 @@ class TestVerifySourceBindingBackwardCompat:
                 "assumptions": [],
             },
         )
-        # Need a new hash for this modified power result
-        snap = PowerSourceSnapshotV1(
+        # Compute new hash using domain dataclass (P0-1)
+        from cold_storage.modules.orchestration.domain.fingerprint import (
+            result_hash as _domain_result_hash,
+        )
+        from cold_storage.modules.orchestration.domain.snapshots import (
+            SourceSnapshotContentV1 as DomainSourceSnapshotContentV1,
+        )
+        from cold_storage.modules.orchestration.domain.snapshots import (
+            SourceSnapshotProvenanceV1,
+        )
+
+        provenance = SourceSnapshotProvenanceV1(
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_run_attempt_id=_ATT,
+            upstream_calculation_ids={"equipment": "run-eq-001"},
+        )
+        content = DomainSourceSnapshotContentV1(
+            schema_version="1.0.0",
+            calculation_type="power",
+            calculator_name="installed_power",
+            calculator_version="1.0.0",
             project_id=_PID,
             project_version_id=_PVID,
             execution_snapshot_id=_ESID,
             coefficient_context_id=_CCID,
             orchestration_identity_id=_IDENT,
-            orchestration_attempt_id=_ATT,
-            orchestration_fingerprint=_FP,
-            source_snapshot_schema_version="1.0.0",
-            calculation_type="power",
-            calculator_id="installed_power",
-            calculator_version="1.0.0",
+            orchestration_run_attempt_id=_ATT,
+            input_hash="input-hash-001",
             requires_review=False,
-            result_snapshot=runs["power"].result_snapshot,
-            formulas=[],
-            coefficients=[],
-            assumptions=[],
-            warnings=[],
-            source_references=[],
-            upstream_calculation_ids={"equipment": "run-eq-001"},
+            payload=runs["power"].result_snapshot,
+            provenance=provenance,
         )
-        new_power_hash = snap.result_hash()
+        new_power_hash = _domain_result_hash(content)
         runs["power"] = dataclasses.replace(runs["power"], result_hash=new_power_hash)
 
         new_hashes = dict(_STAGE_HASHES)
@@ -930,10 +1081,11 @@ class TestVerifySourceBindingBackwardCompat:
     # ── Completeness ───────────────────────────────────────────────────
 
     def test_completeness_null_result_hash_via_wrapper(self) -> None:
-        """NULL result_hash on a run raises CombinedHashMismatch.
+        """NULL result_hash on a run raises ResultHashMismatch (P0-1).
 
-        The combined hash is recomputed with None result_hash, which
-        differs from the stored hash.  The completeness check runs after.
+        The domain hash is recomputed from DB fields and compared with
+        the stored result_hash. Since the stored hash is None, the
+        comparison fails at the hash step.
         """
         runs = _build_all_runs()
         runs["zone"] = dataclasses.replace(runs["zone"], result_hash=None)
@@ -944,9 +1096,9 @@ class TestVerifySourceBindingBackwardCompat:
             per_calculation_result_hashes=new_hashes,
         )
         port = _build_read_port(binding=binding, runs=runs)
-        with pytest.raises(CombinedHashMismatch) as exc_info:
+        with pytest.raises(ResultHashMismatch) as exc_info:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
-        assert exc_info.value.code == "combined_hash_mismatch"
+        assert exc_info.value.code == "result_hash_mismatch"
 
     def test_completeness_null_schema_version_via_wrapper(self) -> None:
         runs = _build_all_runs()
@@ -982,6 +1134,7 @@ class TestErrorHierarchy:
             BindingSchemaError("x"),
             AttemptNotCompletedError("x"),
             AttemptNotAuthoritativeError(),
+            IdentityNotFoundError("x"),
             AttemptSourceBindingMismatch("a", "b"),
             SlotMissingError("s", "id"),
             SlotTypeError("s", "n", "e"),

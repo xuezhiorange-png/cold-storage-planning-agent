@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from cold_storage.modules.orchestration.infrastructure.orm import (
+    OrchestrationIdentityRecord,
     OrchestrationRunAttemptRecord,
     SourceBindingRecord,
 )
@@ -82,6 +83,9 @@ class SqlAlchemySourceBindingReadPort:
             calculator_name=record.calculator_name,
             calculator_version=record.calculator_version,
             calculation_type=record.calculation_type or "",
+            execution_snapshot_id=record.execution_snapshot_id or "",
+            coefficient_context_id=record.coefficient_context_id or "",
+            input_hash=record.input_hash or "",
             result_snapshot=record.result_snapshot or {},
             result_hash=record.result_hash or "",
             schema_version=record.schema_version,
@@ -110,6 +114,15 @@ class SqlAlchemySourceBindingReadPort:
             status=record.status,
             source_binding_id=record.source_binding_id,
         )
+
+    def load_authoritative_attempt_id(self, session: Session, /, *, identity_id: str) -> str | None:
+        """Load authoritative_attempt_id from OrchestrationIdentityRecord."""
+        record = session.execute(
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
+        ).scalar_one_or_none()
+        if record is None:
+            return None
+        return record.authoritative_attempt_id
 
 
 # ── WeightRevisionReadPort adapter ────────────────────────────────────────

@@ -72,6 +72,9 @@ class CalculationRunSnapshot:
     calculator_name: str
     calculator_version: str
     calculation_type: str
+    execution_snapshot_id: str
+    coefficient_context_id: str
+    input_hash: str
     result_snapshot: dict[str, Any]
     result_hash: str
     schema_version: str | None
@@ -92,7 +95,6 @@ class AttemptSnapshot:
     identity_id: str
     status: str
     source_binding_id: str | None
-    authoritative: bool = True
 
 
 class SourceBindingReadPort(Protocol):
@@ -105,6 +107,8 @@ class SourceBindingReadPort(Protocol):
     ) -> CalculationRunSnapshot | None: ...
 
     def load_attempt(self, session: Any, /, *, attempt_id: str) -> AttemptSnapshot | None: ...
+
+    def load_authoritative_attempt_id(self, session: Any, /, *, identity_id: str) -> str | None: ...
 
 
 # ── Weight revision read port ──────────────────────────────────────────────

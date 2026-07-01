@@ -56,21 +56,75 @@ def _compute_result_hash(result_snapshot: dict[str, Any]) -> str:
     return hashlib.sha256(_canonical_json(result_snapshot).encode()).hexdigest()
 
 
-_SLOT_STAGE_ORDER: tuple[str, ...] = (
-    "zone",
-    "cooling_load",
-    "equipment",
-    "power",
-    "investment",
-)
+# ── Pre-computed hashes (P0-1: domain hash recomputation) ──────────────────
 
 
-def _compute_weight_content_hash(content: dict[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
+def _compute_domain_hash(
+    *,
+    stage: str,
+    result_snapshot: dict[str, Any],
+    run_id: str,
+) -> str:
+    """Compute domain SourceSnapshotContentV1 result_hash for a stage."""
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        result_hash as _domain_result_hash,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotContentV1 as DomainSourceSnapshotContentV1,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotProvenanceV1,
+    )
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _coerce_payload_for_hashing,
+    )
+
+    upstream = _SLOT_UPSTREAM_IDS.get(stage, {})
+    calc_name = SLOT_CALCULATOR_NAMES[stage]
+    calc_type = SLOT_CALCULATION_TYPES[stage]
+
+    # Map stage to upstream run IDs
+    upstream_ids: dict[str, str] = {}
+    for key, _ in upstream.items():
+        upstream_ids[key] = {
+            "zone": ZONE_RUN_ID,
+            "cooling_load": COOL_RUN_ID,
+            "equipment": EQUIP_RUN_ID,
+            "power": POWER_RUN_ID,
+            "investment": INVEST_RUN_ID,
+        }[key]
+
+    provenance = SourceSnapshotProvenanceV1(
+        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+        coefficient_context_id=COEFF_CONTEXT_ID,
+        orchestration_identity_id=IDENTITY_ID,
+        orchestration_run_attempt_id=ATTEMPT_ID,
+        upstream_calculation_ids=upstream_ids,
+    )
+    content = DomainSourceSnapshotContentV1(
+        schema_version="1.0.0",
+        calculation_type=calc_type,
+        calculator_name=calc_name,
+        calculator_version="1.0.0",
+        project_id=PROJECT_ID,
+        project_version_id=VERSION_ID,
+        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+        coefficient_context_id=COEFF_CONTEXT_ID,
+        orchestration_identity_id=IDENTITY_ID,
+        orchestration_run_attempt_id=ATTEMPT_ID,
+        input_hash="input-hash-001",
+        requires_review=False,
+        payload=_coerce_payload_for_hashing(result_snapshot),
+        provenance=provenance,
+    )
+    return _domain_result_hash(content)
 
 
-# ── Deterministic IDs ────────────────────────────────────────────────────────
-
+ZONE_HASH = ""  # computed below after constants are defined
+COOL_HASH = ""
+EQUIP_HASH = ""
+POWER_HASH = ""
+INVEST_HASH = ""
 PROJECT_ID = "test-p-001"
 VERSION_ID = "test-v-001"
 EXEC_SNAPSHOT_ID = "test-exec-001"
@@ -87,8 +141,6 @@ INVEST_RUN_ID = "test-run-invest-001"
 SOURCE_BINDING_ID = "test-binding-001"
 WEIGHT_SET_ID = "test-ws-001"
 WEIGHT_REVISION_ID = "test-wrev-001"
-
-# ── Deterministic result snapshots ───────────────────────────────────────────
 
 ZONE_RESULT_SNAPSHOT: dict[str, Any] = {
     "daily_inbound_mass_kg": 10000,
@@ -162,56 +214,28 @@ INVESTMENT_RESULT_SNAPSHOT: dict[str, Any] = {
     ],
 }
 
-# ── Pre-computed hashes ─────────────────────────────────────────────────────
-
-ZONE_HASH = _compute_result_hash(ZONE_RESULT_SNAPSHOT)
-COOL_HASH = _compute_result_hash(COOLING_RESULT_SNAPSHOT)
-EQUIP_HASH = _compute_result_hash(EQUIPMENT_RESULT_SNAPSHOT)
-POWER_HASH = _compute_result_hash(POWER_RESULT_SNAPSHOT)
-INVEST_HASH = _compute_result_hash(INVESTMENT_RESULT_SNAPSHOT)
-
-PER_CALC_HASHES: dict[str, str] = {
-    "zone": ZONE_HASH,
-    "cooling_load": COOL_HASH,
-    "equipment": EQUIP_HASH,
-    "power": POWER_HASH,
-    "investment": INVEST_HASH,
-}
-
-# ── Correct combined source hash (matches verifier implementation) ──────────
-
-
-def _compute_verifier_combined_source_hash() -> str:
-    """Compute the combined source hash matching the verifier's implementation."""
-    from cold_storage.modules.schemes.application.source_binding_verifier import (
-        _compute_combined_source_hash,
-    )
-
-    slot_ids = {
-        "zone": ZONE_RUN_ID,
-        "cooling_load": COOL_RUN_ID,
-        "equipment": EQUIP_RUN_ID,
-        "power": POWER_RUN_ID,
-        "investment": INVEST_RUN_ID,
-    }
-    return _compute_combined_source_hash(
-        binding_schema_version="1.0.0",
-        project_id=PROJECT_ID,
-        project_version_id=VERSION_ID,
-        execution_snapshot_id=EXEC_SNAPSHOT_ID,
-        coefficient_context_id=COEFF_CONTEXT_ID,
-        orchestration_identity_id=IDENTITY_ID,
-        orchestration_attempt_id=ATTEMPT_ID,
-        orchestration_fingerprint="test-fingerprint-001",
-        slot_ids=slot_ids,
-        result_hashes=PER_CALC_HASHES,
-        requires_reviews={stage: False for stage in _SLOT_STAGE_ORDER},
-    )
-
-
-COMBINED_SOURCE_HASH = _compute_verifier_combined_source_hash()
+ZONE_HASH = ""  # computed below after _SLOT_UPSTREAM_IDS is defined
+COOL_HASH = ""
+EQUIP_HASH = ""
+POWER_HASH = ""
+INVEST_HASH = ""
+INVEST_HASH = ""
 
 # ── Weight set revision content ─────────────────────────────────────────────
+
+
+def _compute_weight_content_hash(content: dict[str, Any]) -> str:
+    return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
+
+
+_SLOT_STAGE_ORDER: tuple[str, ...] = (
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment",
+)
+
 
 WEIGHT_CRITERIA_RAW: list[dict[str, Any]] = [
     {
@@ -295,6 +319,63 @@ _SLOT_UPSTREAM_IDS: dict[str, dict[str, str]] = {
     "power": {"equipment": EQUIP_RUN_ID},
     "investment": {"zone": ZONE_RUN_ID, "power": POWER_RUN_ID},
 }
+
+# ── Compute domain hashes (P0-1: after all constants are defined) ────────
+
+ZONE_HASH = _compute_domain_hash(
+    stage="zone", result_snapshot=ZONE_RESULT_SNAPSHOT, run_id=ZONE_RUN_ID
+)
+COOL_HASH = _compute_domain_hash(
+    stage="cooling_load", result_snapshot=COOLING_RESULT_SNAPSHOT, run_id=COOL_RUN_ID
+)
+EQUIP_HASH = _compute_domain_hash(
+    stage="equipment", result_snapshot=EQUIPMENT_RESULT_SNAPSHOT, run_id=EQUIP_RUN_ID
+)
+POWER_HASH = _compute_domain_hash(
+    stage="power", result_snapshot=POWER_RESULT_SNAPSHOT, run_id=POWER_RUN_ID
+)
+INVEST_HASH = _compute_domain_hash(
+    stage="investment", result_snapshot=INVESTMENT_RESULT_SNAPSHOT, run_id=INVEST_RUN_ID
+)
+
+PER_CALC_HASHES: dict[str, str] = {
+    "zone": ZONE_HASH,
+    "cooling_load": COOL_HASH,
+    "equipment": EQUIP_HASH,
+    "power": POWER_HASH,
+    "investment": INVEST_HASH,
+}
+
+
+def _compute_verifier_combined_source_hash() -> str:
+    """Compute the combined source hash matching the verifier's implementation."""
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _compute_combined_source_hash,
+    )
+
+    slot_ids = {
+        "zone": ZONE_RUN_ID,
+        "cooling_load": COOL_RUN_ID,
+        "equipment": EQUIP_RUN_ID,
+        "power": POWER_RUN_ID,
+        "investment": INVEST_RUN_ID,
+    }
+    return _compute_combined_source_hash(
+        binding_schema_version="1.0.0",
+        project_id=PROJECT_ID,
+        project_version_id=VERSION_ID,
+        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+        coefficient_context_id=COEFF_CONTEXT_ID,
+        orchestration_identity_id=IDENTITY_ID,
+        orchestration_attempt_id=ATTEMPT_ID,
+        orchestration_fingerprint="test-fingerprint-001",
+        slot_ids=slot_ids,
+        result_hashes=PER_CALC_HASHES,
+        requires_reviews={stage: False for stage in _SLOT_STAGE_ORDER},
+    )
+
+
+COMBINED_SOURCE_HASH = _compute_verifier_combined_source_hash()
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -518,7 +599,11 @@ def _seed_calculation_runs(
             select(CalculationRunRecord).where(CalculationRunRecord.id == run_id)
         ).scalar_one_or_none()
         if existing is None:
-            computed_hash = hash_ov if hash_ov else _compute_result_hash(snap)
+            computed_hash = (
+                hash_ov
+                if hash_ov
+                else _compute_domain_hash(stage=stage, result_snapshot=snap, run_id=run_id)
+            )
             provenance: dict[str, Any] = {
                 "stage": stage,
                 "upstream_calculation_ids": _SLOT_UPSTREAM_IDS.get(stage, {}),
@@ -606,6 +691,18 @@ def _seed_source_binding(
         )
     )
     session.commit()
+
+    # Link attempt → source binding (P0-2: attempt.source_binding_id must be non-NULL)
+    from cold_storage.modules.orchestration.infrastructure.orm import (
+        OrchestrationRunAttemptRecord,
+    )
+
+    attempt_rec = session.execute(
+        select(OrchestrationRunAttemptRecord).where(OrchestrationRunAttemptRecord.id == ATTEMPT_ID)
+    ).scalar_one_or_none()
+    if attempt_rec is not None and attempt_rec.source_binding_id is None:
+        attempt_rec.source_binding_id = binding_id
+        session.commit()
 
 
 _UNSET = object()
@@ -2244,3 +2341,181 @@ class TestTamperRejection:
         with pytest.raises(SchemeRunCandidateConsistencyError) as exc_info:
             self._read_verified(engine, session_factory, run_id)
         assert exc_info.value.code == "candidate_consistency_failure"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# P0-1 Tamper tests: hash recomputation catches per-field tampering
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestP01HashRecomputationTamper:
+    """For each stage: generate + commit, tamper payload in independent session,
+    verify throws result_hash_mismatch.
+
+    Covers: payload, calculator_version, input_hash, execution_snapshot_id,
+    coefficient_context_id, requires_review, upstream_calculation_ids.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, engine, session_factory):
+        self.engine = engine
+        self.sf = session_factory
+
+    def _seed_and_get_binding(self):
+        """Seed all prerequisites and return the binding ID."""
+        with self.sf() as s:
+            _seed_project_and_version(s)
+            _seed_orchestration_prereqs(s)
+            _seed_calculation_runs(s)
+            _seed_source_binding(s)
+        return SOURCE_BINDING_ID
+
+    def _tamper_calc_field(self, run_id: str, **field_updates):
+        """Tamper a field on a CalculationRunRecord in an independent session."""
+        from cold_storage.modules.projects.infrastructure.orm import (
+            CalculationRunRecord,
+        )
+
+        s = self.sf()
+        try:
+            rec = s.execute(
+                select(CalculationRunRecord).where(CalculationRunRecord.id == run_id)
+            ).scalar_one()
+            for k, v in field_updates.items():
+                setattr(rec, k, v)
+            s.commit()
+        finally:
+            s.close()
+
+    def _verify_expect_tamper_error(self, binding_id: str = SOURCE_BINDING_ID):
+        """Run the verifier and assert result_hash_mismatch."""
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            ResultHashMismatch,
+            verify_source_binding,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemySourceBindingReadPort,
+        )
+
+        s = self.sf()
+        try:
+            port = SqlAlchemySourceBindingReadPort()
+            with pytest.raises(ResultHashMismatch) as exc_info:
+                verify_source_binding(port, s, binding_id=binding_id)
+            assert exc_info.value.code == "result_hash_mismatch"
+        finally:
+            s.close()
+
+    def test_tamper_payload_zone(self):
+        """Tamper zone result_snapshot → hash mismatch."""
+        self._seed_and_get_binding()
+        self._tamper_calc_field(
+            ZONE_RUN_ID,
+            result_snapshot={"tampered": True, "zones": []},
+        )
+        self._verify_expect_tamper_error()
+
+    def test_tamper_calculator_version_cooling(self):
+        """Tamper cooling_load calculator_version → hash mismatch."""
+        self._seed_and_get_binding()
+        self._tamper_calc_field(COOL_RUN_ID, calculator_version="9.9.9")
+        self._verify_expect_tamper_error()
+
+    def test_tamper_input_hash_equipment(self):
+        """Tamper equipment input_hash → hash mismatch."""
+        self._seed_and_get_binding()
+        self._tamper_calc_field(EQUIP_RUN_ID, input_hash="tampered-input-hash")
+        self._verify_expect_tamper_error()
+
+    def test_tamper_execution_snapshot_id_power(self):
+        """Tamper power execution_snapshot_id → hash mismatch."""
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            ProjectVersionExecutionSnapshotRecord,
+        )
+
+        self._seed_and_get_binding()
+        # Create a second execution snapshot to satisfy FK
+        with self.sf() as s:
+            alt_exec_id = "alt-exec-tamper-001"
+            existing = s.execute(
+                select(ProjectVersionExecutionSnapshotRecord).where(
+                    ProjectVersionExecutionSnapshotRecord.id == alt_exec_id
+                )
+            ).scalar_one_or_none()
+            if not existing:
+                s.add(
+                    ProjectVersionExecutionSnapshotRecord(
+                        id=alt_exec_id,
+                        project_id=PROJECT_ID,
+                        project_version_id=VERSION_ID,
+                        version_number=2,
+                        input_snapshot={"tampered": True},
+                        input_snapshot_hash="tampered-hash",
+                        schema_version="1.0.0",
+                        captured_status="approved",
+                        captured_at=datetime.now(UTC),
+                    )
+                )
+                s.commit()
+        self._tamper_calc_field(POWER_RUN_ID, execution_snapshot_id=alt_exec_id)
+        self._verify_expect_tamper_error()
+
+    def test_tamper_coefficient_context_id_investment(self):
+        """Tamper investment coefficient_context_id → hash mismatch."""
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            CoefficientContextRecord,
+        )
+
+        self._seed_and_get_binding()
+        # Create a second coefficient context to satisfy FK
+        with self.sf() as s:
+            alt_cc_id = "alt-cc-tamper-001"
+            existing = s.execute(
+                select(CoefficientContextRecord).where(CoefficientContextRecord.id == alt_cc_id)
+            ).scalar_one_or_none()
+            if not existing:
+                s.add(
+                    CoefficientContextRecord(
+                        id=alt_cc_id,
+                        project_id=PROJECT_ID,
+                        project_version_id=VERSION_ID,
+                        content={"tampered": True},
+                        content_hash="tampered-cc-hash",
+                        schema_version="1.0.0",
+                        captured_at=datetime.now(UTC),
+                    )
+                )
+                s.commit()
+        self._tamper_calc_field(INVEST_RUN_ID, coefficient_context_id=alt_cc_id)
+        self._verify_expect_tamper_error()
+
+    def test_tamper_requires_review_zone(self):
+        """Tamper zone requires_review → hash mismatch."""
+        self._seed_and_get_binding()
+        self._tamper_calc_field(ZONE_RUN_ID, requires_review=True)
+        self._verify_expect_tamper_error()
+
+    def test_tamper_upstream_calculation_ids_cooling(self):
+        """Tamper cooling_load upstream_calculation_ids → domain validation error."""
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            ProvenanceMissingKey,
+            verify_source_binding,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemySourceBindingReadPort,
+        )
+
+        self._seed_and_get_binding()
+        # Tamper upstream to empty dict (missing 'zone' key)
+        self._tamper_calc_field(
+            COOL_RUN_ID,
+            provenance={"stage": "cooling_load", "upstream_calculation_ids": {}},
+        )
+        s = self.sf()
+        try:
+            port = SqlAlchemySourceBindingReadPort()
+            with pytest.raises(ProvenanceMissingKey) as exc_info:
+                verify_source_binding(port, s, binding_id=SOURCE_BINDING_ID)
+            assert exc_info.value.code == "provenance_missing_key"
+        finally:
+            s.close()
