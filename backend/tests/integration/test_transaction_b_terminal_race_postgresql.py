@@ -893,7 +893,9 @@ class TestTerminalRaceMissingWrongIdentity:
         # No modification to the attempt
         state_after = _capture_downstream_state(pg_session_factory, result_a.attempt_id)
         assert state_after == state_before, "Attempt state changed unexpectedly"
-        assert state_after["outbox_count"] == 0
+        # No terminal outbox added (request.accepted from Txn A is pre-existing)
+        assert "orchestration.attempt.failed" not in state_after["outbox_event_types"]
+        assert "orchestration.attempt.blocked" not in state_after["outbox_event_types"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
