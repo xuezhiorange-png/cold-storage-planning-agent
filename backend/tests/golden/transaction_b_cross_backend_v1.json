@@ -1,0 +1,58 @@
+{
+  "_comment": "Golden artifact for cross-backend hash parity. Both SQLite and PostgreSQL tests must produce identical output matching this file.",
+  "schema_version": "1.0.0",
+  "fixed_inputs": {
+    "project_id": "golden-p-001",
+    "project_version_id": "golden-pv-001",
+    "execution_snapshot_id": "golden-snap-001",
+    "coefficient_context_id": "golden-coeff-001",
+    "orchestration_identity_id": "golden-orch-001",
+    "orchestration_attempt_id": "golden-attempt-001",
+    "orchestration_fingerprint": "golden-fp-001",
+    "calculator_version_vector": {
+      "zone": "1.0.0",
+      "cooling_load": "1.0.0",
+      "equipment": "1.0.0",
+      "power": "1.0.0",
+      "investment": "1.0.0"
+    }
+  },
+  "stage_data": {
+    "zone": {
+      "calculator_name": "cold_room_zone_plan",
+      "calculator_version": "1.0.0",
+      "calculation_type": "zone",
+      "requires_review": false,
+      "upstream_calculation_ids": {}
+    },
+    "cooling_load": {
+      "calculator_name": "cooling_load",
+      "calculator_version": "1.0.0",
+      "calculation_type": "cooling_load",
+      "requires_review": false,
+      "upstream_keys": ["zone"]
+    },
+    "equipment": {
+      "calculator_name": "equipment",
+      "calculator_version": "1.0.0",
+      "calculation_type": "equipment",
+      "requires_review": false,
+      "upstream_keys": ["cooling_load"]
+    },
+    "power": {
+      "calculator_name": "installed_power",
+      "calculator_version": "1.0.0",
+      "calculation_type": "power",
+      "requires_review": false,
+      "upstream_keys": ["equipment"]
+    },
+    "investment": {
+      "calculator_name": "investment_estimate",
+      "calculator_version": "1.0.0",
+      "calculation_type": "investment",
+      "requires_review": false,
+      "upstream_keys": ["zone", "power"]
+    }
+  },
+  "_usage": "Tests inject fixed IDs via calculator_port and verify that persisted hashes, snapshots, and provenance match across SQLite and PostgreSQL."
+}
