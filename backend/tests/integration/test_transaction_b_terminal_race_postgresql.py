@@ -628,9 +628,11 @@ class TestTerminalRaceCompletedVsFailed:
             try:
                 svc = _build_service(pg_session_factory)
                 barrier.wait()
-                # Directly call the repository terminal CAS
+                # Directly call the repository terminal CAS + outbox
+                # (mirrors service._transaction_b_terminal)
 
                 attempt_repo = SqlAlchemyOrchestrationAttemptRepository()
+                outbox_repo = SqlAlchemyAuditOutboxRepository()
                 with svc._uow_factory() as terminal_uow:
                     tr_result = attempt_repo.transition_running_to_terminal(
                         terminal_uow.session,
@@ -641,6 +643,15 @@ class TestTerminalRaceCompletedVsFailed:
                         failure_details={"failure_code": "TXB_RACE_LOSER"},
                         completed_at=datetime.now(UTC),
                     )
+                    if tr_result.outcome == TerminalTransitionOutcome.TRANSITIONED:
+                        outbox_repo.add(
+                            terminal_uow.session,
+                            event_type="orchestration.attempt.failed",
+                            aggregate_type="OrchestrationRunAttempt",
+                            aggregate_id=result_a.attempt_id,
+                            payload={"failure_code": "TXB_RACE_LOSER"},
+                            attempt_id=result_a.attempt_id,
+                        )
                     terminal_uow.commit()
                     results["b"]["outcome"] = tr_result.outcome
                     results["b"]["observed_status"] = tr_result.observed_status
@@ -696,11 +707,13 @@ class TestTerminalRaceCompletedVsFailed:
             assert "orchestration.attempt.blocked" not in state["outbox_event_types"]
         else:
             # Winner is B: attempt→FAILED, no TXB artifacts
-
+            assert state["run_count"] == 0, f"Expected 0 runs, got {state['run_count']}"
             assert state["binding_count"] == 0
             assert state["attempt_status"] == "FAILED"
-            # Exactly 1 failed outbox
-            assert state["outbox_event_types"] == ["orchestration.attempt.failed"]
+            # Outbox has request.accepted (from Txn A) + attempt.failed (from B)
+            assert "orchestration.attempt.failed" in state["outbox_event_types"]
+            assert "orchestration.request.accepted" in state["outbox_event_types"]
+            assert "orchestration.attempt.completed" not in state["outbox_event_types"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -918,6 +931,7 @@ class TestTerminalRaceStability:
                 svc = _build_service(pg_session_factory)
                 barrier.wait()
                 attempt_repo = SqlAlchemyOrchestrationAttemptRepository()
+                outbox_repo = SqlAlchemyAuditOutboxRepository()
                 with svc._uow_factory() as terminal_uow:
                     tr_result = attempt_repo.transition_running_to_terminal(
                         terminal_uow.session,
@@ -928,6 +942,15 @@ class TestTerminalRaceStability:
                         failure_details={"iteration": iteration},
                         completed_at=datetime.now(UTC),
                     )
+                    if tr_result.outcome == TerminalTransitionOutcome.TRANSITIONED:
+                        outbox_repo.add(
+                            terminal_uow.session,
+                            event_type="orchestration.attempt.failed",
+                            aggregate_type="OrchestrationRunAttempt",
+                            aggregate_id=result_a.attempt_id,
+                            payload={"failure_code": f"TXB_STABILITY_{iteration}"},
+                            attempt_id=result_a.attempt_id,
+                        )
                     terminal_uow.commit()
                     results["b"]["outcome"] = tr_result.outcome
             except Exception as exc:  # noqa: BLE001
@@ -959,4 +982,6 @@ class TestTerminalRaceStability:
             assert state["run_count"] == 0
             assert state["binding_count"] == 0
             assert state["attempt_status"] == "FAILED"
-            assert state["outbox_event_types"] == ["orchestration.attempt.failed"]
+            assert "orchestration.attempt.failed" in state["outbox_event_types"]
+            assert "orchestration.request.accepted" in state["outbox_event_types"]
+            assert "orchestration.attempt.completed" not in state["outbox_event_types"]
