@@ -176,15 +176,34 @@ class SqlAlchemyProductionSchemeRunReadPort:
             dict(raw_params) if isinstance(raw_params, dict) else {}
         )
 
-        # Count candidates
-        candidate_count_result = (
+        # Count candidates and load snapshots
+        candidate_records = (
             session.execute(
                 select(SchemeCandidateRecord).where(SchemeCandidateRecord.scheme_run_id == run_id)
             )
             .scalars()
             .all()
         )
-        candidates_count = len(candidate_count_result)
+        candidates_count = len(candidate_records)
+
+        # Load candidates_snapshot from SchemeRunRecord JSON field
+        raw_candidates_snapshot = record.candidates_snapshot
+        candidates_snapshot: list[dict[str, Any]] = []
+        if isinstance(raw_candidates_snapshot, list):
+            candidates_snapshot = raw_candidates_snapshot
+        elif isinstance(raw_candidates_snapshot, dict):
+            candidates_snapshot = [raw_candidates_snapshot]
+
+        # Build score_breakdowns_snapshot from candidate records (original order)
+        cand_by_code: dict[str, SchemeCandidateRecord] = {
+            c.scheme_code: c for c in candidate_records
+        }
+        score_breakdowns_snapshot: list[dict[str, Any]] = []
+        for cand_dict in candidates_snapshot:
+            sc = cand_dict.get("scheme_code", "") if isinstance(cand_dict, dict) else ""
+            cand_rec = cand_by_code.get(sc)
+            if cand_rec is not None:
+                score_breakdowns_snapshot.append(dict(cand_rec.score_breakdown_snapshot))
 
         return PersistedSchemeRun(
             id=record.id,
@@ -221,6 +240,9 @@ class SqlAlchemyProductionSchemeRunReadPort:
             profile_codes=profile_codes,
             profile_parameters=profile_parameters,
             candidates_count=candidates_count,
+            candidates_snapshot=candidates_snapshot,
+            score_breakdowns_snapshot=score_breakdowns_snapshot,
+            recommended_scheme_code=record.recommended_scheme_code,
         )
 
     def load_candidates(self, session: Session, /, *, run_id: str) -> list[SchemeCandidateSnapshot]:

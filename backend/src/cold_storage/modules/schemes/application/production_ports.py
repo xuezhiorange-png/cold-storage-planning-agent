@@ -249,6 +249,11 @@ class PersistedSchemeRun:
 
     # Candidates
     candidates_count: int = 0
+    candidates_snapshot: list[dict[str, Any]] = field(default_factory=list)
+    score_breakdowns_snapshot: list[dict[str, Any]] = field(default_factory=list)
+
+    # Recommendation
+    recommended_scheme_code: str | None = None
 
 
 class ProductionSchemeRunRepository(Protocol):

@@ -770,6 +770,7 @@ class TestSuccessfulProductionSchemeGeneration:
         verify_s = session_factory()
         try:
             from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeCandidateRecord,
                 SchemeRunRecord,
             )
 
@@ -786,6 +787,30 @@ class TestSuccessfulProductionSchemeGeneration:
             assert rec.weight_set_content_hash == WEIGHT_CONTENT_HASH
             assert rec.content_hash is not None
             assert len(rec.content_hash) == 64  # SHA-256 hex
+
+            # P1: Verify candidate total_score persistence
+            candidates = (
+                verify_s.execute(
+                    select(SchemeCandidateRecord).where(
+                        SchemeCandidateRecord.scheme_run_id == run.id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(candidates) > 0, "Expected at least one candidate"
+
+            for cand_rec in candidates:
+                assert cand_rec.total_score is not None, (
+                    f"Candidate {cand_rec.scheme_code} total_score must not be NULL"
+                )
+                assert isinstance(cand_rec.total_score, Decimal), (
+                    f"Candidate {cand_rec.scheme_code} total_score must be Decimal, "
+                    f"got {type(cand_rec.total_score)}"
+                )
+                assert cand_rec.score_breakdown_snapshot, (
+                    f"Candidate {cand_rec.scheme_code} score_breakdown_snapshot must not be empty"
+                )
         finally:
             verify_s.close()
 
@@ -1106,7 +1131,7 @@ class TestPowerAuthority:
             _seed_project_and_version(seed_s)
             _seed_orchestration_prereqs(seed_s)
             # Power snapshot WITHOUT total_installed_power_kw_e
-            power_snap_no_authority: dict[str, Any] = {"some_other_field": 42.0}
+            power_snap_no_authority: dict[str, Any] = {"some_other_field": "42.0"}
             _seed_calculation_runs(seed_s, power_result=power_snap_no_authority)
             _seed_source_binding(seed_s)
         finally:
@@ -1526,11 +1551,17 @@ class TestProductionSchemeRunProvenance:
 
 
 class TestAtomicRollbackPKSetZeroDelta:
-    """Persistence failure rolls back all records (no partial writes)."""
+    """Persistence failure rolls back all records (no partial writes).
 
-    def test_persistence_failure_rolls_back(self, engine, session_factory) -> None:
-        """Simulate a persistence failure by monkeypatching the UoW session.add,
-        verify no SchemeRun records are created."""
+    P0-8: Real partial-flush rollback test.
+    - Flushes SchemeRun successfully.
+    - Flushes at least one Candidate successfully.
+    - Injects failure for second Candidate via a repository seam.
+    - Verifies all PK sets are zero-delta after rollback.
+    """
+
+    def test_partial_flush_rollback(self, engine, session_factory) -> None:
+        """Flush run + one candidate, fail on second candidate, verify rollback."""
         seed_s = session_factory()
         try:
             _seed_all_prereqs(seed_s)
@@ -1550,42 +1581,149 @@ class TestAtomicRollbackPKSetZeroDelta:
         finally:
             before_s.close()
 
-        # Patch SqlAlchemyProductionSchemeUnitOfWork to inject a failing session.add
-        from cold_storage.modules.schemes.infrastructure.production_uow_impl import (
-            SqlAlchemyProductionSchemeUnitOfWork,
+        # Build a repository seam: split save_production_run into explicit
+        # flushes so we can fail AFTER the run and first candidate are flushed.
+        from cold_storage.modules.schemes.application.production_ports import (
+            PersistedSchemeRun,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_repository import (
+            SqlAlchemyProductionSchemeRunRepository,
         )
 
-        original_enter = SqlAlchemyProductionSchemeUnitOfWork.__enter__
-        original_add: Any = None
-        call_count = [0]
+        _original_save = SqlAlchemyProductionSchemeRunRepository.save_production_run
 
-        def patched_enter(self_uow):
-            result = original_enter(self_uow)
-            session = self_uow._session
-            nonlocal original_add
-            original_add = session.add
+        def _partial_flush_save(
+            self: SqlAlchemyProductionSchemeRunRepository,
+            session: Any,
+            /,
+            **kwargs: Any,
+        ) -> PersistedSchemeRun:
+            """Seam that flushes run + first candidate, then raises."""
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeCandidateRecord as SCR,
+            )
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeRunRecord as SRR,
+            )
 
-            def failing_add(obj):
-                if isinstance(obj, SchemeRunRecord):
-                    call_count[0] += 1
-                    if call_count[0] == 1:
-                        raise RuntimeError("Simulated persistence failure")
-                return original_add(obj)
+            run_rec = SRR(
+                id=kwargs["run_id"],
+                project_id=kwargs["project_id"],
+                project_version_id=kwargs["project_version_id"],
+                weight_set_id=kwargs["weight_set_id"],
+                status=kwargs["status"],
+                generator_version=kwargs["generator_version"],
+                source_snapshot_hash=kwargs["source_snapshot_hash"],
+                input_snapshot=kwargs["input_snapshot"],
+                assumption_snapshot={
+                    **kwargs["assumption_snapshot"],
+                    "profile_codes": list(kwargs["profile_codes"]),
+                    "profile_parameters": dict(kwargs["profile_parameters"]),
+                },
+                comparison_snapshot=kwargs["comparison_snapshot"],
+                candidates_snapshot=kwargs["candidates_snapshot"],
+                requires_review=kwargs["requires_review"],
+                recommended_scheme_code=kwargs["recommended_scheme_code"],
+                warning_messages=kwargs["warning_messages"],
+                content_hash=kwargs["content_hash"],
+                source_mode=kwargs["source_mode"],
+                source_binding_id=kwargs["source_binding_id"],
+                source_contract_version=kwargs["source_contract_version"],
+                weight_set_revision_id=kwargs["weight_set_revision_id"],
+                weight_set_content_hash=kwargs["weight_set_content_hash"],
+                weight_set_generator_compatibility_version=kwargs[
+                    "weight_set_generator_compatibility_version"
+                ],
+                combined_source_hash=kwargs["combined_source_hash"],
+                binding_schema_version=kwargs["binding_schema_version"],
+                execution_snapshot_id=kwargs["execution_snapshot_id"],
+                coefficient_context_id=kwargs["coefficient_context_id"],
+                orchestration_identity_id=kwargs["orchestration_identity_id"],
+                authoritative_attempt_id=kwargs["authoritative_attempt_id"],
+                orchestration_fingerprint=kwargs["orchestration_fingerprint"],
+                zone_calculation_id=kwargs["zone_calculation_id"],
+                cooling_load_calculation_id=kwargs["cooling_load_calculation_id"],
+                equipment_calculation_id=kwargs["equipment_calculation_id"],
+                power_calculation_id=kwargs["power_calculation_id"],
+                investment_calculation_id=kwargs["investment_calculation_id"],
+                zone_result_hash=kwargs["zone_result_hash"],
+                cooling_load_result_hash=kwargs["cooling_load_result_hash"],
+                equipment_result_hash=kwargs["equipment_result_hash"],
+                power_result_hash=kwargs["power_result_hash"],
+                investment_result_hash=kwargs["investment_result_hash"],
+            )
+            session.add(run_rec)
+            session.flush()  # SchemeRun flushed to DB
 
-            session.add = failing_add  # type: ignore[assignment]
-            return result
+            candidates = kwargs["candidates"]
+            for i, cand_data in enumerate(candidates):
+                cand_rec = SCR(
+                    id=cand_data["id"],
+                    scheme_run_id=kwargs["run_id"],
+                    scheme_code=cand_data["scheme_code"],
+                    profile_code=cand_data["profile_code"],
+                    feasible=cand_data["feasible"],
+                    rank=cand_data.get("rank"),
+                    total_score=cand_data.get("total_score"),
+                    score_breakdown_snapshot=cand_data.get("score_breakdown_snapshot", {}),
+                    constraint_results=cand_data.get("constraint_results", []),
+                    result_snapshot=cand_data.get("result_snapshot", {}),
+                )
+                session.add(cand_rec)
+                session.flush()  # Each candidate flushed individually
+                if i == 0:
+                    # After first candidate is flushed, inject failure
+                    raise RuntimeError("Simulated partial-flush persistence failure")
 
-        SqlAlchemyProductionSchemeUnitOfWork.__enter__ = patched_enter  # type: ignore[assignment]
+            return PersistedSchemeRun(
+                id=kwargs["run_id"],
+                project_id=kwargs["project_id"],
+                project_version_id=kwargs["project_version_id"],
+                content_hash=kwargs["content_hash"],
+                source_mode=kwargs["source_mode"],
+                source_binding_id=kwargs["source_binding_id"],
+                source_contract_version=kwargs["source_contract_version"],
+                binding_schema_version=kwargs["binding_schema_version"],
+                execution_snapshot_id=kwargs["execution_snapshot_id"],
+                coefficient_context_id=kwargs["coefficient_context_id"],
+                orchestration_identity_id=kwargs["orchestration_identity_id"],
+                authoritative_attempt_id=kwargs["authoritative_attempt_id"],
+                orchestration_fingerprint=kwargs["orchestration_fingerprint"],
+                zone_calculation_id=kwargs["zone_calculation_id"],
+                cooling_load_calculation_id=kwargs["cooling_load_calculation_id"],
+                equipment_calculation_id=kwargs["equipment_calculation_id"],
+                power_calculation_id=kwargs["power_calculation_id"],
+                investment_calculation_id=kwargs["investment_calculation_id"],
+                zone_result_hash=kwargs["zone_result_hash"],
+                cooling_load_result_hash=kwargs["cooling_load_result_hash"],
+                equipment_result_hash=kwargs["equipment_result_hash"],
+                power_result_hash=kwargs["power_result_hash"],
+                investment_result_hash=kwargs["investment_result_hash"],
+                combined_source_hash=kwargs["combined_source_hash"],
+                weight_set_id=kwargs["weight_set_id"],
+                weight_set_revision_id=kwargs["weight_set_revision_id"],
+                weight_set_content_hash=kwargs["weight_set_content_hash"],
+                weight_set_generator_compatibility_version=kwargs[
+                    "weight_set_generator_compatibility_version"
+                ],
+                generator_version=kwargs["generator_version"],
+                profile_codes=kwargs["profile_codes"],
+                profile_parameters=kwargs["profile_parameters"],
+                candidates_count=len(candidates),
+            )
+
+        SqlAlchemyProductionSchemeRunRepository.save_production_run = _partial_flush_save  # type: ignore[assignment]
 
         try:
             service = _make_service(engine)
             cmd = _make_command()
-            with pytest.raises(RuntimeError, match="Simulated persistence failure"):
+            with pytest.raises(RuntimeError, match="Simulated partial-flush persistence failure"):
                 service.generate_production_scheme_run(cmd)
         finally:
-            SqlAlchemyProductionSchemeUnitOfWork.__enter__ = original_enter  # type: ignore[assignment]
+            SqlAlchemyProductionSchemeRunRepository.save_production_run = _original_save  # type: ignore[assignment]
 
         # Verify zero new SchemeRun or SchemeCandidate records
+        # (rollback should have undone the flush of run + first candidate)
         after_s = session_factory()
         try:
             after_runs = set(after_s.execute(select(SchemeRunRecord.id)).scalars().all())
@@ -1594,10 +1732,10 @@ class TestAtomicRollbackPKSetZeroDelta:
             after_s.close()
 
         assert after_runs == before_runs, (
-            f"New SchemeRun records detected: {after_runs - before_runs}"
+            f"New SchemeRun records detected after rollback: {after_runs - before_runs}"
         )
         assert after_cands == before_cands, (
-            f"New SchemeCandidate records detected: {after_cands - before_cands}"
+            f"New SchemeCandidate records detected after rollback: {after_cands - before_cands}"
         )
 
 
@@ -1840,3 +1978,269 @@ class TestContentHashVerification:
             )
         finally:
             tamper_s.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 12. Tamper rejection tests (P0-1 trusted readback)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestTamperRejection:
+    """Generate + commit a production scheme run, tamper one field in an
+    independent session, then call read_verified_production_scheme_run
+    and assert the correct structured error is raised."""
+
+    def _generate_and_get_run_id(self, engine, session_factory) -> str:
+        seed_s = session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
+
+        service = _make_service(engine)
+        cmd = _make_command()
+        run = service.generate_production_scheme_run(cmd)
+        return run.id
+
+    def _read_verified(self, engine, session_factory, run_id: str):
+        from cold_storage.modules.schemes.application.production_service import (
+            read_verified_production_scheme_run,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemyProductionSchemeRunReadPort,
+            SqlAlchemySourceBindingReadPort,
+            SqlAlchemyWeightRevisionReadPort,
+        )
+
+        read_port = SqlAlchemyProductionSchemeRunReadPort()
+        binding_port = SqlAlchemySourceBindingReadPort()
+        weight_port = SqlAlchemyWeightRevisionReadPort()
+        s = session_factory()
+        try:
+            return read_verified_production_scheme_run(
+                read_port,
+                binding_port,
+                weight_port,
+                s,
+                run_id=run_id,
+                generator_version="1.0.0",
+            )
+        finally:
+            s.close()
+
+    def test_tamper_content_hash(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            rec.content_hash = (
+                "tampered_aaa00000000000000000000000000000000000000000000000000000000000"
+            )
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_profile_parameters(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            # Tamper profile_parameters in assumption_snapshot
+            assumption = dict(rec.assumption_snapshot or {})
+            assumption["profile_parameters"] = {"tampered": {"key": "value"}}
+            rec.assumption_snapshot = assumption
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_candidate_result_snapshot(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeCandidateRecord,
+        )
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            cand = (
+                tamper_s.execute(
+                    select(SchemeCandidateRecord).where(
+                        SchemeCandidateRecord.scheme_run_id == run_id
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            assert cand is not None
+            result = dict(cand.result_snapshot or {})
+            result["tampered_field"] = "tampered_value"
+            cand.result_snapshot = result
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_candidate_score_breakdown(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeCandidateRecord,
+        )
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            cand = (
+                tamper_s.execute(
+                    select(SchemeCandidateRecord).where(
+                        SchemeCandidateRecord.scheme_run_id == run_id
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            assert cand is not None
+            sb = dict(cand.score_breakdown_snapshot or {})
+            sb["tampered_score"] = "999.999"
+            cand.score_breakdown_snapshot = sb
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_candidate_total_score(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeCandidateRecord,
+        )
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            cand = (
+                tamper_s.execute(
+                    select(SchemeCandidateRecord).where(
+                        SchemeCandidateRecord.scheme_run_id == run_id
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            assert cand is not None
+            # Tamper score_breakdown total_score (IS in content hash)
+            sb = dict(cand.score_breakdown_snapshot or {})
+            sb["total_score"] = "999999.999"
+            cand.score_breakdown_snapshot = sb
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_combined_source_hash(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            rec.combined_source_hash = "tampered_combined_hash_aaa"
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_weight_revision_content(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunWeightVerificationError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRevisionRecord,
+        )
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rev = tamper_s.execute(
+                select(SchemeWeightSetRevisionRecord).where(
+                    SchemeWeightSetRevisionRecord.id == WEIGHT_REVISION_ID
+                )
+            ).scalar_one()
+            content = dict(rev.content or {})
+            criteria = list(content.get("criteria", []))
+            if criteria:
+                criteria[0] = dict(criteria[0])
+                criteria[0]["weight"] = "0.99"
+            content["criteria"] = criteria
+            rev.content = content
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunWeightVerificationError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "weight_verification_failed"
+
+    def test_tamper_recommendation(self, engine, session_factory) -> None:
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunCandidateConsistencyError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            rec.recommended_scheme_code = "NONEXISTENT_SCHEME_XYZ"
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunCandidateConsistencyError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "candidate_consistency_failure"

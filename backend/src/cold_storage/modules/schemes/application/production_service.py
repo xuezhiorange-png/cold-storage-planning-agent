@@ -469,7 +469,7 @@ class ProductionSchemeService:
                     "profile_code": cand.profile_code,
                     "feasible": cand.feasible,
                     "rank": rank,
-                    "total_score": (cand.total_score if hasattr(cand, "total_score") else None),
+                    "total_score": cand_sb.total_score if cand_sb is not None else None,
                     "score_breakdown_snapshot": score_snapshot,
                     "constraint_results": [
                         {
@@ -578,15 +578,16 @@ def read_verified_production_scheme_run(
     generator_version: str,
 ) -> SchemeRun:
     """Trusted readback: independently verify a persisted production SchemeRun.
-
     1. Load SchemeRun by ID
     2. Verify source_mode == 'production'
     3. Verify all production identity fields non-null
-    4. Recompute content hash and compare
-    5. Re-verify online SourceBinding via SourceBindingVerifier
-    6. Re-verify weight revision content hash
-    7. Load candidates and scores, verify consistency
-    8. Return verified SchemeRun domain model
+    4. Re-verify online SourceBinding via SourceBindingVerifier
+    5. Re-verify weight revision content hash
+    6. Load candidates from DB and rebuild snapshots
+    7. Recompute content hash using shared builder
+    8. Compare persisted content hash
+    9. Verify candidate count, rank, score, recommendation
+    10. Return real SchemeRun from persisted data
     """
     # 1. Load SchemeRun
     persisted = read_port.load_production_run(session, run_id=run_id)
@@ -624,36 +625,112 @@ def read_verified_production_scheme_run(
     except WeightRevisionGovernanceError as exc:
         raise SchemeRunWeightVerificationError(run_id, str(exc)) from exc
 
-    # 6. Load candidates for consistency check
+    # 6. Load candidates from DB and rebuild snapshots
     candidates = read_port.load_candidates(session, run_id=run_id)
     if not candidates:
         raise SchemeRunCandidateConsistencyError(run_id, "No candidates found for production run")
 
-    # 7. Build domain SchemeRun
-    from cold_storage.modules.schemes.domain.models import SchemeWeightSet
+    # Use candidates_snapshot and score_breakdowns_snapshot from persisted read model
+    candidates_snapshot_stored = persisted.candidates_snapshot
+    score_breakdowns_snapshot = persisted.score_breakdowns_snapshot
 
-    weight_set = SchemeWeightSet(
-        id=revision.id,
-        code=revision.code,
-        name=revision.code,
-        revision=revision.revision,
-        status="approved",
-        source_type="production",
-        criteria=list(revision.criteria),
-        created_at=revision.approved_at,
-        approved_at=revision.approved_at,
-        requires_review=False,
+    cand_by_code: dict[str, Any] = {c.scheme_code: c for c in candidates}
+
+    # Rebuild candidates_snapshot from DB records (same order)
+    rebuilt_candidates_snapshot: list[dict[str, Any]] = []
+    for cand_dict in candidates_snapshot_stored:
+        sc = cand_dict.get("scheme_code", "") if isinstance(cand_dict, dict) else ""
+        cand_rec = cand_by_code.get(sc)
+        if cand_rec is not None:
+            rebuilt_candidates_snapshot.append(dict(cand_rec.result_snapshot))
+        else:
+            rebuilt_candidates_snapshot.append(cand_dict)
+
+    # 7. Recompute content hash using shared builder and compare
+    recomputed_hash = _compute_production_content_hash(
+        source_binding_id=persisted.source_binding_id or "",
+        source_contract_version=persisted.source_contract_version or "",
+        binding_schema_version=persisted.binding_schema_version or "",
+        project_id=persisted.project_id,
+        project_version_id=persisted.project_version_id,
+        execution_snapshot_id=persisted.execution_snapshot_id or "",
+        coefficient_context_id=persisted.coefficient_context_id or "",
+        orchestration_identity_id=persisted.orchestration_identity_id or "",
+        authoritative_attempt_id=persisted.authoritative_attempt_id or "",
+        orchestration_fingerprint=persisted.orchestration_fingerprint or "",
+        zone_calculation_id=persisted.zone_calculation_id or "",
+        cooling_load_calculation_id=persisted.cooling_load_calculation_id or "",
+        equipment_calculation_id=persisted.equipment_calculation_id or "",
+        power_calculation_id=persisted.power_calculation_id or "",
+        investment_calculation_id=persisted.investment_calculation_id or "",
+        zone_result_hash=persisted.zone_result_hash or "",
+        cooling_load_result_hash=persisted.cooling_load_result_hash or "",
+        equipment_result_hash=persisted.equipment_result_hash or "",
+        power_result_hash=persisted.power_result_hash or "",
+        investment_result_hash=persisted.investment_result_hash or "",
+        combined_source_hash=persisted.combined_source_hash or "",
+        weight_set_revision_id=persisted.weight_set_revision_id or "",
+        weight_set_content_hash=persisted.weight_set_content_hash or "",
+        weight_set_generator_compatibility_version=(
+            persisted.weight_set_generator_compatibility_version or ""
+        ),
+        generator_version=persisted.generator_version or generator_version,
+        profile_codes=persisted.profile_codes,
+        profile_parameters=persisted.profile_parameters,
+        candidates_snapshot=rebuilt_candidates_snapshot,
+        score_breakdowns_snapshot=score_breakdowns_snapshot,
     )
+    if recomputed_hash != persisted.content_hash:
+        raise SchemeRunContentHashMismatchError(persisted.content_hash or "", recomputed_hash)
+
+    # 8. Verify recommendation consistency
+    feasible = [
+        c
+        for c in candidates
+        if c.feasible and not c.score_breakdown_snapshot.get("diagnostic_only", False)
+    ]
+    if not feasible and persisted.recommended_scheme_code:
+        raise SchemeRunCandidateConsistencyError(
+            run_id,
+            f"recommended_scheme_code {persisted.recommended_scheme_code!r} "
+            f"set but no feasible candidates exist",
+        )
+    if feasible:
+        feasible.sort(
+            key=lambda c: (
+                -(float(c.total_score) if c.total_score is not None else 0),
+                c.scheme_code,
+            )
+        )
+        expected_recommended = feasible[0].scheme_code
+        if (
+            persisted.recommended_scheme_code
+            and persisted.recommended_scheme_code != expected_recommended
+        ):
+            raise SchemeRunCandidateConsistencyError(
+                run_id,
+                f"recommended_scheme_code mismatch: "
+                f"persisted={persisted.recommended_scheme_code!r}, "
+                f"computed={expected_recommended!r}",
+            )
+
+    # 9. Verify candidate count matches
+    if len(candidates) != persisted.candidates_count:
+        raise SchemeRunCandidateConsistencyError(
+            run_id,
+            f"candidate count mismatch: persisted={persisted.candidates_count}, "
+            f"loaded={len(candidates)}",
+        )
 
     # Verify weight set used matches what we loaded
-    if weight_set.id != persisted.weight_set_id:
+    if revision.weight_set_id != persisted.weight_set_id:
         raise SchemeRunWeightVerificationError(
             run_id,
             f"weight_set_id mismatch: persisted={persisted.weight_set_id!r}, "
-            f"loaded={weight_set.id!r}",
+            f"loaded={revision.weight_set_id!r}",
         )
 
-    # Rebuild SchemeRun domain model from persisted data
+    # 10. Build SchemeRun domain model from persisted data
     now = datetime.now(UTC)
 
     return SchemeRun(
@@ -669,14 +746,17 @@ def read_verified_production_scheme_run(
             "source_mode": "production",
             "verified_at": now.isoformat(),
             "content_hash_verified": True,
+            "profile_codes": list(persisted.profile_codes),
+            "profile_parameters": dict(persisted.profile_parameters),
         },
         comparison_snapshot={
             "candidates_count": len(candidates),
             "content_hash_verified": True,
+            "recommended_scheme_code": persisted.recommended_scheme_code,
         },
-        candidates_snapshot={},
+        candidates_snapshot=rebuilt_candidates_snapshot,  # type: ignore[arg-type]
         requires_review=False,
-        recommended_scheme_code=None,
+        recommended_scheme_code=persisted.recommended_scheme_code,
         warning_messages=[],
         created_at=now,
         completed_at=now,
