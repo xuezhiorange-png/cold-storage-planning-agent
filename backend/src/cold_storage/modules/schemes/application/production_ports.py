@@ -197,3 +197,56 @@ class VerifiedSourceMapping:
     equipment_calculation_id: str
     power_calculation_id: str
     investment_calculation_id: str
+
+
+# ── Production scheme run repository port ──────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class PersistedSchemeRun:
+    """Minimal read model for a persisted production SchemeRun."""
+
+    id: str
+    project_id: str
+    project_version_id: str
+    content_hash: str
+    source_mode: str
+
+
+class ProductionSchemeRunRepository(Protocol):
+    """Write port for persisting production scheme runs.
+
+    The application service owns transaction lifecycle via UnitOfWork.
+    This repository only performs add/flush operations within the caller's
+    session.  It MUST NOT commit, rollback, close, or create sessions.
+    """
+
+    def save_production_run(
+        self,
+        session: Any,
+        /,
+        *,
+        run_id: str,
+        project_id: str,
+        project_version_id: str,
+        weight_set_id: str,
+        status: str,
+        generator_version: str,
+        source_snapshot_hash: str,
+        input_snapshot: dict[str, Any],
+        assumption_snapshot: dict[str, Any],
+        comparison_snapshot: dict[str, Any],
+        candidates_snapshot: dict[str, Any],
+        requires_review: bool,
+        recommended_scheme_code: str | None,
+        warning_messages: list[str],
+        content_hash: str,
+        source_mode: str,
+        source_binding_id: str,
+        source_contract_version: str,
+        weight_set_revision_id: str,
+        weight_set_content_hash: str,
+        weight_set_generator_compatibility_version: str,
+        combined_source_hash: str,
+        candidates: list[dict[str, Any]],
+    ) -> PersistedSchemeRun: ...

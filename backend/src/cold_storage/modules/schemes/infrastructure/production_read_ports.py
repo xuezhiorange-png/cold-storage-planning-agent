@@ -83,7 +83,7 @@ class SqlAlchemySourceBindingReadPort:
             assumptions=record.assumptions or [],
             warnings=record.warnings or [],
             source_references=record.source_references or [],
-            upstream_calculation_ids=record.upstream_calculation_ids or {},
+            upstream_calculation_ids=getattr(record, "upstream_calculation_ids", None) or {},
             requires_review=record.requires_review or False,
         )
 

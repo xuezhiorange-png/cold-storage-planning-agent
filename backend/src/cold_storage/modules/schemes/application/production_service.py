@@ -24,6 +24,7 @@ from typing import Any
 
 from cold_storage.modules.schemes.application.production_ports import (
     GenerateProductionSchemeCommand,
+    ProductionSchemeRunRepository,
     SourceBindingReadPort,
     WeightRevisionReadPort,
 )
@@ -157,10 +158,12 @@ class ProductionSchemeService:
         *,
         binding_read_port: SourceBindingReadPort,
         weight_revision_read_port: WeightRevisionReadPort,
+        run_repository: ProductionSchemeRunRepository,
     ) -> None:
         self._session = session
         self._binding_port = binding_read_port
         self._weight_port = weight_revision_read_port
+        self._run_repo = run_repository
 
     def generate_production_scheme_run(
         self,
@@ -227,9 +230,18 @@ class ProductionSchemeService:
         raw_candidates = generate_schemes(generation_input)
 
         # 5. Validate and score
+        from dataclasses import replace as dc_replace
+
+        zone_map = {z.zone_code: z for z in generation_input.zone_results}
         candidates = []
         for cand in raw_candidates:
-            validated = validate_candidate(cand, generation_input, None)
+            constraint_results = validate_candidate(cand, generation_input, zone_map)
+            all_passed = all(cr.passed for cr in constraint_results)
+            validated = dc_replace(
+                cand,
+                constraint_results=constraint_results,
+                feasible=all_passed,
+            )
             candidates.append(validated)
 
         # Score
@@ -304,44 +316,9 @@ class ProductionSchemeService:
             for i, sb in enumerate(ranked, 1):
                 ranks[sb.scheme_code] = i
 
-        # Persist via repository (callers repository.save_run handles persistence)
-        # We return the run and let the caller handle persistence in their UoW
-        # For now, persist directly
-        from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeCandidateRecord,
-            SchemeRunRecord,
-        )
-
-        run_rec = SchemeRunRecord(
-            id=run.id,
-            project_id=run.project_id,
-            project_version_id=run.project_version_id,
-            weight_set_id=run.weight_set_id,
-            status=run.status,
-            generator_version=run.generator_version,
-            source_snapshot_hash=run.source_snapshot_hash,
-            input_snapshot=run.input_snapshot,
-            assumption_snapshot=run.assumption_snapshot,
-            comparison_snapshot=run.comparison_snapshot,
-            candidates_snapshot=run.candidates_snapshot,
-            requires_review=run.requires_review,
-            recommended_scheme_code=run.recommended_scheme_code,
-            warning_messages=run.warning_messages,
-            completed_at=run.completed_at,
-            content_hash=run.content_hash,
-            # Production columns
-            source_mode="production",
-            source_binding_id=command.source_binding_id,
-            source_contract_version=SOURCE_CONTRACT_VERSION,
-            weight_set_revision_id=command.weight_set_revision_id,
-            weight_set_content_hash=revision.content_hash,
-            weight_set_generator_compatibility_version=revision.generator_compatibility_version,
-            combined_source_hash=source.combined_source_hash,
-        )
-        self._session.add(run_rec)
-
-        # Persist candidates
+        # Build candidate data for repository
         sb_map = {sb.scheme_code: sb for sb in score_breakdowns}
+        candidate_data: list[dict[str, Any]] = []
         for cand in candidates:
             sb = sb_map.get(cand.scheme_code)
             rank = ranks.get(cand.scheme_code)
@@ -350,25 +327,61 @@ class ProductionSchemeService:
             if sb is not None:
                 score_snapshot = _to_safe_dict(sb)
 
-            cand_rec = SchemeCandidateRecord(
-                id=f"{run.id}-{cand.scheme_code}",
-                scheme_run_id=run.id,
-                scheme_code=cand.scheme_code,
-                profile_code=cand.profile_code,
-                feasible=cand.feasible,
-                rank=rank,
-                total_score=cand.total_score if hasattr(cand, "total_score") else None,
-                score_breakdown_snapshot=score_snapshot,
-                constraint_results=[
-                    {
-                        "code": cr.constraint_code,
-                        "passed": cr.passed,
-                        "detail": cr.detail,
-                    }
-                    for cr in cand.constraint_results
-                ],
-                result_snapshot=_serialize_decimals(_to_safe_dict(cand)),
+            candidate_data.append(
+                {
+                    "id": f"{run_id}-{cand.scheme_code}",
+                    "scheme_code": cand.scheme_code,
+                    "profile_code": cand.profile_code,
+                    "feasible": cand.feasible,
+                    "rank": rank,
+                    "total_score": cand.total_score if hasattr(cand, "total_score") else None,
+                    "score_breakdown_snapshot": score_snapshot,
+                    "constraint_results": [
+                        {
+                            "code": cr.constraint_code,
+                            "passed": cr.passed,
+                            "detail": cr.detail,
+                        }
+                        for cr in cand.constraint_results
+                    ],
+                    "result_snapshot": _serialize_decimals(_to_safe_dict(cand)),
+                }
             )
-            self._session.add(cand_rec)
+
+        # Persist via repository port (no ORM dependency)
+        self._run_repo.save_production_run(
+            self._session,
+            run_id=run_id,
+            project_id=source.project_id,
+            project_version_id=source.project_version_id,
+            weight_set_id=revision.weight_set_id,
+            status="completed",
+            generator_version=GENERATOR_VERSION,
+            source_snapshot_hash=source.combined_source_hash,
+            input_snapshot=_serialize_decimals(_to_safe_dict(generation_input)),
+            assumption_snapshot={
+                "source_mode": "production",
+                "actor": command.actor,
+                "correlation_id": command.correlation_id,
+            },
+            comparison_snapshot={
+                "recommended_scheme_code": recommended_code,
+                "recommended_reason": recommended_reason,
+                "total_score": str(total_score),
+            },
+            candidates_snapshot=candidates_snapshot,
+            requires_review=source.requires_review,
+            recommended_scheme_code=recommended_code,
+            warning_messages=[],
+            content_hash=content_hash,
+            source_mode="production",
+            source_binding_id=command.source_binding_id,
+            source_contract_version=SOURCE_CONTRACT_VERSION,
+            weight_set_revision_id=command.weight_set_revision_id,
+            weight_set_content_hash=revision.content_hash,
+            weight_set_generator_compatibility_version=revision.generator_compatibility_version,
+            combined_source_hash=source.combined_source_hash,
+            candidates=candidate_data,
+        )
 
         return run

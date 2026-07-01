@@ -63,9 +63,11 @@ def _safe_decimal(val: Any, field_name: str) -> Decimal:
 def map_zone_snapshot(snap: dict[str, Any]) -> ZoneResult:
     """Map zone result snapshot to domain ZoneResult."""
     zones = snap.get("zones", [])
-    total_area = sum(float(z.get("required_area_m2", 0) or 0) for z in zones)
+    total_area = Decimal(str(sum(float(z.get("required_area_m2", 0) or 0) for z in zones)))
     total_positions = sum(z.get("position_count", 0) or 0 for z in zones)
-    total_capacity = sum(float(z.get("design_storage_mass_kg", 0) or 0) for z in zones)
+    total_capacity = Decimal(
+        str(sum(float(z.get("design_storage_mass_kg", 0) or 0) for z in zones))
+    )
     return ZoneResult(
         zone_code="ALL",
         zone_name="All Zones",
@@ -84,11 +86,11 @@ def map_cooling_load_snapshot(snap: dict[str, Any]) -> CoolingLoadResult:
         design_cooling_load_kw_r=_safe_decimal(
             snap.get("total_cooling_load_kw", 0), "total_cooling_load_kw"
         ),
-        sensible_heat_load_kw_r=_safe_decimal(
+        sensible_load_kw_r=_safe_decimal(
             snap.get("product_sensible_heat_load_kw", 0),
             "product_sensible_heat_load_kw",
         ),
-        latent_heat_load_kw_r=_safe_decimal(0, "latent_heat_load_kw_r"),
+        latent_load_kw_r=_safe_decimal(0, "latent_load_kw_r"),
         infiltration_load_kw_r=_safe_decimal(
             snap.get("infiltration_load_kw", 0), "infiltration_load_kw"
         ),
@@ -113,7 +115,7 @@ def map_equipment_snapshot(snap: dict[str, Any]) -> EquipmentResult:
         compressor_standby_capacity_kw_r=_safe_decimal(
             snap.get("standby_capacity_kw", 0), "standby_capacity_kw"
         ),
-        condenser_heat_rejection_kw_r=_safe_decimal(
+        condenser_heat_rejection_kw=_safe_decimal(
             snap.get("condenser_heat_rejection_capacity_kw", 0),
             "condenser_heat_rejection_capacity_kw",
         ),
@@ -170,8 +172,12 @@ def map_source_to_generation_input(
     # Compute totals from zone snapshot
     zone_snap = source.zone_result_snapshot
     zones = zone_snap.get("zones", [])
-    total_daily_throughput = sum(float(z.get("daily_throughput_kg_day", 0) or 0) for z in zones)
-    total_storage_capacity = sum(float(z.get("design_storage_mass_kg", 0) or 0) for z in zones)
+    total_daily_throughput = Decimal(
+        str(sum(float(z.get("daily_throughput_kg_day", 0) or 0) for z in zones))
+    )
+    total_storage_capacity = Decimal(
+        str(sum(float(z.get("design_storage_mass_kg", 0) or 0) for z in zones))
+    )
     total_position_count = sum(z.get("position_count", 0) or 0 for z in zones)
 
     return SchemeGenerationInput(
