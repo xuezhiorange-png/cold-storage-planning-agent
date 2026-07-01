@@ -970,9 +970,7 @@ class TestVerifierUpstreamProvenance:
         tampered_upstream = {
             "extra_stage": "bogus-run-id",
         }
-        state = _build_state_with_modified_run(
-            "zone", upstream_calculation_ids=tampered_upstream
-        )
+        state = _build_state_with_modified_run("zone", upstream_calculation_ids=tampered_upstream)
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
         with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
