@@ -918,8 +918,9 @@ class TestTransactionBNonTargetIntegrityError:
             )
 
             # Transaction B should raise — the non-target IntegrityError
-            # must propagate, not be swallowed.
-            with pytest.raises(IntegrityError):
+            # is caught by the service IntegrityError handler and wrapped
+            # in TransactionBFailure with the original as __cause__.
+            with pytest.raises(TransactionBFailure) as exc_info:
                 svc_inject.execute_transaction_b(
                     request_id=result_a.request_id,
                     project_id="p-1",
@@ -932,6 +933,8 @@ class TestTransactionBNonTargetIntegrityError:
                     execution_snapshot={"throughput_t": "25.0"},
                     coefficient_context={"coefficients": []},
                 )
+            # Verify original IntegrityError is observable via __cause__
+            assert isinstance(exc_info.value.__cause__, IntegrityError)
         finally:
             # Restore original method
             SqlAlchemyCalculationRunRepository.add = original_add
@@ -1273,7 +1276,7 @@ class TestNonTargetIntegrityErrorNotNull:
         SqlAlchemySourceBindingRepository.add = _injecting_add
         try:
             svc_inject = _build_service(pg_session_factory, calculator_port=_FakeCalculatorPort())
-            with pytest.raises(IntegrityError):
+            with pytest.raises(TransactionBFailure) as exc_info:
                 svc_inject.execute_transaction_b(
                     request_id=result_a.request_id,
                     project_id="p-1",
@@ -1286,6 +1289,8 @@ class TestNonTargetIntegrityErrorNotNull:
                     execution_snapshot={"throughput_t": "25.0"},
                     coefficient_context={"coefficients": []},
                 )
+            # Verify original IntegrityError is observable via __cause__
+            assert isinstance(exc_info.value.__cause__, IntegrityError)
         finally:
             SqlAlchemySourceBindingRepository.add = original_add
 
