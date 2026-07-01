@@ -958,27 +958,24 @@ class TestVerifierUpstreamProvenance:
         # Use original state for candidate so IDs and hashes are correct.
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
     def test_extra_upstream_key(self) -> None:
-        """Zone has extra upstream key → TransactionInvariantError.
+        """Zone has extra upstream key -> TransactionInvariantError.
 
-        Zone's provenance keys are empty (frozenset()), so the verifier
-        skips it.  Instead, test that a wrong upstream value for investment's
-        ``power`` key triggers the mismatch.  This represents a tampered
-        upstream pointing to an unrelated run.
+        Zone provenance keys are frozenset(). Adding an extra key
+        triggers the exact key-set mismatch check.
         """
         tampered_upstream = {
-            "zone": _STAGE_META["zone"][0],
-            "power": _STAGE_META["equipment"][0],  # wrong: points to equipment, not power
+            "extra_stage": "bogus-run-id",
         }
         state = _build_state_with_modified_run(
-            "investment", upstream_calculation_ids=tampered_upstream
+            "zone", upstream_calculation_ids=tampered_upstream
         )
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
 
@@ -1419,7 +1416,7 @@ class TestVerifierUpstreamProvenanceExact:
         state = _build_state_with_modified_run("cooling_load", upstream_calculation_ids={})
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
     def test_missing_upstream_cooling_load_for_equipment_rejected(self) -> None:
@@ -1427,7 +1424,7 @@ class TestVerifierUpstreamProvenanceExact:
         state = _build_state_with_modified_run("equipment", upstream_calculation_ids={})
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
     def test_missing_upstream_equipment_for_power_rejected(self) -> None:
@@ -1435,7 +1432,7 @@ class TestVerifierUpstreamProvenanceExact:
         state = _build_state_with_modified_run("power", upstream_calculation_ids={})
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
     def test_missing_upstream_zone_for_investment_rejected(self) -> None:
@@ -1444,7 +1441,7 @@ class TestVerifierUpstreamProvenanceExact:
         state = _build_state_with_modified_run("investment", upstream_calculation_ids=tampered)
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
     def test_missing_upstream_power_for_investment_rejected(self) -> None:
@@ -1453,7 +1450,7 @@ class TestVerifierUpstreamProvenanceExact:
         state = _build_state_with_modified_run("investment", upstream_calculation_ids=tampered)
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
     def test_wrong_stage_upstream_key_rejected(self) -> None:
@@ -1466,7 +1463,7 @@ class TestVerifierUpstreamProvenanceExact:
         state = _build_state_with_modified_run("cooling_load", upstream_calculation_ids=tampered)
         candidate = _build_candidate(_build_state())
         verifier = _make_verifier(state)
-        with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
+        with pytest.raises(TransactionInvariantError, match="Provenance key set mismatch"):
             _run_verify(verifier, candidate)
 
     def test_wrong_upstream_value_for_zone_key_rejected(self) -> None:
@@ -1478,12 +1475,12 @@ class TestVerifierUpstreamProvenanceExact:
         with pytest.raises(TransactionInvariantError, match="Upstream dependency mismatch"):
             _run_verify(verifier, candidate)
 
-    def test_extra_upstream_key_caught_by_hash_integrity(self) -> None:
-        """Extra upstream key (bogus) without hash recompute → hash mismatch.
+    def test_extra_upstream_key_caught_by_hash(self) -> None:
+        """Extra upstream key without hash recompute -> hash mismatch.
 
-        The verifier's _verify_upstream_provenance only checks required keys,
-        but the result_hash includes all upstream keys.  An extra key changes
-        the Pydantic model's canonical output, causing hash mismatch.
+        An extra key changes the Pydantic model's canonical output,
+        causing the stored hash to not match the re-computed hash.
+        The hash check runs before provenance, so it catches this first.
         """
         original_state = _build_state()
         tampered_runs = dict(original_state.calculation_runs)
