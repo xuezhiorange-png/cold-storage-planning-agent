@@ -214,13 +214,55 @@ COMBINED_SOURCE_HASH = _compute_verifier_combined_source_hash()
 # ── Weight set revision content ─────────────────────────────────────────────
 
 WEIGHT_CRITERIA_RAW: list[dict[str, Any]] = [
-    {"criterion_code": "total_area_m2", "weight": 0.20, "direction": "lower_is_better"},
-    {"criterion_code": "investment_cny", "weight": 0.30, "direction": "lower_is_better"},
-    {"criterion_code": "total_position_count", "weight": 0.15, "direction": "higher_is_better"},
-    {"criterion_code": "room_module_count", "weight": 0.10, "direction": "lower_is_better"},
-    {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
-    {"criterion_code": "partition_length_proxy_m", "weight": 0.05, "direction": "lower_is_better"},
-    {"criterion_code": "installed_power_kw_e", "weight": 0.15, "direction": "lower_is_better"},
+    {
+        "criterion_code": "total_area_m2",
+        "weight": "0.20",
+        "direction": "lower_is_better",
+        "normalization_method": "min_max",
+        "hard_constraint": False,
+    },
+    {
+        "criterion_code": "investment_cny",
+        "weight": "0.30",
+        "direction": "lower_is_better",
+        "normalization_method": "min_max",
+        "hard_constraint": False,
+    },
+    {
+        "criterion_code": "total_position_count",
+        "weight": "0.15",
+        "direction": "higher_is_better",
+        "normalization_method": "min_max",
+        "hard_constraint": False,
+    },
+    {
+        "criterion_code": "room_module_count",
+        "weight": "0.10",
+        "direction": "lower_is_better",
+        "normalization_method": "min_max",
+        "hard_constraint": False,
+    },
+    {
+        "criterion_code": "door_count",
+        "weight": "0.05",
+        "direction": "lower_is_better",
+        "normalization_method": "min_max",
+        "hard_constraint": False,
+    },
+    {
+        "criterion_code": "partition_length_proxy_m",
+        "weight": "0.05",
+        "direction": "lower_is_better",
+        "normalization_method": "min_max",
+        "hard_constraint": False,
+    },
+    {
+        "criterion_code": "installed_power_kw_e",
+        "weight": "0.15",
+        "direction": "lower_is_better",
+        "normalization_method": "min_max",
+        "hard_constraint": False,
+    },
 ]
 
 WEIGHT_REVISION_CONTENT: dict[str, Any] = {"criteria": WEIGHT_CRITERIA_RAW}
@@ -1153,53 +1195,45 @@ class TestWeightRevisionRejectionMatrix:
         )
 
     def test_missing_approval_evidence_approved_at(self, engine, session_factory) -> None:
+        """DB CHECK constraint rejects status='approved' without approved_at."""
+        from sqlalchemy import exc as sa_exc
+
         seed_s = session_factory()
         try:
             _seed_project_and_version(seed_s)
             _seed_orchestration_prereqs(seed_s)
             _seed_calculation_runs(seed_s)
             _seed_source_binding(seed_s)
-            _seed_weight_set_and_revision(
-                seed_s, status="approved", approved_at=None, approved_by="test"
-            )
+            with pytest.raises(sa_exc.IntegrityError, match="ck_weight_revision_approval_evidence"):
+                _seed_weight_set_and_revision(
+                    seed_s, status="approved", approved_at=None, approved_by="test"
+                )
+                seed_s.commit()
         finally:
+            seed_s.rollback()
             seed_s.close()
-
-        service = _make_service(engine)
-        cmd = _make_command()
-        with pytest.raises(Exception) as exc_info:
-            service.generate_production_scheme_run(cmd)
-        assert (
-            "approval" in str(exc_info.value).lower()
-            or "evidence" in str(exc_info.value).lower()
-            or "approved_at" in str(exc_info.value).lower()
-        )
 
     def test_missing_approval_evidence_approved_by(self, engine, session_factory) -> None:
+        """DB CHECK constraint rejects status='approved' without approved_by."""
+        from sqlalchemy import exc as sa_exc
+
         seed_s = session_factory()
         try:
             _seed_project_and_version(seed_s)
             _seed_orchestration_prereqs(seed_s)
             _seed_calculation_runs(seed_s)
             _seed_source_binding(seed_s)
-            _seed_weight_set_and_revision(
-                seed_s,
-                status="approved",
-                approved_at=datetime.now(UTC),
-                approved_by="",
-            )
+            with pytest.raises(sa_exc.IntegrityError, match="ck_weight_revision_approval_evidence"):
+                _seed_weight_set_and_revision(
+                    seed_s,
+                    status="approved",
+                    approved_at=datetime.now(UTC),
+                    approved_by="",
+                )
+                seed_s.commit()
         finally:
+            seed_s.rollback()
             seed_s.close()
-
-        service = _make_service(engine)
-        cmd = _make_command()
-        with pytest.raises(Exception) as exc_info:
-            service.generate_production_scheme_run(cmd)
-        assert (
-            "approval" in str(exc_info.value).lower()
-            or "evidence" in str(exc_info.value).lower()
-            or "approved_by" in str(exc_info.value).lower()
-        )
 
     def test_content_hash_mismatch(self, engine, session_factory) -> None:
         seed_s = session_factory()
@@ -1230,7 +1264,13 @@ class TestWeightRevisionRejectionMatrix:
             _seed_calculation_runs(seed_s)
             _seed_source_binding(seed_s)
             dup_criteria = WEIGHT_CRITERIA_RAW + [
-                {"criterion_code": "total_area_m2", "weight": 0.10, "direction": "lower_is_better"}
+                {
+                    "criterion_code": "total_area_m2",
+                    "weight": "0.10",
+                    "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": True,
+                }
             ]
             dup_content = {"criteria": dup_criteria}
             _seed_weight_set_and_revision(seed_s, content=dup_content)
@@ -1253,34 +1293,52 @@ class TestWeightRevisionRejectionMatrix:
             neg_criteria = [
                 {
                     "criterion_code": "total_area_m2",
-                    "weight": -0.20,
+                    "weight": "-0.20",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
                 {
                     "criterion_code": "investment_cny",
-                    "weight": 0.30,
+                    "weight": "0.30",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
                 {
                     "criterion_code": "total_position_count",
-                    "weight": 0.15,
+                    "weight": "0.15",
                     "direction": "higher_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
                 {
                     "criterion_code": "room_module_count",
-                    "weight": 0.10,
+                    "weight": "0.10",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
-                {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
+                {
+                    "criterion_code": "door_count",
+                    "weight": "0.05",
+                    "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
+                },
                 {
                     "criterion_code": "partition_length_proxy_m",
-                    "weight": 0.05,
+                    "weight": "0.05",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
                 {
                     "criterion_code": "installed_power_kw_e",
-                    "weight": 0.15,
+                    "weight": "0.15",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
             ]
             neg_content = {"criteria": neg_criteria}
@@ -1302,32 +1360,54 @@ class TestWeightRevisionRejectionMatrix:
             _seed_calculation_runs(seed_s)
             _seed_source_binding(seed_s)
             bad_sum_criteria = [
-                {"criterion_code": "total_area_m2", "weight": 0.50, "direction": "lower_is_better"},
+                {
+                    "criterion_code": "total_area_m2",
+                    "weight": "0.50",
+                    "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
+                },
                 {
                     "criterion_code": "investment_cny",
-                    "weight": 0.50,
+                    "weight": "0.50",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
                 {
                     "criterion_code": "total_position_count",
-                    "weight": 0.50,
+                    "weight": "0.50",
                     "direction": "higher_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
                 {
                     "criterion_code": "room_module_count",
-                    "weight": 0.10,
+                    "weight": "0.10",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
-                {"criterion_code": "door_count", "weight": 0.05, "direction": "lower_is_better"},
+                {
+                    "criterion_code": "door_count",
+                    "weight": "0.05",
+                    "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
+                },
                 {
                     "criterion_code": "partition_length_proxy_m",
-                    "weight": 0.05,
+                    "weight": "0.05",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
                 {
                     "criterion_code": "installed_power_kw_e",
-                    "weight": 0.15,
+                    "weight": "0.15",
                     "direction": "lower_is_better",
+                    "normalization_method": "min_max",
+                    "hard_constraint": False,
                 },
             ]
             bad_sum_content = {"criteria": bad_sum_criteria}

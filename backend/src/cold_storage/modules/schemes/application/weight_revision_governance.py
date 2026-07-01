@@ -141,27 +141,110 @@ def _compute_content_hash(content: dict[str, Any]) -> str:
 def _parse_criteria(
     raw_criteria: list[dict[str, Any]],
 ) -> tuple[WeightCriterion, ...]:
-    """Parse and validate raw criteria from revision content."""
+    """Parse and validate raw criteria from revision content.
+
+    Strict validation:
+    - criterion_code: required non-empty string
+    - weight: required string that converts to Decimal (reject float, reject missing/None)
+    - direction: required in ('higher_is_better', 'lower_is_better')
+    - normalization_method: required in ('min_max', 'z_score', 'raw')
+    - hard_constraint: required bool (exact bool type)
+    - description: optional, default None
+    - Sum of non-hard-constraint weights must equal Decimal('1') within tolerance
+    """
     criteria: list[WeightCriterion] = []
+    valid_directions = {"higher_is_better", "lower_is_better"}
+    valid_normalizations = {"min_max", "z_score", "raw"}
+
     for raw in raw_criteria:
-        weight_val = raw.get("weight", 0)
+        # criterion_code: required non-empty string
+        criterion_code = raw.get("criterion_code")
+        if not isinstance(criterion_code, str) or not criterion_code:
+            raise WeightRevisionGovernanceError(
+                "invalid_criterion_code",
+                f"criterion_code must be a non-empty string, got {criterion_code!r}",
+            )
+
+        # weight: required string that converts to Decimal
+        weight_val = raw.get("weight")
+        if weight_val is None:
+            raise WeightRevisionGovernanceError(
+                "missing_weight",
+                f"Criterion {criterion_code!r} missing required 'weight'",
+            )
         if isinstance(weight_val, (int, float)):
-            weight = Decimal(str(weight_val))
-        elif isinstance(weight_val, str):
+            raise WeightRevisionGovernanceError(
+                "invalid_weight_type",
+                f"Criterion {criterion_code!r} weight must be a string,"
+                f" not {type(weight_val).__name__}",
+            )
+        if not isinstance(weight_val, str):
+            raise WeightRevisionGovernanceError(
+                "invalid_weight_type",
+                f"Criterion {criterion_code!r} weight must be a string,"
+                f" got {type(weight_val).__name__}",
+            )
+        try:
             weight = Decimal(weight_val)
-        else:
-            weight = Decimal(weight_val)
+        except Exception as exc:
+            raise WeightRevisionGovernanceError(
+                "invalid_weight_value",
+                f"Criterion {criterion_code!r} weight {weight_val!r} is not a valid Decimal",
+            ) from exc
+
+        # direction: required in valid set
+        direction = raw.get("direction")
+        if direction not in valid_directions:
+            raise WeightRevisionGovernanceError(
+                "invalid_direction",
+                f"Criterion {criterion_code!r} direction must be one of"
+                f" {valid_directions}, got {direction!r}",
+            )
+
+        # normalization_method: required in valid set
+        normalization_method = raw.get("normalization_method")
+        if normalization_method not in valid_normalizations:
+            raise WeightRevisionGovernanceError(
+                "invalid_normalization_method",
+                f"Criterion {criterion_code!r} normalization_method must be one of"
+                f" {valid_normalizations}, got {normalization_method!r}",
+            )
+
+        # hard_constraint: required bool (exact type)
+        hard_constraint = raw.get("hard_constraint")
+        if not isinstance(hard_constraint, bool):
+            raise WeightRevisionGovernanceError(
+                "invalid_hard_constraint",
+                f"Criterion {criterion_code!r} hard_constraint must be a bool,"
+                f" got {type(hard_constraint).__name__}",
+            )
+
+        # description: optional
+        description = raw.get("description", None)
+        if description is not None and not isinstance(description, str):
+            raise WeightRevisionGovernanceError(
+                "invalid_description",
+                f"Criterion {criterion_code!r} description must be a string"
+                f" or None, got {type(description).__name__}",
+            )
 
         criteria.append(
             WeightCriterion(
-                criterion_code=raw["criterion_code"],
+                criterion_code=criterion_code,
                 weight=weight,
-                direction=raw.get("direction", "higher_is_better"),
-                normalization_method=raw.get("normalization_method", "min_max"),
-                hard_constraint=raw.get("hard_constraint", False),
-                description=raw.get("description", ""),
+                direction=direction,
+                normalization_method=normalization_method,
+                hard_constraint=hard_constraint,
+                description=description or "",
             )
         )
+
+    # Sum non-hard-constraint weights must equal 1.0 within tolerance
+    if criteria:
+        non_hard_sum = sum((c.weight for c in criteria if not c.hard_constraint), Decimal(0))
+        if abs(non_hard_sum - Decimal("1")) > Decimal("0.0001"):
+            raise RevisionWeightSumError(non_hard_sum)
+
     return tuple(criteria)
 
 
@@ -214,13 +297,7 @@ def validate_weight_revision(
         if c.weight < 0:
             raise RevisionNegativeWeightError(c.criterion_code, c.weight)
 
-    # 7. Non-hard-constraint weights sum to 1.0
-    non_hard_sum = sum((c.weight for c in criteria if not c.hard_constraint), Decimal(0))
-    # Allow tiny floating-point tolerance
-    if abs(non_hard_sum - Decimal("1")) > Decimal("0.0001"):
-        raise RevisionWeightSumError(non_hard_sum)
-
-    # 8. Generator compatibility
+    # 7. Generator compatibility
     if revision.generator_compatibility_version != generator_version:
         raise RevisionIncompatibleGeneratorError(
             revision.generator_compatibility_version, generator_version
@@ -292,6 +369,27 @@ class WeightRevisionApprovalPort(Protocol):
         """
         ...
 
+    def seed_if_not_exists(
+        self,
+        session: Any,
+        *,
+        weight_set_id: str,
+        code: str,
+        name: str,
+        revision_id: str,
+        revision: int,
+        content: dict[str, Any],
+        generator_compatibility_version: str,
+        approved_at: Any,
+        approved_by: str,
+    ) -> None:
+        """Idempotently seed weight set and revision records.
+
+        Creates SchemeWeightSetRecord + SchemeWeightSetRevisionRecord
+        if not exists, approves if draft.
+        """
+        ...
+
 
 def approve_weight_revision(
     approval_port: WeightRevisionApprovalPort,
@@ -349,7 +447,7 @@ _PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
     "criteria": [
         {
             "criterion_code": "total_area_m2",
-            "weight": 0.15,
+            "weight": "0.15",
             "direction": "lower_is_better",
             "normalization_method": "min_max",
             "hard_constraint": False,
@@ -357,7 +455,7 @@ _PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
         },
         {
             "criterion_code": "total_position_count",
-            "weight": 0.15,
+            "weight": "0.15",
             "direction": "higher_is_better",
             "normalization_method": "min_max",
             "hard_constraint": False,
@@ -365,7 +463,7 @@ _PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
         },
         {
             "criterion_code": "room_module_count",
-            "weight": 0.10,
+            "weight": "0.10",
             "direction": "lower_is_better",
             "normalization_method": "min_max",
             "hard_constraint": False,
@@ -373,7 +471,7 @@ _PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
         },
         {
             "criterion_code": "door_count",
-            "weight": 0.10,
+            "weight": "0.10",
             "direction": "lower_is_better",
             "normalization_method": "min_max",
             "hard_constraint": False,
@@ -381,7 +479,7 @@ _PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
         },
         {
             "criterion_code": "partition_length_proxy_m",
-            "weight": 0.05,
+            "weight": "0.05",
             "direction": "lower_is_better",
             "normalization_method": "min_max",
             "hard_constraint": False,
@@ -389,7 +487,7 @@ _PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
         },
         {
             "criterion_code": "investment_cny",
-            "weight": 0.30,
+            "weight": "0.30",
             "direction": "lower_is_better",
             "normalization_method": "min_max",
             "hard_constraint": False,
@@ -397,7 +495,7 @@ _PRODUCTION_WEIGHT_CONTENT: dict[str, Any] = {
         },
         {
             "criterion_code": "installed_power_kw_e",
-            "weight": 0.15,
+            "weight": "0.15",
             "direction": "lower_is_better",
             "normalization_method": "min_max",
             "hard_constraint": False,
@@ -439,25 +537,18 @@ def seed_production_weight_revision(
 
     Content hash is deterministic.  Revision identity is fixed.
     """
-    # Check if already exists
-    existing = approval_port.has_approved_revision(
-        session,
-        weight_set_id=PRODUCTION_WEIGHT_SET_ID,
-        code=PRODUCTION_WEIGHT_SET_CODE,
-        exclude_revision_id=PRODUCTION_WEIGHT_SET_REVISION_ID,
-    )
-    if existing:
-        return  # Already seeded
-
     from datetime import UTC, datetime
 
     now = datetime.now(UTC)
-
-    # Approve (CAS will skip if already approved concurrently)
-    approval_port.approve_revision(
+    approval_port.seed_if_not_exists(
         session,
+        weight_set_id=PRODUCTION_WEIGHT_SET_ID,
+        code=PRODUCTION_WEIGHT_SET_CODE,
+        name="Production Default Weight Set",
         revision_id=PRODUCTION_WEIGHT_SET_REVISION_ID,
+        revision=PRODUCTION_WEIGHT_SET_REVISION,
         content=_PRODUCTION_WEIGHT_CONTENT,
+        generator_compatibility_version="1.0.0",
         approved_at=now,
         approved_by=approved_by,
     )
