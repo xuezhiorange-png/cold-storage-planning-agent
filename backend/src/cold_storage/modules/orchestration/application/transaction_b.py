@@ -342,12 +342,14 @@ class SourceBindingVerifier:
             attempt_id=attempt_id,
         )
 
-        # ── 1. Authority checks (P0-5) ─────────────────────────────────
+        # ── 1. Authority checks (P0-4, P0-5) ─────────────────────────
         self._verify_authority(
             state=state,
             identity_id=identity_id,
             attempt_id=attempt_id,
             orchestration_fingerprint=orchestration_fingerprint,
+            execution_snapshot_id=execution_snapshot_id,
+            coefficient_context_id=coefficient_context_id,
         )
 
         # ── 2. Candidate fingerprint matches identity (category 12) ────
@@ -427,8 +429,10 @@ class SourceBindingVerifier:
         identity_id: str,
         attempt_id: str,
         orchestration_fingerprint: str,
+        execution_snapshot_id: str,
+        coefficient_context_id: str,
     ) -> None:
-        """Verify request, identity, and attempt authority (P0-5)."""
+        """Verify request, identity, attempt, snapshot, and context authority (P0-5)."""
         from cold_storage.modules.orchestration.domain.contracts import RequestStatus
 
         if state.request_status != str(RequestStatus.ACCEPTED):
@@ -452,6 +456,19 @@ class SourceBindingVerifier:
                 "identity_fingerprint",
                 orchestration_fingerprint,
                 state.identity_fingerprint,
+            )
+        # P0-4: identity snapshot/context authority
+        if state.identity_execution_snapshot_id != execution_snapshot_id:
+            raise SourceBindingIdentityMismatchError(
+                "identity_execution_snapshot_id",
+                execution_snapshot_id,
+                state.identity_execution_snapshot_id,
+            )
+        if state.identity_coefficient_context_id != coefficient_context_id:
+            raise SourceBindingIdentityMismatchError(
+                "identity_coefficient_context_id",
+                coefficient_context_id,
+                state.identity_coefficient_context_id,
             )
         if state.attempt_status != str(AttemptStatus.RUNNING):
             raise TransactionInvariantError(
@@ -657,21 +674,45 @@ class SourceBindingVerifier:
         *,
         state: VerificationState,
     ) -> None:
-        """Verify exact upstream dependency provenance for each stage."""
-        for stage_name, upstream_keys in STAGE_UPSTREAM_PROVENANCE_KEYS.items():
-            if not upstream_keys:
-                continue
+        """Verify exact upstream dependency provenance for each stage.
 
+        For every stage (including zone with empty upstream), validates:
+        1. Key set is exactly the expected frozen contract.
+        2. No key has null or empty ID.
+        3. Each ID matches the exact persisted CalculationRun ID.
+        4. No extra keys beyond the frozen contract.
+        """
+        for stage_name in ORCHESTRATION_STAGE_ORDER:
+            expected_keys = STAGE_UPSTREAM_PROVENANCE_KEYS[stage_name]
             run = state.calculation_runs[stage_name]
             upstream_ids = run.upstream_calculation_ids
 
-            for upstream_key in upstream_keys:
-                if upstream_key not in state.calculation_runs:
+            # 1. Exact key set match (no extra, no missing)
+            actual_keys = frozenset(upstream_ids.keys())
+            if actual_keys != expected_keys:
+                missing = expected_keys - actual_keys
+                extra = actual_keys - expected_keys
+                parts: list[str] = []
+                if missing:
+                    parts.append(f"missing: {sorted(missing)}")
+                if extra:
+                    parts.append(f"extra: {sorted(extra)}")
+                raise TransactionInvariantError(
+                    f"Provenance key set mismatch for stage {stage_name!r}: {'; '.join(parts)}"
+                )
+
+            # 2. No null or empty IDs
+            for key in expected_keys:
+                val = upstream_ids[key]
+                if not val or not val.strip():
                     raise TransactionInvariantError(
-                        f"Missing upstream stage {upstream_key!r} for stage {stage_name!r}"
+                        f"Provenance ID for {key!r} in stage {stage_name!r} is null or empty"
                     )
+
+            # 3. Exact persisted ID match
+            for upstream_key in expected_keys:
                 expected_id = state.calculation_runs[upstream_key].id
-                actual_id = upstream_ids.get(upstream_key)
+                actual_id = upstream_ids[upstream_key]
                 if actual_id != expected_id:
                     raise TransactionInvariantError(
                         f"Upstream dependency mismatch for stage {stage_name!r}: "
@@ -906,7 +947,7 @@ class TransactionBExecutor:
                     coefficient_context=coefficient_context,
                     upstream_results=dict(upstream_results),
                 )
-            except OrchestrationDomainError:
+            except (TransactionBBlocked, OrchestrationDomainError):
                 raise
             except Exception as exc:
                 raise TransactionBFailure(
@@ -1041,7 +1082,7 @@ class TransactionBExecutor:
                 coefficient_context_id=coefficient_context_id,
                 orchestration_fingerprint=orchestration_fingerprint,
             )
-        except OrchestrationDomainError:
+        except (TransactionBBlocked, OrchestrationDomainError):
             raise
         except Exception as exc:
             raise TransactionBFailure(
@@ -1303,3 +1344,12 @@ def _stage_name_for_calculator(calculator_name: str) -> str:
     if stage is None:
         raise ValueError(f"Unknown calculator_name {calculator_name!r}")
     return stage
+
+
+# ── Transaction B blocked signal ─────────────────────────────────────────────
+
+
+class TransactionBBlocked(TransactionBFailure):
+    """Engineering domain blocker — terminal disposition is BLOCKED."""
+
+    terminal_disposition: str = "BLOCKED"
