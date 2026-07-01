@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from cold_storage.modules.orchestration.application.coefficient_contracts import (
@@ -59,6 +60,7 @@ from cold_storage.modules.orchestration.application.ports import (
 from cold_storage.modules.orchestration.application.transaction_b import (
     CalculatorPort,
     SourceBindingVerifier,
+    TransactionBBlocked,
     TransactionBExecutor,
     TransactionBFailure,
     VerificationReadPort,
@@ -525,47 +527,116 @@ class OrchestrationService:
                 uow.commit()
                 return result
 
-        except (TransactionBFailure, OrchestrationDomainError) as exc:
-            # ── Terminal UoW: mark attempt FAILED + emit outbox event ──
-            self._transaction_b_failure(
+        except TransactionBBlocked as exc:
+            # ── Engineering blocker → BLOCKED ─────────────────────────
+            self._transaction_b_terminal(
                 attempt_id=orchestration_attempt_id,
                 request_id=request_id,
                 identity_id=orchestration_identity_id,
                 exc=exc,
+                disposition="BLOCKED",
+                event_type="orchestration.attempt.blocked",
             )
             raise
 
-    def _transaction_b_failure(
+        except (TransactionBFailure, OrchestrationDomainError) as exc:
+            # ── Unexpected failure → FAILED ────────────────────────────
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=exc,
+                disposition="FAILED",
+                event_type="orchestration.attempt.failed",
+            )
+            raise
+
+        except IntegrityError as exc:
+            # ── Raw DB persistence failure → FAILED + terminal UoW ────
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=TransactionBFailure(
+                    "TXB_PERSISTENCE_FAILURE",
+                    f"Raw IntegrityError: {exc}",
+                    field="persistence",
+                    details={"error_class": type(exc).__name__, "cause": str(exc)},
+                ),
+                disposition="FAILED",
+                event_type="orchestration.attempt.failed",
+                original_exc=exc,
+            )
+            raise TransactionBFailure(
+                "TXB_PERSISTENCE_FAILURE",
+                f"Persistence failure: {exc}",
+                field="persistence",
+                details={"error_class": type(exc).__name__, "cause": str(exc)},
+            ) from exc
+
+        except Exception as exc:
+            # ── Unexpected non-typed failure → FAILED + terminal UoW ──
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=TransactionBFailure(
+                    "TXB_UNEXPECTED_FAILURE",
+                    f"Unexpected failure: {exc}",
+                    field="unexpected",
+                    details={"error_class": type(exc).__name__, "cause": str(exc)},
+                ),
+                disposition="FAILED",
+                event_type="orchestration.attempt.failed",
+                original_exc=exc,
+            )
+            raise TransactionBFailure(
+                "TXB_UNEXPECTED_FAILURE",
+                f"Unexpected failure: {exc}",
+                field="unexpected",
+                details={"error_class": type(exc).__name__, "cause": str(exc)},
+            ) from exc
+
+    def _transaction_b_terminal(
         self,
         *,
         attempt_id: str,
         request_id: str,
         identity_id: str,
         exc: TransactionBFailure | OrchestrationDomainError,
+        disposition: str,
+        event_type: str,
+        original_exc: Exception | None = None,
     ) -> None:
-        """Persist a Transaction B failure atomically in an independent UoW.
+        """Persist a Transaction B terminal state atomically in an independent UoW.
 
-        Transitions the attempt to FAILED and emits a terminal outbox event.
+        Transitions the attempt to BLOCKED or FAILED and emits a matching
+        terminal outbox event.  The disposition parameter is structural,
+        not derived from message text.
         """
         failure_code: str = exc.code
         failure_field: str = exc.field
         failure_details: dict[str, object] = dict(exc.details)
+        terminal_status = (
+            AttemptStatus.BLOCKED if disposition == "BLOCKED" else AttemptStatus.FAILED
+        )
 
         with self._uow_factory() as terminal_uow:
             self._attempt_repo.update_status(
                 terminal_uow.session,
                 attempt_id,
-                status=AttemptStatus.FAILED,
+                status=terminal_status,
                 failure_code=failure_code,
                 failure_details={
                     "failure_code": failure_code,
                     "failure_field": failure_field,
+                    "terminal_disposition": disposition,
                     **failure_details,
                 },
             )
             self._outbox_repo.add(
                 terminal_uow.session,
-                event_type="orchestration.attempt.failed",
+                event_type=event_type,
                 aggregate_type="OrchestrationRunAttempt",
                 aggregate_id=attempt_id,
                 payload={
@@ -573,6 +644,7 @@ class OrchestrationService:
                     "failure_field": failure_field,
                     "failure_details": failure_details,
                     "error_class": type(exc).__name__,
+                    "terminal_disposition": disposition,
                 },
                 request_id=request_id,
                 identity_id=identity_id,
