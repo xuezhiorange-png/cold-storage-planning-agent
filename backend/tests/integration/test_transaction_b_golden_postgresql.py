@@ -183,11 +183,45 @@ class _GoldenCalculatorPort:
             calculator_version=calc_version,
             calculation_type=calc_type,
             result_snapshot=dict(_CALCULATOR_OUTPUTS[stage_name]),
-            formulas=[],
-            coefficients=[],
-            assumptions=[],
-            warnings=[],
-            source_references=[],
+            formulas=[
+                {
+                    "formula_id": f"form-{stage_name}-01",
+                    "formula_version": "1.0.0",
+                    "expression": f"Q = m * cp * dT ({stage_name})",
+                    "description": f"Heat load calculation for {stage_name}",
+                }
+            ],
+            coefficients=[
+                {
+                    "code": "pallet.net_load_kg",
+                    "value": "1000",
+                    "unit": "kg",
+                    "status": "approved",
+                    "source_type": "catalog",
+                    "source_reference": "standard-table-1",
+                    "requires_review": False,
+                    "revision_id": "rev-001",
+                }
+            ],
+            assumptions=[f"Assumption for {stage_name}: standard operating conditions"],
+            warnings=[
+                {
+                    "code": f"WARN_{stage_name.upper()}",
+                    "message": f"Review {stage_name} calculation values",
+                    "details": {},
+                }
+            ],
+            source_references=[
+                {
+                    "source_type": "standard",
+                    "source_reference": f"GB-{stage_name}-2024",
+                    "version": "2024",
+                    "validity_status": "approved",
+                    "approval_status": "approved",
+                    "requires_review": False,
+                    "notes": "",
+                }
+            ],
             requires_review=False,
         )
 
