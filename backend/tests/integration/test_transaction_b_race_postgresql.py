@@ -1389,8 +1389,9 @@ class TestReplayCompletedAttemptNoNewRows:
         assert len(new_binding_pks) == 0, (
             f"Replay created {len(new_binding_pks)} new SourceBinding(s): {new_binding_pks}"
         )
-        # Replay rejection creates exactly 1 rejection outbox event
-        assert new_outbox == 1, f"Replay expected 1 rejection outbox, got {new_outbox}"
+        # With guarded CAS, replay on COMPLETED attempt returns
+        # ALREADY_COMPLETED — no terminal outbox event is created.
+        assert new_outbox == 0, f"Replay expected 0 rejection outbox, got {new_outbox}"
 
 
 # ── Class 9: Concurrent attempt number race on uq_attempt_identity_number ───
