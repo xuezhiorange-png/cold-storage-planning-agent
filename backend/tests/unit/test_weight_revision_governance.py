@@ -1963,11 +1963,9 @@ class TestConcurrentApprovalWithAuthority:
 
         with setup_engine.connect() as conn:
             approved_count = conn.execute(
-                select(func.count()).select_from(
-                    SchemeWeightSetRevisionRecord
-                ).where(
-                    SchemeWeightSetRevisionRecord.status == "approved"
-                )
+                select(func.count())
+                .select_from(SchemeWeightSetRevisionRecord)
+                .where(SchemeWeightSetRevisionRecord.status == "approved")
             ).scalar()
         assert approved_count == 1, f"Expected 1 approved, got {approved_count}"
 

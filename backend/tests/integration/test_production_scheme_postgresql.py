@@ -41,20 +41,69 @@ if os.environ.get("DATABASE_BACKEND") != "postgresql":
         allow_module_level=True,
     )
 
-# ── Canonical hash helpers (uses domain-layer canonical builder) ─────────
+# ── Canonical hash helpers (mirrors SQLite _compute_domain_hash) ───────────
 
 
-def _compute_result_hash(result_snapshot: dict[str, Any]) -> str:
-    """Compute result hash using the domain-layer canonical JSON builder.
+def _compute_domain_hash(
+    *,
+    stage: str,
+    result_snapshot: dict[str, Any],
+    run_id: str,
+) -> str:
+    """Compute domain SourceSnapshotContentV1 result_hash for a stage.
 
-    This is the SAME code path the production executor and verifier use,
-    ensuring identical SHA-256 hashes for identical payloads.
+    Builds the SAME full content object the production verifier hashes,
+    ensuring identical SHA-256 for identical payloads.
     """
     from cold_storage.modules.orchestration.domain.fingerprint import (
-        canonical_json_bytes,
+        result_hash as _domain_result_hash,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotContentV1 as DomainSourceSnapshotContentV1,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotProvenanceV1,
     )
 
-    return hashlib.sha256(canonical_json_bytes(result_snapshot)).hexdigest()
+    upstream = _SLOT_UPSTREAM_IDS.get(stage, {})
+    calc_name = SLOT_CALCULATOR_NAMES[stage]
+    calc_type = SLOT_CALCULATION_TYPES[stage]
+
+    # Map stage to upstream run IDs
+    upstream_ids: dict[str, str] = {}
+    for key, _ in upstream.items():
+        upstream_ids[key] = {
+            "zone": ZONE_RUN_ID,
+            "cooling_load": COOL_RUN_ID,
+            "equipment": EQUIP_RUN_ID,
+            "power": POWER_RUN_ID,
+            "investment": INVEST_RUN_ID,
+        }[key]
+
+    provenance = SourceSnapshotProvenanceV1(
+        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+        coefficient_context_id=COEFF_CONTEXT_ID,
+        orchestration_identity_id=IDENTITY_ID,
+        orchestration_run_attempt_id=ATTEMPT_ID,
+        upstream_calculation_ids=upstream_ids,
+    )
+    content = DomainSourceSnapshotContentV1(
+        schema_version="1.0.0",
+        calculation_type=calc_type,
+        calculator_name=calc_name,
+        calculator_version="1.0.0",
+        project_id=PROJECT_ID,
+        project_version_id=VERSION_ID,
+        execution_snapshot_id=EXEC_SNAPSHOT_ID,
+        coefficient_context_id=COEFF_CONTEXT_ID,
+        orchestration_identity_id=IDENTITY_ID,
+        orchestration_run_attempt_id=ATTEMPT_ID,
+        input_hash="pg-input-hash-001",
+        requires_review=False,
+        payload=result_snapshot,
+        provenance=provenance,
+    )
+    return _domain_result_hash(content)
 
 
 _SLOT_STAGE_ORDER: tuple[str, ...] = (
@@ -166,21 +215,12 @@ INVESTMENT_RESULT_SNAPSHOT: dict[str, Any] = {
     ],
 }
 
-# ── Pre-computed hashes ─────────────────────────────────────────────────
-
-ZONE_HASH = _compute_result_hash(ZONE_RESULT_SNAPSHOT)
-COOL_HASH = _compute_result_hash(COOLING_RESULT_SNAPSHOT)
-EQUIP_HASH = _compute_result_hash(EQUIPMENT_RESULT_SNAPSHOT)
-POWER_HASH = _compute_result_hash(POWER_RESULT_SNAPSHOT)
-INVEST_HASH = _compute_result_hash(INVESTMENT_RESULT_SNAPSHOT)
-
-PER_CALC_HASHES: dict[str, str] = {
-    "zone": ZONE_HASH,
-    "cooling_load": COOL_HASH,
-    "equipment": EQUIP_HASH,
-    "power": POWER_HASH,
-    "investment": INVEST_HASH,
-}
+# ── Placeholder hashes (computed after constants are defined) ───────────
+ZONE_HASH = ""
+COOL_HASH = ""
+EQUIP_HASH = ""
+POWER_HASH = ""
+INVEST_HASH = ""
 
 
 # ── Combined source hash (matches verifier implementation) ────────────────
@@ -214,7 +254,7 @@ def _compute_verifier_combined_source_hash() -> str:
     )
 
 
-COMBINED_SOURCE_HASH = _compute_verifier_combined_source_hash()
+COMBINED_SOURCE_HASH = ""  # computed after PER_CALC_HASHES is defined
 
 # ── Weight set revision content ─────────────────────────────────────────
 
@@ -299,6 +339,32 @@ _SLOT_UPSTREAM_IDS: dict[str, dict[str, str]] = {
     "investment": {"zone": ZONE_RUN_ID, "power": POWER_RUN_ID},
 }
 
+# ── Compute domain hashes (after all constants are defined) ─────────────
+ZONE_HASH = _compute_domain_hash(
+    stage="zone", result_snapshot=ZONE_RESULT_SNAPSHOT, run_id=ZONE_RUN_ID
+)
+COOL_HASH = _compute_domain_hash(
+    stage="cooling_load", result_snapshot=COOLING_RESULT_SNAPSHOT, run_id=COOL_RUN_ID
+)
+EQUIP_HASH = _compute_domain_hash(
+    stage="equipment", result_snapshot=EQUIPMENT_RESULT_SNAPSHOT, run_id=EQUIP_RUN_ID
+)
+POWER_HASH = _compute_domain_hash(
+    stage="power", result_snapshot=POWER_RESULT_SNAPSHOT, run_id=POWER_RUN_ID
+)
+INVEST_HASH = _compute_domain_hash(
+    stage="investment", result_snapshot=INVESTMENT_RESULT_SNAPSHOT, run_id=INVEST_RUN_ID
+)
+
+PER_CALC_HASHES: dict[str, str] = {
+    "zone": ZONE_HASH,
+    "cooling_load": COOL_HASH,
+    "equipment": EQUIP_HASH,
+    "power": POWER_HASH,
+    "investment": INVEST_HASH,
+}
+
+COMBINED_SOURCE_HASH = _compute_verifier_combined_source_hash()
 
 # ── Seed helpers ─────────────────────────────────────────────────────────
 
@@ -471,7 +537,7 @@ def _seed_calculation_runs(
             select(CalculationRunRecord).where(CalculationRunRecord.id == run_id)
         ).scalar_one_or_none()
         if existing is None:
-            computed_hash = _compute_result_hash(snap)
+            computed_hash = _compute_domain_hash(stage=stage, result_snapshot=snap, run_id=run_id)
             provenance: dict[str, Any] = {
                 "stage": stage,
                 "upstream_calculation_ids": _SLOT_UPSTREAM_IDS.get(stage, {}),
@@ -506,8 +572,10 @@ def _seed_calculation_runs(
             )
             per_calc[stage] = computed_hash
         else:
-            per_calc[stage] = existing.result_hash or _compute_result_hash(
-                existing.result_snapshot or {}
+            per_calc[stage] = existing.result_hash or _compute_domain_hash(
+                stage=stage,
+                result_snapshot=existing.result_snapshot or {},
+                run_id=run_id,
             )
     session.commit()
     return per_calc
@@ -559,6 +627,18 @@ def _seed_source_binding(
     )
     session.commit()
 
+    # Link attempt → source binding (P0-2: attempt.source_binding_id must be non-NULL)
+    from cold_storage.modules.orchestration.infrastructure.orm import (
+        OrchestrationRunAttemptRecord,
+    )
+
+    attempt_rec = session.execute(
+        select(OrchestrationRunAttemptRecord).where(OrchestrationRunAttemptRecord.id == ATTEMPT_ID)
+    ).scalar_one_or_none()
+    if attempt_rec is not None and attempt_rec.source_binding_id is None:
+        attempt_rec.source_binding_id = binding_id
+        session.commit()
+
 
 _UNSET = object()
 
@@ -608,22 +688,46 @@ def _seed_weight_set_and_revision(
         select(SchemeWeightSetRevisionRecord).where(SchemeWeightSetRevisionRecord.id == revision_id)
     ).scalar_one_or_none()
     if existing_rev is None:
+        # Insert as draft first, then approve via adapter to satisfy PG trigger
+        initial_status = "draft"
         session.add(
             SchemeWeightSetRevisionRecord(
                 id=revision_id,
                 weight_set_id=WEIGHT_SET_ID,
                 code="pg-standard-weights",
                 revision=1,
-                status=status,
+                status=initial_status,
                 content=content,
                 content_hash=content_hash,
                 generator_compatibility_version=generator_compat,
-                approved_at=approved_at,
-                approved_by=approved_by,
-                sealed_at=approved_at if status == "approved" else None,
+                approved_at=None,
+                approved_by=None,
+                sealed_at=None,
                 created_at=datetime.now(UTC),
             )
         )
+        session.flush()
+        if status == "approved":
+            # Use raw SQL UPDATE to bypass ORM-level checks,
+            # matching the adapter's controlled transition path
+            from sqlalchemy import text
+
+            session.execute(
+                text(
+                    "UPDATE scheme_weight_set_revisions "
+                    "SET status = 'approved', "
+                    "approved_at = :approved_at, "
+                    "approved_by = :approved_by, "
+                    "sealed_at = :sealed_at "
+                    "WHERE id = :rev_id"
+                ),
+                {
+                    "approved_at": approved_at,
+                    "approved_by": approved_by,
+                    "sealed_at": approved_at,
+                    "rev_id": revision_id,
+                },
+            )
     session.commit()
 
 
@@ -1173,7 +1277,7 @@ class TestPostgresWeightTamperRejection:
                 criteria[0]["weight"] = "0.99"
             content["criteria"] = criteria
             rev.content = content
-            with pytest.raises(sa.exc.IntegrityError):
+            with pytest.raises((sa.exc.IntegrityError, sa.exc.InternalError)):
                 tamper_s.commit()
         finally:
             tamper_s.close()
@@ -1801,14 +1905,35 @@ class TestPostgresProductionTransactionBE2E:
                         weight_set_id=_PG_WEIGHT_SET_ID,
                         code="pg-golden-standard-weights",
                         revision=1,
-                        status="approved",
+                        status="draft",
                         content=_WEIGHT_REVISION_CONTENT,
                         content_hash=_WEIGHT_CONTENT_HASH,
                         generator_compatibility_version="1.0.0",
-                        approved_at=datetime.now(UTC),
-                        approved_by="pg-golden-e2e-test",
+                        approved_at=None,
+                        approved_by=None,
                         created_at=datetime.now(UTC),
                     )
+                )
+                pg_ws_s.flush()
+                # Transition draft→approved via UPDATE (INSERT trigger blocks direct approved)
+                from sqlalchemy import text
+
+                _now = datetime.now(UTC)
+                pg_ws_s.execute(
+                    text(
+                        "UPDATE scheme_weight_set_revisions "
+                        "SET status = 'approved', "
+                        "approved_at = :approved_at, "
+                        "approved_by = :approved_by, "
+                        "sealed_at = :sealed_at "
+                        "WHERE id = :rev_id"
+                    ),
+                    {
+                        "approved_at": _now,
+                        "approved_by": "pg-golden-e2e-test",
+                        "sealed_at": _now,
+                        "rev_id": _PG_WEIGHT_REVISION_ID,
+                    },
                 )
             pg_ws_s.commit()
         finally:
