@@ -627,16 +627,20 @@ def _seed_all_prereqs(session) -> None:
     _seed_source_binding(session)
     _seed_weight_set_and_revision(session)
 
-    # Link attempt → source binding (attempt.source_binding_id must be non-NULL)
-    from cold_storage.modules.orchestration.infrastructure.orm import (
-        OrchestrationRunAttemptRecord,
-    )
+    # Link attempt to source binding (attempt.source_binding_id must be non-NULL)
+    from sqlalchemy import text as sql_text
 
-    attempt_rec = session.execute(
-        select(OrchestrationRunAttemptRecord).where(OrchestrationRunAttemptRecord.id == ATTEMPT_ID)
+    result = session.execute(
+        sql_text("SELECT source_binding_id FROM orchestration_run_attempts WHERE id = :aid"),
+        {"aid": ATTEMPT_ID},
     ).scalar_one_or_none()
-    if attempt_rec is not None and attempt_rec.source_binding_id is None:
-        attempt_rec.source_binding_id = SOURCE_BINDING_ID
+    if result is None:
+        session.execute(
+            sql_text(
+                "UPDATE orchestration_run_attempts SET source_binding_id = :sbid WHERE id = :aid"
+            ),
+            {"sbid": SOURCE_BINDING_ID, "aid": ATTEMPT_ID},
+        )
         session.commit()
 
 
