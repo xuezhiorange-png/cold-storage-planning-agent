@@ -2700,9 +2700,13 @@ class TestP01HashRecomputationTamper:
         self._verify_expect_tamper_error()
 
     def test_tamper_upstream_calculation_ids_cooling(self):
-        """Tamper cooling_load upstream_calculation_ids → domain validation error."""
+        """Tamper cooling_load upstream_calculation_ids → result_hash_mismatch.
+
+        The verifier checks hashes before provenance, so tampering upstream
+        without updating result_hash produces a hash mismatch first.
+        """
         from cold_storage.modules.schemes.application.source_binding_verifier import (
-            ProvenanceMissingKey,
+            ResultHashMismatch,
             verify_source_binding,
         )
         from cold_storage.modules.schemes.infrastructure.production_read_ports import (
@@ -2718,8 +2722,8 @@ class TestP01HashRecomputationTamper:
         s = self.sf()
         try:
             port = SqlAlchemySourceBindingReadPort()
-            with pytest.raises(ProvenanceMissingKey) as exc_info:
+            with pytest.raises(ResultHashMismatch) as exc_info:
                 verify_source_binding(port, s, binding_id=SOURCE_BINDING_ID)
-            assert exc_info.value.code == "provenance_missing_key"
+            assert exc_info.value.code == "result_hash_mismatch"
         finally:
             s.close()

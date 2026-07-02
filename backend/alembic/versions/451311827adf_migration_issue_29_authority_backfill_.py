@@ -120,13 +120,24 @@ def _backfill_authority() -> None:
         )
 
     # Insert authority rows (idempotent — ignore if already present)
-    op.execute(
-        "INSERT OR IGNORE INTO scheme_weight_set_active_revisions"
-        " (weight_set_id, code, approved_revision_id, updated_at)"
-        " SELECT weight_set_id, code, id, COALESCE(approved_at, created_at)"
-        " FROM scheme_weight_set_revisions"
-        " WHERE status = 'approved'"
-    )
+    if dialect_name == "sqlite":
+        op.execute(
+            "INSERT OR IGNORE INTO scheme_weight_set_active_revisions"
+            " (weight_set_id, code, approved_revision_id, updated_at)"
+            " SELECT weight_set_id, code, id, COALESCE(approved_at, created_at)"
+            " FROM scheme_weight_set_revisions"
+            " WHERE status = 'approved'"
+        )
+    else:
+        # PostgreSQL: ON CONFLICT DO NOTHING
+        op.execute(
+            "INSERT INTO scheme_weight_set_active_revisions"
+            " (weight_set_id, code, approved_revision_id, updated_at)"
+            " SELECT weight_set_id, code, id, COALESCE(approved_at, created_at)"
+            " FROM scheme_weight_set_revisions"
+            " WHERE status = 'approved'"
+            " ON CONFLICT (weight_set_id, code) DO NOTHING"
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
