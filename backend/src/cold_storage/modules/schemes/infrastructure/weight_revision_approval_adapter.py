@@ -255,6 +255,7 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
                 approved_by=approved_by,
                 content=content,
                 content_hash=_compute_content_hash(content),
+                sealed_at=approved_at,
             )
         )
 

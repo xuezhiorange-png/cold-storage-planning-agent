@@ -764,6 +764,7 @@ def _seed_weight_set_and_revision(
                 generator_compatibility_version=generator_compat,
                 approved_at=approved_at,
                 approved_by=approved_by,
+                sealed_at=approved_at if status == "approved" else None,
                 created_at=datetime.now(UTC),
             )
         )
@@ -2316,7 +2317,9 @@ class TestTamperRejection:
                 criteria[0]["weight"] = "0.99"
             content["criteria"] = criteria
             rev.content = content
-            with pytest.raises(sa.exc.IntegrityError):
+            # SQLite RAISE(ABORT,...) in triggers produces OperationalError;
+            # PostgreSQL trigger aborts with CheckViolation (IntegrityError).
+            with pytest.raises((sa.exc.IntegrityError, sa.exc.OperationalError)):
                 tamper_s.commit()
         finally:
             tamper_s.close()

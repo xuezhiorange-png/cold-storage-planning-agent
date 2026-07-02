@@ -612,6 +612,7 @@ def _seed_weight_set_and_revision(
                 generator_compatibility_version=generator_compat,
                 approved_at=approved_at,
                 approved_by=approved_by,
+                sealed_at=approved_at if status == "approved" else None,
                 created_at=datetime.now(UTC),
             )
         )
