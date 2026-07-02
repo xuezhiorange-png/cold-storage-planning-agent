@@ -23,7 +23,6 @@ Test matrix (P0-6):
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -42,15 +41,20 @@ if os.environ.get("DATABASE_BACKEND") != "postgresql":
         allow_module_level=True,
     )
 
-# ── Canonical hash helpers (mirrors source code exactly) ─────────────────
-
-
-def _canonical_json(obj: Any) -> str:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+# ── Canonical hash helpers (uses domain-layer canonical builder) ─────────
 
 
 def _compute_result_hash(result_snapshot: dict[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json(result_snapshot).encode()).hexdigest()
+    """Compute result hash using the domain-layer canonical JSON builder.
+
+    This is the SAME code path the production executor and verifier use,
+    ensuring identical SHA-256 hashes for identical payloads.
+    """
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        canonical_json_bytes,
+    )
+
+    return hashlib.sha256(canonical_json_bytes(result_snapshot)).hexdigest()
 
 
 _SLOT_STAGE_ORDER: tuple[str, ...] = (
@@ -63,7 +67,11 @@ _SLOT_STAGE_ORDER: tuple[str, ...] = (
 
 
 def _compute_weight_content_hash(content: dict[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        canonical_json_bytes,
+    )
+
+    return hashlib.sha256(canonical_json_bytes(content)).hexdigest()
 
 
 # ── Deterministic IDs ────────────────────────────────────────────────────
@@ -89,8 +97,8 @@ WEIGHT_REVISION_ID = "pg-test-wrev-001"
 ZONE_RESULT_SNAPSHOT: dict[str, Any] = {
     "daily_inbound_mass_kg": 10000,
     "design_daily_mass_kg": 10000,
-    "total_required_area_m2": 200.0,
-    "total_area_m2": 200.0,
+    "total_required_area_m2": "200.0",
+    "total_area_m2": "200.0",
     "planning_parameters": {
         "pallet_weight_kg": 500,
         "working_hours_per_day": 8,
@@ -100,8 +108,8 @@ ZONE_RESULT_SNAPSHOT: dict[str, Any] = {
             "zone_code": "Z1",
             "zone_name": "原果间",
             "daily_throughput_kg_day": 10000,
-            "required_area_m2": 200.0,
-            "design_storage_mass_kg": 15000.0,
+            "required_area_m2": "200.0",
+            "design_storage_mass_kg": "15000.0",
             "position_count": 30,
             "temperature_band": "0~4℃",
             "function": "storage",
@@ -628,20 +636,35 @@ def _seed_all_prereqs(session) -> None:
     _seed_weight_set_and_revision(session)
 
     # Link attempt to source binding (attempt.source_binding_id must be non-NULL)
+    # P0-5: Distinguish row-missing from NULL field.
     from sqlalchemy import text as sql_text
 
-    result = session.execute(
-        sql_text("SELECT source_binding_id FROM orchestration_run_attempts WHERE id = :aid"),
+    row = session.execute(
+        sql_text("SELECT id, source_binding_id FROM orchestration_run_attempts WHERE id = :aid"),
         {"aid": ATTEMPT_ID},
-    ).scalar_one_or_none()
-    if result is None:
-        session.execute(
+    ).one_or_none()
+    assert row is not None, f"Attempt row {ATTEMPT_ID} must exist before linking to binding"
+    _current_binding_id = row[1]
+    if _current_binding_id is None:
+        result = session.execute(
             sql_text(
-                "UPDATE orchestration_run_attempts SET source_binding_id = :sbid WHERE id = :aid"
+                "UPDATE orchestration_run_attempts "
+                "SET source_binding_id = :sbid "
+                "WHERE id = :aid AND source_binding_id IS NULL"
             ),
             {"sbid": SOURCE_BINDING_ID, "aid": ATTEMPT_ID},
         )
+        assert result.rowcount == 1, f"Expected exactly 1 row updated, got {result.rowcount}"
         session.commit()
+        # Re-read to confirm
+        session.expire_all()
+        persisted = session.execute(
+            sql_text("SELECT source_binding_id FROM orchestration_run_attempts WHERE id = :aid"),
+            {"aid": ATTEMPT_ID},
+        ).scalar_one()
+        assert persisted == SOURCE_BINDING_ID, (
+            f"Attempt binding mismatch after commit: {persisted} != {SOURCE_BINDING_ID}"
+        )
 
 
 # ── Service helper ───────────────────────────────────────────────────────
@@ -1660,14 +1683,29 @@ class TestPostgresProductionTransactionBE2E:
             pg_bind_s.commit()
 
             # Link attempt → source binding
+            # P0-5: Assert row exists, fail-closed on no-row.
             attempt_rec = pg_bind_s.execute(
                 select(OrchestrationRunAttemptRecord).where(
                     OrchestrationRunAttemptRecord.id == GOLDEN_ATTEMPT_ID
                 )
             ).scalar_one_or_none()
-            if attempt_rec is not None and attempt_rec.source_binding_id is None:
+            assert attempt_rec is not None, (
+                f"Attempt row {GOLDEN_ATTEMPT_ID} must exist before linking"
+            )
+            if attempt_rec.source_binding_id is None:
                 attempt_rec.source_binding_id = _PG_SOURCE_BINDING_ID
                 pg_bind_s.commit()
+                pg_bind_s.expire_all()
+                # Re-read to confirm
+                persisted = pg_bind_s.execute(
+                    select(OrchestrationRunAttemptRecord).where(
+                        OrchestrationRunAttemptRecord.id == GOLDEN_ATTEMPT_ID
+                    )
+                ).scalar_one()
+                assert persisted.source_binding_id == _PG_SOURCE_BINDING_ID, (
+                    f"Attempt binding mismatch after commit: "
+                    f"{persisted.source_binding_id} != {_PG_SOURCE_BINDING_ID}"
+                )
         finally:
             pg_bind_s.close()
 

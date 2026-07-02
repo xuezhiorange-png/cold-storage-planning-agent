@@ -45,15 +45,16 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
-# ── Canonical hash helpers (mirrors source code exactly) ─────────────────────
-
-
-def _canonical_json(obj: Any) -> str:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+# ── Canonical hash helpers (uses domain-layer canonical builder) ─────────
 
 
 def _compute_result_hash(result_snapshot: dict[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json(result_snapshot).encode()).hexdigest()
+    """Compute result hash using the domain-layer canonical JSON builder."""
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        canonical_json_bytes,
+    )
+
+    return hashlib.sha256(canonical_json_bytes(result_snapshot)).hexdigest()
 
 
 # ── Pre-computed hashes (P0-1: domain hash recomputation) ──────────────────
@@ -222,7 +223,11 @@ INVEST_HASH = ""
 
 
 def _compute_weight_content_hash(content: dict[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        canonical_json_bytes,
+    )
+
+    return hashlib.sha256(canonical_json_bytes(content)).hexdigest()
 
 
 _SLOT_STAGE_ORDER: tuple[str, ...] = (
