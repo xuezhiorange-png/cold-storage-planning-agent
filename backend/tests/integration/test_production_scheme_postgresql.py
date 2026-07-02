@@ -627,6 +627,18 @@ def _seed_all_prereqs(session) -> None:
     _seed_source_binding(session)
     _seed_weight_set_and_revision(session)
 
+    # Link attempt → source binding (attempt.source_binding_id must be non-NULL)
+    from cold_storage.modules.orchestration.infrastructure.orm import (
+        OrchestrationRunAttemptRecord,
+    )
+
+    attempt_rec = session.execute(
+        select(OrchestrationRunAttemptRecord).where(OrchestrationRunAttemptRecord.id == ATTEMPT_ID)
+    ).scalar_one_or_none()
+    if attempt_rec is not None and attempt_rec.source_binding_id is None:
+        attempt_rec.source_binding_id = SOURCE_BINDING_ID
+        session.commit()
+
 
 # ── Service helper ───────────────────────────────────────────────────────
 
