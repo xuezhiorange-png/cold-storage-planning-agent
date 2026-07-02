@@ -1315,8 +1315,9 @@ class TestWeightRevisionRejectionMatrix:
         )
 
     def test_missing_approval_evidence_approved_at(self, engine, session_factory) -> None:
-        """DB CHECK constraint rejects status='approved' without approved_at."""
+        """DB CHECK constraint rejects UPDATE to 'approved' without approved_at."""
         from sqlalchemy import exc as sa_exc
+        from sqlalchemy import text as sql_text
 
         seed_s = session_factory()
         try:
@@ -1324,18 +1325,27 @@ class TestWeightRevisionRejectionMatrix:
             _seed_orchestration_prereqs(seed_s)
             _seed_calculation_runs(seed_s)
             _seed_source_binding(seed_s)
+            # Insert as draft first (bypasses INSERT trigger), then UPDATE
+            _seed_weight_set_and_revision(seed_s, status="draft")
+            seed_s.flush()
             with pytest.raises(sa_exc.IntegrityError, match="ck_weight_revision_approval_evidence"):
-                _seed_weight_set_and_revision(
-                    seed_s, status="approved", approved_at=None, approved_by="test"
+                seed_s.execute(
+                    sql_text(
+                        "UPDATE scheme_weight_set_revisions"
+                        " SET status = :status, approved_at = NULL, approved_by = 'test'"
+                        " WHERE id = :rid"
+                    ),
+                    {"status": "approved", "rid": WEIGHT_REVISION_ID},
                 )
-                seed_s.commit()
+                seed_s.flush()
         finally:
             seed_s.rollback()
             seed_s.close()
 
     def test_missing_approval_evidence_approved_by(self, engine, session_factory) -> None:
-        """DB CHECK constraint rejects status='approved' without approved_by."""
+        """DB CHECK constraint rejects UPDATE to 'approved' without approved_by."""
         from sqlalchemy import exc as sa_exc
+        from sqlalchemy import text as sql_text
 
         seed_s = session_factory()
         try:
@@ -1343,14 +1353,23 @@ class TestWeightRevisionRejectionMatrix:
             _seed_orchestration_prereqs(seed_s)
             _seed_calculation_runs(seed_s)
             _seed_source_binding(seed_s)
+            # Insert as draft first (bypasses INSERT trigger), then UPDATE
+            _seed_weight_set_and_revision(seed_s, status="draft")
+            seed_s.flush()
             with pytest.raises(sa_exc.IntegrityError, match="ck_weight_revision_approval_evidence"):
-                _seed_weight_set_and_revision(
-                    seed_s,
-                    status="approved",
-                    approved_at=datetime.now(UTC),
-                    approved_by="",
+                seed_s.execute(
+                    sql_text(
+                        "UPDATE scheme_weight_set_revisions"
+                        " SET status = :status, approved_at = :approved_at, approved_by = ''"
+                        " WHERE id = :rid"
+                    ),
+                    {
+                        "status": "approved",
+                        "approved_at": datetime.now(UTC),
+                        "rid": WEIGHT_REVISION_ID,
+                    },
                 )
-                seed_s.commit()
+                seed_s.flush()
         finally:
             seed_s.rollback()
             seed_s.close()

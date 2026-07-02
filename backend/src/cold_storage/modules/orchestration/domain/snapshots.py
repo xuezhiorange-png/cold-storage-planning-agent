@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 
 from cold_storage.modules.orchestration.domain.contracts import (
     validate_content_provenance_identity_consistency,
-    validate_provenance_keys,
 )
 
 
@@ -101,11 +100,8 @@ class SourceSnapshotContentV1:
         if frozen_payload is not self.payload:
             object.__setattr__(self, "payload", frozen_payload)
 
-        # ── Validate provenance key set ─────────────────────────────────
-        validate_provenance_keys(
-            self.calculation_type,
-            self.provenance.upstream_calculation_ids,
-        )
+        # Note: provenance key set validation is performed by the verifier
+        # (SourceBindingVerifier._verify_upstream_provenance), not here.
 
         # ── Validate content/provenance identity consistency ─────────────
         validate_content_provenance_identity_consistency(

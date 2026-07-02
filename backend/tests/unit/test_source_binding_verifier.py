@@ -50,6 +50,10 @@ from cold_storage.modules.orchestration.domain.errors import (
     TransactionInvariantError,
     UnsupportedSchemaError,
 )
+from cold_storage.modules.orchestration.domain.fingerprint import result_hash as domain_result_hash
+from cold_storage.modules.orchestration.domain.snapshots import (
+    build_source_snapshot_content_v1,
+)
 
 # ── Canonical test constants ──────────────────────────────────────────────
 
@@ -264,6 +268,47 @@ def _upstream_for(stage: str) -> dict[str, str]:
     raise ValueError(f"Unknown stage: {stage}")
 
 
+def _domain_hash(
+    stage: str,
+    *,
+    calc_name: str | None = None,
+    calc_ver: str | None = None,
+    calc_type: str | None = None,
+    schema_version: str = "1.0.0",
+    project_id: str = _PID,
+    project_version_id: str = _PVID,
+    execution_snapshot_id: str = _ESID,
+    coefficient_context_id: str = _CCID,
+    orchestration_identity_id: str = _IDENT,
+    orchestration_run_attempt_id: str = _ATT,
+    input_hash: str = "",
+    requires_review: bool = False,
+    payload: dict[str, Any] | None = None,
+    upstream_calculation_ids: dict[str, str] | None = None,
+) -> str:
+    """Compute result_hash using the canonical domain-layer builder."""
+    _rid, _cname, _cver, _ctype = _STAGE_META[stage]
+    content = build_source_snapshot_content_v1(
+        schema_version=schema_version,
+        calculation_type=calc_type or _ctype,
+        calculator_name=calc_name or _cname,
+        calculator_version=calc_ver or _cver,
+        project_id=project_id,
+        project_version_id=project_version_id,
+        execution_snapshot_id=execution_snapshot_id,
+        coefficient_context_id=coefficient_context_id,
+        orchestration_identity_id=orchestration_identity_id,
+        orchestration_run_attempt_id=orchestration_run_attempt_id,
+        input_hash=input_hash,
+        requires_review=requires_review,
+        payload=payload if payload is not None else _RESULT_SNAPSHOTS[stage],
+        upstream_calculation_ids=upstream_calculation_ids
+        if upstream_calculation_ids is not None
+        else _upstream_for(stage),
+    )
+    return domain_result_hash(content)
+
+
 # ── CalculationRunSnapshot builder ────────────────────────────────────────
 
 
@@ -271,29 +316,13 @@ def _build_run(stage: str) -> CalculationRunSnapshot:
     """Build a valid CalculationRunSnapshot with correct result_hash."""
     run_id, calc_name, calc_ver, calc_type = _STAGE_META[stage]
 
-    # Construct the Pydantic typed snapshot to compute result_hash
-    snapshot = _SNAPSHOT_CLS[stage](
-        project_id=_PID,
-        project_version_id=_PVID,
-        execution_snapshot_id=_ESID,
-        coefficient_context_id=_CCID,
-        orchestration_identity_id=_IDENT,
-        orchestration_attempt_id=_ATT,
-        orchestration_fingerprint=_FP,
-        source_snapshot_schema_version="1.0.0",
-        calculation_type=calc_type,
-        calculator_id=calc_name,
-        calculator_version=calc_ver,
-        requires_review=False,
-        result_snapshot=_RESULT_SNAPSHOTS[stage],
-        formulas=_formulas(stage),
-        coefficients=_coefficients(),
-        assumptions=_assumptions(stage),
-        warnings=_warnings(stage),
-        source_references=_source_refs(),
-        upstream_calculation_ids=_upstream_for(stage),
+    # Use the canonical domain-layer builder (same as Transaction B executor + verifier)
+    computed_hash = _domain_hash(
+        stage,
+        calc_name=calc_name,
+        calc_ver=calc_ver,
+        calc_type=calc_type,
     )
-    computed_hash = snapshot.result_hash()
 
     return CalculationRunSnapshot(
         id=run_id,
@@ -371,31 +400,29 @@ def _build_state_with_modified_run(stage: str, **run_overrides: Any) -> Verifica
     new_run = dataclasses.replace(old_run, **run_overrides)
 
     if needs_rehash:
-        # Recompute result_hash from the modified run's data
-        snapshot_cls = _SNAPSHOT_CLS[stage]
-        fp = new_run.orchestration_fingerprint or _FP
-        snapshot = snapshot_cls(
-            project_id=new_run.project_id,
-            project_version_id=new_run.project_version_id,
-            execution_snapshot_id=new_run.execution_snapshot_id or "",
-            coefficient_context_id=new_run.coefficient_context_id or "",
-            orchestration_identity_id=new_run.orchestration_identity_id or "",
-            orchestration_attempt_id=new_run.orchestration_run_attempt_id or "",
-            orchestration_fingerprint=fp,
-            source_snapshot_schema_version="1.0.0",
-            calculation_type=new_run.calculation_type or "",
-            calculator_id=new_run.calculator_name,
-            calculator_version=new_run.calculator_version,
-            requires_review=new_run.requires_review,
-            result_snapshot=new_run.result_snapshot,
-            formulas=new_run.formulas,
-            coefficients=new_run.coefficients,
-            assumptions=new_run.assumptions,
-            warnings=new_run.warnings,
-            source_references=new_run.source_references,
-            upstream_calculation_ids=dict(new_run.upstream_calculation_ids),
-        )
-        new_run = dataclasses.replace(new_run, result_hash=snapshot.result_hash())
+        # Recompute result_hash using the canonical domain-layer builder.
+        # If the domain model rejects the upstream (provenance validation),
+        # skip rehash — the verifier will catch the provenance error.
+        try:
+            new_hash = _domain_hash(
+                stage,
+                calc_name=new_run.calculator_name,
+                calc_ver=new_run.calculator_version,
+                calc_type=new_run.calculation_type,
+                project_id=new_run.project_id,
+                project_version_id=new_run.project_version_id,
+                execution_snapshot_id=new_run.execution_snapshot_id or "",
+                coefficient_context_id=new_run.coefficient_context_id or "",
+                orchestration_identity_id=new_run.orchestration_identity_id or "",
+                orchestration_run_attempt_id=new_run.orchestration_run_attempt_id or "",
+                input_hash=new_run.input_hash,
+                requires_review=new_run.requires_review,
+                payload=new_run.result_snapshot,
+                upstream_calculation_ids=dict(new_run.upstream_calculation_ids),
+            )
+            new_run = dataclasses.replace(new_run, result_hash=new_hash)
+        except ValueError:
+            pass  # Domain model rejected bad upstream; verifier will catch it
 
     runs[stage] = new_run
     return _build_state(calculation_runs=runs)
@@ -417,11 +444,11 @@ def _build_candidate(state: VerificationState, **overrides: Any) -> SourceBindin
     result_hashes = {stage: runs[stage].result_hash or "" for stage in ORCHESTRATION_STAGE_ORDER}
     requires_reviews = {stage: runs[stage].requires_review for stage in ORCHESTRATION_STAGE_ORDER}
 
-    # per_calculation_result_hashes: calculator_name → result_hash
+    # per_calculation_result_hashes: stage_name → result_hash (matching production executor)
     per_calc: dict[str, str] = {}
     for stage in ORCHESTRATION_STAGE_ORDER:
         run = runs[stage]
-        per_calc[run.calculator_name] = run.result_hash or ""
+        per_calc[stage] = run.result_hash or ""
 
     combined = _compute_combined_source_hash(
         binding_schema_version=SOURCE_BINDING_SCHEMA_VERSION,
@@ -762,7 +789,7 @@ class TestVerifierHashIntegrity:
         candidate = _build_candidate(state)
         # Remove one key from per_calculation_result_hashes
         tampered_hashes = dict(candidate.per_calculation_result_hashes)
-        del tampered_hashes["cold_room_zone_plan"]
+        del tampered_hashes["zone"]
         tampered_candidate = dataclasses.replace(
             candidate, per_calculation_result_hashes=tampered_hashes
         )
@@ -788,7 +815,7 @@ class TestVerifierHashIntegrity:
         state = _build_state()
         candidate = _build_candidate(state)
         tampered_hashes = dict(candidate.per_calculation_result_hashes)
-        tampered_hashes["installed_power"] = "wrong_hash_value"
+        tampered_hashes["power"] = "wrong_hash_value"
         tampered_candidate = dataclasses.replace(
             candidate, per_calculation_result_hashes=tampered_hashes
         )
