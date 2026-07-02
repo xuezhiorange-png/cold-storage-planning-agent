@@ -9,6 +9,8 @@ Covers:
 - Approved revision immutability (P0-3)
 - Concurrent approval conflict (P0-3)
 - Seed consistency mismatch rejection (P0-3)
+- Authority table concurrent safety (P0-2)
+- Database-level immutability triggers (P0-3)
 """
 
 from __future__ import annotations
@@ -1483,6 +1485,643 @@ class TestSeedConsistency:
         session.commit()
 
         # Still exactly one revision
+        count = session.execute(
+            select(func.count()).select_from(SchemeWeightSetRevisionRecord)
+        ).scalar_one()
+        assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# SQLite immutability trigger helper
+# ---------------------------------------------------------------------------
+
+
+def _create_sqlite_immutability_trigger(engine: Any) -> None:
+    """Create the BEFORE UPDATE trigger for approved revision immutability.
+
+    This mirrors the trigger created in migration 0032 but is applied
+    directly to a test engine so tests can verify trigger behaviour
+    without running Alembic.
+    """
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TRIGGER trg_immutable_weight_revision"
+                " BEFORE UPDATE ON scheme_weight_set_revisions"
+                " FOR EACH ROW WHEN OLD.status"
+                " = 'approved' AND ("
+                " NOT (NEW.content IS OLD.content)"
+                " OR NOT (NEW.content_hash"
+                "   IS OLD.content_hash)"
+                " OR NOT (NEW.code IS OLD.code)"
+                " OR NOT (NEW.revision IS OLD.revision)"
+                " OR NOT (NEW.weight_set_id"
+                "   IS OLD.weight_set_id)"
+                " OR NOT (NEW.generator_compatibility_version"
+                "   IS OLD.generator_compatibility_version)"
+                ") BEGIN SELECT RAISE(ABORT,"
+                " 'approved revision immutability:"
+                " immutable fields'); END;"
+            )
+        )
+
+
+# ---------------------------------------------------------------------------
+# Database-level immutability triggers (P0-3)
+# ---------------------------------------------------------------------------
+
+
+class TestApprovedImmutabilityTrigger:
+    """Test that BEFORE UPDATE triggers reject direct ORM/SQL writes
+    to immutable fields of approved revisions.
+
+    Uses a dedicated engine fixture with the trigger created.
+    """
+
+    @pytest.fixture()
+    def trigger_engine(self):
+        """In-memory SQLite engine with tables AND immutability trigger."""
+        eng = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(eng)
+        _create_sqlite_immutability_trigger(eng)
+        yield eng
+        eng.dispose()
+
+    @pytest.fixture()
+    def trigger_session(self, trigger_engine) -> Session:
+        factory = sessionmaker(bind=trigger_engine, expire_on_commit=False)
+        sess = factory()
+        yield sess
+        sess.close()
+
+    def _create_approved(self, session: Session) -> None:
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-trig-001",
+            code="trig-test",
+            name="Trig Test",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-trig-001",
+            weight_set_id="ws-trig-001",
+            code="trig-test",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="tester",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+    def test_orm_update_content_rejected(self, trigger_session) -> None:
+        """Direct ORM update of content on approved revision is rejected."""
+        self._create_approved(trigger_session)
+
+        from sqlalchemy import select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRevisionRecord,
+        )
+
+        rev = trigger_session.execute(
+            select(SchemeWeightSetRevisionRecord).where(
+                SchemeWeightSetRevisionRecord.id == "rev-trig-001"
+            )
+        ).scalar_one()
+        rev.content = {**_VALID_CONTENT, "version": "HACKED"}
+        with pytest.raises(sa_exc.IntegrityError):
+            trigger_session.flush()
+
+    def test_orm_update_code_rejected(self, trigger_session) -> None:
+        """Direct ORM update of code on approved revision is rejected."""
+        self._create_approved(trigger_session)
+
+        from sqlalchemy import select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRevisionRecord,
+        )
+
+        rev = trigger_session.execute(
+            select(SchemeWeightSetRevisionRecord).where(
+                SchemeWeightSetRevisionRecord.id == "rev-trig-001"
+            )
+        ).scalar_one()
+        rev.code = "HACKED-CODE"
+        with pytest.raises(sa_exc.IntegrityError):
+            trigger_session.flush()
+
+    def test_sql_update_content_rejected(self, trigger_session) -> None:
+        """Direct SQL UPDATE of content on approved revision is rejected."""
+        self._create_approved(trigger_session)
+
+        from sqlalchemy import text
+
+        with pytest.raises(sa_exc.IntegrityError):
+            trigger_session.execute(
+                text(
+                    "UPDATE scheme_weight_set_revisions "
+                    "SET content = '{\"hacked\": true}' "
+                    "WHERE id = 'rev-trig-001'"
+                )
+            )
+
+    def test_sql_update_content_hash_rejected(self, trigger_session) -> None:
+        """Direct SQL UPDATE of content_hash on approved revision is rejected."""
+        self._create_approved(trigger_session)
+
+        from sqlalchemy import text
+
+        with pytest.raises(sa_exc.IntegrityError):
+            trigger_session.execute(
+                text(
+                    "UPDATE scheme_weight_set_revisions "
+                    "SET content_hash = 'hacked' "
+                    "WHERE id = 'rev-trig-001'"
+                )
+            )
+
+    def test_approved_to_superseded_allowed(self, trigger_session) -> None:
+        """Status change approved → superseded is allowed (immutable fields unchanged)."""
+        self._create_approved(trigger_session)
+
+        from sqlalchemy import select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRevisionRecord,
+        )
+
+        rev = trigger_session.execute(
+            select(SchemeWeightSetRevisionRecord).where(
+                SchemeWeightSetRevisionRecord.id == "rev-trig-001"
+            )
+        ).scalar_one()
+        rev.status = "superseded"
+        trigger_session.flush()
+        trigger_session.commit()
+
+        # Verify status changed
+        updated = trigger_session.execute(
+            select(SchemeWeightSetRevisionRecord).where(
+                SchemeWeightSetRevisionRecord.id == "rev-trig-001"
+            )
+        ).scalar_one()
+        assert updated.status == "superseded"
+
+    def test_approved_to_revoked_allowed(self, trigger_session) -> None:
+        """Status change approved → revoked is allowed."""
+        self._create_approved(trigger_session)
+
+        from sqlalchemy import select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRevisionRecord,
+        )
+
+        rev = trigger_session.execute(
+            select(SchemeWeightSetRevisionRecord).where(
+                SchemeWeightSetRevisionRecord.id == "rev-trig-001"
+            )
+        ).scalar_one()
+        rev.status = "revoked"
+        trigger_session.flush()
+        trigger_session.commit()
+
+        updated = trigger_session.execute(
+            select(SchemeWeightSetRevisionRecord).where(
+                SchemeWeightSetRevisionRecord.id == "rev-trig-001"
+            )
+        ).scalar_one()
+        assert updated.status == "revoked"
+
+    def test_draft_update_allowed(self, trigger_session) -> None:
+        """Draft revisions can be freely modified (trigger only fires for approved)."""
+        from sqlalchemy import select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-trig-002",
+            code="trig-draft",
+            name="Trig Draft",
+            revision=1,
+            status="draft",
+            source_type="system",
+            criteria=[],
+        )
+        trigger_session.add(ws)
+        trigger_session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-trig-002",
+            weight_set_id="ws-trig-002",
+            code="trig-draft",
+            revision=1,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        trigger_session.add(rev)
+        trigger_session.flush()
+        trigger_session.commit()
+
+        # Modify draft — should succeed
+        rev.content = {**_VALID_CONTENT, "version": "MODIFIED"}
+        trigger_session.flush()
+        trigger_session.commit()
+
+        updated = trigger_session.execute(
+            select(SchemeWeightSetRevisionRecord).where(
+                SchemeWeightSetRevisionRecord.id == "rev-trig-002"
+            )
+        ).scalar_one()
+        assert updated.content["version"] == "MODIFIED"
+
+
+# ---------------------------------------------------------------------------
+# Concurrent approval with authority table (P0-2)
+# ---------------------------------------------------------------------------
+
+
+class TestConcurrentApprovalWithAuthority:
+    """Two independent SQLite connections try to approve different drafts
+    for the same weight_set_id + code.  Exactly one wins, one gets a
+    structured conflict.  The authority row points to the winner.
+    """
+
+    def test_concurrent_approval_one_wins(self, tmp_path) -> None:
+        """File-based SQLite: two threads race to approve; exactly one wins."""
+        import threading
+
+        from sqlalchemy import text
+
+        db_path = str(tmp_path / "conc.db")
+
+        # 1. Create DB with all tables + trigger
+        setup_engine = create_engine(f"sqlite:///{db_path}")
+        Base.metadata.create_all(setup_engine)
+        _create_sqlite_immutability_trigger(setup_engine)
+
+        # 2. Insert parent weight set + two draft revisions
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        with setup_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_weight_sets"
+                    " (id, code, name, revision, status,"
+                    " source_type, criteria, requires_review,"
+                    " created_at)"
+                    " VALUES ('ws-conc-auth', 'conc-auth',"
+                    " 'Conc Auth', 1, 'draft',"
+                    " 'system', '[]', 0, :ts)"
+                ),
+                {"ts": now},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_weight_set_revisions"
+                    " (id, weight_set_id, code, revision,"
+                    " status, content, content_hash,"
+                    " generator_compatibility_version,"
+                    " created_at)"
+                    " VALUES ('rev-conc-A', 'ws-conc-auth',"
+                    " 'conc-auth', 1, 'draft',"
+                    " '{}', 'hash-A', '1.0.0', :ts)"
+                ),
+                {"ts": now},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_weight_set_revisions"
+                    " (id, weight_set_id, code, revision,"
+                    " status, content, content_hash,"
+                    " generator_compatibility_version,"
+                    " created_at)"
+                    " VALUES ('rev-conc-B', 'ws-conc-auth',"
+                    " 'conc-auth', 2, 'draft',"
+                    " '{}', 'hash-B', '1.0.0', :ts)"
+                ),
+                {"ts": now},
+            )
+        setup_engine.dispose()
+
+        # 3. Two threads race to approve
+        barrier = threading.Barrier(2, timeout=10)
+        results: list[bool | None] = [None, None]
+
+        def _approve(index: int, rev_id: str) -> None:
+            eng = create_engine(
+                f"sqlite:///{db_path}",
+                connect_args={"check_same_thread": False, "timeout": 30},
+            )
+            factory = sessionmaker(bind=eng, expire_on_commit=False)
+            sess = factory()
+            try:
+                barrier.wait()  # synchronize before racing
+                adapter = SqlAlchemyWeightRevisionApprovalAdapter()
+                results[index] = adapter.approve_revision(
+                    sess,
+                    revision_id=rev_id,
+                    content={"concurrent": True},
+                    approved_at=datetime.now(UTC),
+                    approved_by=f"user-{index}",
+                )
+                sess.commit()
+            except Exception:
+                sess.rollback()
+                results[index] = False
+            finally:
+                sess.close()
+                eng.dispose()
+
+        t1 = threading.Thread(target=_approve, args=(0, "rev-conc-A"))
+        t2 = threading.Thread(target=_approve, args=(1, "rev-conc-B"))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        # 4. Exactly one should have succeeded
+        assert sum(1 for r in results if r is True) == 1, (
+            f"Expected exactly 1 winner, got results={results}"
+        )
+
+        # 5. Verify: exactly one approved in DB
+        verify_engine = create_engine(f"sqlite:///{db_path}")
+        with verify_engine.begin() as conn:
+            from sqlalchemy import text
+
+            approved_count = conn.execute(
+                text(
+                    "SELECT COUNT(*) FROM scheme_weight_set_revisions "
+                    "WHERE weight_set_id = 'ws-conc-auth' "
+                    "AND code = 'conc-auth' "
+                    "AND status = 'approved'"
+                )
+            ).scalar_one()
+            assert approved_count == 1
+
+            # 6. Authority row points to the winner
+            auth_row = conn.execute(
+                text(
+                    "SELECT approved_revision_id "
+                    "FROM scheme_weight_set_active_revisions "
+                    "WHERE weight_set_id = 'ws-conc-auth' "
+                    "AND code = 'conc-auth'"
+                )
+            ).fetchone()
+            assert auth_row is not None
+            winner_id = auth_row[0]
+            assert winner_id in ("rev-conc-A", "rev-conc-B")
+
+            # Verify the authority row points to the actual approved revision
+            approved_rev = conn.execute(
+                text(
+                    "SELECT id FROM scheme_weight_set_revisions "
+                    "WHERE status = 'approved' "
+                    "AND weight_set_id = 'ws-conc-auth' "
+                    "AND code = 'conc-auth'"
+                )
+            ).scalar_one()
+            assert winner_id == approved_rev
+
+        verify_engine.dispose()
+
+    def test_authority_table_prevents_double_approve(self, session, adapter) -> None:
+        """Authority table prevents approving two revisions for same weight_set_id+code."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-auth-001",
+            code="auth-test",
+            name="Auth Test",
+            revision=1,
+            status="draft",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev_a = SchemeWeightSetRevisionRecord(
+            id="rev-auth-A",
+            weight_set_id="ws-auth-001",
+            code="auth-test",
+            revision=1,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        rev_b = SchemeWeightSetRevisionRecord(
+            id="rev-auth-B",
+            weight_set_id="ws-auth-001",
+            code="auth-test",
+            revision=2,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        session.add(rev_a)
+        session.add(rev_b)
+        session.flush()
+        session.commit()
+
+        now = datetime.now(UTC)
+
+        # Approve A — should succeed
+        result_a = adapter.approve_revision(
+            session,
+            revision_id="rev-auth-A",
+            content=_VALID_CONTENT,
+            approved_at=now,
+            approved_by="user-A",
+        )
+        assert result_a is True
+        session.commit()
+
+        # Approve B — should fail (authority conflict)
+        result_b = adapter.approve_revision(
+            session,
+            revision_id="rev-auth-B",
+            content=_VALID_CONTENT,
+            approved_at=now,
+            approved_by="user-B",
+        )
+        assert result_b is False
+
+        # Verify authority row points to A
+        from sqlalchemy import text
+
+        auth_row = session.execute(
+            text(
+                "SELECT approved_revision_id "
+                "FROM scheme_weight_set_active_revisions "
+                "WHERE weight_set_id = 'ws-auth-001' "
+                "AND code = 'auth-test'"
+            )
+        ).fetchone()
+        assert auth_row is not None
+        assert auth_row[0] == "rev-auth-A"
+
+    def test_authority_cleaned_on_supersede(self, session, adapter) -> None:
+        """Authority row is removed when approved revision is superseded."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-auth-super",
+            code="auth-super",
+            name="Auth Super",
+            revision=1,
+            status="draft",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-auth-super",
+            weight_set_id="ws-auth-super",
+            code="auth-super",
+            revision=1,
+            status="draft",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+        now = datetime.now(UTC)
+        adapter.approve_revision(
+            session,
+            revision_id="rev-auth-super",
+            content=_VALID_CONTENT,
+            approved_at=now,
+            approved_by="tester",
+        )
+        session.commit()
+
+        # Verify authority row exists
+        from sqlalchemy import text
+
+        auth_row = session.execute(
+            text(
+                "SELECT approved_revision_id "
+                "FROM scheme_weight_set_active_revisions "
+                "WHERE weight_set_id = 'ws-auth-super'"
+            )
+        ).fetchone()
+        assert auth_row is not None
+        assert auth_row[0] == "rev-auth-super"
+
+        # Supersede
+        adapter.change_status(
+            session,
+            revision_id="rev-auth-super",
+            target_status="superseded",
+        )
+        session.commit()
+
+        # Verify authority row is gone
+        auth_row_after = session.execute(
+            text(
+                "SELECT approved_revision_id "
+                "FROM scheme_weight_set_active_revisions "
+                "WHERE weight_set_id = 'ws-auth-super'"
+            )
+        ).fetchone()
+        assert auth_row_after is None
+
+    def test_seed_consistency_with_existing_approved(self, session, adapter) -> None:
+        """Seed with matching approved revision is a no-op, no authority conflict."""
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRecord,
+            SchemeWeightSetRevisionRecord,
+        )
+
+        ws = SchemeWeightSetRecord(
+            id="ws-seed-auth",
+            code="seed-auth",
+            name="Seed Auth",
+            revision=1,
+            status="approved",
+            source_type="system",
+            criteria=[],
+        )
+        session.add(ws)
+        session.flush()
+
+        rev = SchemeWeightSetRevisionRecord(
+            id="rev-seed-auth",
+            weight_set_id="ws-seed-auth",
+            code="seed-auth",
+            revision=1,
+            status="approved",
+            content=_VALID_CONTENT,
+            content_hash=_VALID_CONTENT_HASH,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="original-seeder",
+        )
+        session.add(rev)
+        session.flush()
+        session.commit()
+
+        # Seed with identical fields — should be a no-op
+        adapter.seed_if_not_exists(
+            session,
+            weight_set_id="ws-seed-auth",
+            code="seed-auth",
+            name="Seed Auth",
+            revision_id="rev-seed-auth",
+            revision=1,
+            content=_VALID_CONTENT,
+            generator_compatibility_version="1.0.0",
+            approved_at=datetime.now(UTC),
+            approved_by="original-seeder",
+        )
+        session.commit()
+
+        # Still exactly one revision
+        from sqlalchemy import func, select
+
         count = session.execute(
             select(func.count()).select_from(SchemeWeightSetRevisionRecord)
         ).scalar_one()

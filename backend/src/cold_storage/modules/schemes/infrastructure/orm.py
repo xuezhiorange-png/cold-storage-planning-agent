@@ -88,6 +88,25 @@ class SchemeWeightSetRecord(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class SchemeWeightSetActiveRevisionRecord(Base):
+    """Active-approved authority table.
+
+    Tracks which revision is currently approved for each weight_set_id + code.
+    The composite primary key (weight_set_id, code) provides atomic
+    concurrent-safety: only one revision can be approved for a given
+    weight_set_id + code at a time.
+    """
+
+    __tablename__ = "scheme_weight_set_active_revisions"
+
+    weight_set_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    code: Mapped[str] = mapped_column(String(120), primary_key=True)
+    approved_revision_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+
 class SchemeRunRecord(Base):
     __tablename__ = "scheme_runs"
     __table_args__ = (
