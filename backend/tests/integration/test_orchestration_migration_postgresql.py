@@ -1051,10 +1051,21 @@ class TestDowngradeBlocker:
                     "created_at, source_mode, source_binding_id, "
                     "source_contract_version, weight_set_revision_id, "
                     "weight_set_content_hash, weight_set_generator_compatibility_version, "
-                    "combined_source_hash) "
+                    "combined_source_hash, binding_schema_version, "
+                    "execution_snapshot_id, coefficient_context_id, "
+                    "orchestration_identity_id, authoritative_attempt_id, "
+                    "orchestration_fingerprint, zone_calculation_id, "
+                    "cooling_load_calculation_id, equipment_calculation_id, "
+                    "power_calculation_id, investment_calculation_id, "
+                    "zone_result_hash, cooling_load_result_hash, "
+                    "equipment_result_hash, power_result_hash, "
+                    "investment_result_hash) "
                     "VALUES (:id, :pid, :pvid, :wsid, '1.0', 'h1', 'pending', false, "
                     "'{}', '{}', '{}', '{}', '[]', now(), 'production', :src_bid, "
-                    "'1.0', :wsrid, 'h1', '1.0', 'h1')"
+                    "'1.0', :wsrid, 'h1', '1.0', 'h1', '1.0', "
+                    ":eid, :cid_ctx, :oid, :aid, "
+                    "'fp', :zid, :clid, :eqid, :pwid, :ivid, "
+                    "'h1', 'h1', 'h1', 'h1', 'h1')"
                 ),
                 {
                     "id": srid,
@@ -1063,6 +1074,15 @@ class TestDowngradeBlocker:
                     "wsid": wsid,
                     "src_bid": src_bid,
                     "wsrid": wsrid,
+                    "eid": eid,
+                    "cid_ctx": cid_ctx,
+                    "oid": oid,
+                    "aid": aid,
+                    "zid": calc_ids[0],
+                    "clid": calc_ids[1],
+                    "eqid": calc_ids[2],
+                    "pwid": calc_ids[3],
+                    "ivid": calc_ids[4],
                 },
             )
             conn.commit()
