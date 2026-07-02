@@ -29,6 +29,9 @@ from cold_storage.modules.orchestration.application.source_snapshots import (
     PowerSourceSnapshotV1,
     ZoneSourceSnapshotV1,
 )
+from cold_storage.modules.orchestration.application.transaction_b import (
+    StageExecutionResult,
+)
 from cold_storage.modules.orchestration.domain.contracts import (
     AttemptStatus,
     OrchestrationRequestCommand,
@@ -244,6 +247,77 @@ _CALCULATOR_OUTPUTS: dict[str, dict[str, Any]] = {
         ],
     },
 }
+
+# ── Calculator port data ─────────────────────────────────────────────────
+
+_STAGE_DATA: dict[str, tuple[str, str, str]] = {
+    "zone": ("cold_room_zone_plan", "1.0.0", "zone"),
+    "cooling_load": ("cooling_load", "1.0.0", "cooling_load"),
+    "equipment": ("equipment", "1.0.0", "equipment"),
+    "power": ("installed_power", "1.0.0", "power"),
+    "investment": ("investment_estimate", "1.0.0", "investment"),
+}
+
+
+class _GoldenCalculatorPort:
+    """Mock CalculatorPort returning deterministic golden outputs for each stage."""
+
+    def execute_stage(
+        self,
+        *,
+        stage_name: str,
+        execution_snapshot: dict[str, Any],
+        coefficient_context: dict[str, Any],
+        upstream_results: dict[str, Any],
+    ) -> StageExecutionResult:
+        calc_name, calc_version, calc_type = _STAGE_DATA[stage_name]
+        return StageExecutionResult(
+            calculator_name=calc_name,
+            calculator_version=calc_version,
+            calculation_type=calc_type,
+            result_snapshot=dict(_CALCULATOR_OUTPUTS[stage_name]),
+            formulas=[
+                {
+                    "formula_id": f"form-{stage_name}-01",
+                    "formula_version": "1.0.0",
+                    "expression": f"Q = m * cp * dT ({stage_name})",
+                    "description": f"Heat load calculation for {stage_name}",
+                }
+            ],
+            coefficients=[
+                {
+                    "code": "pallet.net_load_kg",
+                    "value": "1000",
+                    "unit": "kg",
+                    "status": "approved",
+                    "source_type": "catalog",
+                    "source_reference": "standard-table-1",
+                    "requires_review": False,
+                    "revision_id": "rev-001",
+                }
+            ],
+            assumptions=[f"Assumption for {stage_name}: standard operating conditions"],
+            warnings=[
+                {
+                    "code": f"WARN_{stage_name.upper()}",
+                    "message": f"Review {stage_name} calculation values",
+                    "details": {},
+                }
+            ],
+            source_references=[
+                {
+                    "source_type": "standard",
+                    "source_reference": f"GB-{stage_name}-2024",
+                    "version": "2024",
+                    "validity_status": "approved",
+                    "approval_status": "approved",
+                    "requires_review": False,
+                    "notes": "",
+                }
+            ],
+            requires_review=False,
+        )
+
 
 # ── Shared traceability fixtures ──────────────────────────────────────────
 

@@ -1371,3 +1371,502 @@ class TestPostgresSeedIdempotency:
             assert rec2.source_mode == "production"
         finally:
             verify_s.close()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 10. Transaction B → Production scheme end-to-end (golden data)
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def _pg_compute_domain_hash(
+    *,
+    stage: str,
+    result_snapshot: dict[str, Any],
+    run_id: str,
+) -> str:
+    """Compute domain SourceSnapshotContentV1 result_hash for a stage.
+
+    This is the SAME hash the production verifier recomputes.
+    """
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        result_hash as _domain_result_hash,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotContentV1 as DomainSourceSnapshotContentV1,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotProvenanceV1,
+    )
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _coerce_payload_for_hashing,
+    )
+    from tests.integration.transaction_b_golden import (
+        GOLDEN_ATTEMPT_ID,
+        GOLDEN_COEFFICIENT_CONTEXT_ID,
+        GOLDEN_ORCHESTRATION_IDENTITY_ID,
+        GOLDEN_SNAPSHOT_ID,
+    )
+
+    _PG_SLOT_UPSTREAM_IDS: dict[str, dict[str, str]] = {
+        "zone": {},
+        "cooling_load": {"zone": "golden-run-zone-001"},
+        "equipment": {"cooling_load": "golden-run-cooling-load-001"},
+        "power": {"equipment": "golden-run-equipment-001"},
+        "investment": {
+            "zone": "golden-run-zone-001",
+            "power": "golden-run-power-001",
+        },
+    }
+
+    provenance = SourceSnapshotProvenanceV1(
+        execution_snapshot_id=GOLDEN_SNAPSHOT_ID,
+        coefficient_context_id=GOLDEN_COEFFICIENT_CONTEXT_ID,
+        orchestration_identity_id=GOLDEN_ORCHESTRATION_IDENTITY_ID,
+        orchestration_run_attempt_id=GOLDEN_ATTEMPT_ID,
+        upstream_calculation_ids=_PG_SLOT_UPSTREAM_IDS.get(stage, {}),
+    )
+    from tests.integration.transaction_b_golden import _CALCULATOR_META as _gm
+
+    content = DomainSourceSnapshotContentV1(
+        schema_version="1.0.0",
+        calculation_type=stage,
+        calculator_name=_gm[stage]["calculator_id"],
+        calculator_version=_gm[stage]["calculator_version"],
+        project_id="golden-p-001",
+        project_version_id="golden-pv-001",
+        execution_snapshot_id=GOLDEN_SNAPSHOT_ID,
+        coefficient_context_id=GOLDEN_COEFFICIENT_CONTEXT_ID,
+        orchestration_identity_id=GOLDEN_ORCHESTRATION_IDENTITY_ID,
+        orchestration_run_attempt_id=GOLDEN_ATTEMPT_ID,
+        input_hash="pg-e2e-input-hash",
+        requires_review=False,
+        payload=_coerce_payload_for_hashing(result_snapshot),
+        provenance=provenance,
+    )
+    return _domain_result_hash(content)
+
+
+class TestPostgresProductionTransactionBE2E:
+    """Real Transaction B golden data drives production scheme on PostgreSQL.
+
+    Uses golden calculator outputs from _CALCULATOR_OUTPUTS, golden IDs from
+    FixedTransactionBIdFactory, and _seed_golden_prerequisites from the shared
+    golden module.
+    """
+
+    def test_transaction_b_to_production_e2e(self, pg_session_factory, pg_engine) -> None:
+        assert pg_engine.dialect.name == "postgresql"
+
+        from tests.integration.transaction_b_golden import (
+            _CALCULATOR_OUTPUTS,
+            GOLDEN_ATTEMPT_ID,
+            GOLDEN_COEFFICIENT_CONTEXT_ID,
+            GOLDEN_FINGERPRINT,
+            GOLDEN_ORCHESTRATION_IDENTITY_ID,
+            GOLDEN_PROJECT_ID,
+            GOLDEN_PROJECT_VERSION_ID,
+            GOLDEN_SNAPSHOT_ID,
+            _seed_golden_prerequisites,
+            load_cross_backend_golden,
+        )
+
+        # ── Step 1: Seed golden prerequisites ────────────────────────────
+        seed_s = pg_session_factory()
+        try:
+            _seed_golden_prerequisites(seed_s)
+
+            # Link identity → attempt (authoritative_attempt_id must be non-NULL)
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                OrchestrationIdentityRecord,
+                OrchestrationRunAttemptRecord,
+            )
+
+            identity_rec = seed_s.execute(
+                select(OrchestrationIdentityRecord).where(
+                    OrchestrationIdentityRecord.id == GOLDEN_ORCHESTRATION_IDENTITY_ID
+                )
+            ).scalar_one_or_none()
+            if identity_rec is not None and identity_rec.authoritative_attempt_id is None:
+                identity_rec.authoritative_attempt_id = GOLDEN_ATTEMPT_ID
+                seed_s.commit()
+
+            # Mark attempt as COMPLETED
+            attempt_rec = seed_s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == GOLDEN_ATTEMPT_ID
+                )
+            ).scalar_one_or_none()
+            if attempt_rec is not None and attempt_rec.status != "COMPLETED":
+                from cold_storage.modules.orchestration.domain.contracts import AttemptStatus
+
+                attempt_rec.status = AttemptStatus.COMPLETED
+                seed_s.commit()
+        finally:
+            seed_s.close()
+
+        # ── Step 2: Seed 5 CalculationRuns with golden data ──────────────
+        _PG_ZONE_RUN_ID = "golden-run-zone-001"
+        _PG_COOL_RUN_ID = "golden-run-cooling-load-001"
+        _PG_EQUIP_RUN_ID = "golden-run-equipment-001"
+        _PG_POWER_RUN_ID = "golden-run-power-001"
+        _PG_INVEST_RUN_ID = "golden-run-investment-001"
+        _PG_SOURCE_BINDING_ID = "golden-source-binding-001"
+        _PG_WEIGHT_SET_ID = "golden-ws-001"
+        _PG_WEIGHT_REVISION_ID = "golden-wrev-001"
+
+        _pg_run_ids = {
+            "zone": _PG_ZONE_RUN_ID,
+            "cooling_load": _PG_COOL_RUN_ID,
+            "equipment": _PG_EQUIP_RUN_ID,
+            "power": _PG_POWER_RUN_ID,
+            "investment": _PG_INVEST_RUN_ID,
+        }
+        _pg_calc_names = {
+            "zone": "cold_room_zone_plan",
+            "cooling_load": "cooling_load",
+            "equipment": "equipment",
+            "power": "installed_power",
+            "investment": "investment_estimate",
+        }
+        _pg_calc_types = {
+            "zone": "zone",
+            "cooling_load": "cooling_load",
+            "equipment": "equipment",
+            "power": "power",
+            "investment": "investment",
+        }
+        _pg_upstream = {
+            "zone": {},
+            "cooling_load": {"zone": _PG_ZONE_RUN_ID},
+            "equipment": {"cooling_load": _PG_COOL_RUN_ID},
+            "power": {"equipment": _PG_EQUIP_RUN_ID},
+            "investment": {"zone": _PG_ZONE_RUN_ID, "power": _PG_POWER_RUN_ID},
+        }
+
+        pg_calc_s = pg_session_factory()
+        try:
+            from cold_storage.modules.projects.infrastructure.orm import (
+                CalculationRunRecord,
+            )
+
+            per_calc: dict[str, str] = {}
+            for stage in ("zone", "cooling_load", "equipment", "power", "investment"):
+                run_id = _pg_run_ids[stage]
+                snap = _CALCULATOR_OUTPUTS[stage]
+                computed_hash = _pg_compute_domain_hash(
+                    stage=stage, result_snapshot=snap, run_id=run_id
+                )
+                provenance: dict[str, Any] = {
+                    "stage": stage,
+                    "upstream_calculation_ids": _pg_upstream.get(stage, {}),
+                }
+                pg_calc_s.add(
+                    CalculationRunRecord(
+                        id=run_id,
+                        project_id=GOLDEN_PROJECT_ID,
+                        project_version_id=GOLDEN_PROJECT_VERSION_ID,
+                        calculator_name=_pg_calc_names[stage],
+                        calculator_version="1.0.0",
+                        input_snapshot={},
+                        result_snapshot=snap,
+                        formulas=[],
+                        coefficients=[],
+                        assumptions=[],
+                        warnings=[],
+                        source_references=[],
+                        requires_review=False,
+                        calculation_type=_pg_calc_types[stage],
+                        orchestration_identity_id=GOLDEN_ORCHESTRATION_IDENTITY_ID,
+                        orchestration_run_attempt_id=GOLDEN_ATTEMPT_ID,
+                        execution_snapshot_id=GOLDEN_SNAPSHOT_ID,
+                        coefficient_context_id=GOLDEN_COEFFICIENT_CONTEXT_ID,
+                        input_hash="pg-e2e-input-hash",
+                        result_hash=computed_hash,
+                        provenance=provenance,
+                        schema_version="1.0.0",
+                        orchestration_fingerprint=GOLDEN_FINGERPRINT,
+                        created_at=datetime.now(UTC),
+                    )
+                )
+                per_calc[stage] = computed_hash
+            pg_calc_s.commit()
+        finally:
+            pg_calc_s.close()
+
+        # ── Step 3: Seed SourceBinding ────────────────────────────────────
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            _compute_combined_source_hash,
+        )
+
+        golden_combined = _compute_combined_source_hash(
+            binding_schema_version="1.0.0",
+            project_id=GOLDEN_PROJECT_ID,
+            project_version_id=GOLDEN_PROJECT_VERSION_ID,
+            execution_snapshot_id=GOLDEN_SNAPSHOT_ID,
+            coefficient_context_id=GOLDEN_COEFFICIENT_CONTEXT_ID,
+            orchestration_identity_id=GOLDEN_ORCHESTRATION_IDENTITY_ID,
+            orchestration_attempt_id=GOLDEN_ATTEMPT_ID,
+            orchestration_fingerprint=GOLDEN_FINGERPRINT,
+            slot_ids=_pg_run_ids,
+            result_hashes=per_calc,
+            requires_reviews={
+                stage: False
+                for stage in ("zone", "cooling_load", "equipment", "power", "investment")
+            },
+        )
+
+        pg_bind_s = pg_session_factory()
+        try:
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                SourceBindingRecord as SBRecord,
+            )
+
+            pg_bind_s.add(
+                SBRecord(
+                    id=_PG_SOURCE_BINDING_ID,
+                    project_id=GOLDEN_PROJECT_ID,
+                    project_version_id=GOLDEN_PROJECT_VERSION_ID,
+                    execution_snapshot_id=GOLDEN_SNAPSHOT_ID,
+                    coefficient_context_id=GOLDEN_COEFFICIENT_CONTEXT_ID,
+                    orchestration_identity_id=GOLDEN_ORCHESTRATION_IDENTITY_ID,
+                    orchestration_run_attempt_id=GOLDEN_ATTEMPT_ID,
+                    orchestration_fingerprint=GOLDEN_FINGERPRINT,
+                    zone_calculation_id=_PG_ZONE_RUN_ID,
+                    cooling_load_calculation_id=_PG_COOL_RUN_ID,
+                    equipment_calculation_id=_PG_EQUIP_RUN_ID,
+                    power_calculation_id=_PG_POWER_RUN_ID,
+                    investment_calculation_id=_PG_INVEST_RUN_ID,
+                    per_calculation_result_hashes=per_calc,
+                    combined_source_hash=golden_combined,
+                    schema_version="1.0.0",
+                    created_at=datetime.now(UTC),
+                )
+            )
+            pg_bind_s.commit()
+
+            # Link attempt → source binding
+            attempt_rec = pg_bind_s.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == GOLDEN_ATTEMPT_ID
+                )
+            ).scalar_one_or_none()
+            if attempt_rec is not None and attempt_rec.source_binding_id is None:
+                attempt_rec.source_binding_id = _PG_SOURCE_BINDING_ID
+                pg_bind_s.commit()
+        finally:
+            pg_bind_s.close()
+
+        # ── Step 4: Seed weight set ──────────────────────────────────────
+        _WEIGHT_CRITERIA_RAW: list[dict[str, Any]] = [
+            {
+                "criterion_code": "total_area_m2",
+                "weight": "0.20",
+                "direction": "lower_is_better",
+                "normalization_method": "min_max",
+                "hard_constraint": False,
+            },
+            {
+                "criterion_code": "investment_cny",
+                "weight": "0.30",
+                "direction": "lower_is_better",
+                "normalization_method": "min_max",
+                "hard_constraint": False,
+            },
+            {
+                "criterion_code": "total_position_count",
+                "weight": "0.15",
+                "direction": "higher_is_better",
+                "normalization_method": "min_max",
+                "hard_constraint": False,
+            },
+            {
+                "criterion_code": "room_module_count",
+                "weight": "0.10",
+                "direction": "lower_is_better",
+                "normalization_method": "min_max",
+                "hard_constraint": False,
+            },
+            {
+                "criterion_code": "door_count",
+                "weight": "0.05",
+                "direction": "lower_is_better",
+                "normalization_method": "min_max",
+                "hard_constraint": False,
+            },
+            {
+                "criterion_code": "partition_length_proxy_m",
+                "weight": "0.05",
+                "direction": "lower_is_better",
+                "normalization_method": "min_max",
+                "hard_constraint": False,
+            },
+            {
+                "criterion_code": "installed_power_kw_e",
+                "weight": "0.15",
+                "direction": "lower_is_better",
+                "normalization_method": "min_max",
+                "hard_constraint": False,
+            },
+        ]
+        _WEIGHT_REVISION_CONTENT: dict[str, Any] = {"criteria": _WEIGHT_CRITERIA_RAW}
+        _WEIGHT_CONTENT_HASH = _compute_weight_content_hash(_WEIGHT_REVISION_CONTENT)
+
+        pg_ws_s = pg_session_factory()
+        try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeWeightSetRecord,
+                SchemeWeightSetRevisionRecord,
+            )
+
+            existing_ws = pg_ws_s.execute(
+                select(SchemeWeightSetRecord).where(SchemeWeightSetRecord.id == _PG_WEIGHT_SET_ID)
+            ).scalar_one_or_none()
+            if existing_ws is None:
+                pg_ws_s.add(
+                    SchemeWeightSetRecord(
+                        id=_PG_WEIGHT_SET_ID,
+                        code="pg-golden-standard-weights",
+                        name="PG golden standard weights",
+                        revision=1,
+                        status="approved",
+                        source_type="production",
+                        criteria=_WEIGHT_CRITERIA_RAW,
+                        requires_review=False,
+                        created_at=datetime.now(UTC),
+                        approved_at=datetime.now(UTC),
+                    )
+                )
+            existing_rev = pg_ws_s.execute(
+                select(SchemeWeightSetRevisionRecord).where(
+                    SchemeWeightSetRevisionRecord.id == _PG_WEIGHT_REVISION_ID
+                )
+            ).scalar_one_or_none()
+            if existing_rev is None:
+                pg_ws_s.add(
+                    SchemeWeightSetRevisionRecord(
+                        id=_PG_WEIGHT_REVISION_ID,
+                        weight_set_id=_PG_WEIGHT_SET_ID,
+                        code="pg-golden-standard-weights",
+                        revision=1,
+                        status="approved",
+                        content=_WEIGHT_REVISION_CONTENT,
+                        content_hash=_WEIGHT_CONTENT_HASH,
+                        generator_compatibility_version="1.0.0",
+                        approved_at=datetime.now(UTC),
+                        approved_by="pg-golden-e2e-test",
+                        created_at=datetime.now(UTC),
+                    )
+                )
+            pg_ws_s.commit()
+        finally:
+            pg_ws_s.close()
+
+        # ── Step 5: Generate production scheme ───────────────────────────
+        from cold_storage.modules.schemes.application.production_ports import (
+            GenerateProductionSchemeCommand,
+        )
+
+        service = _make_service(pg_engine)
+        cmd = GenerateProductionSchemeCommand(
+            source_binding_id=_PG_SOURCE_BINDING_ID,
+            weight_set_revision_id=_PG_WEIGHT_REVISION_ID,
+            profile_codes=("balanced",),
+            profile_parameters={},
+            actor="pg-golden-e2e-test",
+            correlation_id="pg-golden-e2e-corr-001",
+        )
+        run = service.generate_production_scheme_run(cmd)
+
+        # ── Step 6: Verify ───────────────────────────────────────────────
+        assert run.status == "completed"
+
+        golden = load_cross_backend_golden()
+
+        verify_s = pg_session_factory()
+        try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeCandidateRecord,
+                SchemeRunRecord,
+            )
+
+            rec = verify_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one_or_none()
+            assert rec is not None
+            assert rec.status == "completed"
+            assert rec.source_mode == "production"
+            assert rec.source_binding_id == _PG_SOURCE_BINDING_ID
+            assert rec.weight_set_revision_id == _PG_WEIGHT_REVISION_ID
+            assert rec.source_contract_version == "1.0.0"
+            assert rec.combined_source_hash == golden_combined
+
+            # Verify five slot IDs match golden FixedTransactionBIdFactory IDs
+            golden_slots = golden["source_binding_slot_ids"]
+            assert rec.zone_calculation_id == golden_slots["zone"]
+            assert rec.cooling_load_calculation_id == golden_slots["cooling_load"]
+            assert rec.equipment_calculation_id == golden_slots["equipment"]
+            assert rec.power_calculation_id == golden_slots["power"]
+            assert rec.investment_calculation_id == golden_slots["investment"]
+
+            # Verify result hashes on SchemeRun match domain hashes
+            assert rec.zone_result_hash == per_calc["zone"]
+            assert rec.cooling_load_result_hash == per_calc["cooling_load"]
+            assert rec.equipment_result_hash == per_calc["equipment"]
+            assert rec.power_result_hash == per_calc["power"]
+            assert rec.investment_result_hash == per_calc["investment"]
+
+            # Verify provenance
+            assert rec.orchestration_identity_id == GOLDEN_ORCHESTRATION_IDENTITY_ID
+            assert rec.authoritative_attempt_id == GOLDEN_ATTEMPT_ID
+            assert rec.execution_snapshot_id == GOLDEN_SNAPSHOT_ID
+            assert rec.coefficient_context_id == GOLDEN_COEFFICIENT_CONTEXT_ID
+            assert rec.orchestration_fingerprint == GOLDEN_FINGERPRINT
+
+            # Verify power authority = 285.0 from golden
+            assert _CALCULATOR_OUTPUTS["power"]["total_installed_power_kw_e"] == "285.0"
+
+            # Verify candidates
+            candidates = (
+                verify_s.execute(
+                    select(SchemeCandidateRecord).where(
+                        SchemeCandidateRecord.scheme_run_id == run.id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(candidates) > 0
+        finally:
+            verify_s.close()
+
+        # ── Step 7: Trusted readback succeeds ────────────────────────────
+        from cold_storage.modules.schemes.application.production_service import (
+            read_verified_production_scheme_run,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemyProductionSchemeRunReadPort,
+            SqlAlchemySourceBindingReadPort,
+            SqlAlchemyWeightRevisionReadPort,
+        )
+
+        read_port = SqlAlchemyProductionSchemeRunReadPort()
+        binding_port = SqlAlchemySourceBindingReadPort()
+        weight_port = SqlAlchemyWeightRevisionReadPort()
+
+        readback_s = pg_session_factory()
+        try:
+            verified_run = read_verified_production_scheme_run(
+                read_port,
+                binding_port,
+                weight_port,
+                readback_s,
+                run_id=run.id,
+                generator_version="1.0.0",
+            )
+        finally:
+            readback_s.close()
+
+        assert verified_run.status == "completed"
+        assert verified_run.id == run.id
+        assert verified_run.content_hash is not None
+        assert len(verified_run.candidates_snapshot) > 0
