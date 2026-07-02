@@ -113,10 +113,8 @@ def _compute_domain_hash(
     """Compute domain SourceSnapshotContentV1 result_hash for a stage.
 
     This is the SAME hash the production verifier recomputes.
+    P0-1: Uses raw result_snapshot (no coercion).
     """
-    from cold_storage.modules.schemes.application.source_binding_verifier import (
-        _coerce_payload_for_hashing,
-    )
 
     # Upstream IDs follow the DAG
     _SLOT_UPSTREAM_IDS: dict[str, dict[str, str]] = {
@@ -151,7 +149,7 @@ def _compute_domain_hash(
         orchestration_run_attempt_id=GOLDEN_ATTEMPT_ID,
         input_hash="e2e-input-hash",
         requires_review=False,
-        payload=_coerce_payload_for_hashing(result_snapshot),
+        payload=result_snapshot,
         provenance=provenance,
     )
     return result_hash(content)

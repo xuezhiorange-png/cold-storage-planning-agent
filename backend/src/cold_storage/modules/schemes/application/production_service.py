@@ -56,7 +56,9 @@ from cold_storage.modules.schemes.domain.generator import (
     generate_schemes,
 )
 from cold_storage.modules.schemes.domain.models import (
+    SchemeCandidate,
     SchemeRun,
+    SchemeScoreBreakdown,
 )
 from cold_storage.modules.schemes.domain.scoring import (
     score_candidates,
@@ -140,6 +142,15 @@ class SchemeRunCandidateConsistencyError(ProductionSchemeError):
             "candidate_consistency_failure",
             f"Candidate consistency check failed for run {run_id!r}: {detail}",
         )
+
+
+class PersistedSourceProvenanceMismatchError(ProductionSchemeError):
+    def __init__(self, run_id: str, field: str, persisted: str, verified: str) -> None:
+        super().__init__(
+            "persisted_source_provenance_mismatch",
+            f"Run {run_id!r} field {field!r}: persisted={persisted!r}, verified={verified!r}",
+        )
+        self.mismatched_field = field
 
 
 # ── Content hash computation ───────────────────────────────────────────────
@@ -594,6 +605,145 @@ _PRODUCTION_IDENTITY_FIELDS: tuple[str, ...] = (
 )
 
 
+# ── Domain object rebuild from DB snapshots ──────────────────────────────────
+
+
+def _to_decimal(v: Any) -> Decimal:
+    """Convert a value to Decimal, handling str/int/float/Decimal."""
+    if isinstance(v, Decimal):
+        return v
+    if isinstance(v, (int, float)):
+        return Decimal(str(v))
+    return Decimal(str(v)) if v else Decimal(0)
+
+
+def _rebuild_scheme_candidate_from_snapshot(
+    snapshot: dict[str, Any],
+) -> SchemeCandidate:
+    """Rebuild a SchemeCandidate from a persisted result_snapshot dict.
+
+    Converts all numeric fields from their JSON-serialised form back to
+    ``Decimal`` so that ``stable_sort_key`` can operate on domain types.
+    """
+    from cold_storage.modules.schemes.domain.models import (
+        SchemeConstraintResult,
+        SchemeMetric,
+        SchemeRoomModule,
+    )
+
+    def _to_int(v: Any) -> int:
+        if isinstance(v, int):
+            return v
+        return int(float(str(v))) if v else 0
+
+    room_modules = [
+        SchemeRoomModule(
+            room_code=rm.get("room_code", ""),
+            room_name=rm.get("room_name", ""),
+            zone_codes=rm.get("zone_codes", []),
+            temperature_level=rm.get("temperature_level", ""),
+            area_m2=_to_decimal(rm.get("area_m2", 0)),
+            position_count=_to_int(rm.get("position_count", 0)),
+            storage_capacity_kg=_to_decimal(rm.get("storage_capacity_kg", 0)),
+            design_cooling_load_kw_r=_to_decimal(rm.get("design_cooling_load_kw_r", 0)),
+            compressor_operating_capacity_kw_r=_to_decimal(
+                rm.get("compressor_operating_capacity_kw_r", 0)
+            ),
+            compressor_installed_capacity_kw_r=_to_decimal(
+                rm.get("compressor_installed_capacity_kw_r", 0)
+            ),
+            process_compatibility=rm.get("process_compatibility"),
+            hygiene_zone=rm.get("hygiene_zone"),
+            door_count=_to_int(rm.get("door_count", 1)),
+            partition_length_proxy_m=_to_decimal(rm.get("partition_length_proxy_m", 0)),
+        )
+        for rm in snapshot.get("room_modules", [])
+    ]
+
+    constraint_results = [
+        SchemeConstraintResult(
+            constraint_code=cr.get("constraint_code", ""),
+            passed=bool(cr.get("passed", False)),
+            detail=cr.get("detail", ""),
+            expected=cr.get("expected"),
+            actual=cr.get("actual"),
+        )
+        for cr in snapshot.get("constraint_results", [])
+    ]
+
+    metrics = [
+        SchemeMetric(
+            code=m.get("code", ""),
+            value=_to_decimal(m.get("value", 0)),
+            unit=m.get("unit", ""),
+            direction=m.get("direction", ""),
+        )
+        for m in snapshot.get("metrics", [])
+    ]
+
+    return SchemeCandidate(
+        scheme_code=snapshot.get("scheme_code", ""),
+        scheme_name=snapshot.get("scheme_name", ""),
+        profile_code=snapshot.get("profile_code", ""),
+        feasible=bool(snapshot.get("feasible", False)),
+        constraint_results=constraint_results,
+        room_modules=room_modules,
+        zone_assignments=snapshot.get("zone_assignments", {}),
+        total_area_m2=_to_decimal(snapshot.get("total_area_m2", 0)),
+        total_position_count=_to_int(snapshot.get("total_position_count", 0)),
+        room_module_count=_to_int(snapshot.get("room_module_count", 0)),
+        door_count=_to_int(snapshot.get("door_count", 0)),
+        partition_length_proxy_m=_to_decimal(snapshot.get("partition_length_proxy_m", 0)),
+        daily_throughput_kg_day=_to_decimal(snapshot.get("daily_throughput_kg_day", 0)),
+        investment_cny=_to_decimal(snapshot.get("investment_cny", 0)),
+        installed_power_kw_e=_to_decimal(snapshot.get("installed_power_kw_e", 0)),
+        design_cooling_load_kw_r=_to_decimal(snapshot.get("design_cooling_load_kw_r", 0)),
+        compressor_operating_capacity_kw_r=_to_decimal(
+            snapshot.get("compressor_operating_capacity_kw_r", 0)
+        ),
+        compressor_installed_capacity_kw_r=_to_decimal(
+            snapshot.get("compressor_installed_capacity_kw_r", 0)
+        ),
+        compressor_standby_capacity_kw_r=_to_decimal(
+            snapshot.get("compressor_standby_capacity_kw_r", 0)
+        ),
+        condenser_heat_rejection_kw=_to_decimal(snapshot.get("condenser_heat_rejection_kw", 0)),
+        metrics=metrics,
+        assumptions=snapshot.get("assumptions", []),
+        warnings=snapshot.get("warnings", []),
+        requires_review=bool(snapshot.get("requires_review", False)),
+    )
+
+
+def _rebuild_score_breakdown_from_snapshot(
+    snapshot: dict[str, Any],
+) -> SchemeScoreBreakdown:
+    """Rebuild a SchemeScoreBreakdown from a persisted score_breakdown_snapshot dict."""
+    from cold_storage.modules.schemes.domain.models import SchemeCriterionScore
+
+    criterion_scores = [
+        SchemeCriterionScore(
+            criterion_code=cs.get("criterion_code", ""),
+            raw_value=_to_decimal(cs.get("raw_value", 0)),
+            unit=cs.get("unit", ""),
+            direction=cs.get("direction", ""),
+            weight=_to_decimal(cs.get("weight", 0)),
+            min_value=_to_decimal(cs.get("min_value", 0)),
+            max_value=_to_decimal(cs.get("max_value", 0)),
+            normalized_score=_to_decimal(cs.get("normalized_score", 0)),
+            weighted_contribution=_to_decimal(cs.get("weighted_contribution", 0)),
+            formula=cs.get("formula", ""),
+        )
+        for cs in snapshot.get("criterion_scores", [])
+    ]
+    return SchemeScoreBreakdown(
+        scheme_code=snapshot.get("scheme_code", ""),
+        total_score=_to_decimal(snapshot.get("total_score", 0)),
+        criterion_scores=criterion_scores,
+        diagnostic_only=bool(snapshot.get("diagnostic_only", False)),
+    )
+
+
 def read_verified_production_scheme_run(
     read_port: ProductionSchemeRunReadPort,
     binding_read_port: SourceBindingReadPort,
@@ -630,15 +780,73 @@ def read_verified_production_scheme_run(
         if value is None:
             raise SchemeRunIdentityFieldError(run_id, field_name)
 
-    # 4. Re-verify SourceBinding (result confirms integrity, not used further)
+    # 4. Re-verify SourceBinding and compare provenance field-by-field
     try:
-        verify_source_binding(
+        verified_source = verify_source_binding(
             binding_read_port,
             session,
             binding_id=persisted.source_binding_id or "",
         )
     except SourceBindingVerificationError as exc:
         raise SchemeRunBindingVerificationError(run_id, str(exc)) from exc
+
+    # P0-4: Field-by-field provenance comparison
+    sv = verified_source
+    _prov: list[tuple[str, str | None, str]] = [
+        ("execution_snapshot_id", persisted.execution_snapshot_id, sv.execution_snapshot_id),
+        ("coefficient_context_id", persisted.coefficient_context_id, sv.coefficient_context_id),
+        (
+            "orchestration_identity_id",
+            persisted.orchestration_identity_id,
+            sv.orchestration_identity_id,
+        ),
+        (
+            "authoritative_attempt_id",
+            persisted.authoritative_attempt_id,
+            sv.orchestration_attempt_id,
+        ),
+        (
+            "orchestration_fingerprint",
+            persisted.orchestration_fingerprint,
+            sv.orchestration_fingerprint,
+        ),
+        ("zone_calculation_id", persisted.zone_calculation_id, sv.zone_calculation_id),
+        (
+            "cooling_load_calculation_id",
+            persisted.cooling_load_calculation_id,
+            sv.cooling_load_calculation_id,
+        ),
+        (
+            "equipment_calculation_id",
+            persisted.equipment_calculation_id,
+            sv.equipment_calculation_id,
+        ),
+        ("power_calculation_id", persisted.power_calculation_id, sv.power_calculation_id),
+        (
+            "investment_calculation_id",
+            persisted.investment_calculation_id,
+            sv.investment_calculation_id,
+        ),
+        ("zone_result_hash", persisted.zone_result_hash, sv.zone_result_hash),
+        (
+            "cooling_load_result_hash",
+            persisted.cooling_load_result_hash,
+            sv.cooling_load_result_hash,
+        ),
+        ("equipment_result_hash", persisted.equipment_result_hash, sv.equipment_result_hash),
+        ("power_result_hash", persisted.power_result_hash, sv.power_result_hash),
+        ("investment_result_hash", persisted.investment_result_hash, sv.investment_result_hash),
+        ("combined_source_hash", persisted.combined_source_hash, sv.combined_source_hash),
+    ]
+    for field_name, persisted_val, verified_val in _prov:
+        p_str = persisted_val or ""
+        if p_str != verified_val:
+            raise PersistedSourceProvenanceMismatchError(
+                run_id,
+                field_name,
+                p_str,
+                verified_val,
+            )
 
     # 5. Re-verify weight revision content hash
     try:
@@ -717,37 +925,35 @@ def read_verified_production_scheme_run(
         raise SchemeRunContentHashMismatchError(persisted.content_hash or "", recomputed_hash)
 
     # 8. Verify recommendation consistency
-    feasible = [
-        c
-        for c in candidates
-        if c.feasible and not c.score_breakdown_snapshot.get("diagnostic_only", False)
-    ]
-    if not feasible and persisted.recommended_scheme_code:
+    # P0-4: Rebuild SchemeCandidate + SchemeScoreBreakdown from DB
+    rebuilt_domain_candidates: list[SchemeCandidate] = []
+    rebuilt_domain_breakdowns: list[SchemeScoreBreakdown] = []
+    for cand_rec in candidates:
+        rebuilt_domain_candidates.append(
+            _rebuild_scheme_candidate_from_snapshot(cand_rec.result_snapshot)
+        )
+    for sb_dict in score_breakdowns_snapshot:
+        rebuilt_domain_breakdowns.append(_rebuild_score_breakdown_from_snapshot(sb_dict))
+
+    feasible_breakdowns = [sb for sb in rebuilt_domain_breakdowns if not sb.diagnostic_only]
+    feasible_domain = [c for c in rebuilt_domain_candidates if c.feasible]
+    if not feasible_breakdowns and persisted.recommended_scheme_code:
         raise SchemeRunCandidateConsistencyError(
             run_id,
             f"recommended_scheme_code {persisted.recommended_scheme_code!r} "
             f"set but no feasible candidates exist",
         )
-    if feasible and not persisted.recommended_scheme_code:
+    if feasible_breakdowns and not persisted.recommended_scheme_code:
         raise SchemeRunCandidateConsistencyError(
             run_id,
             "feasible candidates exist but recommended_scheme_code is None",
         )
-    if feasible:
-        # Sort using Decimal stable_sort_key logic (same as generation path)
-        feasible.sort(
-            key=lambda c: (
-                -(Decimal(str(c.total_score)) if c.total_score is not None else Decimal(0)),
-                Decimal(str(c.score_breakdown_snapshot.get("investment_cny", 0)))
-                if c.score_breakdown_snapshot.get("investment_cny") is not None
-                else Decimal(0),
-                Decimal(str(c.score_breakdown_snapshot.get("installed_power_kw_e", 0)))
-                if c.score_breakdown_snapshot.get("installed_power_kw_e") is not None
-                else Decimal(0),
-                c.scheme_code,
-            )
+    if feasible_breakdowns:
+        # P0-4: Sort using domain stable_sort_key directly
+        feasible_breakdowns.sort(
+            key=lambda sb: stable_sort_key(sb, feasible_domain),
         )
-        expected_recommended = feasible[0].scheme_code
+        expected_recommended = feasible_breakdowns[0].scheme_code
         if (
             persisted.recommended_scheme_code
             and persisted.recommended_scheme_code != expected_recommended

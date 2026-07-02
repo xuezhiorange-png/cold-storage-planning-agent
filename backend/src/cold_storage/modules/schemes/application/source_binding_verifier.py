@@ -102,6 +102,21 @@ _SLOT_HASH_ATTRS: dict[str, str] = {
 
 _SUPPORTED_SCHEMA_VERSIONS: frozenset[str] = frozenset({"1.0.0"})
 
+# Frozen calculator version vector — matches orchestration.service._CALCULATOR_VERSION_VECTOR.
+# Each stage's calculator_version on every CalculationRun must match this vector.
+FROZEN_CALCULATOR_VERSION_VECTOR: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("zone", "1.0.0"),
+        ("cooling_load", "1.0.0"),
+        ("equipment", "1.0.0"),
+        ("power", "1.0.0"),
+        ("investment", "1.0.0"),
+    }
+)
+
+_CALCULATOR_VERSION_BY_STAGE: dict[str, str] = dict(FROZEN_CALCULATOR_VERSION_VECTOR)
+
+
 # Inner result snapshot models for schema validation
 _RESULT_SNAPSHOT_CLS: dict[str, type[BaseModel]] = {
     "zone": ZoneResultSnapshotV1,
@@ -601,35 +616,6 @@ def _require_not_null(state: VerifiedSourceMapping, field_name: str) -> None:
 # ── Domain validation error converter ─────────────────────────────────────
 
 
-def _coerce_payload_for_hashing(payload: dict[str, Any]) -> dict[str, Any]:
-    """Convert binary floats in payload to strings for canonical JSON hashing.
-
-    The domain ``result_hash`` rejects binary floats.  Production payloads
-    may contain float values (e.g. ``200.0``).  This helper converts them
-    to their canonical string representation before hashing.
-    """
-    from decimal import Decimal
-
-    result: dict[str, Any] = {}
-    for k, v in payload.items():
-        if isinstance(v, float):
-            # Use Decimal for canonical string conversion
-            d = Decimal(str(v))
-            result[k] = str(d.normalize()) if d != 0 else "0"
-        elif isinstance(v, dict):
-            result[k] = _coerce_payload_for_hashing(v)
-        elif isinstance(v, list):
-            result[k] = [
-                _coerce_payload_for_hashing(item)
-                if isinstance(item, dict)
-                else (str(Decimal(str(item)).normalize()) if isinstance(item, float) else item)
-                for item in v
-            ]
-        else:
-            result[k] = v
-    return result
-
-
 def _raise_domain_validation_error(stage: str, exc: ValueError) -> None:
     """Convert a domain ValueError to the appropriate verifier error.
 
@@ -748,6 +734,25 @@ def verify_source_binding(
                 binding.orchestration_fingerprint,
                 run.orchestration_fingerprint,
             )
+        if run.execution_snapshot_id != binding.execution_snapshot_id:
+            raise ExecutionSnapshotMismatch(
+                stage,
+                binding.execution_snapshot_id,
+                run.execution_snapshot_id,
+            )
+        if run.coefficient_context_id != binding.coefficient_context_id:
+            raise CoefficientContextMismatch(
+                stage,
+                binding.coefficient_context_id,
+                run.coefficient_context_id,
+            )
+        expected_calc_version = _CALCULATOR_VERSION_BY_STAGE.get(stage)
+        if expected_calc_version is not None and run.calculator_version != expected_calc_version:
+            raise CalculatorVersionMismatch(
+                stage,
+                expected_calc_version,
+                run.calculator_version,
+            )
 
     # ── P0-1: Rebuild SourceSnapshotContentV1 and recompute hash ─────────
     for stage in _SLOT_STAGE_ORDER:
@@ -773,7 +778,7 @@ def verify_source_binding(
                 orchestration_run_attempt_id=run.orchestration_run_attempt_id,
                 input_hash=run.input_hash,
                 requires_review=run.requires_review,
-                payload=_coerce_payload_for_hashing(run.result_snapshot),
+                payload=run.result_snapshot,
                 provenance=provenance,
             )
             computed_hash = result_hash(content)

@@ -1105,16 +1105,20 @@ class TestPostgresWeightTamperRejection:
             s.close()
 
     def test_tamper_weight_revision_content(self, pg_session_factory, pg_engine) -> None:
+        """Tamper with approved revision content is blocked by trigger.
+
+        P0-3: BEFORE UPDATE trigger raises IntegrityError when
+        attempting to modify immutable fields of an approved revision.
+        """
         assert pg_engine.dialect.name == "postgresql"
 
-        from cold_storage.modules.schemes.application.production_service import (
-            SchemeRunWeightVerificationError,
-        )
+        import sqlalchemy as sa
+
         from cold_storage.modules.schemes.infrastructure.orm import (
             SchemeWeightSetRevisionRecord,
         )
 
-        run_id = self._generate_and_get_run_id(pg_session_factory, pg_engine)
+        self._generate_and_get_run_id(pg_session_factory, pg_engine)
         tamper_s = pg_session_factory()
         try:
             rev = tamper_s.execute(
@@ -1129,13 +1133,10 @@ class TestPostgresWeightTamperRejection:
                 criteria[0]["weight"] = "0.99"
             content["criteria"] = criteria
             rev.content = content
-            tamper_s.commit()
+            with pytest.raises(sa.exc.IntegrityError):
+                tamper_s.commit()
         finally:
             tamper_s.close()
-
-        with pytest.raises(SchemeRunWeightVerificationError) as exc_info:
-            self._read_verified(pg_session_factory, pg_engine, run_id)
-        assert exc_info.value.code == "weight_verification_failed"
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1397,9 +1398,6 @@ def _pg_compute_domain_hash(
     from cold_storage.modules.orchestration.domain.snapshots import (
         SourceSnapshotProvenanceV1,
     )
-    from cold_storage.modules.schemes.application.source_binding_verifier import (
-        _coerce_payload_for_hashing,
-    )
     from tests.integration.transaction_b_golden import (
         GOLDEN_ATTEMPT_ID,
         GOLDEN_COEFFICIENT_CONTEXT_ID,
@@ -1440,7 +1438,7 @@ def _pg_compute_domain_hash(
         orchestration_run_attempt_id=GOLDEN_ATTEMPT_ID,
         input_hash="pg-e2e-input-hash",
         requires_review=False,
-        payload=_coerce_payload_for_hashing(result_snapshot),
+        payload=result_snapshot,
         provenance=provenance,
     )
     return _domain_result_hash(content)

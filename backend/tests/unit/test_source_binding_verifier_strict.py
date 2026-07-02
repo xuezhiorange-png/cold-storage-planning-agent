@@ -52,6 +52,7 @@ from cold_storage.modules.schemes.application.source_binding_verifier import (
     AttemptSourceBindingMismatch,
     BindingNotFoundError,
     BindingSchemaError,
+    CalculatorVersionMismatch,
     CoefficientContextMismatch,
     CombinedHashMismatch,
     CompletenessViolation,
@@ -218,6 +219,7 @@ def _compute_stage_hash(stage: str) -> str:
 
     Uses the domain dataclass from orchestration.domain.snapshots (P0-1)
     and orchestration.domain.fingerprint.result_hash for recomputation.
+    P0-1: Uses raw result_snapshot (no coercion).
     """
     from cold_storage.modules.orchestration.domain.fingerprint import (
         result_hash as _domain_result_hash,
@@ -227,9 +229,6 @@ def _compute_stage_hash(stage: str) -> str:
     )
     from cold_storage.modules.orchestration.domain.snapshots import (
         SourceSnapshotProvenanceV1,
-    )
-    from cold_storage.modules.schemes.application.source_binding_verifier import (
-        _coerce_payload_for_hashing,
     )
 
     run_id, calc_name, calc_ver, calc_type = _STAGE_META[stage]
@@ -264,7 +263,7 @@ def _compute_stage_hash(stage: str) -> str:
         orchestration_run_attempt_id=_ATT,
         input_hash="input-hash-001",
         requires_review=False,
-        payload=_coerce_payload_for_hashing(_RESULT_FACTORIES[stage]()),
+        payload=_RESULT_FACTORIES[stage](),
         provenance=provenance,
     )
     return _domain_result_hash(content)
@@ -347,7 +346,10 @@ def _tamper(**field_overrides: Any) -> VerifiedSourceMapping:
 
 
 def _recompute_domain_hash(run: CalculationRunSnapshot) -> str:
-    """Recompute the domain SourceSnapshotContentV1 result_hash for a run."""
+    """Recompute the domain SourceSnapshotContentV1 result_hash for a run.
+
+    P0-1: Uses raw result_snapshot (no coercion).
+    """
     from cold_storage.modules.orchestration.domain.fingerprint import (
         result_hash as _domain_result_hash,
     )
@@ -356,9 +358,6 @@ def _recompute_domain_hash(run: CalculationRunSnapshot) -> str:
     )
     from cold_storage.modules.orchestration.domain.snapshots import (
         SourceSnapshotProvenanceV1,
-    )
-    from cold_storage.modules.schemes.application.source_binding_verifier import (
-        _coerce_payload_for_hashing,
     )
 
     provenance = SourceSnapshotProvenanceV1(
@@ -381,7 +380,7 @@ def _recompute_domain_hash(run: CalculationRunSnapshot) -> str:
         orchestration_run_attempt_id=run.orchestration_run_attempt_id,
         input_hash=run.input_hash,
         requires_review=run.requires_review,
-        payload=_coerce_payload_for_hashing(run.result_snapshot),
+        payload=run.result_snapshot,
         provenance=provenance,
     )
     return _domain_result_hash(content)
@@ -1121,6 +1120,133 @@ class TestVerifySourceBindingBackwardCompat:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# P0-1: Tamper tests for execution_snapshot_id, coefficient_context_id,
+#       calculator_version mismatch
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestP01IdentityAndVersionChecks:
+    """P0-1 tamper tests for execution_snapshot_id, coefficient_context_id,
+    and calculator_version mismatch in the wrapper path."""
+
+    def test_execution_snapshot_id_mismatch(self) -> None:
+        """CalculationRun with different execution_snapshot_id → ExecutionSnapshotMismatch."""
+        runs = _build_all_runs()
+        runs["zone"] = dataclasses.replace(
+            runs["zone"], execution_snapshot_id="wrong-exec-snapshot"
+        )
+        # Recompute hash for modified data
+        new_zone_hash = _recompute_domain_hash(runs["zone"])
+        runs["zone"] = dataclasses.replace(runs["zone"], result_hash=new_zone_hash)
+        new_hashes = dict(_STAGE_HASHES)
+        new_hashes["zone"] = new_zone_hash
+        new_combined = _compute_combined_source_hash(
+            binding_schema_version="1.0.0",
+            project_id=_PID,
+            project_version_id=_PVID,
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_attempt_id=_ATT,
+            orchestration_fingerprint=_FP,
+            slot_ids={
+                "zone": "run-z-001",
+                "cooling_load": "run-cl-001",
+                "equipment": "run-eq-001",
+                "power": "run-pow-001",
+                "investment": "run-inv-001",
+            },
+            result_hashes=new_hashes,
+            requires_reviews={s: False for s in ORCHESTRATION_STAGE_ORDER},
+        )
+        binding = _build_binding_snapshot(
+            combined_source_hash=new_combined,
+            per_calculation_result_hashes=new_hashes,
+        )
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(ExecutionSnapshotMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "execution_snapshot_mismatch"
+
+    def test_coefficient_context_id_mismatch(self) -> None:
+        """CalculationRun with different coefficient_context_id → CoefficientContextMismatch."""
+        runs = _build_all_runs()
+        runs["cooling_load"] = dataclasses.replace(
+            runs["cooling_load"], coefficient_context_id="wrong-cc-id"
+        )
+        # Recompute hash for modified data
+        new_cl_hash = _recompute_domain_hash(runs["cooling_load"])
+        runs["cooling_load"] = dataclasses.replace(runs["cooling_load"], result_hash=new_cl_hash)
+        new_hashes = dict(_STAGE_HASHES)
+        new_hashes["cooling_load"] = new_cl_hash
+        new_combined = _compute_combined_source_hash(
+            binding_schema_version="1.0.0",
+            project_id=_PID,
+            project_version_id=_PVID,
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_attempt_id=_ATT,
+            orchestration_fingerprint=_FP,
+            slot_ids={
+                "zone": "run-z-001",
+                "cooling_load": "run-cl-001",
+                "equipment": "run-eq-001",
+                "power": "run-pow-001",
+                "investment": "run-inv-001",
+            },
+            result_hashes=new_hashes,
+            requires_reviews={s: False for s in ORCHESTRATION_STAGE_ORDER},
+        )
+        binding = _build_binding_snapshot(
+            combined_source_hash=new_combined,
+            per_calculation_result_hashes=new_hashes,
+        )
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(CoefficientContextMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "coefficient_context_mismatch"
+
+    def test_calculator_version_mismatch(self) -> None:
+        """CalculationRun with wrong calculator_version → CalculatorVersionMismatch."""
+        runs = _build_all_runs()
+        runs["power"] = dataclasses.replace(runs["power"], calculator_version="2.0.0")
+        # Recompute hash for modified data
+        new_power_hash = _recompute_domain_hash(runs["power"])
+        runs["power"] = dataclasses.replace(runs["power"], result_hash=new_power_hash)
+        new_hashes = dict(_STAGE_HASHES)
+        new_hashes["power"] = new_power_hash
+        new_combined = _compute_combined_source_hash(
+            binding_schema_version="1.0.0",
+            project_id=_PID,
+            project_version_id=_PVID,
+            execution_snapshot_id=_ESID,
+            coefficient_context_id=_CCID,
+            orchestration_identity_id=_IDENT,
+            orchestration_attempt_id=_ATT,
+            orchestration_fingerprint=_FP,
+            slot_ids={
+                "zone": "run-z-001",
+                "cooling_load": "run-cl-001",
+                "equipment": "run-eq-001",
+                "power": "run-pow-001",
+                "investment": "run-inv-001",
+            },
+            result_hashes=new_hashes,
+            requires_reviews={s: False for s in ORCHESTRATION_STAGE_ORDER},
+        )
+        binding = _build_binding_snapshot(
+            combined_source_hash=new_combined,
+            per_calculation_result_hashes=new_hashes,
+        )
+        port = _build_read_port(binding=binding, runs=runs)
+        with pytest.raises(CalculatorVersionMismatch) as exc_info:
+            verify_source_binding(port, None, binding_id=_BINDING_ID)
+        assert exc_info.value.code == "calculator_version_mismatch"
+        assert "2.0.0" in str(exc_info.value.detail)
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # Error hierarchy tests
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -1152,6 +1278,7 @@ class TestErrorHierarchy:
             SlotHashMapMismatch({}, {}),
             CompletenessViolation("s", "f"),
             PowerAuthorityMissingError(),
+            CalculatorVersionMismatch("s", "1.0.0", "2.0.0"),
         ]
         for err in error_classes:
             assert isinstance(err, SourceBindingVerificationError)

@@ -75,9 +75,6 @@ def _compute_domain_hash(
     from cold_storage.modules.orchestration.domain.snapshots import (
         SourceSnapshotProvenanceV1,
     )
-    from cold_storage.modules.schemes.application.source_binding_verifier import (
-        _coerce_payload_for_hashing,
-    )
 
     upstream = _SLOT_UPSTREAM_IDS.get(stage, {})
     calc_name = SLOT_CALCULATOR_NAMES[stage]
@@ -114,7 +111,7 @@ def _compute_domain_hash(
         orchestration_run_attempt_id=ATTEMPT_ID,
         input_hash="input-hash-001",
         requires_review=False,
-        payload=_coerce_payload_for_hashing(result_snapshot),
+        payload=result_snapshot,
         provenance=provenance,
     )
     return _domain_result_hash(content)
@@ -145,8 +142,8 @@ WEIGHT_REVISION_ID = "test-wrev-001"
 ZONE_RESULT_SNAPSHOT: dict[str, Any] = {
     "daily_inbound_mass_kg": 10000,
     "design_daily_mass_kg": 10000,
-    "total_required_area_m2": 200.0,
-    "total_area_m2": 200.0,
+    "total_required_area_m2": "200.0",
+    "total_area_m2": "200.0",
     "planning_parameters": {
         "pallet_weight_kg": 500,
         "working_hours_per_day": 8,
@@ -156,8 +153,8 @@ ZONE_RESULT_SNAPSHOT: dict[str, Any] = {
             "zone_code": "Z1",
             "zone_name": "\u539f\u679c\u95f4",
             "daily_throughput_kg_day": 10000,
-            "required_area_m2": 200.0,
-            "design_storage_mass_kg": 15000.0,
+            "required_area_m2": "200.0",
+            "design_storage_mass_kg": "15000.0",
             "position_count": 30,
             "temperature_band": "0~4\u2103",
             "function": "storage",
@@ -2271,7 +2268,7 @@ class TestTamperRejection:
 
     def test_tamper_combined_source_hash(self, engine, session_factory) -> None:
         from cold_storage.modules.schemes.application.production_service import (
-            SchemeRunContentHashMismatchError,
+            PersistedSourceProvenanceMismatchError,
         )
         from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
 
@@ -2286,19 +2283,25 @@ class TestTamperRejection:
         finally:
             tamper_s.close()
 
-        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+        # P0-4: Provenance comparison catches tamper before content hash check
+        with pytest.raises(PersistedSourceProvenanceMismatchError) as exc_info:
             self._read_verified(engine, session_factory, run_id)
-        assert exc_info.value.code == "content_hash_mismatch"
+        assert exc_info.value.code == "persisted_source_provenance_mismatch"
+        assert exc_info.value.mismatched_field == "combined_source_hash"
 
     def test_tamper_weight_revision_content(self, engine, session_factory) -> None:
-        from cold_storage.modules.schemes.application.production_service import (
-            SchemeRunWeightVerificationError,
-        )
+        """Tamper with approved revision content is blocked by trigger.
+
+        P0-3: BEFORE UPDATE trigger raises IntegrityError when
+        attempting to modify immutable fields of an approved revision.
+        """
+        import sqlalchemy as sa
+
         from cold_storage.modules.schemes.infrastructure.orm import (
             SchemeWeightSetRevisionRecord,
         )
 
-        run_id = self._generate_and_get_run_id(engine, session_factory)
+        self._generate_and_get_run_id(engine, session_factory)
         tamper_s = session_factory()
         try:
             rev = tamper_s.execute(
@@ -2313,13 +2316,10 @@ class TestTamperRejection:
                 criteria[0]["weight"] = "0.99"
             content["criteria"] = criteria
             rev.content = content
-            tamper_s.commit()
+            with pytest.raises(sa.exc.IntegrityError):
+                tamper_s.commit()
         finally:
             tamper_s.close()
-
-        with pytest.raises(SchemeRunWeightVerificationError) as exc_info:
-            self._read_verified(engine, session_factory, run_id)
-        assert exc_info.value.code == "weight_verification_failed"
 
     def test_tamper_recommendation(self, engine, session_factory) -> None:
         from cold_storage.modules.schemes.application.production_service import (
@@ -2555,10 +2555,25 @@ class TestP01HashRecomputationTamper:
         self._verify_expect_tamper_error()
 
     def test_tamper_calculator_version_cooling(self):
-        """Tamper cooling_load calculator_version → hash mismatch."""
+        """Tamper cooling_load calculator_version → CalculatorVersionMismatch."""
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            CalculatorVersionMismatch,
+            verify_source_binding,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemySourceBindingReadPort,
+        )
+
         self._seed_and_get_binding()
         self._tamper_calc_field(COOL_RUN_ID, calculator_version="9.9.9")
-        self._verify_expect_tamper_error()
+        s = self.sf()
+        try:
+            port = SqlAlchemySourceBindingReadPort()
+            with pytest.raises(CalculatorVersionMismatch) as exc_info:
+                verify_source_binding(port, s, binding_id=SOURCE_BINDING_ID)
+            assert exc_info.value.code == "calculator_version_mismatch"
+        finally:
+            s.close()
 
     def test_tamper_input_hash_equipment(self):
         """Tamper equipment input_hash → hash mismatch."""
@@ -2567,9 +2582,16 @@ class TestP01HashRecomputationTamper:
         self._verify_expect_tamper_error()
 
     def test_tamper_execution_snapshot_id_power(self):
-        """Tamper power execution_snapshot_id → hash mismatch."""
+        """Tamper power execution_snapshot_id → ExecutionSnapshotMismatch."""
         from cold_storage.modules.orchestration.infrastructure.orm import (
             ProjectVersionExecutionSnapshotRecord,
+        )
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            ExecutionSnapshotMismatch,
+            verify_source_binding,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemySourceBindingReadPort,
         )
 
         self._seed_and_get_binding()
@@ -2597,12 +2619,26 @@ class TestP01HashRecomputationTamper:
                 )
                 s.commit()
         self._tamper_calc_field(POWER_RUN_ID, execution_snapshot_id=alt_exec_id)
-        self._verify_expect_tamper_error()
+        s = self.sf()
+        try:
+            port = SqlAlchemySourceBindingReadPort()
+            with pytest.raises(ExecutionSnapshotMismatch) as exc_info:
+                verify_source_binding(port, s, binding_id=SOURCE_BINDING_ID)
+            assert exc_info.value.code == "execution_snapshot_mismatch"
+        finally:
+            s.close()
 
     def test_tamper_coefficient_context_id_investment(self):
-        """Tamper investment coefficient_context_id → hash mismatch."""
+        """Tamper investment coefficient_context_id → CoefficientContextMismatch."""
         from cold_storage.modules.orchestration.infrastructure.orm import (
             CoefficientContextRecord,
+        )
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            CoefficientContextMismatch,
+            verify_source_binding,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemySourceBindingReadPort,
         )
 
         self._seed_and_get_binding()
@@ -2626,7 +2662,14 @@ class TestP01HashRecomputationTamper:
                 )
                 s.commit()
         self._tamper_calc_field(INVEST_RUN_ID, coefficient_context_id=alt_cc_id)
-        self._verify_expect_tamper_error()
+        s = self.sf()
+        try:
+            port = SqlAlchemySourceBindingReadPort()
+            with pytest.raises(CoefficientContextMismatch) as exc_info:
+                verify_source_binding(port, s, binding_id=SOURCE_BINDING_ID)
+            assert exc_info.value.code == "coefficient_context_mismatch"
+        finally:
+            s.close()
 
     def test_tamper_requires_review_zone(self):
         """Tamper zone requires_review → hash mismatch."""
