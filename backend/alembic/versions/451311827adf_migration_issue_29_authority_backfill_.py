@@ -91,16 +91,15 @@ def _backfill_authority() -> None:
             " GROUP BY weight_set_id, code"
             " HAVING COUNT(*) > 1"
         )
-        dup_rows = op.get_bind().execute(
-            text("SELECT weight_set_id, code, cnt FROM _t_dup_check")
-        ).fetchall()
+        dup_rows = (
+            op.get_bind()
+            .execute(text("SELECT weight_set_id, code, cnt FROM _t_dup_check"))
+            .fetchall()
+        )
         if dup_rows:
-            details = ", ".join(
-                f"({r[0]}, {r[1]}) x{r[2]}" for r in dup_rows
-            )
+            details = ", ".join(f"({r[0]}, {r[1]}) x{r[2]}" for r in dup_rows)
             raise RuntimeError(
-                f"Duplicate approved revisions found — cannot backfill "
-                f"authority: {details}"
+                f"Duplicate approved revisions found — cannot backfill authority: {details}"
             )
         op.execute("DROP TABLE _t_dup_check")
     else:
@@ -262,8 +261,7 @@ def _sqlite_create_old_triggers() -> None:
 
 def _pg_create_triggers() -> None:
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_immutable_weight_revision")
 
@@ -361,8 +359,7 @@ def _pg_create_triggers() -> None:
 
 def _pg_drop_triggers() -> None:
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_immutable_weight_revision")
 
@@ -373,14 +370,12 @@ def _pg_drop_triggers() -> None:
     op.execute("DROP FUNCTION IF EXISTS fn_weight_revision_status_transition")
 
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_weight_revision_seal_on_approve"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_weight_revision_seal_on_approve ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_weight_revision_seal_on_approve")
 
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_block_direct_approved_insert"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_block_direct_approved_insert ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_block_direct_approved_insert")
 
@@ -392,8 +387,7 @@ def _pg_drop_triggers() -> None:
 
 def _pg_create_old_triggers() -> None:
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_immutable_weight_revision")
 
