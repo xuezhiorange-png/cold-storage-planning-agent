@@ -406,6 +406,22 @@ class TestSchemeRunNullityCheck:
             weight_set_content_hash="h1",
             weight_set_generator_compatibility_version="1.0",
             combined_source_hash="h1",
+            binding_schema_version="1.0",
+            execution_snapshot_id="es-1",
+            coefficient_context_id="cc-1",
+            orchestration_identity_id="oi-1",
+            authoritative_attempt_id="aa-1",
+            orchestration_fingerprint="fp-1",
+            zone_calculation_id="zc-1",
+            cooling_load_calculation_id="clc-1",
+            equipment_calculation_id="ec-1",
+            power_calculation_id="pc-1",
+            investment_calculation_id="ic-1",
+            zone_result_hash="zrh-1",
+            cooling_load_result_hash="clrh-1",
+            equipment_result_hash="erh-1",
+            power_result_hash="prh-1",
+            investment_result_hash="irh-1",
         )
         session.add(r)
         session.flush()

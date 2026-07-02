@@ -887,31 +887,42 @@ class TestTransactionBHashParity:
                 run = runs_by_type[stage_name]
                 assert run.result_hash is not None, f"Stage {stage_name}: result_hash is NULL"
 
-                # Recompute hash from the persisted result_snapshot
+                # Recompute hash using domain builder (same as executor/verifier)
                 calc_name, calc_ver, calc_type, _ = _STAGE_DATA[stage_name]
-                snap_cls = _get_stage_snapshot_cls(stage_name)
-                snap = snap_cls(
+                from cold_storage.modules.orchestration.domain.fingerprint import (
+                    result_hash as _domain_result_hash,
+                )
+                from cold_storage.modules.orchestration.domain.snapshots import (
+                    SourceSnapshotContentV1 as DomainContent,
+                )
+                from cold_storage.modules.orchestration.domain.snapshots import (
+                    SourceSnapshotProvenanceV1,
+                )
+
+                provenance = SourceSnapshotProvenanceV1(
+                    execution_snapshot_id=run.execution_snapshot_id or "",
+                    coefficient_context_id=run.coefficient_context_id or "",
+                    orchestration_identity_id=run.orchestration_identity_id or "",
+                    orchestration_run_attempt_id=run.orchestration_run_attempt_id or "",
+                    upstream_calculation_ids=run.provenance.get("upstream_calculation_ids", {}),
+                )
+                domain_content = DomainContent(
+                    schema_version="1.0.0",
+                    calculation_type=calc_type,
+                    calculator_name=calc_name,
+                    calculator_version=calc_ver,
                     project_id=run.project_id,
                     project_version_id=run.project_version_id,
                     execution_snapshot_id=run.execution_snapshot_id or "",
                     coefficient_context_id=run.coefficient_context_id or "",
                     orchestration_identity_id=run.orchestration_identity_id or "",
-                    orchestration_attempt_id=run.orchestration_run_attempt_id or "",
-                    orchestration_fingerprint=run.orchestration_fingerprint or "",
-                    source_snapshot_schema_version="1.0.0",
-                    calculation_type=calc_type,
-                    calculator_id=calc_name,
-                    calculator_version=calc_ver,
+                    orchestration_run_attempt_id=run.orchestration_run_attempt_id or "",
+                    input_hash=run.input_hash or "",
                     requires_review=run.requires_review,
-                    result_snapshot=run.result_snapshot,
-                    formulas=run.formulas,
-                    coefficients=run.coefficients,
-                    assumptions=run.assumptions,
-                    warnings=run.warnings,
-                    source_references=run.source_references,
-                    upstream_calculation_ids=run.provenance.get("upstream_calculation_ids", {}),
+                    payload=run.result_snapshot,
+                    provenance=provenance,
                 )
-                recomputed = snap.result_hash()
+                recomputed = _domain_result_hash(domain_content)
                 assert run.result_hash == recomputed, (
                     f"Stage {stage_name}: stored hash != recomputed hash.\n"
                     f"  Stored:    {run.result_hash}\n"

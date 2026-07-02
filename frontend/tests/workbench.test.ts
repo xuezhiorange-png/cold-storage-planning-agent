@@ -312,6 +312,11 @@ describe('cold storage workbench', () => {
     expect(drawer).not.toBeNull()
     const closeBtn = drawer.querySelector('.agent-panel__close-btn') as HTMLElement
     expect(closeBtn).not.toBeNull()
+    // MutationObserver-based focus is async in jsdom; poll briefly
+    for (let i = 0; i < 10; i++) {
+      if (document.activeElement === closeBtn) break
+      await new Promise(r => setTimeout(r, 20))
+    }
     expect(document.activeElement).toBe(closeBtn)
   })
 

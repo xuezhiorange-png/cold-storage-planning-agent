@@ -1,12 +1,12 @@
 {
   "result_hashes": {
-    "zone": "2922628e3ce4626466c3de40d577dd475be0072367a7217ad7504f73da435a2c",
-    "cooling_load": "d6d76bf4678dccaa9c9ed10d1120224ffa8cd4eae2f9ae5026295a270f9ff975",
-    "equipment": "1aef148a477f0659ce16a0491393a2da700ff4bef28674d0ba2ef0a659e46529",
-    "power": "e67767b6d3d89ec87f8cd232edf63dac7ddb69fee9fe2401650d44705876e949",
-    "investment": "a062da804d2d6b2c548803de40e76d5217ba4a65c737ed69d9f83b71b18c2b58"
+    "zone": "5284827ad4103e65651a56d947a27764474e619d7d73718f0f2ed019ace39cbd",
+    "cooling_load": "f4e84d5b70801d0c0abeb4f43ca98e7b2affef9b3941a505b9b3035394d7c436",
+    "equipment": "d7fc54faf10e463b76b210599f5a59286ea93e627342bb0229eed4e0ea8e9776",
+    "power": "5c756e5096b09f7d340027ad38320316ca5c882ee0a3ac7a34508487097f4ad6",
+    "investment": "ee0672bc0ee956c6bd81e3d77cd21acb9e77c6a279cc5f0194fdf8540e8202aa"
   },
-  "combined_source_hash": "4eea28c34e3a3fa96156ff8aedc7d5f06b925791fb96c4dae7847222098fb836",
+  "combined_source_hash": "6eb63dad72352a9c16299b79cc6859c02922aaba154015a19874b26fc90be979",
   "canonical_result_snapshots": {
     "zone": {
       "daily_inbound_mass_kg": "25000",
@@ -159,19 +159,19 @@
       "total_investment_cny": "12500000",
       "items": [
         {
-          "item_name": "\u571f\u5efa\u90e8\u5206",
+          "item_name": "土建部分",
           "amount_cny": "5000000"
         },
         {
-          "item_name": "\u5236\u51b7\u8bbe\u5907",
+          "item_name": "制冷设备",
           "amount_cny": "4500000"
         },
         {
-          "item_name": "\u7535\u6c14\u5b89\u88c5",
+          "item_name": "电气安装",
           "amount_cny": "1500000"
         },
         {
-          "item_name": "\u5176\u4ed6\u8d39\u7528",
+          "item_name": "其他费用",
           "amount_cny": "1500000"
         }
       ]
@@ -189,8 +189,8 @@
       "equipment": "golden-run-equipment-001"
     },
     "investment": {
-      "power": "golden-run-power-001",
-      "zone": "golden-run-zone-001"
+      "zone": "golden-run-zone-001",
+      "power": "golden-run-power-001"
     }
   },
   "requires_review": {
