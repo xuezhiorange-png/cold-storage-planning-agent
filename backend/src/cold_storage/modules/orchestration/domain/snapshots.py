@@ -100,8 +100,8 @@ class SourceSnapshotContentV1:
         if frozen_payload is not self.payload:
             object.__setattr__(self, "payload", frozen_payload)
 
-        # Note: provenance key set validation is performed by the verifier
-        # (SourceBindingVerifier._verify_upstream_provenance), not here.
+        # Note: upstream provenance KEY set validation is performed by
+        # SourceBindingVerifier._verify_upstream_provenance, not here.
 
         # ── Validate content/provenance identity consistency ─────────────
         validate_content_provenance_identity_consistency(

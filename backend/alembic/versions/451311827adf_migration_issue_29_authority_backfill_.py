@@ -112,8 +112,9 @@ def _backfill_authority() -> None:
             "   GROUP BY weight_set_id, code"
             "   HAVING COUNT(*) > 1"
             " ) THEN"
-            "   RAISE EXCEPTION 'Duplicate approved revisions detected'"
-            "   ' — cannot backfill authority';"
+            "   RAISE EXCEPTION"
+            " 'Duplicate approved revisions detected"
+            " — cannot backfill authority';"
             " END IF;"
             " END $$;"
         )

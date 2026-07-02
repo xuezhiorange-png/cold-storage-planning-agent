@@ -270,6 +270,45 @@ def _compute_stage_hash(stage: str) -> str:
     return _domain_result_hash(content)
 
 
+def _compute_stage_hash_with_upstream(stage: str, upstream: dict[str, str]) -> str:
+    """Recompute stage hash with custom upstream_calculation_ids."""
+    from cold_storage.modules.orchestration.domain.fingerprint import (
+        result_hash as _domain_result_hash,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotContentV1 as DomainSourceSnapshotContentV1,
+    )
+    from cold_storage.modules.orchestration.domain.snapshots import (
+        SourceSnapshotProvenanceV1,
+    )
+
+    run_id, calc_name, calc_ver, calc_type = _STAGE_META[stage]
+    provenance = SourceSnapshotProvenanceV1(
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_run_attempt_id=_ATT,
+        upstream_calculation_ids=upstream,
+    )
+    content = DomainSourceSnapshotContentV1(
+        schema_version="1.0.0",
+        calculation_type=calc_type,
+        calculator_name=calc_name,
+        calculator_version=calc_ver,
+        project_id=_PID,
+        project_version_id=_PVID,
+        execution_snapshot_id=_ESID,
+        coefficient_context_id=_CCID,
+        orchestration_identity_id=_IDENT,
+        orchestration_run_attempt_id=_ATT,
+        input_hash="input-hash-001",
+        requires_review=False,
+        payload=_RESULT_FACTORIES[stage](),
+        provenance=provenance,
+    )
+    return _domain_result_hash(content)
+
+
 # Pre-compute all stage hashes
 _STAGE_HASHES: dict[str, str] = {s: _compute_stage_hash(s) for s in ORCHESTRATION_STAGE_ORDER}
 
@@ -890,10 +929,22 @@ class TestVerifySourceBindingBackwardCompat:
 
     def test_provenance_missing_key(self) -> None:
         runs = _build_all_runs()
+        # Recompute hash with empty upstream so hash check passes
+        new_hash = _compute_stage_hash_with_upstream("cooling_load", {})
         runs["cooling_load"] = dataclasses.replace(
-            runs["cooling_load"], upstream_calculation_ids={}
+            runs["cooling_load"],
+            upstream_calculation_ids={},
+            result_hash=new_hash,
         )
+        # Update binding's per_calc hash to match modified run
         binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        binding = dataclasses.replace(
+            binding,
+            per_calculation_result_hashes={
+                **binding.per_calculation_result_hashes,
+                "cooling_load": new_hash,
+            },
+        )
         port = _build_read_port(binding=binding, runs=runs)
         with pytest.raises(ProvenanceMissingKey) as exc_info:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
@@ -901,11 +952,22 @@ class TestVerifySourceBindingBackwardCompat:
 
     def test_provenance_extra_key(self) -> None:
         runs = _build_all_runs()
+        # Recompute hash with extra upstream so hash check passes
+        new_hash = _compute_stage_hash_with_upstream("zone", {"zone": "run-z-001"})
         runs["zone"] = dataclasses.replace(
             runs["zone"],
             upstream_calculation_ids={"zone": "run-z-001"},
+            result_hash=new_hash,
         )
+        # Update binding's per_calc hash to match modified run
         binding = _build_binding_snapshot(combined_source_hash=_correct_combined_hash())
+        binding = dataclasses.replace(
+            binding,
+            per_calculation_result_hashes={
+                **binding.per_calculation_result_hashes,
+                "zone": new_hash,
+            },
+        )
         port = _build_read_port(binding=binding, runs=runs)
         with pytest.raises(ProvenanceExtraKey) as exc_info:
             verify_source_binding(port, None, binding_id=_BINDING_ID)
