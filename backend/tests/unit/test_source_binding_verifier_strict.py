@@ -69,6 +69,7 @@ from cold_storage.modules.schemes.application.source_binding_verifier import (
     SlotMissingError,
     SlotTypeError,
     SourceBindingVerificationError,
+    SourcePayloadCanonicalizationError,
     TypedPayloadInvalid,
     UpstreamCalculationIdMismatch,
     _compute_combined_source_hash,
@@ -1279,8 +1280,205 @@ class TestErrorHierarchy:
             CompletenessViolation("s", "f"),
             PowerAuthorityMissingError(),
             CalculatorVersionMismatch("s", "1.0.0", "2.0.0"),
+            SourcePayloadCanonicalizationError("zone", detail="test"),
         ]
         for err in error_classes:
             assert isinstance(err, SourceBindingVerificationError)
             assert hasattr(err, "code")
             assert isinstance(err.code, str)
+
+
+class TestBinaryFloatCanonicalization:
+    """P0-1: Binary float in DB payload must raise structured canonicalization error.
+
+    The canonicalization TypeError originates in the ``verify_source_binding``
+    path (not ``verify_source_mapping``) because Pydantic coercion converts
+    floats to strings before the hash is computed.  The verify_source_binding
+    path loads raw DB dicts into SourceSnapshotContentV1 and calls result_hash,
+    where binary floats reach canonical_json_bytes directly.
+    """
+
+    def test_binary_float_in_payload_raises_canonicalization_error(self) -> None:
+        """Binary float in DB payload raises SourcePayloadCanonicalizationError
+        through the verify_source_binding production path."""
+        from unittest.mock import MagicMock
+
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            verify_source_binding,
+        )
+
+        def _make_run_mock(
+            run_id: str, calc_name: str, calc_type: str,
+            result_snapshot: dict[str, Any],
+        ) -> MagicMock:
+            m = MagicMock()
+            m.id = run_id
+            m.project_id = _PID
+            m.project_version_id = _PVID
+            m.orchestration_identity_id = _IDENT
+            m.orchestration_run_attempt_id = _ATT
+            m.orchestration_fingerprint = _FP
+            m.calculator_name = calc_name
+            m.calculator_version = "1.0.0"
+            m.calculation_type = calc_type
+            m.execution_snapshot_id = _ESID
+            m.coefficient_context_id = _CCID
+            m.input_hash = "abc"
+            m.result_hash = "wrong-hash"
+            m.schema_version = None
+            m.formulas = []
+            m.coefficients = []
+            m.assumptions = []
+            m.warnings = []
+            m.source_references = []
+            m.upstream_calculation_ids = {}
+            m.requires_review = False
+            m.result_snapshot = result_snapshot
+            return m
+
+        # Zone run has binary float in payload
+        zone_run = _make_run_mock(
+            "run-zone-001", "cold_room_zone_plan", "zone",
+            {"daily_inbound_mass_kg": "25000", "bad_field": 3.14, "zones": []},
+        )
+        # Other stage runs are valid
+        runs_by_id = {
+            "run-zone-001": zone_run,
+            "run-cl-001": _make_run_mock(
+                "run-cl-001", "cooling_load", "cooling_load",
+                {"total_cooling_load_kw": "100"},
+            ),
+            "run-eq-001": _make_run_mock(
+                "run-eq-001", "equipment", "equipment",
+                {"equipment_rows": []},
+            ),
+            "run-pow-001": _make_run_mock(
+                "run-pow-001", "installed_power", "power",
+                {"total_installed_power_kw_e": "100", "equipment_rows": []},
+            ),
+            "run-inv-001": _make_run_mock(
+                "run-inv-001", "investment_estimate", "investment",
+                {"total_investment_cny": "1000000", "items": []},
+            ),
+        }
+
+        binding = MagicMock()
+        binding.id = _BINDING_ID
+        binding.schema_version = "1.0.0"
+        binding.project_id = _PID
+        binding.project_version_id = _PVID
+        binding.orchestration_identity_id = _IDENT
+        binding.orchestration_run_attempt_id = _ATT
+        binding.orchestration_fingerprint = _FP
+        binding.execution_snapshot_id = _ESID
+        binding.coefficient_context_id = _CCID
+        binding.zone_calculation_id = "run-zone-001"
+        binding.cooling_load_calculation_id = "run-cl-001"
+        binding.equipment_calculation_id = "run-eq-001"
+        binding.power_calculation_id = "run-pow-001"
+        binding.investment_calculation_id = "run-inv-001"
+        binding.per_calculation_result_hashes = {}
+        binding.combined_source_hash = "x"
+
+        attempt = MagicMock()
+        attempt.id = _ATT
+        attempt.identity_id = _IDENT
+        attempt.status = "COMPLETED"
+        attempt.source_binding_id = _BINDING_ID
+
+        read_port = MagicMock()
+        read_port.load_binding.return_value = binding
+        read_port.load_attempt.return_value = attempt
+        read_port.load_authoritative_attempt_id.return_value = _ATT
+        read_port.load_calculation_run.side_effect = lambda _s, *, run_id: runs_by_id.get(run_id)
+
+        session = MagicMock()
+
+        with pytest.raises(SourcePayloadCanonicalizationError) as exc_info:
+            verify_source_binding(read_port, session, binding_id=_BINDING_ID)
+        err = exc_info.value
+        assert err.code == "source_payload_canonicalization_error"
+        assert err.field == "zone.payload"
+
+    def test_binary_float_not_raw_type_error(self) -> None:
+        """Binary float must NOT propagate as bare TypeError through boundary."""
+        from unittest.mock import MagicMock
+
+        from cold_storage.modules.schemes.application.source_binding_verifier import (
+            verify_source_binding,
+        )
+
+        def _make_run(run_id: str, calc_name: str, ctype: str, snap: dict) -> MagicMock:
+            m = MagicMock()
+            m.id = run_id
+            m.project_id = _PID
+            m.project_version_id = _PVID
+            m.orchestration_identity_id = _IDENT
+            m.orchestration_run_attempt_id = _ATT
+            m.orchestration_fingerprint = _FP
+            m.calculator_name = calc_name
+            m.calculator_version = "1.0.0"
+            m.calculation_type = ctype
+            m.execution_snapshot_id = _ESID
+            m.coefficient_context_id = _CCID
+            m.input_hash = "abc"
+            m.result_hash = "x"
+            m.schema_version = None
+            m.formulas = []
+            m.coefficients = []
+            m.assumptions = []
+            m.warnings = []
+            m.source_references = []
+            m.upstream_calculation_ids = {}
+            m.requires_review = False
+            m.result_snapshot = snap
+            return m
+
+        runs_by_id = {
+            "run-z2": _make_run("run-z2", "cold_room_zone_plan", "zone",
+                                {"daily_inbound_mass_kg": "25000", "bad": 1.0, "zones": []}),
+            "run-cl2": _make_run("run-cl2", "cooling_load", "cooling_load",
+                                {"total_cooling_load_kw": "100"}),
+            "run-eq2": _make_run("run-eq2", "equipment", "equipment",
+                                {"equipment_rows": []}),
+            "run-pw2": _make_run("run-pw2", "installed_power", "power",
+                                {"total_installed_power_kw_e": "100", "equipment_rows": []}),
+            "run-in2": _make_run("run-in2", "investment_estimate", "investment",
+                                {"total_investment_cny": "1000000", "items": []}),
+        }
+
+        binding = MagicMock()
+        binding.id = _BINDING_ID
+        binding.schema_version = "1.0.0"
+        binding.project_id = _PID
+        binding.project_version_id = _PVID
+        binding.orchestration_identity_id = _IDENT
+        binding.orchestration_run_attempt_id = _ATT
+        binding.orchestration_fingerprint = _FP
+        binding.execution_snapshot_id = _ESID
+        binding.coefficient_context_id = _CCID
+        binding.zone_calculation_id = "run-z2"
+        binding.cooling_load_calculation_id = "run-cl2"
+        binding.equipment_calculation_id = "run-eq2"
+        binding.power_calculation_id = "run-pw2"
+        binding.investment_calculation_id = "run-in2"
+        binding.per_calculation_result_hashes = {}
+        binding.combined_source_hash = "x"
+
+        attempt = MagicMock()
+        attempt.id = _ATT
+        attempt.identity_id = _IDENT
+        attempt.status = "COMPLETED"
+        attempt.source_binding_id = _BINDING_ID
+
+        read_port = MagicMock()
+        read_port.load_binding.return_value = binding
+        read_port.load_attempt.return_value = attempt
+        read_port.load_authoritative_attempt_id.return_value = _ATT
+        read_port.load_calculation_run.side_effect = lambda _s, *, run_id: runs_by_id.get(run_id)
+
+        session = MagicMock()
+
+        with pytest.raises(SourcePayloadCanonicalizationError) as exc_info:
+            verify_source_binding(read_port, session, binding_id=_BINDING_ID)
+        assert not issubclass(type(exc_info.value), TypeError)

@@ -356,6 +356,17 @@ class PowerAuthorityMissingError(SourceBindingVerificationError):
         )
 
 
+class SourcePayloadCanonicalizationError(SourceBindingVerificationError):
+    """Raised when canonical hash computation rejects payload (e.g. binary float)."""
+
+    def __init__(self, stage: str, *, detail: str = "") -> None:
+        super().__init__(
+            code="source_payload_canonicalization_error",
+            field=f"{stage}.payload",
+            detail=detail or f"Payload for stage {stage!r} cannot be canonicalized",
+        )
+
+
 # ── Combined source hash helper (reuses Transaction B contract) ────────────
 
 
@@ -782,6 +793,11 @@ def verify_source_binding(
                 provenance=provenance,
             )
             computed_hash = result_hash(content)
+        except TypeError as exc:
+            # Binary float / unsupported type — structured canonicalization error
+            raise SourcePayloadCanonicalizationError(
+                stage, detail=str(exc)
+            ) from exc
         except ValueError as exc:
             # Domain validation raised — convert to verifier error
             _raise_domain_validation_error(stage, exc)
