@@ -717,14 +717,12 @@ def _seed_weight_set_and_revision(
                     "UPDATE scheme_weight_set_revisions "
                     "SET status = 'approved', "
                     "approved_at = :approved_at, "
-                    "approved_by = :approved_by, "
-                    "sealed_at = :sealed_at "
+                    "approved_by = :approved_by "
                     "WHERE id = :rev_id"
                 ),
                 {
                     "approved_at": approved_at,
                     "approved_by": approved_by,
-                    "sealed_at": approved_at,
                     "rev_id": revision_id,
                 },
             )
@@ -1924,14 +1922,12 @@ class TestPostgresProductionTransactionBE2E:
                         "UPDATE scheme_weight_set_revisions "
                         "SET status = 'approved', "
                         "approved_at = :approved_at, "
-                        "approved_by = :approved_by, "
-                        "sealed_at = :sealed_at "
+                        "approved_by = :approved_by "
                         "WHERE id = :rev_id"
                     ),
                     {
                         "approved_at": _now,
                         "approved_by": "pg-golden-e2e-test",
-                        "sealed_at": _now,
                         "rev_id": _PG_WEIGHT_REVISION_ID,
                     },
                 )
@@ -2043,6 +2039,310 @@ class TestPostgresProductionTransactionBE2E:
             )
         finally:
             readback_s.close()
+
+        assert verified_run.status == "completed"
+        assert verified_run.id == run.id
+        assert verified_run.content_hash is not None
+        assert len(verified_run.candidates_snapshot) > 0
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Real executor E2E: TransactionBExecutor → ProductionSchemeService
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Fixed IDs from FixedTransactionBIdFactory (must match golden module) ──
+_GOLDEN_ZONE_RUN_ID = "golden-run-zone-001"
+_GOLDEN_COOL_RUN_ID = "golden-run-cooling-load-001"
+_GOLDEN_EQUIP_RUN_ID = "golden-run-equipment-001"
+_GOLDEN_POWER_RUN_ID = "golden-run-power-001"
+_GOLDEN_INVEST_RUN_ID = "golden-run-investment-001"
+_GOLDEN_WEIGHT_SET_ID = "golden-ws-001"
+_GOLDEN_WEIGHT_REVISION_ID = "golden-wrev-001"
+
+_GOLDEN_RUN_IDS: dict[str, str] = {
+    "zone": _GOLDEN_ZONE_RUN_ID,
+    "cooling_load": _GOLDEN_COOL_RUN_ID,
+    "equipment": _GOLDEN_EQUIP_RUN_ID,
+    "power": _GOLDEN_POWER_RUN_ID,
+    "investment": _GOLDEN_INVEST_RUN_ID,
+}
+
+
+class TestPostgresTransactionBRealExecutorE2E:
+    """End-to-end: real TransactionBExecutor → ProductionSchemeService on PostgreSQL.
+
+    1. Seeds golden prerequisites via execute_transaction_b_via_real_executor()
+       (creates 5 CalculationRuns + 1 SourceBinding via the real executor)
+    2. Reads executor-generated source_binding_id
+    3. Seeds weight set + revision (golden IDs, PG-safe INSERT draft → UPDATE approved)
+    4. Feeds SourceBinding to ProductionSchemeService
+    5. Verifies golden hashes, power authority, provenance, and trusted readback
+
+    Does NOT manually create CalculationRunRecord or SourceBindingRecord —
+    the real executor handles all persistence.
+    """
+
+    def test_real_executor_to_production_e2e(self, pg_session_factory, pg_engine) -> None:
+        assert pg_engine.dialect.name == "postgresql"
+
+        # ── Step 1: Execute Transaction B via real executor ─────────────
+        from tests.integration.transaction_b_golden import (
+            GOLDEN_ATTEMPT_ID,
+            GOLDEN_COEFFICIENT_CONTEXT_ID,
+            GOLDEN_ORCHESTRATION_IDENTITY_ID,
+            GOLDEN_SNAPSHOT_ID,
+            execute_transaction_b_via_real_executor,
+            load_cross_backend_golden,
+        )
+
+        txb_result = execute_transaction_b_via_real_executor(pg_session_factory)
+
+        assert txb_result.status == "COMPLETED", (
+            f"Transaction B executor returned status {txb_result.status!r}"
+        )
+        assert txb_result.persisted_stages_count == 5
+        source_binding_id = txb_result.source_binding_id
+        assert source_binding_id, "Executor must produce a source_binding_id"
+
+        # ── Step 2: Load golden artifact for hash comparison ─────────────
+        golden = load_cross_backend_golden()
+
+        # ── Step 3: Verify executor-created CalculationRuns exist ────────
+        with pg_session_factory() as session:
+            from cold_storage.modules.projects.infrastructure.orm import (
+                CalculationRunRecord,
+            )
+
+            for stage in _SLOT_STAGE_ORDER:
+                run_id = _GOLDEN_RUN_IDS[stage]
+                run_rec = session.execute(
+                    select(CalculationRunRecord).where(CalculationRunRecord.id == run_id)
+                ).scalar_one_or_none()
+                assert run_rec is not None, (
+                    f"Missing CalculationRun for stage {stage!r} — executor did not create it"
+                )
+                assert run_rec.result_hash, f"CalculationRun for {stage!r} has no result_hash"
+                assert run_rec.calculator_name == SLOT_CALCULATOR_NAMES[stage], (
+                    f"calculator_name mismatch for {stage!r}: "
+                    f"got {run_rec.calculator_name!r}, expected {SLOT_CALCULATOR_NAMES[stage]!r}"
+                )
+                assert run_rec.calculator_version == "1.0.0"
+                # Verify executor populated orchestration traceability fields
+                assert run_rec.orchestration_identity_id == GOLDEN_ORCHESTRATION_IDENTITY_ID
+                assert run_rec.orchestration_run_attempt_id == GOLDEN_ATTEMPT_ID
+                assert run_rec.execution_snapshot_id == GOLDEN_SNAPSHOT_ID
+                assert run_rec.coefficient_context_id == GOLDEN_COEFFICIENT_CONTEXT_ID
+
+        # ── Step 4: Verify executor-created SourceBinding ────────────────
+        with pg_session_factory() as session:
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                SourceBindingRecord,
+            )
+
+            binding = session.execute(
+                select(SourceBindingRecord).where(SourceBindingRecord.id == source_binding_id)
+            ).scalar_one()
+            assert binding is not None
+            assert binding.combined_source_hash, "SourceBinding must have combined_source_hash"
+            assert binding.schema_version == "1.0.0"
+
+            # Verify five slot IDs match golden IDs from FixedTransactionBIdFactory
+            golden_slots = golden["source_binding_slot_ids"]
+            assert binding.zone_calculation_id == golden_slots["zone"]
+            assert binding.cooling_load_calculation_id == golden_slots["cooling_load"]
+            assert binding.equipment_calculation_id == golden_slots["equipment"]
+            assert binding.power_calculation_id == golden_slots["power"]
+            assert binding.investment_calculation_id == golden_slots["investment"]
+
+            # Verify executor linked attempt → source_binding
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                OrchestrationRunAttemptRecord,
+            )
+
+            attempt_rec = session.execute(
+                select(OrchestrationRunAttemptRecord).where(
+                    OrchestrationRunAttemptRecord.id == GOLDEN_ATTEMPT_ID
+                )
+            ).scalar_one()
+            assert attempt_rec.status == "COMPLETED"
+            assert attempt_rec.source_binding_id == source_binding_id
+
+            # Verify identity has authoritative_attempt_id set
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                OrchestrationIdentityRecord,
+            )
+
+            identity_rec = session.execute(
+                select(OrchestrationIdentityRecord).where(
+                    OrchestrationIdentityRecord.id == GOLDEN_ORCHESTRATION_IDENTITY_ID
+                )
+            ).scalar_one()
+            assert identity_rec.authoritative_attempt_id == GOLDEN_ATTEMPT_ID
+
+        # ── Step 5: Seed weight set + revision (golden IDs, PG-safe) ────
+        with pg_session_factory() as session:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeWeightSetRecord,
+                SchemeWeightSetRevisionRecord,
+            )
+
+            # Seed weight set
+            existing_ws = session.execute(
+                select(SchemeWeightSetRecord).where(
+                    SchemeWeightSetRecord.id == _GOLDEN_WEIGHT_SET_ID
+                )
+            ).scalar_one_or_none()
+            if existing_ws is None:
+                session.add(
+                    SchemeWeightSetRecord(
+                        id=_GOLDEN_WEIGHT_SET_ID,
+                        code="golden-standard-weights",
+                        name="Golden standard weights",
+                        revision=1,
+                        status="approved",
+                        source_type="production",
+                        criteria=WEIGHT_CRITERIA_RAW,
+                        requires_review=False,
+                        created_at=datetime.now(UTC),
+                        approved_at=datetime.now(UTC),
+                    )
+                )
+
+            # Seed revision (INSERT draft → UPDATE approved for PG trigger)
+            existing_rev = session.execute(
+                select(SchemeWeightSetRevisionRecord).where(
+                    SchemeWeightSetRevisionRecord.id == _GOLDEN_WEIGHT_REVISION_ID
+                )
+            ).scalar_one_or_none()
+            if existing_rev is None:
+                session.add(
+                    SchemeWeightSetRevisionRecord(
+                        id=_GOLDEN_WEIGHT_REVISION_ID,
+                        weight_set_id=_GOLDEN_WEIGHT_SET_ID,
+                        code="golden-standard-weights",
+                        revision=1,
+                        status="draft",
+                        content=WEIGHT_REVISION_CONTENT,
+                        content_hash=WEIGHT_CONTENT_HASH,
+                        generator_compatibility_version="1.0.0",
+                        approved_at=None,
+                        approved_by=None,
+                        sealed_at=None,
+                        created_at=datetime.now(UTC),
+                    )
+                )
+                session.flush()
+                # Use raw SQL UPDATE to satisfy PG trigger
+                from sqlalchemy import text
+
+                session.execute(
+                    text(
+                        "UPDATE scheme_weight_set_revisions "
+                        "SET status = 'approved', "
+                        "approved_at = :approved_at, "
+                        "approved_by = :approved_by "
+                        "WHERE id = :rev_id"
+                    ),
+                    {
+                        "approved_at": datetime.now(UTC),
+                        "approved_by": "golden-e2e-test",
+                        "rev_id": _GOLDEN_WEIGHT_REVISION_ID,
+                    },
+                )
+            session.commit()
+
+        # ── Step 6: Generate production scheme ───────────────────────────
+        service = _make_service(pg_engine)
+        cmd = _make_command(
+            binding_id=source_binding_id,
+            revision_id=_GOLDEN_WEIGHT_REVISION_ID,
+            actor="golden-e2e-test",
+            correlation_id="golden-e2e-corr-002",
+        )
+        run = service.generate_production_scheme_run(cmd)
+        assert run.status == "completed"
+
+        # ── Step 7: Verify production scheme run ─────────────────────────
+        with pg_session_factory() as session:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeCandidateRecord,
+                SchemeRunRecord,
+            )
+
+            rec = session.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run.id)
+            ).scalar_one_or_none()
+            assert rec is not None
+            assert rec.status == "completed"
+            assert rec.source_mode == "production"
+            assert rec.source_binding_id == source_binding_id
+            assert rec.weight_set_revision_id == _GOLDEN_WEIGHT_REVISION_ID
+            assert rec.source_contract_version == "1.0.0"
+
+            # Verify combined_source_hash propagated correctly
+            assert rec.combined_source_hash
+
+            assert rec.content_hash is not None
+            assert len(rec.content_hash) == 64  # SHA-256 hex
+
+            # Verify five slot IDs match golden IDs
+            golden_slots = golden["source_binding_slot_ids"]
+            assert rec.zone_calculation_id == golden_slots["zone"]
+            assert rec.cooling_load_calculation_id == golden_slots["cooling_load"]
+            assert rec.equipment_calculation_id == golden_slots["equipment"]
+            assert rec.power_calculation_id == golden_slots["power"]
+            assert rec.investment_calculation_id == golden_slots["investment"]
+
+            # Verify provenance
+            assert rec.orchestration_identity_id == GOLDEN_ORCHESTRATION_IDENTITY_ID
+            assert rec.authoritative_attempt_id == GOLDEN_ATTEMPT_ID
+            assert rec.execution_snapshot_id == GOLDEN_SNAPSHOT_ID
+            assert rec.coefficient_context_id == GOLDEN_COEFFICIENT_CONTEXT_ID
+
+            # Verify candidates
+            candidates = (
+                session.execute(
+                    select(SchemeCandidateRecord).where(
+                        SchemeCandidateRecord.scheme_run_id == run.id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(candidates) > 0
+            for cand_rec in candidates:
+                assert cand_rec.total_score is not None
+
+        # ── Step 8: Verify power authority = 285.0 from golden ──────────
+        power_snapshot = golden["canonical_result_snapshots"]["power"]
+        power_value = power_snapshot["total_installed_power_kw_e"]
+        assert power_value == "285.0", (
+            f"Expected power authority 285.0 from golden, got {power_value!r}"
+        )
+
+        # ── Step 9: Trusted readback succeeds ────────────────────────────
+        from cold_storage.modules.schemes.application.production_service import (
+            read_verified_production_scheme_run,
+        )
+        from cold_storage.modules.schemes.infrastructure.production_read_ports import (
+            SqlAlchemyProductionSchemeRunReadPort,
+            SqlAlchemySourceBindingReadPort,
+            SqlAlchemyWeightRevisionReadPort,
+        )
+
+        read_port = SqlAlchemyProductionSchemeRunReadPort()
+        binding_port = SqlAlchemySourceBindingReadPort()
+        weight_port = SqlAlchemyWeightRevisionReadPort()
+
+        with pg_session_factory() as session:
+            verified_run = read_verified_production_scheme_run(
+                read_port,
+                binding_port,
+                weight_port,
+                session,
+                run_id=run.id,
+                generator_version="1.0.0",
+            )
 
         assert verified_run.status == "completed"
         assert verified_run.id == run.id

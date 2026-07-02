@@ -43,6 +43,45 @@ _IMMUTABLE_FIELDS: frozenset[str] = frozenset(
     }
 )
 
+# ── Precise authority conflict classification ──────────────────────────────
+# The authority table PK is (weight_set_id, code).
+# PostgreSQL auto-names it: pk_scheme_weight_set_active_revisions
+# SQLite names it: pk_scheme_weight_set_active_revisions (or similar)
+_AUTHORITY_PK_CONSTRAINT = "pk_scheme_weight_set_active_revisions"
+_AUTHORITY_TABLE = "scheme_weight_set_active_revisions"
+
+
+def _is_authority_unique_conflict(exc: Any) -> bool:
+    """Return True only if *exc* is an IntegrityError on the authority table PK.
+
+    PostgreSQL: check SQLSTATE 23505 (unique_violation) + constraint name.
+    SQLite: check error message contains the exact unique columns.
+    """
+    diag = getattr(exc, "orig", None)
+    if diag is None:
+        return False
+
+    # PostgreSQL: psycopg2 Diagnostics object
+    sqlstate = getattr(diag, "sqlstate", None)
+    if sqlstate == "23505":
+        # Unique violation — check constraint name
+        constraint_name = getattr(diag, "constraint_name", None)
+        if constraint_name == _AUTHORITY_PK_CONSTRAINT:
+            return True
+        # Fallback: check table name in the error
+        table_name = getattr(diag, "table_name", None)
+        if table_name == _AUTHORITY_TABLE:
+            return True
+
+    # SQLite: check error message for exact unique columns
+    err_str = str(diag).lower()
+    return (
+        "unique constraint failed" in err_str
+        and _AUTHORITY_TABLE in err_str
+        and "weight_set_id" in err_str
+        and "code" in err_str
+    )
+
 
 class InvalidStatusTransitionError(WeightRevisionGovernanceError):
     def __init__(self, current: str, target: str) -> None:
@@ -152,23 +191,12 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
                         )
                     )
             except sa_exc.IntegrityError as exc:
-                # Only catch the authority table unique constraint violation.
-                # Other IntegrityErrors (FK, NOT NULL, etc.) must propagate.
-                diag = getattr(exc, "orig", None)
-                if diag is not None:
-                    # Check for the specific authority table constraint
-                    err_str = str(diag).lower()
-                    if (
-                        "scheme_weight_set_active_revisions" in err_str
-                        or "active_revisions" in err_str
-                    ):
-                        # This is the authority unique conflict — structured error
-                        raise WeightRevisionGovernanceError(
-                            "active_revision_conflict",
-                            f"Another revision is already approved for "
-                            f"weight_set_id={current.weight_set_id}, code={current.code}",
-                        ) from exc
-                # Unknown IntegrityError — re-raise
+                if _is_authority_unique_conflict(exc):
+                    raise WeightRevisionGovernanceError(
+                        "active_revision_conflict",
+                        f"Another revision is already approved for "
+                        f"weight_set_id={current.weight_set_id}, code={current.code}",
+                    ) from exc
                 raise
 
         # CAS update
@@ -259,17 +287,12 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
                     )
                 )
         except sa_exc.IntegrityError as exc:
-            # Only catch the authority table unique constraint violation.
-            # Other IntegrityErrors (FK, NOT NULL, etc.) must propagate.
-            diag = getattr(exc, "orig", None)
-            if diag is not None:
-                err_str = str(diag).lower()
-                if "scheme_weight_set_active_revisions" in err_str or "active_revisions" in err_str:
-                    raise WeightRevisionGovernanceError(
-                        "active_revision_conflict",
-                        f"Another revision is already approved for "
-                        f"weight_set_id={existing.weight_set_id}, code={existing.code}",
-                    ) from exc
+            if _is_authority_unique_conflict(exc):
+                raise WeightRevisionGovernanceError(
+                    "active_revision_conflict",
+                    f"Another revision is already approved for "
+                    f"weight_set_id={existing.weight_set_id}, code={existing.code}",
+                ) from exc
             raise
 
         # CAS: only approve if currently 'draft'

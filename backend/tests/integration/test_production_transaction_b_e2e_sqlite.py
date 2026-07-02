@@ -475,21 +475,39 @@ def _seed_weight_set_and_revision(session: Any) -> None:
     ).scalar_one_or_none()
     if existing_rev is None:
         _approved_at = datetime.now(UTC)
+        # Insert as draft first, then UPDATE to approved (INSERT trigger blocks direct approved)
         session.add(
             SchemeWeightSetRevisionRecord(
                 id=GOLDEN_WEIGHT_REVISION_ID,
                 weight_set_id=GOLDEN_WEIGHT_SET_ID,
                 code="golden-standard-weights",
                 revision=1,
-                status="approved",
+                status="draft",
                 content=WEIGHT_REVISION_CONTENT,
                 content_hash=WEIGHT_CONTENT_HASH,
                 generator_compatibility_version="1.0.0",
-                approved_at=_approved_at,
-                approved_by="golden-e2e-test",
-                sealed_at=_approved_at,
+                approved_at=None,
+                approved_by=None,
+                sealed_at=None,
                 created_at=datetime.now(UTC),
             )
+        )
+        session.flush()
+        from sqlalchemy import text
+
+        session.execute(
+            text(
+                "UPDATE scheme_weight_set_revisions "
+                "SET status = 'approved', "
+                "approved_at = :approved_at, "
+                "approved_by = :approved_by "
+                "WHERE id = :rev_id"
+            ),
+            {
+                "approved_at": _approved_at,
+                "approved_by": "golden-e2e-test",
+                "rev_id": GOLDEN_WEIGHT_REVISION_ID,
+            },
         )
     session.commit()
 
