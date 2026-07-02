@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Protocol
 
 from cold_storage.modules.schemes.domain.models import WeightCriterion
@@ -258,6 +259,16 @@ class PersistedSchemeRun:
 
     # Recommendation
     recommended_scheme_code: str | None = None
+
+    # SchemeRun metadata (restored from DB for trusted readback)
+    input_snapshot: dict[str, Any] = field(default_factory=dict)
+    assumption_snapshot: dict[str, Any] = field(default_factory=dict)
+    comparison_snapshot: dict[str, Any] = field(default_factory=dict)
+    warning_messages: list[str] = field(default_factory=list)
+    requires_review: bool = True
+    status: str = "pending"
+    created_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class ProductionSchemeRunRepository(Protocol):

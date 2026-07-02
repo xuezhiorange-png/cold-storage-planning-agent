@@ -161,4 +161,15 @@ class SqlAlchemyProductionSchemeRunRepository:
             profile_codes=profile_codes,
             profile_parameters=profile_parameters,
             candidates_count=len(candidates),
+            recommended_scheme_code=recommended_scheme_code,
+            input_snapshot=input_snapshot,
+            assumption_snapshot={
+                **assumption_snapshot,
+                "profile_codes": list(profile_codes),
+                "profile_parameters": dict(profile_parameters),
+            },
+            comparison_snapshot=comparison_snapshot,
+            warning_messages=warning_messages,
+            requires_review=requires_review,
+            status=status,
         )

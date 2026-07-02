@@ -256,6 +256,14 @@ class SqlAlchemyProductionSchemeRunReadPort:
             candidates_snapshot=candidates_snapshot,
             score_breakdowns_snapshot=score_breakdowns_snapshot,
             recommended_scheme_code=record.recommended_scheme_code,
+            input_snapshot=dict(record.input_snapshot or {}),
+            assumption_snapshot=dict(record.assumption_snapshot or {}),
+            comparison_snapshot=dict(record.comparison_snapshot or {}),
+            warning_messages=[str(m) for m in (record.warning_messages or [])],
+            requires_review=record.requires_review or False,
+            status=record.status,
+            created_at=record.created_at,
+            completed_at=record.completed_at,
         )
 
     def load_candidates(self, session: Session, /, *, run_id: str) -> list[SchemeCandidateSnapshot]:

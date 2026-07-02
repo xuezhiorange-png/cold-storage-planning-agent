@@ -180,6 +180,13 @@ def _compute_production_content_hash(
     profile_parameters: dict[str, dict[str, Any]],
     candidates_snapshot: Any,
     score_breakdowns_snapshot: Any,
+    recommended_scheme_code: str | None = None,
+    requires_review: bool = False,
+    status: str = "completed",
+    input_snapshot: dict[str, Any] | None = None,
+    assumption_snapshot: dict[str, Any] | None = None,
+    comparison_snapshot: dict[str, Any] | None = None,
+    warning_messages: list[str] | None = None,
 ) -> str:
     """Compute content hash covering ALL production provenance fields."""
     content = {
@@ -206,12 +213,19 @@ def _compute_production_content_hash(
         "combined_source_hash": combined_source_hash,
         "weight_set_revision_id": weight_set_revision_id,
         "weight_set_content_hash": weight_set_content_hash,
-        "weight_set_generator_compatibility_version": (weight_set_generator_compatibility_version),
+        "weight_set_generator_compatibility_version": weight_set_generator_compatibility_version,
         "generator_version": generator_version,
         "profile_codes": list(profile_codes),
         "profile_parameters": dict(profile_parameters),
         "candidates": candidates_snapshot,
         "score_breakdowns": score_breakdowns_snapshot,
+        "recommended_scheme_code": recommended_scheme_code,
+        "requires_review": requires_review,
+        "status": status,
+        "input_snapshot": input_snapshot or {},
+        "assumption_snapshot": assumption_snapshot or {},
+        "comparison_snapshot": comparison_snapshot or {},
+        "warning_messages": warning_messages or [],
     }
     return hashlib.sha256(_canonical_json(content).encode()).hexdigest()
 
@@ -376,6 +390,26 @@ class ProductionSchemeService:
             [_to_safe_dict(sb) for sb in score_breakdowns]
         )
 
+        # 6b. Compute total_score for recommendation snapshot
+        total_score = Decimal(0)
+        if feasible:
+            total_score = max(sb.total_score for sb in feasible)
+
+        # 6c. Build complete snapshot dicts for hash and persistence
+        gen_input_snapshot = _serialize_decimals(_to_safe_dict(generation_input))
+        full_assumption_snapshot: dict[str, Any] = {
+            "source_mode": "production",
+            "actor": command.actor,
+            "correlation_id": command.correlation_id,
+            "profile_codes": list(command.profile_codes),
+            "profile_parameters": {k: dict(v) for k, v in command.profile_parameters.items()},
+        }
+        gen_comparison_snapshot: dict[str, Any] = {
+            "recommended_scheme_code": recommended_code,
+            "recommended_reason": recommended_reason,
+            "total_score": str(total_score),
+        }
+
         # 7. Compute content hash with ALL provenance fields
         content_hash = _compute_production_content_hash(
             source_binding_id=command.source_binding_id,
@@ -407,14 +441,18 @@ class ProductionSchemeService:
             profile_parameters={k: dict(v) for k, v in command.profile_parameters.items()},
             candidates_snapshot=candidates_snapshot,
             score_breakdowns_snapshot=score_breakdowns_snapshot,
+            recommended_scheme_code=recommended_code,
+            requires_review=source.requires_review,
+            status="completed",
+            input_snapshot=gen_input_snapshot,
+            assumption_snapshot=full_assumption_snapshot,
+            comparison_snapshot=gen_comparison_snapshot,
+            warning_messages=[],
         )
 
         # 8. Build and persist production SchemeRun
         run_id = f"prod-run-{uuid.uuid4().hex[:12]}"
         now = datetime.now(UTC)
-        total_score = Decimal(0)
-        if feasible:
-            total_score = max(sb.total_score for sb in feasible)
 
         run = SchemeRun(
             id=run_id,
@@ -424,17 +462,9 @@ class ProductionSchemeService:
             status="completed",
             generator_version=GENERATOR_VERSION,
             source_snapshot_hash=source.combined_source_hash,
-            input_snapshot=_serialize_decimals(_to_safe_dict(generation_input)),
-            assumption_snapshot={
-                "source_mode": "production",
-                "actor": command.actor,
-                "correlation_id": command.correlation_id,
-            },
-            comparison_snapshot={
-                "recommended_scheme_code": recommended_code,
-                "recommended_reason": recommended_reason,
-                "total_score": str(total_score),
-            },
+            input_snapshot=gen_input_snapshot,
+            assumption_snapshot=full_assumption_snapshot,
+            comparison_snapshot=gen_comparison_snapshot,
             candidates_snapshot=candidates_snapshot,
             requires_review=source.requires_review,
             recommended_scheme_code=recommended_code,
@@ -493,17 +523,13 @@ class ProductionSchemeService:
             status="completed",
             generator_version=GENERATOR_VERSION,
             source_snapshot_hash=source.combined_source_hash,
-            input_snapshot=_serialize_decimals(_to_safe_dict(generation_input)),
+            input_snapshot=gen_input_snapshot,
             assumption_snapshot={
                 "source_mode": "production",
                 "actor": command.actor,
                 "correlation_id": command.correlation_id,
             },
-            comparison_snapshot={
-                "recommended_scheme_code": recommended_code,
-                "recommended_reason": recommended_reason,
-                "total_score": str(total_score),
-            },
+            comparison_snapshot=gen_comparison_snapshot,
             candidates_snapshot=candidates_snapshot,
             requires_review=source.requires_review,
             recommended_scheme_code=recommended_code,
@@ -679,6 +705,13 @@ def read_verified_production_scheme_run(
         profile_parameters=persisted.profile_parameters,
         candidates_snapshot=rebuilt_candidates_snapshot,
         score_breakdowns_snapshot=score_breakdowns_snapshot,
+        recommended_scheme_code=persisted.recommended_scheme_code,
+        requires_review=persisted.requires_review,
+        status=persisted.status,
+        input_snapshot=persisted.input_snapshot,
+        assumption_snapshot=persisted.assumption_snapshot,
+        comparison_snapshot=persisted.comparison_snapshot,
+        warning_messages=persisted.warning_messages,
     )
     if recomputed_hash != persisted.content_hash:
         raise SchemeRunContentHashMismatchError(persisted.content_hash or "", recomputed_hash)
@@ -695,10 +728,22 @@ def read_verified_production_scheme_run(
             f"recommended_scheme_code {persisted.recommended_scheme_code!r} "
             f"set but no feasible candidates exist",
         )
+    if feasible and not persisted.recommended_scheme_code:
+        raise SchemeRunCandidateConsistencyError(
+            run_id,
+            "feasible candidates exist but recommended_scheme_code is None",
+        )
     if feasible:
+        # Sort using Decimal stable_sort_key logic (same as generation path)
         feasible.sort(
             key=lambda c: (
-                -(float(c.total_score) if c.total_score is not None else 0),
+                -(Decimal(str(c.total_score)) if c.total_score is not None else Decimal(0)),
+                Decimal(str(c.score_breakdown_snapshot.get("investment_cny", 0)))
+                if c.score_breakdown_snapshot.get("investment_cny") is not None
+                else Decimal(0),
+                Decimal(str(c.score_breakdown_snapshot.get("installed_power_kw_e", 0)))
+                if c.score_breakdown_snapshot.get("installed_power_kw_e") is not None
+                else Decimal(0),
                 c.scheme_code,
             )
         )
@@ -730,35 +775,23 @@ def read_verified_production_scheme_run(
             f"loaded={revision.weight_set_id!r}",
         )
 
-    # 10. Build SchemeRun domain model from persisted data
-    now = datetime.now(UTC)
-
+    # 10. Build SchemeRun domain model from persisted data (real values, not defaults)
     return SchemeRun(
         id=persisted.id,
         project_id=persisted.project_id,
         project_version_id=persisted.project_version_id,
         weight_set_id=persisted.weight_set_id or "",
-        status="completed",
-        generator_version=generator_version,
+        status=persisted.status,
+        generator_version=persisted.generator_version or generator_version,
         source_snapshot_hash=persisted.combined_source_hash or "",
-        input_snapshot={},
-        assumption_snapshot={
-            "source_mode": "production",
-            "verified_at": now.isoformat(),
-            "content_hash_verified": True,
-            "profile_codes": list(persisted.profile_codes),
-            "profile_parameters": dict(persisted.profile_parameters),
-        },
-        comparison_snapshot={
-            "candidates_count": len(candidates),
-            "content_hash_verified": True,
-            "recommended_scheme_code": persisted.recommended_scheme_code,
-        },
+        input_snapshot=persisted.input_snapshot,
+        assumption_snapshot=persisted.assumption_snapshot,
+        comparison_snapshot=persisted.comparison_snapshot,
         candidates_snapshot=rebuilt_candidates_snapshot,  # type: ignore[arg-type]
-        requires_review=False,
+        requires_review=persisted.requires_review,
         recommended_scheme_code=persisted.recommended_scheme_code,
-        warning_messages=[],
-        created_at=now,
-        completed_at=now,
+        warning_messages=persisted.warning_messages,
+        created_at=persisted.created_at or datetime.now(UTC),
+        completed_at=persisted.completed_at,
         content_hash=persisted.content_hash,
     )

@@ -2323,7 +2323,7 @@ class TestTamperRejection:
 
     def test_tamper_recommendation(self, engine, session_factory) -> None:
         from cold_storage.modules.schemes.application.production_service import (
-            SchemeRunCandidateConsistencyError,
+            SchemeRunContentHashMismatchError,
         )
         from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
 
@@ -2338,9 +2338,148 @@ class TestTamperRejection:
         finally:
             tamper_s.close()
 
-        with pytest.raises(SchemeRunCandidateConsistencyError) as exc_info:
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
             self._read_verified(engine, session_factory, run_id)
-        assert exc_info.value.code == "candidate_consistency_failure"
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_recommendation_to_null(self, engine, session_factory) -> None:
+        """Tamper recommended_scheme_code to a different value → content hash mismatch."""
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            # Tamper to a non-existent code regardless of original value
+            rec.recommended_scheme_code = "TAMPERED_WAS_NULL"
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_requires_review(self, engine, session_factory) -> None:
+        """Tamper requires_review field → content hash mismatch."""
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            rec.requires_review = True
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_input_snapshot(self, engine, session_factory) -> None:
+        """Tamper input_snapshot → content hash mismatch."""
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            snap = dict(rec.input_snapshot or {})
+            snap["tampered_field"] = "tampered_value"
+            rec.input_snapshot = snap
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_assumption_snapshot(self, engine, session_factory) -> None:
+        """Tamper assumption_snapshot → content hash mismatch."""
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            snap = dict(rec.assumption_snapshot or {})
+            snap["actor"] = "TAMPERED_ACTOR"
+            rec.assumption_snapshot = snap
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_comparison_snapshot(self, engine, session_factory) -> None:
+        """Tamper comparison_snapshot → content hash mismatch."""
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            snap = dict(rec.comparison_snapshot or {})
+            snap["total_score"] = "999999.999"
+            rec.comparison_snapshot = snap
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
+
+    def test_tamper_warning_messages(self, engine, session_factory) -> None:
+        """Tamper warning_messages → content hash mismatch."""
+        from cold_storage.modules.schemes.application.production_service import (
+            SchemeRunContentHashMismatchError,
+        )
+        from cold_storage.modules.schemes.infrastructure.orm import SchemeRunRecord
+
+        run_id = self._generate_and_get_run_id(engine, session_factory)
+        tamper_s = session_factory()
+        try:
+            rec = tamper_s.execute(
+                select(SchemeRunRecord).where(SchemeRunRecord.id == run_id)
+            ).scalar_one()
+            rec.warning_messages = ["TAMPERED_WARNING"]
+            tamper_s.commit()
+        finally:
+            tamper_s.close()
+
+        with pytest.raises(SchemeRunContentHashMismatchError) as exc_info:
+            self._read_verified(engine, session_factory, run_id)
+        assert exc_info.value.code == "content_hash_mismatch"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
