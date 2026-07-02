@@ -151,8 +151,25 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
                             updated_at=approved_at,
                         )
                     )
-            except sa_exc.IntegrityError:
-                return False
+            except sa_exc.IntegrityError as exc:
+                # Only catch the authority table unique constraint violation.
+                # Other IntegrityErrors (FK, NOT NULL, etc.) must propagate.
+                diag = getattr(exc, "orig", None)
+                if diag is not None:
+                    # Check for the specific authority table constraint
+                    err_str = str(diag).lower()
+                    if (
+                        "scheme_weight_set_active_revisions" in err_str
+                        or "active_revisions" in err_str
+                    ):
+                        # This is the authority unique conflict — structured error
+                        raise WeightRevisionGovernanceError(
+                            "active_revision_conflict",
+                            f"Another revision is already approved for "
+                            f"weight_set_id={current.weight_set_id}, code={current.code}",
+                        ) from exc
+                # Unknown IntegrityError — re-raise
+                raise
 
         # CAS update
         result = session.execute(
@@ -226,6 +243,10 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
                 changed.append("content_hash")
             raise RevisionImmutabilityViolationError(revision_id, changed)
 
+        # If already approved with same content, CAS conflict — nothing to do
+        if existing.status == "approved":
+            return False
+
         # Claim authority via UNIQUE composite PK (atomic)
         try:
             with session.begin_nested():
@@ -237,10 +258,19 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
                         updated_at=approved_at,
                     )
                 )
-        except sa_exc.IntegrityError:
-            # Another revision already claimed authority for this
-            # weight_set_id + code
-            return False
+        except sa_exc.IntegrityError as exc:
+            # Only catch the authority table unique constraint violation.
+            # Other IntegrityErrors (FK, NOT NULL, etc.) must propagate.
+            diag = getattr(exc, "orig", None)
+            if diag is not None:
+                err_str = str(diag).lower()
+                if "scheme_weight_set_active_revisions" in err_str or "active_revisions" in err_str:
+                    raise WeightRevisionGovernanceError(
+                        "active_revision_conflict",
+                        f"Another revision is already approved for "
+                        f"weight_set_id={existing.weight_set_id}, code={existing.code}",
+                    ) from exc
+            raise
 
         # CAS: only approve if currently 'draft'
         result = session.execute(

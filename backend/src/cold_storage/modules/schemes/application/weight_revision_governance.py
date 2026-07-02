@@ -428,16 +428,16 @@ def approve_weight_revision(
         raise RevisionAlreadyApprovedError(weight_set_id, code)
 
     # 3. Attempt CAS approve
+    # P0-2: adapter raises WeightRevisionGovernanceError(active_revision_conflict)
+    # when another revision already claims authority for the same weight_set_id+code.
     now = datetime.now(UTC)
-    approved = approval_port.approve_revision(
+    approval_port.approve_revision(
         session,
         revision_id=revision_id,
         content=content,
         approved_at=now,
         approved_by=approved_by,
     )
-    if not approved:
-        raise RevisionApprovalCASConflictError(weight_set_id, code)
 
 
 # ── Production weight seed helper ─────────────────────────────────────────

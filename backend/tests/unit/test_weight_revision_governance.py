@@ -586,7 +586,7 @@ class TestApprovalCASWorkflow:
         )
 
     def test_cas_prevents_concurrent_double_approve(self, session, adapter) -> None:
-        """Simulate concurrent approval: second CAS update returns False."""
+        """Simulate concurrent approval: second CAS returns False (already approved)."""
         self._create_draft_revision(session)
         session.commit()
 
@@ -601,6 +601,7 @@ class TestApprovalCASWorkflow:
         assert r1 is True
         session.commit()
 
+        # Same revision already approved — CAS conflict (returns False)
         r2 = adapter.approve_revision(
             session,
             revision_id="rev-001",
@@ -1136,17 +1137,17 @@ class TestConcurrentApproval:
         session_a.commit()
         assert result_a is True
 
-        # Second session tries to approve B — should fail (CAS + uniqueness)
+        # Second session tries to approve B — should raise active_revision_conflict
         now_b = datetime.now(UTC)
-        result_b = adapter.approve_revision(
-            session_b,
-            revision_id="rev-conc-B",
-            content=_VALID_CONTENT,
-            approved_at=now_b,
-            approved_by="user-B",
-        )
-        session_b.commit()
-        assert result_b is False
+        with pytest.raises(WeightRevisionGovernanceError, match="already approved for"):
+            adapter.approve_revision(
+                session_b,
+                revision_id="rev-conc-B",
+                content=_VALID_CONTENT,
+                approved_at=now_b,
+                approved_by="user-B",
+            )
+        session_b.rollback()
 
         # Verify exactly one approved
         from sqlalchemy import func, select
@@ -1857,6 +1858,7 @@ class TestConcurrentApprovalWithAuthority:
         _KNOWN_LOSER_ERRORS = (
             "RevisionAlreadyApprovedError",
             "RevisionApprovalCASConflictError",
+            "WeightRevisionGovernanceError",
             "IntegrityError",
         )
 
@@ -1905,6 +1907,15 @@ class TestConcurrentApprovalWithAuthority:
                     error_code=exc.code,
                     error_message=str(exc),
                 )
+            except WeightRevisionGovernanceError as exc:
+                # P0-2: structured authority conflict from adapter
+                sess.rollback()
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=getattr(exc, "code", None),
+                    error_message=str(exc),
+                )
             except sa_exc.IntegrityError as exc:
                 sess.rollback()
                 results[index] = ApprovalAttemptResult(
@@ -1935,6 +1946,30 @@ class TestConcurrentApprovalWithAuthority:
             f"Expected exactly 1 winner, got {len(winners)}; results={results}"
         )
         assert len(losers) == 1, f"Expected exactly 1 loser, got {len(losers)}; results={results}"
+        loser = losers[0]
+        assert loser.error_type in _KNOWN_LOSER_ERRORS, (
+            f"Loser error_type {loser.error_type!r} not in known errors"
+        )
+        # Verify the loser is a structured governance error
+        assert loser.error_code is not None, (
+            f"Loser must have structured error_code, got {loser.error_code}"
+        )
+        # DB should have exactly one approved revision
+        from sqlalchemy import func, select
+
+        from cold_storage.modules.schemes.infrastructure.orm import (
+            SchemeWeightSetRevisionRecord,
+        )
+
+        with setup_engine.connect() as conn:
+            approved_count = conn.execute(
+                select(func.count()).select_from(
+                    SchemeWeightSetRevisionRecord
+                ).where(
+                    SchemeWeightSetRevisionRecord.status == "approved"
+                )
+            ).scalar()
+        assert approved_count == 1, f"Expected 1 approved, got {approved_count}"
 
         # 5. Loser's error must be a known governance conflict
         loser = losers[0]
@@ -2003,6 +2038,7 @@ class TestConcurrentApprovalWithAuthority:
         _KNOWN_LOSER_ERRORS = (
             "RevisionAlreadyApprovedError",
             "RevisionApprovalCASConflictError",
+            "WeightRevisionGovernanceError",
             "IntegrityError",
         )
 
@@ -2091,6 +2127,15 @@ class TestConcurrentApprovalWithAuthority:
                     succeeded=False,
                     error_type=type(exc).__name__,
                     error_code=exc.code,
+                    error_message=str(exc),
+                )
+            except WeightRevisionGovernanceError as exc:
+                # P0-2: structured authority conflict from adapter
+                sess.rollback()
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=getattr(exc, "code", None),
                     error_message=str(exc),
                 )
             except sa_exc.IntegrityError as exc:
@@ -2226,15 +2271,16 @@ class TestConcurrentApprovalWithAuthority:
         assert result_a is True
         session.commit()
 
-        # Approve B — should fail (authority conflict)
-        result_b = adapter.approve_revision(
-            session,
-            revision_id="rev-auth-B",
-            content=_VALID_CONTENT,
-            approved_at=now,
-            approved_by="user-B",
-        )
-        assert result_b is False
+        # Approve B — should raise active_revision_conflict
+        with pytest.raises(WeightRevisionGovernanceError, match="already approved for"):
+            adapter.approve_revision(
+                session,
+                revision_id="rev-auth-B",
+                content=_VALID_CONTENT,
+                approved_at=now,
+                approved_by="user-B",
+            )
+        session.rollback()
 
         # Verify authority row points to A
         from sqlalchemy import text
