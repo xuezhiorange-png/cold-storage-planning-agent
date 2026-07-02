@@ -584,7 +584,7 @@ class TestAuditEventHistoryBackfill:
         with engine3.connect() as conn3:
             # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0030_add_weight_revision_governance_constraints"
+            expected_rev = "0031_add_weight_revision_active_approved_unique"
             assert rev == expected_rev, f"Revision changed: {rev}"
 
             # AuditEvent still backfilled with same value
@@ -1703,8 +1703,8 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0030_add_weight_revision_governance_constraints"
-            assert rev == expected_rev, f"Expected 0030, got {rev}"
+            expected_rev = "0031_add_weight_revision_active_approved_unique"
+            assert rev == expected_rev, f"Expected 0031, got {rev}"
         engine.dispose()
 
         # Downgrade to 0027
@@ -1726,6 +1726,6 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0030_add_weight_revision_governance_constraints"
-            assert rev == expected_rev, f"Expected 0030, got {rev}"
+            expected_rev = "0031_add_weight_revision_active_approved_unique"
+            assert rev == expected_rev, f"Expected 0031, got {rev}"
         engine.dispose()
