@@ -153,6 +153,19 @@ class PersistedSourceProvenanceMismatchError(ProductionSchemeError):
         self.mismatched_field = field
 
 
+# ── Snapshot validation error ──────────────────────────────────────────────
+
+
+class PersistedSchemeSnapshotValidationError(Exception):
+    """Raised when a persisted scheme snapshot fails strict type validation."""
+
+    def __init__(self, *, field: str, detail: str) -> None:
+        self.code = "persisted_scheme_snapshot_invalid"
+        self.field = field
+        self.detail = detail
+        super().__init__(f"Snapshot field {field!r}: {detail}")
+
+
 # ── Content hash computation ───────────────────────────────────────────────
 
 
@@ -608,22 +621,171 @@ _PRODUCTION_IDENTITY_FIELDS: tuple[str, ...] = (
 # ── Domain object rebuild from DB snapshots ──────────────────────────────────
 
 
-def _to_decimal(v: Any) -> Decimal:
-    """Convert a value to Decimal, handling str/int/float/Decimal."""
+VALID_DIRECTIONS: frozenset[str] = frozenset(
+    {"higher_is_better", "lower_is_better", "binary_pass"}
+)
+
+
+def _require_field(snapshot: dict[str, Any], key: str, *, field_path: str) -> Any:
+    """Get a required field from a snapshot dict. Raises on missing or NULL."""
+    if key not in snapshot:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"required field {key!r} missing from snapshot",
+        )
+    value = snapshot[key]
+    if value is None:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"required field {key!r} is NULL in snapshot",
+        )
+    return value
+
+
+def _snapshot_field(snapshot: dict[str, Any], key: str, *, field_path: str) -> Any:
+    """Get a field from snapshot dict. Raises if key is missing (allows NULL)."""
+    if key not in snapshot:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"expected field {key!r} missing from snapshot",
+        )
+    return snapshot[key]
+
+
+def _to_decimal(v: Any, *, field_path: str = "") -> Decimal:
+    """Convert a value to Decimal — only accept canonical string or Decimal.
+
+    Rejects float (binary floating-point), int, bool, empty/missing, and
+    non-numeric strings.
+    """
+    if v is None:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail="required decimal field is NULL",
+        )
     if isinstance(v, Decimal):
         return v
-    if isinstance(v, (int, float)):
-        return Decimal(str(v))
-    return Decimal(str(v)) if v else Decimal(0)
+    if isinstance(v, float):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"binary float {v!r} rejected; must be string Decimal or Decimal",
+        )
+    if isinstance(v, bool):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"bool {v!r} rejected; must be string Decimal or Decimal",
+        )
+    if isinstance(v, int):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"raw int {v!r} rejected; must be string Decimal or Decimal",
+        )
+    if isinstance(v, str):
+        if not v.strip():
+            raise PersistedSchemeSnapshotValidationError(
+                field=field_path,
+                detail="empty or whitespace-only string rejected for decimal field",
+            )
+        try:
+            return Decimal(v)
+        except Exception as exc:
+            raise PersistedSchemeSnapshotValidationError(
+                field=field_path,
+                detail=f"string {v!r} is not a valid Decimal: {exc}",
+            ) from exc
+    raise PersistedSchemeSnapshotValidationError(
+        field=field_path,
+        detail=f"unexpected type {type(v).__name__!r} for decimal field",
+    )
+
+
+def _to_int(v: Any, *, field_path: str = "") -> int:
+    """Convert a value to int — only accept pure int (reject bool, float, str)."""
+    if v is None:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail="required integer field is NULL",
+        )
+    if isinstance(v, bool):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"bool {v!r} rejected; must be int",
+        )
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"float {v!r} rejected; must be int",
+        )
+    if isinstance(v, str):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"string {v!r} rejected; must be int, not parsed from string",
+        )
+    raise PersistedSchemeSnapshotValidationError(
+        field=field_path,
+        detail=f"unexpected type {type(v).__name__!r} for integer field",
+    )
+
+
+def _require_str(v: Any, *, field_path: str = "", allow_empty: bool = False) -> str:
+    """Require a non-empty string value. Raises on None, non-string, or empty/whitespace."""
+    if v is None:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail="required string field is NULL",
+        )
+    if not isinstance(v, str):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"unexpected type {type(v).__name__!r} for string field",
+        )
+    if not allow_empty and not v.strip():
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail="empty or whitespace-only string rejected",
+        )
+    return v
+
+
+def _require_bool(v: Any, *, field_path: str = "") -> bool:
+    """Require a native bool value. Rejects int, str, and other truthy/falsy types."""
+    if v is None:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail="required boolean field is NULL",
+        )
+    if not isinstance(v, bool):
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"unexpected type {type(v).__name__!r} for boolean field; must be bool",
+        )
+    return v
+
+
+def _validate_direction(v: str, *, field_path: str) -> str:
+    """Validate that a direction value is one of the known enum values."""
+    if v not in VALID_DIRECTIONS:
+        raise PersistedSchemeSnapshotValidationError(
+            field=field_path,
+            detail=f"unknown direction {v!r}; expected one of {sorted(VALID_DIRECTIONS)}",
+        )
+    return v
 
 
 def _rebuild_scheme_candidate_from_snapshot(
     snapshot: dict[str, Any],
+    *,
+    field_path: str = "candidate",
 ) -> SchemeCandidate:
     """Rebuild a SchemeCandidate from a persisted result_snapshot dict.
 
     Converts all numeric fields from their JSON-serialised form back to
     ``Decimal`` so that ``stable_sort_key`` can operate on domain types.
+
+    Raises PersistedSchemeSnapshotValidationError on any missing, NULL,
+    or mis-typed field.
     """
     from cold_storage.modules.schemes.domain.models import (
         SchemeConstraintResult,
@@ -631,116 +793,281 @@ def _rebuild_scheme_candidate_from_snapshot(
         SchemeRoomModule,
     )
 
-    def _to_int(v: Any) -> int:
-        if isinstance(v, int):
-            return v
-        return int(float(str(v))) if v else 0
+    rf = _require_field  # shorthand
 
+    # --- Room modules ---
+    room_modules_raw = rf(snapshot, "room_modules", field_path=field_path)
     room_modules = [
         SchemeRoomModule(
-            room_code=rm.get("room_code", ""),
-            room_name=rm.get("room_name", ""),
-            zone_codes=rm.get("zone_codes", []),
-            temperature_level=rm.get("temperature_level", ""),
-            area_m2=_to_decimal(rm.get("area_m2", 0)),
-            position_count=_to_int(rm.get("position_count", 0)),
-            storage_capacity_kg=_to_decimal(rm.get("storage_capacity_kg", 0)),
-            design_cooling_load_kw_r=_to_decimal(rm.get("design_cooling_load_kw_r", 0)),
+            room_code=_require_str(
+                rf(rm, "room_code", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].room_code",
+            ),
+            room_name=_require_str(
+                rf(rm, "room_name", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].room_name",
+            ),
+            zone_codes=rf(rm, "zone_codes", field_path=f"{field_path}.room_modules[i]"),
+            temperature_level=_require_str(
+                rf(rm, "temperature_level", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].temperature_level",
+            ),
+            area_m2=_to_decimal(
+                rf(rm, "area_m2", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].area_m2",
+            ),
+            position_count=_to_int(
+                rf(rm, "position_count", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].position_count",
+            ),
+            storage_capacity_kg=_to_decimal(
+                rf(rm, "storage_capacity_kg", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].storage_capacity_kg",
+            ),
+            design_cooling_load_kw_r=_to_decimal(
+                rf(rm, "design_cooling_load_kw_r", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].design_cooling_load_kw_r",
+            ),
             compressor_operating_capacity_kw_r=_to_decimal(
-                rm.get("compressor_operating_capacity_kw_r", 0)
+                rf(rm, "compressor_operating_capacity_kw_r", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].compressor_operating_capacity_kw_r",
             ),
             compressor_installed_capacity_kw_r=_to_decimal(
-                rm.get("compressor_installed_capacity_kw_r", 0)
+                rf(rm, "compressor_installed_capacity_kw_r", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].compressor_installed_capacity_kw_r",
             ),
-            process_compatibility=rm.get("process_compatibility"),
-            hygiene_zone=rm.get("hygiene_zone"),
-            door_count=_to_int(rm.get("door_count", 1)),
-            partition_length_proxy_m=_to_decimal(rm.get("partition_length_proxy_m", 0)),
+            process_compatibility=_snapshot_field(
+                rm, "process_compatibility", field_path=f"{field_path}.room_modules[i]",
+            ),
+            hygiene_zone=_snapshot_field(
+                rm, "hygiene_zone", field_path=f"{field_path}.room_modules[i]",
+            ),
+            door_count=_to_int(
+                rf(rm, "door_count", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].door_count",
+            ),
+            partition_length_proxy_m=_to_decimal(
+                rf(rm, "partition_length_proxy_m", field_path=f"{field_path}.room_modules[i]"),
+                field_path=f"{field_path}.room_modules[i].partition_length_proxy_m",
+            ),
         )
-        for rm in snapshot.get("room_modules", [])
+        for rm in room_modules_raw
     ]
 
+    # --- Constraint results ---
+    constraint_results_raw = rf(snapshot, "constraint_results", field_path=field_path)
     constraint_results = [
         SchemeConstraintResult(
-            constraint_code=cr.get("constraint_code", ""),
-            passed=bool(cr.get("passed", False)),
-            detail=cr.get("detail", ""),
-            expected=cr.get("expected"),
-            actual=cr.get("actual"),
+            constraint_code=_require_str(
+                rf(cr, "constraint_code", field_path=f"{field_path}.constraint_results[i]"),
+                field_path=f"{field_path}.constraint_results[i].constraint_code",
+            ),
+            passed=_require_bool(
+                rf(cr, "passed", field_path=f"{field_path}.constraint_results[i]"),
+                field_path=f"{field_path}.constraint_results[i].passed",
+            ),
+            detail=_require_str(
+                rf(cr, "detail", field_path=f"{field_path}.constraint_results[i]"),
+                field_path=f"{field_path}.constraint_results[i].detail",
+            ),
+            expected=_snapshot_field(
+                cr, "expected", field_path=f"{field_path}.constraint_results[i]",
+            ),
+            actual=_snapshot_field(
+                cr, "actual", field_path=f"{field_path}.constraint_results[i]",
+            ),
         )
-        for cr in snapshot.get("constraint_results", [])
+        for cr in constraint_results_raw
     ]
 
+    # --- Metrics ---
+    metrics_raw = rf(snapshot, "metrics", field_path=field_path)
     metrics = [
         SchemeMetric(
-            code=m.get("code", ""),
-            value=_to_decimal(m.get("value", 0)),
-            unit=m.get("unit", ""),
-            direction=m.get("direction", ""),
+            code=_require_str(
+                rf(m, "code", field_path=f"{field_path}.metrics[i]"),
+                field_path=f"{field_path}.metrics[i].code",
+            ),
+            value=_to_decimal(
+                rf(m, "value", field_path=f"{field_path}.metrics[i]"),
+                field_path=f"{field_path}.metrics[i].value",
+            ),
+            unit=_require_str(
+                rf(m, "unit", field_path=f"{field_path}.metrics[i]"),
+                field_path=f"{field_path}.metrics[i].unit",
+            ),
+            direction=_validate_direction(
+                _require_str(
+                    rf(m, "direction", field_path=f"{field_path}.metrics[i]"),
+                    field_path=f"{field_path}.metrics[i].direction",
+                ),
+                field_path=f"{field_path}.metrics[i].direction",
+            ),
         )
-        for m in snapshot.get("metrics", [])
+        for m in metrics_raw
     ]
 
     return SchemeCandidate(
-        scheme_code=snapshot.get("scheme_code", ""),
-        scheme_name=snapshot.get("scheme_name", ""),
-        profile_code=snapshot.get("profile_code", ""),
-        feasible=bool(snapshot.get("feasible", False)),
+        scheme_code=_require_str(
+            rf(snapshot, "scheme_code", field_path=field_path),
+            field_path=f"{field_path}.scheme_code",
+        ),
+        scheme_name=_require_str(
+            rf(snapshot, "scheme_name", field_path=field_path),
+            field_path=f"{field_path}.scheme_name",
+        ),
+        profile_code=_require_str(
+            rf(snapshot, "profile_code", field_path=field_path),
+            field_path=f"{field_path}.profile_code",
+        ),
+        feasible=_require_bool(
+            rf(snapshot, "feasible", field_path=field_path),
+            field_path=f"{field_path}.feasible",
+        ),
         constraint_results=constraint_results,
         room_modules=room_modules,
-        zone_assignments=snapshot.get("zone_assignments", {}),
-        total_area_m2=_to_decimal(snapshot.get("total_area_m2", 0)),
-        total_position_count=_to_int(snapshot.get("total_position_count", 0)),
-        room_module_count=_to_int(snapshot.get("room_module_count", 0)),
-        door_count=_to_int(snapshot.get("door_count", 0)),
-        partition_length_proxy_m=_to_decimal(snapshot.get("partition_length_proxy_m", 0)),
-        daily_throughput_kg_day=_to_decimal(snapshot.get("daily_throughput_kg_day", 0)),
-        investment_cny=_to_decimal(snapshot.get("investment_cny", 0)),
-        installed_power_kw_e=_to_decimal(snapshot.get("installed_power_kw_e", 0)),
-        design_cooling_load_kw_r=_to_decimal(snapshot.get("design_cooling_load_kw_r", 0)),
+        zone_assignments=rf(snapshot, "zone_assignments", field_path=field_path),
+        total_area_m2=_to_decimal(
+            rf(snapshot, "total_area_m2", field_path=field_path),
+            field_path=f"{field_path}.total_area_m2",
+        ),
+        total_position_count=_to_int(
+            rf(snapshot, "total_position_count", field_path=field_path),
+            field_path=f"{field_path}.total_position_count",
+        ),
+        room_module_count=_to_int(
+            rf(snapshot, "room_module_count", field_path=field_path),
+            field_path=f"{field_path}.room_module_count",
+        ),
+        door_count=_to_int(
+            rf(snapshot, "door_count", field_path=field_path),
+            field_path=f"{field_path}.door_count",
+        ),
+        partition_length_proxy_m=_to_decimal(
+            rf(snapshot, "partition_length_proxy_m", field_path=field_path),
+            field_path=f"{field_path}.partition_length_proxy_m",
+        ),
+        daily_throughput_kg_day=_to_decimal(
+            rf(snapshot, "daily_throughput_kg_day", field_path=field_path),
+            field_path=f"{field_path}.daily_throughput_kg_day",
+        ),
+        investment_cny=_to_decimal(
+            rf(snapshot, "investment_cny", field_path=field_path),
+            field_path=f"{field_path}.investment_cny",
+        ),
+        installed_power_kw_e=_to_decimal(
+            rf(snapshot, "installed_power_kw_e", field_path=field_path),
+            field_path=f"{field_path}.installed_power_kw_e",
+        ),
+        design_cooling_load_kw_r=_to_decimal(
+            rf(snapshot, "design_cooling_load_kw_r", field_path=field_path),
+            field_path=f"{field_path}.design_cooling_load_kw_r",
+        ),
         compressor_operating_capacity_kw_r=_to_decimal(
-            snapshot.get("compressor_operating_capacity_kw_r", 0)
+            rf(snapshot, "compressor_operating_capacity_kw_r", field_path=field_path),
+            field_path=f"{field_path}.compressor_operating_capacity_kw_r",
         ),
         compressor_installed_capacity_kw_r=_to_decimal(
-            snapshot.get("compressor_installed_capacity_kw_r", 0)
+            rf(snapshot, "compressor_installed_capacity_kw_r", field_path=field_path),
+            field_path=f"{field_path}.compressor_installed_capacity_kw_r",
         ),
         compressor_standby_capacity_kw_r=_to_decimal(
-            snapshot.get("compressor_standby_capacity_kw_r", 0)
+            rf(snapshot, "compressor_standby_capacity_kw_r", field_path=field_path),
+            field_path=f"{field_path}.compressor_standby_capacity_kw_r",
         ),
-        condenser_heat_rejection_kw=_to_decimal(snapshot.get("condenser_heat_rejection_kw", 0)),
+        condenser_heat_rejection_kw=_to_decimal(
+            rf(snapshot, "condenser_heat_rejection_kw", field_path=field_path),
+            field_path=f"{field_path}.condenser_heat_rejection_kw",
+        ),
         metrics=metrics,
-        assumptions=snapshot.get("assumptions", []),
-        warnings=snapshot.get("warnings", []),
-        requires_review=bool(snapshot.get("requires_review", False)),
+        assumptions=rf(snapshot, "assumptions", field_path=field_path),
+        warnings=rf(snapshot, "warnings", field_path=field_path),
+        requires_review=_require_bool(
+            rf(snapshot, "requires_review", field_path=field_path),
+            field_path=f"{field_path}.requires_review",
+        ),
     )
 
 
 def _rebuild_score_breakdown_from_snapshot(
     snapshot: dict[str, Any],
+    *,
+    field_path: str = "score_breakdown",
 ) -> SchemeScoreBreakdown:
-    """Rebuild a SchemeScoreBreakdown from a persisted score_breakdown_snapshot dict."""
+    """Rebuild a SchemeScoreBreakdown from a persisted score_breakdown_snapshot dict.
+
+    Raises PersistedSchemeSnapshotValidationError on any missing, NULL,
+    or mis-typed field.
+    """
     from cold_storage.modules.schemes.domain.models import SchemeCriterionScore
 
+    rf = _require_field  # shorthand
+
+    # --- Criterion scores ---
+    criterion_scores_raw = rf(snapshot, "criterion_scores", field_path=field_path)
     criterion_scores = [
         SchemeCriterionScore(
-            criterion_code=cs.get("criterion_code", ""),
-            raw_value=_to_decimal(cs.get("raw_value", 0)),
-            unit=cs.get("unit", ""),
-            direction=cs.get("direction", ""),
-            weight=_to_decimal(cs.get("weight", 0)),
-            min_value=_to_decimal(cs.get("min_value", 0)),
-            max_value=_to_decimal(cs.get("max_value", 0)),
-            normalized_score=_to_decimal(cs.get("normalized_score", 0)),
-            weighted_contribution=_to_decimal(cs.get("weighted_contribution", 0)),
-            formula=cs.get("formula", ""),
+            criterion_code=_require_str(
+                rf(cs, "criterion_code", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].criterion_code",
+            ),
+            raw_value=_to_decimal(
+                rf(cs, "raw_value", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].raw_value",
+            ),
+            unit=_require_str(
+                rf(cs, "unit", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].unit",
+            ),
+            direction=_validate_direction(
+                _require_str(
+                    rf(cs, "direction", field_path=f"{field_path}.criterion_scores[i]"),
+                    field_path=f"{field_path}.criterion_scores[i].direction",
+                ),
+                field_path=f"{field_path}.criterion_scores[i].direction",
+            ),
+            weight=_to_decimal(
+                rf(cs, "weight", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].weight",
+            ),
+            min_value=_to_decimal(
+                rf(cs, "min_value", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].min_value",
+            ),
+            max_value=_to_decimal(
+                rf(cs, "max_value", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].max_value",
+            ),
+            normalized_score=_to_decimal(
+                rf(cs, "normalized_score", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].normalized_score",
+            ),
+            weighted_contribution=_to_decimal(
+                rf(cs, "weighted_contribution", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].weighted_contribution",
+            ),
+            formula=_require_str(
+                rf(cs, "formula", field_path=f"{field_path}.criterion_scores[i]"),
+                field_path=f"{field_path}.criterion_scores[i].formula",
+            ),
         )
-        for cs in snapshot.get("criterion_scores", [])
+        for cs in criterion_scores_raw
     ]
+
     return SchemeScoreBreakdown(
-        scheme_code=snapshot.get("scheme_code", ""),
-        total_score=_to_decimal(snapshot.get("total_score", 0)),
+        scheme_code=_require_str(
+            rf(snapshot, "scheme_code", field_path=field_path),
+            field_path=f"{field_path}.scheme_code",
+        ),
+        total_score=_to_decimal(
+            rf(snapshot, "total_score", field_path=field_path),
+            field_path=f"{field_path}.total_score",
+        ),
         criterion_scores=criterion_scores,
-        diagnostic_only=bool(snapshot.get("diagnostic_only", False)),
+        diagnostic_only=_require_bool(
+            rf(snapshot, "diagnostic_only", field_path=field_path),
+            field_path=f"{field_path}.diagnostic_only",
+        ),
     )
 
 
@@ -793,6 +1120,9 @@ def read_verified_production_scheme_run(
     # P0-4: Field-by-field provenance comparison
     sv = verified_source
     _prov: list[tuple[str, str | None, str]] = [
+        ("project_id", persisted.project_id, sv.project_id),
+        ("project_version_id", persisted.project_version_id, sv.project_version_id),
+        ("binding_schema_version", persisted.binding_schema_version, sv.binding_schema_version),
         ("execution_snapshot_id", persisted.execution_snapshot_id, sv.execution_snapshot_id),
         ("coefficient_context_id", persisted.coefficient_context_id, sv.coefficient_context_id),
         (
@@ -847,6 +1177,18 @@ def read_verified_production_scheme_run(
                 p_str,
                 verified_val,
             )
+
+    # P0-4: Verify source_contract_version against frozen production constant
+    if persisted.source_contract_version != SOURCE_CONTRACT_VERSION:
+        raise PersistedSourceProvenanceMismatchError(
+            run_id,
+            "source_contract_version",
+            persisted.source_contract_version or "",
+            SOURCE_CONTRACT_VERSION,
+        )
+
+    # P0-4: source_binding_id was used to load the binding (implicit verification);
+    # source_snapshot_hash == combined_source_hash (already compared above).
 
     # 5. Re-verify weight revision content hash
     try:
@@ -934,6 +1276,28 @@ def read_verified_production_scheme_run(
         )
     for sb_dict in score_breakdowns_snapshot:
         rebuilt_domain_breakdowns.append(_rebuild_score_breakdown_from_snapshot(sb_dict))
+
+    # P0-4: Validate scheme_code uniqueness and set matching
+    cand_codes = [c.scheme_code for c in rebuilt_domain_candidates]
+    if len(cand_codes) != len(set(cand_codes)):
+        dupes = [code for code in set(cand_codes) if cand_codes.count(code) > 1]
+        raise SchemeRunCandidateConsistencyError(
+            run_id,
+            f"Duplicate scheme_code in candidates: {sorted(dupes)!r}",
+        )
+    sb_codes = [sb.scheme_code for sb in rebuilt_domain_breakdowns]
+    if len(sb_codes) != len(set(sb_codes)):
+        dupes = [code for code in set(sb_codes) if sb_codes.count(code) > 1]
+        raise SchemeRunCandidateConsistencyError(
+            run_id,
+            f"Duplicate scheme_code in score breakdowns: {sorted(dupes)!r}",
+        )
+    if set(cand_codes) != set(sb_codes):
+        raise SchemeRunCandidateConsistencyError(
+            run_id,
+            f"scheme_code sets differ: candidates={sorted(set(cand_codes))!r}, "
+            f"breakdowns={sorted(set(sb_codes))!r}",
+        )
 
     feasible_breakdowns = [sb for sb in rebuilt_domain_breakdowns if not sb.diagnostic_only]
     feasible_domain = [c for c in rebuilt_domain_candidates if c.feasible]
