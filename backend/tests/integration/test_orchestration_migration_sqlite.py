@@ -1116,7 +1116,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0032_add_active_revisions_authority_and_immutability_triggers"
+        expected_rev = "e10f2c4d84e5"
         assert rev == expected_rev, f"Expected 0032, got {rev}"
         conn.close()
 
@@ -1151,7 +1151,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0032_add_active_revisions_authority_and_immutability_triggers"
+        expected_rev = "e10f2c4d84e5"
         assert rev == expected_rev, f"Expected 0032, got {rev}"
         conn.close()
         db_path.unlink(missing_ok=True)

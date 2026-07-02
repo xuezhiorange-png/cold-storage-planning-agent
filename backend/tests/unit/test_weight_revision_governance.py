@@ -15,6 +15,7 @@ Covers:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -32,6 +33,8 @@ from cold_storage.modules.schemes.application.weight_revision_governance import 
     PRODUCTION_WEIGHT_SET_CODE,
     PRODUCTION_WEIGHT_SET_ID,
     PRODUCTION_WEIGHT_SET_REVISION_ID,
+    RevisionAlreadyApprovedError,
+    RevisionApprovalCASConflictError,
     WeightRevisionGovernanceError,
     _compute_content_hash,
     _parse_criteria,
@@ -45,6 +48,21 @@ from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapte
     SeedConsistencyError,
     SqlAlchemyWeightRevisionApprovalAdapter,
 )
+
+# ---------------------------------------------------------------------------
+# Structured result tracking for concurrency tests
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ApprovalAttemptResult:
+    """Tracks the outcome of a single approval attempt in a concurrency test."""
+
+    succeeded: bool
+    error_type: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -1834,7 +1852,13 @@ class TestConcurrentApprovalWithAuthority:
 
         # 3. Two threads race to approve
         barrier = threading.Barrier(2, timeout=10)
-        results: list[bool | None] = [None, None]
+        results: list[ApprovalAttemptResult | None] = [None, None]
+
+        _KNOWN_LOSER_ERRORS = (
+            "RevisionAlreadyApprovedError",
+            "RevisionApprovalCASConflictError",
+            "IntegrityError",
+        )
 
         def _approve(index: int, rev_id: str) -> None:
             eng = create_engine(
@@ -1846,7 +1870,7 @@ class TestConcurrentApprovalWithAuthority:
             try:
                 barrier.wait()  # synchronize before racing
                 adapter = SqlAlchemyWeightRevisionApprovalAdapter()
-                results[index] = adapter.approve_revision(
+                ok = adapter.approve_revision(
                     sess,
                     revision_id=rev_id,
                     content={"concurrent": True},
@@ -1854,9 +1878,41 @@ class TestConcurrentApprovalWithAuthority:
                     approved_by=f"user-{index}",
                 )
                 sess.commit()
-            except Exception:
+                if ok:
+                    results[index] = ApprovalAttemptResult(succeeded=True)
+                else:
+                    # approve_revision returned False — CAS conflict or
+                    # authority claim already held by the other thread.
+                    results[index] = ApprovalAttemptResult(
+                        succeeded=False,
+                        error_type="RevisionApprovalCASConflictError",
+                        error_code="revision_approval_cas_conflict",
+                        error_message=f"CAS conflict approving {rev_id}",
+                    )
+            except RevisionAlreadyApprovedError as exc:
                 sess.rollback()
-                results[index] = False
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=exc.code,
+                    error_message=str(exc),
+                )
+            except RevisionApprovalCASConflictError as exc:
+                sess.rollback()
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=exc.code,
+                    error_message=str(exc),
+                )
+            except sa_exc.IntegrityError as exc:
+                sess.rollback()
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=getattr(exc, "code", None),
+                    error_message=str(exc),
+                )
             finally:
                 sess.close()
                 eng.dispose()
@@ -1868,12 +1924,30 @@ class TestConcurrentApprovalWithAuthority:
         t1.join(timeout=15)
         t2.join(timeout=15)
 
-        # 4. Exactly one should have succeeded
-        assert sum(1 for r in results if r is True) == 1, (
-            f"Expected exactly 1 winner, got results={results}"
+        # Re-raise thread exceptions so the test fails if a thread crashed
+        for t in (t1, t2):
+            assert not t.is_alive(), f"Thread {t.name} is still alive after join"
+
+        # 4. Exactly one should have succeeded and one should have failed
+        winners = [r for r in results if r is not None and r.succeeded]
+        losers = [r for r in results if r is not None and not r.succeeded]
+        assert len(winners) == 1, (
+            f"Expected exactly 1 winner, got {len(winners)}; "
+            f"results={results}"
+        )
+        assert len(losers) == 1, (
+            f"Expected exactly 1 loser, got {len(losers)}; "
+            f"results={results}"
         )
 
-        # 5. Verify: exactly one approved in DB
+        # 5. Loser's error must be a known governance conflict
+        loser = losers[0]
+        assert loser.error_type in _KNOWN_LOSER_ERRORS, (
+            f"Loser error_type={loser.error_type!r} not in "
+            f"known errors {_KNOWN_LOSER_ERRORS}"
+        )
+
+        # 6. Verify: exactly one approved in DB
         verify_engine = create_engine(f"sqlite:///{db_path}")
         with verify_engine.begin() as conn:
             from sqlalchemy import text
@@ -1888,7 +1962,7 @@ class TestConcurrentApprovalWithAuthority:
             ).scalar_one()
             assert approved_count == 1
 
-            # 6. Authority row points to the winner
+            # 7. Authority row points to the winner
             auth_row = conn.execute(
                 text(
                     "SELECT approved_revision_id "
@@ -1908,6 +1982,199 @@ class TestConcurrentApprovalWithAuthority:
                     "WHERE status = 'approved' "
                     "AND weight_set_id = 'ws-conc-auth' "
                     "AND code = 'conc-auth'"
+                )
+            ).scalar_one()
+            assert winner_id == approved_rev
+
+        verify_engine.dispose()
+
+    def test_concurrent_approval_one_wins_postgresql(self, tmp_path) -> None:
+        """PostgreSQL: two threads race to approve; exactly one wins.
+
+        Each thread uses its own connection and session.  The loser must
+        raise a known governance error or IntegrityError — never silently
+        swallow unexpected exceptions.
+        """
+        import threading
+        import os
+
+        pg_url = os.environ.get("TEST_DATABASE_URL")
+        if pg_url is None:
+            pytest.skip(
+                "TEST_DATABASE_URL not set — skipping PostgreSQL concurrency test"
+            )
+
+        from sqlalchemy.pool import NullPool
+        from sqlalchemy import text
+
+        _KNOWN_LOSER_ERRORS = (
+            "RevisionAlreadyApprovedError",
+            "RevisionApprovalCASConflictError",
+            "IntegrityError",
+        )
+
+        # 1. Create tables via a dedicated setup engine
+        setup_engine = create_engine(pg_url, poolclass=NullPool)
+        Base.metadata.create_all(setup_engine)
+
+        # 2. Insert parent weight set + two draft revisions
+        with setup_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_weight_sets"
+                    " (id, code, name, revision, status,"
+                    " source_type, criteria, requires_review,"
+                    " created_at)"
+                    " VALUES ('ws-conc-pg', 'conc-pg',"
+                    " 'Conc PG', 1, 'draft',"
+                    " 'system', '[]', 0, NOW())"
+                ),
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_weight_set_revisions"
+                    " (id, weight_set_id, code, revision,"
+                    " status, content, content_hash,"
+                    " generator_compatibility_version,"
+                    " created_at)"
+                    " VALUES ('rev-pg-A', 'ws-conc-pg',"
+                    " 'conc-pg', 1, 'draft',"
+                    " '{}', 'hash-pg-A', '1.0.0', NOW())"
+                ),
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scheme_weight_set_revisions"
+                    " (id, weight_set_id, code, revision,"
+                    " status, content, content_hash,"
+                    " generator_compatibility_version,"
+                    " created_at)"
+                    " VALUES ('rev-pg-B', 'ws-conc-pg',"
+                    " 'conc-pg', 2, 'draft',"
+                    " '{}', 'hash-pg-B', '1.0.0', NOW())"
+                ),
+            )
+        setup_engine.dispose()
+
+        # 3. Two threads race to approve
+        barrier = threading.Barrier(2, timeout=10)
+        results: list[ApprovalAttemptResult | None] = [None, None]
+
+        def _approve_pg(index: int, rev_id: str) -> None:
+            eng = create_engine(pg_url, poolclass=NullPool)
+            factory = sessionmaker(bind=eng, expire_on_commit=False)
+            sess = factory()
+            try:
+                barrier.wait()  # synchronize before racing
+                adapter = SqlAlchemyWeightRevisionApprovalAdapter()
+                ok = adapter.approve_revision(
+                    sess,
+                    revision_id=rev_id,
+                    content={"concurrent": True},
+                    approved_at=datetime.now(UTC),
+                    approved_by=f"user-{index}",
+                )
+                sess.commit()
+                if ok:
+                    results[index] = ApprovalAttemptResult(succeeded=True)
+                else:
+                    results[index] = ApprovalAttemptResult(
+                        succeeded=False,
+                        error_type="RevisionApprovalCASConflictError",
+                        error_code="revision_approval_cas_conflict",
+                        error_message=f"CAS conflict approving {rev_id}",
+                    )
+            except RevisionAlreadyApprovedError as exc:
+                sess.rollback()
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=exc.code,
+                    error_message=str(exc),
+                )
+            except RevisionApprovalCASConflictError as exc:
+                sess.rollback()
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=exc.code,
+                    error_message=str(exc),
+                )
+            except sa_exc.IntegrityError as exc:
+                sess.rollback()
+                results[index] = ApprovalAttemptResult(
+                    succeeded=False,
+                    error_type=type(exc).__name__,
+                    error_code=getattr(exc, "code", None),
+                    error_message=str(exc),
+                )
+            finally:
+                sess.close()
+                eng.dispose()
+
+        t1 = threading.Thread(target=_approve_pg, args=(0, "rev-pg-A"))
+        t2 = threading.Thread(target=_approve_pg, args=(1, "rev-pg-B"))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        # Re-raise thread exceptions so the test fails if a thread crashed
+        for t in (t1, t2):
+            assert not t.is_alive(), f"Thread {t.name} is still alive after join"
+
+        # 4. Exactly one should have succeeded and one should have failed
+        winners = [r for r in results if r is not None and r.succeeded]
+        losers = [r for r in results if r is not None and not r.succeeded]
+        assert len(winners) == 1, (
+            f"Expected exactly 1 winner, got {len(winners)}; "
+            f"results={results}"
+        )
+        assert len(losers) == 1, (
+            f"Expected exactly 1 loser, got {len(losers)}; "
+            f"results={results}"
+        )
+
+        # 5. Loser's error must be a known governance conflict
+        loser = losers[0]
+        assert loser.error_type in _KNOWN_LOSER_ERRORS, (
+            f"Loser error_type={loser.error_type!r} not in "
+            f"known errors {_KNOWN_LOSER_ERRORS}"
+        )
+
+        # 6. Verify: exactly one approved in DB
+        verify_engine = create_engine(pg_url, poolclass=NullPool)
+        with verify_engine.begin() as conn:
+            approved_count = conn.execute(
+                text(
+                    "SELECT COUNT(*) FROM scheme_weight_set_revisions "
+                    "WHERE weight_set_id = 'ws-conc-pg' "
+                    "AND code = 'conc-pg' "
+                    "AND status = 'approved'"
+                )
+            ).scalar_one()
+            assert approved_count == 1
+
+            # 7. Authority row points to the winner
+            auth_row = conn.execute(
+                text(
+                    "SELECT approved_revision_id "
+                    "FROM scheme_weight_set_active_revisions "
+                    "WHERE weight_set_id = 'ws-conc-pg' "
+                    "AND code = 'conc-pg'"
+                )
+            ).fetchone()
+            assert auth_row is not None
+            winner_id = auth_row[0]
+            assert winner_id in ("rev-pg-A", "rev-pg-B")
+
+            # Verify the authority row points to the actual approved revision
+            approved_rev = conn.execute(
+                text(
+                    "SELECT id FROM scheme_weight_set_revisions "
+                    "WHERE status = 'approved' "
+                    "AND weight_set_id = 'ws-conc-pg' "
+                    "AND code = 'conc-pg'"
                 )
             ).scalar_one()
             assert winner_id == approved_rev
