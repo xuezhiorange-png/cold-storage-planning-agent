@@ -61,6 +61,9 @@ from cold_storage.modules.orchestration.domain.errors import (
     UnsupportedSchemaError,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
+from cold_storage.modules.orchestration.domain.snapshots import (
+    build_source_snapshot_content_v1,
+)
 
 # ── Canonical constants ─────────────────────────────────────────────────────
 
@@ -168,6 +171,7 @@ class CalculationRunSnapshot:
     warnings: list[dict[str, Any]]
     source_references: list[dict[str, Any]]
     upstream_calculation_ids: dict[str, str]
+    input_hash: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -638,7 +642,7 @@ class SourceBindingVerifier:
             snapshot_cls = _STAGE_SNAPSHOT_CLS[stage_name]
             fingerprint = run.orchestration_fingerprint or orchestration_fingerprint
             try:
-                snapshot = snapshot_cls(
+                snapshot_cls(
                     project_id=run.project_id,
                     project_version_id=run.project_version_id,
                     execution_snapshot_id=run.execution_snapshot_id or "",
@@ -665,8 +669,25 @@ class SourceBindingVerifier:
                     f"Failed to re-parse typed snapshot for stage {stage_name!r}: {exc}",
                 ) from exc
 
-            # Re-compute result hash from persisted typed snapshot
-            recomputed_hash = snapshot.result_hash()
+            # P0-5: Re-compute result hash from domain-layer SourceSnapshotContentV1.
+            # This MUST match the executor's hash (same builder → same canonical JSON).
+            domain_content = build_source_snapshot_content_v1(
+                schema_version=sv or "1.0.0",
+                calculation_type=run.calculation_type or "",
+                calculator_name=run.calculator_name,
+                calculator_version=run.calculator_version,
+                project_id=run.project_id,
+                project_version_id=run.project_version_id,
+                execution_snapshot_id=run.execution_snapshot_id or "",
+                coefficient_context_id=run.coefficient_context_id or "",
+                orchestration_identity_id=run.orchestration_identity_id or "",
+                orchestration_run_attempt_id=run.orchestration_run_attempt_id or "",
+                input_hash=run.input_hash,
+                requires_review=run.requires_review,
+                payload=run.result_snapshot,
+                upstream_calculation_ids=dict(run.upstream_calculation_ids),
+            )
+            recomputed_hash = result_hash(domain_content)
             if recomputed_hash != run.result_hash:
                 raise SourceBindingHashMismatchError(
                     f"result_hash[{stage_name!r}]",
@@ -742,15 +763,13 @@ class SourceBindingVerifier:
         orchestration_fingerprint: str,
     ) -> None:
         """Verify per-calculation result hashes, key set, and combined hash."""
-        expected_calculators = frozenset(
-            calc_name for _, (_, calc_name, _) in self._SLOT_DEFS.items()
-        )
+        expected_stage_names = frozenset(ORCHESTRATION_STAGE_ORDER)
 
         # ── Hash map key set tampering (extra or missing keys) ──────────
         actual_keys = frozenset(candidate.per_calculation_result_hashes.keys())
-        if actual_keys != expected_calculators:
-            missing = expected_calculators - actual_keys
-            extra = actual_keys - expected_calculators
+        if actual_keys != expected_stage_names:
+            missing = expected_stage_names - actual_keys
+            extra = actual_keys - expected_stage_names
             parts: list[str] = []
             if missing:
                 parts.append(f"missing: {sorted(missing)}")
@@ -758,18 +777,18 @@ class SourceBindingVerifier:
                 parts.append(f"extra: {sorted(extra)}")
             raise SourceBindingHashMismatchError(
                 "per_calculation_result_hashes",
-                str(sorted(expected_calculators)),
+                str(sorted(expected_stage_names)),
                 "; ".join(parts),
             )
 
         # ── Per-calculation result hash tampering ───────────────────────
-        for stage_name, (_, expected_calculator, _) in self._SLOT_DEFS.items():
+        for stage_name in ORCHESTRATION_STAGE_ORDER:
             run = state.calculation_runs[stage_name]
             expected_hash = run.result_hash
-            actual_hash = candidate.per_calculation_result_hashes.get(expected_calculator)
+            actual_hash = candidate.per_calculation_result_hashes.get(stage_name)
             if actual_hash != expected_hash:
                 raise SourceBindingHashMismatchError(
-                    f"per_calculation_result_hashes[{expected_calculator!r}]",
+                    f"per_calculation_result_hashes[{stage_name!r}]",
                     expected_hash or "",
                     actual_hash or "",
                 )
@@ -987,23 +1006,6 @@ class TransactionBExecutor:
             # Validate calculator identity (P0-8, P0-6)
             self._validate_calculator_identity(stage_name, exec_result, calculator_version_vector)
 
-            # Build typed snapshot (P0-1 — typed snapshots as ONLY production path)
-            snapshot = self._build_typed_snapshot(
-                stage_name=stage_name,
-                exec_result=exec_result,
-                project_id=project_id,
-                project_version_id=project_version_id,
-                execution_snapshot_id=execution_snapshot_id,
-                coefficient_context_id=coefficient_context_id,
-                orchestration_identity_id=orchestration_identity_id,
-                orchestration_attempt_id=orchestration_attempt_id,
-                orchestration_fingerprint=orchestration_fingerprint,
-                upstream_calculation_ids=upstream_calc_ids,
-            )
-
-            # Compute result hash from typed content (P0-6)
-            typed_result_hash = snapshot.result_hash()
-
             # Compute input hash from stage-specific inputs
             stage_input: dict[str, object] = {
                 "execution_snapshot_hash": exec_snapshot_hash,
@@ -1011,6 +1013,28 @@ class TransactionBExecutor:
                 "upstream_calculation_ids": upstream_calc_ids,
             }
             input_hash = result_hash(stage_input)
+
+            # P0-5: Compute result hash from domain-layer SourceSnapshotContentV1
+            # Both executor and verifier MUST use this same builder to ensure
+            # identical canonical JSON → identical SHA-256 hashes.
+            calc_name, _calc_version, calc_type = _EXPECTED_CALCULATOR_IDENTITY[stage_name]
+            domain_content = build_source_snapshot_content_v1(
+                schema_version=SOURCE_SNAPSHOT_SCHEMA_VERSION,
+                calculation_type=calc_type,
+                calculator_name=calc_name,
+                calculator_version=exec_result.calculator_version,
+                project_id=project_id,
+                project_version_id=project_version_id,
+                execution_snapshot_id=execution_snapshot_id,
+                coefficient_context_id=coefficient_context_id,
+                orchestration_identity_id=orchestration_identity_id,
+                orchestration_run_attempt_id=orchestration_attempt_id,
+                input_hash=input_hash,
+                requires_review=exec_result.requires_review,
+                payload=exec_result.result_snapshot,
+                upstream_calculation_ids=upstream_calc_ids,
+            )
+            typed_result_hash = result_hash(domain_content)
 
             # Persist CalculationRun with REAL traceability data (P0-1)
             calc_run_id = self._calc_run_repo.add(
@@ -1063,10 +1087,12 @@ class TransactionBExecutor:
 
         # 3 — Build SourceBindingCandidate (P0-4, P0-6)
         slot_ids_map = {
-            stage.calculator_name: stage.calculation_run_id for stage in persisted_stages
+            _stage_name_for_calculator(stage.calculator_name): stage.calculation_run_id
+            for stage in persisted_stages
         }
         per_calc_result_hashes = {
-            stage.calculator_name: stage.result_hash for stage in persisted_stages
+            _stage_name_for_calculator(stage.calculator_name): stage.result_hash
+            for stage in persisted_stages
         }
         combined_hash = _compute_combined_source_hash(
             binding_schema_version=SOURCE_BINDING_SCHEMA_VERSION,
@@ -1086,11 +1112,11 @@ class TransactionBExecutor:
             identity_id=orchestration_identity_id,
             attempt_id=orchestration_attempt_id,
             fingerprint=orchestration_fingerprint,
-            zone_calculation_id=slot_ids_map["cold_room_zone_plan"],
+            zone_calculation_id=slot_ids_map["zone"],
             cooling_load_calculation_id=slot_ids_map["cooling_load"],
             equipment_calculation_id=slot_ids_map["equipment"],
-            power_calculation_id=slot_ids_map["installed_power"],
-            investment_calculation_id=slot_ids_map["investment_estimate"],
+            power_calculation_id=slot_ids_map["power"],
+            investment_calculation_id=slot_ids_map["investment"],
             per_calculation_result_hashes=per_calc_result_hashes,
             combined_source_hash=combined_hash,
             schema_version=SOURCE_BINDING_SCHEMA_VERSION,

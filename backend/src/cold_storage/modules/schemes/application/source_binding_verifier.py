@@ -42,8 +42,7 @@ from cold_storage.modules.orchestration.domain.dag import (
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
 from cold_storage.modules.orchestration.domain.snapshots import (
-    SourceSnapshotContentV1,
-    SourceSnapshotProvenanceV1,
+    build_source_snapshot_content_v1,
 )
 from cold_storage.modules.schemes.application.production_ports import (
     CalculationRunSnapshot,
@@ -769,14 +768,9 @@ def verify_source_binding(
     for stage in _SLOT_STAGE_ORDER:
         run = runs[stage]
         try:
-            provenance = SourceSnapshotProvenanceV1(
-                execution_snapshot_id=run.execution_snapshot_id,
-                coefficient_context_id=run.coefficient_context_id,
-                orchestration_identity_id=run.orchestration_identity_id,
-                orchestration_run_attempt_id=run.orchestration_run_attempt_id,
-                upstream_calculation_ids=run.upstream_calculation_ids,
-            )
-            content = SourceSnapshotContentV1(
+            # P0-5: Use shared builder — same function the executor calls,
+            # ensuring identical canonical JSON → identical SHA-256.
+            content = build_source_snapshot_content_v1(
                 schema_version=run.schema_version or "1.0.0",
                 calculation_type=run.calculation_type,
                 calculator_name=run.calculator_name,
@@ -790,7 +784,7 @@ def verify_source_binding(
                 input_hash=run.input_hash,
                 requires_review=run.requires_review,
                 payload=run.result_snapshot,
-                provenance=provenance,
+                upstream_calculation_ids=run.upstream_calculation_ids,
             )
             computed_hash = result_hash(content)
         except TypeError as exc:

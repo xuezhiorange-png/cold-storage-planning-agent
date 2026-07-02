@@ -474,6 +474,7 @@ def _seed_weight_set_and_revision(session: Any) -> None:
         )
     ).scalar_one_or_none()
     if existing_rev is None:
+        _approved_at = datetime.now(UTC)
         session.add(
             SchemeWeightSetRevisionRecord(
                 id=GOLDEN_WEIGHT_REVISION_ID,
@@ -484,8 +485,9 @@ def _seed_weight_set_and_revision(session: Any) -> None:
                 content=WEIGHT_REVISION_CONTENT,
                 content_hash=WEIGHT_CONTENT_HASH,
                 generator_compatibility_version="1.0.0",
-                approved_at=datetime.now(UTC),
+                approved_at=_approved_at,
                 approved_by="golden-e2e-test",
+                sealed_at=_approved_at,
                 created_at=datetime.now(UTC),
             )
         )
@@ -779,18 +781,9 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
     5. Feeds SourceBinding to ProductionSchemeService
     6. Verifies golden hashes, power authority, provenance, and trusted readback
 
-    BLOCKER (pre-existing architectural inconsistency):
-      The executor computes result_hash from APPLICATION-layer typed snapshots
-      (ZoneSourceSnapshotV1 etc. with fields: calculator_id, result_snapshot,
-      upstream_calculation_ids).  The ProductionSchemeService verifier
-      recomputes the hash from the DOMAIN-layer SourceSnapshotContentV1
-      (dataclass with fields: calculator_name, input_hash, payload, provenance).
-      These models produce different canonical JSON → different hashes.
-
-      This is NOT a new bug — the original manual-seeding test works around
-      it by creating data the verifier can reconstruct.  The executor's
-      hashes are correct for the application-layer model (proven by the
-      golden parity test).
+    P0-5: The executor and verifier now both use the domain-layer
+    SourceSnapshotContentV1 via the shared build_source_snapshot_content_v1()
+    builder, ensuring identical canonical JSON and SHA-256 hashes.
     """
 
     def test_real_executor_to_production_e2e(self, engine, session_factory) -> None:
@@ -883,39 +876,27 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
             _seed_weight_set_and_revision(session)
 
         # ── Step 6: Generate production scheme ───────────────────────────
-        # NOTE: This step currently FAILS because the production scheme
-        # verifier recomputes result_hash using the DOMAIN-layer
-        # SourceSnapshotContentV1 (calculator_name, input_hash, payload,
-        # provenance), but the executor stores hashes computed from the
-        # APPLICATION-layer typed snapshots (calculator_id, result_snapshot,
-        # upstream_calculation_ids).  These produce different canonical JSON.
-        #
-        # This is a pre-existing architectural inconsistency, NOT a bug
-        # introduced by this test.  The manual-seeding test works around
-        # it by creating data the verifier can reconstruct.
-        #
-        # Uncomment the block below once the hash computation models are
-        # unified (tracked as a future task).
-        #
-        # from cold_storage.modules.schemes.application.production_ports import (
-        #     GenerateProductionSchemeCommand,
-        # )
-        # prod_service = _make_production_service(engine)
-        # cmd = GenerateProductionSchemeCommand(
-        #     source_binding_id=source_binding_id,
-        #     weight_set_revision_id=GOLDEN_WEIGHT_REVISION_ID,
-        #     profile_codes=("balanced",),
-        #     profile_parameters={},
-        #     actor="golden-e2e-test",
-        #     correlation_id="golden-e2e-corr-002",
-        # )
-        # run = prod_service.generate_production_scheme_run(cmd)
-        # assert run.status == "completed"
+        # P0-5: Hash models are now unified — executor and verifier both
+        # use the domain-layer SourceSnapshotContentV1 via the shared builder.
+        from cold_storage.modules.schemes.application.production_ports import (
+            GenerateProductionSchemeCommand,
+        )
+
+        prod_service = _make_production_service(engine)
+        cmd = GenerateProductionSchemeCommand(
+            source_binding_id=source_binding_id,
+            weight_set_revision_id=GOLDEN_WEIGHT_REVISION_ID,
+            profile_codes=("balanced",),
+            profile_parameters={},
+            actor="golden-e2e-test",
+            correlation_id="golden-e2e-corr-002",
+        )
+        run = prod_service.generate_production_scheme_run(cmd)
+        assert run.status == "completed"
 
         # ── Step 7: Verify executor-created records are production-ready ─
-        # Even though the production scheme verifier has the hash mismatch
-        # issue, verify that the executor produced complete, well-formed
-        # records that WOULD pass verification if the hash models were unified.
+        # Verify that the executor produced complete, well-formed
+        # records that pass verification with the unified hash models.
         with session_factory() as session:
             from cold_storage.modules.orchestration.infrastructure.orm import (
                 OrchestrationRunAttemptRecord,
