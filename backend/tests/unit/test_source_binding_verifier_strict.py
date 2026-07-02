@@ -1308,7 +1308,9 @@ class TestBinaryFloatCanonicalization:
         )
 
         def _make_run_mock(
-            run_id: str, calc_name: str, calc_type: str,
+            run_id: str,
+            calc_name: str,
+            calc_type: str,
             result_snapshot: dict[str, Any],
         ) -> MagicMock:
             m = MagicMock()
@@ -1338,26 +1340,36 @@ class TestBinaryFloatCanonicalization:
 
         # Zone run has binary float in payload
         zone_run = _make_run_mock(
-            "run-zone-001", "cold_room_zone_plan", "zone",
+            "run-zone-001",
+            "cold_room_zone_plan",
+            "zone",
             {"daily_inbound_mass_kg": "25000", "bad_field": 3.14, "zones": []},
         )
         # Other stage runs are valid
         runs_by_id = {
             "run-zone-001": zone_run,
             "run-cl-001": _make_run_mock(
-                "run-cl-001", "cooling_load", "cooling_load",
+                "run-cl-001",
+                "cooling_load",
+                "cooling_load",
                 {"total_cooling_load_kw": "100"},
             ),
             "run-eq-001": _make_run_mock(
-                "run-eq-001", "equipment", "equipment",
+                "run-eq-001",
+                "equipment",
+                "equipment",
                 {"equipment_rows": []},
             ),
             "run-pow-001": _make_run_mock(
-                "run-pow-001", "installed_power", "power",
+                "run-pow-001",
+                "installed_power",
+                "power",
                 {"total_installed_power_kw_e": "100", "equipment_rows": []},
             ),
             "run-inv-001": _make_run_mock(
-                "run-inv-001", "investment_estimate", "investment",
+                "run-inv-001",
+                "investment_estimate",
+                "investment",
                 {"total_investment_cny": "1000000", "items": []},
             ),
         }
@@ -1435,16 +1447,28 @@ class TestBinaryFloatCanonicalization:
             return m
 
         runs_by_id = {
-            "run-z2": _make_run("run-z2", "cold_room_zone_plan", "zone",
-                                {"daily_inbound_mass_kg": "25000", "bad": 1.0, "zones": []}),
-            "run-cl2": _make_run("run-cl2", "cooling_load", "cooling_load",
-                                {"total_cooling_load_kw": "100"}),
-            "run-eq2": _make_run("run-eq2", "equipment", "equipment",
-                                {"equipment_rows": []}),
-            "run-pw2": _make_run("run-pw2", "installed_power", "power",
-                                {"total_installed_power_kw_e": "100", "equipment_rows": []}),
-            "run-in2": _make_run("run-in2", "investment_estimate", "investment",
-                                {"total_investment_cny": "1000000", "items": []}),
+            "run-z2": _make_run(
+                "run-z2",
+                "cold_room_zone_plan",
+                "zone",
+                {"daily_inbound_mass_kg": "25000", "bad": 1.0, "zones": []},
+            ),
+            "run-cl2": _make_run(
+                "run-cl2", "cooling_load", "cooling_load", {"total_cooling_load_kw": "100"}
+            ),
+            "run-eq2": _make_run("run-eq2", "equipment", "equipment", {"equipment_rows": []}),
+            "run-pw2": _make_run(
+                "run-pw2",
+                "installed_power",
+                "power",
+                {"total_installed_power_kw_e": "100", "equipment_rows": []},
+            ),
+            "run-in2": _make_run(
+                "run-in2",
+                "investment_estimate",
+                "investment",
+                {"total_investment_cny": "1000000", "items": []},
+            ),
         }
 
         binding = MagicMock()

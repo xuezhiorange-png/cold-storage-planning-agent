@@ -880,9 +880,7 @@ def wire_golden_orchestration_service(session_factory: Any) -> Any:
     class _GoldenVersionPort(ProjectVersionReadPort):
         def load_by_id(self, session: Any, project_version_id: str) -> Any:
             record = session.execute(
-                select(ProjectVersionRecord).where(
-                    ProjectVersionRecord.id == project_version_id
-                )
+                select(ProjectVersionRecord).where(ProjectVersionRecord.id == project_version_id)
             ).scalar_one_or_none()
             if record is None:
                 return None

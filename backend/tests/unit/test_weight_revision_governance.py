@@ -1932,19 +1932,14 @@ class TestConcurrentApprovalWithAuthority:
         winners = [r for r in results if r is not None and r.succeeded]
         losers = [r for r in results if r is not None and not r.succeeded]
         assert len(winners) == 1, (
-            f"Expected exactly 1 winner, got {len(winners)}; "
-            f"results={results}"
+            f"Expected exactly 1 winner, got {len(winners)}; results={results}"
         )
-        assert len(losers) == 1, (
-            f"Expected exactly 1 loser, got {len(losers)}; "
-            f"results={results}"
-        )
+        assert len(losers) == 1, f"Expected exactly 1 loser, got {len(losers)}; results={results}"
 
         # 5. Loser's error must be a known governance conflict
         loser = losers[0]
         assert loser.error_type in _KNOWN_LOSER_ERRORS, (
-            f"Loser error_type={loser.error_type!r} not in "
-            f"known errors {_KNOWN_LOSER_ERRORS}"
+            f"Loser error_type={loser.error_type!r} not in known errors {_KNOWN_LOSER_ERRORS}"
         )
 
         # 6. Verify: exactly one approved in DB
@@ -1995,17 +1990,15 @@ class TestConcurrentApprovalWithAuthority:
         raise a known governance error or IntegrityError — never silently
         swallow unexpected exceptions.
         """
-        import threading
         import os
+        import threading
 
         pg_url = os.environ.get("TEST_DATABASE_URL")
         if pg_url is None:
-            pytest.skip(
-                "TEST_DATABASE_URL not set — skipping PostgreSQL concurrency test"
-            )
+            pytest.skip("TEST_DATABASE_URL not set — skipping PostgreSQL concurrency test")
 
-        from sqlalchemy.pool import NullPool
         from sqlalchemy import text
+        from sqlalchemy.pool import NullPool
 
         _KNOWN_LOSER_ERRORS = (
             "RevisionAlreadyApprovedError",
@@ -2127,19 +2120,14 @@ class TestConcurrentApprovalWithAuthority:
         winners = [r for r in results if r is not None and r.succeeded]
         losers = [r for r in results if r is not None and not r.succeeded]
         assert len(winners) == 1, (
-            f"Expected exactly 1 winner, got {len(winners)}; "
-            f"results={results}"
+            f"Expected exactly 1 winner, got {len(winners)}; results={results}"
         )
-        assert len(losers) == 1, (
-            f"Expected exactly 1 loser, got {len(losers)}; "
-            f"results={results}"
-        )
+        assert len(losers) == 1, f"Expected exactly 1 loser, got {len(losers)}; results={results}"
 
         # 5. Loser's error must be a known governance conflict
         loser = losers[0]
         assert loser.error_type in _KNOWN_LOSER_ERRORS, (
-            f"Loser error_type={loser.error_type!r} not in "
-            f"known errors {_KNOWN_LOSER_ERRORS}"
+            f"Loser error_type={loser.error_type!r} not in known errors {_KNOWN_LOSER_ERRORS}"
         )
 
         # 6. Verify: exactly one approved in DB

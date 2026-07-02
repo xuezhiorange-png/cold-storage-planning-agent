@@ -233,8 +233,7 @@ class TestDowngradeGate:
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
         ).fetchone()[0]
         assert post_table_count == table_count - 1, (
-            f"Expected {table_count - 1} tables after partial downgrade, "
-            f"got {post_table_count}"
+            f"Expected {table_count - 1} tables after partial downgrade, got {post_table_count}"
         )
 
         # orchestration_requests table still present

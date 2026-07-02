@@ -621,9 +621,7 @@ _PRODUCTION_IDENTITY_FIELDS: tuple[str, ...] = (
 # ── Domain object rebuild from DB snapshots ──────────────────────────────────
 
 
-VALID_DIRECTIONS: frozenset[str] = frozenset(
-    {"higher_is_better", "lower_is_better", "binary_pass"}
-)
+VALID_DIRECTIONS: frozenset[str] = frozenset({"higher_is_better", "lower_is_better", "binary_pass"})
 
 
 def _require_field(snapshot: dict[str, Any], key: str, *, field_path: str) -> Any:
@@ -829,18 +827,30 @@ def _rebuild_scheme_candidate_from_snapshot(
                 field_path=f"{field_path}.room_modules[i].design_cooling_load_kw_r",
             ),
             compressor_operating_capacity_kw_r=_to_decimal(
-                rf(rm, "compressor_operating_capacity_kw_r", field_path=f"{field_path}.room_modules[i]"),
+                rf(
+                    rm,
+                    "compressor_operating_capacity_kw_r",
+                    field_path=f"{field_path}.room_modules[i]",
+                ),
                 field_path=f"{field_path}.room_modules[i].compressor_operating_capacity_kw_r",
             ),
             compressor_installed_capacity_kw_r=_to_decimal(
-                rf(rm, "compressor_installed_capacity_kw_r", field_path=f"{field_path}.room_modules[i]"),
+                rf(
+                    rm,
+                    "compressor_installed_capacity_kw_r",
+                    field_path=f"{field_path}.room_modules[i]",
+                ),
                 field_path=f"{field_path}.room_modules[i].compressor_installed_capacity_kw_r",
             ),
             process_compatibility=_snapshot_field(
-                rm, "process_compatibility", field_path=f"{field_path}.room_modules[i]",
+                rm,
+                "process_compatibility",
+                field_path=f"{field_path}.room_modules[i]",
             ),
             hygiene_zone=_snapshot_field(
-                rm, "hygiene_zone", field_path=f"{field_path}.room_modules[i]",
+                rm,
+                "hygiene_zone",
+                field_path=f"{field_path}.room_modules[i]",
             ),
             door_count=_to_int(
                 rf(rm, "door_count", field_path=f"{field_path}.room_modules[i]"),
@@ -871,10 +881,14 @@ def _rebuild_scheme_candidate_from_snapshot(
                 field_path=f"{field_path}.constraint_results[i].detail",
             ),
             expected=_snapshot_field(
-                cr, "expected", field_path=f"{field_path}.constraint_results[i]",
+                cr,
+                "expected",
+                field_path=f"{field_path}.constraint_results[i]",
             ),
             actual=_snapshot_field(
-                cr, "actual", field_path=f"{field_path}.constraint_results[i]",
+                cr,
+                "actual",
+                field_path=f"{field_path}.constraint_results[i]",
             ),
         )
         for cr in constraint_results_raw

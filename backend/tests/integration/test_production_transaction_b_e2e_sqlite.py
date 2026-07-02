@@ -772,7 +772,8 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
     """End-to-end: real TransactionBExecutor → ProductionSchemeService.
 
     1. Seeds golden prerequisites (Project, Version, Snapshot, Coeff, Identity, Attempt, Request)
-    2. Executes real Transaction B via OrchestrationService (creates 5 CalculationRuns + 1 SourceBinding)
+    2. Executes real Transaction B via OrchestrationService
+       (creates 5 CalculationRuns + 1 SourceBinding)
     3. Reads executor-generated source_binding_id
     4. Seeds weight set + revision
     5. Feeds SourceBinding to ProductionSchemeService
@@ -823,9 +824,7 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
                 assert run_rec is not None, (
                     f"Missing CalculationRun for stage {stage!r} — executor did not create it"
                 )
-                assert run_rec.result_hash, (
-                    f"CalculationRun for {stage!r} has no result_hash"
-                )
+                assert run_rec.result_hash, f"CalculationRun for {stage!r} has no result_hash"
                 assert run_rec.calculator_name == _SLOT_CALCULATOR_NAMES[stage], (
                     f"calculator_name mismatch for {stage!r}: "
                     f"got {run_rec.calculator_name!r}, expected {_SLOT_CALCULATOR_NAMES[stage]!r}"
@@ -840,9 +839,7 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
         # ── Step 4: Verify executor-created SourceBinding ────────────────
         with session_factory() as session:
             binding = session.execute(
-                select(SourceBindingRecord).where(
-                    SourceBindingRecord.id == source_binding_id
-                )
+                select(SourceBindingRecord).where(SourceBindingRecord.id == source_binding_id)
             ).scalar_one()
             assert binding is not None
             assert binding.combined_source_hash, "SourceBinding must have combined_source_hash"
@@ -924,10 +921,6 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
                 OrchestrationRunAttemptRecord,
             )
 
-            from cold_storage.modules.schemes.infrastructure.orm import (
-                SchemeRunRecord,
-            )
-
             # Verify the executor completed all lifecycle steps:
             # - attempt → COMPLETED
             # - identity.authoritative_attempt_id → set
@@ -954,9 +947,7 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
 
             # Verify SourceBinding has correct authority chain
             binding = session.execute(
-                select(SourceBindingRecord).where(
-                    SourceBindingRecord.id == source_binding_id
-                )
+                select(SourceBindingRecord).where(SourceBindingRecord.id == source_binding_id)
             ).scalar_one()
             assert binding.project_id == GOLDEN_PROJECT_ID
             assert binding.project_version_id == GOLDEN_PROJECT_VERSION_ID

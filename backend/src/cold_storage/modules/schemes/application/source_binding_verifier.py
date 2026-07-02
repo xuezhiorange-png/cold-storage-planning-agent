@@ -795,9 +795,7 @@ def verify_source_binding(
             computed_hash = result_hash(content)
         except TypeError as exc:
             # Binary float / unsupported type — structured canonicalization error
-            raise SourcePayloadCanonicalizationError(
-                stage, detail=str(exc)
-            ) from exc
+            raise SourcePayloadCanonicalizationError(stage, detail=str(exc)) from exc
         except ValueError as exc:
             # Domain validation raised — convert to verifier error
             _raise_domain_validation_error(stage, exc)

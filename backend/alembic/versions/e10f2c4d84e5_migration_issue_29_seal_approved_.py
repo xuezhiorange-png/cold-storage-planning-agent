@@ -16,9 +16,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "e10f2c4d84e5"
-down_revision: str | None = (
-    "0032_add_active_revisions_authority_and_immutability_triggers"
-)
+down_revision: str | None = "0032_add_active_revisions_authority_and_immutability_triggers"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -30,10 +28,7 @@ def upgrade() -> None:
     dialect_name = op.get_context().dialect.name
 
     # 1. Add sealed_at column (NULL for all rows initially)
-    op.execute(
-        "ALTER TABLE scheme_weight_set_revisions"
-        " ADD COLUMN sealed_at TIMESTAMP NULL"
-    )
+    op.execute("ALTER TABLE scheme_weight_set_revisions ADD COLUMN sealed_at TIMESTAMP NULL")
 
     # 2. Backfill sealed_at: for non-draft revisions, set to approved_at
     #    (or created_at if approved_at is NULL)
@@ -124,10 +119,7 @@ def downgrade() -> None:
         )
 
     # 3. Drop sealed_at column
-    op.execute(
-        "ALTER TABLE scheme_weight_set_revisions"
-        " DROP COLUMN sealed_at"
-    )
+    op.execute("ALTER TABLE scheme_weight_set_revisions DROP COLUMN sealed_at")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -197,8 +189,7 @@ def _sqlite_drop_triggers() -> None:
 def _pg_create_triggers() -> None:
     # Drop old trigger/function if they exist (idempotent upgrade/downgrade)
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_immutable_weight_revision")
 
@@ -274,8 +265,7 @@ def _pg_create_triggers() -> None:
 
 def _pg_drop_triggers() -> None:
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_immutable_weight_revision ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_immutable_weight_revision")
 
@@ -286,7 +276,6 @@ def _pg_drop_triggers() -> None:
     op.execute("DROP FUNCTION IF EXISTS fn_weight_revision_status_transition")
 
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_weight_revision_seal_on_approve"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_weight_revision_seal_on_approve ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_weight_revision_seal_on_approve")
