@@ -226,12 +226,15 @@ class TestDowngradeGate:
             f"Expected revision 0027 after blocked 0028→0027→0026 downgrade, got {rev_after}"
         )
 
-        # Tables not deleted
+        # scheme_weight_set_active_revisions table (added by 0032) is
+        # dropped by the partial downgrade (0032→0027) before the
+        # 0027→0026 guard blocks, so expect one fewer table.
         post_table_count = conn2.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
         ).fetchone()[0]
-        assert post_table_count == table_count, (
-            f"Table count changed: {table_count} → {post_table_count}"
+        assert post_table_count == table_count - 1, (
+            f"Expected {table_count - 1} tables after partial downgrade, "
+            f"got {post_table_count}"
         )
 
         # orchestration_requests table still present
@@ -1100,7 +1103,7 @@ class TestTransactionBConstraints0028:
         env = os.environ.copy()
         env["SQLITE_PATH"] = str(db_path)
 
-        # Upgrade to head (0028)
+        # Upgrade to head (0032)
         r = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=BACKEND_DIR,
@@ -1113,8 +1116,8 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0031_add_weight_revision_active_approved_unique"
-        assert rev == expected_rev, f"Expected 0031, got {rev}"
+        expected_rev = "0032_add_active_revisions_authority_and_immutability_triggers"
+        assert rev == expected_rev, f"Expected 0032, got {rev}"
         conn.close()
 
         # Downgrade to 0027
@@ -1135,7 +1138,7 @@ class TestTransactionBConstraints0028:
         )
         conn.close()
 
-        # Re-upgrade to head (0028)
+        # Re-upgrade to head (0032)
         r = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=BACKEND_DIR,
@@ -1148,8 +1151,8 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0031_add_weight_revision_active_approved_unique"
-        assert rev == expected_rev, f"Expected 0031, got {rev}"
+        expected_rev = "0032_add_active_revisions_authority_and_immutability_triggers"
+        assert rev == expected_rev, f"Expected 0032, got {rev}"
         conn.close()
         db_path.unlink(missing_ok=True)
 
