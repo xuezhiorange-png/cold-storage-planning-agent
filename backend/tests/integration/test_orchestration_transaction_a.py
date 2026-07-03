@@ -501,7 +501,7 @@ class TestPreflightRejection:
                 select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == row.id)
             ).scalar_one_or_none()
             assert ev is not None
-            assert ev.event_type == "orchestration.request.rejected"
+            assert ev.event_type == "orchestration.request.preflight_rejected"
 
     def test_rejection_creates_zero_identity_attempt(self, service, session_factory) -> None:
         with pytest.raises(PreflightFailure):
@@ -563,6 +563,8 @@ class TestTransactionC:
             result.attempt_id,
             failure_code="TEST_BLOCK",
             failure_details={"reason": "test"},
+            actor="test-actor",
+            correlation_id="test-corr",
         )
 
         with session_factory() as s:
@@ -590,6 +592,8 @@ class TestTransactionC:
             result.attempt_id,
             failure_code="TEST_FAIL",
             failure_details={"reason": "test"},
+            actor="test-actor",
+            correlation_id="test-corr",
         )
 
         with session_factory() as s:
@@ -739,7 +743,7 @@ class TestDurableRejectionAllPaths:
             ev = s.execute(
                 select(AuditOutboxRecord).where(
                     AuditOutboxRecord.request_id == pf.request_id,
-                    AuditOutboxRecord.event_type == "orchestration.request.rejected",
+                    AuditOutboxRecord.event_type == "orchestration.request.preflight_rejected",
                 )
             ).scalar_one()
             assert ev is not None
@@ -787,7 +791,7 @@ class TestDurableRejectionAllPaths:
             ev = s.execute(
                 select(AuditOutboxRecord).where(
                     AuditOutboxRecord.request_id == pf.request_id,
-                    AuditOutboxRecord.event_type == "orchestration.request.rejected",
+                    AuditOutboxRecord.event_type == "orchestration.request.preflight_rejected",
                 )
             ).scalar_one()
             assert ev is not None
@@ -823,7 +827,7 @@ class TestDurableRejectionAllPaths:
             ev = s.execute(
                 select(AuditOutboxRecord).where(
                     AuditOutboxRecord.request_id == pf.request_id,
-                    AuditOutboxRecord.event_type == "orchestration.request.rejected",
+                    AuditOutboxRecord.event_type == "orchestration.request.preflight_rejected",
                 )
             ).scalar_one()
             assert ev is not None

@@ -496,6 +496,7 @@ class OrchestrationService:
         )
 
         # ── Primary UoW: Transaction B execution ──────────────────────
+        envelope: tuple[str, str] | None = None
         try:
             with self._uow_factory() as uow:
                 # Pre-condition: verify request is ACCEPTED and attempt is RUNNING
@@ -510,6 +511,7 @@ class OrchestrationService:
                             "observed_status": request_status,
                         },
                     )
+                envelope = self._request_repo.get_envelope(uow.session, request_id)
 
                 attempt_status = self._attempt_repo.get_status(
                     uow.session, orchestration_attempt_id
@@ -549,6 +551,9 @@ class OrchestrationService:
                 identity_id=orchestration_identity_id,
                 exc=exc,
                 disposition=exc.terminal_disposition,
+                actor=(envelope[0] if envelope else "system"),
+                correlation_id=(envelope[1] if envelope else ""),
+                occurred_at=datetime.now(UTC),
             )
             raise
 
@@ -560,6 +565,9 @@ class OrchestrationService:
                 identity_id=orchestration_identity_id,
                 exc=exc,
                 disposition=AttemptTerminalDisposition.FAILED,
+                actor=(envelope[0] if envelope else "system"),
+                correlation_id=(envelope[1] if envelope else ""),
+                occurred_at=datetime.now(UTC),
             )
             raise
 
@@ -577,6 +585,9 @@ class OrchestrationService:
                 ),
                 disposition=AttemptTerminalDisposition.FAILED,
                 original_exc=exc,
+                actor=(envelope[0] if envelope else "system"),
+                correlation_id=(envelope[1] if envelope else ""),
+                occurred_at=datetime.now(UTC),
             )
             raise TransactionBFailure(
                 "TXB_PERSISTENCE_FAILURE",
@@ -599,6 +610,9 @@ class OrchestrationService:
                 ),
                 disposition=AttemptTerminalDisposition.FAILED,
                 original_exc=exc,
+                actor=(envelope[0] if envelope else "system"),
+                correlation_id=(envelope[1] if envelope else ""),
+                occurred_at=datetime.now(UTC),
             )
             raise TransactionBFailure(
                 "TXB_UNEXPECTED_FAILURE",
@@ -628,6 +642,9 @@ class OrchestrationService:
         exc: TransactionBFailure | OrchestrationDomainError,
         disposition: AttemptTerminalDisposition,
         original_exc: Exception | None = None,
+        actor: str,
+        correlation_id: str,
+        occurred_at: datetime,
     ) -> None:
         """Persist a Transaction B terminal state atomically in an independent UoW.
 
@@ -639,6 +656,10 @@ class OrchestrationService:
         Only ``TRANSITIONED`` outcome produces a terminal outbox event.
         ``ALREADY_COMPLETED``, ``ALREADY_TERMINAL``, ``NOT_FOUND``, and
         ``STATE_CONFLICT`` are silent — no outbox, no overwrite.
+
+        ``actor``, ``correlation_id`` and ``occurred_at`` MUST be supplied
+        explicitly — the outbox event envelope uses authoritative values
+        sourced from the durable request, not the repository defaults.
         """
         from cold_storage.modules.orchestration.application.ports import (
             TerminalTransitionOutcome,
@@ -666,7 +687,7 @@ class OrchestrationService:
                     "terminal_disposition": disposition,
                     **failure_details,
                 },
-                completed_at=datetime.now(UTC),
+                completed_at=occurred_at,
             )
             if result.outcome == TerminalTransitionOutcome.TRANSITIONED:
                 self._outbox_repo.add(
@@ -681,7 +702,9 @@ class OrchestrationService:
                         "error_class": type(exc).__name__,
                         "terminal_disposition": disposition,
                     },
-                    occurred_at=datetime.now(UTC),
+                    actor=actor,
+                    correlation_id=correlation_id,
+                    occurred_at=occurred_at,
                     transition_id=f"attempt:{attempt_id}:{disposition.value}",
                     request_id=request_id,
                     identity_id=identity_id,
@@ -697,8 +720,15 @@ class OrchestrationService:
         *,
         failure_code: str,
         failure_details: dict[str, object],
+        actor: str,
+        correlation_id: str,
     ) -> None:
-        """Mark a RUNNING attempt as BLOCKED (Transaction C) + outbox."""
+        """Mark a RUNNING attempt as BLOCKED (Transaction C) + outbox.
+
+        ``actor`` and ``correlation_id`` MUST be supplied explicitly —
+        the outbox event envelope uses authoritative values from the
+        durable request, not repository defaults.
+        """
         with self._uow_factory() as uow:
             self._attempt_repo.update_status(
                 uow.session,
@@ -716,6 +746,8 @@ class OrchestrationService:
                     "failure_code": failure_code,
                     "failure_details": failure_details,
                 },
+                actor=actor,
+                correlation_id=correlation_id,
                 occurred_at=datetime.now(UTC),
                 transition_id=f"attempt:{attempt_id}:blocked:{failure_code}",
                 attempt_id=attempt_id,
@@ -728,8 +760,15 @@ class OrchestrationService:
         *,
         failure_code: str,
         failure_details: dict[str, object],
+        actor: str,
+        correlation_id: str,
     ) -> None:
-        """Mark a RUNNING attempt as FAILED (Transaction C) + outbox."""
+        """Mark a RUNNING attempt as FAILED (Transaction C) + outbox.
+
+        ``actor`` and ``correlation_id`` MUST be supplied explicitly —
+        the outbox event envelope uses authoritative values from the
+        durable request, not repository defaults.
+        """
         with self._uow_factory() as uow:
             self._attempt_repo.update_status(
                 uow.session,
@@ -747,6 +786,8 @@ class OrchestrationService:
                     "failure_code": failure_code,
                     "failure_details": failure_details,
                 },
+                actor=actor,
+                correlation_id=correlation_id,
                 occurred_at=datetime.now(UTC),
                 transition_id=f"attempt:{attempt_id}:failed:{failure_code}",
                 attempt_id=attempt_id,
@@ -781,7 +822,7 @@ class OrchestrationService:
             )
             self._outbox_repo.add(
                 session,
-                event_type="orchestration.request.rejected",
+                event_type="orchestration.request.preflight_rejected",
                 aggregate_type="OrchestrationRequest",
                 aggregate_id=request_id,
                 payload={
@@ -793,7 +834,7 @@ class OrchestrationService:
                 actor=command.actor,
                 correlation_id=command.correlation_id,
                 occurred_at=datetime.now(UTC),
-                transition_id=f"request:{request_id}:rejected",
+                transition_id=f"request:{request_id}:preflight_rejected",
                 request_id=request_id,
             )
         except Exception:
