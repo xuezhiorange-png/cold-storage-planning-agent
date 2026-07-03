@@ -23,6 +23,7 @@ from cold_storage.modules.orchestration.application.outbox_errors import (
 )
 from cold_storage.modules.orchestration.application.outbox_identity import (
     compute_payload_hash,
+    ensure_utc_aware,
 )
 from cold_storage.modules.orchestration.application.outbox_retry import (
     DEFAULT_RETRY_POLICY,
@@ -52,7 +53,8 @@ def claim_events_pg(
     now: datetime,
 ) -> list[ClaimedOutboxEvent]:
     """PostgreSQL claim using FOR UPDATE SKIP LOCKED in a short transaction."""
-    expires_at = now.replace(tzinfo=UTC) + timedelta(seconds=lease_seconds)
+    now = ensure_utc_aware(now)
+    expires_at = now + timedelta(seconds=lease_seconds)
     token = _generate_claim_token()
 
     eligible = (
@@ -127,9 +129,8 @@ def claim_events_sqlite(
     datetime comparison at the SQL level.
     """
     # Normalize to naive UTC for SQLite datetime comparison.
-    # Truncate to second precision to avoid microsecond drift caused
-    # by ORM default lambda evaluation at flush time.
-    now_naive = now.replace(tzinfo=None) if now.tzinfo is not None else now
+    now = ensure_utc_aware(now)
+    now_naive = now.replace(tzinfo=None)
     now_naive = now_naive.replace(microsecond=0)
     now_str = now_naive.strftime("%Y-%m-%d %H:%M:%S")
     expires_at = now_naive + timedelta(seconds=lease_seconds)
@@ -207,6 +208,7 @@ def validate_claim(
     Raises OutboxClaimLostError if the claim has been superseded.
     Normalizes ``now`` to naive for SQLite compatibility.
     """
+    now = ensure_utc_aware(now)
     row = session.execute(
         select(AuditOutboxRecord).where(AuditOutboxRecord.id == event_id)
     ).scalar_one_or_none()
@@ -243,7 +245,14 @@ def materialize_event(
 
     Must be called within the same transaction that validates the claim.
     AuditEvent creation and outbox PUBLISHED update happen atomically.
+
+    P0-6: After validate_claim(), re-read the outbox row from the database
+    and use the DB row for ALL event data.
+    P0-7: AuditEvent INSERT is wrapped in a SAVEPOINT for idempotency.
+    P0-8: AuditEvent INSERT + outbox PUBLISHED update are in the same function.
     """
+    now = ensure_utc_aware(now)
+
     # 1. Validate claim is still active
     validate_claim(
         session,
@@ -253,60 +262,68 @@ def materialize_event(
         now=now,
     )
 
-    # 2. Verify payload integrity
-    actual_hash = compute_payload_hash(claimed.payload)
-    if actual_hash != claimed.payload_hash:
-        raise OutboxPayloadIntegrityError(claimed.outbox_row_id, claimed.payload_hash, actual_hash)
+    # 2. P0-6: Re-read outbox row from DB — use DB row for ALL event data
+    db_row = session.execute(
+        select(AuditOutboxRecord).where(AuditOutboxRecord.id == claimed.outbox_row_id)
+    ).scalar_one_or_none()
+    if db_row is None:
+        raise OutboxClaimLostError(claimed.outbox_row_id, worker_id, claim_token)
 
-    # 3. Build AuditEventRecord from the frozen envelope
+    # 3. Verify payload integrity from the DB row
+    actual_hash = compute_payload_hash(db_row.payload)
+    if actual_hash != db_row.payload_hash:
+        raise OutboxPayloadIntegrityError(db_row.id, db_row.payload_hash, actual_hash)
+
+    # 4. Build AuditEventRecord from the frozen DB row (NOT claimed DTO)
     audit_event = AuditEventRecord(
         id=str(uuid4()),
-        actor=claimed.actor,
-        action=claimed.event_type,
-        entity_type=claimed.aggregate_type,
-        entity_id=claimed.aggregate_id,
+        actor=db_row.actor,
+        action=db_row.event_type,
+        entity_type=db_row.aggregate_type,
+        entity_id=db_row.aggregate_id,
         before_snapshot={},
-        after_snapshot=claimed.payload,
+        after_snapshot=db_row.payload,
         event_metadata={
-            "event_identity": claimed.event_identity,
-            "event_schema_version": claimed.event_schema_version,
-            "correlation_id": claimed.correlation_id,
-            "occurred_at": claimed.occurred_at.isoformat() if claimed.occurred_at else None,
-            "payload_hash": claimed.payload_hash,
-            "request_id": claimed.request_id,
-            "identity_id": claimed.identity_id,
-            "attempt_id": claimed.attempt_id,
-            "source_binding_id": claimed.source_binding_id,
+            "event_identity": db_row.event_identity,
+            "event_schema_version": db_row.event_schema_version,
+            "correlation_id": db_row.correlation_id,
+            "occurred_at": db_row.occurred_at.isoformat() if db_row.occurred_at else None,
+            "payload_hash": db_row.payload_hash,
+            "request_id": db_row.request_id,
+            "identity_id": db_row.identity_id,
+            "attempt_id": db_row.attempt_id,
+            "source_binding_id": db_row.source_binding_id,
         },
         created_at=now,
-        outbox_event_id=claimed.event_identity,
+        outbox_event_id=db_row.event_identity,
     )
 
-    # 4. Insert AuditEvent (idempotent via uq on outbox_event_id)
+    # 5. P0-7: Insert AuditEvent via SAVEPOINT (idempotent)
+    nested = session.begin_nested()
     try:
         session.add(audit_event)
         session.flush()
+        nested.commit()
     except (sa_exc.IntegrityError, sa_exc.InternalError) as exc:
+        nested.rollback()
         # Handle exact unique conflict on outbox_event_id
         if _is_outbox_event_id_conflict(exc):
             # Idempotent: existing event must match
             existing = session.execute(
                 select(AuditEventRecord).where(
-                    AuditEventRecord.outbox_event_id == claimed.event_identity
+                    AuditEventRecord.outbox_event_id == db_row.event_identity
                 )
             ).scalar_one_or_none()
             if existing is None:
                 raise
             mismatches = _compare_audit_events(audit_event, existing)
             if mismatches:
-                raise OutboxMaterializationMismatchError(
-                    claimed.event_identity, mismatches
-                ) from exc
+                raise OutboxMaterializationMismatchError(db_row.event_identity, mismatches) from exc
             # Idempotent match — continue to mark published
         else:
             raise
 
-    # 5. Mark outbox PUBLISHED (CAS: must still be PROCESSING with correct token)
+    # 6. P0-8: Mark outbox PUBLISHED (CAS: must still be PROCESSING with correct token)
     result = session.execute(
         update(AuditOutboxRecord)
         .where(
@@ -345,12 +362,7 @@ def mark_retryable_failure(
 ) -> None:
     """Return a claimed event to PENDING with retry metadata."""
     policy = retry_policy or DEFAULT_RETRY_POLICY
-    current_time = now or datetime.now(UTC)
-
-    next_retry = policy.next_retry_at(
-        attempt_count=0,  # will read current from row
-        now=current_time,
-    )
+    current_time = ensure_utc_aware(now or datetime.now(UTC))
 
     # Read current attempt count for backoff
     row = session.execute(
@@ -359,6 +371,11 @@ def mark_retryable_failure(
     if row is not None:
         next_retry = policy.next_retry_at(
             attempt_count=row.attempt_count,
+            now=current_time,
+        )
+    else:
+        next_retry = policy.next_retry_at(
+            attempt_count=0,
             now=current_time,
         )
 
@@ -398,7 +415,7 @@ def mark_terminal_failure(
     now: datetime | None = None,
 ) -> None:
     """Move a claimed event to the FAILED terminal state."""
-    current_time = now or datetime.now(UTC)
+    current_time = ensure_utc_aware(now or datetime.now(UTC))
 
     result = session.execute(
         update(AuditOutboxRecord)
