@@ -94,7 +94,23 @@ class TestEventIdentity:
             transition_id="trans-1",
             schema_version="2.0",
         )
-        assert identity == "2.0:test.event:TestAggregate:agg-1:trans-1"
+        # Must be a 64-char SHA-256 hex digest, fitting VARCHAR(128)
+        assert len(identity) == 64
+        assert all(c in "0123456789abcdef" for c in identity)
+
+    def test_length_fits_varchar128(self):
+        from cold_storage.modules.orchestration.application.outbox_identity import (
+            build_event_identity,
+        )
+
+        identity = build_event_identity(
+            event_type="orchestration.request.preflight_rejected",
+            aggregate_type="OrchestrationRequest",
+            aggregate_id="a" * 120,
+            transition_id="b" * 120,
+        )
+        assert len(identity) == 64
+        assert len(identity) <= 128
 
 
 class TestPayloadHash:

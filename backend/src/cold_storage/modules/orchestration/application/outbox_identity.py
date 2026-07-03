@@ -12,7 +12,46 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
+
+
+def ensure_utc_aware(dt: datetime) -> datetime:
+    """Normalize a datetime to an aware UTC datetime.
+
+    - If *dt* is naive: assume it is UTC, attach tzinfo.
+    - If *dt* is aware but not UTC: convert to UTC (never replace tzinfo).
+    - If *dt* is already UTC-aware: return as-is.
+    """
+    if dt.tzinfo is None:
+        # Naive — assume UTC
+        return dt.replace(tzinfo=UTC)
+    # Aware — convert to UTC (handles DST offsets correctly)
+    return dt.astimezone(UTC)
+
+
+def _strict_json_default(obj: Any) -> Any:
+    """Strict JSON serialization default — handles known types, rejects unknown."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, Decimal):
+        return str(obj)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _check_nan_inf(obj: Any) -> None:
+    """Raise ValueError if the object contains NaN or Infinity floats."""
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            raise ValueError(f"Binary float {obj!r} is not allowed in canonical JSON")
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            _check_nan_inf(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            _check_nan_inf(v)
 
 
 def canonical_json(obj: Any) -> str:
@@ -20,8 +59,16 @@ def canonical_json(obj: Any) -> str:
 
     Uses sort_keys=True and compact separators, matching the project-wide
     convention found in reports, schemes, and planning_agent modules.
+
+    Raises ValueError for NaN/Infinity floats and TypeError for unknown types.
     """
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
+    _check_nan_inf(obj)
+    return json.dumps(
+        obj,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=_strict_json_default,
+    )
 
 
 def compute_payload_hash(payload: dict[str, object]) -> str:
@@ -42,12 +89,28 @@ def build_event_identity(
 ) -> str:
     """Build a deterministic event identity from business-meaningful fields.
 
-    The identity is structured as:
-        {schema_version}:{event_type}:{aggregate_type}:{aggregate_id}:{transition_id}
+    Returns a 64-char SHA-256 hex digest of the structured identity
+    projection, fitting safely within the VARCHAR(128) database column.
+
+    Identity projection (canonical JSON, sorted keys):
+        {
+            "aggregate_id": "...",
+            "aggregate_type": "...",
+            "event_type": "...",
+            "schema_version": "...",
+            "transition_id": "..."
+        }
 
     This ensures:
     - Same lifecycle transition → same identity (idempotent)
     - Different transitions → different identity
-    - Schema evolution can change the version prefix
+    - Fixed-length output suitable for DB columns and unique constraints
     """
-    return f"{schema_version}:{event_type}:{aggregate_type}:{aggregate_id}:{transition_id}"
+    projection = {
+        "aggregate_id": aggregate_id,
+        "aggregate_type": aggregate_type,
+        "event_type": event_type,
+        "schema_version": schema_version,
+        "transition_id": transition_id,
+    }
+    return hashlib.sha256(canonical_json(projection).encode("utf-8")).hexdigest()

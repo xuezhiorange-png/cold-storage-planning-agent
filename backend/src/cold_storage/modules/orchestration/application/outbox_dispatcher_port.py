@@ -48,6 +48,7 @@ class DispatchSummary:
     failed: int = 0
     skipped: int = 0
     lost_claims: int = 0
+    unhandled_failures: int = 0
 
 
 class AuditOutboxDispatcherService(Protocol):
