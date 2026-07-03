@@ -65,17 +65,42 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
     )
 
 
+@pytest.fixture(scope="session")
+def _pg_outbox_admin_url(pg_admin_url: str):
+    """Session-scoped admin engine to manage a dedicated test DB."""
+    admin_engine = create_engine(pg_admin_url, poolclass=NullPool)
+    admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
+    created: list[str] = []
+
+    def create_db() -> str:
+        db_name = _sanitize(f"pg_outbox_{_uuid_mod.uuid4().hex[:12]}")
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+        created.append(db_name)
+        base = pg_admin_url.rsplit("/", 1)[0]
+        return f"{base}/{db_name}"
+
+    yield create_db
+
+    for db_name in created:
+        try:
+            with admin_engine.connect() as conn:
+                conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+        except Exception:
+            pass
+    admin_engine.dispose()
+
+
 @pytest.fixture(scope="module")
-def pg_outbox_engine(pg_database_factory):
+def pg_outbox_engine(_pg_outbox_admin_url):
     """PostgreSQL engine with Alembic head schema applied once per module.
 
-    Uses pg_database_factory (function-scoped) — this is fine because
-    factories return a callable, not a fixture value. We invoke it
-    manually here at module scope.
+    Uses a session-scoped helper fixture to create a dedicated
+    database for the whole module so we don't pay the alembic
+    upgrade cost per test.
     """
-    import os
-
-    db_url = pg_database_factory(prefix="pg_outbox")
+    db_url = _pg_outbox_admin_url()
     _run_alembic(db_url, "upgrade", "head")
     engine = create_engine(db_url, poolclass=NullPool)
     try:
