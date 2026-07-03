@@ -57,19 +57,26 @@ def _is_authority_unique_conflict(exc: Any) -> bool:
     PostgreSQL: check SQLSTATE 23505 (unique_violation) + constraint name.
     SQLite: check error message contains the exact unique columns.
     """
-    diag = getattr(exc, "orig", None)
-    if diag is None:
+    orig = getattr(exc, "orig", None)
+    if orig is None:
         return False
 
-    # PostgreSQL: psycopg2 Diagnostics object
-    sqlstate = getattr(diag, "sqlstate", None)
-    if sqlstate == "23505":
-        # Unique violation — check constraint name
+    # PostgreSQL: check orig.sqlstate / orig.pgcode
+    sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
+
+    # Try to get constraint_name from diag or orig
+    constraint_name = None
+    diag = getattr(orig, "diag", None)
+    if diag is not None:
         constraint_name = getattr(diag, "constraint_name", None)
-        if constraint_name == _AUTHORITY_PK_CONSTRAINT:
-            return True
+    if constraint_name is None:
+        constraint_name = getattr(orig, "constraint_name", None)
+
+    if sqlstate == "23505" and constraint_name == _AUTHORITY_PK_CONSTRAINT:
+        return True
+
     # SQLite: check error message for exact unique columns
-    err_str = str(diag).lower()
+    err_str = str(orig).lower()
     return (
         "unique constraint failed" in err_str
         and _AUTHORITY_TABLE in err_str
@@ -172,14 +179,28 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
             values["approved_by"] = approved_by
 
         # CAS update -- database triggers handle authority lifecycle
-        result = session.execute(
-            update(SchemeWeightSetRevisionRecord)
-            .where(
-                SchemeWeightSetRevisionRecord.id == revision_id,
-                SchemeWeightSetRevisionRecord.status == current_status,
+        from sqlalchemy import exc as sa_exc
+
+        try:
+            result = session.execute(
+                update(SchemeWeightSetRevisionRecord)
+                .where(
+                    SchemeWeightSetRevisionRecord.id == revision_id,
+                    SchemeWeightSetRevisionRecord.status == current_status,
+                )
+                .values(**values)
             )
-            .values(**values)
-        )
+        except (sa_exc.IntegrityError, sa_exc.InternalError) as exc:
+            if _is_authority_unique_conflict(exc):
+                raise WeightRevisionGovernanceError(
+                    "active_revision_conflict",
+                    (
+                        f"Another revision is already approved for "
+                        f"weight_set_id={current.weight_set_id}, "
+                        f"code={current.code}"
+                    ),
+                ) from exc
+            raise
 
         return int(result.rowcount) == 1
 
@@ -244,20 +265,34 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
 
         # CAS: only approve if currently 'draft'
         # Database trigger handles authority claim and seal
-        result = session.execute(
-            update(SchemeWeightSetRevisionRecord)
-            .where(
-                SchemeWeightSetRevisionRecord.id == revision_id,
-                SchemeWeightSetRevisionRecord.status == "draft",
+        from sqlalchemy import exc as sa_exc
+
+        try:
+            result = session.execute(
+                update(SchemeWeightSetRevisionRecord)
+                .where(
+                    SchemeWeightSetRevisionRecord.id == revision_id,
+                    SchemeWeightSetRevisionRecord.status == "draft",
+                )
+                .values(
+                    status="approved",
+                    approved_at=approved_at,
+                    approved_by=approved_by,
+                    content=content,
+                    content_hash=_compute_content_hash(content),
+                )
             )
-            .values(
-                status="approved",
-                approved_at=approved_at,
-                approved_by=approved_by,
-                content=content,
-                content_hash=_compute_content_hash(content),
-            )
-        )
+        except (sa_exc.IntegrityError, sa_exc.InternalError) as exc:
+            if _is_authority_unique_conflict(exc):
+                raise WeightRevisionGovernanceError(
+                    "active_revision_conflict",
+                    (
+                        f"Another revision is already approved for "
+                        f"weight_set_id={existing.weight_set_id}, "
+                        f"code={existing.code}"
+                    ),
+                ) from exc
+            raise
 
         return int(result.rowcount) != 0
 
@@ -345,38 +380,50 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
         content_hash = _compute_content_hash(content)
 
         if existing_rev is None:
-            # Create revision record
+            # Create revision record as DRAFT — never directly INSERT approved
+            # (trg_block_direct_approved_insert blocks direct INSERT of approved)
             rev_rec = SchemeWeightSetRevisionRecord(
                 id=revision_id,
                 weight_set_id=weight_set_id,
                 code=code,
                 revision=revision,
-                status="approved",
+                status="draft",
                 content=content,
                 content_hash=content_hash,
                 generator_compatibility_version=generator_compatibility_version,
-                approved_at=approved_at,
-                approved_by=approved_by,
+                approved_at=None,
+                approved_by=None,
+                sealed_at=None,
             )
             session.add(rev_rec)
             session.flush()
-            # Approve via controlled transition -- database trigger claims authority
-            self.approve_revision(
+            # Approve via controlled transition — database triggers claim authority and seal
+            approved = self.approve_revision(
                 session,
                 revision_id=revision_id,
                 content=content,
                 approved_at=approved_at,
                 approved_by=approved_by,
             )
+            if not approved:
+                raise SeedConsistencyError(
+                    revision_id,
+                    ["approval_cas_conflict"],
+                )
         elif existing_rev.status == "draft":
             # Approve existing draft (handles authority table via approve_revision)
-            self.approve_revision(
+            approved = self.approve_revision(
                 session,
                 revision_id=revision_id,
                 content=content,
                 approved_at=approved_at,
                 approved_by=approved_by,
             )
+            if not approved:
+                raise SeedConsistencyError(
+                    revision_id,
+                    ["approval_cas_conflict"],
+                )
         elif existing_rev.status == "approved":
             # Seed consistency: verify all identity/content fields match
             mismatched: list[str] = []
