@@ -48,7 +48,11 @@ _IMMUTABLE_FIELDS: frozenset[str] = frozenset(
 # PostgreSQL auto-names the partial unique index:
 # uq_active_approved_weight_rev on (weight_set_id, code) WHERE status = 'approved'
 # The authority table PK may also fire, but the partial index fires first.
-_AUTHORITY_PK_CONSTRAINT = "uq_active_approved_weight_rev"
+_AUTHORITY_PK_CONSTRAINT = {
+    "uq_active_approved_weight_rev",
+    "scheme_weight_set_active_revisions_pkey",
+}
+
 _AUTHORITY_TABLE = "scheme_weight_set_active_revisions"
 
 
@@ -74,7 +78,7 @@ def _is_authority_unique_conflict(exc: Any) -> bool:
     if constraint_name is None:
         constraint_name = getattr(orig, "constraint_name", None)
 
-    if sqlstate == "23505" and constraint_name == _AUTHORITY_PK_CONSTRAINT:
+    if sqlstate == "23505" and constraint_name in _AUTHORITY_PK_CONSTRAINT:
         return True
 
     # SQLite: check error message for exact unique columns

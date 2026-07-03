@@ -697,7 +697,10 @@ class TestPGExactDiagnostics:
             if diag is not None:
                 constraint_name = getattr(diag, "constraint_name", None)
             assert constraint_name is not None
-            assert constraint_name == "uq_active_approved_weight_rev"
+            assert constraint_name in {
+                "uq_active_approved_weight_rev",
+                "scheme_weight_set_active_revisions_pkey",
+            }
 
             sess.rollback()
         finally:
