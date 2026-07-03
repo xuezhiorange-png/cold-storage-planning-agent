@@ -66,16 +66,18 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
 
 
 @pytest.fixture(scope="module")
-def pg_outbox_engine(pg_database: str):
+def pg_outbox_engine(pg_database_factory):
     """PostgreSQL engine with Alembic head schema applied once per module.
 
-    pg_database (function-scoped) creates an isolated database per test
-    module via the existing conftest.py helper; this fixture then runs
-    alembic upgrade head on it. Downgrade is handled by pg_database's
-    teardown.
+    Uses pg_database_factory (function-scoped) — this is fine because
+    factories return a callable, not a fixture value. We invoke it
+    manually here at module scope.
     """
-    _run_alembic(pg_database, "upgrade", "head")
-    engine = create_engine(pg_database, poolclass=NullPool)
+    import os
+
+    db_url = pg_database_factory(prefix="pg_outbox")
+    _run_alembic(db_url, "upgrade", "head")
+    engine = create_engine(db_url, poolclass=NullPool)
     try:
         yield engine
     finally:
