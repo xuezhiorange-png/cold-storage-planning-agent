@@ -202,8 +202,17 @@ class TestTypedErrors:
             OutboxIdempotencyMismatchError,
         )
 
-        err = OutboxIdempotencyMismatchError("ident-1", "hash-a", "hash-b")
+        err = OutboxIdempotencyMismatchError(
+            "ident-1",
+            ["existing_payload_hash", "new_payload_hash"],
+            existing_payload_hash="hash-a",
+            new_payload_hash="hash-b",
+        )
         assert err.event_identity == "ident-1"
+        assert err.mismatched_fields == [
+            "existing_payload_hash",
+            "new_payload_hash",
+        ]
         assert err.existing_payload_hash == "hash-a"
         assert err.new_payload_hash == "hash-b"
 
@@ -254,7 +263,7 @@ class TestConflictClassifier:
         exc.orig = MagicMock()
         exc.orig.sqlstate = "23505"
         exc.orig.diag = MagicMock()
-        exc.orig.diag.constraint_name = "uq_audit_events_outbox_event_id"
+        exc.orig.diag.constraint_name = "audit_events_outbox_event_id_key"
         assert _is_outbox_event_id_conflict(exc) is True
 
     def test_rejects_non_23505(self):
