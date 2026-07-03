@@ -275,7 +275,12 @@ class OrchestrationService:
                 uow.commit()
                 return result
             except TransactionRejected as rejected:
-                self._transaction_rejection(rejected.request_id, rejected.domain_error, uow)
+                self._transaction_rejection(
+                    rejected.request_id,
+                    rejected.domain_error,
+                    command,
+                    uow,
+                )
                 uow.commit()
                 raise PreflightFailure(
                     request_id=rejected.request_id,
@@ -438,6 +443,10 @@ class OrchestrationService:
                 "attempt_id": attempt_id,
                 "fingerprint": orchestration_fingerprint,
             },
+            actor=command.actor,
+            correlation_id=command.correlation_id,
+            occurred_at=datetime.now(UTC),
+            transition_id=f"request:{ctx.request_id}:accepted",
             request_id=ctx.request_id,
             identity_id=identity_id,
             attempt_id=attempt_id,
@@ -672,6 +681,8 @@ class OrchestrationService:
                         "error_class": type(exc).__name__,
                         "terminal_disposition": disposition,
                     },
+                    occurred_at=datetime.now(UTC),
+                    transition_id=f"attempt:{attempt_id}:{disposition.value}",
                     request_id=request_id,
                     identity_id=identity_id,
                     attempt_id=attempt_id,
@@ -705,6 +716,8 @@ class OrchestrationService:
                     "failure_code": failure_code,
                     "failure_details": failure_details,
                 },
+                occurred_at=datetime.now(UTC),
+                transition_id=f"attempt:{attempt_id}:blocked:{failure_code}",
                 attempt_id=attempt_id,
             )
             uow.commit()
@@ -734,6 +747,8 @@ class OrchestrationService:
                     "failure_code": failure_code,
                     "failure_details": failure_details,
                 },
+                occurred_at=datetime.now(UTC),
+                transition_id=f"attempt:{attempt_id}:failed:{failure_code}",
                 attempt_id=attempt_id,
             )
             uow.commit()
@@ -744,6 +759,7 @@ class OrchestrationService:
         self,
         request_id: str,
         exc: OrchestrationDomainError,
+        command: OrchestrationRequestCommand,
         uow: SqlAlchemyOrchestrationUnitOfWork,
     ) -> None:
         """Persist a preflight rejection atomically using the explicit request_id.
@@ -774,6 +790,10 @@ class OrchestrationService:
                     "field": exc.field,
                     "details": dict(exc.details),
                 },
+                actor=command.actor,
+                correlation_id=command.correlation_id,
+                occurred_at=datetime.now(UTC),
+                transition_id=f"request:{request_id}:rejected",
                 request_id=request_id,
             )
         except Exception:

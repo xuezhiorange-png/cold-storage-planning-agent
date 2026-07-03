@@ -1215,6 +1215,8 @@ class TransactionBExecutor:
                     stage.calculator_name: stage.result_hash for stage in persisted_stages
                 },
             },
+            occurred_at=datetime.now(UTC),
+            transition_id=f"attempt:{orchestration_attempt_id}:completed",
             request_id=request_id,
             identity_id=orchestration_identity_id,
             attempt_id=orchestration_attempt_id,

@@ -1227,43 +1227,57 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         )
         payload_hash = compute_payload_hash(payload)
 
-        # Idempotent: check if event_identity already exists
         from sqlalchemy import select
 
-        existing = session.execute(
-            select(AuditOutboxRecord).where(AuditOutboxRecord.event_identity == event_identity)
-        ).scalar_one_or_none()
-
-        if existing is not None:
+        # Use SAVEPOINT for concurrent-safe idempotent insert.
+        # On IntegrityError, roll back the savepoint, read the existing
+        # row, and compare the full envelope.
+        nested = session.begin_nested()
+        try:
+            record = AuditOutboxRecord(
+                id=str(uuid4()),
+                event_identity=event_identity,
+                event_type=event_type,
+                event_schema_version=event_schema_version,
+                aggregate_type=aggregate_type,
+                aggregate_id=aggregate_id,
+                actor=actor,
+                correlation_id=correlation_id,
+                occurred_at=effective_occurred_at,
+                payload=payload,
+                payload_hash=payload_hash,
+                request_id=request_id,
+                identity_id=identity_id,
+                attempt_id=attempt_id,
+                calculation_run_id=calculation_run_id,
+                source_binding_id=source_binding_id,
+                status="PENDING",
+                next_retry_at=available_at or now,
+            )
+            session.add(record)
+            session.flush()
+            nested.commit()
+            return record.id
+        except sa_exc.IntegrityError as exc:
+            nested.rollback()
+            if not _is_target_unique_violation(
+                exc,
+                postgres_constraint_names=frozenset({"uq_outbox_event_identity"}),
+                sqlite_table="orchestration_audit_outbox",
+                sqlite_column_sets=frozenset({("event_identity",)}),
+            ):
+                raise
+            # Read existing row and compare full envelope
+            existing = session.execute(
+                select(AuditOutboxRecord).where(AuditOutboxRecord.event_identity == event_identity)
+            ).scalar_one_or_none()
+            if existing is None:
+                raise
             if existing.payload_hash != payload_hash:
                 raise OutboxIdempotencyMismatchError(
                     event_identity, existing.payload_hash, payload_hash
-                )
+                ) from exc
             return existing.id
-
-        record = AuditOutboxRecord(
-            id=str(uuid4()),
-            event_identity=event_identity,
-            event_type=event_type,
-            event_schema_version=event_schema_version,
-            aggregate_type=aggregate_type,
-            aggregate_id=aggregate_id,
-            actor=actor,
-            correlation_id=correlation_id,
-            occurred_at=effective_occurred_at,
-            payload=payload,
-            payload_hash=payload_hash,
-            request_id=request_id,
-            identity_id=identity_id,
-            attempt_id=attempt_id,
-            calculation_run_id=calculation_run_id,
-            source_binding_id=source_binding_id,
-            status="PENDING",
-            next_retry_at=available_at or now,
-        )
-        session.add(record)
-        session.flush()
-        return record.id
 
     def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
         raise NotImplementedError("Outbox claim not implemented in this phase")
