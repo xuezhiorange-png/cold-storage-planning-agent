@@ -72,8 +72,45 @@ def canonical_json(obj: Any) -> str:
 
 
 def compute_payload_hash(payload: dict[str, object]) -> str:
-    """SHA-256 hex digest of the canonical JSON payload envelope."""
+    """SHA-256 hex digest of the canonical JSON payload (payload-only)."""
     return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def compute_envelope_hash(
+    *,
+    event_schema_version: str,
+    event_type: str,
+    aggregate_type: str,
+    aggregate_id: str,
+    actor: str,
+    correlation_id: str,
+    occurred_at: datetime | str | None,
+    request_id: str | None = None,
+    identity_id: str | None = None,
+    attempt_id: str | None = None,
+    calculation_run_id: str | None = None,
+    source_binding_id: str | None = None,
+    payload: dict[str, object],
+) -> str:
+    """SHA-256 hex of the canonical JSON of the full frozen envelope."""
+    envelope = {
+        "event_schema_version": event_schema_version,
+        "event_type": event_type,
+        "aggregate_type": aggregate_type,
+        "aggregate_id": aggregate_id,
+        "actor": actor,
+        "correlation_id": correlation_id,
+        "occurred_at": (
+            occurred_at.isoformat() if isinstance(occurred_at, datetime) else occurred_at
+        ),
+        "request_id": request_id,
+        "identity_id": identity_id,
+        "attempt_id": attempt_id,
+        "calculation_run_id": calculation_run_id,
+        "source_binding_id": source_binding_id,
+        "payload": payload,
+    }
+    return hashlib.sha256(canonical_json(envelope).encode("utf-8")).hexdigest()
 
 
 _EVENT_SCHEMA_VERSION = "1.0"

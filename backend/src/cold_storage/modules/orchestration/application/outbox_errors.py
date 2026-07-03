@@ -22,20 +22,22 @@ class OutboxClaimLostError(Exception):
 
 
 class OutboxIdempotencyMismatchError(Exception):
-    """Raised when the same event_identity has a different payload_hash or envelope."""
+    """Raised when the same event_identity has a different envelope."""
 
     def __init__(
         self,
         event_identity: str,
-        existing_payload_hash: str,
-        new_payload_hash: str,
+        mismatched_fields: list[str],
+        *,
+        existing_payload_hash: str = "",
+        new_payload_hash: str = "",
     ) -> None:
         super().__init__(
             f"Idempotency mismatch for event_identity {event_identity!r}: "
-            f"existing payload_hash={existing_payload_hash!r}, "
-            f"new payload_hash={new_payload_hash!r}"
+            f"fields differ: {', '.join(sorted(mismatched_fields))}"
         )
         self.event_identity = event_identity
+        self.mismatched_fields = mismatched_fields
         self.existing_payload_hash = existing_payload_hash
         self.new_payload_hash = new_payload_hash
 

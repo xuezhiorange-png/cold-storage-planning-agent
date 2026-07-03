@@ -365,6 +365,7 @@ class AuditOutboxRecord(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    envelope_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
     # ── Association fields (nullable) ───────────────────────────────────
     request_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     identity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
