@@ -40,10 +40,8 @@ def main() -> int:
     from sqlalchemy.orm import sessionmaker
 
     from cold_storage.config import settings
-    from cold_storage.modules.orchestration.application.outbox_errors import (
-        OutboxClaimLostError,
-        OutboxMaterializationMismatchError,
-        OutboxPayloadIntegrityError,
+    from cold_storage.modules.orchestration.application.outbox_dispatcher import (
+        AuditOutboxDispatcherApplicationService,
     )
     from cold_storage.modules.orchestration.infrastructure.outbox_dispatcher import (
         claim_events_pg,
@@ -61,110 +59,39 @@ def main() -> int:
     engine = create_engine(database_url)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     now = datetime.now(UTC)
-
-    claimed = 0
-    published = 0
-    retried = 0
-    failed = 0
-    skipped = 0
-    lost_claims = 0
-    unhandled_failures = 0
-
     is_pg = "postgresql" in database_url.lower()
 
-    session = factory()
-    try:
-        if is_pg:
-            events = claim_events_pg(
-                session,
-                worker_id=args.worker_id,
-                batch_size=args.batch_size,
-                lease_seconds=args.lease_seconds,
-                now=now,
-            )
-        else:
-            events = claim_events_sqlite(
-                session,
-                worker_id=args.worker_id,
-                batch_size=args.batch_size,
-                lease_seconds=args.lease_seconds,
-                now=now,
-            )
-        claimed = len(events)
-        session.commit()
-    except Exception as exc:
-        session.rollback()
-        print(json.dumps({"error": f"Claim failed: {exc}"}))
-        return 1
-    finally:
-        session.close()
+    # Build the application service
+    service = AuditOutboxDispatcherApplicationService(
+        claim_fn=claim_events_pg if is_pg else claim_events_sqlite,
+        materialize_fn=materialize_event,
+        mark_retryable_fn=mark_retryable_failure,
+        mark_terminal_fn=mark_terminal_failure,
+        session_factory=factory,
+        is_pg=is_pg,
+    )
 
-    # Materialize each claimed event in its own short transaction
-    for event in events:
-        sess = factory()
-        try:
-            try:
-                materialize_event(
-                    sess,
-                    claimed=event,
-                    worker_id=args.worker_id,
-                    claim_token=event.claim_token,
-                    now=datetime.now(UTC),
-                )
-                sess.commit()
-                published += 1
-            except OutboxClaimLostError:
-                lost_claims += 1
-            except (
-                OutboxMaterializationMismatchError,
-                OutboxPayloadIntegrityError,
-            ) as exc:
-                try:
-                    mark_terminal_failure(
-                        sess,
-                        event_id=event.outbox_row_id,
-                        worker_id=args.worker_id,
-                        claim_token=event.claim_token,
-                        error=exc,
-                        now=datetime.now(UTC),
-                    )
-                    sess.commit()
-                    failed += 1
-                except Exception:
-                    sess.rollback()
-                    failed += 1
-            except Exception as exc:
-                try:
-                    mark_retryable_failure(
-                        sess,
-                        event_id=event.outbox_row_id,
-                        worker_id=args.worker_id,
-                        claim_token=event.claim_token,
-                        error=exc,
-                        now=datetime.now(UTC),
-                    )
-                    sess.commit()
-                    retried += 1
-                except Exception:
-                    sess.rollback()
-                    unhandled_failures += 1
-        finally:
-            sess.close()
+    summary = service.run_cycle(
+        worker_id=args.worker_id,
+        batch_size=args.batch_size,
+        lease_seconds=args.lease_seconds,
+        now=now,
+    )
 
-    summary = {
-        "claimed": claimed,
-        "published": published,
-        "retried": retried,
-        "failed": failed,
-        "skipped": skipped,
-        "lost_claims": lost_claims,
-        "unhandled_failures": unhandled_failures,
+    result = {
+        "claimed": summary.claimed,
+        "published": summary.published,
+        "retried": summary.retried,
+        "failed": summary.failed,
+        "skipped": summary.skipped,
+        "lost_claims": summary.lost_claims,
+        "unhandled_failures": summary.unhandled_failures,
     }
-    print(json.dumps(summary, indent=2))
+    print(json.dumps(result, indent=2))
 
     # Exit 0 only if no terminal failures, no unhandled failures,
     # and no failure-persistence errors
-    if failed > 0 or unhandled_failures > 0:
+    if summary.failed > 0 or summary.unhandled_failures > 0:
         return 1
     return 0
 
