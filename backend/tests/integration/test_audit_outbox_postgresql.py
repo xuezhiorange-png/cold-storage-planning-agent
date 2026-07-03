@@ -86,7 +86,10 @@ def _pg_outbox_session_factory(pg_admin_url: str):
             conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
             conn.execute(text(f"CREATE DATABASE {db_name}"))
         created.append(db_name)
-        return f"postgresql+psycopg://cold_storage:cold_storage@localhost:5432/{db_name}"
+        # Build URL using same scheme/host/credentials as admin_url
+        # but with the new db name as the path.
+        base = pg_admin_url.rsplit("/", 1)[0]
+        return f"{base}/{db_name}"
 
     yield create_db
 
