@@ -319,6 +319,7 @@ class TestPGOutboxLifecycle:
         )
 
         repo = SqlAlchemyAuditOutboxRepository()
+        fixed = datetime(2026, 1, 1, tzinfo=UTC)
         sess = factory()
         id1 = repo.add(
             sess,
@@ -329,7 +330,7 @@ class TestPGOutboxLifecycle:
             actor="test-actor",
             correlation_id="corr-1",
             transition_id="idem-1",
-            occurred_at=datetime.now(UTC),
+            occurred_at=fixed,
         )
         sess.commit()
         sess.close()
@@ -344,7 +345,7 @@ class TestPGOutboxLifecycle:
             actor="test-actor",
             correlation_id="corr-1",
             transition_id="idem-1",
-            occurred_at=datetime.now(UTC),
+            occurred_at=fixed,
         )
         sess.commit()
         sess.close()
@@ -358,7 +359,7 @@ class TestPGOutboxLifecycle:
         )
 
         repo = SqlAlchemyAuditOutboxRepository()
-        now = datetime.now(UTC)
+        fixed = datetime(2026, 1, 1, tzinfo=UTC)
         sess = factory()
         repo.add(
             sess,
@@ -369,7 +370,7 @@ class TestPGOutboxLifecycle:
             actor="actor-1",
             correlation_id="corr-1",
             transition_id="mismatch-1",
-            occurred_at=now,
+            occurred_at=fixed,
         )
         sess.commit()
         sess.close()
@@ -385,7 +386,7 @@ class TestPGOutboxLifecycle:
                 actor="actor-2",
                 correlation_id="corr-1",
                 transition_id="mismatch-1",
-                occurred_at=now,
+                occurred_at=fixed,
             )
 
     def test_utc_aware_lease_comparison(self, pg_outbox_engine):
