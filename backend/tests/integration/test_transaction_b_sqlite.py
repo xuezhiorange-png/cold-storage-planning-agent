@@ -2081,6 +2081,9 @@ class TestTerminalDispositionEnumAuthority:
                 identity_id="x",
                 exc=exc,
                 disposition="BLOCKED",  # type: ignore[arg-type]
+                actor="test-actor",
+                correlation_id="test-corr",
+                occurred_at=datetime.now(UTC),
             )
 
     def test_transaction_b_blocked_exposes_enum_disposition(self) -> None:
