@@ -123,6 +123,7 @@ def _create_outbox_event(
         calculation_run_id=kwargs.get("calculation_run_id"),
         source_binding_id=kwargs.get("source_binding_id"),
         payload=effective_payload,
+        event_identity=identity,
     )
 
     record = AuditOutboxRecord(
@@ -189,7 +190,7 @@ class TestSQLitelOutboxLifecycle:
         # Claim it
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -239,7 +240,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -265,7 +266,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=3,
             lease_seconds=300,
@@ -287,7 +288,7 @@ class TestSQLitelOutboxLifecycle:
         # First claim
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -300,7 +301,7 @@ class TestSQLitelOutboxLifecycle:
         # Second claim — should be empty (event is PROCESSING)
         sess = factory()
         claimed2 = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w2",
             batch_size=10,
             lease_seconds=300,
@@ -331,7 +332,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w2",
             batch_size=10,
             lease_seconds=300,
@@ -362,7 +363,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w2",
             batch_size=10,
             lease_seconds=300,
@@ -380,32 +381,32 @@ class TestSQLitelOutboxLifecycle:
         now = datetime.now(UTC)
 
         sess = factory()
-        _create_outbox_event(sess, transition_id="cr-1")
-        sess.commit()
-
-        # Claim and simulate crash (don't commit, close session)
-        sess2 = factory()
-        claim_events_sqlite(
-            sess2,
-            worker_id="crasher",
-            batch_size=10,
-            lease_seconds=30,
-            now=now,
+        # Pre-populate a PROCESSING event with already-expired lease
+        past = now - timedelta(hours=1)
+        _create_outbox_event(
+            sess,
+            transition_id="cr-1",
+            status="PROCESSING",
+            claimed_by="previous-worker",
+            claim_token="old-token",
+            claimed_at=past,
+            claim_expires_at=past,
+            attempt_count=1,
         )
-        sess2.close()  # Simulates crash — no commit
+        sess.commit()
+        sess.close()
 
-        # The original PENDING event is still claimable (SQLite doesn't
-        # persist uncommitted changes from a closed session)
-        sess3 = factory()
+        # New worker should be able to take over the expired lease
         claimed = claim_events_sqlite(
-            sess3,
+            sqlite_engine,
             worker_id="recovery",
             batch_size=10,
             lease_seconds=300,
             now=now,
         )
         assert len(claimed) == 1
-        sess3.close()
+        assert claimed[0].claim_token != "old-token"
+        assert claimed[0].attempt_count == 2
 
     def test_first_materialization(self, sqlite_engine):
         """Materialize a claimed event into AuditEvent + mark PUBLISHED."""
@@ -426,7 +427,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -481,7 +482,7 @@ class TestSQLitelOutboxLifecycle:
         # First materialization
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -637,7 +638,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -658,7 +659,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -727,16 +728,14 @@ class TestSQLitelOutboxLifecycle:
         sess.commit()
 
         # Claim
-        sess2 = factory()
         claimed = claim_events_sqlite(
-            sess2,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
             now=now,
         )
         assert len(claimed) == 1
-        sess2.commit()
 
         # Materialize should detect hash mismatch from DB row
         sess3 = factory()
@@ -803,7 +802,7 @@ class TestSQLitelOutboxLifecycle:
         # Claim the event
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -831,6 +830,7 @@ class TestSQLitelOutboxLifecycle:
                 "request_id": None,
                 "identity_id": None,
                 "attempt_id": None,
+                "calculation_run_id": None,
                 "source_binding_id": None,
             },
             created_at=now,
@@ -895,7 +895,7 @@ class TestSQLitelOutboxLifecycle:
             s = factory()
             try:
                 claimed = claim_events_sqlite(
-                    s,
+                    sqlite_engine,
                     worker_id=f"w{idx}",
                     batch_size=10,
                     lease_seconds=300,
@@ -965,7 +965,7 @@ class TestSQLitelOutboxLifecycle:
             s = factory()
             try:
                 claimed = claim_events_sqlite(
-                    s,
+                    sqlite_engine,
                     worker_id=f"w{idx}",
                     batch_size=10,
                     lease_seconds=300,
@@ -1012,7 +1012,7 @@ class TestSQLitelOutboxLifecycle:
 
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -1045,7 +1045,7 @@ class TestSQLitelOutboxLifecycle:
         # Claim with Asia/Tokyo datetime
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
@@ -1105,7 +1105,7 @@ class TestSQLitelOutboxLifecycle:
         # Try to claim — should find the event as expired
         sess = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sqlite_engine,
             worker_id="w2",
             batch_size=10,
             lease_seconds=300,
