@@ -76,7 +76,7 @@ _IMMUTABLE_AUDIT_EVENT_IDENTITY_FN = """\
 CREATE OR REPLACE FUNCTION trg_immutable_audit_event_identity()
 RETURNS trigger AS $$
 BEGIN
-  IF OLD.outbox_event_id IS NOT NULL AND NEW.outbox_event_id != OLD.outbox_event_id THEN
+  IF OLD.outbox_event_id IS NOT NULL AND NEW.outbox_event_id IS DISTINCT FROM OLD.outbox_event_id THEN
     RAISE EXCEPTION 'Cannot modify audit event outbox_event_id %', OLD.id;
   END IF;
   RETURN NEW;
@@ -447,7 +447,7 @@ def _sqlite_upgrade() -> None:
         "CREATE TRIGGER trg_audit_event_outbox_id_immutable "
         "BEFORE UPDATE ON audit_events "
         "FOR EACH ROW "
-        "WHEN NEW.outbox_event_id != OLD.outbox_event_id "
+        "WHEN NEW.outbox_event_id IS NOT OLD.outbox_event_id "
         "BEGIN "
         "  SELECT RAISE(ABORT, 'Cannot modify audit_events.outbox_event_id'); "
         "END"
