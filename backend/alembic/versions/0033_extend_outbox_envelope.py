@@ -20,6 +20,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
+
 revision: str = "0033_extend_outbox_envelope"
 down_revision: str | None = "451311827adf"
 branch_labels: str | Sequence[str] | None = None

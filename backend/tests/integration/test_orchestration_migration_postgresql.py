@@ -584,7 +584,7 @@ class TestAuditEventHistoryBackfill:
         with engine3.connect() as conn3:
             # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "451311827adf"
+            expected_rev = "0033_extend_outbox_envelope"
             assert rev == expected_rev, f"Revision changed: {rev}"
 
             # AuditEvent still backfilled with same value
@@ -1716,15 +1716,15 @@ class TestTransactionBConstraints0028:
         """Upgrade to 0028, downgrade to 0027, re-upgrade to 0028 → success."""
         db_url = pg_database_factory(prefix="rt0028")
 
-        # Upgrade to head (0032)
+        # Upgrade to head (0033)
         r = _run_alembic(db_url, "upgrade", "head")
         assert r.returncode == 0, f"Upgrade to head failed:\n{r.stderr}\n{r.stdout}"
 
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "451311827adf"
-            assert rev == expected_rev, f"Expected 0032, got {rev}"
+            expected_rev = "0033_extend_outbox_envelope"
+            assert rev == expected_rev, f"Expected 0033, got {rev}"
         engine.dispose()
 
         # Downgrade to 0027
@@ -1739,13 +1739,13 @@ class TestTransactionBConstraints0028:
             )
         engine.dispose()
 
-        # Re-upgrade to head (0032)
+        # Re-upgrade to head (0033)
         r = _run_alembic(db_url, "upgrade", "head")
         assert r.returncode == 0, f"Re-upgrade to head failed:\n{r.stderr}\n{r.stdout}"
 
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "451311827adf"
-            assert rev == expected_rev, f"Expected 0032, got {rev}"
+            expected_rev = "0033_extend_outbox_envelope"
+            assert rev == expected_rev, f"Expected 0033, got {rev}"
         engine.dispose()
