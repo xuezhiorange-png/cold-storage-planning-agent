@@ -64,14 +64,37 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
     )
 
 
+@pytest.fixture(scope="module")
+def _pg_outbox_engine_setup(pg_database_factory):
+    """Per-module: create a dedicated database once, run alembic head once."""
+    db_url = pg_database_factory(prefix="pg_outbox")
+    r = _run_alembic(db_url, "upgrade", "head")
+    if r.returncode != 0:
+        pytest.fail(f"Alembic upgrade failed: {r.stderr}\n{r.stdout}")
+    return db_url
+
+
 @pytest.fixture()
-def pg_outbox_engine(pg_database: str):
-    """PostgreSQL engine with Alembic head schema applied."""
-    _run_alembic(pg_database, "upgrade", "head")
-    engine = create_engine(pg_database, poolclass=NullPool)
-    yield engine
-    _run_alembic(pg_database, "downgrade", "base")
-    engine.dispose()
+def pg_outbox_engine(_pg_outbox_engine_setup: str):
+    """PostgreSQL engine bound to a module-scoped Alembic-head database.
+
+    Each test gets a fresh engine bound to the same database. We
+    TRUNCATE the outbox tables between tests so isolation is preserved
+    without per-test alembic upgrade/downgrade cost.
+    """
+    engine = create_engine(_pg_outbox_engine_setup, poolclass=NullPool)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def _truncate_pg_outbox_tables(pg_outbox_engine):
+    """TRUNCATE outbox tables before each test for isolation."""
+    with pg_outbox_engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE audit_events, orchestration_audit_outbox RESTART IDENTITY CASCADE"))
+    yield
 
 
 def _make_event(
