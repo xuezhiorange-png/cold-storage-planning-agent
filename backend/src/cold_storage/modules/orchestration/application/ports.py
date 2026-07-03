@@ -403,6 +403,11 @@ class AuditOutboxRepository(ABC):
         aggregate_type: str,
         aggregate_id: str,
         payload: dict[str, object],
+        actor: str = "system",
+        correlation_id: str = "",
+        occurred_at: datetime | None = None,
+        event_schema_version: str = "1.0",
+        transition_id: str | None = None,
         request_id: str | None = None,
         identity_id: str | None = None,
         attempt_id: str | None = None,
@@ -410,7 +415,11 @@ class AuditOutboxRepository(ABC):
         source_binding_id: str | None = None,
         available_at: datetime | None = None,
     ) -> str:
-        """Insert a PENDING outbox event and return its ID."""
+        """Insert a PENDING outbox event and return its ID.
+
+        Event identity is deterministic from business fields.
+        Idempotent: same event_identity + same payload_hash returns existing ID.
+        """
         ...
 
 

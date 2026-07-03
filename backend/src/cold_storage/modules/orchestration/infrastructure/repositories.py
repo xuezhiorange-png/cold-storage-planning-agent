@@ -1184,6 +1184,11 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         aggregate_type: str,
         aggregate_id: str,
         payload: dict[str, object],
+        actor: str = "system",
+        correlation_id: str = "",
+        occurred_at: datetime | None = None,
+        event_schema_version: str = "1.0",
+        transition_id: str | None = None,
         request_id: str | None = None,
         identity_id: str | None = None,
         attempt_id: str | None = None,
@@ -1191,25 +1196,70 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         source_binding_id: str | None = None,
         available_at: datetime | None = None,
     ) -> str:
+        """Insert a PENDING outbox event and return its ID.
+
+        Event identity is deterministic (content-addressable).
+        Idempotent: same event_identity + same payload_hash returns existing ID.
+        """
+        from datetime import UTC
         from uuid import uuid4
 
+        from cold_storage.modules.orchestration.application.outbox_errors import (
+            OutboxIdempotencyMismatchError,
+        )
+        from cold_storage.modules.orchestration.application.outbox_identity import (
+            build_event_identity,
+            compute_payload_hash,
+        )
         from cold_storage.modules.orchestration.infrastructure.orm import (
             AuditOutboxRecord,
         )
 
-        record = AuditOutboxRecord(
-            id=str(uuid4()),
-            event_identity=str(uuid4()),
+        now = datetime.now(UTC)
+        effective_occurred_at = occurred_at or now
+        effective_transition_id = transition_id or str(uuid4())
+        event_identity = build_event_identity(
             event_type=event_type,
             aggregate_type=aggregate_type,
             aggregate_id=aggregate_id,
+            transition_id=effective_transition_id,
+            schema_version=event_schema_version,
+        )
+        payload_hash = compute_payload_hash(payload)
+
+        # Idempotent: check if event_identity already exists
+        from sqlalchemy import select
+
+        existing = session.execute(
+            select(AuditOutboxRecord).where(AuditOutboxRecord.event_identity == event_identity)
+        ).scalar_one_or_none()
+
+        if existing is not None:
+            if existing.payload_hash != payload_hash:
+                raise OutboxIdempotencyMismatchError(
+                    event_identity, existing.payload_hash, payload_hash
+                )
+            return existing.id
+
+        record = AuditOutboxRecord(
+            id=str(uuid4()),
+            event_identity=event_identity,
+            event_type=event_type,
+            event_schema_version=event_schema_version,
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+            actor=actor,
+            correlation_id=correlation_id,
+            occurred_at=effective_occurred_at,
+            payload=payload,
+            payload_hash=payload_hash,
             request_id=request_id,
             identity_id=identity_id,
             attempt_id=attempt_id,
             calculation_run_id=calculation_run_id,
             source_binding_id=source_binding_id,
-            payload=payload,
             status="PENDING",
+            next_retry_at=available_at or now,
         )
         session.add(record)
         session.flush()
