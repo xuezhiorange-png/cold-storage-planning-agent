@@ -64,16 +64,13 @@ def downgrade() -> None:
         _pg_drop_triggers()
 
     # Step 2: Remove backfilled authority rows (safe now — no guard triggers)
-    import contextlib
-
-    with contextlib.suppress(Exception):
-        op.execute(
-            "DELETE FROM scheme_weight_set_active_revisions"
-            " WHERE approved_revision_id IN ("
-            "   SELECT id FROM scheme_weight_set_revisions"
-            "   WHERE status = 'approved'"
-            ")"
-        )
+    op.execute(
+        "DELETE FROM scheme_weight_set_active_revisions"
+        " WHERE approved_revision_id IN ("
+        "   SELECT id FROM scheme_weight_set_revisions"
+        "   WHERE status = 'approved'"
+        " )"
+    )
 
     # Step 3: Restore old revision triggers
     if dialect_name == "sqlite":
