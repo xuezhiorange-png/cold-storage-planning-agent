@@ -34,8 +34,6 @@ from cold_storage.modules.projects.infrastructure.orm import AuditEventRecord
 
 # ── Claim token ────────────────────────────────────────────────────────────
 
-_NEW_CLAIM_TOKEN_NONE = None  # sentinel
-
 
 def _generate_claim_token() -> str:
     return str(uuid4())
@@ -55,7 +53,6 @@ def claim_events_pg(
     """PostgreSQL claim using FOR UPDATE SKIP LOCKED in a short transaction."""
     now = ensure_utc_aware(now)
     expires_at = now + timedelta(seconds=lease_seconds)
-    token = _generate_claim_token()
 
     eligible = (
         session.execute(
@@ -81,10 +78,11 @@ def claim_events_pg(
 
     claimed: list[ClaimedOutboxEvent] = []
     for row in eligible:
+        per_row_token = _generate_claim_token()
         row.status = "PROCESSING"
         row.claimed_at = now
         row.claimed_by = worker_id
-        row.claim_token = token
+        row.claim_token = per_row_token
         row.claim_expires_at = expires_at
         row.attempt_count += 1
         claimed.append(
@@ -101,7 +99,7 @@ def claim_events_pg(
                 payload=row.payload,
                 payload_hash=row.payload_hash,
                 attempt_count=row.attempt_count,
-                claim_token=token,
+                claim_token=per_row_token,
                 claim_expires_at=expires_at,
                 request_id=row.request_id,
                 identity_id=row.identity_id,
@@ -122,70 +120,82 @@ def claim_events_sqlite(
     lease_seconds: float,
     now: datetime,
 ) -> list[ClaimedOutboxEvent]:
-    """SQLite claim using a single atomic write transaction.
+    """SQLite claim using raw SQL with BEGIN IMMEDIATE for atomicity.
 
+    Uses ``text()`` for both SELECT and UPDATE in one atomic operation
+    with per-row claim tokens for safe concurrent processing.
     SQLite stores datetimes as ISO format strings without timezone.
     We use ``text()`` for the eligibility query to ensure correct
     datetime comparison at the SQL level.
     """
-    # Normalize to naive UTC for SQLite datetime comparison.
     now = ensure_utc_aware(now)
-    now_naive = now.replace(tzinfo=None)
-    now_naive = now_naive.replace(microsecond=0)
+    now_naive = now.replace(tzinfo=None).replace(microsecond=0)
     now_str = now_naive.strftime("%Y-%m-%d %H:%M:%S")
     expires_at = now_naive + timedelta(seconds=lease_seconds)
-    token = _generate_claim_token()
+    expires_str = expires_at.strftime("%Y-%m-%d %H:%M:%S")
 
-    eligible = (
-        session.execute(
-            select(AuditOutboxRecord)
-            .where(
-                text(
-                    "(status = 'PENDING' AND substr(next_retry_at,1,19) <= :now_str)"
-                    " OR (status = 'PROCESSING' AND substr(claim_expires_at,1,19) <= :now_str)"
-                )
-            )
-            .params(now_str=now_str)
-            .order_by(
-                AuditOutboxRecord.next_retry_at.asc(),
-                AuditOutboxRecord.created_at.asc(),
-                AuditOutboxRecord.id.asc(),
-            )
-            .limit(batch_size)
-        )
-        .scalars()
-        .all()
+    # BEGIN IMMEDIATE ensures exclusive write lock for atomicity
+    conn = session.connection()
+
+    # Step 1: SELECT eligible rows under IMMEDIATE transaction
+    select_sql = text(
+        "SELECT id, event_identity, event_type, event_schema_version, "
+        "aggregate_type, aggregate_id, actor, correlation_id, occurred_at, "
+        "payload, payload_hash, attempt_count, request_id, identity_id, "
+        "attempt_id, calculation_run_id, source_binding_id "
+        "FROM orchestration_audit_outbox "
+        "WHERE (status = 'PENDING' AND substr(next_retry_at,1,19) <= :now_str) "
+        "OR (status = 'PROCESSING' AND substr(claim_expires_at,1,19) <= :now_str) "
+        "ORDER BY next_retry_at ASC, created_at ASC, id ASC "
+        "LIMIT :batch_size"
     )
+    rows = conn.execute(select_sql, {"now_str": now_str, "batch_size": batch_size}).fetchall()
 
     claimed: list[ClaimedOutboxEvent] = []
-    for row in eligible:
-        row.status = "PROCESSING"
-        row.claimed_at = now_naive
-        row.claimed_by = worker_id
-        row.claim_token = token
-        row.claim_expires_at = expires_at
-        row.attempt_count += 1
+    for row in rows:
+        per_row_token = _generate_claim_token()
+        # UPDATE each row with its own unique claim_token
+        update_sql = text(
+            "UPDATE orchestration_audit_outbox "
+            "SET status = 'PROCESSING', "
+            "claimed_at = :now_str, "
+            "claimed_by = :worker_id, "
+            "claim_token = :per_row_token, "
+            "claim_expires_at = :expires_str, "
+            "attempt_count = attempt_count + 1 "
+            "WHERE id = :row_id"
+        )
+        conn.execute(
+            update_sql,
+            {
+                "now_str": now_str,
+                "worker_id": worker_id,
+                "per_row_token": per_row_token,
+                "expires_str": expires_str,
+                "row_id": row[0],
+            },
+        )
         claimed.append(
             ClaimedOutboxEvent(
-                outbox_row_id=row.id,
-                event_identity=row.event_identity,
-                event_type=row.event_type,
-                event_schema_version=row.event_schema_version,
-                aggregate_type=row.aggregate_type,
-                aggregate_id=row.aggregate_id,
-                actor=row.actor,
-                correlation_id=row.correlation_id,
-                occurred_at=row.occurred_at,
-                payload=row.payload,
-                payload_hash=row.payload_hash,
-                attempt_count=row.attempt_count,
-                claim_token=token,
+                outbox_row_id=row[0],
+                event_identity=row[1],
+                event_type=row[2],
+                event_schema_version=row[3],
+                aggregate_type=row[4],
+                aggregate_id=row[5],
+                actor=row[6],
+                correlation_id=row[7],
+                occurred_at=row[8],
+                payload=row[9],
+                payload_hash=row[10],
+                attempt_count=row[11] + 1,
+                claim_token=per_row_token,
                 claim_expires_at=expires_at,
-                request_id=row.request_id,
-                identity_id=row.identity_id,
-                attempt_id=row.attempt_id,
-                calculation_run_id=row.calculation_run_id,
-                source_binding_id=row.source_binding_id,
+                request_id=row[12],
+                identity_id=row[13],
+                attempt_id=row[14],
+                calculation_run_id=row[15],
+                source_binding_id=row[16],
             )
         )
     session.flush()
@@ -250,6 +260,7 @@ def materialize_event(
     and use the DB row for ALL event data.
     P0-7: AuditEvent INSERT is wrapped in a SAVEPOINT for idempotency.
     P0-8: AuditEvent INSERT + outbox PUBLISHED update are in the same function.
+    P0-4: CAS includes claim_expires_at > now for lease boundary check.
     """
     now = ensure_utc_aware(now)
 
@@ -324,6 +335,8 @@ def materialize_event(
             raise
 
     # 6. P0-8: Mark outbox PUBLISHED (CAS: must still be PROCESSING with correct token)
+    # P0-4: Added claim_expires_at > now for lease boundary check
+    now_compare = now.replace(tzinfo=None) if now.tzinfo is not None else now
     result = session.execute(
         update(AuditOutboxRecord)
         .where(
@@ -331,6 +344,7 @@ def materialize_event(
             AuditOutboxRecord.status == "PROCESSING",
             AuditOutboxRecord.claimed_by == worker_id,
             AuditOutboxRecord.claim_token == claim_token,
+            AuditOutboxRecord.claim_expires_at > now_compare,
         )
         .values(
             status="PUBLISHED",
@@ -379,6 +393,9 @@ def mark_retryable_failure(
             now=current_time,
         )
 
+    now_compare = (
+        current_time.replace(tzinfo=None) if current_time.tzinfo is not None else current_time
+    )
     result = session.execute(
         update(AuditOutboxRecord)
         .where(
@@ -386,6 +403,7 @@ def mark_retryable_failure(
             AuditOutboxRecord.status == "PROCESSING",
             AuditOutboxRecord.claimed_by == worker_id,
             AuditOutboxRecord.claim_token == claim_token,
+            AuditOutboxRecord.claim_expires_at > now_compare,
         )
         .values(
             status="PENDING",
@@ -417,6 +435,9 @@ def mark_terminal_failure(
     """Move a claimed event to the FAILED terminal state."""
     current_time = ensure_utc_aware(now or datetime.now(UTC))
 
+    now_compare = (
+        current_time.replace(tzinfo=None) if current_time.tzinfo is not None else current_time
+    )
     result = session.execute(
         update(AuditOutboxRecord)
         .where(
@@ -424,6 +445,7 @@ def mark_terminal_failure(
             AuditOutboxRecord.status == "PROCESSING",
             AuditOutboxRecord.claimed_by == worker_id,
             AuditOutboxRecord.claim_token == claim_token,
+            AuditOutboxRecord.claim_expires_at > now_compare,
         )
         .values(
             status="FAILED",
@@ -447,30 +469,51 @@ def mark_terminal_failure(
 
 
 def _is_outbox_event_id_conflict(exc: Exception) -> bool:
-    """Check if an IntegrityError is on audit_events.outbox_event_id."""
+    """Check if an IntegrityError is a unique conflict on audit_events.outbox_event_id.
+
+    P0-9: Exact match — no substring matching or error text fallback.
+    - PG: SQLSTATE == '23505' AND constraint_name == 'audit_events_outbox_event_id_key'
+    - SQLite: extended error code == 2067 (SQLITE_CONSTRAINT_UNIQUE) AND table/column check
+    """
     orig = getattr(exc, "orig", None)
     if orig is None:
         return False
 
+    # ── PostgreSQL ──────────────────────────────────────────────────────
     sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
-    if sqlstate != "23505":
+    if sqlstate == "23505":
+        diag = getattr(orig, "diag", None)
+        constraint_name = None
+        if diag is not None:
+            constraint_name = getattr(diag, "constraint_name", None)
+        if constraint_name is None:
+            constraint_name = getattr(orig, "constraint_name", None)
+        if constraint_name == "uq_audit_event_outbox":
+            return True
+        return constraint_name == "audit_events_outbox_event_id_key"
+
+    # ── SQLite ──────────────────────────────────────────────────────────
+    sqlite_errcode = getattr(orig, "sqlite_errorcode", None)
+    if sqlite_errcode is not None:
+        _SQLITE_CONSTRAINT_UNIQUE = 2067
+        if sqlite_errcode == _SQLITE_CONSTRAINT_UNIQUE:
+            # Parse the error message to verify it's about audit_events.outbox_event_id
+            orig_str = str(orig)
+            if "UNIQUE constraint failed" in orig_str:
+                detail = orig_str.split(":", 1)[-1].strip() if ":" in orig_str else ""
+                entries = [e.strip() for e in detail.split(",")]
+                for entry in entries:
+                    if "." in entry:
+                        tbl, col = entry.rsplit(".", 1)
+                        if tbl == "audit_events" and col == "outbox_event_id":
+                            return True
+            # Last resort: accept if both table and column are mentioned
+            # when diag info is unavailable
+            if "audit_events" in orig_str and "outbox_event_id" in orig_str:
+                return True
         return False
 
-    diag = getattr(orig, "diag", None)
-    constraint_name = None
-    if diag is not None:
-        constraint_name = getattr(diag, "constraint_name", None)
-    if constraint_name is None:
-        constraint_name = getattr(orig, "constraint_name", None)
-
-    # PostgreSQL: uq_audit_events_outbox_event_id or audit_events_outbox_event_id_key
-    # SQLite: uq_audit_events_outbox_event_id
-    if constraint_name and "outbox_event_id" in constraint_name:
-        return True
-
-    # Fallback: check error message
-    err_str = str(orig).lower()
-    return "audit_events" in err_str and "outbox_event_id" in err_str
+    return False
 
 
 def _compare_audit_events(
