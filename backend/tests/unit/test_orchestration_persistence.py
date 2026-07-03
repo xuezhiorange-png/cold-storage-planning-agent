@@ -464,6 +464,7 @@ class TestOutboxConstraints:
             occurred_at=now,
             payload={},
             payload_hash="abc",
+            envelope_hash="test-envelope-hash",
         )
         o1 = AuditOutboxRecord(
             id=str(uuid.uuid4()),

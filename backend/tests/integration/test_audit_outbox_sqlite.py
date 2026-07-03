@@ -60,6 +60,7 @@ from cold_storage.modules.orchestration.application.outbox_identity import (
     canonical_json,
     compute_envelope_hash,
     compute_payload_hash,
+    ensure_utc_aware,
 )
 from cold_storage.modules.orchestration.infrastructure.orm import AuditOutboxRecord
 from cold_storage.modules.orchestration.infrastructure.outbox_dispatcher import (
@@ -108,6 +109,21 @@ def _create_outbox_event(
         aggregate_id=aggregate_id,
         transition_id=kwargs.get("transition_id", str(uuid4())),
     )
+    envelope_hash = compute_envelope_hash(
+        event_schema_version="1.0",
+        event_type=event_type,
+        aggregate_type=aggregate_type,
+        aggregate_id=aggregate_id,
+        actor=actor,
+        correlation_id=correlation_id,
+        occurred_at=now,
+        request_id=kwargs.get("request_id"),
+        identity_id=kwargs.get("identity_id"),
+        attempt_id=kwargs.get("attempt_id"),
+        calculation_run_id=kwargs.get("calculation_run_id"),
+        source_binding_id=kwargs.get("source_binding_id"),
+        payload=effective_payload,
+    )
 
     record = AuditOutboxRecord(
         id=str(uuid4()),
@@ -121,6 +137,7 @@ def _create_outbox_event(
         occurred_at=now_naive,
         payload=effective_payload,
         payload_hash=compute_payload_hash(effective_payload),
+        envelope_hash=envelope_hash,
         status=status,
         request_id=kwargs.get("request_id"),
         identity_id=kwargs.get("identity_id"),
@@ -774,12 +791,13 @@ class TestSQLitelOutboxLifecycle:
         event_identity = event.event_identity
         sess.close()
 
-        # Read the event's occurred_at from DB for metadata comparison
+        # Read the event's envelope_hash and occurred_at from DB
         sess = factory()
         db_event = sess.execute(
             select(AuditOutboxRecord).where(AuditOutboxRecord.id == event_id)
         ).scalar_one()
-        occurred_at_str = db_event.occurred_at.isoformat()
+        envelope_hash = db_event.envelope_hash
+        occurred_at_str = ensure_utc_aware(db_event.occurred_at).isoformat()
         sess.close()
 
         # Claim the event
@@ -809,6 +827,7 @@ class TestSQLitelOutboxLifecycle:
                 "correlation_id": "corr-1",
                 "occurred_at": occurred_at_str,
                 "payload_hash": compute_payload_hash(known_payload),
+                "envelope_hash": envelope_hash,
                 "request_id": None,
                 "identity_id": None,
                 "attempt_id": None,
@@ -1139,10 +1158,6 @@ class TestSQLitelOutboxLifecycle:
 
     # ── add() idempotent comparison tests ─────────────────────────────────
 
-    @pytest.mark.xfail(
-        reason="Known issue: add() computes envelope_hash but ORM default is ''",
-        strict=False,
-    )
     def test_add_idempotent_same_envelope(self, sqlite_engine):
         """Same envelope → returns existing ID."""
         from cold_storage.modules.orchestration.infrastructure.repositories import (
