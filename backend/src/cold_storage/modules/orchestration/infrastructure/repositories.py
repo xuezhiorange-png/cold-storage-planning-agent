@@ -14,7 +14,6 @@ targeting only the specific unique constraint for each entity.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -1138,41 +1137,11 @@ class SqlAlchemySourceBindingRepository(SourceBindingRepository):
 # ── Audit Outbox ────────────────────────────────────────────────────────────
 
 
-class AuditOutboxDispatcher(Protocol):
-    """Dispatcher operations for the audit outbox.
-
-    These methods handle claiming and transitioning outbox events
-    (claim / mark_published / mark_failed) and belong in the
-    infrastructure layer.
-    """
-
-    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
-        """Atomically claim up to ``limit`` eligible outbox events."""
-        ...
-
-    def mark_published(self, session: Session, /, event_id: str) -> None:
-        """Mark a claimed event as PUBLISHED."""
-        ...
-
-    def mark_failed(
-        self,
-        session: Session,
-        /,
-        event_id: str,
-        *,
-        error_code: str,
-        next_retry_at: datetime,
-    ) -> None:
-        """Return an event to PENDING with retry metadata."""
-        ...
-
-
-class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatcher):
+class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
     """Session-bound repository for ``AuditOutboxRecord``.
 
-    Inherits ``add()`` from ``AuditOutboxRepository`` (application port) and
-    implements ``claim/mark_published/mark_failed`` from ``AuditOutboxDispatcher``
-    (infrastructure protocol).
+    Inherits ``add()`` from ``AuditOutboxRepository`` (application port).
+    Dispatcher operations are free functions in the infrastructure layer.
     """
 
     def add(
@@ -1184,11 +1153,11 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         aggregate_type: str,
         aggregate_id: str,
         payload: dict[str, object],
+        transition_id: str,
         actor: str = "system",
         correlation_id: str = "",
         occurred_at: datetime | None = None,
         event_schema_version: str = "1.0",
-        transition_id: str | None = None,
         request_id: str | None = None,
         identity_id: str | None = None,
         attempt_id: str | None = None,
@@ -1199,7 +1168,9 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         """Insert a PENDING outbox event and return its ID.
 
         Event identity is deterministic (content-addressable).
-        Idempotent: same event_identity + same payload_hash returns existing ID.
+        Idempotent: same event_identity + same envelope returns existing ID.
+        On idempotent match, compares ALL immutable envelope fields.
+        Raises OutboxIdempotencyMismatchError on any field mismatch.
         """
         from datetime import UTC
         from uuid import uuid4
@@ -1209,6 +1180,7 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         )
         from cold_storage.modules.orchestration.application.outbox_identity import (
             build_event_identity,
+            compute_envelope_hash,
             compute_payload_hash,
         )
         from cold_storage.modules.orchestration.infrastructure.orm import (
@@ -1217,15 +1189,29 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
 
         now = datetime.now(UTC)
         effective_occurred_at = occurred_at or now
-        effective_transition_id = transition_id or str(uuid4())
         event_identity = build_event_identity(
             event_type=event_type,
             aggregate_type=aggregate_type,
             aggregate_id=aggregate_id,
-            transition_id=effective_transition_id,
+            transition_id=transition_id,
             schema_version=event_schema_version,
         )
         payload_hash = compute_payload_hash(payload)
+        envelope_hash = compute_envelope_hash(
+            event_schema_version=event_schema_version,
+            event_type=event_type,
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+            actor=actor,
+            correlation_id=correlation_id,
+            occurred_at=effective_occurred_at,
+            request_id=request_id,
+            identity_id=identity_id,
+            attempt_id=attempt_id,
+            calculation_run_id=calculation_run_id,
+            source_binding_id=source_binding_id,
+            payload=payload,
+        )
 
         from sqlalchemy import select
 
@@ -1273,28 +1259,81 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
             ).scalar_one_or_none()
             if existing is None:
                 raise
-            if existing.payload_hash != payload_hash:
+
+            # P0-8: Compare ALL immutable envelope fields
+            mismatches = _compare_outbox_envelopes(
+                existing=existing,
+                new_event_type=event_type,
+                new_event_schema_version=event_schema_version,
+                new_aggregate_type=aggregate_type,
+                new_aggregate_id=aggregate_id,
+                new_actor=actor,
+                new_correlation_id=correlation_id,
+                new_occurred_at=effective_occurred_at,
+                new_payload=payload,
+                new_payload_hash=payload_hash,
+                new_envelope_hash=envelope_hash,
+                new_request_id=request_id,
+                new_identity_id=identity_id,
+                new_attempt_id=attempt_id,
+                new_calculation_run_id=calculation_run_id,
+                new_source_binding_id=source_binding_id,
+            )
+            if mismatches:
                 raise OutboxIdempotencyMismatchError(
-                    event_identity, existing.payload_hash, payload_hash
+                    event_identity,
+                    mismatches,
+                    existing_payload_hash=existing.payload_hash,
+                    new_payload_hash=payload_hash,
                 ) from exc
             return existing.id
 
-    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
-        raise NotImplementedError("Outbox claim not implemented in this phase")
 
-    def mark_published(self, session: Session, /, event_id: str) -> None:
-        raise NotImplementedError("Outbox dispatcher not implemented in this phase")
+def _compare_outbox_envelopes(
+    *,
+    existing: Any,
+    new_event_type: str,
+    new_event_schema_version: str,
+    new_aggregate_type: str,
+    new_aggregate_id: str,
+    new_actor: str,
+    new_correlation_id: str,
+    new_occurred_at: datetime,
+    new_payload: dict[str, object],
+    new_payload_hash: str,
+    new_envelope_hash: str,
+    new_request_id: str | None,
+    new_identity_id: str | None,
+    new_attempt_id: str | None,
+    new_calculation_run_id: str | None,
+    new_source_binding_id: str | None,
+) -> list[str]:
+    """Compare all immutable envelope fields between an existing DB row and new values.
 
-    def mark_failed(
-        self,
-        session: Session,
-        /,
-        event_id: str,
-        *,
-        error_code: str,
-        next_retry_at: datetime,
-    ) -> None:
-        raise NotImplementedError("Outbox retry not implemented in this phase")
+    Returns a list of mismatched field names, empty if they match.
+    """
+    mismatches: list[str] = []
+    field_pairs: list[tuple[str, object, object]] = [
+        ("event_type", existing.event_type, new_event_type),
+        ("event_schema_version", existing.event_schema_version, new_event_schema_version),
+        ("aggregate_type", existing.aggregate_type, new_aggregate_type),
+        ("aggregate_id", existing.aggregate_id, new_aggregate_id),
+        ("actor", existing.actor, new_actor),
+        ("correlation_id", existing.correlation_id, new_correlation_id),
+        ("occurred_at", existing.occurred_at, new_occurred_at),
+        ("payload", existing.payload, new_payload),
+        ("payload_hash", existing.payload_hash, new_payload_hash),
+        ("envelope_hash", getattr(existing, "envelope_hash", None), new_envelope_hash),
+        ("request_id", existing.request_id, new_request_id),
+        ("identity_id", existing.identity_id, new_identity_id),
+        ("attempt_id", existing.attempt_id, new_attempt_id),
+        ("calculation_run_id", existing.calculation_run_id, new_calculation_run_id),
+        ("source_binding_id", existing.source_binding_id, new_source_binding_id),
+    ]
+    for name, old_val, new_val in field_pairs:
+        if old_val != new_val:
+            mismatches.append(name)
+    return mismatches
 
 
 # ── Calculation Run ─────────────────────────────────────────────────────────

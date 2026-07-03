@@ -389,8 +389,7 @@ class AuditOutboxRepository(ABC):
     """Write ``AuditOutboxRecord`` rows (add only).
 
     Dispatcher operations (claim / mark_published / mark_failed) are
-    defined separately in ``AuditOutboxDispatcher`` and live in the
-    infrastructure layer.
+    implemented in the infrastructure layer as free functions.
     """
 
     @abstractmethod
@@ -403,11 +402,11 @@ class AuditOutboxRepository(ABC):
         aggregate_type: str,
         aggregate_id: str,
         payload: dict[str, object],
+        transition_id: str,
         actor: str = "system",
         correlation_id: str = "",
         occurred_at: datetime | None = None,
         event_schema_version: str = "1.0",
-        transition_id: str | None = None,
         request_id: str | None = None,
         identity_id: str | None = None,
         attempt_id: str | None = None,
