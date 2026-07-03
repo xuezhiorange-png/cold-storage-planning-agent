@@ -559,20 +559,24 @@ class TestPGOutboxLifecycle:
         # IntegrityError but with a different SQLSTATE / column than the
         # outbox_id unique conflict we care about. The classifier must
         # not treat arbitrary IntegrityErrors as outbox_id conflicts.
-        with pg_outbox_engine.connect() as conn:
+        conn = pg_outbox_engine.connect()
+        try:
             from sqlalchemy import text as sa_text
 
             with pytest.raises(IntegrityError):
                 conn.execute(
                     sa_text(
                         "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, before_snapshot, after_snapshot, event_metadata, created_at) "
-                        "VALUES ('00000000-0000-0000-0000-000000000001'::text, 'x', 'x', 'x', 'x', \'{}', \'{}\', \'{}\', now())"
+                        "VALUES ('00000000-0000-0000-0000-000000000001'::text, 'x', 'x', 'x', 'x', '{}', '{}', '{}', now())"
                     )
                 )
+        finally:
+            conn.rollback()
+            conn.close()
 
     def test_published_terminal_protection(self, pg_outbox_engine):
         """Direct UPDATE of a PUBLISHED outbox row must be rejected."""
-        from sqlalchemy.exc import DBAPIError, IntegrityError
+        from sqlalchemy.exc import DBAPIError
 
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         sess = factory()
@@ -582,17 +586,24 @@ class TestPGOutboxLifecycle:
         sess.close()
 
         # Try to mutate the envelope on a PUBLISHED row — must fail.
-        with pg_outbox_engine.begin() as conn:
-            with pytest.raises(Exception):  # plpgsql RAISE EXCEPTION
+        conn = pg_outbox_engine.connect()
+        try:
+            with pytest.raises(DBAPIError):
                 conn.execute(
                     text(
                         "UPDATE orchestration_audit_outbox SET actor = 'tampered' WHERE id = :rid"
                     ),
                     {"rid": event_id},
                 )
+                conn.commit()
+        finally:
+            conn.rollback()
+            conn.close()
 
     def test_failed_terminal_protection(self, pg_outbox_engine):
         """Direct UPDATE of a FAILED outbox row must be rejected."""
+        from sqlalchemy.exc import DBAPIError
+
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         sess = factory()
         event = _make_event(sess, transition_id="fail-1", status="FAILED")
@@ -600,17 +611,24 @@ class TestPGOutboxLifecycle:
         sess.commit()
         sess.close()
 
-        with pg_outbox_engine.begin() as conn:
-            with pytest.raises(Exception):
+        conn = pg_outbox_engine.connect()
+        try:
+            with pytest.raises(DBAPIError):
                 conn.execute(
                     text(
                         "UPDATE orchestration_audit_outbox SET actor = 'tampered' WHERE id = :rid"
                     ),
                     {"rid": event_id},
                 )
+                conn.commit()
+        finally:
+            conn.rollback()
+            conn.close()
 
     def test_envelope_tamper_rejected_by_trigger(self, pg_outbox_engine):
         """Any envelope field change on a PENDING row is rejected."""
+        from sqlalchemy.exc import DBAPIError
+
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         sess = factory()
         event = _make_event(sess, transition_id="env-1")
@@ -618,25 +636,28 @@ class TestPGOutboxLifecycle:
         sess.commit()
         sess.close()
 
-        with pg_outbox_engine.begin() as conn:
-            with pytest.raises(Exception):
+        conn = pg_outbox_engine.connect()
+        try:
+            with pytest.raises(DBAPIError):
                 conn.execute(
                     text(
-                        "UPDATE orchestration_audit_outbox "
-                        "SET request_id = 'tampered' WHERE id = :rid"
+                        "UPDATE orchestration_audit_outbox SET request_id = 'tampered' WHERE id = :rid"
                     ),
                     {"rid": event_id},
                 )
+                conn.commit()
+        finally:
+            conn.rollback()
+            conn.close()
 
     def test_audit_event_outbox_id_immutable(self, pg_outbox_engine):
         """audit_events.outbox_event_id is immutable after insert."""
-        from sqlalchemy.exc import IntegrityError
+        from sqlalchemy.exc import DBAPIError
 
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         # Create an AuditEvent via materialization first
         sess = factory()
         event = _make_event(sess, transition_id="ai-1")
-        event_id = event.id
         event_identity = event.event_identity
         sess.commit()
         sess.close()
@@ -657,15 +678,22 @@ class TestPGOutboxLifecycle:
             now=datetime.now(UTC),
         )
         sess.commit()
+        sess.close()
 
         # Now try to update outbox_event_id on the AuditEvent — must fail.
-        with pytest.raises(Exception):
-            with pg_outbox_engine.begin() as conn:
+        conn = pg_outbox_engine.connect()
+        try:
+            with pytest.raises(DBAPIError):
                 conn.execute(
                     text(
-                        "UPDATE audit_events "
-                        "SET outbox_event_id = 'something-else' "
-                        "WHERE outbox_event_id = :eid"
+                        "UPDATE audit_events SET outbox_event_id = 'something-else' WHERE outbox_event_id = :eid"
+                    ),
+                    {"eid": event_identity},
+                )
+                conn.commit()
+        finally:
+            conn.rollback()
+            conn.close()
                     ),
                     {"eid": event_identity},
                 )
