@@ -435,134 +435,52 @@ class TestDeepImmutability:
 
 
 class TestProvenanceKeyValidation:
-    """Provenance upstream_calculation_ids must match stage-specific key sets."""
+    """Provenance upstream_calculation_ids key set validation via validate_provenance_keys."""
 
     def test_zone_non_empty_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            validate_provenance_keys,
+        )
+
         with pytest.raises(ValueError, match="extra keys"):
-            SourceSnapshotContentV1(
-                schema_version="1.0",
-                calculation_type="zone",
-                calculator_name="cold_room_zone_plan",
-                calculator_version="1.0.0",
-                project_id="p-1",
-                project_version_id="pv-1",
-                execution_snapshot_id="es-1",
-                coefficient_context_id="cc-1",
-                orchestration_identity_id="oi-1",
-                orchestration_run_attempt_id="oa-1",
-                input_hash="abc",
-                requires_review=False,
-                payload={},
-                provenance=SourceSnapshotProvenanceV1(
-                    execution_snapshot_id="es-1",
-                    coefficient_context_id="cc-1",
-                    orchestration_identity_id="oi-1",
-                    orchestration_run_attempt_id="oa-1",
-                    upstream_calculation_ids={"zone": "calc-1"},
-                ),
-            )
+            validate_provenance_keys("zone", {"zone": "calc-1"})
 
     def test_cooling_load_missing_zone_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            validate_provenance_keys,
+        )
+
         with pytest.raises(ValueError, match="missing keys.*zone"):
-            SourceSnapshotContentV1(
-                schema_version="1.0",
-                calculation_type="cooling_load",
-                calculator_name="cooling_load",
-                calculator_version="1.0.0",
-                project_id="p-1",
-                project_version_id="pv-1",
-                execution_snapshot_id="es-1",
-                coefficient_context_id="cc-1",
-                orchestration_identity_id="oi-1",
-                orchestration_run_attempt_id="oa-1",
-                input_hash="abc",
-                requires_review=False,
-                payload={},
-                provenance=SourceSnapshotProvenanceV1(
-                    execution_snapshot_id="es-1",
-                    coefficient_context_id="cc-1",
-                    orchestration_identity_id="oi-1",
-                    orchestration_run_attempt_id="oa-1",
-                    upstream_calculation_ids={},
-                ),
-            )
+            validate_provenance_keys("cooling_load", {})
 
     def test_equipment_extra_zone_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            validate_provenance_keys,
+        )
+
         with pytest.raises(ValueError, match="extra keys.*zone"):
-            SourceSnapshotContentV1(
-                schema_version="1.0",
-                calculation_type="equipment",
-                calculator_name="equipment",
-                calculator_version="1.0.0",
-                project_id="p-1",
-                project_version_id="pv-1",
-                execution_snapshot_id="es-1",
-                coefficient_context_id="cc-1",
-                orchestration_identity_id="oi-1",
-                orchestration_run_attempt_id="oa-1",
-                input_hash="abc",
-                requires_review=False,
-                payload={},
-                provenance=SourceSnapshotProvenanceV1(
-                    execution_snapshot_id="es-1",
-                    coefficient_context_id="cc-1",
-                    orchestration_identity_id="oi-1",
-                    orchestration_run_attempt_id="oa-1",
-                    upstream_calculation_ids={
-                        "cooling_load": "calc-cl",
-                        "zone": "calc-z",
-                    },
-                ),
-            )
+            validate_provenance_keys("equipment", {"zone": "calc-1"})
 
     def test_null_upstream_id_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            validate_provenance_keys,
+        )
+
         with pytest.raises(ValueError, match="is None"):
-            SourceSnapshotContentV1(
-                schema_version="1.0",
-                calculation_type="cooling_load",
-                calculator_name="cooling_load",
-                calculator_version="1.0.0",
-                project_id="p-1",
-                project_version_id="pv-1",
-                execution_snapshot_id="es-1",
-                coefficient_context_id="cc-1",
-                orchestration_identity_id="oi-1",
-                orchestration_run_attempt_id="oa-1",
-                input_hash="abc",
-                requires_review=False,
-                payload={},
-                provenance=SourceSnapshotProvenanceV1(
-                    execution_snapshot_id="es-1",
-                    coefficient_context_id="cc-1",
-                    orchestration_identity_id="oi-1",
-                    orchestration_run_attempt_id="oa-1",
-                    upstream_calculation_ids={"zone": None},  # type: ignore[dict-item]
-                ),
+            validate_provenance_keys(
+                "cooling_load",
+                {"zone": None},  # type: ignore[dict-item]
             )
 
     def test_whitespace_id_rejected(self) -> None:
+        from cold_storage.modules.orchestration.domain.contracts import (
+            validate_provenance_keys,
+        )
+
         with pytest.raises(ValueError, match="empty/whitespace"):
-            SourceSnapshotContentV1(
-                schema_version="1.0",
-                calculation_type="cooling_load",
-                calculator_name="cooling_load",
-                calculator_version="1.0.0",
-                project_id="p-1",
-                project_version_id="pv-1",
-                execution_snapshot_id="es-1",
-                coefficient_context_id="cc-1",
-                orchestration_identity_id="oi-1",
-                orchestration_run_attempt_id="oa-1",
-                input_hash="abc",
-                requires_review=False,
-                payload={},
-                provenance=SourceSnapshotProvenanceV1(
-                    execution_snapshot_id="es-1",
-                    coefficient_context_id="cc-1",
-                    orchestration_identity_id="oi-1",
-                    orchestration_run_attempt_id="oa-1",
-                    upstream_calculation_ids={"zone": "   "},
-                ),
+            validate_provenance_keys(
+                "cooling_load",
+                {"zone": "   "},
             )
 
     def test_identity_mismatch_rejected(self) -> None:

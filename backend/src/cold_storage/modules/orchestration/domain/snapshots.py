@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 
 from cold_storage.modules.orchestration.domain.contracts import (
     validate_content_provenance_identity_consistency,
-    validate_provenance_keys,
 )
 
 
@@ -101,11 +100,8 @@ class SourceSnapshotContentV1:
         if frozen_payload is not self.payload:
             object.__setattr__(self, "payload", frozen_payload)
 
-        # ── Validate provenance key set ─────────────────────────────────
-        validate_provenance_keys(
-            self.calculation_type,
-            self.provenance.upstream_calculation_ids,
-        )
+        # Note: upstream provenance KEY set validation is performed by
+        # SourceBindingVerifier._verify_upstream_provenance, not here.
 
         # ── Validate content/provenance identity consistency ─────────────
         validate_content_provenance_identity_consistency(
@@ -127,3 +123,56 @@ class SourceSnapshotEnvelopeV1:
 
     content: SourceSnapshotContentV1
     result_hash: str
+
+
+# ── Shared builder ─────────────────────────────────────────────────────────
+
+
+def build_source_snapshot_content_v1(
+    *,
+    schema_version: str,
+    calculation_type: str,
+    calculator_name: str,
+    calculator_version: str,
+    project_id: str,
+    project_version_id: str,
+    execution_snapshot_id: str,
+    coefficient_context_id: str,
+    orchestration_identity_id: str,
+    orchestration_run_attempt_id: str,
+    input_hash: str,
+    requires_review: bool,
+    payload: Mapping[str, object],
+    upstream_calculation_ids: Mapping[str, str],
+) -> SourceSnapshotContentV1:
+    """Build a domain-layer ``SourceSnapshotContentV1`` from individual fields.
+
+    This is the **single canonical builder** used by both the Transaction B
+    executor and the SourceBinding verifiers to produce the hash contract.
+    Using this function ensures that ``result_hash`` (SHA-256 of the
+    canonical JSON of ``SourceSnapshotContentV1``) is computed identically
+    everywhere.
+    """
+    provenance = SourceSnapshotProvenanceV1(
+        execution_snapshot_id=execution_snapshot_id,
+        coefficient_context_id=coefficient_context_id,
+        orchestration_identity_id=orchestration_identity_id,
+        orchestration_run_attempt_id=orchestration_run_attempt_id,
+        upstream_calculation_ids=upstream_calculation_ids,
+    )
+    return SourceSnapshotContentV1(
+        schema_version=schema_version,
+        calculation_type=calculation_type,
+        calculator_name=calculator_name,
+        calculator_version=calculator_version,
+        project_id=project_id,
+        project_version_id=project_version_id,
+        execution_snapshot_id=execution_snapshot_id,
+        coefficient_context_id=coefficient_context_id,
+        orchestration_identity_id=orchestration_identity_id,
+        orchestration_run_attempt_id=orchestration_run_attempt_id,
+        input_hash=input_hash,
+        requires_review=requires_review,
+        payload=payload,
+        provenance=provenance,
+    )

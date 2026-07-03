@@ -15,6 +15,7 @@ This module provides:
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,9 @@ from cold_storage.modules.orchestration.application.source_snapshots import (
     InvestmentSourceSnapshotV1,
     PowerSourceSnapshotV1,
     ZoneSourceSnapshotV1,
+)
+from cold_storage.modules.orchestration.application.transaction_b import (
+    StageExecutionResult,
 )
 from cold_storage.modules.orchestration.domain.contracts import (
     AttemptStatus,
@@ -244,6 +248,77 @@ _CALCULATOR_OUTPUTS: dict[str, dict[str, Any]] = {
         ],
     },
 }
+
+# ── Calculator port data ─────────────────────────────────────────────────
+
+_STAGE_DATA: dict[str, tuple[str, str, str]] = {
+    "zone": ("cold_room_zone_plan", "1.0.0", "zone"),
+    "cooling_load": ("cooling_load", "1.0.0", "cooling_load"),
+    "equipment": ("equipment", "1.0.0", "equipment"),
+    "power": ("installed_power", "1.0.0", "power"),
+    "investment": ("investment_estimate", "1.0.0", "investment"),
+}
+
+
+class _GoldenCalculatorPort:
+    """Mock CalculatorPort returning deterministic golden outputs for each stage."""
+
+    def execute_stage(
+        self,
+        *,
+        stage_name: str,
+        execution_snapshot: dict[str, Any],
+        coefficient_context: dict[str, Any],
+        upstream_results: dict[str, Any],
+    ) -> StageExecutionResult:
+        calc_name, calc_version, calc_type = _STAGE_DATA[stage_name]
+        return StageExecutionResult(
+            calculator_name=calc_name,
+            calculator_version=calc_version,
+            calculation_type=calc_type,
+            result_snapshot=dict(_CALCULATOR_OUTPUTS[stage_name]),
+            formulas=[
+                {
+                    "formula_id": f"form-{stage_name}-01",
+                    "formula_version": "1.0.0",
+                    "expression": f"Q = m * cp * dT ({stage_name})",
+                    "description": f"Heat load calculation for {stage_name}",
+                }
+            ],
+            coefficients=[
+                {
+                    "code": "pallet.net_load_kg",
+                    "value": "1000",
+                    "unit": "kg",
+                    "status": "approved",
+                    "source_type": "catalog",
+                    "source_reference": "standard-table-1",
+                    "requires_review": False,
+                    "revision_id": "rev-001",
+                }
+            ],
+            assumptions=[f"Assumption for {stage_name}: standard operating conditions"],
+            warnings=[
+                {
+                    "code": f"WARN_{stage_name.upper()}",
+                    "message": f"Review {stage_name} calculation values",
+                    "details": {},
+                }
+            ],
+            source_references=[
+                {
+                    "source_type": "standard",
+                    "source_reference": f"GB-{stage_name}-2024",
+                    "version": "2024",
+                    "validity_status": "approved",
+                    "approval_status": "approved",
+                    "requires_review": False,
+                    "notes": "",
+                }
+            ],
+            requires_review=False,
+        )
+
 
 # ── Shared traceability fixtures ──────────────────────────────────────────
 
@@ -739,3 +814,152 @@ def get_calculator_output(stage_name: str) -> dict[str, Any]:
 def get_calculator_metadata() -> dict[str, dict[str, str]]:
     """Return the calculator metadata for golden verification."""
     return dict(_CALCULATOR_META)
+
+
+# ── Executor wiring helper ──────────────────────────────────────────────────
+# Provides a fully-wired OrchestrationService + golden calculator + fixed IDs
+# so that callers can execute the real Transaction B executor in tests.
+
+
+@dataclass(frozen=True, slots=True)
+class GoldenExecutorResult:
+    """Result of executing Transaction B via the real executor."""
+
+    status: str
+    source_binding_id: str
+    request_id: str
+    identity_id: str
+    attempt_id: str
+    persisted_stages_count: int
+    requires_review: bool
+    fingerprint: str
+
+
+def wire_golden_orchestration_service(session_factory: Any) -> Any:
+    """Create a fully-wired OrchestrationService with golden calculator.
+
+    Uses real SQL Alchemy repositories, _GoldenCalculatorPort, and
+    FixedTransactionBIdFactory to produce deterministic, golden-parity output.
+    """
+    from unittest.mock import MagicMock
+
+    from cold_storage.modules.orchestration.application.ports import (
+        CoefficientResolutionPreflightPort,
+        ExecutionSnapshotPreflightPort,
+        ResolvedCoefficientContextCandidate,
+    )
+    from cold_storage.modules.orchestration.application.service import (
+        OrchestrationService,
+        ProjectVersionReadPort,
+        _LoadedVersion,
+    )
+    from cold_storage.modules.orchestration.application.transaction_b import (
+        FixedTransactionBIdFactory,
+    )
+    from cold_storage.modules.orchestration.application.unit_of_work import (
+        SqlAlchemyOrchestrationUnitOfWorkFactory,
+    )
+    from cold_storage.modules.orchestration.infrastructure.repositories import (
+        SqlAlchemyAuditOutboxRepository,
+        SqlAlchemyCalculationRunRepository,
+        SqlAlchemyCoefficientContextRepository,
+        SqlAlchemyExecutionSnapshotRepository,
+        SqlAlchemyOrchestrationAttemptRepository,
+        SqlAlchemyOrchestrationIdentityRepository,
+        SqlAlchemyOrchestrationRequestRepository,
+        SqlAlchemySourceBindingRepository,
+        SqlAlchemyVerificationReadPort,
+    )
+    from cold_storage.modules.projects.infrastructure.orm import (
+        ProjectRecord,
+        ProjectVersionRecord,
+    )
+
+    uow_factory = SqlAlchemyOrchestrationUnitOfWorkFactory(session_factory)
+
+    class _GoldenVersionPort(ProjectVersionReadPort):
+        def load_by_id(self, session: Any, project_version_id: str) -> Any:
+            record = session.execute(
+                select(ProjectVersionRecord).where(ProjectVersionRecord.id == project_version_id)
+            ).scalar_one_or_none()
+            if record is None:
+                return None
+            project_record = session.execute(
+                select(ProjectRecord).where(ProjectRecord.id == record.project_id)
+            ).scalar_one_or_none()
+            product_category = project_record.product_category if project_record else ""
+            return _LoadedVersion(
+                project_id=record.project_id,
+                project_product_category=product_category,
+                status=record.status,
+                version_number=record.version_number,
+                input_snapshot=record.input_snapshot or {},
+            )
+
+    coeff_port = MagicMock(spec=CoefficientResolutionPreflightPort)
+    resolved = ResolvedCoefficientContextCandidate(
+        project_id=GOLDEN_PROJECT_ID,
+        project_version_id=GOLDEN_PROJECT_VERSION_ID,
+        schema_version="1.0.0",
+        content=_build_golden_coefficient_content(),
+        content_hash=result_hash(_build_golden_coefficient_content()),
+        approved_revision_ids=tuple(f"rev-{i:03d}" for i in range(1, 11)),
+    )
+    coeff_port.resolve.return_value = resolved
+
+    return OrchestrationService(
+        uow_factory=uow_factory,
+        request_repo=SqlAlchemyOrchestrationRequestRepository(),
+        outbox_repo=SqlAlchemyAuditOutboxRepository(),
+        snapshot_repo=SqlAlchemyExecutionSnapshotRepository(),
+        coefficient_repo=SqlAlchemyCoefficientContextRepository(),
+        identity_repo=SqlAlchemyOrchestrationIdentityRepository(),
+        attempt_repo=SqlAlchemyOrchestrationAttemptRepository(),
+        version_port=_GoldenVersionPort(),
+        snapshot_port=MagicMock(spec=ExecutionSnapshotPreflightPort),
+        coefficient_port=coeff_port,
+        calc_run_repo=SqlAlchemyCalculationRunRepository(),
+        source_binding_repo=SqlAlchemySourceBindingRepository(),
+        calculator_port=_GoldenCalculatorPort(),
+        verification_read_port=SqlAlchemyVerificationReadPort(),
+        id_factory=FixedTransactionBIdFactory(),
+    )
+
+
+def execute_transaction_b_via_real_executor(
+    session_factory: Any,
+) -> GoldenExecutorResult:
+    """Seed golden prerequisites and execute Transaction B via the real executor.
+
+    Returns a GoldenExecutorResult with the executor-generated source_binding_id
+    and other metadata needed by callers (e.g., ProductionSchemeService tests).
+    """
+    # 1. Seed prerequisites (Project, Version, Snapshot, Coefficient, Identity, Attempt, Request)
+    with session_factory() as session:
+        _seed_golden_prerequisites(session)
+
+    # 2. Wire and execute
+    service = wire_golden_orchestration_service(session_factory)
+    result = service.execute_transaction_b(
+        request_id=GOLDEN_REQUEST_ID,
+        project_id=GOLDEN_PROJECT_ID,
+        project_version_id=GOLDEN_PROJECT_VERSION_ID,
+        execution_snapshot_id=GOLDEN_SNAPSHOT_ID,
+        coefficient_context_id=GOLDEN_COEFFICIENT_CONTEXT_ID,
+        orchestration_identity_id=GOLDEN_ORCHESTRATION_IDENTITY_ID,
+        orchestration_attempt_id=GOLDEN_ATTEMPT_ID,
+        orchestration_fingerprint=GOLDEN_FINGERPRINT,
+        execution_snapshot={"throughput_t": "25.0"},
+        coefficient_context={"coefficients": []},
+    )
+
+    return GoldenExecutorResult(
+        status=result.status,
+        source_binding_id=result.source_binding_id,
+        request_id=result.request_id,
+        identity_id=result.identity_id,
+        attempt_id=result.attempt_id,
+        persisted_stages_count=len(result.persisted_stages),
+        requires_review=result.requires_review,
+        fingerprint=result.fingerprint,
+    )

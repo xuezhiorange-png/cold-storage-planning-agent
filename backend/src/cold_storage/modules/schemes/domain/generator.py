@@ -98,8 +98,8 @@ def _sort_zones(zones: list[ZoneResult]) -> list[ZoneResult]:
         zones,
         key=lambda z: (
             z.temperature_level,
-            z.hygiene_zone,
-            z.process_compatibility,
+            z.hygiene_zone or "",
+            z.process_compatibility or "",
             z.zone_code,
         ),
     )
@@ -229,7 +229,11 @@ def _compute_energy_proportional(
         storage_capacity_kg=room.storage_capacity_kg,
         design_cooling_load_kw_r=cl.design_cooling_load_kw_r * ratio,
         compressor_operating_capacity_kw_r=er.compressor_operating_capacity_kw_r * ratio,
-        compressor_installed_capacity_kw_r=er.compressor_installed_capacity_kw_r * ratio,
+        compressor_installed_capacity_kw_r=(
+            er.compressor_installed_capacity_kw_r * ratio
+            if er.compressor_installed_capacity_kw_r is not None
+            else room.compressor_installed_capacity_kw_r
+        ),
         process_compatibility=room.process_compatibility,
         hygiene_zone=room.hygiene_zone,
         door_count=room.door_count,
@@ -243,19 +247,24 @@ def _compute_energy_proportional(
 
 
 def _validate_merge_compatibility(zones: list[ZoneResult]) -> bool:
-    """Check if zones can be merged (same temp, compatible process, same hygiene)."""
+    """Check if zones can be merged (same temp, compatible process, same hygiene).
+
+    P0-5: When any zone has process_compatibility=None or hygiene_zone=None,
+    the corresponding check is skipped.
+    """
     if len(zones) <= 1:
         return True
     temps = set(z.temperature_level for z in zones)
     if len(temps) > 1:
         return False
-    # Check pairwise process compatibility via matrix
-    processes = [z.process_compatibility for z in zones]
+    # Check pairwise process compatibility via matrix (skip if any is None)
+    processes = [z.process_compatibility for z in zones if z.process_compatibility is not None]
     for i in range(len(processes)):
         for j in range(i + 1, len(processes)):
             if not _processes_compatible(processes[i], processes[j]):
                 return False
-    hygiene = set(z.hygiene_zone for z in zones)
+    # Check hygiene (skip if any is None)
+    hygiene = set(z.hygiene_zone for z in zones if z.hygiene_zone is not None)
     return len(hygiene) <= 1
 
 
@@ -472,6 +481,13 @@ def _build_candidate(
     daily_throughput = input_data.total_daily_throughput_kg_day
     investment = input_data.investment_result.total_investment_cny
 
+    # Power authority: use PowerResult for installed_power_kw_e, NOT EquipmentResult
+    if input_data.power_result is not None:
+        power_kw_e = input_data.power_result.total_installed_power_kw_e
+    else:
+        # Fail-closed: if power_result is missing, use 0 (validation will fail)
+        power_kw_e = Decimal("0")
+
     return SchemeCandidate(
         scheme_code=scheme_code,
         scheme_name=scheme_name,
@@ -487,7 +503,7 @@ def _build_candidate(
         partition_length_proxy_m=total_partition,
         daily_throughput_kg_day=daily_throughput,
         investment_cny=investment,
-        installed_power_kw_e=input_data.equipment_result.installed_power_kw_e,
+        installed_power_kw_e=power_kw_e,
         design_cooling_load_kw_r=total_cooling,
         compressor_operating_capacity_kw_r=total_compressor_operating,
         compressor_installed_capacity_kw_r=total_compressor_installed,

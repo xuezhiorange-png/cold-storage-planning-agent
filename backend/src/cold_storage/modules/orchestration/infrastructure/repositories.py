@@ -1506,6 +1506,7 @@ class SqlAlchemyVerificationReadPort:
                 warnings=list(run.warnings or []),
                 source_references=list(run.source_references or []),
                 upstream_calculation_ids=upstream_ids,
+                input_hash=run.input_hash or "",
             )
 
         # Missing stages detection

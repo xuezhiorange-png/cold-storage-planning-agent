@@ -163,3 +163,13 @@ class DivisionByZeroError(SchemeDomainError):
     def __init__(self, criterion_code: str) -> None:
         self.criterion_code = criterion_code
         super().__init__(f"All candidates have identical values for '{criterion_code}'")
+
+
+class MappingError(SchemeDomainError):
+    """Raised when source-to-domain mapping fails due to missing or invalid data."""
+
+    def __init__(self, code: str, field: str, detail: str) -> None:
+        self.code = code
+        self.field = field
+        self.detail = detail
+        super().__init__(f"[{code}] field '{field}': {detail}")

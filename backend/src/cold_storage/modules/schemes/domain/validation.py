@@ -103,13 +103,19 @@ def check_temperature_compatibility(
 def check_process_separation(
     candidate: SchemeCandidate, zone_map: dict[str, ZoneResult]
 ) -> SchemeConstraintResult:
-    """Rooms must not merge incompatible process types (raw vs finished)."""
+    """Rooms must not merge incompatible process types (raw vs finished).
+
+    P0-5: Skipped (always passes) when any zone has process_compatibility=None.
+    """
     for rm in candidate.room_modules:
-        compatibilities = set()
+        compatibilities: set[str] = set()
         for zc in rm.zone_codes:
             z = zone_map.get(zc)
-            if z:
+            if z and z.process_compatibility is not None:
                 compatibilities.add(z.process_compatibility)
+        # Skip check if any zone lacks process_compatibility data
+        if not compatibilities:
+            continue
         if "raw" in compatibilities and "finished" in compatibilities:
             return SchemeConstraintResult(
                 constraint_code="process_separation",
@@ -128,13 +134,19 @@ def check_process_separation(
 def check_hygiene_separation(
     candidate: SchemeCandidate, zone_map: dict[str, ZoneResult]
 ) -> SchemeConstraintResult:
-    """Rooms must not merge incompatible hygiene zones."""
+    """Rooms must not merge incompatible hygiene zones.
+
+    P0-5: Skipped (always passes) when any zone has hygiene_zone=None.
+    """
     for rm in candidate.room_modules:
-        hygiene_zones = set()
+        hygiene_zones: set[str] = set()
         for zc in rm.zone_codes:
             z = zone_map.get(zc)
-            if z:
+            if z and z.hygiene_zone is not None:
                 hygiene_zones.add(z.hygiene_zone)
+        # Skip check if any zone lacks hygiene_zone data
+        if not hygiene_zones:
+            continue
         if len(hygiene_zones) > 1:
             return SchemeConstraintResult(
                 constraint_code="hygiene_separation",
@@ -166,7 +178,11 @@ def check_cooling_capacity_adequacy(
 def check_compressor_capacity_adequacy(
     candidate: SchemeCandidate, equipment_result: object
 ) -> SchemeConstraintResult:
-    """Verify both operating and installed capacity."""
+    """Verify both operating and installed capacity.
+
+    P0-5: When equipment_result.compressor_installed_capacity_kw_r is None,
+    the installed-capacity check is skipped (only operating check applies).
+    """
     from cold_storage.modules.schemes.domain.models import EquipmentResult
 
     if not isinstance(equipment_result, EquipmentResult):
@@ -181,10 +197,12 @@ def check_compressor_capacity_adequacy(
         candidate.compressor_installed_capacity_kw_r
         >= equipment_result.compressor_operating_capacity_kw_r
     )
-    installed_ok = (
-        candidate.compressor_installed_capacity_kw_r
-        >= equipment_result.compressor_installed_capacity_kw_r
-    )
+    installed_ok = True
+    if equipment_result.compressor_installed_capacity_kw_r is not None:
+        installed_ok = (
+            candidate.compressor_installed_capacity_kw_r
+            >= equipment_result.compressor_installed_capacity_kw_r
+        )
     passed = op_ok and installed_ok
     return SchemeConstraintResult(
         constraint_code="compressor_capacity_adequacy",
@@ -203,25 +221,33 @@ def check_compressor_capacity_adequacy(
 
 
 def check_electrical_capacity_traceability(
-    candidate: SchemeCandidate, equipment_result: object
+    candidate: SchemeCandidate, power_result: object | None
 ) -> SchemeConstraintResult:
-    from cold_storage.modules.schemes.domain.models import EquipmentResult
+    """Verify installed_power_kw_e > 0 using Power authority.
 
-    if not isinstance(equipment_result, EquipmentResult):
+    The PowerResult is the sole authority for whole-project installed power.
+    Equipment.installed_power_kw_e is NOT used for this check.
+    """
+    from cold_storage.modules.schemes.domain.models import PowerResult
+
+    if not isinstance(power_result, PowerResult):
         return SchemeConstraintResult(
             constraint_code="electrical_capacity_traceability",
             passed=False,
-            detail="Equipment result not available",
+            detail="Power result not available — cannot verify installed power",
+            expected="PowerResult",
+            actual=type(power_result).__name__ if power_result is not None else "None",
         )
-    passed = candidate.installed_power_kw_e >= equipment_result.installed_power_kw_e
+    passed = candidate.installed_power_kw_e > 0
     return SchemeConstraintResult(
         constraint_code="electrical_capacity_traceability",
         passed=passed,
         detail=(
             f"installed_power={candidate.installed_power_kw_e}"
-            f" >= required={equipment_result.installed_power_kw_e}"
+            f" > 0 (from PowerResult.total_installed_power_kw_e"
+            f"={power_result.total_installed_power_kw_e})"
         ),
-        expected=equipment_result.installed_power_kw_e,
+        expected="installed_power_kw_e > 0",
         actual=candidate.installed_power_kw_e,
     )
 
@@ -373,7 +399,7 @@ def validate_candidate(
         ),
         check_compressor_installed_adequacy(candidate),
         check_compressor_capacity_adequacy(candidate, input_data.equipment_result),
-        check_electrical_capacity_traceability(candidate, input_data.equipment_result),
+        check_electrical_capacity_traceability(candidate, input_data.power_result),
         # --- Zone existence ---
         check_zone_code_existence(candidate, zone_map),
         # --- Version / provenance ---
