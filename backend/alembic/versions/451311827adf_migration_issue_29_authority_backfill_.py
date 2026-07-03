@@ -595,34 +595,12 @@ def _pg_create_authority_triggers() -> None:
     # Drop if they exist (idempotent rebuild)
     _pg_drop_authority_triggers()
 
-    # BEFORE UPDATE authority check function + trigger
-    op.execute(
-        "DROP TRIGGER IF EXISTS trg_authority_check_on_approve ON scheme_weight_set_revisions"
-    )
-    op.execute("DROP FUNCTION IF EXISTS fn_authority_check_on_approve")
-    op.execute(
-        "CREATE OR REPLACE FUNCTION"
-        " fn_authority_check_on_approve()"
-        " RETURNS TRIGGER AS $$ BEGIN"
-        " IF OLD.status = 'draft' AND NEW.status = 'approved' THEN"
-        " IF EXISTS ("
-        " SELECT 1 FROM scheme_weight_set_revisions"
-        " WHERE weight_set_id = NEW.weight_set_id"
-        " AND code = NEW.code"
-        " AND status = 'approved'"
-        " AND id != NEW.id"
-        " ) THEN RAISE EXCEPTION"
-        " 'active_revision_conflict:"
-        " another revision already approved for this weight_set_id/code';"
-        " END IF; END IF; RETURN NEW; END;"
-        " $$ LANGUAGE plpgsql;"
-    )
-    op.execute(
-        "CREATE TRIGGER trg_authority_check_on_approve"
-        " BEFORE UPDATE ON scheme_weight_set_revisions"
-        " FOR EACH ROW"
-        " EXECUTE FUNCTION fn_authority_check_on_approve();"
-    )
+    # NOTE: trg_authority_check_on_approve (BEFORE UPDATE SELECT EXISTS) was
+    # removed.  The authority composite PK (weight_set_id, code) in the AFTER
+    # UPDATE claim trigger is now the sole arbiter of concurrent approval
+    # uniqueness.  This produces a genuine SQLSTATE 23505 (unique_violation)
+    # with constraint_name = pk_scheme_weight_set_active_revisions, which the
+    # adapter's _is_authority_unique_conflict() classifies exactly.
 
     # Claim function + trigger
     op.execute(
@@ -750,6 +728,11 @@ def _pg_create_authority_triggers() -> None:
 
 
 def _pg_drop_authority_triggers() -> None:
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_authority_check_on_approve ON scheme_weight_set_revisions"
+    )
+    op.execute("DROP FUNCTION IF EXISTS fn_authority_check_on_approve")
+
     op.execute(
         "DROP TRIGGER IF EXISTS trg_authority_claim_on_approve ON scheme_weight_set_revisions"
     )
