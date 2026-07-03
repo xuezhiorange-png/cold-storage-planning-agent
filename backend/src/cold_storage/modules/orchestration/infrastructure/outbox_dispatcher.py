@@ -135,20 +135,26 @@ def claim_events_pg(
 
 
 def claim_events_sqlite(
-    session: Any,
+    engine: Any,
     *,
     worker_id: str,
     batch_size: int,
     lease_seconds: float,
     now: datetime,
 ) -> list[ClaimedOutboxEvent]:
-    """SQLite claim using raw SQL for atomicity.
+    """SQLite atomic claim using BEGIN IMMEDIATE on an independent connection.
 
-    Uses ``text()`` for both SELECT and UPDATE in one atomic operation
-    with per-row claim tokens for safe concurrent processing.
-    SQLite stores datetimes as ISO format strings without timezone.
-    We use ``text()`` for the eligibility query to ensure correct
-    datetime comparison at the SQL level.
+    The caller passes the Engine directly so this function can open a
+    dedicated connection and acquire an exclusive write lock via
+    ``BEGIN IMMEDIATE`` — concurrent workers cannot interleave between the
+    eligibility SELECT and the guarded UPDATE. The guarded UPDATE repeats
+    the eligibility predicate (``PENDING AND next_retry_at <= now`` OR
+    ``PROCESSING AND claim_expires_at <= now``) so that even if the SELECT
+    picked rows another worker is racing to claim, only one wins per row.
+
+    Each row receives an independent ``claim_token = uuid4()``. The
+    RETURNING clause yields the exact set of rows actually claimed — the
+    caller never sees ghost rows.
     """
     now = ensure_utc_aware(now)
     now_naive = now.replace(tzinfo=None).replace(microsecond=0)
@@ -156,70 +162,88 @@ def claim_events_sqlite(
     expires_at = now_naive + timedelta(seconds=lease_seconds)
     expires_str = expires_at.strftime("%Y-%m-%d %H:%M:%S")
 
-    conn = session.connection()
-
-    # Step 1: SELECT eligible rows under IMMEDIATE transaction
-    select_sql = text(
-        "SELECT id, event_identity, event_type, event_schema_version, "
-        "aggregate_type, aggregate_id, actor, correlation_id, occurred_at, "
-        "payload, payload_hash, attempt_count, request_id, identity_id, "
-        "attempt_id, calculation_run_id, source_binding_id "
-        "FROM orchestration_audit_outbox "
+    # Step 1: deterministically select eligible IDs under IMMEDIATE lock
+    select_ids_sql = text(
+        "SELECT id FROM orchestration_audit_outbox "
         "WHERE (status = 'PENDING' AND substr(next_retry_at,1,19) <= :now_str) "
-        "OR (status = 'PROCESSING' AND substr(claim_expires_at,1,19) <= :now_str) "
+        "   OR (status = 'PROCESSING' AND substr(claim_expires_at,1,19) <= :now_str) "
         "ORDER BY next_retry_at ASC, created_at ASC, id ASC "
         "LIMIT :batch_size"
     )
-    rows = conn.execute(select_sql, {"now_str": now_str, "batch_size": batch_size}).fetchall()
+
+    # Step 2: guarded UPDATE — repeat the eligibility predicate, RETURNING
+    # the columns we need for downstream processing. UPDATE returns 0 rows
+    # for any ID that lost the race.
+    update_returning_sql = text(
+        "UPDATE orchestration_audit_outbox "
+        "SET status = 'PROCESSING', "
+        "    claimed_at = :now_str, "
+        "    claimed_by = :worker_id, "
+        "    claim_token = :per_row_token, "
+        "    claim_expires_at = :expires_str, "
+        "    attempt_count = attempt_count + 1 "
+        "WHERE id = :row_id "
+        "  AND ((status = 'PENDING' AND substr(next_retry_at,1,19) <= :now_str) "
+        "       OR (status = 'PROCESSING' AND substr(claim_expires_at,1,19) <= :now_str)) "
+        "RETURNING id, event_identity, event_type, event_schema_version, "
+        "          aggregate_type, aggregate_id, actor, correlation_id, occurred_at, "
+        "          payload, payload_hash, attempt_count, "
+        "          request_id, identity_id, attempt_id, "
+        "          calculation_run_id, source_binding_id"
+    )
 
     claimed: list[ClaimedOutboxEvent] = []
-    for row in rows:
-        per_row_token = _generate_claim_token()
-        # UPDATE each row with its own unique claim_token
-        update_sql = text(
-            "UPDATE orchestration_audit_outbox "
-            "SET status = 'PROCESSING', "
-            "claimed_at = :now_str, "
-            "claimed_by = :worker_id, "
-            "claim_token = :per_row_token, "
-            "claim_expires_at = :expires_str, "
-            "attempt_count = attempt_count + 1 "
-            "WHERE id = :row_id"
-        )
-        conn.execute(
-            update_sql,
-            {
-                "now_str": now_str,
-                "worker_id": worker_id,
-                "per_row_token": per_row_token,
-                "expires_str": expires_str,
-                "row_id": row[0],
-            },
-        )
-        claimed.append(
-            ClaimedOutboxEvent(
-                outbox_row_id=row[0],
-                event_identity=row[1],
-                event_type=row[2],
-                event_schema_version=row[3],
-                aggregate_type=row[4],
-                aggregate_id=row[5],
-                actor=row[6],
-                correlation_id=row[7],
-                occurred_at=row[8],
-                payload=row[9],
-                payload_hash=row[10],
-                attempt_count=row[11] + 1,
-                claim_token=per_row_token,
-                claim_expires_at=expires_at,
-                request_id=row[12],
-                identity_id=row[13],
-                attempt_id=row[14],
-                calculation_run_id=row[15],
-                source_binding_id=row[16],
-            )
-        )
-    session.flush()
+    # Independent connection: SQLite serializes writers, so BEGIN IMMEDIATE
+    # gives us an exclusive write lock for the duration of the claim txn.
+    with engine.connect() as conn:
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
+        try:
+            id_rows = conn.execute(
+                select_ids_sql, {"now_str": now_str, "batch_size": batch_size}
+            ).fetchall()
+
+            for (row_id,) in id_rows:
+                per_row_token = _generate_claim_token()
+                returning = conn.execute(
+                    update_returning_sql,
+                    {
+                        "now_str": now_str,
+                        "worker_id": worker_id,
+                        "per_row_token": per_row_token,
+                        "expires_str": expires_str,
+                        "row_id": row_id,
+                    },
+                ).fetchone()
+                if returning is None:
+                    # Lost the race for this row — skip without raising.
+                    continue
+                claimed.append(
+                    ClaimedOutboxEvent(
+                        outbox_row_id=returning[0],
+                        event_identity=returning[1],
+                        event_type=returning[2],
+                        event_schema_version=returning[3],
+                        aggregate_type=returning[4],
+                        aggregate_id=returning[5],
+                        actor=returning[6],
+                        correlation_id=returning[7],
+                        occurred_at=returning[8],
+                        payload=returning[9],
+                        payload_hash=returning[10],
+                        attempt_count=returning[11],
+                        claim_token=per_row_token,
+                        claim_expires_at=expires_at,
+                        request_id=returning[12],
+                        identity_id=returning[13],
+                        attempt_id=returning[14],
+                        calculation_run_id=returning[15],
+                        source_binding_id=returning[16],
+                    )
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
     return claimed
 
 
@@ -307,25 +331,28 @@ def materialize_event(
     if actual_hash != db_row.payload_hash:
         raise OutboxPayloadIntegrityError(db_row.id, db_row.payload_hash, actual_hash)
 
-    # 3b. Verify envelope hash integrity (skip for legacy rows with empty hash)
-    if db_row.envelope_hash:
-        actual_envelope_hash = compute_envelope_hash(
-            event_schema_version=db_row.event_schema_version,
-            event_type=db_row.event_type,
-            aggregate_type=db_row.aggregate_type,
-            aggregate_id=db_row.aggregate_id,
-            actor=db_row.actor,
-            correlation_id=db_row.correlation_id,
-            occurred_at=db_row.occurred_at,
-            request_id=db_row.request_id,
-            identity_id=db_row.identity_id,
-            attempt_id=db_row.attempt_id,
-            calculation_run_id=db_row.calculation_run_id,
-            source_binding_id=db_row.source_binding_id,
-            payload=db_row.payload,
-        )
-        if actual_envelope_hash != db_row.envelope_hash:
-            raise OutboxPayloadIntegrityError(db_row.id, db_row.envelope_hash, actual_envelope_hash)
+    # 3b. Fail closed on empty envelope_hash (no legacy skip)
+    if not db_row.envelope_hash:
+        raise OutboxPayloadIntegrityError(db_row.id, db_row.envelope_hash or "", "")
+    # 3c. Verify envelope hash integrity against the full frozen envelope
+    actual_envelope_hash = compute_envelope_hash(
+        event_identity=db_row.event_identity,
+        event_schema_version=db_row.event_schema_version,
+        event_type=db_row.event_type,
+        aggregate_type=db_row.aggregate_type,
+        aggregate_id=db_row.aggregate_id,
+        actor=db_row.actor,
+        correlation_id=db_row.correlation_id,
+        occurred_at=db_row.occurred_at,
+        request_id=db_row.request_id,
+        identity_id=db_row.identity_id,
+        attempt_id=db_row.attempt_id,
+        calculation_run_id=db_row.calculation_run_id,
+        source_binding_id=db_row.source_binding_id,
+        payload=db_row.payload,
+    )
+    if actual_envelope_hash != db_row.envelope_hash:
+        raise OutboxPayloadIntegrityError(db_row.id, db_row.envelope_hash, actual_envelope_hash)
 
     # 4. Build AuditEventRecord from the frozen DB row (NOT claimed DTO)
     audit_event = AuditEventRecord(
@@ -348,6 +375,7 @@ def materialize_event(
             "request_id": db_row.request_id,
             "identity_id": db_row.identity_id,
             "attempt_id": db_row.attempt_id,
+            "calculation_run_id": db_row.calculation_run_id,
             "source_binding_id": db_row.source_binding_id,
         },
         created_at=now,
@@ -514,7 +542,9 @@ def _is_outbox_event_id_conflict(exc: Exception) -> bool:
 
     P0-9: Exact match — no substring matching or error text fallback.
     - PG: SQLSTATE == '23505' AND constraint_name == 'audit_events_outbox_event_id_key'
-    - SQLite: extended error code == 2067 (SQLITE_CONSTRAINT_UNIQUE) AND table/column check
+    - SQLite: extended error code == 2067 (SQLITE_CONSTRAINT_UNIQUE) AND the
+      failed column set must equal exactly {audit_events.outbox_event_id}.
+      Other UNIQUE / composite / FK / CHECK / NOT NULL must propagate.
     """
     orig = getattr(exc, "orig", None)
     if orig is None:
@@ -529,25 +559,26 @@ def _is_outbox_event_id_conflict(exc: Exception) -> bool:
             constraint_name = getattr(diag, "constraint_name", None)
         if constraint_name is None:
             constraint_name = getattr(orig, "constraint_name", None)
-        if constraint_name == "uq_audit_event_outbox":
-            return True
         return constraint_name == "audit_events_outbox_event_id_key"
 
     # ── SQLite ──────────────────────────────────────────────────────────
     sqlite_errcode = getattr(orig, "sqlite_errorcode", None)
     if sqlite_errcode is not None:
-        _SQLITE_CONSTRAINT_UNIQUE = 2067
-        if sqlite_errcode == _SQLITE_CONSTRAINT_UNIQUE:
-            # Parse the error message to verify it's about audit_events.outbox_event_id
+        if sqlite_errcode == 2067:  # SQLITE_CONSTRAINT_UNIQUE
+            # Parse the error message and require the *exact* failed column set
             orig_str = str(orig)
-            if "UNIQUE constraint failed" in orig_str:
-                detail = orig_str.split(":", 1)[-1].strip() if ":" in orig_str else ""
-                entries = [e.strip() for e in detail.split(",")]
-                for entry in entries:
-                    if "." in entry:
-                        tbl, col = entry.rsplit(".", 1)
-                        if tbl == "audit_events" and col == "outbox_event_id":
-                            return True
+            if "UNIQUE constraint failed:" not in orig_str:
+                return False
+            detail = orig_str.split("UNIQUE constraint failed:", 1)[-1].strip()
+            entries = [e.strip() for e in detail.split(",") if e.strip()]
+            parsed: set[tuple[str, str]] = set()
+            for entry in entries:
+                if "." not in entry:
+                    return False
+                tbl, col = entry.rsplit(".", 1)
+                parsed.add((tbl.strip(), col.strip()))
+            # Exact column-set match required
+            return parsed == {("audit_events", "outbox_event_id")}
         return False
 
     return False
