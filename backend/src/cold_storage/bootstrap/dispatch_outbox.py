@@ -68,6 +68,7 @@ def main() -> int:
     failed = 0
     skipped = 0
     lost_claims = 0
+    unhandled_failures = 0
 
     is_pg = "postgresql" in database_url.lower()
 
@@ -100,7 +101,6 @@ def main() -> int:
 
     # Materialize each claimed event in its own short transaction
     for event in events:
-        materialized = False
         sess = factory()
         try:
             try:
@@ -113,7 +113,6 @@ def main() -> int:
                 )
                 sess.commit()
                 published += 1
-                materialized = True
             except OutboxClaimLostError:
                 lost_claims += 1
             except (
@@ -148,10 +147,9 @@ def main() -> int:
                     retried += 1
                 except Exception:
                     sess.rollback()
-                    retried += 1
+                    unhandled_failures += 1
         finally:
-            if not materialized:
-                sess.close()
+            sess.close()
 
     summary = {
         "claimed": claimed,
@@ -160,11 +158,15 @@ def main() -> int:
         "failed": failed,
         "skipped": skipped,
         "lost_claims": lost_claims,
+        "unhandled_failures": unhandled_failures,
     }
     print(json.dumps(summary, indent=2))
 
-    # Exit 0 if no unhandled failures
-    return 0 if failed == 0 else 1
+    # Exit 0 only if no terminal failures, no unhandled failures,
+    # and no failure-persistence errors
+    if failed > 0 or unhandled_failures > 0:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
