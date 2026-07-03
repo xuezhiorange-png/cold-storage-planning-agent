@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -42,10 +41,12 @@ def _strict_json_default(obj: Any) -> Any:
 
 
 def _check_nan_inf(obj: Any) -> None:
-    """Raise ValueError if the object contains NaN or Infinity floats."""
+    """Raise ValueError if the object contains any binary float.
+
+    Audit envelopes must use Decimal for numeric values.
+    """
     if isinstance(obj, float):
-        if math.isnan(obj) or math.isinf(obj):
-            raise ValueError(f"Binary float {obj!r} is not allowed in canonical JSON")
+        raise ValueError(f"Binary float {obj!r} is not allowed in canonical JSON")
     elif isinstance(obj, dict):
         for v in obj.values():
             _check_nan_inf(v)
@@ -101,7 +102,9 @@ def compute_envelope_hash(
         "actor": actor,
         "correlation_id": correlation_id,
         "occurred_at": (
-            occurred_at.isoformat() if isinstance(occurred_at, datetime) else occurred_at
+            ensure_utc_aware(occurred_at).isoformat()
+            if isinstance(occurred_at, datetime)
+            else occurred_at
         ),
         "request_id": request_id,
         "identity_id": identity_id,

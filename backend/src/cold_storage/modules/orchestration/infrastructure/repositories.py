@@ -1232,6 +1232,7 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
                 occurred_at=effective_occurred_at,
                 payload=payload,
                 payload_hash=payload_hash,
+                envelope_hash=envelope_hash,
                 request_id=request_id,
                 identity_id=identity_id,
                 attempt_id=attempt_id,
@@ -1289,6 +1290,19 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
             return existing.id
 
 
+def _normalize_occurred_at_for_compare(val: object) -> object:
+    """Normalize occurred_at to naive UTC ISO string for cross-dialect comparison.
+
+    SQLite stores naive datetimes; PG stores aware. This ensures both
+    compare identically by normalizing to naive UTC ISO string.
+    """
+    if isinstance(val, datetime):
+        from cold_storage.modules.orchestration.application.outbox_identity import ensure_utc_aware
+
+        return ensure_utc_aware(val).replace(tzinfo=None).isoformat()
+    return val
+
+
 def _compare_outbox_envelopes(
     *,
     existing: Any,
@@ -1320,7 +1334,11 @@ def _compare_outbox_envelopes(
         ("aggregate_id", existing.aggregate_id, new_aggregate_id),
         ("actor", existing.actor, new_actor),
         ("correlation_id", existing.correlation_id, new_correlation_id),
-        ("occurred_at", existing.occurred_at, new_occurred_at),
+        (
+            "occurred_at",
+            _normalize_occurred_at_for_compare(existing.occurred_at),
+            _normalize_occurred_at_for_compare(new_occurred_at),
+        ),
         ("payload", existing.payload, new_payload),
         ("payload_hash", existing.payload_hash, new_payload_hash),
         ("envelope_hash", getattr(existing, "envelope_hash", None), new_envelope_hash),
