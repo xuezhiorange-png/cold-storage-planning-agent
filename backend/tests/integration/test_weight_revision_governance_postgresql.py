@@ -771,26 +771,24 @@ class TestPGPassthrough:
 
         sess = pg_session_factory()
         try:
-            sess.execute(
-                text(
-                    "INSERT INTO scheme_weight_set_revisions"
-                    " (id, weight_set_id, code, revision, status,"
-                    " content, content_hash,"
-                    " generator_compatibility_version)"
-                    " VALUES (:id, :ws, :code, :rev, 'draft',"
-                    " '{}', 'dummy', '1.0.0')"
-                ),
-                {
-                    "id": "rev-fk-fail",
-                    "ws": "nonexistent-ws-fk",
-                    "code": "fk-test",
-                    "rev": 1,
-                },
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeWeightSetRevisionRecord,
             )
+
+            rev = SchemeWeightSetRevisionRecord(
+                id="rev-fk-fail",
+                weight_set_id="nonexistent-ws-fk",
+                code="fk-test",
+                revision=1,
+                status="draft",
+                content={},
+                content_hash="dummy",
+                generator_compatibility_version="1.0.0",
+            )
+            sess.add(rev)
             with pytest.raises((sa_exc.IntegrityError, sa_exc.InternalError)) as exc_info:
                 sess.flush()
 
-            # Must NOT be WeightRevisionGovernanceError
             from cold_storage.modules.schemes.application.weight_revision_governance import (
                 WeightRevisionGovernanceError,
             )
@@ -805,22 +803,22 @@ class TestPGPassthrough:
 
         sess = pg_session_factory()
         try:
+            from cold_storage.modules.schemes.infrastructure.orm import (
+                SchemeWeightSetRevisionRecord,
+            )
+
+            rev = SchemeWeightSetRevisionRecord(
+                id="rev-nn-fail",
+                weight_set_id=None,
+                code="nn-test",
+                revision=1,
+                status="draft",
+                content={},
+                content_hash="dummy",
+                generator_compatibility_version="1.0.0",
+            )
+            sess.add(rev)
             with pytest.raises((sa_exc.IntegrityError, sa_exc.InternalError)):
-                sess.execute(
-                    text(
-                        "INSERT INTO scheme_weight_set_revisions"
-                        " (id, code, revision, status,"
-                        " content, content_hash,"
-                        " generator_compatibility_version)"
-                        " VALUES (:id, :code, :rev, 'draft',"
-                        " '{}', 'dummy', '1.0.0')"
-                    ),
-                    {
-                        "id": "rev-nn-fail",
-                        "code": "nn-test",
-                        "rev": 1,
-                    },
-                )
                 sess.flush()
         finally:
             sess.close()
