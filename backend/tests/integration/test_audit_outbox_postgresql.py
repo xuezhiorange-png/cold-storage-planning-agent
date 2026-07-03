@@ -694,9 +694,6 @@ class TestPGOutboxLifecycle:
         finally:
             conn.rollback()
             conn.close()
-                    ),
-                    {"eid": event_identity},
-                )
 
     def test_sequential_duplicate_delivery(self, pg_outbox_engine):
         """Two sequential materialize_event calls → only one AuditEvent."""
