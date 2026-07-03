@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from sqlalchemy import exc as sa_exc
 from sqlalchemy import select, text, update
+from sqlalchemy.engine import Engine
 
 from cold_storage.modules.orchestration.application.outbox_dispatcher_port import (
     ClaimedOutboxEvent,
@@ -22,6 +23,7 @@ from cold_storage.modules.orchestration.application.outbox_errors import (
     OutboxPayloadIntegrityError,
 )
 from cold_storage.modules.orchestration.application.outbox_identity import (
+    compute_envelope_hash,
     compute_payload_hash,
     ensure_utc_aware,
 )
@@ -37,6 +39,26 @@ from cold_storage.modules.projects.infrastructure.orm import AuditEventRecord
 
 def _generate_claim_token() -> str:
     return str(uuid4())
+
+
+def _is_sqlite_engine(engine: Engine) -> bool:
+    """Return True if *engine* is a SQLite dialect."""
+    return engine.dialect.name == "sqlite"
+
+
+def _compare_now_for_dialect(session: Any, now: datetime) -> datetime:
+    """Return *now* in a form suitable for SQL WHERE lease comparisons.
+
+    SQLite stores naive datetimes, so strip tzinfo for SQLite.
+    PostgreSQL stores aware datetimes, so keep tzinfo.
+    """
+    try:
+        bind = session.get_bind()
+        if _is_sqlite_engine(bind) and now.tzinfo is not None:
+            return now.replace(tzinfo=None)
+    except Exception:
+        pass
+    return now
 
 
 # ── Dialect-aware claim ────────────────────────────────────────────────────
@@ -120,7 +142,7 @@ def claim_events_sqlite(
     lease_seconds: float,
     now: datetime,
 ) -> list[ClaimedOutboxEvent]:
-    """SQLite claim using raw SQL with BEGIN IMMEDIATE for atomicity.
+    """SQLite claim using raw SQL for atomicity.
 
     Uses ``text()`` for both SELECT and UPDATE in one atomic operation
     with per-row claim tokens for safe concurrent processing.
@@ -134,7 +156,6 @@ def claim_events_sqlite(
     expires_at = now_naive + timedelta(seconds=lease_seconds)
     expires_str = expires_at.strftime("%Y-%m-%d %H:%M:%S")
 
-    # BEGIN IMMEDIATE ensures exclusive write lock for atomicity
     conn = session.connection()
 
     # Step 1: SELECT eligible rows under IMMEDIATE transaction
@@ -216,7 +237,8 @@ def validate_claim(
     """Validate that a claim is still active.
 
     Raises OutboxClaimLostError if the claim has been superseded.
-    Normalizes ``now`` to naive for SQLite compatibility.
+    Uses dialect-aware comparison: SQLite stores naive datetimes,
+    PostgreSQL stores aware datetimes.
     """
     now = ensure_utc_aware(now)
     row = session.execute(
@@ -232,7 +254,7 @@ def validate_claim(
     if row.claimed_by != worker_id or row.claim_token != claim_token:
         raise OutboxClaimLostError(event_id, worker_id, claim_token)
 
-    now_compare = now.replace(tzinfo=None) if now.tzinfo is not None else now
+    now_compare = _compare_now_for_dialect(session, now)
     if row.claim_expires_at is not None and row.claim_expires_at <= now_compare:
         raise OutboxClaimLostError(event_id, worker_id, claim_token)
 
@@ -285,6 +307,26 @@ def materialize_event(
     if actual_hash != db_row.payload_hash:
         raise OutboxPayloadIntegrityError(db_row.id, db_row.payload_hash, actual_hash)
 
+    # 3b. Verify envelope hash integrity (skip for legacy rows with empty hash)
+    if db_row.envelope_hash:
+        actual_envelope_hash = compute_envelope_hash(
+            event_schema_version=db_row.event_schema_version,
+            event_type=db_row.event_type,
+            aggregate_type=db_row.aggregate_type,
+            aggregate_id=db_row.aggregate_id,
+            actor=db_row.actor,
+            correlation_id=db_row.correlation_id,
+            occurred_at=db_row.occurred_at,
+            request_id=db_row.request_id,
+            identity_id=db_row.identity_id,
+            attempt_id=db_row.attempt_id,
+            calculation_run_id=db_row.calculation_run_id,
+            source_binding_id=db_row.source_binding_id,
+            payload=db_row.payload,
+        )
+        if actual_envelope_hash != db_row.envelope_hash:
+            raise OutboxPayloadIntegrityError(db_row.id, db_row.envelope_hash, actual_envelope_hash)
+
     # 4. Build AuditEventRecord from the frozen DB row (NOT claimed DTO)
     audit_event = AuditEventRecord(
         id=str(uuid4()),
@@ -298,8 +340,11 @@ def materialize_event(
             "event_identity": db_row.event_identity,
             "event_schema_version": db_row.event_schema_version,
             "correlation_id": db_row.correlation_id,
-            "occurred_at": db_row.occurred_at.isoformat() if db_row.occurred_at else None,
+            "occurred_at": (
+                ensure_utc_aware(db_row.occurred_at).isoformat() if db_row.occurred_at else None
+            ),
             "payload_hash": db_row.payload_hash,
+            "envelope_hash": db_row.envelope_hash,
             "request_id": db_row.request_id,
             "identity_id": db_row.identity_id,
             "attempt_id": db_row.attempt_id,
@@ -336,7 +381,7 @@ def materialize_event(
 
     # 6. P0-8: Mark outbox PUBLISHED (CAS: must still be PROCESSING with correct token)
     # P0-4: Added claim_expires_at > now for lease boundary check
-    now_compare = now.replace(tzinfo=None) if now.tzinfo is not None else now
+    now_compare = _compare_now_for_dialect(session, now)
     result = session.execute(
         update(AuditOutboxRecord)
         .where(
@@ -393,9 +438,7 @@ def mark_retryable_failure(
             now=current_time,
         )
 
-    now_compare = (
-        current_time.replace(tzinfo=None) if current_time.tzinfo is not None else current_time
-    )
+    now_compare = _compare_now_for_dialect(session, current_time)
     result = session.execute(
         update(AuditOutboxRecord)
         .where(
@@ -435,9 +478,7 @@ def mark_terminal_failure(
     """Move a claimed event to the FAILED terminal state."""
     current_time = ensure_utc_aware(now or datetime.now(UTC))
 
-    now_compare = (
-        current_time.replace(tzinfo=None) if current_time.tzinfo is not None else current_time
-    )
+    now_compare = _compare_now_for_dialect(session, current_time)
     result = session.execute(
         update(AuditOutboxRecord)
         .where(
@@ -507,10 +548,6 @@ def _is_outbox_event_id_conflict(exc: Exception) -> bool:
                         tbl, col = entry.rsplit(".", 1)
                         if tbl == "audit_events" and col == "outbox_event_id":
                             return True
-            # Last resort: accept if both table and column are mentioned
-            # when diag info is unavailable
-            if "audit_events" in orig_str and "outbox_event_id" in orig_str:
-                return True
         return False
 
     return False
