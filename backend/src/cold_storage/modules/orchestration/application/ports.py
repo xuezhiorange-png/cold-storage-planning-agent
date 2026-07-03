@@ -160,6 +160,16 @@ class OrchestrationRequestRepository(ABC):
         """Return the current status string for a request, or None if not found."""
         ...
 
+    @abstractmethod
+    def get_envelope(
+        self,
+        session: Any,
+        /,
+        request_id: str,
+    ) -> tuple[str, str] | None:
+        """Return ``(actor, correlation_id)`` for the durable request, or None."""
+        ...
+
 
 class ExecutionSnapshotRepository(ABC):
     """Read/write ``ProjectVersionExecutionSnapshotRecord`` rows."""

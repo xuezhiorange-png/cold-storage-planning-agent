@@ -335,6 +335,29 @@ class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
         ).scalar_one_or_none()
         return row
 
+    def get_envelope(
+        self,
+        session: Session,
+        /,
+        request_id: str,
+    ) -> tuple[str, str] | None:
+        """Return (actor, correlation_id) for the durable request."""
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRequestRecord,
+        )
+
+        row = session.execute(
+            select(
+                OrchestrationRequestRecord.actor,
+                OrchestrationRequestRecord.correlation_id,
+            ).where(OrchestrationRequestRecord.id == request_id)
+        ).first()
+        if row is None:
+            return None
+        return (row[0], row[1])
+
 
 # ── Execution Snapshot ──────────────────────────────────────────────────────
 
@@ -1211,6 +1234,7 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
             calculation_run_id=calculation_run_id,
             source_binding_id=source_binding_id,
             payload=payload,
+            event_identity=event_identity,
         )
 
         from sqlalchemy import select

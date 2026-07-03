@@ -92,8 +92,14 @@ def compute_envelope_hash(
     calculation_run_id: str | None = None,
     source_binding_id: str | None = None,
     payload: dict[str, object],
+    event_identity: str | None = None,
 ) -> str:
-    """SHA-256 hex of the canonical JSON of the full frozen envelope."""
+    """SHA-256 hex of the canonical JSON of the full frozen envelope.
+
+    All nested datetimes inside ``payload`` are normalized to UTC ISO-8601
+    via ``_canonical_payload_datetime`` before hashing. ``event_identity`` is
+    included when known so the envelope is fully self-describing.
+    """
     envelope = {
         "event_schema_version": event_schema_version,
         "event_type": event_type,
@@ -106,14 +112,26 @@ def compute_envelope_hash(
             if isinstance(occurred_at, datetime)
             else occurred_at
         ),
+        "event_identity": event_identity,
         "request_id": request_id,
         "identity_id": identity_id,
         "attempt_id": attempt_id,
         "calculation_run_id": calculation_run_id,
         "source_binding_id": source_binding_id,
-        "payload": payload,
+        "payload": _canonical_payload_datetime(payload),
     }
     return hashlib.sha256(canonical_json(envelope).encode("utf-8")).hexdigest()
+
+
+def _canonical_payload_datetime(obj: Any) -> Any:
+    """Recursively normalize datetimes inside payload to UTC ISO-8601 strings."""
+    if isinstance(obj, datetime):
+        return ensure_utc_aware(obj).isoformat()
+    if isinstance(obj, dict):
+        return {k: _canonical_payload_datetime(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_canonical_payload_datetime(v) for v in obj]
+    return obj
 
 
 _EVENT_SCHEMA_VERSION = "1.0"

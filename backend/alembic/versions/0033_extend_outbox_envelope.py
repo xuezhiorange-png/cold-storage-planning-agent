@@ -17,6 +17,7 @@ SQLite: adds triggers for immutability and PUBLISHED-requires-AuditEvent.
 """
 
 from collections.abc import Sequence
+import hashlib
 
 import sqlalchemy as sa
 
@@ -37,16 +38,22 @@ BEGIN
   IF OLD.status = 'FAILED' THEN
     RAISE EXCEPTION 'Cannot modify failed outbox event %', OLD.id;
   END IF;
-  IF NEW.event_identity != OLD.event_identity
-     OR NEW.event_type != OLD.event_type
-     OR NEW.event_schema_version != OLD.event_schema_version
-     OR NEW.aggregate_type != OLD.aggregate_type
-     OR NEW.aggregate_id != OLD.aggregate_id
-     OR NEW.actor != OLD.actor
-     OR NEW.correlation_id != OLD.correlation_id
-     OR NEW.occurred_at != OLD.occurred_at
-     OR NEW.payload::text != OLD.payload::text
-     OR NEW.payload_hash != OLD.payload_hash THEN
+  IF NEW.event_identity IS DISTINCT FROM OLD.event_identity
+     OR NEW.event_type IS DISTINCT FROM OLD.event_type
+     OR NEW.event_schema_version IS DISTINCT FROM OLD.event_schema_version
+     OR NEW.aggregate_type IS DISTINCT FROM OLD.aggregate_type
+     OR NEW.aggregate_id IS DISTINCT FROM OLD.aggregate_id
+     OR NEW.actor IS DISTINCT FROM OLD.actor
+     OR NEW.correlation_id IS DISTINCT FROM OLD.correlation_id
+     OR NEW.occurred_at IS DISTINCT FROM OLD.occurred_at
+     OR NEW.payload::text IS DISTINCT FROM OLD.payload::text
+     OR NEW.payload_hash IS DISTINCT FROM OLD.payload_hash
+     OR NEW.envelope_hash IS DISTINCT FROM OLD.envelope_hash
+     OR NEW.request_id IS DISTINCT FROM OLD.request_id
+     OR NEW.identity_id IS DISTINCT FROM OLD.identity_id
+     OR NEW.attempt_id IS DISTINCT FROM OLD.attempt_id
+     OR NEW.calculation_run_id IS DISTINCT FROM OLD.calculation_run_id
+     OR NEW.source_binding_id IS DISTINCT FROM OLD.source_binding_id THEN
     RAISE EXCEPTION
       'Cannot modify immutable audit envelope fields on outbox event %',
       OLD.id;
@@ -76,7 +83,8 @@ _IMMUTABLE_AUDIT_EVENT_IDENTITY_FN = """\
 CREATE OR REPLACE FUNCTION trg_immutable_audit_event_identity()
 RETURNS trigger AS $$
 BEGIN
-  IF OLD.outbox_event_id IS NOT NULL AND NEW.outbox_event_id IS DISTINCT FROM OLD.outbox_event_id THEN
+  IF OLD.outbox_event_id IS NOT NULL
+     AND NEW.outbox_event_id IS DISTINCT FROM OLD.outbox_event_id THEN
     RAISE EXCEPTION 'Cannot modify audit event outbox_event_id %', OLD.id;
   END IF;
   RETURN NEW;
@@ -191,6 +199,24 @@ def _pg_upgrade() -> None:
         "FOR EACH ROW EXECUTE FUNCTION trg_immutable_outbox_envelope()"
     )
 
+    # 4b. Drop server defaults on audit fields — production code must supply
+    # explicit values; missing audit fields must fail closed.
+    for col in [
+        "actor",
+        "correlation_id",
+        "payload_hash",
+        "envelope_hash",
+        "event_schema_version",
+    ]:
+        op.execute(
+            f"ALTER TABLE orchestration_audit_outbox "
+            f"ALTER COLUMN {col} DROP DEFAULT"
+        )
+    op.execute(
+        "ALTER TABLE orchestration_audit_outbox "
+        "ALTER COLUMN occurred_at DROP DEFAULT"
+    )
+
     # 5. Published requires AuditEvent
     op.execute(_PUB_REQUIRES_AUDITEVENT_FN)
     op.execute(
@@ -215,16 +241,24 @@ def _pg_upgrade() -> None:
 
 
 def _pg_backfill_envelopes() -> None:
-    """Backfill legacy outbox rows with real envelope hashes via Python-side computation."""
-    import hashlib
-    import json
-    from datetime import datetime
+    """Backfill legacy outbox rows with real envelope hashes via Python-side computation.
+
+    Reads the real association fields (request_id, identity_id, attempt_id,
+    calculation_run_id, source_binding_id) when present so the hash matches
+    what ``compute_envelope_hash`` would produce for production events.
+    """
+    from cold_storage.modules.orchestration.application.outbox_identity import (
+        canonical_json,
+        compute_envelope_hash,
+    )
 
     bind = op.get_bind()
     result = bind.execute(
         sa.text(
-            "SELECT id, event_type, event_schema_version, aggregate_type, aggregate_id, "
-            "actor, correlation_id, occurred_at, payload, payload_hash "
+            "SELECT id, event_identity, event_type, event_schema_version, "
+            "aggregate_type, aggregate_id, actor, correlation_id, occurred_at, "
+            "payload, payload_hash, request_id, identity_id, attempt_id, "
+            "calculation_run_id, source_binding_id "
             "FROM orchestration_audit_outbox WHERE actor = ''"
         )
     )
@@ -232,6 +266,7 @@ def _pg_backfill_envelopes() -> None:
     for row in rows:
         (
             row_id,
+            event_identity,
             event_type,
             event_schema_version,
             aggregate_type,
@@ -241,38 +276,33 @@ def _pg_backfill_envelopes() -> None:
             occurred_at,
             payload,
             payload_hash,
+            request_id,
+            identity_id,
+            attempt_id,
+            calculation_run_id,
+            source_binding_id,
         ) = row
 
         # Compute real payload hash from the stored payload
-        payload_str = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        payload_str = canonical_json(payload)
         real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
-        # Compute envelope hash
-        occurred_at_iso = None
-        if occurred_at is not None:
-            if isinstance(occurred_at, datetime):
-                occurred_at_iso = occurred_at.isoformat()
-            else:
-                occurred_at_iso = str(occurred_at)
-
-        envelope = {
-            "event_schema_version": event_schema_version or "1.0",
-            "event_type": event_type,
-            "aggregate_type": aggregate_type,
-            "aggregate_id": aggregate_id,
-            "actor": "legacy-system",
-            "correlation_id": f"legacy:{row_id}",
-            "occurred_at": occurred_at_iso,
-            "request_id": None,
-            "identity_id": None,
-            "attempt_id": None,
-            "calculation_run_id": None,
-            "source_binding_id": None,
-            "payload": payload,
-        }
-        envelope_hash = hashlib.sha256(
-            json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ).hexdigest()
+        envelope_hash = compute_envelope_hash(
+            event_schema_version=event_schema_version or "1.0",
+            event_type=event_type,
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+            actor="legacy-system",
+            correlation_id=f"legacy:{row_id}",
+            occurred_at=occurred_at,
+            request_id=request_id,
+            identity_id=identity_id,
+            attempt_id=attempt_id,
+            calculation_run_id=calculation_run_id,
+            source_binding_id=source_binding_id,
+            payload=payload if isinstance(payload, dict) else {},
+            event_identity=event_identity,
+        )
 
         bind.execute(
             sa.text(
@@ -403,6 +433,49 @@ def _sqlite_upgrade() -> None:
     # Backfill meaningful legacy values with real envelope hashes
     _sqlite_backfill_envelopes()
 
+    # SQLite has no ALTER COLUMN DROP DEFAULT — recreate the table without
+    # server defaults so production INSERTs must supply audit fields explicitly.
+    with op.batch_alter_table(
+        "orchestration_audit_outbox",
+        recreate="always",
+    ) as batch_op:
+        batch_op.alter_column(
+            "event_schema_version",
+            server_default=None,
+            existing_type=sa.String(50),
+            existing_nullable=False,
+        )
+        batch_op.alter_column(
+            "actor",
+            server_default=None,
+            existing_type=sa.String(100),
+            existing_nullable=False,
+        )
+        batch_op.alter_column(
+            "correlation_id",
+            server_default=None,
+            existing_type=sa.String(128),
+            existing_nullable=False,
+        )
+        batch_op.alter_column(
+            "occurred_at",
+            server_default=None,
+            existing_type=sa.DateTime(timezone=True),
+            existing_nullable=False,
+        )
+        batch_op.alter_column(
+            "payload_hash",
+            server_default=None,
+            existing_type=sa.String(128),
+            existing_nullable=False,
+        )
+        batch_op.alter_column(
+            "envelope_hash",
+            server_default=None,
+            existing_type=sa.String(128),
+            existing_nullable=False,
+        )
+
     # ── SQLite triggers ───────────────────────────────────────────────
 
     # 1. trg_immutable_outbox_envelope: BEFORE UPDATE, check envelope immutability
@@ -413,16 +486,22 @@ def _sqlite_upgrade() -> None:
         "FOR EACH ROW "
         "WHEN "
         "  OLD.status = 'PUBLISHED' OR OLD.status = 'FAILED' "
-        "  OR NEW.event_identity != OLD.event_identity "
-        "  OR NEW.event_type != OLD.event_type "
-        "  OR NEW.event_schema_version != OLD.event_schema_version "
-        "  OR NEW.aggregate_type != OLD.aggregate_type "
-        "  OR NEW.aggregate_id != OLD.aggregate_id "
-        "  OR NEW.actor != OLD.actor "
-        "  OR NEW.correlation_id != OLD.correlation_id "
-        "  OR NEW.occurred_at != OLD.occurred_at "
+        "  OR NEW.event_identity IS NOT OLD.event_identity "
+        "  OR NEW.event_type IS NOT OLD.event_type "
+        "  OR NEW.event_schema_version IS NOT OLD.event_schema_version "
+        "  OR NEW.aggregate_type IS NOT OLD.aggregate_type "
+        "  OR NEW.aggregate_id IS NOT OLD.aggregate_id "
+        "  OR NEW.actor IS NOT OLD.actor "
+        "  OR NEW.correlation_id IS NOT OLD.correlation_id "
+        "  OR NEW.occurred_at IS NOT OLD.occurred_at "
         "  OR NEW.payload IS NOT OLD.payload "
-        "  OR NEW.payload_hash != OLD.payload_hash "
+        "  OR NEW.payload_hash IS NOT OLD.payload_hash "
+        "  OR NEW.envelope_hash IS NOT OLD.envelope_hash "
+        "  OR NEW.request_id IS NOT OLD.request_id "
+        "  OR NEW.identity_id IS NOT OLD.identity_id "
+        "  OR NEW.attempt_id IS NOT OLD.attempt_id "
+        "  OR NEW.calculation_run_id IS NOT OLD.calculation_run_id "
+        "  OR NEW.source_binding_id IS NOT OLD.source_binding_id "
         "BEGIN "
         "  SELECT RAISE(ABORT, 'Cannot modify immutable audit envelope fields on outbox event'); "
         "END"
@@ -455,16 +534,24 @@ def _sqlite_upgrade() -> None:
 
 
 def _sqlite_backfill_envelopes() -> None:
-    """Backfill legacy SQLite outbox rows with real envelope hashes."""
-    import hashlib
-    import json
-    from datetime import datetime
+    """Backfill legacy SQLite outbox rows with real envelope hashes.
+
+    Reads the real association fields (request_id, identity_id, attempt_id,
+    calculation_run_id, source_binding_id) when present so the hash matches
+    what ``compute_envelope_hash`` would produce for production events.
+    """
+    from cold_storage.modules.orchestration.application.outbox_identity import (
+        canonical_json,
+        compute_envelope_hash,
+    )
 
     bind = op.get_bind()
     result = bind.execute(
         sa.text(
-            "SELECT id, event_type, event_schema_version, aggregate_type, aggregate_id, "
-            "actor, correlation_id, occurred_at, payload, payload_hash "
+            "SELECT id, event_identity, event_type, event_schema_version, "
+            "aggregate_type, aggregate_id, actor, correlation_id, occurred_at, "
+            "payload, payload_hash, request_id, identity_id, attempt_id, "
+            "calculation_run_id, source_binding_id "
             "FROM orchestration_audit_outbox WHERE actor = ''"
         )
     )
@@ -472,6 +559,7 @@ def _sqlite_backfill_envelopes() -> None:
     for row in rows:
         (
             row_id,
+            event_identity,
             event_type,
             event_schema_version,
             aggregate_type,
@@ -481,38 +569,33 @@ def _sqlite_backfill_envelopes() -> None:
             occurred_at,
             payload,
             payload_hash,
+            request_id,
+            identity_id,
+            attempt_id,
+            calculation_run_id,
+            source_binding_id,
         ) = row
 
         # Compute real payload hash from the stored payload
-        payload_str = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        payload_str = canonical_json(payload)
         real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
-        # Compute envelope hash
-        occurred_at_iso = None
-        if occurred_at is not None:
-            if isinstance(occurred_at, datetime):
-                occurred_at_iso = occurred_at.isoformat()
-            else:
-                occurred_at_iso = str(occurred_at)
-
-        envelope = {
-            "event_schema_version": event_schema_version or "1.0",
-            "event_type": event_type,
-            "aggregate_type": aggregate_type,
-            "aggregate_id": aggregate_id,
-            "actor": "legacy-system",
-            "correlation_id": f"legacy:{row_id}",
-            "occurred_at": occurred_at_iso,
-            "request_id": None,
-            "identity_id": None,
-            "attempt_id": None,
-            "calculation_run_id": None,
-            "source_binding_id": None,
-            "payload": payload,
-        }
-        envelope_hash = hashlib.sha256(
-            json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ).hexdigest()
+        envelope_hash = compute_envelope_hash(
+            event_schema_version=event_schema_version or "1.0",
+            event_type=event_type,
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+            actor="legacy-system",
+            correlation_id=f"legacy:{row_id}",
+            occurred_at=occurred_at,
+            request_id=request_id,
+            identity_id=identity_id,
+            attempt_id=attempt_id,
+            calculation_run_id=calculation_run_id,
+            source_binding_id=source_binding_id,
+            payload=payload if isinstance(payload, dict) else {},
+            event_identity=event_identity,
+        )
 
         bind.execute(
             sa.text(
