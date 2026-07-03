@@ -599,7 +599,10 @@ def _pg_create_authority_triggers() -> None:
     _pg_drop_authority_triggers()
 
     # BEFORE UPDATE authority check function + trigger
-    op.execute("DROP TRIGGER IF EXISTS trg_authority_check_on_approve ON scheme_weight_set_revisions")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_authority_check_on_approve"
+        " ON scheme_weight_set_revisions"
+    )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_check_on_approve")
     op.execute(
         "CREATE OR REPLACE FUNCTION"
@@ -626,7 +629,10 @@ def _pg_create_authority_triggers() -> None:
     )
 
     # Claim function + trigger
-    op.execute("DROP TRIGGER IF EXISTS trg_authority_claim_on_approve ON scheme_weight_set_revisions")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_authority_claim_on_approve"
+        " ON scheme_weight_set_revisions"
+    )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_claim_on_approve")
     op.execute(
         "CREATE OR REPLACE FUNCTION"
@@ -647,7 +653,10 @@ def _pg_create_authority_triggers() -> None:
     )
 
     # Release function + trigger
-    op.execute("DROP TRIGGER IF EXISTS trg_authority_release_on_supersede ON scheme_weight_set_revisions")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_authority_release_on_supersede"
+        " ON scheme_weight_set_revisions"
+    )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_release_on_supersede")
     op.execute(
         "CREATE OR REPLACE FUNCTION"
@@ -670,7 +679,10 @@ def _pg_create_authority_triggers() -> None:
 
     # ── Authority table validation triggers (PG) ────────────────────────
     # INSERT guard
-    op.execute("DROP TRIGGER IF EXISTS trg_authority_insert_guard ON scheme_weight_set_active_revisions")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_authority_insert_guard"
+        " ON scheme_weight_set_active_revisions"
+    )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_insert_guard")
     op.execute(
         "CREATE OR REPLACE FUNCTION"
@@ -696,7 +708,10 @@ def _pg_create_authority_triggers() -> None:
     )
 
     # UPDATE guard: reject all direct updates
-    op.execute("DROP TRIGGER IF EXISTS trg_authority_update_guard ON scheme_weight_set_active_revisions")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_authority_update_guard"
+        " ON scheme_weight_set_active_revisions"
+    )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_update_guard")
     op.execute(
         "CREATE OR REPLACE FUNCTION"
@@ -716,7 +731,10 @@ def _pg_create_authority_triggers() -> None:
     )
 
     # DELETE guard: reject if revision still approved
-    op.execute("DROP TRIGGER IF EXISTS trg_authority_delete_guard ON scheme_weight_set_active_revisions")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_authority_delete_guard"
+        " ON scheme_weight_set_active_revisions"
+    )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_delete_guard")
     op.execute(
         "CREATE OR REPLACE FUNCTION"
