@@ -179,17 +179,20 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
             values["approved_by"] = approved_by
 
         # CAS update -- database triggers handle authority lifecycle
+        # Use SAVEPOINT (begin_nested) so the transaction stays usable
+        # after an IntegrityError from the authority PK INSERT.
         from sqlalchemy import exc as sa_exc
 
         try:
-            result = session.execute(
-                update(SchemeWeightSetRevisionRecord)
-                .where(
-                    SchemeWeightSetRevisionRecord.id == revision_id,
-                    SchemeWeightSetRevisionRecord.status == current_status,
+            with session.begin_nested():
+                result = session.execute(
+                    update(SchemeWeightSetRevisionRecord)
+                    .where(
+                        SchemeWeightSetRevisionRecord.id == revision_id,
+                        SchemeWeightSetRevisionRecord.status == current_status,
+                    )
+                    .values(**values)
                 )
-                .values(**values)
-            )
         except (sa_exc.IntegrityError, sa_exc.InternalError) as exc:
             if _is_authority_unique_conflict(exc):
                 raise WeightRevisionGovernanceError(
@@ -264,24 +267,27 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
             )
 
         # CAS: only approve if currently 'draft'
-        # Database trigger handles authority claim and seal
+        # Database trigger handles authority claim and seal.
+        # Use SAVEPOINT (begin_nested) for clean recovery after
+        # authority PK IntegrityError on PostgreSQL.
         from sqlalchemy import exc as sa_exc
 
         try:
-            result = session.execute(
-                update(SchemeWeightSetRevisionRecord)
-                .where(
-                    SchemeWeightSetRevisionRecord.id == revision_id,
-                    SchemeWeightSetRevisionRecord.status == "draft",
+            with session.begin_nested():
+                result = session.execute(
+                    update(SchemeWeightSetRevisionRecord)
+                    .where(
+                        SchemeWeightSetRevisionRecord.id == revision_id,
+                        SchemeWeightSetRevisionRecord.status == "draft",
+                    )
+                    .values(
+                        status="approved",
+                        approved_at=approved_at,
+                        approved_by=approved_by,
+                        content=content,
+                        content_hash=_compute_content_hash(content),
+                    )
                 )
-                .values(
-                    status="approved",
-                    approved_at=approved_at,
-                    approved_by=approved_by,
-                    content=content,
-                    content_hash=_compute_content_hash(content),
-                )
-            )
         except (sa_exc.IntegrityError, sa_exc.InternalError) as exc:
             if _is_authority_unique_conflict(exc):
                 raise WeightRevisionGovernanceError(
