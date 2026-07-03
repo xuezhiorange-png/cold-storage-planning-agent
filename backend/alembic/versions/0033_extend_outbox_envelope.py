@@ -208,14 +208,8 @@ def _pg_upgrade() -> None:
         "envelope_hash",
         "event_schema_version",
     ]:
-        op.execute(
-            f"ALTER TABLE orchestration_audit_outbox "
-            f"ALTER COLUMN {col} DROP DEFAULT"
-        )
-    op.execute(
-        "ALTER TABLE orchestration_audit_outbox "
-        "ALTER COLUMN occurred_at DROP DEFAULT"
-    )
+        op.execute(f"ALTER TABLE orchestration_audit_outbox ALTER COLUMN {col} DROP DEFAULT")
+    op.execute("ALTER TABLE orchestration_audit_outbox ALTER COLUMN occurred_at DROP DEFAULT")
 
     # 5. Published requires AuditEvent
     op.execute(_PUB_REQUIRES_AUDITEVENT_FN)

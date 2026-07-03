@@ -131,7 +131,9 @@ def pg_outbox_engine(_pg_outbox_database_url: str):
 def _truncate_pg_outbox_tables(pg_outbox_engine):
     """TRUNCATE outbox tables before each test for isolation."""
     with pg_outbox_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE audit_events, orchestration_audit_outbox RESTART IDENTITY CASCADE"))
+        conn.execute(
+            text("TRUNCATE TABLE audit_events, orchestration_audit_outbox RESTART IDENTITY CASCADE")
+        )
     yield
 
 
@@ -481,9 +483,7 @@ class TestPGOutboxLifecycle:
         sess.close()
 
         # Asia/Tokyo aware input converts to same UTC instant
-        tokyo_now = now.astimezone(
-            __import__("datetime").timezone(timedelta(hours=9))
-        )
+        tokyo_now = now.astimezone(__import__("datetime").timezone(timedelta(hours=9)))
         sess = factory()
         claimed = claim_events_pg(
             sess,
@@ -587,8 +587,7 @@ class TestPGOutboxLifecycle:
             with pytest.raises(Exception):  # plpgsql RAISE EXCEPTION
                 conn.execute(
                     text(
-                        "UPDATE orchestration_audit_outbox "
-                        "SET actor = 'tampered' WHERE id = :rid"
+                        "UPDATE orchestration_audit_outbox SET actor = 'tampered' WHERE id = :rid"
                     ),
                     {"rid": event_id},
                 )
@@ -606,8 +605,7 @@ class TestPGOutboxLifecycle:
             with pytest.raises(Exception):
                 conn.execute(
                     text(
-                        "UPDATE orchestration_audit_outbox "
-                        "SET actor = 'tampered' WHERE id = :rid"
+                        "UPDATE orchestration_audit_outbox SET actor = 'tampered' WHERE id = :rid"
                     ),
                     {"rid": event_id},
                 )
