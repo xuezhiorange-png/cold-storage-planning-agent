@@ -552,22 +552,21 @@ class TestPGOutboxLifecycle:
         sess.close()
 
     def test_fk_violation_passthrough(self, pg_outbox_engine):
-        """FK violations must NOT be classified as AuditEvent outbox_id conflict."""
+        """NOT NULL violations must NOT be classified as AuditEvent outbox_id conflict."""
         from sqlalchemy.exc import IntegrityError
 
-        from cold_storage.modules.projects.infrastructure.orm import (
-            AuditEventRecord,
-            Base,
-        )
-
-        # Create a temp foreign-key-violating insert via raw SQL.
+        # NOT NULL violation on audit_events.outbox_event_id is an
+        # IntegrityError but with a different SQLSTATE / column than the
+        # outbox_id unique conflict we care about. The classifier must
+        # not treat arbitrary IntegrityErrors as outbox_id conflicts.
         with pg_outbox_engine.connect() as conn:
             from sqlalchemy import text as sa_text
 
             with pytest.raises(IntegrityError):
                 conn.execute(
                     sa_text(
-                        "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, before_snapshot, after_snapshot, event_metadata, created_at, outbox_event_id) VALUES (gen_random_uuid()::text, 'x', 'x', 'x', 'x', '{}', '{}', '{}', now(), 'nonexistent-fk')"
+                        "INSERT INTO audit_events (id, actor, action, entity_type, entity_id, before_snapshot, after_snapshot, event_metadata, created_at) "
+                        "VALUES ('00000000-0000-0000-0000-000000000001'::text, 'x', 'x', 'x', 'x', \'{}', \'{}\', \'{}\', now())"
                     )
                 )
 
