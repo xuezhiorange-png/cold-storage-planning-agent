@@ -5,11 +5,12 @@ Revises: 451311827adf
 Create Date: 2026-07-03
 
 Adds to ``orchestration_audit_outbox``:
-- event_schema_version, actor, correlation_id, occurred_at, payload_hash
+- event_schema_version, actor, correlation_id, occurred_at, payload_hash, envelope_hash
 - claim_token, last_error_class, last_error_at, failed_at
 - Updates ck_outbox_status_nullity to include FAILED state
 - Adds immutability trigger on outbox after initial insert
 - Adds trigger enforcing AuditEvent existence for PUBLISHED outbox rows
+- Adds PG AuditEvent identity immutability trigger
 
 Post-add backfill: sets meaningful legacy values for pre-existing rows.
 SQLite: adds triggers for immutability and PUBLISHED-requires-AuditEvent.
@@ -71,6 +72,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql"""
 
+_IMMUTABLE_AUDIT_EVENT_IDENTITY_FN = """\
+CREATE OR REPLACE FUNCTION trg_immutable_audit_event_identity()
+RETURNS trigger AS $$
+BEGIN
+  IF OLD.outbox_event_id IS NOT NULL AND NEW.outbox_event_id != OLD.outbox_event_id THEN
+    RAISE EXCEPTION 'Cannot modify audit event outbox_event_id %', OLD.id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql"""
+
 
 def upgrade() -> None:
     dialect = op.get_context().dialect.name
@@ -113,6 +125,10 @@ def _pg_upgrade() -> None:
             nullable=False,
             server_default=sa.text("NOW()"),
         ),
+    )
+    op.add_column(
+        "orchestration_audit_outbox",
+        sa.Column("envelope_hash", sa.String(128), nullable=False, server_default=""),
     )
     op.add_column(
         "orchestration_audit_outbox",
@@ -163,14 +179,8 @@ def _pg_upgrade() -> None:
     )
 
     # 3. Backfill meaningful legacy values for pre-existing rows
-    op.execute(
-        "UPDATE orchestration_audit_outbox SET "
-        "actor = 'legacy-system', "
-        "correlation_id = 'legacy:' || id, "
-        "payload_hash = '', "
-        "event_schema_version = 'legacy-1.0' "
-        "WHERE actor = ''"
-    )
+    # Use Python-side computation to compute real envelope hashes
+    _pg_backfill_envelopes()
 
     # 4. Immutable envelope trigger
     op.execute(_IMMU_ENVELOPE_FN)
@@ -194,6 +204,96 @@ def _pg_upgrade() -> None:
         "trg_outbox_published_requires_auditevent()"
     )
 
+    # 6. AuditEvent identity immutability trigger
+    op.execute(_IMMUTABLE_AUDIT_EVENT_IDENTITY_FN)
+    op.execute("DROP TRIGGER IF EXISTS trg_immutable_audit_event_identity ON audit_events")
+    op.execute(
+        "CREATE TRIGGER trg_immutable_audit_event_identity "
+        "BEFORE UPDATE ON audit_events "
+        "FOR EACH ROW EXECUTE FUNCTION trg_immutable_audit_event_identity()"
+    )
+
+
+def _pg_backfill_envelopes() -> None:
+    """Backfill legacy outbox rows with real envelope hashes via Python-side computation."""
+    import hashlib
+    import json
+    from datetime import datetime
+
+    bind = op.get_bind()
+    result = bind.execute(
+        sa.text(
+            "SELECT id, event_type, event_schema_version, aggregate_type, aggregate_id, "
+            "actor, correlation_id, occurred_at, payload, payload_hash "
+            "FROM orchestration_audit_outbox WHERE actor = ''"
+        )
+    )
+    rows = result.fetchall()
+    for row in rows:
+        (
+            row_id,
+            event_type,
+            event_schema_version,
+            aggregate_type,
+            aggregate_id,
+            actor,
+            correlation_id,
+            occurred_at,
+            payload,
+            payload_hash,
+        ) = row
+
+        # Compute real payload hash from the stored payload
+        payload_str = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+
+        # Compute envelope hash
+        occurred_at_iso = None
+        if occurred_at is not None:
+            if isinstance(occurred_at, datetime):
+                occurred_at_iso = occurred_at.isoformat()
+            else:
+                occurred_at_iso = str(occurred_at)
+
+        envelope = {
+            "event_schema_version": event_schema_version or "1.0",
+            "event_type": event_type,
+            "aggregate_type": aggregate_type,
+            "aggregate_id": aggregate_id,
+            "actor": "legacy-system",
+            "correlation_id": f"legacy:{row_id}",
+            "occurred_at": occurred_at_iso,
+            "request_id": None,
+            "identity_id": None,
+            "attempt_id": None,
+            "calculation_run_id": None,
+            "source_binding_id": None,
+            "payload": payload,
+        }
+        envelope_hash = hashlib.sha256(
+            json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
+        bind.execute(
+            sa.text(
+                "UPDATE orchestration_audit_outbox "
+                "SET actor = :actor, "
+                "correlation_id = :correlation_id, "
+                "payload_hash = :payload_hash, "
+                "envelope_hash = :envelope_hash, "
+                "event_schema_version = :event_schema_version "
+                "WHERE id = :row_id"
+            ),
+            {
+                "actor": "legacy-system",
+                "correlation_id": f"legacy:{row_id}",
+                "payload_hash": real_payload_hash,
+                "envelope_hash": envelope_hash,
+                "event_schema_version": event_schema_version or "1.0",
+                "row_id": row_id,
+            },
+        )
+
 
 def _pg_downgrade() -> None:
     op.execute(
@@ -204,6 +304,8 @@ def _pg_downgrade() -> None:
     op.execute("DROP FUNCTION IF EXISTS trg_outbox_published_requires_auditevent()")
     op.execute("DROP TRIGGER IF EXISTS trg_immutable_outbox_envelope ON orchestration_audit_outbox")
     op.execute("DROP FUNCTION IF EXISTS trg_immutable_outbox_envelope()")
+    op.execute("DROP TRIGGER IF EXISTS trg_immutable_audit_event_identity ON audit_events")
+    op.execute("DROP FUNCTION IF EXISTS trg_immutable_audit_event_identity()")
 
     # Restore old CHECK constraint
     op.execute(
@@ -232,6 +334,7 @@ def _pg_downgrade() -> None:
         "last_error_at",
         "last_error_class",
         "claim_token",
+        "envelope_hash",
         "payload_hash",
         "occurred_at",
         "correlation_id",
@@ -269,6 +372,9 @@ def _sqlite_upgrade() -> None:
         batch_op.add_column(
             sa.Column("payload_hash", sa.String(128), nullable=False, server_default="")
         )
+        batch_op.add_column(
+            sa.Column("envelope_hash", sa.String(128), nullable=False, server_default="")
+        )
         batch_op.add_column(sa.Column("claim_token", sa.String(36), nullable=True))
         batch_op.add_column(sa.Column("last_error_class", sa.String(200), nullable=True))
         batch_op.add_column(sa.Column("last_error_at", sa.DateTime(timezone=True), nullable=True))
@@ -294,15 +400,8 @@ def _sqlite_upgrade() -> None:
             "AND claim_token IS NULL AND claim_expires_at IS NULL)",
         )
 
-    # Backfill meaningful legacy values
-    op.execute(
-        "UPDATE orchestration_audit_outbox SET "
-        "actor = 'legacy-system', "
-        "correlation_id = 'legacy:' || id, "
-        "payload_hash = '', "
-        "event_schema_version = 'legacy-1.0' "
-        "WHERE actor = ''"
-    )
+    # Backfill meaningful legacy values with real envelope hashes
+    _sqlite_backfill_envelopes()
 
     # ── SQLite triggers ───────────────────────────────────────────────
 
@@ -355,6 +454,87 @@ def _sqlite_upgrade() -> None:
     )
 
 
+def _sqlite_backfill_envelopes() -> None:
+    """Backfill legacy SQLite outbox rows with real envelope hashes."""
+    import hashlib
+    import json
+    from datetime import datetime
+
+    bind = op.get_bind()
+    result = bind.execute(
+        sa.text(
+            "SELECT id, event_type, event_schema_version, aggregate_type, aggregate_id, "
+            "actor, correlation_id, occurred_at, payload, payload_hash "
+            "FROM orchestration_audit_outbox WHERE actor = ''"
+        )
+    )
+    rows = result.fetchall()
+    for row in rows:
+        (
+            row_id,
+            event_type,
+            event_schema_version,
+            aggregate_type,
+            aggregate_id,
+            actor,
+            correlation_id,
+            occurred_at,
+            payload,
+            payload_hash,
+        ) = row
+
+        # Compute real payload hash from the stored payload
+        payload_str = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+
+        # Compute envelope hash
+        occurred_at_iso = None
+        if occurred_at is not None:
+            if isinstance(occurred_at, datetime):
+                occurred_at_iso = occurred_at.isoformat()
+            else:
+                occurred_at_iso = str(occurred_at)
+
+        envelope = {
+            "event_schema_version": event_schema_version or "1.0",
+            "event_type": event_type,
+            "aggregate_type": aggregate_type,
+            "aggregate_id": aggregate_id,
+            "actor": "legacy-system",
+            "correlation_id": f"legacy:{row_id}",
+            "occurred_at": occurred_at_iso,
+            "request_id": None,
+            "identity_id": None,
+            "attempt_id": None,
+            "calculation_run_id": None,
+            "source_binding_id": None,
+            "payload": payload,
+        }
+        envelope_hash = hashlib.sha256(
+            json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
+        bind.execute(
+            sa.text(
+                "UPDATE orchestration_audit_outbox "
+                "SET actor = :actor, "
+                "correlation_id = :correlation_id, "
+                "payload_hash = :payload_hash, "
+                "envelope_hash = :envelope_hash, "
+                "event_schema_version = :event_schema_version "
+                "WHERE id = :row_id"
+            ),
+            {
+                "actor": "legacy-system",
+                "correlation_id": f"legacy:{row_id}",
+                "payload_hash": real_payload_hash,
+                "envelope_hash": envelope_hash,
+                "event_schema_version": event_schema_version or "1.0",
+                "row_id": row_id,
+            },
+        )
+
+
 def _sqlite_downgrade() -> None:
     # Drop triggers
     op.execute("DROP TRIGGER IF EXISTS trg_immutable_outbox_envelope")
@@ -377,6 +557,7 @@ def _sqlite_downgrade() -> None:
             "last_error_at",
             "last_error_class",
             "claim_token",
+            "envelope_hash",
             "payload_hash",
             "occurred_at",
             "correlation_id",
