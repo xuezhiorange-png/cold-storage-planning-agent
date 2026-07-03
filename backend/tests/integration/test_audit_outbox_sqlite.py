@@ -29,9 +29,6 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
-from cold_storage.modules.orchestration.application.outbox_dispatcher_port import (
-    ClaimedOutboxEvent,
-)
 from cold_storage.modules.orchestration.application.outbox_errors import (
     OutboxClaimLostError,
     OutboxMaterializationMismatchError,
@@ -483,58 +480,6 @@ class TestSQLitelOutboxLifecycle:
         assert count == 1
         sess2.close()
 
-    def test_payload_hash_tamper_rejection(self, sqlite_engine):
-        """Materialization rejects if payload_hash doesn't match."""
-        factory = sessionmaker(bind=sqlite_engine, expire_on_commit=False)
-        now = datetime.now(UTC)
-
-        sess = factory()
-        _create_outbox_event(
-            sess,
-            transition_id="tamper-1",
-            payload={"original": "data"},
-        )
-        sess.commit()
-        sess.close()
-
-        sess = factory()
-        claimed = claim_events_sqlite(
-            sess,
-            worker_id="w1",
-            batch_size=10,
-            lease_seconds=300,
-            now=now,
-        )
-
-        # Tamper with payload
-        claimed_list = list(claimed)
-        tampered = ClaimedOutboxEvent(
-            outbox_row_id=claimed_list[0].outbox_row_id,
-            event_identity=claimed_list[0].event_identity,
-            event_type=claimed_list[0].event_type,
-            event_schema_version=claimed_list[0].event_schema_version,
-            aggregate_type=claimed_list[0].aggregate_type,
-            aggregate_id=claimed_list[0].aggregate_id,
-            actor=claimed_list[0].actor,
-            correlation_id=claimed_list[0].correlation_id,
-            occurred_at=claimed_list[0].occurred_at,
-            payload={"tampered": "data"},
-            payload_hash="wrong-hash",
-            attempt_count=claimed_list[0].attempt_count,
-            claim_token=claimed_list[0].claim_token,
-            claim_expires_at=claimed_list[0].claim_expires_at,
-        )
-
-        with pytest.raises(OutboxPayloadIntegrityError):
-            materialize_event(
-                sess,
-                claimed=tampered,
-                worker_id="w1",
-                claim_token=tampered.claim_token,
-                now=now,
-            )
-        sess.close()
-
     def test_wrong_worker_token_rejection(self, sqlite_engine):
         """validate_claim rejects wrong worker or token."""
         factory = sessionmaker(bind=sqlite_engine, expire_on_commit=False)
@@ -695,77 +640,80 @@ class TestSQLitelOutboxLifecycle:
         assert len(claimed) == 0
         sess.close()
 
-    def test_materialization_failure_no_auditevent(self, sqlite_engine):
-        """Materialization failure leaves no AuditEvent and outbox not PUBLISHED."""
+    def test_payload_hash_tamper_rejection(self, sqlite_engine):
+        """Materialization rejects when DB row payload_hash doesn't match payload.
+
+        P0-6: materialization reads from DB row, not DTO.  We tamper the
+        stored payload_hash via raw SQL so the DB-row recomputed hash
+        no longer matches.
+        """
+        from sqlalchemy import func, text
+
         factory = sessionmaker(bind=sqlite_engine, expire_on_commit=False)
         now = datetime.now(UTC)
 
         sess = factory()
         event = _create_outbox_event(
             sess,
-            transition_id="mat-fail-1",
-            payload={"will": "fail"},
+            transition_id="tamper-1",
+            payload={"original": "data"},
         )
         sess.commit()
         event_id = event.id
         event_identity = event.event_identity
         sess.close()
 
+        # Tamper the stored payload_hash via raw SQL (bypass ORM triggers)
         sess = factory()
+        sess.execute(
+            text(
+                "UPDATE orchestration_audit_outbox "
+                "SET payload_hash = 'definitely_wrong' "
+                "WHERE id = :eid"
+            ),
+            {"eid": event_id},
+        )
+        sess.commit()
+
+        # Claim
+        sess2 = factory()
         claimed = claim_events_sqlite(
-            sess,
+            sess2,
             worker_id="w1",
             batch_size=10,
             lease_seconds=300,
             now=now,
         )
         assert len(claimed) == 1
+        sess2.commit()
 
-        # Tamper payload to cause failure
-        tampered = ClaimedOutboxEvent(
-            outbox_row_id=claimed[0].outbox_row_id,
-            event_identity=claimed[0].event_identity,
-            event_type=claimed[0].event_type,
-            event_schema_version=claimed[0].event_schema_version,
-            aggregate_type=claimed[0].aggregate_type,
-            aggregate_id=claimed[0].aggregate_id,
-            actor=claimed[0].actor,
-            correlation_id=claimed[0].correlation_id,
-            occurred_at=claimed[0].occurred_at,
-            payload={"tampered": "yes"},
-            payload_hash="invalid",
-            attempt_count=claimed[0].attempt_count,
-            claim_token=claimed[0].claim_token,
-            claim_expires_at=claimed[0].claim_expires_at,
-        )
-
+        # Materialize should detect hash mismatch from DB row
+        sess3 = factory()
         with pytest.raises(OutboxPayloadIntegrityError):
             materialize_event(
-                sess,
-                claimed=tampered,
+                sess3,
+                claimed=claimed[0],
                 worker_id="w1",
-                claim_token=tampered.claim_token,
+                claim_token=claimed[0].claim_token,
                 now=now,
             )
-        sess.rollback()
-        sess.close()
+        sess3.rollback()
+        sess3.close()
 
-        # Verify: no AuditEvent, outbox still PROCESSING (not PUBLISHED)
-        sess2 = factory()
-        from sqlalchemy import func
-
-        audit_count = sess2.execute(
+        # Verify: no AuditEvent, outbox not PUBLISHED
+        sess4 = factory()
+        audit_count = sess4.execute(
             select(func.count())
             .select_from(AuditEventRecord)
             .where(AuditEventRecord.outbox_event_id == event_identity)
         ).scalar_one()
         assert audit_count == 0
 
-        row = sess2.execute(
+        row = sess4.execute(
             select(AuditOutboxRecord).where(AuditOutboxRecord.id == event_id)
         ).scalar_one()
         assert row.status != "PUBLISHED"
-        sess2.close()
+        sess4.close()
 
 
 @pytest.fixture()
