@@ -596,11 +596,11 @@ def _pg_create_authority_triggers() -> None:
     _pg_drop_authority_triggers()
 
     # NOTE: trg_authority_check_on_approve (BEFORE UPDATE SELECT EXISTS) was
-    # removed.  The authority composite PK (weight_set_id, code) in the AFTER
-    # UPDATE claim trigger is now the sole arbiter of concurrent approval
-    # uniqueness.  This produces a genuine SQLSTATE 23505 (unique_violation)
-    # with constraint_name = pk_scheme_weight_set_active_revisions, which the
-    # adapter's _is_authority_unique_conflict() classifies exactly.
+    # removed.  PostgreSQL approval conflicts may be arbitrated by either:
+    #   - uq_active_approved_weight_rev  (partial unique index on revisions)
+    #   - scheme_weight_set_active_revisions_pkey  (authority table PK)
+    # Both produce SQLSTATE 23505 (unique_violation) and are classified
+    # exactly by the adapter's _is_authority_unique_conflict().
 
     # Claim function + trigger
     op.execute(
