@@ -1547,6 +1547,101 @@ def _create_sqlite_immutability_trigger(engine: Any) -> None:
         )
 
 
+def _create_all_authority_triggers(engine):
+    """Create all authority lifecycle + immutability triggers on an engine."""
+    from sqlalchemy import text as _t
+
+    with engine.begin() as _c:
+        _c.execute(
+            _t(
+                "CREATE TRIGGER IF NOT EXISTS trg_immutable_weight_revision"
+                " BEFORE UPDATE ON scheme_weight_set_revisions"
+                " FOR EACH ROW WHEN OLD.sealed_at IS NOT NULL AND ("
+                " NOT (NEW.content IS OLD.content)"
+                " OR NOT (NEW.content_hash IS OLD.content_hash)"
+                " OR NOT (NEW.code IS OLD.code)"
+                " OR NOT (NEW.revision IS OLD.revision)"
+                " OR NOT (NEW.weight_set_id IS OLD.weight_set_id)"
+                " OR NOT (NEW.generator_compatibility_version"
+                "   IS OLD.generator_compatibility_version)"
+                " OR NOT (NEW.approved_at IS OLD.approved_at)"
+                " OR NOT (NEW.approved_by IS OLD.approved_by)"
+                " OR NOT (NEW.sealed_at IS OLD.sealed_at)"
+                ") BEGIN SELECT RAISE(ABORT,"
+                " 'sealed revision immutability:"
+                " immutable fields'); END;"
+            )
+        )
+        _c.execute(
+            _t(
+                "CREATE TRIGGER IF NOT EXISTS trg_weight_revision_status_transition"
+                " BEFORE UPDATE ON scheme_weight_set_revisions"
+                " FOR EACH ROW WHEN OLD.status != NEW.status AND NOT ("
+                " (OLD.status = 'draft' AND NEW.status = 'approved')"
+                " OR (OLD.status = 'approved' AND NEW.status = 'superseded')"
+                " OR (OLD.status = 'approved' AND NEW.status = 'revoked')"
+                ") BEGIN SELECT RAISE(ABORT,"
+                " 'invalid status transition'); END;"
+            )
+        )
+        _c.execute(
+            _t(
+                "CREATE TRIGGER IF NOT EXISTS trg_block_direct_approved_insert"
+                " BEFORE INSERT ON scheme_weight_set_revisions"
+                " FOR EACH ROW WHEN NEW.status = 'approved'"
+                " BEGIN SELECT RAISE(ABORT,"
+                " 'direct INSERT of approved is forbidden'); END;"
+            )
+        )
+        _c.execute(
+            _t(
+                "CREATE TRIGGER IF NOT EXISTS trg_authority_check_on_approve"
+                " BEFORE UPDATE ON scheme_weight_set_revisions"
+                " FOR EACH ROW WHEN OLD.status = 'draft'"
+                " AND NEW.status = 'approved'"
+                " BEGIN SELECT CASE WHEN EXISTS"
+                " (SELECT 1 FROM scheme_weight_set_revisions"
+                " WHERE weight_set_id = NEW.weight_set_id"
+                " AND code = NEW.code"
+                " AND status = 'approved'"
+                " AND id != NEW.id)"
+                " THEN RAISE(ABORT, 'active_revision_conflict:"
+                " another revision already approved')"
+                " END; END;"
+            )
+        )
+        _c.execute(
+            _t(
+                "CREATE TRIGGER IF NOT EXISTS trg_authority_claim_and_seal"
+                " AFTER UPDATE ON scheme_weight_set_revisions"
+                " FOR EACH ROW WHEN OLD.status = 'draft'"
+                " AND NEW.status = 'approved'"
+                " BEGIN"
+                " UPDATE scheme_weight_set_revisions"
+                " SET sealed_at = CURRENT_TIMESTAMP"
+                " WHERE id = NEW.id;"
+                " INSERT INTO scheme_weight_set_active_revisions"
+                " (weight_set_id, code, approved_revision_id, updated_at)"
+                " VALUES (NEW.weight_set_id, NEW.code, NEW.id,"
+                " CURRENT_TIMESTAMP);"
+                " END;"
+            )
+        )
+        _c.execute(
+            _t(
+                "CREATE TRIGGER IF NOT EXISTS trg_authority_release_on_supersede"
+                " AFTER UPDATE ON scheme_weight_set_revisions"
+                " FOR EACH ROW WHEN OLD.status = 'approved'"
+                " AND NEW.status IN ('superseded', 'revoked')"
+                " BEGIN"
+                " DELETE FROM scheme_weight_set_active_revisions"
+                " WHERE weight_set_id = OLD.weight_set_id"
+                " AND code = OLD.code;"
+                " END;"
+            )
+        )
+
+
 # ---------------------------------------------------------------------------
 # Database-level immutability triggers (P0-3)
 # ---------------------------------------------------------------------------
@@ -1801,10 +1896,23 @@ class TestConcurrentApprovalWithAuthority:
 
         db_path = str(tmp_path / "conc.db")
 
-        # 1. Create DB with all tables + trigger
+        # 1. Create DB via Alembic
+        import os
+        import subprocess
+        import sys as _sys
+
+        subprocess.run(
+            [_sys.executable, "-m", "alembic", "upgrade", "head"],
+            env={
+                **os.environ,
+                "DATABASE_URL": f"sqlite:///{db_path}",
+                "DATABASE_BACKEND": "sqlite",
+                "SQLITE_PATH": db_path,
+            },
+            cwd=".",
+            check=True,
+        )
         setup_engine = create_engine(f"sqlite:///{db_path}")
-        Base.metadata.create_all(setup_engine)
-        _create_sqlite_immutability_trigger(setup_engine)
 
         # 2. Insert parent weight set + two draft revisions
         from datetime import UTC, datetime
@@ -2214,6 +2322,8 @@ class TestConcurrentApprovalWithAuthority:
 
     def test_authority_table_prevents_double_approve(self, session, adapter) -> None:
         """Authority table prevents approving two revisions for same weight_set_id+code."""
+        _create_all_authority_triggers(session.get_bind())
+
         from cold_storage.modules.schemes.infrastructure.orm import (
             SchemeWeightSetRecord,
             SchemeWeightSetRevisionRecord,
@@ -2296,6 +2406,8 @@ class TestConcurrentApprovalWithAuthority:
 
     def test_authority_cleaned_on_supersede(self, session, adapter) -> None:
         """Authority row is removed when approved revision is superseded."""
+        _create_all_authority_triggers(session.get_bind())
+
         from cold_storage.modules.schemes.infrastructure.orm import (
             SchemeWeightSetRecord,
             SchemeWeightSetRevisionRecord,

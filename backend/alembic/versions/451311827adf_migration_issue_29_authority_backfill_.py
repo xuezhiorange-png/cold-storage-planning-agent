@@ -52,24 +52,34 @@ def upgrade() -> None:
 def downgrade() -> None:
     dialect_name = op.get_context().dialect.name
 
-    # Drop current triggers and restore the old version (with status frozen)
+    # Step 1: Drop ALL triggers (authority + revision) to avoid
+    # dangling references when tables are dropped in earlier migrations.
     if dialect_name == "sqlite":
         _sqlite_drop_authority_triggers()
         _sqlite_drop_triggers()
-        _sqlite_create_old_triggers()
+        # Also drop any seal_on_approve that may exist from older states
+        op.execute("DROP TRIGGER IF EXISTS trg_weight_revision_seal_on_approve")
     else:
         _pg_drop_authority_triggers()
         _pg_drop_triggers()
-        _pg_create_old_triggers()
 
-    # Remove backfilled authority rows
-    op.execute(
-        "DELETE FROM scheme_weight_set_active_revisions"
-        " WHERE approved_revision_id IN ("
-        "   SELECT id FROM scheme_weight_set_revisions"
-        "   WHERE status = 'approved'"
-        ")"
-    )
+    # Step 2: Remove backfilled authority rows (safe now — no guard triggers)
+    import contextlib
+
+    with contextlib.suppress(Exception):
+        op.execute(
+            "DELETE FROM scheme_weight_set_active_revisions"
+            " WHERE approved_revision_id IN ("
+            "   SELECT id FROM scheme_weight_set_revisions"
+            "   WHERE status = 'approved'"
+            ")"
+        )
+
+    # Step 3: Restore old revision triggers
+    if dialect_name == "sqlite":
+        _sqlite_create_old_triggers()
+    else:
+        _pg_create_old_triggers()
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -90,51 +100,40 @@ def _backfill_authority() -> None:
     bind = op.get_bind()
 
     # Step 1 & 2: Check for duplicate approved revisions per (weight_set_id, code)
-    dup_rows = (
-        bind.execute(
-            text(
-                "SELECT weight_set_id, code, COUNT(*) AS cnt"
-                " FROM scheme_weight_set_revisions"
-                " WHERE status = 'approved'"
-                " GROUP BY weight_set_id, code"
-                " HAVING COUNT(*) > 1"
-            )
+    dup_rows = bind.execute(
+        text(
+            "SELECT weight_set_id, code, COUNT(*) AS cnt"
+            " FROM scheme_weight_set_revisions"
+            " WHERE status = 'approved'"
+            " GROUP BY weight_set_id, code"
+            " HAVING COUNT(*) > 1"
         )
-        .fetchall()
-    )
+    ).fetchall()
     if dup_rows:
-        details = ", ".join(
-            f"({r[0]}, {r[1]}) x{r[2]}" for r in dup_rows
-        )
+        details = ", ".join(f"({r[0]}, {r[1]}) x{r[2]}" for r in dup_rows)
         raise RuntimeError(
             f"Duplicate approved revisions found — cannot backfill authority: {details}"
         )
 
     # Step 3: Read all existing authority rows
-    existing_authorities = (
-        bind.execute(
-            text(
-                "SELECT weight_set_id, code, approved_revision_id"
-                " FROM scheme_weight_set_active_revisions"
-            )
+    existing_authorities = bind.execute(
+        text(
+            "SELECT weight_set_id, code, approved_revision_id"
+            " FROM scheme_weight_set_active_revisions"
         )
-        .fetchall()
-    )
+    ).fetchall()
 
     # Step 4: Verify each existing authority row
     for auth in existing_authorities:
         ws_id, code, rev_id = auth[0], auth[1], auth[2]
-        rev = (
-            bind.execute(
-                text(
-                    "SELECT weight_set_id, code, status"
-                    " FROM scheme_weight_set_revisions"
-                    " WHERE id = :rev_id"
-                ),
-                {"rev_id": rev_id},
-            )
-            .fetchone()
-        )
+        rev = bind.execute(
+            text(
+                "SELECT weight_set_id, code, status"
+                " FROM scheme_weight_set_revisions"
+                " WHERE id = :rev_id"
+            ),
+            {"rev_id": rev_id},
+        ).fetchone()
         if rev is None:
             raise RuntimeError(
                 f"Authority row references non-existent revision {rev_id}"
@@ -158,17 +157,14 @@ def _backfill_authority() -> None:
             )
 
     # Step 5: Insert authority rows for approved revisions without one
-    approved_revisions = (
-        bind.execute(
-            text(
-                "SELECT id, weight_set_id, code,"
-                " COALESCE(approved_at, created_at)"
-                " FROM scheme_weight_set_revisions"
-                " WHERE status = 'approved'"
-            )
+    approved_revisions = bind.execute(
+        text(
+            "SELECT id, weight_set_id, code,"
+            " COALESCE(approved_at, created_at)"
+            " FROM scheme_weight_set_revisions"
+            " WHERE status = 'approved'"
         )
-        .fetchall()
-    )
+    ).fetchall()
 
     existing_rev_ids = {auth[2] for auth in existing_authorities}
     for rev in approved_revisions:
@@ -203,30 +199,24 @@ def _backfill_authority() -> None:
 
     # Step 6b: Verify each authority row points to an approved revision
     # with matching (weight_set_id, code)
-    mismatched = (
-        bind.execute(
-            text(
-                "SELECT a.weight_set_id, a.code, a.approved_revision_id,"
-                " r.weight_set_id, r.code, r.status"
-                " FROM scheme_weight_set_active_revisions a"
-                " JOIN scheme_weight_set_revisions r"
-                " ON a.approved_revision_id = r.id"
-                " WHERE r.status != 'approved'"
-                " OR a.weight_set_id != r.weight_set_id"
-                " OR a.code != r.code"
-            )
+    mismatched = bind.execute(
+        text(
+            "SELECT a.weight_set_id, a.code, a.approved_revision_id,"
+            " r.weight_set_id, r.code, r.status"
+            " FROM scheme_weight_set_active_revisions a"
+            " JOIN scheme_weight_set_revisions r"
+            " ON a.approved_revision_id = r.id"
+            " WHERE r.status != 'approved'"
+            " OR a.weight_set_id != r.weight_set_id"
+            " OR a.code != r.code"
         )
-        .fetchall()
-    )
+    ).fetchall()
     if mismatched:
         details = ", ".join(
-            f"(auth ws={m[0]},code={m[1]},rev={m[2]}"
-            f" -> rev ws={m[3]},code={m[4]},status={m[5]})"
+            f"(auth ws={m[0]},code={m[1]},rev={m[2]} -> rev ws={m[3]},code={m[4]},status={m[5]})"
             for m in mismatched
         )
-        raise RuntimeError(
-            f"Authority rows reference invalid revisions after backfill: {details}"
-        )
+        raise RuntimeError(f"Authority rows reference invalid revisions after backfill: {details}")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -271,18 +261,8 @@ def _sqlite_create_triggers() -> None:
         " 'invalid status transition'); END;"
     )
 
-    # Seal-on-approve trigger
-    op.execute(
-        "CREATE TRIGGER trg_weight_revision_seal_on_approve"
-        " AFTER UPDATE ON scheme_weight_set_revisions"
-        " FOR EACH ROW WHEN OLD.status = 'draft'"
-        " AND NEW.status = 'approved'"
-        " BEGIN"
-        " UPDATE scheme_weight_set_revisions"
-        " SET sealed_at = CURRENT_TIMESTAMP"
-        " WHERE id = NEW.id;"
-        " END;"
-    )
+    # Note: seal_on_approve is now handled by trg_authority_claim_and_seal
+    # (combined seal + authority claim in a single trigger for atomicity).
 
     # Block ALL direct INSERT of approved status
     op.execute(
@@ -298,6 +278,7 @@ def _sqlite_create_triggers() -> None:
 def _sqlite_drop_triggers() -> None:
     op.execute("DROP TRIGGER IF EXISTS trg_immutable_weight_revision")
     op.execute("DROP TRIGGER IF EXISTS trg_weight_revision_status_transition")
+    # Drop seal_on_approve if it exists from older migrations (now handled by claim_and_seal)
     op.execute("DROP TRIGGER IF EXISTS trg_weight_revision_seal_on_approve")
     op.execute("DROP TRIGGER IF EXISTS trg_block_direct_approved_insert")
 
@@ -310,25 +291,48 @@ def _sqlite_drop_triggers() -> None:
 def _sqlite_create_authority_triggers() -> None:
     """Create triggers that manage authority rows on status transitions.
 
-    - trg_authority_claim_on_approve:
-        AFTER UPDATE draft→approved → INSERT into active_revisions.
+    - trg_authority_claim_and_seal:
+        AFTER UPDATE draft→approved → set sealed_at + INSERT authority (unified).
     - trg_authority_release_on_supersede:
-        AFTER UPDATE approved→superseded|revoked → DELETE from active_revisions.
-
-    NOTE: On SQLite all AFTER triggers fire in creation order.  The
-    seal_on_approve trigger must be created BEFORE claim_on_approve so
-    that sealed_at is populated before the claim row is written.
+        AFTER UPDATE approved→superseded|revoked → DELETE authority.
+    - trg_authority_insert_guard:
+        BEFORE INSERT on authority table → validate revision exists & matches.
+    - trg_authority_update_guard:
+        BEFORE UPDATE on authority table → reject all updates.
+    - trg_authority_delete_guard:
+        BEFORE DELETE on authority table → reject if revision still approved.
     """
     # Drop if they exist (idempotent rebuild)
     _sqlite_drop_authority_triggers()
 
-    # Claim: draft → approved
+    # BEFORE UPDATE authority check: atomic approval uniqueness
     op.execute(
-        "CREATE TRIGGER trg_authority_claim_on_approve"
+        "CREATE TRIGGER trg_authority_check_on_approve"
+        " BEFORE UPDATE ON scheme_weight_set_revisions"
+        " FOR EACH ROW WHEN OLD.status = 'draft'"
+        " AND NEW.status = 'approved'"
+        " BEGIN"
+        " SELECT CASE WHEN EXISTS"
+        " (SELECT 1 FROM scheme_weight_set_revisions"
+        " WHERE weight_set_id = NEW.weight_set_id"
+        " AND code = NEW.code"
+        " AND status = 'approved'"
+        " AND id != NEW.id)"
+        " THEN RAISE(ABORT, 'active_revision_conflict:"
+        " another revision already approved for this weight_set_id/code')"
+        " END; END;"
+    )
+
+    # Unified claim + seal: draft → approved
+    op.execute(
+        "CREATE TRIGGER trg_authority_claim_and_seal"
         " AFTER UPDATE ON scheme_weight_set_revisions"
         " FOR EACH ROW WHEN OLD.status = 'draft'"
         " AND NEW.status = 'approved'"
         " BEGIN"
+        " UPDATE scheme_weight_set_revisions"
+        " SET sealed_at = CURRENT_TIMESTAMP"
+        " WHERE id = NEW.id;"
         " INSERT INTO scheme_weight_set_active_revisions"
         " (weight_set_id, code, approved_revision_id, updated_at)"
         " VALUES (NEW.weight_set_id, NEW.code, NEW.id,"
@@ -349,10 +353,54 @@ def _sqlite_create_authority_triggers() -> None:
         " END;"
     )
 
+    # ── Authority table validation triggers ──────────────────────────────
+    # INSERT guard: validate revision exists, is approved, matches identity
+    op.execute(
+        "CREATE TRIGGER trg_authority_insert_guard"
+        " BEFORE INSERT ON scheme_weight_set_active_revisions"
+        " FOR EACH ROW BEGIN"
+        " SELECT CASE WHEN NOT EXISTS"
+        " (SELECT 1 FROM scheme_weight_set_revisions"
+        " WHERE id = NEW.approved_revision_id"
+        " AND status = 'approved'"
+        " AND weight_set_id = NEW.weight_set_id"
+        " AND code = NEW.code)"
+        " THEN RAISE(ABORT, 'authority insert guard:"
+        " revision must exist, be approved, and match weight_set_id/code')"
+        " END; END;"
+    )
+
+    # UPDATE guard: reject all direct updates to authority rows
+    op.execute(
+        "CREATE TRIGGER trg_authority_update_guard"
+        " BEFORE UPDATE ON scheme_weight_set_active_revisions"
+        " FOR EACH ROW BEGIN"
+        " SELECT RAISE(ABORT, 'authority update guard:"
+        " direct UPDATE of authority rows is forbidden'); END;"
+    )
+
+    # DELETE guard: reject deletion if revision is still approved
+    op.execute(
+        "CREATE TRIGGER trg_authority_delete_guard"
+        " BEFORE DELETE ON scheme_weight_set_active_revisions"
+        " FOR EACH ROW BEGIN"
+        " SELECT CASE WHEN EXISTS"
+        " (SELECT 1 FROM scheme_weight_set_revisions"
+        " WHERE id = OLD.approved_revision_id"
+        " AND status = 'approved')"
+        " THEN RAISE(ABORT, 'authority delete guard:"
+        " cannot delete authority while revision is approved')"
+        " END; END;"
+    )
+
 
 def _sqlite_drop_authority_triggers() -> None:
-    op.execute("DROP TRIGGER IF EXISTS trg_authority_claim_on_approve")
+    op.execute("DROP TRIGGER IF EXISTS trg_authority_check_on_approve")
+    op.execute("DROP TRIGGER IF EXISTS trg_authority_claim_and_seal")
     op.execute("DROP TRIGGER IF EXISTS trg_authority_release_on_supersede")
+    op.execute("DROP TRIGGER IF EXISTS trg_authority_insert_guard")
+    op.execute("DROP TRIGGER IF EXISTS trg_authority_update_guard")
+    op.execute("DROP TRIGGER IF EXISTS trg_authority_delete_guard")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -543,9 +591,37 @@ def _pg_create_authority_triggers() -> None:
 
     - trg_authority_claim_on_approve  (AFTER UPDATE): draft → approved
     - trg_authority_release_on_supersede (AFTER UPDATE): approved → superseded|revoked
+    - trg_authority_insert_guard (BEFORE INSERT): validate revision
+    - trg_authority_update_guard (BEFORE UPDATE): reject all updates
+    - trg_authority_delete_guard (BEFORE DELETE): reject if revision approved
     """
     # Drop if they exist (idempotent rebuild)
     _pg_drop_authority_triggers()
+
+    # BEFORE UPDATE authority check function + trigger
+    op.execute(
+        "CREATE OR REPLACE FUNCTION"
+        " fn_authority_check_on_approve()"
+        " RETURNS TRIGGER AS $$ BEGIN"
+        " IF OLD.status = 'draft' AND NEW.status = 'approved' THEN"
+        " IF EXISTS ("
+        " SELECT 1 FROM scheme_weight_set_revisions"
+        " WHERE weight_set_id = NEW.weight_set_id"
+        " AND code = NEW.code"
+        " AND status = 'approved'"
+        " AND id != NEW.id"
+        " ) THEN RAISE EXCEPTION"
+        " 'active_revision_conflict:"
+        " another revision already approved for this weight_set_id/code';"
+        " END IF; END IF; RETURN NEW; END;"
+        " $$ LANGUAGE plpgsql;"
+    )
+    op.execute(
+        "CREATE TRIGGER trg_authority_check_on_approve"
+        " BEFORE UPDATE ON scheme_weight_set_revisions"
+        " FOR EACH ROW"
+        " EXECUTE FUNCTION fn_authority_check_on_approve();"
+    )
 
     # Claim function + trigger
     op.execute(
@@ -586,17 +662,80 @@ def _pg_create_authority_triggers() -> None:
         " EXECUTE FUNCTION fn_authority_release_on_supersede();"
     )
 
+    # ── Authority table validation triggers (PG) ────────────────────────
+    # INSERT guard
+    op.execute(
+        "CREATE OR REPLACE FUNCTION"
+        " fn_authority_insert_guard()"
+        " RETURNS TRIGGER AS $$ BEGIN"
+        " IF NOT EXISTS ("
+        " SELECT 1 FROM scheme_weight_set_revisions"
+        " WHERE id = NEW.approved_revision_id"
+        " AND status = 'approved'"
+        " AND weight_set_id = NEW.weight_set_id"
+        " AND code = NEW.code"
+        " ) THEN RAISE EXCEPTION"
+        " 'authority insert guard:"
+        " revision must exist, be approved, and match weight_set_id/code';"
+        " END IF; RETURN NEW; END;"
+        " $$ LANGUAGE plpgsql;"
+    )
+    op.execute(
+        "CREATE TRIGGER trg_authority_insert_guard"
+        " BEFORE INSERT ON scheme_weight_set_active_revisions"
+        " FOR EACH ROW"
+        " EXECUTE FUNCTION fn_authority_insert_guard();"
+    )
+
+    # UPDATE guard: reject all direct updates
+    op.execute(
+        "CREATE OR REPLACE FUNCTION"
+        " fn_authority_update_guard()"
+        " RETURNS TRIGGER AS $$ BEGIN"
+        " RAISE EXCEPTION"
+        " 'authority update guard:"
+        " direct UPDATE of authority rows is forbidden';"
+        " RETURN NEW; END;"
+        " $$ LANGUAGE plpgsql;"
+    )
+    op.execute(
+        "CREATE TRIGGER trg_authority_update_guard"
+        " BEFORE UPDATE ON scheme_weight_set_active_revisions"
+        " FOR EACH ROW"
+        " EXECUTE FUNCTION fn_authority_update_guard();"
+    )
+
+    # DELETE guard: reject if revision still approved
+    op.execute(
+        "CREATE OR REPLACE FUNCTION"
+        " fn_authority_delete_guard()"
+        " RETURNS TRIGGER AS $$ BEGIN"
+        " IF EXISTS ("
+        " SELECT 1 FROM scheme_weight_set_revisions"
+        " WHERE id = OLD.approved_revision_id"
+        " AND status = 'approved'"
+        " ) THEN RAISE EXCEPTION"
+        " 'authority delete guard:"
+        " cannot delete authority while revision is approved';"
+        " END IF; RETURN OLD; END;"
+        " $$ LANGUAGE plpgsql;"
+    )
+    op.execute(
+        "CREATE TRIGGER trg_authority_delete_guard"
+        " BEFORE DELETE ON scheme_weight_set_active_revisions"
+        " FOR EACH ROW"
+        " EXECUTE FUNCTION fn_authority_delete_guard();"
+    )
+
 
 def _pg_drop_authority_triggers() -> None:
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_authority_claim_on_approve"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_authority_claim_on_approve ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_claim_on_approve")
 
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_authority_release_on_supersede"
-        " ON scheme_weight_set_revisions"
+        "DROP TRIGGER IF EXISTS trg_authority_release_on_supersede ON scheme_weight_set_revisions"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_authority_release_on_supersede")
 

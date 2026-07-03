@@ -777,6 +777,7 @@ def _seed_weight_set_and_revision(
         session.flush()
         if status == "approved":
             from sqlalchemy import text
+
             session.execute(
                 text(
                     "UPDATE scheme_weight_set_revisions "

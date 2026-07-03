@@ -46,11 +46,11 @@ _IMMUTABLE_FIELDS: frozenset[str] = frozenset(
 # ── Precise authority conflict classification ──────────────────────────────
 # The authority table PK is (weight_set_id, code).
 # PostgreSQL auto-names it: pk_scheme_weight_set_active_revisions
-# SQLite names it: pk_scheme_weight_set_active_revisions (or similar)
 _AUTHORITY_PK_CONSTRAINT = "pk_scheme_weight_set_active_revisions"
 _AUTHORITY_TABLE = "scheme_weight_set_active_revisions"
 
 
+# SQLite names it: pk_scheme_weight_set_active_revisions (or similar)
 def _is_authority_unique_conflict(exc: Any) -> bool:
     """Return True only if *exc* is an IntegrityError on the authority table PK.
 
@@ -68,11 +68,6 @@ def _is_authority_unique_conflict(exc: Any) -> bool:
         constraint_name = getattr(diag, "constraint_name", None)
         if constraint_name == _AUTHORITY_PK_CONSTRAINT:
             return True
-        # Fallback: check table name in the error
-        table_name = getattr(diag, "table_name", None)
-        if table_name == _AUTHORITY_TABLE:
-            return True
-
     # SQLite: check error message for exact unique columns
     err_str = str(diag).lower()
     return (
@@ -138,18 +133,16 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
           approved -> superseded
           approved -> revoked
 
-        Manages the active-revisions authority table:
-          draft -> approved: claims authority row (atomic via UNIQUE PK)
-          approved -> superseded/revoked: releases authority row
+        Database triggers manage the authority table:
+          draft -> approved: claim trigger inserts authority row
+          approved -> superseded/revoked: release trigger deletes authority row
 
         Returns True if transitioned, False if CAS conflict.
         Raises InvalidStatusTransitionError if the transition is not allowed.
         """
-        from sqlalchemy import delete, insert, select, update
-        from sqlalchemy import exc as sa_exc
+        from sqlalchemy import select, update
 
         from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeWeightSetActiveRevisionRecord,
             SchemeWeightSetRevisionRecord,
         )
 
@@ -178,28 +171,7 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
             values["approved_at"] = approved_at
             values["approved_by"] = approved_by
 
-        # For approval transitions, claim authority first (atomic via UNIQUE PK)
-        if target_status == "approved":
-            try:
-                with session.begin_nested():
-                    session.execute(
-                        insert(SchemeWeightSetActiveRevisionRecord).values(
-                            weight_set_id=current.weight_set_id,
-                            code=current.code,
-                            approved_revision_id=revision_id,
-                            updated_at=approved_at,
-                        )
-                    )
-            except sa_exc.IntegrityError as exc:
-                if _is_authority_unique_conflict(exc):
-                    raise WeightRevisionGovernanceError(
-                        "active_revision_conflict",
-                        f"Another revision is already approved for "
-                        f"weight_set_id={current.weight_set_id}, code={current.code}",
-                    ) from exc
-                raise
-
-        # CAS update
+        # CAS update -- database triggers handle authority lifecycle
         result = session.execute(
             update(SchemeWeightSetRevisionRecord)
             .where(
@@ -208,24 +180,6 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
             )
             .values(**values)
         )
-
-        if int(result.rowcount) == 1:
-            if current_status == "approved":
-                # Release authority row when deapproving
-                session.execute(
-                    delete(SchemeWeightSetActiveRevisionRecord).where(
-                        SchemeWeightSetActiveRevisionRecord.approved_revision_id == revision_id,
-                    )
-                )
-        elif target_status == "approved":
-            # CAS failed after authority claimed — clean up
-            session.execute(
-                delete(SchemeWeightSetActiveRevisionRecord).where(
-                    SchemeWeightSetActiveRevisionRecord.weight_set_id == current.weight_set_id,
-                    SchemeWeightSetActiveRevisionRecord.code == current.code,
-                    SchemeWeightSetActiveRevisionRecord.approved_revision_id == revision_id,
-                )
-            )
 
         return int(result.rowcount) == 1
 
@@ -248,11 +202,9 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
         Raises RevisionImmutabilityViolationError if trying to modify
         content of an already-approved revision.
         """
-        from sqlalchemy import delete, insert, select, update
-        from sqlalchemy import exc as sa_exc
+        from sqlalchemy import select, update
 
         from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeWeightSetActiveRevisionRecord,
             SchemeWeightSetRevisionRecord,
         )
 
@@ -275,27 +227,23 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
         if existing.status == "approved":
             return False
 
-        # Claim authority via UNIQUE composite PK (atomic)
-        try:
-            with session.begin_nested():
-                session.execute(
-                    insert(SchemeWeightSetActiveRevisionRecord).values(
-                        weight_set_id=existing.weight_set_id,
-                        code=existing.code,
-                        approved_revision_id=revision_id,
-                        updated_at=approved_at,
-                    )
-                )
-        except sa_exc.IntegrityError as exc:
-            if _is_authority_unique_conflict(exc):
-                raise WeightRevisionGovernanceError(
-                    "active_revision_conflict",
-                    f"Another revision is already approved for "
-                    f"weight_set_id={existing.weight_set_id}, code={existing.code}",
-                ) from exc
-            raise
+        # Application-level authority check (defense-in-depth):
+        # Verify no other approved revision exists for this weight_set_id + code.
+        # This catches conflicts even without database triggers (e.g. in-memory test DBs).
+        if self.has_approved_revision(
+            session,
+            weight_set_id=existing.weight_set_id,
+            code=existing.code,
+            exclude_revision_id=revision_id,
+        ):
+            raise WeightRevisionGovernanceError(
+                "active_revision_conflict",
+                f"Another revision is already approved for "
+                f"weight_set_id={existing.weight_set_id}, code={existing.code}",
+            )
 
         # CAS: only approve if currently 'draft'
+        # Database trigger handles authority claim and seal
         result = session.execute(
             update(SchemeWeightSetRevisionRecord)
             .where(
@@ -308,23 +256,10 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
                 approved_by=approved_by,
                 content=content,
                 content_hash=_compute_content_hash(content),
-                sealed_at=approved_at,
             )
         )
 
-        if int(result.rowcount) == 0:
-            # CAS failed — revision was not in 'draft' status.
-            # Clean up the authority row we just inserted.
-            session.execute(
-                delete(SchemeWeightSetActiveRevisionRecord).where(
-                    SchemeWeightSetActiveRevisionRecord.weight_set_id == existing.weight_set_id,
-                    SchemeWeightSetActiveRevisionRecord.code == existing.code,
-                    SchemeWeightSetActiveRevisionRecord.approved_revision_id == revision_id,
-                )
-            )
-            return False
-
-        return True
+        return int(result.rowcount) != 0
 
     def has_approved_revision(
         self,
@@ -374,11 +309,9 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
         If it exists as draft, approve it.
         If it doesn't exist, create both records and approve.
         """
-        from sqlalchemy import exc as sa_exc
-        from sqlalchemy import insert, select
+        from sqlalchemy import select
 
         from cold_storage.modules.schemes.infrastructure.orm import (
-            SchemeWeightSetActiveRevisionRecord,
             SchemeWeightSetRecord,
             SchemeWeightSetRevisionRecord,
         )
@@ -427,19 +360,14 @@ class SqlAlchemyWeightRevisionApprovalAdapter:
             )
             session.add(rev_rec)
             session.flush()
-            # Claim authority row for this approval
-            try:
-                with session.begin_nested():
-                    session.execute(
-                        insert(SchemeWeightSetActiveRevisionRecord).values(
-                            weight_set_id=weight_set_id,
-                            code=code,
-                            approved_revision_id=revision_id,
-                            updated_at=approved_at,
-                        )
-                    )
-            except sa_exc.IntegrityError as err:
-                raise SeedConsistencyError(revision_id, ["authority_conflict"]) from err
+            # Approve via controlled transition -- database trigger claims authority
+            self.approve_revision(
+                session,
+                revision_id=revision_id,
+                content=content,
+                approved_at=approved_at,
+                approved_by=approved_by,
+            )
         elif existing_rev.status == "draft":
             # Approve existing draft (handles authority table via approve_revision)
             self.approve_revision(
