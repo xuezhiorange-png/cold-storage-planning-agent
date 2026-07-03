@@ -15,6 +15,7 @@ import sys
 import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+import uuid as _uuid_mod
 from uuid import uuid4
 
 import pytest
@@ -44,7 +45,15 @@ from cold_storage.modules.projects.infrastructure.orm import AuditEventRecord
 
 pytestmark = pytest.mark.postgresql
 
+import re
+
 BACKEND_DIR = Path(__file__).resolve().parents[2]
+_DB_NAME_RE = re.compile(r"[^a-z0-9_]")
+
+
+def _sanitize(name: str) -> str:
+    """Return a valid PostgreSQL database name."""
+    return _DB_NAME_RE.sub("_", name.lower())[:63]
 
 
 # ── Alembic bootstrap ──────────────────────────────────────────────────────
@@ -64,10 +73,36 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
     )
 
 
+@pytest.fixture(scope="session")
+def _pg_outbox_session_factory(pg_admin_url: str):
+    """Session-scoped admin engine used to create one shared test DB."""
+    admin_engine = create_engine(pg_admin_url, poolclass=NullPool)
+    admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
+    created: list[str] = []
+
+    def create_db(*, prefix: str) -> str:
+        db_name = _sanitize(f"{prefix}_{_uuid_mod.uuid4().hex[:12]}")
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+        created.append(db_name)
+        return f"postgresql+psycopg://cold_storage:cold_storage@localhost:5432/{db_name}"
+
+    yield create_db
+
+    for db_name in created:
+        try:
+            with admin_engine.connect() as conn:
+                conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+        except Exception:
+            pass
+    admin_engine.dispose()
+
+
 @pytest.fixture(scope="module")
-def _pg_outbox_engine_setup(pg_database_factory):
+def _pg_outbox_database_url(_pg_outbox_session_factory) -> str:
     """Per-module: create a dedicated database once, run alembic head once."""
-    db_url = pg_database_factory(prefix="pg_outbox")
+    db_url = _pg_outbox_session_factory(prefix="pg_outbox")
     r = _run_alembic(db_url, "upgrade", "head")
     if r.returncode != 0:
         pytest.fail(f"Alembic upgrade failed: {r.stderr}\n{r.stdout}")
@@ -75,14 +110,14 @@ def _pg_outbox_engine_setup(pg_database_factory):
 
 
 @pytest.fixture()
-def pg_outbox_engine(_pg_outbox_engine_setup: str):
+def pg_outbox_engine(_pg_outbox_database_url: str):
     """PostgreSQL engine bound to a module-scoped Alembic-head database.
 
     Each test gets a fresh engine bound to the same database. We
     TRUNCATE the outbox tables between tests so isolation is preserved
     without per-test alembic upgrade/downgrade cost.
     """
-    engine = create_engine(_pg_outbox_engine_setup, poolclass=NullPool)
+    engine = create_engine(_pg_outbox_database_url, poolclass=NullPool)
     try:
         yield engine
     finally:
