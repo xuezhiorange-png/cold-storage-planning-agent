@@ -45,8 +45,10 @@ _IMMUTABLE_FIELDS: frozenset[str] = frozenset(
 
 # ── Precise authority conflict classification ──────────────────────────────
 # The authority table PK is (weight_set_id, code).
-# PostgreSQL auto-names it: pk_scheme_weight_set_active_revisions
-_AUTHORITY_PK_CONSTRAINT = "pk_scheme_weight_set_active_revisions"
+# PostgreSQL auto-names the partial unique index:
+# uq_active_approved_weight_rev on (weight_set_id, code) WHERE status = 'approved'
+# The authority table PK may also fire, but the partial index fires first.
+_AUTHORITY_PK_CONSTRAINT = "uq_active_approved_weight_rev"
 _AUTHORITY_TABLE = "scheme_weight_set_active_revisions"
 
 
