@@ -312,7 +312,12 @@ class SourceBindingRecord(Base):
 
 
 class AuditOutboxRecord(Base):
-    """Transactional outbox for audit events."""
+    """Transactional outbox for audit events.
+
+    Self-contained immutable audit envelope.  All event-envelope fields
+    (event_identity through payload_hash) are immutable after insert.
+    State transitions are guarded by CHECK constraints and triggers.
+    """
 
     __tablename__ = "orchestration_audit_outbox"
     __table_args__ = (
@@ -320,37 +325,53 @@ class AuditOutboxRecord(Base):
         CheckConstraint(
             "("
             " status = 'PENDING'"
-            " AND claimed_at IS NULL"
-            " AND claimed_by IS NULL"
-            " AND claim_expires_at IS NULL"
-            " AND published_at IS NULL"
+            " AND claimed_at IS NULL AND claimed_by IS NULL"
+            " AND claim_token IS NULL AND claim_expires_at IS NULL"
+            " AND published_at IS NULL AND failed_at IS NULL"
             ")"
             " OR ("
             " status = 'PROCESSING'"
-            " AND claimed_at IS NOT NULL"
-            " AND claimed_by IS NOT NULL"
-            " AND claim_expires_at IS NOT NULL"
-            " AND published_at IS NULL"
+            " AND claimed_at IS NOT NULL AND claimed_by IS NOT NULL"
+            " AND claim_token IS NOT NULL AND claim_expires_at IS NOT NULL"
+            " AND published_at IS NULL AND failed_at IS NULL"
             ")"
             " OR ("
             " status = 'PUBLISHED'"
             " AND published_at IS NOT NULL"
+            " AND failed_at IS NULL"
+            " AND claimed_at IS NULL AND claimed_by IS NULL"
+            " AND claim_token IS NULL AND claim_expires_at IS NULL"
+            ")"
+            " OR ("
+            " status = 'FAILED'"
+            " AND failed_at IS NOT NULL"
+            " AND published_at IS NULL"
+            " AND claimed_at IS NULL AND claimed_by IS NULL"
+            " AND claim_token IS NULL AND claim_expires_at IS NULL"
             ")",
             name="ck_outbox_status_nullity",
         ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    # ── Immutable audit envelope ────────────────────────────────────────
     event_identity: Mapped[str] = mapped_column(String(128), nullable=False)
     event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    event_schema_version: Mapped[str] = mapped_column(String(50), nullable=False)
     aggregate_type: Mapped[str] = mapped_column(String(120), nullable=False)
     aggregate_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    # ── Association fields (nullable) ───────────────────────────────────
     request_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     identity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     calculation_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     source_binding_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    # ── Mutable lifecycle fields ────────────────────────────────────────
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     next_retry_at: Mapped[datetime] = mapped_column(
@@ -358,12 +379,16 @@ class AuditOutboxRecord(Base):
     )
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     claimed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    claim_token: Mapped[str | None] = mapped_column(String(36), nullable=True)
     claim_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    last_error_class: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_error_details: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
