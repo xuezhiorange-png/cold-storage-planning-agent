@@ -474,7 +474,9 @@ class TestPGConcurrentRace:
             # Verify loser is not raw IntegrityError/InternalError
             loser_key = failed_gov[0]
             loser_exc = errors[loser_key]
-            assert not isinstance(loser_exc, type(Exception).mro()[1]), (
+            from sqlalchemy import exc as sa_exc
+
+            assert not isinstance(loser_exc, (sa_exc.IntegrityError, sa_exc.InternalError)), (
                 f"Loser got raw DB error: {type(loser_exc)}"
             )
 
