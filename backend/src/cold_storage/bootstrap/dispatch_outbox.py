@@ -61,9 +61,10 @@ def main() -> int:
     now = datetime.now(UTC)
     is_pg = "postgresql" in database_url.lower()
 
-    # Build the application service
     service = AuditOutboxDispatcherApplicationService(
-        claim_fn=claim_events_pg if is_pg else claim_events_sqlite,
+        engine=engine,
+        claim_fn_pg=claim_events_pg if is_pg else None,
+        claim_fn_sqlite=claim_events_sqlite if not is_pg else None,
         materialize_fn=materialize_event,
         mark_retryable_fn=mark_retryable_failure,
         mark_terminal_fn=mark_terminal_failure,
@@ -89,8 +90,6 @@ def main() -> int:
     }
     print(json.dumps(result, indent=2))
 
-    # Exit 0 only if no terminal failures, no unhandled failures,
-    # and no failure-persistence errors
     if summary.failed > 0 or summary.unhandled_failures > 0:
         return 1
     return 0
