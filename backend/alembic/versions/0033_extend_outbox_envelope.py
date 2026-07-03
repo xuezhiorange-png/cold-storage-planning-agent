@@ -10,6 +10,9 @@ Adds to ``orchestration_audit_outbox``:
 - Updates ck_outbox_status_nullity to include FAILED state
 - Adds immutability trigger on outbox after initial insert
 - Adds trigger enforcing AuditEvent existence for PUBLISHED outbox rows
+
+Post-add backfill: sets meaningful legacy values for pre-existing rows.
+SQLite: adds triggers for immutability and PUBLISHED-requires-AuditEvent.
 """
 
 from collections.abc import Sequence
@@ -17,7 +20,6 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
-
 revision: str = "0033_extend_outbox_envelope"
 down_revision: str | None = "451311827adf"
 branch_labels: str | Sequence[str] | None = None
@@ -159,7 +161,17 @@ def _pg_upgrade() -> None:
         ")"
     )
 
-    # 3. Immutable envelope trigger
+    # 3. Backfill meaningful legacy values for pre-existing rows
+    op.execute(
+        "UPDATE orchestration_audit_outbox SET "
+        "actor = 'legacy-system', "
+        "correlation_id = 'legacy:' || id, "
+        "payload_hash = '', "
+        "event_schema_version = 'legacy-1.0' "
+        "WHERE actor = ''"
+    )
+
+    # 4. Immutable envelope trigger
     op.execute(_IMMU_ENVELOPE_FN)
     op.execute("DROP TRIGGER IF EXISTS trg_immutable_outbox_envelope ON orchestration_audit_outbox")
     op.execute(
@@ -168,7 +180,7 @@ def _pg_upgrade() -> None:
         "FOR EACH ROW EXECUTE FUNCTION trg_immutable_outbox_envelope()"
     )
 
-    # 4. Published requires AuditEvent
+    # 5. Published requires AuditEvent
     op.execute(_PUB_REQUIRES_AUDITEVENT_FN)
     op.execute(
         "DROP TRIGGER IF EXISTS trg_outbox_published_requires_auditevent "
@@ -281,8 +293,73 @@ def _sqlite_upgrade() -> None:
             "AND claim_token IS NULL AND claim_expires_at IS NULL)",
         )
 
+    # Backfill meaningful legacy values
+    op.execute(
+        "UPDATE orchestration_audit_outbox SET "
+        "actor = 'legacy-system', "
+        "correlation_id = 'legacy:' || id, "
+        "payload_hash = '', "
+        "event_schema_version = 'legacy-1.0' "
+        "WHERE actor = ''"
+    )
+
+    # ── SQLite triggers ───────────────────────────────────────────────
+
+    # 1. trg_immutable_outbox_envelope: BEFORE UPDATE, check envelope immutability
+    op.execute("DROP TRIGGER IF EXISTS trg_immutable_outbox_envelope")
+    op.execute(
+        "CREATE TRIGGER trg_immutable_outbox_envelope "
+        "BEFORE UPDATE ON orchestration_audit_outbox "
+        "FOR EACH ROW "
+        "WHEN "
+        "  OLD.status = 'PUBLISHED' OR OLD.status = 'FAILED' "
+        "  OR NEW.event_identity != OLD.event_identity "
+        "  OR NEW.event_type != OLD.event_type "
+        "  OR NEW.event_schema_version != OLD.event_schema_version "
+        "  OR NEW.aggregate_type != OLD.aggregate_type "
+        "  OR NEW.aggregate_id != OLD.aggregate_id "
+        "  OR NEW.actor != OLD.actor "
+        "  OR NEW.correlation_id != OLD.correlation_id "
+        "  OR NEW.occurred_at != OLD.occurred_at "
+        "  OR NEW.payload IS NOT OLD.payload "
+        "  OR NEW.payload_hash != OLD.payload_hash "
+        "BEGIN "
+        "  SELECT RAISE(ABORT, 'Cannot modify immutable audit envelope fields on outbox event'); "
+        "END"
+    )
+
+    # 2. trg_outbox_published_requires_auditevent: BEFORE UPDATE, PUBLISHED requires AuditEvent
+    op.execute("DROP TRIGGER IF EXISTS trg_outbox_published_requires_auditevent")
+    op.execute(
+        "CREATE TRIGGER trg_outbox_published_requires_auditevent "
+        "BEFORE UPDATE ON orchestration_audit_outbox "
+        "FOR EACH ROW "
+        "WHEN NEW.status = 'PUBLISHED' AND OLD.status != 'PUBLISHED' "
+        "  AND NOT EXISTS (SELECT 1 FROM audit_events WHERE outbox_event_id = NEW.event_identity) "
+        "BEGIN "
+        "  SELECT RAISE(ABORT, 'PUBLISHED outbox event has no matching AuditEvent'); "
+        "END"
+    )
+
+    # 3. trg_audit_event_outbox_id_immutable: BEFORE UPDATE on audit_events
+    op.execute("DROP TRIGGER IF EXISTS trg_audit_event_outbox_id_immutable")
+    op.execute(
+        "CREATE TRIGGER trg_audit_event_outbox_id_immutable "
+        "BEFORE UPDATE ON audit_events "
+        "FOR EACH ROW "
+        "WHEN NEW.outbox_event_id != OLD.outbox_event_id "
+        "BEGIN "
+        "  SELECT RAISE(ABORT, 'Cannot modify audit_events.outbox_event_id'); "
+        "END"
+    )
+
 
 def _sqlite_downgrade() -> None:
+    # Drop triggers
+    op.execute("DROP TRIGGER IF EXISTS trg_immutable_outbox_envelope")
+    op.execute("DROP TRIGGER IF EXISTS trg_outbox_published_requires_auditevent")
+    op.execute("DROP TRIGGER IF EXISTS trg_audit_event_outbox_id_immutable")
+
     with op.batch_alter_table("orchestration_audit_outbox") as batch_op:
         batch_op.drop_constraint("ck_outbox_status_nullity", type_="check")
         batch_op.create_check_constraint(
