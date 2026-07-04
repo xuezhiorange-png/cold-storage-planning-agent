@@ -87,6 +87,7 @@ def _insert_full_chain(conn: sqlite3.Connection) -> dict[str, str]:
     test controls.
     """
     import json as _json
+
     pid, pvid = _projects_setup(conn)
 
     eid = str(uuid.uuid4())
@@ -123,13 +124,18 @@ def _insert_full_chain(conn: sqlite3.Connection) -> dict[str, str]:
 
     calc_ids = []
     slot_to_calctype = {
-        "zone": "zone", "cooling_load": "cooling_load",
-        "equipment": "equipment", "power": "power",
+        "zone": "zone",
+        "cooling_load": "cooling_load",
+        "equipment": "equipment",
+        "power": "power",
         "investment": "investment",
     }
     slot_to_calcname = {
-        "zone": "zcalc", "cooling_load": "ccalc",
-        "equipment": "ecalc", "power": "pcalc", "investment": "icalc",
+        "zone": "zcalc",
+        "cooling_load": "ccalc",
+        "equipment": "ecalc",
+        "power": "pcalc",
+        "investment": "icalc",
     }
     for slot, calcname in slot_to_calcname.items():
         cid = str(uuid.uuid4())
@@ -146,9 +152,18 @@ def _insert_full_chain(conn: sqlite3.Connection) -> dict[str, str]:
             "VALUES (?, ?, ?, ?, '1.0', ?, ?, '[]', '[]', '[]', '[]', "
             "'[]', 0, datetime('now'), ?, ?, ?, ?, ?, 'h1', 'h1', ?, '1', 'fp')",
             (
-                cid, pid, pvid, calcname, _json.dumps({"k": "v"}),
-                _json.dumps({"k": "r"}), slot_to_calctype[slot],
-                oid, aid, eid, cid_ctx, _json.dumps({"k": "p"}),
+                cid,
+                pid,
+                pvid,
+                calcname,
+                _json.dumps({"k": "v"}),
+                _json.dumps({"k": "r"}),
+                slot_to_calctype[slot],
+                oid,
+                aid,
+                eid,
+                cid_ctx,
+                _json.dumps({"k": "p"}),
             ),
         )
 
@@ -165,14 +180,27 @@ def _insert_full_chain(conn: sqlite3.Connection) -> dict[str, str]:
         "VALUES (?, ?, ?, ?, ?, ?, ?, 'fp', ?, ?, ?, ?, ?, ?, 'combined-h', "
         "'1', datetime('now'))",
         (
-            src_bid, pid, pvid, eid, cid_ctx, oid, aid,
-            calc_ids[0], calc_ids[1], calc_ids[2], calc_ids[3], calc_ids[4],
+            src_bid,
+            pid,
+            pvid,
+            eid,
+            cid_ctx,
+            oid,
+            aid,
+            calc_ids[0],
+            calc_ids[1],
+            calc_ids[2],
+            calc_ids[3],
+            calc_ids[4],
             _json.dumps({}),
         ),
     )
 
     return {
-        "pid": pid, "pvid": pvid, "src_bid": src_bid, "sid": src_bid,
+        "pid": pid,
+        "pvid": pvid,
+        "src_bid": src_bid,
+        "sid": src_bid,
     }
 
 
@@ -252,7 +280,9 @@ class TestDowngradeBlockedOnUnverifiedProduction:
         # enforcement, so turning FKs off here is appropriate.
         ids = _insert_full_chain(conn)
         sid = _insert_production_scheme_run(
-            conn, ids["pid"], ids["pvid"],
+            conn,
+            ids["pid"],
+            ids["pvid"],
             source_binding_id=ids["src_bid"],
             combined_source_hash="combined-h",
         )
@@ -265,9 +295,9 @@ class TestDowngradeBlockedOnUnverifiedProduction:
         assert r.returncode != 0, (
             "downgrade should be blocked when production SchemeRun has no archive"
         )
-        assert (
-            "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout
-        ), f"missing blocker message:\nstderr={r.stderr!r}\nstdout={r.stdout!r}"
+        assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+            f"missing blocker message:\nstderr={r.stderr!r}\nstdout={r.stdout!r}"
+        )
 
         # Table must still exist (downgrade did not drop it).
         conn = sqlite3.connect(str(db_path))
@@ -277,9 +307,7 @@ class TestDowngradeBlockedOnUnverifiedProduction:
         ).fetchone()[0]
         assert exists == 1, "production_source_archives table missing after blocked downgrade"
         # SchemeRun still present.
-        row = conn.execute(
-            "SELECT COUNT(*) FROM scheme_runs WHERE id=?", (sid,)
-        ).fetchone()[0]
+        row = conn.execute("SELECT COUNT(*) FROM scheme_runs WHERE id=?", (sid,)).fetchone()[0]
         assert row == 1, "scheme_runs row missing"
         conn.close()
         db_path.unlink(missing_ok=True)
@@ -298,7 +326,9 @@ class TestDowngradeAllowedWithVerifiedArchive:
         # the same minimal-fixture rationale.
         ids = _insert_full_chain(conn)
         sid = _insert_production_scheme_run(
-            conn, ids["pid"], ids["pvid"],
+            conn,
+            ids["pid"],
+            ids["pvid"],
             source_binding_id=ids["src_bid"],
             combined_source_hash="combined-h",
         )
@@ -309,12 +339,14 @@ class TestDowngradeAllowedWithVerifiedArchive:
         import hashlib
         import json as _json
         import sys as _sys
+
         _alembic_dir = BACKEND_DIR / "alembic"
         if str(_alembic_dir) not in _sys.path:
             _sys.path.insert(0, str(_alembic_dir))
         from helpers.frozen_scheme_source_archive_v1 import (  # type: ignore[import-not-found]  # noqa: E501
             canonical_json_v1,
         )
+
         payload = {
             "schema": "SchemeSourceArchiveV1",
             "scheme_run_id": sid,
@@ -361,7 +393,10 @@ class TestDowngradeAllowedWithVerifiedArchive:
             "'ident-1', 'att-1', 'fp', datetime('now'), "
             "'seed', 'completed')",
             (
-                str(uuid.uuid4()), sid, ids["src_bid"], _json.dumps(payload),
+                str(uuid.uuid4()),
+                sid,
+                ids["src_bid"],
+                _json.dumps(payload),
                 archive_hash,
             ),
         )

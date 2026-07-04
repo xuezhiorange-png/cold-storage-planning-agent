@@ -71,9 +71,7 @@ _SLOT_TO_SCHEME_RUN_COLUMN_INNER = {
     "power": "power_result_hash",
     "investment": "investment_result_hash",
 }
-SLOT_TO_SCHEME_RUN_COLUMN: Mapping[str, str] = MappingProxyType(
-    _SLOT_TO_SCHEME_RUN_COLUMN_INNER
-)
+SLOT_TO_SCHEME_RUN_COLUMN: Mapping[str, str] = MappingProxyType(_SLOT_TO_SCHEME_RUN_COLUMN_INNER)
 
 
 # ── Result bundles ──────────────────────────────────────────────────────────
@@ -186,9 +184,7 @@ def resolve_scheme_run_sources_for_history(
 
     # 2. Try online first.
     if online_source_lookup is not None:
-        online = online_source_lookup.find_online_scheme_run_sources(
-            session, scheme_run_id
-        )
+        online = online_source_lookup.find_online_scheme_run_sources(session, scheme_run_id)
         if online is not None:
             return VerifiedOnlineSourceBundle(
                 scheme_run_id=scheme_run_id,
@@ -215,6 +211,7 @@ def resolve_scheme_run_sources_for_history(
     from cold_storage.modules.orchestration.application.canonical_archive_v1 import (  # noqa: I001  # lazy import avoids circular import
         compute_archive_hash_v1,
     )
+
     recomputed = compute_archive_hash_v1(payload)
     if recomputed != archive_row["archive_hash"]:
         raise SchemeSourceArchiveIntegrityError(archive_hash=archive_row["archive_hash"])
@@ -222,9 +219,7 @@ def resolve_scheme_run_sources_for_history(
     # 7. Compare combined_source_hash.
     expected_combined = scheme_run_row.get("combined_source_hash")
     if expected_combined is None or expected_combined != archive_row["combined_source_hash"]:
-        raise SchemeRunHistoricalSourceTamperedError(
-            scheme_run_id, field="combined_source_hash"
-        )
+        raise SchemeRunHistoricalSourceTamperedError(scheme_run_id, field="combined_source_hash")
 
     # 8. Compare per-slot result_hashes.
     archive_slots = archive_row["source_slots"]
@@ -236,23 +231,13 @@ def resolve_scheme_run_sources_for_history(
         archive_slot_hash = archive_slots[slot_key].get("result_hash")
         scheme_slot_hash = scheme_run_row.get(column_name)
         if scheme_slot_hash != archive_slot_hash:
-            raise SchemeRunHistoricalSourceTamperedError(
-                scheme_run_id, field=column_name
-            )
+            raise SchemeRunHistoricalSourceTamperedError(scheme_run_id, field=column_name)
 
     # 9. Compare weight_set_content_hash and binding_schema_version.
-    if scheme_run_row.get("weight_set_content_hash") != archive_row.get(
-        "weight_set_content_hash"
-    ):
-        raise SchemeRunHistoricalSourceTamperedError(
-            scheme_run_id, field="weight_set_content_hash"
-        )
-    if scheme_run_row.get("binding_schema_version") != archive_row.get(
-        "binding_schema_version"
-    ):
-        raise SchemeRunHistoricalSourceTamperedError(
-            scheme_run_id, field="binding_schema_version"
-        )
+    if scheme_run_row.get("weight_set_content_hash") != archive_row.get("weight_set_content_hash"):
+        raise SchemeRunHistoricalSourceTamperedError(scheme_run_id, field="weight_set_content_hash")
+    if scheme_run_row.get("binding_schema_version") != archive_row.get("binding_schema_version"):
+        raise SchemeRunHistoricalSourceTamperedError(scheme_run_id, field="binding_schema_version")
 
     # 10. All checks pass.
     return VerifiedArchiveSourceBundle(

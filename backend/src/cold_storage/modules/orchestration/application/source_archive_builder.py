@@ -123,9 +123,7 @@ def build_archive_for_completed_scheme_run(
         combined_source_hash=combined_source_hash,
         weight_set_revision_id=weight_set_revision_id,
         weight_set_content_hash=weight_set_content_hash,
-        weight_set_generator_compatibility_version=(
-            weight_set_generator_compatibility_version
-        ),
+        weight_set_generator_compatibility_version=(weight_set_generator_compatibility_version),
         execution_snapshot_id=execution_snapshot_id,
         coefficient_context_id=coefficient_context_id,
         orchestration_identity_id=orchestration_identity_id,

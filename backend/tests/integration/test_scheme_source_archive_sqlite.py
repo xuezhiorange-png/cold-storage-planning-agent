@@ -197,11 +197,15 @@ class TestBuilderRepositoryRoundtrip:
                     {"id": archive_id},
                 ).fetchone()
                 assert row is not None
-                assert row[0] == canonical_archive_v1.compute_archive_hash_v1(
-                    # We can't easily recompose without rebuilding payload,
-                    # but the round-trip check is the row exists.
-                    {}  # placeholder — assertion below is stronger
-                ) or len(row[0]) == 64  # archive_hash is exactly 64 hex chars
+                assert (
+                    row[0]
+                    == canonical_archive_v1.compute_archive_hash_v1(
+                        # We can't easily recompose without rebuilding payload,
+                        # but the round-trip check is the row exists.
+                        {}  # placeholder — assertion below is stronger
+                    )
+                    or len(row[0]) == 64
+                )  # archive_hash is exactly 64 hex chars
                 assert row[1] == SCHEMA_VERSION_V1
                 assert row[2] == "combined-h"
                 assert row[3] == "completed"
@@ -227,6 +231,7 @@ def _seed_archive_row(
     from cold_storage.modules.orchestration.infrastructure.orm import (
         ProductionSourceArchiveRecord,
     )
+
     archive_id = str(uuid.uuid4())
     slot_hashes = source_slot_hashes or {
         "zone": "ZH",
@@ -262,6 +267,7 @@ def _seed_archive_row(
     from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
         compute_archive_hash_v1,
     )
+
     archive_hash = archive_hash_override or compute_archive_hash_v1(payload)
     record = ProductionSourceArchiveRecord(
         id=archive_id,
@@ -312,9 +318,7 @@ class TestResolverFailClosedPaths:
             result = historical_source_resolver.resolve_scheme_run_sources_for_history(
                 session, scheme_run_row, read_port=read_port, online_source_lookup=None
             )
-        assert isinstance(
-            result, historical_source_resolver.LegacySourceBundle
-        )
+        assert isinstance(result, historical_source_resolver.LegacySourceBundle)
 
     def test_archive_reads_back_verify_archive_bundle(self, migrated_engine) -> None:
         from cold_storage.modules.orchestration.application import (
@@ -327,7 +331,8 @@ class TestResolverFailClosedPaths:
 
         with Session(migrated_engine) as session:
             scheme_run_row = {
-                "id": "scheme-v1", "source_mode": "production",
+                "id": "scheme-v1",
+                "source_mode": "production",
                 "combined_source_hash": "combined-h",
                 "weight_set_content_hash": "weight-h",
                 "binding_schema_version": "BSV-1.0",
@@ -340,9 +345,7 @@ class TestResolverFailClosedPaths:
             result = historical_source_resolver.resolve_scheme_run_sources_for_history(
                 session, scheme_run_row, read_port=read_port, online_source_lookup=None
             )
-        assert isinstance(
-            result, historical_source_resolver.VerifiedArchiveSourceBundle
-        )
+        assert isinstance(result, historical_source_resolver.VerifiedArchiveSourceBundle)
         assert result.combined_source_hash == "combined-h"
 
     def test_no_archive_raises_unavailable(self, migrated_engine) -> None:
@@ -378,12 +381,15 @@ class TestResolverFailClosedPaths:
             _seed_archive_row(session, scheme_run_id="scheme-tampered")
         with Session(migrated_engine) as session:
             scheme_run_row = {
-                "id": "scheme-tampered", "source_mode": "production",
+                "id": "scheme-tampered",
+                "source_mode": "production",
                 "combined_source_hash": "WRONG",  # archive holds "combined-h"
                 "weight_set_content_hash": "weight-h",
                 "binding_schema_version": "BSV-1.0",
-                "zone_result_hash": "ZH", "cooling_load_result_hash": "CH",
-                "equipment_result_hash": "EH", "power_result_hash": "PH",
+                "zone_result_hash": "ZH",
+                "cooling_load_result_hash": "CH",
+                "equipment_result_hash": "EH",
+                "power_result_hash": "PH",
                 "investment_result_hash": "IH",
             }
             with pytest.raises(SchemeRunHistoricalSourceTamperedError) as exc_info:
@@ -405,13 +411,15 @@ class TestResolverFailClosedPaths:
             _seed_archive_row(session, scheme_run_id="scheme-slot-tamper")
         with Session(migrated_engine) as session:
             scheme_run_row = {
-                "id": "scheme-slot-tamper", "source_mode": "production",
+                "id": "scheme-slot-tamper",
+                "source_mode": "production",
                 "combined_source_hash": "combined-h",
                 "weight_set_content_hash": "weight-h",
                 "binding_schema_version": "BSV-1.0",
                 "zone_result_hash": "WRONG",  # archive holds "ZH"
                 "cooling_load_result_hash": "CH",
-                "equipment_result_hash": "EH", "power_result_hash": "PH",
+                "equipment_result_hash": "EH",
+                "power_result_hash": "PH",
                 "investment_result_hash": "IH",
             }
             with pytest.raises(SchemeRunHistoricalSourceTamperedError) as exc_info:
@@ -437,12 +445,15 @@ class TestResolverFailClosedPaths:
             )
         with Session(migrated_engine) as session:
             scheme_run_row = {
-                "id": "scheme-bad-hash", "source_mode": "production",
+                "id": "scheme-bad-hash",
+                "source_mode": "production",
                 "combined_source_hash": "combined-h",
                 "weight_set_content_hash": "weight-h",
                 "binding_schema_version": "BSV-1.0",
-                "zone_result_hash": "ZH", "cooling_load_result_hash": "CH",
-                "equipment_result_hash": "EH", "power_result_hash": "PH",
+                "zone_result_hash": "ZH",
+                "cooling_load_result_hash": "CH",
+                "equipment_result_hash": "EH",
+                "power_result_hash": "PH",
                 "investment_result_hash": "IH",
             }
             with pytest.raises(SchemeSourceArchiveIntegrityError):
@@ -494,12 +505,14 @@ class TestResolverFailClosedPaths:
                 "power": {"calculation_id": "p", "result_hash": "PH"},
                 "investment": {"calculation_id": "i", "result_hash": "IH"},
             },
-            project_id="proj-1", project_version_id="pver-1",
+            project_id="proj-1",
+            project_version_id="pver-1",
             generator_compatibility_version="GCV-1.0",
             captured_at=datetime.now(UTC),
         )
         archive_hash = compute_archive_hash_v1(payload)
         import json as _json
+
         payload_json = _json.dumps(payload)
 
         # Bypass CHECK for this test only.
@@ -534,12 +547,15 @@ class TestResolverFailClosedPaths:
 
         with Session(migrated_engine) as session:
             scheme_run_row = {
-                "id": "scheme-bad-version", "source_mode": "production",
+                "id": "scheme-bad-version",
+                "source_mode": "production",
                 "combined_source_hash": "combined-h",
             }
             with pytest.raises(SchemeSourceArchiveUnsupportedSchemaError):
                 historical_source_resolver.resolve_scheme_run_sources_for_history(
-                    session, scheme_run_row, read_port=read_port,
+                    session,
+                    scheme_run_row,
+                    read_port=read_port,
                     online_source_lookup=None,
                 )
 
@@ -573,7 +589,5 @@ class TestResolverFailClosedPaths:
                 read_port=read_port,
                 online_source_lookup=StubOnline(),
             )
-        assert isinstance(
-            result, historical_source_resolver.VerifiedOnlineSourceBundle
-        )
+        assert isinstance(result, historical_source_resolver.VerifiedOnlineSourceBundle)
         assert result.source_binding_id == "online-b"

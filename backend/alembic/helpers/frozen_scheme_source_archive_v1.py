@@ -112,8 +112,6 @@ def compute_archive_hash_v1(archive_payload: dict[str, Any]) -> str:
     (``sort_keys=True``).
     """
     if not isinstance(archive_payload, dict):
-        raise ValueError(
-            f"archive_payload must be dict, got {type(archive_payload).__name__}"
-        )
+        raise ValueError(f"archive_payload must be dict, got {type(archive_payload).__name__}")
     canonical = canonical_json_v1(archive_payload)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

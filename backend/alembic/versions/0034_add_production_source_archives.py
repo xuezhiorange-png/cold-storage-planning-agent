@@ -31,6 +31,7 @@ from collections.abc import Sequence
 from pathlib import Path as _Path
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0034_add_production_source_archives"
@@ -125,7 +126,7 @@ def _pg_upgrade() -> None:
             name="ck_archive_schema_version_v1",
         ),
         sa.CheckConstraint(
-            f"reason IN ('completed', 'pre_downgrade')",
+            "reason IN ('completed', 'pre_downgrade')",
             name="ck_archive_reason_values",
         ),
         sa.CheckConstraint(
@@ -179,7 +180,7 @@ def _sqlite_upgrade() -> None:
             name="ck_archive_schema_version_v1",
         ),
         sa.CheckConstraint(
-            f"reason IN ('completed', 'pre_downgrade')",
+            "reason IN ('completed', 'pre_downgrade')",
             name="ck_archive_reason_values",
         ),
         sa.CheckConstraint(
@@ -227,9 +228,7 @@ def _downgrade_guard() -> None:
     # Alembic runs migrations as scripts (runpy); we load the helper
     # module via an explicit sys.path insertion to match the pattern
     # used by migration 0033.
-    _migration_file = _Path(
-        str(__file__)
-    ).resolve()
+    _migration_file = _Path(str(__file__)).resolve()
     _alembic_dir = _migration_file.parent.parent
     if str(_alembic_dir) not in _sys.path:
         _sys.path.insert(0, str(_alembic_dir))
@@ -294,9 +293,7 @@ def _downgrade_guard() -> None:
             continue
 
     if unmatched:
-        sample = ", ".join(
-            f"{sid} (combined_hash={ch!r})" for sid, ch in unmatched[:5]
-        )
+        sample = ", ".join(f"{sid} (combined_hash={ch!r})" for sid, ch in unmatched[:5])
         raise RuntimeError(
             "downgrade blocked: "
             f"{len(unmatched)} production SchemeRun(s) lack verified archive: "

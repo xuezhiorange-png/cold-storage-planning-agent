@@ -155,8 +155,7 @@ def assemble_archive_payload(
         if extra:
             msg_parts.append(f"extra={sorted(extra)}")
         raise SourceArchiveBuildError(
-            "source_slots must match "
-            f"{list(SOURCE_SLOT_ORDER_V1)} exactly ({', '.join(msg_parts)})"
+            f"source_slots must match {list(SOURCE_SLOT_ORDER_V1)} exactly ({', '.join(msg_parts)})"
         )
 
     return {
@@ -168,9 +167,7 @@ def assemble_archive_payload(
         "combined_source_hash": combined_source_hash,
         "weight_set_revision_id": weight_set_revision_id,
         "weight_set_content_hash": weight_set_content_hash,
-        "weight_set_generator_compatibility_version": (
-            weight_set_generator_compatibility_version
-        ),
+        "weight_set_generator_compatibility_version": (weight_set_generator_compatibility_version),
         "execution_snapshot_id": execution_snapshot_id,
         "coefficient_context_id": coefficient_context_id,
         "orchestration_identity_id": orchestration_identity_id,

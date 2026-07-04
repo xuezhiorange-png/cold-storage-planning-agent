@@ -591,4 +591,3 @@ class ProductionSourceArchiveReadPort(Protocol):
     ) -> Mapping[str, Any] | None:
         """Return the archive row for ``scheme_run_id`` or None."""
         ...
-
