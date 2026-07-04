@@ -38,6 +38,10 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
         allow_module_level=True,
     )
 
+import pytest
+
+pytestmark = pytest.mark.sqlite  # noqa: E501
+
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool

@@ -25,8 +25,9 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
         allow_module_level=True,
     )
 
+pytestmark = pytest.mark.sqlite
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
+BACKEND_DIR = Path(__file__).resolve().parents[2]  # noqa: E501  # re-alias for ruff
 
 
 def _upgrade_to_head(db_path: Path) -> None:
