@@ -240,10 +240,38 @@ def _pg_backfill_envelopes() -> None:
     Reads the real association fields (request_id, identity_id, attempt_id,
     calculation_run_id, source_binding_id) when present so the hash matches
     what ``compute_envelope_hash`` would produce for production events.
+
+    P0-4 (Round 7): Imports the v1 FROZEN envelope hashing algorithm from
+    ``alembic/helpers/frozen_outbox_envelope_v1.py``.  This helper is
+    versioned and immutable — it MUST NOT import from
+    ``cold_storage.modules.orchestration.application.outbox_identity`` so
+    that future application-layer changes cannot silently alter historical
+    migration behavior.  Because Alembic runs migration scripts (not
+    modules), the helper is loaded via an explicit ``sys.path`` insertion
+    pointed at the local ``alembic/helpers`` directory.
     """
-    from cold_storage.modules.orchestration.application.outbox_identity import (
-        canonical_json,
-        compute_envelope_hash,
+    import inspect as _inspect_for_frozen_helper_v1
+    import sys as _sys_for_frozen_helper_v1
+    from pathlib import Path as _Path_for_frozen_helper_v1
+
+    # Alembic runs migrations as scripts (runpy); `__name__` and the
+    # `sys.modules` registration can use a sanitized basename that does not
+    # match the on-disk filename.  The migration file's own __file__ is the
+    # authoritative location.  Resolve helpers/ as the parent of the
+    # parent of that file (migration sits in alembic/versions/, helpers/
+    # is its sibling in alembic/).
+    _migration_file = _Path_for_frozen_helper_v1(
+        str(
+            _inspect_for_frozen_helper_v1.getfile(_inspect_for_frozen_helper_v1.currentframe())  # type: ignore[arg-type]
+            or ""
+        )
+    ).resolve()
+    _alembic_dir = _migration_file.parent.parent
+    if str(_alembic_dir) not in _sys_for_frozen_helper_v1.path:
+        _sys_for_frozen_helper_v1.path.insert(0, str(_alembic_dir))
+    from helpers.frozen_outbox_envelope_v1 import (  # type: ignore[import-not-found]
+        canonical_json_v1,
+        compute_envelope_hash_v1,
     )
 
     bind = op.get_bind()
@@ -278,7 +306,7 @@ def _pg_backfill_envelopes() -> None:
         ) = row
 
         # Compute real payload hash from the stored payload
-        payload_str = canonical_json(payload)
+        payload_str = canonical_json_v1(payload)
         real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
         # P0-9: Fail closed on non-dict payload.  Legacy rows that
@@ -294,7 +322,7 @@ def _pg_backfill_envelopes() -> None:
                 f"row_id={row_id!r} type={type(payload).__name__}; "
                 "extend _legacy_payload_canonical() before retrying"
             )
-        envelope_hash = compute_envelope_hash(
+        envelope_hash = compute_envelope_hash_v1(
             event_schema_version=event_schema_version or "1.0",
             event_type=event_type,
             aggregate_type=aggregate_type,
@@ -546,10 +574,38 @@ def _sqlite_backfill_envelopes() -> None:
     Reads the real association fields (request_id, identity_id, attempt_id,
     calculation_run_id, source_binding_id) when present so the hash matches
     what ``compute_envelope_hash`` would produce for production events.
+
+    P0-4 (Round 7): Imports the v1 FROZEN envelope hashing algorithm from
+    ``alembic/helpers/frozen_outbox_envelope_v1.py``.  This helper is
+    versioned and immutable — it MUST NOT import from
+    ``cold_storage.modules.orchestration.application.outbox_identity`` so
+    that future application-layer changes cannot silently alter historical
+    migration behavior.  Because Alembic runs migration scripts (not
+    modules), the helper is loaded via an explicit ``sys.path`` insertion
+    pointed at the local ``alembic/helpers`` directory.
     """
-    from cold_storage.modules.orchestration.application.outbox_identity import (
-        canonical_json,
-        compute_envelope_hash,
+    import inspect as _inspect_for_frozen_helper_v1
+    import sys as _sys_for_frozen_helper_v1
+    from pathlib import Path as _Path_for_frozen_helper_v1
+
+    # Alembic runs migrations as scripts (runpy); `__name__` and the
+    # `sys.modules` registration can use a sanitized basename that does not
+    # match the on-disk filename.  The migration file's own __file__ is the
+    # authoritative location.  Resolve helpers/ as the parent of the
+    # parent of that file (migration sits in alembic/versions/, helpers/
+    # is its sibling in alembic/).
+    _migration_file = _Path_for_frozen_helper_v1(
+        str(
+            _inspect_for_frozen_helper_v1.getfile(_inspect_for_frozen_helper_v1.currentframe())  # type: ignore[arg-type]
+            or ""
+        )
+    ).resolve()
+    _alembic_dir = _migration_file.parent.parent
+    if str(_alembic_dir) not in _sys_for_frozen_helper_v1.path:
+        _sys_for_frozen_helper_v1.path.insert(0, str(_alembic_dir))
+    from helpers.frozen_outbox_envelope_v1 import (  # type: ignore[import-not-found]
+        canonical_json_v1,
+        compute_envelope_hash_v1,
     )
 
     bind = op.get_bind()
@@ -584,7 +640,7 @@ def _sqlite_backfill_envelopes() -> None:
         ) = row
 
         # Compute real payload hash from the stored payload
-        payload_str = canonical_json(payload)
+        payload_str = canonical_json_v1(payload)
         real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
         # P0-9: Fail closed on non-dict payload.  Legacy rows that
@@ -600,7 +656,7 @@ def _sqlite_backfill_envelopes() -> None:
                 f"row_id={row_id!r} type={type(payload).__name__}; "
                 "extend _legacy_payload_canonical() before retrying"
             )
-        envelope_hash = compute_envelope_hash(
+        envelope_hash = compute_envelope_hash_v1(
             event_schema_version=event_schema_version or "1.0",
             event_type=event_type,
             aggregate_type=aggregate_type,

@@ -1169,3 +1169,167 @@ class TestAuditEventAndWeightSet:
         uqs = insp.get_unique_constraints("scheme_weight_set_revisions")
         names = {c["name"] for c in uqs if c.get("name")}
         assert "uq_scheme_weight_set_revision_code_revision" in names
+
+
+# ── P0-4 (Round 7): frozen envelope hashing helper ──────────────────────────
+
+
+class TestFrozenEnvelopeHelperV1:
+    """Migration 0033 must NOT import the application-layer envelope hashing
+    algorithm.  Historical migrations must remain stable even if the
+    application evolves.  The frozen helper lives under
+    ``backend/alembic/helpers/frozen_outbox_envelope_v1.py`` and is
+    byte-stable."""
+
+    MIGRATION_PATH = BACKEND_DIR / "alembic" / "versions" / "0033_extend_outbox_envelope.py"
+
+    def test_migration_0033_does_not_import_application_layer(self) -> None:
+        """The migration script source MUST NOT import from the application
+        layer (parse ``import`` statements, ignore comments/docstrings)."""
+        import ast
+
+        text_content = self.MIGRATION_PATH.read_text(encoding="utf-8")
+        tree = ast.parse(text_content)
+        forbidden_substrings = (
+            "cold_storage.modules.orchestration.application.outbox_identity",
+            "cold_storage.modules.orchestration.application",
+        )
+        # Walk all import / import-from nodes — anywhere in the file.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    for bad in forbidden_substrings:
+                        assert bad not in alias.name, (
+                            f"migration 0033 must not import application layer "
+                            f"(found {alias.name!r}); "
+                            "use alembic.helpers.frozen_outbox_envelope_v1 instead"
+                        )
+            elif isinstance(node, ast.ImportFrom):
+                # module can be None for `from . import x`
+                if node.module is None:
+                    continue
+                # Also inspect the function bodies' dynamic __import__
+                # calls? Skip — Python AST only catches static imports.
+                for bad in forbidden_substrings:
+                    assert bad not in node.module, (
+                        f"migration 0033 must not import application layer "
+                        f"(found from {node.module!r} import "
+                        f"{[a.name for a in node.names]}); "
+                        "use alembic.helpers.frozen_outbox_envelope_v1 instead"
+                    )
+
+    def test_frozen_helper_is_byte_stable(self) -> None:
+        """Two consecutive calls to ``compute_envelope_hash_v1`` MUST return
+        identical bytes for identical inputs (frozen, no globals)."""
+        import sys
+
+        # The local alembic/ dir hosts the helpers package; insert it so
+        # ``import helpers`` resolves here instead of against any third-party
+        # package of the same name.
+        helpers_dir = BACKEND_DIR / "alembic"
+        if str(helpers_dir) not in sys.path:
+            sys.path.insert(0, str(helpers_dir))
+        from helpers.frozen_outbox_envelope_v1 import (  # type: ignore[import-not-found]
+            compute_envelope_hash_v1 as fn,
+        )
+
+        kwargs = dict(
+            event_schema_version="1.0",
+            event_type="evt",
+            aggregate_type="agg",
+            aggregate_id="ag1",
+            actor="actor-1",
+            correlation_id="corr-1",
+            occurred_at="2024-01-01T00:00:00+00:00",
+            request_id="r1",
+            identity_id="id1",
+            attempt_id="att1",
+            calculation_run_id=None,
+            source_binding_id=None,
+            payload={"k": 1, "nested": {"a": [1, 2, 3]}},
+            event_identity="ei-1",
+        )
+        h1 = fn(**kwargs)
+        h2 = fn(**kwargs)
+        assert h1 == h2, "frozen helper MUST be deterministic"
+        assert len(h1) == 64, "SHA-256 hex must be 64 chars"
+        assert all(c in "0123456789abcdef" for c in h1), "must be lowercase hex"
+
+    def test_frozen_helper_does_not_import_application(self) -> None:
+        """The frozen helper module must not transitively depend on
+        ``cold_storage.modules.orchestration`` so that it cannot change
+        when the application evolves."""
+        import importlib
+        import sys
+
+        # Force a fresh import to inspect its module-level attributes.
+        # Insert the local alembic/ dir onto sys.path so the local helpers/
+        # package wins over any installed third-party package of the same name.
+
+        helpers_dir = BACKEND_DIR / "alembic"
+        if str(helpers_dir) not in sys.path:
+            sys.path.insert(0, str(helpers_dir))
+        mod_name = "helpers.frozen_outbox_envelope_v1"
+        if mod_name in sys.modules:
+            del sys.modules[mod_name]
+        mod = importlib.import_module(mod_name)
+        # Inspect source to be sure the module does not pull in cold_storage.
+        src = (BACKEND_DIR / "alembic" / "helpers" / "frozen_outbox_envelope_v1.py").read_text(
+            encoding="utf-8"
+        )
+        assert "cold_storage" not in src, (
+            "frozen helper must NOT import from cold_storage (application layer); "
+            "historical migrations must remain stable"
+        )
+        # Compute a hash and confirm it works.
+        h = mod.compute_envelope_hash_v1(
+            event_schema_version="1.0",
+            event_type="t",
+            aggregate_type="a",
+            aggregate_id="i",
+            actor="x",
+            correlation_id="c",
+            occurred_at="2024-01-01T00:00:00+00:00",
+            request_id=None,
+            identity_id=None,
+            attempt_id=None,
+            calculation_run_id=None,
+            source_binding_id=None,
+            payload={"k": 1},
+            event_identity=None,
+        )
+        assert isinstance(h, str) and len(h) == 64
+
+    def test_frozen_helper_payload_hash_works(self) -> None:
+        import sys
+
+        helpers_dir = BACKEND_DIR / "alembic"
+        if str(helpers_dir) not in sys.path:
+            sys.path.insert(0, str(helpers_dir))
+        from helpers.frozen_outbox_envelope_v1 import (  # type: ignore[import-not-found]
+            compute_payload_hash_v1,
+        )
+
+        h = compute_payload_hash_v1({"a": 1, "b": [1, 2]})
+        assert len(h) == 64
+        # Determinism
+        assert compute_payload_hash_v1({"a": 1, "b": [1, 2]}) == h
+
+    def test_migration_backfill_non_dict_payload_fails_closed(self) -> None:
+        """The fail-closed RuntimeError path on non-dict legacy payload MUST
+        be present in the migration source (defense in depth — even though
+        the schema rejects non-dict on INSERT today, migration must still
+        refuse to silently substitute ``{}``)."""
+        text_content = self.MIGRATION_PATH.read_text(encoding="utf-8")
+        assert "outbox backfill encountered non-dict payload" in text_content, (
+            "migration 0033 must still fail closed on non-dict legacy payloads"
+        )
+        assert "extend _legacy_payload_canonical() before retrying" in text_content
+
+    def test_migration_backfill_helpers_use_v1_suffix(self) -> None:
+        """The migration must call the ``_v1``-suffixed helpers (or import
+        them) so that any future ``_v2`` cannot silently change this
+        migration."""
+        text_content = self.MIGRATION_PATH.read_text(encoding="utf-8")
+        assert "canonical_json_v1" in text_content
+        assert "compute_envelope_hash_v1" in text_content
