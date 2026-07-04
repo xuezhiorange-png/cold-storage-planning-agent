@@ -1177,9 +1177,9 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
         aggregate_id: str,
         payload: dict[str, object],
         transition_id: str,
-        actor: str = "system",
-        correlation_id: str = "",
-        occurred_at: datetime | None = None,
+        actor: str,
+        correlation_id: str,
+        occurred_at: datetime,
         event_schema_version: str = "1.0",
         request_id: str | None = None,
         identity_id: str | None = None,
@@ -1190,10 +1190,12 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
     ) -> str:
         """Insert a PENDING outbox event and return its ID.
 
-        Event identity is deterministic (content-addressable).
-        Idempotent: same event_identity + same envelope returns existing ID.
-        On idempotent match, compares ALL immutable envelope fields.
-        Raises OutboxIdempotencyMismatchError on any field mismatch.
+        Fail-closed validation: ``actor`` and ``correlation_id`` must be
+        non-empty after stripping.  ``occurred_at`` must be supplied.
+        Event identity is deterministic (content-addressable).  Idempotent
+        on (event_identity, envelope_hash).  On idempotent match, ALL
+        immutable envelope fields are compared and a mismatch raises
+        :class:`OutboxIdempotencyMismatchError`.
         """
         from datetime import UTC
         from uuid import uuid4
@@ -1206,12 +1208,42 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
             compute_envelope_hash,
             compute_payload_hash,
         )
+        from cold_storage.modules.orchestration.application.ports import (
+            OutboxEnvelopeValidationError,
+        )
         from cold_storage.modules.orchestration.infrastructure.orm import (
             AuditOutboxRecord,
         )
 
+        # ── Fail-closed envelope validation (P0-12) ────────────────
+        if not isinstance(actor, str) or not actor.strip():
+            raise OutboxEnvelopeValidationError(
+                field="actor",
+                message=(
+                    "AuditOutboxRepository.add requires a non-empty actor; "
+                    "callers must pass the durable request actor explicitly."
+                ),
+            )
+        if not isinstance(correlation_id, str) or not correlation_id.strip():
+            raise OutboxEnvelopeValidationError(
+                field="correlation_id",
+                message=(
+                    "AuditOutboxRepository.add requires a non-empty "
+                    "correlation_id; callers must pass the durable request "
+                    "correlation_id or a dispatcher trace id explicitly."
+                ),
+            )
+        if occurred_at is None:
+            raise OutboxEnvelopeValidationError(
+                field="occurred_at",
+                message=(
+                    "AuditOutboxRepository.add requires occurred_at; "
+                    "callers must pass the authoritative transition timestamp."
+                ),
+            )
+
         now = datetime.now(UTC)
-        effective_occurred_at = occurred_at or now
+        effective_occurred_at = occurred_at
         event_identity = build_event_identity(
             event_type=event_type,
             aggregate_type=aggregate_type,
