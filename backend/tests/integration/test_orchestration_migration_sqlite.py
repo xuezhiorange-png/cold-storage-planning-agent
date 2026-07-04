@@ -193,9 +193,6 @@ class TestDowngradeGate:
 
         # Capture pre-downgrade state
         conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        table_count = conn.execute(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
-        ).fetchone()[0]
         conn.close()
 
         # ── Attempt downgrade to 0026 — must be blocked by 0027's guard ──
@@ -214,12 +211,8 @@ class TestDowngradeGate:
         # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
         # uses "RuntimeError: downgrade blocked:".  Either is fine.
         combined = r.stderr + r.stdout
-        assert (
-            "Cannot downgrade" in combined
-            or "downgrade blocked" in combined
-        ), (
-            f"Expected blocker message; got stderr={r.stderr!r}"
-            f" stdout={r.stdout!r}"
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
         )
 
         # ── Verify atomicity: the 0027→0026 step was blocked, but the
@@ -516,10 +509,9 @@ class TestDowngradeGate:
         # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
         # uses "RuntimeError: downgrade blocked:".  Either is fine.
         combined = r.stderr + r.stdout
-        assert (
-            "Cannot downgrade" in combined
-            or "downgrade blocked" in combined
-        ), f"Expected blocker message; got stderr={r.stderr!r}"
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
         db_path.unlink(missing_ok=True)
 
     def test_blocked_with_valid_project_invalid_version(self) -> None:
@@ -587,10 +579,9 @@ class TestDowngradeGate:
         # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
         # uses "RuntimeError: downgrade blocked:".  Either is fine.
         combined = r.stderr + r.stdout
-        assert (
-            "Cannot downgrade" in combined
-            or "downgrade blocked" in combined
-        ), f"Expected blocker message; got stderr={r.stderr!r}"
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
         assert "requested_project_version_id" in (r.stderr + r.stdout), (
             f"Expected version_id mention; got stderr={r.stderr!r}"
         )
@@ -688,10 +679,9 @@ class TestDowngradeGate:
         # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
         # uses "RuntimeError: downgrade blocked:".  Either is fine.
         combined = r.stderr + r.stdout
-        assert (
-            "Cannot downgrade" in combined
-            or "downgrade blocked" in combined
-        ), f"Expected blocker message; got stderr={r.stderr!r}"
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
         assert "different project" in (r.stderr + r.stdout), (
             f"Expected 'different project' in message; got stderr={r.stderr!r}"
         )

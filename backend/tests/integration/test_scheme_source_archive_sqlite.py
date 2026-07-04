@@ -30,6 +30,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine, event, text  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
 if os.environ.get("DATABASE_BACKEND") == "postgresql":
     pytest.skip(
@@ -38,13 +41,7 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
         allow_module_level=True,
     )
 
-import pytest
-
-pytestmark = pytest.mark.sqlite  # noqa: E501
-
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
+pytestmark = pytest.mark.sqlite
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 

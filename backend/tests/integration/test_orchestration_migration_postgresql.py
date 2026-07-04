@@ -891,12 +891,8 @@ class TestDowngradeBlocker:
         # block; migration 0034 uses "RuntimeError: downgrade blocked:".
         # Both are valid blocker signals; accept either.
         combined = r.stderr + r.stdout
-        assert (
-            "Cannot downgrade" in combined
-            or "downgrade blocked" in combined
-        ), (
-            f"Expected blocker message; got stderr={r.stderr!r}"
-            f" stdout={r.stdout!r}"
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
         )
 
     def test_production_data_blocks_downgrade_and_atomic(self, pg_database_factory) -> None:
@@ -1112,12 +1108,8 @@ class TestDowngradeBlocker:
         # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
         # uses "RuntimeError: downgrade blocked:".  Either is fine.
         combined = r.stderr + r.stdout
-        assert (
-            "Cannot downgrade" in combined
-            or "downgrade blocked" in combined
-        ), (
-            f"Expected blocker message; got stderr={r.stderr!r}"
-            f" stdout={r.stdout!r}"
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
         )
 
         # ── Verify atomicity: nothing changed ───────────────────────────
@@ -1217,10 +1209,9 @@ class TestDowngradeGatePG:
         # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
         # uses "RuntimeError: downgrade blocked:".  Either is fine.
         combined = r.stderr + r.stdout
-        assert (
-            "Cannot downgrade" in combined
-            or "downgrade blocked" in combined
-        ), f"Expected blocker message; got stderr={r.stderr!r}"
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+        )
 
         # Verify atomicity: nothing changed
         with engine.connect() as conn:
