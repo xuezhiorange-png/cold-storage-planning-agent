@@ -943,6 +943,9 @@ class TransactionBExecutor:
         orchestration_fingerprint: str,
         execution_snapshot: dict[str, Any],
         coefficient_context: dict[str, Any],
+        actor: str,
+        correlation_id: str,
+        completed_at: datetime,
     ) -> OrchestrationResult:
         """Execute Transaction B atomically.
 
@@ -950,6 +953,11 @@ class TransactionBExecutor:
         transitions attempt to COMPLETED, returns OrchestrationResult.
 
         On failure: raises TransactionBFailure (caller must rollback).
+
+        The ``actor``, ``correlation_id`` and ``completed_at`` arguments
+        are REQUIRED.  They MUST originate from the durable request and
+        the authoritative transition timestamp — the executor MUST NOT
+        fall back to "system" / "" defaults (P0-12 fail-closed contract).
         """
         started_at = datetime.now(UTC)
 
@@ -1168,7 +1176,9 @@ class TransactionBExecutor:
         )
 
         # 6 — CAS attempt → COMPLETED (P0-5)
-        completed_at = datetime.now(UTC)
+        # P0-12: use the authoritative transition timestamp passed in by
+        # the service layer — same value the completion outbox event will
+        # carry.  No `datetime.now()` fallback is allowed here.
         cas_ok = self._attempt_repo.complete_attempt_cas(
             session,
             attempt_id=orchestration_attempt_id,
@@ -1203,6 +1213,8 @@ class TransactionBExecutor:
             )
 
         # 8 — Persist completion outbox event
+        # P0-12: actor/correlation_id/occurred_at MUST come from the
+        # durable request envelope, never from port defaults.
         self._outbox_repo.add(
             session,
             event_type="orchestration.attempt.completed",
@@ -1215,7 +1227,9 @@ class TransactionBExecutor:
                     stage.calculator_name: stage.result_hash for stage in persisted_stages
                 },
             },
-            occurred_at=datetime.now(UTC),
+            actor=actor,
+            correlation_id=correlation_id,
+            occurred_at=completed_at,
             transition_id=f"attempt:{orchestration_attempt_id}:completed",
             request_id=request_id,
             identity_id=orchestration_identity_id,

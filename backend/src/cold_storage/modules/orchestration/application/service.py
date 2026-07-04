@@ -539,6 +539,9 @@ class OrchestrationService:
                     orchestration_fingerprint=orchestration_fingerprint,
                     execution_snapshot=execution_snapshot,
                     coefficient_context=coefficient_context,
+                    actor=(envelope[0] if envelope else "system"),
+                    correlation_id=(envelope[1] if envelope else ""),
+                    completed_at=datetime.now(UTC),
                 )
                 uow.commit()
                 return result
