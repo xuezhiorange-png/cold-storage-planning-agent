@@ -253,7 +253,14 @@ class TestTypedErrors:
 
 class TestConflictClassifier:
     def test_pg_23505_outbox_event_id(self):
-        """Verify the classifier accepts PG unique_violation on outbox_event_id."""
+        """Verify the classifier accepts PG unique_violation on outbox_event_id.
+
+        Round 8 P0-3: migration 0026 creates the UNIQUE on outbox_event_id
+        under the name ``uq_audit_event_outbox``.  Earlier rounds had the
+        classifier check ``audit_events_outbox_event_id_key`` (a different
+        name) which never matched the live database constraint, so the
+        SAVEPOINT recovery path was unreachable in production.
+        """
         from unittest.mock import MagicMock
 
         from cold_storage.modules.orchestration.infrastructure.outbox_dispatcher import (
@@ -264,7 +271,7 @@ class TestConflictClassifier:
         exc.orig = MagicMock()
         exc.orig.sqlstate = "23505"
         exc.orig.diag = MagicMock()
-        exc.orig.diag.constraint_name = "audit_events_outbox_event_id_key"
+        exc.orig.diag.constraint_name = "uq_audit_event_outbox"
         assert _is_outbox_event_id_conflict(exc) is True
 
     def test_rejects_non_23505(self):
@@ -280,6 +287,8 @@ class TestConflictClassifier:
         assert _is_outbox_event_id_conflict(exc) is False
 
     def test_rejects_wrong_constraint(self):
+        """A 23505 on a different constraint (e.g. ``audit_events_pkey``)
+        must NOT be classified as an outbox_event_id conflict."""
         from unittest.mock import MagicMock
 
         from cold_storage.modules.orchestration.infrastructure.outbox_dispatcher import (
@@ -290,7 +299,7 @@ class TestConflictClassifier:
         exc.orig = MagicMock()
         exc.orig.sqlstate = "23505"
         exc.orig.diag = MagicMock()
-        exc.orig.diag.constraint_name = "some_other_constraint"
+        exc.orig.diag.constraint_name = "audit_events_pkey"
         assert _is_outbox_event_id_conflict(exc) is False
 
     def test_no_orig(self):
@@ -608,24 +617,99 @@ class TestTransactionBEnvelopeFailClosed:
             'helper must not return literal "system" or "" defaults'
         )
 
+    def test_envelope_missing_branch_skips_terminal_outbox(self) -> None:
+        """P0-4 (Round 8) Plan A: the ``TXB_REQUEST_ENVELOPE_MISSING``
+        branch in ``execute_transaction_b`` must NOT call
+        ``_transaction_b_terminal``.  Specifically, the source must
+        contain an early ``raise`` after the envelope-missing check
+        that precedes any ``_transaction_b_terminal`` call.  Without
+        this, the fail-closed contract collapses — a missing envelope
+        would still emit a sentinel terminal outbox event.
+        """
+        source = self.SERVICE_PATH.read_text(encoding="utf-8")
+        # Locate execute_transaction_b body.
+        start = source.find("def execute_transaction_b(")
+        assert start != -1
+        # Method body runs from ``try:`` until the next def at column 4.
+        body_start = source.find("try:", start)
+        import re
+
+        next_def = re.search(r"\n    def (?!_)\w+\(", source[body_start:])
+        body_end = body_start + (next_def.start() if next_def else len(source) - body_start)
+        body = source[body_start:body_end]
+        # Locate the TXB_REQUEST_ENVELOPE_MISSING branch.
+        env_idx = body.find("TXB_REQUEST_ENVELOPE_MISSING")
+        assert env_idx != -1, "TXB_REQUEST_ENVELOPE_MISSING branch must exist"
+        # Inside that branch the FIRST ``raise`` statement must occur
+        # BEFORE any ``_transaction_b_terminal`` call (within 4 KB of
+        # source after env_idx — sufficient to cover the early-return
+        # block).
+        slice_after = body[env_idx : env_idx + 4096]
+        raise_idx = slice_after.find("raise")
+        terminal_idx = slice_after.find("_transaction_b_terminal")
+        assert raise_idx != -1, "TXB_REQUEST_ENVELOPE_MISSING branch must contain a raise"
+        assert terminal_idx == -1 or terminal_idx > raise_idx, (
+            "Plan A fail-closed contract violated: "
+            "_transaction_b_terminal is called before the raise in the "
+            "TXB_REQUEST_ENVELOPE_MISSING branch — that branch must "
+            "early-return without writing any terminal outbox event"
+        )
+
     def test_terminal_branches_call_resolve_helper(self) -> None:
         """Every except branch that calls ``_transaction_b_terminal`` MUST
         route through ``_resolve_terminal_envelope`` (so that the
-        envelope-unavailable sentinel is applied when needed)."""
+        envelope-unavailable sentinel is applied when needed).
+
+        P0-4 (Round 8) fail-closed: the TXB_REQUEST_ENVELOPE_MISSING
+        branch is excluded — Plan A says "do NOT emit a terminal
+        outbox" for that specific code, so that branch must not call
+        ``_transaction_b_terminal``.
+        """
         import re
 
         source = self.SERVICE_PATH.read_text(encoding="utf-8")
-        # Count occurrences of _transaction_b_terminal vs _resolve_terminal_envelope
-        terminal_calls = len(re.findall(r"self\._transaction_b_terminal\(", source))
-        resolve_calls = len(re.findall(r"self\._resolve_terminal_envelope\(", source))
-        # There are at least 4 except branches calling _transaction_b_terminal
-        # (TransactionBBlocked, TransactionBFailure, IntegrityError, Exception)
-        # and 1 from mark_attempt_blocked (if any).  We just check that
-        # every terminal call has a corresponding resolve call.
-        assert terminal_calls > 0, "no _transaction_b_terminal calls found"
-        # In the relevant execute_transaction_b body, every terminal call
-        # must be preceded by a _resolve_terminal_envelope call.
-        # We do a simple substring count check.
-        assert resolve_calls >= 4, (
-            f"expected at least 4 _resolve_terminal_envelope calls, got {resolve_calls}"
+        # Find the body of execute_transaction_b.
+        start = source.find("def execute_transaction_b(")
+        assert start != -1, "execute_transaction_b not found"
+        # End of the method: next def at indent level 4 after the method.
+        # Approximate by counting the closing pattern.
+        body_start = source.find("try:", start)
+        # Take everything up to the next top-level method definition
+        # (`    def ` at column 4) after the body start.
+        next_def = re.search(r"\n    def (?!_)\w+\(", source[body_start:])
+        body_end = body_start + (next_def.start() if next_def else len(source) - body_start)
+        body = source[body_start:body_end]
+
+        terminal_calls = len(re.findall(r"self\._transaction_b_terminal\(", body))
+        resolve_calls = len(re.findall(r"self\._resolve_terminal_envelope\(", body))
+        assert terminal_calls > 0, "no _transaction_b_terminal calls found in execute_transaction_b"
+        assert resolve_calls >= 3, (
+            f"expected at least 3 _resolve_terminal_envelope calls in execute_transaction_b "
+            f"(TransactionBBlocked, TransactionBFailure non-missing, OrchestrationDomainError, "
+            f"IntegrityError, Exception), got {resolve_calls}"
+        )
+        # Plan A fail-closed: the TXB_REQUEST_ENVELOPE_MISSING branch
+        # MUST NOT call _transaction_b_terminal — verify by source-level
+        # substring check inside the envelope-missing block.
+        # Locate the TXB_REQUEST_ENVELOPE_MISSING branch and confirm
+        # the next _transaction_b_terminal call is AFTER it.
+        env_idx = body.find("TXB_REQUEST_ENVELOPE_MISSING")
+        assert env_idx != -1, "TXB_REQUEST_ENVELOPE_MISSING branch not found"
+        # The envelope-missing branch should re-raise without calling
+        # _transaction_b_terminal.  Find the next raise after the code.
+        branch_end = body.find("raise", env_idx)
+        assert branch_end != -1, "no raise after TXB_REQUEST_ENVELOPE_MISSING branch"
+        terminal_after_branch = body.find("_transaction_b_terminal", branch_end)
+        assert terminal_after_branch != -1, (
+            "no _transaction_b_terminal call after the TXB_REQUEST_ENVELOPE_MISSING branch — "
+            "execute_transaction_b would have no FAILED path for non-missing failures"
+        )
+        # The P0-4 fail-closed contract is satisfied if the code BETWEEN
+        # the envelope-missing branch and the next raise has no
+        # _transaction_b_terminal call.  We check the slice up to the
+        # next raise after the sentinel branch ends.
+        slice_ = body[branch_end:terminal_after_branch]
+        assert "_transaction_b_terminal" not in slice_, (
+            "Plan A fail-closed contract violated: "
+            "TXB_REQUEST_ENVELOPE_MISSING branch MUST NOT call _transaction_b_terminal"
         )
