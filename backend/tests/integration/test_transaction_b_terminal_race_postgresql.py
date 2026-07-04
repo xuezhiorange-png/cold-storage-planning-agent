@@ -656,6 +656,10 @@ class TestTerminalRaceCompletedVsFailed:
                             aggregate_type="OrchestrationRunAttempt",
                             aggregate_id=result_a.attempt_id,
                             payload={"failure_code": "TXB_RACE_LOSER"},
+                            transition_id=f"attempt:{result_a.attempt_id}:failed",
+                            actor="test-actor",
+                            correlation_id="corr-terminal-race",
+                            occurred_at=datetime.now(UTC),
                             attempt_id=result_a.attempt_id,
                         )
                     terminal_uow.commit()
@@ -909,6 +913,14 @@ class TestTerminalRaceTwoWriters:
                             aggregate_type="OrchestrationRunAttempt",
                             aggregate_id=result_a.attempt_id,
                             payload={"failure_code": failure_code},
+                            transition_id=f"attempt:{result_a.attempt_id}:{target_status.value.lower()}",
+                            actor="test-actor",
+                            correlation_id=(
+                                "corr-blocked-flip"
+                                if target_status == AttemptStatus.BLOCKED
+                                else "corr-failed-flip"
+                            ),
+                            occurred_at=datetime.now(UTC),
                             attempt_id=result_a.attempt_id,
                         )
                     terminal_uow.commit()
@@ -1123,6 +1135,10 @@ class TestTerminalRaceStability:
                             aggregate_type="OrchestrationRunAttempt",
                             aggregate_id=result_a.attempt_id,
                             payload={"failure_code": f"TXB_STABILITY_{iteration}"},
+                            transition_id=f"attempt:{result_a.attempt_id}:failed:iter{iteration}",
+                            actor="test-actor",
+                            correlation_id="corr-terminal-race",
+                            occurred_at=datetime.now(UTC),
                             attempt_id=result_a.attempt_id,
                         )
                     terminal_uow.commit()
