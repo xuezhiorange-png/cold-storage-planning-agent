@@ -118,14 +118,10 @@ class SqlAlchemyProductionSourceArchiveRepository:
 def _snapshot(record: ProductionSourceArchiveRecord) -> Mapping[str, Any]:
     """Convert ORM record to a Mapping snapshot for resolver use."""
     payload_obj = record.archive_payload
-    payload_dict: dict[str, object] = (
-        dict(payload_obj) if isinstance(payload_obj, dict) else {}
-    )
+    payload_dict: dict[str, object] = dict(payload_obj) if isinstance(payload_obj, dict) else {}
     slots_obj = payload_dict.get("source_slots", {})
     source_slots: dict[str, dict[str, str]] = (
-        {k: dict(v) for k, v in slots_obj.items()}
-        if isinstance(slots_obj, dict)
-        else {}
+        {k: dict(v) for k, v in slots_obj.items()} if isinstance(slots_obj, dict) else {}
     )
     return {
         "id": record.id,
