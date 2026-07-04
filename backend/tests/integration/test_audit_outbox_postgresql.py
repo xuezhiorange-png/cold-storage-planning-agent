@@ -9,6 +9,7 @@ Tag: ``@pytest.mark.postgresql``.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import subprocess
@@ -458,6 +459,396 @@ class TestPGOutboxLifecycle:
         assert row.status == "PUBLISHED"
         sess2.close()
         sess.close()
+
+    # ── P0-1 (Round 7): real materialize_event SAVEPOINT recovery ─────
+
+    def _force_session_timeouts(self, session) -> None:
+        """P0-5: bind lock_timeout / statement_timeout to the session so that
+        a slow/stalled materialize_event path fails fast instead of holding
+        the CI runner hostage.
+        """
+        # PG-only: ignore silently if dialect is not postgresql.
+        bind = session.get_bind()
+        if bind.dialect.name != "postgresql":
+            return
+        session.execute(text("SET lock_timeout = '5s'"))
+        session.execute(text("SET statement_timeout = '20s'"))
+
+    def test_materialize_event_sequential_duplicate_delivery(self, pg_outbox_engine) -> None:
+        """P0-1: drive ``materialize_event`` itself into the SAVEPOINT
+        recovery path on a sequential duplicate delivery.
+
+        Realistic scenario: a dispatcher process crashes after the
+        AuditEvent INSERT was flushed but before the outbox row was
+        marked PUBLISHED.  The lease expires, a new dispatcher picks
+        up the same row, calls ``materialize_event``, and must observe
+        the existing AuditEvent via SAVEPOINT recovery rather than
+        propagating the IntegrityError to the outer transaction.
+
+        Invariants:
+          * materialize_event returns without raising
+          * outer session is still usable (can SELECT after)
+          * AuditEvent count is exactly 1
+          * outbox row is PUBLISHED
+          * outbox row.claimed_at is cleared (CAS won)
+        """
+        factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
+        now = datetime.now(UTC)
+
+        # ── Delivery 1: claim → materialize → commit (happy path) ──
+        sess = factory()
+        self._force_session_timeouts(sess)
+        outbox = _make_event(
+            sess,
+            transition_id="mat-dup-seq-1",
+            payload={"result": "success"},
+        )
+        sess.commit()
+        outbox_id = outbox.id
+        outbox_event_identity = outbox.event_identity
+        sess.close()
+
+        sess = factory()
+        self._force_session_timeouts(sess)
+        claimed = claim_events_pg(
+            sess,
+            worker_id="w1",
+            batch_size=10,
+            lease_seconds=300,
+            now=now,
+        )
+        assert len(claimed) == 1
+        materialize_event(
+            sess,
+            claimed=claimed[0],
+            worker_id="w1",
+            claim_token=claimed[0].claim_token,
+            now=now,
+        )
+        sess.commit()
+        sess.close()
+
+        # ── Simulate crash: roll the outbox row back to PENDING and ─
+        # leave the AuditEvent intact.  This is exactly the post-crash
+        # state a restarted dispatcher would observe.
+        with pg_outbox_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "UPDATE orchestration_audit_outbox "
+                    "SET status='PENDING', "
+                    "    claimed_at=NULL, claimed_by=NULL, "
+                    "    claim_token=NULL, claim_expires_at=NULL, "
+                    "    published_at=NULL "
+                    "WHERE id = :id"
+                ),
+                {"id": outbox_id},
+            )
+
+        # ── Delivery 2: re-claim → re-materialize via real path ──
+        # This must hit the AuditEvent UNIQUE constraint inside
+        # materialize_event's SAVEPOINT and recover idempotently.
+        sess = factory()
+        self._force_session_timeouts(sess)
+        claimed2 = claim_events_pg(
+            sess,
+            worker_id="w2",
+            batch_size=10,
+            lease_seconds=300,
+            now=now,
+        )
+        assert len(claimed2) == 1, "PENDING row must be re-claimable"
+        # IMPORTANT: this MUST NOT raise — the production SAVEPOINT
+        # recovery path must absorb the AuditEvent UNIQUE conflict and
+        # idempotently converge on PUBLISHED.
+        materialize_event(
+            sess,
+            claimed=claimed2[0],
+            worker_id="w2",
+            claim_token=claimed2[0].claim_token,
+            now=now,
+        )
+        # Outer session is still usable after the SAVEPOINT recovery.
+        count = sess.execute(select(func.count()).select_from(AuditEventRecord)).scalar()
+        assert isinstance(count, int)
+        sess.commit()
+        sess.close()
+
+        # ── Final invariants ──────────────────────────────────────────
+        # Exactly one AuditEvent row, matching the first delivery's
+        # outbox_event_id.
+        sess = factory()
+        events = sess.execute(
+            select(AuditEventRecord).where(
+                AuditEventRecord.outbox_event_id == outbox_event_identity
+            )
+        ).all()
+        assert len(events) == 1, (
+            f"expected exactly 1 AuditEvent after sequential duplicate, got {len(events)}"
+        )
+        # The surviving AuditEvent still references the original
+        # outbox_event_id (the post-crash materialization must not
+        # have inserted a second row with a different UUID).
+        surviving = events[0]
+        assert surviving.outbox_event_id == outbox_event_identity
+
+        # Outbox row must be PUBLISHED again.
+        outbox_row = sess.execute(
+            select(AuditOutboxRecord).where(AuditOutboxRecord.id == outbox_id)
+        ).scalar_one()
+        assert outbox_row.status == "PUBLISHED", (
+            f"expected PUBLISHED after duplicate recovery, got {outbox_row.status!r}"
+        )
+        # The CAS update cleared claim fields.
+        assert outbox_row.claimed_at is None
+        assert outbox_row.claimed_by is None
+        assert outbox_row.claim_token is None
+        assert outbox_row.claim_expires_at is None
+        sess.close()
+
+    def test_materialize_event_concurrent_duplicate_delivery(self, pg_outbox_engine) -> None:
+        """P0-1: prove ``materialize_event`` is safe under real concurrent
+        duplicate materialization (barrier-synchronized).
+
+        Setup: one outbox row whose AuditEvent is pre-inserted by a
+        single setup session (simulating the AuditEvent having been
+        materialized in a previous dispatcher's transaction that has
+        since committed).  Two worker threads then both claim and try
+        to materialize the same row concurrently.  Exactly one thread
+        wins the claim; the other observes an empty claim set and exits
+        cleanly.  The winner drives ``materialize_event`` into the
+        SAVEPOINT recovery path on the pre-existing AuditEvent and
+        idempotently marks the outbox PUBLISHED.
+
+        Invariants:
+          * exactly one AuditEvent row
+          * outbox row is PUBLISHED
+          * the worker that observed an empty claim did not raise
+          * all worker threads terminate within timeout
+        """
+        factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
+        now = datetime.now(UTC)
+
+        # ── Setup: one outbox row ─────────────────────────────────────
+        sess = factory()
+        self._force_session_timeouts(sess)
+        outbox = _make_event(
+            sess,
+            transition_id="mat-dup-conc-1",
+            payload={"shared": "payload"},
+        )
+        sess.commit()
+        outbox_id = outbox.id
+        outbox_event_identity = outbox.event_identity
+        sess.close()
+
+        # ── Setup: pre-insert an AuditEvent matching outbox_event_id. ─
+        # This simulates the state where a previous worker has already
+        # materialized this event but the outbox row hasn't been
+        # PUBLISHED yet (post-crash).  The next materialize_event call
+        # MUST hit the AuditEvent UNIQUE constraint inside its
+        # SAVEPOINT and recover.
+        sess = factory()
+        self._force_session_timeouts(sess)
+        existing_audit = AuditEventRecord(
+            id=str(uuid4()),
+            actor="seed-worker",
+            action=outbox.event_type,
+            entity_type=outbox.aggregate_type,
+            entity_id=outbox.aggregate_id,
+            before_snapshot={},
+            after_snapshot={"shared": "payload"},
+            event_metadata={
+                "event_identity": outbox_event_identity,
+                "event_schema_version": outbox.event_schema_version,
+                "correlation_id": outbox.correlation_id,
+                "occurred_at": outbox.occurred_at.isoformat(),
+                "payload_hash": outbox.payload_hash,
+                "envelope_hash": outbox.envelope_hash,
+                "request_id": outbox.request_id,
+                "identity_id": outbox.identity_id,
+                "attempt_id": outbox.attempt_id,
+                "calculation_run_id": outbox.calculation_run_id,
+                "source_binding_id": outbox.source_binding_id,
+            },
+            created_at=now,
+            outbox_event_id=outbox_event_identity,
+        )
+        sess.add(existing_audit)
+        sess.commit()
+        sess.close()
+
+        # ── Two workers race to claim and materialize ────────────────
+        # P0-5: barrier, NullPool per-thread, thread.join(timeout),
+        # structured errors collected, fast timeouts on each session.
+        import threading
+
+        barrier = threading.Barrier(2)
+        errors_list: list[str] = []
+        claims_map: dict[str, int] = {}
+        executed_map: dict[str, bool] = {}
+
+        def worker(label: str) -> None:
+            sess = factory()
+            try:
+                self._force_session_timeouts(sess)
+                barrier.wait(timeout=5)
+                try:
+                    claimed = claim_events_pg(
+                        sess,
+                        worker_id=f"w-{label}",
+                        batch_size=10,
+                        lease_seconds=300,
+                        now=datetime.now(UTC),
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    errors_list.append(f"{label}: claim failed: {type(exc).__name__}: {exc}")
+                    return
+                claims_map[label] = len(claimed)
+                if not claimed:
+                    # Outer session still usable.
+                    sess.execute(select(func.count()).select_from(AuditOutboxRecord))
+                    return
+                # Drive the real production path.
+                materialize_event(
+                    sess,
+                    claimed=claimed[0],
+                    worker_id=f"w-{label}",
+                    claim_token=claimed[0].claim_token,
+                    now=datetime.now(UTC),
+                )
+                sess.commit()
+                executed_map[label] = True
+            except Exception as exc:  # noqa: BLE001
+                with contextlib.suppress(Exception):
+                    sess.rollback()
+                errors_list.append(f"{label}: materialize failed: {type(exc).__name__}: {exc}")
+            finally:
+                sess.close()
+
+        t_a = threading.Thread(target=worker, args=("a",), daemon=True)
+        t_b = threading.Thread(target=worker, args=("b",), daemon=True)
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=15)
+        t_b.join(timeout=15)
+        assert not t_a.is_alive(), "thread A did not terminate within timeout"
+        assert not t_b.is_alive(), "thread B did not terminate within timeout"
+
+        # No thread raised unexpected exceptions.
+        assert not errors_list, f"workers raised unexpected exceptions: {errors_list}"
+
+        # Exactly one worker claimed the row.
+        claim_counts = sorted(claims_map.values())
+        assert claim_counts == [0, 1] or claim_counts == [1], (
+            f"expected one winner and one loser (or sole winner), got {claim_counts}"
+        )
+
+        # The worker that won the claim MUST have driven
+        # materialize_event to PUBLISHED (via SAVEPOINT recovery,
+        # because the AuditEvent was pre-existing).
+        assert len(executed_map) == 1, (
+            f"exactly one materialize_event execution expected, got {executed_map}"
+        )
+
+        # ── Final invariants ──────────────────────────────────────────
+        sess = factory()
+        # Exactly one AuditEvent.
+        events = sess.execute(
+            select(AuditEventRecord).where(
+                AuditEventRecord.outbox_event_id == outbox_event_identity
+            )
+        ).all()
+        assert len(events) == 1, (
+            f"expected exactly 1 AuditEvent after concurrent duplicate, got {len(events)}"
+        )
+        # The original (seed) AuditEvent must survive.
+        surviving = events[0]
+        assert surviving.id == existing_audit.id, (
+            "the seed AuditEvent MUST be the surviving row (no second INSERT)"
+        )
+
+        # Outbox row must be PUBLISHED.
+        outbox_row = sess.execute(
+            select(AuditOutboxRecord).where(AuditOutboxRecord.id == outbox_id)
+        ).scalar_one()
+        assert outbox_row.status == "PUBLISHED", (
+            f"expected PUBLISHED after concurrent duplicate recovery, got {outbox_row.status!r}"
+        )
+        sess.close()
+
+    def test_unrelated_integrity_error_is_not_swallowed(self, pg_outbox_engine) -> None:
+        """P0-1 (defense in depth): an unrelated IntegrityError during
+        materialize_event (e.g. a FK violation) MUST propagate to the
+        caller; the SAVEPOINT recovery must NOT swallow it as a benign
+        duplicate.
+        """
+        factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
+        now = datetime.now(UTC)
+
+        # Create outbox row with an aggregate_id pointing at a
+        # non-existent FK target.  The AuditEvent INSERT will fail
+        # with a FK violation (SQLSTATE 23503) — not a UNIQUE
+        # violation (23505).
+        sess = factory()
+        self._force_session_timeouts(sess)
+        outbox = _make_event(
+            sess,
+            transition_id="mat-fk-1",
+            payload={"k": "v"},
+            aggregate_id="nonexistent-aggregate",
+        )
+        sess.commit()
+        outbox_id = outbox.id
+        sess.close()
+
+        sess = factory()
+        self._force_session_timeouts(sess)
+        claimed = claim_events_pg(
+            sess,
+            worker_id="w1",
+            batch_size=10,
+            lease_seconds=300,
+            now=now,
+        )
+        assert len(claimed) == 1
+        from sqlalchemy.exc import IntegrityError
+
+        try:
+            materialize_event(
+                sess,
+                claimed=claimed[0],
+                worker_id="w1",
+                claim_token=claimed[0].claim_token,
+                now=now,
+            )
+            sess.commit()
+        except IntegrityError as exc:
+            # Acceptable: the FK violation propagated.  The outbox row
+            # must NOT have been marked PUBLISHED.
+            sess.rollback()
+            sess.close()
+            sess = factory()
+            outbox_row = sess.execute(
+                select(AuditOutboxRecord).where(AuditOutboxRecord.id == outbox_id)
+            ).scalar_one()
+            assert outbox_row.status != "PUBLISHED", (
+                f"FK violation must not mark outbox PUBLISHED, got {outbox_row.status!r}"
+            )
+            sess.close()
+            # Confirm it's a 23503 (FK), not a 23505 (UNIQUE).
+            orig = getattr(exc, "orig", None)
+            if orig is not None:
+                sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
+                assert sqlstate != "23505", (
+                    "the SAVEPOINT classifier MUST distinguish FK (23503) "
+                    f"from UNIQUE (23505); got {sqlstate!r}"
+                )
+            return
+        sess.close()
+        pytest.fail(
+            "FK violation during materialize_event must raise IntegrityError; "
+            "the SAVEPOINT recovery must NOT swallow unrelated IntegrityErrors"
+        )
 
     def test_sequential_duplicate_delivery(self, pg_outbox_engine):
         """Real duplicate materialization: claim → materialize → commit,
