@@ -18,6 +18,10 @@ from cold_storage.modules.orchestration.application.outbox_dispatcher_port impor
     ClaimedOutboxEvent,
     DispatchSummary,
 )
+from cold_storage.modules.orchestration.application.outbox_errors import (
+    RetryableOutboxDeliveryError,
+    TerminalOutboxDeliveryError,
+)
 
 
 class ClaimFnPG(Protocol):
@@ -223,6 +227,38 @@ class AuditOutboxDispatcherApplicationService:
                     # Close materialization session before opening failure session.
                     mat_sess.rollback()
                     mat_sess.close()
+                    mat_sess = None  # already closed; prevent double-close in finally
+                    if self._persist_terminal_failure(
+                        event=event,
+                        worker_id=worker_id,
+                        error=exc,
+                    ):
+                        summary = DispatchSummary(
+                            claimed=summary.claimed,
+                            published=summary.published,
+                            retried=summary.retried,
+                            failed=summary.failed + 1,
+                            skipped=summary.skipped,
+                            lost_claims=summary.lost_claims,
+                            unhandled_failures=summary.unhandled_failures,
+                        )
+                    else:
+                        # Terminal persistence itself failed — count as unhandled.
+                        summary = DispatchSummary(
+                            claimed=summary.claimed,
+                            published=summary.published,
+                            retried=summary.retried,
+                            failed=summary.failed,  # do NOT increment failed
+                            skipped=summary.skipped,
+                            lost_claims=summary.lost_claims,
+                            unhandled_failures=summary.unhandled_failures + 1,
+                        )
+                    continue
+                except TerminalOutboxDeliveryError as exc:
+                    # Typed terminal failure: mark FAILED, do NOT retry.
+                    mat_sess.rollback()
+                    mat_sess.close()
+                    mat_sess = None
                     if self._persist_terminal_failure(
                         event=event,
                         worker_id=worker_id,
@@ -248,9 +284,11 @@ class AuditOutboxDispatcherApplicationService:
                             unhandled_failures=summary.unhandled_failures + 1,
                         )
                     continue
-                except Exception as exc:
+                except RetryableOutboxDeliveryError as exc:
+                    # Typed retryable failure: mark retryable.
                     mat_sess.rollback()
                     mat_sess.close()
+                    mat_sess = None
                     if self._persist_retryable_failure(
                         event=event,
                         worker_id=worker_id,
@@ -261,6 +299,40 @@ class AuditOutboxDispatcherApplicationService:
                             published=summary.published,
                             retried=summary.retried + 1,
                             failed=summary.failed,
+                            skipped=summary.skipped,
+                            lost_claims=summary.lost_claims,
+                            unhandled_failures=summary.unhandled_failures,
+                        )
+                    else:
+                        summary = DispatchSummary(
+                            claimed=summary.claimed,
+                            published=summary.published,
+                            retried=summary.retried,
+                            failed=summary.failed,
+                            skipped=summary.skipped,
+                            lost_claims=summary.lost_claims,
+                            unhandled_failures=summary.unhandled_failures + 1,
+                        )
+                    continue
+                except Exception as exc:
+                    # Unknown / untyped failure: do NOT silently retry.
+                    # Persist the event as FAILED (terminal) so the system
+                    # does not loop indefinitely on an unrecoverable bug.
+                    # If the failure persistence itself fails, count as
+                    # unhandled.
+                    mat_sess.rollback()
+                    mat_sess.close()
+                    mat_sess = None
+                    if self._persist_terminal_failure(
+                        event=event,
+                        worker_id=worker_id,
+                        error=exc,
+                    ):
+                        summary = DispatchSummary(
+                            claimed=summary.claimed,
+                            published=summary.published,
+                            retried=summary.retried,
+                            failed=summary.failed + 1,
                             skipped=summary.skipped,
                             lost_claims=summary.lost_claims,
                             unhandled_failures=summary.unhandled_failures,
