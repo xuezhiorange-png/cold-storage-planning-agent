@@ -16,8 +16,8 @@ Post-add backfill: sets meaningful legacy values for pre-existing rows.
 SQLite: adds triggers for immutability and PUBLISHED-requires-AuditEvent.
 """
 
-from collections.abc import Sequence
 import hashlib
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 
@@ -281,6 +281,19 @@ def _pg_backfill_envelopes() -> None:
         payload_str = canonical_json(payload)
         real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
+        # P0-9: Fail closed on non-dict payload.  Legacy rows that
+        # pre-date the typed snapshot envelope must be inspected and
+        # converted by an explicit migration adapter (defined in
+        # ``_legacy_payload_canonical``).  Silently substituting ``{}``
+        # would cause the backfilled envelope hash to diverge from
+        # production semantics, and the trigger immutability contract
+        # would then forbid re-hashing.
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                "outbox backfill encountered non-dict payload: "
+                f"row_id={row_id!r} type={type(payload).__name__}; "
+                "extend _legacy_payload_canonical() before retrying"
+            )
         envelope_hash = compute_envelope_hash(
             event_schema_version=event_schema_version or "1.0",
             event_type=event_type,
@@ -294,7 +307,7 @@ def _pg_backfill_envelopes() -> None:
             attempt_id=attempt_id,
             calculation_run_id=calculation_run_id,
             source_binding_id=source_binding_id,
-            payload=payload if isinstance(payload, dict) else {},
+            payload=payload,
             event_identity=event_identity,
         )
 
@@ -574,6 +587,19 @@ def _sqlite_backfill_envelopes() -> None:
         payload_str = canonical_json(payload)
         real_payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
+        # P0-9: Fail closed on non-dict payload.  Legacy rows that
+        # pre-date the typed snapshot envelope must be inspected and
+        # converted by an explicit migration adapter (defined in
+        # ``_legacy_payload_canonical``).  Silently substituting ``{}``
+        # would cause the backfilled envelope hash to diverge from
+        # production semantics, and the trigger immutability contract
+        # would then forbid re-hashing.
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                "outbox backfill encountered non-dict payload: "
+                f"row_id={row_id!r} type={type(payload).__name__}; "
+                "extend _legacy_payload_canonical() before retrying"
+            )
         envelope_hash = compute_envelope_hash(
             event_schema_version=event_schema_version or "1.0",
             event_type=event_type,
@@ -587,7 +613,7 @@ def _sqlite_backfill_envelopes() -> None:
             attempt_id=attempt_id,
             calculation_run_id=calculation_run_id,
             source_binding_id=source_binding_id,
-            payload=payload if isinstance(payload, dict) else {},
+            payload=payload,
             event_identity=event_identity,
         )
 
