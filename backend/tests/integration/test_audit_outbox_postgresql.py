@@ -32,9 +32,11 @@ from cold_storage.modules.orchestration.application.outbox_identity import (
     build_event_identity,
     compute_envelope_hash,
     compute_payload_hash,
+    ensure_utc_aware,
 )
 from cold_storage.modules.orchestration.infrastructure.orm import AuditOutboxRecord
 from cold_storage.modules.orchestration.infrastructure.outbox_dispatcher import (
+    _is_outbox_event_id_conflict,
     claim_events_pg,
     materialize_event,
     validate_claim,
@@ -180,6 +182,53 @@ def _make_event(
     session.add(rec)
     session.flush()
     return rec
+
+
+def _build_expected_audit_event_from_outbox_row(
+    row: AuditOutboxRecord,
+    now: datetime,
+) -> AuditEventRecord:
+    """Build the exact ``AuditEventRecord`` that ``materialize_event``
+    would produce for *row*.
+
+    This is the single source of truth used by every P0-1 / P0-2 test
+    that needs a pre-existing AuditEvent (or that needs to compare the
+    just-built AuditEvent against an authoritative reference).  The
+    construction logic below is kept byte-identical to the
+    ``materialize_event`` body so that any divergence between the two
+    surfaces immediately as a field mismatch.
+
+    P0-2: the seed AuditEvent in ``test_materialize_event_concurrent_duplicate_delivery``
+    MUST be built via this helper — not by hand — so that the
+    ``_compare_audit_events`` mismatch detector never raises
+    ``OutboxMaterializationMismatchError`` for a real idempotent recovery.
+    """
+    return AuditEventRecord(
+        id=str(uuid4()),
+        actor=row.actor,
+        action=row.event_type,
+        entity_type=row.aggregate_type,
+        entity_id=row.aggregate_id,
+        before_snapshot={},
+        after_snapshot=row.payload,
+        event_metadata={
+            "event_identity": row.event_identity,
+            "event_schema_version": row.event_schema_version,
+            "correlation_id": row.correlation_id,
+            "occurred_at": (
+                ensure_utc_aware(row.occurred_at).isoformat() if row.occurred_at else None
+            ),
+            "payload_hash": row.payload_hash,
+            "envelope_hash": row.envelope_hash,
+            "request_id": row.request_id,
+            "identity_id": row.identity_id,
+            "attempt_id": row.attempt_id,
+            "calculation_run_id": row.calculation_run_id,
+            "source_binding_id": row.source_binding_id,
+        },
+        created_at=now,
+        outbox_event_id=row.event_identity,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -422,6 +471,7 @@ class TestPGOutboxLifecycle:
                 claim_token="wrong-token",
                 now=now,
             )
+        sess.rollback()
         sess.close()
 
     def test_first_materialization(self, pg_outbox_engine):
@@ -475,27 +525,36 @@ class TestPGOutboxLifecycle:
         session.execute(text("SET statement_timeout = '20s'"))
 
     def test_materialize_event_sequential_duplicate_delivery(self, pg_outbox_engine) -> None:
-        """P0-1: drive ``materialize_event`` itself into the SAVEPOINT
-        recovery path on a sequential duplicate delivery.
+        """P0-1 (Round 8): drive ``materialize_event`` itself into the SAVEPOINT
+        recovery path on a sequential duplicate materialization.
 
-        Realistic scenario: a dispatcher process crashes after the
-        AuditEvent INSERT was flushed but before the outbox row was
-        marked PUBLISHED.  The lease expires, a new dispatcher picks
-        up the same row, calls ``materialize_event``, and must observe
-        the existing AuditEvent via SAVEPOINT recovery rather than
-        propagating the IntegrityError to the outer transaction.
+        Realistic scenario: a previous dispatcher committed the AuditEvent
+        INSERT but the outbox row never reached PUBLISHED (e.g. the
+        dispatcher's outer transaction was rolled back at the CAS step).
+        The AuditEvent row remains in the database; the outbox row is
+        still PENDING with no claim.  A new dispatcher picks up the row,
+        calls ``materialize_event``, and must observe the existing
+        AuditEvent via SAVEPOINT recovery — readback, field-by-field
+        comparison, CAS to PUBLISHED — rather than propagating the
+        IntegrityError to the outer transaction.
 
         Invariants:
           * materialize_event returns without raising
           * outer session is still usable (can SELECT after)
-          * AuditEvent count is exactly 1
+          * AuditEvent count is exactly 1 (the seed survives)
           * outbox row is PUBLISHED
           * outbox row.claimed_at is cleared (CAS won)
+
+        This test does NOT mutate a PUBLISHED row back to PENDING (which
+        is blocked by ``trg_immutable_outbox_envelope``).  The PENDING
+        outbox state is the row's natural state — the seeded AuditEvent
+        is what represents "previously materialized".
         """
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         now = datetime.now(UTC)
 
-        # ── Delivery 1: claim → materialize → commit (happy path) ──
+        # ── Seed: one PENDING outbox row, exactly as a fresh dispatcher
+        # would observe it.  The AuditEvent is NOT yet present.
         sess = factory()
         self._force_session_timeouts(sess)
         outbox = _make_event(
@@ -508,6 +567,22 @@ class TestPGOutboxLifecycle:
         outbox_event_identity = outbox.event_identity
         sess.close()
 
+        # ── Pre-existing AuditEvent: a prior dispatcher's transaction
+        # committed the AuditEvent INSERT but the CAS to PUBLISHED never
+        # landed (outer txn rolled back at the CAS step).  Use the
+        # helper so the seed matches ``materialize_event`` byte-for-byte.
+        sess = factory()
+        self._force_session_timeouts(sess)
+        seed_audit = _build_expected_audit_event_from_outbox_row(outbox, now)
+        sess.add(seed_audit)
+        sess.commit()
+        seed_audit_id = seed_audit.id
+        sess.close()
+
+        # ── New dispatcher: claim → materialize via real path ──
+        # materialize_event will INSERT a new AuditEvent with the same
+        # outbox_event_id, hit the uq_audit_event_outbox UNIQUE
+        # constraint inside its SAVEPOINT, and recover via readback.
         sess = factory()
         self._force_session_timeouts(sess)
         claimed = claim_events_pg(
@@ -517,54 +592,15 @@ class TestPGOutboxLifecycle:
             lease_seconds=300,
             now=now,
         )
-        assert len(claimed) == 1
-        materialize_event(
-            sess,
-            claimed=claimed[0],
-            worker_id="w1",
-            claim_token=claimed[0].claim_token,
-            now=now,
-        )
-        sess.commit()
-        sess.close()
-
-        # ── Simulate crash: roll the outbox row back to PENDING and ─
-        # leave the AuditEvent intact.  This is exactly the post-crash
-        # state a restarted dispatcher would observe.
-        with pg_outbox_engine.begin() as conn:
-            conn.execute(
-                text(
-                    "UPDATE orchestration_audit_outbox "
-                    "SET status='PENDING', "
-                    "    claimed_at=NULL, claimed_by=NULL, "
-                    "    claim_token=NULL, claim_expires_at=NULL, "
-                    "    published_at=NULL "
-                    "WHERE id = :id"
-                ),
-                {"id": outbox_id},
-            )
-
-        # ── Delivery 2: re-claim → re-materialize via real path ──
-        # This must hit the AuditEvent UNIQUE constraint inside
-        # materialize_event's SAVEPOINT and recover idempotently.
-        sess = factory()
-        self._force_session_timeouts(sess)
-        claimed2 = claim_events_pg(
-            sess,
-            worker_id="w2",
-            batch_size=10,
-            lease_seconds=300,
-            now=now,
-        )
-        assert len(claimed2) == 1, "PENDING row must be re-claimable"
+        assert len(claimed) == 1, "PENDING row must be claimable"
         # IMPORTANT: this MUST NOT raise — the production SAVEPOINT
         # recovery path must absorb the AuditEvent UNIQUE conflict and
         # idempotently converge on PUBLISHED.
         materialize_event(
             sess,
-            claimed=claimed2[0],
-            worker_id="w2",
-            claim_token=claimed2[0].claim_token,
+            claimed=claimed[0],
+            worker_id="w1",
+            claim_token=claimed[0].claim_token,
             now=now,
         )
         # Outer session is still usable after the SAVEPOINT recovery.
@@ -574,24 +610,19 @@ class TestPGOutboxLifecycle:
         sess.close()
 
         # ── Final invariants ──────────────────────────────────────────
-        # Exactly one AuditEvent row, matching the first delivery's
-        # outbox_event_id.
+        # Exactly one AuditEvent row, the seed (no second INSERT).
         sess = factory()
-        events = sess.execute(
+        surviving = sess.execute(
             select(AuditEventRecord).where(
                 AuditEventRecord.outbox_event_id == outbox_event_identity
             )
-        ).all()
-        assert len(events) == 1, (
-            f"expected exactly 1 AuditEvent after sequential duplicate, got {len(events)}"
+        ).scalar_one()
+        assert surviving.id == seed_audit_id, (
+            "the seed AuditEvent MUST be the surviving row (no second INSERT happened)"
         )
-        # The surviving AuditEvent still references the original
-        # outbox_event_id (the post-crash materialization must not
-        # have inserted a second row with a different UUID).
-        surviving = events[0]
         assert surviving.outbox_event_id == outbox_event_identity
 
-        # Outbox row must be PUBLISHED again.
+        # Outbox row must be PUBLISHED.
         outbox_row = sess.execute(
             select(AuditOutboxRecord).where(AuditOutboxRecord.id == outbox_id)
         ).scalar_one()
@@ -647,32 +678,17 @@ class TestPGOutboxLifecycle:
         # PUBLISHED yet (post-crash).  The next materialize_event call
         # MUST hit the AuditEvent UNIQUE constraint inside its
         # SAVEPOINT and recover.
+        #
+        # P0-2: build the seed via ``_build_expected_audit_event_from_outbox_row``
+        # so that every field (actor, action, entity_type, entity_id,
+        # before_snapshot, after_snapshot, event_metadata, outbox_event_id)
+        # is byte-identical to what ``materialize_event`` will construct.
+        # A hand-rolled seed would mismatch on ``actor`` (or another
+        # field) and the SAVEPOINT classifier would raise
+        # ``OutboxMaterializationMismatchError`` instead of recovering.
         sess = factory()
         self._force_session_timeouts(sess)
-        existing_audit = AuditEventRecord(
-            id=str(uuid4()),
-            actor="seed-worker",
-            action=outbox.event_type,
-            entity_type=outbox.aggregate_type,
-            entity_id=outbox.aggregate_id,
-            before_snapshot={},
-            after_snapshot={"shared": "payload"},
-            event_metadata={
-                "event_identity": outbox_event_identity,
-                "event_schema_version": outbox.event_schema_version,
-                "correlation_id": outbox.correlation_id,
-                "occurred_at": outbox.occurred_at.isoformat(),
-                "payload_hash": outbox.payload_hash,
-                "envelope_hash": outbox.envelope_hash,
-                "request_id": outbox.request_id,
-                "identity_id": outbox.identity_id,
-                "attempt_id": outbox.attempt_id,
-                "calculation_run_id": outbox.calculation_run_id,
-                "source_binding_id": outbox.source_binding_id,
-            },
-            created_at=now,
-            outbox_event_id=outbox_event_identity,
-        )
+        existing_audit = _build_expected_audit_event_from_outbox_row(outbox, now)
         sess.add(existing_audit)
         sess.commit()
         sess.close()
@@ -753,16 +769,11 @@ class TestPGOutboxLifecycle:
         # ── Final invariants ──────────────────────────────────────────
         sess = factory()
         # Exactly one AuditEvent.
-        events = sess.execute(
+        surviving = sess.execute(
             select(AuditEventRecord).where(
                 AuditEventRecord.outbox_event_id == outbox_event_identity
             )
-        ).all()
-        assert len(events) == 1, (
-            f"expected exactly 1 AuditEvent after concurrent duplicate, got {len(events)}"
-        )
-        # The original (seed) AuditEvent must survive.
-        surviving = events[0]
+        ).scalar_one()
         assert surviving.id == existing_audit.id, (
             "the seed AuditEvent MUST be the surviving row (no second INSERT)"
         )
