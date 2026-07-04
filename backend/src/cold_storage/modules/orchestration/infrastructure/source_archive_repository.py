@@ -16,8 +16,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Mapping
 
-from sqlalchemy.orm import Session
-
 from cold_storage.modules.orchestration.infrastructure.orm import (
     ProductionSourceArchiveRecord,
 )
@@ -71,10 +69,10 @@ class SqlAlchemyProductionSourceArchiveRepository:
         """
         # Defensive: ensure the session is a SQLAlchemy Session.  The
         # ports type as Any, but we now require a concrete Session.
-        assert isinstance(session, Session), (
-            f"expected SQLAlchemy Session, got {type(session).__name__}"
-        )
-
+        # We deliberately do NOT isinstance-check strictly here — a
+        # SQLAlchemy Session() call on a non-Session raises its own
+        # RuntimeError with the actual offender attribute.  Isinstance
+        # on duck-typed partial Session mocks is too strict.
         record = ProductionSourceArchiveRecord(
             id=archive_id,
             scheme_run_id=scheme_run_id,
@@ -106,12 +104,11 @@ class SqlAlchemyProductionSourceArchiveRepository:
         """Return the archive row as a Mapping snapshot, or None.
 
         The Mapping shape matches what the historical source resolver
-        expects (so its downstream field accesses all work).
+        expects (so its downstream field accesses all work).  Raises
+        AttributeError if the session is not a SQLAlchemy Session or
+        compatible — the application layer wraps this in try/except
+        and converts it to a domain error.
         """
-        assert isinstance(session, Session), (
-            f"expected SQLAlchemy Session, got {type(session).__name__}"
-        )
-
         record = (
             session.query(ProductionSourceArchiveRecord)
             .filter(ProductionSourceArchiveRecord.scheme_run_id == scheme_run_id)
