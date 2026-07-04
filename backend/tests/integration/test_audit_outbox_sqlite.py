@@ -1176,6 +1176,7 @@ class TestSQLitelOutboxLifecycle:
             aggregate_id="agg-1",
             payload={"data": 1},
             actor="test-actor",
+            correlation_id="corr-idem",
             transition_id="idem-1",
             occurred_at=fixed_now,
         )
@@ -1190,6 +1191,7 @@ class TestSQLitelOutboxLifecycle:
             aggregate_id="agg-1",
             payload={"data": 1},
             actor="test-actor",
+            correlation_id="corr-idem",
             transition_id="idem-1",
             occurred_at=fixed_now,
         )
@@ -1216,6 +1218,7 @@ class TestSQLitelOutboxLifecycle:
             aggregate_id="agg-1",
             payload={"data": 1, "actor": "actor-1"},
             actor="actor-1",
+            correlation_id="corr-mismatch-actor",
             transition_id="mismatch-actor-1",
             occurred_at=fixed_now,
         )
@@ -1231,6 +1234,7 @@ class TestSQLitelOutboxLifecycle:
                 aggregate_id="agg-1",
                 payload={"data": 1, "actor": "actor-2"},
                 actor="actor-2",
+                correlation_id="corr-mismatch-actor",
                 transition_id="mismatch-actor-1",
                 occurred_at=fixed_now,
             )
@@ -1253,6 +1257,8 @@ class TestSQLitelOutboxLifecycle:
             aggregate_type="TestAggregate",
             aggregate_id="agg-1",
             payload={"data": 1},
+            actor="actor-payload",
+            correlation_id="corr-mismatch-payload",
             transition_id="mismatch-payload-1",
             occurred_at=fixed_now,
         )
@@ -1267,6 +1273,8 @@ class TestSQLitelOutboxLifecycle:
                 aggregate_type="TestAggregate",
                 aggregate_id="agg-1",
                 payload={"data": 2},
+                actor="actor-payload",
+                correlation_id="corr-mismatch-payload",
                 transition_id="mismatch-payload-1",
                 occurred_at=fixed_now,
             )
@@ -1319,3 +1327,90 @@ def sqlite_engine():
     yield engine
     engine.dispose()
     os.unlink(path)
+
+
+class TestSQLiteDispatcherUnknownExceptionUntreated:
+    """P0-7: unknown exceptions must NOT silently retry.
+
+    The dispatcher application service MUST classify exceptions:
+
+    - typed retryable / typed terminal → corresponding mark_*
+    - bare ``Exception`` (untyped) → terminal FAILED, NOT retryable
+      (so the system does not loop forever on a bug)
+
+    This test runs the production application service with a
+    ``materialize_fn`` that raises a bare ``RuntimeError`` and asserts
+    the summary records a terminal failure (not a retry).
+    """
+
+    def test_unknown_exception_marked_terminal_not_retryable(
+        self,
+        sqlite_engine,
+    ) -> None:
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.outbox_dispatcher import (
+            AuditOutboxDispatcherApplicationService,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            AuditOutboxRecord,
+        )
+
+        factory = sessionmaker(bind=sqlite_engine, expire_on_commit=False)
+
+        # Seed one PENDING event via direct insert.
+        sess = factory()
+        _create_outbox_event(sess, transition_id="unk-exc-1")
+        sess.commit()
+        sess.close()
+
+        def boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("simulated unknown exception in materialize_fn")
+
+        service = AuditOutboxDispatcherApplicationService(
+            engine=sqlite_engine,
+            claim_fn_pg=None,
+            claim_fn_sqlite=claim_events_sqlite,
+            materialize_fn=boom,
+            mark_retryable_fn=mark_retryable_failure,
+            mark_terminal_fn=mark_terminal_failure,
+            session_factory=factory,
+            is_pg=False,
+        )
+
+        summary = service.run_cycle(
+            worker_id="w-unk",
+            batch_size=10,
+            lease_seconds=300,
+            now=datetime.now(UTC),
+        )
+
+        # The unknown exception must NOT cause ``retried`` to be set.
+        assert summary.failed == 1, (
+            f"unknown exception must be counted as terminal failed=1, "
+            f"got summary={summary}"
+        )
+        assert summary.retried == 0, (
+            f"unknown exception MUST NOT silently retry, got "
+            f"summary={summary}"
+        )
+        assert summary.published == 0
+        assert summary.unhandled_failures == 0, (
+            f"unknown exception path persisted the terminal failure "
+            f"successfully, so unhandled must be 0, got {summary}"
+        )
+
+        # Verify the row is in FAILED state.
+        sess = factory()
+        row = sess.execute(
+            select(AuditOutboxRecord).where(
+                AuditOutboxRecord.event_type == "test.event",
+                AuditOutboxRecord.aggregate_id == "agg-1",
+            )
+        ).scalar_one()
+        assert row.status == "FAILED", (
+            f"unknown exception must mark row as FAILED, got {row.status!r}"
+        )
+        assert row.failed_at is not None
+        assert row.last_error_class == "RuntimeError"
+        sess.close()

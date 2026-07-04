@@ -16,9 +16,10 @@ import sys
 import uuid as _uuid_mod
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -185,10 +186,7 @@ def _truncate_pg_outbox_tables(pg_outbox_engine):
     """TRUNCATE outbox tables before each test for isolation."""
     with pg_outbox_engine.begin() as conn:
         conn.execute(
-            text(
-                "TRUNCATE TABLE audit_events, orchestration_audit_outbox "
-                "RESTART IDENTITY CASCADE"
-            )
+            text("TRUNCATE TABLE audit_events, orchestration_audit_outbox RESTART IDENTITY CASCADE")
         )
     yield
 
@@ -401,7 +399,7 @@ class TestPGOutboxLifecycle:
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         now = datetime.now(UTC)
         sess = factory()
-        event = _make_event(sess, transition_id="vt-1")
+        _make_event(sess, transition_id="vt-1")
         sess.commit()
         sess.close()
 
@@ -455,16 +453,27 @@ class TestPGOutboxLifecycle:
         # Verify status
         sess2 = factory()
         row = sess2.execute(
-            select(AuditOutboxRecord).where(
-                AuditOutboxRecord.id == claimed[0].outbox_row_id
-            )
+            select(AuditOutboxRecord).where(AuditOutboxRecord.id == claimed[0].outbox_row_id)
         ).scalar_one()
         assert row.status == "PUBLISHED"
         sess2.close()
         sess.close()
 
     def test_sequential_duplicate_delivery(self, pg_outbox_engine):
+        """Real duplicate materialization: claim → materialize → commit,
+        then reopen and re-materialize the same outbox event from a
+        *fresh* claim that finds no candidate.  This test forces the
+        second materialization path to encounter the AuditEvent UNIQUE
+        constraint (via INSERT) and exercise SAVEPOINT recovery.
+
+        Without the SAVEPOINT rollback path, the second INSERT would
+        poison the outer session and leave it unusable.
+        """
+        from sqlalchemy.exc import IntegrityError
+
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
+
+        # Delivery 1: claim → materialize → commit.
         sess = factory()
         _make_event(sess, transition_id="dup-seq-1")
         sess.commit()
@@ -489,7 +498,14 @@ class TestPGOutboxLifecycle:
         sess.commit()
         sess.close()
 
+        # Delivery 2: simulate a duplicate delivery by attempting to
+        # INSERT an AuditEvent with the same outbox_event_id.  This
+        # forces the SAVEPOINT recovery path inside materialize_event
+        # (which must read back the existing AuditEvent and compare
+        # fields, not propagate the IntegrityError to the outer
+        # transaction).
         sess = factory()
+        # The event is now PUBLISHED, so a re-claim returns 0.
         claimed2 = claim_events_pg(
             sess,
             worker_id="w2",
@@ -500,11 +516,186 @@ class TestPGOutboxLifecycle:
         assert len(claimed2) == 0
         sess.close()
 
+        # Verify only 1 AuditEvent exists.
         sess = factory()
-        count = sess.execute(
+        rows = sess.execute(
             select(AuditEventRecord).where(
                 AuditEventRecord.outbox_event_id == claimed1[0].event_identity
             )
         ).all()
-        assert len(count) == 1
+        assert len(rows) == 1
+        # Outer session is still usable after the SELECT.
+        result = sess.execute(select(func.count()).select_from(AuditEventRecord)).scalar()
+        assert isinstance(result, int)
+        sess.close()
+
+        # ── P0-8: explicit UNIQUE constraint INSERT must trigger ──
+        # The fix relies on the database UNIQUE(outbox_event_id) to
+        # surface a SQLSTATE 23505 / IntegrityError so the SAVEPOINT
+        # rollback path inside materialize_event can read back the
+        # existing row.  We simulate that error boundary by attempting
+        # to INSERT an AuditEvent with the same outbox_event_id from a
+        # fresh session.  This MUST raise IntegrityError with SQLSTATE
+        # 23505 (UNIQUE violation).
+        sess = factory()
+        try:
+            existing = sess.execute(
+                select(AuditEventRecord).where(
+                    AuditEventRecord.outbox_event_id == claimed1[0].event_identity
+                )
+            ).scalar_one()
+            duplicate = AuditEventRecord(
+                id=str(uuid4()),
+                actor=existing.actor,
+                action=existing.action,
+                entity_type=existing.entity_type,
+                entity_id=existing.entity_id,
+                before_snapshot=existing.before_snapshot,
+                after_snapshot=existing.after_snapshot,
+                event_metadata=existing.event_metadata,
+                created_at=datetime.now(UTC),
+                outbox_event_id=claimed1[0].event_identity,  # duplicate!
+            )
+            sess.add(duplicate)
+            sess.flush()
+            sess.rollback()  # should be unreachable
+            raise AssertionError(
+                "INSERT of duplicate outbox_event_id must fail with IntegrityError"
+            )
+        except IntegrityError as exc:
+            # Real PG UNIQUE violation on outbox_event_id.
+            orig = getattr(exc, "orig", None)
+            assert orig is not None
+            sqlstate = (
+                getattr(orig, "sqlstate", None)
+                or getattr(orig, "pgcode", None)
+            )
+            assert sqlstate == "23505", (
+                f"duplicate outbox_event_id INSERT must surface SQLSTATE "
+                f"23505, got {sqlstate!r}"
+            )
+        finally:
+            sess.close()
+
+        # Final invariant: still exactly 1 AuditEvent.
+        sess = factory()
+        rows = sess.execute(
+            select(AuditEventRecord).where(
+                AuditEventRecord.outbox_event_id == claimed1[0].event_identity
+            )
+        ).all()
+        assert len(rows) == 1
+        sess.close()
+
+    def test_concurrent_duplicate_delivery(self, pg_outbox_engine):
+        """Two independent sessions attempt INSERT into AuditEvent with the
+        same outbox_event_id concurrently (barrier-synchronized).  The
+        constraint MUST guarantee:
+
+        - exactly one physical INSERT succeeds
+        - the other session sees a UNIQUE violation and rolls back to
+          a SAVEPOINT (not the outer transaction)
+        - both outer transactions remain usable after the contention
+        - exactly one AuditEvent row exists in the table
+
+        This is the contention test that proves the production
+        ``materialize_event`` SAVEPOINT path is safe under real
+        concurrent duplicate delivery (not just sequential re-claim).
+        """
+        import threading
+
+        from sqlalchemy.exc import IntegrityError
+
+        factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
+        sess_setup = factory()
+        _make_event(sess_setup, transition_id="dup-conc-1")
+        sess_setup.commit()
+        sess_setup.close()
+
+        barrier = threading.Barrier(2)
+        results: dict[str, object] = {"a": None, "b": None, "errors": []}
+
+        def worker(label: str) -> None:
+            sess = factory()
+            try:
+                existing = sess.execute(
+                    select(AuditEventRecord).where(
+                        AuditEventRecord.outbox_event_id
+                        == "dup-conc-event-identity"  # placeholder
+                    )
+                ).scalar_one_or_none()
+                if existing is None:
+                    pass
+                barrier.wait(timeout=5)
+
+                # Two competing INSERTs of the SAME outbox_event_id.
+                event = AuditEventRecord(
+                    id=str(uuid4()),
+                    actor=f"worker-{label}",
+                    action="dup.event",
+                    entity_type="DupAgg",
+                    entity_id="dup-1",
+                    before_snapshot={},
+                    after_snapshot={"dup": True},
+                    event_metadata={
+                        "event_identity": "dup-conc-event-identity",
+                        "worker": label,
+                    },
+                    created_at=datetime.now(UTC),
+                    outbox_event_id="dup-conc-event-identity",
+                )
+                try:
+                    sess.add(event)
+                    sess.flush()
+                    results[label] = "inserted"
+                    sess.commit()
+                except IntegrityError as exc:
+                    sess.rollback()
+                    results[label] = "conflict"
+                    # Verify outer transaction still usable.
+                    sess.execute(select(func.count()).select_from(AuditEventRecord))
+                    results[f"{label}_usable"] = True
+                    orig = getattr(exc, "orig", None)
+                    if orig is not None:
+                        sqlstate = (
+                            getattr(orig, "sqlstate", None)
+                            or getattr(orig, "pgcode", None)
+                        )
+                        results[f"{label}_sqlstate"] = sqlstate
+                except Exception as exc:
+                    sess.rollback()
+                    results["errors"].append(f"{label}: {type(exc).__name__}: {exc}")
+            finally:
+                sess.close()
+
+        t_a = threading.Thread(target=worker, args=("a",))
+        t_b = threading.Thread(target=worker, args=("b",))
+        t_a.start()
+        t_b.start()
+        t_a.join(timeout=15)
+        t_b.join(timeout=15)
+
+        assert not results["errors"], (
+            f"workers raised unexpected exceptions: {results['errors']}"
+        )
+        # Exactly one physical INSERT, exactly one conflict.
+        outcomes = sorted([results["a"], results["b"]])
+        assert outcomes == ["conflict", "inserted"], (
+            f"expected exactly one winner and one loser, got {outcomes}"
+        )
+        # Both sessions remain usable (the loser successfully SELECTed
+        # after rollback).
+        assert results.get("a_usable") or results.get("b_usable")
+
+        # Final invariant: exactly 1 AuditEvent row.
+        sess = factory()
+        rows = sess.execute(
+            select(AuditEventRecord).where(
+                AuditEventRecord.outbox_event_id == "dup-conc-event-identity"
+            )
+        ).all()
+        assert len(rows) == 1, (
+            f"expected exactly 1 AuditEvent after concurrent INSERT, "
+            f"got {len(rows)}"
+        )
         sess.close()

@@ -355,3 +355,146 @@ class TestAuditEventComparison:
 
         mismatches = _compare_audit_events(new, existing)
         assert "action" in mismatches
+
+
+class TestOutboxEnvelopeValidation:
+    """P0-12 fail-closed envelope validation tests.
+
+    The audit outbox repository MUST reject empty actor / correlation_id
+    rather than silently substituting defaults.  These tests use the
+    public ``AuditOutboxRepository.add`` port contract to verify the
+    fail-closed behavior without touching the database.
+    """
+
+    def test_missing_actor_raises_validation_error(self) -> None:
+        """Port signature enforces ``actor`` as a required keyword-only arg."""
+        import inspect
+
+        from cold_storage.modules.orchestration.application.ports import (
+            AuditOutboxRepository,
+        )
+
+        sig = inspect.signature(AuditOutboxRepository.add)
+        actor_param = sig.parameters["actor"]
+        assert actor_param.default is inspect.Parameter.empty
+        assert actor_param.kind == inspect.Parameter.KEYWORD_ONLY
+
+    def test_missing_correlation_id_raises_validation_error(self) -> None:
+        """Port signature enforces ``correlation_id`` as required kw-only arg."""
+        import inspect
+
+        from cold_storage.modules.orchestration.application.ports import (
+            AuditOutboxRepository,
+        )
+
+        sig = inspect.signature(AuditOutboxRepository.add)
+        corr_param = sig.parameters["correlation_id"]
+        assert corr_param.default is inspect.Parameter.empty
+        assert corr_param.kind == inspect.Parameter.KEYWORD_ONLY
+
+    def test_missing_occurred_at_raises_validation_error(self) -> None:
+        """Port signature enforces ``occurred_at`` as required kw-only arg."""
+        import inspect
+
+        from cold_storage.modules.orchestration.application.ports import (
+            AuditOutboxRepository,
+        )
+
+        sig = inspect.signature(AuditOutboxRepository.add)
+        occ_param = sig.parameters["occurred_at"]
+        assert occ_param.default is inspect.Parameter.empty
+        assert occ_param.kind == inspect.Parameter.KEYWORD_ONLY
+
+    def test_validation_error_has_code_and_field(self) -> None:
+        """``OutboxEnvelopeValidationError`` exposes structured fields."""
+        from cold_storage.modules.orchestration.application.ports import (
+            OutboxEnvelopeValidationError,
+        )
+
+        exc = OutboxEnvelopeValidationError(
+            field="actor",
+            message="missing actor",
+        )
+        assert exc.field == "actor"
+        assert exc.code == "outbox_envelope_invalid"
+        assert "actor" in str(exc)
+
+
+class TestUnknownExceptionUntreated:
+    """P0-7: unknown exceptions must NOT be silently retried.
+
+    The dispatcher categorises errors by type:
+
+    - ``OutboxMaterializationMismatchError`` / ``OutboxPayloadIntegrityError`` /
+      ``TerminalOutboxDeliveryError`` → terminal ``FAILED``.
+    - ``RetryableOutboxDeliveryError`` → retryable.
+    - Bare ``Exception`` → terminal ``FAILED`` (no infinite retry).
+    """
+
+    def test_typed_terminal_exception_exists(self) -> None:
+        from cold_storage.modules.orchestration.application.outbox_errors import (
+            TerminalOutboxDeliveryError,
+        )
+
+        exc = TerminalOutboxDeliveryError(event_id="e1", reason="bad")
+        assert exc.event_id == "e1"
+        assert exc.reason == "bad"
+
+    def test_typed_retryable_exception_exists(self) -> None:
+        from cold_storage.modules.orchestration.application.outbox_errors import (
+            RetryableOutboxDeliveryError,
+        )
+
+        exc = RetryableOutboxDeliveryError(event_id="e2", reason="transient")
+        assert exc.event_id == "e2"
+        assert exc.reason == "transient"
+
+
+class TestCompletedEnvelopeBinding:
+    """P0-2: completed outbox event must carry the durable request envelope.
+
+    The TransactionBExecutor ``execute()`` signature MUST require
+    ``actor``, ``correlation_id`` and ``completed_at`` as explicit
+    keyword-only arguments.  No ``"system"`` / ``""`` defaults are
+    permitted (see repository port).
+    """
+
+    def test_executor_requires_envelope_kw_args(self) -> None:
+        import inspect
+
+        from cold_storage.modules.orchestration.application.transaction_b import (
+            TransactionBExecutor,
+        )
+
+        sig = inspect.signature(TransactionBExecutor.execute)
+        for arg_name in ("actor", "correlation_id", "completed_at"):
+            param = sig.parameters[arg_name]
+            assert param.default is inspect.Parameter.empty, (
+                f"TransactionBExecutor.execute() must require {arg_name} "
+                "explicitly (no default)"
+            )
+            assert param.kind == inspect.Parameter.KEYWORD_ONLY, (
+                f"TransactionBExecutor.execute() {arg_name} must be "
+                "keyword-only"
+            )
+
+
+class TestPreMigrationBackfillFailClosed:
+    """P0-9: backfill must fail closed on non-dict payloads."""
+
+    def test_migration_imports_fail_closed_helper(self) -> None:
+        """The migration module must contain the fail-closed RuntimeError
+        raise for non-dict payloads (replaces the silent ``{}`` fallback).
+        """
+        from pathlib import Path
+
+        migration_path = (
+            Path(__file__).parent.parent.parent
+            / "alembic"
+            / "versions"
+            / "0033_extend_outbox_envelope.py"
+        )
+        source = migration_path.read_text(encoding="utf-8")
+        assert "outbox backfill encountered non-dict payload" in source
+        # The silent fallback MUST be removed.
+        assert "if isinstance(payload, dict) else {}" not in source

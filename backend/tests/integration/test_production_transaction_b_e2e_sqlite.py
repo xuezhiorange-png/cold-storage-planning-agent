@@ -57,6 +57,7 @@ from tests.integration.transaction_b_golden import (
     GOLDEN_ORCHESTRATION_IDENTITY_ID,
     GOLDEN_PROJECT_ID,
     GOLDEN_PROJECT_VERSION_ID,
+    GOLDEN_REQUEST_ID,
     GOLDEN_SNAPSHOT_ID,
     _seed_golden_prerequisites,
     load_cross_backend_golden,
@@ -962,6 +963,29 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
             assert binding.equipment_calculation_id == GOLDEN_EQUIP_RUN_ID
             assert binding.power_calculation_id == GOLDEN_POWER_RUN_ID
             assert binding.investment_calculation_id == GOLDEN_INVEST_RUN_ID
+
+            # ── P0-2: completed outbox event MUST carry the request envelope ──
+            from cold_storage.modules.orchestration.infrastructure.orm import (
+                AuditOutboxRecord,
+            )
+
+            completed_outbox = session.execute(
+                select(AuditOutboxRecord).where(
+                    AuditOutboxRecord.event_type == "orchestration.attempt.completed"
+                )
+            ).scalar_one()
+            assert completed_outbox.actor == "golden-test", (
+                f"P0-2: completed outbox actor must bind to request actor, "
+                f"got {completed_outbox.actor!r}"
+            )
+            assert completed_outbox.correlation_id == "golden-corr-001", (
+                f"P0-2: completed outbox correlation_id must bind to request "
+                f"correlation_id, got {completed_outbox.correlation_id!r}"
+            )
+            assert completed_outbox.occurred_at is not None
+            assert completed_outbox.request_id == GOLDEN_REQUEST_ID
+            assert completed_outbox.identity_id == GOLDEN_ORCHESTRATION_IDENTITY_ID
+            assert completed_outbox.attempt_id == GOLDEN_ATTEMPT_ID
 
         # ── Step 8: Verify power authority = 285.0 from golden ──────────
         power_snapshot = golden["canonical_result_snapshots"]["power"]
