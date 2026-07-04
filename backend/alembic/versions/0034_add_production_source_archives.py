@@ -96,7 +96,7 @@ def _pg_upgrade() -> None:
         sa.Column(
             "execution_snapshot_id",
             sa.String(36),
-            sa.ForeignKey("project_version_execution_snapshots.id", ondelete="RESTRICT"),
+            sa.ForeignKey("orchestration_execution_snapshots.id", ondelete="RESTRICT"),
             nullable=True,
         ),
         sa.Column(
