@@ -102,7 +102,7 @@ def _pg_upgrade() -> None:
         sa.Column(
             "coefficient_context_id",
             sa.String(36),
-            sa.ForeignKey("coefficient_contexts.id", ondelete="RESTRICT"),
+            sa.ForeignKey("orchestration_coefficient_contexts.id", ondelete="RESTRICT"),
             nullable=True,
         ),
         sa.Column(
