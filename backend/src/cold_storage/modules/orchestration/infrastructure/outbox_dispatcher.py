@@ -541,7 +541,8 @@ def _is_outbox_event_id_conflict(exc: Exception) -> bool:
     """Check if an IntegrityError is a unique conflict on audit_events.outbox_event_id.
 
     P0-9: Exact match — no substring matching or error text fallback.
-    - PG: SQLSTATE == '23505' AND constraint_name == 'audit_events_outbox_event_id_key'
+    - PG: SQLSTATE == '23505' AND constraint_name == 'uq_audit_event_outbox'
+      (created by migration 0026 as the canonical UNIQUE on outbox_event_id).
     - SQLite: extended error code == 2067 (SQLITE_CONSTRAINT_UNIQUE) AND the
       failed column set must equal exactly {audit_events.outbox_event_id}.
       Other UNIQUE / composite / FK / CHECK / NOT NULL must propagate.
@@ -559,7 +560,9 @@ def _is_outbox_event_id_conflict(exc: Exception) -> bool:
             constraint_name = getattr(diag, "constraint_name", None)
         if constraint_name is None:
             constraint_name = getattr(orig, "constraint_name", None)
-        return constraint_name == "audit_events_outbox_event_id_key"
+        # Round 8 P0-3: migration 0026 creates the UNIQUE on outbox_event_id
+        # under the name ``uq_audit_event_outbox``.  Match that exactly.
+        return constraint_name == "uq_audit_event_outbox"
 
     # ── SQLite ──────────────────────────────────────────────────────────
     sqlite_errcode = getattr(orig, "sqlite_errorcode", None)

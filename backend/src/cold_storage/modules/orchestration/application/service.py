@@ -587,8 +587,49 @@ class OrchestrationService:
             )
             raise
 
-        except (TransactionBFailure, OrchestrationDomainError) as exc:
+        except TransactionBFailure as exc:
+            # ── P0-4 (Round 8) fail-closed: if the durable request had
+            # no envelope at all, refuse to emit any terminal outbox
+            # event.  We only know the envelope was missing because the
+            # exception code is ``TXB_REQUEST_ENVELOPE_MISSING``; in
+            # that case rolling back the primary UoW is the entire
+            # failure contract — no ``envelope-unavailable`` sentinel
+            # outbox is written.
+            #
+            # This branch MUST come after ``except TransactionBBlocked``
+            # because ``TransactionBBlocked`` is a subclass of
+            # ``TransactionBFailure`` (see transaction_b.py).
+            if exc.code == "TXB_REQUEST_ENVELOPE_MISSING":
+                # Caller is responsible for rolling back the primary UoW
+                # (the ``with`` block above already exits with a
+                # rollback on the raised exception).  Do not invoke
+                # ``_transaction_b_terminal`` — that helper would emit a
+                # terminal outbox event with a sentinel envelope which
+                # contradicts the fail-closed contract documented at
+                # the envelope-load site.
+                raise
             # ── Unexpected failure → FAILED ────────────────────────────
+            t_actor, t_corr = self._resolve_terminal_envelope(
+                envelope_actor, envelope_correlation_id, exc.code
+            )
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=exc,
+                disposition=AttemptTerminalDisposition.FAILED,
+                actor=t_actor,
+                correlation_id=t_corr,
+                occurred_at=datetime.now(UTC),
+            )
+            raise
+
+        except OrchestrationDomainError as exc:
+            # ── Domain-layer failure (not TransactionBFailure /
+            # TransactionBBlocked — those are caught above).  Treat as
+            # FAILED and emit the terminal outbox event using the loaded
+            # envelope (or the envelope-unavailable sentinel if loading
+            # itself raised before assignment).
             t_actor, t_corr = self._resolve_terminal_envelope(
                 envelope_actor, envelope_correlation_id, exc.code
             )
