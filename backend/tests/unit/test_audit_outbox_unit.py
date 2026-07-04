@@ -13,6 +13,7 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 
 class TestCanonicalJson:
@@ -496,3 +497,135 @@ class TestPreMigrationBackfillFailClosed:
         assert "outbox backfill encountered non-dict payload" in source
         # The silent fallback MUST be removed.
         assert "if isinstance(payload, dict) else {}" not in source
+
+
+class TestTransactionBEnvelopeFailClosed:
+    """P0-3 (Round 7): Transaction B envelope fail-closed contract.
+
+    The TransactionBApplicationService must:
+      1. Load the durable request envelope BEFORE the request_status
+         precondition check, so that envelope load failure or absence is
+         caught before any other path runs.
+      2. If envelope is missing, raise ``TransactionBFailure`` with code
+         ``TXB_REQUEST_ENVELOPE_MISSING`` — no silent "system"/"" fallback.
+      3. NEVER use ``"system"`` or ``""`` as actor / correlation_id
+         defaults in any terminal path (use an explicit
+         ``envelope-unavailable:<code>`` sentinel instead, recognizable
+         in audit but never silently "system").
+      4. Terminal outbox events must carry either the loaded envelope or
+         the sentinel — never the old defaults.
+    """
+
+    SERVICE_PATH = (
+        Path(__file__).parent.parent.parent
+        / "src"
+        / "cold_storage"
+        / "modules"
+        / "orchestration"
+        / "application"
+        / "service.py"
+    )
+
+    def test_service_no_longer_uses_system_fallback(self) -> None:
+        """The literal ``"system"`` MUST NOT appear as a fallback anywhere in
+        the service module's ``execute_transaction_b``."""
+        source = self.SERVICE_PATH.read_text(encoding="utf-8")
+        # The forbidden fallback pattern: ``envelope[0] if envelope else "system"``
+        assert 'if envelope else "system"' not in source, (
+            "execute_transaction_b must not fall back to 'system' as envelope actor"
+        )
+        assert 'if envelope else ""' not in source, (
+            "execute_transaction_b must not fall back to empty string as envelope correlation_id"
+        )
+        # The forbidden pattern as written in the executor call.
+        assert "actor=(envelope[0]" not in source, (
+            "executor.execute actor must come from envelope tuple, not a fallback"
+        )
+        assert "correlation_id=(envelope[1]" not in source
+
+    def test_service_loads_envelope_before_request_status_check(self) -> None:
+        """Source-order check: ``get_envelope`` MUST be called BEFORE
+        ``get_status`` (or any precondition check) inside the same UoW.
+        This prevents the UnboundLocalError risk in except handlers."""
+        source = self.SERVICE_PATH.read_text(encoding="utf-8")
+        # Find the relevant region (between ``# P0-3`` and ``# Pre-condition``)
+        p0_3_idx = source.find("# P0-3: load envelope first")
+        precond_idx = source.find("# Pre-condition: verify request is ACCEPTED")
+        assert p0_3_idx != -1, "P0-3 comment must be present"
+        assert precond_idx != -1, "precondition check must be present"
+        assert p0_3_idx < precond_idx, (
+            "envelope must be loaded BEFORE the request_status precondition check"
+        )
+        get_envelope_idx = source.find("get_envelope(", p0_3_idx)
+        get_status_idx = source.find("get_status(", p0_3_idx)
+        assert get_envelope_idx != -1 and get_envelope_idx < precond_idx, (
+            "get_envelope must be called inside the P0-3 region"
+        )
+        assert get_status_idx == -1 or get_status_idx > get_envelope_idx, (
+            "get_status must NOT be called before get_envelope"
+        )
+
+    def test_service_emits_txb_request_envelope_missing(self) -> None:
+        """The service must raise a ``TXB_REQUEST_ENVELOPE_MISSING`` failure
+        when the envelope is None."""
+        source = self.SERVICE_PATH.read_text(encoding="utf-8")
+        assert "TXB_REQUEST_ENVELOPE_MISSING" in source, (
+            "service must fail closed with TXB_REQUEST_ENVELOPE_MISSING when envelope is None"
+        )
+
+    def test_service_envelope_variables_typed_optional_outside_try(self) -> None:
+        """``envelope_actor`` and ``envelope_correlation_id`` must be
+        declared as ``str | None`` outside the try block so except branches
+        can never raise UnboundLocalError."""
+        source = self.SERVICE_PATH.read_text(encoding="utf-8")
+        # Look for the section right after the P0-3 comment block.
+        p0_3_idx = source.find("# P0-3 (Round 7)")
+        precond_idx = source.find("# Pre-condition: verify request is ACCEPTED")
+        region = source[p0_3_idx:precond_idx] if p0_3_idx != -1 and precond_idx != -1 else ""
+        assert "envelope_actor: str | None = None" in region, (
+            "envelope_actor must be initialized as str | None before the try"
+        )
+        assert "envelope_correlation_id: str | None = None" in region, (
+            "envelope_correlation_id must be initialized as str | None before the try"
+        )
+
+    def test_resolve_terminal_envelope_uses_sentinel_not_system(self) -> None:
+        """The ``_resolve_terminal_envelope`` helper must return either the
+        loaded envelope OR an explicit ``envelope-unavailable:<code>``
+        sentinel — NEVER the bare ``"system"`` or ``""`` defaults."""
+        source = self.SERVICE_PATH.read_text(encoding="utf-8")
+        # Helper exists
+        assert "def _resolve_terminal_envelope(" in source
+        # Sentinel is present
+        assert "envelope-unavailable:" in source, (
+            "envelope-unavailable sentinel must be present for terminal paths"
+        )
+        # The helper body must NOT return 'system' or '' as defaults
+        helper_start = source.find("def _resolve_terminal_envelope(")
+        helper_end = source.find("\n    def ", helper_start + 1)
+        helper_body = source[helper_start:helper_end]
+        assert 'return "' not in helper_body, (
+            'helper must not return literal "system" or "" defaults'
+        )
+
+    def test_terminal_branches_call_resolve_helper(self) -> None:
+        """Every except branch that calls ``_transaction_b_terminal`` MUST
+        route through ``_resolve_terminal_envelope`` (so that the
+        envelope-unavailable sentinel is applied when needed)."""
+        import re
+
+        source = self.SERVICE_PATH.read_text(encoding="utf-8")
+        # Count occurrences of _transaction_b_terminal vs _resolve_terminal_envelope
+        terminal_calls = len(re.findall(r"self\._transaction_b_terminal\(", source))
+        resolve_calls = len(re.findall(r"self\._resolve_terminal_envelope\(", source))
+        # There are at least 4 except branches calling _transaction_b_terminal
+        # (TransactionBBlocked, TransactionBFailure, IntegrityError, Exception)
+        # and 1 from mark_attempt_blocked (if any).  We just check that
+        # every terminal call has a corresponding resolve call.
+        assert terminal_calls > 0, "no _transaction_b_terminal calls found"
+        # In the relevant execute_transaction_b body, every terminal call
+        # must be preceded by a _resolve_terminal_envelope call.
+        # We do a simple substring count check.
+        assert resolve_calls >= 4, (
+            f"expected at least 4 _resolve_terminal_envelope calls, got {resolve_calls}"
+        )

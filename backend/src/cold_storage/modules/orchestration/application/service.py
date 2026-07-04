@@ -496,9 +496,34 @@ class OrchestrationService:
         )
 
         # ── Primary UoW: Transaction B execution ──────────────────────
-        envelope: tuple[str, str] | None = None
+        # P0-3 (Round 7): envelope must be loaded and validated BEFORE any
+        # other precondition check.  All terminal paths below reference
+        # ``envelope_actor`` and ``envelope_correlation_id`` — initialize
+        # them up front (outside the try) so that except handlers cannot
+        # raise UnboundLocalError, and so that the fail-closed contract
+        # holds: the only values ever passed to the outbox are the
+        # envelope loaded from the durable request, or the explicit
+        # "envelope-unavailable" sentinels set when the load itself failed.
+        envelope_actor: str | None = None
+        envelope_correlation_id: str | None = None
         try:
             with self._uow_factory() as uow:
+                # P0-3: load envelope first.  If the durable request has no
+                # envelope (the request was created via a non-authoritative
+                # code path), fail closed immediately — do not silently
+                # substitute "system" / "" anywhere downstream.
+                loaded = self._request_repo.get_envelope(uow.session, request_id)
+                if loaded is None:
+                    raise TransactionBFailure(
+                        "TXB_REQUEST_ENVELOPE_MISSING",
+                        "Request envelope (actor, correlation_id) is missing "
+                        "from the durable request — refusing to emit any "
+                        "outbox event without a verified envelope identity.",
+                        field="request_envelope",
+                        details={"request_id": request_id},
+                    )
+                envelope_actor, envelope_correlation_id = loaded
+
                 # Pre-condition: verify request is ACCEPTED and attempt is RUNNING
                 request_status = self._request_repo.get_status(uow.session, request_id)
                 if request_status != RequestStatus.ACCEPTED:
@@ -511,7 +536,6 @@ class OrchestrationService:
                             "observed_status": request_status,
                         },
                     )
-                envelope = self._request_repo.get_envelope(uow.session, request_id)
 
                 attempt_status = self._attempt_repo.get_status(
                     uow.session, orchestration_attempt_id
@@ -539,8 +563,8 @@ class OrchestrationService:
                     orchestration_fingerprint=orchestration_fingerprint,
                     execution_snapshot=execution_snapshot,
                     coefficient_context=coefficient_context,
-                    actor=(envelope[0] if envelope else "system"),
-                    correlation_id=(envelope[1] if envelope else ""),
+                    actor=envelope_actor,
+                    correlation_id=envelope_correlation_id,
                     completed_at=datetime.now(UTC),
                 )
                 uow.commit()
@@ -548,81 +572,85 @@ class OrchestrationService:
 
         except TransactionBBlocked as exc:
             # ── Engineering blocker → BLOCKED ─────────────────────────
+            t_actor, t_corr = self._resolve_terminal_envelope(
+                envelope_actor, envelope_correlation_id, exc.code
+            )
             self._transaction_b_terminal(
                 attempt_id=orchestration_attempt_id,
                 request_id=request_id,
                 identity_id=orchestration_identity_id,
                 exc=exc,
                 disposition=exc.terminal_disposition,
-                actor=(envelope[0] if envelope else "system"),
-                correlation_id=(envelope[1] if envelope else ""),
+                actor=t_actor,
+                correlation_id=t_corr,
                 occurred_at=datetime.now(UTC),
             )
             raise
 
         except (TransactionBFailure, OrchestrationDomainError) as exc:
             # ── Unexpected failure → FAILED ────────────────────────────
+            t_actor, t_corr = self._resolve_terminal_envelope(
+                envelope_actor, envelope_correlation_id, exc.code
+            )
             self._transaction_b_terminal(
                 attempt_id=orchestration_attempt_id,
                 request_id=request_id,
                 identity_id=orchestration_identity_id,
                 exc=exc,
                 disposition=AttemptTerminalDisposition.FAILED,
-                actor=(envelope[0] if envelope else "system"),
-                correlation_id=(envelope[1] if envelope else ""),
+                actor=t_actor,
+                correlation_id=t_corr,
                 occurred_at=datetime.now(UTC),
             )
             raise
 
         except IntegrityError as exc:
             # ── Raw DB persistence failure → FAILED + terminal UoW ────
+            wrapped = TransactionBFailure(
+                "TXB_PERSISTENCE_FAILURE",
+                f"Raw IntegrityError: {exc}",
+                field="persistence",
+                details={"error_class": type(exc).__name__, "cause": str(exc)},
+            )
+            t_actor, t_corr = self._resolve_terminal_envelope(
+                envelope_actor, envelope_correlation_id, wrapped.code
+            )
             self._transaction_b_terminal(
                 attempt_id=orchestration_attempt_id,
                 request_id=request_id,
                 identity_id=orchestration_identity_id,
-                exc=TransactionBFailure(
-                    "TXB_PERSISTENCE_FAILURE",
-                    f"Raw IntegrityError: {exc}",
-                    field="persistence",
-                    details={"error_class": type(exc).__name__, "cause": str(exc)},
-                ),
+                exc=wrapped,
                 disposition=AttemptTerminalDisposition.FAILED,
                 original_exc=exc,
-                actor=(envelope[0] if envelope else "system"),
-                correlation_id=(envelope[1] if envelope else ""),
+                actor=t_actor,
+                correlation_id=t_corr,
                 occurred_at=datetime.now(UTC),
             )
-            raise TransactionBFailure(
-                "TXB_PERSISTENCE_FAILURE",
-                f"Persistence failure: {exc}",
-                field="persistence",
-                details={"error_class": type(exc).__name__, "cause": str(exc)},
-            ) from exc
+            raise wrapped from exc
 
         except Exception as exc:
             # ── Unexpected non-typed failure → FAILED + terminal UoW ──
-            self._transaction_b_terminal(
-                attempt_id=orchestration_attempt_id,
-                request_id=request_id,
-                identity_id=orchestration_identity_id,
-                exc=TransactionBFailure(
-                    "TXB_UNEXPECTED_FAILURE",
-                    f"Unexpected failure: {exc}",
-                    field="unexpected",
-                    details={"error_class": type(exc).__name__, "cause": str(exc)},
-                ),
-                disposition=AttemptTerminalDisposition.FAILED,
-                original_exc=exc,
-                actor=(envelope[0] if envelope else "system"),
-                correlation_id=(envelope[1] if envelope else ""),
-                occurred_at=datetime.now(UTC),
-            )
-            raise TransactionBFailure(
+            wrapped = TransactionBFailure(
                 "TXB_UNEXPECTED_FAILURE",
                 f"Unexpected failure: {exc}",
                 field="unexpected",
                 details={"error_class": type(exc).__name__, "cause": str(exc)},
-            ) from exc
+            )
+            t_actor, t_corr = self._resolve_terminal_envelope(
+                envelope_actor, envelope_correlation_id, wrapped.code
+            )
+            self._transaction_b_terminal(
+                attempt_id=orchestration_attempt_id,
+                request_id=request_id,
+                identity_id=orchestration_identity_id,
+                exc=wrapped,
+                disposition=AttemptTerminalDisposition.FAILED,
+                original_exc=exc,
+                actor=t_actor,
+                correlation_id=t_corr,
+                occurred_at=datetime.now(UTC),
+            )
+            raise wrapped from exc
 
     # ── Exhaustive disposition → status / event mapping ─────────────────
 
@@ -635,6 +663,32 @@ class OrchestrationService:
         AttemptTerminalDisposition.BLOCKED: "orchestration.attempt.blocked",
         AttemptTerminalDisposition.FAILED: "orchestration.attempt.failed",
     }
+
+    def _resolve_terminal_envelope(
+        self,
+        envelope_actor: str | None,
+        envelope_correlation_id: str | None,
+        exc_code: str,
+    ) -> tuple[str, str]:
+        """Resolve the actor/correlation_id for a terminal outbox event.
+
+        P0-3 fail-closed contract:
+          * If the durable request envelope was loaded successfully, use
+            it verbatim — never substitute defaults.
+          * If the envelope could not be loaded (load raised before
+            assignment), use an explicit ``envelope-unavailable``
+            sentinel tagged with the failure code.  This sentinel is
+            recognizable in audit but does NOT use the forbidden
+            ``"system"`` / ``""`` defaults.
+        """
+        if envelope_actor is not None and envelope_correlation_id is not None:
+            return envelope_actor, envelope_correlation_id
+        # Envelope unavailable — record it explicitly.  We deliberately
+        # avoid ``"system"`` and empty string here; the audit trail must
+        # show that the envelope was not present at terminal time.
+        sentinel_actor = f"envelope-unavailable:{exc_code}"
+        sentinel_correlation_id = f"envelope-unavailable:{exc_code}"
+        return sentinel_actor, sentinel_correlation_id
 
     def _transaction_b_terminal(
         self,
