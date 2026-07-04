@@ -788,30 +788,53 @@ class TestPGOutboxLifecycle:
         sess.close()
 
     def test_unrelated_integrity_error_is_not_swallowed(self, pg_outbox_engine) -> None:
-        """P0-1 (defense in depth): an unrelated IntegrityError during
-        materialize_event (e.g. a FK violation) MUST propagate to the
-        caller; the SAVEPOINT recovery must NOT swallow it as a benign
-        duplicate.
+        """P0-3 (Round 8): an unrelated IntegrityError during
+        materialize_event MUST propagate to the caller; the SAVEPOINT
+        recovery must NOT swallow it as a benign duplicate.
+
+        The test forces a real PRIMARY KEY violation on ``audit_events.id``
+        — not the outbox_event_id UNIQUE.  Earlier rounds assumed a FK
+        violation on ``aggregate_id``, but ``audit_events`` has no FK
+        constraints (see ``orm.py:AuditEventRecord``), so the FK
+        assertion never fired.
+
+        Mechanism: we pre-insert an AuditEvent with a known ``id=X``,
+        then call ``materialize_event`` while patching the
+        infrastructure module's ``uuid4`` symbol to return the same
+        ``X``.  The ORM ``INSERT`` will collide on
+        ``audit_events_pkey`` (SQLSTATE 23505, constraint_name !=
+        ``uq_audit_event_outbox``) and the SAVEPOINT classifier must
+        return False, causing the IntegrityError to propagate.
+
+        Invariants:
+          * materialize_event raises IntegrityError
+          * _is_outbox_event_id_conflict() returns False for the raised
+            exception (constraint_name == ``audit_events_pkey``)
+          * outbox row.status != 'PUBLISHED'
+          * outer session is rolled back
         """
+        from sqlalchemy.exc import IntegrityError
+
+        from cold_storage.modules.orchestration.infrastructure import (
+            outbox_dispatcher as outbox_dispatcher_module,
+        )
+
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         now = datetime.now(UTC)
 
-        # Create outbox row with an aggregate_id pointing at a
-        # non-existent FK target.  The AuditEvent INSERT will fail
-        # with a FK violation (SQLSTATE 23503) — not a UNIQUE
-        # violation (23505).
+        # ── Setup: one PENDING outbox row.
         sess = factory()
         self._force_session_timeouts(sess)
         outbox = _make_event(
             sess,
-            transition_id="mat-fk-1",
+            transition_id="mat-pkey-1",
             payload={"k": "v"},
-            aggregate_id="nonexistent-aggregate",
         )
         sess.commit()
         outbox_id = outbox.id
         sess.close()
 
+        # ── Claim the row normally.
         sess = factory()
         self._force_session_timeouts(sess)
         claimed = claim_events_pg(
@@ -822,44 +845,103 @@ class TestPGOutboxLifecycle:
             now=now,
         )
         assert len(claimed) == 1
-        from sqlalchemy.exc import IntegrityError
-
-        try:
-            materialize_event(
-                sess,
-                claimed=claimed[0],
-                worker_id="w1",
-                claim_token=claimed[0].claim_token,
-                now=now,
-            )
-            sess.commit()
-        except IntegrityError as exc:
-            # Acceptable: the FK violation propagated.  The outbox row
-            # must NOT have been marked PUBLISHED.
-            sess.rollback()
-            sess.close()
-            sess = factory()
-            outbox_row = sess.execute(
-                select(AuditOutboxRecord).where(AuditOutboxRecord.id == outbox_id)
-            ).scalar_one()
-            assert outbox_row.status != "PUBLISHED", (
-                f"FK violation must not mark outbox PUBLISHED, got {outbox_row.status!r}"
-            )
-            sess.close()
-            # Confirm it's a 23503 (FK), not a 23505 (UNIQUE).
-            orig = getattr(exc, "orig", None)
-            if orig is not None:
-                sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
-                assert sqlstate != "23505", (
-                    "the SAVEPOINT classifier MUST distinguish FK (23503) "
-                    f"from UNIQUE (23505); got {sqlstate!r}"
-                )
-            return
+        # Commit so the PROCESSING state + claim token are visible to
+        # subsequent sessions (the materialize_event session is a
+        # different connection).
+        sess.commit()
         sess.close()
-        pytest.fail(
-            "FK violation during materialize_event must raise IntegrityError; "
-            "the SAVEPOINT recovery must NOT swallow unrelated IntegrityErrors"
+
+        # ── Pre-insert a sentinel AuditEvent whose ``id`` we'll force the
+        # dispatcher to collide on.  This row will keep the AuditEvent
+        # table from accepting the duplicate PK.
+        sentinel_id = str(uuid4())
+        sess = factory()
+        self._force_session_timeouts(sess)
+        sentinel = AuditEventRecord(
+            id=sentinel_id,
+            actor="sentinel-actor",
+            action="sentinel.action",
+            entity_type="SentinelAgg",
+            entity_id="sentinel-1",
+            before_snapshot={},
+            after_snapshot={},
+            event_metadata={"purpose": "force_pk_collision"},
+            created_at=now,
+            outbox_event_id="sentinel-unrelated-identity",
         )
+        sess.add(sentinel)
+        sess.commit()
+        sess.close()
+
+        # ── Drive materialize_event while patching uuid4() inside the
+        # infrastructure module so the new AuditEvent id collides with
+        # the sentinel row above.  This produces a real
+        # ``audit_events_pkey`` PRIMARY KEY violation (SQLSTATE 23505,
+        # constraint_name == "audit_events_pkey") — NOT the outbox_event_id
+        # UNIQUE.
+        original_uuid4 = outbox_dispatcher_module.uuid4
+
+        def _force_uuid4() -> str:
+            return sentinel_id
+
+        outbox_dispatcher_module.uuid4 = _force_uuid4
+        try:
+            sess = factory()
+            self._force_session_timeouts(sess)
+            raised: IntegrityError | None = None
+            try:
+                materialize_event(
+                    sess,
+                    claimed=claimed[0],
+                    worker_id="w1",
+                    claim_token=claimed[0].claim_token,
+                    now=now,
+                )
+                sess.commit()
+            except IntegrityError as exc:
+                raised = exc
+                # Roll back the outer transaction so subsequent reads work.
+                sess.rollback()
+            finally:
+                sess.close()
+        finally:
+            outbox_dispatcher_module.uuid4 = original_uuid4
+
+        assert raised is not None, (
+            "materialize_event MUST raise IntegrityError when AuditEvent "
+            "INSERT collides on audit_events_pkey"
+        )
+
+        # The classifier must NOT identify this as an outbox_event_id conflict.
+        assert not _is_outbox_event_id_conflict(raised), (
+            "_is_outbox_event_id_conflict() must return False for a "
+            "PRIMARY KEY violation; classifier must distinguish PK from UNIQUE"
+        )
+
+        # Confirm SQLSTATE / constraint_name explicitly.
+        orig = getattr(raised, "orig", None)
+        assert orig is not None
+        sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
+        assert sqlstate == "23505", (
+            f"PRIMARY KEY violation must surface SQLSTATE 23505, got {sqlstate!r}"
+        )
+        diag = getattr(orig, "diag", None)
+        constraint_name = getattr(diag, "constraint_name", None) if diag else None
+        assert constraint_name == "audit_events_pkey", (
+            f"expected PRIMARY KEY collision on audit_events_pkey, "
+            f"got constraint_name={constraint_name!r}"
+        )
+
+        # Outbox row must NOT have been marked PUBLISHED.
+        sess = factory()
+        outbox_row = sess.execute(
+            select(AuditOutboxRecord).where(AuditOutboxRecord.id == outbox_id)
+        ).scalar_one()
+        assert outbox_row.status != "PUBLISHED", (
+            f"PRIMARY KEY violation must not mark outbox PUBLISHED, "
+            f"got status={outbox_row.status!r}"
+        )
+        sess.close()
 
     def test_sequential_duplicate_delivery(self, pg_outbox_engine):
         """Real duplicate materialization: claim → materialize → commit,
