@@ -68,12 +68,6 @@ class SqlAlchemyProductionSourceArchiveRepository:
         flush/commit.  We DO call ``session.add(record)`` which stages
         the row for the UoW's eventual flush.
         """
-        # Defensive: ensure the session is a SQLAlchemy Session.  The
-        # ports type as Any, but we now require a concrete Session.
-        # We deliberately do NOT isinstance-check strictly here — a
-        # SQLAlchemy Session() call on a non-Session raises its own
-        # RuntimeError with the actual offender attribute.  Isinstance
-        # on duck-typed partial Session mocks is too strict.
         record = ProductionSourceArchiveRecord(
             id=archive_id,
             scheme_run_id=scheme_run_id,
@@ -123,13 +117,23 @@ class SqlAlchemyProductionSourceArchiveRepository:
 
 def _snapshot(record: ProductionSourceArchiveRecord) -> Mapping[str, Any]:
     """Convert ORM record to a Mapping snapshot for resolver use."""
+    payload_obj = record.archive_payload
+    payload_dict: dict[str, object] = (
+        dict(payload_obj) if isinstance(payload_obj, dict) else {}
+    )
+    slots_obj = payload_dict.get("source_slots", {})
+    source_slots: dict[str, dict[str, str]] = (
+        {k: dict(v) for k, v in slots_obj.items()}
+        if isinstance(slots_obj, dict)
+        else {}
+    )
     return {
         "id": record.id,
         "scheme_run_id": record.scheme_run_id,
         "source_binding_id": record.source_binding_id,
         "source_contract_version": record.source_contract_version,
         "archive_schema_version": record.archive_schema_version,
-        "archive_payload": dict(record.archive_payload),
+        "archive_payload": payload_dict,
         "archive_hash": record.archive_hash,
         "combined_source_hash": record.combined_source_hash,
         "weight_set_revision_id": record.weight_set_revision_id,
@@ -143,7 +147,5 @@ def _snapshot(record: ProductionSourceArchiveRecord) -> Mapping[str, Any]:
         "created_at": record.created_at,
         "created_by": record.created_by,
         "reason": record.reason,
-        # Convenience: the source_slots sub-dict the resolver reads.  It's
-        # a copy so resolver can read-only on its end.
-        "source_slots": dict(record.archive_payload.get("source_slots", {})),
+        "source_slots": source_slots,
     }
