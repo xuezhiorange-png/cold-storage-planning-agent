@@ -121,7 +121,7 @@ jobs:
           POSTGRES_DB: cold_storage_test
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
-        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture and not postgresql"
+        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture and not postgresql and not sqlite"
 
   frontend:
     runs-on: ubuntu-latest

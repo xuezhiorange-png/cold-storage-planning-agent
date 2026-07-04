@@ -371,7 +371,7 @@ class TestPreflightRejectionPG:
             ev = s.execute(
                 select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == req.id)
             ).scalar_one()
-            assert ev.event_type == "orchestration.request.rejected"
+            assert ev.event_type == "orchestration.request.preflight_rejected"
 
     def test_rejection_zero_downstream(self, pg_service, pg_session_factory) -> None:
         with pytest.raises(PreflightFailure):
@@ -483,6 +483,8 @@ class TestTransactionCPG:
             result.attempt_id,
             failure_code="TEST_BLOCK",
             failure_details={"reason": "test"},
+            actor="test-actor",
+            correlation_id="test-corr",
         )
 
         with pg_session_factory() as s:
@@ -510,6 +512,8 @@ class TestTransactionCPG:
             result.attempt_id,
             failure_code="TEST_FAIL",
             failure_details={"reason": "test"},
+            actor="test-actor",
+            correlation_id="test-corr",
         )
 
         with pg_session_factory() as s:

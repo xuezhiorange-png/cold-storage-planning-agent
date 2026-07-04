@@ -57,3 +57,6 @@ frontend/dist/
 .config/gh/
 data/
 evaluation/
+
+# Hermes agent local state
+.hermes/

@@ -14,7 +14,6 @@ targeting only the specific unique constraint for each entity.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -335,6 +334,29 @@ class SqlAlchemyOrchestrationRequestRepository(OrchestrationRequestRepository):
             )
         ).scalar_one_or_none()
         return row
+
+    def get_envelope(
+        self,
+        session: Session,
+        /,
+        request_id: str,
+    ) -> tuple[str, str] | None:
+        """Return (actor, correlation_id) for the durable request."""
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationRequestRecord,
+        )
+
+        row = session.execute(
+            select(
+                OrchestrationRequestRecord.actor,
+                OrchestrationRequestRecord.correlation_id,
+            ).where(OrchestrationRequestRecord.id == request_id)
+        ).first()
+        if row is None:
+            return None
+        return (row[0], row[1])
 
 
 # ── Execution Snapshot ──────────────────────────────────────────────────────
@@ -1138,41 +1160,11 @@ class SqlAlchemySourceBindingRepository(SourceBindingRepository):
 # ── Audit Outbox ────────────────────────────────────────────────────────────
 
 
-class AuditOutboxDispatcher(Protocol):
-    """Dispatcher operations for the audit outbox.
-
-    These methods handle claiming and transitioning outbox events
-    (claim / mark_published / mark_failed) and belong in the
-    infrastructure layer.
-    """
-
-    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
-        """Atomically claim up to ``limit`` eligible outbox events."""
-        ...
-
-    def mark_published(self, session: Session, /, event_id: str) -> None:
-        """Mark a claimed event as PUBLISHED."""
-        ...
-
-    def mark_failed(
-        self,
-        session: Session,
-        /,
-        event_id: str,
-        *,
-        error_code: str,
-        next_retry_at: datetime,
-    ) -> None:
-        """Return an event to PENDING with retry metadata."""
-        ...
-
-
-class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatcher):
+class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository):
     """Session-bound repository for ``AuditOutboxRecord``.
 
-    Inherits ``add()`` from ``AuditOutboxRepository`` (application port) and
-    implements ``claim/mark_published/mark_failed`` from ``AuditOutboxDispatcher``
-    (infrastructure protocol).
+    Inherits ``add()`` from ``AuditOutboxRepository`` (application port).
+    Dispatcher operations are free functions in the infrastructure layer.
     """
 
     def add(
@@ -1184,6 +1176,11 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         aggregate_type: str,
         aggregate_id: str,
         payload: dict[str, object],
+        transition_id: str,
+        actor: str,
+        correlation_id: str,
+        occurred_at: datetime,
+        event_schema_version: str = "1.0",
         request_id: str | None = None,
         identity_id: str | None = None,
         attempt_id: str | None = None,
@@ -1191,46 +1188,226 @@ class SqlAlchemyAuditOutboxRepository(AuditOutboxRepository, AuditOutboxDispatch
         source_binding_id: str | None = None,
         available_at: datetime | None = None,
     ) -> str:
+        """Insert a PENDING outbox event and return its ID.
+
+        Fail-closed validation: ``actor`` and ``correlation_id`` must be
+        non-empty after stripping.  ``occurred_at`` must be supplied.
+        Event identity is deterministic (content-addressable).  Idempotent
+        on (event_identity, envelope_hash).  On idempotent match, ALL
+        immutable envelope fields are compared and a mismatch raises
+        :class:`OutboxIdempotencyMismatchError`.
+        """
+        from datetime import UTC
         from uuid import uuid4
 
+        from cold_storage.modules.orchestration.application.outbox_errors import (
+            OutboxIdempotencyMismatchError,
+        )
+        from cold_storage.modules.orchestration.application.outbox_identity import (
+            build_event_identity,
+            compute_envelope_hash,
+            compute_payload_hash,
+        )
+        from cold_storage.modules.orchestration.application.ports import (
+            OutboxEnvelopeValidationError,
+        )
         from cold_storage.modules.orchestration.infrastructure.orm import (
             AuditOutboxRecord,
         )
 
-        record = AuditOutboxRecord(
-            id=str(uuid4()),
-            event_identity=str(uuid4()),
+        # ── Fail-closed envelope validation (P0-12) ────────────────
+        if not isinstance(actor, str) or not actor.strip():
+            raise OutboxEnvelopeValidationError(
+                field="actor",
+                message=(
+                    "AuditOutboxRepository.add requires a non-empty actor; "
+                    "callers must pass the durable request actor explicitly."
+                ),
+            )
+        if not isinstance(correlation_id, str) or not correlation_id.strip():
+            raise OutboxEnvelopeValidationError(
+                field="correlation_id",
+                message=(
+                    "AuditOutboxRepository.add requires a non-empty "
+                    "correlation_id; callers must pass the durable request "
+                    "correlation_id or a dispatcher trace id explicitly."
+                ),
+            )
+        if occurred_at is None:
+            raise OutboxEnvelopeValidationError(
+                field="occurred_at",
+                message=(
+                    "AuditOutboxRepository.add requires occurred_at; "
+                    "callers must pass the authoritative transition timestamp."
+                ),
+            )
+
+        now = datetime.now(UTC)
+        effective_occurred_at = occurred_at
+        event_identity = build_event_identity(
             event_type=event_type,
             aggregate_type=aggregate_type,
             aggregate_id=aggregate_id,
+            transition_id=transition_id,
+            schema_version=event_schema_version,
+        )
+        payload_hash = compute_payload_hash(payload)
+        envelope_hash = compute_envelope_hash(
+            event_schema_version=event_schema_version,
+            event_type=event_type,
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+            actor=actor,
+            correlation_id=correlation_id,
+            occurred_at=effective_occurred_at,
             request_id=request_id,
             identity_id=identity_id,
             attempt_id=attempt_id,
             calculation_run_id=calculation_run_id,
             source_binding_id=source_binding_id,
             payload=payload,
-            status="PENDING",
+            event_identity=event_identity,
         )
-        session.add(record)
-        session.flush()
-        return record.id
 
-    def claim(self, session: Session, /, *, worker_id: str, limit: int = 10) -> Sequence[str]:
-        raise NotImplementedError("Outbox claim not implemented in this phase")
+        from sqlalchemy import select
 
-    def mark_published(self, session: Session, /, event_id: str) -> None:
-        raise NotImplementedError("Outbox dispatcher not implemented in this phase")
+        # Use SAVEPOINT for concurrent-safe idempotent insert.
+        # On IntegrityError, roll back the savepoint, read the existing
+        # row, and compare the full envelope.
+        nested = session.begin_nested()
+        try:
+            record = AuditOutboxRecord(
+                id=str(uuid4()),
+                event_identity=event_identity,
+                event_type=event_type,
+                event_schema_version=event_schema_version,
+                aggregate_type=aggregate_type,
+                aggregate_id=aggregate_id,
+                actor=actor,
+                correlation_id=correlation_id,
+                occurred_at=effective_occurred_at,
+                payload=payload,
+                payload_hash=payload_hash,
+                envelope_hash=envelope_hash,
+                request_id=request_id,
+                identity_id=identity_id,
+                attempt_id=attempt_id,
+                calculation_run_id=calculation_run_id,
+                source_binding_id=source_binding_id,
+                status="PENDING",
+                next_retry_at=available_at or now,
+            )
+            session.add(record)
+            session.flush()
+            nested.commit()
+            return record.id
+        except sa_exc.IntegrityError as exc:
+            nested.rollback()
+            if not _is_target_unique_violation(
+                exc,
+                postgres_constraint_names=frozenset({"uq_outbox_event_identity"}),
+                sqlite_table="orchestration_audit_outbox",
+                sqlite_column_sets=frozenset({("event_identity",)}),
+            ):
+                raise
+            # Read existing row and compare full envelope
+            existing = session.execute(
+                select(AuditOutboxRecord).where(AuditOutboxRecord.event_identity == event_identity)
+            ).scalar_one_or_none()
+            if existing is None:
+                raise
 
-    def mark_failed(
-        self,
-        session: Session,
-        /,
-        event_id: str,
-        *,
-        error_code: str,
-        next_retry_at: datetime,
-    ) -> None:
-        raise NotImplementedError("Outbox retry not implemented in this phase")
+            # P0-8: Compare ALL immutable envelope fields
+            mismatches = _compare_outbox_envelopes(
+                existing=existing,
+                new_event_type=event_type,
+                new_event_schema_version=event_schema_version,
+                new_aggregate_type=aggregate_type,
+                new_aggregate_id=aggregate_id,
+                new_actor=actor,
+                new_correlation_id=correlation_id,
+                new_occurred_at=effective_occurred_at,
+                new_payload=payload,
+                new_payload_hash=payload_hash,
+                new_envelope_hash=envelope_hash,
+                new_request_id=request_id,
+                new_identity_id=identity_id,
+                new_attempt_id=attempt_id,
+                new_calculation_run_id=calculation_run_id,
+                new_source_binding_id=source_binding_id,
+            )
+            if mismatches:
+                raise OutboxIdempotencyMismatchError(
+                    event_identity,
+                    mismatches,
+                    existing_payload_hash=existing.payload_hash,
+                    new_payload_hash=payload_hash,
+                ) from exc
+            return existing.id
+
+
+def _normalize_occurred_at_for_compare(val: object) -> object:
+    """Normalize occurred_at to naive UTC ISO string for cross-dialect comparison.
+
+    SQLite stores naive datetimes; PG stores aware. This ensures both
+    compare identically by normalizing to naive UTC ISO string.
+    """
+    if isinstance(val, datetime):
+        from cold_storage.modules.orchestration.application.outbox_identity import ensure_utc_aware
+
+        return ensure_utc_aware(val).replace(tzinfo=None).isoformat()
+    return val
+
+
+def _compare_outbox_envelopes(
+    *,
+    existing: Any,
+    new_event_type: str,
+    new_event_schema_version: str,
+    new_aggregate_type: str,
+    new_aggregate_id: str,
+    new_actor: str,
+    new_correlation_id: str,
+    new_occurred_at: datetime,
+    new_payload: dict[str, object],
+    new_payload_hash: str,
+    new_envelope_hash: str,
+    new_request_id: str | None,
+    new_identity_id: str | None,
+    new_attempt_id: str | None,
+    new_calculation_run_id: str | None,
+    new_source_binding_id: str | None,
+) -> list[str]:
+    """Compare all immutable envelope fields between an existing DB row and new values.
+
+    Returns a list of mismatched field names, empty if they match.
+    """
+    mismatches: list[str] = []
+    field_pairs: list[tuple[str, object, object]] = [
+        ("event_type", existing.event_type, new_event_type),
+        ("event_schema_version", existing.event_schema_version, new_event_schema_version),
+        ("aggregate_type", existing.aggregate_type, new_aggregate_type),
+        ("aggregate_id", existing.aggregate_id, new_aggregate_id),
+        ("actor", existing.actor, new_actor),
+        ("correlation_id", existing.correlation_id, new_correlation_id),
+        (
+            "occurred_at",
+            _normalize_occurred_at_for_compare(existing.occurred_at),
+            _normalize_occurred_at_for_compare(new_occurred_at),
+        ),
+        ("payload", existing.payload, new_payload),
+        ("payload_hash", existing.payload_hash, new_payload_hash),
+        ("envelope_hash", getattr(existing, "envelope_hash", None), new_envelope_hash),
+        ("request_id", existing.request_id, new_request_id),
+        ("identity_id", existing.identity_id, new_identity_id),
+        ("attempt_id", existing.attempt_id, new_attempt_id),
+        ("calculation_run_id", existing.calculation_run_id, new_calculation_run_id),
+        ("source_binding_id", existing.source_binding_id, new_source_binding_id),
+    ]
+    for name, old_val, new_val in field_pairs:
+        if old_val != new_val:
+            mismatches.append(name)
+    return mismatches
 
 
 # ── Calculation Run ─────────────────────────────────────────────────────────

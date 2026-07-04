@@ -160,6 +160,16 @@ class OrchestrationRequestRepository(ABC):
         """Return the current status string for a request, or None if not found."""
         ...
 
+    @abstractmethod
+    def get_envelope(
+        self,
+        session: Any,
+        /,
+        request_id: str,
+    ) -> tuple[str, str] | None:
+        """Return ``(actor, correlation_id)`` for the durable request, or None."""
+        ...
+
 
 class ExecutionSnapshotRepository(ABC):
     """Read/write ``ProjectVersionExecutionSnapshotRecord`` rows."""
@@ -385,12 +395,28 @@ class SourceBindingRepository(ABC):
         ...
 
 
+class OutboxEnvelopeValidationError(ValueError):
+    """Raised when the audit outbox envelope fields fail fail-closed validation.
+
+    The port and infrastructure implementations MUST reject empty ``actor``
+    or empty ``correlation_id`` rather than silently substituting defaults.
+    Callers that need to materialise a system-level event must pass an
+    explicit non-empty actor (e.g. the durable request actor) and a
+    non-empty correlation_id (e.g. the durable request correlation_id or
+    a dispatcher-generated trace id).
+    """
+
+    def __init__(self, field: str, message: str) -> None:
+        super().__init__(message)
+        self.field = field
+        self.code = "outbox_envelope_invalid"
+
+
 class AuditOutboxRepository(ABC):
     """Write ``AuditOutboxRecord`` rows (add only).
 
     Dispatcher operations (claim / mark_published / mark_failed) are
-    defined separately in ``AuditOutboxDispatcher`` and live in the
-    infrastructure layer.
+    implemented in the infrastructure layer as free functions.
     """
 
     @abstractmethod
@@ -403,6 +429,11 @@ class AuditOutboxRepository(ABC):
         aggregate_type: str,
         aggregate_id: str,
         payload: dict[str, object],
+        transition_id: str,
+        actor: str,
+        correlation_id: str,
+        occurred_at: datetime,
+        event_schema_version: str = "1.0",
         request_id: str | None = None,
         identity_id: str | None = None,
         attempt_id: str | None = None,
@@ -410,7 +441,16 @@ class AuditOutboxRepository(ABC):
         source_binding_id: str | None = None,
         available_at: datetime | None = None,
     ) -> str:
-        """Insert a PENDING outbox event and return its ID."""
+        """Insert a PENDING outbox event and return its ID.
+
+        ``actor``, ``correlation_id`` and ``occurred_at`` are REQUIRED and
+        must be passed explicitly by callers.  Implementations MUST raise
+        :class:`OutboxEnvelopeValidationError` if ``actor`` or
+        ``correlation_id`` are empty after stripping.
+
+        Event identity is deterministic from business fields.
+        Idempotent: same event_identity + same payload_hash returns existing ID.
+        """
         ...
 
 

@@ -451,22 +451,30 @@ class TestSchemeRunNullityCheck:
 class TestOutboxConstraints:
     def test_unique_event_identity(self, session: Session) -> None:
         import uuid
+        from datetime import UTC, datetime
 
+        now = datetime.now(UTC)
+        base = dict(
+            event_type="test",
+            event_schema_version="1.0",
+            aggregate_type="test",
+            aggregate_id="t-1",
+            actor="system",
+            correlation_id="",
+            occurred_at=now,
+            payload={},
+            payload_hash="abc",
+            envelope_hash="test-envelope-hash",
+        )
         o1 = AuditOutboxRecord(
             id=str(uuid.uuid4()),
             event_identity="ev-1",
-            event_type="test",
-            aggregate_type="test",
-            aggregate_id="t-1",
-            payload={},
+            **base,
         )
         o2 = AuditOutboxRecord(
             id=str(uuid.uuid4()),
             event_identity="ev-1",
-            event_type="test",
-            aggregate_type="test",
-            aggregate_id="t-1",
-            payload={},
+            **base,
         )
         session.add(o1)
         session.flush()

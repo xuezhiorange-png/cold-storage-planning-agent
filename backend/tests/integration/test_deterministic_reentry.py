@@ -593,7 +593,7 @@ class TestDeterministicReentry:
                     select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
                 ).scalar_one_or_none()
                 assert ev is not None, f"No outbox event for request {pf.request_id}"
-                assert ev.event_type == "orchestration.request.rejected"
+                assert ev.event_type == "orchestration.request.preflight_rejected"
                 assert ev.request_id == pf.request_id
                 assert ev.payload["error_class"] == "ProjectVersionNotFoundError"
                 assert ev.payload["code"] == "PROJ_VERSION_NOT_FOUND"
@@ -758,7 +758,7 @@ class TestDeterministicReentryPostgreSQL:
                     select(AuditOutboxRecord).where(AuditOutboxRecord.request_id == pf.request_id)
                 ).scalar_one_or_none()
                 assert ev is not None, f"No outbox event for request {pf.request_id}"
-                assert ev.event_type == "orchestration.request.rejected"
+                assert ev.event_type == "orchestration.request.preflight_rejected"
                 assert ev.request_id == pf.request_id
                 assert ev.payload["error_class"] == "ProjectVersionNotFoundError"
                 assert ev.payload["code"] == "PROJ_VERSION_NOT_FOUND"

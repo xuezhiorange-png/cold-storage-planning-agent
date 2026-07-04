@@ -462,7 +462,7 @@ def _assert_zero_downstream_and_one_rejection(
         ev = s.execute(
             select(AuditOutboxRecord).where(AuditOutboxRecord.id == new_outbox_id)
         ).scalar_one()
-        assert ev.event_type == "orchestration.request.rejected"
+        assert ev.event_type == "orchestration.request.preflight_rejected"
         assert ev.request_id == new_request_id
 
 
