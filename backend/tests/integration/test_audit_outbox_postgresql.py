@@ -432,28 +432,37 @@ class TestPGOutboxLifecycle:
         sess.close()
 
         sess = factory()
-        with pytest.raises(OutboxIdempotencyMismatchError):
-            repo.add(
-                sess,
-                event_type="test.event",
-                aggregate_type="TestAggregate",
-                aggregate_id="agg-1",
-                payload={"data": 2},
-                actor="actor-2",
-                correlation_id="corr-1",
-                transition_id="mismatch-1",
-                occurred_at=fixed,
-            )
+        try:
+            with pytest.raises(OutboxIdempotencyMismatchError):
+                repo.add(
+                    sess,
+                    event_type="test.event",
+                    aggregate_type="TestAggregate",
+                    aggregate_id="agg-1",
+                    payload={"data": 2},
+                    actor="actor-2",
+                    correlation_id="corr-1",
+                    transition_id="mismatch-1",
+                    occurred_at=fixed,
+                )
+        finally:
+            # Roll back so the FOR UPDATE / open transaction does not
+            # block the next test's autouse TRUNCATE (P0-5
+            # cross-test isolation hardening).
+            sess.rollback()
+            sess.close()
 
     def test_validate_claim_unknown_token_raises(self, pg_outbox_engine):
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         now = datetime.now(UTC)
         sess = factory()
+        self._force_session_timeouts(sess)
         _make_event(sess, transition_id="vt-1")
         sess.commit()
         sess.close()
 
         sess = factory()
+        self._force_session_timeouts(sess)
         claimed = claim_events_pg(
             sess,
             worker_id="w1",
@@ -462,6 +471,11 @@ class TestPGOutboxLifecycle:
             now=now,
         )
         assert len(claimed) == 1
+        # Commit so the claim row is durable — otherwise the FOR UPDATE
+        # lock from claim_events_pg persists into the next test's
+        # TRUNCATE and deadlocks the autouse fixture (P0-5
+        # cross-test isolation hardening).
+        sess.commit()
 
         with pytest.raises(OutboxClaimLostError):
             validate_claim(
