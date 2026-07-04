@@ -30,6 +30,7 @@ dev = [
 [tool.pytest.ini_options]
 markers = [
     "postgresql: marks tests as requiring PostgreSQL",
+    "sqlite: marks tests as requiring SQLite",
     "integration: marks tests as integration tests",
 ]
 pythonpath = ["src"]
