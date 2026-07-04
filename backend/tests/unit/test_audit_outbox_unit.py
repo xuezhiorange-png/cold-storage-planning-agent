@@ -470,12 +470,10 @@ class TestCompletedEnvelopeBinding:
         for arg_name in ("actor", "correlation_id", "completed_at"):
             param = sig.parameters[arg_name]
             assert param.default is inspect.Parameter.empty, (
-                f"TransactionBExecutor.execute() must require {arg_name} "
-                "explicitly (no default)"
+                f"TransactionBExecutor.execute() must require {arg_name} explicitly (no default)"
             )
             assert param.kind == inspect.Parameter.KEYWORD_ONLY, (
-                f"TransactionBExecutor.execute() {arg_name} must be "
-                "keyword-only"
+                f"TransactionBExecutor.execute() {arg_name} must be keyword-only"
             )
 
 

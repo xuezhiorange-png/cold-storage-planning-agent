@@ -1387,12 +1387,10 @@ class TestSQLiteDispatcherUnknownExceptionUntreated:
 
         # The unknown exception must NOT cause ``retried`` to be set.
         assert summary.failed == 1, (
-            f"unknown exception must be counted as terminal failed=1, "
-            f"got summary={summary}"
+            f"unknown exception must be counted as terminal failed=1, got summary={summary}"
         )
         assert summary.retried == 0, (
-            f"unknown exception MUST NOT silently retry, got "
-            f"summary={summary}"
+            f"unknown exception MUST NOT silently retry, got summary={summary}"
         )
         assert summary.published == 0
         assert summary.unhandled_failures == 0, (

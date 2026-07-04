@@ -566,13 +566,9 @@ class TestPGOutboxLifecycle:
             # Real PG UNIQUE violation on outbox_event_id.
             orig = getattr(exc, "orig", None)
             assert orig is not None
-            sqlstate = (
-                getattr(orig, "sqlstate", None)
-                or getattr(orig, "pgcode", None)
-            )
+            sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
             assert sqlstate == "23505", (
-                f"duplicate outbox_event_id INSERT must surface SQLSTATE "
-                f"23505, got {sqlstate!r}"
+                f"duplicate outbox_event_id INSERT must surface SQLSTATE 23505, got {sqlstate!r}"
             )
         finally:
             sess.close()
@@ -620,8 +616,7 @@ class TestPGOutboxLifecycle:
             try:
                 existing = sess.execute(
                     select(AuditEventRecord).where(
-                        AuditEventRecord.outbox_event_id
-                        == "dup-conc-event-identity"  # placeholder
+                        AuditEventRecord.outbox_event_id == "dup-conc-event-identity"  # placeholder
                     )
                 ).scalar_one_or_none()
                 if existing is None:
@@ -657,10 +652,7 @@ class TestPGOutboxLifecycle:
                     results[f"{label}_usable"] = True
                     orig = getattr(exc, "orig", None)
                     if orig is not None:
-                        sqlstate = (
-                            getattr(orig, "sqlstate", None)
-                            or getattr(orig, "pgcode", None)
-                        )
+                        sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
                         results[f"{label}_sqlstate"] = sqlstate
                 except Exception as exc:
                     sess.rollback()
@@ -675,9 +667,7 @@ class TestPGOutboxLifecycle:
         t_a.join(timeout=15)
         t_b.join(timeout=15)
 
-        assert not results["errors"], (
-            f"workers raised unexpected exceptions: {results['errors']}"
-        )
+        assert not results["errors"], f"workers raised unexpected exceptions: {results['errors']}"
         # Exactly one physical INSERT, exactly one conflict.
         outcomes = sorted([results["a"], results["b"]])
         assert outcomes == ["conflict", "inserted"], (
@@ -695,7 +685,6 @@ class TestPGOutboxLifecycle:
             )
         ).all()
         assert len(rows) == 1, (
-            f"expected exactly 1 AuditEvent after concurrent INSERT, "
-            f"got {len(rows)}"
+            f"expected exactly 1 AuditEvent after concurrent INSERT, got {len(rows)}"
         )
         sess.close()
