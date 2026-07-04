@@ -866,11 +866,13 @@ class TestPGOutboxLifecycle:
 
         # Delivery 1: claim → materialize → commit.
         sess = factory()
+        self._force_session_timeouts(sess)
         _make_event(sess, transition_id="dup-seq-1")
         sess.commit()
         sess.close()
 
         sess = factory()
+        self._force_session_timeouts(sess)
         claimed1 = claim_events_pg(
             sess,
             worker_id="w1",
@@ -995,6 +997,7 @@ class TestPGOutboxLifecycle:
 
         factory = sessionmaker(bind=pg_outbox_engine, expire_on_commit=False)
         sess_setup = factory()
+        self._force_session_timeouts(sess_setup)
         _make_event(sess_setup, transition_id="dup-conc-1")
         sess_setup.commit()
         sess_setup.close()
@@ -1005,6 +1008,7 @@ class TestPGOutboxLifecycle:
         def worker(label: str) -> None:
             sess = factory()
             try:
+                self._force_session_timeouts(sess)
                 existing = sess.execute(
                     select(AuditEventRecord).where(
                         AuditEventRecord.outbox_event_id == "dup-conc-event-identity"  # placeholder
@@ -1057,6 +1061,8 @@ class TestPGOutboxLifecycle:
         t_b.start()
         t_a.join(timeout=15)
         t_b.join(timeout=15)
+        assert not t_a.is_alive(), "thread A did not terminate within timeout"
+        assert not t_b.is_alive(), "thread B did not terminate within timeout"
 
         assert not results["errors"], f"workers raised unexpected exceptions: {results['errors']}"
         # Exactly one physical INSERT, exactly one conflict.
