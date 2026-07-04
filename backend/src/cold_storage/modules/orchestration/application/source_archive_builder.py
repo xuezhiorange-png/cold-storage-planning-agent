@@ -35,8 +35,9 @@ responsible for using it.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, Mapping
+from typing import Any
 from uuid import uuid4
 
 from cold_storage.modules.orchestration.application.canonical_archive_v1 import (

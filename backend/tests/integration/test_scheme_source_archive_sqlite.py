@@ -130,20 +130,19 @@ class TestMigrationApplied:
         from sqlalchemy.exc import IntegrityError
 
         with Session(migrated_engine) as session:
-            with pytest.raises(IntegrityError) as exc_info:
-                with session.begin():
-                    session.execute(
-                        text(
-                            "INSERT INTO production_source_archives "
-                            "(id, scheme_run_id, source_contract_version, "
-                            "archive_schema_version, archive_payload, "
-                            "archive_hash, combined_source_hash, created_at, "
-                            "created_by, reason) "
-                            "VALUES ('a1', 'sr1', 'svc', 'BAD_VERSION', '{}', "
-                            "'" + ("0" * 64) + "', 'h', "
-                            "datetime('now'), 'u', 'completed')"
-                        )
+            with pytest.raises(IntegrityError) as exc_info, session.begin():
+                session.execute(
+                    text(
+                        "INSERT INTO production_source_archives "
+                        "(id, scheme_run_id, source_contract_version, "
+                        "archive_schema_version, archive_payload, "
+                        "archive_hash, combined_source_hash, created_at, "
+                        "created_by, reason) "
+                        "VALUES ('a1', 'sr1', 'svc', 'BAD_VERSION', '{}', "
+                        "'" + ("0" * 64) + "', 'h', "
+                        "datetime('now'), 'u', 'completed')"
                     )
+                )
             assert "ck_archive_schema_version_v1" in str(exc_info.value)
 
 
@@ -323,9 +322,8 @@ class TestResolverFailClosedPaths:
         )
 
         read_port = self._resolver_setup(migrated_engine)
-        with Session(migrated_engine) as session:
-            with session.begin():
-                _seed_archive_row(session, scheme_run_id="scheme-v1")
+        with Session(migrated_engine) as session, session.begin():
+            _seed_archive_row(session, scheme_run_id="scheme-v1")
 
         with Session(migrated_engine) as session:
             scheme_run_row = {
@@ -376,9 +374,8 @@ class TestResolverFailClosedPaths:
         )
 
         read_port = self._resolver_setup(migrated_engine)
-        with Session(migrated_engine) as session:
-            with session.begin():
-                _seed_archive_row(session, scheme_run_id="scheme-tampered")
+        with Session(migrated_engine) as session, session.begin():
+            _seed_archive_row(session, scheme_run_id="scheme-tampered")
         with Session(migrated_engine) as session:
             scheme_run_row = {
                 "id": "scheme-tampered", "source_mode": "production",
@@ -404,9 +401,8 @@ class TestResolverFailClosedPaths:
         )
 
         read_port = self._resolver_setup(migrated_engine)
-        with Session(migrated_engine) as session:
-            with session.begin():
-                _seed_archive_row(session, scheme_run_id="scheme-slot-tamper")
+        with Session(migrated_engine) as session, session.begin():
+            _seed_archive_row(session, scheme_run_id="scheme-slot-tamper")
         with Session(migrated_engine) as session:
             scheme_run_row = {
                 "id": "scheme-slot-tamper", "source_mode": "production",
@@ -433,13 +429,12 @@ class TestResolverFailClosedPaths:
         )
 
         read_port = self._resolver_setup(migrated_engine)
-        with Session(migrated_engine) as session:
-            with session.begin():
-                _seed_archive_row(
-                    session,
-                    scheme_run_id="scheme-bad-hash",
-                    archive_hash_override="0" * 64,
-                )
+        with Session(migrated_engine) as session, session.begin():
+            _seed_archive_row(
+                session,
+                scheme_run_id="scheme-bad-hash",
+                archive_hash_override="0" * 64,
+            )
         with Session(migrated_engine) as session:
             scheme_run_row = {
                 "id": "scheme-bad-hash", "source_mode": "production",

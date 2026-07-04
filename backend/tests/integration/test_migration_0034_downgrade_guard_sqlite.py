@@ -314,7 +314,6 @@ class TestDowngradeAllowedWithVerifiedArchive:
             _sys.path.insert(0, str(_alembic_dir))
         from helpers.frozen_scheme_source_archive_v1 import (  # type: ignore[import-not-found]  # noqa: E501
             canonical_json_v1,
-            compute_archive_hash_v1,
         )
         payload = {
             "schema": "SchemeSourceArchiveV1",

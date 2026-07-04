@@ -17,7 +17,6 @@ from cold_storage.modules.schemes.infrastructure.orm import (
     SchemeRunRecord,
 )
 
-
 # ── Optional archive write seam ────────────────────────────────────────────
 #
 # Production runs may persist a ``production_source_archives`` row in the

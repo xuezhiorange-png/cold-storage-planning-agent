@@ -13,8 +13,9 @@ imported by any module under ``cold_storage.modules.orchestration.application``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 from cold_storage.modules.orchestration.infrastructure.orm import (
     ProductionSourceArchiveRecord,

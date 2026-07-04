@@ -36,10 +36,11 @@ caller.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any, Mapping, Protocol
+from typing import Any, Protocol
 
 from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
     ARCHIVE_SCHEMA_VERSION_V1 as _EXPORTER_ARCHIVE_SCHEMA_V1,
