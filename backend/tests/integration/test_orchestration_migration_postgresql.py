@@ -887,8 +887,16 @@ class TestDowngradeBlocker:
             f"Downgrade should be blocked when SourceBinding exists\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
         )
-        assert "Cannot downgrade" in r.stderr or "Cannot downgrade" in r.stdout, (
+        # Migration 0026 / 0027 use the phrase "Cannot downgrade ..." to
+        # block; migration 0034 uses "RuntimeError: downgrade blocked:".
+        # Both are valid blocker signals; accept either.
+        combined = r.stderr + r.stdout
+        assert (
+            "Cannot downgrade" in combined
+            or "downgrade blocked" in combined
+        ), (
             f"Expected blocker message; got stderr={r.stderr!r}"
+            f" stdout={r.stdout!r}"
         )
 
     def test_production_data_blocks_downgrade_and_atomic(self, pg_database_factory) -> None:
@@ -1101,8 +1109,15 @@ class TestDowngradeBlocker:
             f"Downgrade should have been blocked with production data\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
         )
-        assert "Cannot downgrade" in r.stderr or "Cannot downgrade" in r.stdout, (
-            f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
+        # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
+        # uses "RuntimeError: downgrade blocked:".  Either is fine.
+        combined = r.stderr + r.stdout
+        assert (
+            "Cannot downgrade" in combined
+            or "downgrade blocked" in combined
+        ), (
+            f"Expected blocker message; got stderr={r.stderr!r}"
+            f" stdout={r.stdout!r}"
         )
 
         # ── Verify atomicity: nothing changed ───────────────────────────
@@ -1199,9 +1214,13 @@ class TestDowngradeGatePG:
         assert r.returncode != 0, (
             f"Downgrade should have been blocked\\nstdout: {r.stdout}\\nstderr: {r.stderr}"
         )
-        assert "Cannot downgrade" in (r.stderr + r.stdout), (
-            f"Expected blocker message; got stderr={r.stderr!r}"
-        )
+        # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
+        # uses "RuntimeError: downgrade blocked:".  Either is fine.
+        combined = r.stderr + r.stdout
+        assert (
+            "Cannot downgrade" in combined
+            or "downgrade blocked" in combined
+        ), f"Expected blocker message; got stderr={r.stderr!r}"
 
         # Verify atomicity: nothing changed
         with engine.connect() as conn:
