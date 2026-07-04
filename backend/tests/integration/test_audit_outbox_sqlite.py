@@ -1313,7 +1313,7 @@ def sqlite_engine():
 
     with engine.connect() as conn:
         ver = conn.execute(sa_text("SELECT version_num FROM alembic_version")).scalar()
-        assert ver == "0033_extend_outbox_envelope", f"Unexpected migration version: {ver}"
+        assert ver == "0034_add_production_source_archives", f"Unexpected migration version: {ver}"
 
         # Verify triggers exist
         tables = conn.execute(
