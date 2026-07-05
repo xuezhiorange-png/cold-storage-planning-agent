@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy.orm import sessionmaker
+
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
 from cold_storage.bootstrap.settings import Settings
 from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
