@@ -498,6 +498,8 @@ def _seed_orchestration_prereqs(session) -> None:
                 heartbeat_at=datetime.now(UTC),
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
+                database_backend="postgresql",
+                correlation_id="legacy-migration-0036",
             )
         )
         session.commit()
