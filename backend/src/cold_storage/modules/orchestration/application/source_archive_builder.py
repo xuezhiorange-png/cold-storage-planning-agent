@@ -35,7 +35,7 @@ responsible for using it.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -72,7 +72,7 @@ def build_archive_for_completed_scheme_run(
     orchestration_identity_id: str | None,
     authoritative_attempt_id: str | None,
     orchestration_fingerprint: str | None,
-    source_slots: Mapping[str, dict[str, str]],
+    source_slots: Sequence[tuple[str, Mapping[str, str]]],
     project_id: str,
     project_version_id: str,
     generator_compatibility_version: str,
@@ -114,7 +114,7 @@ def build_archive_for_completed_scheme_run(
             "production SchemeRun must have a non-null combined_source_hash"
         )
 
-    # 2. Assemble payload.
+    # 2. Assemble payload.  Assembler validates slot ordering.
     payload = assemble_archive_payload(
         scheme_run_id=scheme_run_id,
         source_binding_id=source_binding_id,
@@ -129,7 +129,7 @@ def build_archive_for_completed_scheme_run(
         orchestration_identity_id=orchestration_identity_id,
         authoritative_attempt_id=authoritative_attempt_id,
         orchestration_fingerprint=orchestration_fingerprint,
-        source_slots=dict(source_slots),
+        source_slots=source_slots,
         project_id=project_id,
         project_version_id=project_version_id,
         generator_compatibility_version=generator_compatibility_version,

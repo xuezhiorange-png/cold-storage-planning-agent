@@ -87,14 +87,52 @@ def migrated_engine() -> Iterator:
 SCHEMA_VERSION_V1 = "SchemeSourceArchiveV1"
 
 
-def _make_production_slots() -> dict[str, dict[str, str]]:
-    return {
-        "zone": {"calculation_id": "ZID", "result_hash": "ZH"},
-        "cooling_load": {"calculation_id": "CID", "result_hash": "CH"},
-        "equipment": {"calculation_id": "EID", "result_hash": "EH"},
-        "power": {"calculation_id": "PID", "result_hash": "PH"},
-        "investment": {"calculation_id": "IID", "result_hash": "IH"},
-    }
+def _make_production_slots() -> list[tuple[str, dict[str, str]]]:
+    """Return the v1 ordered source_slots sequence (zone → investment)."""
+    return [
+        ("zone", {"calculation_id": "ZID", "result_hash": "ZH"}),
+        ("cooling_load", {"calculation_id": "CID", "result_hash": "CH"}),
+        ("equipment", {"calculation_id": "EID", "result_hash": "EH"}),
+        ("power", {"calculation_id": "PID", "result_hash": "PH"}),
+        ("investment", {"calculation_id": "IID", "result_hash": "IH"}),
+    ]
+
+
+def _make_reordered_slots() -> list[tuple[str, dict[str, str]]]:
+    """Return the v1 slot list in a different order to test order-binding."""
+    return [
+        ("investment", {"calculation_id": "IID", "result_hash": "IH"}),
+        ("power", {"calculation_id": "PID", "result_hash": "PH"}),
+        ("equipment", {"calculation_id": "EID", "result_hash": "EH"}),
+        ("cooling_load", {"calculation_id": "CID", "result_hash": "CH"}),
+        ("zone", {"calculation_id": "ZID", "result_hash": "ZH"}),
+    ]
+
+
+def _slots_from_dict(
+    slot_hashes: dict[str, str],
+) -> list[tuple[str, dict[str, str]]]:
+    """Helper: build an ordered slot list from a name -> result_hash map."""
+    return [
+        (name, {"calculation_id": f"{name}-cid", "result_hash": h})
+        for name, h in [
+            ("zone", slot_hashes["zone"]),
+            ("cooling_load", slot_hashes["cooling_load"]),
+            ("equipment", slot_hashes["equipment"]),
+            ("power", slot_hashes["power"]),
+            ("investment", slot_hashes["investment"]),
+        ]
+    ]
+
+
+# Frozen v1 slot order — fails the test if the canonical order changes.
+EXPECTED_SLOT_ORDER_V1: tuple[str, ...] = (
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment",
+)
 
 
 # ── R1: Migration applied ─────────────────────────────────────────────────
@@ -241,6 +279,8 @@ def _seed_archive_row(
         "power": "PH",
         "investment": "IH",
     }
+    ordered_slots = _slots_from_dict(slot_hashes)
+    fixed_captured_at = datetime.now(UTC)
     payload = {
         "schema": SCHEMA_VERSION_V1,
         "scheme_run_id": scheme_run_id,
@@ -256,20 +296,41 @@ def _seed_archive_row(
         "orchestration_identity_id": "ident-1",
         "authoritative_attempt_id": "att-1",
         "orchestration_fingerprint": "fp-1",
-        "source_slots": {
-            slot: {"calculation_id": f"{slot}-cid", "result_hash": h}
-            for slot, h in slot_hashes.items()
-        },
+        "source_slots": ordered_slots,
         "project_id": "proj-1",
         "project_version_id": "pver-1",
         "generator_compatibility_version": "GCV-1.0",
-        "captured_at": datetime.now(UTC).isoformat(),
+        "captured_at": fixed_captured_at.isoformat(),
     }
     from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+        assemble_archive_payload,
         compute_archive_hash_v1,
     )
 
-    archive_hash = archive_hash_override or compute_archive_hash_v1(payload)
+    if archive_hash_override is None:
+        rebuilt = assemble_archive_payload(
+            scheme_run_id=scheme_run_id,
+            source_binding_id=source_binding_id,
+            source_contract_version="SVC-1.0",
+            binding_schema_version=binding_schema_version,
+            combined_source_hash=combined_source_hash,
+            weight_set_revision_id="rev-1",
+            weight_set_content_hash=weight_set_content_hash,
+            weight_set_generator_compatibility_version="WG-1.0",
+            execution_snapshot_id="snap-1",
+            coefficient_context_id="ctx-1",
+            orchestration_identity_id="ident-1",
+            authoritative_attempt_id="att-1",
+            orchestration_fingerprint="fp-1",
+            source_slots=ordered_slots,
+            project_id="proj-1",
+            project_version_id="pver-1",
+            generator_compatibility_version="GCV-1.0",
+            captured_at=fixed_captured_at,
+        )
+        archive_hash = compute_archive_hash_v1(rebuilt)
+    else:
+        archive_hash = archive_hash_override
     record = ProductionSourceArchiveRecord(
         id=archive_id,
         scheme_run_id=scheme_run_id,
@@ -499,13 +560,13 @@ class TestResolverFailClosedPaths:
             orchestration_identity_id="ident-1",
             authoritative_attempt_id="att-1",
             orchestration_fingerprint="fp-1",
-            source_slots={
-                "zone": {"calculation_id": "z", "result_hash": "ZH"},
-                "cooling_load": {"calculation_id": "c", "result_hash": "CH"},
-                "equipment": {"calculation_id": "e", "result_hash": "EH"},
-                "power": {"calculation_id": "p", "result_hash": "PH"},
-                "investment": {"calculation_id": "i", "result_hash": "IH"},
-            },
+            source_slots=[
+                ("zone", {"calculation_id": "z", "result_hash": "ZH"}),
+                ("cooling_load", {"calculation_id": "c", "result_hash": "CH"}),
+                ("equipment", {"calculation_id": "e", "result_hash": "EH"}),
+                ("power", {"calculation_id": "p", "result_hash": "PH"}),
+                ("investment", {"calculation_id": "i", "result_hash": "IH"}),
+            ],
             project_id="proj-1",
             project_version_id="pver-1",
             generator_compatibility_version="GCV-1.0",

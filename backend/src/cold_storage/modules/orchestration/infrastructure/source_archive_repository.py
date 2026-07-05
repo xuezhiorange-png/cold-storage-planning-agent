@@ -8,14 +8,16 @@ single concrete implementation of both protocols, scoped to the
 SQLAlchemy ORM model ``ProductionSourceArchiveRecord``.
 
 Architecture rule: this module MAY import SQLAlchemy.  It MUST NOT be
-imported by any module under ``cold_storage.modules.orchestration.application``.
+imported from the application layer (see ``application/ports.py`` for
+the constraint).
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from datetime import datetime
-from typing import Any
+from typing import Any, Mapping
+
+from sqlalchemy.orm import Session
 
 from cold_storage.modules.orchestration.infrastructure.orm import (
     ProductionSourceArchiveRecord,
@@ -23,33 +25,30 @@ from cold_storage.modules.orchestration.infrastructure.orm import (
 
 
 class SqlAlchemyProductionSourceArchiveRepository:
-    """Concrete SQLAlchemy adapter for archive writes and reads.
+    """Concrete SQLAlchemy adapter for archive writes and reads."""
 
-    Methods:
-        add_archive(session, **fields) -> None
-            Inserts a new row.  Does NOT commit.  The caller's UoW owns
-            the transaction boundary.
+    def __init__(self, session: Session | None = None) -> None:
+        # ``session`` is OPTIONAL on read paths so legacy call sites
+        # that supply no session can still construct the repository and
+        # call ``find_by_scheme_run_id`` with a session passed in.  On
+        # write paths the application builder must provide the live
+        # ``session`` so the INSERT participates in the caller's UoW.
+        self._session = session
 
-        find_by_scheme_run_id(session, scheme_run_id) -> Mapping | None
-            Returns the archive row as a Mapping snapshot, or None.
-
-    Both methods accept a ``session: Any`` because the application ports
-    type session as Any to keep their module free of SQLAlchemy imports.
-    At runtime we expect a SQLAlchemy ``Session`` (or compatible).
-    """
+    # ── Write port ──────────────────────────────────────────────────────
 
     def add_archive(
         self,
-        session: Any,
+        session: Session,
         *,
         archive_id: str,
         scheme_run_id: str,
-        source_binding_id: str | None,
+        source_binding_id: str,
         source_contract_version: str,
         archive_schema_version: str,
         archive_payload: Mapping[str, Any],
         archive_hash: str,
-        combined_source_hash: str | None,
+        combined_source_hash: str,
         weight_set_revision_id: str | None,
         weight_set_content_hash: str | None,
         binding_schema_version: str | None,
@@ -61,12 +60,12 @@ class SqlAlchemyProductionSourceArchiveRepository:
         created_at: datetime,
         created_by: str,
         reason: str,
-    ) -> None:
-        """Insert a row.  NO commit, NO flush, NO rollback.
+    ) -> str:
+        """Add a new ``production_source_archives`` row to ``session``.
 
-        The application builder calls this inside its UoW; the UoW owns
-        flush/commit.  We DO call ``session.add(record)`` which stages
-        the row for the UoW's eventual flush.
+        The caller (production SchemeRun UoW) owns the transaction;
+        this method performs ``session.add`` and returns the row's id
+        for the UoW's eventual flush.
         """
         record = ProductionSourceArchiveRecord(
             id=archive_id,
@@ -90,20 +89,16 @@ class SqlAlchemyProductionSourceArchiveRepository:
             reason=reason,
         )
         session.add(record)
+        return archive_id
+
+    # ── Read port ───────────────────────────────────────────────────────
 
     def find_by_scheme_run_id(
         self,
-        session: Any,
+        session: Session,
         scheme_run_id: str,
     ) -> Mapping[str, Any] | None:
-        """Return the archive row as a Mapping snapshot, or None.
-
-        The Mapping shape matches what the historical source resolver
-        expects (so its downstream field accesses all work).  Raises
-        AttributeError if the session is not a SQLAlchemy Session or
-        compatible — the application layer wraps this in try/except
-        and converts it to a domain error.
-        """
+        """Return the unique archive row for ``scheme_run_id`` as a snapshot mapping."""
         record = (
             session.query(ProductionSourceArchiveRecord)
             .filter(ProductionSourceArchiveRecord.scheme_run_id == scheme_run_id)
@@ -111,18 +106,51 @@ class SqlAlchemyProductionSourceArchiveRepository:
         )
         if record is None:
             return None
-
         return _snapshot(record)
 
 
 def _snapshot(record: ProductionSourceArchiveRecord) -> Mapping[str, Any]:
-    """Convert ORM record to a Mapping snapshot for resolver use."""
+    """Convert ORM record to a Mapping snapshot for resolver use.
+
+    The ``source_slots`` sub-document is forwarded verbatim from
+    ``archive_payload``.  In v1 it MUST be an ordered list of
+    ``[slot_name, slot_payload]`` pairs in
+    ``SOURCE_SLOT_ORDER_V1`` order; the resolver converts the list to
+    a lookup map after recomputing the archive_hash.  Legacy v0 rows
+    (no archive_hash binding to slot order) are accepted only in
+    defensive read paths.
+    """
     payload_obj = record.archive_payload
     payload_dict: dict[str, object] = dict(payload_obj) if isinstance(payload_obj, dict) else {}
-    slots_obj = payload_dict.get("source_slots", {})
-    source_slots: dict[str, dict[str, str]] = (
-        {k: dict(v) for k, v in slots_obj.items()} if isinstance(slots_obj, dict) else {}
-    )
+    slots_obj = payload_dict.get("source_slots", [])
+
+    if isinstance(slots_obj, list):
+        # Preserve slot order verbatim from the JSON column.  Each
+        # list element is ``[name, payload_dict]``; we rebuild a clean
+        # ``[name, payload_dict]`` so callers (resolver) see the same
+        # shape across SQLite and PostgreSQL.
+        ordered_slots: list[Any] = []
+        for entry in slots_obj:
+            if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                slot_name = entry[0]
+                slot_payload = entry[1]
+                clean_payload = dict(slot_payload) if isinstance(slot_payload, dict) else slot_payload
+                ordered_slots.append([slot_name, clean_payload])
+            else:
+                # Forward unknown entry shapes unchanged; the resolver
+                # raises ``SchemeSourceArchiveIntegrityError`` on the
+                # malformed list element.
+                ordered_slots.append(entry)
+        source_slots: Any = ordered_slots
+    elif isinstance(slots_obj, dict):
+        # Legacy v0 dict payload shape — forwarded as-is so a defensive
+        # read path can recognise it.
+        source_slots = {
+            k: dict(v) if isinstance(v, dict) else v for k, v in slots_obj.items()
+        }
+    else:
+        source_slots = []
+
     return {
         "id": record.id,
         "scheme_run_id": record.scheme_run_id,
@@ -145,3 +173,6 @@ def _snapshot(record: ProductionSourceArchiveRecord) -> Mapping[str, Any]:
         "reason": record.reason,
         "source_slots": source_slots,
     }
+
+
+__all__ = ["SqlAlchemyProductionSourceArchiveRepository"]

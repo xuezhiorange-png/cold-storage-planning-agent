@@ -20,17 +20,20 @@ Invariants:
       that shipped alongside migration 0034.
     * No imports from the application layer (no ``modules.*`` imports).
     * No external state, no I/O, no global mutable state.
-    * No dict-iteration order dependence: the payload schema is fixed-shape
-      and assembled by callers via explicit key-value tuples, NOT dict
-      iteration.  This module only provides ``canonical_json_v1`` and the
-      archive_hash computation.  Callers are responsible for assembling the
-      payload in a deterministic order.
+    * ``source_slots`` MUST be assembled by callers as an ordered
+      sequence of ``(slot_name, slot_payload)`` tuples in
+      ``SOURCE_SLOT_ORDER_V1`` order.  This module does NOT validate
+      the order — that responsibility is the caller's.  The
+      archive_hash commits to the order via JSON's list-preserving
+      serialisation; top-level dict keys are sorted alphabetically
+      while nested lists preserve insertion order.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -78,6 +81,11 @@ def canonical_json_v1(obj: Any) -> str:
         * Decimal -> normalised base-10 string
         * no binary float allowed (recursive check)
         * unknown object types raise TypeError
+
+    Ordered sequences (lists/tuples) of ``(name, payload)`` pairs are
+    preserved verbatim in the JSON output — list elements are
+    serialised in iteration order.  Top-level dict keys remain sorted
+    alphabetically.
     """
     _check_no_binary_float_v1(obj)
     return json.dumps(
@@ -99,14 +107,47 @@ SOURCE_SLOT_ORDER_V1: tuple[str, ...] = (
 )
 
 
+def prepare_ordered_source_slots_v1(
+    source_slots: Sequence[tuple[str, Mapping[str, str]]],
+) -> list[list[Any]]:
+    """Convert a (name, payload) sequence into the JSON-safe list form.
+
+    Returns ``[[name, payload_dict], ...]`` so the JSON encoder writes
+    a list literal — order preserved, structure preserved.
+
+    Validation of (a) named-set completeness, (b) named-set order, and
+    (c) per-slot payload keys (``calculation_id`` + ``result_hash``) is
+    the caller's responsibility.  This helper only normalises the
+    in-memory representation into the JSON-safe form the algorithm
+    binds to.
+    """
+    prepared: list[list[Any]] = []
+    for entry in source_slots:
+        if not isinstance(entry, (tuple, list)) or len(entry) != 2:
+            raise ValueError(
+                f"source_slots entry must be (name, payload) tuple, got {type(entry).__name__}"
+            )
+        name, payload = entry
+        if not isinstance(name, str):
+            raise ValueError(
+                f"source_slots name must be str, got {type(name).__name__}"
+            )
+        if not isinstance(payload, Mapping):
+            raise ValueError(
+                f"source_slots payload must be Mapping, got {type(payload).__name__}"
+            )
+        prepared.append([name, dict(payload)])
+    return prepared
+
+
 def compute_archive_hash_v1(archive_payload: dict[str, Any]) -> str:
     """Return the SHA-256 hex digest of the canonical archive_payload.
 
     The archive_payload dict MUST be already in fixed shape (i.e. the
-    ``source_slots`` sub-dict must list the five slots in SOURCE_SLOT_ORDER_V1
-    order at the dict-literal construction site; this function does NOT
-    re-sort the slot sub-dict because the caller is responsible for the
-    payload shape).
+    ``source_slots`` field MUST be the JSON-safe list returned by
+    ``prepare_ordered_source_slots_v1``; the algorithm binds to the
+    order).  This function does NOT re-sort the slot sequence; the
+    caller assembles it in ``SOURCE_SLOT_ORDER_V1`` order.
 
     Top-level dict ordering IS canonicalised by ``canonical_json_v1``
     (``sort_keys=True``).

@@ -136,8 +136,16 @@ class OnlineSchemeRunSourceLookupPort(Protocol):
 
         Contract: the returned mapping MUST contain at least
         ``source_binding_id`` (str), ``combined_source_hash`` (str),
-        and ``source_slots`` (dict[str, dict[str, str]]) populated with
-        at least the five canonical slots.
+        and ``source_slots``.  ``source_slots`` MUST be either:
+          * an ordered sequence of ``(name, payload)`` pairs (the v1
+            forward-write contract), OR
+          * a name -> payload mapping (legacy compatibility).
+        The online path returns the bundle without recomputing an
+        archive_hash; the resolver then defers the per-slot comparison
+        to the offline archive read.  See P1 note in PR #33 — the
+        online lookup's trusted status is the *caller's*
+        responsibility (the read port's Protocol documents the
+        invariant).
         """
         ...
 
@@ -222,13 +230,53 @@ def resolve_scheme_run_sources_for_history(
         raise SchemeRunHistoricalSourceTamperedError(scheme_run_id, field="combined_source_hash")
 
     # 8. Compare per-slot result_hashes.
-    archive_slots = archive_row["source_slots"]
+    #
+    # The archive stores ``source_slots`` as an ordered list of
+    # ``[name, payload]`` pairs in ``SOURCE_SLOT_ORDER_V1`` order.  We
+    # project that list into a name -> payload mapping here; the
+    # already-validated :func:`compute_archive_hash_v1` step on line
+    # 215 has bound the resolver's identity to the *order* — if a row
+    # was originally persisted with reordered slots, the recomputed
+    # hash would not match and ``SchemeSourceArchiveIntegrityError``
+    # would have fired above.  This lookup map is the read-side
+    # convenience; order is no longer the unit of comparison here.
+    raw_archive_slots = archive_row["source_slots"]
+    archive_slots_by_name: dict[str, dict[str, str]] = {}
+    if isinstance(raw_archive_slots, list):
+        for index, entry in enumerate(raw_archive_slots):
+            if not isinstance(entry, (list, tuple)) or len(entry) != 2:
+                raise SchemeSourceArchiveIntegrityError(
+                    archive_hash=archive_row["archive_hash"],
+                    detail=(
+                        f"source_slots[{index}] is malformed: expected (name, payload), "
+                        f"got {type(entry).__name__}"
+                    ),
+                )
+            slot_name, slot_payload = entry
+            if slot_name in archive_slots_by_name:
+                raise SchemeSourceArchiveIntegrityError(
+                    archive_hash=archive_row["archive_hash"],
+                    detail=f"source_slots contains duplicate name {slot_name!r}",
+                )
+            archive_slots_by_name[slot_name] = dict(slot_payload)
+    elif isinstance(raw_archive_slots, dict):
+        # Legacy v0 payload shape (pre-ordered-list); kept for read
+        # safety.  New writes always emit the ordered-list shape.
+        archive_slots_by_name = {k: dict(v) for k, v in raw_archive_slots.items()}
+    else:
+        raise SchemeSourceArchiveIntegrityError(
+            archive_hash=archive_row["archive_hash"],
+            detail=(
+                f"source_slots must be list[list] or dict, got {type(raw_archive_slots).__name__}"
+            ),
+        )
+
     for slot_key, column_name in SLOT_TO_SCHEME_RUN_COLUMN.items():
-        if slot_key not in archive_slots:
+        if slot_key not in archive_slots_by_name:
             raise SchemeRunHistoricalSourceTamperedError(
                 scheme_run_id, field=f"source_slots.{slot_key}"
             )
-        archive_slot_hash = archive_slots[slot_key].get("result_hash")
+        archive_slot_hash = archive_slots_by_name[slot_key].get("result_hash")
         scheme_slot_hash = scheme_run_row.get(column_name)
         if scheme_slot_hash != archive_slot_hash:
             raise SchemeRunHistoricalSourceTamperedError(scheme_run_id, field=column_name)
@@ -245,6 +293,6 @@ def resolve_scheme_run_sources_for_history(
         archive_id=archive_row["id"],
         archive_hash=archive_row["archive_hash"],
         combined_source_hash=archive_row["combined_source_hash"],
-        source_slots=archive_slots,
+        source_slots=archive_slots_by_name,
         captured_at=archive_row["created_at"],
     )

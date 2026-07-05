@@ -19,12 +19,17 @@ Invariants:
       ``cold_storage.modules.orchestration.infrastructure``.
     * If you change the algorithm below, create ``canonical_archive_v2``
       alongside — DO NOT modify this file in place.
+    * ``source_slots`` MUST be an ordered sequence of ``(slot_name,
+      slot_payload)`` tuples in ``SOURCE_SLOT_ORDER_V1`` order.  The
+      archive hash binds to this order; reordering yields a different
+      hash and the resolver treats it as a tamper.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -45,8 +50,8 @@ REASON_PRE_DOWNGRADE: str = "pre_downgrade"
 ALLOWED_REASONS: frozenset[str] = frozenset({REASON_COMPLETED, REASON_PRE_DOWNGRADE})
 
 # The five source_slots in FIXED order.  Order is part of the algorithm
-# contract.  callers must assemble source_slots dicts containing exactly
-# these keys.
+# contract.  The hash commits to this order; reordering the sequence
+# is detectable as a tamper.
 SOURCE_SLOT_ORDER_V1: tuple[str, ...] = (
     "zone",
     "cooling_load",
@@ -96,11 +101,84 @@ def canonical_json_v1(obj: Any) -> str:
     )
 
 
+def _validate_ordered_source_slots_v1(
+    source_slots: Sequence[tuple[str, Mapping[str, str]]],
+) -> list[list[Any]]:
+    """Validate the ordered source_slots sequence and return a JSON-safe form.
+
+    Raises :class:`SourceArchiveBuildError` on:
+        * a missing slot from ``SOURCE_SLOT_ORDER_V1``
+        * an unexpected slot
+        * a wrong slot order
+        * a non-list input
+        * a slot payload missing either ``calculation_id`` or ``result_hash``
+
+    Returns the same data as ``[[name, payload_dict], ...]`` so the JSON
+    encoder writes a list literal — order preserved, structure preserved.
+    """
+    if not isinstance(source_slots, Sequence) or isinstance(source_slots, (str, bytes)):
+        raise SourceArchiveBuildError(
+            f"source_slots must be ordered sequence of (name, payload) tuples, "
+            f"got {type(source_slots).__name__}"
+        )
+
+    expected = list(SOURCE_SLOT_ORDER_V1)
+    seen_names: list[str] = []
+    prepared: list[list[Any]] = []
+    for index, entry in enumerate(source_slots):
+        if not isinstance(entry, (tuple, list)) or len(entry) != 2:
+            raise SourceArchiveBuildError(
+                f"source_slots[{index}] must be (name, payload) tuple, got {type(entry).__name__}"
+            )
+        name, payload = entry
+        if not isinstance(name, str):
+            raise SourceArchiveBuildError(
+                f"source_slots[{index}] name must be str, got {type(name).__name__}"
+            )
+        if not isinstance(payload, Mapping):
+            raise SourceArchiveBuildError(
+                f"source_slots[{index}] payload must be Mapping, got {type(payload).__name__}"
+            )
+        if "calculation_id" not in payload or "result_hash" not in payload:
+            raise SourceArchiveBuildError(
+                f"source_slots[{index}]={name!r} must carry both "
+                f"'calculation_id' and 'result_hash'; got keys {sorted(payload.keys())}"
+            )
+        seen_names.append(name)
+        prepared.append([name, dict(payload)])
+
+    expected_set = set(expected)
+    seen_set = set(seen_names)
+    missing = expected_set - seen_set
+    extra = seen_set - expected_set
+    msg_parts: list[str] = []
+    if missing:
+        msg_parts.append(f"missing={sorted(missing)}")
+    if extra:
+        msg_parts.append(f"extra={sorted(extra)}")
+    if msg_parts:
+        raise SourceArchiveBuildError(
+            f"source_slots name set must match {expected} ({', '.join(msg_parts)})"
+        )
+
+    if seen_names != expected:
+        # Order matters: name set is right but permutation is wrong.
+        raise SourceArchiveBuildError(
+            f"source_slots order must be exactly {expected}, got {seen_names}"
+        )
+
+    return prepared
+
+
 def compute_archive_hash_v1(archive_payload: dict[str, Any]) -> str:
     """Return the SHA-256 hex digest of the canonical archive_payload.
 
     The archive_payload dict MUST be already in fixed shape
     (assembled by ``assemble_archive_payload`` below).
+
+    Top-level dict keys are canonicalised by ``canonical_json_v1``
+    (``sort_keys=True``); nested ordered sequences of
+    ``(name, payload)`` pairs are preserved as lists in the JSON output.
     """
     if not isinstance(archive_payload, dict):
         raise SourceArchiveBuildError(
@@ -133,30 +211,20 @@ def assemble_archive_payload(
     orchestration_identity_id: str | None,
     authoritative_attempt_id: str | None,
     orchestration_fingerprint: str | None,
-    source_slots: dict[str, dict[str, str]],
+    source_slots: Sequence[tuple[str, Mapping[str, str]]],
     project_id: str,
     project_version_id: str,
     generator_compatibility_version: str,
     captured_at: datetime,
 ) -> dict[str, Any]:
-    """Assemble a fixed-shape archive_payload dict for SchemeSourceArchiveV1."""
-    if not isinstance(source_slots, dict):
-        raise SourceArchiveBuildError(
-            f"source_slots must be dict, got {type(source_slots).__name__}"
-        )
-    seen = set(source_slots.keys())
-    expected = set(SOURCE_SLOT_ORDER_V1)
-    if seen != expected:
-        missing = expected - seen
-        extra = seen - expected
-        msg_parts: list[str] = []
-        if missing:
-            msg_parts.append(f"missing={sorted(missing)}")
-        if extra:
-            msg_parts.append(f"extra={sorted(extra)}")
-        raise SourceArchiveBuildError(
-            f"source_slots must match {list(SOURCE_SLOT_ORDER_V1)} exactly ({', '.join(msg_parts)})"
-        )
+    """Assemble a fixed-shape archive_payload dict for SchemeSourceArchiveV1.
+
+    ``source_slots`` MUST be an ordered sequence of ``(slot_name,
+    slot_payload)`` tuples.  See
+    :data:`SOURCE_SLOT_ORDER_V1` for the canonical order.  Hash
+    computation commits to this order.
+    """
+    prepared_slots = _validate_ordered_source_slots_v1(source_slots)
 
     return {
         "schema": ARCHIVE_SCHEMA_VERSION_V1,
@@ -173,9 +241,23 @@ def assemble_archive_payload(
         "orchestration_identity_id": orchestration_identity_id,
         "authoritative_attempt_id": authoritative_attempt_id,
         "orchestration_fingerprint": orchestration_fingerprint,
-        "source_slots": dict(source_slots),
+        "source_slots": prepared_slots,
         "project_id": project_id,
         "project_version_id": project_version_id,
         "generator_compatibility_version": generator_compatibility_version,
         "captured_at": _ensure_utc_aware_v1(captured_at).isoformat(),
     }
+
+
+def slots_from_iterable(
+    source_slots: Iterable[tuple[str, Mapping[str, str]]],
+) -> list[tuple[str, dict[str, str]]]:
+    """Materialise an iterable of (name, payload) into a list in iteration order.
+
+    The resolver and test fixtures use this when reconstructing the
+    ``source_slots`` view for the canonical_hash calculation in the read
+    path.  Hash computation tolerates any iterable providing a stable
+    iteration order; this helper makes the intent explicit and isolates
+    the (rare) case where the caller passed a generator.
+    """
+    return [(name, dict(payload)) for name, payload in source_slots]
