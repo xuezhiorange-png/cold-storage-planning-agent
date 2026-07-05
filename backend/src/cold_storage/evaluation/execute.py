@@ -3,21 +3,23 @@
 Runs each manifest scenario through real production services and produces
 a ScenarioExecutionResult with raw output and normalized stage ledger.
 
-IMPORTANT: This module calls ONLY existing public application services.
-It MUST NOT fabricate CalculationRunRecord, synthesize engineering inputs,
-or implement its own production persistence bridges.  Cooling-load and
-equipment stages are gated behind a formal production prerequisite that
-has not yet been delivered — see EvaluationPrerequisiteMissingError.
+The runner drives the production SchemeService through the canonical
+``bootstrap.production_composition`` entry point so SourceBinding
+verification, weight-set governance, SchemeRun persistence, and the
+production source archive row are all executed under the real
+production trust boundary.  No evaluation-owned calculator bridges,
+hand-written production snapshots, demo coefficients, or latest-row
+fallbacks are used.
 """
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from cold_storage.evaluation.errors import EvaluationPrerequisiteMissingError
 from cold_storage.evaluation.models import EvaluationScenario
 from cold_storage.evaluation.sqlite_scope import SqliteScope
 from cold_storage.modules.calculations.application.service import (
@@ -139,34 +141,101 @@ def _json_safe(obj: Any) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Prerequisite capability gate for SchemeService
+# Production SchemeService wiring
 # ---------------------------------------------------------------------------
+#
+# Issue #22 is closed (PR #33 merged).  The evaluation harness now drives
+# the production SchemeService through ``bootstrap.production_composition``
+# using the same verified-SourceBinding + approved-weight-set contract the
+# production E2E tests exercise.  No evaluation-owned engineering inputs,
+# calculator bridges, or staged-result fabrication remain in this stage.
 
 
-def _require_scheme_production_prerequisite() -> None:
-    """Raise EvaluationPrerequisiteMissingError — explicit capability gate.
+def _run_schemes_stage(
+    *,
+    scenario: EvaluationScenario,
+    fixture: dict[str, Any],
+    project: Any,
+    version: Any,
+    zone_result: Any | None,
+    power_result: Any | None,
+    invest_result: Any | None,
+    errors: list[str],
+    engine: Any,
+) -> dict[str, Any]:
+    """Run the schemes stage against the production SchemeService.
 
-    This is a harness-level blocker, NOT a business outcome.
-    Issue #22 must deliver a formal production orchestration service
-    that persists zone/cooling_load/equipment/investment records
-    before SchemeService can be called from evaluation.
+    Returns a stage-ledger entry reflecting outcome.  The stage
+    delegates to the production composition root so the SchemeService
+    verifies SourceBinding, weight-set revision, and persists the
+    production SchemeRun + archive row in the same UoW — no
+    evaluation-side branches are taken.
     """
-    raise EvaluationPrerequisiteMissingError(
-        "Formal production orchestration and persistence required by "
-        "SchemeService is not available.",
-        field="scheme_source_calculations",
-        details={
-            "required_calculation_types": [
-                "zone",
-                "investment",
-                "cooling_load",
-                "equipment",
-            ],
-            "missing_capability": "formal_application_orchestration_and_persistence",
-            "task_status": "blocked",
-            "prerequisite_issue": 22,
-        },
-    )
+
+    scheme_config = fixture.get("scheme_run")
+    if not scheme_config:
+        return {
+            "status": "skipped",
+            "detail": "no_scheme_run_config",
+        }
+
+    try:
+        from cold_storage.bootstrap.production_composition import (
+            compose_production_scheme_service,
+        )
+        from cold_storage.modules.schemes.application.production_ports import (
+            GenerateProductionSchemeCommand,
+        )
+        from cold_storage.evaluation.production_seeding import (
+            seed_production_scheme_prereqs,
+        )
+
+        from sqlalchemy.orm import sessionmaker
+
+        session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+
+        inputs = fixture.get("inputs", {})
+        with session_factory() as session:
+            seeding_result = seed_production_scheme_prereqs(
+                session,
+                project_id=project.id,
+                project_version_id=version.id,
+                fixture_inputs=inputs,
+                existing_zone_result=zone_result,
+                existing_power_result=power_result,
+                existing_investment_result=invest_result,
+            )
+
+        production_service = compose_production_scheme_service(session_factory)
+        command = GenerateProductionSchemeCommand(
+            source_binding_id=seeding_result.source_binding_id,
+            weight_set_revision_id=seeding_result.weight_revision_id,
+            profile_codes=tuple(scheme_config.get("profile_codes", ("balanced",))),
+            profile_parameters=dict(
+                scheme_config.get("profile_parameters", {})
+            ),
+            actor="evaluation-phase-b-runner",
+            correlation_id=f"eval-phase-b-{uuid.uuid4().hex[:12]}",
+        )
+        scheme_run = production_service.generate_production_scheme_run(command)
+        return {
+            "status": "passed",
+            "review_required": False,
+            "detail": "production_scheme_run_persisted",
+            "scheme_run_id": scheme_run.id,
+            "source_binding_id": seeding_result.source_binding_id,
+            "weight_set_revision_id": seeding_result.weight_revision_id,
+            "scheme_run_status": scheme_run.status,
+        }
+    except Exception as exc:
+        errors.append(f"schemes: {exc}")
+        return {
+            "status": "failed",
+            "review_required": False,
+            "error": str(exc),
+            "error_class": type(exc).__name__,
+            "stage": "schemes",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -604,53 +673,41 @@ def run_evaluation_scenario(
         # ------------------------------------------------------------------
         # Stage: schemes (SchemeService)
         #
-        # Explicit prerequisite gate: raises EvaluationPrerequisiteMissingError
-        # BEFORE SchemeService is instantiated.  This is a harness-level
-        # blocker — NOT a business outcome and NOT diagnosed by probing
-        # SchemeService for its internal errors.
-        #
-        # Issue #22 must deliver a formal production orchestration service
-        # before SchemeService can be called from evaluation.
+        # Drives the production SchemeService through the canonical
+        # composition root so SourceBinding verification, weight-set
+        # governance, SchemeRun persistence, and archive row write all
+        # land in the production trust boundary.  No production paths
+        # are bypassed and no evaluation-owned engineering inputs are
+        # injected.
         # ------------------------------------------------------------------
         if "schemes" in scenario.required_stages:
-            scheme_config = fixture.get("scheme_run")
-            if scheme_config:
-                try:
-                    _require_scheme_production_prerequisite()
-                    # Unreachable until Issue #22 is complete.
-                    # SchemeService.generate_scheme_run(...) is guarded here.
-                except EvaluationPrerequisiteMissingError as exc:
-                    errors.append(f"schemes: {exc}")
-                    result["blocker"] = {
-                        "stage": "schemes",
-                        "error_class": type(exc).__name__,
-                        "code": exc.code,
-                        "field": exc.field,
-                        "details": exc.details,
-                    }
-                    stage_ledger["schemes"] = {
-                        "status": "blocked",
-                        "review_required": False,
-                        "blocker": {
-                            "error_class": type(exc).__name__,
-                            "code": exc.code,
-                            "field": exc.field,
-                        },
-                    }
-                    result["outcome"] = "blocked"
-                except Exception as exc:
-                    # Unknown / unexpected exception — NOT a prerequisite blocker.
-                    # Must NOT be disguised as Issue #22 prerequisite.
-                    errors.append(f"schemes: {exc}")
-                    stage_ledger["schemes"] = {
-                        "status": "failed",
-                        "review_required": False,
-                        "error": str(exc),
-                        "error_class": type(exc).__name__,
-                        "kind": "unexpected_error",
-                        "stage": "schemes",
-                    }
-                    result["outcome"] = "blocked"
+            schemes_entry = _run_schemes_stage(
+                scenario=scenario,
+                fixture=fixture,
+                project=project,
+                version=version,
+                zone_result=zone_result,
+                power_result=power_result,
+                invest_result=invest_result,
+                errors=errors,
+                engine=engine,
+            )
+            schemes_status = schemes_entry.get("status", "failed")
+            stage_ledger["schemes"] = schemes_entry
+            if schemes_status == "passed":
+                result["scheme_run"] = {
+                    "id": schemes_entry.get("scheme_run_id"),
+                    "source_binding_id": schemes_entry.get("source_binding_id"),
+                    "weight_set_revision_id": schemes_entry.get(
+                        "weight_set_revision_id"
+                    ),
+                    "status": schemes_entry.get("scheme_run_status"),
+                }
+            elif schemes_status == "skipped":
+                # No scheme_run config: not a failure, just no-op.
+                pass
+            else:
+                result.setdefault("outcome", "blocked")
 
         # ------------------------------------------------------------------
         # Final outcome determination — production contract semantics
