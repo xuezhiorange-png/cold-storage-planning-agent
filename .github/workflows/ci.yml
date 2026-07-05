@@ -93,6 +93,25 @@ jobs:
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
         run: cd backend && PYTHONPATH=src uv run pytest -m postgresql -vv --maxfail=1
+      - name: PostgreSQL attempt race stability (10x)
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: |
+          cd backend
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            echo "=== attempt race iteration ${i}/10 ==="
+            PYTHONPATH=src uv run pytest \
+              -m postgresql \
+              tests/integration/test_orchestration_attempt_races_postgresql.py \
+              -q
+          done
       - name: Backend tests (PostgreSQL)
         env:
           DATABASE_BACKEND: postgresql
@@ -102,7 +121,7 @@ jobs:
           POSTGRES_DB: cold_storage_test
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
-        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture and not postgresql"
+        run: cd backend && PYTHONPATH=src uv run pytest -k "not architecture and not postgresql and not sqlite"
 
   frontend:
     runs-on: ubuntu-latest

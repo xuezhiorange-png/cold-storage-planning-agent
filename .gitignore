@@ -57,6 +57,18 @@ frontend/dist/
 .config/gh/
 data/
 
-# Evaluation generated output — keep .gitkeep, ignore run dirs
-evaluation/runs/*
-!evaluation/runs/.gitkeep
+# Evaluation generated output (Phase A run directories).
+# All generated artifacts under evaluation/ are ignored; only the
+# repository-owned fixtures/expected/manifest.* stay tracked.
+evaluation/
+!evaluation/fixtures/
+!evaluation/expected/
+!evaluation/examples/
+!evaluation/manifest.json
+!evaluation/manifest.example.json
+!evaluation/manifest.schema.json
+!evaluation/README.md
+
+# Hermes agent local state
+.hermes/
+>>>>>>> origin/main

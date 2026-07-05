@@ -31,8 +31,8 @@ class ZoneResult:
     area_m2: Decimal
     position_count: int
     storage_capacity_kg: Decimal
-    process_compatibility: str
-    hygiene_zone: str
+    process_compatibility: str | None = None
+    hygiene_zone: str | None = None
 
 
 @dataclass(frozen=True)
@@ -49,8 +49,8 @@ class CoolingLoadResult:
 
     design_cooling_load_kw_r: Decimal
     sensible_load_kw_r: Decimal
-    latent_load_kw_r: Decimal
     infiltration_load_kw_r: Decimal
+    latent_load_kw_r: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -58,10 +58,22 @@ class EquipmentResult:
     """Snapshot of Task 5 equipment capability result."""
 
     compressor_operating_capacity_kw_r: Decimal
-    compressor_installed_capacity_kw_r: Decimal
     compressor_standby_capacity_kw_r: Decimal
     condenser_heat_rejection_kw: Decimal
     installed_power_kw_e: Decimal
+    compressor_installed_capacity_kw_r: Decimal | None = None
+
+
+@dataclass(frozen=True)
+class PowerResult:
+    """Whole-project installed power authority from Power calculator."""
+
+    total_installed_power_kw_e: Decimal
+    total_estimated_demand_kw: Decimal
+    equipment_rows: list[dict[str, object]]
+    summary_rows: list[dict[str, object]]
+    items: list[dict[str, object]]
+    assumptions: list[dict[str, object]]
 
 
 # ---------------------------------------------------------------------------
@@ -88,6 +100,7 @@ class SchemeGenerationInput:
     total_daily_throughput_kg_day: Decimal
     total_storage_capacity_kg: Decimal
     total_position_count: int
+    power_result: PowerResult | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -134,8 +147,8 @@ class SchemeRoomModule:
     design_cooling_load_kw_r: Decimal
     compressor_operating_capacity_kw_r: Decimal
     compressor_installed_capacity_kw_r: Decimal
-    process_compatibility: str
-    hygiene_zone: str
+    process_compatibility: str | None = None
+    hygiene_zone: str | None = None
     door_count: int = 1
     partition_length_proxy_m: Decimal = Decimal("0")
 

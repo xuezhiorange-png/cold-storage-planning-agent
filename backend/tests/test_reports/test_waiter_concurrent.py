@@ -301,6 +301,9 @@ class TestDefaultWaiterConcurrentSQLite:
             f"sqlite:///{db_path}",
             connect_args={"check_same_thread": False, "timeout": 30},
         )
+        # WAL mode enables concurrent reader + writer threads
+        with eng.connect() as conn:
+            conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         Base.metadata.create_all(eng)
         yield eng
         eng.dispose()
@@ -517,6 +520,9 @@ class TestDefaultWaiterFastAPIConvergence:
             f"sqlite:///{db_path}",
             connect_args={"check_same_thread": False, "timeout": 30},
         )
+        # WAL mode enables concurrent reader + writer threads
+        with eng.connect() as conn:
+            conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         Base.metadata.create_all(eng)
         yield eng
         eng.dispose()
@@ -689,6 +695,9 @@ class TestWaiterFailureMatrix:
             f"sqlite:///{db_path}",
             connect_args={"check_same_thread": False, "timeout": 30},
         )
+        # WAL mode enables concurrent reader + writer threads
+        with eng.connect() as conn:
+            conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         Base.metadata.create_all(eng)
         yield eng
         eng.dispose()

@@ -1,6 +1,16 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -77,6 +87,69 @@ class CalculationRunRecord(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
+    # ── Orchestration fields (all nullable — all-null for legacy, all-required for orchestrated) ──
+    calculation_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    orchestration_identity_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_identities.id"), nullable=True
+    )
+    orchestration_run_attempt_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_run_attempts.id"), nullable=True
+    )
+    execution_snapshot_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_execution_snapshots.id"), nullable=True
+    )
+    coefficient_context_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orchestration_coefficient_contexts.id"), nullable=True
+    )
+    input_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    provenance: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    schema_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    orchestration_fingerprint: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "orchestration_run_attempt_id",
+            "calculation_type",
+            name="uq_calculation_run_attempt_type",
+        ),
+        CheckConstraint(
+            "("
+            " orchestration_identity_id IS NULL"
+            " AND orchestration_run_attempt_id IS NULL"
+            " AND execution_snapshot_id IS NULL"
+            " AND coefficient_context_id IS NULL"
+            " AND input_hash IS NULL"
+            " AND result_hash IS NULL"
+            " AND provenance IS NULL"
+            " AND schema_version IS NULL"
+            " AND calculation_type IS NULL"
+            " AND orchestration_fingerprint IS NULL"
+            ")"
+            " OR"
+            "("
+            " orchestration_identity_id IS NOT NULL"
+            " AND orchestration_run_attempt_id IS NOT NULL"
+            " AND execution_snapshot_id IS NOT NULL"
+            " AND coefficient_context_id IS NOT NULL"
+            " AND input_hash IS NOT NULL"
+            " AND result_hash IS NOT NULL"
+            " AND provenance IS NOT NULL"
+            " AND schema_version IS NOT NULL"
+            " AND calculation_type IS NOT NULL"
+            " AND orchestration_fingerprint IS NOT NULL"
+            ")",
+            name="ck_calculation_run_orchestration_nullity",
+        ),
+        CheckConstraint(
+            "(orchestration_identity_id IS NULL"
+            " AND orchestration_fingerprint IS NULL)"
+            " OR (orchestration_identity_id IS NOT NULL"
+            " AND orchestration_fingerprint IS NOT NULL)",
+            name="ck_calculation_run_fingerprint_nullity",
+        ),
+    )
+
 
 class EngineeringCoefficientRecord(Base):
     __tablename__ = "engineering_coefficients"
@@ -110,3 +183,12 @@ class AuditEventRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+
+    # ── Outbox idempotency — one outbox event materializes at most one AuditEventRecord ──
+    outbox_event_id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+
+
+# Ensure orchestration tables are registered on Base.metadata so
+# ForeignKey references from CalculationRunRecord resolve during
+# metadata.create_all().
+import cold_storage.modules.orchestration.infrastructure.orm  # noqa: E402, F401

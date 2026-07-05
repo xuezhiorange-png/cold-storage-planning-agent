@@ -466,6 +466,7 @@ class DatabaseProjectService(ProjectService):
                 after_snapshot=event.after_snapshot,
                 event_metadata=event.metadata,
                 created_at=event.created_at,
+                outbox_event_id=f"legacy-audit:{event.id}",
             )
         )
 
