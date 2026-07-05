@@ -47,15 +47,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Callable, Sequence
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 # ── Production code we plug into ──────────────────────────────────────────
-
-
 from cold_storage.modules.calculations.domain.cooling_load import (
     CoefficientSet as CoolingLoadCoefficientSet,
+)
+from cold_storage.modules.calculations.domain.cooling_load import (
     TemperatureLevel,
     ZoneCoolingLoadInput,
 )
@@ -77,7 +77,7 @@ from cold_storage.modules.calculations.domain.zone_planning import (
     ColdRoomZonePlanInput,
     ColdRoomZonePlanner,
 )
-from cold_storage.modules.orchestration.application.transaction_b import (
+from cold_storage.modules.orchestration.domain.dag import (
     ORCHESTRATION_STAGE_ORDER,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import (
@@ -100,7 +100,6 @@ from cold_storage.modules.schemes.infrastructure.orm import (
     SchemeWeightSetRecord,
     SchemeWeightSetRevisionRecord,
 )
-
 
 SCHEME_BINDING_SCHEMA_VERSION = "1.0.0"
 SOURCE_SNAPSHOT_SCHEMA_VERSION = "1.0.0"
@@ -234,9 +233,7 @@ def _build_zone_snapshot_payload(zone_planner_result: Any) -> dict[str, Any]:
                     zone.get("design_storage_mass_kg", "0")
                 ),
                 "position_count": int(zone.get("position_count", 0)),
-                "required_area_m2": _coerce_str_numeric(
-                    zone.get("required_area_m2", "0")
-                ),
+                "required_area_m2": _coerce_str_numeric(zone.get("required_area_m2", "0")),
                 "requires_review": bool(zone.get("requires_review", False)),
             }
         )
@@ -250,9 +247,7 @@ def _build_zone_snapshot_payload(zone_planner_result: Any) -> dict[str, Any]:
         "total_required_area_m2": _coerce_str_numeric(
             zone_planner_result.result.get("total_required_area_m2", "0")
         ),
-        "total_area_m2": _coerce_str_numeric(
-            zone_planner_result.result.get("total_area_m2", "0")
-        ),
+        "total_area_m2": _coerce_str_numeric(zone_planner_result.result.get("total_area_m2", "0")),
         "planning_parameters": {
             "safety_factor": _coerce_str_numeric(
                 zone_planner_result.result.get("planning_parameters", {}).get(
@@ -291,24 +286,12 @@ def _build_zone_inputs_from_fixture(inputs: dict[str, Any]) -> ColdRoomZonePlanI
         secondary_fruit_ratio=_d("secondary_fruit_ratio", 0.08),
         frozen_fruit_ratio=_d("frozen_fruit_ratio", 0.10),
         frozen_storage_days=_d("frozen_storage_days", 5),
-        precooling_position_daily_capacity_kg=_d(
-            "precooling_position_daily_capacity_kg", 1250
-        ),
-        primary_precooling_pallet_weight_kg=_d(
-            "primary_precooling_pallet_weight_kg", 220
-        ),
-        primary_precooling_hours_per_pallet=_d(
-            "primary_precooling_hours_per_pallet", 1
-        ),
-        primary_precooling_working_hours_per_day=_d(
-            "primary_precooling_working_hours_per_day", 6
-        ),
-        secondary_precooling_pallet_weight_kg=_d(
-            "secondary_precooling_pallet_weight_kg", 400
-        ),
-        secondary_precooling_hours_per_pallet=_d(
-            "secondary_precooling_hours_per_pallet", 2
-        ),
+        precooling_position_daily_capacity_kg=_d("precooling_position_daily_capacity_kg", 1250),
+        primary_precooling_pallet_weight_kg=_d("primary_precooling_pallet_weight_kg", 220),
+        primary_precooling_hours_per_pallet=_d("primary_precooling_hours_per_pallet", 1),
+        primary_precooling_working_hours_per_day=_d("primary_precooling_working_hours_per_day", 6),
+        secondary_precooling_pallet_weight_kg=_d("secondary_precooling_pallet_weight_kg", 400),
+        secondary_precooling_hours_per_pallet=_d("secondary_precooling_hours_per_pallet", 2),
         secondary_precooling_working_hours_per_day=_d(
             "secondary_precooling_working_hours_per_day", 16
         ),
@@ -341,29 +324,15 @@ def _build_cooling_load_inputs(
             ZoneCoolingLoadInput(
                 zone_code=str(zone.get("zone_code", "")).strip(),
                 zone_name=str(zone.get("zone_name", "")).strip(),
-                temperature_level=_derive_temperature_level(
-                    str(zone.get("temperature_band", ""))
-                ),
+                temperature_level=_derive_temperature_level(str(zone.get("temperature_band", ""))),
                 zone_area=area,
                 room_height=height,
                 wall_area=area * 4 * height / Decimal("3.0"),
                 roof_area=area,
                 floor_area=area,
-                u_value_wall=Decimal(
-                    _STANDARD_COOLING_LOAD_COEFFICIENTS[
-                        "cooling.wall_u_value"
-                    ]
-                ),
-                u_value_roof=Decimal(
-                    _STANDARD_COOLING_LOAD_COEFFICIENTS[
-                        "cooling.roof_u_value"
-                    ]
-                ),
-                u_value_floor=Decimal(
-                    _STANDARD_COOLING_LOAD_COEFFICIENTS[
-                        "cooling.floor_u_value"
-                    ]
-                ),
+                u_value_wall=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.wall_u_value"]),
+                u_value_roof=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.roof_u_value"]),
+                u_value_floor=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.floor_u_value"]),
                 outdoor_design_temperature=Decimal("32"),
                 adjacent_temperature=Decimal("20"),
                 room_design_temperature=Decimal("0"),
@@ -375,56 +344,32 @@ def _build_cooling_load_inputs(
                 packaging_mass=Decimal("50"),
                 worker_count=2,
                 worker_heat_gain=Decimal(
-                    _STANDARD_COOLING_LOAD_COEFFICIENTS[
-                        "cooling.worker_heat_gain"
-                    ]
+                    _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.worker_heat_gain"]
                 ),
                 lighting_power=Decimal("0.20"),
                 equipment_power=Decimal("0.50"),
                 fan_motor_power=Decimal("0.30"),
                 motor_efficiency=Decimal(
-                    _STANDARD_COOLING_LOAD_COEFFICIENTS[
-                        "cooling.motor_efficiency"
-                    ]
+                    _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.motor_efficiency"]
                 ),
-                )
-                )
+            )
+        )
 
     coeffs = CoolingLoadCoefficientSet(
-        wall_u_value=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.wall_u_value"]
-        ),
-        roof_u_value=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.roof_u_value"]
-        ),
-        floor_u_value=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.floor_u_value"]
-        ),
+        wall_u_value=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.wall_u_value"]),
+        roof_u_value=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.roof_u_value"]),
+        floor_u_value=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.floor_u_value"]),
         product_specific_heat=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS[
-                "cooling.product_specific_heat"
-            ]
+            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.product_specific_heat"]
         ),
-        respiration_heat=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.respiration_heat"]
-        ),
-        air_change_rate=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.air_change_rate"]
-        ),
-        worker_heat_gain=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.worker_heat_gain"]
-        ),
+        respiration_heat=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.respiration_heat"]),
+        air_change_rate=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.air_change_rate"]),
+        worker_heat_gain=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.worker_heat_gain"]),
         design_margin_ratio=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS[
-                "cooling.design_margin_ratio"
-            ]
+            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.design_margin_ratio"]
         ),
-        diversity_factor=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.diversity_factor"]
-        ),
-        motor_efficiency=Decimal(
-            _STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.motor_efficiency"]
-        ),
+        diversity_factor=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.diversity_factor"]),
+        motor_efficiency=Decimal(_STANDARD_COOLING_LOAD_COEFFICIENTS["cooling.motor_efficiency"]),
     )
     return zones, coeffs
 
@@ -488,22 +433,14 @@ def _build_equipment_inputs(
         )
     ]
     coeffs = EquipmentCoefficientSet(
-        redundancy_ratio=Decimal(
-            _STANDARD_EQUIPMENT_COEFFICIENTS["equipment.redundancy_ratio"]
-        ),
+        redundancy_ratio=Decimal(_STANDARD_EQUIPMENT_COEFFICIENTS["equipment.redundancy_ratio"]),
         evaporator_capacity_margin=Decimal(
-            _STANDARD_EQUIPMENT_COEFFICIENTS[
-                "equipment.evaporator_capacity_margin"
-            ]
+            _STANDARD_EQUIPMENT_COEFFICIENTS["equipment.evaporator_capacity_margin"]
         ),
         condenser_capacity_margin=Decimal(
-            _STANDARD_EQUIPMENT_COEFFICIENTS[
-                "equipment.condenser_capacity_margin"
-            ]
+            _STANDARD_EQUIPMENT_COEFFICIENTS["equipment.condenser_capacity_margin"]
         ),
-        compressor_cop=Decimal(
-            _STANDARD_EQUIPMENT_COEFFICIENTS["equipment.compressor_cop"]
-        ),
+        compressor_cop=Decimal(_STANDARD_EQUIPMENT_COEFFICIENTS["equipment.compressor_cop"]),
     )
     return EquipmentCapabilityCalcInput(systems=systems, coefficients=coeffs)
 
@@ -516,9 +453,7 @@ def _build_equipment_payload(equipment_result: Any) -> dict[str, Any]:
         "evaporator_total_cooling_capacity_kw": _coerce_str_numeric(
             equipment_result.result.get("evaporator_total_cooling_capacity_kw", "0")
         ),
-        "evaporator_quantity": int(
-            equipment_result.result.get("evaporator_quantity", 0)
-        ),
+        "evaporator_quantity": int(equipment_result.result.get("evaporator_quantity", 0)),
         "single_evaporator_capacity_kw": _coerce_str_numeric(
             equipment_result.result.get("single_evaporator_capacity_kw", "0")
         ),
@@ -529,9 +464,7 @@ def _build_equipment_payload(equipment_result: Any) -> dict[str, Any]:
             equipment_result.result.get("standby_capacity_kw", "0")
         ),
         "condenser_heat_rejection_capacity_kw": _coerce_str_numeric(
-            equipment_result.result.get(
-                "condenser_heat_rejection_capacity_kw", "0"
-            )
+            equipment_result.result.get("condenser_heat_rejection_capacity_kw", "0")
         ),
         "evaporation_temperature_c": _coerce_str_numeric(
             equipment_result.result.get("evaporation_temperature_c", "-10.0")
@@ -539,12 +472,8 @@ def _build_equipment_payload(equipment_result: Any) -> dict[str, Any]:
         "condensing_temperature_c": _coerce_str_numeric(
             equipment_result.result.get("condensing_temperature_c", "40.0")
         ),
-        "defrost_method": str(
-            equipment_result.result.get("defrost_method", "electric")
-        ),
-        "review_requirement": str(
-            equipment_result.result.get("review_requirement", "")
-        ),
+        "defrost_method": str(equipment_result.result.get("defrost_method", "electric")),
+        "review_requirement": str(equipment_result.result.get("review_requirement", "")),
     }
 
 
@@ -582,21 +511,15 @@ def _build_power_payload(power_result: Any) -> dict[str, Any]:
     ``PowerResultSnapshotV1`` allowlist."""
 
     equipment_rows = []
-    for i, row in enumerate(
-        power_result.result.get("equipment_rows", []), start=1
-    ):
+    for i, row in enumerate(power_result.result.get("equipment_rows", []), start=1):
         equipment_rows.append(
             {
                 "sequence": int(row.get("sequence", i)),
                 "name": str(row.get("name", "")),
                 "area": str(row.get("area", "all")),
                 "quantity": _coerce_str_numeric(row.get("quantity", "1")),
-                "running_power_kw": _coerce_str_numeric(
-                    row.get("running_power_kw", "0")
-                ),
-                "total_power_kw": _coerce_str_numeric(
-                    row.get("total_power_kw", "0")
-                ),
+                "running_power_kw": _coerce_str_numeric(row.get("running_power_kw", "0")),
+                "total_power_kw": _coerce_str_numeric(row.get("total_power_kw", "0")),
                 "section": str(row.get("section", "auxiliary")),
             }
         )
@@ -623,9 +546,7 @@ def _build_power_payload(power_result: Any) -> dict[str, Any]:
             {
                 "name": str(row.get("name", "")),
                 "basis": str(row.get("basis", "area")),
-                "total_power_kw": _coerce_str_numeric(
-                    row.get("total_power_kw", "0")
-                ),
+                "total_power_kw": _coerce_str_numeric(row.get("total_power_kw", "0")),
             }
         )
     if not summary_rows:
@@ -644,15 +565,9 @@ def _build_power_payload(power_result: Any) -> dict[str, Any]:
         items.append(
             {
                 "category": str(row.get("category", "refrigeration")),
-                "installed_power_kw": _coerce_str_numeric(
-                    row.get("installed_power_kw", "0")
-                ),
-                "demand_factor": _coerce_str_numeric(
-                    row.get("demand_factor", "1.0")
-                ),
-                "estimated_demand_kw": _coerce_str_numeric(
-                    row.get("estimated_demand_kw", "0")
-                ),
+                "installed_power_kw": _coerce_str_numeric(row.get("installed_power_kw", "0")),
+                "demand_factor": _coerce_str_numeric(row.get("demand_factor", "1.0")),
+                "estimated_demand_kw": _coerce_str_numeric(row.get("estimated_demand_kw", "0")),
             }
         )
     if not items:
@@ -890,16 +805,12 @@ def _seed_production_scheme_prereqs(
     # step sees canonical base-10 strings rather than binary floats.
     fixture_inputs = _deep_coerce_numeric_dict(dict(fixture_inputs))
 
-    execution_snapshot, exec_snapshot_hash = _execution_snapshot_for_project_version(
-        fixture_inputs
-    )
+    execution_snapshot, exec_snapshot_hash = _execution_snapshot_for_project_version(fixture_inputs)
     coefficient_payload = {
         **_STANDARD_COOLING_LOAD_COEFFICIENTS,
         **_STANDARD_EQUIPMENT_COEFFICIENTS,
     }
-    coefficient_content, coeff_content_hash = _coefficient_context_content(
-        coefficient_payload
-    )
+    coefficient_content, coeff_content_hash = _coefficient_context_content(coefficient_payload)
 
     execution_snapshot_id = str(uuid.uuid4())
     coefficient_context_id = str(uuid.uuid4())
@@ -991,6 +902,8 @@ def _seed_production_scheme_prereqs(
     zones, cooling_load_coefficients = _build_cooling_load_inputs(zone_payload)
     from cold_storage.modules.calculations.domain.cooling_load import (
         CoolingLoadCalcInput as _CLInput,
+    )
+    from cold_storage.modules.calculations.domain.cooling_load import (
         calculate_cooling_load as _calc_cl,
     )
 
@@ -1000,9 +913,7 @@ def _seed_production_scheme_prereqs(
     cooling_load_payload = _build_cooling_load_payload(cooling_load_calc_result)
 
     total_cooling_kw = Decimal(str(cooling_load_payload["total_cooling_load_kw"]))
-    equipment_calc_input = _build_equipment_inputs(
-        cooling_load_payload, total_cooling_kw
-    )
+    equipment_calc_input = _build_equipment_inputs(cooling_load_payload, total_cooling_kw)
     from cold_storage.modules.calculations.domain.equipment import (
         calculate_equipment_capability as _calc_eq,
     )
@@ -1013,26 +924,23 @@ def _seed_production_scheme_prereqs(
     power_calc_input = _build_power_inputs(
         fixture_inputs, Decimal(str(equipment_payload["evaporator_total_cooling_capacity_kw"]))
     )
-    power_calc_result = (
-        existing_power_result or calculate_installed_power(power_calc_input)
-    )
+    power_calc_result = existing_power_result or calculate_installed_power(power_calc_input)
     power_payload = _build_power_payload(power_calc_result)
 
     investment_calc_input = InvestmentEstimateInput(
-        total_area_m2=Decimal(str(zone_payload["total_area_m2"])),
-        refrigerated_area_m2=Decimal(str(zone_payload["total_area_m2"])),
-        frozen_area_m2=Decimal("0"),
+        total_area_m2=float(zone_payload["total_area_m2"]),
+        refrigerated_area_m2=float(zone_payload["total_area_m2"]),
+        frozen_area_m2=0.0,
         position_count=int(
             sum(
                 int(z.get("position_count", 0))
                 for z in zone_payload["zones"]
             )
         ),
-        total_power_kw=Decimal(str(power_payload["total_installed_power_kw_e"])),
+        total_power_kw=float(power_payload["total_installed_power_kw_e"]),
     )
-    invest_calc_result = (
-        existing_investment_result
-        or InvestmentEstimator().estimate(investment_calc_input)
+    invest_calc_result = existing_investment_result or InvestmentEstimator().estimate(
+        investment_calc_input
     )
     investment_payload = _build_investment_payload(invest_calc_result)
 
@@ -1043,7 +951,7 @@ def _seed_production_scheme_prereqs(
         "power": power_payload,
         "investment": investment_payload,
     }
-    stage_raw_outputs: dict[str, dict[str, Any]] = {
+    {
         "zone": dict(zone_planner_result.result),
         "cooling_load": dict(cooling_load_calc_result.result),
         "equipment": dict(equipment_calc_result.result),
@@ -1052,12 +960,8 @@ def _seed_production_scheme_prereqs(
     }
     stage_requires_review: dict[str, bool] = {
         "zone": bool(getattr(zone_planner_result, "requires_review", False)),
-        "cooling_load": bool(
-            getattr(cooling_load_calc_result, "requires_review", False)
-        ),
-        "equipment": bool(
-            getattr(equipment_calc_result, "requires_review", False)
-        ),
+        "cooling_load": bool(getattr(cooling_load_calc_result, "requires_review", False)),
+        "equipment": bool(getattr(equipment_calc_result, "requires_review", False)),
         "power": bool(getattr(power_calc_result, "requires_review", False)),
         "investment": bool(getattr(invest_calc_result, "requires_review", False)),
     }
@@ -1079,9 +983,7 @@ def _seed_production_scheme_prereqs(
             "power": ("equipment",),
             "investment": ("zone", "power"),
         }[stage_name]
-        upstream_ids: dict[str, str] = {
-            dep: run_ids[dep] for dep in deps
-        }
+        upstream_ids: dict[str, str] = {dep: run_ids[dep] for dep in deps}
 
         input_hash = production_result_hash(
             {
@@ -1139,9 +1041,7 @@ def _seed_production_scheme_prereqs(
                         "unit": "1.0",
                         "status": "approved",
                         "source_type": "catalog",
-                        "source_reference": _STANDARD_CATALOG_REFERENCES[0][
-                            "source_reference"
-                        ],
+                        "source_reference": _STANDARD_CATALOG_REFERENCES[0]["source_reference"],
                         "requires_review": False,
                         "revision_id": f"cat-rev-{code}",
                         "version": _STANDARD_CATALOG_REFERENCES[0]["version"],
@@ -1154,8 +1054,7 @@ def _seed_production_scheme_prereqs(
                 ],
                 warnings=[],
                 source_references=[
-                    dict(_STANDARD_CATALOG_REFERENCES[0])
-                    | {"requires_review": False}
+                    dict(_STANDARD_CATALOG_REFERENCES[0]) | {"requires_review": False}
                 ],
                 requires_review=stage_requires_review[stage_name],
                 orchestration_identity_id=orchestration_identity_id,
@@ -1215,9 +1114,7 @@ def _seed_production_scheme_prereqs(
     )
 
     # Link the attempt → source_binding
-    attempt_rec = session.get(
-        OrchestrationRunAttemptRecord, orchestration_attempt_id
-    )
+    attempt_rec = session.get(OrchestrationRunAttemptRecord, orchestration_attempt_id)
     if attempt_rec is not None:
         attempt_rec.source_binding_id = source_binding_id
         session.flush()

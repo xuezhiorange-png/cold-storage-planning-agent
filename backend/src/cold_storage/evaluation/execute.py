@@ -180,17 +180,17 @@ def _run_schemes_stage(
         }
 
     try:
+        from sqlalchemy.orm import sessionmaker
+
         from cold_storage.bootstrap.production_composition import (
             compose_production_scheme_service,
-        )
-        from cold_storage.modules.schemes.application.production_ports import (
-            GenerateProductionSchemeCommand,
         )
         from cold_storage.evaluation.production_seeding import (
             seed_production_scheme_prereqs,
         )
-
-        from sqlalchemy.orm import sessionmaker
+        from cold_storage.modules.schemes.application.production_ports import (
+            GenerateProductionSchemeCommand,
+        )
 
         session_factory = sessionmaker(bind=engine, expire_on_commit=False)
 
@@ -211,9 +211,7 @@ def _run_schemes_stage(
             source_binding_id=seeding_result.source_binding_id,
             weight_set_revision_id=seeding_result.weight_revision_id,
             profile_codes=tuple(scheme_config.get("profile_codes", ("balanced",))),
-            profile_parameters=dict(
-                scheme_config.get("profile_parameters", {})
-            ),
+            profile_parameters=dict(scheme_config.get("profile_parameters", {})),
             actor="evaluation-phase-b-runner",
             correlation_id=f"eval-phase-b-{uuid.uuid4().hex[:12]}",
         )
@@ -227,9 +225,7 @@ def _run_schemes_stage(
         # production calculator pipeline.
         return {
             "status": "passed",
-            "review_required": bool(
-                getattr(scheme_run, "requires_review", False)
-            ),
+            "review_required": bool(getattr(scheme_run, "requires_review", False)),
             "detail": "scheme_generation_complete",
             "scheme_run_id": scheme_run.id,
             "source_binding_id": seeding_result.source_binding_id,
@@ -707,9 +703,7 @@ def run_evaluation_scenario(
                 result["scheme_run"] = {
                     "id": schemes_entry.get("scheme_run_id"),
                     "source_binding_id": schemes_entry.get("source_binding_id"),
-                    "weight_set_revision_id": schemes_entry.get(
-                        "weight_set_revision_id"
-                    ),
+                    "weight_set_revision_id": schemes_entry.get("weight_set_revision_id"),
                     "status": schemes_entry.get("scheme_run_status"),
                 }
             elif schemes_status == "skipped":

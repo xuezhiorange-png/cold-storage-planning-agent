@@ -130,7 +130,7 @@ def test_baseline_run_passes_through_production() -> None:
     side blocker.
     """
     _cleanup_runs()
-    rc = _run_single_scenario("baseline-feasible")
+    _run_single_scenario("baseline-feasible")
     run_dir = _latest_run_dir()
     assert run_dir is not None
     raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
@@ -155,9 +155,9 @@ def test_baseline_no_longer_emits_evaluation_prerequisite_blocker() -> None:
     assert blocker.get("code") != "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING", (
         f"Retired prerequisite blocker must NOT appear in raw artifact; got {blocker}"
     )
-    assert (
-        blocker.get("details", {}).get("prerequisite_issue") != 22
-    ), "Issue #22 prerequisite gate must NOT appear in stages"
+    assert blocker.get("details", {}).get("prerequisite_issue") != 22, (
+        "Issue #22 prerequisite gate must NOT appear in stages"
+    )
 
 
 def test_baseline_manifest_declares_expected_outcome() -> None:
@@ -193,9 +193,7 @@ def test_high_throughput_run_passes_through_production() -> None:
     _run_single_scenario("high-throughput-review")
     run_dir = _latest_run_dir()
     assert run_dir is not None
-    raw = json.loads(
-        (run_dir / "raw" / "high-throughput-review.json").read_text("utf-8")
-    )
+    raw = json.loads((run_dir / "raw" / "high-throughput-review.json").read_text("utf-8"))
     schemes_stage = raw.get("stage_ledger", {}).get("schemes", {})
     assert schemes_stage.get("status") == "passed", (
         f"Schemes stage must pass through production path; got {schemes_stage}"
@@ -209,9 +207,7 @@ def test_high_throughput_no_blocker() -> None:
     _run_single_scenario("high-throughput-review")
     run_dir = _latest_run_dir()
     assert run_dir is not None
-    raw = json.loads(
-        (run_dir / "raw" / "high-throughput-review.json").read_text("utf-8")
-    )
+    raw = json.loads((run_dir / "raw" / "high-throughput-review.json").read_text("utf-8"))
     assert raw.get("outcome") != "blocked", (
         f"High-throughput outcome must NOT be 'blocked' through the "
         f"production path; got {raw['outcome']}"
@@ -249,7 +245,7 @@ def test_invalid_outcome_validation_error() -> None:
 def test_full_suite_emits_all_three_scenarios() -> None:
     """Full suite must enumerate all three scenarios (no scenario dropped)."""
     _cleanup_runs()
-    rc = _run_suite()
+    _run_suite()
     summary = _load_latest_summary()
     assert summary is not None
     scenario_ids = set(summary["scenario_ids"])
@@ -269,9 +265,7 @@ def test_full_suite_persists_three_independent_runs() -> None:
     raw_dir = run_dir / "raw"
     for scenario in ("baseline-feasible", "high-throughput-review", "invalid-blocked"):
         raw_path = raw_dir / f"{scenario}.json"
-        assert raw_path.exists(), (
-            f"Expected raw artifact for {scenario} at {raw_path}"
-        )
+        assert raw_path.exists(), f"Expected raw artifact for {scenario} at {raw_path}"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -384,9 +378,7 @@ def test_normalized_outputs_deterministic() -> None:
             c1 = json.dumps(run1_payloads[s_id], sort_keys=True, ensure_ascii=False)
             c2 = json.dumps(run2_payloads[s_id], sort_keys=True, ensure_ascii=False)
             # Only fail if substantive content diverges; checksum normalized
-            assert c1 == c2, (
-                f"Normalized content drifted for {s_id} between runs"
-            )
+            assert c1 == c2, f"Normalized content drifted for {s_id} between runs"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -659,9 +651,7 @@ def test_evaluation_module_no_longer_fabricates_calculation_runs() -> None:
         "_require_scheme_production_prerequisite",
     }
     leaked = {name for name in forbidden if hasattr(execute, name)}
-    assert not leaked, (
-        f"execute.py must not expose evaluation-owned fabrication: {leaked}"
-    )
+    assert not leaked, f"execute.py must not expose evaluation-owned fabrication: {leaked}"
 
 
 def test_baseline_required_stages_exact() -> None:
@@ -686,7 +676,7 @@ def test_dev_db_untouched_during_baseline_run() -> None:
     _cleanup_runs()
     dev_before = _dev_db_state()
 
-    rc = _run_single_scenario("baseline-feasible")
+    _run_single_scenario("baseline-feasible")
     # run may now succeed (exit=0) or flag review_required — neither
     # path is allowed to mutate cold_storage_dev.db
     _run_single_scenario("baseline-feasible")
@@ -750,7 +740,7 @@ def test_unknown_exception_during_schemes_stage_is_unexpected_error() -> None:
         side_effect=RuntimeError("unexpected"),
     ):
         _cleanup_runs()
-        rc = _run_single_scenario("baseline-feasible")
+        _run_single_scenario("baseline-feasible")
 
         run_dir = _latest_run_dir()
         assert run_dir is not None
@@ -758,9 +748,7 @@ def test_unknown_exception_during_schemes_stage_is_unexpected_error() -> None:
 
         schemes = raw["stage_ledger"]["schemes"]
         # Must NOT have the prerequisite blocker classification
-        assert schemes.get("error_class") == "RuntimeError", (
-            f"Expected RuntimeError, got {schemes}"
-        )
+        assert schemes.get("error_class") == "RuntimeError", f"Expected RuntimeError, got {schemes}"
         # Legacy blocker must NOT appear
         assert schemes.get("code") != "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
         # Must NOT contain the prerequisite code anywhere
