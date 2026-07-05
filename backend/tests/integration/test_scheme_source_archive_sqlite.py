@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, event, text  # noqa: E402
+from sqlalchemy import create_engine, event, select, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
@@ -653,6 +653,200 @@ class TestResolverFailClosedPaths:
             )
         assert isinstance(result, historical_source_resolver.VerifiedOnlineSourceBundle)
         assert result.source_binding_id == "online-b"
+
+
+# ── P1-1 wire-up: payload validator runs in the resolver BEFORE the hash
+#    recomputation.  A malformed archive_payload MUST be reported as
+#    SchemeSourceArchiveIntegrityError (fail closed) instead of
+#    silently producing a hash mismatch.  These tests assert that
+#    contract on the read path. ─────────────────────────────────────────
+
+
+class TestArchivePayloadValidatorWiring:
+    """Verify ``validate_archive_payload_v1`` runs in the resolver."""
+
+    def test_payload_missing_required_key_raises_integrity(
+        self, migrated_engine
+    ) -> None:
+        """A persisted archive row whose payload is missing a required
+        key MUST raise ``SchemeSourceArchiveIntegrityError`` (wrapped
+        via the validator).  Hash recomputation never runs.
+
+        This is the round-9 P1-1 wire-up contract: the resolver must
+        reject structural deviation *before* ``compute_archive_hash_v1``.
+        """
+        from sqlalchemy.orm import Session as _Session
+
+        from cold_storage.modules.orchestration.application import (
+            historical_source_resolver,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            SchemeSourceArchiveIntegrityError,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            ProductionSourceArchiveRecord,
+        )
+        from cold_storage.modules.orchestration.infrastructure.source_archive_repository import (  # noqa: E501
+            SqlAlchemyProductionSourceArchiveRepository,
+        )
+
+        read_port = SqlAlchemyProductionSourceArchiveRepository()
+        with _Session(migrated_engine) as session, session.begin():
+            archive_id = _seed_archive_row(session, scheme_run_id="sr-bad-keys")
+            # Tamper: drop one of the 19 required keys (project_id).
+            archive = session.execute(
+                select(ProductionSourceArchiveRecord).where(
+                    ProductionSourceArchiveRecord.id == archive_id
+                )
+            ).scalar_one()
+            archive.archive_payload = {
+                k: v
+                for k, v in archive.archive_payload.items()
+                if k != "project_id"
+            }
+
+        with _Session(migrated_engine) as session:
+            scheme_run_row = {
+                "id": "sr-bad-keys",
+                "source_mode": "production",
+                "combined_source_hash": "combined-h",
+                "weight_set_content_hash": "weight-h",
+                "binding_schema_version": "BSV-1.0",
+                "zone_result_hash": "ZH",
+                "cooling_load_result_hash": "CH",
+                "equipment_result_hash": "EH",
+                "power_result_hash": "PH",
+                "investment_result_hash": "IH",
+            }
+            with pytest.raises(SchemeSourceArchiveIntegrityError) as exc_info:
+                historical_source_resolver.resolve_scheme_run_sources_for_history(
+                    session,
+                    scheme_run_row,
+                    read_port=read_port,
+                    online_source_lookup=None,
+                )
+        detail = exc_info.value.details.get("detail") if exc_info.value.details else None
+        assert detail is not None
+        assert "missing" in detail
+        assert "project_id" in detail
+
+    def test_payload_extra_required_key_raises_integrity(
+        self, migrated_engine
+    ) -> None:
+        """An extra key on the persisted archive_payload MUST also be
+        flagged as an integrity error.
+
+        Symmetric with the missing-key case.
+        """
+        from sqlalchemy.orm import Session as _Session
+
+        from cold_storage.modules.orchestration.application import (
+            historical_source_resolver,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            SchemeSourceArchiveIntegrityError,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            ProductionSourceArchiveRecord,
+        )
+        from cold_storage.modules.orchestration.infrastructure.source_archive_repository import (  # noqa: E501
+            SqlAlchemyProductionSourceArchiveRepository,
+        )
+
+        read_port = SqlAlchemyProductionSourceArchiveRepository()
+        with _Session(migrated_engine) as session, session.begin():
+            archive_id = _seed_archive_row(session, scheme_run_id="sr-extra-key")
+            archive = session.execute(
+                select(ProductionSourceArchiveRecord).where(
+                    ProductionSourceArchiveRecord.id == archive_id
+                )
+            ).scalar_one()
+            payload = dict(archive.archive_payload)
+            payload["rogue_field"] = "tampered"
+            archive.archive_payload = payload
+
+        with _Session(migrated_engine) as session:
+            scheme_run_row = {
+                "id": "sr-extra-key",
+                "source_mode": "production",
+                "combined_source_hash": "combined-h",
+                "weight_set_content_hash": "weight-h",
+                "binding_schema_version": "BSV-1.0",
+                "zone_result_hash": "ZH",
+                "cooling_load_result_hash": "CH",
+                "equipment_result_hash": "EH",
+                "power_result_hash": "PH",
+                "investment_result_hash": "IH",
+            }
+            with pytest.raises(SchemeSourceArchiveIntegrityError) as exc_info:
+                historical_source_resolver.resolve_scheme_run_sources_for_history(
+                    session,
+                    scheme_run_row,
+                    read_port=read_port,
+                    online_source_lookup=None,
+                )
+        detail = exc_info.value.details.get("detail", "") if exc_info.value.details else ""
+        assert "extra" in detail
+        assert "rogue_field" in detail
+
+    def test_payload_malformed_source_slots_order_raises_integrity(
+        self, migrated_engine
+    ) -> None:
+        """Reordered ``source_slots`` on a persisted archive row MUST
+        be flagged as an integrity error (the validator enforces the
+        canonical five-slot order before recompute)."""
+        from sqlalchemy.orm import Session as _Session
+
+        from cold_storage.modules.orchestration.application import (
+            historical_source_resolver,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            SchemeSourceArchiveIntegrityError,
+        )
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            ProductionSourceArchiveRecord,
+        )
+        from cold_storage.modules.orchestration.infrastructure.source_archive_repository import (  # noqa: E501
+            SqlAlchemyProductionSourceArchiveRepository,
+        )
+
+        read_port = SqlAlchemyProductionSourceArchiveRepository()
+        with _Session(migrated_engine) as session, session.begin():
+            archive_id = _seed_archive_row(session, scheme_run_id="sr-bad-order")
+            archive = session.execute(
+                select(ProductionSourceArchiveRecord).where(
+                    ProductionSourceArchiveRecord.id == archive_id
+                )
+            ).scalar_one()
+            payload = dict(archive.archive_payload)
+            # Reverse the canonical order; same five slots, wrong order.
+            slots = payload["source_slots"]
+            assert isinstance(slots, list)
+            payload["source_slots"] = list(reversed(slots))
+            archive.archive_payload = payload
+
+        with _Session(migrated_engine) as session:
+            scheme_run_row = {
+                "id": "sr-bad-order",
+                "source_mode": "production",
+                "combined_source_hash": "combined-h",
+                "weight_set_content_hash": "weight-h",
+                "binding_schema_version": "BSV-1.0",
+                "zone_result_hash": "ZH",
+                "cooling_load_result_hash": "CH",
+                "equipment_result_hash": "EH",
+                "power_result_hash": "PH",
+                "investment_result_hash": "IH",
+            }
+            with pytest.raises(SchemeSourceArchiveIntegrityError) as exc_info:
+                historical_source_resolver.resolve_scheme_run_sources_for_history(
+                    session,
+                    scheme_run_row,
+                    read_port=read_port,
+                    online_source_lookup=None,
+                )
+        detail = (exc_info.value.details or {}).get("detail", "")
+        assert "order" in detail.lower()
 
 
 # ── R5: Slot order binding (P0-2 test surface) ─────────────────────────────
