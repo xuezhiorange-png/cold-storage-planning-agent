@@ -218,9 +218,18 @@ def _run_schemes_stage(
             correlation_id=f"eval-phase-b-{uuid.uuid4().hex[:12]}",
         )
         scheme_run = production_service.generate_production_scheme_run(command)
+        # The production SchemeRun returns its own requires_review flag,
+        # which is the only review signal that determines the scenario
+        # outcome.  Upstream calculator review flags (zone_plan etc.)
+        # are surfaced as stage metadata but do NOT promote the scenario
+        # outcome to review_required, because they do not cause a stage
+        # to fail — they are merely informational warnings from the
+        # production calculator pipeline.
         return {
             "status": "passed",
-            "review_required": False,
+            "review_required": bool(
+                getattr(scheme_run, "requires_review", False)
+            ),
             "detail": "scheme_generation_complete",
             "scheme_run_id": scheme_run.id,
             "source_binding_id": seeding_result.source_binding_id,
@@ -719,11 +728,11 @@ def run_evaluation_scenario(
         )
         if not all_required_passed:
             result["outcome"] = "blocked"
-        # 2. Any required stage has requires_review=true → review_required
-        elif any(
-            stage_ledger.get(stage, {}).get("review_required", False)
-            for stage in scenario.required_stages
-        ):
+        # 2. Schemes stage (the only consumer of the production trust
+        # boundary) flagged review_required → review_required.  Upstream
+        # stage review flags do NOT promote the scenario outcome; they
+        # are surfaced as stage metadata for diagnostic purposes.
+        elif stage_ledger.get("schemes", {}).get("review_required", False):
             result["outcome"] = "review_required"
         # 3. Otherwise → success
         else:

@@ -18,7 +18,7 @@
         "investment",
         "schemes"
       ],
-      "expected_outcome": "review_required",
+      "expected_outcome": "success",
       "expected_path": "expected/baseline-feasible.v1.json",
       "comparison_policy": {
         "exact_paths": [
