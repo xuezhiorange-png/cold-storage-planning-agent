@@ -665,9 +665,7 @@ class TestResolverFailClosedPaths:
 class TestArchivePayloadValidatorWiring:
     """Verify ``validate_archive_payload_v1`` runs in the resolver."""
 
-    def test_payload_missing_required_key_raises_integrity(
-        self, migrated_engine
-    ) -> None:
+    def test_payload_missing_required_key_raises_integrity(self, migrated_engine) -> None:
         """A persisted archive row whose payload is missing a required
         key MUST raise ``SchemeSourceArchiveIntegrityError`` (wrapped
         via the validator).  Hash recomputation never runs.
@@ -700,9 +698,7 @@ class TestArchivePayloadValidatorWiring:
                 )
             ).scalar_one()
             archive.archive_payload = {
-                k: v
-                for k, v in archive.archive_payload.items()
-                if k != "project_id"
+                k: v for k, v in archive.archive_payload.items() if k != "project_id"
             }
 
         with _Session(migrated_engine) as session:
@@ -730,9 +726,7 @@ class TestArchivePayloadValidatorWiring:
         assert "missing" in detail
         assert "project_id" in detail
 
-    def test_payload_extra_required_key_raises_integrity(
-        self, migrated_engine
-    ) -> None:
+    def test_payload_extra_required_key_raises_integrity(self, migrated_engine) -> None:
         """An extra key on the persisted archive_payload MUST also be
         flagged as an integrity error.
 
@@ -789,9 +783,7 @@ class TestArchivePayloadValidatorWiring:
         assert "extra" in detail
         assert "rogue_field" in detail
 
-    def test_payload_malformed_source_slots_order_raises_integrity(
-        self, migrated_engine
-    ) -> None:
+    def test_payload_malformed_source_slots_order_raises_integrity(self, migrated_engine) -> None:
         """Reordered ``source_slots`` on a persisted archive row MUST
         be flagged as an integrity error (the validator enforces the
         canonical five-slot order before recompute)."""

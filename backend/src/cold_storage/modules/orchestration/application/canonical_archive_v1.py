@@ -277,17 +277,11 @@ def validate_archive_payload_v1(archive_payload: Any) -> dict[str, Any]:
         if missing:
             bits.append(
                 f"missing={missing}"
-                + (
-                    f" ({len(missing)} of {len(required_keys)} required)"
-                    if missing
-                    else ""
-                )
+                + (f" ({len(missing)} of {len(required_keys)} required)" if missing else "")
             )
         if extra:
             bits.append(f"extra={extra}")
-        raise SourceArchiveBuildError(
-            "archive_payload key contract violated: " + "; ".join(bits)
-        )
+        raise SourceArchiveBuildError("archive_payload key contract violated: " + "; ".join(bits))
 
     source_slots = archive_payload["source_slots"]
     # Reuse the same validator the assembler uses; it enforces name

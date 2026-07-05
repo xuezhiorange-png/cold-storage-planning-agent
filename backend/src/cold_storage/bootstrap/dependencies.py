@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
 from cold_storage.bootstrap.settings import Settings
@@ -67,7 +68,7 @@ def get_engine() -> Any:
     return _singletons["engine"]
 
 
-def get_production_scheme_service() -> "ProductionSchemeService":
+def get_production_scheme_service() -> ProductionSchemeService:
     """Return the production SchemeRun service singleton.
 
     Wired through ``bootstrap.production_composition`` so the
@@ -82,7 +83,7 @@ def get_production_scheme_service() -> "ProductionSchemeService":
     return _singletons["production_scheme_service"]  # type: ignore[no-any-return]
 
 
-def get_production_session_factory() -> "Callable[[], Any]":
+def get_production_session_factory() -> Callable[[], Any]:
     """Return the production SchemeRun session-factory singleton.
 
     Used by API routes / admin scripts that need a fresh

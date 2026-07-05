@@ -173,11 +173,11 @@ class TestProductionCompositionWiringE2E:
         composition root MUST land both ``scheme_runs`` and
         ``production_source_archives`` rows in the same commit.
         """
-        from cold_storage.modules.schemes.application.production_service import (
-            ProductionSchemeService,
-        )
         from cold_storage.modules.schemes.application.production_ports import (
             GenerateProductionSchemeCommand,
+        )
+        from cold_storage.modules.schemes.application.production_service import (
+            ProductionSchemeService,
         )
 
         with session_factory() as session:
@@ -234,9 +234,7 @@ class TestProductionCompositionWiringE2E:
             ).scalar_one()
             payload = json.loads(payload_json)
             slot_field = payload["source_slots"]
-            assert isinstance(slot_field, list), (
-                "source_slots must be an ordered list, not a dict"
-            )
+            assert isinstance(slot_field, list), "source_slots must be an ordered list, not a dict"
             names = [entry[0] for entry in slot_field]
             assert names == [
                 "zone",
@@ -244,9 +242,7 @@ class TestProductionCompositionWiringE2E:
                 "equipment",
                 "power",
                 "investment",
-            ], (
-                f"source_slots order regressed to {names!r}; canonical order required"
-            )
+            ], f"source_slots order regressed to {names!r}; canonical order required"
 
     def test_composition_archive_row_count_is_one_per_run(
         self,
@@ -276,10 +272,7 @@ class TestProductionCompositionWiringE2E:
 
         with session_factory() as session:
             count = session.execute(
-                text(
-                    "SELECT COUNT(*) FROM production_source_archives "
-                    "WHERE scheme_run_id = :sid"
-                ),
+                text("SELECT COUNT(*) FROM production_source_archives WHERE scheme_run_id = :sid"),
                 {"sid": result.id},
             ).scalar_one()
             assert count == 1, f"Expected exactly 1 archive row, got {count}"
@@ -290,7 +283,7 @@ class TestProductionCompositionWiringE2E:
     ) -> None:
         """The composition root MUST bind ``build_archive_callable``."""
         service = _build_production_service_via_composition(session_factory)
-        run_repo = getattr(service, "_run_repo")
+        run_repo = service._run_repo
         assert run_repo is not None, "production service must own a run_repository"
         build_callable = getattr(run_repo, "_build_archive_callable", None)
         assert build_callable is not None and callable(build_callable), (
@@ -343,21 +336,16 @@ class TestProductionCompositionFailureRollback:
                 service.generate_production_scheme_run(cmd)
             except Exception as exc:  # noqa: BLE001
                 assert boom_message in str(exc), (
-                    f"expected exception message to carry {boom_message!r}, "
-                    f"got {exc!r}"
+                    f"expected exception message to carry {boom_message!r}, got {exc!r}"
                 )
                 raised = True
-            assert raised, (
-                "Composition-rooted service should have raised after archive failure"
-            )
+            assert raised, "Composition-rooted service should have raised after archive failure"
         finally:
             source_archive_builder.build_archive_for_completed_scheme_run = original
 
         with session_factory() as session:
             run_count = session.execute(
-                text(
-                    "SELECT COUNT(*) FROM scheme_runs WHERE source_binding_id = :bid"
-                ),
+                text("SELECT COUNT(*) FROM scheme_runs WHERE source_binding_id = :bid"),
                 {"bid": GOLDEN_SOURCE_BINDING_ID},
             ).scalar_one()
             assert run_count == 0, (
@@ -365,8 +353,7 @@ class TestProductionCompositionFailureRollback:
             )
             archive_count = session.execute(
                 text(
-                    "SELECT COUNT(*) FROM production_source_archives "
-                    "WHERE source_binding_id = :bid"
+                    "SELECT COUNT(*) FROM production_source_archives WHERE source_binding_id = :bid"
                 ),
                 {"bid": GOLDEN_SOURCE_BINDING_ID},
             ).scalar_one()

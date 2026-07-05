@@ -104,7 +104,6 @@ def _find_repo_constructions(filepath: Path) -> list[tuple[int, str]]:
             continue  # compliant
         # Build a short call preview from line start to end of args.
         line = node.lineno
-        col = node.col_offset
         end_line = getattr(node, "end_lineno", line) or line
         source_lines = source.splitlines()[line - 1 : end_line]
         preview = "\n".join(source_lines)
@@ -113,7 +112,14 @@ def _find_repo_constructions(filepath: Path) -> list[tuple[int, str]]:
 
 
 class TestProductionArchiveWiringBoundary:
-    """Every production ``SqlAlchemyProductionSchemeRunRepository`` call must wire the archive closure."""
+    """Every production repository call must wire the archive closure.
+
+    Production ``SqlAlchemyProductionSchemeRunRepository(...)``
+    calls (anywhere in the production tree) MUST pass the keyword
+    argument ``build_archive_callable=``; otherwise they silently
+    bypass the archive INSERT and regress the round-3 P0-2 atomic
+    contract.
+    """
 
     def test_production_constructors_pass_archive_callable(self) -> None:
         """Scan the production tree for naked constructor calls.
@@ -136,17 +142,17 @@ class TestProductionArchiveWiringBoundary:
                 )
 
         assert not violations, (
-            "Production code constructs SqlAlchemyProductionSchemeRunRepository without "
-            f"{ARCHIVE_CALLABLE_KW}=; archive wiring is silently bypassed.  Route the "
-            "construction through bootstrap.production_composition.compose_production_scheme_service.\n"
+            "Production code constructs SqlAlchemyProductionSchemeRunRepository "
+            f"without {ARCHIVE_CALLABLE_KW}=; archive wiring is silently "
+            "bypassed.  Route the construction through "
+            "bootstrap.production_composition.compose_production_scheme_service.\n"
             + "\n".join(violations)
         )
 
     def test_bootstrap_composition_is_the_only_production_constructor(self) -> None:
         """Sanity check: the composition root is the canonical constructor."""
         assert ALLOWED_PRODUCTION_CONSTRUCTOR.exists(), (
-            f"{ALLOWED_PRODUCTION_CONSTRUCTOR} must exist as the sole "
-            "production-mode constructor."
+            f"{ALLOWED_PRODUCTION_CONSTRUCTOR} must exist as the sole production-mode constructor."
         )
         # The composition root must itself wire the closure.
         constructors = _find_repo_constructions(ALLOWED_PRODUCTION_CONSTRUCTOR)

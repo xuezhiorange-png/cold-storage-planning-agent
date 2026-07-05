@@ -121,9 +121,9 @@ class TestArchivePayloadValidatorMissingKey:
             SourceArchiveBuildError,
         )
 
-        assert (
-            missing_key in REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1
-        ), f"test author missed updating REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1; key {missing_key!r}"
+        assert missing_key in REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1, (
+            f"test author missed updating REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1; key {missing_key!r}"
+        )
         payload = _full_payload()
         payload.pop(missing_key, None)
 
@@ -131,9 +131,7 @@ class TestArchivePayloadValidatorMissingKey:
             validate_archive_payload_v1(payload)
 
         msg = str(exc_info.value)
-        assert "missing" in msg, (
-            f"error message should report missing keys, got: {msg!r}"
-        )
+        assert "missing" in msg, f"error message should report missing keys, got: {msg!r}"
         assert missing_key in msg, (
             f"error message should name the missing key {missing_key!r}; got: {msg!r}"
         )
@@ -157,9 +155,7 @@ class TestArchivePayloadValidatorExtraKey:
 
         msg = str(exc_info.value)
         assert "extra" in msg, f"error should report extras, got: {msg!r}"
-        assert "extra_field_not_allowed" in msg, (
-            f"error must name the offending key; got: {msg!r}"
-        )
+        assert "extra_field_not_allowed" in msg, f"error must name the offending key; got: {msg!r}"
 
     def test_multiple_extra_keys_are_rejected(self) -> None:
         from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
@@ -373,4 +369,4 @@ class TestArchivePayloadValidatorRequiredKeySet:
             "generator_compatibility_version",
             "captured_at",
         }
-        assert REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1 == must_have
+        assert must_have == REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1
