@@ -233,7 +233,8 @@ class TestSchemeRunRejection:
                     "comparison_snapshot, candidates_snapshot, warning_messages, "
                     "created_at, source_mode, source_binding_id, database_backend) "
                     "VALUES (:id, 'p-1', 'pv-1', 'ws-1', '1.0', 'h1', 'pending', "
-                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'production', 'sb-1', 'postgresql')"
+                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'production', "
+                    "'sb-1', 'postgresql')"
                 ),
                 {"id": sid},
             )
@@ -355,8 +356,10 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                    "VALUES (:id, :oid, 1, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, "
+                    "started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'RUNNING', now(), now(), "
+                    "'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a1, "oid": oid},
             )
@@ -367,8 +370,11 @@ class TestOneRunning:
                 conn.execute(
                     text(
                         "INSERT INTO orchestration_run_attempts "
-                        "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                        "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                        "(id, identity_id, attempt_number, status, "
+                        "heartbeat_at, started_at, database_backend, "
+                        "correlation_id) "
+                        "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), "
+                        "'postgresql', 'legacy-migration-0036')"
                     ),
                     {"id": a2, "oid": oid},
                 )
@@ -407,8 +413,10 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                    "VALUES (:id, :oid, 1, 'FAILED', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, "
+                    "started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'FAILED', now(), now(), "
+                    "'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a1, "oid": oid},
             )
@@ -416,8 +424,10 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, "
+                    "started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), "
+                    "'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a2, "oid": oid},
             )
@@ -456,8 +466,10 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, "
+                    "started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), "
+                    "'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a1, "oid": oid},
             )
@@ -465,8 +477,10 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, "
+                    "started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), "
+                    "'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a2, "oid": oid},
             )
@@ -817,8 +831,10 @@ class TestDowngradeBlocker:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, "
+                    "started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), "
+                    "'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": aid, "oid": oid},
             )
@@ -962,8 +978,10 @@ class TestDowngradeBlocker:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, "
+                    "started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), "
+                    "'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": aid, "oid": oid},
             )
@@ -1494,8 +1512,10 @@ class TestTransactionBConstraints0028:
         conn.execute(
             text(
                 "INSERT INTO orchestration_run_attempts "
-                "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
-                "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
+                "(id, identity_id, attempt_number, status, heartbeat_at, "
+                "started_at, database_backend, correlation_id) "
+                "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), "
+                "'postgresql', 'legacy-migration-0036')"
             ),
             {"id": ids["aid"], "oid": ids["oid"]},
         )

@@ -793,6 +793,44 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             OrchestrationRunAttemptRecord,
         )
 
+        # Phase 1 schema (migrations 0035 + 0036) requires the
+        # `database_backend` and `correlation_id` columns to be
+        # NOT NULL with **no** server_default, so every INSERT must
+        # supply explicit values. The repository is the only path
+        # through which application code can insert an attempt,
+        # so the abstraction derives them from runtime facts that
+        # are always available at the persistence layer:
+        #
+        # * ``database_backend`` is read from the SQLAlchemy
+        #   session's bound dialect name (the single source of
+        #   truth for which backend this row is being persisted
+        #   to).
+        # * ``correlation_id`` for an *attempt creation* event
+        #   has no caller-supplied upstream source — the
+        #   durable request envelope is not yet resolved at the
+        #   moment of attempt acquisition. We therefore mint a
+        #   per-attempt identifier with the explicit
+        #   ``attempt-corr:`` prefix so that:
+        #     (a) it is unambiguously non-empty (passes the
+        #         ``ck_attempt_correlation_id_nonempty`` CHECK
+        #         added in 0036),
+        #     (b) it does NOT collide with the legacy sentinel
+        #         ``legacy-migration-0036`` (which is reserved
+        #         for backfilled pre-0036 rows),
+        #     (c) it does NOT collide with request-level
+        #         correlation_ids minted upstream (those use the
+        #         ``req-corr:`` convention enforced by
+        #         ``OrchestrationRequestRepository.create``).
+        # Phase 2 application code can override the per-attempt
+        # correlation_id by extending the contract — for Phase 1
+        # we ship the deterministic-runtime default.
+        bind_dialect_name: str = session.bind.dialect.name  # type: ignore[union-attr]
+        if bind_dialect_name == "postgresql":
+            derived_database_backend: str = "postgresql"
+        else:
+            derived_database_backend = "sqlite"
+        derived_correlation_id: str = f"attempt-corr:{uuid4().hex}"
+
         stale_attempt_id: str | None = None
         for retry_idx in range(self._MAX_ACQUIRE_RETRIES):
             # Re-read fresh state each retry
@@ -839,6 +877,8 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                 attempt_number=attempt_number,
                 status="RUNNING",
                 heartbeat_at=heartbeat_at,
+                database_backend=derived_database_backend,
+                correlation_id=derived_correlation_id,
             )
 
             # Independent savepoint for the insert
