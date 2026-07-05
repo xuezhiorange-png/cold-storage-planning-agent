@@ -931,12 +931,7 @@ def _seed_production_scheme_prereqs(
         total_area_m2=float(zone_payload["total_area_m2"]),
         refrigerated_area_m2=float(zone_payload["total_area_m2"]),
         frozen_area_m2=0.0,
-        position_count=int(
-            sum(
-                int(z.get("position_count", 0))
-                for z in zone_payload["zones"]
-            )
-        ),
+        position_count=int(sum(int(z.get("position_count", 0)) for z in zone_payload["zones"])),
         total_power_kw=float(power_payload["total_installed_power_kw_e"]),
     )
     invest_calc_result = existing_investment_result or InvestmentEstimator().estimate(
