@@ -129,13 +129,9 @@ def prepare_ordered_source_slots_v1(
             )
         name, payload = entry
         if not isinstance(name, str):
-            raise ValueError(
-                f"source_slots name must be str, got {type(name).__name__}"
-            )
+            raise ValueError(f"source_slots name must be str, got {type(name).__name__}")
         if not isinstance(payload, Mapping):
-            raise ValueError(
-                f"source_slots payload must be Mapping, got {type(payload).__name__}"
-            )
+            raise ValueError(f"source_slots payload must be Mapping, got {type(payload).__name__}")
         prepared.append([name, dict(payload)])
     return prepared
 

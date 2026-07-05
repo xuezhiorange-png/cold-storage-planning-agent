@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 
 pytestmark = pytest.mark.postgresql
 
@@ -134,8 +133,7 @@ def _plant_pg_chain(
         if len(archive_hash) != 64:
             conn.execute(
                 text(
-                    "ALTER TABLE production_source_archives "
-                    "DROP CONSTRAINT ck_archive_hash_length"
+                    "ALTER TABLE production_source_archives DROP CONSTRAINT ck_archive_hash_length"
                 )
             )
         conn.execute(
@@ -179,7 +177,8 @@ class TestHexStrictLowercasePostgreSQL:
     """PG-side acceptance for the P0-3 strict lowercase hex contract."""
 
     def test_lowercase_64_hex_allows_downgrade(
-        self, pg_database: str,
+        self,
+        pg_database: str,
     ) -> None:
         archive_hash = "a" * 64
         _plant_pg_chain(pg_database, archive_hash)
@@ -192,23 +191,22 @@ class TestHexStrictLowercasePostgreSQL:
         )
 
     def test_uppercase_64_hex_blocks_downgrade(
-        self, pg_database: str,
+        self,
+        pg_database: str,
     ) -> None:
         archive_hash = "A" * 64
         _plant_pg_chain(pg_database, archive_hash)
 
         r = _attempt_downgrade(pg_database)
 
-        assert r.returncode != 0, (
-            "downgrade should be BLOCKED for uppercase 64 hex"
+        assert r.returncode != 0, "downgrade should be BLOCKED for uppercase 64 hex"
+        assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+            f"missing blocker message:\nstderr={r.stderr!r}"
         )
-        assert (
-            "downgrade blocked" in r.stderr
-            or "downgrade blocked" in r.stdout
-        ), f"missing blocker message:\nstderr={r.stderr!r}"
 
     def test_non_hex_char_blocks_downgrade(
-        self, pg_database: str,
+        self,
+        pg_database: str,
     ) -> None:
         archive_hash = "g" + "a" * 63
         assert len(archive_hash) == 64
@@ -216,48 +214,42 @@ class TestHexStrictLowercasePostgreSQL:
 
         r = _attempt_downgrade(pg_database)
 
-        assert r.returncode != 0, (
-            "downgrade should be BLOCKED for non-hex char 'g'"
+        assert r.returncode != 0, "downgrade should be BLOCKED for non-hex char 'g'"
+        assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+            f"missing blocker message:\nstderr={r.stderr!r}"
         )
-        assert (
-            "downgrade blocked" in r.stderr
-            or "downgrade blocked" in r.stdout
-        ), f"missing blocker message:\nstderr={r.stderr!r}"
 
     def test_length_63_blocks_downgrade(
-        self, pg_database: str,
+        self,
+        pg_database: str,
     ) -> None:
         archive_hash = "a" * 63
         _plant_pg_chain(pg_database, archive_hash)
 
         r = _attempt_downgrade(pg_database)
 
-        assert r.returncode != 0, (
-            "downgrade should be BLOCKED for length=63"
+        assert r.returncode != 0, "downgrade should be BLOCKED for length=63"
+        assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+            f"missing blocker message:\nstderr={r.stderr!r}"
         )
-        assert (
-            "downgrade blocked" in r.stderr
-            or "downgrade blocked" in r.stdout
-        ), f"missing blocker message:\nstderr={r.stderr!r}"
 
     def test_length_65_blocks_downgrade(
-        self, pg_database: str,
+        self,
+        pg_database: str,
     ) -> None:
         archive_hash = "a" * 65
         _plant_pg_chain(pg_database, archive_hash)
 
         r = _attempt_downgrade(pg_database)
 
-        assert r.returncode != 0, (
-            "downgrade should be BLOCKED for length=65"
+        assert r.returncode != 0, "downgrade should be BLOCKED for length=65"
+        assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+            f"missing blocker message:\nstderr={r.stderr!r}"
         )
-        assert (
-            "downgrade blocked" in r.stderr
-            or "downgrade blocked" in r.stdout
-        ), f"missing blocker message:\nstderr={r.stderr!r}"
 
     def test_mixed_case_blocks_downgrade(
-        self, pg_database: str,
+        self,
+        pg_database: str,
     ) -> None:
         archive_hash = "a" * 30 + "A" * 4 + "a" * 30
         assert len(archive_hash) == 64
@@ -265,16 +257,14 @@ class TestHexStrictLowercasePostgreSQL:
 
         r = _attempt_downgrade(pg_database)
 
-        assert r.returncode != 0, (
-            "downgrade should be BLOCKED for mixed-case"
+        assert r.returncode != 0, "downgrade should be BLOCKED for mixed-case"
+        assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+            f"missing blocker message:\nstderr={r.stderr!r}"
         )
-        assert (
-            "downgrade blocked" in r.stderr
-            or "downgrade blocked" in r.stdout
-        ), f"missing blocker message:\nstderr={r.stderr!r}"
 
     def test_zero_string_of_correct_length_allows_downgrade(
-        self, pg_database: str,
+        self,
+        pg_database: str,
     ) -> None:
         archive_hash = "0" * 64
         _plant_pg_chain(pg_database, archive_hash)
@@ -282,6 +272,5 @@ class TestHexStrictLowercasePostgreSQL:
         r = _attempt_downgrade(pg_database)
 
         assert r.returncode == 0, (
-            f"downgrade should be allowed for '0'*64; "
-            f"exit={r.returncode} stderr={r.stderr!r}"
+            f"downgrade should be allowed for '0'*64; exit={r.returncode} stderr={r.stderr!r}"
         )

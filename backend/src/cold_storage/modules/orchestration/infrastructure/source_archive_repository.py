@@ -14,8 +14,9 @@ the constraint).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -39,16 +40,16 @@ class SqlAlchemyProductionSourceArchiveRepository:
 
     def add_archive(
         self,
-        session: Session,
+        session: Any,
         *,
         archive_id: str,
         scheme_run_id: str,
-        source_binding_id: str,
+        source_binding_id: str | None,
         source_contract_version: str,
         archive_schema_version: str,
         archive_payload: Mapping[str, Any],
         archive_hash: str,
-        combined_source_hash: str,
+        combined_source_hash: str | None,
         weight_set_revision_id: str | None,
         weight_set_content_hash: str | None,
         binding_schema_version: str | None,
@@ -60,7 +61,7 @@ class SqlAlchemyProductionSourceArchiveRepository:
         created_at: datetime,
         created_by: str,
         reason: str,
-    ) -> str:
+    ) -> None:
         """Add a new ``production_source_archives`` row to ``session``.
 
         The caller (production SchemeRun UoW) owns the transaction;
@@ -89,7 +90,6 @@ class SqlAlchemyProductionSourceArchiveRepository:
             reason=reason,
         )
         session.add(record)
-        return archive_id
 
     # ── Read port ───────────────────────────────────────────────────────
 
@@ -134,7 +134,9 @@ def _snapshot(record: ProductionSourceArchiveRecord) -> Mapping[str, Any]:
             if isinstance(entry, (list, tuple)) and len(entry) == 2:
                 slot_name = entry[0]
                 slot_payload = entry[1]
-                clean_payload = dict(slot_payload) if isinstance(slot_payload, dict) else slot_payload
+                clean_payload = (
+                    dict(slot_payload) if isinstance(slot_payload, dict) else slot_payload
+                )
                 ordered_slots.append([slot_name, clean_payload])
             else:
                 # Forward unknown entry shapes unchanged; the resolver
@@ -145,9 +147,7 @@ def _snapshot(record: ProductionSourceArchiveRecord) -> Mapping[str, Any]:
     elif isinstance(slots_obj, dict):
         # Legacy v0 dict payload shape — forwarded as-is so a defensive
         # read path can recognise it.
-        source_slots = {
-            k: dict(v) if isinstance(v, dict) else v for k, v in slots_obj.items()
-        }
+        source_slots = {k: dict(v) if isinstance(v, dict) else v for k, v in slots_obj.items()}
     else:
         source_slots = []
 

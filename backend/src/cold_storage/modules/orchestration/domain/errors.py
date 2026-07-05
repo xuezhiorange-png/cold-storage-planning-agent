@@ -356,14 +356,28 @@ class PersistenceInvariantError(OrchestrationDomainError):
 
 
 class SchemeSourceArchiveIntegrityError(OrchestrationDomainError):
-    """SchemeSourceArchiveV1 verification failed."""
+    """SchemeSourceArchiveV1 verification failed.
 
-    def __init__(self, archive_hash: str) -> None:
+    The optional ``detail`` keyword carries a per-call message that
+    supplements the canonical "archive_hash" framing (e.g. malformed
+    ``source_slots`` list element).  ``detail`` is appended to the
+    public message and stored under ``details["detail"]``.
+    """
+
+    def __init__(self, archive_hash: str, detail: str | None = None) -> None:
+        message = (
+            f"Scheme source archive integrity failure (hash {archive_hash!r})"
+        )
+        if detail:
+            message = f"{message}: {detail}"
+        details: dict[str, object] = {"archive_hash": archive_hash}
+        if detail:
+            details["detail"] = detail
         super().__init__(
             "SCHEME_SOURCE_ARCHIVE_INVALID",
-            f"Scheme source archive integrity failure (hash {archive_hash!r})",
+            message,
             field="archive_hash",
-            details={"archive_hash": archive_hash},
+            details=details,
         )
 
 

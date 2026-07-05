@@ -55,8 +55,8 @@ ordered sequence the builder requires.
 
 from __future__ import annotations
 
-from typing import Any, Callable
-
+from collections.abc import Callable
+from typing import Any
 
 # Slot order MUST match ``canonical_archive_v1.SOURCE_SLOT_ORDER_V1``.
 # Each row maps the public slot name to the two ``PersistedSchemeRun``
@@ -128,35 +128,31 @@ def make_production_archive_callable() -> Callable[[Any, Any], str]:
         # Snapshot the persisted-run attributes.  We re-read through
         # ``getattr`` so this module stays clear of any cross-module
         # type re-export.
-        source_slots: list[tuple[str, dict[str, str]]] = _ordered_source_slots_v1(
-            persisted_run
-        )
+        source_slots: list[tuple[str, dict[str, str]]] = _ordered_source_slots_v1(persisted_run)
 
         write_port = SqlAlchemyProductionSourceArchiveRepository(session=session)
         archive_id = build_archive_for_completed_scheme_run(
             session=session,
             write_port=write_port,
             scheme_run_id=persisted_run.id,
-            source_binding_id=getattr(persisted_run, "source_binding_id"),
-            source_contract_version=getattr(persisted_run, "source_contract_version"),
-            binding_schema_version=getattr(persisted_run, "binding_schema_version"),
-            combined_source_hash=getattr(persisted_run, "combined_source_hash"),
-            weight_set_revision_id=getattr(persisted_run, "weight_set_revision_id"),
-            weight_set_content_hash=getattr(persisted_run, "weight_set_content_hash"),
+            source_binding_id=persisted_run.source_binding_id,
+            source_contract_version=persisted_run.source_contract_version,
+            binding_schema_version=persisted_run.binding_schema_version,
+            combined_source_hash=persisted_run.combined_source_hash,
+            weight_set_revision_id=persisted_run.weight_set_revision_id,
+            weight_set_content_hash=persisted_run.weight_set_content_hash,
             weight_set_generator_compatibility_version=(
-                getattr(persisted_run, "weight_set_generator_compatibility_version")
+                persisted_run.weight_set_generator_compatibility_version
             ),
-            execution_snapshot_id=getattr(persisted_run, "execution_snapshot_id"),
-            coefficient_context_id=getattr(persisted_run, "coefficient_context_id"),
-            orchestration_identity_id=getattr(persisted_run, "orchestration_identity_id"),
-            authoritative_attempt_id=getattr(persisted_run, "authoritative_attempt_id"),
-            orchestration_fingerprint=getattr(persisted_run, "orchestration_fingerprint"),
+            execution_snapshot_id=persisted_run.execution_snapshot_id,
+            coefficient_context_id=persisted_run.coefficient_context_id,
+            orchestration_identity_id=persisted_run.orchestration_identity_id,
+            authoritative_attempt_id=persisted_run.authoritative_attempt_id,
+            orchestration_fingerprint=persisted_run.orchestration_fingerprint,
             source_slots=source_slots,
             project_id=persisted_run.project_id,
             project_version_id=persisted_run.project_version_id,
-            generator_compatibility_version=getattr(
-                persisted_run, "generator_version"
-            ),
+            generator_compatibility_version=persisted_run.generator_version,
             actor="production.uow",
         )
         return archive_id

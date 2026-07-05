@@ -748,9 +748,7 @@ class TestSlotOrderBinding:
             captured_at=fixed_at,
         )
         assert isinstance(payload["source_slots"], list)
-        assert [entry[0] for entry in payload["source_slots"]] == list(
-            EXPECTED_SLOT_ORDER_V1
-        )
+        assert [entry[0] for entry in payload["source_slots"]] == list(EXPECTED_SLOT_ORDER_V1)
 
     def test_assembler_rejects_reversed_order(self) -> None:
         """Reverse-ordered source_slots is rejected by the assembler."""
@@ -935,9 +933,7 @@ class TestSlotOrderBinding:
         h_modified = compute_archive_hash_v1(
             assemble_archive_payload(source_slots=slots_modified, **common)
         )
-        assert h_baseline != h_modified, (
-            "result_hash change must change archive_hash"
-        )
+        assert h_baseline != h_modified, "result_hash change must change archive_hash"
 
     def test_frozen_helper_byte_matches_application_helper(self) -> None:
         """The frozen alembic helper produces the same hash byte-for-byte
@@ -952,16 +948,16 @@ class TestSlotOrderBinding:
         from datetime import UTC, datetime
         from pathlib import Path
 
-        alembic_helpers_dir = (
-            Path(__file__).resolve().parent.parent.parent
-            / "alembic"
-            / "helpers"
-        )
+        alembic_helpers_dir = Path(__file__).resolve().parent.parent.parent / "alembic" / "helpers"
         sys.path.insert(0, str(alembic_helpers_dir))
         try:
             from frozen_scheme_source_archive_v1 import (  # noqa: E402  - sys.path append above
                 canonical_json_v1 as frozen_canonical_json_v1,
+            )
+            from frozen_scheme_source_archive_v1 import (
                 compute_archive_hash_v1 as frozen_compute_hash_v1,
+            )
+            from frozen_scheme_source_archive_v1 import (
                 prepare_ordered_source_slots_v1,
             )
         finally:
@@ -994,8 +990,7 @@ class TestSlotOrderBinding:
             "authoritative_attempt_id": "att-frozen",
             "orchestration_fingerprint": "fp-frozen",
             "source_slots": [
-                [name, dict(p)]
-                for name, p in prepare_ordered_source_slots_v1(ordered_slots)
+                [name, dict(p)] for name, p in prepare_ordered_source_slots_v1(ordered_slots)
             ],
             "project_id": "proj-frozen",
             "project_version_id": "pver-frozen",

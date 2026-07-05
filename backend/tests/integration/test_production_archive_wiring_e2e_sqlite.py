@@ -36,10 +36,9 @@ import tempfile
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, event, select, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 
 # Module-level pytestmark: every test in this module is SQLite-tagged
@@ -423,11 +422,11 @@ def _build_wired_service(engine):
     from cold_storage.modules.orchestration.infrastructure.archive_composition import (
         make_production_archive_callable,
     )
-    from cold_storage.modules.schemes.application.production_service import (
-        ProductionSchemeService,
-    )
     from cold_storage.modules.schemes.application.production_ports import (
         GenerateProductionSchemeCommand,
+    )
+    from cold_storage.modules.schemes.application.production_service import (
+        ProductionSchemeService,
     )
     from cold_storage.modules.schemes.infrastructure.production_read_ports import (
         SqlAlchemySourceBindingReadPort,
@@ -502,52 +501,51 @@ class TestArchiveWiringE2E:
         )
 
         # ── Drive save_production_run on a UoW session ───────────────
-        with session_factory() as session:
-            with session.begin():
-                persisted = repo.save_production_run(
-                    session,
-                    project_id=PROJECT_ID,
-                    project_version_id=VERSION_ID,
-                    run_id="wiring-run-001",
-                    source_mode="production",
-                    source_binding_id=SOURCE_BINDING_ID,
-                    source_contract_version="1.0.0",
-                    binding_schema_version="1.0.0",
-                    combined_source_hash=GOLDEN_COMBINED_SOURCE_HASH,
-                    execution_snapshot_id=EXEC_SNAPSHOT_ID,
-                    coefficient_context_id=COEFF_CONTEXT_ID,
-                    orchestration_identity_id=IDENTITY_ID,
-                    authoritative_attempt_id=ATTEMPT_ID,
-                    orchestration_fingerprint="wiring-test-fingerprint-001",
-                    zone_calculation_id=SLOT_CALC_RUN_IDS["zone"],
-                    cooling_load_calculation_id=SLOT_CALC_RUN_IDS["cooling_load"],
-                    equipment_calculation_id=SLOT_CALC_RUN_IDS["equipment"],
-                    power_calculation_id=SLOT_CALC_RUN_IDS["power"],
-                    investment_calculation_id=SLOT_CALC_RUN_IDS["investment"],
-                    zone_result_hash=SLOT_RESULT_HASHES["zone"],
-                    cooling_load_result_hash=SLOT_RESULT_HASHES["cooling_load"],
-                    equipment_result_hash=SLOT_RESULT_HASHES["equipment"],
-                    power_result_hash=SLOT_RESULT_HASHES["power"],
-                    investment_result_hash=SLOT_RESULT_HASHES["investment"],
-                    weight_set_id=WEIGHT_SET_ID,
-                    weight_set_revision_id=WEIGHT_REVISION_ID,
-                    weight_set_content_hash=WEIGHT_CONTENT_HASH,
-                    weight_set_generator_compatibility_version="1.0.0",
-                    generator_version="1.0.0",
-                    source_snapshot_hash=GOLDEN_COMBINED_SOURCE_HASH,
-                    content_hash="wiring-content-hash",
-                    profile_codes=("balanced",),
-                    profile_parameters={"balanced": {}},
-                    candidates_snapshot={"items": []},
-                    candidates=[],
-                    input_snapshot={"throughput_t": "25.0"},
-                    assumption_snapshot={"safety_factor": "1.2"},
-                    comparison_snapshot={},
-                    warning_messages=[],
-                    requires_review=False,
-                    recommended_scheme_code=None,
-                    status="completed",
-                )
+        with session_factory() as session, session.begin():
+            persisted = repo.save_production_run(
+                session,
+                project_id=PROJECT_ID,
+                project_version_id=VERSION_ID,
+                run_id="wiring-run-001",
+                source_mode="production",
+                source_binding_id=SOURCE_BINDING_ID,
+                source_contract_version="1.0.0",
+                binding_schema_version="1.0.0",
+                combined_source_hash=GOLDEN_COMBINED_SOURCE_HASH,
+                execution_snapshot_id=EXEC_SNAPSHOT_ID,
+                coefficient_context_id=COEFF_CONTEXT_ID,
+                orchestration_identity_id=IDENTITY_ID,
+                authoritative_attempt_id=ATTEMPT_ID,
+                orchestration_fingerprint="wiring-test-fingerprint-001",
+                zone_calculation_id=SLOT_CALC_RUN_IDS["zone"],
+                cooling_load_calculation_id=SLOT_CALC_RUN_IDS["cooling_load"],
+                equipment_calculation_id=SLOT_CALC_RUN_IDS["equipment"],
+                power_calculation_id=SLOT_CALC_RUN_IDS["power"],
+                investment_calculation_id=SLOT_CALC_RUN_IDS["investment"],
+                zone_result_hash=SLOT_RESULT_HASHES["zone"],
+                cooling_load_result_hash=SLOT_RESULT_HASHES["cooling_load"],
+                equipment_result_hash=SLOT_RESULT_HASHES["equipment"],
+                power_result_hash=SLOT_RESULT_HASHES["power"],
+                investment_result_hash=SLOT_RESULT_HASHES["investment"],
+                weight_set_id=WEIGHT_SET_ID,
+                weight_set_revision_id=WEIGHT_REVISION_ID,
+                weight_set_content_hash=WEIGHT_CONTENT_HASH,
+                weight_set_generator_compatibility_version="1.0.0",
+                generator_version="1.0.0",
+                source_snapshot_hash=GOLDEN_COMBINED_SOURCE_HASH,
+                content_hash="wiring-content-hash",
+                profile_codes=("balanced",),
+                profile_parameters={"balanced": {}},
+                candidates_snapshot={"items": []},
+                candidates=[],
+                input_snapshot={"throughput_t": "25.0"},
+                assumption_snapshot={"safety_factor": "1.2"},
+                comparison_snapshot={},
+                warning_messages=[],
+                requires_review=False,
+                recommended_scheme_code=None,
+                status="completed",
+            )
 
         # ── Acceptance 1: SchemeRun row exists ───────────────────────
         with session_factory() as session:
@@ -566,9 +564,7 @@ class TestArchiveWiringE2E:
                 ),
                 {"sid": persisted.id},
             ).fetchone()
-            assert row is not None, (
-                "production_source_archives row missing after wired save"
-            )
+            assert row is not None, "production_source_archives row missing after wired save"
             archive_schema_version, archive_hash, archive_combined, archive_bid = row
             assert archive_schema_version == "SchemeSourceArchiveV1"
             assert archive_combined == GOLDEN_COMBINED_SOURCE_HASH
@@ -580,6 +576,7 @@ class TestArchiveWiringE2E:
 
             # ── Acceptance 3: Archive payload preserves the ordered list ──
             import json as _json
+
             payload_json = session.execute(
                 text(
                     "SELECT archive_payload FROM production_source_archives "
@@ -589,9 +586,7 @@ class TestArchiveWiringE2E:
             ).scalar_one()
             payload = _json.loads(payload_json)
             slot_field = payload["source_slots"]
-            assert isinstance(slot_field, list), (
-                "source_slots must be an ordered list, not a dict"
-            )
+            assert isinstance(slot_field, list), "source_slots must be an ordered list, not a dict"
             names = [entry[0] for entry in slot_field]
             assert names == [
                 "zone",
@@ -607,9 +602,7 @@ class TestArchiveWiringE2E:
                 compute_archive_hash_v1,
             )
 
-            ordered_slots = [
-                (entry[0], dict(entry[1])) for entry in slot_field
-            ]
+            ordered_slots = [(entry[0], dict(entry[1])) for entry in slot_field]
             rebuilt = assemble_archive_payload(
                 scheme_run_id=persisted.id,
                 source_binding_id=SOURCE_BINDING_ID,
@@ -654,59 +647,55 @@ class TestArchiveWiringE2E:
             build_archive_callable=archive_callable,
         )
 
-        with session_factory() as session:
-            with session.begin():
-                persisted = repo.save_production_run(
-                    session,
-                    project_id=PROJECT_ID,
-                    project_version_id=VERSION_ID,
-                    run_id="wiring-run-count-001",
-                    source_mode="production",
-                    source_binding_id=SOURCE_BINDING_ID,
-                    source_contract_version="1.0.0",
-                    binding_schema_version="1.0.0",
-                    combined_source_hash=GOLDEN_COMBINED_SOURCE_HASH,
-                    execution_snapshot_id=EXEC_SNAPSHOT_ID,
-                    coefficient_context_id=COEFF_CONTEXT_ID,
-                    orchestration_identity_id=IDENTITY_ID,
-                    authoritative_attempt_id=ATTEMPT_ID,
-                    orchestration_fingerprint="wiring-test-fingerprint-001",
-                    zone_calculation_id=SLOT_CALC_RUN_IDS["zone"],
-                    cooling_load_calculation_id=SLOT_CALC_RUN_IDS["cooling_load"],
-                    equipment_calculation_id=SLOT_CALC_RUN_IDS["equipment"],
-                    power_calculation_id=SLOT_CALC_RUN_IDS["power"],
-                    investment_calculation_id=SLOT_CALC_RUN_IDS["investment"],
-                    zone_result_hash=SLOT_RESULT_HASHES["zone"],
-                    cooling_load_result_hash=SLOT_RESULT_HASHES["cooling_load"],
-                    equipment_result_hash=SLOT_RESULT_HASHES["equipment"],
-                    power_result_hash=SLOT_RESULT_HASHES["power"],
-                    investment_result_hash=SLOT_RESULT_HASHES["investment"],
-                    weight_set_id=WEIGHT_SET_ID,
-                    weight_set_revision_id=WEIGHT_REVISION_ID,
-                    weight_set_content_hash=WEIGHT_CONTENT_HASH,
-                    weight_set_generator_compatibility_version="1.0.0",
-                    generator_version="1.0.0",
-                    source_snapshot_hash=GOLDEN_COMBINED_SOURCE_HASH,
-                    content_hash="wiring-content-hash-count",
-                    profile_codes=("balanced",),
-                    profile_parameters={"balanced": {}},
-                    candidates_snapshot={"items": []},
-                    candidates=[],
-                    input_snapshot={"throughput_t": "25.0"},
-                    assumption_snapshot={"safety_factor": "1.2"},
-                    comparison_snapshot={},
-                    warning_messages=[],
-                    requires_review=False,
-                    recommended_scheme_code=None,
-                    status="completed",
-                )
+        with session_factory() as session, session.begin():
+            persisted = repo.save_production_run(
+                session,
+                project_id=PROJECT_ID,
+                project_version_id=VERSION_ID,
+                run_id="wiring-run-count-001",
+                source_mode="production",
+                source_binding_id=SOURCE_BINDING_ID,
+                source_contract_version="1.0.0",
+                binding_schema_version="1.0.0",
+                combined_source_hash=GOLDEN_COMBINED_SOURCE_HASH,
+                execution_snapshot_id=EXEC_SNAPSHOT_ID,
+                coefficient_context_id=COEFF_CONTEXT_ID,
+                orchestration_identity_id=IDENTITY_ID,
+                authoritative_attempt_id=ATTEMPT_ID,
+                orchestration_fingerprint="wiring-test-fingerprint-001",
+                zone_calculation_id=SLOT_CALC_RUN_IDS["zone"],
+                cooling_load_calculation_id=SLOT_CALC_RUN_IDS["cooling_load"],
+                equipment_calculation_id=SLOT_CALC_RUN_IDS["equipment"],
+                power_calculation_id=SLOT_CALC_RUN_IDS["power"],
+                investment_calculation_id=SLOT_CALC_RUN_IDS["investment"],
+                zone_result_hash=SLOT_RESULT_HASHES["zone"],
+                cooling_load_result_hash=SLOT_RESULT_HASHES["cooling_load"],
+                equipment_result_hash=SLOT_RESULT_HASHES["equipment"],
+                power_result_hash=SLOT_RESULT_HASHES["power"],
+                investment_result_hash=SLOT_RESULT_HASHES["investment"],
+                weight_set_id=WEIGHT_SET_ID,
+                weight_set_revision_id=WEIGHT_REVISION_ID,
+                weight_set_content_hash=WEIGHT_CONTENT_HASH,
+                weight_set_generator_compatibility_version="1.0.0",
+                generator_version="1.0.0",
+                source_snapshot_hash=GOLDEN_COMBINED_SOURCE_HASH,
+                content_hash="wiring-content-hash-count",
+                profile_codes=("balanced",),
+                profile_parameters={"balanced": {}},
+                candidates_snapshot={"items": []},
+                candidates=[],
+                input_snapshot={"throughput_t": "25.0"},
+                assumption_snapshot={"safety_factor": "1.2"},
+                comparison_snapshot={},
+                warning_messages=[],
+                requires_review=False,
+                recommended_scheme_code=None,
+                status="completed",
+            )
 
         with session_factory() as session:
             count = session.execute(
-                text(
-                    "SELECT COUNT(*) FROM production_source_archives "
-                    "WHERE scheme_run_id = :sid"
-                ),
+                text("SELECT COUNT(*) FROM production_source_archives WHERE scheme_run_id = :sid"),
                 {"sid": persisted.id},
             ).scalar_one()
             assert count == 1, f"Expected exactly 1 archive row, got {count}"
@@ -813,10 +802,7 @@ class TestArchiveWiringFailureRollback:
         # ── Acceptance 1: scheme_runs row absent ─────────────────────
         with session_factory() as session:
             run_count = session.execute(
-                text(
-                    "SELECT COUNT(*) FROM scheme_runs "
-                    "WHERE source_binding_id = :bid"
-                ),
+                text("SELECT COUNT(*) FROM scheme_runs WHERE source_binding_id = :bid"),
                 {"bid": SOURCE_BINDING_ID},
             ).scalar_one()
             assert run_count == 0, (
@@ -827,15 +813,10 @@ class TestArchiveWiringFailureRollback:
             # ── Acceptance 2: production_source_archives row absent ─
             archive_count = session.execute(
                 text(
-                    "SELECT COUNT(*) FROM production_source_archives "
-                    "WHERE source_binding_id = :bid"
+                    "SELECT COUNT(*) FROM production_source_archives WHERE source_binding_id = :bid"
                 ),
                 {"bid": SOURCE_BINDING_ID},
             ).scalar_one()
             assert archive_count == 0, (
-                f"Archive row was committed despite builder raise "
-                f"(found {archive_count} rows)"
+                f"Archive row was committed despite builder raise (found {archive_count} rows)"
             )
-
-
-

@@ -33,7 +33,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -41,8 +40,7 @@ pytestmark = pytest.mark.sqlite
 
 
 HEX_PATTERN_DOC = (
-    "Exact 64 lowercase hex chars; uppercase, non-hex, or "
-    "wrong-length values must be rejected."
+    "Exact 64 lowercase hex chars; uppercase, non-hex, or wrong-length values must be rejected."
 )
 
 _LOWER = "0123456789abcdef"
@@ -132,7 +130,9 @@ def _write_archive_row_directly(
     cur.execute("PRAGMA ignore_check_constraints=0")
 
 
-from tests.integration.test_migration_0034_downgrade_guard_sqlite import (
+# Must import after pytestmark; noqa tacked onto the import line itself.
+from tests.integration.test_migration_0034_downgrade_guard_sqlite import (  # noqa: E402
+    _downgrade_one,
     _insert_full_chain,
     _insert_production_scheme_run,
     _upgrade_to_head,
@@ -164,9 +164,6 @@ def _seed_production_chain(db_path: str) -> str:
 
 def _attempt_downgrade(db_path: str) -> subprocess.CompletedProcess:
     """Run ``alembic downgrade 0033_extend_outbox_envelope``."""
-    from tests.integration.test_migration_0034_downgrade_guard_sqlite import (
-        _downgrade_one,
-    )
     return _downgrade_one(Path(db_path), "0033_extend_outbox_envelope")
 
 
@@ -259,12 +256,8 @@ class TestHexStrictLowercase:
 
             conn = sqlite3.connect(db_path)
             try:
-                rev = conn.execute(
-                    "SELECT version_num FROM alembic_version"
-                ).fetchone()[0]
-                assert rev == "0033_extend_outbox_envelope", (
-                    f"version not rolled back: got {rev!r}"
-                )
+                rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+                assert rev == "0033_extend_outbox_envelope", f"version not rolled back: got {rev!r}"
             finally:
                 conn.close()
         finally:
@@ -288,12 +281,8 @@ class TestHexStrictLowercase:
                 "downgrade should be BLOCKED for uppercase 64 hex; "
                 "the lenient int(x, 16) check previously let this slip"
             )
-            assert (
-                "downgrade blocked" in r.stderr
-                or "downgrade blocked" in r.stdout
-            ), (
-                f"missing blocker message:\nstderr={r.stderr!r}\n"
-                f"stdout={r.stdout!r}"
+            assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+                f"missing blocker message:\nstderr={r.stderr!r}\nstdout={r.stdout!r}"
             )
 
             # Verify the table is intact (downgrade did not drop it).
@@ -304,8 +293,7 @@ class TestHexStrictLowercase:
                     "type='table' AND name='production_source_archives'"
                 ).fetchone()[0]
                 assert exists == 1, (
-                    "production_source_archives table missing after "
-                    "blocked downgrade"
+                    "production_source_archives table missing after blocked downgrade"
                 )
             finally:
                 conn.close()
@@ -324,15 +312,10 @@ class TestHexStrictLowercase:
 
         try:
             assert r.returncode != 0, (
-                "downgrade should be BLOCKED for non-hex char in "
-                "position 0 (char 'g')"
+                "downgrade should be BLOCKED for non-hex char in position 0 (char 'g')"
             )
-            assert (
-                "downgrade blocked" in r.stderr
-                or "downgrade blocked" in r.stdout
-            ), (
-                f"missing blocker message:\nstderr={r.stderr!r}\n"
-                f"stdout={r.stdout!r}"
+            assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
+                f"missing blocker message:\nstderr={r.stderr!r}\nstdout={r.stdout!r}"
             )
         finally:
             db_obj.unlink(missing_ok=True)
@@ -345,13 +328,8 @@ class TestHexStrictLowercase:
         r = _attempt_downgrade(db_path)
 
         try:
-            assert r.returncode != 0, (
-                "downgrade should be BLOCKED for length=63"
-            )
-            assert (
-                "downgrade blocked" in r.stderr
-                or "downgrade blocked" in r.stdout
-            ), (
+            assert r.returncode != 0, "downgrade should be BLOCKED for length=63"
+            assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
                 f"missing blocker message:\nstderr={r.stderr!r}"
             )
         finally:
@@ -365,13 +343,8 @@ class TestHexStrictLowercase:
         r = _attempt_downgrade(db_path)
 
         try:
-            assert r.returncode != 0, (
-                "downgrade should be BLOCKED for length=65"
-            )
-            assert (
-                "downgrade blocked" in r.stderr
-                or "downgrade blocked" in r.stdout
-            ), (
+            assert r.returncode != 0, "downgrade should be BLOCKED for length=65"
+            assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
                 f"missing blocker message:\nstderr={r.stderr!r}"
             )
         finally:
@@ -390,13 +363,9 @@ class TestHexStrictLowercase:
 
         try:
             assert r.returncode != 0, (
-                "downgrade should be BLOCKED for mixed-case (lenient "
-                "int(x, 16) would accept this)"
+                "downgrade should be BLOCKED for mixed-case (lenient int(x, 16) would accept this)"
             )
-            assert (
-                "downgrade blocked" in r.stderr
-                or "downgrade blocked" in r.stdout
-            ), (
+            assert "downgrade blocked" in r.stderr or "downgrade blocked" in r.stdout, (
                 f"missing blocker message:\nstderr={r.stderr!r}"
             )
         finally:
