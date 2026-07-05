@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
 from cold_storage.bootstrap.settings import Settings
@@ -10,6 +10,11 @@ from cold_storage.modules.planning_agent.application.agent_service import Legacy
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.infrastructure.database import DatabaseProjectService
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import sessionmaker
+
+    from cold_storage.modules.schemes.application.production_service import ProductionSchemeService
 
 _singletons: dict[str, Any] = {}
 
@@ -23,6 +28,22 @@ def init_dependencies(settings: Settings) -> None:
     _singletons["engine"] = engine
     _singletons["project_service"] = project_service
     _singletons["agent_service"] = agent_service
+
+    # Production scheme service: wired via the canonical composition root
+    # so the production archive row is always written in the same UoW.
+    # Lazy import keeps `bootstrap.dependencies` free of application-tier
+    # imports at module load (the FastAPI test harness imports this file
+    # before the orchestration module is available).
+    from cold_storage.bootstrap.production_composition import (
+        compose_production_scheme_service,
+    )
+
+    session_factory_obj: sessionmaker[Any] = sessionmaker(bind=engine, expire_on_commit=False)
+    production_service: ProductionSchemeService = compose_production_scheme_service(
+        session_factory_obj,
+    )
+    _singletons["production_scheme_service"] = production_service
+    _singletons["production_session_factory"] = session_factory_obj
 
 
 def get_project_service() -> ProjectService:
@@ -44,6 +65,36 @@ def get_engine() -> Any:
     if "engine" not in _singletons:
         raise RuntimeError("Dependencies not initialized. Call init_dependencies(settings) first.")
     return _singletons["engine"]
+
+
+def get_production_scheme_service() -> "ProductionSchemeService":
+    """Return the production SchemeRun service singleton.
+
+    Wired through ``bootstrap.production_composition`` so the
+    production archive row always lands in the same UoW as the
+    ``scheme_runs`` INSERT.  Raises RuntimeError if dependencies
+    are not initialized.
+    """
+    if "production_scheme_service" not in _singletons:
+        raise RuntimeError(
+            "Dependencies not initialized. Call init_dependencies(settings) first.",
+        )
+    return _singletons["production_scheme_service"]  # type: ignore[no-any-return]
+
+
+def get_production_session_factory() -> "Callable[[], Any]":
+    """Return the production SchemeRun session-factory singleton.
+
+    Used by API routes / admin scripts that need a fresh
+    ``Session`` per request when constructing a
+    ``ProductionSchemeService`` directly (without going through
+    the cached singleton).
+    """
+    if "production_session_factory" not in _singletons:
+        raise RuntimeError(
+            "Dependencies not initialized. Call init_dependencies(settings) first.",
+        )
+    return _singletons["production_session_factory"]  # type: ignore[no-any-return]
 
 
 def shutdown_dependencies() -> None:
