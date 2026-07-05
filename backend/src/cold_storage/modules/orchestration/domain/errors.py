@@ -365,9 +365,7 @@ class SchemeSourceArchiveIntegrityError(OrchestrationDomainError):
     """
 
     def __init__(self, archive_hash: str, detail: str | None = None) -> None:
-        message = (
-            f"Scheme source archive integrity failure (hash {archive_hash!r})"
-        )
+        message = f"Scheme source archive integrity failure (hash {archive_hash!r})"
         if detail:
             message = f"{message}: {detail}"
         details: dict[str, object] = {"archive_hash": archive_hash}
