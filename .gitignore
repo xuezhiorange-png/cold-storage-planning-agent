@@ -60,12 +60,6 @@ data/
 # Evaluation generated output (Phase A run directories).
 # All generated artifacts under evaluation/ are ignored; only the
 # repository-owned fixtures/expected/manifest.* stay tracked.
-# Evaluation generated output (Phase A run directories).
-# All generated artifacts under the top-level evaluation/ are ignored;
-# only the repository-owned fixtures/expected/manifest.* stay tracked.
-# The eval runner source under backend/src/cold_storage/evaluation/ is
-# tracked explicitly below.
-# Anchored at repo root to avoid masking the production Python module.
 /evaluation/
 !/evaluation/fixtures/
 !/evaluation/expected/
@@ -77,4 +71,3 @@ data/
 
 # Hermes agent local state
 .hermes/
->>>>>>> origin/main

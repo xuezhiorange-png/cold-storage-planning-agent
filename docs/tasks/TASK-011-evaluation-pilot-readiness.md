@@ -1,15 +1,15 @@
 # Task 11 — Evaluation and Pilot Readiness
 
-Status: Phase B blocked by missing formal production calculation and persistence integration
+Status: Phase B blocked by missing formal production calculation orchestration path (standalone follow-up after Issue #22 closure; Round 12 reversal of Round 11 evaluation-owned production seeding)
 
 Issue: #20
-Prerequisite Issue: #22
-Blocking Review: 4586924145
+Prerequisite Issue: #22 (CLOSED via PR #33, 2026-07-05 — but Issue #22 closed a different gap and did NOT deliver the standalone scheme-callable application-orchestration path Phase B needs)
+Blocking Review: Round 11 (independent engineering review — evaluation-owned production seeding direction rejected)
 Blocked Head: dd02edc1196229e264df8c1a3dde0ca8be9162b6
 
 Branch: `codex/task-11-evaluation`
 
-Base: `main@9a815910571281704bf1768e6be78261a26f9117`
+Base: `main@e6dcd631059d1106947ff947ef8c5b9e1e214035` (with main merge `5af9b5e` retained from Round 11 cleanup)
 
 ## 1. Goal
 
@@ -374,3 +374,84 @@ and persistence service.  See [Issue #22](https://github.com/xuezhiorange-png/co
   yet produce a no-review baseline
 
 **Next step:** Complete prerequisite Issue #22, then resume Phase B.
+
+---
+
+## Round 12 addendum — 2026-07-05 (resumption withdrawal)
+
+Round 11 attempted to drive a real production `SchemeService` via an
+`evaluation_owned` `production_seeding` module (1.2k LoC).  The
+independent engineering review **rejected** that direction in Round 11
+because it fabricates production records in evaluation code:
+
+- five `CalculationRunRecord` rows + `SourceBindingRecord` + approved
+  weight-set revision + orchestration identity/attempt/execution-snapshot/
+  coefficient-context rows that the production path is supposed to
+  generate, NOT the evaluation harness;
+- engineering-input bridges for `cooling_load` and `equipment` that
+  derived inputs from upstream stage outputs.
+
+Round 12 reverses that direction in full and re-blocks Phase B on a
+**standalone production capability gap** that no closed prerequisite
+has yet delivered — distinct from Issue #22 (which closed the
+TransportB E2E persistence gap, a different concern).
+
+### Round 12 changes
+
+- `backend/src/cold_storage/evaluation/production_seeding.py` —
+  **DELETED** (1.2k LoC, never used outside this branch)
+- `backend/src/cold_storage/evaluation/execute.py` — `_require_scheme_production_prerequisite` retained but its
+  `details` no longer reference `prerequisite_issue=22`; documents
+  the post-Issue-22 standalone production-capability gap
+- `backend/src/cold_storage/evaluation/errors.py` —
+  `EvaluationPrerequisiteMissingError` docstring updated; default
+  `details.missing_capability` set to
+  `formal_production_calculation_orchestration_path`,
+  `details.blocked_by = production_capability_gap`,
+  `details.requires_follow_up_task = true`
+- `backend/tests/evaluation/test_sqlite_acceptance.py` — replaced all
+  `details.prerequisite_issue == 22` and
+  `details.missing_capability == "formal_application_orchestration_and_persistence"`
+  assertions with the new contract (39 tests still pass)
+- `evaluation/manifest.json` — `baseline-feasible.expected_outcome`
+  restored to `success` (Round 8 frozen contract preserved)
+- `evaluation/expected/*.v1.json` — restored to Round 8 reviewed state
+- `docs/tasks/TASK-011-evaluation-pilot-readiness.md` — this section added
+
+### Round 12 status
+
+- PR #21: Draft ✓ / Open ✓ / Not merged ✓
+- Issue #20: OPEN, untouched
+- Task 11 Phase B: **blocked** by missing production entrypoint
+- Task 11 Phase C / Phase D: not started
+- Task 12: not started
+
+### What Phase B still needs (for the next follow-up task, NOT this PR)
+
+1. **Formal application orchestration from approved ProjectVersion**
+   in `modules/orchestration/application/`.
+2. **Five `CalculationRunRecord` persistence** via real production
+   calculators (no evaluation-owned bridges).
+3. **Verified `SourceBindingRecord` generation** via the production
+   `build_source_snapshot_content_v1` / combined-source-hash path.
+4. **Approved non-demo coefficient path** so
+   `requires_review=false` baselines are reachable from catalog
+   inputs (Issue #22 acceptance #13).
+5. **`requires_review=false` baseline capability** for the baseline
+   fixture — currently unreachable because `ColdRoomZonePlanner.plan()`
+   and `InvestmentEstimator.estimate()` hard-code demo coefficients.
+6. **SchemeService-compatible typed snapshots** produced end-to-end
+   without test-class adapters.
+7. **Audit / provenance / hash / source governance** for all of the
+   above.
+
+### Honest constraint re-statement
+
+Until (5) is delivered, **baseline-feasible cannot compute to
+`outcome=success` through any real production path** — every real
+production calculator hard-codes demo coefficients and flags
+`requires_review=true`.  Phase B acceptance must therefore remain
+frozen at `expected_outcome=success` (the contract) while the runner
+correctly emits `outcome=blocked` at the harness layer via the
+production-capability gate; `success` will only be reachable in a
+future round once the production capability gap is closed.

@@ -138,17 +138,25 @@ class RunInputInvalidError(RunDirectoryError):
 
 
 class EvaluationPrerequisiteMissingError(EvaluationError):
-    """A required production prerequisite is not yet available.
+    """A required production capability is not yet available.
 
     Raised when the evaluation runner needs a formal production
-    orchestration/persistence capability that has not yet been
-    implemented.  The evaluation module MUST NOT fabricate its own
-    CalculationRunRecord or engineer its own input synthesis.
+    calculation-orchestration path that has not yet been delivered
+    under any task.  The evaluation module MUST NOT fabricate its own
+    CalculationRunRecord, MUST NOT construct orchestration identity /
+    attempt / execution-snapshot / coefficient-context rows, MUST
+    NOT engineer its own input synthesis, and MUST NOT bypass
+    SchemeService verification with hand-written snapshots.
 
     This is a structured blocker — not a business outcome.
     The baseline contract still requires ``success``; this error
     marks the *evaluation harness* as blocked, not the scenario
-    as ``blocked``.
+    as ``blocked`` via a misclassification.
+
+    Issue #22 closed the cross-backend TransportB E2E persistence gap,
+    but the production-scheme-callable path that consumes an approved
+    ProjectVersion and produces SchemeService-compatible records
+    remains a standalone follow-up task.
     """
 
     def __init__(
@@ -165,8 +173,10 @@ class EvaluationPrerequisiteMissingError(EvaluationError):
                 "cooling_load",
                 "equipment",
             ],
-            "missing_capability": "formal_application_orchestration_and_persistence",
+            "missing_capability": "formal_production_calculation_orchestration_path",
             "task_status": "blocked",
+            "blocked_by": "production_capability_gap",
+            "requires_follow_up_task": True,
         }
         super().__init__(
             code="EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING",

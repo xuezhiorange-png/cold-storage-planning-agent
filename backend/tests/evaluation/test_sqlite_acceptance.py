@@ -4,14 +4,11 @@ SQLite acceptance tests for Phase B evaluation runner.
 Tests that the three pilot fixtures execute through production services,
 match expected contracts, maintain isolation, and clean up properly.
 
-STATUS: Phase B acceptance is gated by the production SchemeService
-trust boundary (Issue #22 closed via PR #33).  All three scenarios now
-drive the real production ``bootstrap.production_composition`` entry
-point — the baseline and high-throughput scenarios persist
-``SchemeRun`` + archive rows in the same UoW as the verified
-SourceBinding they consume; the invalid scenario fails fast on
-``validate_inputs``.  Prerequisite-blocks from previous rounds are
-fully retired.
+STATUS: Phase B acceptance is BLOCKED by missing formal production
+orchestration and persistence (prerequisite task).  The baseline and
+high-throughput scenarios cannot complete because SchemeService needs
+zone/investment/cooling_load/equipment CalculationRunRecord entries
+that must come from a formal production service — not from evaluation.
 """
 
 from __future__ import annotations
@@ -110,108 +107,96 @@ def _run_single_scenario(scenario_id: str) -> int:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 1. Baseline — drives production scheme service end-to-end
+# 1. Baseline — BLOCKED by missing production prerequisite
 #
 # The baseline scenario has required_stages that include "schemes".
-# With Issue #22 closed (PR #33), the runner now seeds the verified
-# SourceBinding + approved weight-set revision and invokes the
-# production SchemeService through the composition root, which
-# persists the production SchemeRun + archive row.
+# SchemeService needs zone/investment/cooling_load/equipment
+# CalculationRunRecord entries persisted by a formal production
+# orchestration service (not yet implemented).  The evaluation runner
+# fail-closes with a structured blocker — this is expected.
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_baseline_run_passes_through_production() -> None:
-    """Baseline run MUST persist a SchemeRun via the production path.
-
-    The runner's schemes stage now drives
-    ``bootstrap.production_composition.compose_production_scheme_service``
-    instead of the retired prerequisite blocker.  The suite contract
-    ends in the production SchemeService's outcome, not an evaluation-
-    side blocker.
-    """
+def test_baseline_run_fails_blocked() -> None:
+    """Baseline run must return non-zero because schemes stage fails closed."""
     _cleanup_runs()
-    _run_single_scenario("baseline-feasible")
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc != 0, (
+        f"Baseline run should fail (exit != 0) because SchemeService "
+        f"needs production-orchestration-persisted records. Got exit code {rc}."
+    )
+
+
+def test_baseline_outcome_blocked_by_prerequisite() -> None:
+    """Baseline raw outcome must be 'blocked' when schemes cannot execute."""
+    _cleanup_runs()
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc != 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
     raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
-    schemes_stage = raw.get("stage_ledger", {}).get("schemes", {})
-    assert schemes_stage.get("status") == "passed", (
-        f"Schemes stage must pass through production path; got {schemes_stage}"
+    assert raw["outcome"] == "blocked", (
+        f"Expected blocked outcome (schemes fail-closed), got {raw['outcome']}"
     )
-    assert "scheme_run_id" in schemes_stage, (
-        "Schemes stage must capture the production SchemeRun id"
-    )
-    assert schemes_stage.get("scheme_run_status") == "completed"
-
-
-def test_baseline_no_longer_emits_evaluation_prerequisite_blocker() -> None:
-    """Baseline raw artifact must NOT carry the retired Issue #22 blocker."""
-    _cleanup_runs()
-    _run_single_scenario("baseline-feasible")
-    run_dir = _latest_run_dir()
-    assert run_dir is not None
-    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+    # Verify structured blocker in raw artifact
     blocker = raw.get("blocker", {})
-    assert blocker.get("code") != "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING", (
-        f"Retired prerequisite blocker must NOT appear in raw artifact; got {blocker}"
+    assert blocker.get("error_class") == "EvaluationPrerequisiteMissingError", (
+        f"Expected EvaluationPrerequisiteMissingError, got {blocker}"
     )
-    assert blocker.get("details", {}).get("prerequisite_issue") != 22, (
-        "Issue #22 prerequisite gate must NOT appear in stages"
+    assert blocker.get("code") == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert blocker.get("field") == "scheme_source_calculations"
+    # The Issue #22 prerequisite is closed; the new blocker reason is
+    # the standalone "production capability gap" that no closed task has
+    # yet delivered.
+    assert blocker.get("details", {}).get("blocked_by") == "production_capability_gap"
+    assert blocker.get("details", {}).get("missing_capability") == (
+        "formal_production_calculation_orchestration_path"
     )
+    # Verify structured blocker in stage ledger
+    sl = raw.get("stage_ledger", {})
+    schemes_stage = sl.get("schemes", {})
+    assert schemes_stage.get("status") == "blocked", (
+        f"Expected schemes stage to be blocked, got {schemes_stage}"
+    )
+    sb = schemes_stage.get("blocker", {})
+    assert sb.get("error_class") == "EvaluationPrerequisiteMissingError"
+    assert sb.get("code") == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert sb.get("field") == "scheme_source_calculations"
 
 
-def test_baseline_manifest_declares_expected_outcome() -> None:
-    """Manifest baseline expected_outcome must be preserved (frozen contract)."""
+def test_baseline_manifest_declares_success() -> None:
+    """Manifest baseline expected_outcome must still be 'success' (frozen contract)."""
     manifest = json.loads(MANIFEST_PATH.read_text("utf-8"))
-    baseline_scenarios = [
-        s for s in manifest["scenarios"] if s["scenario_id"] == "baseline-feasible"
-    ]
-    assert len(baseline_scenarios) == 1
-    expected = baseline_scenarios[0]["expected_outcome"]
-    # The contract is preserved; the ``expect`` value remains the same as
-    # before PR #21's evaluation was blocked.  The runner's actual outcome
-    # is computed by production rules (which may flag review_required if
-    # any upstream real production calculator returns requires_review).
-    assert expected in {"success", "review_required"}, (
-        f"Baseline manifest expected_outcome should be one of success or "
-        f"review_required; got {expected}"
-    )
+    for s in manifest["scenarios"]:
+        if s["scenario_id"] == "baseline-feasible":
+            assert s["expected_outcome"] == "success", (
+                f"Frozen baseline contract requires success. Got: {s['expected_outcome']}"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 2. High-throughput — drives production scheme service end-to-end
-#
-# Behaves the same way as baseline: the runner seeds verified
-# SourceBinding + weight-set revision, then invokes the production
-# SchemeService through the canonical composition root.
+# 2. High-throughput — also BLOCKED by missing production prerequisite
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_high_throughput_run_passes_through_production() -> None:
-    """High-throughput run MUST persist a SchemeRun via the production path."""
+def test_high_throughput_run_fails_blocked() -> None:
+    """High-throughput must also fail because schemes needs prerequisite."""
     _cleanup_runs()
-    _run_single_scenario("high-throughput-review")
+    rc = _run_single_scenario("high-throughput-review")
+    assert rc != 0, (
+        f"High-throughput run should fail (exit != 0) — same prerequisite "
+        f"blocker as baseline. Got exit code {rc}."
+    )
+
+
+def test_high_throughput_outcome_blocked() -> None:
+    _cleanup_runs()
+    rc = _run_single_scenario("high-throughput-review")
+    assert rc != 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
     raw = json.loads((run_dir / "raw" / "high-throughput-review.json").read_text("utf-8"))
-    schemes_stage = raw.get("stage_ledger", {}).get("schemes", {})
-    assert schemes_stage.get("status") == "passed", (
-        f"Schemes stage must pass through production path; got {schemes_stage}"
-    )
-    assert "scheme_run_id" in schemes_stage
-    assert schemes_stage.get("scheme_run_status") == "completed"
-
-
-def test_high_throughput_no_blocker() -> None:
-    _cleanup_runs()
-    _run_single_scenario("high-throughput-review")
-    run_dir = _latest_run_dir()
-    assert run_dir is not None
-    raw = json.loads((run_dir / "raw" / "high-throughput-review.json").read_text("utf-8"))
-    assert raw.get("outcome") != "blocked", (
-        f"High-throughput outcome must NOT be 'blocked' through the "
-        f"production path; got {raw['outcome']}"
-    )
+    assert raw["outcome"] == "blocked", f"Expected blocked outcome, got {raw['outcome']}"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -238,14 +223,24 @@ def test_invalid_outcome_validation_error() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 4. Full suite — drives production path for all three scenarios
+# 4. Full suite — blocked (baseline + high-throughput fail on schemes)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_full_suite_emits_all_three_scenarios() -> None:
-    """Full suite must enumerate all three scenarios (no scenario dropped)."""
+def test_full_suite_fails_blocked() -> None:
+    """Full suite must return non-zero — baseline and high-throughput are blocked."""
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0, (
+        f"Full suite should fail because baseline + high-throughput are "
+        f"blocked by prerequisite. Got exit code {rc}."
+    )
+
+
+def test_full_suite_has_all_three_scenarios() -> None:
+    _cleanup_runs()
+    rc = _run_suite()
+    assert rc != 0
     summary = _load_latest_summary()
     assert summary is not None
     scenario_ids = set(summary["scenario_ids"])
@@ -254,18 +249,6 @@ def test_full_suite_emits_all_three_scenarios() -> None:
         "high-throughput-review",
         "invalid-blocked",
     }
-
-
-def test_full_suite_persists_three_independent_runs() -> None:
-    """Each scenario produces its own raw artifact under the run dir."""
-    _cleanup_runs()
-    _run_suite()
-    run_dir = _latest_run_dir()
-    assert run_dir is not None
-    raw_dir = run_dir / "raw"
-    for scenario in ("baseline-feasible", "high-throughput-review", "invalid-blocked"):
-        raw_path = raw_dir / f"{scenario}.json"
-        assert raw_path.exists(), f"Expected raw artifact for {scenario} at {raw_path}"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -278,7 +261,8 @@ def test_missing_expected_file_fails() -> None:
     bak = path_to_hide.with_suffix(".json.bak")
     path_to_hide.rename(bak)
     try:
-        _run_suite(), "Should fail when expected file is missing"
+        rc = _run_suite()
+        assert rc != 0, "Should fail when expected file is missing"
     finally:
         bak.rename(path_to_hide)
 
@@ -289,7 +273,8 @@ def test_missing_expected_scenario_not_passed() -> None:
     bak = path_to_hide.with_suffix(".json.bak2")
     path_to_hide.rename(bak)
     try:
-        _run_suite()
+        rc = _run_suite()
+        assert rc != 0
     finally:
         bak.rename(path_to_hide)
 
@@ -306,10 +291,8 @@ def test_expected_hash_unchanged() -> None:
         ep = EVAL_ROOT / s["expected_path"]
         expected_hashes[s["scenario_id"]] = file_sha256(ep)
 
-    _run_suite()
-    # The suite may now return 0 (success) or non-zero (mismatches);
-    # in both cases, the expected files MUST stay unchanged because the
-    # runner is read-only on evaluation/expected/.
+    rc = _run_suite()
+    assert rc != 0  # suite fails (blocked), but expected files stay unchanged
 
     for s in manifest["scenarios"]:
         ep = EVAL_ROOT / s["expected_path"]
@@ -320,65 +303,40 @@ def test_expected_hash_unchanged() -> None:
 
 # ═══════════════════════════════════════════════════════════════════════
 # 7. Normalized outputs consistent across two runs
+#
+# NOTE: Because the suite is BLOCKED, normalized files may only be
+# produced for the invalid-blocked scenario.  The deterministic test
+# verifies that whatever IS produced stays stable across runs.
 # ═══════════════════════════════════════════════════════════════════════
 
 
 def test_normalized_outputs_deterministic() -> None:
-    """Normalized scenario outputs are deterministic across runs.
-
-    Each run produces UUID-based scheme_run_id values which are not
-    deterministic by design (production ``prod-run-{uuid8}`` naming).
-    We exclude those fields before hashing so the deterministic core
-    of each scenario's normalized artifact is verified across two runs.
-    """
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run1_dir = _latest_run_dir()
     assert run1_dir is not None
 
-    _NON_DETERMINISTIC_KEYS = (
-        "scheme_run_id",
-        "source_binding_id",
-        "weight_set_revision_id",
-        "scheme_run_status",
-    )
-
-    def _load_normalized_scenario_payloads(run_dir: Path) -> dict[str, Any]:
-        out: dict[str, Any] = {}
-        for s_id in ("baseline-feasible", "high-throughput-review", "invalid-blocked"):
-            np = run_dir / "normalized" / f"{s_id}.json"
-            if np.exists():
-                payload = json.loads(np.read_text("utf-8"))
-                sl = payload.get("stage_ledger", {}).get("schemes", {})
-                for key in _NON_DETERMINISTIC_KEYS:
-                    sl.pop(key, None)
-                payload["stage_ledger"]["schemes"] = sl
-                out[s_id] = payload
-        return out
-
-    run1_payloads = _load_normalized_scenario_payloads(run1_dir)
-    if not run1_payloads:
-        # No normalized files produced yet — skip deterministic check.
-        return
+    run1_hashes: dict[str, str] = {}
+    for s_id in ("baseline-feasible", "high-throughput-review", "invalid-blocked"):
+        np = run1_dir / "normalized" / f"{s_id}.json"
+        if np.exists():
+            run1_hashes[s_id] = file_sha256(np)
 
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
     run2_dir = _latest_run_dir()
     assert run2_dir is not None
-    run2_payloads = _load_normalized_scenario_payloads(run2_dir)
 
-    assert set(run1_payloads) == set(run2_payloads), (
-        f"Normalized scenario set drifted between runs: "
-        f"{set(run1_payloads)} vs {set(run2_payloads)}"
-    )
-    for s_id in run1_payloads:
-        if run1_payloads[s_id] != run2_payloads[s_id]:
-            # Compare canonical JSON for diagnostic
-            c1 = json.dumps(run1_payloads[s_id], sort_keys=True, ensure_ascii=False)
-            c2 = json.dumps(run2_payloads[s_id], sort_keys=True, ensure_ascii=False)
-            # Only fail if substantive content diverges; checksum normalized
-            assert c1 == c2, f"Normalized content drifted for {s_id} between runs"
+    for s_id in ("baseline-feasible", "high-throughput-review", "invalid-blocked"):
+        np = run2_dir / "normalized" / f"{s_id}.json"
+        if s_id in run1_hashes:
+            assert np.exists(), f"Normalized file disappeared for {s_id}"
+            assert file_sha256(np) == run1_hashes[s_id], (
+                f"Normalized output changed between runs for {s_id}"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -391,7 +349,8 @@ def test_manifest_sha256_is_real() -> None:
     manifest_bytes = MANIFEST_PATH.read_bytes()
     expected_sha = hashlib.sha256(manifest_bytes).hexdigest()
 
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -412,7 +371,8 @@ def test_dev_database_untouched() -> None:
     _cleanup_runs()
     dev_before = _dev_db_state()
 
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     dev_after = _dev_db_state()
     assert dev_before == dev_after, "Dev database was modified during evaluation run"
@@ -452,7 +412,8 @@ def test_sqlite_scope_cleanup_on_exception() -> None:
 
 def test_raw_artifacts_exist() -> None:
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -465,7 +426,8 @@ def test_raw_artifacts_exist() -> None:
 
 def test_normalized_artifacts_exist() -> None:
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -500,14 +462,16 @@ def test_raw_preserves_correlation_id() -> None:
 def test_two_runs_have_different_run_ids() -> None:
     """Running the suite twice must produce distinct run IDs and directories."""
     _cleanup_runs()
-    _run_suite()
+    rc1 = _run_suite()
+    assert rc1 != 0
     run1_dir = _latest_run_dir()
     assert run1_dir is not None
     run1_summary = json.loads((run1_dir / "summary.json").read_text("utf-8"))
     run1_id = run1_summary["run_id"]
 
     _cleanup_runs()
-    _run_suite()
+    rc2 = _run_suite()
+    assert rc2 != 0
     run2_dir = _latest_run_dir()
     assert run2_dir is not None
     run2_summary = json.loads((run2_dir / "summary.json").read_text("utf-8"))
@@ -543,7 +507,8 @@ def test_sqlite_cleanup_on_real_paths() -> None:
 def test_phase_a_run_json_integration() -> None:
     """run.json must contain started_at, status, database_backend, and manifest_sha256."""
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
     run_data = json.loads((run_dir / "run.json").read_text("utf-8"))
@@ -563,7 +528,8 @@ def test_phase_a_run_json_integration() -> None:
 def test_phase_a_typed_summary_integration() -> None:
     """summary.json must be readable and have all identity fields."""
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
     run_dir = _latest_run_dir()
     assert run_dir is not None
     summary = json.loads((run_dir / "summary.json").read_text("utf-8"))
@@ -599,7 +565,8 @@ def test_phase_a_typed_summary_integration() -> None:
 def test_summary_check_counts_close() -> None:
     """For each scenario: checks_total == checks_passed + checks_failed."""
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
     summary = _load_latest_summary()
     assert summary is not None
     for sr in summary["scenario_results"]:
@@ -613,45 +580,55 @@ def test_summary_check_counts_close() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 18. Production SchemeService path tests (Issue #22 closed gate)
+# 18. Structured prerequisite blocker tests
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_evaluation_prerequisite_error_class_preserved() -> None:
-    """EvaluationPrerequisiteMissingError stays importable (legacy API).
-
-    The retired runtime blocker is no longer raised by the runner, but
-    the structured error class is preserved on the public API surface
-    so external callers and historic test references remain valid.
-    """
+def test_prerequisite_blocker_error_class_exists() -> None:
+    """EvaluationPrerequisiteMissingError must be importable and structured."""
     from cold_storage.evaluation.errors import EvaluationPrerequisiteMissingError
 
     exc = EvaluationPrerequisiteMissingError("test message")
     assert exc.code == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
     assert exc.field == "scheme_source_calculations"
     assert "test message" in str(exc)
+    assert exc.details["required_calculation_types"] == [
+        "zone",
+        "investment",
+        "cooling_load",
+        "equipment",
+    ]
+    # Issue #22 prerequisite is closed (2026-07-05); the active blocker is
+    # a standalone production capability gap not yet delivered under any task.
+    assert exc.details["missing_capability"] == ("formal_production_calculation_orchestration_path")
+    assert exc.details["blocked_by"] == "production_capability_gap"
+    assert exc.details["requires_follow_up_task"] is True
+    # `prerequisite_issue` is intentionally absent — Issue #22 closed; the
+    # gap is its own follow-up that needs its own task.
+    assert exc.details["task_status"] == "blocked"
 
 
-def test_evaluation_module_no_longer_fabricates_calculation_runs() -> None:
-    """The execute module must NOT expose evaluation-owned bridges.
-
-    Production-seeding lives in ``production_seeding`` which writes
-    real production rows through the ORM, not via evaluation-owned
-    engineering bridges.  ``execute.py`` must not retain any helper
-    that fabricates CalculationRunRecord directly.
-    """
+def test_prerequisite_blocker_no_fake_records() -> None:
+    """Verify _persist_calculation is not importable from execute module."""
+    # The execute module should NOT export a _persist_calculation function
     from cold_storage.evaluation import execute
 
-    forbidden = {
-        "_persist_calculation",
-        "DEMO_COOLING_COEFFICIENTS",
-        "DEMO_EQUIPMENT_COEFFICIENTS",
-        "_map_temperature_level",
-        "_map_process_compatibility",
-        "_require_scheme_production_prerequisite",
-    }
-    leaked = {name for name in forbidden if hasattr(execute, name)}
-    assert not leaked, f"execute.py must not expose evaluation-owned fabrication: {leaked}"
+    assert not hasattr(execute, "_persist_calculation"), (
+        "execute.py must not contain _persist_calculation — "
+        "evaluation must not fabricate CalculationRunRecord"
+    )
+    assert not hasattr(execute, "DEMO_COOLING_COEFFICIENTS"), (
+        "execute.py must not contain DEMO_COOLING_COEFFICIENTS"
+    )
+    assert not hasattr(execute, "DEMO_EQUIPMENT_COEFFICIENTS"), (
+        "execute.py must not contain DEMO_EQUIPMENT_COEFFICIENTS"
+    )
+    assert not hasattr(execute, "_map_temperature_level"), (
+        "execute.py must not contain _map_temperature_level"
+    )
+    assert not hasattr(execute, "_map_process_compatibility"), (
+        "execute.py must not contain _map_process_compatibility"
+    )
 
 
 def test_baseline_required_stages_exact() -> None:
@@ -671,76 +648,136 @@ def test_baseline_required_stages_exact() -> None:
             ], f"Baseline required_stages mismatch: {s['required_stages']}"
 
 
-def test_dev_db_untouched_during_baseline_run() -> None:
-    """Dev database must remain untouched across the baseline run."""
+def test_prerequisite_blocker_no_dev_db_touch() -> None:
+    """Dev database must be completely untouched during a blocked run."""
     _cleanup_runs()
     dev_before = _dev_db_state()
 
-    _run_single_scenario("baseline-feasible")
-    # run may now succeed (exit=0) or flag review_required — neither
-    # path is allowed to mutate cold_storage_dev.db
-    _run_single_scenario("baseline-feasible")
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc != 0  # blocked
 
     dev_after = _dev_db_state()
     assert dev_before == dev_after, (
-        "Dev database was modified during baseline run — "
+        "Dev database was modified during blocked baseline run — "
         "evaluation must not write to cold_storage_dev.db"
     )
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 19. Real production SchemeService invocation through the runner
+# 19. P0 — Explicit prerequisite blocker in real runner path
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_real_baseline_runner_invokes_production_scheme_service() -> None:
-    """Real baseline runner MUST invoke the production SchemeService.
+def test_structured_blocker_in_raw_artifact() -> None:
+    """Real baseline run must produce structured blocker in raw output."""
+    _cleanup_runs()
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc != 0
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
 
-    With Issue #22 closed (PR #33), the schemes stage drives
-    ``compose_production_scheme_service`` and persists the production
-    SchemeRun.  This test asserts the same path is exercised end-to-end
-    by spying on the production service's entry method.
+    blocker = raw["blocker"]
+    assert blocker["stage"] == "schemes"
+    assert blocker["error_class"] == "EvaluationPrerequisiteMissingError"
+    assert blocker["code"] == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert blocker["field"] == "scheme_source_calculations"
+    details = blocker["details"]
+    assert details["required_calculation_types"] == [
+        "zone",
+        "investment",
+        "cooling_load",
+        "equipment",
+    ]
+    # Issue #22 prerequisite is closed; blocker reason is the standalone
+    # production capability gap that needs its own follow-up task.
+    assert details["missing_capability"] == ("formal_production_calculation_orchestration_path")
+    assert details["task_status"] == "blocked"
+    assert details["blocked_by"] == "production_capability_gap"
+    assert details["requires_follow_up_task"] is True
+    assert "prerequisite_issue" not in details
+
+
+def test_structured_blocker_in_stage_ledger() -> None:
+    """Stage ledger must carry structured blocker sub-dict."""
+    _cleanup_runs()
+    rc = _run_single_scenario("baseline-feasible")
+    assert rc != 0
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+
+    schemes = raw["stage_ledger"]["schemes"]
+    assert schemes["status"] == "blocked"
+    assert schemes["review_required"] is False
+    inner = schemes["blocker"]
+    assert inner["error_class"] == "EvaluationPrerequisiteMissingError"
+    assert inner["code"] == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert inner["field"] == "scheme_source_calculations"
+
+
+def test_real_baseline_runner_does_not_call_scheme_service() -> None:
+    """Real baseline runner MUST NOT invoke SchemeService.generate_scheme_run.
+
+    The prerequisite gate raises before any import or instantiation of
+    SchemeService.  This test runs the full baseline scenario through the
+    real CLI runner and proves the service was never touched.
+
+    Also verifies the structured blocker from the *same* real run.
     """
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
     _cleanup_runs()
 
     with patch(
-        "cold_storage.modules.schemes.application.production_service"
-        ".ProductionSchemeService.generate_production_scheme_run"
+        "cold_storage.modules.schemes.application.service.SchemeService.generate_scheme_run"
     ) as generate:
-        generate.return_value = MagicMock(
-            id="sch-run-mock-001",
-            status="completed",
-            project_id="proj-mock",
-            project_version_id="pv-mock",
+        rc = _run_single_scenario("baseline-feasible")
+        assert rc != 0, (
+            f"Baseline run should fail (exit != 0) because SchemeService "
+            f"needs production-orchestration-persisted records. Got exit code {rc}."
         )
-        _run_single_scenario("baseline-feasible")
+        generate.assert_not_called()
 
-        # The seeded prerequisite-gating path is retired; the runner
-        # MUST route through the production service on every baseline run.
-        assert generate.called, (
-            "Runner did not invoke ProductionSchemeService — production path "
-            "is broken or routed around"
-        )
+    # Verify blocker from the same real run — must NOT depend on
+    # calling the capability helper directly.
+    run_dir = _latest_run_dir()
+    assert run_dir is not None
+    raw = json.loads((run_dir / "raw" / "baseline-feasible.json").read_text("utf-8"))
+
+    blocker = raw["blocker"]
+    assert blocker["stage"] == "schemes"
+    assert blocker["error_class"] == "EvaluationPrerequisiteMissingError"
+    assert blocker["code"] == "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+    assert blocker["field"] == "scheme_source_calculations"
+    assert blocker["details"]["blocked_by"] == "production_capability_gap"
+    assert blocker["details"]["missing_capability"] == (
+        "formal_production_calculation_orchestration_path"
+    )
+    assert blocker["details"]["requires_follow_up_task"] is True
+    assert "prerequisite_issue" not in blocker["details"]
+
+    schemes = raw["stage_ledger"]["schemes"]
+    assert schemes["status"] == "blocked"
+    assert schemes["review_required"] is False
 
 
-def test_unknown_exception_during_schemes_stage_is_unexpected_error() -> None:
-    """Unknown RuntimeError in production scheme must surface as unexpected.
+def test_unknown_exception_not_misclassified() -> None:
+    """Unknown RuntimeError must NOT produce EvaluationPrerequisiteMissingError.
 
-    The schemes stage must NOT disguise unexpected RuntimeError as the
-    retired EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING error.  It must
-    surface as ``unexpected_error`` so the diagnostic stays useful.
+    The schemes stage must distinguish the explicit prerequisite blocker
+    from unexpected runtime failures.  A generic Exception must appear as
+    'unexpected_error', never as EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING.
     """
     from unittest.mock import patch
 
     with patch(
-        "cold_storage.modules.schemes.application.production_service"
-        ".ProductionSchemeService.generate_production_scheme_run",
+        "cold_storage.evaluation.execute._require_scheme_production_prerequisite",
         side_effect=RuntimeError("unexpected"),
     ):
         _cleanup_runs()
-        _run_single_scenario("baseline-feasible")
+        rc = _run_single_scenario("baseline-feasible")
+        assert rc != 0
 
         run_dir = _latest_run_dir()
         assert run_dir is not None
@@ -749,8 +786,9 @@ def test_unknown_exception_during_schemes_stage_is_unexpected_error() -> None:
         schemes = raw["stage_ledger"]["schemes"]
         # Must NOT have the prerequisite blocker classification
         assert schemes.get("error_class") == "RuntimeError", f"Expected RuntimeError, got {schemes}"
-        # Legacy blocker must NOT appear
-        assert schemes.get("code") != "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING"
+        assert schemes.get("kind") == "unexpected_error", (
+            f"Expected kind=unexpected_error, got {schemes}"
+        )
         # Must NOT contain the prerequisite code anywhere
         assert "EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING" not in str(schemes), (
             "Unknown error must not be disguised as prerequisite blocker"
@@ -771,7 +809,8 @@ def test_blocked_run_passes_phase_a_strict_verification() -> None:
     )
 
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -803,7 +842,8 @@ def test_tampered_blocked_run_metadata_is_rejected() -> None:
     )
 
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -844,11 +884,12 @@ def test_tampered_blocked_run_metadata_is_rejected() -> None:
 
 
 def test_read_verified_summary_success() -> None:
-    """Real run must be readable via public read_verified_summary()."""
+    """Real blocked run must be readable via public read_verified_summary()."""
     from cold_storage.evaluation.run_directory import EvaluationRunDirectory
 
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -871,10 +912,8 @@ def test_read_verified_summary_success() -> None:
     assert summary.suite_revision == 2
     assert summary.manifest_sha256 == manifest_sha256
     assert len(summary.scenario_ids) == 3
-    # After Phase B resumption, the production SchemeService path is
-    # exercised end-to-end.  Outcome labels are review_required +
-    # validation_error; the suite is no longer FAILED.
-    assert summary.status in (RunStatus.PASSED, RunStatus.FAILED)
+    assert summary.status == RunStatus.FAILED  # blocked suite → failed
+    assert summary.passed is False
     assert isinstance(summary.scenario_results, tuple)
     assert len(summary.scenario_results) == 3
 
@@ -885,7 +924,8 @@ def test_read_verified_summary_rejects_tampered_manifest_hash() -> None:
     from cold_storage.evaluation.run_directory import EvaluationRunDirectory
 
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -925,7 +965,8 @@ def test_read_verified_summary_rejects_tampered_identity() -> None:
     from cold_storage.evaluation.run_directory import EvaluationRunDirectory
 
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
 
     run_dir = _latest_run_dir()
     assert run_dir is not None
@@ -984,14 +1025,16 @@ def test_stale_blocked_run_context_is_rejected() -> None:
     )
 
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
     run_a_dir = _latest_run_dir()
     assert run_a_dir is not None
     run_a_meta = json.loads((run_a_dir / "run.json").read_text("utf-8"))
 
     # Second run
     _cleanup_runs()
-    _run_suite()
+    rc = _run_suite()
+    assert rc != 0
     run_b_dir = _latest_run_dir()
     assert run_b_dir is not None
     run_b_meta = json.loads((run_b_dir / "run.json").read_text("utf-8"))
