@@ -1443,6 +1443,8 @@ class TestConcurrentAttemptNumberRace:
                             identity_id=identity_id,
                             attempt_number=99,  # same number for both
                             status="RUNNING",
+                            database_backend="postgresql",
+                            correlation_id=f"race-corr:{label}:{uuid.uuid4().hex}",
                         )
                     )
                     s.commit()

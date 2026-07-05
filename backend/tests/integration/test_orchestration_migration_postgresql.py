@@ -751,9 +751,10 @@ class TestDowngradeBlocker:
                     "weight_set_id, generator_version, source_snapshot_hash, status, "
                     "requires_review, input_snapshot, assumption_snapshot, "
                     "comparison_snapshot, candidates_snapshot, warning_messages, "
-                    "created_at, source_mode) "
+                    "created_at, source_mode, database_backend) "
                     "VALUES (:id, :pid, :pvid, 'ws-1', '1.0', 'h1', 'pending', "
-                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'legacy')"
+                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'legacy', "
+                    "'postgresql')"
                 ),
                 {"id": str(_uuid_mod.uuid4()), "pid": pid, "pvid": pvid},
             )
@@ -1081,13 +1082,13 @@ class TestDowngradeBlocker:
                     "power_calculation_id, investment_calculation_id, "
                     "zone_result_hash, cooling_load_result_hash, "
                     "equipment_result_hash, power_result_hash, "
-                    "investment_result_hash) "
+                    "investment_result_hash, database_backend) "
                     "VALUES (:id, :pid, :pvid, :wsid, '1.0', 'h1', 'pending', false, "
                     "'{}', '{}', '{}', '{}', '[]', now(), 'production', :src_bid, "
                     "'1.0', :wsrid, 'h1', '1.0', 'h1', '1.0', "
                     ":eid, :cid_ctx, :oid, :aid, "
                     "'fp', :zid, :clid, :eqid, :pwid, :ivid, "
-                    "'h1', 'h1', 'h1', 'h1', 'h1')"
+                    "'h1', 'h1', 'h1', 'h1', 'h1', 'postgresql')"
                 ),
                 {
                     "id": srid,
