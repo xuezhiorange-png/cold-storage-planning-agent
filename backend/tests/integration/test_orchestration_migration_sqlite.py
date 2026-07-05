@@ -1120,8 +1120,8 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0034_add_production_source_archives"
-        assert rev == expected_rev, f"Expected 0034, got {rev}"
+        expected_rev = "0035_phase1_identity_foundation"
+        assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
 
         # Downgrade to 0027
@@ -1142,7 +1142,7 @@ class TestTransactionBConstraints0028:
         )
         conn.close()
 
-        # Re-upgrade to head (0032)
+        # Re-upgrade to head
         r = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=BACKEND_DIR,
@@ -1155,8 +1155,8 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0034_add_production_source_archives"
-        assert rev == expected_rev, f"Expected 0034, got {rev}"
+        expected_rev = "0035_phase1_identity_foundation"
+        assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
         db_path.unlink(missing_ok=True)
 

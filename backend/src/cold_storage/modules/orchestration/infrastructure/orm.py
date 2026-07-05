@@ -194,16 +194,6 @@ class OrchestrationRunAttemptRecord(Base):
     """Mutable attempt lifecycle entity. Exactly one RUNNING per identity."""
 
     __tablename__ = "orchestration_run_attempts"
-    __table_args__ = (
-        UniqueConstraint("identity_id", "attempt_number", name="uq_attempt_identity_number"),
-        Index(
-            "uq_attempt_one_running",
-            "identity_id",
-            unique=True,
-            sqlite_where=text("status = 'RUNNING'"),
-            postgresql_where=text("status = 'RUNNING'"),
-        ),
-    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     identity_id: Mapped[str] = mapped_column(
@@ -230,8 +220,54 @@ class OrchestrationRunAttemptRecord(Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # ── Task 11B Phase 1 — schema-only identity foundation (0035) ──
+    # These columns are added by migration 0035_phase1_identity_foundation.
+    # The ORM mirror below is read-only and does NOT implement any
+    # orchestrator business logic — the orchestrator / SchemeService /
+    # SourceBinding implementations are deferred to separate phases.
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    database_backend: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="sqlite"
+    )
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False, server_default="")
+    actor_principal_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="user"
+    )
+    scheme_run_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("scheme_runs.id", use_alter=True),
+        nullable=True,
+    )
 
-# ── Source Binding ──────────────────────────────────────────────────────────
+    __table_args__ = (
+        UniqueConstraint("identity_id", "attempt_number", name="uq_attempt_identity_number"),
+        Index(
+            "uq_attempt_one_running",
+            "identity_id",
+            unique=True,
+            sqlite_where=text("status = 'RUNNING'"),
+            postgresql_where=text("status = 'RUNNING'"),
+        ),
+        # Phase 1: idempotency uniqueness per (database_backend, key).
+        # Mirrors migration 0035's ``uq_attempt_idempotency_key_db``.
+        # Named to remain stable across SQLite and PostgreSQL.
+        Index(
+            "uq_attempt_idempotency_key_db",
+            "database_backend",
+            "idempotency_key",
+            unique=True,
+        ),
+        # Phase 1: database_backend enum (sqlite / postgresql).
+        CheckConstraint(
+            "database_backend IN ('sqlite', 'postgresql')",
+            name="ck_attempt_database_backend",
+        ),
+        # Phase 1: actor_principal_type enum (user / service).
+        CheckConstraint(
+            "actor_principal_type IN ('user', 'service')",
+            name="ck_attempt_actor_principal_type",
+        ),
+    )
 
 
 class SourceBindingRecord(Base):

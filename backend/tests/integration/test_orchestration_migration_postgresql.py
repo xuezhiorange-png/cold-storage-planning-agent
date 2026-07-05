@@ -584,7 +584,7 @@ class TestAuditEventHistoryBackfill:
         with engine3.connect() as conn3:
             # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0034_add_production_source_archives"
+            expected_rev = "0035_phase1_identity_foundation"
             assert rev == expected_rev, f"Revision changed: {rev}"
 
             # AuditEvent still backfilled with same value
@@ -1733,7 +1733,7 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0034_add_production_source_archives"
+            expected_rev = "0035_phase1_identity_foundation"
             assert rev == expected_rev, f"Expected 0033, got {rev}"
         engine.dispose()
 
@@ -1756,6 +1756,6 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0034_add_production_source_archives"
+            expected_rev = "0035_phase1_identity_foundation"
             assert rev == expected_rev, f"Expected 0033, got {rev}"
         engine.dispose()
