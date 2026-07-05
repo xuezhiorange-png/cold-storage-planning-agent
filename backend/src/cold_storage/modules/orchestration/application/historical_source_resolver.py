@@ -218,7 +218,22 @@ def resolve_scheme_run_sources_for_history(
     payload = archive_row["archive_payload"]
     from cold_storage.modules.orchestration.application.canonical_archive_v1 import (  # noqa: I001  # lazy import avoids circular import
         compute_archive_hash_v1,
+        validate_archive_payload_v1,
     )
+
+    # Round 9 P1-1: enforce the 19 required-keys / no-extras contract
+    # and the canonical ordered-source-slots shape BEFORE recomputing
+    # the hash.  A malformed payload MUST fail closed; recomputing
+    # a hash for a tampered payload would silently produce an
+    # integrity-error mismatch instead of a structural-validation
+    # error.
+    try:
+        validate_archive_payload_v1(payload)
+    except Exception as exc:
+        raise SchemeSourceArchiveIntegrityError(
+            archive_hash=archive_row["archive_hash"],
+            detail=f"archive_payload schema validation failed: {exc}",
+        ) from exc
 
     recomputed = compute_archive_hash_v1(payload)
     if recomputed != archive_row["archive_hash"]:

@@ -61,7 +61,41 @@ SOURCE_SLOT_ORDER_V1: tuple[str, ...] = (
 )
 
 
-# ── Canonical hashing (mirrors alembic/helpers/frozen_scheme_source_archive_v1) ─
+# ── Canonical hashing (mirrors alembic/helpers/frozen_scheme_source_archive_v1) ──
+
+
+# ── Required archive_payload keys (round 9 contract) ──────────────────────
+#
+# Round 9 P1-1: the archive_payload schema has exactly 19 required keys.
+# Any deviation — missing key, extra key, or wrong source_slot order —
+# MUST fail closed before the hash is recomputed.  This is the public
+# shape contract for SchemeSourceArchiveV1; the migration CHECK
+# constraint ``ck_archive_hash_shape`` enforces the OUTER keys at the
+# SQL boundary, this validator enforces the FULL set + ordered slot
+# shape at the application boundary.
+REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1: frozenset[str] = frozenset(
+    {
+        "schema",
+        "scheme_run_id",
+        "source_binding_id",
+        "source_contract_version",
+        "binding_schema_version",
+        "combined_source_hash",
+        "weight_set_revision_id",
+        "weight_set_content_hash",
+        "weight_set_generator_compatibility_version",
+        "execution_snapshot_id",
+        "coefficient_context_id",
+        "orchestration_identity_id",
+        "authoritative_attempt_id",
+        "orchestration_fingerprint",
+        "source_slots",
+        "project_id",
+        "project_version_id",
+        "generator_compatibility_version",
+        "captured_at",
+    }
+)
 
 
 def _ensure_utc_aware_v1(dt: datetime) -> datetime:
@@ -191,6 +225,76 @@ def compute_archive_hash_v1(archive_payload: dict[str, Any]) -> str:
 def compute_archive_hash(archive_payload: dict[str, Any]) -> str:
     """Public alias for compute_archive_hash_v1."""
     return compute_archive_hash_v1(archive_payload)
+
+
+def validate_archive_payload_v1(archive_payload: Any) -> dict[str, Any]:
+    """Validate that *archive_payload* conforms to the SchemeSourceArchiveV1 shape.
+
+    Round 9 P1-1 contract: the resolver (and any other consumer that
+    recomputes ``archive_hash`` from a persisted ``archive_payload``
+    JSON blob) MUST first call this validator and refuse to proceed on
+    any deviation.
+
+    The validator enforces three things:
+
+    1.  ``archive_payload`` is a non-string ``dict``.
+    2.  The set of keys is *exactly* :data:`REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1`
+        — no required key may be missing and no extra key may appear.
+        Both directions are reported in one error message.
+    3.  ``source_slots`` is an *ordered* ``Sequence[tuple[str, Mapping[str, str]]]``
+        in the canonical five-slot order
+        (``zone``, ``cooling_load``, ``equipment``, ``power``, ``investment``).
+        Order is enforced strictly; a permuted valid set is rejected.
+
+    Raises
+    ------
+    SourceArchiveBuildError
+        on any deviation; the error message names the missing keys,
+        the extra keys, or the slot-shape violation.  Failures raise
+        *before* :func:`compute_archive_hash_v1` is called so the
+        hash recomputation can never silently produce a value for a
+        malformed payload.
+
+    Returns
+    -------
+    dict[str, Any]
+        The validated archive_payload.  The return value is the
+        same object passed in (this validates by side effect on the
+        contract; the return is provided so callers can chain
+        ``hash = compute_archive_hash_v1(validate_archive_payload_v1(payload))``).
+    """
+    if not isinstance(archive_payload, dict):
+        raise SourceArchiveBuildError(
+            f"archive_payload must be dict, got {type(archive_payload).__name__}"
+        )
+
+    actual_keys = set(archive_payload.keys())
+    required_keys = REQUIRED_ARCHIVE_PAYLOAD_KEYS_V1
+    missing = sorted(required_keys - actual_keys)
+    extra = sorted(actual_keys - required_keys)
+    if missing or extra:
+        bits: list[str] = []
+        if missing:
+            bits.append(
+                f"missing={missing}"
+                + (
+                    f" ({len(missing)} of {len(required_keys)} required)"
+                    if missing
+                    else ""
+                )
+            )
+        if extra:
+            bits.append(f"extra={extra}")
+        raise SourceArchiveBuildError(
+            "archive_payload key contract violated: " + "; ".join(bits)
+        )
+
+    source_slots = archive_payload["source_slots"]
+    # Reuse the same validator the assembler uses; it enforces name
+    # set, name order, and per-slot payload contract.
+    _validate_ordered_source_slots_v1(source_slots)
+
+    return archive_payload
 
 
 # ── Payload assembly ────────────────────────────────────────────────────────
