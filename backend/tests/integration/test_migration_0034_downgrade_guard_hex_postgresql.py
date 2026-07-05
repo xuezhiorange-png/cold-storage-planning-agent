@@ -112,7 +112,8 @@ def _plant_pg_chain(
                 "investment_calculation_id, "
                 "zone_result_hash, cooling_load_result_hash, "
                 "equipment_result_hash, power_result_hash, "
-                "investment_result_hash) "
+                "investment_result_hash, "
+                "database_backend) "
                 "VALUES (:sid, 'p-pg-hex', 'v-pg-hex', 'ws-pg', "
                 "'1.0', 'pg-snap-h', 'completed', false, '{}'::jsonb, "
                 "'{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, "
@@ -121,7 +122,7 @@ def _plant_pg_chain(
                 "'wch-pg', 'WG-1.0', 'combined-pg-hex', 'BSV-1.0', "
                 "'snap-pg', 'ctx-pg', 'ident-pg', 'att-pg', 'fp', "
                 "'zcalc-pg', 'ccalc-pg', 'ecalc-pg', 'pcalc-pg', "
-                "'icalc-pg', 'ZH', 'CH', 'EH', 'PH', 'IH')"
+                "'icalc-pg', 'ZH', 'CH', 'EH', 'PH', 'IH', 'postgresql')"
             ),
             {"sid": sid},
         )

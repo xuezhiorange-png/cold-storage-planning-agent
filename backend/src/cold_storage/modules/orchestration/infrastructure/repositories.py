@@ -68,6 +68,38 @@ def _ensure_datetime(value: object) -> datetime:
     return value
 
 
+def _require_idempotency_key(value: str | None) -> str:
+    """Phase 1 (P1-2) repository-level invariant for new writes.
+
+    The ``orchestration_run_attempts.idempotency_key`` column is
+    NULLABLE at the schema layer so that legacy rows (pre-Phase-1)
+    can carry NULL without breaking the upgrade path. But for any
+    new write — application, repository, fixture, or migration —
+    a NULL ``idempotency_key`` is an invariant violation: it
+    defeats the unique index ``uq_attempt_idempotency_key_db`` and
+    silently corrupts the deduplication contract.
+
+    This helper enforces the invariant at the call site. New
+    repository write paths that need to insert an attempt should
+    call ``_require_idempotency_key(...)`` on the inbound value
+    and pass the returned non-null string to the ORM. Tests in
+    ``tests/unit/repositories/test_phase1_idempotency_required.py``
+    assert the helper's behaviour.
+    """
+    if value is None:
+        raise ValueError(
+            "idempotency_key is required on new attempt writes "
+            "(Phase 1 schema contract; legacy rows pre-Phase-1 are "
+            "an explicit exception handled by the migration, not "
+            "by the repository). Refusing to insert NULL."
+        )
+    if not isinstance(value, str):
+        raise TypeError(f"idempotency_key must be str, got {type(value).__name__}")
+    if not value:
+        raise ValueError("idempotency_key must be a non-empty string (Phase 1 schema contract).")
+    return value
+
+
 def _is_target_unique_violation(
     exc: sa_exc.IntegrityError,
     *,

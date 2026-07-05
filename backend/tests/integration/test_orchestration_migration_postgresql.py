@@ -231,9 +231,9 @@ class TestSchemeRunRejection:
                     "weight_set_id, generator_version, source_snapshot_hash, status, "
                     "requires_review, input_snapshot, assumption_snapshot, "
                     "comparison_snapshot, candidates_snapshot, warning_messages, "
-                    "created_at, source_mode, source_binding_id) "
+                    "created_at, source_mode, source_binding_id, database_backend) "
                     "VALUES (:id, 'p-1', 'pv-1', 'ws-1', '1.0', 'h1', 'pending', "
-                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'production', 'sb-1')"
+                    "false, '{}', '{}', '{}', '{}', '[]', now(), 'production', 'sb-1', 'postgresql')"
                 ),
                 {"id": sid},
             )
@@ -355,8 +355,8 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'RUNNING', now(), now())"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a1, "oid": oid},
             )
@@ -367,8 +367,8 @@ class TestOneRunning:
                 conn.execute(
                     text(
                         "INSERT INTO orchestration_run_attempts "
-                        "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                        "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
+                        "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                        "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
                     ),
                     {"id": a2, "oid": oid},
                 )
@@ -407,8 +407,8 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'FAILED', now(), now())"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'FAILED', now(), now(), 'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a1, "oid": oid},
             )
@@ -416,8 +416,8 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a2, "oid": oid},
             )
@@ -456,8 +456,8 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a1, "oid": oid},
             )
@@ -465,8 +465,8 @@ class TestOneRunning:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now())"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 2, 'RUNNING', now(), now(), 'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": a2, "oid": oid},
             )
@@ -584,7 +584,7 @@ class TestAuditEventHistoryBackfill:
         with engine3.connect() as conn3:
             # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0035_phase1_identity_foundation"
+            expected_rev = "0036_phase1_identity_foundation_remediation"
             assert rev == expected_rev, f"Revision changed: {rev}"
 
             # AuditEvent still backfilled with same value
@@ -817,8 +817,8 @@ class TestDowngradeBlocker:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": aid, "oid": oid},
             )
@@ -962,8 +962,8 @@ class TestDowngradeBlocker:
             conn.execute(
                 text(
                     "INSERT INTO orchestration_run_attempts "
-                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
+                    "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                    "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
                 ),
                 {"id": aid, "oid": oid},
             )
@@ -1494,8 +1494,8 @@ class TestTransactionBConstraints0028:
         conn.execute(
             text(
                 "INSERT INTO orchestration_run_attempts "
-                "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-                "VALUES (:id, :oid, 1, 'COMPLETED', now(), now())"
+                "(id, identity_id, attempt_number, status, heartbeat_at, started_at, database_backend, correlation_id) "
+                "VALUES (:id, :oid, 1, 'COMPLETED', now(), now(), 'postgresql', 'legacy-migration-0036')"
             ),
             {"id": ids["aid"], "oid": ids["oid"]},
         )
@@ -1733,8 +1733,8 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0035_phase1_identity_foundation"
-            assert rev == expected_rev, f"Expected 0033, got {rev}"
+            expected_rev = "0036_phase1_identity_foundation_remediation"
+            assert rev == expected_rev, f"Expected 0036, got {rev}"
         engine.dispose()
 
         # Downgrade to 0027
@@ -1756,6 +1756,6 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0035_phase1_identity_foundation"
-            assert rev == expected_rev, f"Expected 0033, got {rev}"
+            expected_rev = "0036_phase1_identity_foundation_remediation"
+            assert rev == expected_rev, f"Expected 0036, got {rev}"
         engine.dispose()

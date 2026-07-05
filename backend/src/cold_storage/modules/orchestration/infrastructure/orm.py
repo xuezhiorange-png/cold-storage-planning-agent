@@ -225,11 +225,16 @@ class OrchestrationRunAttemptRecord(Base):
     # The ORM mirror below is read-only and does NOT implement any
     # orchestrator business logic — the orchestrator / SchemeService /
     # SourceBinding implementations are deferred to separate phases.
+    # Phase 1 (0035) + 0036 remediation: column-level server_default
+    # was dropped on ``database_backend`` and replaced on
+    # ``correlation_id`` with an explicit sentinel. Application /
+    # repository code MUST supply ``database_backend`` and a
+    # non-empty ``correlation_id`` on every future write.
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    database_backend: Mapped[str] = mapped_column(
-        String(32), nullable=False, server_default="sqlite"
+    database_backend: Mapped[str] = mapped_column(String(32), nullable=False)
+    correlation_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, server_default="legacy-migration-0036"
     )
-    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False, server_default="")
     actor_principal_type: Mapped[str] = mapped_column(
         String(32), nullable=False, server_default="user"
     )
@@ -266,6 +271,17 @@ class OrchestrationRunAttemptRecord(Base):
         CheckConstraint(
             "actor_principal_type IN ('user', 'service')",
             name="ck_attempt_actor_principal_type",
+        ),
+        # Phase 1 0036 remediation: reject NULL / empty /
+        # whitespace-only correlation_id. Mirrors migration
+        # 0036's ``ck_attempt_correlation_id_nonempty``.
+        # ``trim(col, ' \t\n\r')`` is the portable two-arg
+        # form: it strips leading / trailing space, tab, LF,
+        # CR on both SQLite and PostgreSQL. If the result
+        # has length 0, the value was entirely whitespace.
+        CheckConstraint(
+            "length(trim(correlation_id, ' \t\n\r')) > 0",
+            name="ck_attempt_correlation_id_nonempty",
         ),
     )
 

@@ -340,10 +340,10 @@ def pre_migration_engine():
             f"status, generator_version, source_snapshot_hash, "
             f"input_snapshot, assumption_snapshot, comparison_snapshot, "
             f"candidates_snapshot, recommended_scheme_code, "
-            f"warning_messages) "
+            f"warning_messages, database_backend) "
             f"VALUES ('{run_id}', '{proj_id}', '{ver_id}', 'ws-1', "
             f"'completed', 'gen-1.0', 'src_hash', '{{}}', '{{}}', '{{}}', "
-            f"'{{}}', 'scheme-A', '{{}}')"
+            f"'{{}}', 'scheme-A', '{{}}', 'postgresql')"
         )
     )
 

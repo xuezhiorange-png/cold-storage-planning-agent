@@ -242,9 +242,11 @@ class SchemeRunRecord(Base):
     frozen_envelope: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     # database_backend: which backend persisted this SchemeRun. Mirrors
     # the same enum / CHECK constraint on the orchestration attempt table.
-    database_backend: Mapped[str] = mapped_column(
-        String(32), nullable=False, server_default="sqlite"
-    )
+    # Phase 1 (0035) + 0036 remediation: the column-level
+    # server_default was dropped; application / repository code MUST
+    # supply this on every future write. A write that omits it now
+    # fails with ``IntegrityError``.
+    database_backend: Mapped[str] = mapped_column(String(32), nullable=False)
 
     candidates: Mapped[list["SchemeCandidateRecord"]] = relationship(back_populates="scheme_run")
 

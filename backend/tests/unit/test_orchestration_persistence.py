@@ -232,11 +232,15 @@ class TestAttemptConstraints:
             id=str(uuid.uuid4()),
             identity_id="oi-1",
             attempt_number=1,
+            database_backend="sqlite",
+            correlation_id="legacy-migration-0036",
         )
         a2 = OrchestrationRunAttemptRecord(
             id=str(uuid.uuid4()),
             identity_id="oi-1",
             attempt_number=1,
+            database_backend="sqlite",
+            correlation_id="legacy-migration-0036",
         )
         session.add(a1)
         session.flush()
@@ -385,6 +389,7 @@ class TestSchemeRunNullityCheck:
             generator_version="1.0",
             source_snapshot_hash="h1",
             source_mode="legacy",
+            database_backend="sqlite",
         )
         session.add(r)
         session.flush()  # Should not raise
@@ -422,6 +427,7 @@ class TestSchemeRunNullityCheck:
             equipment_result_hash="erh-1",
             power_result_hash="prh-1",
             investment_result_hash="irh-1",
+            database_backend="sqlite",
         )
         session.add(r)
         session.flush()

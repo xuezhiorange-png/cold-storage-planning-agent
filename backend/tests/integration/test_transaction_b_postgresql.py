@@ -1017,9 +1017,11 @@ class TestTransactionB0028PostgreSQLConstraints:
         conn.execute(
             text("""
             INSERT INTO orchestration_run_attempts (
-                id, identity_id, attempt_number, status, heartbeat_at, started_at
+                id, identity_id, attempt_number, status, heartbeat_at, started_at,
+                database_backend, correlation_id
             ) VALUES (
-                :att, :ident, 1, 'RUNNING', NOW(), NOW()
+                :att, :ident, 1, 'RUNNING', NOW(), NOW(),
+                'postgresql', 'legacy-migration-0036'
             ) ON CONFLICT (id) DO NOTHING
         """),
             {"att": attempt_id, "ident": ident_id},
@@ -1326,9 +1328,11 @@ class TestTransactionB0028PostgreSQLConstraints:
             conn.execute(
                 text("""
                     INSERT INTO orchestration_run_attempts (
-                        id, identity_id, attempt_number, status, heartbeat_at, started_at
+                        id, identity_id, attempt_number, status, heartbeat_at, started_at,
+                        database_backend, correlation_id
                     ) VALUES (
-                        :aid, :iid, 99, 'RUNNING', NOW(), NOW()
+                        :aid, :iid, 99, 'RUNNING', NOW(), NOW(),
+                        'postgresql', 'legacy-migration-0036'
                     ) ON CONFLICT DO NOTHING
                 """),
                 {"aid": attempt_id, "iid": ident_id},

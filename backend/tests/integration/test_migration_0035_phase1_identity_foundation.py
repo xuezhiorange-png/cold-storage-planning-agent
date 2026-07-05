@@ -288,15 +288,21 @@ class Test0035Phase1SchemaDeltaSQLite:
         finally:
             Path(tmp.name).unlink(missing_ok=True)
 
-    def test_database_backend_default_is_sqlite(self) -> None:
-        """Server default for the new columns matches the contract."""
+    def test_phase1_column_defaults_match_0036_contract(self) -> None:
+        """After 0036 remediation, server_default semantics are:
+
+        - ``database_backend``: NO column-level default (fail-closed;
+          application MUST supply). dflt_value is NULL.
+        - ``correlation_id``: explicit sentinel default
+          ``legacy-migration-0036`` (rejects empty / whitespace via
+          ``ck_attempt_correlation_id_nonempty``).
+        - ``actor_principal_type``: ``'user'`` (unchanged from 0035).
+        """
         tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
         tmp.close()
         try:
             r = _run_alembic(["upgrade", "head"], tmp.name)
             assert r.returncode == 0
-
-            # Default values are visible in PRAGMA table_info (dflt_value field)
 
             def _dflt(col_name: str) -> str | None:
                 conn = sqlite3.connect(tmp.name)
@@ -309,8 +315,17 @@ class Test0035Phase1SchemaDeltaSQLite:
                     conn.close()
                 return row[0] if row else None
 
-            assert _dflt("database_backend") == "'sqlite'"
-            assert _dflt("correlation_id") == "''"
+            # database_backend: server_default was DROPPED in 0036
+            assert _dflt("database_backend") is None, (
+                "database_backend should have no column-level default "
+                "after 0036 remediation; got " + repr(_dflt("database_backend"))
+            )
+            # correlation_id: replaced with explicit sentinel
+            assert _dflt("correlation_id") == "'legacy-migration-0036'", (
+                "correlation_id default should be 'legacy-migration-0036'; "
+                "got " + repr(_dflt("correlation_id"))
+            )
+            # actor_principal_type: unchanged
             assert _dflt("actor_principal_type") == "'user'"
         finally:
             Path(tmp.name).unlink(missing_ok=True)

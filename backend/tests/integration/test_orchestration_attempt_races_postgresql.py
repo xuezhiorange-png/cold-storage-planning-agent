@@ -385,6 +385,8 @@ class TestIdentityNumberConflict:
                     heartbeat_at=datetime.now(UTC),
                     started_at=datetime.now(UTC),
                     completed_at=datetime.now(UTC),
+                    database_backend="postgresql",
+                    correlation_id="legacy-migration-0036",
                 )
             )
             s.commit()
@@ -429,6 +431,8 @@ class TestIdentityNumberConflict:
                             heartbeat_at=datetime.now(UTC),
                             started_at=datetime.now(UTC),
                             completed_at=datetime.now(UTC),
+                            database_backend="postgresql",
+                            correlation_id="legacy-migration-0036",
                         )
                     )
                     session.commit()
@@ -524,6 +528,8 @@ class TestOneRunningConflict:
                     heartbeat_at=datetime.now(UTC),
                     started_at=datetime.now(UTC),
                     completed_at=datetime.now(UTC),
+                    database_backend="postgresql",
+                    correlation_id="legacy-migration-0036",
                 )
             )
             s.commit()
@@ -665,6 +671,8 @@ class TestStaleLeaseConcurrent:
                     attempt_number=1,
                     status="RUNNING",
                     heartbeat_at=stale_time,
+                    database_backend="postgresql",
+                    correlation_id="legacy-migration-0036",
                 )
             )
             session.commit()
@@ -711,6 +719,8 @@ class TestStaleLeaseConcurrent:
                     attempt_number=1,
                     status="RUNNING",
                     heartbeat_at=stale_time,
+                    database_backend="postgresql",
+                    correlation_id="legacy-migration-0036",
                 )
             )
             session.commit()
@@ -796,6 +806,8 @@ class TestBoundedRetryExhaustion:
                     attempt_number=1,
                     status="RUNNING",
                     heartbeat_at=stale_time,
+                    database_backend="postgresql",
+                    correlation_id="legacy-migration-0036",
                 )
             )
             session.commit()
@@ -915,6 +927,8 @@ class TestNonTargetIntegrityErrors:
                 attempt_number=None,  # type: ignore[arg-type]
                 status="RUNNING",
                 heartbeat_at=datetime.now(UTC),
+                database_backend="postgresql",
+                correlation_id="legacy-migration-0036",
             )
             session.add(rec)
             try:
@@ -972,6 +986,8 @@ class TestNonTargetIntegrityErrors:
                 attempt_number=1,
                 status="RUNNING",
                 heartbeat_at=datetime.now(UTC),
+                database_backend="postgresql",
+                correlation_id="legacy-migration-0036",
             )
             session.add(rec)
             session.flush()
