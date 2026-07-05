@@ -4,12 +4,12 @@ Status: **design draft — implementation NOT authorized**
 
 > **Designation of path forward: A (end-to-end to SchemeService).**
 > This production prerequisite MUST invoke the production
-> SchemeService end-to-end. SchemeService consumed output and
-> a completed `SchemeRun` are part of this task's acceptance
-> criteria, not a future Phase C deliverable. When this
-> capability ships, Task 11 Phase B `baseline-feasible`
-> success is unlocked directly, without requiring any
-> additional bridge PR.
+> SchemeService end-to-end. The completed `SchemeRun`
+> produced by `SchemeService.run(...)` is part of this task's
+> acceptance criteria, not a future Phase C deliverable.
+> When this capability ships, Task 11 Phase B
+> `baseline-feasible` success is unlocked directly, without
+> requiring any additional bridge PR.
 
 This document defines the formal production calculation
 orchestration path. It is intentionally separate from PR #21
@@ -40,6 +40,12 @@ blocked_by         = "production_capability_gap"
 required_calculation_types = ["zone", "investment",
                               "cooling_load", "equipment"]
 ```
+
+This prerequisite is bound to path **A** (end-to-end
+SchemeService invocation). Path **B** (deferred
+SchemeService.run to a separate bridge phase) was reviewed
+and rejected because it could not, on its own, unlock Task
+11 Phase B baseline-feasible success.
 
 This blocker does NOT come from evaluation. It comes from the
 real production path not yet exposing a public entry point
@@ -546,9 +552,10 @@ a test in §11.
 
 - Orchestrator runs an approved ProjectVersion to SUCCEEDED
   end-to-end; writes 5 calculation runs, 1 binding
-  (verified), 1 source archive, 1 outbox SUCCEEDED event,
-  AND a completed `SchemeRun` with the same binding id and
-  the same five frozen snapshots in its envelope.
+  (verified), the **source archive row is persisted**, 1
+  outbox SUCCEEDED event, AND a **completed `SchemeRun`**
+  with the same binding id and the same five frozen
+  snapshots in its envelope.
 - Replay with same idempotency key returns
   IDEMPOTENT_REPLAY_SUCCEEDED with the same `(attempt_id,
   scheme_run_id)` tuple; no new rows.
