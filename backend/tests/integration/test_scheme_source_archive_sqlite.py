@@ -653,3 +653,362 @@ class TestResolverFailClosedPaths:
             )
         assert isinstance(result, historical_source_resolver.VerifiedOnlineSourceBundle)
         assert result.source_binding_id == "online-b"
+
+
+# ── R5: Slot order binding (P0-2 test surface) ─────────────────────────────
+
+
+class TestSlotOrderBinding:
+    """Slot order is part of the v1 archive_hash contract.
+
+    The five canonical slots MUST appear in ``SOURCE_SLOT_ORDER_V1``
+    order; hash computation binds to the order via JSON's
+    list-preserving serialisation.  Reordering the sequence is
+    detectable as a build failure or as a hash collision if the
+    assembler accepts the alternate order.
+    """
+
+    def test_canonical_slot_order_is_frozen(self) -> None:
+        """The order constant matches the agreed-upon five-slot sequence."""
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            SOURCE_SLOT_ORDER_V1,
+        )
+
+        assert SOURCE_SLOT_ORDER_V1 == EXPECTED_SLOT_ORDER_V1
+        assert SOURCE_SLOT_ORDER_V1 == (
+            "zone",
+            "cooling_load",
+            "equipment",
+            "power",
+            "investment",
+        )
+
+    def test_hash_stable_for_repeated_input(self) -> None:
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            assemble_archive_payload,
+            compute_archive_hash_v1,
+        )
+
+        fixed_at = datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC)
+        slots = _make_production_slots()
+        common = dict(
+            scheme_run_id="sr-stable",
+            source_binding_id="b-stable",
+            source_contract_version="SVC-1.0",
+            binding_schema_version="BSV-1.0",
+            combined_source_hash="combined-stable",
+            weight_set_revision_id="rev-stable",
+            weight_set_content_hash="weight-stable",
+            weight_set_generator_compatibility_version="WG-1.0",
+            execution_snapshot_id="snap-stable",
+            coefficient_context_id="ctx-stable",
+            orchestration_identity_id="ident-stable",
+            authoritative_attempt_id="att-stable",
+            orchestration_fingerprint="fp-stable",
+            project_id="proj-stable",
+            project_version_id="pver-stable",
+            generator_compatibility_version="GCV-1.0",
+            captured_at=fixed_at,
+        )
+        payload_a = assemble_archive_payload(source_slots=slots, **common)
+        payload_b = assemble_archive_payload(source_slots=slots, **common)
+        assert compute_archive_hash_v1(payload_a) == compute_archive_hash_v1(payload_b)
+
+    def test_payload_emits_ordered_list_in_canonical_order(self) -> None:
+        """The on-the-wire payload\'s ``source_slots`` is a list in
+        ``SOURCE_SLOT_ORDER_V1`` order."""
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            assemble_archive_payload,
+        )
+
+        fixed_at = datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC)
+        slots = _make_production_slots()
+        payload = assemble_archive_payload(
+            source_slots=slots,
+            scheme_run_id="sr1",
+            source_binding_id="b1",
+            source_contract_version="SVC-1.0",
+            binding_schema_version="BSV-1.0",
+            combined_source_hash="combined-h",
+            weight_set_revision_id="rev-1",
+            weight_set_content_hash="weight-h",
+            weight_set_generator_compatibility_version="WG-1.0",
+            execution_snapshot_id="snap-1",
+            coefficient_context_id="ctx-1",
+            orchestration_identity_id="ident-1",
+            authoritative_attempt_id="att-1",
+            orchestration_fingerprint="fp-1",
+            project_id="proj-1",
+            project_version_id="pver-1",
+            generator_compatibility_version="GCV-1.0",
+            captured_at=fixed_at,
+        )
+        assert isinstance(payload["source_slots"], list)
+        assert [entry[0] for entry in payload["source_slots"]] == list(
+            EXPECTED_SLOT_ORDER_V1
+        )
+
+    def test_assembler_rejects_reversed_order(self) -> None:
+        """Reverse-ordered source_slots is rejected by the assembler."""
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            assemble_archive_payload,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            SourceArchiveBuildError,
+        )
+
+        with pytest.raises(SourceArchiveBuildError) as exc_info:
+            assemble_archive_payload(
+                source_slots=_make_reordered_slots(),
+                scheme_run_id="sr1",
+                source_binding_id="b1",
+                source_contract_version="SVC-1.0",
+                binding_schema_version="BSV-1.0",
+                combined_source_hash="combined-h",
+                weight_set_revision_id="rev-1",
+                weight_set_content_hash="weight-h",
+                weight_set_generator_compatibility_version="WG-1.0",
+                execution_snapshot_id="snap-1",
+                coefficient_context_id="ctx-1",
+                orchestration_identity_id="ident-1",
+                authoritative_attempt_id="att-1",
+                orchestration_fingerprint="fp-1",
+                project_id="proj-1",
+                project_version_id="pver-1",
+                generator_compatibility_version="GCV-1.0",
+                captured_at=datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC),
+            )
+        assert "order" in str(exc_info.value).lower()
+
+    def test_assembler_rejects_swapped_neighbours(self) -> None:
+        """Swapping two adjacent slots is rejected."""
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            assemble_archive_payload,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            SourceArchiveBuildError,
+        )
+
+        slots = list(_make_production_slots())
+        slots[1], slots[2] = slots[2], slots[1]
+        with pytest.raises(SourceArchiveBuildError):
+            assemble_archive_payload(
+                source_slots=slots,
+                scheme_run_id="sr1",
+                source_binding_id="b1",
+                source_contract_version="SVC-1.0",
+                binding_schema_version="BSV-1.0",
+                combined_source_hash="combined-h",
+                weight_set_revision_id="rev-1",
+                weight_set_content_hash="weight-h",
+                weight_set_generator_compatibility_version="WG-1.0",
+                execution_snapshot_id="snap-1",
+                coefficient_context_id="ctx-1",
+                orchestration_identity_id="ident-1",
+                authoritative_attempt_id="att-1",
+                orchestration_fingerprint="fp-1",
+                project_id="proj-1",
+                project_version_id="pver-1",
+                generator_compatibility_version="GCV-1.0",
+                captured_at=datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC),
+            )
+
+    def test_assembler_rejects_missing_slot(self) -> None:
+        """Omitting any of the five slots is rejected."""
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            assemble_archive_payload,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            SourceArchiveBuildError,
+        )
+
+        slots = [s for s in _make_production_slots() if s[0] != "investment"]
+        with pytest.raises(SourceArchiveBuildError) as exc_info:
+            assemble_archive_payload(
+                source_slots=slots,
+                scheme_run_id="sr1",
+                source_binding_id="b1",
+                source_contract_version="SVC-1.0",
+                binding_schema_version="BSV-1.0",
+                combined_source_hash="combined-h",
+                weight_set_revision_id="rev-1",
+                weight_set_content_hash="weight-h",
+                weight_set_generator_compatibility_version="WG-1.0",
+                execution_snapshot_id="snap-1",
+                coefficient_context_id="ctx-1",
+                orchestration_identity_id="ident-1",
+                authoritative_attempt_id="att-1",
+                orchestration_fingerprint="fp-1",
+                project_id="proj-1",
+                project_version_id="pver-1",
+                generator_compatibility_version="GCV-1.0",
+                captured_at=datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC),
+            )
+        assert "missing" in str(exc_info.value).lower()
+
+    def test_assembler_rejects_extra_slot(self) -> None:
+        """Adding a sixth unknown slot is rejected."""
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            assemble_archive_payload,
+        )
+        from cold_storage.modules.orchestration.domain.errors import (
+            SourceArchiveBuildError,
+        )
+
+        slots = _make_production_slots() + [
+            ("foo", {"calculation_id": "F", "result_hash": "FH"}),
+        ]
+        with pytest.raises(SourceArchiveBuildError) as exc_info:
+            assemble_archive_payload(
+                source_slots=slots,
+                scheme_run_id="sr1",
+                source_binding_id="b1",
+                source_contract_version="SVC-1.0",
+                binding_schema_version="BSV-1.0",
+                combined_source_hash="combined-h",
+                weight_set_revision_id="rev-1",
+                weight_set_content_hash="weight-h",
+                weight_set_generator_compatibility_version="WG-1.0",
+                execution_snapshot_id="snap-1",
+                coefficient_context_id="ctx-1",
+                orchestration_identity_id="ident-1",
+                authoritative_attempt_id="att-1",
+                orchestration_fingerprint="fp-1",
+                project_id="proj-1",
+                project_version_id="pver-1",
+                generator_compatibility_version="GCV-1.0",
+                captured_at=datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC),
+            )
+        assert "extra" in str(exc_info.value).lower()
+
+    def test_hash_differs_when_slot_result_hash_changes(self) -> None:
+        """Changing one slot\'s result_hash MUST change archive_hash."""
+        from datetime import UTC, datetime
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
+            assemble_archive_payload,
+            compute_archive_hash_v1,
+        )
+
+        fixed_at = datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC)
+        common = dict(
+            scheme_run_id="sr1",
+            source_binding_id="b1",
+            source_contract_version="SVC-1.0",
+            binding_schema_version="BSV-1.0",
+            combined_source_hash="combined-h",
+            weight_set_revision_id="rev-1",
+            weight_set_content_hash="weight-h",
+            weight_set_generator_compatibility_version="WG-1.0",
+            execution_snapshot_id="snap-1",
+            coefficient_context_id="ctx-1",
+            orchestration_identity_id="ident-1",
+            authoritative_attempt_id="att-1",
+            orchestration_fingerprint="fp-1",
+            project_id="proj-1",
+            project_version_id="pver-1",
+            generator_compatibility_version="GCV-1.0",
+            captured_at=fixed_at,
+        )
+        slots_baseline = _make_production_slots()
+        slots_modified = list(_make_production_slots())
+        slots_modified[2] = (
+            "equipment",
+            {"calculation_id": "EID", "result_hash": "EH-MODIFIED"},
+        )
+
+        h_baseline = compute_archive_hash_v1(
+            assemble_archive_payload(source_slots=slots_baseline, **common)
+        )
+        h_modified = compute_archive_hash_v1(
+            assemble_archive_payload(source_slots=slots_modified, **common)
+        )
+        assert h_baseline != h_modified, (
+            "result_hash change must change archive_hash"
+        )
+
+    def test_frozen_helper_byte_matches_application_helper(self) -> None:
+        """The frozen alembic helper produces the same hash byte-for-byte
+        as the application assembler for the same inputs.
+
+        Cross-tier invariant: migrations that need to back-fill or
+        recompute archive_hash MUST produce a byte-identical hash so
+        the resolver\'s ``compute_archive_hash_v1`` recomputation
+        check passes.
+        """
+        import sys
+        from datetime import UTC, datetime
+        from pathlib import Path
+
+        alembic_helpers_dir = (
+            Path(__file__).resolve().parent.parent.parent
+            / "alembic"
+            / "helpers"
+        )
+        sys.path.insert(0, str(alembic_helpers_dir))
+        try:
+            from frozen_scheme_source_archive_v1 import (  # noqa: E402  - sys.path append above
+                canonical_json_v1 as frozen_canonical_json_v1,
+                compute_archive_hash_v1 as frozen_compute_hash_v1,
+                prepare_ordered_source_slots_v1,
+            )
+        finally:
+            sys.path.pop(0)
+
+        from cold_storage.modules.orchestration.application.canonical_archive_v1 import (  # noqa: E501
+            SOURCE_SLOT_ORDER_V1,
+            canonical_json_v1,
+            compute_archive_hash_v1,
+        )
+
+        ordered_slots = [
+            (name, {"calculation_id": name + "-cid", "result_hash": name + "-rh"})
+            for name in SOURCE_SLOT_ORDER_V1
+        ]
+        fixed_at = datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC)
+        payload_v1_input = {
+            "schema": "SchemeSourceArchiveV1",
+            "scheme_run_id": "sr-frozen",
+            "source_binding_id": "b-frozen",
+            "source_contract_version": "SVC-1.0",
+            "binding_schema_version": "BSV-1.0",
+            "combined_source_hash": "combined-frozen",
+            "weight_set_revision_id": "rev-frozen",
+            "weight_set_content_hash": "weight-frozen",
+            "weight_set_generator_compatibility_version": "WG-1.0",
+            "execution_snapshot_id": "snap-frozen",
+            "coefficient_context_id": "ctx-frozen",
+            "orchestration_identity_id": "ident-frozen",
+            "authoritative_attempt_id": "att-frozen",
+            "orchestration_fingerprint": "fp-frozen",
+            "source_slots": [
+                [name, dict(p)]
+                for name, p in prepare_ordered_source_slots_v1(ordered_slots)
+            ],
+            "project_id": "proj-frozen",
+            "project_version_id": "pver-frozen",
+            "generator_compatibility_version": "GCV-1.0",
+            "captured_at": fixed_at.isoformat(),
+        }
+        frozen_canonical = frozen_canonical_json_v1(payload_v1_input)
+        application_canonical = canonical_json_v1(payload_v1_input)
+        assert frozen_canonical == application_canonical, (
+            "frozen canonical_json_v1 must produce byte-identical output "
+            "to the application canonical_json_v1 for the same input"
+        )
+        h_frozen = frozen_compute_hash_v1(payload_v1_input)
+        h_application = compute_archive_hash_v1(payload_v1_input)
+        assert len(h_frozen) == 64
+        assert h_frozen == h_application
