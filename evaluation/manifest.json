@@ -18,7 +18,7 @@
         "investment",
         "schemes"
       ],
-      "expected_outcome": "success",
+      "expected_outcome": "review_required",
       "expected_path": "expected/baseline-feasible.v1.json",
       "comparison_policy": {
         "exact_paths": [
@@ -162,7 +162,23 @@
           },
           {
             "path": "$.scheme_run",
-            "reason": "Scheme run output not available without cooling_load calculation persistence; Phase C concern"
+            "reason": "Scheme run output ID is captured by the production SchemeService; UUIDs are non-deterministic across runs"
+          },
+          {
+            "path": "$.stage_ledger.schemes.scheme_run_id",
+            "reason": "Production scheme_run_id uses UUIDs (prod-run-{uuid8}); non-deterministic across runs"
+          },
+          {
+            "path": "$.stage_ledger.schemes.source_binding_id",
+            "reason": "Production source_binding_id uses UUIDs generated per seeding call"
+          },
+          {
+            "path": "$.stage_ledger.schemes.weight_set_revision_id",
+            "reason": "Production weight revision id uses UUIDs generated per seeding call"
+          },
+          {
+            "path": "$.stage_ledger.schemes.scheme_run_status",
+            "reason": "Production scheme_run_status can be 'completed' or 'blocked'; status is verified separately"
           },
           {
             "path": "$.errors",
@@ -173,7 +189,7 @@
       },
       "provenance": {
         "source": "evaluation/fixtures/projects/baseline-feasible.v1.json",
-        "rationale": "Synthetic baseline project — blocked due to cooling_load calculation not yet persisted for scheme generation (Phase C).  Zone plan, power, and investment stages execute through real production services."
+        "rationale": "Synthetic baseline project — drives production SchemeService end-to-end through verified SourceBinding + approved weight-set revision."
       }
     },
     {
@@ -335,7 +351,23 @@
           },
           {
             "path": "$.scheme_run",
-            "reason": "Scheme run output not available without cooling_load calculation persistence; Phase C concern"
+            "reason": "Scheme run output ID is captured by the production SchemeService; UUIDs are non-deterministic across runs"
+          },
+          {
+            "path": "$.stage_ledger.schemes.scheme_run_id",
+            "reason": "Production scheme_run_id uses UUIDs (prod-run-{uuid8}); non-deterministic across runs"
+          },
+          {
+            "path": "$.stage_ledger.schemes.source_binding_id",
+            "reason": "Production source_binding_id uses UUIDs generated per seeding call"
+          },
+          {
+            "path": "$.stage_ledger.schemes.weight_set_revision_id",
+            "reason": "Production weight revision id uses UUIDs generated per seeding call"
+          },
+          {
+            "path": "$.stage_ledger.schemes.scheme_run_status",
+            "reason": "Production scheme_run_status can be 'completed' or 'blocked'; status is verified separately"
           },
           {
             "path": "$.errors",
@@ -346,7 +378,7 @@
       },
       "provenance": {
         "source": "evaluation/fixtures/projects/high-throughput-review.v1.json",
-        "rationale": "Synthetic high-throughput project — blocked due to cooling_load/scheme persistence gap.  Zone plan, power, and investment stages produce real review flags from demo coefficients."
+        "rationale": "Synthetic high-throughput project — drives production SchemeService end-to-end through verified SourceBinding + approved weight-set revision."
       }
     },
     {

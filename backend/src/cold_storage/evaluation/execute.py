@@ -221,7 +221,7 @@ def _run_schemes_stage(
         return {
             "status": "passed",
             "review_required": False,
-            "detail": "production_scheme_run_persisted",
+            "detail": "scheme_generation_complete",
             "scheme_run_id": scheme_run.id,
             "source_binding_id": seeding_result.source_binding_id,
             "weight_set_revision_id": seeding_result.weight_revision_id,
