@@ -509,3 +509,85 @@ class TransactionBIdFactory(Protocol):
     def source_binding_id(self) -> str:
         """Return a stable ID for the SourceBinding record."""
         ...
+
+
+# ── Production source archive ports ─────────────────────────────────────────
+
+
+class ProductionSourceArchiveWritePort(Protocol):
+    """Write-side port for the ``production_source_archives`` table.
+
+    The application layer (orchestration.application.source_archive_builder)
+    constructs an archive row from a verified SchemeRun and delegates the
+    SQL INSERT to a port implementation in the infrastructure layer
+    (orchestration.infrastructure.source_archive_repository).  This indirection
+    is what keeps the application layer free of SQLAlchemy imports and
+    raw session binding.
+
+    Implementations MUST execute the INSERT against the *active* SQLAlchemy
+    session/transaction that the caller has already opened in their
+    ``session`` argument.  The implementation MUST NOT commit or rollback
+    the surrounding transaction — that responsibility belongs to the
+    caller's Unit of Work.
+
+    Parameters
+    ----------
+    session :
+        An active SQLAlchemy ``Session`` (or compatible) bound to the
+        same transaction the SchemeRun UoW is operating in.  The type is
+        intentionally ``Any`` so the application layer does not import
+        ``sqlalchemy.orm``.
+    archive_id :
+        The pre-computed UUID for this archive row.  Production code
+        generates via the same ``TransactionBIdFactory`` family;
+        backfill tests may inject a fixed string.
+    """
+
+    def add_archive(
+        self,
+        session: Any,
+        *,
+        archive_id: str,
+        scheme_run_id: str,
+        source_binding_id: str | None,
+        source_contract_version: str,
+        archive_schema_version: str,
+        archive_payload: Mapping[str, Any],
+        archive_hash: str,
+        combined_source_hash: str | None,
+        weight_set_revision_id: str | None,
+        weight_set_content_hash: str | None,
+        binding_schema_version: str | None,
+        execution_snapshot_id: str | None,
+        coefficient_context_id: str | None,
+        orchestration_identity_id: str | None,
+        authoritative_attempt_id: str | None,
+        orchestration_fingerprint: str | None,
+        created_at: datetime,
+        created_by: str,
+        reason: str,
+    ) -> None:
+        """Persist the archive row in ``session``'s transaction.
+
+        MUST NOT commit. MUST NOT rollback.  MUST raise on integrity
+        errors so the caller can convert them into domain errors.
+        """
+        ...
+
+
+class ProductionSourceArchiveReadPort(Protocol):
+    """Read-side port for the ``production_source_archives`` table.
+
+    Returns ``None`` if no archive exists for the given scheme_run_id;
+    raises ``SchemeRunHistoricalSourceUnavailableError`` only when the
+    caller asks for a non-resolved bundle and the read-empty result must
+    be converted to a domain error.
+    """
+
+    def find_by_scheme_run_id(
+        self,
+        session: Any,
+        scheme_run_id: str,
+    ) -> Mapping[str, Any] | None:
+        """Return the archive row for ``scheme_run_id`` or None."""
+        ...

@@ -398,3 +398,61 @@ class AuditOutboxRecord(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+# ── Production Source Archive ──────────────────────────────────────────────
+
+
+class ProductionSourceArchiveRecord(Base):
+    """One row per production SchemeRun's published source identity snapshot.
+
+    Inserted by ``infrastructure.source_archive_repository`` exactly once
+    per SchemeRun — the unique constraint on ``scheme_run_id`` enforces
+    that.  The application builder (orchestration.application.source_archive_builder)
+    computes payload + hash; this record is the persistence target.
+
+    The CHECK constraints here mirror the migration's CHECK constraints
+    one-for-one so that metadata.create_all produces a matching schema
+    in tests.  Production deployments still go through the migration.
+    """
+
+    __tablename__ = "production_source_archives"
+    __table_args__ = (
+        UniqueConstraint("scheme_run_id", name="uq_production_source_archive_scheme_run"),
+        CheckConstraint(
+            "archive_schema_version = 'SchemeSourceArchiveV1'",
+            name="ck_archive_schema_version_v1",
+        ),
+        CheckConstraint(
+            "reason IN ('completed', 'pre_downgrade')",
+            name="ck_archive_reason_values",
+        ),
+        CheckConstraint(
+            "length(archive_hash) = 64",
+            name="ck_archive_hash_length",
+        ),
+        Index(
+            "ix_production_source_archives_source_binding_id",
+            "source_binding_id",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    scheme_run_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    source_binding_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    source_contract_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    archive_schema_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    archive_payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    archive_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    combined_source_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    weight_set_revision_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    weight_set_content_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    binding_schema_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    execution_snapshot_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    coefficient_context_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    orchestration_identity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    authoritative_attempt_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    orchestration_fingerprint: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    reason: Mapped[str] = mapped_column(String(50), nullable=False)

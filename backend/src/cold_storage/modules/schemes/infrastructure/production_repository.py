@@ -6,6 +6,7 @@ MUST NOT commit, rollback, close, or create sessions.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from cold_storage.modules.schemes.application.production_ports import (
@@ -16,9 +17,35 @@ from cold_storage.modules.schemes.infrastructure.orm import (
     SchemeRunRecord,
 )
 
+# ── Optional archive write seam ────────────────────────────────────────────
+#
+# Production runs may persist a ``production_source_archives`` row in the
+# same UoW as the SchemeRun commit, so historical-read resolvers can
+# verify the source identity later.  This module does NOT directly
+# depend on ``orchestration.application.source_archive_builder`` (that
+# would couple schemes.application to orchestration.application at
+# import time).  Instead, the calling bootstrap composes a
+# ``build_archive_callable`` that closes over a configured
+# ``ProductionSourceArchiveWritePort`` and the orchestration builder.
+# ``None`` (the default) skips archive writing — tests and the legacy
+# SchemeRun completion path keep working unchanged.
+BuildArchiveCallable = Callable[[Any, "PersistedSchemeRun"], str]  # returns archive_id
+
 
 class SqlAlchemyProductionSchemeRunRepository:
-    """Persist production scheme runs using SQLAlchemy within caller's session."""
+    """Persist production scheme runs using SQLAlchemy within caller's session.
+
+    Optionally invokes ``build_archive_callable(session, persisted_run)``
+    after persisting the SchemeRun + candidates.  This is the integration
+    seam into the orchestration application layer's
+    ``source_archive_builder``: the bootstrap composes a closure that
+    closes over a configured ``ProductionSourceArchiveWritePort`` and
+    calls ``build_archive_for_completed_scheme_run(...)``.  Default is
+    None — no archive is written; test and legacy paths keep working.
+    """
+
+    def __init__(self, build_archive_callable: BuildArchiveCallable | None = None) -> None:
+        self._build_archive_callable = build_archive_callable
 
     def save_production_run(
         self,
@@ -128,7 +155,7 @@ class SqlAlchemyProductionSchemeRunRepository:
             )
             session.add(cand_rec)
 
-        return PersistedSchemeRun(
+        persisted = PersistedSchemeRun(
             id=run_id,
             project_id=project_id,
             project_version_id=project_version_id,
@@ -173,3 +200,15 @@ class SqlAlchemyProductionSchemeRunRepository:
             requires_review=requires_review,
             status=status,
         )
+
+        # Optional archive write seam.  When the bootstrap wires up a
+        # closure that closes over the orchestration application builder
+        # + a configured write port, this produces a
+        # production_source_archives row in the SAME UoW session
+        # (no commit here — the caller's UoW owns the transaction
+        # boundary).  When build_archive_callable is None the legacy
+        # / test path runs unchanged.
+        if self._build_archive_callable is not None:
+            self._build_archive_callable(session, persisted)
+
+        return persisted

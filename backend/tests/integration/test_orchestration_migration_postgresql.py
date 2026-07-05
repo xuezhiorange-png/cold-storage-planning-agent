@@ -584,7 +584,7 @@ class TestAuditEventHistoryBackfill:
         with engine3.connect() as conn3:
             # Revision matches current head after re-upgrade
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0033_extend_outbox_envelope"
+            expected_rev = "0034_add_production_source_archives"
             assert rev == expected_rev, f"Revision changed: {rev}"
 
             # AuditEvent still backfilled with same value
@@ -887,8 +887,12 @@ class TestDowngradeBlocker:
             f"Downgrade should be blocked when SourceBinding exists\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
         )
-        assert "Cannot downgrade" in r.stderr or "Cannot downgrade" in r.stdout, (
-            f"Expected blocker message; got stderr={r.stderr!r}"
+        # Migration 0026 / 0027 use the phrase "Cannot downgrade ..." to
+        # block; migration 0034 uses "RuntimeError: downgrade blocked:".
+        # Both are valid blocker signals; accept either.
+        combined = r.stderr + r.stdout
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
+            f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
         )
 
     def test_production_data_blocks_downgrade_and_atomic(self, pg_database_factory) -> None:
@@ -1101,7 +1105,10 @@ class TestDowngradeBlocker:
             f"Downgrade should have been blocked with production data\n"
             f"STDERR: {r.stderr}\nSTDOUT: {r.stdout}"
         )
-        assert "Cannot downgrade" in r.stderr or "Cannot downgrade" in r.stdout, (
+        # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
+        # uses "RuntimeError: downgrade blocked:".  Either is fine.
+        combined = r.stderr + r.stdout
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
             f"Expected blocker message; got stderr={r.stderr!r} stdout={r.stdout!r}"
         )
 
@@ -1199,7 +1206,10 @@ class TestDowngradeGatePG:
         assert r.returncode != 0, (
             f"Downgrade should have been blocked\\nstdout: {r.stdout}\\nstderr: {r.stderr}"
         )
-        assert "Cannot downgrade" in (r.stderr + r.stdout), (
+        # Migration 0026 / 0027 use "Cannot downgrade", migration 0034
+        # uses "RuntimeError: downgrade blocked:".  Either is fine.
+        combined = r.stderr + r.stdout
+        assert "Cannot downgrade" in combined or "downgrade blocked" in combined, (
             f"Expected blocker message; got stderr={r.stderr!r}"
         )
 
@@ -1716,14 +1726,14 @@ class TestTransactionBConstraints0028:
         """Upgrade to 0028, downgrade to 0027, re-upgrade to 0028 → success."""
         db_url = pg_database_factory(prefix="rt0028")
 
-        # Upgrade to head (0033)
+        # Upgrade to head (0034)
         r = _run_alembic(db_url, "upgrade", "head")
         assert r.returncode == 0, f"Upgrade to head failed:\n{r.stderr}\n{r.stdout}"
 
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0033_extend_outbox_envelope"
+            expected_rev = "0034_add_production_source_archives"
             assert rev == expected_rev, f"Expected 0033, got {rev}"
         engine.dispose()
 
@@ -1739,13 +1749,13 @@ class TestTransactionBConstraints0028:
             )
         engine.dispose()
 
-        # Re-upgrade to head (0033)
+        # Re-upgrade to head (0034)
         r = _run_alembic(db_url, "upgrade", "head")
         assert r.returncode == 0, f"Re-upgrade to head failed:\n{r.stderr}\n{r.stdout}"
 
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0033_extend_outbox_envelope"
+            expected_rev = "0034_add_production_source_archives"
             assert rev == expected_rev, f"Expected 0033, got {rev}"
         engine.dispose()

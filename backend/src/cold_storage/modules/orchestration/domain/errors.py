@@ -356,14 +356,106 @@ class PersistenceInvariantError(OrchestrationDomainError):
 
 
 class SchemeSourceArchiveIntegrityError(OrchestrationDomainError):
-    """SchemeSourceArchiveV1 verification failed."""
+    """SchemeSourceArchiveV1 verification failed.
 
-    def __init__(self, archive_hash: str) -> None:
+    The optional ``detail`` keyword carries a per-call message that
+    supplements the canonical "archive_hash" framing (e.g. malformed
+    ``source_slots`` list element).  ``detail`` is appended to the
+    public message and stored under ``details["detail"]``.
+    """
+
+    def __init__(self, archive_hash: str, detail: str | None = None) -> None:
+        message = f"Scheme source archive integrity failure (hash {archive_hash!r})"
+        if detail:
+            message = f"{message}: {detail}"
+        details: dict[str, object] = {"archive_hash": archive_hash}
+        if detail:
+            details["detail"] = detail
         super().__init__(
             "SCHEME_SOURCE_ARCHIVE_INVALID",
-            f"Scheme source archive integrity failure (hash {archive_hash!r})",
+            message,
             field="archive_hash",
-            details={"archive_hash": archive_hash},
+            details=details,
+        )
+
+
+class SchemeRunHistoricalSourceUnavailableError(OrchestrationDomainError):
+    """A production SchemeRun has neither online source nor archive.
+
+    Raised by the historical source resolver when there is no online
+    SourceBinding row AND no ``production_source_archives`` row for the
+    requested ``scheme_run_id``.  This is a fail-closed semantics: a
+    production SchemeRun must always have one or both; if both are gone,
+    read access is denied.
+    """
+
+    def __init__(self, scheme_run_id: str) -> None:
+        super().__init__(
+            "SCHEME_RUN_HISTORICAL_SOURCE_UNAVAILABLE",
+            f"Production SchemeRun {scheme_run_id!r} has no online source binding "
+            "and no archive row",
+            field="scheme_run_source_identity",
+            details={"scheme_run_id": scheme_run_id},
+        )
+
+
+class SchemeRunHistoricalSourceTamperedError(OrchestrationDomainError):
+    """Archive exists but its stored identity disagrees with the SchemeRun.
+
+    Raised when:
+      * ``archive.combined_source_hash != scheme_run.combined_source_hash``
+      * any per-slot ``archive.source_slots.<slot>.result_hash``
+        disagrees with the corresponding ``scheme_run.*_result_hash`` column
+      * ``archive.weight_set_content_hash != scheme_run.weight_set_content_hash``
+      * ``archive.binding_schema_version != scheme_run.binding_schema_version``
+
+    The error is field-tagged so callers can identify which identity
+    assertion failed without exposing the full payload bytes in logs.
+    """
+
+    def __init__(self, scheme_run_id: str, field: str) -> None:
+        super().__init__(
+            "SCHEME_RUN_HISTORICAL_SOURCE_TAMPERED",
+            f"Archive for production SchemeRun {scheme_run_id!r} disagrees on {field!r}",
+            field=field,
+            details={"scheme_run_id": scheme_run_id, "tampered_field": field},
+        )
+
+
+class SchemeSourceArchiveUnsupportedSchemaError(OrchestrationDomainError):
+    """The stored archive_row carries an unknown archive_schema_version.
+
+    The resolver refuses to read it.  Failure mode for schema-versioned
+    archives that we have not yet migrated to a reader for.
+    """
+
+    def __init__(self, scheme_run_id: str, archive_schema_version: str) -> None:
+        super().__init__(
+            "SCHEME_SOURCE_ARCHIVE_UNSUPPORTED_SCHEMA",
+            f"Archive for {scheme_run_id!r} carries schema_version "
+            f"{archive_schema_version!r}; no reader available",
+            field="archive_schema_version",
+            details={
+                "scheme_run_id": scheme_run_id,
+                "archive_schema_version": archive_schema_version,
+            },
+        )
+
+
+class SourceArchiveBuildError(OrchestrationDomainError):
+    """The application-layer archive builder failed to assemble a payload.
+
+    Wraps payload-assembly or hash-computation failures so the caller can
+    map them to a single domain error class without leaking helper
+    internals.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            "SOURCE_ARCHIVE_BUILD_FAILED",
+            f"Archive build failure: {reason}",
+            field="archive_payload",
+            details={"reason": reason},
         )
 
 
