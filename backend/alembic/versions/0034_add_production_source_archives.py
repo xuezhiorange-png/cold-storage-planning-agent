@@ -301,12 +301,16 @@ def _downgrade_guard() -> None:
         )
 
 
+_LOWERCASE_HEX = frozenset("0123456789abcdef")
+
+
 def _is_hex64(value: str) -> bool:
-    """Return True iff value is exactly 64 lowercase hex chars."""
-    if len(value) != ARCHIVE_HASH_HEX_LEN:
+    """Return True iff value is exactly 64 lowercase hex chars.
+
+    Strict lowercase only: ``int(value, 16)`` was previously used,
+    which silently accepted uppercase ``A``-``F``.  The v1 contract
+    binds to lowercase 64-char hex (P0-3 hardening).
+    """
+    if not isinstance(value, str) or len(value) != ARCHIVE_HASH_HEX_LEN:
         return False
-    try:
-        int(value, 16)
-    except ValueError:
-        return False
-    return True
+    return all(c in _LOWERCASE_HEX for c in value)
