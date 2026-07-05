@@ -82,7 +82,10 @@ Indexes:
 - `INDEX (source_binding_id)` — used by the online fall-back lookup.
 
 Five CalculationRunRecord rows are NOT mirrored as columns; they live
-inside `archive_payload["source_slots"]` with five fixed-order keys.
+inside `archive_payload["source_slots"]` as an ordered list of
+`[[slot_name, {calculation_id, result_hash}], ...]` tuples in the
+canonical order
+`["zone", "cooling_load", "equipment", "power", "investment"]`.
 
 ## Hash contract
 
@@ -103,7 +106,7 @@ to ensure both the migration preflight (rarely) and the runtime builder
 |--------|------|
 | Key ordering | `sort_keys=True` |
 | Nested dict | recursively sorted |
-| Top-level slot order | **Frozen**: `["zone", "cooling_load", "equipment", "power", "investment"]` — payload is built as `list[tuple[str, dict]]` then converted to a regular `dict` with `dict(slot_pairs)` AFTER sorting keys inside each slot dict.  A unit test pins this order. |
+| Top-level slot order | **Frozen**: `["zone", "cooling_load", "equipment", "power", "investment"]`. The payload's ``source_slots`` field is **always** an ordered JSON-safe list: `[["zone", {calculation_id, result_hash}], ["cooling_load", {calculation_id, result_hash}], ["equipment", ...], ["power", ...], ["investment", ...]]`. The hash commits to this exact order. A reverse-order, permuted-set, or dict-shaped ``source_slots`` is rejected at validation time (round 9 P1-1) before the hash recomputation runs. Tests pin: ordered-list emission, reverse-order rejection, swapped-neighbours rejection, missing-slot rejection, extra-slot rejection, dict-shape rejection, per-slot missing-`result_hash` rejection. The validator is `validate_archive_payload_v1(payload)` in `canonical_archive_v1.py` (round 9). |
 | Decimal | `str(decimal_value)` (base-10), never `float()` |
 | datetime | UTC-aware ISO format (`...isoformat()`); naive datetimes are coerced to UTC via `ensure_utc_aware` |
 | UUID | `str(uuid_obj)` |
@@ -130,13 +133,13 @@ to ensure both the migration preflight (rarely) and the runtime builder
   "orchestration_identity_id": str | None,
   "authoritative_attempt_id": str | None,
   "orchestration_fingerprint": str | None,
-  "source_slots": {
-    "zone":         {"calculation_id": str, "result_hash": str},
-    "cooling_load": {"calculation_id": str, "result_hash": str},
-    "equipment":    {"calculation_id": str, "result_hash": str},
-    "power":        {"calculation_id": str, "result_hash": str},
-    "investment":   {"calculation_id": str, "result_hash": str},
-  },
+  "source_slots": [
+    ["zone",         {"calculation_id": str, "result_hash": str}],
+    ["cooling_load", {"calculation_id": str, "result_hash": str}],
+    ["equipment",    {"calculation_id": str, "result_hash": str}],
+    ["power",        {"calculation_id": str, "result_hash": str}],
+    ["investment",   {"calculation_id": str, "result_hash": str}],
+  ],
   "project_id": str,
   "project_version_id": str,
   "generator_compatibility_version": str,
@@ -144,16 +147,20 @@ to ensure both the migration preflight (rarely) and the runtime builder
 }
 ```
 
-Required keys are all keys above.  Missing any → `ValueError` before
-hashing.  Extra keys (other than `schema`) → `ValueError` before
-hashing.
+The 19 keys listed above are required (and no extra keys are
+permitted).  Round 9 P1-1 enforces this contract via
+``validate_archive_payload_v1(payload)``: missing keys and extra keys
+each raise ``SourceArchiveBuildError`` *before* the hash recomputation
+runs.  ``source_slots`` is the canonical ordered list above; any
+reordering, permutation, dict shape, missing slot, extra slot, or
+per-slot payload missing ``result_hash`` is rejected.
 
 ### Hash coverage
 
 The hash covers the entire `archive_payload` dict, which includes:
 
 - `combined_source_hash` ✓
-- 5 × `source_slots[slot].calculation_id` and `result_hash` ✓
+- 5 × `source_slots[i][1].calculation_id` and `source_slots[i][1].result_hash` ✓
 - `weight_set_revision_id`, `weight_set_content_hash`,
   `weight_set_generator_compatibility_version` ✓
 - `binding_schema_version` ✓
@@ -220,7 +227,9 @@ input: scheme_run_id
            → raise SchemeRunHistoricalSourceTamperedError with
               field="archive_schema_version".
       v.   Verify SchemeRunRecord.5 × *_result_hash columns match
-           archive payload's source_slots[*].result_hash.  Mismatch →
+           archive payload's source_slots[*][1].result_hash (each
+           ordered list entry is `[slot_name, {calculation_id,
+           result_hash}]`).  Mismatch →
            SchemeRunHistoricalSourceTamperedError with field
            = one of "zone_result_hash" / "cooling_load_result_hash" /
                   "equipment_result_hash" / "power_result_hash" /
@@ -364,6 +373,45 @@ Each migration test file also asserts:
   contains the rows it contained before `alembic downgrade -1`.
 - After successful re-upgrade, the table is recreated with all its
   constraints.
+
+## Round 9 — production wiring + payload validator
+
+Two follow-up closures were required after independent engineering
+review of this contract:
+
+1. **Production archive wiring must reach production code via a
+   single canonical composition root.**  The repository
+   ``SqlAlchemyProductionSchemeRunRepository`` accepts
+   ``build_archive_callable=None`` (so unit tests can opt out),
+   which means *any* production-side caller could silently bypass
+   the archive INSERT.  Round 9 closes that gap with
+   ``bootstrap.production_composition.compose_production_scheme_service(session_factory)``
+   — the **single** production-mode factory.  ``bootstrap.dependencies.init_dependencies``
+   now also wires a ``production_scheme_service`` singleton + getter.
+   An architecture test
+   (``tests/architecture/test_production_archive_wiring_boundary.py``)
+   AST-scans the production tree for naked
+   ``SqlAlchemyProductionSchemeRunRepository(...)`` constructions
+   and fails if any construction is missing
+   ``build_archive_callable=`` *outside* the composition root.
+
+2. **Archive payload schema must be validated before the hash is
+   recomputed.**  A persistent ``archive_payload`` whose keys
+   drift away from the agreed contract (or whose ``source_slots``
+   shape regresses to a dict / wrong order / missing slot) would
+   otherwise produce a hash mismatch instead of a structural
+   integrity error.  Round 9 adds
+   ``validate_archive_payload_v1(payload)`` in
+   ``canonical_archive_v1.py`` enforcing:
+   - exactly the 19 required keys (no missing, no extras)
+   - ``source_slots`` is the canonical ordered list
+     `[["zone", …], ["cooling_load", …], …]`
+   The validator is wired into
+   ``historical_source_resolver.resolve_scheme_run_sources_for_history``
+   *before* ``compute_archive_hash_v1``; any violation raises
+   ``SchemeSourceArchiveIntegrityError(detail=…)`` instead of an
+   opaque hash mismatch.  Fail-closed tests cover both the
+   validator function (32 cases) and the resolver wire-up (3 cases).
 
 ## Maintainer governance
 
