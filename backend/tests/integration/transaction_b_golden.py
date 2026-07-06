@@ -522,6 +522,8 @@ def _seed_golden_prerequisites(session: Session) -> None:
                 source_binding_id=None,
                 failure_code=None,
                 failure_details=None,
+                database_backend="postgresql",
+                correlation_id="legacy-migration-0036",
             )
         )
 
