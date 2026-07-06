@@ -28,26 +28,65 @@ const workflowStore = usePlanningWorkflowStore(pinia)
 testRouter.push('/workbench/project')
 await testRouter.isReady()
 
+/* ── Test isolation helpers ────────────────────────────
+   Tests attach App to document.body via `attachTo`. Without an explicit
+   unmount, MutationObservers, focus-restore setTimeout timers, and
+   teleported drawer DOM nodes from the previous test leak into the next
+   test and produce a deterministic test-ordering state leak
+   (`opens drawer and focuses close button` flakes when run after
+   `agent shows unavailable state when no backend exists`).
+
+   Track the current wrapper so `afterEach` can unmount it, and reset
+   `document.activeElement` in `beforeEach` so a stale focus from the
+   previous test does not pollute the next one. This is a test-isolation
+   fix only — production AgentPanel behaviour is unchanged. */
+let currentTestWrapper: ReturnType<typeof mount> | null = null
+
 function mountApp() {
-  return mount(App, {
+  currentTestWrapper = mount(App, {
     global: {
       plugins: [testRouter, pinia]
     },
     attachTo: document.body
   })
+  return currentTestWrapper
 }
 
 describe('cold storage workbench', () => {
   beforeEach(async () => {
     workflowStore.reset()
+    // Defensive: the previous test may have left focus on a removed DOM
+    // element (e.g. a teleported close button that has since been
+    // unmounted). Blurring ensures the next test starts from a clean
+    // focus state so the drawer focus observer can move focus to the
+    // newly-added close button without being overridden by a stale one.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
     await testRouter.push('/workbench/project')
     await testRouter.isReady()
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
-    // Clean up any teleported drawer content left in the DOM
+    // Unmount the current wrapper to disconnect any MutationObservers
+    // set up by AgentPanel's onMounted, cancel pending focus-restore
+    // timers, and clear the teleported drawer/overlay DOM. This is the
+    // primary fix for the workbench test ordering state leak.
+    if (currentTestWrapper) {
+      currentTestWrapper.unmount()
+      currentTestWrapper = null
+    }
+    // Belt-and-suspenders: in case any teleport survived unmount, scrub
+    // any leftover agent panel nodes that were teleported to document.body.
     document.body.querySelectorAll('.agent-panel__drawer, .agent-panel__overlay').forEach(el => el.remove())
+    // Final focus reset: after unmount the active element is the document
+    // body, but a previous test's click handler may have moved focus to
+    // a still-mounted sibling node. Blur to leave the document in a
+    // known state for the next test's `beforeEach`.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
   })
 
   it('redirects root to project page', () => {
