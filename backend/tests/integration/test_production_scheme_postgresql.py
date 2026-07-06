@@ -1385,6 +1385,7 @@ class TestPostgresPartialFlushRollback:
                 equipment_result_hash=kwargs["equipment_result_hash"],
                 power_result_hash=kwargs["power_result_hash"],
                 investment_result_hash=kwargs["investment_result_hash"],
+                database_backend=kwargs.get("database_backend", "postgresql"),
             )
             session.add(run_rec)
             session.flush()
