@@ -585,6 +585,7 @@ class ProductionSchemeService:
             profile_codes=command.profile_codes,
             profile_parameters={k: dict(v) for k, v in command.profile_parameters.items()},
             candidates=candidate_data,
+            database_backend=command.database_backend,
         )
 
         return run

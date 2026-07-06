@@ -93,6 +93,7 @@ class SqlAlchemyProductionSchemeRunRepository:
         profile_codes: tuple[str, ...],
         profile_parameters: dict[str, dict[str, Any]],
         candidates: list[dict[str, Any]],
+        database_backend: str = "sqlite",
     ) -> PersistedSchemeRun:
         run_rec = SchemeRunRecord(
             id=run_id,
@@ -137,6 +138,7 @@ class SqlAlchemyProductionSchemeRunRepository:
             equipment_result_hash=equipment_result_hash,
             power_result_hash=power_result_hash,
             investment_result_hash=investment_result_hash,
+            database_backend=database_backend,
         )
         session.add(run_rec)
 

@@ -560,6 +560,8 @@ def _seed_orchestration_prereqs(session) -> None:
                 heartbeat_at=datetime.now(UTC),
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
+                database_backend="sqlite",
+                correlation_id="legacy-migration-0036",
             )
         )
         session.commit()
@@ -844,6 +846,7 @@ def _make_command(
     profile_parameters: dict[str, dict[str, object]] | None = None,
     actor: str = "test-actor",
     correlation_id: str = "test-corr-001",
+    database_backend: str = "sqlite",
 ):
     from cold_storage.modules.schemes.application.production_ports import (
         GenerateProductionSchemeCommand,
@@ -856,6 +859,7 @@ def _make_command(
         profile_parameters=profile_parameters or {},
         actor=actor,
         correlation_id=correlation_id,
+        database_backend=database_backend,
     )
 
 

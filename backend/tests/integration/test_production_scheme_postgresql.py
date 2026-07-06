@@ -811,6 +811,7 @@ def _make_command(
     profile_parameters: dict[str, dict[str, object]] | None = None,
     actor: str = "pg-test-actor",
     correlation_id: str = "pg-test-corr-001",
+    database_backend: str = "postgresql",
 ):
     from cold_storage.modules.schemes.application.production_ports import (
         GenerateProductionSchemeCommand,
@@ -823,6 +824,7 @@ def _make_command(
         profile_parameters=profile_parameters or {},
         actor=actor,
         correlation_id=correlation_id,
+        database_backend=database_backend,
     )
 
 

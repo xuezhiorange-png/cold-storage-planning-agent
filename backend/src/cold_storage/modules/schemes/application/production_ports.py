@@ -33,6 +33,12 @@ class GenerateProductionSchemeCommand:
     profile_parameters: Mapping[str, Mapping[str, object]] = field(default_factory=dict)
     actor: str = ""
     correlation_id: str = ""
+    # Phase 1 (Task 11B) schema contract: every fresh write must
+    # explicitly supply the dialect under which the row was produced
+    # (NOT NULL ``scheme_runs.database_backend`` after 0035+0036).
+    # Default ``"sqlite"`` is kept for backward compatibility with
+    # legacy callers; runtime paths must set this explicitly.
+    database_backend: str = "sqlite"
 
 
 # ── Source binding read port ────────────────────────────────────────────────
@@ -325,6 +331,7 @@ class ProductionSchemeRunRepository(Protocol):
         profile_codes: tuple[str, ...],
         profile_parameters: dict[str, dict[str, Any]],
         candidates: list[dict[str, Any]],
+        database_backend: str = "sqlite",
     ) -> PersistedSchemeRun: ...
 
 
