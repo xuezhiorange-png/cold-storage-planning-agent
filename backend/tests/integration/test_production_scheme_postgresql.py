@@ -1444,6 +1444,7 @@ class TestPostgresPartialFlushRollback:
                 profile_codes=kwargs["profile_codes"],
                 profile_parameters=kwargs["profile_parameters"],
                 candidates_count=len(candidates),
+                database_backend=kwargs["database_backend"],
             )
 
         SqlAlchemyProductionSchemeRunRepository.save_production_run = _partial_flush_save  # type: ignore[assignment]
@@ -1953,6 +1954,7 @@ class TestPostgresProductionTransactionBE2E:
             profile_parameters={},
             actor="pg-golden-e2e-test",
             correlation_id="pg-golden-e2e-corr-001",
+            database_backend="postgresql",
         )
         run = service.generate_production_scheme_run(cmd)
 

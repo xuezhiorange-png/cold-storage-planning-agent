@@ -1124,7 +1124,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0036_phase1_identity_foundation_remediation"
+        expected_rev = "0037_phase1_drop_correlation_id_default"
         assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
 
@@ -1159,7 +1159,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0036_phase1_identity_foundation_remediation"
+        expected_rev = "0037_phase1_drop_correlation_id_default"
         assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
         db_path.unlink(missing_ok=True)

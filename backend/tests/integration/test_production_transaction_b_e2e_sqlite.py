@@ -595,6 +595,7 @@ def _make_production_command():
         profile_parameters={},
         actor="golden-e2e-test",
         correlation_id="golden-e2e-corr-001",
+        database_backend="sqlite",
     )
 
 
@@ -909,6 +910,7 @@ class TestProductionTransactionBRealExecutorE2ESQLite:
             profile_parameters={},
             actor="golden-e2e-test",
             correlation_id="golden-e2e-corr-002",
+            database_backend="sqlite",
         )
         run = prod_service.generate_production_scheme_run(cmd)
         assert run.status == "completed"

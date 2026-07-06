@@ -193,6 +193,7 @@ class TestProductionCompositionWiringE2E:
             profile_parameters={},
             actor="wiring-e2e-composition",
             correlation_id="wiring-e2e-corr-composition-001",
+            database_backend="sqlite",
         )
 
         result = service.generate_production_scheme_run(cmd)
@@ -266,6 +267,7 @@ class TestProductionCompositionWiringE2E:
             profile_parameters={},
             actor="wiring-e2e-composition-count",
             correlation_id="wiring-e2e-corr-count-001",
+            database_backend="sqlite",
         )
 
         result = service.generate_production_scheme_run(cmd)
@@ -330,6 +332,7 @@ class TestProductionCompositionFailureRollback:
                 profile_parameters={},
                 actor="wiring-e2e-composition-failure",
                 correlation_id="wiring-e2e-corr-failure-001",
+                database_backend="sqlite",
             )
             raised = False
             try:

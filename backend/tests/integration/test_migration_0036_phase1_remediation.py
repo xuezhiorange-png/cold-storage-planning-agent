@@ -305,17 +305,60 @@ class Test0036DatabaseBackendServerDefault:
 
 
 class Test0036CorrelationIdCheck:
-    """P0-2: ck_attempt_correlation_id_nonempty rejects NULL/empty/whitespace."""
+    """P0-2: ck_attempt_correlation_id_nonempty rejects NULL/empty/whitespace.
 
-    def test_correlation_id_server_default_is_legacy_sentinel(self) -> None:
+    The contract after 0036 + 0037 is:
+
+    * 0036 step 1 — backfilled any NULL / empty / whitespace-only
+      ``correlation_id`` row with the explicit sentinel
+      ``"legacy-migration-0036"`` (preserves the NOT NULL
+      invariant without faking a real correlation identifier).
+    * 0036 step 3 — added the portable
+      ``ck_attempt_correlation_id_nonempty`` CHECK
+      (``length(trim(correlation_id)) > 0``) on both SQLite
+      and PostgreSQL. Empty / whitespace-only writes now fail
+      with ``IntegrityError``.
+    * 0037 — dropped the column-level ``server_default`` so
+      future writes must supply ``correlation_id`` explicitly.
+      The legacy sentinel is reserved for backfilled
+      pre-0036 rows; new writes cannot mint a "fake"
+      correlation_id by relying on the default.
+    """
+
+    def test_correlation_id_has_no_server_default_after_0037(self) -> None:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as t:
             t.close()
         try:
             _run_alembic(["upgrade", "head"], t.name)
             dflt = _dflt(t.name, "orchestration_run_attempts", "correlation_id")
-            assert dflt == "'legacy-migration-0036'", (
-                f"correlation_id default should be 'legacy-migration-0036'; got {dflt!r}"
+            assert dflt is None, (
+                f"correlation_id must have no column-level default after 0037; got {dflt!r}"
             )
+        finally:
+            Path(t.name).unlink(missing_ok=True)
+
+    def test_correlation_id_roundtrip_preserves_backfill_default(self) -> None:
+        """downgrade 0037 → 0036 → upgrade 0037 must restore the
+        legacy sentinel as the column-level default in 0036 state
+        and drop it again in 0037 state.
+        """
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as t:
+            t.close()
+        try:
+            # Initial upgrade to head (0037).
+            _run_alembic(["upgrade", "head"], t.name)
+            assert _dflt(t.name, "orchestration_run_attempts", "correlation_id") is None
+
+            # Downgrade to 0036 — restores legacy sentinel.
+            _run_alembic(["downgrade", "0036_phase1_identity_foundation_remediation"], t.name)
+            assert (
+                _dflt(t.name, "orchestration_run_attempts", "correlation_id")
+                == "'legacy-migration-0036'"
+            )
+
+            # Re-upgrade to head — drops the default again.
+            _run_alembic(["upgrade", "head"], t.name)
+            assert _dflt(t.name, "orchestration_run_attempts", "correlation_id") is None
         finally:
             Path(t.name).unlink(missing_ok=True)
 
@@ -517,7 +560,7 @@ class Test0036RoundtripSQLite:
                     assert "ck_attempt_correlation_id_nonempty" in create_sql, (
                         "0036 CHECK should be re-created after re-upgrade"
                     )
-                    # And the database_backend default is None (dropped).
+                    # And the database_backend default is None (dropped in 0036).
                     dflt_db = conn.execute(
                         text(
                             "SELECT dflt_value FROM pragma_table_info("
@@ -525,14 +568,20 @@ class Test0036RoundtripSQLite:
                         )
                     ).scalar()
                     assert dflt_db is None
-                    # correlation_id default is the sentinel.
+                    # correlation_id default is None after the
+                    # full roundtrip — 0037 was re-applied on
+                    # top of 0035, dropping the column-level
+                    # default that 0036 installed.
                     dflt_cid = conn.execute(
                         text(
                             "SELECT dflt_value FROM pragma_table_info("
                             "'orchestration_run_attempts') WHERE name='correlation_id'"
                         )
                     ).scalar()
-                    assert dflt_cid == "'legacy-migration-0036'"
+                    assert dflt_cid is None, (
+                        f"correlation_id default should be None after re-upgrade to 0037; "
+                        f"got {dflt_cid!r}"
+                    )
             finally:
                 engine.dispose()
         finally:

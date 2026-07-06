@@ -1853,6 +1853,7 @@ class TestAtomicRollbackPKSetZeroDelta:
                 profile_codes=kwargs["profile_codes"],
                 profile_parameters=kwargs["profile_parameters"],
                 candidates_count=len(candidates),
+                database_backend=kwargs["database_backend"],
             )
 
         SqlAlchemyProductionSchemeRunRepository.save_production_run = _partial_flush_save  # type: ignore[assignment]

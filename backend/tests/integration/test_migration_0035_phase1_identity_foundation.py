@@ -320,10 +320,16 @@ class Test0035Phase1SchemaDeltaSQLite:
                 "database_backend should have no column-level default "
                 "after 0036 remediation; got " + repr(_dflt("database_backend"))
             )
-            # correlation_id: replaced with explicit sentinel
-            assert _dflt("correlation_id") == "'legacy-migration-0036'", (
-                "correlation_id default should be 'legacy-migration-0036'; "
-                "got " + repr(_dflt("correlation_id"))
+            # correlation_id: server_default was DROPPED in 0037
+            # (the legacy sentinel "legacy-migration-0036" remains
+            # only as a column-level default when 0037 is
+            # downgraded; new writes must supply the value
+            # explicitly). Future writes cannot accidentally
+            # mint a "fake" correlation_id by relying on the
+            # default.
+            assert _dflt("correlation_id") is None, (
+                "correlation_id should have no column-level default "
+                "after 0037 remediation; got " + repr(_dflt("correlation_id"))
             )
             # actor_principal_type: unchanged
             assert _dflt("actor_principal_type") == "'user'"
