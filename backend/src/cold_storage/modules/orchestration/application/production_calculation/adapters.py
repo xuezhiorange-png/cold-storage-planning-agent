@@ -121,6 +121,20 @@ def _to_decimal(value: Any) -> Decimal:
     )
 
 
+def _to_float(value: Any) -> Any:
+    """Boundary helper: accept ``Decimal`` or numeric, return ``float``.
+
+    The production calculators (e.g. ``ColdRoomZonePlanInput``)
+    are typed ``float`` and Python's ``Decimal * float`` raises
+    ``TypeError``.  Adapters are the typed boundary between the
+    orchestrator's ``Decimal`` world and the calculators' ``float``
+    world; this helper makes that boundary explicit.
+    """
+    if isinstance(value, Decimal):
+        return float(value)
+    return value
+
+
 def _build_warning_dicts(
     result: LegacyOrNewCalculationResult,
 ) -> tuple[AdapterWarning, ...]:
@@ -344,9 +358,17 @@ class ZonePlanningAdapter:
     def _project_to_zone_input_fields(
         raw_inputs: Mapping[str, Any],
     ) -> dict[str, Any]:
-        """Filter ``raw_inputs`` to the dataclass' field names."""
+        """Filter ``raw_inputs`` to the dataclass' field names.
+
+        The orchestrator threads ``Decimal`` values into the
+        raw input payload so the canonical-JSON hash is
+        stable.  ``ColdRoomZonePlanInput`` is typed ``float``;
+        convert ``Decimal`` back to ``float`` at this
+        boundary so the calculator's ``Decimal * float``
+        type error never surfaces.
+        """
         allowed = set(ColdRoomZonePlanInput.__dataclass_fields__.keys())
-        return {k: v for k, v in raw_inputs.items() if k in allowed}
+        return {k: _to_float(v) for k, v in raw_inputs.items() if k in allowed}
 
 
 # ── Cooling load adapter ──────────────────────────────────────────────────

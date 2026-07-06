@@ -1000,6 +1000,8 @@ class TransactionBExecutor:
                     execution_snapshot=execution_snapshot,
                     coefficient_context=coefficient_context,
                     upstream_results=dict(upstream_results),
+                    actor=actor,
+                    correlation_id=correlation_id,
                 )
             except (TransactionBBlocked, OrchestrationDomainError):
                 raise
