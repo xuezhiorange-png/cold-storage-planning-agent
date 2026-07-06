@@ -264,6 +264,12 @@ class SqlAlchemyProductionSchemeRunReadPort:
             status=record.status,
             created_at=record.created_at,
             completed_at=record.completed_at,
+            # Phase 1 (Task 11B) readback: thread the persisted
+            # dialect through. The column is NOT NULL after
+            # 0035+0036, so a missing value indicates a corrupted
+            # row (legacy pre-0035) — surface it as empty and let
+            # downstream fail-closed checks catch it.
+            database_backend=record.database_backend or "",
         )
 
     def load_candidates(self, session: Session, /, *, run_id: str) -> list[SchemeCandidateSnapshot]:

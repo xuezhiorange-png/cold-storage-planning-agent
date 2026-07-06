@@ -315,4 +315,9 @@ class SchemeRepository:
             recommended_scheme_code=rec.recommended_scheme_code,
             warning_messages=[str(w) for w in rec.warning_messages],
             content_hash=rec.content_hash,
+            # Phase 1 (Task 11B) readback: the column is NOT NULL
+            # after 0035+0036, so a missing value indicates a
+            # corrupted row. Surface empty and let the kw_only
+            # SchemeRun field fail-closed downstream.
+            database_backend=rec.database_backend or "",
         )

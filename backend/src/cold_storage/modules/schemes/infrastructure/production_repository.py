@@ -93,8 +93,22 @@ class SqlAlchemyProductionSchemeRunRepository:
         profile_codes: tuple[str, ...],
         profile_parameters: dict[str, dict[str, Any]],
         candidates: list[dict[str, Any]],
-        database_backend: str = "sqlite",
+        database_backend: str,
     ) -> PersistedSchemeRun:
+        # Phase 1 (Task 11B) fail-closed invariant. The
+        # ``scheme_runs.database_backend`` column is NOT NULL with
+        # no column-level server_default after 0035+0036. We
+        # explicitly require the value at this layer so the
+        # application cannot accidentally fall back to a default.
+        # A None / empty / non-enum value must fail-closed at the
+        # repository boundary — the SQLAlchemy ORM would otherwise
+        # raise an opaque IntegrityError at flush time.
+        if not database_backend or database_backend not in ("sqlite", "postgresql"):
+            raise ValueError(
+                "save_production_run requires database_backend "
+                "to be one of {'sqlite', 'postgresql'}; "
+                f"got {database_backend!r}"
+            )
         run_rec = SchemeRunRecord(
             id=run_id,
             project_id=project_id,
@@ -201,6 +215,10 @@ class SqlAlchemyProductionSchemeRunRepository:
             warning_messages=warning_messages,
             requires_review=requires_review,
             status=status,
+            # Phase 1 (Task 11B) readback: thread the dialect
+            # through so the readback port can return it to the
+            # trusted readback path.
+            database_backend=database_backend,
         )
 
         # Optional archive write seam.  When the bootstrap wires up a

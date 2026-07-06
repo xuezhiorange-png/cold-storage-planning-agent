@@ -496,6 +496,13 @@ class ProductionSchemeService:
             created_at=now,
             completed_at=now,
             content_hash=content_hash,
+            # Phase 1 (Task 11B) fail-closed: thread the dialect
+            # explicitly from the command. The command itself is
+            # constructed by the application entry point with
+            # ``get_settings().database_backend`` as the source of
+            # truth, so the value matches the active runtime
+            # backend.
+            database_backend=command.database_backend,
         )
 
         # Build ranks
@@ -1379,4 +1386,9 @@ def read_verified_production_scheme_run(
         created_at=persisted.created_at or datetime.now(UTC),
         completed_at=persisted.completed_at,
         content_hash=persisted.content_hash,
+        # Phase 1 (Task 11B) readback: read the dialect back
+        # from the persisted record. Fail-closed at the
+        # repository boundary, so persisted.database_backend is
+        # never None / empty.
+        database_backend=persisted.database_backend,
     )

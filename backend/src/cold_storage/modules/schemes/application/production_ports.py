@@ -18,7 +18,7 @@ from cold_storage.modules.schemes.domain.models import WeightCriterion
 # ── Production command ─────────────────────────────────────────────────────
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class GenerateProductionSchemeCommand:
     """Immutable production scheme generation request.
 
@@ -31,14 +31,21 @@ class GenerateProductionSchemeCommand:
     weight_set_revision_id: str
     profile_codes: tuple[str, ...]
     profile_parameters: Mapping[str, Mapping[str, object]] = field(default_factory=dict)
+    # Phase 1 (Task 11B) schema contract: 0035+0036 made the
+    # ``scheme_runs.database_backend`` and
+    # ``orchestration_run_attempts.correlation_id`` columns NOT NULL
+    # with **no** column-level server_default. Future writes must
+    # therefore supply these fields explicitly. We require them at
+    # command-construction time (no Python default) so the
+    # application / repository layer cannot accidentally fall back
+    # to a sentinel value. The runtime service derives
+    # ``database_backend`` from ``get_settings().database_backend``
+    # and mints a real ``correlation_id`` (e.g. via
+    # ``OrchestrationRequestRepository.create``) before constructing
+    # this command.
     actor: str = ""
-    correlation_id: str = ""
-    # Phase 1 (Task 11B) schema contract: every fresh write must
-    # explicitly supply the dialect under which the row was produced
-    # (NOT NULL ``scheme_runs.database_backend`` after 0035+0036).
-    # Default ``"sqlite"`` is kept for backward compatibility with
-    # legacy callers; runtime paths must set this explicitly.
-    database_backend: str = "sqlite"
+    correlation_id: str
+    database_backend: str
 
 
 # ── Source binding read port ────────────────────────────────────────────────
@@ -203,7 +210,7 @@ class VerifiedSourceMapping:
 # ── Production scheme run repository port ──────────────────────────────────
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class PersistedSchemeRun:
     """Complete read model for a persisted production SchemeRun.
 
@@ -275,6 +282,10 @@ class PersistedSchemeRun:
     status: str = "pending"
     created_at: datetime | None = None
     completed_at: datetime | None = None
+    # Phase 1 (Task 11B) readback: dialect under which the row
+    # was persisted. Required (no default) so the trusted
+    # readback path cannot accidentally mask an empty value.
+    database_backend: str
 
 
 class ProductionSchemeRunRepository(Protocol):
@@ -331,7 +342,7 @@ class ProductionSchemeRunRepository(Protocol):
         profile_codes: tuple[str, ...],
         profile_parameters: dict[str, dict[str, Any]],
         candidates: list[dict[str, Any]],
-        database_backend: str = "sqlite",
+        database_backend: str,
     ) -> PersistedSchemeRun: ...
 
 
