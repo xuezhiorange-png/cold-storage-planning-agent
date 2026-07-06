@@ -265,15 +265,16 @@ class Test0035Phase1RawSQLRoundtrip:
                     text(
                         "INSERT INTO orchestration_run_attempts("
                         "  id, identity_id, attempt_number, status, heartbeat_at, started_at,"
-                        "  database_backend, actor_principal_type"
+                        "  database_backend, correlation_id, actor_principal_type"
                         ") VALUES ("
-                        "  :id, :iid, 1, 'RUNNING', :now, :now, 'postgres', 'user'"
+                        "  :id, :iid, 1, 'RUNNING', :now, :now, 'postgres', :cid, 'user'"
                         ")"
                     ),
                     {
                         "id": str(uuid.uuid4()),
                         "iid": identity_id,
                         "now": datetime.now(UTC).isoformat(),
+                        "cid": "phase1-orm-roundtrip-cid-005",
                     },
                 )
                 conn.commit()
@@ -290,15 +291,16 @@ class Test0035Phase1RawSQLRoundtrip:
                     text(
                         "INSERT INTO orchestration_run_attempts("
                         "  id, identity_id, attempt_number, status, heartbeat_at, started_at,"
-                        "  database_backend, actor_principal_type"
+                        "  database_backend, correlation_id, actor_principal_type"
                         ") VALUES ("
-                        "  :id, :iid, 1, 'RUNNING', :now, :now, 'sqlite', 'admin'"
+                        "  :id, :iid, 1, 'RUNNING', :now, :now, 'sqlite', :cid, 'admin'"
                         ")"
                     ),
                     {
                         "id": str(uuid.uuid4()),
                         "iid": identity_id,
                         "now": datetime.now(UTC).isoformat(),
+                        "cid": "phase1-orm-roundtrip-cid-006",
                     },
                 )
                 conn.commit()
@@ -318,15 +320,16 @@ class Test0035Phase1RawSQLRoundtrip:
                 text(
                     "INSERT INTO orchestration_run_attempts("
                     "  id, identity_id, attempt_number, status, heartbeat_at, started_at,"
-                    "  database_backend, idempotency_key, actor_principal_type"
+                    "  database_backend, correlation_id, idempotency_key, actor_principal_type"
                     ") VALUES ("
-                    "  :id, :iid, 1, 'RUNNING', :now, :now, 'sqlite', :ik, 'user'"
+                    "  :id, :iid, 1, 'RUNNING', :now, :now, 'sqlite', :cid, :ik, 'user'"
                     ")"
                 ),
                 {
                     "id": str(uuid.uuid4()),
                     "iid": identity_id,
                     "now": datetime.now(UTC).isoformat(),
+                    "cid": "phase1-orm-roundtrip-cid-001",
                     "ik": shared,
                 },
             )
@@ -338,15 +341,16 @@ class Test0035Phase1RawSQLRoundtrip:
                     text(
                         "INSERT INTO orchestration_run_attempts("
                         "  id, identity_id, attempt_number, status, heartbeat_at, started_at,"
-                        "  database_backend, idempotency_key, actor_principal_type"
+                        "  database_backend, correlation_id, idempotency_key, actor_principal_type"
                         ") VALUES ("
-                        "  :id, :iid, 2, 'RUNNING', :now, :now, 'sqlite', :ik, 'user'"
+                        "  :id, :iid, 2, 'RUNNING', :now, :now, 'sqlite', :cid, :ik, 'user'"
                         ")"
                     ),
                     {
                         "id": str(uuid.uuid4()),
                         "iid": identity_id,
                         "now": datetime.now(UTC).isoformat(),
+                        "cid": "phase1-orm-roundtrip-cid-002",
                         "ik": shared,
                     },
                 )
@@ -371,15 +375,16 @@ class Test0035Phase1RawSQLRoundtrip:
                 text(
                     "INSERT INTO orchestration_run_attempts("
                     "  id, identity_id, attempt_number, status, heartbeat_at, started_at,"
-                    "  database_backend, idempotency_key, actor_principal_type"
+                    "  database_backend, correlation_id, idempotency_key, actor_principal_type"
                     ") VALUES ("
-                    "  :id, :iid, 1, 'RUNNING', :now, :now, 'sqlite', :ik, 'user'"
+                    "  :id, :iid, 1, 'RUNNING', :now, :now, 'sqlite', :cid, :ik, 'user'"
                     ")"
                 ),
                 {
                     "id": str(uuid.uuid4()),
                     "iid": identity_id_1,
                     "now": datetime.now(UTC).isoformat(),
+                    "cid": "phase1-orm-roundtrip-cid-003",
                     "ik": shared,
                 },
             )
@@ -387,15 +392,16 @@ class Test0035Phase1RawSQLRoundtrip:
                 text(
                     "INSERT INTO orchestration_run_attempts("
                     "  id, identity_id, attempt_number, status, heartbeat_at, started_at,"
-                    "  database_backend, idempotency_key, actor_principal_type"
+                    "  database_backend, correlation_id, idempotency_key, actor_principal_type"
                     ") VALUES ("
-                    "  :id, :iid, 1, 'RUNNING', :now, :now, 'postgresql', :ik, 'user'"
+                    "  :id, :iid, 1, 'RUNNING', :now, :now, 'postgresql', :cid, :ik, 'user'"
                     ")"
                 ),
                 {
                     "id": str(uuid.uuid4()),
                     "iid": identity_id_2,
                     "now": datetime.now(UTC).isoformat(),
+                    "cid": "phase1-orm-roundtrip-cid-004",
                     "ik": shared,
                 },
             )

@@ -1313,7 +1313,7 @@ def sqlite_engine():
 
     with engine.connect() as conn:
         ver = conn.execute(sa_text("SELECT version_num FROM alembic_version")).scalar()
-        assert ver == "0036_phase1_identity_foundation_remediation", (
+        assert ver == "0037_phase1_drop_correlation_id_default", (
             f"Unexpected migration version: {ver}"
         )
 
