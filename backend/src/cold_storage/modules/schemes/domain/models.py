@@ -300,3 +300,9 @@ class SchemeRun:
     content_hash: str | None = None
     recommended_scheme_code: str | None = None
     warning_messages: list[str] = field(default_factory=list)
+    # Phase 1 (Task 11B) schema compatibility: 0035 added
+    # ``scheme_runs.database_backend`` as NOT NULL on the table;
+    # 0036 dropped the server_default so every fresh write must
+    # supply the dialect explicitly.  Default ``"sqlite"`` is kept
+    # for backward compatibility with legacy callers.
+    database_backend: str = "sqlite"

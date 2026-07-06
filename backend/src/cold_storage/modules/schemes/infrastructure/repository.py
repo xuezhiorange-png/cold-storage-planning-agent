@@ -145,6 +145,7 @@ class SchemeRepository:
             warning_messages=run.warning_messages,
             completed_at=run.completed_at,
             content_hash=run.content_hash,
+            database_backend=run.database_backend,
         )
         self._session.add(run_rec)
 
