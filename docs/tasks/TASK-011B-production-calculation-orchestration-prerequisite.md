@@ -701,6 +701,38 @@ authorization gate (mirroring the Task 10/11 governance).
 
 ---
 
+## 12.1 Phase 2 closeout pointer (documentation only)
+
+The Phase 2 implementation of this design was delivered
+by **PR #38** (Task 11B Phase 2 — production calculation
+ports and adapters). PR #38 is recorded as MERGED with a
+governance deviation: the merge action occurred before an
+independent review acceptance verdict was issued. The
+canonical record of this closeout — including the exact
+merge commit, the post-merge main CI run, the deviation
+wording (English + 中文), the residual Issue #35
+acceptance criteria, and the explicit NOT-AUTHORIZED list
+for subsequent phases — is in:
+
+- `docs/tasks/TASK-011B-phase2-closeout.md`
+
+This section is a pointer only. It does not amend the
+design contract in §1–§12, does not weaken the explicit
+non-authorization statement in §13, and does not move the
+project forward into Phase 3, SourceBinding + archive +
+SchemeService E2E, approved non-demo coefficient
+governance, Task 11 Phase B / C / D, or Task 12. All of
+those remain NOT AUTHORIZED as recorded in §13 below and
+in §4 of the closeout record.
+
+Note: this design contract refers to a `TASK_BACKLOG.md`
+that is not present in the repository. The closeout
+record does not create that file; it records the same
+technical / governance facts directly in
+`docs/tasks/TASK-011B-phase2-closeout.md`.
+
+---
+
 ## 13. Explicit non-authorization statement
 
 **This document does NOT authorize any code, schema,
