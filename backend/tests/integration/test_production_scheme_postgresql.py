@@ -498,6 +498,8 @@ def _seed_orchestration_prereqs(session) -> None:
                 heartbeat_at=datetime.now(UTC),
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
+                database_backend="postgresql",
+                correlation_id="legacy-migration-0036",
             )
         )
         session.commit()
@@ -809,6 +811,7 @@ def _make_command(
     profile_parameters: dict[str, dict[str, object]] | None = None,
     actor: str = "pg-test-actor",
     correlation_id: str = "pg-test-corr-001",
+    database_backend: str = "postgresql",
 ):
     from cold_storage.modules.schemes.application.production_ports import (
         GenerateProductionSchemeCommand,
@@ -821,6 +824,7 @@ def _make_command(
         profile_parameters=profile_parameters or {},
         actor=actor,
         correlation_id=correlation_id,
+        database_backend=database_backend,
     )
 
 
@@ -1381,6 +1385,7 @@ class TestPostgresPartialFlushRollback:
                 equipment_result_hash=kwargs["equipment_result_hash"],
                 power_result_hash=kwargs["power_result_hash"],
                 investment_result_hash=kwargs["investment_result_hash"],
+                database_backend=kwargs.get("database_backend", "postgresql"),
             )
             session.add(run_rec)
             session.flush()
@@ -1439,6 +1444,7 @@ class TestPostgresPartialFlushRollback:
                 profile_codes=kwargs["profile_codes"],
                 profile_parameters=kwargs["profile_parameters"],
                 candidates_count=len(candidates),
+                database_backend=kwargs["database_backend"],
             )
 
         SqlAlchemyProductionSchemeRunRepository.save_production_run = _partial_flush_save  # type: ignore[assignment]
@@ -1948,6 +1954,7 @@ class TestPostgresProductionTransactionBE2E:
             profile_parameters={},
             actor="pg-golden-e2e-test",
             correlation_id="pg-golden-e2e-corr-001",
+            database_backend="postgresql",
         )
         run = service.generate_production_scheme_run(cmd)
 

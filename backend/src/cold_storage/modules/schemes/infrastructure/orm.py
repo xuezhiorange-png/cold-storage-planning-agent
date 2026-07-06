@@ -165,6 +165,10 @@ class SchemeRunRecord(Base):
             ")",
             name="ck_scheme_run_source_mode_nullity",
         ),
+        CheckConstraint(
+            "database_backend IN ('sqlite', 'postgresql')",
+            name="ck_scheme_run_database_backend",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -224,7 +228,34 @@ class SchemeRunRecord(Base):
     power_result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     investment_result_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
+    # ── Task 11B Phase 1 — schema-only identity foundation (0035) ──
+    # These columns are added by migration 0035_phase1_identity_foundation.
+    # The ORM mirror below is read-only and does NOT implement any
+    # orchestrator / SchemeService.run business logic — those are
+    # deferred to separate phases.
+    #
+    # frozen_envelope: canonical ``SourceSnapshotContentV1`` JSON bundle
+    # of the five ``ResultSnapshotV1`` payloads. Null for legacy rows or
+    # for any SchemeRun that has not yet been sealed by the orchestrator.
+    # SQLite stores JSON; PostgreSQL stores JSONB. The application layer
+    # is responsible for canonicalization (see design contract §8).
+    frozen_envelope: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    # database_backend: which backend persisted this SchemeRun. Mirrors
+    # the same enum / CHECK constraint on the orchestration attempt table.
+    # Phase 1 (0035) + 0036 remediation: the column-level
+    # server_default was dropped; application / repository code MUST
+    # supply this on every future write. A write that omits it now
+    # fails with ``IntegrityError``.
+    database_backend: Mapped[str] = mapped_column(String(32), nullable=False)
+
     candidates: Mapped[list["SchemeCandidateRecord"]] = relationship(back_populates="scheme_run")
+
+    # Note: ck_scheme_run_database_backend lives in the
+    # __table_args__ block at the top of this class (line 113+)
+    # to preserve the ck_scheme_run_source_mode_nullity
+    # constraint — adding a second __table_args__ here would
+    # override the first and silently drop the source-mode
+    # nullity invariant.
 
 
 class SchemeCandidateRecord(Base):

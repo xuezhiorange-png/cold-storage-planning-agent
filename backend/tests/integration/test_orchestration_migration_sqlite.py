@@ -336,9 +336,9 @@ class TestDowngradeGate:
             "weight_set_id, generator_version, source_snapshot_hash, status, "
             "requires_review, input_snapshot, assumption_snapshot, "
             "comparison_snapshot, candidates_snapshot, warning_messages, "
-            "created_at, source_mode) "
+            "created_at, source_mode, database_backend) "
             "VALUES (?, ?, ?, 'ws-1', '1.0', 'h1', 'pending', 0, '{}', '{}', "
-            "'{}', '{}', '[]', datetime('now'), 'legacy')",
+            "'{}', '{}', '[]', datetime('now'), 'legacy', 'sqlite')",
             (str(__import__("uuid").uuid4()), pid, pvid),
         )
         conn.commit()
@@ -432,8 +432,10 @@ class TestDowngradeGate:
         )
         conn.execute(
             "INSERT INTO orchestration_run_attempts "
-            "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-            "VALUES (?, ?, 1, 'COMPLETED', datetime('now'), datetime('now'))",
+            "(id, identity_id, attempt_number, status, heartbeat_at, started_at, "
+            "database_backend, correlation_id) "
+            "VALUES (?, ?, 1, 'COMPLETED', datetime('now'), datetime('now'), "
+            "'sqlite', 'legacy-migration-0036')",
             (aid, oid),
         )
         calc_types = ("zone", "cooling_load", "equipment", "power", "investment")
@@ -857,8 +859,10 @@ class TestTransactionBConstraints0028:
         )
         conn.execute(
             "INSERT INTO orchestration_run_attempts "
-            "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-            "VALUES (?, ?, 1, 'COMPLETED', datetime('now'), datetime('now'))",
+            "(id, identity_id, attempt_number, status, heartbeat_at, started_at, "
+            "database_backend, correlation_id) "
+            "VALUES (?, ?, 1, 'COMPLETED', datetime('now'), datetime('now'), "
+            "'sqlite', 'legacy-migration-0036')",
             (ids["aid"], ids["oid"]),
         )
         return ids
@@ -1120,8 +1124,8 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0034_add_production_source_archives"
-        assert rev == expected_rev, f"Expected 0034, got {rev}"
+        expected_rev = "0037_phase1_drop_correlation_id_default"
+        assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
 
         # Downgrade to 0027
@@ -1142,7 +1146,7 @@ class TestTransactionBConstraints0028:
         )
         conn.close()
 
-        # Re-upgrade to head (0032)
+        # Re-upgrade to head
         r = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=BACKEND_DIR,
@@ -1155,8 +1159,8 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0034_add_production_source_archives"
-        assert rev == expected_rev, f"Expected 0034, got {rev}"
+        expected_rev = "0037_phase1_drop_correlation_id_default"
+        assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
         db_path.unlink(missing_ok=True)
 

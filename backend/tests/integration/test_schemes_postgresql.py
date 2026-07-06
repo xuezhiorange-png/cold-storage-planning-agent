@@ -101,12 +101,12 @@ def _insert_scheme_run(
             " generator_version, source_snapshot_hash, "
             " input_snapshot, assumption_snapshot, comparison_snapshot, "
             " candidates_snapshot, requires_review, warning_messages, "
-            " created_at, completed_at) "
+            " created_at, completed_at, database_backend) "
             "VALUES (:id, :pid, :vid, :wid, :status, "
             " '1.0.0', 'test-hash', "
             " CAST('{}' AS JSON), CAST('{}' AS JSON), CAST('{}' AS JSON), "
             " CAST('{}' AS JSON), true, CAST('[]' AS JSON), "
-            " NOW(), :completed_at)"
+            " NOW(), :completed_at, 'postgresql')"
         ),
         {
             "id": run_id,
@@ -379,12 +379,12 @@ class TestSchemeJsonbColumns:
                         " status, generator_version, source_snapshot_hash, "
                         " input_snapshot, assumption_snapshot, comparison_snapshot, "
                         " candidates_snapshot, requires_review, warning_messages, "
-                        " created_at, completed_at) "
+                        " created_at, completed_at, database_backend) "
                         "VALUES (:id, :pid, :vid, :wid, "
                         " 'pending', '1.0.0', 'snap-hash', "
                         " CAST(:snap AS JSON), CAST('{}' AS JSON), "
                         " CAST('{}' AS JSON), CAST('{}' AS JSON), "
-                        " true, CAST('[]' AS JSON), NOW(), NULL)"
+                        " true, CAST('[]' AS JSON), NOW(), NULL, 'postgresql')"
                     ),
                     {
                         "id": run_id,

@@ -279,7 +279,7 @@ class SchemeWeightSet:
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SchemeRun:
     """A complete scheme generation and comparison run."""
 
@@ -300,3 +300,11 @@ class SchemeRun:
     content_hash: str | None = None
     recommended_scheme_code: str | None = None
     warning_messages: list[str] = field(default_factory=list)
+    # Phase 1 (Task 11B) schema contract: 0035+0036 made
+    # ``scheme_runs.database_backend`` NOT NULL with **no**
+    # column-level server_default. The domain model therefore
+    # has no Python default; the caller (production application
+    # service) must supply the dialect explicitly when
+    # constructing a SchemeRun. Defaulting to ``"sqlite"`` here
+    # would silently mask any caller-side omission.
+    database_backend: str

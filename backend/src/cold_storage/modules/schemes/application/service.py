@@ -18,6 +18,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from cold_storage.bootstrap.settings import get_settings
 from cold_storage.modules.projects.infrastructure.orm import (
     CalculationRunRecord,
     ProjectRecord,
@@ -715,6 +716,7 @@ class SchemeService:
             warning_messages=[],
             completed_at=datetime.now(UTC),
             content_hash=computed_hash,
+            database_backend=get_settings().database_backend,
         )
 
         self._repo.save_run(run, candidates, score_breakdowns=score_breakdowns, ranks=ranks)

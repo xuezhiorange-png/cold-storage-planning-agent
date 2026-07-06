@@ -68,6 +68,38 @@ def _ensure_datetime(value: object) -> datetime:
     return value
 
 
+def _require_idempotency_key(value: str | None) -> str:
+    """Phase 1 (P1-2) repository-level invariant for new writes.
+
+    The ``orchestration_run_attempts.idempotency_key`` column is
+    NULLABLE at the schema layer so that legacy rows (pre-Phase-1)
+    can carry NULL without breaking the upgrade path. But for any
+    new write — application, repository, fixture, or migration —
+    a NULL ``idempotency_key`` is an invariant violation: it
+    defeats the unique index ``uq_attempt_idempotency_key_db`` and
+    silently corrupts the deduplication contract.
+
+    This helper enforces the invariant at the call site. New
+    repository write paths that need to insert an attempt should
+    call ``_require_idempotency_key(...)`` on the inbound value
+    and pass the returned non-null string to the ORM. Tests in
+    ``tests/unit/repositories/test_phase1_idempotency_required.py``
+    assert the helper's behaviour.
+    """
+    if value is None:
+        raise ValueError(
+            "idempotency_key is required on new attempt writes "
+            "(Phase 1 schema contract; legacy rows pre-Phase-1 are "
+            "an explicit exception handled by the migration, not "
+            "by the repository). Refusing to insert NULL."
+        )
+    if not isinstance(value, str):
+        raise TypeError(f"idempotency_key must be str, got {type(value).__name__}")
+    if not value:
+        raise ValueError("idempotency_key must be a non-empty string (Phase 1 schema contract).")
+    return value
+
+
 def _is_target_unique_violation(
     exc: sa_exc.IntegrityError,
     *,
@@ -761,6 +793,44 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
             OrchestrationRunAttemptRecord,
         )
 
+        # Phase 1 schema (migrations 0035 + 0036) requires the
+        # `database_backend` and `correlation_id` columns to be
+        # NOT NULL with **no** server_default, so every INSERT must
+        # supply explicit values. The repository is the only path
+        # through which application code can insert an attempt,
+        # so the abstraction derives them from runtime facts that
+        # are always available at the persistence layer:
+        #
+        # * ``database_backend`` is read from the SQLAlchemy
+        #   session's bound dialect name (the single source of
+        #   truth for which backend this row is being persisted
+        #   to).
+        # * ``correlation_id`` for an *attempt creation* event
+        #   has no caller-supplied upstream source — the
+        #   durable request envelope is not yet resolved at the
+        #   moment of attempt acquisition. We therefore mint a
+        #   per-attempt identifier with the explicit
+        #   ``attempt-corr:`` prefix so that:
+        #     (a) it is unambiguously non-empty (passes the
+        #         ``ck_attempt_correlation_id_nonempty`` CHECK
+        #         added in 0036),
+        #     (b) it does NOT collide with the legacy sentinel
+        #         ``legacy-migration-0036`` (which is reserved
+        #         for backfilled pre-0036 rows),
+        #     (c) it does NOT collide with request-level
+        #         correlation_ids minted upstream (those use the
+        #         ``req-corr:`` convention enforced by
+        #         ``OrchestrationRequestRepository.create``).
+        # Phase 2 application code can override the per-attempt
+        # correlation_id by extending the contract — for Phase 1
+        # we ship the deterministic-runtime default.
+        bind_dialect_name: str = session.bind.dialect.name  # type: ignore[union-attr]
+        if bind_dialect_name == "postgresql":
+            derived_database_backend: str = "postgresql"
+        else:
+            derived_database_backend = "sqlite"
+        derived_correlation_id: str = f"attempt-corr:{uuid4().hex}"
+
         stale_attempt_id: str | None = None
         for retry_idx in range(self._MAX_ACQUIRE_RETRIES):
             # Re-read fresh state each retry
@@ -807,6 +877,8 @@ class SqlAlchemyOrchestrationAttemptRepository(OrchestrationAttemptRepository):
                 attempt_number=attempt_number,
                 status="RUNNING",
                 heartbeat_at=heartbeat_at,
+                database_backend=derived_database_backend,
+                correlation_id=derived_correlation_id,
             )
 
             # Independent savepoint for the insert

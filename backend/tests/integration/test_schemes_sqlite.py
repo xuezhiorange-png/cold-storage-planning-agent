@@ -158,6 +158,11 @@ def _make_run(**overrides) -> SchemeRun:
         requires_review=True,
         recommended_scheme_code=None,
         warning_messages=["test warning"],
+        # Phase 1 (Task 11B): required by the kw_only SchemeRun
+        # domain model. Tests using this helper are exercising
+        # the legacy SchemeService path on SQLite, so the
+        # dialect is sqlite.
+        database_backend="sqlite",
     )
     defaults.update(overrides)
     return SchemeRun(**defaults)
@@ -493,6 +498,7 @@ class TestRunImmutability:
             requires_review=True,
             recommended_scheme_code=None,
             warning_messages=[],
+            database_backend="sqlite",
         )
         with pytest.raises(CompletedRunImmutabilityError):
             repo.save_run(updated_run, candidates=[])

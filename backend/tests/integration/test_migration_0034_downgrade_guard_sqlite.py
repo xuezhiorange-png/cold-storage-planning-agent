@@ -118,8 +118,10 @@ def _insert_full_chain(conn: sqlite3.Connection) -> dict[str, str]:
     aid = str(uuid.uuid4())
     conn.execute(
         "INSERT INTO orchestration_run_attempts "
-        "(id, identity_id, attempt_number, status, heartbeat_at, started_at) "
-        "VALUES (?, ?, 1, 'COMPLETED', datetime('now'), datetime('now'))",
+        "(id, identity_id, attempt_number, status, heartbeat_at, started_at, "
+        "database_backend, correlation_id) "
+        "VALUES (?, ?, 1, 'COMPLETED', datetime('now'), datetime('now'), "
+        "'sqlite', 'legacy-migration-0036')",
         (aid, oid),
     )
 
@@ -232,13 +234,14 @@ def _insert_production_scheme_run(
         "investment_calculation_id, "
         "zone_result_hash, cooling_load_result_hash, "
         "equipment_result_hash, power_result_hash, "
-        "investment_result_hash) "
+        "investment_result_hash, "
+        "database_backend) "
         "VALUES (?, ?, ?, 'ws-1', '1.0', 'h', 'completed', 0, '{}', "
         "'{}', '{}', '{}', '[]', datetime('now'), 'production', "
         "?, 'SVC-1.0', 'rev-1', 'wch-1', 'WG-1.0', ?, 'BSV-1.0', "
         "'snap-1', 'ctx-1', 'ident-1', 'att-1', 'fp', "
         "'zcalc', 'ccalc', 'ecalc', 'pcalc', 'icalc', "
-        "'ZH', 'CH', 'EH', 'PH', 'IH')",
+        "'ZH', 'CH', 'EH', 'PH', 'IH', 'sqlite')",
         (sid, pid, pvid, source_binding_id, combined_source_hash),
     )
     return sid

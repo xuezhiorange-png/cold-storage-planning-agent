@@ -560,6 +560,8 @@ def _seed_orchestration_prereqs(session) -> None:
                 heartbeat_at=datetime.now(UTC),
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
+                database_backend="sqlite",
+                correlation_id="legacy-migration-0036",
             )
         )
         session.commit()
@@ -844,6 +846,7 @@ def _make_command(
     profile_parameters: dict[str, dict[str, object]] | None = None,
     actor: str = "test-actor",
     correlation_id: str = "test-corr-001",
+    database_backend: str = "sqlite",
 ):
     from cold_storage.modules.schemes.application.production_ports import (
         GenerateProductionSchemeCommand,
@@ -856,6 +859,7 @@ def _make_command(
         profile_parameters=profile_parameters or {},
         actor=actor,
         correlation_id=correlation_id,
+        database_backend=database_backend,
     )
 
 
@@ -1789,6 +1793,7 @@ class TestAtomicRollbackPKSetZeroDelta:
                 equipment_result_hash=kwargs["equipment_result_hash"],
                 power_result_hash=kwargs["power_result_hash"],
                 investment_result_hash=kwargs["investment_result_hash"],
+                database_backend=kwargs.get("database_backend", "sqlite"),
             )
             session.add(run_rec)
             session.flush()  # SchemeRun flushed to DB
@@ -1848,6 +1853,7 @@ class TestAtomicRollbackPKSetZeroDelta:
                 profile_codes=kwargs["profile_codes"],
                 profile_parameters=kwargs["profile_parameters"],
                 candidates_count=len(candidates),
+                database_backend=kwargs["database_backend"],
             )
 
         SqlAlchemyProductionSchemeRunRepository.save_production_run = _partial_flush_save  # type: ignore[assignment]
@@ -1914,6 +1920,11 @@ class TestSourceModeConstraints:
                         requires_review=False,
                         warning_messages=[],
                         source_mode="production",
+                        # Phase 1 (0035) added scheme_runs.database_backend
+                        # as NOT NULL — supply it so the test exercises the
+                        # intended check (production fields nullity), not
+                        # the new database_backend NOT NULL.
+                        database_backend="sqlite",
                         # Missing production fields (all must be non-null)
                         source_binding_id=None,
                         source_contract_version=None,
@@ -1960,6 +1971,11 @@ class TestSourceModeConstraints:
                         requires_review=False,
                         warning_messages=[],
                         source_mode="legacy",
+                        # Phase 1 (0035) added scheme_runs.database_backend
+                        # as NOT NULL — supply it so the test exercises the
+                        # intended check (legacy fields nullity), not the
+                        # new database_backend NOT NULL.
+                        database_backend="sqlite",
                         # Non-null production fields (should be NULL for legacy)
                         source_binding_id="some-binding-id",
                         source_contract_version="1.0.0",
@@ -2012,6 +2028,7 @@ class TestLegacyDemoIsolation:
                     requires_review=False,
                     warning_messages=[],
                     source_mode="legacy",
+                    database_backend="sqlite",
                 )
             )
             seed_s.commit()
