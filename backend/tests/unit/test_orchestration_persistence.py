@@ -444,6 +444,11 @@ class TestSchemeRunNullityCheck:
             source_snapshot_hash="h1",
             source_mode="production",
             source_binding_id="sb-1",  # some set
+            # Phase 1 (0035) added scheme_runs.database_backend as
+            # NOT NULL — supply it so the test exercises the
+            # intended check (production fields nullity), not the
+            # new database_backend NOT NULL.
+            database_backend="sqlite",
             # weight_set_revision_id missing → CHECK should reject
         )
         session.add(r)

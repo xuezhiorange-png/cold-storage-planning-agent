@@ -1793,6 +1793,7 @@ class TestAtomicRollbackPKSetZeroDelta:
                 equipment_result_hash=kwargs["equipment_result_hash"],
                 power_result_hash=kwargs["power_result_hash"],
                 investment_result_hash=kwargs["investment_result_hash"],
+                database_backend=kwargs.get("database_backend", "sqlite"),
             )
             session.add(run_rec)
             session.flush()  # SchemeRun flushed to DB
@@ -1918,6 +1919,11 @@ class TestSourceModeConstraints:
                         requires_review=False,
                         warning_messages=[],
                         source_mode="production",
+                        # Phase 1 (0035) added scheme_runs.database_backend
+                        # as NOT NULL — supply it so the test exercises the
+                        # intended check (production fields nullity), not
+                        # the new database_backend NOT NULL.
+                        database_backend="sqlite",
                         # Missing production fields (all must be non-null)
                         source_binding_id=None,
                         source_contract_version=None,
@@ -1964,6 +1970,11 @@ class TestSourceModeConstraints:
                         requires_review=False,
                         warning_messages=[],
                         source_mode="legacy",
+                        # Phase 1 (0035) added scheme_runs.database_backend
+                        # as NOT NULL — supply it so the test exercises the
+                        # intended check (legacy fields nullity), not the
+                        # new database_backend NOT NULL.
+                        database_backend="sqlite",
                         # Non-null production fields (should be NULL for legacy)
                         source_binding_id="some-binding-id",
                         source_contract_version="1.0.0",
@@ -2016,6 +2027,7 @@ class TestLegacyDemoIsolation:
                     requires_review=False,
                     warning_messages=[],
                     source_mode="legacy",
+                    database_backend="sqlite",
                 )
             )
             seed_s.commit()
