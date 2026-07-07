@@ -56,6 +56,9 @@ from cold_storage.modules.coefficients.domain.exceptions import (
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
 )
+from cold_storage.modules.orchestration.application.ports import (
+    OrchestrationIdentityRepository,
+)
 from cold_storage.modules.orchestration.application.service import (
     OrchestrationService,
 )
@@ -213,6 +216,45 @@ class _NullVerificationReadPort(VerificationReadPort):
         )
 
 
+class _NullIdentityRepository(OrchestrationIdentityRepository):
+    """Identity-port stub mirroring the SQLite mirror.
+
+    Slice 2C requires the use case to receive an
+    :class:`OrchestrationIdentityRepository` by injection; the
+    Slice 2A strict-resolver gate raises before the fingerprint
+    read-path is reached, so this stub raises if any production
+    source-binding path accidentally reaches it.
+    """
+
+    def get_fingerprint(self, *args: Any, **kwargs: Any) -> str:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A PG tests must raise in the strict gate before any"
+            " fingerprint read;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+    def get_calculator_version_vector(self, *args: Any, **kwargs: Any) -> dict[str, str]:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A PG tests must raise in the strict gate before any"
+            " calculator-version-vector read;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+    def get_or_create(self, *args: Any, **kwargs: Any) -> str:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A PG tests must raise in the strict gate before any"
+            " identity create;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+    def set_authoritative_attempt(self, *args: Any, **kwargs: Any) -> bool:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A PG tests must raise in the strict gate before any"
+            " authoritative-attempt write;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Test 1 — production mode fails closed on PG when no approved rows exist
 # ---------------------------------------------------------------------------
@@ -312,6 +354,7 @@ def test_pg_strict_resolver_rejects_demo_in_production_use_case(
     use_case = ProductionSourceBindingUseCase(
         service=_StubOrchestrationService(),  # type: ignore[arg-type]
         verification_read_port=_NullVerificationReadPort(),
+        identity_repository=_NullIdentityRepository(),
         coefficient_resolver=resolver,
     )
 
@@ -369,6 +412,7 @@ def test_pg_strict_resolver_rejects_ambiguous_latest_in_production_use_case(
     use_case = ProductionSourceBindingUseCase(
         service=_StubOrchestrationService(),  # type: ignore[arg-type]
         verification_read_port=_NullVerificationReadPort(),
+        identity_repository=_NullIdentityRepository(),
         coefficient_resolver=resolver,
     )
 
@@ -386,6 +430,7 @@ def test_pg_production_use_case_without_resolver_keeps_legacy_p3_behavior() -> N
     use_case = ProductionSourceBindingUseCase(
         service=_StubOrchestrationService(),  # type: ignore[arg-type]
         verification_read_port=_NullVerificationReadPort(),
+        identity_repository=_NullIdentityRepository(),
         coefficient_resolver=None,
     )
     assert use_case._coefficient_resolver is None  # noqa: SLF001

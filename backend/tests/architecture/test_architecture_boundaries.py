@@ -450,16 +450,15 @@ def test_orchestration_application_has_no_infrastructure_imports() -> None:
     (service.py, transaction_b.py, ports.py) must not pull in
     infrastructure.repositories or infrastructure.orm.
 
-    Phase 3 exception: ``production_source_binding.py`` deliberately
-    imports :class:`OrchestrationIdentityRecord` to re-read the
-    orchestration fingerprint directly from the durable identity
-    row.  This is a known Phase 3 architectural compromise; the
-    full fix (moving the fingerprint read into a port in
-    ``application/ports.py``) is deferred to Phase 4 / Issue #35
-    follow-up alongside the full 5-stage database roundtrip.
-    Removing the import now would force the use case to accept
-    a hand-typed fingerprint from the caller, which violates the
-    production read-path contract.
+    Phase 4 Issue #35 Slice 2C closes the Phase 3 ``phase3_exceptions``
+    retirement: ``production_source_binding.py`` no longer imports
+    :class:`OrchestrationIdentityRecord` directly.  The fingerprint
+    read-path is now behind the :class:`OrchestrationIdentityRepository`
+    port (``application/ports.py``) and implemented in
+    ``infrastructure/repositories.py`` (see the design contract
+    ``docs/tasks/TASK-011B-phase4-issue35-production-roundtrip-governance.md``
+    §14 and §16 #8).  No exception set is required any more — the
+    boundary holds for every file in the application layer.
     """
     app_dir = BACKEND_SRC / "modules" / "orchestration" / "application"
     assert app_dir.exists(), f"{app_dir} not found"
@@ -467,18 +466,48 @@ def test_orchestration_application_has_no_infrastructure_imports() -> None:
         "from cold_storage.modules.orchestration.infrastructure",
         "import cold_storage.modules.orchestration.infrastructure",
     )
-    # Phase 3 temporary exception — see docstring above.
-    phase3_exceptions = {
-        app_dir / "production_source_binding.py",
-    }
     for path in read_python_files(app_dir):
-        if path in phase3_exceptions:
-            continue
         content = path.read_text()
         for prefix in forbidden_prefixes:
             assert prefix not in content, (
                 f"Orchestration application imports from infrastructure: {path} — found '{prefix}'"
             )
+
+
+def test_production_source_binding_does_not_import_infrastructure() -> None:
+    """Slice 2C regression — ``production_source_binding.py`` must remain
+    free of any infrastructure-layer import.
+
+    The Phase 3 ``phase3_exceptions`` set in
+    ``test_orchestration_application_has_no_infrastructure_imports``
+    was removed once the fingerprint read moved onto the
+    :class:`OrchestrationIdentityRepository` port (Issue #35 Phase 4
+    §14.2 / §16 #8).  This test pins that regression at the file level:
+    if a future change re-introduces a direct ORM import inside
+    ``production_source_binding.py`` (even as a function-local
+    ``from .infrastructure.orm import …``), this test surfaces it
+    immediately so the Phase 3 architectural compromise is not
+    silently re-allowed.
+    """
+    target = (
+        BACKEND_SRC
+        / "modules"
+        / "orchestration"
+        / "application"
+        / "production_source_binding.py"
+    )
+    assert target.exists(), f"{target} not found"
+    content = target.read_text()
+    forbidden_substrings = (
+        "from cold_storage.modules.orchestration.infrastructure",
+        "import cold_storage.modules.orchestration.infrastructure",
+        "from cold_storage.modules.orchestration.infrastructure.orm",
+    )
+    for needle in forbidden_substrings:
+        assert needle not in content, (
+            f"{target.name} re-introduced infrastructure import: {needle!r} — "
+            f"Phase 3 phase3_exceptions must not return"
+        )
 
 
 def test_orchestration_ports_have_no_sqlalchemy_imports() -> None:

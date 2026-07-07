@@ -87,6 +87,9 @@ from cold_storage.modules.orchestration.application.production_source_binding im
     ProductionSourceBindingUseCase,
 )
 from cold_storage.modules.orchestration.application.service import OrchestrationService
+from cold_storage.modules.orchestration.application.ports import (
+    OrchestrationIdentityRepository,
+)
 from cold_storage.modules.orchestration.application.source_binding_assembly import (
     Phase2AdapterCalculatorPort,
 )
@@ -196,6 +199,7 @@ def compose_phase2_adapter_calculator_port() -> Phase2AdapterCalculatorPort:
 def compose_production_source_binding_use_case(
     service: OrchestrationService,
     verification_read_port: Any = None,
+    identity_repository: OrchestrationIdentityRepository | None = None,
 ) -> ProductionSourceBindingUseCase:
     """Return a :class:`ProductionSourceBindingUseCase` from an :class:`OrchestrationService`.
 
@@ -225,6 +229,16 @@ def compose_production_source_binding_use_case(
         verifier port, so the port is currently unused but kept
         in the signature for forward compatibility.
 
+    identity_repository:
+        Slice 2C (Phase 4 / Issue #35) — the application layer
+        now reads the orchestration fingerprint through this port
+        instead of a direct ``OrchestrationIdentityRecord``
+        import.  Defaults to a freshly-constructed SQLAlchemy
+        repository so callers that previously relied on the Phase
+        3 ``phase3_exceptions`` shortcut continue to work
+        unchanged.  Tests that need a stub repository can inject
+        their own implementation here.
+
     Returns
     -------
     :class:`ProductionSourceBindingUseCase`
@@ -253,9 +267,16 @@ def compose_production_source_binding_use_case(
         )
 
         verification_read_port = cast(VerificationReadPort, None)
+    if identity_repository is None:
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            SqlAlchemyOrchestrationIdentityRepository,
+        )
+
+        identity_repository = SqlAlchemyOrchestrationIdentityRepository()
     return ProductionSourceBindingUseCase(
         service=service,
         verification_read_port=verification_read_port,
+        identity_repository=identity_repository,
     )
 
 
@@ -405,6 +426,7 @@ def compose_production_source_binding_use_case_with_strict_resolver(
     *,
     service: OrchestrationService,
     verification_read_port: Any = None,
+    identity_repository: OrchestrationIdentityRepository | None = None,
     engine: Any,
 ) -> ProductionSourceBindingUseCase:
     """Build a :class:`ProductionSourceBindingUseCase` with the strict resolver wired in.
@@ -418,10 +440,18 @@ def compose_production_source_binding_use_case_with_strict_resolver(
     the use case behaves exactly as it did before Slice 2A — no
     code paths under ``coefficient_resolver is None`` were touched.
 
+    Slice 2C adds an optional ``identity_repository`` slot; when
+    omitted it defaults to a freshly-constructed SQLAlchemy
+    repository, mirroring
+    :func:`compose_production_source_binding_use_case`.
+
     :param service: A fully-wired :class:`OrchestrationService`.
     :param verification_read_port: Same role as in
         ``compose_production_source_binding_use_case``; defaults to
         ``None``.
+    :param identity_repository: Optional
+        :class:`OrchestrationIdentityRepository`.  Defaults to
+        ``None`` (SQLAlchemy implementation built on demand).
     :param engine: A SQLAlchemy ``Engine`` for the resolver's read
         adapter.
     :returns: A use case whose ``coefficient_resolver`` is populated
@@ -435,9 +465,16 @@ def compose_production_source_binding_use_case_with_strict_resolver(
         )
 
         verification_read_port = cast(VerificationReadPort, None)
+    if identity_repository is None:
+        from cold_storage.modules.orchestration.infrastructure.repositories import (
+            SqlAlchemyOrchestrationIdentityRepository,
+        )
+
+        identity_repository = SqlAlchemyOrchestrationIdentityRepository()
     resolver = compose_production_coefficient_resolver(engine=engine)
     return ProductionSourceBindingUseCase(
         service=service,
         verification_read_port=verification_read_port,
+        identity_repository=identity_repository,
         coefficient_resolver=resolver,
     )

@@ -268,6 +268,7 @@ class TestProductionSourceBindingUseCaseSQLite:
         use_case = ProductionSourceBindingUseCase(
             service=MagicMock(),
             verification_read_port=MagicMock(),
+            identity_repository=MagicMock(),
         )
         assert use_case is not None
 
