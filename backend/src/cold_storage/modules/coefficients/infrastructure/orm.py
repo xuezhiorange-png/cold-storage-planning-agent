@@ -96,3 +96,64 @@ class CoefficientRevisionRecord(Base):
     withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     definition: Mapped[CoefficientDefinitionRecord] = relationship(back_populates="revisions")
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Issue #35 Slice 1 — append-only log tables
+# ---------------------------------------------------------------------------
+# Per design contract §3.2 + §3.3 (approval log + audit log).
+# Charles's Slice 1 boundary correction (2026-07-07): append only,
+# no existing record class is modified, no column added to the
+# coefficient_revisions table, no source_citation / governance_status
+# / valid_until / NOT NULL additions to existing columns. The migration
+# in 0038_phase4_slice1_coefficient_approval.py is the single source
+# of schema truth for these two log tables.
+
+
+class CoefficientApprovalLogRecord(Base):
+    """Append-only approval-log row (design contract §3.2).
+
+    Records a single approval transition: reviewer, timestamp, the
+    validated citation, the SHA-256 hash of the revision snapshot,
+    and a correlation_id for tracing. There is one row per
+    ``approve`` / ``retire`` action; ``submit`` writes to the audit
+    log only (see :class:`CoefficientAuditLogRecord`).
+    """
+
+    __tablename__ = "coefficient_approval_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    revision_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    reviewer: Mapped[str] = mapped_column(String(100), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    citation: Mapped[str] = mapped_column(String(500), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+
+class CoefficientAuditLogRecord(Base):
+    """Append-only audit-log row (design contract §3.3).
+
+    One row per state transition: actor, correlation_id,
+    ``old_state`` / ``new_state``, the reason. The log is
+    append-only at the application boundary (Slice 1 ships the
+    write-only API); the schema-level
+    ``UPDATE`` / ``DELETE`` rejection is a follow-up Slice together
+    with archive persistence (see design contract §3.3 + §14.4).
+    """
+
+    __tablename__ = "coefficient_audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    revision_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    old_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    new_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
