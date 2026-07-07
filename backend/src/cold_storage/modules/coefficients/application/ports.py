@@ -19,7 +19,7 @@ Per Charles's Slice 1 boundary correction (2026-07-07):
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from cold_storage.modules.coefficients.domain.models import (
     CoefficientDefinition,
@@ -178,4 +178,68 @@ class CoefficientRoleCheckPort(Protocol):
 
     def roles_for(self, actor: str) -> frozenset[str]:
         """Return the actor's roles."""
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Transactional approval port (added in commit 8)
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class CoefficientApprovalTransactionPort(Protocol):
+    """Apply an approval transaction atomically.
+
+    The application service constructs
+    :class:`ApprovalTransactionContext` (validated citation,
+    role-checked actor, computed state transitions) and hands
+    it to this port. The infrastructure implementation is
+    responsible for issuing a single ``session.begin()``
+    containing:
+
+    1. ``UPDATE coefficient_revisions SET status = <new_state>``
+    2. ``INSERT INTO coefficient_audit_log ...``
+    3. ``INSERT INTO coefficient_approval_log ...``
+
+    All three statements commit together or roll back together.
+    The application service continues to own role / citation /
+    state-machine semantics; this port is the seam that
+    guarantees the three writes land atomically.
+
+    Implementation note: ``@runtime_checkable`` requires the
+    context type to be importable at module-load time. We keep
+    the parameter typed as ``Any`` here and document the
+    expected class in the docstring; callers should construct
+    and pass :class:`ApprovalTransactionContext` from
+    ``application/transaction.py``.
+    """
+
+    def apply_approve(self, context: Any) -> None:
+        """Atomically apply the approve transaction.
+
+        :param context: An ``ApprovalTransactionContext`` built
+            for the approve flow. The repository does **not**
+            re-validate business semantics; it relies on the
+            application's pre-flight checks.
+        """
+        ...
+
+    def apply_retire(self, context: Any) -> None:
+        """Atomically apply the retire transaction.
+
+        :param context: An ``ApprovalTransactionContext`` built
+            for the retire flow.
+        """
+        ...
+
+    def apply_submit(self, context: Any) -> None:
+        """Atomically apply the submit transition (audit-only).
+
+        The submit transition writes one audit-log row; the
+        approval-log row is intentionally omitted per design
+        contract §5.2.
+
+        :param context: An ``ApprovalTransactionContext`` built
+            for the submit flow.
+        """
         ...

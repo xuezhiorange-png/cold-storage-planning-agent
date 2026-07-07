@@ -80,6 +80,9 @@ from cold_storage.modules.coefficients.infrastructure.approval_adapters import (
 from cold_storage.modules.coefficients.infrastructure.database import (
     DatabaseCoefficientService,
 )
+from cold_storage.modules.coefficients.infrastructure.transactional_repository import (
+    TransactionalCoefficientApprovalRepository,
+)
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
 )
@@ -333,7 +336,10 @@ def compose_production_coefficient_approval_service(
 
     :returns: A fully-wired approval service backed by the
         production engine. The legacy in-memory default was
-        a fabrication; see commit 7 for the retract.
+        a fabrication; see commit 7 for the retract. Commit
+        8 wires the transactional repository so the three
+        writes (revision.status / audit_log / approval_log)
+        commit in a single ``session.begin()``.
     """
     if mutation_service is None:
         mutation_target: Any = DatabaseCoefficientService(engine)
@@ -345,4 +351,5 @@ def compose_production_coefficient_approval_service(
         audit_log=SqlAlchemyCoefficientAuditLogAdapter(engine),
         clock=SystemClock(),
         role_check=InMemoryRoleCheckAdapter(),
+        transaction_port=TransactionalCoefficientApprovalRepository(engine),
     )

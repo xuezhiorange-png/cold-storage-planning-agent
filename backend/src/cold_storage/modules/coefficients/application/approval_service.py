@@ -40,6 +40,9 @@ from cold_storage.modules.coefficients.application.ports import (
     CoefficientClockPort,
     CoefficientRoleCheckPort,
 )
+from cold_storage.modules.coefficients.application.transaction import (
+    ApprovalTransactionContext,
+)
 from cold_storage.modules.coefficients.domain.approval import (
     is_stale,
     validate_citation,
@@ -177,6 +180,21 @@ class CoefficientApprovalService:
     The service is constructed by the composition root
     (``bootstrap.production_composition``) with concrete port
     implementations. Unit tests construct it with in-memory fakes.
+
+    When ``transaction_port`` is supplied (production path; commit
+    8), the ``submit`` / ``approve`` / ``retire`` calls land in
+    a single ``session.begin()`` containing
+    ``revision.status`` update + audit-log insert + approval-log
+    insert. The atomicity guarantee is enforced in the
+    infrastructure layer (see
+    :class:`TransactionalCoefficientApprovalRepository`).
+
+    When ``transaction_port`` is ``None`` (legacy / unit-test
+    path), the service falls back to the pre-commit-8 cascade of
+    one session per write. The legacy path is retained for
+    compatibility with the in-memory unit-test fakes; the
+    production wiring in ``bootstrap.production_composition``
+    always supplies a real ``TransactionalCoefficientApprovalRepository``.
     """
 
     def __init__(
@@ -187,12 +205,14 @@ class CoefficientApprovalService:
         audit_log: CoefficientAuditLogPort,
         clock: CoefficientClockPort,
         role_check: CoefficientRoleCheckPort,
+        transaction_port: Any = None,
     ) -> None:
         self._mutation = mutation_port
         self._approval_log = approval_log
         self._audit_log = audit_log
         self._clock = clock
         self._role_check = role_check
+        self._transaction = transaction_port
 
     # ------------------------------------------------------------------
     # Public API (5 methods; revert intentionally absent)
@@ -209,7 +229,22 @@ class CoefficientApprovalService:
         if revision.status == "withdrawn":
             raise CoefficientAlreadyRetiredError(revision.id)
 
+        observed_at = self._clock.now()
         new_state = "unverified"
+
+        # Transactional path (production wiring; commit 8).
+        if self._transaction is not None:
+            context = ApprovalTransactionContext.build_for_submit(
+                revision=revision,
+                actor=request.actor,
+                correlation_id=request.correlation_id,
+                previous_state=revision.status,
+                observed_at=observed_at,
+            )
+            self._transaction.apply_submit(context)
+            return ApprovalResult(revision_id=revision.id, new_state=new_state)
+
+        # Legacy cascade path (unit-test fakes).
         self._append_audit(
             revision_id=revision.id,
             actor=request.actor,
@@ -265,6 +300,28 @@ class CoefficientApprovalService:
 
         reviewer = request.reviewer or request.actor
         previous_state = revision.status
+        observed_at = self._clock.now()
+
+        # Transactional path (production wiring; commit 8).
+        # update revision.status + audit-log + approval-log all
+        # commit together; on failure the entire transaction
+        # rolls back to byte-identical pre-state.
+        if self._transaction is not None:
+            context = ApprovalTransactionContext.build_for_approve(
+                revision=revision,
+                actor=reviewer,
+                correlation_id=request.correlation_id,
+                reviewer=reviewer,
+                citation_validated=citation_validated,
+                previous_state=previous_state,
+                observed_at=observed_at,
+            )
+            self._transaction.apply_approve(context)
+            return ApprovalResult(revision_id=revision.id, new_state="approved")
+
+        # Legacy cascade path (unit-test fakes; commit 8 keeps
+        # this for backwards compatibility with the in-memory
+        # test fakes that pre-date the repository).
         self._mutation.mark_revision_reviewed(
             request.definition_id, request.revision_id, reviewer=reviewer
         )
@@ -315,6 +372,21 @@ class CoefficientApprovalService:
             raise CoefficientAlreadyRetiredError(revision.id)
 
         previous_state = revision.status
+        observed_at = self._clock.now()
+
+        # Transactional path (production wiring; commit 8).
+        if self._transaction is not None:
+            context = ApprovalTransactionContext.build_for_retire(
+                revision=revision,
+                actor=request.actor,
+                correlation_id=request.correlation_id,
+                previous_state=previous_state,
+                observed_at=observed_at,
+            )
+            self._transaction.apply_retire(context)
+            return ApprovalResult(revision_id=revision.id, new_state="withdrawn")
+
+        # Legacy cascade path (unit-test fakes).
         self._mutation.withdraw_revision(
             request.definition_id, request.revision_id, actor=request.actor
         )
