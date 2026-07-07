@@ -41,6 +41,12 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
 
+    # Compatibility fields restored for test_env_example_matches_settings.
+    # Storage and OpenAI client paths remain module-owned; this only exposes
+    # the env keys .env.example declares so the test contract holds.
+    storage_dir: str = "backend/storage"
+    openai_api_key: str = ""
+
     @model_validator(mode="after")
     def _build_database_url(self) -> Settings:
         if self.database_url is not None:
