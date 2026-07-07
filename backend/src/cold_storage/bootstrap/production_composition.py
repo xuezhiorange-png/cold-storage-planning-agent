@@ -63,6 +63,23 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from cold_storage.modules.coefficients.application.approval_service import (
+    CoefficientApprovalService,
+)
+from cold_storage.modules.coefficients.application.resolver import (
+    ApprovedCoefficientResolver,
+)
+from cold_storage.modules.coefficients.application.service import (
+    CoefficientService,
+)
+from cold_storage.modules.coefficients.infrastructure.approval_adapters import (
+    InMemoryRoleCheckAdapter,
+    SqlAlchemyCoefficientApprovalLogAdapter,
+    SqlAlchemyCoefficientAuditLogAdapter,
+    SqlAlchemyCoefficientMutationAdapter,
+    SqlAlchemyCoefficientRevisionReadAdapter,
+    SystemClock,
+)
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
 )
@@ -232,4 +249,78 @@ def compose_production_source_binding_use_case(
     return ProductionSourceBindingUseCase(
         service=service,
         verification_read_port=verification_read_port,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Issue #35 Slice 1 — approved-coefficient composition wiring.
+# Per Charles's Slice 1 boundary correction (2026-07-07): the wiring
+# below is the **factory surface** for the production path; calling
+# code (or a future ``bootstrap.dependencies`` integration) decides
+# when to enable it at startup. The current main startup path does
+# NOT auto-invoke these factories, so the existing demo / seed flow
+# is unchanged until Slice 2 / Slice 3 explicitly opts in.
+# ---------------------------------------------------------------------------
+
+
+def compose_production_coefficient_resolver(
+    *,
+    engine: Any,
+) -> ApprovedCoefficientResolver:
+    """Build a production :class:`ApprovedCoefficientResolver`.
+
+    The factory wires the SQLAlchemy read adapter against the
+    production engine and uses a :class:`SystemClock` so the
+    stale-approval check observes real wall-clock time. The
+    resolver is consumed by
+    :class:`CoefficientApprovalService.validate_startup_readiness`
+    and (in later Slices) by per-stage orchestrator resolution.
+
+    :param engine: A SQLAlchemy ``Engine`` already bound to the
+        production database (either SQLite or PostgreSQL).
+
+    :returns: A fully-wired resolver instance. Production callers
+        invoke ``resolver.resolve(stage_name=..., calculation_type=...)``
+        on the production entry point.
+    """
+    return ApprovedCoefficientResolver(
+        read_port=SqlAlchemyCoefficientRevisionReadAdapter(engine),
+        clock=SystemClock(),
+    )
+
+
+def compose_production_coefficient_approval_service(
+    *,
+    engine: Any,
+    in_memory_service: Any | None = None,
+) -> CoefficientApprovalService:
+    """Build a production :class:`CoefficientApprovalService`.
+
+    The factory wires every Phase 4 Slice 1 port against the
+    production engine. The mutation adapter is bound to an
+    ``in_memory_service`` argument — by default ``None``, in which
+    case the factory constructs an in-memory
+    :class:`CoefficientService` (the same service the seed flow
+    uses). Future Slices will switch this binding to a fully
+    DB-backed mutation adapter; for Slice 1 the
+    **two log tables** are durably persisted and the revision
+    state itself is held in memory.
+
+    See ``infrastructure/approval_adapters.py`` for the deferred
+    DB-backed revision mutation.
+
+    :param engine: A SQLAlchemy ``Engine``.
+    :param in_memory_service: Optional pre-constructed
+        :class:`CoefficientService`. Defaults to ``None``, in which
+        case a fresh ``CoefficientService()`` is created.
+
+    :returns: A fully-wired approval service.
+    """
+    mutation_target = in_memory_service if in_memory_service is not None else CoefficientService()
+    return CoefficientApprovalService(
+        mutation_port=SqlAlchemyCoefficientMutationAdapter(mutation_target),
+        approval_log=SqlAlchemyCoefficientApprovalLogAdapter(engine),
+        audit_log=SqlAlchemyCoefficientAuditLogAdapter(engine),
+        clock=SystemClock(),
+        role_check=InMemoryRoleCheckAdapter(),
     )
