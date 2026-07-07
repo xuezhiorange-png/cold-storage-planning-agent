@@ -273,9 +273,15 @@ class SqlAlchemyCoefficientMutationAdapter(CoefficientMutationPort):
     def __init__(self, service: CoefficientService) -> None:
         self._service = service
 
-    # All definitions follow the service surface verbatim. Slice 1
-    # behavior intentionally matches the existing in-memory code;
-    # see module docstring for the deferred DB-backed mutation.
+    # The adapter delegates each call to the wrapped service.
+    # On the production path the wrapped target is a
+    # DatabaseCoefficientService bound to the same engine, so
+    # every revision mutation lands in SQLAlchemy via
+    # ``session.add`` + ``session.commit``. Pre-fixup
+    # comments in this section that described the adapter as
+    # inheriting in-memory behaviour were a fabrication; the
+    # DB override set is on DatabaseCoefficientService at
+    # infrastructure/database.py lines 120-285.
 
     def create_definition(
         self,
@@ -318,7 +324,11 @@ class SqlAlchemyCoefficientMutationAdapter(CoefficientMutationPort):
     ) -> CoefficientRevision:
         # ``create_revision`` in the existing service infers the
         # next revision number internally; we ignore the explicit
-        # ``revision_number`` kwarg when delegating.
+        # ``revision_number`` kwarg when delegating to the in-memory
+        # parent. The DB-backed
+        # :class:`DatabaseCoefficientService.create_revision`
+        # also infers the next revision number, so the omission is
+        # consistent across both implementations.
         return self._service.create_revision(
             definition_id=definition_id,
             unit=unit,
