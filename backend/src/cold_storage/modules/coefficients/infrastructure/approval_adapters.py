@@ -6,31 +6,50 @@ existing SQLAlchemy engine + ORM models. They live in the
 infrastructure layer per the project's architecture rules
 (``AGENTS.md §Architecture Rules``).
 
-Charles's Slice 1 boundary correction (2026-07-07):
+Charles's Slice 1 boundary correction (2026-07-07) — and the
+post-review P0 retraction (see commit 7):
 
-- This module does **not** modify
-  :class:`cold_storage.modules.coefficients.infrastructure.database.DatabaseCoefficientService`
-  or the existing :class:`CoefficientService`. It introduces a
-  side path: the **production path** wires these adapters; the
-  in-memory ``CoefficientService`` flow continues to work
-  untouched for tests + demo seed.
+- The application-side approve / retire / submit paths flow
+  through :class:`DatabaseCoefficientService`. Every
+  revision-mutation method on that class
+  (``create_revision`` / ``submit_revision_for_review`` /
+  ``mark_revision_reviewed`` / ``approve_revision`` /
+  ``withdraw_revision``) already lives in
+  ``infrastructure/database.py`` (lines 120-285) and persists
+  via ``session.add`` / ``session.commit`` against the same
+  SQLAlchemy ``Engine``. There is no in-memory fallback on the
+  production path: the
+  :func:`compose_production_coefficient_approval_service`
+  factory now defaults to ``DatabaseCoefficientService(engine)``
+  (not the in-memory parent class). The pre-fixup limitation
+  note "revision state held in memory" was a fabrication.
 
-- The DB read adapter (``SqlAlchemyCoefficientRevisionReadAdapter``)
-  performs direct SQLAlchemy queries into ``coefficient_revisions``.
-  It does **not** consult ``CoefficientService._revisions``
-  in-memory cache for the production path; cache and DB state must
-  agree, and the cache may be stale in long-running processes.
+- Read access in this module uses direct SQLAlchemy queries
+  via :class:`SqlAlchemyCoefficientRevisionReadAdapter`. The
+  in-memory ``CoefficientService._revisions`` cache is
+  intentionally bypassed on the production path; cache and DB
+  state must agree in long-running processes, and the cache
+  may be stale.
 
-- The mutation adapter (``SqlAlchemyCoefficientMutationAdapter``)
-  is a thin pass-through. The existing
-  :class:`DatabaseCoefficientService` does not override the in-memory
-  revision-mutation methods, so for Slice 1 the production path
-  inherits the in-memory behavior on the revision side. This is a
-  **known Slice 1 limitation**: full DB-backed revision mutation is
-  deferred to a later Slice (alongside the per-definition pending
-  approval log row). The two **log tables** (approval + audit) that
-  Slice 1 ships are persisted durably.
-"""
+- **Transactional scope (commit 8)**. The classic adapters in
+  this module — :class:`SqlAlchemyCoefficientRevisionReadAdapter`,
+  :class:`SqlAlchemyCoefficientApprovalLogAdapter`,
+  :class:`SqlAlchemyCoefficientAuditLogAdapter`,
+  :class:`SqlAlchemyCoefficientMutationAdapter` — each commit
+  in their own ``session``. The pre-fixup
+  :class:`CoefficientApprovalService.approve` sequence
+  ``mutation → audit → approval_log`` therefore issued three
+  independent transactions and was at risk of producing a
+  half-committed state (``status=approved`` but no audit /
+  approval-log row). Commit 8 ships
+  :class:`TransactionalCoefficientApprovalRepository` which
+  issues a single ``session.begin()`` containing
+  ``revision.status`` update + audit-log insert + approval-log
+  insert. The application service continues to own role /
+  citation / state-machine semantics — the transaction scope is
+  purely an infrastructure concern. The classic adapters above
+  remain available for read-only paths.
+"""  # noqa: E501
 
 from __future__ import annotations
 
@@ -227,15 +246,28 @@ class SqlAlchemyCoefficientRevisionReadAdapter(CoefficientRevisionReadPort):
 
 
 class SqlAlchemyCoefficientMutationAdapter(CoefficientMutationPort):
-    """Pass-through mutation adapter.
+    """DB-backed mutation adapter.
 
-    Per Charles's Slice 1 boundary correction: this adapter does NOT
-    override the existing in-memory mutation semantics. It exists
-    so the production composition root can pass the
-    :class:`CoefficientMutationPort` Protocol to
-    :class:`CoefficientApprovalService`. The wrapped
-    :class:`CoefficientService` (or its DB subclass for definition
-    CRUD) retains all behavior.
+    The wrapped target must be a :class:`DatabaseCoefficientService`
+    (the DB-persistent implementation) so that every revision
+    mutation lands in SQLAlchemy via ``session.add`` + ``session.commit``
+    against the production engine.
+
+    Pre-fixup note (retracted in commit 7): an earlier draft
+    described this adapter as a "pass-through" that inherits
+    in-memory behavior. That description was wrong; the
+    :class:`DatabaseCoefficientService` overrides every
+    revision-mutation method (see
+    ``infrastructure/database.py`` lines 120-285). The
+    application-side approve / retire / submit paths therefore
+    always land in the database.
+
+    Transaction note (commit 8): this adapter commits each
+    call in its own ``session``. Production callers that need
+    a single transaction spanning revision.status update +
+    audit-log + approval-log inserts should use
+    :class:`TransactionalCoefficientApprovalRepository`
+    instead.
     """
 
     def __init__(self, service: CoefficientService) -> None:
@@ -307,17 +339,16 @@ class SqlAlchemyCoefficientMutationAdapter(CoefficientMutationPort):
     def list_revisions_for_stage(
         self, stage_name: str, calculation_type: str | None
     ) -> list[CoefficientRevision]:
-        """Stage binding: enumerate definitions whose ``category``
-        matches ``stage_name`` and return all revisions.
+        """Enumerate definitions whose ``category`` matches
+        ``stage_name`` and concatenate every revision.
 
-        Note: the existing service does not have a per-stage
-        enumeration. We delegate to the read adapter in production
-        and to a category-filter list_definitions here as a
-        parallel fallback. Slice 1 callers (the
-        :class:`CoefficientApprovalService.validate_startup_readiness`
-        path) should wire the read adapter directly via the
-        composition root; this fallback exists so the in-memory
-        test path is functional.
+        The wrapped service's ``list_definitions(category=...)``
+        is the source of truth (in-memory map for the in-memory
+        case; SQLAlchemy session for the DB-backed case).
+        Production callers should prefer
+        :class:`SqlAlchemyCoefficientRevisionReadAdapter` for
+        direct SQL access; this method exists so the service is
+        self-contained.
         """
         definitions = self._service.list_definitions(category=stage_name)
         result: list[CoefficientRevision] = []

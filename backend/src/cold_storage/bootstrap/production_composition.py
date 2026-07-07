@@ -69,9 +69,6 @@ from cold_storage.modules.coefficients.application.approval_service import (
 from cold_storage.modules.coefficients.application.resolver import (
     ApprovedCoefficientResolver,
 )
-from cold_storage.modules.coefficients.application.service import (
-    CoefficientService,
-)
 from cold_storage.modules.coefficients.infrastructure.approval_adapters import (
     InMemoryRoleCheckAdapter,
     SqlAlchemyCoefficientApprovalLogAdapter,
@@ -79,6 +76,9 @@ from cold_storage.modules.coefficients.infrastructure.approval_adapters import (
     SqlAlchemyCoefficientMutationAdapter,
     SqlAlchemyCoefficientRevisionReadAdapter,
     SystemClock,
+)
+from cold_storage.modules.coefficients.infrastructure.database import (
+    DatabaseCoefficientService,
 )
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
@@ -292,31 +292,53 @@ def compose_production_coefficient_resolver(
 def compose_production_coefficient_approval_service(
     *,
     engine: Any,
-    in_memory_service: Any | None = None,
+    mutation_service: Any | None = None,
 ) -> CoefficientApprovalService:
     """Build a production :class:`CoefficientApprovalService`.
 
     The factory wires every Phase 4 Slice 1 port against the
-    production engine. The mutation adapter is bound to an
-    ``in_memory_service`` argument — by default ``None``, in which
-    case the factory constructs an in-memory
-    :class:`CoefficientService` (the same service the seed flow
-    uses). Future Slices will switch this binding to a fully
-    DB-backed mutation adapter; for Slice 1 the
-    **two log tables** are durably persisted and the revision
-    state itself is held in memory.
+    production engine. By default the factory constructs a
+    :class:`DatabaseCoefficientService` bound to ``engine``, so
+    the production approve / retire / submit paths go straight
+    to the database.
 
-    See ``infrastructure/approval_adapters.py`` for the deferred
-    DB-backed revision mutation.
+    The default is **never** an in-memory
+    :class:`CoefficientService`: production caller cannot
+    accidentally invoke the parent in-memory class because the
+    :class:`DatabaseCoefficientService` overrides every
+    revision-mutation method.
+
+    Callers that need to inject a different mutation target
+    (e.g. for unit tests) can pass ``mutation_service=``. The
+    argument name was renamed from ``in_memory_service`` (a
+    pre-fixup misnomer) to ``mutation_service`` so that the
+    default of None + the explicit ``DatabaseCoefficientService(engine)``
+    fallback eliminates any silent in-memory production wiring.
+
+    Note: this factory persists revision status, approval
+    log rows, and audit log rows via the adapter stack. The
+    transactional integrity of those three writes is enforced
+    in :class:`TransactionalCoefficientApprovalRepository`
+    (a separate concern; see commit 8 and the ``_TRANSACTIONAL``
+    fields below). This factory wires the read / log /
+    resolver adapters only.
 
     :param engine: A SQLAlchemy ``Engine``.
-    :param in_memory_service: Optional pre-constructed
-        :class:`CoefficientService`. Defaults to ``None``, in which
-        case a fresh ``CoefficientService()`` is created.
+    :param mutation_service: Optional pre-constructed
+        :class:`DatabaseCoefficientService` (or test double).
+        When ``None`` (the production default) the factory
+        constructs a fresh ``DatabaseCoefficientService(engine)``.
+        The legacy ``in_memory_service`` kwarg is no longer
+        accepted.
 
-    :returns: A fully-wired approval service.
+    :returns: A fully-wired approval service backed by the
+        production engine. The legacy in-memory default was
+        a fabrication; see commit 7 for the retract.
     """
-    mutation_target = in_memory_service if in_memory_service is not None else CoefficientService()
+    if mutation_service is None:
+        mutation_target: Any = DatabaseCoefficientService(engine)
+    else:
+        mutation_target = mutation_service
     return CoefficientApprovalService(
         mutation_port=SqlAlchemyCoefficientMutationAdapter(mutation_target),
         approval_log=SqlAlchemyCoefficientApprovalLogAdapter(engine),

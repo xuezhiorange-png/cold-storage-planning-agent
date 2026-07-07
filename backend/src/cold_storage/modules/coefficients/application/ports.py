@@ -156,12 +156,24 @@ class CoefficientAuditLogPort(Protocol):
 class CoefficientRoleCheckPort(Protocol):
     """Resolve the set of roles an actor carries.
 
-    Per design contract §5.6 fourth bullet: reject approve if the
-    actor lacks the ``coefficient.reviewer`` role. The auth layer is
-    out of Slice 1 scope (deferred); this protocol is the seam the
-    follow-up transport layer will populate. The default in-memory
-    implementation is used by unit tests; production wiring lives
-    in ``bootstrap.production_composition``.
+    Per design contract §5.6 fourth bullet: reject approve if
+    the actor lacks the ``coefficient.reviewer`` role. The
+    production auth source is out of Slice 1 scope (deferred);
+    this protocol is the seam the follow-up transport layer
+    will populate. The default implementation
+    (:class:`InMemoryRoleCheckAdapter` in
+    ``infrastructure/approval_adapters.py``) returns a fixed
+    role mapping for the canonical reviewer identity; tests
+    construct their own adapter. The production wiring in
+    ``bootstrap.production_composition`` uses the default
+    implementation for Slice 1.
+
+    Implementation note: do **not** mis-interpret "default" as
+    "silent"; the production path raises
+    :class:`ApprovalRoleRequiredError` (typed) when the actor
+    lacks the role. The default implementation simply returns
+    the empty ``frozenset()`` for unknown actors, which is
+    caught by the application-side ``approve`` flow.
     """
 
     def roles_for(self, actor: str) -> frozenset[str]:

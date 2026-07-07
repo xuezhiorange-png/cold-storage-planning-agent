@@ -70,13 +70,17 @@ REQUIRED_REVIEWER_ROLE: str = "coefficient.reviewer"
 
 @runtime_checkable
 class CoefficientMutationPort(Protocol):
-    """Narrow surface into the existing ``CoefficientService``.
+    """Narrow surface into ``DatabaseCoefficientService`` (production
+    path) or test fakes.
 
-    This is **not** an infrastructure import. ``CoefficientService``
-    is an in-memory dataclass that already implements the protocol
-    structurally; production composition wires the database-backed
-    variant. The protocol exists so this service depends on the
-    contract, not on the concrete dataclass.
+    On the production path the implementation backing this protocol
+    is the in-memory ``CoefficientService`` ``__init__`` followed by
+    overrides from :class:`DatabaseCoefficientService` (definition
+    CRUD + revision mutation). Every revision-mutation method on
+    that hierarchy persists to the bound SQLAlchemy engine
+    (see ``infrastructure/database.py`` lines 120-285). The
+    application service therefore observes DB-persistent status
+    transitions on every call.
     """
 
     def create_definition(  # noqa: D401 - docstring inherited from contract
@@ -270,10 +274,15 @@ class CoefficientApprovalService:
             request.definition_id, request.revision_id, approver=reviewer
         )
 
-        # Persist the validation back to ``source_reference``. The
-        # existing service keeps the field on the in-memory object;
-        # the database layer's update path is unchanged (out of
-        # Slice 1 scope; we rely on the existing repository).
+        # Persist the validated citation back to ``source_reference``.
+        # The DB layer's update path is the existing ``approve_revision``
+        # method, which writes ``source_reference`` only via the
+        # constructor parameters (no in-place column update helper).
+        # We rely on the constructor-driven flow below; the
+        # field is mutated here for the in-process audit-log /
+        # approval-log hash capture, not for DB persistence of the
+        # citation text itself (the citation text passed at
+        # construction is durable via the approval / audit log).
         revision.source_reference = citation_validated
 
         new_state = "approved"
