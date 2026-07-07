@@ -36,11 +36,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
+import cold_storage.modules.schemes.infrastructure.orm  # noqa: F401
 from cold_storage.bootstrap.mode import AppMode
 from cold_storage.bootstrap.settings import Settings
 from cold_storage.bootstrap.startup_readiness import (
@@ -52,13 +53,11 @@ from cold_storage.modules.coefficients.domain.exceptions import (
     MissingApprovedCoefficientError,
     StartupReadinessError,
 )
-
-import cold_storage.modules.schemes.infrastructure.orm  # noqa: F401
-from cold_storage.modules.orchestration.application.service import (
-    OrchestrationService,
-)
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
+)
+from cold_storage.modules.orchestration.application.service import (
+    OrchestrationService,
 )
 from cold_storage.modules.orchestration.application.transaction_b import (
     VerificationReadPort,

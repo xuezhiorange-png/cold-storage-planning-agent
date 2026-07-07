@@ -48,11 +48,20 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Slice 2A plan §11.3 — explicitly NOT testing the orchestrator
+# staging path: that requires a fully-wired
+# ProductionSourceBindingUseCase with a real
+# OrchestrationService (P3 wiring).  Slice 2A only proves the
+# strict gate raises the typed error before Transaction A.  A
+# stub OrchestrationService is enough.
+# Pull in every module that contributes tables to ``Base.metadata``
+# so that ``Base.metadata.create_all`` resolves every foreign key.
+import cold_storage.modules.schemes.infrastructure.orm  # noqa: F401
 from cold_storage.bootstrap.mode import AppMode
 from cold_storage.bootstrap.settings import Settings
 from cold_storage.bootstrap.startup_readiness import (
@@ -65,28 +74,16 @@ from cold_storage.modules.coefficients.domain.exceptions import (
     MissingApprovedCoefficientError,
     StartupReadinessError,
 )
-
-# Slice 2A plan §11.3 — explicitly NOT testing the orchestrator
-# staging path: that requires a fully-wired
-# ProductionSourceBindingUseCase with a real
-# OrchestrationService (P3 wiring).  Slice 2A only proves the
-# strict gate raises the typed error before Transaction A.  A
-# stub OrchestrationService is enough.
-
-# Pull in every module that contributes tables to ``Base.metadata``
-# so that ``Base.metadata.create_all`` resolves every foreign key.
-import cold_storage.modules.schemes.infrastructure.orm  # noqa: F401
-from cold_storage.modules.orchestration.application.service import (
-    OrchestrationService,
-)
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
+)
+from cold_storage.modules.orchestration.application.service import (
+    OrchestrationService,
 )
 from cold_storage.modules.orchestration.application.transaction_b import (
     VerificationReadPort,
 )
 from cold_storage.modules.projects.infrastructure.orm import Base
-
 
 # ---------------------------------------------------------------------------
 # Engine + clock fixtures
@@ -339,9 +336,7 @@ def test_app_env_production_passes_when_all_stages_have_approved(
 # ---------------------------------------------------------------------------
 
 
-def test_app_env_development_skips_readiness_check(
-    engine: Engine, settings_factory
-) -> None:
+def test_app_env_development_skips_readiness_check(engine: Engine, settings_factory) -> None:
     """Development mode runs the same demo-only fixture without raising."""
     settings = settings_factory("development")
 
