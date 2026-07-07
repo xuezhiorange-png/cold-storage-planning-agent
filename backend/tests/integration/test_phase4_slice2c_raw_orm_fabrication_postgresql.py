@@ -46,7 +46,6 @@ from cold_storage.modules.projects.infrastructure.orm import (
     CalculationRunRecord,
 )
 
-
 # Mirrors of the golden constants used by the SQLite mirror.  The PG
 # mirror does not import the SQLite-specific transactional_b_golden
 # fixture (which carries SQLite-style session semantics) and instead

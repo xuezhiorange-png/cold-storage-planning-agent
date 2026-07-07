@@ -74,11 +74,11 @@ from cold_storage.modules.coefficients.domain.exceptions import (
     MissingApprovedCoefficientError,
     StartupReadinessError,
 )
-from cold_storage.modules.orchestration.application.production_source_binding import (
-    ProductionSourceBindingUseCase,
-)
 from cold_storage.modules.orchestration.application.ports import (
     OrchestrationIdentityRepository,
+)
+from cold_storage.modules.orchestration.application.production_source_binding import (
+    ProductionSourceBindingUseCase,
 )
 from cold_storage.modules.orchestration.application.service import (
     OrchestrationService,
@@ -312,7 +312,9 @@ class _NullIdentityRepository(OrchestrationIdentityRepository):
             f" got args={args!r} kwargs={kwargs!r}"
         )
 
-    def get_calculator_version_vector(self, *args: Any, **kwargs: Any) -> dict[str, str]:  # pragma: no cover
+    def get_calculator_version_vector(
+        self, *args: Any, **kwargs: Any
+    ) -> dict[str, str]:  # pragma: no cover
         raise AssertionError(
             "Slice 2A tests must raise in the strict gate before any"
             " calculator-version-vector read;"

@@ -490,11 +490,7 @@ def test_production_source_binding_does_not_import_infrastructure() -> None:
     silently re-allowed.
     """
     target = (
-        BACKEND_SRC
-        / "modules"
-        / "orchestration"
-        / "application"
-        / "production_source_binding.py"
+        BACKEND_SRC / "modules" / "orchestration" / "application" / "production_source_binding.py"
     )
     assert target.exists(), f"{target} not found"
     content = target.read_text()

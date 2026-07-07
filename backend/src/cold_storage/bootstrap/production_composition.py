@@ -83,13 +83,13 @@ from cold_storage.modules.coefficients.infrastructure.database import (
 from cold_storage.modules.coefficients.infrastructure.transactional_repository import (
     TransactionalCoefficientApprovalRepository,
 )
+from cold_storage.modules.orchestration.application.ports import (
+    OrchestrationIdentityRepository,
+)
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
 )
 from cold_storage.modules.orchestration.application.service import OrchestrationService
-from cold_storage.modules.orchestration.application.ports import (
-    OrchestrationIdentityRepository,
-)
 from cold_storage.modules.orchestration.application.source_binding_assembly import (
     Phase2AdapterCalculatorPort,
 )

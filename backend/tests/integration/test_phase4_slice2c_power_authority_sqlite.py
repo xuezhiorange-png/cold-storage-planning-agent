@@ -43,6 +43,9 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # Pull in every module that contributes tables to ``Base.metadata`` so
 # that ``create_all`` resolves every foreign key for both the
@@ -51,15 +54,13 @@ import cold_storage.modules.coefficients.infrastructure.orm  # noqa: F401
 import cold_storage.modules.orchestration.infrastructure.orm  # noqa: F401
 import cold_storage.modules.projects.infrastructure.orm  # noqa: F401
 import cold_storage.modules.schemes.infrastructure.orm  # noqa: F401
-
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from cold_storage.modules.projects.infrastructure.orm import Base
 from cold_storage.modules.schemes.infrastructure.orm import (
     SchemeCandidateRecord,
     SchemeRunRecord,
+)
+from tests.integration.test_production_scheme_sqlite import (
+    COOLING_RESULT_SNAPSHOT as _GOLDEN_COOLING_RESULT_SNAPSHOT,
 )
 
 # Re-use the canonical fixture builders so we don't duplicate ~ 800
@@ -69,20 +70,26 @@ from cold_storage.modules.schemes.infrastructure.orm import (
 # shape MUST update them in lockstep with the suite.
 from tests.integration.test_production_scheme_sqlite import (
     EQUIPMENT_RESULT_SNAPSHOT as _GOLDEN_EQUIPMENT_RESULT_SNAPSHOT,
+)
+from tests.integration.test_production_scheme_sqlite import (
     INVESTMENT_RESULT_SNAPSHOT as _GOLDEN_INVESTMENT_RESULT_SNAPSHOT,
+)
+from tests.integration.test_production_scheme_sqlite import (
     POWER_RESULT_SNAPSHOT as _GOLDEN_POWER_RESULT_SNAPSHOT,
+)
+from tests.integration.test_production_scheme_sqlite import (
     ZONE_RESULT_SNAPSHOT as _GOLDEN_ZONE_RESULT_SNAPSHOT,
-    COOLING_RESULT_SNAPSHOT as _GOLDEN_COOLING_RESULT_SNAPSHOT,
+)
+from tests.integration.test_production_scheme_sqlite import (
+    _compute_domain_hash,
     _make_command,
     _make_service,
-    _compute_domain_hash,
     _seed_calculation_runs,
     _seed_orchestration_prereqs,
     _seed_project_and_version,
     _seed_source_binding,
     _seed_weight_set_and_revision,
 )
-
 
 _SLOT_DEFAULT_RUN_IDS = {
     "zone": "test-run-zone-001",
@@ -113,22 +120,22 @@ def _compute_combined_overrides(
     _compute_verifier_combined_source_hash`` but uses the §16 #11
     override per-calc hashes + the canonical fixture IDs / fingerprint.
     """
+    from cold_storage.modules.schemes.application.source_binding_verifier import (
+        _compute_combined_source_hash,
+    )
     from tests.integration.test_production_scheme_sqlite import (
+        _SLOT_STAGE_ORDER,
         ATTEMPT_ID,
         COEFF_CONTEXT_ID,
+        COOL_RUN_ID,
+        EQUIP_RUN_ID,
         EXEC_SNAPSHOT_ID,
         IDENTITY_ID,
+        INVEST_RUN_ID,
+        POWER_RUN_ID,
         PROJECT_ID,
         VERSION_ID,
         ZONE_RUN_ID,
-        COOL_RUN_ID,
-        EQUIP_RUN_ID,
-        POWER_RUN_ID,
-        INVEST_RUN_ID,
-        _SLOT_STAGE_ORDER,
-    )
-    from cold_storage.modules.schemes.application.source_binding_verifier import (
-        _compute_combined_source_hash,
     )
 
     slot_ids = {

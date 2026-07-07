@@ -782,9 +782,7 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
         )
 
         record = session.execute(
-            select(OrchestrationIdentityRecord).where(
-                OrchestrationIdentityRecord.id == identity_id
-            )
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
         ).scalar_one_or_none()
         if record is None:
             return ""

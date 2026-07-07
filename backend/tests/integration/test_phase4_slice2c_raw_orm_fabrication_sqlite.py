@@ -47,7 +47,7 @@ if os.environ.get("DATABASE_BACKEND") == "postgresql":
         allow_module_level=True,
     )
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -60,11 +60,9 @@ from cold_storage.modules.orchestration.domain.contracts import (
 )
 from cold_storage.modules.orchestration.domain.errors import (
     OrchestrationDomainError,
-    SourceBindingIdentityMismatchError,
 )
 from cold_storage.modules.orchestration.domain.fingerprint import result_hash
 from cold_storage.modules.orchestration.domain.snapshots import (
-    SourceSnapshotContentV1,
     build_source_snapshot_content_v1,
 )
 from cold_storage.modules.orchestration.infrastructure.repositories import (
@@ -86,7 +84,6 @@ from tests.integration.transaction_b_golden import (
     GOLDEN_SNAPSHOT_ID,
     _seed_golden_prerequisites,
 )
-
 
 # Inlined slot metadata so the test does not couple to private constants in
 # ``test_production_transaction_b_e2e_sqlite.py``. Mirrors the values there.
@@ -118,9 +115,6 @@ def _make_engine():
     # so that Base.metadata.create_all resolves every foreign key.
     import cold_storage.modules.orchestration.infrastructure.orm  # noqa: F401
     import cold_storage.modules.schemes.infrastructure.orm  # noqa: F401
-
-    for pragma in ("PRAGMA foreign_keys=ON",):
-        pass  # default for in-memory sqlite; harmless
 
     Base.metadata.create_all(eng)
     return eng

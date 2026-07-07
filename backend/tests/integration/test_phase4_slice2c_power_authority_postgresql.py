@@ -16,14 +16,13 @@ locally); the canonical CI is the ``backend-postgresql`` job at
 
 from __future__ import annotations
 
-from decimal import Decimal
-
-import pytest
-
 # Skip when DATABASE_BACKEND != postgresql OR no PG fixture is present.
 # CI backend-postgresql job sets DATABASE_BACKEND=postgresql AND
 # provides pg_engine / pg_session_factory fixtures.
 import os
+from decimal import Decimal
+
+import pytest
 
 if os.environ.get("DATABASE_BACKEND") != "postgresql":
     pytest.skip(
@@ -113,9 +112,7 @@ def test_pg_scheme_candidate_installed_power_uses_power_slot_not_equipment(
 
         candidates = (
             verify_s.execute(
-                select(SchemeCandidateRecord).where(
-                    SchemeCandidateRecord.scheme_run_id == run.id
-                )
+                select(SchemeCandidateRecord).where(SchemeCandidateRecord.scheme_run_id == run.id)
             )
             .scalars()
             .all()

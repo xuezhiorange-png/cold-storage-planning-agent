@@ -73,7 +73,6 @@ from typing import Any
 # Slice 2C: the application layer no longer imports SQLAlchemy directly.
 # The ``OrchestrationIdentityRecord`` lookup is now hidden behind the
 # :class:`OrchestrationIdentityRepository` port (see ``ports.py``).
-
 from cold_storage.bootstrap.startup_readiness import (  # noqa: E402
     get_required_stages,
 )
@@ -88,10 +87,7 @@ from cold_storage.modules.coefficients.application.resolver import (  # noqa: E4
 from cold_storage.modules.coefficients.domain.exceptions import (  # noqa: E402
     ApprovedCoefficientGovernanceError,
 )
-from cold_storage.modules.orchestration.application.service import OrchestrationService
-from cold_storage.modules.orchestration.application.transaction_b import (
-    VerificationReadPort,
-)
+
 # Slice 2C: replaces the Phase 3 ``_load_orchestration_fingerprint``
 # direct-import shortcut (see ``phase3_exceptions`` in
 # ``tests/architecture/test_architecture_boundaries.py``).  The
@@ -100,6 +96,10 @@ from cold_storage.modules.orchestration.application.transaction_b import (
 # callers receive the port via ``__init__`` injection.
 from cold_storage.modules.orchestration.application.ports import (
     OrchestrationIdentityRepository,
+)
+from cold_storage.modules.orchestration.application.service import OrchestrationService
+from cold_storage.modules.orchestration.application.transaction_b import (
+    VerificationReadPort,
 )
 from cold_storage.modules.orchestration.domain.contracts import (
     OrchestrationRequestCommand,
