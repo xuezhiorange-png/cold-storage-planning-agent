@@ -63,6 +63,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from cold_storage.modules.orchestration.application.production_source_binding import (
+    ProductionSourceBindingUseCase,
+)
+from cold_storage.modules.orchestration.application.service import OrchestrationService
+from cold_storage.modules.orchestration.application.source_binding_assembly import (
+    Phase2AdapterCalculatorPort,
+)
 from cold_storage.modules.orchestration.infrastructure.archive_composition import (
     make_production_archive_callable,
 )
@@ -133,6 +140,96 @@ def compose_production_scheme_service_from_session(session: Any) -> ProductionSc
 
 
 __all__ = [
+    "compose_phase2_adapter_calculator_port",
     "compose_production_scheme_service",
     "compose_production_scheme_service_from_session",
+    "compose_production_source_binding_use_case",
 ]
+
+
+def compose_phase2_adapter_calculator_port() -> Phase2AdapterCalculatorPort:
+    """Return a production :class:`Phase2AdapterCalculatorPort` with default adapters.
+
+    The factory binds the five Phase 2 production adapters
+    (zone / cooling_load / equipment / power / investment) into a
+    single :class:`CalculatorPort` implementation so the production
+    :class:`TransactionBExecutor` can run the five-stage DAG without
+    resorting to a mock calculator or a hand-written golden fixture.
+
+    This is the **only** place that constructs a production-mode
+    ``Phase2AdapterCalculatorPort``.  Tests can still build their
+    own ``Phase2AdapterCalculatorPort(...)`` directly (with
+    alternate adapter instances) for unit-level isolation.
+
+    Phase 3 scope: this wiring is the minimum needed for the
+    SourceBinding archive and SchemeService E2E use case.  The
+    full 5-stage database roundtrip + approved non-demo
+    coefficient governance is deferred to Phase 4 / Issue #35.
+    """
+    return Phase2AdapterCalculatorPort()
+
+
+def compose_production_source_binding_use_case(
+    service: OrchestrationService,
+    verification_read_port: Any = None,
+) -> ProductionSourceBindingUseCase:
+    """Return a :class:`ProductionSourceBindingUseCase` from an :class:`OrchestrationService`.
+
+    The use case is the application-level entry point that drives
+    ``OrchestrationService.execute`` (Transaction A) and
+    ``OrchestrationService.execute_transaction_b`` (Transaction B)
+    end-to-end.  It returns the verified
+    ``SourceBindingRecord.id`` for downstream ``SchemeService``
+    consumption.
+
+    Parameters
+    ----------
+    service:
+        A fully-wired :class:`OrchestrationService`.  The
+        composition root is intentionally **not** responsible for
+        constructing this — it has 13 dependencies that are out of
+        scope for the Phase 3 minimum-wiring mandate.  Callers
+        that have already constructed an ``OrchestrationService``
+        (e.g. integration tests) can pass it in.
+
+    verification_read_port:
+        Optional :class:`VerificationReadPort` for the use case's
+        post-Transaction-B verification reads.  Defaults to
+        ``None`` — the use case re-reads the orchestration
+        fingerprint directly from the
+        :class:`OrchestrationIdentityRecord` row, not through the
+        verifier port, so the port is currently unused but kept
+        in the signature for forward compatibility.
+
+    Returns
+    -------
+    :class:`ProductionSourceBindingUseCase`
+        The use case instance.  Caller is responsible for managing
+        the surrounding session lifecycle (``session.begin()`` /
+        ``session.commit()`` / ``session.rollback()``) per the
+        production UoW contract.
+
+    Phase 3 scope: the use case is wired at the composition root
+    boundary but the full 5-stage database roundtrip is deferred
+    to Phase 4 / Issue #35 follow-up.
+    """
+    if verification_read_port is None:
+        # The use case re-reads the fingerprint from
+        # ``OrchestrationIdentityRecord`` directly and does not
+        # consume the verification port at the moment.  The
+        # parameter is reserved for future use; we pass a
+        # ``cast``-through-``Any`` shim so the type-checker does
+        # not reject the call.  When the use case starts
+        # consuming the port, the caller can pass a real
+        # implementation here.
+        from typing import cast
+
+        from cold_storage.modules.orchestration.application.transaction_b import (
+            VerificationReadPort,
+        )
+
+        verification_read_port = cast(VerificationReadPort, None)
+    return ProductionSourceBindingUseCase(
+        service=service,
+        verification_read_port=verification_read_port,
+    )

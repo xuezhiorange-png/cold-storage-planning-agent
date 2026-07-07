@@ -167,7 +167,19 @@ _STAGE_DATA: dict[str, tuple[str, str, str]] = {
 
 
 class _GoldenCalculatorPort:
-    """Mock CalculatorPort returning deterministic golden outputs for each stage."""
+    """Mock CalculatorPort returning deterministic golden outputs for each stage.
+
+    ``actor`` / ``correlation_id`` are captured onto the instance so
+    P2-NB-1 end-to-end threading assertions can verify the values
+    reached the calculator port.  They are accepted as keyword-only
+    defaults to keep the signature forward-compatible with the
+    production :class:`Phase2AdapterCalculatorPort.execute_stage`
+    contract (see ``transaction_b.py`` call site in Phase 3).
+    """
+
+    def __init__(self) -> None:
+        self.last_actor: str = ""
+        self.last_correlation_id: str = ""
 
     def execute_stage(
         self,
@@ -176,7 +188,11 @@ class _GoldenCalculatorPort:
         execution_snapshot: dict[str, Any],
         coefficient_context: dict[str, Any],
         upstream_results: dict[str, Any],
+        actor: str = "",
+        correlation_id: str = "",
     ) -> StageExecutionResult:
+        self.last_actor = actor
+        self.last_correlation_id = correlation_id
         calc_name, calc_version, calc_type = _STAGE_DATA[stage_name]
         return StageExecutionResult(
             calculator_name=calc_name,

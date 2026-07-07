@@ -126,6 +126,12 @@ class CalculatorPort(Protocol):
     Implementations live in the infrastructure layer.  The port receives
     the full execution snapshot, coefficient context, and upstream
     ``StagePersistedResult`` objects for dependency injection.
+
+    ``actor`` and ``correlation_id`` are accepted as keyword-only
+    defaults to support identity threading from
+    :class:`TransactionBExecutor` (Phase 3).  They are NOT
+    required by all implementations — legacy test doubles may
+    accept and ignore them.
     """
 
     def execute_stage(
@@ -135,6 +141,8 @@ class CalculatorPort(Protocol):
         execution_snapshot: dict[str, Any],
         coefficient_context: dict[str, Any],
         upstream_results: dict[str, StagePersistedResult],
+        actor: str = "",
+        correlation_id: str = "",
     ) -> StageExecutionResult: ...
 
 

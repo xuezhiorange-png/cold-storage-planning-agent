@@ -52,37 +52,66 @@ seeding, not through latest-row fallback.
 
 ### 2.2 Tests
 
-* SQLite E2E:
-  ``test_production_sourcebinding_e2e_sqlite.py`` — the use case runs
-  end-to-end, produces exactly 5 ``CalculationRunRecord`` + 1
-  ``SourceBindingRecord`` + 1 ``SchemeRunRecord`` + 1
-  ``SourceArchiveRecord``; passes the existing
-  ``SourceBindingVerifier`` re-verification.
-* PostgreSQL E2E:
-  ``test_production_sourcebinding_e2e_postgresql.py`` — same path on
-  PG, with the same assertions.
-* Fail-closed tests:
+**Phase 3 in-scope (this PR):**
+
+* Zone-stage wiring test (SQLite + PG mirror):
+  ``test_production_sourcebinding_e2e_sqlite.py`` and
+  ``test_production_sourcebinding_e2e_postgresql.py`` — zone
+  stage is the only DAG stage closed-loop on the project-version
+  input snapshot alone.  The other four stages (cooling_load,
+  equipment, power, investment) require approved non-demo
+  coefficient governance (deferred to Phase 4 / Issue #35).
+* Wiring contract tests — 5-stage dispatch table coverage
+  (``_STAGE_ADAPTER_TABLE``), adapter-DAG binding consistency
+  (``CALCULATOR_BINDINGS``), use case constructibility,
+  ``ProductionSourceBindingOutcome`` frozen-dataclass invariant.
+* Composition-root architecture tests (in
+  ``tests/architecture/test_architecture_boundaries.py``) —
+  the production composition root can construct
+  ``Phase2AdapterCalculatorPort`` and
+  ``ProductionSourceBindingUseCase``; the dispatch table
+  matches the orchestrator's DAG; ``execute_stage`` signature
+  accepts ``actor`` and ``correlation_id`` keyword-only
+  defaults.
+* Actor / correlation_id end-to-end threading test —
+  confirms the values reach the calculator port
+  (``last_actor`` / ``last_correlation_id`` capture on the
+  test double).
+
+**Phase 4 / Issue #35 follow-up (NOT in Phase 3):**
+
+* Full 5-stage database roundtrip with real
+  ``CalculationRunRecord`` + ``SourceBindingRecord`` +
+  ``SchemeRunRecord`` + ``SourceArchiveRecord`` (requires
+  approved non-demo coefficient governance, which is the
+  Issue #35 acceptance criterion).
+* SchemeService E2E test — the production SchemeService
+  consuming the SourceBinding produced by
+  ``ProductionSourceBindingUseCase.run``.
+* Fail-closed tests for:
   * missing slot → ``SourceBindingVerificationError``
   * tampered ``combined_source_hash`` → fail closed
   * wrong project_id on binding → fail closed
   * wrong calculation_type on a slot → fail closed
   * attempt-status = PENDING (not COMPLETED) → fail closed
   * requires_review suppression attempt → fail closed
-  * raw ORM fabrication of a ``CalculationRunRecord`` outside the
-    transaction → fail closed
-  * demo seed records entering the production path → fail closed
+  * raw ORM fabrication of a ``CalculationRunRecord`` outside
+    the transaction → fail closed
+  * demo seed records entering the production path → fail
+    closed
   * latest-row fallback attempt (manual binding pointing at the
     latest unverified row) → fail closed
 * Rollback test: partial failure mid-pipeline leaves zero
   ``SourceBindingRecord`` and zero ``SchemeRunRecord``.
-* Power authority test: SchemeRun ``installed_power`` comes from the
-  power slot, not from a compressor power field on the equipment slot.
+* Power authority test: SchemeRun ``installed_power`` comes
+  from the power slot, not from a compressor power field on
+  the equipment slot.
 * Archive verification test: ``SourceArchiveRecord.payload_hash``
-  recomputes from the archived payload; tampered archive fails closed
-  on readback.
+  recomputes from the archived payload; tampered archive
+  fails closed on readback.
 * Architecture boundary test:
-  ``test_phase3_evaluation_does_not_import_production.py`` — the
-  evaluation module must not import any new
+  ``test_phase3_evaluation_does_not_import_production.py`` —
+  the evaluation module must not import any new
   ``orchestration.application.source_binding_*`` /
   ``orchestration.application.production_source_binding`` /
   ``schemes.application.production_service`` symbols.

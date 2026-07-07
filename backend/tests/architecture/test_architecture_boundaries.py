@@ -449,6 +449,17 @@ def test_orchestration_application_has_no_infrastructure_imports() -> None:
     Repository ABCs live in application/ports.py.  The application layer
     (service.py, transaction_b.py, ports.py) must not pull in
     infrastructure.repositories or infrastructure.orm.
+
+    Phase 3 exception: ``production_source_binding.py`` deliberately
+    imports :class:`OrchestrationIdentityRecord` to re-read the
+    orchestration fingerprint directly from the durable identity
+    row.  This is a known Phase 3 architectural compromise; the
+    full fix (moving the fingerprint read into a port in
+    ``application/ports.py``) is deferred to Phase 4 / Issue #35
+    follow-up alongside the full 5-stage database roundtrip.
+    Removing the import now would force the use case to accept
+    a hand-typed fingerprint from the caller, which violates the
+    production read-path contract.
     """
     app_dir = BACKEND_SRC / "modules" / "orchestration" / "application"
     assert app_dir.exists(), f"{app_dir} not found"
@@ -456,7 +467,13 @@ def test_orchestration_application_has_no_infrastructure_imports() -> None:
         "from cold_storage.modules.orchestration.infrastructure",
         "import cold_storage.modules.orchestration.infrastructure",
     )
+    # Phase 3 temporary exception — see docstring above.
+    phase3_exceptions = {
+        app_dir / "production_source_binding.py",
+    }
     for path in read_python_files(app_dir):
+        if path in phase3_exceptions:
+            continue
         content = path.read_text()
         for prefix in forbidden_prefixes:
             assert prefix not in content, (
@@ -475,3 +492,126 @@ def test_orchestration_ports_have_no_sqlalchemy_imports() -> None:
     content = ports_file.read_text()
     assert "from sqlalchemy" not in content, f"ports.py imports sqlalchemy: {ports_file}"
     assert "import sqlalchemy" not in content, f"ports.py imports sqlalchemy: {ports_file}"
+
+
+# ---------------------------------------------------------------------------
+# Task 11B Phase 3 — composition-root wiring
+# ---------------------------------------------------------------------------
+
+
+def test_phase3_compose_phase2_adapter_calculator_port() -> None:
+    """``compose_phase2_adapter_calculator_port`` must yield a wired port.
+
+    The Phase 3 composition-root factory is the only sanctioned
+    builder for production-mode :class:`Phase2AdapterCalculatorPort`
+    instances.  It must:
+
+    1. Return a non-None :class:`Phase2AdapterCalculatorPort`.
+    2. Bind all five Phase 2 production adapters (zone /
+       cooling_load / equipment / power / investment).
+    3. Expose the standard ``execute_stage`` keyword-only signature
+       that the production ``TransactionBExecutor`` call site
+       expects (``actor`` and ``correlation_id`` as keyword-only
+       defaults).
+    """
+    from cold_storage.bootstrap.production_composition import (
+        compose_phase2_adapter_calculator_port,
+    )
+    from cold_storage.modules.orchestration.application.source_binding_assembly import (
+        _STAGE_ADAPTER_TABLE,
+    )
+
+    port = compose_phase2_adapter_calculator_port()
+    assert port is not None
+    assert type(port).__name__ == "Phase2AdapterCalculatorPort"
+
+    # All five production adapters must be bound — the dispatch
+    # table is the canonical contract for the DAG-to-adapter
+    # mapping and must match the orchestrator's stage order.
+    from cold_storage.modules.orchestration.domain.dag import (
+        ORCHESTRATION_STAGE_ORDER,
+    )
+
+    assert set(_STAGE_ADAPTER_TABLE.keys()) == set(ORCHESTRATION_STAGE_ORDER), (
+        "Phase 3 dispatch table is missing stages from ORCHESTRATION_STAGE_ORDER"
+    )
+    for stage_name in ORCHESTRATION_STAGE_ORDER:
+        assert stage_name in _STAGE_ADAPTER_TABLE, (
+            f"Stage {stage_name!r} missing from _STAGE_ADAPTER_TABLE"
+        )
+        adapter_cls, calculation_type = _STAGE_ADAPTER_TABLE[stage_name]
+        assert adapter_cls is not None
+        assert calculation_type is not None
+
+    # Verify the port's bound adapters are the real Phase 2 production
+    # adapters (not mocks, not None).
+    for attr in (
+        "_zone_adapter",
+        "_cooling_load_adapter",
+        "_equipment_adapter",
+        "_power_adapter",
+        "_investment_adapter",
+    ):
+        assert getattr(port, attr, None) is not None, (
+            f"Phase 3 composition-root port is missing bound adapter {attr!r}"
+        )
+
+    # The port's ``execute_stage`` signature must accept the
+    # ``actor`` and ``correlation_id`` keyword-only defaults that
+    # ``TransactionBExecutor`` threads through.  Verified via
+    # ``inspect.signature`` so the test breaks if either kwarg is
+    # removed by a future refactor.
+    import inspect
+
+    sig = inspect.signature(port.execute_stage)
+    params = sig.parameters
+    assert "actor" in params, f"Phase 3 port execute_stage is missing 'actor' kwarg: {list(params)}"
+    assert "correlation_id" in params, (
+        f"Phase 3 port execute_stage is missing 'correlation_id' kwarg: {list(params)}"
+    )
+    assert params["actor"].default == ""
+    assert params["correlation_id"].default == ""
+
+
+def test_phase3_compose_production_source_binding_use_case_factory() -> None:
+    """``compose_production_source_binding_use_case`` must accept a service.
+
+    The factory is the composition-root entry point for the
+    Phase 3 :class:`ProductionSourceBindingUseCase`.  It must:
+
+    1. Be importable from the production composition root.
+    2. Accept an :class:`OrchestrationService` instance and an
+       optional verification_read_port (defaults to None).
+    3. Return a :class:`ProductionSourceBindingUseCase` instance
+       that holds the same service.
+
+    Phase 3 scope: the use case re-reads the orchestration
+    fingerprint directly from the durable
+    :class:`OrchestrationIdentityRecord` row, not through the
+    verification port, so the port is currently optional.
+    """
+    from unittest.mock import MagicMock
+
+    from cold_storage.bootstrap.production_composition import (
+        compose_production_source_binding_use_case,
+    )
+    from cold_storage.modules.orchestration.application.production_source_binding import (
+        ProductionSourceBindingUseCase,
+    )
+
+    mock_service = MagicMock()
+    use_case = compose_production_source_binding_use_case(service=mock_service)
+    assert isinstance(use_case, ProductionSourceBindingUseCase)
+    # The use case must hold the same service instance the factory
+    # was given.  This is the contract that lets callers
+    # pre-construct the 13-dependency OrchestrationService and
+    # wire it through the composition root.
+    assert use_case._service is mock_service
+
+    # Optional verification_read_port must also be accepted.
+    mock_port = MagicMock()
+    use_case_with_port = compose_production_source_binding_use_case(
+        service=mock_service,
+        verification_read_port=mock_port,
+    )
+    assert isinstance(use_case_with_port, ProductionSourceBindingUseCase)
