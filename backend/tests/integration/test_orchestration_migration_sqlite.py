@@ -67,6 +67,41 @@ def migrated_engine():
     db_path.unlink(missing_ok=True)
 
 
+def _run_alembic(sqlite_path: str, *args: str) -> subprocess.CompletedProcess:
+    r = subprocess.run(
+        [sys.executable, "-m", "alembic", *args],
+        cwd=BACKEND_DIR,
+        env={**os.environ, "SQLITE_PATH": sqlite_path},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return r
+
+
+def _current_alembic_head(sqlite_path: str) -> str:
+    """Return the single current alembic head revision id.
+
+    Uses ``alembic heads`` which reads only the migrations directory
+    (no DB connection required), so it works before any upgrade runs
+    and stays stable across migrations. Output looks like::
+
+        0038_phase4_slice1_coefficient_approval (head)
+
+    so we parse the first whitespace-separated token. We assert:
+    - returncode is 0
+    - exactly one head is present (no merge branches with multiple heads)
+    - the parsed token is a non-empty revision id string
+    """
+    r = _run_alembic(sqlite_path, "heads")
+    assert r.returncode == 0, f"`alembic heads` failed: {r.stderr}"
+    lines = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+    assert len(lines) == 1, f"Expected exactly one alembic head, got {len(lines)}: {lines!r}"
+    head_id = lines[0].split()[0]
+    assert head_id, f"Empty alembic head id parsed from: {lines[0]!r}"
+    return head_id
+
+
 class TestTablesExist:
     def test_all_orchestration_tables(self, migrated_engine) -> None:
         insp = inspect(migrated_engine)
@@ -1124,7 +1159,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0037_phase1_drop_correlation_id_default"
+        expected_rev = _current_alembic_head(str(db_path))
         assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
 
@@ -1159,7 +1194,7 @@ class TestTransactionBConstraints0028:
 
         conn = _sql.connect(str(db_path))
         rev = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        expected_rev = "0037_phase1_drop_correlation_id_default"
+        expected_rev = _current_alembic_head(str(db_path))
         assert rev == expected_rev, f"Expected {expected_rev}, got {rev}"
         conn.close()
         db_path.unlink(missing_ok=True)

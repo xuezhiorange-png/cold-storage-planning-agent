@@ -615,3 +615,140 @@ def test_phase3_compose_production_source_binding_use_case_factory() -> None:
         verification_read_port=mock_port,
     )
     assert isinstance(use_case_with_port, ProductionSourceBindingUseCase)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Issue #35 Slice 1 — append-only architecture boundary tests.
+#
+# Per Charles's Slice 1 boundary correction (2026-07-07): these tests are
+# strictly import-boundary checks. No resolver behavior, no
+# startup-validation behavior, no DB assertions. The behavioral tests
+# live in ``tests/integration/test_phase4_slice1_*.py``.
+#
+# Three tests cover Slice 1's three new layers:
+#   1. domain/approval.py — must remain infra-free (no SQLAlchemy,
+#      FastAPI, Redis, etc.).
+#   2. application/{resolver,approval_service,ports}.py — must NOT
+#      import from infrastructure/ or database modules.
+#   3. bootstrap.production_composition — must surface the new
+#      factory functions (for callers in later Slices).
+# ---------------------------------------------------------------------------
+
+
+def test_phase4_slice1_approval_domain_no_infrastructure_imports() -> None:
+    """``coefficients/domain/approval.py`` must remain infra-free.
+
+    Slice 1's domain additions (citation validator, stale check,
+    demo guard) live in ``approval.py`` and must not introduce
+    SQLAlchemy / FastAPI / Redis / httpx / network SDKs. The
+    existing :func:`test_coefficient_domain_has_no_framework_dependencies`
+    covers the directory tree; this test specifically re-asserts
+    the invariant on the new file so a future regression cannot
+    quietly reintroduce framework imports in a Slice 2 review.
+    """
+    forbidden = ("fastapi", "sqlalchemy", "redis", "httpx", "requests")
+    path = BACKEND_SRC / "modules" / "coefficients" / "domain" / "approval.py"
+    assert path.exists(), f"missing: {path}"
+    content = path.read_text()
+    for dep in forbidden:
+        assert f"import {dep}" not in content, f"forbidden import '{dep}' in {path}"
+        assert f"from {dep}" not in content, f"forbidden from-import '{dep}' in {path}"
+
+
+def test_phase4_slice1_approval_application_no_infrastructure_imports() -> None:
+    """Slice 1 application-layer additions must not import infrastructure.
+
+    The three new modules (:mod:`coefficients.application.resolver`,
+    :mod:`coefficients.application.approval_service`, and
+    :mod:`coefficients.application.ports`) are explicitly
+    application-layer modules. They must not pull in any
+    ``cold_storage.modules.coefficients.infrastructure`` or
+    ``cold_storage.modules.*.infrastructure.orm`` imports.
+
+    Approved cross-layer dependencies are limited to:
+
+    * ``cold_storage.modules.coefficients.application.*`` (sibling
+      imports within the layer are fine — the resolver and the
+      service consume the ports module).
+    * ``cold_storage.modules.coefficients.domain.*`` (downward
+      call into the domain is the standard direction).
+    """
+    forbidden_substrings = (
+        "cold_storage.modules.coefficients.infrastructure",
+        "cold_storage.modules.orchestration.infrastructure",
+        "cold_storage.modules.schemes.infrastructure",
+        "cold_storage.modules.projects.infrastructure",
+        "sqlalchemy",
+        "fastapi",
+        "redis",
+    )
+    application_modules = (
+        BACKEND_SRC / "modules" / "coefficients" / "application" / "resolver.py",
+        BACKEND_SRC / "modules" / "coefficients" / "application" / "approval_service.py",
+        BACKEND_SRC / "modules" / "coefficients" / "application" / "ports.py",
+    )
+    for path in application_modules:
+        assert path.exists(), f"missing: {path}"
+        content = path.read_text()
+        for forbidden in forbidden_substrings:
+            assert forbidden not in content, (
+                f"forbidden token {forbidden!r} found in application-layer file {path}"
+            )
+
+
+def test_phase4_slice1_bootstrap_composition_exposes_slice1_factories() -> None:
+    """``bootstrap.production_composition`` must expose both Slice 1 factories.
+
+    The factories compose production-mode
+    :class:`ApprovedCoefficientResolver` and
+    :class:`CoefficientApprovalService` (Slice 1 scope). Future
+    Slices will wire them into the main startup path; this
+    import-boundary test asserts the factory surface is reachable
+    and that each factory's runtime signature annotates the
+    expected return type. The ``reflective return-type check`` is
+    an additional structural guard against signature drift; the
+    primary bound is the import-time reachability of the
+    factories themselves.
+    """
+    from cold_storage.bootstrap.production_composition import (
+        compose_production_coefficient_approval_service,
+        compose_production_coefficient_resolver,
+    )
+    from cold_storage.modules.coefficients.application.approval_service import (
+        CoefficientApprovalService,
+    )
+    from cold_storage.modules.coefficients.application.resolver import (
+        ApprovedCoefficientResolver,
+    )
+
+    assert callable(compose_production_coefficient_resolver)
+    assert callable(compose_production_coefficient_approval_service)
+
+    # Reflectively check the return-type annotations on the
+    # factory functions. The factories annotate their return
+    # types directly in production_composition.py; this test
+    # guards against silent signature drift.  ``production_composition``
+    # uses ``from __future__ import annotations`` (PEP 563), so the
+    # raw signature annotation is a string; resolve it via
+    # ``typing.get_type_hints`` which evaluates the string and looks
+    # up the class in the function's ``__globals__``.
+    import inspect
+    import typing
+
+    resolver_hints = typing.get_type_hints(compose_production_coefficient_resolver)
+    assert resolver_hints.get("return") is ApprovedCoefficientResolver, (
+        "compose_production_coefficient_resolver must annotate "
+        "return type ApprovedCoefficientResolver; got "
+        f"{resolver_hints.get('return')!r}"
+    )
+
+    service_hints = typing.get_type_hints(compose_production_coefficient_approval_service)
+    assert service_hints.get("return") is CoefficientApprovalService, (
+        "compose_production_coefficient_approval_service must annotate "
+        "return type CoefficientApprovalService; got "
+        f"{service_hints.get('return')!r}"
+    )
+    # ignore unused-import lint: inspect was previously imported here;
+    # kept for downstream readers and to avoid an F401 in callers that
+    # rely on ``inspect.signature`` for related checks.
+    del inspect

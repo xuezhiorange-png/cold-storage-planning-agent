@@ -63,6 +63,26 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from cold_storage.modules.coefficients.application.approval_service import (
+    CoefficientApprovalService,
+)
+from cold_storage.modules.coefficients.application.resolver import (
+    ApprovedCoefficientResolver,
+)
+from cold_storage.modules.coefficients.infrastructure.approval_adapters import (
+    InMemoryRoleCheckAdapter,
+    SqlAlchemyCoefficientApprovalLogAdapter,
+    SqlAlchemyCoefficientAuditLogAdapter,
+    SqlAlchemyCoefficientMutationAdapter,
+    SqlAlchemyCoefficientRevisionReadAdapter,
+    SystemClock,
+)
+from cold_storage.modules.coefficients.infrastructure.database import (
+    DatabaseCoefficientService,
+)
+from cold_storage.modules.coefficients.infrastructure.transactional_repository import (
+    TransactionalCoefficientApprovalRepository,
+)
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
 )
@@ -232,4 +252,104 @@ def compose_production_source_binding_use_case(
     return ProductionSourceBindingUseCase(
         service=service,
         verification_read_port=verification_read_port,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Issue #35 Slice 1 — approved-coefficient composition wiring.
+# Per Charles's Slice 1 boundary correction (2026-07-07): the wiring
+# below is the **factory surface** for the production path; calling
+# code (or a future ``bootstrap.dependencies`` integration) decides
+# when to enable it at startup. The current main startup path does
+# NOT auto-invoke these factories, so the existing demo / seed flow
+# is unchanged until Slice 2 / Slice 3 explicitly opts in.
+# ---------------------------------------------------------------------------
+
+
+def compose_production_coefficient_resolver(
+    *,
+    engine: Any,
+) -> ApprovedCoefficientResolver:
+    """Build a production :class:`ApprovedCoefficientResolver`.
+
+    The factory wires the SQLAlchemy read adapter against the
+    production engine and uses a :class:`SystemClock` so the
+    stale-approval check observes real wall-clock time. The
+    resolver is consumed by
+    :class:`CoefficientApprovalService.validate_startup_readiness`
+    and (in later Slices) by per-stage orchestrator resolution.
+
+    :param engine: A SQLAlchemy ``Engine`` already bound to the
+        production database (either SQLite or PostgreSQL).
+
+    :returns: A fully-wired resolver instance. Production callers
+        invoke ``resolver.resolve(stage_name=..., calculation_type=...)``
+        on the production entry point.
+    """
+    return ApprovedCoefficientResolver(
+        read_port=SqlAlchemyCoefficientRevisionReadAdapter(engine),
+        clock=SystemClock(),
+    )
+
+
+def compose_production_coefficient_approval_service(
+    *,
+    engine: Any,
+    mutation_service: Any | None = None,
+) -> CoefficientApprovalService:
+    """Build a production :class:`CoefficientApprovalService`.
+
+    The factory wires every Phase 4 Slice 1 port against the
+    production engine. By default the factory constructs a
+    :class:`DatabaseCoefficientService` bound to ``engine``, so
+    the production approve / retire / submit paths go straight
+    to the database.
+
+    The default is **never** an in-memory
+    :class:`CoefficientService`: production caller cannot
+    accidentally invoke the parent in-memory class because the
+    :class:`DatabaseCoefficientService` overrides every
+    revision-mutation method.
+
+    Callers that need to inject a different mutation target
+    (e.g. for unit tests) can pass ``mutation_service=``. The
+    argument name was renamed from ``in_memory_service`` (a
+    pre-fixup misnomer) to ``mutation_service`` so that the
+    default of None + the explicit ``DatabaseCoefficientService(engine)``
+    fallback eliminates any silent in-memory production wiring.
+
+    Note: this factory persists revision status, approval
+    log rows, and audit log rows via the adapter stack. The
+    transactional integrity of those three writes is enforced
+    in :class:`TransactionalCoefficientApprovalRepository`
+    (a separate concern; see commit 8 and the ``_TRANSACTIONAL``
+    fields below). This factory wires the read / log /
+    resolver adapters only.
+
+    :param engine: A SQLAlchemy ``Engine``.
+    :param mutation_service: Optional pre-constructed
+        :class:`DatabaseCoefficientService` (or test double).
+        When ``None`` (the production default) the factory
+        constructs a fresh ``DatabaseCoefficientService(engine)``.
+        The legacy ``in_memory_service`` kwarg is no longer
+        accepted.
+
+    :returns: A fully-wired approval service backed by the
+        production engine. The legacy in-memory default was
+        a fabrication; see commit 7 for the retract. Commit
+        8 wires the transactional repository so the three
+        writes (revision.status / audit_log / approval_log)
+        commit in a single ``session.begin()``.
+    """
+    if mutation_service is None:
+        mutation_target: Any = DatabaseCoefficientService(engine)
+    else:
+        mutation_target = mutation_service
+    return CoefficientApprovalService(
+        mutation_port=SqlAlchemyCoefficientMutationAdapter(mutation_target),
+        approval_log=SqlAlchemyCoefficientApprovalLogAdapter(engine),
+        audit_log=SqlAlchemyCoefficientAuditLogAdapter(engine),
+        clock=SystemClock(),
+        role_check=InMemoryRoleCheckAdapter(),
+        transaction_port=TransactionalCoefficientApprovalRepository(engine),
     )

@@ -53,6 +53,29 @@ def _run_alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[s
     )
 
 
+def _current_alembic_head(database_url: str) -> str:
+    """Return the single current alembic head revision id.
+
+    Uses ``alembic heads`` which reads only the migrations directory
+    (no DB connection required), so it works before any upgrade runs
+    and stays stable across migrations. Output looks like::
+
+        0038_phase4_slice1_coefficient_approval (head)
+
+    so we parse the first whitespace-separated token. We assert:
+    - returncode is 0
+    - exactly one head is present (no merge branches with multiple heads)
+    - the parsed token is a non-empty revision id string
+    """
+    r = _run_alembic(database_url, "heads")
+    assert r.returncode == 0, f"`alembic heads` failed: {r.stderr}"
+    lines = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+    assert len(lines) == 1, f"Expected exactly one alembic head, got {len(lines)}: {lines!r}"
+    head_id = lines[0].split()[0]
+    assert head_id, f"Empty alembic head id parsed from: {lines[0]!r}"
+    return head_id
+
+
 @pytest.fixture()
 def migrated_pg(pg_database: str) -> str:
     """Alias for conftest ``pg_database`` to minimise test-method churn."""
@@ -596,9 +619,12 @@ class TestAuditEventHistoryBackfill:
 
         engine3 = _pg_engine(db_url)
         with engine3.connect() as conn3:
-            # Revision matches current head after re-upgrade
+            # Revision matches current head after re-upgrade.
+            # Resolved dynamically so this test stays stable as new
+            # migrations are added (e.g. 0038 in slice 1 supersedes
+            # 0037_phase1_drop_correlation_id_default as head).
             rev = conn3.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0037_phase1_drop_correlation_id_default"
+            expected_rev = _current_alembic_head(db_url)
             assert rev == expected_rev, f"Revision changed: {rev}"
 
             # AuditEvent still backfilled with same value
@@ -1754,8 +1780,8 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0037_phase1_drop_correlation_id_default"
-            assert rev == expected_rev, f"Expected 0036, got {rev}"
+            expected_rev = _current_alembic_head(db_url)
+            assert rev == expected_rev, f"Expected head {expected_rev}, got {rev}"
         engine.dispose()
 
         # Downgrade to 0027
@@ -1777,6 +1803,6 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0037_phase1_drop_correlation_id_default"
-            assert rev == expected_rev, f"Expected 0036, got {rev}"
+            expected_rev = _current_alembic_head(db_url)
+            assert rev == expected_rev, f"Expected head {expected_rev}, got {rev}"
         engine.dispose()
