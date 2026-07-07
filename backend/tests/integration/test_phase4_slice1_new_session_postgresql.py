@@ -62,6 +62,25 @@ pytestmark = pytest.mark.postgresql
 
 
 # ---------------------------------------------------------------------------
+# Engine helpers
+# ---------------------------------------------------------------------------
+
+
+def _fresh_pg_engine(pg_engine: Engine) -> Engine:
+    """Build a fresh PG engine reusing the original URL *without* stringifying it.
+
+    ``str(sa_url)`` invokes ``SAURL.render_as_string(hide_password=True)`` which
+    strips the password from the rendered string. A fresh engine built from that
+    string therefore authenticates with an empty password and the PG server
+    rejects the connection with ``password authentication failed for user``.
+
+    Passing the live ``URL`` object preserves the password in-memory and lets
+    SQLAlchemy open a fresh connection on the next checkout.
+    """
+    return create_engine(pg_engine.url, poolclass=NullPool)
+
+
+# ---------------------------------------------------------------------------
 # Pre-state seeding helpers
 # ---------------------------------------------------------------------------
 
@@ -167,7 +186,7 @@ def test_pg_new_session_resolver_sees_approved_revision_after_restart(
     assert result.new_state == "approved"
 
     pg_engine.dispose()
-    fresh_engine = create_engine(str(pg_engine.url), poolclass=NullPool)
+    fresh_engine = _fresh_pg_engine(pg_engine)
     try:
         resolver = compose_production_coefficient_resolver(engine=fresh_engine)
         plan = resolver.resolve(stage_name="power", calculation_type=None)
@@ -223,7 +242,7 @@ def test_pg_new_session_after_retire_is_fail_closed(pg_engine: Engine) -> None:
     )
 
     pg_engine.dispose()
-    fresh_engine = create_engine(str(pg_engine.url), poolclass=NullPool)
+    fresh_engine = _fresh_pg_engine(pg_engine)
     try:
         resolver = compose_production_coefficient_resolver(engine=fresh_engine)
         plan = resolver.resolve(stage_name="power", calculation_type=None)
@@ -260,7 +279,7 @@ def _pg_test_new_session_fail_closed(
         valid_to=pre_state_valid_to,
     )
     pg_engine.dispose()
-    fresh_engine = create_engine(str(pg_engine.url), poolclass=NullPool)
+    fresh_engine = _fresh_pg_engine(pg_engine)
     try:
         resolver = compose_production_coefficient_resolver(engine=fresh_engine)
         plan = resolver.resolve(stage_name="power", calculation_type=None)
