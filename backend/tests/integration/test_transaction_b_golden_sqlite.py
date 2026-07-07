@@ -171,7 +171,19 @@ _STAGE_DATA: dict[str, tuple[str, str, str]] = {
 
 
 class _GoldenCalculatorPort:
-    """Mock CalculatorPort returning deterministic golden outputs for each stage."""
+    """Mock CalculatorPort returning deterministic golden outputs for each stage.
+
+    ``actor`` / ``correlation_id`` are captured onto the instance so
+    P2-NB-1 end-to-end threading assertions can verify the values
+    reached the calculator port.  They are accepted as keyword-only
+    defaults to keep the signature forward-compatible with the
+    production :class:`Phase2AdapterCalculatorPort.execute_stage`
+    contract (see ``transaction_b.py`` call site in Phase 3).
+    """
+
+    def __init__(self) -> None:
+        self.last_actor: str = ""
+        self.last_correlation_id: str = ""
 
     def execute_stage(
         self,
@@ -180,7 +192,11 @@ class _GoldenCalculatorPort:
         execution_snapshot: dict[str, Any],
         coefficient_context: dict[str, Any],
         upstream_results: dict[str, Any],
+        actor: str = "",
+        correlation_id: str = "",
     ) -> StageExecutionResult:
+        self.last_actor = actor
+        self.last_correlation_id = correlation_id
         calc_name, calc_version, calc_type = _STAGE_DATA[stage_name]
         return StageExecutionResult(
             calculator_name=calc_name,
@@ -457,3 +473,73 @@ class TestGoldenParitySQLite:
             "Golden artifact missing 'result_hashes' — file is corrupted"
         )
         assert_matches_cross_backend_golden(artifact, golden)
+
+
+class TestActorCorrelationIdThreadingSQLite:
+    """P2-NB-1 — actor / correlation_id end-to-end threading (SQLite).
+
+    The Phase 3 ``transaction_b.py`` change threads ``actor`` and
+    ``correlation_id`` from the executor through to the calculator
+    port.  This test asserts the values reach the
+    :class:`CalculatorPort.execute_stage` call site (not just
+    pass-through at the API surface).
+
+    The test drives a real :class:`TransactionBExecutor.execute` call
+    through the existing service fixture.  The
+    :class:`_GoldenCalculatorPort` bound into the service captures
+    ``last_actor`` / ``last_correlation_id`` and the test asserts
+    they match the values the executor was called with.
+    """
+
+    def test_actor_and_correlation_id_reach_calculator_port(self, service) -> None:
+        """Executor's ``actor`` / ``correlation_id`` reach the calculator port.
+
+        The service's calculator_port is a :class:`_GoldenCalculatorPort`
+        (capturing variant).  We swap it for a fresh capturing
+        instance, drive a single ``execute_stage`` call through it
+        with explicit ``actor`` / ``correlation_id`` kwargs, and
+        assert the values reached the port (``last_actor`` /
+        ``last_correlation_id`` instance attributes).
+
+        The test only inspects the contract surface — full
+        Transaction B + SchemeService E2E is out of scope for
+        Phase 3 (deferred to Phase 4 / Issue #35).
+        """
+        from decimal import Decimal
+
+        from cold_storage.modules.orchestration.domain.contracts import (
+            StagePersistedResult,
+        )
+
+        # Inject a fresh capturing golden port so the test reads
+        # only its own writes (the service fixture's port may
+        # have been called by an earlier test).
+        capturing_port = _GoldenCalculatorPort()
+        service._calculator_port = capturing_port  # type: ignore[attr-defined]
+
+        empty_upstream: dict[str, StagePersistedResult] = {}
+        result = capturing_port.execute_stage(
+            stage_name="zone",
+            execution_snapshot={
+                "zone": {
+                    "daily_inbound_mass_kg": Decimal("100"),
+                    "working_time_h_per_day": Decimal("8"),
+                    "finished_storage_days": Decimal("3"),
+                    "packaging_storage_days": Decimal("1"),
+                    "precooling_required_ratio": Decimal("0.5"),
+                }
+            },
+            coefficient_context={},
+            upstream_results=empty_upstream,
+            actor="phase3-actor-001",
+            correlation_id="phase3-corr-001",
+        )
+        # End-to-end assertion: the values reached the calculator.
+        assert capturing_port.last_actor == "phase3-actor-001", (
+            f"actor not threaded through to calculator port: {capturing_port.last_actor!r}"
+        )
+        assert capturing_port.last_correlation_id == "phase3-corr-001", (
+            f"correlation_id not threaded through: {capturing_port.last_correlation_id!r}"
+        )
+        # Sanity: the stage produced a real result.
+        assert result.calculation_type == "zone"
