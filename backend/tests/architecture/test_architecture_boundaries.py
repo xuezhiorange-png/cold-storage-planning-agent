@@ -727,19 +727,28 @@ def test_phase4_slice1_bootstrap_composition_exposes_slice1_factories() -> None:
     # Reflectively check the return-type annotations on the
     # factory functions. The factories annotate their return
     # types directly in production_composition.py; this test
-    # guards against silent signature drift.
+    # guards against silent signature drift.  ``production_composition``
+    # uses ``from __future__ import annotations`` (PEP 563), so the
+    # raw signature annotation is a string; resolve it via
+    # ``typing.get_type_hints`` which evaluates the string and looks
+    # up the class in the function's ``__globals__``.
+    import typing
     import inspect
 
-    resolver_sig = inspect.signature(compose_production_coefficient_resolver)
-    assert resolver_sig.return_annotation is ApprovedCoefficientResolver, (
+    resolver_hints = typing.get_type_hints(compose_production_coefficient_resolver)
+    assert resolver_hints.get("return") is ApprovedCoefficientResolver, (
         "compose_production_coefficient_resolver must annotate "
         "return type ApprovedCoefficientResolver; got "
-        f"{resolver_sig.return_annotation!r}"
+        f"{resolver_hints.get('return')!r}"
     )
 
-    service_sig = inspect.signature(compose_production_coefficient_approval_service)
-    assert service_sig.return_annotation is CoefficientApprovalService, (
+    service_hints = typing.get_type_hints(compose_production_coefficient_approval_service)
+    assert service_hints.get("return") is CoefficientApprovalService, (
         "compose_production_coefficient_approval_service must annotate "
         "return type CoefficientApprovalService; got "
-        f"{service_sig.return_annotation!r}"
+        f"{service_hints.get('return')!r}"
     )
+    # ignore unused-import lint: inspect was previously imported here;
+    # kept for downstream readers and to avoid an F401 in callers that
+    # rely on ``inspect.signature`` for related checks.
+    del inspect

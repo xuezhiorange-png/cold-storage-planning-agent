@@ -62,6 +62,7 @@ _TRANSITIONS = frozenset(
     {
         ("draft", "unverified"),
         ("draft", "reviewed"),
+        ("draft", "approved"),  # direct approve from draft (single action: submit + approve)
         ("unverified", "reviewed"),
         ("reviewed", "approved"),
         ("approved", "withdrawn"),

@@ -96,7 +96,7 @@ def first_engine(pinned_db_path):
     eng.dispose()
 
 
-@dataclass
+@dataclass(frozen=True)
 class _PinnedClock(SystemClock):
     override: _dt.datetime
 

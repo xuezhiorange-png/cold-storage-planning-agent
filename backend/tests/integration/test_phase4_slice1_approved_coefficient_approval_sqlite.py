@@ -61,6 +61,13 @@ from cold_storage.modules.coefficients.infrastructure.orm import (
 )
 from cold_storage.modules.projects.infrastructure.orm import Base
 
+# Pull in every module that contributes tables to ``Base.metadata`` so
+# that ``Base.metadata.create_all`` resolves every ForeignKey referenced
+# by the projects orchestration tables (notably ``scheme_runs`` and the
+# weight-revision set).  Without this import ``create_all`` raises
+# ``NoReferencedTableError`` on the in-memory SQLite engine.
+import cold_storage.modules.schemes.infrastructure.orm  # noqa: F401
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -155,6 +162,7 @@ def _seed_revision(
     )
     session.add(revision)
     session.flush()
+    session.commit()
     return revision
 
 
