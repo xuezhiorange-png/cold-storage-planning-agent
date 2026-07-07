@@ -1780,8 +1780,8 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0037_phase1_drop_correlation_id_default"
-            assert rev == expected_rev, f"Expected 0036, got {rev}"
+            expected_rev = _current_alembic_head(db_url)
+            assert rev == expected_rev, f"Expected head {expected_rev}, got {rev}"
         engine.dispose()
 
         # Downgrade to 0027
@@ -1803,6 +1803,6 @@ class TestTransactionBConstraints0028:
         engine = _pg_engine(db_url)
         with engine.connect() as conn:
             rev = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            expected_rev = "0037_phase1_drop_correlation_id_default"
-            assert rev == expected_rev, f"Expected 0036, got {rev}"
+            expected_rev = _current_alembic_head(db_url)
+            assert rev == expected_rev, f"Expected head {expected_rev}, got {rev}"
         engine.dispose()
