@@ -732,8 +732,8 @@ def test_phase4_slice1_bootstrap_composition_exposes_slice1_factories() -> None:
     # raw signature annotation is a string; resolve it via
     # ``typing.get_type_hints`` which evaluates the string and looks
     # up the class in the function's ``__globals__``.
-    import typing
     import inspect
+    import typing
 
     resolver_hints = typing.get_type_hints(compose_production_coefficient_resolver)
     assert resolver_hints.get("return") is ApprovedCoefficientResolver, (
