@@ -52,7 +52,7 @@ class RevisionImmutabilityError(CoefficientDomainError):
         self.operation = operation
         super().__init__(
             f"Cannot {operation} on revision {revision_id} with status '{status}'. "
-            f"Approved/withdrawn revisions are immutable."
+            "Approved/withdrawn revisions are immutable."
         )
 
 
@@ -235,4 +235,66 @@ class ApprovalRoleRequiredError(ApprovalRejectionError):
         super().__init__(
             f"Actor {actor!r} lacks required role {required_role!r} "
             f"(actor has roles {sorted(actor_roles)})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Issue #35 Slice 2A — startup-readiness aggregator.
+# Append-only: this exception is the single typed failure for the
+# bootstrap-level production-mode startup readiness check. It is NOT
+# a substitute for ``MissingApprovedCoefficientError`` (which remains
+# the canonical per-stage typed error consumed by the resolver itself).
+# Slice 2A aggregators intentionally inherit from
+# ``ApprovedCoefficientGovernanceError`` (the design-contract base)
+# rather than from ``MissingApprovedCoefficientError`` so callers can
+# distinguish "single stage missing" from "one or more stages failed
+# readiness — full inventory required" without parsing message text.
+# ---------------------------------------------------------------------------
+
+
+class StartupReadinessError(ApprovedCoefficientGovernanceError):
+    """Raised by the bootstrap-level production-mode startup readiness check.
+
+    Carries the full inventory of readiness buckets (missing / stale /
+    demoted / citation) so operators can remediate all offending stages
+    in one cycle instead of repeating the deploy. Per design contract
+    §5.3 + §7 (no fallback) + Slice 2A plan §7.
+
+    The exception is raised exclusively by
+    ``bootstrap.startup_readiness.run_startup_readiness_or_raise`` in
+    production mode. Development and test modes never raise it.
+
+    ``buckets`` is a dict mirroring the Slice 1
+    ``CoefficientApprovalService.validate_startup_readiness`` return
+    shape:
+
+    * ``missing``: list of ``{stage_name, calculation_type}`` dicts
+      for stages that have no eligible approved row.
+    * ``stale``: list of revision ids whose ``valid_to`` is past.
+    * ``demoted``: list of revision ids (and stage labels) that were
+      rejected because only a ``source_type=demo`` candidate exists.
+    * ``citation``: list of ``{revision_id, reason}`` dicts covering
+      approved rows with a missing or invalid citation.
+
+    The bool ``ready`` is the inverse signal: ``True`` iff every
+    bucket is empty. The exception only fires when ``ready=False``,
+    so this flag is purely informational for log output.
+    """
+
+    def __init__(
+        self,
+        *,
+        buckets: dict[str, list[dict[str, str]]],
+        ready: bool,
+    ) -> None:
+        self.buckets = buckets
+        self.ready = ready
+        missing_count = len(buckets.get("missing", []))
+        stale_count = len(buckets.get("stale", []))
+        demoted_count = len(buckets.get("demoted", []))
+        citation_count = len(buckets.get("citation", []))
+        super().__init__(
+            "Startup readiness check failed (production mode): "
+            f"missing={missing_count} stale={stale_count} "
+            f"demoted={demoted_count} citation={citation_count}"
         )

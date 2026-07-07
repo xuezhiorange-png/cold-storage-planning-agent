@@ -9,6 +9,9 @@ from sqlalchemy.orm import sessionmaker
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
 from cold_storage.bootstrap.settings import Settings
+from cold_storage.modules.coefficients.application.resolver import (
+    ApprovedCoefficientResolver,
+)
 from cold_storage.modules.planning_agent.application.agent_service import LegacyPlanningAgentService
 from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.projects.application.service import ProjectService
@@ -47,6 +50,35 @@ def init_dependencies(settings: Settings) -> None:
     )
     _singletons["production_scheme_service"] = production_service
     _singletons["production_session_factory"] = session_factory_obj
+
+    # Slice 2A: ApprovedCoefficientResolver singleton.  In production
+    # mode this singleton is consumed by
+    # ``compose_production_source_binding_use_case_with_strict_resolver``
+    # (see bootstrap.production_composition) so the orchestrator bind
+    # path never silently falls back to demo coefficients.  Building
+    # the resolver in development / test mode is harmless — callers
+    # that want the strict path can still inject it; callers that do
+    # not (the legacy P3 wiring) continue to work unchanged.
+    from cold_storage.bootstrap.production_composition import (
+        compose_production_coefficient_resolver,
+    )
+
+    _singletons["production_coefficient_resolver"] = compose_production_coefficient_resolver(
+        engine=engine,
+    )
+
+    # Slice 2A: production-mode startup-readiness gateway.  In
+    # production mode this raises ``StartupReadinessError`` if any of
+    # the 5 required stages lacks an approved non-demo coefficient;
+    # ``AppMode.DEVELOPMENT`` and ``AppMode.TEST`` skip the check so
+    # demo flows / pytest fixtures are untouched.  This call is the
+    # only place that consults the database at boot.
+    from cold_storage.bootstrap.startup_readiness import (
+        run_startup_readiness_or_raise,
+    )
+
+    readines_outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
+    _singletons["startup_readiness_outcome"] = readines_outcome
 
 
 def get_project_service() -> ProjectService:
@@ -98,6 +130,39 @@ def get_production_session_factory() -> Callable[[], Any]:
             "Dependencies not initialized. Call init_dependencies(settings) first.",
         )
     return _singletons["production_session_factory"]  # type: ignore[no-any-return]
+
+
+def get_production_coefficient_resolver() -> ApprovedCoefficientResolver:
+    """Return the production :class:`ApprovedCoefficientResolver` singleton.
+
+    Wired via ``bootstrap.production_composition`` against the
+    production engine.  Consumed by production-mode callers that
+    need the strict resolver (e.g. the Slice 2A
+    ``compose_production_source_binding_use_case_with_strict_resolver``
+    factory).  Raises :class:`RuntimeError` if dependencies were
+    not initialized.
+    """
+    if "production_coefficient_resolver" not in _singletons:
+        raise RuntimeError(
+            "Dependencies not initialized. Call init_dependencies(settings) first.",
+        )
+    return _singletons["production_coefficient_resolver"]  # type: ignore[no-any-return]
+
+
+def get_startup_readiness_outcome() -> Any:
+    """Return the :class:`ReadinessCheckOutcome` from the last ``init_dependencies`` call.
+
+    Exposed so callers (admin / readiness endpoints) can inspect the
+    last readiness decision without re-running the database query.
+    The outcome carries the mode under which the check ran plus,
+    for production mode, the dict returned by
+    :meth:`CoefficientApprovalService.validate_startup_readiness`.
+    """
+    if "startup_readiness_outcome" not in _singletons:
+        raise RuntimeError(
+            "Dependencies not initialized. Call init_dependencies(settings) first.",
+        )
+    return _singletons["startup_readiness_outcome"]
 
 
 def shutdown_dependencies() -> None:

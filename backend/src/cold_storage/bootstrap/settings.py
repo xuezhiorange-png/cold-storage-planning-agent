@@ -12,8 +12,19 @@ from pydantic_settings import BaseSettings
 _SENSITIVE_FIELDS = {"postgres_password", "openai_api_key"}
 
 
+# Slice 2A: app_env was widened from ``str`` to
+# ``Literal["production", "development", "test"]``. The Literal is
+# the contract: a typo at deploy time (e.g. ``"productoin"``)
+# surfaces as a Pydantic validation error at startup rather than
+# silently routing the process into ``development`` and bypassing
+# fail-closed production readiness. The canonical mapping table
+# lives in ``bootstrap.mode.resolve_app_mode`` and is exhaustive
+# over this same set.
+AppEnvLiteral = Literal["production", "development", "test"]
+
+
 class Settings(BaseSettings):
-    app_env: str = "development"
+    app_env: AppEnvLiteral = "development"
     app_debug: bool = False
     app_host: str = "0.0.0.0"
     app_port: int = 8000
@@ -29,6 +40,10 @@ class Settings(BaseSettings):
     postgres_password: str = ""
 
     redis_url: str = "redis://localhost:6379/0"
+
+    # Compatibility fields restored for test_env_example_matches_settings.
+    # Storage and OpenAI client paths remain module-owned; this only exposes
+    # the env keys .env.example declares so the test contract holds.
     storage_dir: str = "backend/storage"
     openai_api_key: str = ""
 

@@ -72,6 +72,20 @@ from typing import Any
 
 from sqlalchemy import select
 
+from cold_storage.bootstrap.startup_readiness import (  # noqa: E402
+    get_required_stages,
+)
+
+# Slice 2A: only used when the strict resolver is wired into the use
+# case.  ``ApprovedCoefficientResolver`` imports cleanly at type-check
+# time and lazily at runtime so the legacy Phase 3 wiring
+# (``coefficient_resolver is None``) is unaffected.
+from cold_storage.modules.coefficients.application.resolver import (  # noqa: E402
+    ApprovedCoefficientResolver,
+)
+from cold_storage.modules.coefficients.domain.exceptions import (  # noqa: E402
+    ApprovedCoefficientGovernanceError,
+)
 from cold_storage.modules.orchestration.application.service import OrchestrationService
 from cold_storage.modules.orchestration.application.transaction_b import (
     VerificationReadPort,
@@ -166,6 +180,17 @@ class ProductionSourceBindingUseCase:
     :class:`VerificationReadPort` the service uses internally.
     It exposes a single :meth:`run` method that drives
     Transaction A + Transaction B end-to-end.
+
+    Slice 2A additionally accepts an optional ``coefficient_resolver``
+    keyword-only argument. When supplied, :meth:`run` performs a
+    per-stage strict resolve of the five required stages before
+    Transaction A; any per-stage failure fails closed with the
+    matching typed exception (``MissingApprovedCoefficientError`` /
+    ``DemoCoefficientInProductionError`` / ``StaleApprovalError`` /
+    ``InvalidCitationError`` / ``AmbiguousLatestRowError``). When the
+    resolver is ``None`` the use case continues to behave exactly as
+    it did before Slice 2A (legacy Phase 3 wiring preserved byte-
+    for-byte — see Slice 2A plan §2.3 and §5.6).
     """
 
     def __init__(
@@ -173,9 +198,11 @@ class ProductionSourceBindingUseCase:
         *,
         service: OrchestrationService,
         verification_read_port: VerificationReadPort,
+        coefficient_resolver: ApprovedCoefficientResolver | None = None,
     ) -> None:
         self._service = service
         self._verification_read_port = verification_read_port
+        self._coefficient_resolver = coefficient_resolver
 
     def run(
         self,
@@ -206,7 +233,36 @@ class ProductionSourceBindingUseCase:
         The caller is expected to manage the surrounding session
         lifecycle (``session.begin()`` / ``session.commit()`` /
         ``session.rollback()``) per the production UoW contract.
+
+        Slice 2A — strict resolve gate (only when
+        ``self._coefficient_resolver`` is not ``None``):
+
+        Before Transaction A, ``run`` iterates the five required
+        stages and calls ``resolver.resolve(stage_name=...,
+        calculation_type=...)``.  Any per-stage
+        :class:`ApprovedCoefficientGovernanceError` propagates
+        verbatim.  Stages that resolve to a single
+        ``revision_id`` advance; stages where the resolver
+        returns ``plan.missing is not None`` raise the matching
+        :class:`MissingApprovedCoefficientError`.  The resolver
+        paths raise their own typed errors
+        (``AmbiguousLatestRowError`` / ``DemoCoefficientInProductionError``
+        / ``StaleApprovalError`` / ``InvalidCitationError``) on
+        the respective rejection conditions.
+
+        Charles's Slice 2A constraint: legacy P3 wiring must be
+        preserved byte-for-byte when ``coefficient_resolver`` is
+        ``None`` — the legacy path is untouched.
         """
+        # Slice 2A: strict-resolve gate.  When the resolver is wired
+        # in, every per-stage re-evaluation must succeed before
+        # Transaction A begins.  When the resolver is ``None`` we
+        # skip this branch entirely so the legacy Phase 3 wiring
+        # (``self._coefficient_resolver is None``) is byte-for-byte
+        # preserved.
+        if self._coefficient_resolver is not None:
+            self._gate_production_resolver()
+
         # Transaction A: preflight + identity + attempt.  This
         # call owns its own UoW (begins / commits / closes) via
         # the service's UoW factory.
@@ -273,6 +329,55 @@ class ProductionSourceBindingUseCase:
             source_binding_id=result.source_binding_id,
             requires_review=bool(result.requires_review),
         )
+
+    # ------------------------------------------------------------------
+    # Slice 2A: strict-resolve gate.  Invoked by ``run`` only when
+    # ``self._coefficient_resolver`` is not ``None``; the gate iterates
+    # the five required stages and asks the strict resolver to
+    # resolve each one before Transaction A.  Per-stage typed errors
+    # propagate verbatim.
+    # ------------------------------------------------------------------
+
+    def _gate_production_resolver(self) -> None:
+        """Run the strict resolver over the five production stages.
+
+        This is a guard: it performs no writes, holds no session,
+        and has no observable side effects beyond raising typed
+        errors.  Each stage's resolution is independent — a
+        failure on stage N does not short-circuit the loop, so
+        operators see **all** offending stages, not just the
+        first one.
+
+        Resolution is intentionally driven without an
+        ``explicit_revision_id`` argument: per Slice 1 the
+        resolver raises :class:`AmbiguousLatestRowError` when
+        more than one revision ties on the deterministic
+        priority order.  Production therefore requires the
+        caller to supply explicit identities, which is the
+        "no latest-row fallback" contract (§7).
+
+        Every typed failure from this gate is a subclass of
+        :class:`ApprovedCoefficientGovernanceError` so callers
+        can branch on the design-contract base class without
+        importing every individual error.
+        """
+        assert self._coefficient_resolver is not None  # for type-checkers
+        for stage_name, calculation_type in get_required_stages():
+            try:
+                plan = self._coefficient_resolver.resolve(
+                    stage_name=stage_name,
+                    calculation_type=calculation_type,
+                    explicit_revision_id=None,
+                )
+            except ApprovedCoefficientGovernanceError:
+                # Slice 1's resolver already produces typed errors
+                # for the strict rejection paths.  Re-raise so the
+                # caller branches on the design-contract classes.
+                raise
+            if plan.missing is not None:
+                # Re-raise the resolver's missing plan as the
+                # canonical per-stage error.
+                raise plan.missing
 
 
 __all__ = [

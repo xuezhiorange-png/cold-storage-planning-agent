@@ -161,9 +161,13 @@ def compose_production_scheme_service_from_session(session: Any) -> ProductionSc
 
 __all__ = [
     "compose_phase2_adapter_calculator_port",
+    "compose_production_coefficient_approval_service",
+    "compose_production_coefficient_resolver",
+    "compose_production_coefficient_resolver_and_approval_service",
     "compose_production_scheme_service",
     "compose_production_scheme_service_from_session",
     "compose_production_source_binding_use_case",
+    "compose_production_source_binding_use_case_with_strict_resolver",
 ]
 
 
@@ -352,4 +356,88 @@ def compose_production_coefficient_approval_service(
         clock=SystemClock(),
         role_check=InMemoryRoleCheckAdapter(),
         transaction_port=TransactionalCoefficientApprovalRepository(engine),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Issue #35 Slice 2A — strict-resolver composition wiring.
+#
+# The factories below are additive: the existing
+# ``compose_production_coefficient_resolver`` and
+# ``compose_production_coefficient_approval_service`` factories are
+# unchanged.  Slice 2A adds:
+#
+# 1. ``compose_production_coefficient_resolver_and_approval_service``
+#    — a thin convenience that constructs both factories in one call.
+#    Used by ``bootstrap.dependencies`` to populate the singleton
+#    dict without duplicating wiring.
+#
+# 2. ``compose_production_source_binding_use_case_with_strict_resolver``
+#    — builds a ``ProductionSourceBindingUseCase`` whose
+#    ``coefficient_resolver`` slot is populated.  Callers that pass
+#    ``use_case.coefficient_resolver`` (== non-None) traverse the
+#    strict path; callers that pass a use case constructed without
+#    this factory continue to run the legacy Phase 3 behaviour
+#    verbatim — backward compat is therefore preserved.
+# ---------------------------------------------------------------------------
+
+
+def compose_production_coefficient_resolver_and_approval_service(
+    *,
+    engine: Any,
+) -> tuple[ApprovedCoefficientResolver, CoefficientApprovalService]:
+    """Return ``(resolver, approval_service)`` wired against ``engine``.
+
+    The convenience factory exists so :func:`bootstrap.dependencies`
+    can populate two singletons in one call instead of repeating the
+    compose + store boilerplate. Both objects are constructed via
+    the existing Slice 1 factories — no new port / adapter is added.
+
+    :param engine: A SQLAlchemy ``Engine`` (SQLite or PostgreSQL).
+    :returns: A 2-tuple ``(resolver, approval_service)``.
+    """
+    resolver = compose_production_coefficient_resolver(engine=engine)
+    approval_service = compose_production_coefficient_approval_service(engine=engine)
+    return resolver, approval_service
+
+
+def compose_production_source_binding_use_case_with_strict_resolver(
+    *,
+    service: OrchestrationService,
+    verification_read_port: Any = None,
+    engine: Any,
+) -> ProductionSourceBindingUseCase:
+    """Build a :class:`ProductionSourceBindingUseCase` with the strict resolver wired in.
+
+    The use case accepts an optional ``coefficient_resolver`` slot
+    (see Slice 2A change to
+    ``production_source_binding.ProductionSourceBindingUseCase``).
+    When that slot is populated the use case performs a per-stage
+    strict resolve of the five required stages before Transaction A
+    runs.  When the slot is ``None`` (the legacy Phase 3 wiring)
+    the use case behaves exactly as it did before Slice 2A — no
+    code paths under ``coefficient_resolver is None`` were touched.
+
+    :param service: A fully-wired :class:`OrchestrationService`.
+    :param verification_read_port: Same role as in
+        ``compose_production_source_binding_use_case``; defaults to
+        ``None``.
+    :param engine: A SQLAlchemy ``Engine`` for the resolver's read
+        adapter.
+    :returns: A use case whose ``coefficient_resolver`` is populated
+        against the production engine.
+    """
+    if verification_read_port is None:
+        from typing import cast
+
+        from cold_storage.modules.orchestration.application.transaction_b import (
+            VerificationReadPort,
+        )
+
+        verification_read_port = cast(VerificationReadPort, None)
+    resolver = compose_production_coefficient_resolver(engine=engine)
+    return ProductionSourceBindingUseCase(
+        service=service,
+        verification_read_port=verification_read_port,
+        coefficient_resolver=resolver,
     )
