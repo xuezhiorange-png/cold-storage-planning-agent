@@ -268,7 +268,10 @@ class TestPostgresProductionArchiveWiringE2ESlice2D:
                 ),
                 {"bid": SOURCE_BINDING_ID},
             ).scalar_one()
-            payload = json.loads(payload_json)
+            # SQLAlchemy's ``JSON`` column type round-trips via the
+            # dialect's native JSON type: PG (JSONB) returns a dict,
+            # SQLite (TEXT-backed JSON) returns a string.  Normalize.
+            payload = json.loads(payload_json) if isinstance(payload_json, str) else payload_json
             slot_field = payload.get("source_slots")
             assert isinstance(slot_field, list), (
                 f"source_slots must be an ordered list, got {type(slot_field).__name__}"
@@ -338,9 +341,19 @@ class TestPostgresProductionArchiveWiringE2ESlice2D:
         """
         assert pg_engine.dialect.name == "postgresql"
 
-        # Snapshot pre-state so the assertion is anchored on deltas,
-        # not on absolute table cardinality (which may be non-empty
-        # because CI runs many tests on the same schema).
+        # ── Seed prereqs through the canonical PG path ──────────────
+        seed_s = pg_session_factory()
+        try:
+            _seed_all_prereqs(seed_s)
+        finally:
+            seed_s.close()
+
+        # Snapshot pre-state AFTER seeding so the delta is anchored
+        # on the seeded rows that the roundtrip attempt must not
+        # disturb; ``SELECT COUNT(*) FROM <table>`` on the
+        # production-relevant tables captures the absolute state at
+        # the moment the roundtrip starts (Phase 4 §9.1
+        # "byte-identical post-failure vs pre-roundtrip state").
         before_s = pg_session_factory()
         try:
             before_archives = _count(
@@ -361,13 +374,6 @@ class TestPostgresProductionArchiveWiringE2ESlice2D:
             )
         finally:
             before_s.close()
-
-        # ── Seed prereqs through the canonical PG path ──────────────
-        seed_s = pg_session_factory()
-        try:
-            _seed_all_prereqs(seed_s)
-        finally:
-            seed_s.close()
 
         # Force the archive-builder seam to raise.
         from cold_storage.modules.orchestration.application import (
