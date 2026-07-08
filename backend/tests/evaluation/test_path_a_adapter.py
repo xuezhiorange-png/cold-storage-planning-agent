@@ -59,29 +59,48 @@ from typing import Any
 
 import pytest
 
-from cold_storage.evaluation.adapter import (
+# Register the test-side seed helper as a pytest plugin so that its
+# ``a1_engine`` / ``a1_session_factory`` fixtures are visible to the
+# A1 live-database happy-path tests. The helper is the only file in
+# the A1 follow-up slice that touches the live Alembic schema; it is
+# loaded here via ``pytest_plugins`` (not imported as a regular
+# module) so that pytest's fixture discovery sees it.
+pytest_plugins = ["tests.evaluation._seed_helpers"]
+
+from cold_storage.evaluation.adapter import (  # noqa: E402
     AdapterInputError,
     AdapterResult,
     execute_scenario,
 )
-from cold_storage.evaluation.adapter import __all__ as adapter_all
+from cold_storage.evaluation.adapter import __all__ as adapter_all  # noqa: E402
 
-# ── A1 test constants (deferred seed-helper values) ─────────────────────
+from ._seed_helpers import (  # noqa: E402
+    SOURCE_BINDING_ID as A1_SEED_SOURCE_BINDING_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    WEIGHT_REVISION_ID as A1_SEED_WEIGHT_REVISION_ID,
+)
+from ._seed_helpers import seed_a1_all_prereqs  # noqa: E402
+
+# ── A1 test constants ────────────────────────────────────────────────────
 #
-# These are the canonical IDs / values that the A1-2a contract §13.6
-# pre-seeding helper would materialize. They are defined inline in
-# the test module (rather than imported from a seed helper module)
-# because the architecture test
-# ``tests/architecture/test_phase1_identity_foundation_boundary.py
-# ::test_evaluation_tests_do_not_construct_phase1_records`` forbids
-# any ``tests/evaluation/*.py`` file from referencing the Phase-1
-# ORM record types. The seed-helper relocation to
-# ``backend/tests/integration/_seed_helpers.py`` (or an architecture
-# carve-out) is the follow-up slice; for A1 the constants are
-# duplicated here in structural-test form.
-SOURCE_BINDING_ID = "test-a1-binding-001"
-WEIGHT_REVISION_ID = "test-a1-wrev-001"
+# ``SOURCE_BINDING_ID`` / ``WEIGHT_REVISION_ID`` are imported from
+# the test-side seed helper (see ``tests.evaluation._seed_helpers``
+# pytest plugin registration above) — the helper defines the
+# canonical A1 fixture IDs and seeds the corresponding pre-existing
+# production rows for the live-database happy-path tests.
+#
+# ``SCHEME_RUN_CORRELATION_ID`` is a test-only correlation id used
+# for the adapter's ``correlation_id`` input parameter.
 SCHEME_RUN_CORRELATION_ID = "test-a1-corr-001"
+
+# Backwards-compatible aliases: the structural tests in this module
+# continue to reference ``SOURCE_BINDING_ID`` and ``WEIGHT_REVISION_ID``
+# by their short names. The A1 live-DB tests use the
+# ``A1_SEED_*``-prefixed names directly to make the seed-helper
+# provenance explicit.
+SOURCE_BINDING_ID = A1_SEED_SOURCE_BINDING_ID
+WEIGHT_REVISION_ID = A1_SEED_WEIGHT_REVISION_ID
 
 # A trivial session factory for the input-validation tests. The
 # adapter raises AdapterInputError before touching the session, so
@@ -98,48 +117,29 @@ _NOP_SESSION_FACTORY: Callable[[], Any] = _nop_session_factory
 #
 # The A1-2a contract §13.6 specifies a test-side pre-seeding helper
 # in ``backend/tests/evaluation/_seed_helpers.py`` that materializes
-# the production state needed to drive the adapter. The helper would
-# need to use raw ORM ``session.add(...)`` to seed the upstream
-# production records (the same pattern that the existing
-# ``test_production_scheme_sqlite.py`` integration test uses).
+# the production state needed to drive the adapter end-to-end. The
+# A1 follow-up slice (2026-07-08) added:
 #
-# However, the pre-freeze architecture test
-# ``tests/architecture/test_phase1_identity_foundation_boundary.py
-# ::test_evaluation_tests_do_not_construct_phase1_records`` enforces
-# that the evaluation test suite MUST NOT fabricate Phase-1 ORM
-# records via raw ORM inserts to simulate a production path. This
-# test scans every ``.py`` file under ``tests/evaluation/`` and
-# rejects any reference to those record types. The architecture
-# test was written for the pre-A1 evaluation pilot and predates the
-# A1 adapter acceptance surface. The A1-2a contract §13.6 design
-# does not account for this pre-existing hard guardrail.
+# * the test-side seed helper under ``tests/evaluation/`` (carved out
+#   from the pre-freeze architecture test
+#   ``tests/architecture/test_phase1_identity_foundation_boundary.py
+#   ::test_evaluation_tests_do_not_construct_phase1_records`` for the
+#   ``_seed_helpers.py`` filename only);
+# * a live SQLite happy-path test
+#   (``test_execute_scenario_accepts_sqlite_database_backend``) that
+#   drives the full ``execute_scenario`` call against a real
+#   Alembic-migrated SQLite database with the pre-existing
+#   production context seeded by the helper;
+# * a no-new-calculation-runs live test
+#   (``test_adapter_happy_path_does_not_introduce_new_calculation_runs``)
+#   that asserts the adapter does not introduce new
+#   ``CalculationRunRecord`` rows at runtime.
 #
-# The database-backed happy-path tests
-# (``test_execute_scenario_accepts_sqlite_database_backend`` and
-# ``test_adapter_happy_path_does_not_introduce_new_calculation_runs``)
-# are therefore deferred to a follow-up slice that resolves the
-# carve-out question. The A1 acceptance surface that does not require
-# a live database (signature, input validation, ownership boundary,
-# AST scan) is fully covered by the structural tests below and passes
-# in ~3s.
+# The PostgreSQL live happy path is documented as out of scope for A1
+# above (Test 8 / PostgreSQL coverage scope section in the module
+# docstring); a follow-up slice would add a PostgreSQL service-container
+# equivalent of the SQLite tests added here.
 #
-# Two resolution paths for the follow-up slice:
-#
-# 1. **Amend the A1-2a contract §13.6** to relocate the seed helper
-#    to ``backend/tests/integration/_seed_helpers.py`` (or similar
-#    non-evaluation path). The architecture test only scans
-#    ``tests/evaluation/``, so the integration path is unblocked.
-#
-# 2. **Add a focused carve-out** to the architecture test for the
-#    ``_seed_helpers.py`` filename under ``tests/evaluation/``,
-#    because the helper is test-side infrastructure, not an
-#    evaluation runner bypass. This is a one-line change to the
-#    architecture test, but it modifies pre-freeze §8 territory
-#    and requires Charles's explicit authorization.
-#
-# Either way, the resolution is out of scope for the current A1
-# round and is forwarded to Charles.
-
 
 # ── Test 1: ``project_input`` parameter is gone ──────────────────────────
 
@@ -210,34 +210,52 @@ def test_execute_scenario_rejects_illegal_database_backend(bad_value: str) -> No
     )
 
 
-def test_execute_scenario_accepts_sqlite_database_backend() -> None:
-    """Happy path: ``database_backend='sqlite'`` is accepted at the
-    input boundary. The end-to-end ``generate_production_scheme_run``
-    call against a live database is deferred to the follow-up slice
-    that resolves the architecture-test carve-out question
-    (see the "Note on database-backed happy-path tests" comment
-    near the top of this module).
+def test_execute_scenario_accepts_sqlite_database_backend(
+    a1_engine, a1_session_factory
+) -> None:
+    """Live SQLite happy path: ``execute_scenario`` runs end-to-end
+    against a real Alembic-migrated SQLite database with the
+    pre-existing production context seeded by ``_seed_helpers.py``.
 
-    The structural assertion is that the adapter raises **no
-    ``AdapterInputError``** for a valid input combination. We pass
-    a no-op session factory; the production layer will fail
-    downstream (e.g. ``AssertionError: UoW not entered``), but that
-    is **not** an input-validation failure.
+    Asserts the A1-2a contract:
+
+    * The adapter accepts ``database_backend='sqlite'``.
+    * The adapter returns a populated :class:`AdapterResult`.
+    * ``AdapterResult.scheme_run`` is a real :class:`SchemeRun`
+      produced by ``ProductionSchemeService.generate_production_scheme_run``
+      against the live database.
+    * ``AdapterResult.source_binding_id`` /
+      ``weight_set_revision_id`` round-trip from the input contract
+      unchanged (the adapter does NOT generate IDs).
+    * ``AdapterResult.calculation_run_ids`` is **absent** (intentionally
+      not exposed by the A1-2a result contract).
     """
-    with pytest.raises(Exception) as exc_info:
-        execute_scenario(
-            _NOP_SESSION_FACTORY,
-            source_binding_id=SOURCE_BINDING_ID,
-            weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id=SCHEME_RUN_CORRELATION_ID,
-            database_backend="sqlite",
-        )
-    # The downstream error must NOT be an AdapterInputError; that
-    # would mean the input gate rejected a valid combination.
-    assert not isinstance(exc_info.value, AdapterInputError), (
-        f"Adapter input gate must accept valid 'sqlite' database_backend; "
-        f"got AdapterInputError: {exc_info.value}"
+    # 1. Seed pre-existing production context
+    seed_s = a1_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 2. Invoke the adapter against the live SQLite engine
+    result = execute_scenario(
+        a1_session_factory,
+        source_binding_id=A1_SEED_SOURCE_BINDING_ID,
+        weight_set_revision_id=A1_SEED_WEIGHT_REVISION_ID,
+        correlation_id=SCHEME_RUN_CORRELATION_ID,
+        database_backend="sqlite",
     )
+
+    # 3. AdapterResult structural assertions
+    assert isinstance(result, AdapterResult)
+    # scheme_run is a real SchemeRun produced by the production service
+    assert result.scheme_run is not None
+    # The adapter did NOT generate the source_binding_id /
+    # weight_set_revision_id — both must round-trip from the inputs.
+    assert result.source_binding_id == A1_SEED_SOURCE_BINDING_ID
+    assert result.weight_set_revision_id == A1_SEED_WEIGHT_REVISION_ID
+    # AdapterResult MUST NOT carry calculation_run_ids (A1-2a)
+    assert "calculation_run_ids" not in AdapterResult.__annotations__
 
 
 # ── Test 4: ``correlation_id`` validation ───────────────────────────────
@@ -442,24 +460,72 @@ def test_adapter_module_does_not_write_production_rows() -> None:
         )
 
 
-def test_adapter_happy_path_does_not_introduce_new_calculation_runs() -> (
-    None
-):
-    """Behavioural assertion is deferred to the follow-up slice
-    that resolves the architecture-test carve-out question
-    (see the "Note on database-backed happy-path tests" comment
-    near the top of this module).
+def test_adapter_happy_path_does_not_introduce_new_calculation_runs(
+    a1_engine, a1_session_factory,
+) -> None:
+    """Live SQLite happy path: ``execute_scenario`` does not introduce
+    new ``CalculationRunRecord`` rows at runtime. The adapter delegates
+    to the production ``ProductionSchemeService.generate_production_scheme_run``
+    which uses the 5 pre-seeded ``CalculationRunRecord`` rows; it must
+    NOT create additional calculation rows for the same scheme.
 
-    The structural counterpart of this assertion is
-    ``test_adapter_module_does_not_write_production_rows``, which
-    statically proves the adapter code does not reference the
-    five production-row entities (CalculationRunRecord,
-    SourceBindingRecord, etc.). The behavioural test would
-    additionally verify that the live adapter call does not
-    introduce new rows at runtime, but that requires a live
-    database fixture which the carve-out question blocks.
+    The A1 ownership boundary (§13.3 of the Path A design contract)
+    explicitly forbids the adapter from creating production rows of
+    any kind, including ``CalculationRunRecord`` rows. This test
+    asserts that boundary holds at runtime against a real SQLite
+    database.
     """
-    assert _ADAPTER_SOURCE_PATH.is_file()
+    # 1. Seed pre-existing production context
+    seed_s = a1_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 2. Capture pre-call row count
+    from sqlalchemy import func, select
+
+    from cold_storage.modules.projects.infrastructure.orm import (
+        CalculationRunRecord,
+    )
+
+    count_s = a1_session_factory()
+    try:
+        pre_count = count_s.execute(
+            select(func.count()).select_from(CalculationRunRecord)
+        ).scalar_one()
+    finally:
+        count_s.close()
+
+    # 3. Invoke the adapter against the live SQLite engine
+    result = execute_scenario(
+        a1_session_factory,
+        source_binding_id=A1_SEED_SOURCE_BINDING_ID,
+        weight_set_revision_id=A1_SEED_WEIGHT_REVISION_ID,
+        correlation_id=SCHEME_RUN_CORRELATION_ID,
+        database_backend="sqlite",
+    )
+
+    # 4. Post-call row count must equal pre-call row count: the adapter
+    #    did NOT introduce new CalculationRunRecord rows.
+    verify_s = a1_session_factory()
+    try:
+        post_count = verify_s.execute(
+            select(func.count()).select_from(CalculationRunRecord)
+        ).scalar_one()
+    finally:
+        verify_s.close()
+    assert post_count == pre_count, (
+        f"Adapter must not introduce new CalculationRunRecord rows; "
+        f"pre={pre_count}, post={post_count}. The A1 ownership boundary "
+        f"(Amendment 2 §13.3) explicitly forbids production-row "
+        f"fabrication by the adapter."
+    )
+    # 5. The result still points at the pre-seeded scheme_run, not a
+    #    newly created one. The result has no calculation_run_ids
+    #    attribute (A1-2a result contract).
+    assert result.scheme_run is not None
+    assert "calculation_run_ids" not in AdapterResult.__annotations__
 
 
 # ── Test 7: adapter does not import / call ``production_seeding`` ──────

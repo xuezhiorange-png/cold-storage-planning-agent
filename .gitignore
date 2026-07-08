@@ -67,6 +67,12 @@ backend/src/cold_storage/evaluation/*
 backend/tests/evaluation/*
 !backend/tests/evaluation/__init__.py
 !backend/tests/evaluation/test_path_a_adapter.py
+# A1 follow-up slice: also permit the test-side pre-existing-context
+# seed helper. The helper is path-precise (only this file) and
+# purpose-bound (test-only pre-existing production row setup; not
+# production_seeding.py, not raw ORM fabrication in production code,
+# not in the adapter or runner).
+!backend/tests/evaluation/_seed_helpers.py
 
 # Hermes agent local state
 .hermes/

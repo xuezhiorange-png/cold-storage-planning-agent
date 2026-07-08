@@ -163,18 +163,63 @@ def test_evaluation_tests_do_not_construct_phase1_records() -> None:
     """The evaluation test suite MUST NOT fabricate
     OrchestrationRunAttemptRecord or SchemeRunRecord via raw
     ORM inserts to simulate a production path. Phase 1 owns
-    the schema foundation only."""
+    the schema foundation only.
+
+    Narrow carve-out (A1 follow-up slice, 2026-07-08, Charles):
+    ``backend/tests/evaluation/_seed_helpers.py`` is the **only**
+    evaluation-test file that may construct Phase 1 records (only
+    ``OrchestrationRunAttemptRecord``) for the purpose of seeding
+    the pre-existing production context required by the A1-2a
+    live-database happy-path tests. The carve-out is:
+
+    * **Path-precise:** only the file
+      ``backend/tests/evaluation/_seed_helpers.py`` is exempt.
+    * **Token-precise:** only ``OrchestrationRunAttemptRecord`` is
+      exempt; ``SchemeRunRecord`` and ``frozen_envelope`` remain
+      forbidden everywhere in the evaluation test suite.
+    * **Purpose-bound:** the helper exists solely to construct
+      the pre-existing production context for A1 live-DB tests.
+      It MUST NOT be imported by production code, the evaluation
+      adapter, or the evaluation runner.
+    * **Schema-bound:** the helper writes pre-existing rows; it
+      does NOT bypass production pathways at runtime — the A1
+      adapter still calls
+      ``ProductionSchemeService.generate_production_scheme_run``
+      end-to-end against the live database.
+    * **API-bound:** the helper's
+      ``OrchestrationRunAttemptRecord`` row does NOT use any
+      banned A1 field beyond the legitimate Phase 1
+      ``database_backend`` / ``correlation_id`` markers, which
+      are Phase 1 NOT NULL columns (per Amendment 2 §13.7
+      cross-reference) that the helper must populate to match
+      the production schema.
+    """
     if not EVALUATION_TESTS_DIR.exists():
         return
     files = _all_python_files(EVALUATION_TESTS_DIR)
     for path in files:
         content = path.read_text()
-        if "OrchestrationRunAttemptRecord" in content:
+        # A1 follow-up slice: narrow carve-out for the test-side
+        # seed helper that materializes pre-existing production
+        # context for the A1-2a live-DB tests. The carve-out is
+        # path-precise (only the helper file) and token-precise
+        # (only ``OrchestrationRunAttemptRecord``). The
+        # ``SchemeRunRecord`` / ``frozen_envelope`` checks below
+        # still apply to the helper.
+        expected_seed_helper_path = (
+            BACKEND_ROOT / "tests" / "evaluation" / "_seed_helpers.py"
+        )
+        is_a1_seed_helper = path == expected_seed_helper_path
+        if "OrchestrationRunAttemptRecord" in content and not is_a1_seed_helper:
             raise AssertionError(
                 f"Evaluation test imports OrchestrationRunAttemptRecord "
                 f"(Phase 1 contract: evaluation must NOT bypass "
                 f"production via raw ORM seeding): {path}"
             )
+        # ``SchemeRunRecord`` with ``frozen_envelope`` remains
+        # forbidden everywhere — the seed helper does NOT need
+        # to construct SchemeRunRecord (the production service
+        # does that at runtime).
         if "SchemeRunRecord" in content and "frozen_envelope" in content:
             raise AssertionError(
                 f"Evaluation test constructs SchemeRunRecord with "
