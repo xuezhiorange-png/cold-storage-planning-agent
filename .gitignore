@@ -57,6 +57,22 @@ frontend/dist/
 .config/gh/
 data/
 evaluation/
+# Task 11B Path A A1 allowlist: keep generic evaluation/ guardrail,
+# but permit the frozen A1 adapter and tests explicitly.
+!backend/src/cold_storage/evaluation/
+backend/src/cold_storage/evaluation/*
+!backend/src/cold_storage/evaluation/__init__.py
+!backend/src/cold_storage/evaluation/adapter.py
+!backend/tests/evaluation/
+backend/tests/evaluation/*
+!backend/tests/evaluation/__init__.py
+!backend/tests/evaluation/test_path_a_adapter.py
+# A1 follow-up slice: also permit the test-side pre-existing-context
+# seed helper. The helper is path-precise (only this file) and
+# purpose-bound (test-only pre-existing production row setup; not
+# production_seeding.py, not raw ORM fabrication in production code,
+# not in the adapter or runner).
+!backend/tests/evaluation/_seed_helpers.py
 
 # Hermes agent local state
 .hermes/
