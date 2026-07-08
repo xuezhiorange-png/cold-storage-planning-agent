@@ -505,7 +505,7 @@ Without these explicit gates in the implementation round's authorization, the im
 ## 11. Change log
 
 - 2026-07-08 (this commit): initial Path A design ratification, awaiting Charles freeze review. No implementation begins until Charles signs off.
-- 2026-07-08 (Amendment 2): adapter input contract corrected. The original Â§2 input contract (`session_factory, scenario_id, project_input â AdapterResult`) is **superseded by Â§13 Amendment 2**, which replaces the surface with `session_factory, *, source_binding_id, weight_set_revision_id, correlation_id, database_backend â AdapterResult`. The Slice A1 preflight round (2026-07-08, branch `codex/task-11b-path-a-impl-slice-a1`) verified via ground-truth reading of the production source that the original Â§2 surface is incompatible with the actual production API. See Â§13 for the corrected contract (option A1-2a), the explicit ownership boundary (adapter does not do upstream production state), and the deleted false assumption.
+- 2026-07-08 (Amendment 2): adapter input contract corrected. The original §2 input contract (`session_factory, scenario_id, project_input → AdapterResult`) is **superseded by §13 Amendment 2**, which replaces the surface with `session_factory, *, source_binding_id, weight_set_revision_id, correlation_id, database_backend → AdapterResult`. The Slice A1 preflight round (2026-07-08, branch `codex/task-11b-path-a-impl-slice-a1`) verified via ground-truth reading of the production source that the original §2 surface is incompatible with the actual production API. See §13 for the corrected contract (option A1-2a), the explicit ownership boundary (adapter does not do upstream production state), and the deleted false assumption.
 
 ---
 
