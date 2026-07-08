@@ -137,9 +137,9 @@ def test_evaluation_does_not_import_phase1_orm() -> None:
                 expected_adapter_path = (
                     BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "adapter.py"
                 )
-                if (
-                    path == expected_adapter_path
-                    and field in ("database_backend", "correlation_id")
+                if path == expected_adapter_path and field in (
+                    "database_backend",
+                    "correlation_id",
                 ):
                     continue
                 # Allow comments (fine)
@@ -206,9 +206,7 @@ def test_evaluation_tests_do_not_construct_phase1_records() -> None:
         # (only ``OrchestrationRunAttemptRecord``). The
         # ``SchemeRunRecord`` / ``frozen_envelope`` checks below
         # still apply to the helper.
-        expected_seed_helper_path = (
-            BACKEND_ROOT / "tests" / "evaluation" / "_seed_helpers.py"
-        )
+        expected_seed_helper_path = BACKEND_ROOT / "tests" / "evaluation" / "_seed_helpers.py"
         is_a1_seed_helper = path == expected_seed_helper_path
         if "OrchestrationRunAttemptRecord" in content and not is_a1_seed_helper:
             raise AssertionError(

@@ -301,9 +301,7 @@ _SLOT_RESULTS: dict[str, dict[str, Any]] = {
 # ── Canonical hash helpers (test-only) ────────────────────────────────────
 
 
-def _compute_domain_hash(
-    *, stage: str, result_snapshot: dict[str, Any], run_id: str
-) -> str:
+def _compute_domain_hash(*, stage: str, result_snapshot: dict[str, Any], run_id: str) -> str:
     """Compute the production domain-layer canonical hash for a stage.
 
     Uses the same ``build_source_snapshot_content_v1`` builder that the
@@ -523,9 +521,7 @@ def seed_a1_orchestration_prereqs(session: Session) -> None:
         )
 
     existing_cc = session.execute(
-        select(CoefficientContextRecord).where(
-            CoefficientContextRecord.id == COEFF_CONTEXT_ID
-        )
+        select(CoefficientContextRecord).where(CoefficientContextRecord.id == COEFF_CONTEXT_ID)
     ).scalar_one_or_none()
     if existing_cc is None:
         session.add(
@@ -542,9 +538,7 @@ def seed_a1_orchestration_prereqs(session: Session) -> None:
     session.commit()
 
     existing_i = session.execute(
-        select(OrchestrationIdentityRecord).where(
-            OrchestrationIdentityRecord.id == IDENTITY_ID
-        )
+        select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == IDENTITY_ID)
     ).scalar_one_or_none()
     if existing_i is None:
         session.add(
@@ -567,9 +561,7 @@ def seed_a1_orchestration_prereqs(session: Session) -> None:
         )
 
     existing_a = session.execute(
-        select(OrchestrationRunAttemptRecord).where(
-            OrchestrationRunAttemptRecord.id == ATTEMPT_ID
-        )
+        select(OrchestrationRunAttemptRecord).where(OrchestrationRunAttemptRecord.id == ATTEMPT_ID)
     ).scalar_one_or_none()
     if existing_a is None:
         session.add(
@@ -588,9 +580,7 @@ def seed_a1_orchestration_prereqs(session: Session) -> None:
         session.commit()
 
         identity_rec = session.execute(
-            select(OrchestrationIdentityRecord).where(
-                OrchestrationIdentityRecord.id == IDENTITY_ID
-            )
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == IDENTITY_ID)
         ).scalar_one()
         identity_rec.authoritative_attempt_id = ATTEMPT_ID
         session.commit()
@@ -613,9 +603,7 @@ def seed_a1_calculation_runs(session: Session) -> dict[str, str]:
     for stage in _SLOT_STAGE_ORDER:
         run_id = slot_ids[stage]
         snap = _SLOT_RESULTS[stage]
-        computed_hash = _compute_domain_hash(
-            stage=stage, result_snapshot=snap, run_id=run_id
-        )
+        computed_hash = _compute_domain_hash(stage=stage, result_snapshot=snap, run_id=run_id)
         per_calc[stage] = computed_hash
         existing = session.execute(
             select(CalculationRunRecord).where(CalculationRunRecord.id == run_id)
@@ -658,9 +646,7 @@ def seed_a1_calculation_runs(session: Session) -> dict[str, str]:
     return per_calc
 
 
-def seed_a1_source_binding(
-    session: Session, *, per_calc: dict[str, str] | None = None
-) -> None:
+def seed_a1_source_binding(session: Session, *, per_calc: dict[str, str] | None = None) -> None:
     """Create the A1 ``SourceBindingRecord`` (idempotent)."""
     from cold_storage.modules.orchestration.infrastructure.orm import (
         OrchestrationRunAttemptRecord,
@@ -681,9 +667,7 @@ def seed_a1_source_binding(
     }
 
     existing = session.execute(
-        select(SourceBindingRecord).where(
-            SourceBindingRecord.id == SOURCE_BINDING_ID
-        )
+        select(SourceBindingRecord).where(SourceBindingRecord.id == SOURCE_BINDING_ID)
     ).scalar_one_or_none()
     if existing is not None:
         return
@@ -714,9 +698,7 @@ def seed_a1_source_binding(
 
     # P0-2: attempt.source_binding_id must be non-NULL.
     attempt_rec = session.execute(
-        select(OrchestrationRunAttemptRecord).where(
-            OrchestrationRunAttemptRecord.id == ATTEMPT_ID
-        )
+        select(OrchestrationRunAttemptRecord).where(OrchestrationRunAttemptRecord.id == ATTEMPT_ID)
     ).scalar_one_or_none()
     if attempt_rec is not None and attempt_rec.source_binding_id is None:
         attempt_rec.source_binding_id = SOURCE_BINDING_ID

@@ -102,6 +102,7 @@ SCHEME_RUN_CORRELATION_ID = "test-a1-corr-001"
 SOURCE_BINDING_ID = A1_SEED_SOURCE_BINDING_ID
 WEIGHT_REVISION_ID = A1_SEED_WEIGHT_REVISION_ID
 
+
 # A trivial session factory for the input-validation tests. The
 # adapter raises AdapterInputError before touching the session, so
 # the factory never gets called.
@@ -149,8 +150,7 @@ def test_execute_scenario_signature_has_no_project_input() -> None:
     sig = inspect.signature(execute_scenario)
     params = list(sig.parameters.keys())
     assert "project_input" not in params, (
-        f"A1-2a surface must NOT carry a 'project_input' parameter; "
-        f"got parameters: {params}"
+        f"A1-2a surface must NOT carry a 'project_input' parameter; got parameters: {params}"
     )
 
 
@@ -164,8 +164,7 @@ def test_execute_scenario_signature_has_no_scenario_id() -> None:
     sig = inspect.signature(execute_scenario)
     params = list(sig.parameters.keys())
     assert "scenario_id" not in params, (
-        f"A1-2a surface must NOT carry a 'scenario_id' parameter; "
-        f"got parameters: {params}"
+        f"A1-2a surface must NOT carry a 'scenario_id' parameter; got parameters: {params}"
     )
 
 
@@ -188,9 +187,7 @@ def test_execute_scenario_rejects_missing_database_backend() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    "bad_value", ["mysql", "postgres", "mssql", "SQLITE", "", "SQL"]
-)
+@pytest.mark.parametrize("bad_value", ["mysql", "postgres", "mssql", "SQLITE", "", "SQL"])
 def test_execute_scenario_rejects_illegal_database_backend(bad_value: str) -> None:
     """``database_backend`` must be one of ``{"sqlite", "postgresql"}``;
     the ``ck_scheme_run_database_backend`` check constraint rejects any
@@ -210,9 +207,7 @@ def test_execute_scenario_rejects_illegal_database_backend(bad_value: str) -> No
     )
 
 
-def test_execute_scenario_accepts_sqlite_database_backend(
-    a1_engine, a1_session_factory
-) -> None:
+def test_execute_scenario_accepts_sqlite_database_backend(a1_engine, a1_session_factory) -> None:
     """Live SQLite happy path: ``execute_scenario`` runs end-to-end
     against a real Alembic-migrated SQLite database with the
     pre-existing production context seeded by ``_seed_helpers.py``.
@@ -351,6 +346,8 @@ _ADAPTER_SOURCE_PATH = (
     / "evaluation"
     / "adapter.py"
 )
+
+
 def test_adapter_module_does_not_write_production_rows() -> None:
     """AST scan: the adapter module must not contain any
     production-row write calls. The entity names being checked are
@@ -358,9 +355,7 @@ def test_adapter_module_does_not_write_production_rows() -> None:
     on this file's static content does not see them as bare
     string literals.
     """
-    assert _ADAPTER_SOURCE_PATH.is_file(), (
-        f"Adapter source missing: {_ADAPTER_SOURCE_PATH}"
-    )
+    assert _ADAPTER_SOURCE_PATH.is_file(), f"Adapter source missing: {_ADAPTER_SOURCE_PATH}"
     source = _ADAPTER_SOURCE_PATH.read_text(encoding="utf-8")
     tree = ast.parse(source)
 
@@ -385,10 +380,14 @@ def test_adapter_module_does_not_write_production_rows() -> None:
     module_docstring = ast.get_docstring(tree)
     docstring_stmt_indices: set[int] = set()
     for i, stmt in enumerate(tree.body):
-        if i == 0 and _is_module_docstring_stmt(stmt) or (
-            isinstance(stmt, ast.Expr)
-            and isinstance(stmt.value, ast.Constant)
-            and stmt.value.value == module_docstring
+        if (
+            i == 0
+            and _is_module_docstring_stmt(stmt)
+            or (
+                isinstance(stmt, ast.Expr)
+                and isinstance(stmt.value, ast.Constant)
+                and stmt.value.value == module_docstring
+            )
         ):
             docstring_stmt_indices.add(i)
     code_body_ids: set[str] = set()
@@ -461,7 +460,8 @@ def test_adapter_module_does_not_write_production_rows() -> None:
 
 
 def test_adapter_happy_path_does_not_introduce_new_calculation_runs(
-    a1_engine, a1_session_factory,
+    a1_engine,
+    a1_session_factory,
 ) -> None:
     """Live SQLite happy path: ``execute_scenario`` does not introduce
     new ``CalculationRunRecord`` rows at runtime. The adapter delegates
@@ -603,12 +603,7 @@ def test_production_seeding_file_does_not_exist() -> None:
     """
     repo_root = Path(__file__).resolve().parents[3]
     forbidden = (
-        repo_root
-        / "backend"
-        / "src"
-        / "cold_storage"
-        / "evaluation"
-        / "production_seeding.py"
+        repo_root / "backend" / "src" / "cold_storage" / "evaluation" / "production_seeding.py"
     )
     assert not forbidden.is_file(), (
         f"A1 forbidden path re-introduced: {forbidden}. Per Amendment 2 "
@@ -619,9 +614,7 @@ def test_production_seeding_file_does_not_exist() -> None:
 # ── Test 8: PostgreSQL backend parameter path (structural) ──────────────
 
 
-def test_execute_scenario_accepts_postgresql_database_backend_at_input_boundary() -> (
-    None
-):
+def test_execute_scenario_accepts_postgresql_database_backend_at_input_boundary() -> None:
     """Structural: the adapter must accept ``database_backend='postgresql'``
     at the input boundary and produce a valid
     ``GenerateProductionSchemeCommand`` with that value. Full E2E
@@ -712,9 +705,7 @@ _FORBIDDEN_ADAPTER_PUBLIC_API_TOKENS: tuple[str, ...] = (
 )
 
 
-@pytest.mark.parametrize(
-    "forbidden_token", _FORBIDDEN_ADAPTER_PUBLIC_API_TOKENS
-)
+@pytest.mark.parametrize("forbidden_token", _FORBIDDEN_ADAPTER_PUBLIC_API_TOKENS)
 def test_adapter_public_api_does_not_carry_forbidden_token(
     forbidden_token: str,
 ) -> None:
