@@ -565,9 +565,9 @@ not implicitly authorize any of them.
 - 0 PR #21 mutation ✅
 - 0 Issue #35 mutation ✅
 - 0 comment / Ready / merge / close-issue mutation ✅
-- 0 push (awaiting Charles authorization) ✅
+- 0 push during the initial design-contract authoring commit ✅
 - 1 new docs file under `docs/tasks/` ✅
-- 0 push to `origin` ✅
+- push / Draft PR creation performed later only after Charles authorization ✅
 
 ---
 
