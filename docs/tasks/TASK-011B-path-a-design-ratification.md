@@ -516,11 +516,11 @@ This document is a proposal authored by Hermes in response to Amendment 1 §11.5
 
 ---
 
-## 13. Amendment 2 \xe2\x80\x94 Adapter input contract correction (A1-2a)
+## 13. Amendment 2 — Adapter input contract correction (A1-2a)
 
 ### 13.1 Discovery (from Slice A1 preflight round)
 
-On 2026-07-08, an Implementation Slice A1 preflight round on `codex/task-11b-path-a-impl-slice-a1` from `main @ 184463138e54d23b57ef961130edf78b61e8f36c` (post-PR-#48) attempted to implement the \xc2\xa72 design as written. The preflight read-only audit of the production source revealed that the \xc2\xa72 surface is **incompatible with the actual production API**.
+On 2026-07-08, an Implementation Slice A1 preflight round on `codex/task-11b-path-a-impl-slice-a1` from `main @ 184463138e54d23b57ef961130edf78b61e8f36c` (post-PR-#48) attempted to implement the §2 design as written. The preflight read-only audit of the production source revealed that the §2 surface is **incompatible with the actual production API**.
 
 The contract said:
 
@@ -549,22 +549,22 @@ The actual production surface on `main` is:
 - `GenerateProductionSchemeCommand` is `@dataclass(frozen=True, slots=True, kw_only=True)` with **mandatory** fields `source_binding_id: str`, `weight_set_revision_id: str`, `correlation_id: str`, `database_backend: str`. None of these are derived from a `project_input`; they are FK references and required NOT-NULL columns.
 - The `source_binding_id` is produced only by the upstream `ProductionSourceBindingUseCase.run(session, command, snapshot_payload, ctx_payload, snapshot_id, ctx_id)` (in `backend/src/cold_storage/modules/orchestration/application/production_source_binding.py:154-260`), which itself requires a multi-step upstream: an `OrchestrationRequestCommand`, a verbatim `execution_snapshot_payload`, a verbatim `coefficient_context_payload`, and pre-existing `execution_snapshot_id` + `coefficient_context_id` durable row IDs.
 - The `weight_set_revision_id` references a pre-existing `ApprovedWeightSetRevision` row with `status='approved'`. There is no production-side helper that creates and approves a weight-set revision from a `project_input`.
-- The production side exposes **two** separate composition roots (`compose_production_source_binding_use_case(...)` and `compose_production_scheme_service(...)`), not a single "project_version \xe2\x86\x92 SchemeRun" pipeline helper. There is no `def run_full_pipeline(...)` or equivalent on the production side; the existing test pattern (`backend/tests/integration/test_production_archive_wiring_e2e_postgresql.py`) pre-seeds all upstream state via `_seed_all_prereqs(session)` (raw ORM `session.add` / `session.flush` / `session.commit`) and then calls `service.generate_production_scheme_run(cmd)` with a pre-built command.
+- The production side exposes **two** separate composition roots (`compose_production_source_binding_use_case(...)` and `compose_production_scheme_service(...)`), not a single "project_version → SchemeRun" pipeline helper. There is no `def run_full_pipeline(...)` or equivalent on the production side; the existing test pattern (`backend/tests/integration/test_production_archive_wiring_e2e_postgresql.py`) pre-seeds all upstream state via `_seed_all_prereqs(session)` (raw ORM `session.add` / `session.flush` / `session.commit`) and then calls `service.generate_production_scheme_run(cmd)` with a pre-built command.
 
-**Conclusion**: the \xc2\xa72 single-call `execute_scenario(session_factory, scenario_id, project_input) -> AdapterResult` cannot be implemented without one of:
+**Conclusion**: the §2 single-call `execute_scenario(session_factory, scenario_id, project_input) -> AdapterResult` cannot be implemented without one of:
 
-1. Hand-writing the upstream production state inside the adapter (raw ORM `session.add` of `OrchestrationIdentityRecord`, `OrchestrationAttemptRecord`, `CalculationRunRecord` \xc3\x97 5, `SourceBindingRecord`, `ApprovedWeightSetRevision`, etc.) \xe2\x80\x94 **violates Path A F-2 / F-3 / F-4 and pre-freeze \xc2\xa78 #2**.
-2. Calling `_seed_all_prereqs` from inside the adapter \xe2\x80\x94 couples the adapter to a test helper (which lives in `backend/tests/integration/`, not in production source). Importing test helpers from production code is an architecture violation.
-3. Mocking the production orchestrator \xe2\x80\x94 defeats the contract purpose.
-4. Silently re-framing \xc2\xa72 to accept a pre-seeded `(source_binding_id, weight_set_revision_id, correlation_id, database_backend)` instead of `project_input` \xe2\x80\x94 honest, but **not** what \xc2\xa72 says; requires amendment.
+1. Hand-writing the upstream production state inside the adapter (raw ORM `session.add` of `OrchestrationIdentityRecord`, `OrchestrationAttemptRecord`, `CalculationRunRecord` × 5, `SourceBindingRecord`, `ApprovedWeightSetRevision`, etc.) — **violates Path A F-2 / F-3 / F-4 and pre-freeze §8 #2**.
+2. Calling `_seed_all_prereqs` from inside the adapter — couples the adapter to a test helper (which lives in `backend/tests/integration/`, not in production source). Importing test helpers from production code is an architecture violation.
+3. Mocking the production orchestrator — defeats the contract purpose.
+4. Silently re-framing §2 to accept a pre-seeded `(source_binding_id, weight_set_revision_id, correlation_id, database_backend)` instead of `project_input` — honest, but **not** what §2 says; requires amendment.
 
-(1), (2), (3) violate Path A design contract and pre-freeze \xc2\xa78 stop conditions. (4) is the only honest path.
+(1), (2), (3) violate Path A design contract and pre-freeze §8 stop conditions. (4) is the only honest path.
 
 ### 13.2 The corrected surface (A1-2a)
 
-This amendment ratifies the **A1-2a** option from the Slice A1 preflight report's \xc2\xa75. The adapter's input surface is changed as follows:
+This amendment ratifies the **A1-2a** option from the Slice A1 preflight report's §5. The adapter's input surface is changed as follows:
 
-**Before** (original \xc2\xa72, now superseded):
+**Before** (original §2, now superseded):
 
 ```python
 def execute_scenario(
@@ -593,7 +593,7 @@ def execute_scenario(
     OrchestrationIdentity / OrchestrationAttempt /
     CalculationRunRecord x 5 / ExecutionSnapshot /
     CoefficientContext / SourceBindingRecord /
-    ApprovedWeightSetRevision state \xe2\x80\x94 that work is done by the
+    ApprovedWeightSetRevision state — that work is done by the
     upstream production orchestration (via
     compose_production_source_binding_use_case + the
     weight-set approval path) before this adapter is called.
@@ -627,7 +627,7 @@ def execute_scenario(
 
 **Field-level changes**:
 
-| field | before (original \xc2\xa72) | after (Amendment 2, A1-2a) |
+| field | before (original §2) | after (Amendment 2, A1-2a) |
 |---|---|---|
 | `session_factory` | required | required (unchanged) |
 | `scenario_id` | required (log correlation only) | **REMOVED** (was redundant; caller can include scenario_id in `correlation_id` if needed) |
@@ -637,7 +637,7 @@ def execute_scenario(
 | `correlation_id` | not in surface | **REQUIRED** (mandatory NOT-NULL on `GenerateProductionSchemeCommand`) |
 | `database_backend` | not in surface | **REQUIRED** (mandatory NOT-NULL on `GenerateProductionSchemeCommand`; one of `"sqlite"` or `"postgresql"`) |
 
-The output `AdapterResult` (re-shaped in \xc2\xa713.4 below) drops the `calculation_run_ids` field because the adapter no longer observes the 5 `CalculationRunRecord` rows directly \xe2\x80\x94 those are upstream of the `SchemeService` call. The adapter observes the `SchemeRun` row only.
+The output `AdapterResult` (re-shaped in §13.4 below) drops the `calculation_run_ids` field because the adapter no longer observes the 5 `CalculationRunRecord` rows directly — those are upstream of the `SchemeService` call. The adapter observes the `SchemeRun` row only.
 
 ### 13.3 Ownership boundary (explicit)
 
@@ -672,7 +672,7 @@ This ownership boundary is **enforced by the adapter's API surface**: the adapte
 
 ### 13.4 Corrected `AdapterResult`
 
-The corrected `AdapterResult` typed dataclass (replacing the \xc2\xa72.2 version):
+The corrected `AdapterResult` typed dataclass (replacing the §2.2 version):
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -692,9 +692,9 @@ class AdapterResult:
     review_reasons: tuple[str, ...]      # from SchemeRun.review_reasons
 ```
 
-The `calculation_run_ids` field is **dropped** because the adapter no longer observes the 5 `CalculationRunRecord` rows directly. The evaluation harness can read these rows separately via the production read ports (e.g., `SqlAlchemySourceBindingReadPort`) if it needs to assert the \xc2\xa74.3 strict row counts; this is a separate concern from the adapter.
+The `calculation_run_ids` field is **dropped** because the adapter no longer observes the 5 `CalculationRunRecord` rows directly. The evaluation harness can read these rows separately via the production read ports (e.g., `SqlAlchemySourceBindingReadPort`) if it needs to assert the §4.3 strict row counts; this is a separate concern from the adapter.
 
-### 13.5 Corrected failure semantics (replacing \xc2\xa73 references to `project_input`)
+### 13.5 Corrected failure semantics (replacing §3 references to `project_input`)
 
 - **Production raises**: the adapter forwards the exception unchanged. The evaluation harness records `outcome=failed` and the exception in the stage ledger.
 - **Production returns `FAILED`**: the adapter returns the `SchemeRun` as-is. The evaluation harness records `outcome=failed`.
@@ -702,61 +702,61 @@ The `calculation_run_ids` field is **dropped** because the adapter no longer obs
 - **Production returns `SUCCEEDED`**: the adapter returns the `SchemeRun` as-is. The evaluation harness records `outcome=success`.
 - **Adapter has no `EVAL_PRODUCTION_PIPELINE_PREREQUISITE_MISSING`**: that error class is forbidden (F-3). If the production orchestrator cannot execute, production raises its own error; the adapter forwards it.
 
-The corrected semantics **do not change** the failure semantics from \xc2\xa73; this amendment only clarifies that the `project_input` failure modes (e.g., "project_input validation failed") are now **caller responsibilities**, not adapter responsibilities. The caller must validate the project input and pre-build the production state before calling the adapter.
+The corrected semantics **do not change** the failure semantics from §3; this amendment only clarifies that the `project_input` failure modes (e.g., "project_input validation failed") are now **caller responsibilities**, not adapter responsibilities. The caller must validate the project input and pre-build the production state before calling the adapter.
 
-### 13.6 Corrected acceptance test strategy (replacing \xc2\xa75)
+### 13.6 Corrected acceptance test strategy (replacing §5)
 
 The acceptance test strategy is updated as follows:
 
-1. **`test_adapter_contract.py`** \xe2\x80\x94 same as before. The adapter's structural invariants (no `Session.add` / `session.flush` / `session.commit` / `bulk_insert_mappings`; no production-row writes; exception forwarding; `review_required` outcome translation) are unchanged.
+1. **`test_adapter_contract.py`** — same as before. The adapter's structural invariants (no `Session.add` / `session.flush` / `session.commit` / `bulk_insert_mappings`; no production-row writes; exception forwarding; `review_required` outcome translation) are unchanged.
 
-2. **`test_path_a_baseline_sqlite.py`** \xe2\x80\x94 the test now **pre-seeds** the upstream production state via `_seed_all_prereqs`-style helpers (which the implementation round will factor out of `backend/tests/integration/test_production_scheme_postgresql.py` into a reusable test helper, e.g., `backend/tests/evaluation/_seed_helpers.py`) and then calls the adapter with the pre-seeded `source_binding_id` + `weight_set_revision_id`. The test asserts that the adapter:
+2. **`test_path_a_baseline_sqlite.py`** — the test now **pre-seeds** the upstream production state via `_seed_all_prereqs`-style helpers (which the implementation round will factor out of `backend/tests/integration/test_production_scheme_postgresql.py` into a reusable test helper, e.g., `backend/tests/evaluation/_seed_helpers.py`) and then calls the adapter with the pre-seeded `source_binding_id` + `weight_set_revision_id`. The test asserts that the adapter:
    - calls `compose_production_scheme_service` exactly once
    - returns a `SchemeRun` with `scheme_status="SUCCEEDED"`
    - returns an `AdapterResult` whose `combined_source_hash` matches the production `build_source_snapshot_content_v1` helper's output
    - does NOT introduce any new production row beyond what the upstream `_seed_all_prereqs` already created (PK-set symmetric-difference test)
    - does NOT create `backend/src/cold_storage/evaluation/production_seeding.py` (assert the file does not exist on disk after the test runs)
 
-3. **`test_path_a_baseline_postgresql.py`** \xe2\x80\x94 same shape as the SQLite test, against PostgreSQL.
+3. **`test_path_a_baseline_postgresql.py`** — same shape as the SQLite test, against PostgreSQL.
 
-4. **`test_path_a_no_pr21_pollution.py`** \xe2\x80\x94 same as before. Asserts no PR #21 forbidden patterns.
+4. **`test_path_a_no_pr21_pollution.py`** — same as before. Asserts no PR #21 forbidden patterns.
 
 **Important**: the test helper that does the upstream pre-seeding (`_seed_all_prereqs`-style) lives in `backend/tests/evaluation/_seed_helpers.py` (or similar), **not** in `backend/src/cold_storage/evaluation/`. The adapter does not import this helper. The helper is test-only infrastructure that produces the production state needed to drive the adapter; the helper is not part of the adapter's API surface.
 
 The adapter's API surface is **only** the `execute_scenario(...)` method. The helper is a test-side convenience.
 
-### 13.7 Corrected implementation round authorization gates (replacing \xc2\xa710)
+### 13.7 Corrected implementation round authorization gates (replacing §10)
 
 The implementation round's authorization must explicitly include:
 
-- The contract freeze acceptance (this amendment, \xc2\xa713).
+- The contract freeze acceptance (this amendment, §13).
 - The **expected source_binding_id + weight_set_revision_id** that the test will use (or the strategy for the test to produce them via the upstream pre-seeding helper).
 - The expected output path (`backend/storage/...` or `backend/tests/evaluation/data/...`).
 - The expected output comparison policy (or a freeze that the implementation round will pick).
 - The expected output reviewer sign-off process.
 - The implementation PR's branch name (candidate: `codex/task-11b-path-a-impl-slice-a1` re-resumed, or a new branch).
 - The implementation PR's target (must be `main`).
-- The implementation PR's expected diff size (<= 1000 LOC across all new files per Amendment 1 \xc2\xa711.5.1; if more is needed, that is a contract change requiring a new freeze).
-- The 4-job CI green requirement (compose-config / frontend / backend-sqlite / backend-postgresql, with backend-postgresql including the \xc2\xa75 PostgreSQL acceptance test).
+- The implementation PR's expected diff size (<= 1000 LOC across all new files per Amendment 1 §11.5.1; if more is needed, that is a contract change requiring a new freeze).
+- The 4-job CI green requirement (compose-config / frontend / backend-sqlite / backend-postgresql, with backend-postgresql including the §5 PostgreSQL acceptance test).
 - **NEW for A1-2a**: the test-side `_seed_all_prereqs`-style helper's location (e.g., `backend/tests/evaluation/_seed_helpers.py`) and a freeze that the helper is test-only and is **not** imported from production code (the adapter does not depend on it).
 
 ### 13.8 What is **unchanged** by this amendment
 
-- **All forbidden paths** (Path A F-1 through F-15, pre-freeze \xc2\xa78 stop conditions, Amendment 1 \xc2\xa711.6 implicit condition, the 16 Path A stop conditions S-1 through S-16) are unchanged. The amendment does not weaken any stop condition.
-- **PR #21 relationship** (per \xc2\xa77) is unchanged: PR #21 is **not** an implementation base, **not** a code/test/expected-output/fixture/manifest/design-doc carryover, and the branch ref `7822581eeee4c590b4ed9b1e3c46c1cde5490098` is preserved untouched.
-- **Expected output strategy** (per \xc2\xa76) is unchanged: regenerated under Charles reviewer sign-off, recorded in `docs/tasks/TASK-011B-path-a-expected-outputs-reviewer-sign-off.md`. The \xc2\xa78 #10 stop condition is binding.
-- **The four acceptance test files** (per \xc2\xa75 / \xc2\xa713.6) are still required; only the SQLite and PostgreSQL tests are updated to pre-seed the upstream state.
-- **Path A scope** (<= 1000 LOC, per Amendment 1 \xc2\xa711.5.1) is unchanged. The adapter itself is small (a thin wrapper around `compose_production_scheme_service` + `service.generate_production_scheme_run(cmd)`); the test-side pre-seeding helper is separate and is **not** counted against the adapter's LOC budget because the helper is not part of the adapter.
+- **All forbidden paths** (Path A F-1 through F-15, pre-freeze §8 stop conditions, Amendment 1 §11.6 implicit condition, the 16 Path A stop conditions S-1 through S-16) are unchanged. The amendment does not weaken any stop condition.
+- **PR #21 relationship** (per §7) is unchanged: PR #21 is **not** an implementation base, **not** a code/test/expected-output/fixture/manifest/design-doc carryover, and the branch ref `7822581eeee4c590b4ed9b1e3c46c1cde5490098` is preserved untouched.
+- **Expected output strategy** (per §6) is unchanged: regenerated under Charles reviewer sign-off, recorded in `docs/tasks/TASK-011B-path-a-expected-outputs-reviewer-sign-off.md`. The §8 #10 stop condition is binding.
+- **The four acceptance test files** (per §5 / §13.6) are still required; only the SQLite and PostgreSQL tests are updated to pre-seed the upstream state.
+- **Path A scope** (<= 1000 LOC, per Amendment 1 §11.5.1) is unchanged. The adapter itself is small (a thin wrapper around `compose_production_scheme_service` + `service.generate_production_scheme_run(cmd)`); the test-side pre-seeding helper is separate and is **not** counted against the adapter's LOC budget because the helper is not part of the adapter.
 
 ### 13.9 What is **deleted** by this amendment
 
-The following false assumptions in the original \xc2\xa72 are **explicitly deleted**:
+The following false assumptions in the original §2 are **explicitly deleted**:
 
-- "**`project_input` can directly drive full production execution**" \xe2\x80\x94 **DELETED**. The actual production API does not accept a `project_input`; it accepts a pre-built `GenerateProductionSchemeCommand` with FK references.
-- "**The adapter internally completes Phase 2/3/4**" \xe2\x80\x94 **DELETED**. The adapter does not create any of the Phase 2/3/4 production state; that is upstream orchestration's responsibility.
-- "**The adapter is a single-call entry point for a full pipeline**" \xe2\x80\x94 **DELETED**. The adapter is a single-call entry point for **only** the scheme-generation step of the production pipeline. The full pipeline is multi-step and the adapter is one of those steps.
-- "**The adapter reads the 5 `CalculationRunRecord` IDs and forwards them in the `AdapterResult`**" \xe2\x80\x94 **DELETED**. The adapter no longer observes the 5 `CalculationRunRecord` rows directly; the `calculation_run_ids` field is removed from `AdapterResult`.
-- "**The \xc2\xa72 single-call `execute_scenario(session_factory, scenario_id, project_input) -> AdapterResult` is the canonical adapter surface**" \xe2\x80\x94 **DELETED**. The canonical adapter surface is now `execute_scenario(session_factory, *, source_binding_id, weight_set_revision_id, correlation_id, database_backend) -> AdapterResult` (A1-2a).
+- "**`project_input` can directly drive full production execution**" — **DELETED**. The actual production API does not accept a `project_input`; it accepts a pre-built `GenerateProductionSchemeCommand` with FK references.
+- "**The adapter internally completes Phase 2/3/4**" — **DELETED**. The adapter does not create any of the Phase 2/3/4 production state; that is upstream orchestration's responsibility.
+- "**The adapter is a single-call entry point for a full pipeline**" — **DELETED**. The adapter is a single-call entry point for **only** the scheme-generation step of the production pipeline. The full pipeline is multi-step and the adapter is one of those steps.
+- "**The adapter reads the 5 `CalculationRunRecord` IDs and forwards them in the `AdapterResult`**" — **DELETED**. The adapter no longer observes the 5 `CalculationRunRecord` rows directly; the `calculation_run_ids` field is removed from `AdapterResult`.
+- "**The §2 single-call `execute_scenario(session_factory, scenario_id, project_input) -> AdapterResult` is the canonical adapter surface**" — **DELETED**. The canonical adapter surface is now `execute_scenario(session_factory, *, source_binding_id, weight_set_revision_id, correlation_id, database_backend) -> AdapterResult` (A1-2a).
 
 ### 13.10 Why A1-2a was chosen over A1-2b / A1-2c
 
@@ -772,13 +772,13 @@ A1-2a was chosen because:
 2. **It reuses existing production code.** The Phase 2/3/4 pipeline is already in production (`compose_production_source_binding_use_case`, the weight-set approval path, `ProductionSchemeService`). Path A does not invent a new pipeline; it consumes the existing one.
 3. **It does not violate any forbidden path.** The adapter does not create production state. The adapter does not bypass `SourceBindingVerifier`, `SchemeService`, or the production orchestrator. The adapter does not import evaluation code into production modules.
 4. **It matches the production-side composition pattern.** The existing tests already pre-seed the upstream state and call `service.generate_production_scheme_run(cmd)` directly. A1-2a makes the adapter an explicit, named, tested wrapper around this established pattern.
-5. **It allows the adapter to be implemented in <= 1000 LOC across source + tests + helper.** The adapter module is small; the test-side pre-seeding helper is separate and is not part of the adapter's LOC budget (per \xc2\xa713.8).
+5. **It allows the adapter to be implemented in <= 1000 LOC across source + tests + helper.** The adapter module is small; the test-side pre-seeding helper is separate and is not part of the adapter's LOC budget (per §13.8).
 
 A1-2b and A1-2c were rejected because they would re-implement the Phase 2/3/4 pipeline inside the adapter, exceeding the Path A budget and increasing the risk of forbidden-path violations.
 
 ### 13.11 Status after Amendment 2
 
-- The Path A design contract is amended. The original \xc2\xa72 (and the false assumptions in \xc2\xa72.4 "Why this shape") are **superseded** by \xc2\xa713. The remaining sections (\xc2\xa71, \xc2\xa73, \xc2\xa74, \xc2\xa75, \xc2\xa76, \xc2\xa77, \xc2\xa78, \xc2\xa79) are unchanged except where they cross-reference \xc2\xa72; those cross-references now point to \xc2\xa713.
+- The Path A design contract is amended. The original §2 (and the false assumptions in §2.4 "Why this shape") are **superseded** by §13. The remaining sections (§1, §3, §4, §5, §6, §7, §8, §9) are unchanged except where they cross-reference §2; those cross-references now point to §13.
 - Task 11 Phase B implementation **remains NOT resumed**. No code has been authored against `main` in this round. No implementation begins until Charles freezes this amendment and authorizes a follow-up `Implementation Slice A1` round.
 - PR #21 is **not** touched. Its head SHA `7822581eeee4c590b4ed9b1e3c46c1cde5490098` is preserved.
 - Issue #35 is **not** touched. Its closed / completed state is preserved.
