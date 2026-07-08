@@ -1,17 +1,18 @@
-"""Test-side pre-existing-context seed helpers for A1 live-database tests.
+"""Test-side pre-existing-context seed helpers for A1/A2 live-database tests.
 
 Scope and authority
 ===================
 
 This module is **strictly test-side** and exists solely to support the
-Path A / Task 11B Implementation Slice A1 live-database happy-path
-tests in ``backend/tests/evaluation/test_path_a_adapter.py``.  It is
-**not** part of the evaluation production surface.
+Path A / Task 11B Implementation Slice A1 (SQLite) and A2
+(PostgreSQL) live-database happy-path tests in
+``backend/tests/evaluation/test_path_a_adapter.py``.  It is **not**
+part of the evaluation production surface.
 
-**Authority boundary (A1 follow-up slice):**
+**Authority boundary (A1 follow-up slice + A2 closure):**
 
 * This file is the **only** location in ``backend/tests/evaluation/``
-  that is allowed to write pre-existing production rows for the A1
+  that is allowed to write pre-existing production rows for the A1/A2
   live-database happy-path tests, per the narrow architecture-test
   carve-out documented in
   ``backend/tests/architecture/test_phase1_identity_foundation_boundary.py``.
@@ -69,10 +70,13 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import subprocess
 import sys
 import tempfile
+import uuid
 from collections.abc import Callable
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -81,23 +85,24 @@ import pytest
 from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
-# Skip the entire helper module when running under PostgreSQL CI job —
-# the engine fixture only provisions SQLite, so importing / defining
-# fixtures on a postgresql CI job would otherwise spin up an unused
-# SQLite file. The live PostgreSQL test would need a separate fixture
-# (not in scope for A1 follow-up slice).
-if os.environ.get("DATABASE_BACKEND") == "postgresql":
-    pytest.skip(
-        "A1 live-database seed helpers only provision SQLite; "
-        "the live PostgreSQL test is out of scope for this slice.",
-        allow_module_level=True,
-    )
+# A1 + A2 — backend-aware seed helpers. Each fixture decides its own
+# backend:
+#   * ``a1_engine`` / ``a1_session_factory`` — SQLite in-process
+#     (StaticPool, temp file, ``PRAGMA foreign_keys=ON``). Used by
+#     A1 SQLite live tests.
+#   * ``a2_pg_engine`` / ``a2_pg_session_factory`` — PostgreSQL
+#     isolated database (NullPool, Alembic-upgraded head schema).
+#     Used by A2 PostgreSQL live tests.
+#
+# Both fixture sets reuse the **same** ``seed_a1_*`` functions
+# (which are dialect-agnostic — they only use SQLAlchemy session
+# APIs) to seed the pre-existing production context.
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
-# ── Deterministic IDs (A1 test-only) ───────────────────────────────────────
+# ── Deterministic IDs (A1/A2 test-only) ──────────────────────────────────
 
 PROJECT_ID = "a1-test-p-001"
 VERSION_ID = "a1-test-v-001"
@@ -404,6 +409,137 @@ def a1_engine() -> Engine:
 def a1_session_factory(a1_engine: Engine) -> Callable[[], Session]:
     """``sessionmaker`` bound to the A1 test engine (``expire_on_commit=False``)."""
     return sessionmaker(bind=a1_engine, expire_on_commit=False)
+
+
+# ── A2 PostgreSQL fixtures (A2 closure) ───────────────────────────────────
+#
+# The A2 PostgreSQL live happy-path tests reuse the dialect-agnostic
+# ``seed_a1_*`` functions above and supply them with an isolated
+# PostgreSQL database via the ``a2_pg_engine`` / ``a2_pg_session_factory``
+# fixtures. The isolated database is created by:
+#
+#   1. Spinning up a unique database name derived from a UUID
+#      (mirroring the integration-test ``pg_database_factory`` pattern
+#      in ``tests/integration/conftest.py`` — without the cross-test
+#      import).
+#   2. Running ``alembic upgrade head`` against it as a subprocess
+#      (the same way the SQLite ``a1_engine`` fixture does it).
+#   3. Returning a SQLAlchemy engine + sessionmaker bound to the
+#      isolated database.
+#
+# The fixture requires ``DATABASE_URL`` to be set (CI sets it via
+# the ``backend-postgresql`` service container; local PG runs set it
+# to the same ``postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/...``
+# URL that CI uses). When ``DATABASE_URL`` is missing the fixture
+# skips the test (consistent with the integration-test pattern).
+
+_PG_DB_NAME_RE = re.compile(r"[^a-z0-9_]")
+
+
+def _sanitize_pg_db_name(name: str) -> str:
+    """Return a valid PostgreSQL database name."""
+    return _PG_DB_NAME_RE.sub("_", name.lower())[:63]
+
+
+@pytest.fixture()
+def a2_pg_admin_url() -> str:
+    """PostgreSQL admin URL (points at the ``postgres`` system DB).
+
+    Required for CREATE / DROP DATABASE — DDL operations need
+    AUTOCOMMIT isolation and a connection to a database that is NOT
+    the one being created / dropped.
+    """
+    original = os.environ.get("DATABASE_URL", "")
+    if not original:
+        pytest.skip("DATABASE_URL not set; A2 PG live tests require a PG service")
+    base = original.rsplit("/", 1)[0]
+    return f"{base}/postgres"
+
+
+@pytest.fixture()
+def a2_pg_database(a2_pg_admin_url: str):
+    """Isolated PostgreSQL database with Alembic head schema applied.
+
+    Yields the database URL. Cleans up via ``DROP DATABASE … WITH
+    (FORCE)`` on teardown to terminate any lingering connections.
+    """
+    base_url = os.environ.get("DATABASE_URL", "")
+    if not base_url:
+        pytest.skip("DATABASE_URL not set")
+
+    db_name = _sanitize_pg_db_name(f"a2_eval_{uuid.uuid4().hex[:12]}")
+    admin_engine = create_engine(a2_pg_admin_url, poolclass=NullPool)
+    admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
+    db_url = f"{base_url.rsplit('/', 1)[0]}/{db_name}"
+
+    try:
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+    finally:
+        admin_engine.dispose()
+
+    # Run alembic upgrade head against the new database.
+    env = os.environ.copy()
+    env["DATABASE_URL"] = db_url
+    env["DATABASE_BACKEND"] = "postgresql"
+    # pytest adds ``src`` to sys.path via pyproject.toml; the
+    # alembic subprocess must see the same path so cold_storage.*
+    # imports resolve in alembic's env.py.
+    src_path = (BACKEND_DIR / "src").resolve()
+    existing_pp = env.get("PYTHONPATH", "")
+    pp_parts = [str(src_path)] + ([existing_pp] if existing_pp else [])
+    env["PYTHONPATH"] = os.pathsep.join(pp_parts)
+    r = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=BACKEND_DIR,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if r.returncode != 0:
+        # Cleanup the database we created even on upgrade failure.
+        admin_engine = create_engine(a2_pg_admin_url, poolclass=NullPool)
+        admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
+        try:
+            with admin_engine.connect() as conn:
+                conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+        finally:
+            admin_engine.dispose()
+        pytest.fail(
+            f"Alembic upgrade to head failed for A2 PG test database:\n"
+            f"STDERR:\n{r.stderr}\nSTDOUT:\n{r.stdout}"
+        )
+
+    try:
+        yield db_url
+    finally:
+        admin_engine = create_engine(a2_pg_admin_url, poolclass=NullPool)
+        admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
+        try:
+            with admin_engine.connect() as conn, suppress(Exception):
+                conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
+        finally:
+            admin_engine.dispose()
+
+
+@pytest.fixture()
+def a2_pg_engine(a2_pg_database: str):
+    """SQLAlchemy engine for the A2 isolated PG test database (NullPool)."""
+    engine = create_engine(a2_pg_database, poolclass=NullPool)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture()
+def a2_pg_session_factory(
+    a2_pg_engine: Engine,
+) -> Callable[[], Session]:
+    """``sessionmaker`` bound to the A2 test engine (``expire_on_commit=False``)."""
+    return sessionmaker(bind=a2_pg_engine, expire_on_commit=False)
 
 
 # ── Pre-seed chain (A1 test-only) ─────────────────────────────────────────
@@ -792,6 +928,10 @@ def seed_a1_all_prereqs(session: Session) -> None:
 __all__ = [
     "a1_engine",
     "a1_session_factory",
+    "a2_pg_admin_url",
+    "a2_pg_database",
+    "a2_pg_engine",
+    "a2_pg_session_factory",
     "seed_a1_all_prereqs",
     "seed_a1_project_and_version",
     "seed_a1_orchestration_prereqs",

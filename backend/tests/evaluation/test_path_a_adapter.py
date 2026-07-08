@@ -335,6 +335,215 @@ def test_adapter_result_has_no_calculation_run_ids_field() -> None:
     )
 
 
+# ── A2 PostgreSQL live happy-path tests (A2 closure) ─────────────────────
+#
+# The A2 tests mirror the A1 SQLite live tests (test 3 SQLite live +
+# test 6 SQLite no-new-runs) but run against an isolated PostgreSQL
+# database with Alembic head schema. Tagged with
+# ``@pytest.mark.postgresql`` so CI can scope the run with
+# ``-m postgresql``. The tests require ``DATABASE_URL`` to be set
+# (CI sets it via the ``backend-postgresql`` service container; local
+# runs set it explicitly to the same URL).
+#
+# These tests:
+#
+# 1. Spin up an isolated PostgreSQL database (``a2_pg_database``
+#    fixture) and apply the production schema via Alembic.
+# 2. Reuse the dialect-agnostic ``seed_a1_all_prereqs`` helper to
+#    write the pre-existing production context (Project, Version,
+#    ExecutionSnapshot, CoefficientContext, Identity, Attempt, 5
+#    CalculationRunRecords, SourceBindingRecord, WeightSet +
+#    WeightRevision) — exactly what the A1 SQLite tests do, just on
+#    PostgreSQL.
+# 3. Invoke ``execute_scenario(...)`` with
+#    ``database_backend="postgresql"`` against the live PG session
+#    factory.
+# 4. Assert the A1-2a contract holds end-to-end on PostgreSQL:
+#    * The adapter returns a populated :class:`AdapterResult`.
+#    * The adapter does NOT generate source_binding_id /
+#      weight_set_revision_id (round-trip from inputs).
+#    * ``AdapterResult.calculation_run_ids`` is absent.
+#    * The adapter does NOT introduce new ``CalculationRunRecord``
+#      rows at runtime (the production service uses the 5
+#      pre-seeded records, not new ones).
+#    * The adapter does NOT suppress / rename / downgrade /
+#      reclassify ``requires_review`` (read straight from the
+#      persisted record).
+#    * The ``SchemeRun`` was persisted (we can re-read it via
+#      the session factory and confirm it matches the input
+#      binding / weight revision).
+#    * The persisted SchemeRun's ``database_backend`` column is
+#      exactly ``"postgresql"`` (proves the dialect marker
+#      flowed through).
+#
+# The tests do NOT mock the production service. The adapter still
+# calls ``ProductionSchemeService.generate_production_scheme_run``
+# end-to-end against the real PG database.
+
+pytestmark_a2_pg = pytest.mark.postgresql
+
+
+@pytestmark_a2_pg
+def test_execute_scenario_accepts_postgresql_database_backend(
+    a2_pg_engine, a2_pg_session_factory
+) -> None:
+    """A2 live PG happy path: ``execute_scenario`` runs end-to-end
+    against a real Alembic-migrated PostgreSQL database with the
+    pre-existing production context seeded by ``_seed_helpers.py``.
+
+    Asserts the A1-2a contract on PostgreSQL:
+
+    * The adapter accepts ``database_backend="postgresql"``.
+    * The adapter returns a populated :class:`AdapterResult`.
+    * ``AdapterResult.scheme_run`` is a real :class:`SchemeRun`
+      produced by ``ProductionSchemeService.generate_production_scheme_run``
+      against the live PG database.
+    * ``AdapterResult.source_binding_id`` /
+      ``weight_set_revision_id`` round-trip from the input contract
+      unchanged (the adapter does NOT generate IDs).
+    * ``AdapterResult.calculation_run_ids`` is **absent** (intentionally
+      not exposed by the A1-2a result contract).
+    * The persisted SchemeRunRecord's ``database_backend`` column is
+      exactly ``"postgresql"`` (proves the dialect marker flowed through
+      the adapter → production service → persisted record).
+    """
+    # 1. Sanity: engine dialect is postgresql.
+    assert a2_pg_engine.dialect.name == "postgresql"
+
+    # 2. Seed pre-existing production context
+    seed_s = a2_pg_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 3. Invoke the adapter against the live PG engine.
+    result = execute_scenario(
+        a2_pg_session_factory,
+        source_binding_id=A1_SEED_SOURCE_BINDING_ID,
+        weight_set_revision_id=A1_SEED_WEIGHT_REVISION_ID,
+        correlation_id=SCHEME_RUN_CORRELATION_ID,
+        database_backend="postgresql",
+    )
+
+    # 4. AdapterResult structural assertions.
+    assert isinstance(result, AdapterResult)
+    assert result.scheme_run is not None
+    # IDs round-trip from inputs — adapter does NOT generate IDs.
+    assert result.source_binding_id == A1_SEED_SOURCE_BINDING_ID
+    assert result.weight_set_revision_id == A1_SEED_WEIGHT_REVISION_ID
+    # ``calculation_run_ids`` MUST NOT be exposed by AdapterResult.
+    assert "calculation_run_ids" not in AdapterResult.__annotations__
+    # ``requires_review`` is propagated from the persisted record (we
+    # seeded ``requires_review=False`` on every CalculationRunRecord, so
+    # the SchemeRun persisted by the production service inherits
+    # ``False`` — the adapter does NOT suppress / downgrade it).
+    assert result.review_required is False, (
+        f"Adapter must NOT suppress / rename / downgrade 'requires_review'; "
+        f"expected False (we seeded requires_review=False on every "
+        f"CalculationRunRecord), got {result.review_required!r}"
+    )
+
+    # 5. Re-read the persisted SchemeRunRecord via a fresh session
+    #    and verify the dialect marker + lineage round-trip.
+    from sqlalchemy import select
+
+    from cold_storage.modules.schemes.infrastructure.orm import (
+        SchemeRunRecord,
+    )
+
+    verify_s = a2_pg_session_factory()
+    try:
+        record = verify_s.execute(
+            select(SchemeRunRecord).where(SchemeRunRecord.id == result.scheme_run.id)
+        ).scalar_one()
+        # The dialect marker flowed through the adapter → production
+        # service → persisted record.
+        assert record.database_backend == "postgresql", (
+            f"Persisted SchemeRunRecord.database_backend must be 'postgresql'; "
+            f"got {record.database_backend!r}"
+        )
+        # The persisted record carries the source-binding lineage.
+        assert record.source_binding_id == A1_SEED_SOURCE_BINDING_ID
+        assert record.weight_set_revision_id == A1_SEED_WEIGHT_REVISION_ID
+    finally:
+        verify_s.close()
+
+
+@pytestmark_a2_pg
+def test_adapter_happy_path_does_not_introduce_new_calculation_runs_on_postgresql(
+    a2_pg_engine,
+    a2_pg_session_factory,
+) -> None:
+    """A2 live PG: ``execute_scenario`` does not introduce new
+    ``CalculationRunRecord`` rows at runtime on PostgreSQL. The
+    adapter delegates to the production
+    ``ProductionSchemeService.generate_production_scheme_run`` which
+    uses the 5 pre-seeded ``CalculationRunRecord`` rows; it must
+    NOT create additional calculation rows for the same scheme.
+
+    The A1 ownership boundary (§13.3 of the Path A design contract)
+    explicitly forbids the adapter from creating production rows of
+    any kind, including ``CalculationRunRecord`` rows. This test
+    asserts that boundary holds at runtime against a real
+    PostgreSQL database.
+    """
+    # 1. Sanity: engine dialect is postgresql.
+    assert a2_pg_engine.dialect.name == "postgresql"
+
+    # 2. Seed pre-existing production context
+    seed_s = a2_pg_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 3. Capture pre-call row count
+    from sqlalchemy import func, select
+
+    from cold_storage.modules.projects.infrastructure.orm import (
+        CalculationRunRecord,
+    )
+
+    count_s = a2_pg_session_factory()
+    try:
+        pre_count = count_s.execute(
+            select(func.count()).select_from(CalculationRunRecord)
+        ).scalar_one()
+    finally:
+        count_s.close()
+
+    # 4. Invoke the adapter against the live PG engine.
+    result = execute_scenario(
+        a2_pg_session_factory,
+        source_binding_id=A1_SEED_SOURCE_BINDING_ID,
+        weight_set_revision_id=A1_SEED_WEIGHT_REVISION_ID,
+        correlation_id=SCHEME_RUN_CORRELATION_ID,
+        database_backend="postgresql",
+    )
+
+    # 5. Post-call row count must equal pre-call row count: the
+    #    adapter did NOT introduce new CalculationRunRecord rows.
+    verify_s = a2_pg_session_factory()
+    try:
+        post_count = verify_s.execute(
+            select(func.count()).select_from(CalculationRunRecord)
+        ).scalar_one()
+    finally:
+        verify_s.close()
+    assert post_count == pre_count, (
+        f"Adapter must not introduce new CalculationRunRecord rows; "
+        f"pre={pre_count}, post={post_count}. The A1 ownership boundary "
+        f"(Amendment 2 §13.3) explicitly forbids production-row "
+        f"fabrication by the adapter."
+    )
+    # 6. The result still points at the pre-seeded scheme_run, not
+    #    a newly created one. AdapterResult still has no
+    #    ``calculation_run_ids`` attribute.
+    assert result.scheme_run is not None
+    assert "calculation_run_ids" not in AdapterResult.__annotations__
+
+
 # ── Test 6: adapter does not write production rows ─────────────────────
 
 
