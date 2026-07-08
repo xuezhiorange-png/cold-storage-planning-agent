@@ -14,7 +14,7 @@
 - PR #50 (A2 PostgreSQL live happy-path acceptance closure) — closed / merged
 - PR #51 (Path A A1/A2 closeout evidence, docs-only) — closed / merged
 
-> **Mutable-facts discipline (per the project's `Mutable PR-identity trap` pattern, adopted 2026-07-08 on PR #88):** Stable identifiers (PR #, Issue #, base SHA, branch, contract path) are recorded in this file. Mutable facts (current PR head SHA, current CI run id, current branch tip, current PR/Issue state) are **intentionally not frozen in this mutable branch row**; they are re-verified externally during any future review / freeze / amendment authorization round.
+> **Mutable-facts discipline:** Stable identifiers (PR #, Issue #, base SHA, branch, contract path) are recorded in this file. Mutable facts (current PR head SHA, current CI run id, current branch tip, current PR/Issue state) are **intentionally not frozen in this mutable branch row**; they are re-verified externally during any future review / freeze / amendment authorization round.
 
 ---
 
@@ -58,10 +58,10 @@ merge), contains **no** on-disk artifact for TASK-019. Specifically:
 
 Without a written design contract, any "continue TASK-019 Slice 3"
 request would amount to **implementation from memory / verbal handoff**,
-which is explicitly forbidden by the project's governance pattern
-(documented 2026-07-08 on PR #88). The design contract must exist on
-disk before any implementation can be considered, even for an
-adapter-only / validation-report boundary implementation.
+which is explicitly forbidden by the project's governance discipline.
+The design contract must exist on disk before any implementation can be
+considered, even for an adapter-only / validation-report boundary
+implementation.
 
 This document establishes the on-disk contract so that a future
 implementation round has:
