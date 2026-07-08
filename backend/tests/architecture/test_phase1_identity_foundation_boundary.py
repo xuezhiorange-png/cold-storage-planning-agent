@@ -116,6 +116,32 @@ def test_evaluation_does_not_import_phase1_orm() -> None:
         for field in PHASE1_ATTEMPT_FIELDS + PHASE1_SCHEME_FIELDS:
             pattern = rf"\b{re.escape(field)}\b"
             if re.search(pattern, content):
+                # A1-2a narrow carve-out (2026-07-08, Charles):
+                # ``database_backend`` and ``correlation_id`` are
+                # legitimate A1-2a adapter input contract fields
+                # (per Amendment 2 §13.2 of the Path A design
+                # contract). They MUST appear in the adapter
+                # module's code (parameter names, type annotations,
+                # validation logic, command construction, etc.) and
+                # MUST NOT appear in any other evaluation file
+                # (test files, seed helpers, runner, manifest
+                # builders, etc.). The carve-out is path-precise and
+                # token-precise: it does not affect any other
+                # file, any other Phase-1 token, or any forbidden
+                # pattern (raw ORM / production_seeding /
+                # project_input / scenario_id / calculation_run_ids).
+                # ``path`` here is absolute (BACKEND_ROOT is
+                # absolute, so ``rglob`` returns absolute paths).
+                # We compare against the absolute form
+                # ``<BACKEND_ROOT>/src/cold_storage/evaluation/adapter.py``.
+                expected_adapter_path = (
+                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "adapter.py"
+                )
+                if (
+                    path == expected_adapter_path
+                    and field in ("database_backend", "correlation_id")
+                ):
+                    continue
                 # Allow comments (fine)
                 in_comments = sum(
                     1
