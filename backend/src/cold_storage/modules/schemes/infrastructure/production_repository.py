@@ -228,7 +228,29 @@ class SqlAlchemyProductionSchemeRunRepository:
         # (no commit here — the caller's UoW owns the transaction
         # boundary).  When build_archive_callable is None the legacy
         # / test path runs unchanged.
+        #
+        # Phase 4 Issue #35 Slice 2D FK ordering:
+        # ``production_source_archives.scheme_run_id`` carries a
+        # FOREIGN KEY REFERENCES scheme_runs(id) at the PostgreSQL
+        # database level (migration 0034).  SQLAlchemy 2.0's
+        # ``UnitOfWork`` orders pending INSERTs by
+        # ``Mapper.relationships`` (not bare column FKs); the archive
+        # row therefore has no mapper-level dep on ``scheme_runs``
+        # and would otherwise be flushed before ``scheme_runs``,
+        # which PostgreSQL rejects with
+        # ``production_source_archives_scheme_run_id_fkey``
+        # immediately.  SQLite's FK enforcement tolerates intra-
+        # transaction order, so the bug was silently masked in the
+        # SQLite happy path.
+        #
+        # The fix is an explicit intra-transaction ``flush`` that
+        # emits the pending ``scheme_runs`` (and ``scheme_candidates``)
+        # INSERTs to PostgreSQL before the archive row INSERT runs.
+        # ``session.flush()`` does NOT commit; the outer UoW's
+        # ``commit()`` is still the single source of truth.  No
+        # premature commit is introduced.
         if self._build_archive_callable is not None:
+            session.flush()
             self._build_archive_callable(session, persisted)
 
         return persisted

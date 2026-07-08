@@ -490,7 +490,33 @@ class ProductionSourceArchiveRecord(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    scheme_run_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    # Phase 4 Issue #35 Slice 2D ORM↔DB consistency:
+    # PG migration 0034_add_production_source_archives declares a
+    # FOREIGN KEY (scheme_run_id) REFERENCES scheme_runs(id) at the
+    # database level.  The ORM model previously declared the same
+    # column as a plain ``String(36), nullable=False, unique=True``
+    # which left the ORM column declaration inconsistent with the
+    # migration's FK.  Declaring ``ForeignKey("scheme_runs.id")``
+    # here makes the ORM match the live schema and surfaces the
+    # dependency to SQLAlchemy's mapper-level sort.
+    #
+    # Note: SQLAlchemy 2.0's ``UnitOfWork`` orders pending INSERTs
+    # by ``Mapper.relationships`` (not bare column FKs alone), so
+    # for the production path the column-level FK is a **schema
+    # consistency** fix — the actual flush-order enforcement at
+    # flush time is provided by an explicit ``session.flush()``
+    # before the archive-row INSERT inside
+    # ``SqlAlchemyProductionSchemeRunRepository.save_production_run``.
+    # Both changes are append-only and semantics-preserving; no
+    # transaction boundary changes, no premature commit, no
+    # calculator / coefficient / threshold / weight / review-rule
+    # change.
+    scheme_run_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("scheme_runs.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
     source_binding_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     source_contract_version: Mapped[str] = mapped_column(String(50), nullable=False)
     archive_schema_version: Mapped[str] = mapped_column(String(50), nullable=False)
