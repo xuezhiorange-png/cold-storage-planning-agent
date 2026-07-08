@@ -1,6 +1,6 @@
 # Task 11B Path A — A1 / A2 Closeout Evidence
 
-**Status:** DOCS-ONLY CLOSEOUT / NOT YET PUSHED / awaiting Charles authorization for push
+**Status:** DOCS-ONLY CLOSEOUT / BRANCH PUSHED / DRAFT PR #51 OPEN / awaiting Charles Ready+merge authorization
 **Created:** 2026-07-08 (server UTC)
 **Author:** Hermes (post-merge closeout documentation; subject to Charles review)
 **Branch base:** `main @ 560cc5e89e39972d5078fd11fa1a070d411c7b58` (= `origin/main` HEAD post-PR-#50)
@@ -40,8 +40,9 @@ the mutable-docs self-reference discipline adopted 2026-07-08 on PR #88).
 
 All A1 + A2 success criteria are verified on `origin/main` and on the post-merge
 main CI run. The closeout is evidence-ready; this document is the durable
-closeout record. Pushing the docs branch to `origin` is a separate authorization
-decision deferred to Charles.
+closeout record. The docs-only branch has been pushed to `origin`, the Draft
+PR surface is open, and the docs-branch PR CI is green (4/4 jobs). Ready and
+merge remain deferred to Charles.
 
 ---
 
@@ -136,16 +137,35 @@ gives a stable 3-way identity).
 
 ---
 
-## 5. Open decisions deferred to Charles
+## 5. Post-PR facts (post-fixup)
+
+The docs-only branch has been pushed to `origin` and a Draft PR has been
+opened on the GitHub PR surface. The current state is recorded using
+**stable identifiers** (PR #, Issue #, branch, base SHA) and the
+mutable-facts external-verification contract (see §3):
+
+- The docs-only branch `codex/task-11b-path-a-a1-a2-closeout` is on
+  `origin` (3-way verified via local `HEAD`, `origin/<branch>`, and
+  `git ls-remote`).
+- A Draft PR exists on the GitHub PR surface for this branch; its number,
+  current state, current draft flag, and current head SHA are
+  **externally re-verifiable** via REST at the time of any future
+  review / Ready / merge authorization round.
+- The docs-branch PR CI is green (4/4 jobs: `compose-config`,
+  `frontend`, `backend-postgresql`, `backend-sqlite` all `success`);
+  the run id is **not frozen in this mutable branch row**.
+- The PR remains **Draft / Not merged**. Ready and merge remain
+  **deferred to Charles**.
+
+---
+
+## 6. Open decisions deferred to Charles
 
 The following decisions are **out of scope** for this closeout document and
 remain open:
 
-1. Whether to push the `codex/task-11b-path-a-a1-a2-closeout` branch to
-   `origin` (this round did **not** push; awaiting Charles's push
-   authorization).
-2. Whether to open a docs-only follow-up PR (DRAFT) summarizing the A1/A2
-   closeout on the GitHub PR surface.
+1. Whether to **Ready** the Draft PR (currently Draft / not Ready).
+2. Whether to **merge** the Draft PR (Ready is a precondition).
 3. Whether to start the next Task 11B Path A implementation slice
    (e.g., Slice A3, A4) — explicitly **not** launched by this round.
 4. Whether to close the design-ratification row's mutable facts
@@ -155,7 +175,9 @@ remain open:
 
 ---
 
-## 6. Compliance audit (this closeout round)
+## 7. Compliance audit (closeout + fixup rounds)
+
+### 7.1 Closeout round (initial A1/A2 closeout)
 
 - 0 production code mutation ✅
 - 0 tests mutation ✅
@@ -169,12 +191,30 @@ remain open:
 - 0 PR Ready ✅
 - 0 PR merge ✅
 - 0 CI rerun / workflow_dispatch ✅
-- 0 push (awaiting Charles authorization) ✅
+- 0 push in the closeout round (push authorization was granted in the prior round) ✅
+
+### 7.2 Stale mutable-fact fixup round (this round)
+
+- 0 production code mutation ✅
+- 0 tests mutation ✅
+- 0 fixtures / manifest / expected outputs mutation ✅
+- 0 frontend mutation ✅
+- 0 migrations mutation ✅
+- 0 PR #21 mutation ✅
+- 0 Issue #35 mutation ✅
+- 0 PR Ready ✅
+- 0 PR merge ✅
+- 0 PR comment ✅
+- 0 CI rerun / workflow_dispatch ✅
+- 0 amend / rebase / force-push ✅
+- 1 new commit on top of `a967aa94...` (this fixup) ✅
+- 0 next-slice startup ✅
 
 ---
 
-## 7. Change log
+## 8. Change log
 
 | version | date | author | change |
 |---|---|---|---|
 | 1.0 | 2026-07-08 | Hermes | Initial A1/A2 closeout evidence note (post-PR-#49 + PR-#50 merge, post-main-CI-success) |
+| 1.1 | 2026-07-08 | Hermes | Stale mutable-fact fixup: header / §1 / §5 / §6 / §7 updated to reflect branch-pushed + Draft-PR-#51-open + 4/4 green CI; mutable PR head SHA and CI run id remain external-verification (not frozen in this mutable branch row) |
