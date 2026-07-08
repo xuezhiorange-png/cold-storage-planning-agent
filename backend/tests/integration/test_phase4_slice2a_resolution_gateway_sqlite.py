@@ -74,6 +74,9 @@ from cold_storage.modules.coefficients.domain.exceptions import (
     MissingApprovedCoefficientError,
     StartupReadinessError,
 )
+from cold_storage.modules.orchestration.application.ports import (
+    OrchestrationIdentityRepository,
+)
 from cold_storage.modules.orchestration.application.production_source_binding import (
     ProductionSourceBindingUseCase,
 )
@@ -283,6 +286,56 @@ class _NullVerificationReadPort(VerificationReadPort):
         )
 
 
+class _NullIdentityRepository(OrchestrationIdentityRepository):
+    """Identity-port stub for Slice 2A tests.
+
+    Slice 2A's strict-resolver gate runs **before** Transaction A and
+    never reaches the fingerprint read-path.  Slice 2C's
+    :class:`OrchestrationIdentityRepository` port is therefore unused
+    in these tests, but the use case now requires it as an injected
+    dependency (the Phase 3 ``phase3_exceptions`` retirement).  This
+    stub raises if any production source-binding path accidentally
+    reads a fingerprint, mirroring ``_NullVerificationReadPort``'s
+    defensive posture for the verifier port.
+
+    Subclassing the ABC keeps the type-checker honest and ensures
+    the stub satisfies every abstract method (Python does not
+    enforce abstract-method implementation at instantiation time
+    for ``ABC`` subclasses; the methods below are the only calls
+    the use case will ever make on the port).
+    """
+
+    def get_fingerprint(self, *args: Any, **kwargs: Any) -> str:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A tests must raise in the strict gate before any"
+            " fingerprint read;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+    def get_calculator_version_vector(
+        self, *args: Any, **kwargs: Any
+    ) -> dict[str, str]:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A tests must raise in the strict gate before any"
+            " calculator-version-vector read;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+    def get_or_create(self, *args: Any, **kwargs: Any) -> str:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A tests must raise in the strict gate before any"
+            " identity create;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+    def set_authoritative_attempt(self, *args: Any, **kwargs: Any) -> bool:  # pragma: no cover
+        raise AssertionError(
+            "Slice 2A tests must raise in the strict gate before any"
+            " authoritative-attempt write;"
+            f" got args={args!r} kwargs={kwargs!r}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Test 1 — production mode fails closed when no approved rows exist
 # ---------------------------------------------------------------------------
@@ -397,6 +450,7 @@ def test_strict_resolver_rejects_demo_in_production_use_case(engine: Engine) -> 
     use_case = ProductionSourceBindingUseCase(
         service=_StubOrchestrationService(),  # type: ignore[arg-type]
         verification_read_port=_NullVerificationReadPort(),
+        identity_repository=_NullIdentityRepository(),
         coefficient_resolver=resolver,
     )
 
@@ -467,6 +521,7 @@ def test_strict_resolver_rejects_ambiguous_latest_in_production_use_case(
     use_case = ProductionSourceBindingUseCase(
         service=_StubOrchestrationService(),  # type: ignore[arg-type]
         verification_read_port=_NullVerificationReadPort(),
+        identity_repository=_NullIdentityRepository(),
         coefficient_resolver=resolver,
     )
 
@@ -498,6 +553,7 @@ def test_production_use_case_without_resolver_keeps_legacy_p3_behavior(
     use_case = ProductionSourceBindingUseCase(
         service=_StubOrchestrationService(),  # type: ignore[arg-type]
         verification_read_port=_NullVerificationReadPort(),
+        identity_repository=_NullIdentityRepository(),
         coefficient_resolver=None,
     )
     assert use_case._coefficient_resolver is None  # noqa: SLF001 — explicit probe

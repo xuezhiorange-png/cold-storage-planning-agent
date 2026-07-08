@@ -752,6 +752,42 @@ class SqlAlchemyOrchestrationIdentityRepository(OrchestrationIdentityRepository)
             )
         return dict(vector)
 
+    def get_fingerprint(
+        self,
+        session: Session,
+        /,
+        *,
+        identity_id: str,
+    ) -> str:
+        """Return the fingerprint persisted on the identity row.
+
+        Slice 2C of Phase 4 / Issue #35 closes the
+        ``phase3_exceptions`` retirement: this port replaces the
+        application-layer direct ``OrchestrationIdentityRecord`` import
+        that ``ProductionSourceBindingUseCase`` previously used to
+        re-read the fingerprint before Transaction B.  The repository
+        is the only layer that touches the ORM; the application layer
+        receives an opaque string and remains free of SQLAlchemy.
+
+        Returns the empty string (matching the prior
+        ``_load_orchestration_fingerprint`` contract at
+        ``production_source_binding.py`` §3.4) when the identity row
+        is missing so callers can distinguish "no row" from "row
+        present with empty fingerprint" if needed.
+        """
+        from sqlalchemy import select
+
+        from cold_storage.modules.orchestration.infrastructure.orm import (
+            OrchestrationIdentityRecord,
+        )
+
+        record = session.execute(
+            select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
+        ).scalar_one_or_none()
+        if record is None:
+            return ""
+        return record.fingerprint or ""
+
 
 # ── Orchestration Attempt ───────────────────────────────────────────────────
 

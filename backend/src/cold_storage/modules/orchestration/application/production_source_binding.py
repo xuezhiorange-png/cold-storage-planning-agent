@@ -70,8 +70,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import select
-
+# Slice 2C: the application layer no longer imports SQLAlchemy directly.
+# The ``OrchestrationIdentityRecord`` lookup is now hidden behind the
+# :class:`OrchestrationIdentityRepository` port (see ``ports.py``).
 from cold_storage.bootstrap.startup_readiness import (  # noqa: E402
     get_required_stages,
 )
@@ -86,6 +87,16 @@ from cold_storage.modules.coefficients.application.resolver import (  # noqa: E4
 from cold_storage.modules.coefficients.domain.exceptions import (  # noqa: E402
     ApprovedCoefficientGovernanceError,
 )
+
+# Slice 2C: replaces the Phase 3 ``_load_orchestration_fingerprint``
+# direct-import shortcut (see ``phase3_exceptions`` in
+# ``tests/architecture/test_architecture_boundaries.py``).  The
+# concrete repository lives in
+# ``orchestration.infrastructure.repositories``.  Application-layer
+# callers receive the port via ``__init__`` injection.
+from cold_storage.modules.orchestration.application.ports import (
+    OrchestrationIdentityRepository,
+)
 from cold_storage.modules.orchestration.application.service import OrchestrationService
 from cold_storage.modules.orchestration.application.transaction_b import (
     VerificationReadPort,
@@ -93,38 +104,6 @@ from cold_storage.modules.orchestration.application.transaction_b import (
 from cold_storage.modules.orchestration.domain.contracts import (
     OrchestrationRequestCommand,
 )
-
-
-def _load_orchestration_fingerprint(
-    *,
-    session: Any,
-    identity_id: str,
-) -> str:
-    """Read the orchestration fingerprint from the durable identity row.
-
-    The fingerprint is the single source of truth for the
-    orchestrator's ``orchestration_fingerprint`` argument; it is
-    computed once during Transaction A and persisted on the
-    ``OrchestrationIdentityRecord``.  We read it back here so
-    the caller does not have to trust its own memory of the
-    Transaction A computation.
-
-    The read goes through SQLAlchemy Core (``select``) — not
-    through :class:`VerificationReadPort.load_verification_state`
-    — because that helper's 5-CalRun invariant is for the
-    post-Transaction-B verifier, not for the pre-Transaction-B
-    fingerprint lookup.
-    """
-    from cold_storage.modules.orchestration.infrastructure.orm import (
-        OrchestrationIdentityRecord,
-    )
-
-    record = session.execute(
-        select(OrchestrationIdentityRecord).where(OrchestrationIdentityRecord.id == identity_id)
-    ).scalar_one_or_none()
-    if record is None:
-        return ""
-    return record.fingerprint or ""
 
 
 def _decimalize_for_hash(value: object) -> object:
@@ -198,10 +177,12 @@ class ProductionSourceBindingUseCase:
         *,
         service: OrchestrationService,
         verification_read_port: VerificationReadPort,
+        identity_repository: OrchestrationIdentityRepository,
         coefficient_resolver: ApprovedCoefficientResolver | None = None,
     ) -> None:
         self._service = service
         self._verification_read_port = verification_read_port
+        self._identity_repository = identity_repository
         self._coefficient_resolver = coefficient_resolver
 
     def run(
@@ -276,10 +257,16 @@ class ProductionSourceBindingUseCase:
         # because that helper's fail-closed 5-CalRun invariant
         # is meant for the post-Transaction-B verifier, not for
         # pre-Transaction-B fingerprint lookup.  The fingerprint
-        # is read directly from the
-        # ``OrchestrationIdentityRecord`` row.
-        fingerprint = _load_orchestration_fingerprint(
-            session=session,
+        # is read through the
+        # :class:`OrchestrationIdentityRepository` port (Slice 2C
+        # closes the Phase 3 ``phase3_exceptions`` retirement —
+        # see ``tests/architecture/test_architecture_boundaries.py``).
+        # The ``session`` is positional-only (mirrors the concrete
+        # repository's ``Session, /`` convention) so passing it as
+        # the first positional argument keeps the abstract method
+        # signature aligned with the SQLAlchemy implementation.
+        fingerprint = self._identity_repository.get_fingerprint(
+            session,
             identity_id=accepted.identity_id,
         )
         if not fingerprint:

@@ -256,6 +256,29 @@ class OrchestrationIdentityRepository(ABC):
         """Return the calculator version vector for an identity."""
         ...
 
+    @abstractmethod
+    def get_fingerprint(
+        self,
+        session: Any,
+        /,
+        *,
+        identity_id: str,
+    ) -> str:
+        """Return the orchestration fingerprint persisted on the identity row.
+
+        Returns the ``fingerprint`` column value when the
+        ``OrchestrationIdentityRecord`` row exists, otherwise the empty
+        string.  Slice 2C of Phase 4 / Issue #35 promotes the
+        fingerprint read-path off the application-layer direct-import
+        shortcut (Phase 3 ``phase3_exceptions``) and onto this port.
+        The application layer (``ProductionSourceBindingUseCase``)
+        receives the port by injection; the SQLAlchemy concrete
+        repository implements the read against
+        ``OrchestrationIdentityRecord`` without exposing the ORM model
+        to callers.
+        """
+        ...
+
 
 class OrchestrationAttemptRepository(ABC):
     """Read/write ``OrchestrationRunAttemptRecord`` rows."""
