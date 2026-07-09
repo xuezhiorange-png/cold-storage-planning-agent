@@ -13,7 +13,7 @@
 - PR #52 (`Task 019 Slice 3 validation adapter design contract`) — `closed / merged` / merge commit `e237a9a14288a554b0043be4117bd818794d4b63` / merged at `2026-07-08T23:58:56Z`
 - Post-merge main CI run `28984086570` (run_number 1071) — `completed / success / 4/4 jobs green`
 
-> **Mutable-facts discipline:** Stable identifiers (PR #, Issue #, base SHA, branch, contract path) are recorded in this file. Mutable facts (current PR head SHA, current CI run id, current branch tip, current PR/Issue state) are **intentionally not frozen in this mutable branch row**; they are re-verified externally during any future review / freeze / amendment authorization round. The same discipline was adopted in the source design contract (PR #52, `docs/tasks/TASK-019-slice-3-validation-adapter-contract.md`) under the heading "Mutable PR-identity trap".
+> **Mutable-facts discipline:** Stable identifiers (PR #, Issue #, base SHA, branch, contract path) are recorded in this file. Mutable facts (current PR head SHA, current CI run id, current branch tip, current PR/Issue state) are **intentionally not frozen in this mutable branch row**; they are re-verified externally during any future review / freeze / amendment authorization round. The same discipline was adopted in the source design contract (PR #52, `docs/tasks/TASK-019-slice-3-validation-adapter-contract.md`) as a "Mutable-facts discipline" callout.
 
 ---
 
