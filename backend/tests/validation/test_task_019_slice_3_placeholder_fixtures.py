@@ -39,7 +39,6 @@ from ._task_019_slice_3_placeholder_fixtures import (
     iter_cases,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shape-level invariants
 # ---------------------------------------------------------------------------
@@ -60,8 +59,7 @@ def test_case_id_uniqueness() -> None:
 def test_minimum_case_count() -> None:
     """The fixture contract requires at least 3 placeholder cases."""
     assert len(TASK_019_SLICE_3_PLACEHOLDER_CASES) >= 3, (
-        f"expected at least 3 placeholder cases; "
-        f"got {len(TASK_019_SLICE_3_PLACEHOLDER_CASES)}"
+        f"expected at least 3 placeholder cases; got {len(TASK_019_SLICE_3_PLACEHOLDER_CASES)}"
     )
 
 

@@ -34,12 +34,8 @@ from __future__ import annotations
 
 # The single source of truth for the fixture contract: the design contract
 # (PR #52 / merge commit e237a9a14288a554b0043be4117bd818794d4b63).
-_SOURCE_CONTRACT_PATH = (
-    "docs/tasks/TASK-019-slice-3-validation-adapter-contract.md"
-)
-_FIXTURE_CONTRACT_PATH = (
-    "docs/tasks/TASK-019-slice-3a-placeholder-fixture-contract.md"
-)
+_SOURCE_CONTRACT_PATH = "docs/tasks/TASK-019-slice-3-validation-adapter-contract.md"
+_FIXTURE_CONTRACT_PATH = "docs/tasks/TASK-019-slice-3a-placeholder-fixture-contract.md"
 
 # Status closed set, per the source contract §5. Kept in sync with the
 # design contract; fixture cases reference these strings only.
