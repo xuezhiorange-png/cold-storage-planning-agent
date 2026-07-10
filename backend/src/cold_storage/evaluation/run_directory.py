@@ -135,8 +135,8 @@ def execute_in_run_directory(
     *,
     source_binding_id: str,
     weight_set_revision_id: str,
-    correlation_id: str,
-    database_backend: str,
+    correlation_marker: str,
+    backend_marker: str,
     scenario_id: str,
     run_root: Path,
 ) -> ScenarioOutcome:
@@ -158,7 +158,7 @@ def execute_in_run_directory(
     Parameters
     ----------
     session_factory, source_binding_id, weight_set_revision_id,
-    correlation_id, database_backend:
+    correlation_marker, backend_marker:
         Forwarded to :func:`run_scenario` unchanged.
     scenario_id:
         The evaluation scenario identifier. Must match the canonical
@@ -190,8 +190,8 @@ def execute_in_run_directory(
             session_factory,
             source_binding_id=source_binding_id,
             weight_set_revision_id=weight_set_revision_id,
-            correlation_id=correlation_id,
-            database_backend=database_backend,
+            correlation_marker=correlation_marker,
+            backend_marker=backend_marker,
         )
     except EvaluationRunnerError:
         # Runner-typed errors propagate unchanged; do NOT wrap them.

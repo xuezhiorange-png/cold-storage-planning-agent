@@ -106,67 +106,10 @@ def test_evaluation_does_not_import_phase1_orm() -> None:
     files = _all_python_files(EVALUATION_DIR)
     for path in files:
         content = path.read_text()
-        # Direct ORM imports must not reference Phase 1 fields.
-        # We exclude the module docstring (descriptive references to
-        # ``production_seeding`` in the FORBIDDEN-paths discussion
-        # are permitted; the same pattern as PR #49's
-        # ``test_evaluation_does_not_import_phase1_orm``).
-        import ast as _ast
-
-        def _strip_all_docstrings(s: str) -> str:
-            """Remove all docstring ranges from the source.
-
-            The forbidden-pattern checks below want to assert on
-            CODE references to ``production_seeding`` / ``phase1``;
-            descriptive mentions in any docstring (module, class,
-            function) are permitted per the architecture test's
-            intent.
-            """
-            try:
-                tree = _ast.parse(s)
-            except SyntaxError:
-                return s
-            docstring_ranges: list[tuple[int, int]] = []
-
-            def _maybe_docstring(stmt):
-                return (
-                    isinstance(stmt, _ast.Expr)
-                    and isinstance(stmt.value, _ast.Constant)
-                    and isinstance(stmt.value.value, str)
-                )
-
-            def _walk(node):
-                if hasattr(node, "body") and isinstance(getattr(node, "body", None), list):
-                    body = node.body
-                    if body and _maybe_docstring(body[0]):
-                        first = body[0]
-                        end = getattr(first, "end_lineno", first.lineno)
-                        docstring_ranges.append((first.lineno, end))
-                for child in _ast.iter_child_nodes(node):
-                    _walk(child)
-
-            for stmt in tree.body:
-                _walk(stmt)
-                if _maybe_docstring(stmt):
-                    end = getattr(stmt, "end_lineno", stmt.lineno)
-                    docstring_ranges.append((stmt.lineno, end))
-            if not docstring_ranges:
-                return s
-            lines = s.splitlines(keepends=True)
-            kept: list[str] = []
-            current = 1
-            for start, end in sorted(docstring_ranges):
-                if start < 1 or start > len(lines):
-                    continue
-                kept.extend(lines[current - 1 : start - 1])
-                current = end + 1
-            kept.extend(lines[current - 1 :])
-            return "".join(kept)
-
-        code_only = _strip_all_docstrings(content)
+        # Direct ORM imports must not reference Phase 1 fields
         for forbidden in ("production_seeding", "phase1"):
-            assert forbidden not in code_only, (
-                f"Evaluation file (code only) references Phase 1 helper '{forbidden}': {path}"
+            assert forbidden not in content, (
+                f"Evaluation file references Phase 1 helper '{forbidden}': {path}"
             )
         # No raw insert / raw select into orchestration_run_attempts
         # with Phase 1 fields appearing in evaluate.py.
@@ -195,34 +138,6 @@ def test_evaluation_does_not_import_phase1_orm() -> None:
                     BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "adapter.py"
                 )
                 if path == expected_adapter_path and field in (
-                    "database_backend",
-                    "correlation_id",
-                ):
-                    continue
-                # A1.5 implementation slice narrow carve-out:
-                # ``execute.py`` / ``errors.py`` / ``run_directory.py``
-                # / ``cli.py`` / ``__init__.py`` MAY carry ``database_backend``
-                # and ``correlation_id`` because the A1.5 runner is
-                # a thin wrapper around ``compose_production_scheme_service``
-                # that forwards the same A1-2a input contract fields to
-                # the production ``GenerateProductionSchemeCommand``.
-                # The runner does NOT bypass production pathways; it
-                # only validates the input contract and maps the
-                # production-side ``SchemeRun`` outcome to a typed
-                # ``Outcome`` literal. Per pre-freeze §1.3 #1 the
-                # runner surface is the same A1-2a input contract.
-                # The carve-out is path-precise (only the 5 A1.5
-                # evaluation-layer modules) and token-precise (only
-                # ``database_backend`` and ``correlation_id``).
-                a15_runner_path_set = {
-                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "adapter.py",
-                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "execute.py",
-                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "errors.py",
-                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "run_directory.py",
-                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "cli.py",
-                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "__init__.py",
-                }
-                if path in a15_runner_path_set and field in (
                     "database_backend",
                     "correlation_id",
                 ):
@@ -293,29 +208,7 @@ def test_evaluation_tests_do_not_construct_phase1_records() -> None:
         # still apply to the helper.
         expected_seed_helper_path = BACKEND_ROOT / "tests" / "evaluation" / "_seed_helpers.py"
         is_a1_seed_helper = path == expected_seed_helper_path
-        # A1.5 implementation slice narrow carve-out: the runner
-        # acceptance tests (``test_sqlite_acceptance.py`` and
-        # ``test_postgresql_acceptance.py``) import
-        # ``OrchestrationRunAttemptRecord`` (and related
-        # orchestration-row ORM classes) READ-ONLY to assert that
-        # the runner did NOT mutate the pre-existing production
-        # state. They never ``session.add(...)`` these row types;
-        # the runner itself only forwards FK references to
-        # production, and the assertion checks non-mutation of the
-        # pre-existing row's status / authoritative_attempt_id /
-        # content_hash. The carve-out is path-precise (only the
-        # 2 A1.5 acceptance suites) and use-bound (read-only
-        # assertions; no fabrication).
-        expected_a15_acceptance_paths = {
-            BACKEND_ROOT / "tests" / "evaluation" / "test_sqlite_acceptance.py",
-            BACKEND_ROOT / "tests" / "evaluation" / "test_postgresql_acceptance.py",
-        }
-        is_a15_acceptance_test = path in expected_a15_acceptance_paths
-        if (
-            "OrchestrationRunAttemptRecord" in content
-            and not is_a1_seed_helper
-            and not is_a15_acceptance_test
-        ):
+        if "OrchestrationRunAttemptRecord" in content and not is_a1_seed_helper:
             raise AssertionError(
                 f"Evaluation test imports OrchestrationRunAttemptRecord "
                 f"(Phase 1 contract: evaluation must NOT bypass "

@@ -66,12 +66,17 @@ def _run_cli(*args: str, env: dict[str, str] | None = None) -> subprocess.Comple
     full_env = os.environ.copy()
     if env:
         full_env.update(env)
+    # Ensure the cold_storage package (under src/) is importable for the
+    # subprocess; pyproject.toml's pythonpath is honored by pytest but
+    # not by raw ``python -m`` invocations.
+    cli_cwd = "/tmp/task-011b-pr60-correction/backend"
+    full_env["PYTHONPATH"] = cli_cwd + "/src" + os.pathsep + full_env.get("PYTHONPATH", "")
     return subprocess.run(
         [PYTHON_BIN, "-m", "cold_storage.evaluation.cli", *args],
         capture_output=True,
         text=True,
         env=full_env,
-        cwd="/root/cold-storage-planning-agent/backend",
+        cwd=cli_cwd,
     )
 
 
@@ -90,7 +95,7 @@ def test_cli_missing_required_arg_exits_with_code_2() -> None:
 # ── Test 2 — illegal database_backend → InvalidEvaluationScenarioError ───
 
 
-def test_cli_illegal_database_backend_exits_with_code_2() -> None:
+def test_cli_illegal_backend_marker_exits_with_code_2() -> None:
     """The CLI rejects illegal ``database_backend`` values at the input boundary.
 
     argparse's ``choices=("sqlite", "postgresql")`` rejects the value
@@ -102,8 +107,8 @@ def test_cli_illegal_database_backend_exits_with_code_2() -> None:
         "--session-factory-url", "sqlite:///:memory:",
         "--source-binding-id", SOURCE_BINDING_ID,
         "--weight-set-revision-id", WEIGHT_REVISION_ID,
-        "--correlation-id", "test-cli-001",
-        "--database-backend", "mysql",
+        "--correlation-marker", "test-cli-001",
+        "--backend-marker", "mysql",
         "--scenario-id", "baseline-feasible",
     )
     assert result.returncode == 2, (
@@ -121,8 +126,8 @@ def test_cli_empty_source_binding_id_exits_with_code_2() -> None:
         "--session-factory-url", "sqlite:///:memory:",
         "--source-binding-id", "",
         "--weight-set-revision-id", WEIGHT_REVISION_ID,
-        "--correlation-id", "test-cli-001",
-        "--database-backend", "sqlite",
+        "--correlation-marker", "test-cli-001",
+        "--backend-marker", "sqlite",
         "--scenario-id", "baseline-feasible",
     )
     assert result.returncode == 2, (
@@ -140,8 +145,8 @@ def test_cli_illegal_scenario_id_exits_with_code_2() -> None:
         "--session-factory-url", "sqlite:///:memory:",
         "--source-binding-id", SOURCE_BINDING_ID,
         "--weight-set-revision-id", WEIGHT_REVISION_ID,
-        "--correlation-id", "test-cli-001",
-        "--database-backend", "sqlite",
+        "--correlation-marker", "test-cli-001",
+        "--backend-marker", "sqlite",
         "--scenario-id", "../etc/passwd",
     )
     assert result.returncode == 2, (
@@ -159,8 +164,8 @@ def test_cli_dry_run_exits_with_code_0() -> None:
         "--session-factory-url", "sqlite:///:memory:",
         "--source-binding-id", SOURCE_BINDING_ID,
         "--weight-set-revision-id", WEIGHT_REVISION_ID,
-        "--correlation-id", "test-cli-001",
-        "--database-backend", "sqlite",
+        "--correlation-marker", "test-cli-001",
+        "--backend-marker", "sqlite",
         "--scenario-id", "baseline-feasible",
         "--run-root", "/tmp/a15-test-run-root",
         "--dry-run",
@@ -203,8 +208,8 @@ def test_cli_happy_path_on_sqlite_exits_with_code_0(
         "--session-factory-url", db_url_str,
         "--source-binding-id", SOURCE_BINDING_ID,
         "--weight-set-revision-id", WEIGHT_REVISION_ID,
-        "--correlation-id", "test-cli-baseline-001",
-        "--database-backend", "sqlite",
+        "--correlation-marker", "test-cli-baseline-001",
+        "--backend-marker", "sqlite",
         "--scenario-id", "baseline-feasible",
         "--run-root", "/tmp/a15-test-cli-run-root",
     )
@@ -232,8 +237,8 @@ def test_cli_prints_typed_error_code_not_message_text() -> None:
         "--session-factory-url", "sqlite:///:memory:",
         "--source-binding-id", "",
         "--weight-set-revision-id", WEIGHT_REVISION_ID,
-        "--correlation-id", "test-cli-001",
-        "--database-backend", "sqlite",
+        "--correlation-marker", "test-cli-001",
+        "--backend-marker", "sqlite",
         "--scenario-id", "baseline-feasible",
     )
     assert "runner_error_code=INVALID_EVALUATION_SCENARIO" in result.stderr

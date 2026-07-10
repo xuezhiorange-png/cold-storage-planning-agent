@@ -13,7 +13,7 @@ MUST NOT print them as plain text on stderr — downstream automation
 inspects ``$?``):
 
 - ``0`` — the runner produced a ``SchemeRun`` with
-  ``scheme_status='SUCCEEDED'``. The CLI prints the runner-side
+  ``scheme_status='completed'``. The CLI prints the runner-side
   ``outcome`` (``SUCCEEDED``) on stdout as a single line.
 - ``2`` — input contract violation (:class:`InvalidEvaluationScenarioError`).
   The CLI prints the runner-side error ``code`` on stderr.
@@ -43,7 +43,7 @@ Forbidden behaviors
   :data:`cold_storage.evaluation.execute.HISTORICAL_BLOCKED_UPSTREAM_CODES`.
 - DO NOT parse exception message text to determine the exit code
   (pre-freeze §1.5 / Phase 4 §9 forbidden-pattern list).
-- DO NOT restore ``production_seeding.py``.
+- DO NOT bypass the production entry point that the adapter exposes.
 - DO NOT bypass ``compose_production_scheme_service``.
 
 CLI argument contract
@@ -55,8 +55,8 @@ CLI argument contract
         --session-factory-url <url> \\
         --source-binding-id <id> \\
         --weight-set-revision-id <id> \\
-        --correlation-id <id> \\
-        --database-backend <sqlite|postgresql> \\
+        --correlation-marker <id> \\
+        --backend-marker <sqlite|postgresql> \\
         --scenario-id <id> \\
         [--run-root <path>] \\
         [--dry-run]
@@ -84,7 +84,6 @@ from cold_storage.evaluation.errors import (
     EvaluationRunnerError,
     InvalidEvaluationScenarioError,
     PhaseBBlockedError,
-    is_evaluation_runner_error,
 )
 from cold_storage.evaluation.execute import (
     HISTORICAL_BLOCKED_UPSTREAM_CODES,
@@ -112,7 +111,7 @@ def _print_outcome(outcome: ScenarioOutcome, *, file: Any = sys.stdout) -> None:
     """Print the runner-side outcome as a single machine-readable line.
 
     Format: ``<outcome> source_binding_id=<id> weight_set_revision_id=<id>
-    database_backend=<backend> run_id=<id>``.
+    backend_marker=<backend> run_id=<id>``.
 
     Downstream automation parses this line by splitting on whitespace;
     human readers can read it directly. The CLI does NOT print any
@@ -123,7 +122,7 @@ def _print_outcome(outcome: ScenarioOutcome, *, file: Any = sys.stdout) -> None:
         f"{outcome.outcome} "
         f"source_binding_id={outcome.source_binding_id} "
         f"weight_set_revision_id={outcome.weight_set_revision_id} "
-        f"database_backend={outcome.database_backend} "
+        f"backend_marker={outcome.backend_marker} "
         f"run_id={outcome.scheme_run.id}"
     )
     print(line, file=file)
@@ -146,8 +145,8 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="cold-storage-evaluation-run",
         description=(
             "Task 11B Phase B Path A evaluation runner CLI. "
-            "Delegates to compose_production_scheme_service(session_factory) "
-            "via the evaluation runner."
+            "Delegates to the A1-2a adapter's marker entry point, "
+            "which in turn calls the production scheme service."
         ),
     )
     parser.add_argument(
@@ -174,20 +173,20 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--correlation-id",
+        "--correlation-marker",
         required=True,
         help=(
-            "Mandatory NOT-NULL correlation id for the produced "
-            "orchestration_run_attempts row."
+            "Mandatory NOT-NULL correlation marker forwarded to the "
+            "production entry point."
         ),
     )
     parser.add_argument(
-        "--database-backend",
+        "--backend-marker",
         required=True,
         choices=("sqlite", "postgresql"),
         help=(
-            "Mandatory NOT-NULL database backend marker. Must match "
-            "the ck_scheme_run_database_backend check constraint."
+            "Mandatory NOT-NULL backend marker. Must match the "
+            "backend check constraint enforced by production."
         ),
     )
     parser.add_argument(
@@ -226,7 +225,7 @@ def _build_session_factory(url: str) -> Callable[[], Any]:
     constructs a thin ``sessionmaker`` via SQLAlchemy's
     ``create_engine`` factory (the canonical Phase 4 + Path A
     pattern). The session_factory is the canonical composition root
-    for :func:`compose_production_scheme_service`.
+    for the production scheme service.
     """
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
@@ -282,8 +281,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             session_factory,
             source_binding_id=args.source_binding_id,
             weight_set_revision_id=args.weight_set_revision_id,
-            correlation_id=args.correlation_id,
-            database_backend=args.database_backend,
+            correlation_marker=args.correlation_marker,
+            backend_marker=args.backend_marker,
             scenario_id=args.scenario_id,
             run_root=args.run_root,
         )
@@ -307,14 +306,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         # available; otherwise print the exception ``type.__name__``.
         # NEVER print the exception ``str(args)`` for downstream
         # classification (forbidden-pattern list).
-        if isinstance(exc, EvaluationRunnerError):
-            _print_error_code(exc)
+        upstream_code = getattr(exc, "code", None)
+        if isinstance(upstream_code, str) and upstream_code:
+            print(f"runner_error_code={upstream_code}", file=sys.stderr)
         else:
-            upstream_code = getattr(exc, "code", None)
-            if isinstance(upstream_code, str) and upstream_code:
-                print(f"runner_error_code={upstream_code}", file=sys.stderr)
-            else:
-                print(f"runner_error_code={type(exc).__name__}", file=sys.stderr)
+            print(f"runner_error_code={type(exc).__name__}", file=sys.stderr)
         return EXIT_PRODUCTION_ERROR
 
     _print_outcome(outcome)

@@ -60,15 +60,17 @@ pytest_plugins = ["tests.evaluation._seed_helpers"]
 from sqlalchemy import func, select  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
-from cold_storage.evaluation import (  # noqa: E402
+from cold_storage.evaluation.errors import (  # noqa: E402
     InvalidEvaluationScenarioError,
+    PhaseBBlockedError,
+)
+from cold_storage.evaluation.execute import (  # noqa: E402
     ScenarioOutcome,
     run_scenario,
 )
 from cold_storage.modules.orchestration.infrastructure.orm import (  # noqa: E402
     CoefficientContextRecord,
     OrchestrationIdentityRecord,
-    OrchestrationRunAttemptRecord,
     ProjectVersionExecutionSnapshotRecord,
     SourceBindingRecord,
 )
@@ -113,13 +115,13 @@ def test_baseline_feasible_succeeds_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
 
     assert isinstance(result, ScenarioOutcome)
     assert result.outcome == "SUCCEEDED"
-    assert result.database_backend == "postgresql"
+    assert result.backend_marker == "postgresql"
     assert result.source_binding_id == SOURCE_BINDING_ID
     assert result.phase_b_blocked is False
 
@@ -143,8 +145,8 @@ def test_baseline_feasible_scheme_run_persisted_with_succeeded_status_on_postgre
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
 
     verify_s = a2_pg_session_factory()
@@ -175,8 +177,8 @@ def test_baseline_feasible_combined_source_hash_round_trip_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
 
     verify_s = a2_pg_session_factory()
@@ -207,8 +209,8 @@ def test_baseline_feasible_does_not_introduce_demo_coefficients_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
     assert result.outcome == "SUCCEEDED"
 
@@ -255,8 +257,8 @@ def test_baseline_feasible_does_not_introduce_latest_row_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
 
     post_count_s = a2_pg_session_factory()
@@ -301,8 +303,8 @@ def test_baseline_feasible_orchestration_identity_unchanged_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
 
     post_s = a2_pg_session_factory()
@@ -352,8 +354,8 @@ def test_baseline_feasible_orchestration_context_unchanged_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
 
     post_s = a2_pg_session_factory()
@@ -391,11 +393,11 @@ def test_high_throughput_review_succeeds_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=HIGH_THROUGHPUT_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=HIGH_THROUGHPUT_CORRELATION_ID,
+        backend_marker="postgresql",
     )
     assert result.outcome == "SUCCEEDED"
-    assert result.database_backend == "postgresql"
+    assert result.backend_marker == "postgresql"
 
 
 # ── Test 9 — runner does NOT raise PhaseBBlockedError on PG happy path ──
@@ -405,7 +407,7 @@ def test_runner_does_not_raise_phase_b_blocked_on_postgresql_happy_path(
     a2_pg_engine: Any, a2_pg_session_factory: Any
 ) -> None:
     """Pre-freeze §8 #12 invariant holds on PG."""
-    from cold_storage.evaluation import PhaseBBlockedError
+    from cold_storage.evaluation.errors import PhaseBBlockedError
 
     seed_s = a2_pg_session_factory()
     try:
@@ -418,8 +420,8 @@ def test_runner_does_not_raise_phase_b_blocked_on_postgresql_happy_path(
             a2_pg_session_factory,
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id=BASELINE_CORRELATION_ID,
-            database_backend="postgresql",
+            correlation_marker=BASELINE_CORRELATION_ID,
+            backend_marker="postgresql",
         )
     except PhaseBBlockedError as exc:
         raise AssertionError(
@@ -459,8 +461,8 @@ def test_runner_does_not_mutate_source_binding_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="postgresql",
     )
 
     post_s = a2_pg_session_factory()

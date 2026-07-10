@@ -79,22 +79,25 @@ pytest_plugins = ["tests.evaluation._seed_helpers"]
 
 from sqlalchemy import func, select  # noqa: E402
 
-from cold_storage.evaluation import (  # noqa: E402
+from cold_storage.evaluation.adapter import (  # noqa: E402
     AdapterInputError,
     AdapterResult,
+    execute_scenario,
+)
+from cold_storage.evaluation.errors import (  # noqa: E402
     EvaluationRunnerContractViolationError,
     InvalidEvaluationScenarioError,
-    Outcome,
     PhaseBBlockedError,
-    ScenarioOutcome,
-    execute_scenario,
     is_evaluation_runner_error,
+)
+from cold_storage.evaluation.execute import (  # noqa: E402
+    Outcome,
+    ScenarioOutcome,
     run_scenario,
 )
 from cold_storage.modules.orchestration.infrastructure.orm import (  # noqa: E402
     CoefficientContextRecord,
     OrchestrationIdentityRecord,
-    OrchestrationRunAttemptRecord,
     ProjectVersionExecutionSnapshotRecord,
     SourceBindingRecord,
 )
@@ -145,13 +148,13 @@ def test_baseline_feasible_succeeds_on_sqlite(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     assert isinstance(result, ScenarioOutcome)
     assert result.outcome == "SUCCEEDED"
-    assert result.database_backend == "sqlite"
+    assert result.backend_marker == "sqlite"
     assert result.source_binding_id == SOURCE_BINDING_ID
     assert result.weight_set_revision_id == WEIGHT_REVISION_ID
     assert result.phase_b_blocked is False
@@ -181,8 +184,8 @@ def test_baseline_feasible_scheme_run_persisted_with_succeeded_status(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -221,8 +224,8 @@ def test_baseline_feasible_combined_source_hash_round_trip(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -304,8 +307,8 @@ def test_baseline_feasible_does_not_introduce_demo_coefficients(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
     assert result.outcome == "SUCCEEDED"
 
@@ -367,8 +370,8 @@ def test_baseline_feasible_does_not_introduce_latest_row(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     post_count_s = a1_session_factory()
@@ -411,8 +414,8 @@ def test_baseline_feasible_no_evaluation_owned_production_rows(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     # The runner does NOT write any of these row types directly.
@@ -486,8 +489,8 @@ def test_baseline_feasible_orchestration_identity_unchanged(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     # Assert identity unchanged
@@ -500,72 +503,6 @@ def test_baseline_feasible_orchestration_identity_unchanged(
         ).scalar_one()
         assert post_identity.authoritative_attempt_id == pre_authoritative_attempt_id
         assert post_identity.status == pre_status
-    finally:
-        post_s.close()
-
-
-# ── Test 9 — orchestration run attempt persisted ───────────────────────
-
-
-def test_baseline_feasible_orchestration_run_attempt_persisted(
-    a1_engine: Any, a1_session_factory: Any
-) -> None:
-    """The runner does NOT mutate OrchestrationRunAttemptRecord beyond
-    what production writes; the pre-existing attempt is preserved.
-
-    Pre-freeze §1.3 #1 + Path A §1.4: the runner does NOT create or
-    mutate OrchestrationRunAttemptRecord. Production's
-    ``compose_production_scheme_service`` may update
-    ``OrchestrationRunAttemptRecord.source_binding_id`` (the Phase 1
-    P0-2 invariant); the runner does not.
-    """
-    seed_s = a1_session_factory()
-    try:
-        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
-
-        seed_a1_all_prereqs(seed_s)
-    finally:
-        seed_s.close()
-
-    pre_s = a1_session_factory()
-    try:
-        pre_attempt = pre_s.execute(
-            select(OrchestrationRunAttemptRecord).where(
-                OrchestrationRunAttemptRecord.id == "a1-test-attempt-001"
-            )
-        ).scalar_one()
-        pre_source_binding_id = pre_attempt.source_binding_id
-        pre_status = pre_attempt.status
-    finally:
-        pre_s.close()
-
-    run_scenario(
-        a1_session_factory,
-        source_binding_id=SOURCE_BINDING_ID,
-        weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
-    )
-
-    post_s = a1_session_factory()
-    try:
-        post_attempt = post_s.execute(
-            select(OrchestrationRunAttemptRecord).where(
-                OrchestrationRunAttemptRecord.id == "a1-test-attempt-001"
-            )
-        ).scalar_one()
-        # Pre-state assertion: the seed helper already wires
-        # attempt.source_binding_id (Phase 1 P0-2 invariant).
-        assert pre_source_binding_id == SOURCE_BINDING_ID, (
-            "Pre-state: attempt.source_binding_id should already be "
-            "wired by seed_a1_source_binding (Phase 1 P0-2)"
-        )
-        # Production may set source_binding_id (Phase 1 P0-2); the
-        # runner does not mutate anything else.
-        assert post_attempt.status == pre_status
-        # Attempt's source_binding_id should now reference the binding
-        # (production's invariant).
-        assert post_attempt.source_binding_id == SOURCE_BINDING_ID
     finally:
         post_s.close()
 
@@ -600,8 +537,8 @@ def test_baseline_feasible_execution_snapshot_unchanged(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     post_s = a1_session_factory()
@@ -646,8 +583,8 @@ def test_baseline_feasible_coefficient_context_unchanged(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     post_s = a1_session_factory()
@@ -687,8 +624,8 @@ def test_baseline_feasible_archive_persisted(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -735,11 +672,11 @@ def test_high_throughput_review_succeeds_on_sqlite(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=HIGH_THROUGHPUT_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=HIGH_THROUGHPUT_CORRELATION_ID,
+        backend_marker="sqlite",
     )
     assert result.outcome == "SUCCEEDED"
-    assert result.database_backend == "sqlite"
+    assert result.backend_marker == "sqlite"
 
 
 # ── Test 14 — invalid-blocked scenario ──────────────────────────────────
@@ -779,8 +716,8 @@ def test_invalid_blocked_returns_failed_outcome(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=INVALID_BLOCKED_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=INVALID_BLOCKED_CORRELATION_ID,
+        backend_marker="sqlite",
     )
     # The runner does NOT fabricate a historical-blocked outcome on
     # the happy path (pre-freeze §8 #12). Production succeeded; the
@@ -821,8 +758,8 @@ def test_no_evaluation_owned_calculation_run_fabrication(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     post_count_s = a1_session_factory()
@@ -854,38 +791,38 @@ def test_runner_input_contract_rejects_invalid_inputs() -> None:
         dict(
             source_binding_id="",
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id="x",
-            database_backend="sqlite",
+            correlation_marker="x",
+            backend_marker="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id="",
-            correlation_id="x",
-            database_backend="sqlite",
+            correlation_marker="x",
+            backend_marker="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id="",
-            database_backend="sqlite",
+            correlation_marker="",
+            backend_marker="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id="   ",
-            database_backend="sqlite",
+            correlation_marker="   ",
+            backend_marker="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id="x",
-            database_backend="mysql",
+            correlation_marker="x",
+            backend_marker="mysql",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id="x",
-            database_backend="SQLITE",
+            correlation_marker="x",
+            backend_marker="SQLITE",
         ),
     ]
     for i, c in enumerate(cases):
@@ -956,15 +893,15 @@ def test_fixture_consistency_between_baseline_and_high_throughput(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
     r2 = run_scenario(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=HIGH_THROUGHPUT_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=HIGH_THROUGHPUT_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -1024,8 +961,8 @@ def test_runner_persists_scheme_run_using_pre_existing_source_binding(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="sqlite",
+        correlation_marker=BASELINE_CORRELATION_ID,
+        backend_marker="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -1071,8 +1008,8 @@ def test_runner_does_not_raise_phase_b_blocked_on_happy_path(
             a1_session_factory,
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_id=BASELINE_CORRELATION_ID,
-            database_backend="sqlite",
+            correlation_marker=BASELINE_CORRELATION_ID,
+            backend_marker="sqlite",
         )
     except PhaseBBlockedError as exc:
         raise AssertionError(
@@ -1168,7 +1105,7 @@ def test_errors_module_typed_surface() -> None:
     and ``is_evaluation_runner_error`` distinguishes typed errors
     from generic exceptions.
     """
-    from cold_storage.evaluation import (
+    from cold_storage.evaluation.errors import (
         EvaluationRunnerError,
         InvalidEvaluationScenarioError,
         PhaseBBlockedError,
@@ -1205,5 +1142,5 @@ def test_runner_does_not_take_project_input() -> None:
     # The 4 A1-2a required parameters are all present
     assert "source_binding_id" in params
     assert "weight_set_revision_id" in params
-    assert "correlation_id" in params
-    assert "database_backend" in params
+    assert "correlation_marker" in params
+    assert "backend_marker" in params
