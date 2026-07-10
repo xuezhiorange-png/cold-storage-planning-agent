@@ -49,7 +49,7 @@ from cold_storage.evaluation.errors import (
     EvaluationRunnerError,
     InvalidEvaluationScenarioError,
 )
-from cold_storage.evaluation.execute import ScenarioOutcome, run_scenario
+from cold_storage.evaluation.execute import ScenarioOutcome, run_scenario_via_markers
 
 # ── Allowed scenario_id character set ──────────────────────────────────
 #
@@ -186,7 +186,7 @@ def execute_in_run_directory(
     _validate_scenario_id(scenario_id)
 
     try:
-        outcome = run_scenario(
+        outcome = run_scenario_via_markers(
             session_factory,
             source_binding_id=source_binding_id,
             weight_set_revision_id=weight_set_revision_id,

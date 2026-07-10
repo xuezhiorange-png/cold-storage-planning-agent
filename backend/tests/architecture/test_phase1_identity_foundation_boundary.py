@@ -142,6 +142,37 @@ def test_evaluation_does_not_import_phase1_orm() -> None:
                     "correlation_id",
                 ):
                     continue
+                # Amendment 3 narrow carve-out (2026-07-10, Charles):
+                # ``execute.py`` is the Phase-B orchestration boundary.
+                # It is the **single** file authorized to hold the
+                # A1-2a contract token names (``correlation_id`` and
+                # ``database_backend``) as code tokens in its public
+                # surface. The runner MUST NOT call any production ORM
+                # / repository / production persistence internals
+                # (per §14 Amendment 3 ownership boundary); it only
+                # validates the input contract and forwards the
+                # canonical A1-2a kwarg names to
+                # ``adapter.execute_scenario(...)``. The carve-out is
+                # path-precise (only ``execute.py``) and
+                # token-precise (only ``database_backend`` and
+                # ``correlation_id``). All other evaluation files
+                # (errors.py / run_directory.py / cli.py /
+                # __init__.py / tests / seed helpers) remain subject
+                # to the original Phase-1 field ban. The carve-out
+                # does NOT allow ``project_input``, ``scenario_id``,
+                # ``calculation_run_ids``, ``idempotency_key``,
+                # ``actor_principal_type``, ``scheme_run_id``,
+                # ``frozen_envelope``, ``production_seeding``, or
+                # any raw ORM / production-row fabrication token in
+                # ``execute.py``.
+                expected_execute_path = (
+                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "execute.py"
+                )
+                if path == expected_execute_path and field in (
+                    "database_backend",
+                    "correlation_id",
+                ):
+                    continue
                 # Allow comments (fine)
                 in_comments = sum(
                     1

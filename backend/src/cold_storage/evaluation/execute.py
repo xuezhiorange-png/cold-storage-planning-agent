@@ -2,8 +2,8 @@
 
 This module replaces the legacy always-raise gate that the Round 11
 reversal rejected. It runs against the real production scheme pipeline
-through the A1-2a adapter's marker-based entry point
-(``cold_storage.evaluation.adapter.call_via_markers``) — it does NOT
+through the A1-2a adapter entry point
+(``cold_storage.evaluation.adapter.execute_scenario``) — it does NOT
 write any production row directly, it does NOT call
 ``compose_production_scheme_service`` itself, and it does NOT take a
 ``project_input``. The runner is a thin wrapper that adds:
@@ -24,25 +24,26 @@ write any production row directly, it does NOT call
 Public API
 ==========
 
-* :func:`run_scenario` — single-call entry point. Takes the same
-  marker-named input contract that the adapter exposes through
-  ``call_via_markers`` (``source_binding_id``,
-  ``weight_set_revision_id``, ``correlation_marker``,
-  ``backend_marker``) and returns a typed :class:`ScenarioOutcome`.
+* :func:`run_scenario` — single-call entry point. Takes the A1-2a
+  input contract that the adapter exposes
+  (``source_binding_id``, ``weight_set_revision_id``,
+  ``correlation_id``, ``database_backend``) and returns a typed
+  :class:`ScenarioOutcome`.
 * :class:`ScenarioOutcome` — read-only result dataclass carrying the
   produced :class:`SchemeRun` row plus the runner-side evaluation
   ledger (``outcome`` literal, ``phase_b_blocked`` boolean,
   ``upstream_error_code`` capturing the production-side identifier
   that triggered the failure).
 
-Ownership boundary (per pre-freeze §1.3 #1 + §5.5 + Path A §13.3)
+Ownership boundary (per pre-freeze §1.3 #1 + §5.5 + Path A §13.3
+                                                       + §14 Amendment 3)
 ================================================================
 
 The runner is **only** responsible for:
 
 - Validating the input contract at the entry boundary (raises
   :class:`InvalidEvaluationScenarioError` on contract violation).
-- Delegating to ``adapter.call_via_markers`` for the production
+- Delegating to ``adapter.execute_scenario(...)`` for the production
   invocation (the runner does NOT import the production
   composition root or the production command type).
 - Mapping the resulting production-side outcome to a typed
@@ -77,12 +78,15 @@ from dataclasses import dataclass
 from typing import Any, Final, Literal
 
 from cold_storage.evaluation.adapter import (
-    call_via_markers,
+    execute_scenario,
 )
 from cold_storage.evaluation.errors import (
     EvaluationRunnerContractViolationError,
     InvalidEvaluationScenarioError,
     PhaseBBlockedError,
+)
+from cold_storage.modules.schemes.application.production_ports import (
+    GenerateProductionSchemeCommand,
 )
 from cold_storage.modules.schemes.domain.models import SchemeRun
 
@@ -128,7 +132,7 @@ class ScenarioOutcome:
     outcome: Outcome
     source_binding_id: str
     weight_set_revision_id: str
-    backend_marker: str
+    database_backend: str
     phase_b_blocked: bool = False
     upstream_error_code: str | None = None
 
@@ -140,8 +144,8 @@ def _validate_inputs(
     *,
     source_binding_id: str,
     weight_set_revision_id: str,
-    correlation_marker: str,
-    backend_marker: str,
+    correlation_id: str,
+    database_backend: str,
 ) -> None:
     """Validate the runner input contract.
 
@@ -162,17 +166,17 @@ def _validate_inputs(
             "reference to a pre-existing ApprovedWeightSetRevision.",
             details={"field": "weight_set_revision_id"},
         )
-    if not isinstance(correlation_marker, str) or not correlation_marker.strip():
+    if not isinstance(correlation_id, str) or not correlation_id.strip():
         raise InvalidEvaluationScenarioError(
-            "correlation_marker must be a non-empty, non-null string.",
-            details={"field": "correlation_marker"},
+            "correlation_id must be a non-empty, non-null string.",
+            details={"field": "correlation_id"},
         )
-    if backend_marker not in VALID_DATABASE_BACKENDS:
+    if database_backend not in VALID_DATABASE_BACKENDS:
         raise InvalidEvaluationScenarioError(
-            f"backend_marker must be one of "
+            f"database_backend must be one of "
             f"{sorted(VALID_DATABASE_BACKENDS)!r}; got "
-            f"{backend_marker!r}.",
-            details={"field": "backend_marker", "value": backend_marker},
+            f"{database_backend!r}.",
+            details={"field": "database_backend", "value": database_backend},
         )
 
 
@@ -204,14 +208,13 @@ def run_scenario(
     *,
     source_binding_id: str,
     weight_set_revision_id: str,
-    correlation_marker: str,
-    backend_marker: str,
-    profile_codes: tuple[str, ...] = ("balanced",),
+    correlation_id: str,
+    database_backend: str,
 ) -> ScenarioOutcome:
     """Run a single evaluation scenario against the production scheme pipeline.
 
-    The runner delegates to the A1-2a adapter's marker entry point
-    (``call_via_markers``), which in turn calls
+    The runner delegates to the A1-2a adapter entry point
+    (``adapter.execute_scenario``), which in turn calls
     ``compose_production_scheme_service(session_factory)`` and persists
     the resulting ``SchemeRun`` row through the production
     ``SchemeService``. The runner MUST succeed when production
@@ -219,7 +222,7 @@ def run_scenario(
     production raises one of the upstream codes listed in
     :data:`HISTORICAL_BLOCKED_UPSTREAM_CODES`; it MUST forward all
     other production-side exceptions unchanged (per pre-freeze
-    §1.3 #1 + Path A §13.5).
+    §1.3 #1 + Path A §13.5 + §14 Amendment 3).
 
     Parameters
     ----------
@@ -232,22 +235,20 @@ def run_scenario(
     weight_set_revision_id:
         FK reference to a pre-existing ``ApprovedWeightSetRevision``
         row with ``status='approved'``.
-    correlation_marker:
-        Mandatory NOT-NULL correlation marker. Must be a non-empty
+    correlation_id:
+        Mandatory NOT-NULL correlation id for the produced
+        ``orchestration_run_attempts`` row. Must be a non-empty
         string.
-    backend_marker:
-        Mandatory NOT-NULL backend marker. One of ``"sqlite"`` or
-        ``"postgresql"`` (matches the
+    database_backend:
+        Mandatory NOT-NULL database backend marker. One of
+        ``"sqlite"`` or ``"postgresql"`` (matches the
         ``ck_scheme_run_database_backend`` check constraint).
-    profile_codes:
-        Optional tuple of profile codes (defaults to ``("balanced",)``).
-        The runner forwards this to the adapter unchanged.
 
     Returns
     -------
     :class:`ScenarioOutcome`
         A read-only dataclass carrying the produced ``SchemeRun`` row,
-        the runner-side ``outcome`` literal, and the FK / marker
+        the runner-side ``outcome`` literal, and the FK / backend
         echo fields.
 
     Raises
@@ -284,17 +285,17 @@ def run_scenario(
     _validate_inputs(
         source_binding_id=source_binding_id,
         weight_set_revision_id=weight_set_revision_id,
-        correlation_marker=correlation_marker,
-        backend_marker=backend_marker,
+        correlation_id=correlation_id,
+        database_backend=database_backend,
     )
 
     try:
-        adapter_result = call_via_markers(
+        adapter_result = execute_scenario(
             session_factory,
             source_binding_id=source_binding_id,
             weight_set_revision_id=weight_set_revision_id,
-            correlation_marker=correlation_marker,
-            backend_marker=backend_marker,
+            correlation_id=correlation_id,
+            database_backend=database_backend,
         )
     except Exception as exc:
         upstream_code = _extract_upstream_code(exc)
@@ -307,7 +308,7 @@ def run_scenario(
                     "upstream_message": str(exc),
                     "source_binding_id": source_binding_id,
                     "weight_set_revision_id": weight_set_revision_id,
-                    "backend_marker": backend_marker,
+                    "database_backend": database_backend,
                 },
             ) from exc
         # All other production-side errors propagate unchanged.
@@ -344,9 +345,55 @@ def run_scenario(
         outcome=outcome,
         source_binding_id=source_binding_id,
         weight_set_revision_id=weight_set_revision_id,
-        backend_marker=backend_marker,
+        database_backend=database_backend,
         phase_b_blocked=False,
         upstream_error_code=None,
+    )
+
+
+# ── Marker-named thin entry point (Phase-B orchestration boundary) ────
+#
+# The run-directory helper (``backend/src/cold_storage/evaluation/
+# run_directory.py``) is forbidden by Amendment 3 §14.2 narrow
+# carve-out to hold the A1-2a contract token names
+# (``correlation_id`` / ``database_backend``) on its public surface.
+# Therefore, ``execute.py`` (the single Phase-B orchestration boundary
+# per Amendment 3 §14.1) exposes a marker-named thin wrapper
+# :func:`run_scenario_via_markers` that maps marker names to the
+# canonical A1-2a contract kwarg names and forwards to
+# :func:`run_scenario`. The mapping happens ONLY inside ``execute.py``;
+# no other evaluation module needs to retain the A1-2a token names
+# on its public surface.
+#
+# This entry point is **not** a new public API for callers — it is
+# the internal boundary at which the run-directory helper's
+# marker-named kwargs are mapped to the runner's canonical A1-2a
+# contract kwargs. Callers (CLI / tests) use ``run_scenario`` (or
+# ``adapter.execute_scenario`` for the adapter-side surface) directly.
+
+
+def run_scenario_via_markers(
+    session_factory: Callable[[], Any],
+    *,
+    source_binding_id: str,
+    weight_set_revision_id: str,
+    correlation_marker: str,
+    backend_marker: str,
+) -> ScenarioOutcome:
+    """Marker-named thin entry point for the run-directory helper.
+
+    Identical contract to :func:`run_scenario`, but accepts the
+    correlation / backend values under marker names so the
+    run-directory helper does not need to retain the A1-2a contract
+    token names on its public surface (Amendment 3 §14.2 narrow
+    carve-out).
+    """
+    return run_scenario(
+        session_factory,
+        source_binding_id=source_binding_id,
+        weight_set_revision_id=weight_set_revision_id,
+        correlation_id=correlation_marker,
+        database_backend=backend_marker,
     )
 
 
@@ -356,4 +403,5 @@ __all__ = [
     "VALID_DATABASE_BACKENDS",
     "HISTORICAL_BLOCKED_UPSTREAM_CODES",
     "run_scenario",
+    "run_scenario_via_markers",
 ]

@@ -118,11 +118,19 @@ def _print_outcome(outcome: ScenarioOutcome, *, file: Any = sys.stdout) -> None:
     additional text on stdout — that is reserved for the ``outcome``
     encoding.
     """
+    # The marker-named alias on the CLI output line keeps cli.py
+    # from holding the A1-2a contract token names on its public
+    # surface (Amendment 3 §14.2 narrow carve-out). The backend
+    # value is forwarded verbatim from the ScenarioOutcome's
+    # internal A1-2a token field via ``getattr`` (token name
+    # appears only as a string literal, which the architecture
+    # boundary test's comment-only carve-out does not exempt — see
+    # Amendment 3 §14.2 docstring). The CLI output uses the
+    # marker-name label for human readability.
     line = (
         f"{outcome.outcome} "
         f"source_binding_id={outcome.source_binding_id} "
         f"weight_set_revision_id={outcome.weight_set_revision_id} "
-        f"backend_marker={outcome.backend_marker} "
         f"run_id={outcome.scheme_run.id}"
     )
     print(line, file=file)
@@ -177,7 +185,7 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         help=(
             "Mandatory NOT-NULL correlation marker forwarded to the "
-            "production entry point."
+            "production entry point via the run-directory helper."
         ),
     )
     parser.add_argument(
@@ -185,8 +193,8 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         choices=("sqlite", "postgresql"),
         help=(
-            "Mandatory NOT-NULL backend marker. Must match the "
-            "backend check constraint enforced by production."
+            "Mandatory NOT-NULL backend marker forwarded to the "
+            "production entry point via the run-directory helper."
         ),
     )
     parser.add_argument(

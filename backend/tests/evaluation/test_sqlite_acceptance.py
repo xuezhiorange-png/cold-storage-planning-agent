@@ -148,13 +148,13 @@ def test_baseline_feasible_succeeds_on_sqlite(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     assert isinstance(result, ScenarioOutcome)
     assert result.outcome == "SUCCEEDED"
-    assert result.backend_marker == "sqlite"
+    assert result.database_backend == "sqlite"
     assert result.source_binding_id == SOURCE_BINDING_ID
     assert result.weight_set_revision_id == WEIGHT_REVISION_ID
     assert result.phase_b_blocked is False
@@ -184,8 +184,8 @@ def test_baseline_feasible_scheme_run_persisted_with_succeeded_status(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -224,8 +224,8 @@ def test_baseline_feasible_combined_source_hash_round_trip(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -307,8 +307,8 @@ def test_baseline_feasible_does_not_introduce_demo_coefficients(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
     assert result.outcome == "SUCCEEDED"
 
@@ -370,8 +370,8 @@ def test_baseline_feasible_does_not_introduce_latest_row(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     post_count_s = a1_session_factory()
@@ -414,8 +414,8 @@ def test_baseline_feasible_no_evaluation_owned_production_rows(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     # The runner does NOT write any of these row types directly.
@@ -489,8 +489,8 @@ def test_baseline_feasible_orchestration_identity_unchanged(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     # Assert identity unchanged
@@ -537,8 +537,8 @@ def test_baseline_feasible_execution_snapshot_unchanged(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     post_s = a1_session_factory()
@@ -583,8 +583,8 @@ def test_baseline_feasible_coefficient_context_unchanged(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     post_s = a1_session_factory()
@@ -624,8 +624,8 @@ def test_baseline_feasible_archive_persisted(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -672,11 +672,11 @@ def test_high_throughput_review_succeeds_on_sqlite(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=HIGH_THROUGHPUT_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=HIGH_THROUGHPUT_CORRELATION_ID,
+        database_backend="sqlite",
     )
     assert result.outcome == "SUCCEEDED"
-    assert result.backend_marker == "sqlite"
+    assert result.database_backend == "sqlite"
 
 
 # ── Test 14 — invalid-blocked scenario ──────────────────────────────────
@@ -716,8 +716,8 @@ def test_invalid_blocked_returns_failed_outcome(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=INVALID_BLOCKED_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=INVALID_BLOCKED_CORRELATION_ID,
+        database_backend="sqlite",
     )
     # The runner does NOT fabricate a historical-blocked outcome on
     # the happy path (pre-freeze §8 #12). Production succeeded; the
@@ -758,8 +758,8 @@ def test_no_evaluation_owned_calculation_run_fabrication(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     post_count_s = a1_session_factory()
@@ -791,44 +791,81 @@ def test_runner_input_contract_rejects_invalid_inputs() -> None:
         dict(
             source_binding_id="",
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker="x",
-            backend_marker="sqlite",
+            correlation_id="x",
+            database_backend="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id="",
-            correlation_marker="x",
-            backend_marker="sqlite",
+            correlation_id="x",
+            database_backend="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker="",
-            backend_marker="sqlite",
+            correlation_id="",
+            database_backend="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker="   ",
-            backend_marker="sqlite",
+            correlation_id="   ",
+            database_backend="sqlite",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker="x",
-            backend_marker="mysql",
+            correlation_id="x",
+            database_backend="mysql",
         ),
         dict(
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker="x",
-            backend_marker="SQLITE",
+            correlation_id="x",
+            database_backend="SQLITE",
         ),
     ]
     for i, c in enumerate(cases):
         with pytest.raises(InvalidEvaluationScenarioError) as exc_info:
             run_scenario(lambda: None, **c)
         assert exc_info.value.code == "INVALID_EVALUATION_SCENARIO"
+
+
+def test_runner_does_not_accept_profile_codes_kwarg() -> None:
+    """Defense-in-depth: the runner public surface must NOT accept
+    ``profile_codes`` as a kwarg (Amendment 3 §14.3).
+
+    Per Amendment 3, the ``profile_codes=("balanced",)`` decision is
+    an internal literal hard-coded in the runner's call to
+    ``adapter.execute_scenario(...)``. The runner public surface is
+    exactly the A1-2a contract (4-arg: ``source_binding_id``,
+    ``weight_set_revision_id``, ``correlation_id``,
+    ``database_backend``); any caller attempting to pass
+    ``profile_codes`` should be rejected with ``TypeError`` at the
+    function call boundary (Python kwarg validation).
+    """
+    # Use a session_factory that should never be reached because
+    # Python rejects the unknown kwarg at the function-call boundary.
+    def _should_not_be_called() -> None:
+        raise AssertionError(
+            "session_factory was invoked; run_scenario must reject "
+            "the unknown kwarg 'profile_codes' BEFORE the production "
+            "service is called."
+        )
+
+    with pytest.raises(TypeError) as exc_info:
+        run_scenario(
+            _should_not_be_called,
+            source_binding_id=SOURCE_BINDING_ID,
+            weight_set_revision_id=WEIGHT_REVISION_ID,
+            correlation_id="x",
+            database_backend="sqlite",
+            profile_codes=("balanced",),
+        )
+    assert "profile_codes" in str(exc_info.value), (
+        f"TypeError must mention the rejected kwarg 'profile_codes'; "
+        f"got: {exc_info.value!r}"
+    )
 
 
 # ── Test 17 — runner module does NOT import production_seeding ──────────
@@ -893,15 +930,15 @@ def test_fixture_consistency_between_baseline_and_high_throughput(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
     r2 = run_scenario(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=HIGH_THROUGHPUT_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=HIGH_THROUGHPUT_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -961,8 +998,8 @@ def test_runner_persists_scheme_run_using_pre_existing_source_binding(
         a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="sqlite",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="sqlite",
     )
 
     verify_s = a1_session_factory()
@@ -1008,8 +1045,8 @@ def test_runner_does_not_raise_phase_b_blocked_on_happy_path(
             a1_session_factory,
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker=BASELINE_CORRELATION_ID,
-            backend_marker="sqlite",
+            correlation_id=BASELINE_CORRELATION_ID,
+            database_backend="sqlite",
         )
     except PhaseBBlockedError as exc:
         raise AssertionError(
@@ -1142,5 +1179,5 @@ def test_runner_does_not_take_project_input() -> None:
     # The 4 A1-2a required parameters are all present
     assert "source_binding_id" in params
     assert "weight_set_revision_id" in params
-    assert "correlation_marker" in params
-    assert "backend_marker" in params
+    assert "correlation_id" in params
+    assert "database_backend" in params

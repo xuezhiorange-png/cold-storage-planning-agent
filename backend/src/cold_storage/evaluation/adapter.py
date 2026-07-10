@@ -292,47 +292,8 @@ def execute_scenario(
     )
 
 
-# ── Marker-based thin entry point (Path A Amendment 2 §13.6) ────────────
-#
-# The evaluation runner stack (post-Path-A implementation) must not
-# carry the Phase 1 ORM column tokens (``correlation_id`` /
-# ``database_backend``) as literal kwarg names — the architecture
-# boundary test scans runner files for those tokens and rejects any
-# non-``adapter.py`` reference. The runner therefore calls
-# :func:`call_via_markers`, which accepts the values under
-# runner-local marker names and forwards them to :func:`execute_scenario`
-# using the canonical A1-2a contract kwarg names. This is the **only**
-# boundary at which the marker names are mapped to the A1-2a contract
-# names; the runner and its tests can use the marker names throughout.
-
-
-def call_via_markers(
-    session_factory: Callable[[], Any],
-    *,
-    source_binding_id: str,
-    weight_set_revision_id: str,
-    correlation_marker: str,
-    backend_marker: str,
-) -> AdapterResult:
-    """Adapter entry point with marker-named kwargs.
-
-    Identical contract to :func:`execute_scenario`, but accepts the
-    correlation / backend values under runner-local marker names so
-    the caller does not need to write the Phase 1 ORM column tokens
-    in its own source code (architecture-boundary test constraint).
-    """
-    return execute_scenario(
-        session_factory,
-        source_binding_id=source_binding_id,
-        weight_set_revision_id=weight_set_revision_id,
-        correlation_id=correlation_marker,
-        database_backend=backend_marker,
-    )
-
-
 __all__ = [
     "AdapterInputError",
     "AdapterResult",
-    "call_via_markers",
     "execute_scenario",
 ]

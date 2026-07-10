@@ -68,8 +68,10 @@ def _run_cli(*args: str, env: dict[str, str] | None = None) -> subprocess.Comple
         full_env.update(env)
     # Ensure the cold_storage package (under src/) is importable for the
     # subprocess; pyproject.toml's pythonpath is honored by pytest but
-    # not by raw ``python -m`` invocations.
-    cli_cwd = "/tmp/task-011b-pr60-correction/backend"
+    # not by raw ``python -m`` invocations. Use the test file's own
+    # backend directory (resolved from the test file path) so the
+    # subprocess loads the same source tree as the pytest run.
+    cli_cwd = str(Path(__file__).resolve().parents[2])
     full_env["PYTHONPATH"] = cli_cwd + "/src" + os.pathsep + full_env.get("PYTHONPATH", "")
     return subprocess.run(
         [PYTHON_BIN, "-m", "cold_storage.evaluation.cli", *args],

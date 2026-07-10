@@ -115,13 +115,13 @@ def test_baseline_feasible_succeeds_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
 
     assert isinstance(result, ScenarioOutcome)
     assert result.outcome == "SUCCEEDED"
-    assert result.backend_marker == "postgresql"
+    assert result.database_backend == "postgresql"
     assert result.source_binding_id == SOURCE_BINDING_ID
     assert result.phase_b_blocked is False
 
@@ -145,8 +145,8 @@ def test_baseline_feasible_scheme_run_persisted_with_succeeded_status_on_postgre
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
 
     verify_s = a2_pg_session_factory()
@@ -177,8 +177,8 @@ def test_baseline_feasible_combined_source_hash_round_trip_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
 
     verify_s = a2_pg_session_factory()
@@ -209,8 +209,8 @@ def test_baseline_feasible_does_not_introduce_demo_coefficients_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
     assert result.outcome == "SUCCEEDED"
 
@@ -257,8 +257,8 @@ def test_baseline_feasible_does_not_introduce_latest_row_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
 
     post_count_s = a2_pg_session_factory()
@@ -303,8 +303,8 @@ def test_baseline_feasible_orchestration_identity_unchanged_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
 
     post_s = a2_pg_session_factory()
@@ -354,8 +354,8 @@ def test_baseline_feasible_orchestration_context_unchanged_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
 
     post_s = a2_pg_session_factory()
@@ -393,11 +393,11 @@ def test_high_throughput_review_succeeds_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=HIGH_THROUGHPUT_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=HIGH_THROUGHPUT_CORRELATION_ID,
+        database_backend="postgresql",
     )
     assert result.outcome == "SUCCEEDED"
-    assert result.backend_marker == "postgresql"
+    assert result.database_backend == "postgresql"
 
 
 # ── Test 9 — runner does NOT raise PhaseBBlockedError on PG happy path ──
@@ -420,8 +420,8 @@ def test_runner_does_not_raise_phase_b_blocked_on_postgresql_happy_path(
             a2_pg_session_factory,
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker=BASELINE_CORRELATION_ID,
-            backend_marker="postgresql",
+            correlation_id=BASELINE_CORRELATION_ID,
+            database_backend="postgresql",
         )
     except PhaseBBlockedError as exc:
         raise AssertionError(
@@ -461,8 +461,8 @@ def test_runner_does_not_mutate_source_binding_on_postgresql(
         a2_pg_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
-        correlation_marker=BASELINE_CORRELATION_ID,
-        backend_marker="postgresql",
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
     )
 
     post_s = a2_pg_session_factory()
