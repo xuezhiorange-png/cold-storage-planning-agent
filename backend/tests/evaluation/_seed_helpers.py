@@ -69,6 +69,7 @@ the integration-test sibling that this helper was distilled from.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -925,6 +926,386 @@ def seed_a1_all_prereqs(session: Session) -> None:
     seed_a1_weight_set_and_revision(session)
 
 
+# ── Test-side helpers for TASK-011B Path A baseline golden (Commit C) ──
+#
+# These helpers are PURE test-side expected-output construction and
+# comparison. They MUST NOT:
+#   - Modify any seed data, semantic IDs, fixture behavior, or production state.
+#   - Call production private hash helpers.
+#   - Re-derive a content_hash from test-defined payloads.
+#
+# The golden file (data/expected/baseline_feasible.v1.json) is the
+# frozen expected output; the helpers below construct the canonical
+# actual from the real persisted SchemeRunRecord + input_snapshot +
+# assumption_snapshot and ScenarioOutcome, then compare.
+
+# Canonical stage ledger frozen by §12.4 / §15.3
+BASELINE_STAGE_LEDGER: list[str] = [
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment",
+]
+
+# Field name constants (raw SchemeRunRecord columns)
+_F_PROD_RUN_COLUMNS = [
+    "zone_calculation_id",
+    "cooling_load_calculation_id",
+    "equipment_calculation_id",
+    "power_calculation_id",
+    "investment_calculation_id",
+]
+_F_PROD_HASH_COLUMNS = [
+    "zone_result_hash",
+    "cooling_load_result_hash",
+    "equipment_result_hash",
+    "power_result_hash",
+    "investment_result_hash",
+]
+
+
+def _str_or_none(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    return str(value)
+
+
+def build_baseline_expected_output_actual(
+    *,
+    scenario_outcome: Any,
+    scheme_run_record: Any,
+    input_snapshot: dict[str, Any],
+    assumption_snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the canonical expected-output shape for the baseline
+    scenario directly from the live production-path values.
+
+    NO test-side recomputation of ``content_hash``. The actual
+    canonical ``content_hash`` is the production-side
+    ``scheme_run_record.content_hash`` value, which has been proven
+    byte-equal across SQLite and PostgreSQL backends.
+
+    The raw `SchemeRunRecord` (production-side ORM) provides:
+      - ``status`` (string)
+      - ``combined_source_hash`` (string)
+      - ``requires_review`` (bool)
+      - ``warning_messages`` (list[str]) — RAW, which is then
+        canonicalized into ``review_reasons``.
+      - ``content_hash`` (string, frozen per §15.3 + auth §4)
+      - semantic IDs (source_binding_id, weight_set_revision_id,
+        project_id, project_version_id)
+      - source_calculation_ids (per stage)
+      - source_snapshot_hashes (per stage)
+      - candidates_snapshot (with constraint_results)
+      - comparison_snapshot
+      - assumption_snapshot (JSON column)
+      - input_snapshot (JSON column)
+
+    ``scenario_outcome`` is the runner-side
+    :class:`cold_storage.evaluation.execute.ScenarioOutcome`. Its
+    `phase_b_blocked` and `database_backend` fields are runtime-only
+    and are NOT present in the expected JSON; they are documented
+    in the ``_comparison_policy.excluded_runtime_fields`` set.
+    """
+    p = scheme_run_record
+    out: dict[str, Any] = {
+        "schema_version": "task11b-expected-output.v1",
+        "scenario_id": "baseline_feasible",
+        "expected_outcome": "SUCCEEDED",
+        "scheme_status": str(p.status),
+        "combined_source_hash": str(p.combined_source_hash),
+        "review_required": bool(p.requires_review),
+        # Canonical mapping: raw warning_messages → review_reasons
+        "review_reasons": list(p.warning_messages or []),
+        "source_binding_proxy": str(p.source_binding_id),
+        "weight_set_revision_proxy": str(p.weight_set_revision_id),
+        "project_id": str(p.project_id),
+        "project_version_id": str(p.project_version_id),
+        "stage_ledger": list(BASELINE_STAGE_LEDGER),
+        "production_outputs": {
+            "generator_version": str(p.generator_version),
+            "source_mode": str(p.source_mode),
+            "binding_schema_version": str(p.binding_schema_version),
+            "weight_set_generator_compatibility_version": str(
+                p.weight_set_generator_compatibility_version
+            ),
+            "weight_set_content_hash": str(p.weight_set_content_hash),
+            "source_calculation_ids": {
+                stage: str(getattr(p, col))
+                for stage, col in zip(BASELINE_STAGE_LEDGER, _F_PROD_RUN_COLUMNS, strict=True)
+            },
+            "source_snapshot_hashes": {
+                stage: str(getattr(p, col))
+                for stage, col in zip(BASELINE_STAGE_LEDGER, _F_PROD_HASH_COLUMNS, strict=True)
+            },
+            "candidates_snapshot": p.candidates_snapshot,
+            "comparison_snapshot": p.comparison_snapshot,
+            "assumption_snapshot": dict(assumption_snapshot or {}),
+            "cooling_load_result": input_snapshot.get("cooling_load_result"),
+            "equipment_result": input_snapshot.get("equipment_result"),
+            "investment_result": input_snapshot.get("investment_result"),
+            "power_result": input_snapshot.get("power_result"),
+            "zone_results": input_snapshot.get("zone_results"),
+            "profile_codes": input_snapshot.get("profile_codes"),
+            "profile_parameters": input_snapshot.get("profile_parameters"),
+            "total_daily_throughput_kg_day": input_snapshot.get("total_daily_throughput_kg_day"),
+            "total_position_count": input_snapshot.get("total_position_count"),
+            "total_storage_capacity_kg": input_snapshot.get("total_storage_capacity_kg"),
+            "weight_set_id": input_snapshot.get("weight_set_id"),
+        },
+        "content_hash": str(p.content_hash),  # PRODUCTION VALUE, not test-recomputed
+    }
+
+    # constraint_check_summary derived from candidates_snapshot[0]
+    c0 = p.candidates_snapshot[0]
+    cr = c0["constraint_results"]
+    n_pass = sum(1 for c in cr if c["passed"])
+    n_fail = sum(1 for c in cr if not c["passed"])
+    failed_codes = [c["constraint_code"] for c in cr if not c["passed"]]
+    out["constraint_check_summary"] = {
+        "expected_passed_count": n_pass,
+        "expected_failed_count": n_fail,
+        "expected_failed_code": (failed_codes[0] if failed_codes else None),
+    }
+    return out
+
+
+# Sentinel set of canonical expected JSON top-level field names.
+EXPECTED_OUTPUT_TOP_LEVEL_FIELDS: frozenset[str] = frozenset(
+    {
+        "schema_version",
+        "scenario_id",
+        "expected_outcome",
+        "scheme_status",
+        "combined_source_hash",
+        "review_required",
+        "review_reasons",
+        "source_binding_proxy",
+        "weight_set_revision_proxy",
+        "project_id",
+        "project_version_id",
+        "stage_ledger",
+        "production_outputs",
+        "content_hash",
+        "constraint_check_summary",
+        "_comparison_policy",
+    }
+)
+
+
+def _walk(obj: Any, path: str, out: list[str]) -> None:
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            _walk(v, f"{path}.{k}" if path else f"$.{k}", out)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            _walk(v, f"{path}[{i}]", out)
+    else:
+        out.append(path)
+
+
+def collect_golden_leaf_paths(golden: dict[str, Any]) -> list[str]:
+    """Return all golden leaf JSON paths EXCLUDING the
+    ``_comparison_policy`` subtree (which is meta-documentation)."""
+    g = dict(golden)
+    g.pop("_comparison_policy", None)
+    leaves: list[str] = []
+    _walk(g, "", leaves)
+    return leaves
+
+
+def _collect_ancestor_paths(leaf: str) -> list[str]:
+    """Return all ancestor paths of ``leaf``.
+
+    For leaf ``$.production_outputs.zone_results[0].area_m2``,
+    ancestors are:
+      - ``$.production_outputs.zone_results[0]``
+      - ``$.production_outputs.zone_results``
+      - ``$.production_outputs``
+      - ``$``
+    For leaf ``$.stage_ledger[0]``, ancestors are:
+      - ``$.stage_ledger``
+      - ``$``
+    List indices ``[N]`` are stripped when computing the parent path.
+    """
+    ancestors: list[str] = []
+    cur = leaf
+    while True:
+        # Strip a trailing ``[N]`` if present (in-place before finding the dot)
+        bracket = cur.rfind("[")
+        if bracket > 0:
+            cur = cur[:bracket]
+        # Find the LAST dot separator (which splits off the last key segment)
+        idx = cur.rfind(".")
+        if idx < 0:
+            break
+        # cur itself (with the trailing [N] already stripped) is an
+        # ancestor path. Append it.
+        ancestors.append(cur)
+        # Now strip the trailing ``.key`` segment for the next iteration.
+        cur = cur[:idx]
+    return ancestors
+
+
+def validate_expected_output_comparison_policy(
+    golden: dict[str, Any],
+    *,
+    backend: str,
+) -> None:
+    """Validate the comparison_policy is self-consistent and covers
+    every golden leaf path.
+
+    Validation rules (per auth §6):
+      1. ``_comparison_policy`` exists and is an object.
+      2. Required policy keys present.
+      3. ``exact_match_fields`` has no duplicates.
+      4. ``excluded_runtime_fields`` has no duplicates.
+      5. exact ∩ excluded = ∅.
+      6. ``content_hash``, ``schema_version``, ``scenario_id`` are
+         EXACT_MATCH only (NOT in excluded).
+      7. Every golden non-policy leaf has at least one rule applied
+         (either EXACT_MATCH via `exact_match_fields` / recursive
+         subtrees, or NORMALIZED_PROXY via `normalized_proxy_fields`).
+      8. NO leaf falls into ``EXCLUDED`` (excluded only applies to
+         raw fields, not to canonical expected fields).
+      9. No fuzzy global tolerance.
+     10. No string truncation.
+     11. No "ignore all numerical" escape.
+    """
+    if "_comparison_policy" not in golden:
+        raise AssertionError(f"POLICY_MISSING: _comparison_policy not present (backend={backend})")
+    policy = golden["_comparison_policy"]
+    if not isinstance(policy, dict):
+        raise AssertionError(
+            f"POLICY_TYPE: _comparison_policy must be object, got "
+            f"{type(policy).__name__} (backend={backend})"
+        )
+    required_keys = {
+        "exact_match_fields",
+        "excluded_runtime_fields",
+        "normalized_proxy_fields",
+        "forbidden_comparison_methods",
+    }
+    missing = required_keys - set(policy.keys())
+    if missing:
+        raise AssertionError(f"POLICY_KEYS_MISSING: {sorted(missing)} (backend={backend})")
+
+    exact = list(policy["exact_match_fields"])
+    excluded = list(policy["excluded_runtime_fields"])
+    proxy = list(policy["normalized_proxy_fields"])
+
+    if len(exact) != len(set(exact)):
+        dups = sorted([x for x in exact if exact.count(x) > 1])
+        raise AssertionError(f"POLICY_DUP_EXACT: {dups} (backend={backend})")
+    if len(excluded) != len(set(excluded)):
+        dups = sorted([x for x in excluded if excluded.count(x) > 1])
+        raise AssertionError(f"POLICY_DUP_EXCLUDED: {dups} (backend={backend})")
+
+    # 6. content_hash / schema_version / scenario_id must NOT be in excluded
+    forbidden_in_excluded = {"content_hash", "schema_version", "scenario_id"}
+    bad_in_excluded = sorted(forbidden_in_excluded & set(excluded))
+    if bad_in_excluded:
+        raise AssertionError(f"POLICY_FORBIDDEN_IN_EXCLUDED: {bad_in_excluded} (backend={backend})")
+
+    # 5. exact ∩ excluded = ∅
+    overlap = sorted(set(exact) & set(excluded))
+    if overlap:
+        raise AssertionError(f"POLICY_EXACT_EXCLUDED_OVERLAP: {overlap} (backend={backend})")
+
+    # 9 / 10 / 11: forbidden comparison methods
+    forbidden = list(policy["forbidden_comparison_methods"])
+    must_have_forbidden = [
+        "fuzzy_global_tolerance",
+        "string_truncation",
+        "ignore_all_numerical_fields",
+    ]
+    missing_forbidden = sorted(set(must_have_forbidden) - set(forbidden))
+    if missing_forbidden:
+        raise AssertionError(f"POLICY_FORBIDDEN_MISSING: {missing_forbidden} (backend={backend})")
+
+    # 7 / 8: every golden leaf must have a rule
+    leaves = collect_golden_leaf_paths(golden)
+    for leaf in leaves:
+        # Rule A: leaf is in `exact_match_fields` directly.
+        if leaf in exact:
+            continue
+        # Rule B: any ancestor (parent path) of the leaf is in
+        # `exact_match_fields`, which recursively covers all
+        # descendant leaves.
+        ancestors = _collect_ancestor_paths(leaf)
+        if any(a in exact for a in ancestors):
+            continue
+        # Rule C: leaf itself or any ancestor is in
+        # `normalized_proxy_fields`.
+        if leaf in proxy or any(a in proxy for a in ancestors):
+            continue
+        raise AssertionError(f"POLICY_LEAF_UNCOVERED: {leaf} has no rule (backend={backend})")
+
+
+def assert_expected_output_matches(
+    *,
+    actual: dict[str, Any],
+    expected_golden: dict[str, Any],
+    backend: str,
+) -> None:
+    """Strict field-by-field comparison between the canonical actual
+    (built by ``build_baseline_expected_output_actual``) and the
+    frozen golden file.
+
+    ``_comparison_policy`` is itself an expected JSON field — it is
+    validated by ``validate_expected_output_comparison_policy`` and
+    is NOT field-by-field compared here.
+
+    On mismatch, prints ``JSON path / expected / actual / backend`` and
+    raises ``AssertionError``.
+    """
+    expected = dict(expected_golden)
+    expected.pop("_comparison_policy", None)
+
+    def _walk(a: Any, e: Any, path: str) -> None:
+        if type(a) is not type(e):
+            raise AssertionError(
+                f"TYPE_MISMATCH {path}: expected={type(e).__name__} {e!r}, "
+                f"actual={type(a).__name__} {a!r} (backend={backend})"
+            )
+        if isinstance(a, dict):
+            for k in sorted(set(a.keys()) | set(e.keys())):
+                if k not in a:
+                    raise AssertionError(
+                        f"MISSING_ACTUAL {path}.{k}: expected={e[k]!r} (backend={backend})"
+                    )
+                if k not in e:
+                    raise AssertionError(
+                        f"EXTRA_ACTUAL {path}.{k}: actual={a[k]!r} (backend={backend})"
+                    )
+                _walk(a[k], e[k], f"{path}.{k}")
+        elif isinstance(a, list):
+            if len(a) != len(e):
+                raise AssertionError(
+                    f"LIST_LEN {path}: actual={len(a)}, expected={len(e)} (backend={backend})"
+                )
+            for i, (av, ev) in enumerate(zip(a, e, strict=True)):
+                _walk(av, ev, f"{path}[{i}]")
+        else:
+            if a != e:
+                raise AssertionError(
+                    f"VALUE_MISMATCH {path}: expected={e!r}, actual={a!r} (backend={backend})"
+                )
+
+    _walk(actual, expected, "$")
+
+
+def load_baseline_golden() -> dict[str, Any]:
+    """Load the frozen ``baseline_feasible.v1.json`` golden from the
+    test-tree relative path. The path is resolved from this helper
+    module's location so the golden travels with the test code."""
+    here = Path(__file__).resolve().parent
+    golden_path = here / "data" / "expected" / "baseline_feasible.v1.json"
+    with open(golden_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 __all__ = [
     "a1_engine",
     "a1_session_factory",
@@ -952,4 +1333,12 @@ __all__ = [
     "SOURCE_BINDING_ID",
     "WEIGHT_SET_ID",
     "WEIGHT_REVISION_ID",
+    # Test-side expected-output helpers (Commit C, TASK-011B §5)
+    "BASELINE_STAGE_LEDGER",
+    "EXPECTED_OUTPUT_TOP_LEVEL_FIELDS",
+    "build_baseline_expected_output_actual",
+    "validate_expected_output_comparison_policy",
+    "assert_expected_output_matches",
+    "collect_golden_leaf_paths",
+    "load_baseline_golden",
 ]

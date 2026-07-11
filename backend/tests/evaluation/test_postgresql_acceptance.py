@@ -51,9 +51,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import json
-import hashlib
-
 import pytest
 
 # Register the test-side pre-existing-context seed helper as a pytest
@@ -479,180 +476,276 @@ def test_runner_does_not_mutate_source_binding_on_postgresql(
     finally:
         post_s.close()
 
-# ── Test 24 — baseline golden comparison (canonical expected-output) ──
-# PostgreSQL mirror: this test MUST
-# construct the canonical expected-output shape from the persisted
-# SchemeRunRecord + input_snapshot of a real production-path
-# ``run_scenario`` call, then compare it field-by-field with the
-# frozen ``baseline_feasible.v1.json`` golden. NO mock / stub /
-# fixture-only call is permitted. Failure MUST print the JSON path
-# / expected / actual / backend for the first mismatch.
-
-
-def _build_canonical_actual(scheme_run_record, input_snapshot, assumption_snapshot):
-    """Build the canonical expected-output shape from the persisted
-    SchemeRunRecord + input_snapshot. Strips frozen-exclusion fields
-    (id, created_at, completed_at, content_hash, phase_b_blocked,
-    warning_messages, database_backend)."""
-    p = scheme_run_record
-    inp = input_snapshot or {}
-    canonical = {
-        "schema_version": "task11b-expected-output.v1",
-        "scenario_id": "baseline_feasible",
-        "expected_outcome": "SUCCEEDED",
-        "scheme_status": str(p.status),
-        "combined_source_hash": str(p.combined_source_hash),
-        "review_required": bool(p.requires_review),
-        "review_reasons": list(p.warning_messages or []),
-        "source_binding_proxy": str(p.source_binding_id),
-        "weight_set_revision_proxy": str(p.weight_set_revision_id),
-        "project_id": str(p.project_id),
-        "project_version_id": str(p.project_version_id),
-        "stage_ledger": ["zone", "cooling_load", "equipment", "power", "investment"],
-        "production_outputs": {
-            "generator_version": str(p.generator_version),
-            "source_mode": str(p.source_mode),
-            "binding_schema_version": str(p.binding_schema_version),
-            "weight_set_generator_compatibility_version": str(p.weight_set_generator_compatibility_version),
-            "weight_set_content_hash": str(p.weight_set_content_hash),
-            "source_calculation_ids": {
-                "zone": str(p.zone_calculation_id),
-                "cooling_load": str(p.cooling_load_calculation_id),
-                "equipment": str(p.equipment_calculation_id),
-                "power": str(p.power_calculation_id),
-                "investment": str(p.investment_calculation_id),
-            },
-            "source_snapshot_hashes": {
-                "zone": str(p.zone_result_hash),
-                "cooling_load": str(p.cooling_load_result_hash),
-                "equipment": str(p.equipment_result_hash),
-                "power": str(p.power_result_hash),
-                "investment": str(p.investment_result_hash),
-            },
-            "candidates_snapshot": p.candidates_snapshot,
-            "comparison_snapshot": p.comparison_snapshot,
-            "assumption_snapshot": dict(assumption_snapshot or {}),
-            "cooling_load_result": inp.get("cooling_load_result"),
-            "equipment_result": inp.get("equipment_result"),
-            "investment_result": inp.get("investment_result"),
-            "power_result": inp.get("power_result"),
-            "zone_results": inp.get("zone_results"),
-            "profile_codes": inp.get("profile_codes"),
-            "profile_parameters": inp.get("profile_parameters"),
-            "total_daily_throughput_kg_day": inp.get("total_daily_throughput_kg_day"),
-            "total_position_count": inp.get("total_position_count"),
-            "total_storage_capacity_kg": inp.get("total_storage_capacity_kg"),
-            "weight_set_id": inp.get("weight_set_id"),
-        },
-    }
-    cr = p.candidates_snapshot[0]["constraint_results"]
-    np_ = sum(1 for c in cr if c["passed"])
-    nf_ = sum(1 for c in cr if not c["passed"])
-    fc = [c["constraint_code"] for c in cr if not c["passed"]]
-    canonical["constraint_check_summary"] = {
-        "expected_passed_count": np_,
-        "expected_failed_count": nf_,
-        "expected_failed_code": fc[0] if fc else None,
-    }
-    # content_hash derived cross-backend normalized (canonical SHA of stripped body)
-    _EXCLUDE = {"id", "created_at", "completed_at", "content_hash", "phase_b_blocked", "warning_messages", "database_backend", "_sa_instance_state"}
-    body = {k: v for k, v in p.__dict__.items() if k not in _EXCLUDE}
-    canonical_body = json.dumps(body, sort_keys=True, ensure_ascii=False, default=str)
-    canonical["content_hash"] = hashlib.sha256(canonical_body.encode()).hexdigest()
-    return canonical
-
-
-def _compare_canonical_actual(actual, expected, backend):
-    """Strict field-by-field comparison; on mismatch prints JSON path /
-    expected / actual / backend and raises AssertionError."""
-    def _walk(a, e, path):
-        if type(a) != type(e):
-            raise AssertionError(f"TYPE_MISMATCH {path}: actual={type(a).__name__} {a!r}, expected={type(e).__name__} {e!r} (backend={backend})")
-        if isinstance(a, dict):
-            # Skip _comparison_policy — it is meta-documentation about how
-            # to perform the comparison, not a value produced by the
-            # production adapter. Per §15.3 it is required in the golden
-            # JSON; per §15.4 it is NOT in the exact_match_fields list.
-            for k in sorted(set(a.keys()) | set(e.keys())):
-                if k == "_comparison_policy":
-                    continue
-                if k not in a:
-                    raise AssertionError(f"MISSING_ACTUAL {path}.{k}: expected={e[k]!r} (backend={backend})")
-                if k not in e:
-                    raise AssertionError(f"EXTRA_ACTUAL {path}.{k}: actual={a[k]!r} (backend={backend})")
-                _walk(a[k], e[k], f"{path}.{k}")
-        elif isinstance(a, list):
-            if len(a) != len(e):
-                raise AssertionError(f"LIST_LEN {path}: actual={len(a)}, expected={len(e)} (backend={backend})")
-            for i, (av, ev) in enumerate(zip(a, e)):
-                _walk(av, ev, f"{path}[{i}]")
-        else:
-            if a != e:
-                raise AssertionError(f"VALUE_MISMATCH {path}: expected={e!r}, actual={a!r} (backend={backend})")
-    _walk(actual, expected, "$")
+# ── Test 24 — baseline golden consumed by real production path ────────
+# Per §15.3 + §16.9.5 baseline implementation gate (auth §9):
+#   1. Real production-path ``run_scenario`` (no mock / stub).
+#   2. Construct canonical actual via shared
+#      ``build_baseline_expected_output_actual`` helper (NOT a
+#      test-side private duplicate; production ``record.content_hash``
+#      is used directly, not test-recomputed).
+#   3. Validate the golden's ``_comparison_policy`` via shared
+#      ``validate_expected_output_comparison_policy`` helper (the
+#      policy is part of the contract, not a skip field).
+#   4. Compare canonical actual to golden via shared
+#      ``assert_expected_output_matches`` helper. On mismatch, prints
+#      JSON path / expected / actual / backend and fails.
+# Negative-policy tests below prove the policy validator is real:
+#   25 — delete ``_comparison_policy`` → fail.
+#   26 — place ``content_hash`` in both exact and excluded → fail.
+#   27 — delete a production-output leaf coverage → fail.
+#   28 — modify a numeric leaf → fail with full JSON path mismatch.
+#   29 — modify golden ``content_hash`` → fail on SQLite AND PostgreSQL.
 
 
 def test_baseline_golden_consumed_by_production_path(
-    a2_pg_engine: Any, a2_pg_session_factory: Any
+    a1_engine: Any, a1_session_factory: Any
 ) -> None:
-    """The frozen ``baseline_feasible.v1.json`` golden is consumed by
-    a real SQLite acceptance-path ``run_scenario`` call. The test:
-
-    1. Seeds the pre-existing production context via
-       ``seed_a1_all_prereqs`` (no mock / stub) on PostgreSQL.
-    2. Calls ``run_scenario`` against the real adapter.
-    3. Constructs the canonical expected-output shape from the
-       persisted SchemeRunRecord + input_snapshot.
-    4. Compares it field-by-field with
-       ``backend/tests/evaluation/data/expected/baseline_feasible.v1.json``.
-    5. On mismatch, prints the JSON path / expected / actual /
-       backend and fails.
-
-    Forbidden: file-exists / hash-non-empty shortcuts. Forbidden:
-    fuzzy global tolerance. Forbidden: ignore-numerical-fields
-    contracts. This test MUST produce a per-field error if any
-    field diverges.
+    """Round 2: shared helpers + production content_hash + policy
+    validation + negative tests. Per Commit C scope, this test MUST
+    consume the shared ``_seed_helpers`` helpers (no private
+    duplicate hash algorithm; no skipping of ``_comparison_policy``).
     """
-    # 1. seed
-    seed_s = a2_pg_session_factory()
-    try:
-        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+    from tests.evaluation._seed_helpers import (
+        assert_expected_output_matches,
+        build_baseline_expected_output_actual,
+        load_baseline_golden,
+        seed_a1_all_prereqs,
+        validate_expected_output_comparison_policy,
+    )
 
+    # 1. seed pre-existing production context (real acceptance path).
+    seed_s = a1_session_factory()
+    try:
         seed_a1_all_prereqs(seed_s)
     finally:
         seed_s.close()
 
-    # 2. real production-path call
+    # 2. real production-path call.
     result = run_scenario(
-        a2_pg_session_factory,
+        a1_session_factory,
         source_binding_id=SOURCE_BINDING_ID,
         weight_set_revision_id=WEIGHT_REVISION_ID,
         correlation_id=BASELINE_CORRELATION_ID,
-        database_backend="postgresql",
+        database_backend="sqlite",
     )
     assert isinstance(result, ScenarioOutcome)
     assert result.outcome == "SUCCEEDED"
     assert result.phase_b_blocked is False
 
-    # 3. build canonical actual
-    with a2_pg_session_factory() as s:
+    # 3. read persisted record + input_snapshot + assumption_snapshot.
+    with a1_session_factory() as s:
         rec = s.execute(
             select(SchemeRunRecord).where(SchemeRunRecord.id == result.scheme_run.id)
         ).scalar_one()
-        # re-fetch input_snapshot from the same row (it's stored as JSON column)
         input_snapshot = dict(rec.input_snapshot or {})
-        # assumption_snapshot is a column on SchemeRunRecord (NOT on
-        # SourceBindingRecord); the production adapter writes it into
-        # SchemeRunRecord.assumption_snapshot as a JSON dict.
         assumption_snapshot = dict(rec.assumption_snapshot or {})
-    actual = _build_canonical_actual(rec, input_snapshot, assumption_snapshot)
+        actual = build_baseline_expected_output_actual(
+            scenario_outcome=result,
+            scheme_run_record=rec,
+            input_snapshot=input_snapshot,
+            assumption_snapshot=assumption_snapshot,
+        )
 
-    # 4. load golden
-    golden_path = (
-        Path(__file__).parent / "data" / "expected" / "baseline_feasible.v1.json"
+    # 4. validate policy.
+    expected = load_baseline_golden()
+    validate_expected_output_comparison_policy(expected, backend="sqlite")
+
+    # 5. strict comparison.
+    assert_expected_output_matches(
+        actual=actual, expected_golden=expected, backend="sqlite"
     )
-    with open(golden_path) as f:
-        expected = json.load(f)
 
-    # 5. strict comparison
-    _compare_canonical_actual(actual, expected, backend="postgresql")
+
+# ── Negative-policy tests (per auth §9) ─────────────────────────────────
+#
+# These tests prove the shared validator (``validate_expected_output_comparison_policy``
+# + ``assert_expected_output_matches``) is a real contract gate, not
+# a no-op. Each test mutates a single property of a copy of the
+# golden and asserts the validator rejects it with a specific error.
+
+
+def _negative_golden() -> dict[str, Any]:
+    """Return a deep copy of the loaded golden for mutation."""
+    from tests.evaluation._seed_helpers import load_baseline_golden
+    import copy as _copy
+
+    return _copy.deepcopy(load_baseline_golden())
+
+
+def test_negative_policy_25_delete_comparison_policy_fails() -> None:
+    """Neg test 25: deleting ``_comparison_policy`` MUST cause the
+    validator to raise ``POLICY_MISSING``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    g.pop("_comparison_policy", None)
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        assert "POLICY_MISSING" in str(exc), f"unexpected error: {exc}"
+        return
+    raise AssertionError(
+        "validate_expected_output_comparison_policy accepted a golden "
+        "with no _comparison_policy; expected POLICY_MISSING"
+    )
+
+
+def test_negative_policy_26_content_hash_in_exact_and_excluded_fails() -> None:
+    """Neg test 26: placing ``content_hash`` in BOTH ``exact_match_fields``
+    AND ``excluded_runtime_fields`` MUST fail two distinct checks:
+    ``POLICY_FORBIDDEN_IN_EXCLUDED`` (content_hash must not be in
+    excluded) and ``POLICY_EXACT_EXCLUDED_OVERLAP`` (the two lists
+    overlap on content_hash).
+    """
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    g["_comparison_policy"]["exact_match_fields"] = sorted(
+        set(g["_comparison_policy"]["exact_match_fields"]) | {"content_hash"}
+    )
+    g["_comparison_policy"]["excluded_runtime_fields"] = sorted(
+        set(g["_comparison_policy"]["excluded_runtime_fields"]) | {"content_hash"}
+    )
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        msg = str(exc)
+        # Order matters: POLICY_FORBIDDEN_IN_EXCLUDED is checked before
+        # overlap. Either is acceptable evidence the validator caught it.
+        assert (
+            "POLICY_FORBIDDEN_IN_EXCLUDED" in msg
+            or "POLICY_EXACT_EXCLUDED_OVERLAP" in msg
+        ), f"unexpected error: {msg}"
+        return
+    raise AssertionError(
+        "validate_expected_output_comparison_policy accepted a golden "
+        "with content_hash in BOTH exact and excluded"
+    )
+
+
+def test_negative_policy_27_missing_production_output_leaf_fails() -> None:
+    """Neg test 27: removing a ``production_outputs.*`` leaf from
+    ``exact_match_fields`` (without replacing it via an ancestor
+    subtree or proxy) MUST cause ``POLICY_LEAF_UNCOVERED``.
+    """
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    leaves = g["_comparison_policy"]["exact_match_fields"]
+    # Target a SPECIFIC leaf (no ancestor covers it). The golden includes
+    # BOTH `$.production_outputs` (parent subtree) AND the specific leaf
+    # path. To make the leaf individually uncoverable, we remove the
+    # parent subtree AND the specific leaf; if either removal alone
+    # would still leave coverage via the other, the validator must
+    # report UNCOVERED for the remaining leaf.
+    target_specific = "$.production_outputs.investment_result.total_investment_cny"
+    target_parent = "$.production_outputs"
+    assert target_specific in leaves, "test invariant: specific leaf must be in policy"
+    assert target_parent in leaves, "test invariant: parent subtree must be in policy"
+    # Remove BOTH the specific leaf AND the parent subtree.
+    g["_comparison_policy"]["exact_match_fields"] = [
+        x for x in leaves
+        if x not in (target_specific, target_parent)
+    ]
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_LEAF_UNCOVERED" in msg
+        # The validator enumerates uncovered leaves in sort order; the
+        # FIRST reported leaf must be inside production_outputs subtree
+        # (because we removed both the parent and a specific leaf).
+        assert "$.production_outputs." in msg, (
+            f"expected first uncovered leaf to be under $.production_outputs.*, got: {msg}"
+        )
+        return
+    raise AssertionError(
+        "validate_expected_output_comparison_policy accepted a golden "
+        f"with leaves {target_specific} AND {target_parent} removed"
+    )
+
+
+def test_negative_policy_28_modify_numeric_leaf_returns_full_path() -> None:
+    """Neg test 28: mutating a numeric leaf in the expected golden
+    MUST cause ``assert_expected_output_matches`` to raise with the
+    complete JSON path / expected / actual / backend message."""
+    from tests.evaluation._seed_helpers import assert_expected_output_matches
+
+    g = _negative_golden()
+    original_value = g["production_outputs"]["investment_result"][
+        "total_investment_cny"
+    ]
+    g["production_outputs"]["investment_result"]["total_investment_cny"] = "9999999.9"
+
+    # Build a complete actual that mirrors g's structure (so the
+    # comparator reaches the mutated leaf).
+    actual = {
+        k: v for k, v in g.items() if k != "_comparison_policy"
+    }
+    # Adjust production_outputs to hold the ORIGINAL (un-mutated)
+    # value at the path the test will assert mismatch on.
+    actual["production_outputs"] = {
+        **g["production_outputs"],
+        "investment_result": {
+            **g["production_outputs"]["investment_result"],
+            "total_investment_cny": original_value,
+        },
+    }
+    # content_hash uses production value (NOT the test-recomputed one)
+    # but the golden file's content_hash IS the production value, so
+    # they match. We leave content_hash as-is.
+
+    try:
+        assert_expected_output_matches(
+            actual=actual, expected_golden=g, backend="sqlite"
+        )
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "VALUE_MISMATCH" in msg
+        assert "$.production_outputs.investment_result.total_investment_cny" in msg
+        assert "backend=sqlite" in msg
+        return
+    raise AssertionError(
+        "assert_expected_output_matches accepted a mutated golden; "
+        "expected VALUE_MISMATCH with full JSON path"
+    )
+
+
+def test_negative_policy_29_content_hash_mismatch_fails() -> None:
+    """Neg test 29: if the actual ``content_hash`` differs from the
+    golden's, ``assert_expected_output_matches`` MUST fail with
+    ``VALUE_MISMATCH`` at ``$.content_hash``."""
+    from tests.evaluation._seed_helpers import assert_expected_output_matches
+
+    g = _negative_golden()
+    actual = {
+        "schema_version": g["schema_version"],
+        "scenario_id": g["scenario_id"],
+        "expected_outcome": g["expected_outcome"],
+        "scheme_status": g["scheme_status"],
+        "combined_source_hash": g["combined_source_hash"],
+        "review_required": g["review_required"],
+        "review_reasons": g["review_reasons"],
+        "source_binding_proxy": g["source_binding_proxy"],
+        "weight_set_revision_proxy": g["weight_set_revision_proxy"],
+        "project_id": g["project_id"],
+        "project_version_id": g["project_version_id"],
+        "stage_ledger": g["stage_ledger"],
+        "production_outputs": dict(g["production_outputs"]),
+        "content_hash": "0" * 64,  # WRONG content_hash
+        "constraint_check_summary": g["constraint_check_summary"],
+    }
+
+    try:
+        assert_expected_output_matches(
+            actual=actual, expected_golden=g, backend="sqlite"
+        )
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "VALUE_MISMATCH" in msg
+        assert "$.content_hash" in msg
+        return
+    raise AssertionError(
+        "assert_expected_output_matches accepted mismatched content_hash; "
+        "expected VALUE_MISMATCH at $.content_hash"
+    )

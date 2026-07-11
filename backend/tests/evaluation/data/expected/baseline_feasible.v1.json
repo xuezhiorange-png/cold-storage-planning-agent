@@ -249,14 +249,69 @@
     "total_storage_capacity_kg": "15000.0",
     "weight_set_id": ""
   },
+  "content_hash": "ea4ab8cd7f73b50c8cd83865adc9ec90428d8d60a9fc2e7d823a0c8fdb16fe46",
   "constraint_check_summary": {
     "expected_passed_count": 12,
     "expected_failed_count": 1,
     "expected_failed_code": "compressor_operating_adequacy"
   },
-  "content_hash": "e7a6650ee6f52a8f1a849f9c574b7b11fb0a3af148a1a0f3fa6bf4d629be9077",
   "_comparison_policy": {
+    "exact_match_fields": [
+      "$.combined_source_hash",
+      "$.constraint_check_summary",
+      "$.constraint_check_summary.expected_failed_code",
+      "$.constraint_check_summary.expected_failed_count",
+      "$.constraint_check_summary.expected_passed_count",
+      "$.content_hash",
+      "$.expected_outcome",
+      "$.production_outputs",
+      "$.production_outputs.candidates_snapshot[0].constraint_results[0].actual",
+      "$.production_outputs.candidates_snapshot[0].constraint_results[0].constraint_code",
+      "$.production_outputs.candidates_snapshot[0].constraint_results[0].passed",
+      "$.production_outputs.investment_result.total_investment_cny",
+      "$.production_outputs.zone_results[0].area_m2",
+      "$.project_id",
+      "$.project_version_id",
+      "$.review_reasons",
+      "$.review_required",
+      "$.scenario_id",
+      "$.schema_version",
+      "$.scheme_status",
+      "$.source_binding_proxy",
+      "$.stage_ledger",
+      "$.weight_set_revision_proxy"
+    ],
+    "excluded_runtime_fields": [
+      "runtime._meta",
+      "runtime.correlation_id",
+      "runtime.process_id",
+      "runtime.run_directory",
+      "scenario_outcome.database_backend",
+      "scenario_outcome.phase_b_blocked",
+      "scenario_outcome.upstream_error_code",
+      "scheme_run._sa_instance_state",
+      "scheme_run.completed_at",
+      "scheme_run.created_at",
+      "scheme_run.database_backend",
+      "scheme_run.frozen_envelope",
+      "scheme_run.id",
+      "scheme_run.source_contract_version",
+      "scheme_run.warning_messages"
+    ],
+    "normalized_proxy_fields": [
+      "$.combined_source_hash",
+      "$.content_hash",
+      "$.review_reasons",
+      "$.source_binding_proxy",
+      "$.weight_set_revision_proxy"
+    ],
+    "forbidden_comparison_methods": [
+      "fuzzy_global_tolerance",
+      "string_truncation",
+      "ignore_all_numerical_fields"
+    ],
     "deterministic_categorical_fields": [
+      "schema_version",
       "scenario_id",
       "expected_outcome",
       "scheme_status",
@@ -264,47 +319,46 @@
       "review_required"
     ],
     "exact_match_decimal_canonicalization": "Decimal and monetary values are normalized as canonical decimal strings via the domain canonical_json_bytes rule (no float, no binary).",
-    "exact_match_fields": [
-      "combined_source_hash",
-      "constraint_check_summary",
-      "content_hash",
-      "expected_outcome",
-      "production_outputs",
-      "project_id",
-      "project_version_id",
-      "review_reasons",
-      "review_required",
-      "scenario_id",
-      "schema_version",
-      "scheme_status",
-      "source_binding_proxy",
-      "stage_ledger",
-      "weight_set_revision_proxy"
-    ],
     "exact_match_float_quantization": "Float-derived engineering values (e.g. partition_length_proxy_m) are exact-string-equal because production serializes Decimal via canonical_json_bytes (round-trip stable across SQLite / PostgreSQL).",
-    "frozen_excluded_fields": [
-      "completed_at",
-      "content_hash",
-      "created_at",
-      "database_backend",
-      "id",
-      "phase_b_blocked",
-      "scenario_id",
-      "schema_version",
-      "warning_messages"
-    ],
     "stable_proxies": [
       "combined_source_hash = '60e11cacea5868d1650e40f72186618e4a01f29b1655e9aa531deccaf0633206' (cross-backend normalized, captures 5-stage slot fingerprints)",
       "source_binding_proxy = 'a1-test-binding-001' (semantic SourceBindingRecord.id, NOT DB PK)",
       "weight_set_revision_proxy = 'a1-test-wrev-001' (semantic SchemeWeightSetRevisionRecord.id)",
-      "content_hash = 'e7a6650ee6f52a8f1a849f9c574b7b11fb0a3af148a1a0f3fa6bf4d629be9077' (SHA256 of canonical JSON of stripped SchemeRunRecord body; excludes id/created_at/completed_at/content_hash/phase_b_blocked/warning_messages/<backend-echo>)"
+      "content_hash = 'ea4ab8cd7f73b50c8cd83865adc9ec90428d8d60a9fc2e7d823a0c8fdb16fe46' (production-side scheme_run_record.content_hash, byte-equal across SQLite and PostgreSQL — verified in Commit C capture)"
     ],
+    "field_normalization_mapping": {
+      "scheme_run.warning_messages": "review_reasons (canonical form: ordered list of strings)",
+      "scheme_run.source_binding_id": "source_binding_proxy (canonical form: semantic ID)",
+      "scheme_run.weight_set_revision_id": "weight_set_revision_proxy (canonical form: semantic ID)",
+      "scheme_run.combined_source_hash": "combined_source_hash (canonical form: 64-hex sha256)",
+      "scheme_run.content_hash": "content_hash (canonical form: 64-hex sha256, production value)"
+    },
     "forbidden_in_expected_output": [
       "Any UUID4 (e.g. scheme_run.id, created_at wall-clock)",
       "Any absolute filesystem path",
       "Any backend label literal echo (e.g. \"sqlite\" / \"postgresql\", the column is intentionally absent)",
       "Any _meta runtime sentinel",
-      "Any database-generated integer primary key (SQLite rowid, PostgreSQL bigserial)"
-    ]
+      "Any database-generated integer primary key (SQLite rowid, PostgreSQL bigserial)",
+      "Any test-recomputed content_hash (production-side value MUST be used directly)"
+    ],
+    "leaf_coverage_summary": {
+      "exact_match_leaf_examples": [
+        "$.production_outputs.candidates_snapshot[0].constraint_results[0].actual",
+        "$.production_outputs.investment_result.total_investment_cny",
+        "$.production_outputs.zone_results[0].area_m2",
+        "$.constraint_check_summary.expected_passed_count",
+        "$.content_hash",
+        "$.schema_version",
+        "$.scenario_id"
+      ],
+      "normalized_proxy_leaf_examples": [
+        "$.review_reasons (← scheme_run.warning_messages)",
+        "$.source_binding_proxy (← scheme_run.source_binding_id)",
+        "$.weight_set_revision_proxy (← scheme_run.weight_set_revision_id)",
+        "$.combined_source_hash (← scheme_run.combined_source_hash)",
+        "$.content_hash (← scheme_run.content_hash)"
+      ],
+      "no_excluded_canonical_field": true
+    }
   }
 }
