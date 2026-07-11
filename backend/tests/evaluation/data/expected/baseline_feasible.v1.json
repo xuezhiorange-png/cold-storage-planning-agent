@@ -1,0 +1,339 @@
+{
+  "schema_version": "task11b-expected-output.v1",
+  "scenario_id": "baseline_feasible",
+  "expected_outcome": "SUCCEEDED",
+  "scheme_status": "completed",
+  "combined_source_hash": "60e11cacea5868d1650e40f72186618e4a01f29b1655e9aa531deccaf0633206",
+  "review_required": false,
+  "review_reasons": [],
+  "source_binding_proxy": "a1-test-binding-001",
+  "weight_set_revision_proxy": "a1-test-wrev-001",
+  "project_id": "a1-test-p-001",
+  "project_version_id": "a1-test-v-001",
+  "stage_ledger": [
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment"
+  ],
+  "production_outputs": {
+    "generator_version": "1.0.0",
+    "source_mode": "production",
+    "binding_schema_version": "1.0.0",
+    "weight_set_generator_compatibility_version": "1.0.0",
+    "weight_set_content_hash": "92d55a19e608cd6f15876ac591344406e5225859cbbe0f30536d49df1ef0f9d4",
+    "source_calculation_ids": {
+      "zone": "a1-test-run-zone-001",
+      "cooling_load": "a1-test-run-cool-001",
+      "equipment": "a1-test-run-equip-001",
+      "power": "a1-test-run-power-001",
+      "investment": "a1-test-run-invest-001"
+    },
+    "source_snapshot_hashes": {
+      "zone": "bd5a56e4ba8613e27c82a9e6f07d6c4a5607d317e90ce87eb4a3c0a16b2547c5",
+      "cooling_load": "3c7f91bfc0d9cb0f267eef0712007140e26a15f2dbff055a30ad7e97bde06d2e",
+      "equipment": "c2c42b66eaa6c2179924e72ec41a6bb575c2cb9e228a9481a10100f034032193",
+      "power": "29eb291da5cc29768a435f7f2382e83c80d0c5029c10da37b8576f1b2a7f2ab0",
+      "investment": "73331e05a059a74c1e851823a5e06f024a76568ff9fe0836bca6b5de0551ce85"
+    },
+    "candidates_snapshot": [
+      {
+        "scheme_code": "balanced",
+        "scheme_name": "平衡方案",
+        "profile_code": "balanced",
+        "feasible": false,
+        "constraint_results": [
+          {
+            "constraint_code": "throughput_adequacy",
+            "passed": true,
+            "detail": "daily_throughput=10000 >= required=10000",
+            "expected": "10000",
+            "actual": "10000"
+          },
+          {
+            "constraint_code": "storage_capacity_adequacy",
+            "passed": true,
+            "detail": "storage=15000.0 >= required=15000.0",
+            "expected": "15000.0",
+            "actual": "15000.0"
+          },
+          {
+            "constraint_code": "pallet_position_adequacy",
+            "passed": true,
+            "detail": "positions=30 >= required=30",
+            "expected": 30,
+            "actual": 30
+          },
+          {
+            "constraint_code": "temperature_compatibility",
+            "passed": true,
+            "detail": "All rooms have compatible temperature levels",
+            "expected": null,
+            "actual": null
+          },
+          {
+            "constraint_code": "process_separation",
+            "passed": true,
+            "detail": "Process separation maintained",
+            "expected": null,
+            "actual": null
+          },
+          {
+            "constraint_code": "hygiene_separation",
+            "passed": true,
+            "detail": "Hygiene separation maintained",
+            "expected": null,
+            "actual": null
+          },
+          {
+            "constraint_code": "cooling_capacity_adequacy",
+            "passed": true,
+            "detail": "cooling=25.0 >= design_load=25.0",
+            "expected": "25.0",
+            "actual": "25.0"
+          },
+          {
+            "constraint_code": "compressor_operating_adequacy",
+            "passed": false,
+            "detail": "operating_capacity=22.0 >= design_cooling_load=25.0",
+            "expected": "25.0",
+            "actual": "22.0"
+          },
+          {
+            "constraint_code": "compressor_installed_adequacy",
+            "passed": true,
+            "detail": "installed_capacity=25.0 >= operating_capacity=22.0",
+            "expected": "22.0",
+            "actual": "25.0"
+          },
+          {
+            "constraint_code": "compressor_capacity_adequacy",
+            "passed": true,
+            "detail": "installed=25.0 >= operating=22.0 and installed_cap=25.0",
+            "expected": {
+              "operating": "22.0",
+              "installed": "25.0"
+            },
+            "actual": "25.0"
+          },
+          {
+            "constraint_code": "electrical_capacity_traceability",
+            "passed": true,
+            "detail": "installed_power=200.0 > 0 (from PowerResult.total_installed_power_kw_e=200.0)",
+            "expected": "installed_power_kw_e > 0",
+            "actual": "200.0"
+          },
+          {
+            "constraint_code": "zone_code_existence",
+            "passed": true,
+            "detail": "All zone codes exist in zone_results",
+            "expected": null,
+            "actual": null
+          },
+          {
+            "constraint_code": "project_version_consistency",
+            "passed": true,
+            "detail": "Version a1-test-v-001 consistent",
+            "expected": null,
+            "actual": null
+          }
+        ],
+        "room_modules": [
+          {
+            "room_code": "BAL-001",
+            "room_name": "平衡-a1-zone-001",
+            "zone_codes": [
+              "Z1"
+            ],
+            "temperature_level": "0~4C",
+            "area_m2": "200.0",
+            "position_count": 30,
+            "storage_capacity_kg": "15000.0",
+            "design_cooling_load_kw_r": "25.0",
+            "compressor_operating_capacity_kw_r": "22.0",
+            "compressor_installed_capacity_kw_r": "25.0",
+            "process_compatibility": "blueberry",
+            "hygiene_zone": "food_grade",
+            "door_count": 1,
+            "partition_length_proxy_m": "28.28427124746190097603377448"
+          }
+        ],
+        "zone_assignments": {
+          "Z1": [
+            "BAL-001"
+          ]
+        },
+        "total_area_m2": "200.0",
+        "total_position_count": 30,
+        "room_module_count": 1,
+        "door_count": 1,
+        "partition_length_proxy_m": "28.28427124746190097603377448",
+        "daily_throughput_kg_day": "10000",
+        "investment_cny": "6000000.0",
+        "installed_power_kw_e": "200.0",
+        "design_cooling_load_kw_r": "25.0",
+        "compressor_operating_capacity_kw_r": "22.0",
+        "compressor_installed_capacity_kw_r": "25.0",
+        "compressor_standby_capacity_kw_r": "8.0",
+        "condenser_heat_rejection_kw": "30.0",
+        "metrics": [],
+        "assumptions": [
+          "Task 4 baseline preserved — one room per zone"
+        ],
+        "warnings": [],
+        "requires_review": false
+      }
+    ],
+    "comparison_snapshot": {
+      "recommended_scheme_code": null,
+      "recommended_reason": null,
+      "total_score": "0"
+    },
+    "assumption_snapshot": {
+      "source_mode": "production",
+      "actor": "",
+      "correlation_id": "test-a15-baseline-001",
+      "profile_codes": [
+        "balanced"
+      ],
+      "profile_parameters": {}
+    },
+    "cooling_load_result": {
+      "design_cooling_load_kw_r": "25.0",
+      "sensible_load_kw_r": "18.0",
+      "infiltration_load_kw_r": "3.0",
+      "latent_load_kw_r": "0.0"
+    },
+    "equipment_result": {
+      "compressor_operating_capacity_kw_r": "22.0",
+      "compressor_standby_capacity_kw_r": "8.0",
+      "condenser_heat_rejection_kw": "30.0",
+      "installed_power_kw_e": "0",
+      "compressor_installed_capacity_kw_r": "25.0"
+    },
+    "investment_result": {
+      "total_investment_cny": "6000000.0",
+      "zone_investments": {
+        "building": "3000000.0",
+        "equipment": "2000000.0",
+        "other": "1000000.0"
+      }
+    },
+    "power_result": {
+      "total_installed_power_kw_e": "200.0",
+      "total_estimated_demand_kw": "160.0",
+      "equipment_rows": [],
+      "summary_rows": [],
+      "items": [],
+      "assumptions": []
+    },
+    "zone_results": [
+      {
+        "zone_code": "Z1",
+        "zone_name": "a1-zone-001",
+        "temperature_level": "0~4C",
+        "area_m2": "200.0",
+        "position_count": 30,
+        "storage_capacity_kg": "15000.0",
+        "process_compatibility": "blueberry",
+        "hygiene_zone": "food_grade"
+      }
+    ],
+    "profile_codes": [
+      "balanced"
+    ],
+    "profile_parameters": {},
+    "total_daily_throughput_kg_day": "10000",
+    "total_position_count": 30,
+    "total_storage_capacity_kg": "15000.0",
+    "weight_set_id": ""
+  },
+  "content_hash": "ea4ab8cd7f73b50c8cd83865adc9ec90428d8d60a9fc2e7d823a0c8fdb16fe46",
+  "constraint_check_summary": {
+    "expected_passed_count": 12,
+    "expected_failed_count": 1,
+    "expected_failed_code": "compressor_operating_adequacy"
+  },
+  "_comparison_policy": {
+    "exact_match_fields": [
+      "$.combined_source_hash",
+      "$.constraint_check_summary",
+      "$.constraint_check_summary.expected_failed_code",
+      "$.constraint_check_summary.expected_failed_count",
+      "$.constraint_check_summary.expected_passed_count",
+      "$.content_hash",
+      "$.expected_outcome",
+      "$.production_outputs",
+      "$.production_outputs.candidates_snapshot[0].constraint_results[0].actual",
+      "$.production_outputs.candidates_snapshot[0].constraint_results[0].constraint_code",
+      "$.production_outputs.candidates_snapshot[0].constraint_results[0].passed",
+      "$.production_outputs.investment_result.total_investment_cny",
+      "$.production_outputs.zone_results[0].area_m2",
+      "$.project_id",
+      "$.project_version_id",
+      "$.review_reasons",
+      "$.review_required",
+      "$.scenario_id",
+      "$.schema_version",
+      "$.scheme_status",
+      "$.stage_ledger"
+    ],
+    "excluded_runtime_fields": [
+      "runtime._meta",
+      "runtime.correlation_id",
+      "runtime.process_id",
+      "runtime.run_directory",
+      "scenario_outcome.database_backend",
+      "scenario_outcome.phase_b_blocked",
+      "scenario_outcome.upstream_error_code",
+      "scheme_run._sa_instance_state",
+      "scheme_run.completed_at",
+      "scheme_run.created_at",
+      "scheme_run.database_backend",
+      "scheme_run.frozen_envelope",
+      "scheme_run.id",
+      "scheme_run.source_contract_version"
+    ],
+    "normalized_proxy_fields": [
+      "$.source_binding_proxy",
+      "$.weight_set_revision_proxy"
+    ],
+    "forbidden_comparison_methods": [
+      "fuzzy_global_tolerance",
+      "string_truncation",
+      "ignore_all_numerical_fields"
+    ],
+    "deterministic_categorical_fields": [
+      "schema_version",
+      "scenario_id",
+      "expected_outcome",
+      "scheme_status",
+      "stage_ledger",
+      "review_required"
+    ],
+    "exact_match_decimal_canonicalization": "Decimal and monetary values are normalized as canonical decimal strings via the domain canonical_json_bytes rule (no float, no binary).",
+    "exact_match_float_quantization": "Float-derived engineering values (e.g. partition_length_proxy_m) are exact-string-equal because production serializes Decimal via canonical_json_bytes (round-trip stable across SQLite / PostgreSQL).",
+    "stable_proxies": [
+      "combined_source_hash = '60e11cacea5868d1650e40f72186618e4a01f29b1655e9aa531deccaf0633206' (cross-backend normalized, captures 5-stage slot fingerprints)",
+      "source_binding_proxy = 'a1-test-binding-001' (semantic SourceBindingRecord.id, NOT DB PK)",
+      "weight_set_revision_proxy = 'a1-test-wrev-001' (semantic SchemeWeightSetRevisionRecord.id)",
+      "content_hash = 'ea4ab8cd7f73b50c8cd83865adc9ec90428d8d60a9fc2e7d823a0c8fdb16fe46' (production-side scheme_run_record.content_hash, byte-equal across SQLite and PostgreSQL — verified in Commit C capture)"
+    ],
+    "field_normalization_mapping": {
+      "scheme_run.warning_messages": "review_reasons (canonical form: ordered list[str], same content as raw)",
+      "scheme_run.source_binding_id": "source_binding_proxy (canonical form: semantic ID)",
+      "scheme_run.weight_set_revision_id": "weight_set_revision_proxy (canonical form: semantic ID)",
+      "scheme_run.combined_source_hash": "combined_source_hash (canonical form: 64-hex sha256)",
+      "scheme_run.content_hash": "content_hash (canonical form: 64-hex sha256, production value)"
+    },
+    "forbidden_in_expected_output": [
+      "Any UUID4 (e.g. scheme_run.id, created_at wall-clock)",
+      "Any absolute filesystem path",
+      "Any backend label literal echo (e.g. \"sqlite\" / \"postgresql\", the column is intentionally absent)",
+      "Any _meta runtime sentinel",
+      "Any database-generated integer primary key (SQLite rowid, PostgreSQL bigserial)",
+      "Any test-recomputed content_hash (production-side value MUST be used directly)"
+    ]
+  }
+}
