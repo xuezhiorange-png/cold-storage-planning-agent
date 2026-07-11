@@ -1237,7 +1237,11 @@ backend/tests/evaluation/data/*
 !backend/tests/evaluation/data/expected/
 backend/tests/evaluation/data/expected/*
 !backend/tests/evaluation/data/expected/baseline_feasible.v1.json
-!backend/tests/evaluation/data/expected/high_throughput_review.v1.json
+# Superseded by §16.9.2 corrective addendum. The future implementation
+# round MUST un-ignore ONLY `baseline_feasible.v1.json`. The
+# `high_throughput_review.v1.json` line is intentionally absent
+# because `high_throughput_review` is not part of the current
+# expected-output set (see §16.9.1).
 ```
 
 This is **path-precise** — only the two freeze-listed files are
@@ -1420,7 +1424,20 @@ There is no other path that satisfies both:
   from a fresh clone), and
 - §16.1 (no `git add -f` workaround).
 
-**Outcome B** is therefore the only honest outcome:
+**Outcome B** was the prior-round label. Per §16.9.3 corrective
+addendum, the verbose label has been **superseded** by:
+
+- `HIGH_THROUGHPUT_SCENARIO_PRODUCTION_FEASIBLE`
+- `HIGH_THROUGHPUT_SCENARIO_NOT_AUTHORIZED_OR_MATERIALIZED_IN_CURRENT_SCOPE`
+- `HIGH_THROUGHPUT_REMOVED_FROM_CURRENT_EXPECTED_OUTPUT_SET`
+
+The substantive outcome-B decision itself (`high_throughput_review`
+REMOVED from current expected-output set, expected-output set
+reduced to `baseline_feasible.v1.json`) is **preserved** by
+§16.9.1; only the verbose label is corrected. See §16.9.3 for
+the supersession rationale.
+
+**Outcome B — corrected label**:
 
 - `high_throughput_review` is **REMOVED** from the current
   expected-output set.
@@ -1493,6 +1510,172 @@ second scenario in this round's scope.
 
 ---
 
+
+---
+
+### 16.9 Charles review corrective addendum (supersedes §16.1, §16.6 narrative labels)
+
+> **§16.9 is binding and has normative supersession effect over §16.1, §16.6 and any related "final verdict" wording in §16.** The substantive decision in §16.6 (`high_throughput_review` REMOVED from current expected-output set; set reduced to `baseline_feasible.v1.json`) is preserved by §16.9.1. Only the verbose wording is corrected. The supersession is described in §16.9.3.
+
+#### 16.9.1 Current expected-output set
+
+The current expected-output set is **frozen** to a single scenario:
+
+- `backend/tests/evaluation/data/expected/baseline_feasible.v1.json`
+
+`backend/tests/evaluation/data/expected/high_throughput_review.v1.json`
+is **NOT** part of the current expected-output set.
+
+`high_throughput_review.v1.json` MUST NOT be submitted, allowed,
+or signed off in this round or in the future baseline-only
+implementation round (see §16.9.5). The file is reserved for a
+future independently-frozen `high_throughput_review` scenario
+that meets the §16.9.4 future-restoration conditions under a
+separate Amendment and implementation authorization.
+
+#### 16.9.2 Baseline-only `.gitignore` whitelist
+
+The future implementation round's `.gitignore` path-precise
+whitelist is **frozen** to:
+
+```
+!backend/tests/evaluation/data/
+backend/tests/evaluation/data/*
+!backend/tests/evaluation/data/expected/
+backend/tests/evaluation/data/expected/*
+!backend/tests/evaluation/data/expected/baseline_feasible.v1.json
+```
+
+This explicitly **supersedes** §16.1. Specifically, the §16.1 line
+that un-ignored `high_throughput_review.v1.json` is removed:
+
+```
+# DELETED (was §16.1, now superseded by §16.9.2):
+# !backend/tests/evaluation/data/expected/high_throughput_review.v1.json
+```
+
+The whitelist allows ONLY the baseline golden to be tracked through
+normal Git behavior; `high_throughput_review.v1.json` (if it
+appears in the future) MUST be added through a new design
+amendment and a new whitelist entry, not via this baseline
+whitelist.
+
+`git add -f` IS FORBIDDEN. Expected-output files MUST enter the
+repository through normal Git tracking behavior once the whitelist
+is implemented. This restates §16.1 second paragraph.
+
+#### 16.9.3 High-throughput correct status (supersedes §16.6 narrative label)
+
+The following verbose status label from the prior round has been **removed**:
+
+  > `(the prior §16 "final verdict" wording for the high-throughput scenario, which described it as "NOT FEASIBLE UNDER CURRENT PRODUCTION CONTRACT"; the full literal verdict label is preserved only in the change-log entry below for historical traceability — it does NOT appear in any forward-looking governance verdict in this document)
+
+
+The correct, multi-dimensional status is:
+
+- `HIGH_THROUGHPUT_SCENARIO_PRODUCTION_FEASIBLE`
+- `HIGH_THROUGHPUT_SCENARIO_NOT_AUTHORIZED_OR_MATERIALIZED_IN_CURRENT_SCOPE`
+- `HIGH_THROUGHPUT_REMOVED_FROM_CURRENT_EXPECTED_OUTPUT_SET`
+
+The contract MUST distinguish these four dimensions explicitly:
+
+- **Production feasibility**: already proven by the read-only
+  feasibility probe (`/tmp/task011b-amendment5/probe2_variant.py`),
+  which produced a 2×-scale variant whose `combined_source_hash`
+  (`3573a597…`) and `content_hash` (`966e3de9…`) differ from the
+  baseline (`60e11cace…` / `ad7fa7da…`).
+- **Current materialization**: not authorized. The only mechanical
+  paths to materialize a §16.5-distinct second scenario require
+  modifying `_seed_helpers.py` and/or `.gitignore` and/or using
+  `git add -f` — all of which are forbidden by §3 of the
+  Amendment 5 authorization.
+- **Current expected-output set**: does not contain `high_throughput`.
+- **Current PR**: MUST NOT submit a high-throughput golden.
+  Submission in violation of this clause is a §15.10 stop
+  condition and a governance event.
+
+#### 16.9.4 Future restoration conditions
+
+A future `high_throughput_review` scenario (or any second scenario
+that satisfies §16.5) may only be restored through a **separate**
+Amendment and a **separate** implementation authorization. At
+minimum the following MUST be frozen in that future round:
+
+- Independent semantic `source_binding_id`.
+- Independent semantic `weight_set_revision_id`.
+- Independent five-stage `CalculationRun` production state.
+- At least one substantive input value difference.
+- At least one production output or constraint difference.
+- Different canonical content hash.
+- SQLite/PostgreSQL cross-backend determinism evidence.
+- A genuine production-derived `review_status` (not invented).
+- A new path-precise `.gitignore` whitelist entry for the
+  restored file.
+- A new expected-output reviewer sign-off.
+
+The following fields DO NOT, by themselves, create a valid second
+scenario:
+
+- `correlation_id`
+- scenario label
+- UUID
+- timestamp
+- run directory
+
+Restoration MUST also satisfy §16.5 in full (all four criteria
+must be satisfied: semantic input identity, substantive input
+value, production output / constraint result, canonical content
+hash).
+
+#### 16.9.5 Baseline implementation gate
+
+After the §16.9 corrective addendum is merged, the future
+**baseline-only** implementation round MAY apply to modify:
+
+- `.gitignore` (add the §16.9.2 whitelist).
+- `backend/tests/evaluation/data/expected/baseline_feasible.v1.json`
+  (add the baseline golden).
+- `docs/tasks/TASK-011B-path-a-expected-outputs-reviewer-sign-off.md`
+  (create the baseline sign-off).
+
+In addition:
+
+- The baseline implementation round MUST include at least one test
+  that **actually reads and compares the baseline golden**. The
+  golden is not allowed to land as an isolated JSON file with no
+  test consumer.
+- The future `.gitignore` change MUST be the **minimum-set**
+  whitelist listed in §16.9.2 and nothing more.
+- The baseline implementation round MUST NOT introduce
+  `high_throughput_review.v1.json`. Any attempt to do so requires a
+  separate Amendment satisfying §16.9.4.
+
+#### 16.9.6 Current governance status (supersedes §16 "final verdict" wording)
+
+The current governance status is **frozen** to:
+
+```
+TASK_011B_AMENDMENT5_SUBSTANTIVELY_ACCEPTED
+AMENDMENT5_CORRECTIVE_ADDENDUM_REQUIRED
+EXPECTED_OUTPUT_SET_BASELINE_ONLY
+HIGH_THROUGHPUT_SCENARIO_PRODUCTION_FEASIBLE
+HIGH_THROUGHPUT_SCENARIO_NOT_AUTHORIZED_OR_MATERIALIZED_IN_CURRENT_SCOPE
+EXPECTED_OUTPUT_COMMIT_NOT_YET_AUTHORIZED
+PR60_DRAFT
+READY_NOT_AUTHORIZED
+MERGE_NOT_AUTHORIZED
+```
+
+This block is the binding current verdict for TASK-011B Amendment
+5. The original §16 "final verdict" wording (including
+the verbose status label for the high-throughput scenario)
+is referenced in this document only in historical-narrative
+passages; its literal byte sequence is NOT present in any
+forward-looking governance verdict. The original §16 "final
+verdict" wording remains in the document for historical
+traceability; that historical wording is
+**superseded** by §16.9.6 in any forward-looking governance
+context (audit, sign-off, future amendment).
 
 ---
 
