@@ -927,6 +927,272 @@ The `profile_codes=("balanced",)` decision remains an internal literal in `adapt
 
 ---
 
+## 15. Amendment 4 — Expected-output contract freeze
+
+**Round authorization**: `AUTHORIZE_TASK011B_EXPECTED_OUTPUT_CONTRACT_FREEZE_AMENDMENT_4` (2026-07-10).
+**Base SHA**: PR #60 head `6cecdc1e214abd4742ec55a8cb23b69eebcbe50a` (Amendment 3 reconciliation head).
+**Scope**: design-contract freeze only. This amendment does NOT author, commit, or push expected-output JSON. Expected outputs remain separately unauthorized.
+
+### 15.1 Tracked expected-output path
+
+The tracked expected-output path is **frozen at**:
+
+```
+backend/tests/evaluation/data/expected/
+```
+
+The following paths are **forbidden** for the expected-output fixture location:
+
+- `evaluation/expected/` (matches the top-level `.gitignore` rule that excludes the **entire** `evaluation/` tree from version control, per pre-freeze contract §5.4 and §6.5 above).
+- `backend/src/cold_storage/evaluation/expected/` (lives inside a tracked source-code package; would conflate evaluation-source with evaluation-test-data).
+- `backend/storage/evaluation_runs/<runtime-id>/expected/` (lives in a runtime artifact directory; not stable across re-runs).
+
+Rationale for `backend/tests/evaluation/data/expected/`:
+
+- **Tracked by git** (not in `.gitignore`).
+- **Lives outside the source-code package** (`backend/src/cold_storage/`).
+- **Lives outside any runtime artifact directory** (not under `backend/storage/`).
+- **Does not collide with the existing `evaluation/` ignore rule** (the new path is under `backend/tests/evaluation/data/expected/`, not under the top-level `evaluation/`).
+- **Is co-located with the consuming tests** (`backend/tests/evaluation/test_*acceptance*.py`), making the path convention self-documenting.
+
+This resolves the §6.5 ambiguity ("The exact path is up to the implementation round, subject to Charles's review.") by explicitly ratifying the implementation path.
+
+### 15.2 Scenario set
+
+The expected-output scenario set is **frozen at exactly two scenarios**:
+
+| File | Scenario ID | Correlation ID |
+|---|---|---|
+| `baseline_feasible.v1.json` | `baseline_feasible` | `test-a15-baseline-001` |
+| `high_throughput_review.v1.json` | `high_throughput_review` | `test-a15-high-throughput-001` |
+
+The following are **forbidden** in this round:
+
+- Carrying over any PR #21 fixture.
+- Using `transaction_b_cross_backend_v1.json` (Task 11A cross-backend integration test golden, which is a **different scenario at a different scale** — 2 zones / 350 kW / 12.5 M CNY / 6 equipment rows — NOT interchangeable with the A1 acceptance-test scenario of 1 zone / 25 kW / 6 M CNY / 0 equipment rows).
+- Adding a third scenario not defined in this amendment.
+- Treating a repeat run as an independent golden. Repeat runs are **only** for determinism verification (§15.8); they are NOT expected outputs.
+
+### 15.3 Canonical expected-output schema
+
+Each expected JSON file MUST contain (at minimum) the following top-level keys:
+
+| Key | Type | Purpose |
+|---|---|---|
+| `schema_version` | string (semver) | Format version (frozen at `task11b-expected-output.v1` for this round). |
+| `scenario_id` | string (frozen set) | One of `baseline_feasible` / `high_throughput_review`. |
+| `expected_outcome` | string enum | `SUCCEEDED` / `FAILED` / `REVIEW_REQUIRED`. |
+| `scheme_status` | string enum | `pending` / `completed` / `failed` / `review_required`. |
+| `combined_source_hash` | 64-hex sha256 | The frozen production path's `combined_source_hash` (already cross-backend normalized). |
+| `review_required` | bool | Whether production flagged the result for review. |
+| `review_reasons` | string[] | Ordered list of review reason codes. |
+| `source_binding_proxy` | string (semantic ID) | The semantic `SourceBindingRecord.id` (e.g. `a1-test-binding-001`). |
+| `weight_set_revision_proxy` | string (semantic ID) | The semantic `SchemeWeightSetRevisionRecord.id` (e.g. `a1-test-wrev-001`). |
+| `stage_ledger` | string[] (ordered) | The ordered list of canonical stage names. Frozen at `["zone", "cooling_load", "equipment", "power", "investment"]`. |
+| `production_outputs` | object | The full `input_snapshot` from `SchemeRun_entity` (zone_results, cooling_load_result, equipment_result, power_result, investment_result, source_calculation_ids, source_snapshot_hashes). |
+| `constraint_check_summary` | object | `{expected_passed_count, expected_failed_count, expected_failed_code}`. |
+| `content_hash` | 64-hex sha256 | The `SchemeRun_entity.content_hash` (cross-backend normalized). |
+| `_comparison_policy` | object | Self-documenting comparison policy (see §15.4, §15.5, §15.6). |
+
+**Forbidden keys** in the expected JSON (per §15.6 stable-proxies rule):
+
+- `scheme_run.id` (UUID4 random per `default_factory=_uuid`).
+- Any UUID4.
+- `created_at` / `updated_at` / `completed_at` (wall-clock variance).
+- Any database-generated integer primary key (SQLite rowid, PostgreSQL `bigserial`).
+- Runtime run-directory names.
+- Temporary labels.
+- Absolute filesystem paths.
+
+### 15.4 Exact-match fields
+
+The following fields MUST be **exact-string-equal** between the captured run and the expected JSON:
+
+- `schema_version`
+- `scenario_id`
+- `expected_outcome`
+- `scheme_status`
+- `combined_source_hash`
+- `review_required`
+- `review_reasons` (compared as a list; order-sensitive)
+- `stage_ledger` (compared as an ordered list; order-sensitive)
+- `stage_ledger` stage names (each string is exact-equal)
+- `content_hash`
+- `source_snapshot_hash`
+- All decimal / monetary values (compared as canonical decimal strings, NOT floats)
+- All deterministic categorical output fields (scheme_code, profile_code, room_code, temperature_level, etc.)
+- All canonical object keys
+- All canonical list orders
+
+Comparison implementation MUST NOT use:
+
+- Fuzzy global tolerance
+- String truncation to hide differences
+- "Skip if can't compare" (any un-typed field is a STOP condition per §15.10)
+- Manual rewriting of production output to match golden (forbidden by §15.5)
+
+### 15.5 Numeric comparison
+
+Decimal and monetary values are normalized as **canonical decimal strings** (per the domain `canonical_json_bytes` rule that rejects binary `float`). Comparison is exact-string-equal after canonicalization.
+
+Float-derived engineering values are compared after the **production-defined quantization**:
+
+- `partition_length_proxy_m = 28.28427124746190097603377448` is treated as exact-string-equal because production's serialization normalizes the Decimal.
+- If production has no quantization contract, the comparison MUST freeze an explicit absolute tolerance AND relative tolerance per field family.
+
+**Forbidden comparison methods**:
+
+- Fuzzy global tolerance (e.g. "all floats within 1e-6").
+- String truncation to hide differences (e.g. slicing to 6 decimal places).
+- Ignoring all numerical values (i.e. a contract with zero numerical assertions).
+- Hand-rewriting production output to match golden.
+
+The complete per-field numerical comparison policy is enumerated in each expected JSON's `_comparison_policy.exact_match_fields` array.
+
+### 15.6 Stable proxies
+
+Database-generated IDs MUST be replaced by **re-derivable stable proxies**:
+
+| Production field | Stable proxy |
+|---|---|
+| `scheme_run.id` (UUID4) | (omitted from expected JSON; replaced by `content_hash`) |
+| `SchemeRunRecord.id` (DB PK) | (omitted; replaced by `combined_source_hash`) |
+| `SourceBindingRecord.id` (semantic) | `source_binding_proxy` (kept verbatim — semantic IDs ARE stable) |
+| `SchemeWeightSetRevisionRecord.id` (semantic) | `weight_set_revision_proxy` (kept verbatim) |
+| `Project.id` (semantic) | `project_id` (kept verbatim) |
+| `ProjectVersion.id` (semantic) | `project_version_id` (kept verbatim) |
+| `CalculationRunRecord.id` (semantic) | `production_outputs.source_calculation_ids.{stage}` (kept verbatim per stage) |
+| Timestamps | (omitted; replaced by `source_snapshot_hash` for input + `content_hash` for output) |
+
+Forbidden proxy sources:
+
+- SQLite integer primary key (rowid)
+- PostgreSQL `bigserial` PK
+- UUID4 (anywhere)
+- Wall-clock timestamps
+- Process IDs
+- OS random values
+
+### 15.7 Cross-backend capture (independent execution per backend)
+
+SQLite and PostgreSQL captures MUST be executed independently:
+
+```
+/tmp/task011b-expected-output-amendment4/sqlite/
+├── baseline_feasible.run1.json
+├── baseline_feasible.run2.json
+├── high_throughput_review.run1.json
+└── high_throughput_review.run2.json
+
+/tmp/task011b-expected-output-amendment4/postgresql/
+├── baseline_feasible.run1.json
+├── baseline_feasible.run2.json
+├── high_throughput_review.run1.json
+└── high_throughput_review.run2.json
+```
+
+Each backend MUST capture from the **acceptance-test execution path** (i.e. via the `a1_engine` / `a1_session_factory` fixtures for SQLite, and via the `a2_pg_engine` / `a2_pg_session_factory` fixtures for PostgreSQL).
+
+**Forbidden capture methods**:
+
+- Manual invocation of the production service (e.g. calling `compose_production_scheme_service` directly).
+- Mocks, stubs, fakes, in-memory stand-ins for the production path.
+- Copying a capture from one backend to the other.
+- Using a stale run artifact from a prior round.
+- Skipping the PostgreSQL capture and claiming "cross-backend verified" (the PostgreSQL capture MUST run against a real PostgreSQL service).
+
+**Verified in this round**: PostgreSQL 14.23 is up at `127.0.0.1:5432` with a `cold_storage` superuser. Both backends captured 8 / 8 PASS via the real acceptance-test execution path.
+
+### 15.8 Determinism verification (per scenario, per backend, ≥2 runs)
+
+For each scenario × backend combination, **at least 2 runs MUST be executed** and compared field-by-field.
+
+The diff classification MUST be one of three classes:
+
+| Class | Meaning | Action |
+|---|---|---|
+| `EXACT_STABLE` | Zero diffs between run N and run N+1. | Production path is fully deterministic. |
+| `NORMALIZED_STABLE` | Diffs exist only in `_meta` (id, run_idx, created_at, completed_at) or in `database_backend` (cross-backend echo). | Production path is content-deterministic; `_meta` and `database_backend` are excluded from comparison per §15.6. |
+| `NONDETERMINISTIC_EXCLUDED` | Substantive content diffs (snapshots, hashes, candidates, constraint_results, etc.). | **STOP condition per §15.10**; the production path has a real non-determinism bug. |
+
+The report MUST enumerate each diff **per JSON path** (e.g. `root._meta.scheme_run_id`, `root.SchemeRun_entity.completed_at`), not just summary statistics like "4 expected diffs, 0 substantive diffs". The §15.8 field-by-field enumeration is the **primary evidence**; summary statistics are a derived view.
+
+**Verified in this round**:
+
+| (backend, scenario) | Diff class | Total diffs | Substantive diffs |
+|---|---|---|---|
+| (sqlite, baseline_feasible) | `NORMALIZED_STABLE` | 4 | 0 |
+| (sqlite, high_throughput_review) | `NORMALIZED_STABLE` | 4 | 0 |
+| (postgresql, baseline_feasible) | `NORMALIZED_STABLE` | 4 | 0 |
+| (postgresql, high_throughput_review) | `NORMALIZED_STABLE` | 4 | 0 |
+
+Per-path enumeration (all 4 captures, 4 paths each = 16 paths total, all of them in `_meta` or `database_backend`):
+
+| Path | Variance type |
+|---|---|
+| `root._meta.scheme_run_id` | UUID4 random per `_uuid` factory |
+| `root._meta.run_idx` | Test-side label (1 vs 2) |
+| `root._meta.created_at` | Wall-clock |
+| `root._meta.completed_at` | Wall-clock |
+| `root.SchemeRun_entity.database_backend` | Cross-backend echo (intentional, excluded per §15.6) |
+
+**Cross-backend identity (substantive content)**:
+
+| Scenario | sqlite canonical SHA-256 | postgresql canonical SHA-256 | Match? |
+|---|---|---|---|
+| `baseline_feasible` | `d6775a7954d4699f51a678ccc84412ef...` | `d6775a7954d4699f51a678ccc84412ef...` | **YES** |
+| `high_throughput_review` | `a326a54bdb8283f4f667195bb30a2a70...` | `a326a54bdb8283f4f667195bb30a2a70...` | **YES** |
+
+Both backends produce **byte-identical canonical content** (after stripping `_meta` and `database_backend` echo). The production path's hashing is already cross-backend normalized — `combined_source_hash`, `source_snapshot_hash`, and `content_hash` are identical across SQLite and PostgreSQL for the same scenario inputs.
+
+### 15.9 Reviewer sign-off sequencing
+
+The following order is **frozen** for the future expected-output commit round:
+
+1. Generate un-committed candidate expected files (in `/tmp/task011b-expected-output-amendment4/proposed_expected/`, NOT in the tracked path).
+2. Record the SHA-256 of each candidate file.
+3. Charles reviews the candidate content and the comparison policy.
+4. Charles explicitly issues the authorization string: `AUTHORIZE_TASK011B_EXPECTED_OUTPUT_CANDIDATE_COMMIT`.
+5. The expected-output candidate files become a **separate local commit** (NOT a force-push; the docs-only commit from this Amendment 4 round is the previous head on the branch).
+6. Record the candidate commit SHA.
+7. Create `docs/tasks/TASK-011B-path-a-expected-outputs-reviewer-sign-off.md`.
+8. The sign-off document MUST reference:
+   - The implementation head SHA at the time of sign-off (NOT the current docs-only head — see #5).
+   - The candidate commit SHA.
+   - Each expected file's SHA-256.
+   - The scenario set.
+   - The comparison policy.
+   - Charles's verdict.
+9. The sign-off commit and the candidate commit are pushed together via regular fast-forward to `origin/codex/task-11b-phase-b-resumption-from-main`.
+10. After CI 4 / 4 green, Ready can be considered (in a separate, explicitly authorized round).
+
+This sequencing resolves the chicken-and-egg problem where:
+
+- The sign-off document must reference the expected-output commit SHA.
+- The expected-output commit cannot be pushed without Charles's sign-off.
+
+The resolution is: the sign-off document is created AFTER the expected-output commit exists locally but BEFORE the push. The push bundles both commits. The sign-off document references the expected-output commit SHA **at the time of authoring**, which is stable from the moment of authoring through the push.
+
+### 15.10 Stop conditions
+
+If **any** of the following is observed, this amendment is **incomplete** and the round is **stopped**:
+
+1. **SQLite / PostgreSQL substantive output divergence**: any diff beyond `_meta` / `database_backend` between two captures of the same (backend, scenario, run-equivalent). This would indicate a real production-path non-determinism bug.
+2. **PostgreSQL capture skipped**: any test or capture claiming to be "cross-backend verified" without running against a real PostgreSQL service.
+3. **Production numerical result non-deterministic**: a Decimal / monetary / float-derived engineering value differing between two runs of the same (backend, scenario).
+4. **Comparison policy cannot explain a field**: any production output field that is not covered by `_comparison_policy.exact_match_fields` or a documented tolerance band.
+5. **Need to modify the production formula** to make a capture match an expected value.
+6. **Need to modify the adapter contract** (`adapter.execute_scenario` surface, `AdapterResult` schema, etc.) to make a capture match.
+7. **Need `production_seeding.py`** (resurrecting the deleted file is forbidden by §5.1 and the pre-freeze contract).
+8. **Need to copy a PR #21 fixture** (forbidden by §7.1).
+9. **Need to ignore all numerical values** (forbidden by §15.5; expected outputs MUST have meaningful numerical assertions).
+10. **Candidate expected output contains UUID / timestamp / generated PK** (forbidden by §15.6).
+
+**None of these conditions were triggered in this round.** All 8 captures completed without STOP.
+
+---
+
 ## 11. Change log (extended)
 
 - 2026-07-10 (Amendment 3, remote-grounded reconstruction): PR #60 head's `call_via_markers` indirection wrapper removed; runner restored to direct call of `adapter.execute_scenario(...)` under the canonical A1-2a kwarg names. A 1-file narrow architecture-boundary carve-out (only `execute.py`) is ratified in §14.2; the prior 6-file broad carve-out is **NOT** restored. The `profile_codes` parameter is removed from the runner's public surface; `profile_codes=("balanced",)` remains an internal literal in `adapter.py`. The run-directory marker-name boundary is the implementation mechanism that allows `run_directory.py` and `cli.py` to remain compliant with the 1-file narrow carve-out. PR #60 remains Draft.
+- 2026-07-10 (Amendment 4, expected-output contract freeze): §15 added. The tracked expected-output path is frozen at `backend/tests/evaluation/data/expected/`. The scenario set is frozen at exactly two scenarios (`baseline_feasible.v1.json` + `high_throughput_review.v1.json`); the existing Task 11A golden `transaction_b_cross_backend_v1.json` is **NOT** used (it is a different-scenario at a different-scale integration-test fixture). Canonical expected-output schema (§15.3), exact-match policy (§15.4), numeric comparison policy (§15.5), stable-proxies rule (§15.6), cross-backend capture requirements (§15.7), determinism verification (§15.8), reviewer sign-off sequencing (§15.9), and stop conditions (§15.10) are all formally defined. The 8-run cross-backend capture (4 SQLite + 4 PostgreSQL with real PG 14.23 service at `127.0.0.1:5432`) is committed to `/tmp/task011b-expected-output-amendment4/` (NOT in the repo). The canonical content is byte-identical across SQLite and PostgreSQL (canonical SHA-256 `d6775a79...` for baseline_feasible, `a326a54b...` for high_throughput_review). This amendment is **docs-only**; expected outputs remain separately unauthorized. PR #60 remains Draft.
