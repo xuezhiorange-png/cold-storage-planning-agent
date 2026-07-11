@@ -1629,7 +1629,7 @@ hash).
 
 #### 16.9.5 Baseline implementation gate
 
-After the §16.9 corrective addendum is merged, the future
+After the §16.9 corrective-addendum commit is present on the PR branch, has been accepted by Charles, and its current-head CI is green (i.e. the expected-output commit lands on top of the corrective-addendum commit in the same PR; the expected-output commit is NOT pending acceptance of the corrective-addendum commit, since both belong to the same PR #60 stack), the future
 **baseline-only** implementation round MAY apply to modify:
 
 - `.gitignore` (add the §16.9.2 whitelist).
@@ -1656,7 +1656,7 @@ The current governance status is **frozen** to:
 
 ```
 TASK_011B_AMENDMENT5_SUBSTANTIVELY_ACCEPTED
-AMENDMENT5_CORRECTIVE_ADDENDUM_REQUIRED
+AMENDMENT5_CORRECTIVE_ADDENDUM_COMPLETE
 EXPECTED_OUTPUT_SET_BASELINE_ONLY
 HIGH_THROUGHPUT_SCENARIO_PRODUCTION_FEASIBLE
 HIGH_THROUGHPUT_SCENARIO_NOT_AUTHORIZED_OR_MATERIALIZED_IN_CURRENT_SCOPE

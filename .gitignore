@@ -76,3 +76,15 @@ backend/tests/evaluation/*
 
 # Hermes agent local state
 .hermes/
+
+# Task 11B Path A baseline-only expected-output tracking whitelist (Amendment 5 / §16.9.2).
+# Path-precise: tracks ONLY backend/tests/evaluation/data/expected/baseline_feasible.v1.json.
+# Does NOT un-ignore the whole data/expected/ directory, any other JSON, or any
+# downstream change. high_throughput_review.v1.json MUST NOT be added through this
+# whitelist; it requires a separate Amendment and a separate whitelist entry per
+# §16.9.4 future-restoration conditions.
+!backend/tests/evaluation/data/
+backend/tests/evaluation/data/*
+!backend/tests/evaluation/data/expected/
+backend/tests/evaluation/data/expected/*
+!backend/tests/evaluation/data/expected/baseline_feasible.v1.json
