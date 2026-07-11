@@ -334,25 +334,6 @@
       "Any _meta runtime sentinel",
       "Any database-generated integer primary key (SQLite rowid, PostgreSQL bigserial)",
       "Any test-recomputed content_hash (production-side value MUST be used directly)"
-    ],
-    "leaf_coverage_summary": {
-      "exact_match_leaf_examples": [
-        "$.production_outputs.candidates_snapshot[0].constraint_results[0].actual",
-        "$.production_outputs.investment_result.total_investment_cny",
-        "$.production_outputs.zone_results[0].area_m2",
-        "$.constraint_check_summary.expected_passed_count",
-        "$.content_hash",
-        "$.schema_version",
-        "$.scenario_id"
-      ],
-      "normalized_proxy_leaf_examples": [
-        "$.review_reasons (← scheme_run.warning_messages)",
-        "$.source_binding_proxy (← scheme_run.source_binding_id)",
-        "$.weight_set_revision_proxy (← scheme_run.weight_set_revision_id)",
-        "$.combined_source_hash (← scheme_run.combined_source_hash)",
-        "$.content_hash (← scheme_run.content_hash)"
-      ],
-      "no_excluded_canonical_field": true
-    }
+    ]
   }
 }

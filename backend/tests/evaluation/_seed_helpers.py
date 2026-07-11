@@ -1204,6 +1204,35 @@ def validate_expected_output_comparison_policy(
     if missing:
         raise AssertionError(f"POLICY_KEYS_MISSING: {sorted(missing)} (backend={backend})")
 
+    # §5: Reject duplicate classification summaries (drift risk).
+    # The authoritative comparison-class arrays (exact_match_fields,
+    # normalized_proxy_fields, excluded_runtime_fields) are the SINGLE
+    # source of truth for leaf-to-class mapping. A redundant summary
+    # (e.g. ``leaf_coverage_summary`` with hand-curated examples or
+    # counts) can drift from the authoritative arrays and create a
+    # second opinion on classification. We reject any such key.
+    # Allowed self-description keys (which do NOT define comparison
+    # class membership and are intentionally preserved):
+    #   - deterministic_categorical_fields
+    #   - exact_match_decimal_canonicalization
+    #   - exact_match_float_quantization
+    #   - stable_proxies
+    #   - field_normalization_mapping
+    #   - forbidden_in_expected_output
+    redundant_summary_keys = {
+        "leaf_coverage_summary",
+    }
+    found_redundant = redundant_summary_keys & set(policy.keys())
+    if found_redundant:
+        raise AssertionError(
+            f"POLICY_REDUNDANT_CLASSIFICATION_SUMMARY: {sorted(found_redundant)} "
+            f"are duplicate classification summaries; classification "
+            f"authority must remain single-source in "
+            f"(exact_match_fields, normalized_proxy_fields, "
+            f"excluded_runtime_fields). validator dynamically computes "
+            f"leaf coverage (backend={backend})"
+        )
+
     exact = list(policy["exact_match_fields"])
     excluded = list(policy["excluded_runtime_fields"])
     proxy = list(policy["normalized_proxy_fields"])

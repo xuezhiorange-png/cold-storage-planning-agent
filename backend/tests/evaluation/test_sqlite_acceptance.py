@@ -1624,3 +1624,72 @@ def test_negative_policy_34_warning_messages_not_excluded_but_mapped() -> None:
         "field_normalization_mapping must document the "
         "scheme_run.warning_messages → review_reasons normalization"
     )
+
+# ── Commit E §6 negative-policy tests (TASK-011B §6) ────────────────────────
+
+
+def test_negative_policy_35_leaf_coverage_summary_rejected() -> None:
+    """Neg test 35: injecting ``leaf_coverage_summary`` (a duplicate
+    classification summary) into ``_comparison_policy`` MUST be
+    rejected with ``POLICY_REDUNDANT_CLASSIFICATION_SUMMARY``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["leaf_coverage_summary"] = {
+        "exact_match_leaf_examples": [
+            "$.combined_source_hash",
+            "$.content_hash",
+            "$.scenario_id",
+        ],
+        "normalized_proxy_leaf_examples": [
+            "$.source_binding_proxy (← scheme_run.source_binding_id)",
+        ],
+        "no_excluded_canonical_field": True,
+    }
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_REDUNDANT_CLASSIFICATION_SUMMARY" in msg
+        assert "leaf_coverage_summary" in msg
+        return
+    raise AssertionError(
+        "validator accepted injected leaf_coverage_summary; "
+        "expected POLICY_REDUNDANT_CLASSIFICATION_SUMMARY"
+    )
+
+
+def test_positive_current_golden_has_no_leaf_coverage_summary() -> None:
+    """Positive assertion: the current canonical golden MUST NOT
+    contain ``leaf_coverage_summary`` and MUST still pass the
+    validator."""
+    from tests.evaluation._seed_helpers import (
+        validate_expected_output_comparison_policy,
+    )
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    assert "leaf_coverage_summary" not in p, (
+        "leaf_coverage_summary was removed in Commit E and must not "
+        "re-appear in the canonical golden"
+    )
+    validate_expected_output_comparison_policy(g, backend="sqlite")
+
+
+def test_positive_comparison_classes_pairwise_disjoint() -> None:
+    """Positive assertion: in the current canonical golden, the three
+    comparison-class arrays MUST be pairwise disjoint."""
+    from tests.evaluation._seed_helpers import (
+        validate_expected_output_comparison_policy,
+    )
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    exact = set(p["exact_match_fields"])
+    excluded = set(p["excluded_runtime_fields"])
+    proxy = set(p["normalized_proxy_fields"])
+    assert exact & proxy == set(), f"exact ∩ proxy = {exact & proxy}"
+    assert exact & excluded == set(), f"exact ∩ excluded = {exact & excluded}"
+    assert proxy & excluded == set(), f"proxy ∩ excluded = {proxy & excluded}"
+    validate_expected_output_comparison_policy(g, backend="sqlite")
