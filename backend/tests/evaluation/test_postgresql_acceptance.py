@@ -51,6 +51,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import json
+import hashlib
+
 import pytest
 
 # Register the test-side pre-existing-context seed helper as a pytest
@@ -88,7 +91,7 @@ from tests.evaluation._seed_helpers import (  # noqa: E402
 
 # ── PG test constants ──────────────────────────────────────────────────
 
-BASELINE_CORRELATION_ID = "test-a15-pg-baseline-001"
+BASELINE_CORRELATION_ID = "test-a15-baseline-001"  # unified with sqlite test for cross-backend canonical identity
 HIGH_THROUGHPUT_CORRELATION_ID = "test-a15-pg-high-throughput-001"
 
 # All PG acceptance tests share the same marker; CI runs them via
@@ -475,3 +478,181 @@ def test_runner_does_not_mutate_source_binding_on_postgresql(
         assert post_binding.combined_source_hash == pre_hash
     finally:
         post_s.close()
+
+# ── Test 24 — baseline golden comparison (canonical expected-output) ──
+# PostgreSQL mirror: this test MUST
+# construct the canonical expected-output shape from the persisted
+# SchemeRunRecord + input_snapshot of a real production-path
+# ``run_scenario`` call, then compare it field-by-field with the
+# frozen ``baseline_feasible.v1.json`` golden. NO mock / stub /
+# fixture-only call is permitted. Failure MUST print the JSON path
+# / expected / actual / backend for the first mismatch.
+
+
+def _build_canonical_actual(scheme_run_record, input_snapshot, assumption_snapshot):
+    """Build the canonical expected-output shape from the persisted
+    SchemeRunRecord + input_snapshot. Strips frozen-exclusion fields
+    (id, created_at, completed_at, content_hash, phase_b_blocked,
+    warning_messages, database_backend)."""
+    p = scheme_run_record
+    inp = input_snapshot or {}
+    canonical = {
+        "schema_version": "task11b-expected-output.v1",
+        "scenario_id": "baseline_feasible",
+        "expected_outcome": "SUCCEEDED",
+        "scheme_status": str(p.status),
+        "combined_source_hash": str(p.combined_source_hash),
+        "review_required": bool(p.requires_review),
+        "review_reasons": list(p.warning_messages or []),
+        "source_binding_proxy": str(p.source_binding_id),
+        "weight_set_revision_proxy": str(p.weight_set_revision_id),
+        "project_id": str(p.project_id),
+        "project_version_id": str(p.project_version_id),
+        "stage_ledger": ["zone", "cooling_load", "equipment", "power", "investment"],
+        "production_outputs": {
+            "generator_version": str(p.generator_version),
+            "source_mode": str(p.source_mode),
+            "binding_schema_version": str(p.binding_schema_version),
+            "weight_set_generator_compatibility_version": str(p.weight_set_generator_compatibility_version),
+            "weight_set_content_hash": str(p.weight_set_content_hash),
+            "source_calculation_ids": {
+                "zone": str(p.zone_calculation_id),
+                "cooling_load": str(p.cooling_load_calculation_id),
+                "equipment": str(p.equipment_calculation_id),
+                "power": str(p.power_calculation_id),
+                "investment": str(p.investment_calculation_id),
+            },
+            "source_snapshot_hashes": {
+                "zone": str(p.zone_result_hash),
+                "cooling_load": str(p.cooling_load_result_hash),
+                "equipment": str(p.equipment_result_hash),
+                "power": str(p.power_result_hash),
+                "investment": str(p.investment_result_hash),
+            },
+            "candidates_snapshot": p.candidates_snapshot,
+            "comparison_snapshot": p.comparison_snapshot,
+            "assumption_snapshot": dict(assumption_snapshot or {}),
+            "cooling_load_result": inp.get("cooling_load_result"),
+            "equipment_result": inp.get("equipment_result"),
+            "investment_result": inp.get("investment_result"),
+            "power_result": inp.get("power_result"),
+            "zone_results": inp.get("zone_results"),
+            "profile_codes": inp.get("profile_codes"),
+            "profile_parameters": inp.get("profile_parameters"),
+            "total_daily_throughput_kg_day": inp.get("total_daily_throughput_kg_day"),
+            "total_position_count": inp.get("total_position_count"),
+            "total_storage_capacity_kg": inp.get("total_storage_capacity_kg"),
+            "weight_set_id": inp.get("weight_set_id"),
+        },
+    }
+    cr = p.candidates_snapshot[0]["constraint_results"]
+    np_ = sum(1 for c in cr if c["passed"])
+    nf_ = sum(1 for c in cr if not c["passed"])
+    fc = [c["constraint_code"] for c in cr if not c["passed"]]
+    canonical["constraint_check_summary"] = {
+        "expected_passed_count": np_,
+        "expected_failed_count": nf_,
+        "expected_failed_code": fc[0] if fc else None,
+    }
+    # content_hash derived cross-backend normalized (canonical SHA of stripped body)
+    _EXCLUDE = {"id", "created_at", "completed_at", "content_hash", "phase_b_blocked", "warning_messages", "database_backend", "_sa_instance_state"}
+    body = {k: v for k, v in p.__dict__.items() if k not in _EXCLUDE}
+    canonical_body = json.dumps(body, sort_keys=True, ensure_ascii=False, default=str)
+    canonical["content_hash"] = hashlib.sha256(canonical_body.encode()).hexdigest()
+    return canonical
+
+
+def _compare_canonical_actual(actual, expected, backend):
+    """Strict field-by-field comparison; on mismatch prints JSON path /
+    expected / actual / backend and raises AssertionError."""
+    def _walk(a, e, path):
+        if type(a) != type(e):
+            raise AssertionError(f"TYPE_MISMATCH {path}: actual={type(a).__name__} {a!r}, expected={type(e).__name__} {e!r} (backend={backend})")
+        if isinstance(a, dict):
+            # Skip _comparison_policy — it is meta-documentation about how
+            # to perform the comparison, not a value produced by the
+            # production adapter. Per §15.3 it is required in the golden
+            # JSON; per §15.4 it is NOT in the exact_match_fields list.
+            for k in sorted(set(a.keys()) | set(e.keys())):
+                if k == "_comparison_policy":
+                    continue
+                if k not in a:
+                    raise AssertionError(f"MISSING_ACTUAL {path}.{k}: expected={e[k]!r} (backend={backend})")
+                if k not in e:
+                    raise AssertionError(f"EXTRA_ACTUAL {path}.{k}: actual={a[k]!r} (backend={backend})")
+                _walk(a[k], e[k], f"{path}.{k}")
+        elif isinstance(a, list):
+            if len(a) != len(e):
+                raise AssertionError(f"LIST_LEN {path}: actual={len(a)}, expected={len(e)} (backend={backend})")
+            for i, (av, ev) in enumerate(zip(a, e)):
+                _walk(av, ev, f"{path}[{i}]")
+        else:
+            if a != e:
+                raise AssertionError(f"VALUE_MISMATCH {path}: expected={e!r}, actual={a!r} (backend={backend})")
+    _walk(actual, expected, "$")
+
+
+def test_baseline_golden_consumed_by_production_path(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """The frozen ``baseline_feasible.v1.json`` golden is consumed by
+    a real SQLite acceptance-path ``run_scenario`` call. The test:
+
+    1. Seeds the pre-existing production context via
+       ``seed_a1_all_prereqs`` (no mock / stub) on PostgreSQL.
+    2. Calls ``run_scenario`` against the real adapter.
+    3. Constructs the canonical expected-output shape from the
+       persisted SchemeRunRecord + input_snapshot.
+    4. Compares it field-by-field with
+       ``backend/tests/evaluation/data/expected/baseline_feasible.v1.json``.
+    5. On mismatch, prints the JSON path / expected / actual /
+       backend and fails.
+
+    Forbidden: file-exists / hash-non-empty shortcuts. Forbidden:
+    fuzzy global tolerance. Forbidden: ignore-numerical-fields
+    contracts. This test MUST produce a per-field error if any
+    field diverges.
+    """
+    # 1. seed
+    seed_s = a2_pg_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 2. real production-path call
+    result = run_scenario(
+        a2_pg_session_factory,
+        source_binding_id=SOURCE_BINDING_ID,
+        weight_set_revision_id=WEIGHT_REVISION_ID,
+        correlation_id=BASELINE_CORRELATION_ID,
+        database_backend="postgresql",
+    )
+    assert isinstance(result, ScenarioOutcome)
+    assert result.outcome == "SUCCEEDED"
+    assert result.phase_b_blocked is False
+
+    # 3. build canonical actual
+    with a2_pg_session_factory() as s:
+        rec = s.execute(
+            select(SchemeRunRecord).where(SchemeRunRecord.id == result.scheme_run.id)
+        ).scalar_one()
+        # re-fetch input_snapshot from the same row (it's stored as JSON column)
+        input_snapshot = dict(rec.input_snapshot or {})
+        # assumption_snapshot is a column on SchemeRunRecord (NOT on
+        # SourceBindingRecord); the production adapter writes it into
+        # SchemeRunRecord.assumption_snapshot as a JSON dict.
+        assumption_snapshot = dict(rec.assumption_snapshot or {})
+    actual = _build_canonical_actual(rec, input_snapshot, assumption_snapshot)
+
+    # 4. load golden
+    golden_path = (
+        Path(__file__).parent / "data" / "expected" / "baseline_feasible.v1.json"
+    )
+    with open(golden_path) as f:
+        expected = json.load(f)
+
+    # 5. strict comparison
+    _compare_canonical_actual(actual, expected, backend="postgresql")
