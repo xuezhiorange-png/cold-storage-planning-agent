@@ -1009,10 +1009,16 @@ def build_baseline_expected_output_actual(
     in the ``_comparison_policy.excluded_runtime_fields`` set.
     """
     p = scheme_run_record
+    # §4: expected_outcome is derived from the live ScenarioOutcome,
+    # NOT hard-coded. The golden records what the runner actually
+    # produced for this scenario at the time the capture was taken.
+    actual_outcome = (
+        str(getattr(scenario_outcome, "outcome", None)) if scenario_outcome is not None else None
+    )
     out: dict[str, Any] = {
         "schema_version": "task11b-expected-output.v1",
         "scenario_id": "baseline_feasible",
-        "expected_outcome": "SUCCEEDED",
+        "expected_outcome": actual_outcome,
         "scheme_status": str(p.status),
         "combined_source_hash": str(p.combined_source_hash),
         "review_required": bool(p.requires_review),
@@ -1156,22 +1162,29 @@ def validate_expected_output_comparison_policy(
     """Validate the comparison_policy is self-consistent and covers
     every golden leaf path.
 
-    Validation rules (per auth §6):
+    Validation rules (per auth §5 + §6, pairwise-disjoint classes):
       1. ``_comparison_policy`` exists and is an object.
       2. Required policy keys present.
       3. ``exact_match_fields`` has no duplicates.
       4. ``excluded_runtime_fields`` has no duplicates.
-      5. exact ∩ excluded = ∅.
-      6. ``content_hash``, ``schema_version``, ``scenario_id`` are
+      5. ``normalized_proxy_fields`` has no duplicates.
+      6. exact ∩ excluded = ∅  → POLICY_EXACT_EXCLUDED_OVERLAP
+      7. exact ∩ proxy    = ∅  → POLICY_EXACT_PROXY_OVERLAP
+      8. proxy  ∩ excluded = ∅ → POLICY_PROXY_EXCLUDED_OVERLAP
+      9. ``content_hash``, ``schema_version``, ``scenario_id`` are
          EXACT_MATCH only (NOT in excluded).
-      7. Every golden non-policy leaf has at least one rule applied
-         (either EXACT_MATCH via `exact_match_fields` / recursive
-         subtrees, or NORMALIZED_PROXY via `normalized_proxy_fields`).
-      8. NO leaf falls into ``EXCLUDED`` (excluded only applies to
-         raw fields, not to canonical expected fields).
-      9. No fuzzy global tolerance.
-     10. No string truncation.
-     11. No "ignore all numerical" escape.
+     10. Every golden non-policy leaf classifies into EXACTLY ONE
+         comparison class (EXACT_MATCH or NORMALIZED_PROXY).
+         - class_count == 0 → POLICY_LEAF_UNCOVERED
+         - class_count >  1 → POLICY_LEAF_MULTI_CLASSIFIED
+         NO "exact-first continue" shortcut is permitted: any leaf
+         matched by both exact and proxy is rejected.
+     11. Parent recursive exact subtrees count toward EXACT_MATCH
+         coverage (so a leaf like ``$.production_outputs`` covers all
+         descendant leaves).
+     12. No fuzzy global tolerance.
+     13. No string truncation.
+     14. No "ignore all numerical" escape.
     """
     if "_comparison_policy" not in golden:
         raise AssertionError(f"POLICY_MISSING: _comparison_policy not present (backend={backend})")
@@ -1195,25 +1208,55 @@ def validate_expected_output_comparison_policy(
     excluded = list(policy["excluded_runtime_fields"])
     proxy = list(policy["normalized_proxy_fields"])
 
-    if len(exact) != len(set(exact)):
+    exact_set = set(exact)
+    excluded_set = set(excluded)
+    proxy_set = set(proxy)
+
+    if len(exact) != len(exact_set):
         dups = sorted([x for x in exact if exact.count(x) > 1])
         raise AssertionError(f"POLICY_DUP_EXACT: {dups} (backend={backend})")
-    if len(excluded) != len(set(excluded)):
+    if len(excluded) != len(excluded_set):
         dups = sorted([x for x in excluded if excluded.count(x) > 1])
         raise AssertionError(f"POLICY_DUP_EXCLUDED: {dups} (backend={backend})")
+    if len(proxy) != len(proxy_set):
+        dups = sorted([x for x in proxy if proxy.count(x) > 1])
+        raise AssertionError(f"POLICY_DUP_PROXY: {dups} (backend={backend})")
 
-    # 6. content_hash / schema_version / scenario_id must NOT be in excluded
-    forbidden_in_excluded = {"content_hash", "schema_version", "scenario_id"}
-    bad_in_excluded = sorted(forbidden_in_excluded & set(excluded))
+    # Pairwise-disjoint comparison classes
+    overlap_e_x = sorted(exact_set & excluded_set)
+    if overlap_e_x:
+        raise AssertionError(f"POLICY_EXACT_EXCLUDED_OVERLAP: {overlap_e_x} (backend={backend})")
+    overlap_e_p = sorted(exact_set & proxy_set)
+    if overlap_e_p:
+        raise AssertionError(f"POLICY_EXACT_PROXY_OVERLAP: {overlap_e_p} (backend={backend})")
+    overlap_p_x = sorted(proxy_set & excluded_set)
+    if overlap_p_x:
+        raise AssertionError(f"POLICY_PROXY_EXCLUDED_OVERLAP: {overlap_p_x} (backend={backend})")
+
+    # content_hash / schema_version / scenario_id must NOT be in excluded
+    forbidden_in_excluded = {
+        "$.content_hash",
+        "$.schema_version",
+        "$.scenario_id",
+    }
+    bad_in_excluded = sorted(forbidden_in_excluded & excluded_set)
     if bad_in_excluded:
         raise AssertionError(f"POLICY_FORBIDDEN_IN_EXCLUDED: {bad_in_excluded} (backend={backend})")
+    # ... and MUST be in exact_match_fields (exact canonical values,
+    # not proxy normalized comparisons)
+    must_be_exact = {
+        "$.content_hash",
+        "$.schema_version",
+        "$.scenario_id",
+    }
+    missing_exact = sorted(must_be_exact - exact_set)
+    if missing_exact:
+        raise AssertionError(
+            f"POLICY_MUST_BE_EXACT: {missing_exact} must appear in "
+            f"exact_match_fields (backend={backend})"
+        )
 
-    # 5. exact ∩ excluded = ∅
-    overlap = sorted(set(exact) & set(excluded))
-    if overlap:
-        raise AssertionError(f"POLICY_EXACT_EXCLUDED_OVERLAP: {overlap} (backend={backend})")
-
-    # 9 / 10 / 11: forbidden comparison methods
+    # forbidden_comparison_methods
     forbidden = list(policy["forbidden_comparison_methods"])
     must_have_forbidden = [
         "fuzzy_global_tolerance",
@@ -1224,23 +1267,37 @@ def validate_expected_output_comparison_policy(
     if missing_forbidden:
         raise AssertionError(f"POLICY_FORBIDDEN_MISSING: {missing_forbidden} (backend={backend})")
 
-    # 7 / 8: every golden leaf must have a rule
+    # Every golden non-policy leaf must classify into EXACTLY ONE
+    # comparison class (no double-counting, no fallback).
     leaves = collect_golden_leaf_paths(golden)
     for leaf in leaves:
-        # Rule A: leaf is in `exact_match_fields` directly.
-        if leaf in exact:
-            continue
-        # Rule B: any ancestor (parent path) of the leaf is in
-        # `exact_match_fields`, which recursively covers all
-        # descendant leaves.
-        ancestors = _collect_ancestor_paths(leaf)
-        if any(a in exact for a in ancestors):
-            continue
-        # Rule C: leaf itself or any ancestor is in
-        # `normalized_proxy_fields`.
-        if leaf in proxy or any(a in proxy for a in ancestors):
-            continue
-        raise AssertionError(f"POLICY_LEAF_UNCOVERED: {leaf} has no rule (backend={backend})")
+        classes: list[str] = []
+        # Class A: exact match — leaf itself OR any ancestor in exact
+        if leaf in exact_set:
+            classes.append("EXACT_MATCH")
+        else:
+            ancestors = _collect_ancestor_paths(leaf)
+            if any(a in exact_set for a in ancestors):
+                classes.append("EXACT_MATCH")
+        # Class B: normalized proxy — leaf itself OR any ancestor in proxy
+        ancestors_for_proxy = _collect_ancestor_paths(leaf)
+        if leaf in proxy_set or any(a in proxy_set for a in ancestors_for_proxy):
+            classes.append("NORMALIZED_PROXY")
+        # Excluded runtime fields are RAW fields, not canonical leaves.
+        # A golden leaf matching an excluded entry is a mis-mapping
+        # (excluded should never be reached for canonical JSON).
+        ancestors_for_excluded = _collect_ancestor_paths(leaf)
+        if leaf in excluded_set or any(a in excluded_set for a in ancestors_for_excluded):
+            raise AssertionError(
+                f"POLICY_LEAF_IN_EXCLUDED: golden leaf {leaf} matched an "
+                f"excluded_runtime_fields entry (backend={backend})"
+            )
+        if len(classes) == 0:
+            raise AssertionError(f"POLICY_LEAF_UNCOVERED: {leaf} has no rule (backend={backend})")
+        if len(classes) > 1:
+            raise AssertionError(
+                f"POLICY_LEAF_MULTI_CLASSIFIED: {leaf} matched {classes} (backend={backend})"
+            )
 
 
 def assert_expected_output_matches(

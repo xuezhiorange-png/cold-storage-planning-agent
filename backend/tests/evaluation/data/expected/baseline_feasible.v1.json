@@ -277,9 +277,7 @@
       "$.scenario_id",
       "$.schema_version",
       "$.scheme_status",
-      "$.source_binding_proxy",
-      "$.stage_ledger",
-      "$.weight_set_revision_proxy"
+      "$.stage_ledger"
     ],
     "excluded_runtime_fields": [
       "runtime._meta",
@@ -295,13 +293,9 @@
       "scheme_run.database_backend",
       "scheme_run.frozen_envelope",
       "scheme_run.id",
-      "scheme_run.source_contract_version",
-      "scheme_run.warning_messages"
+      "scheme_run.source_contract_version"
     ],
     "normalized_proxy_fields": [
-      "$.combined_source_hash",
-      "$.content_hash",
-      "$.review_reasons",
       "$.source_binding_proxy",
       "$.weight_set_revision_proxy"
     ],
@@ -327,7 +321,7 @@
       "content_hash = 'ea4ab8cd7f73b50c8cd83865adc9ec90428d8d60a9fc2e7d823a0c8fdb16fe46' (production-side scheme_run_record.content_hash, byte-equal across SQLite and PostgreSQL — verified in Commit C capture)"
     ],
     "field_normalization_mapping": {
-      "scheme_run.warning_messages": "review_reasons (canonical form: ordered list of strings)",
+      "scheme_run.warning_messages": "review_reasons (canonical form: ordered list[str], same content as raw)",
       "scheme_run.source_binding_id": "source_binding_proxy (canonical form: semantic ID)",
       "scheme_run.weight_set_revision_id": "weight_set_revision_proxy (canonical form: semantic ID)",
       "scheme_run.combined_source_hash": "combined_source_hash (canonical form: 64-hex sha256)",

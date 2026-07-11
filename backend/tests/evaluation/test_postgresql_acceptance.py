@@ -749,3 +749,161 @@ def test_negative_policy_29_content_hash_mismatch_fails() -> None:
         "assert_expected_output_matches accepted mismatched content_hash; "
         "expected VALUE_MISMATCH at $.content_hash"
     )
+
+
+# ── Commit D negative-policy tests (TASK-011B §7) — PostgreSQL mirror ────
+
+
+def test_negative_policy_30_exact_proxy_overlap_fails() -> None:
+    """Neg test 30 (PG mirror): adding ``$.source_binding_proxy`` to
+    BOTH ``exact_match_fields`` and ``normalized_proxy_fields`` MUST
+    be rejected with ``POLICY_EXACT_PROXY_OVERLAP``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["exact_match_fields"] = list(p["exact_match_fields"]) + [
+        "$.source_binding_proxy"
+    ]
+    try:
+        validate_expected_output_comparison_policy(g, backend="postgresql")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_EXACT_PROXY_OVERLAP" in msg or "POLICY_LEAF_MULTI_CLASSIFIED" in msg
+        return
+    raise AssertionError(
+        "validator accepted $.source_binding_proxy in both exact and proxy; "
+        "expected POLICY_EXACT_PROXY_OVERLAP or POLICY_LEAF_MULTI_CLASSIFIED"
+    )
+
+
+def test_negative_policy_31_proxy_excluded_overlap_fails() -> None:
+    """Neg test 31 (PG mirror): proxy path in both
+    ``normalized_proxy_fields`` and ``excluded_runtime_fields`` MUST
+    be rejected with ``POLICY_PROXY_EXCLUDED_OVERLAP``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["excluded_runtime_fields"] = list(p["excluded_runtime_fields"]) + [
+        "$.weight_set_revision_proxy"
+    ]
+    try:
+        validate_expected_output_comparison_policy(g, backend="postgresql")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_PROXY_EXCLUDED_OVERLAP" in msg
+        return
+    raise AssertionError(
+        "validator accepted proxy path in excluded; "
+        "expected POLICY_PROXY_EXCLUDED_OVERLAP"
+    )
+
+
+def test_negative_policy_32_dup_proxy_fails() -> None:
+    """Neg test 32 (PG mirror): duplicate entry in
+    ``normalized_proxy_fields`` MUST be rejected with
+    ``POLICY_DUP_PROXY``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["normalized_proxy_fields"] = list(p["normalized_proxy_fields"]) + [
+        "$.source_binding_proxy"
+    ]
+    try:
+        validate_expected_output_comparison_policy(g, backend="postgresql")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_DUP_PROXY" in msg
+        return
+    raise AssertionError(
+        "validator accepted duplicate normalized_proxy_fields entry; "
+        "expected POLICY_DUP_PROXY"
+    )
+
+
+def test_negative_policy_33_scenario_outcome_derived_from_runtime() -> None:
+    """Neg test 33 (PG mirror): ``build_baseline_expected_output_actual``
+    MUST derive ``expected_outcome`` from the live
+    ``ScenarioOutcome.outcome`` (NOT hard-code ``"SUCCEEDED"``)."""
+    from tests.evaluation._seed_helpers import build_baseline_expected_output_actual
+
+    class _StubRun:
+        status = "review_required"
+        combined_source_hash = "abc123"
+        requires_review = True
+        warning_messages = ["w-001"]
+        content_hash = "deadbeef" * 8
+        source_binding_id = "sb-001"
+        weight_set_revision_id = "wrev-001"
+        project_id = "p-001"
+        project_version_id = "v-001"
+        generator_version = "1.0.0"
+        source_mode = "production"
+        binding_schema_version = "1.0.0"
+        weight_set_generator_compatibility_version = "1.0.0"
+        weight_set_content_hash = "wsch-001"
+        zone_calculation_id = "z-001"
+        cooling_load_calculation_id = "cl-001"
+        equipment_calculation_id = "eq-001"
+        power_calculation_id = "pw-001"
+        investment_calculation_id = "iv-001"
+        zone_result_hash = "zsh-001"
+        cooling_load_result_hash = "clsh-001"
+        equipment_result_hash = "eqsh-001"
+        power_result_hash = "pwsh-001"
+        investment_result_hash = "ivsh-001"
+        candidates_snapshot = [
+            {
+                "scheme_code": "balanced",
+                "scheme_name": "X",
+                "profile_code": "balanced",
+                "feasible": True,
+                "constraint_results": [
+                    {
+                        "constraint_code": "c",
+                        "passed": True,
+                        "detail": "ok",
+                        "actual": 1,
+                    }
+                ],
+                "score_breakdown": {},
+            }
+        ]
+        comparison_snapshot = None
+
+    class _StubOutcome:
+        outcome = "REVIEW_REQUIRED"
+        database_backend = "postgresql"
+        phase_b_blocked = False
+        upstream_error_code = None
+
+    actual = build_baseline_expected_output_actual(
+        scenario_outcome=_StubOutcome(),
+        scheme_run_record=_StubRun(),
+        input_snapshot={},
+        assumption_snapshot={},
+    )
+    assert actual["expected_outcome"] == "REVIEW_REQUIRED", (
+        f"expected_outcome must be derived from scenario_outcome.outcome; "
+        f"got {actual['expected_outcome']!r}"
+    )
+
+
+def test_negative_policy_34_warning_messages_not_excluded_but_mapped() -> None:
+    """Neg test 34 (PG mirror): ``scheme_run.warning_messages`` MUST
+    NOT appear in ``excluded_runtime_fields`` (mapped to
+    ``review_reasons``), but ``field_normalization_mapping`` MUST
+    document the mapping."""
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    assert "scheme_run.warning_messages" not in p["excluded_runtime_fields"], (
+        "scheme_run.warning_messages is mapped to $.review_reasons and "
+        "MUST NOT appear in excluded_runtime_fields"
+    )
+    mapping = p.get("field_normalization_mapping", {})
+    assert "scheme_run.warning_messages" in mapping, (
+        "field_normalization_mapping must document the "
+        "scheme_run.warning_messages → review_reasons normalization"
+    )
