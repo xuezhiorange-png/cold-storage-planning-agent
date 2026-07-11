@@ -1192,7 +1192,313 @@ If **any** of the following is observed, this amendment is **incomplete** and th
 
 ---
 
+## 16. Amendment 5 — Expected-output tracking and scenario semantics correction
+
+### 16.1 Correct the Amendment 4 path assertion (§15.1 contradiction)
+
+Amendment 4 §15.1 / §6.5 (line 388-393) stated that the expected-output path
+`backend/tests/evaluation/data/expected/`
+was tracked by git. **This was incorrect.** The actual existing
+`.gitignore` rule reads:
+
+```
+backend/tests/evaluation/*
+!backend/tests/evaluation/__init__.py
+!backend/tests/evaluation/test_path_a_adapter.py
+!backend/tests/evaluation/_seed_helpers.py
+```
+
+The rule excludes the entire `backend/tests/evaluation/*` subtree
+(including `data/expected/`), allowing only the four files explicitly
+re-included by `!` lines. The path that Amendment 4 asserted as
+"tracked by git" is **NOT** tracked; `git add -A` silently skips both
+candidate JSON files. The current feasible ways to land the candidate
+files in the repo are:
+
+- `git add -f` (forced addition; bypasses `.gitignore` at the
+  per-path level), or
+- Re-anchor the candidate path to a tracked location via a
+  `.gitignore` whitelist amendment.
+
+Amendment 5 ratifies the **gitignore whitelist approach** as the
+future-correct fix, because it preserves the production-side
+invariant that "expected outputs are reproducible from a fresh
+clone" without requiring `-f` on every commit. `git add -f` is
+**FORBIDDEN** for any future expected-output commit (it is a
+workaround that masks the underlying rule mismatch and renders
+`.gitignore` non-authoritative).
+
+The exact future `.gitignore` whitelist (frozen by this amendment,
+to be added in the future implementation round) is:
+
+```
+!backend/tests/evaluation/data/
+backend/tests/evaluation/data/*
+!backend/tests/evaluation/data/expected/
+backend/tests/evaluation/data/expected/*
+!backend/tests/evaluation/data/expected/baseline_feasible.v1.json
+!backend/tests/evaluation/data/expected/high_throughput_review.v1.json
+```
+
+This is **path-precise** — only the two freeze-listed files are
+un-ignored; other paths under `backend/tests/evaluation/data/` remain
+ignored. The whitelist is the minimum-set necessary to make the §15
+contract assertion true.
+
+`git add -f` IS FORBIDDEN for future expected-output commits. Expected
+output files MUST be trackable through normal Git behavior after the
+whitelist is implemented.
+
+### 16.2 Correct the scenario semantics assumption (§15.2)
+
+Amendment 4 §15.2 (table at lines 964-967) froze two scenarios
+(`baseline_feasible` and `high_throughput_review`) as independent
+expected-output scenarios, **without independently verifying that the
+two scenarios produce independent substantive production state**.
+The current repository facts are:
+
+- Both scenarios call the same `seed_a1_all_prereqs(session)`.
+- Both scenarios use the same `SOURCE_BINDING_ID
+  = "a1-test-binding-001"`.
+- Both scenarios use the same `WEIGHT_REVISION_ID
+  = "a1-test-wrev-001"`.
+- Both scenarios use the same five `CalculationRunRecord` rows
+  (`ZONE_RUN_ID`, `COOL_RUN_ID`, `EQUIP_RUN_ID`, `POWER_RUN_ID`,
+  `INVEST_RUN_ID`).
+- Only the `correlation_id` differs between the two scenarios.
+- The current 8-run capture (4 SQLite + 4 PostgreSQL, run1/run2)
+  yields byte-identical canonical content (post-strip
+  `_meta` + `database_backend`) for both scenarios. The only
+  cross-scenario byte difference is the `content_hash` (which
+  incorporates `correlation_id` into the hash domain).
+
+**State that correlation ID alone does not create an independent
+expected-output scenario.** A scenario is independent iff it differs
+from other scenarios in all of: semantic input identity, at least one
+substantive input value, at least one production output or
+constraint result, and canonical content hash (per §16.5). Two
+expected-output files that share their semantic inputs and
+substantive outputs but differ only in correlation ID are the **same
+scenario**, not two scenarios.
+
+The §15.2 design-intent ("two scenarios") was correct in intent
+(`baseline_feasible` is the canonical feasible baseline;
+`high_throughput_review` was meant to be a genuinely distinct
+production scenario exercising different inputs) but the §15.2
+implementation (`seed_a1_all_prereqs(session) + execute_scenario
+with correlation_id differing only`) does not achieve the intent
+under the current frozen `_seed_helpers.py`.
+
+### 16.3 Freeze `baseline_feasible` semantics
+
+`baseline_feasible` continues to use the existing A1 baseline state:
+
+- Canonical feasible baseline (1 zone / 25 kW cooling / 6 M CNY /
+  0 equipment_rows / 30 pallet positions / 10000 kg / day /
+  15000 kg storage).
+- Real production execution via the A1-2a adapter surface
+  (`adapter.execute_scenario`) against the pre-existing production
+  context seeded by `seed_a1_all_prereqs`.
+- Stable cross-backend output (byte-identical canonical content
+  for SQLite and PostgreSQL after stripping `_meta` and
+  `database_backend`).
+- No fabricated review state — `requires_review = False` is
+  capture-derived (all five `CalculationRunRecord.requires_review`
+  flags are `False`).
+
+Its existing corrected v2 candidate may be retained as a local
+reference (under `/tmp/` or `/root/`), but remains uncommitted and
+unsigned pending a future implementation round that contains the
+expected-output commit + sign-off.
+
+### 16.4 High-throughput feasibility audit (read-only)
+
+**Methodology**: A read-only feasibility probe was performed in
+`/tmp/task011b-amendment5/probe2_variant.py`. The probe
+**imported** `backend/tests/evaluation/_seed_helpers.py` as an
+imported module and **monkey-patched** the module-level attributes
+`_SLOT_RESULTS`, `ZONE_RESULT_SNAPSHOT`, `COOLING_RESULT_SNAPSHOT`,
+`EQUIPMENT_RESULT_SNAPSHOT`, `POWER_RESULT_SNAPSHOT`, and
+`INVESTMENT_RESULT_SNAPSHOT` in-process **only** (the
+`_seed_helpers.py` file on disk was **NOT** modified — confirmed by
+inspecting `git status --short` before and after the probe). The
+patch values represented a 2× scale-up of the A1 fixtures
+(20000 kg / day throughput, 50.0 kW cooling, 50.0 kW compressor
+installed, 400.0 kW installed power, 12000000.0 CNY total
+investment). The production adapter
+(`cold_storage.evaluation.adapter.execute_scenario`) was then invoked
+with the patched module state, the result was persisted to a fresh
+SQLite database, and the resulting `SchemeRunRecord` was read back
+for `combined_source_hash` and `content_hash`.
+
+**Probe outcome**:
+
+| Dimension | Baseline | Variant (2× scale) | Distinct? |
+|---|---|---|---|
+| ZONE daily_throughput (kg/day) | 10000 | 20000 | YES |
+| COOLING total (kW) | 25.0 | 50.0 | YES |
+| COMPRESSOR installed (kW) | 25.0 | 50.0 | YES |
+| POWER installed (kW_e) | 200.0 | 400.0 | YES |
+| INVESTMENT total (CNY) | 6000000.0 | 12000000.0 | YES |
+| `combined_source_hash` | `60e11cace…` | `3573a597…` | YES |
+| `content_hash` | `ad7fa7da…` | `966e3de9…` | YES |
+| `requires_review` | False | False | (production does not elevate review based on scale) |
+| `scheme_status` | completed | completed | (same) |
+| SQLite canonical SHA-256 (post-strip) | `5987…(baseline-captured)` | `a26c…(variant-captured)` | YES (probe-captured) |
+| PostgreSQL canonical SHA-256 | not measured in this probe (out of feasibility scope) | n/a | n/a |
+
+The probe confirms that a substantive distinct scenario **is
+production-feasible** in principle. The combined source hash and
+content hash both change; the production path accepts the variant
+inputs and produces a distinct `SchemeRunRecord`.
+
+### 16.5 Minimum scenario distinction (definitive)
+
+A valid second scenario (i.e. a valid `high_throughput_review`) must
+differ from `baseline_feasible` in **all** of:
+
+1. **Semantic input identity**: at minimum, the
+   `SourceBindingRecord.id` and the bound
+   `SchemeWeightSetRevisionRecord.id` (i.e. the production-side
+   `source_binding_id` + `weight_set_revision_id` passed to
+   `adapter.execute_scenario`) reference pre-existing production
+   rows whose bound `CalculationRunRecord` rows carry
+   substantively different `result_snapshot` payloads.
+2. **At least one substantive input value**: at least one of the
+   five stage result_snapshot fields (zone / cooling_load /
+   equipment / power / investment) carries a numeric value that
+   is not bit-equal to the baseline.
+3. **At least one production output or constraint result**: at
+   minimum, the resulting `combined_source_hash`,
+   `content_hash`, and (if the scheme-selection path is reached)
+   `SchemeRunRecord.candidates_snapshot[0].constraint_results`
+   must differ from baseline in at least one row.
+4. **Canonical content hash**: the SHA-256 of the post-strip
+   canonical-JSON body (per §15.7) must differ from baseline.
+
+**Correlation ID, run label, UUID, or timestamp does NOT count as
+a substantive difference.** Two expected-output files that satisfy
+only the hash difference (because of correlation-id-as-hash-input)
+are the **same scenario under two correlation IDs**, not two
+scenarios. The §15.8 / §16.2 distinction-rule means
+`high_throughput_review` as currently defined (correlation_id-only
+delta) is **not** an independent scenario per §16.5.
+
+### 16.6 Decision gate (Outcome B — temporary freeze)
+
+Per the probe in §16.4 and the distinction rule in §16.5:
+
+**Outcome B — no valid scenario under the §3 modification boundary**.
+
+Rationale:
+
+- A substantive distinct high-throughput scenario is **production
+  feasible in principle** (probe verified — see §16.4).
+- However, the only mechanical path to materialize that distinct
+  scenario requires either:
+  (a) modifying `backend/tests/evaluation/_seed_helpers.py` to add
+      a parameterizable seed function (e.g.
+      `seed_a1_high_throughput_all_prereqs`) — **forbidden by §3**
+      of the Amendment 5 authorization (explicit
+      "Do not modify `_seed_helpers.py` yet"); or
+  (b) introducing a parallel seed helper module — also forbidden
+      (§3 only permits docs and `/tmp/` artifacts); or
+  (c) using `git add -f` to land an expected-output file that is
+      not reproducible from a fresh clone under the current
+      `.gitignore` rule — forbidden by §16.1 and by §15.7
+      (reproducibility clause).
+
+There is no other path that satisfies both:
+
+- §16.5 distinction rule (substantive differences in
+  semantic-input / numeric value / production output / canonical
+  hash), and
+- §3 of the Amendment 5 authorization (no `_seed_helpers.py`
+  modification, no `.gitignore` modification, no test mutation,
+  no expected-output mutation), and
+- §15.7 reproducibility (expected outputs must be reproducible
+  from a fresh clone), and
+- §16.1 (no `git add -f` workaround).
+
+**Outcome B** is therefore the only honest outcome:
+
+- `high_throughput_review` is **REMOVED** from the current
+  expected-output set.
+- The expected-output set is **temporarily reduced** to:
+  `baseline_feasible.v1.json` (single scenario).
+- A future, distinct `high_throughput_review` (or any other
+  second scenario) requires:
+  - a future contract amendment (Amendment 6 or later) that
+    ratifies a parameterizable seed function (or equivalent
+    production path) for a genuinely distinct scenario,
+  - the corresponding implementation round (with the §16.5
+    distinction rule satisfied for both scenarios), and
+  - the sign-off + commit sequencing per §15.9.
+
+### 16.7 Future implementation allowlist
+
+Amendment 5 freezes the **proposed later implementation scope**
+(but does **NOT** modify any of these paths now). The proposed
+allowlist for the future implementation round is:
+
+- `.gitignore` (add the §16.1 whitelist)
+- `backend/tests/evaluation/_seed_helpers.py` (parameterize or
+  add `seed_a1_high_throughput_all_prereqs`)
+- `backend/tests/evaluation/test_sqlite_acceptance.py`
+- `backend/tests/evaluation/test_postgresql_acceptance.py`
+- `backend/tests/evaluation/test_fixture_consistency.py`
+- `backend/tests/evaluation/data/expected/baseline_feasible.v1.json`
+- `docs/tasks/TASK-011B-path-a-expected-outputs-reviewer-sign-off.md`
+
+Production source files remain **forbidden** in the proposed
+allowlist (`backend/src/cold_storage/**` cannot be modified by this
+or any future Amendment 5 / implementation round — see pre-freeze
+§8 / Path A S-1..S-16).
+
+### 16.8 Stop conditions (Amendment 5 — superset of §15.10)
+
+Amendment 5 adds the following **additional** stop conditions on top
+of §15.10; any one triggers STOP:
+
+11. **`git add -f` required** to land the candidate (forbidden by
+    §16.1).
+12. **Production formula change** required (forbidden by pre-freeze
+    §8 / Path A S-5).
+13. **Production threshold change** required (forbidden; same
+    rationale as #12).
+14. **Coefficient fabrication** required (forbidden; same
+    rationale as #12).
+15. **Mocked production execution** required (forbidden; the
+    adapter's contract is to call the real production service —
+    see §13).
+16. **PR #21 fixture reuse** required (forbidden by §7.1).
+17. **Same substantive state under two scenario names** (forbidden
+    by §16.5 — see decision gate §16.6).
+18. **Manual `requires_review` override** required (forbidden — the
+    flag must be production-derived).
+19. **SQLite / PostgreSQL substantive divergence** in the candidate
+    (forbidden by §15.10 #1 — would indicate a real production-path
+    non-determinism bug; this implies both backends MUST be captured
+    for the second scenario if the second scenario is brought
+    back).
+20. **`production_seeding.py`** required (forbidden by pre-freeze
+    §8 / Path A S-1).
+21. **Alembic migration change** required (forbidden by Path A
+    S-13).
+
+None of conditions 11–21 are triggered in this round; the §16.6
+Outcome B decision is recorded honestly with the cited rationale
+and the production-feasible-but-mechanically-blocked nature of the
+second scenario in this round's scope.
+
+---
+
+
+---
+
 ## 11. Change log (extended)
 
 - 2026-07-10 (Amendment 3, remote-grounded reconstruction): PR #60 head's `call_via_markers` indirection wrapper removed; runner restored to direct call of `adapter.execute_scenario(...)` under the canonical A1-2a kwarg names. A 1-file narrow architecture-boundary carve-out (only `execute.py`) is ratified in §14.2; the prior 6-file broad carve-out is **NOT** restored. The `profile_codes` parameter is removed from the runner's public surface; `profile_codes=("balanced",)` remains an internal literal in `adapter.py`. The run-directory marker-name boundary is the implementation mechanism that allows `run_directory.py` and `cli.py` to remain compliant with the 1-file narrow carve-out. PR #60 remains Draft.
 - 2026-07-10 (Amendment 4, expected-output contract freeze): §15 added. The tracked expected-output path is frozen at `backend/tests/evaluation/data/expected/`. The scenario set is frozen at exactly two scenarios (`baseline_feasible.v1.json` + `high_throughput_review.v1.json`); the existing Task 11A golden `transaction_b_cross_backend_v1.json` is **NOT** used (it is a different-scenario at a different-scale integration-test fixture). Canonical expected-output schema (§15.3), exact-match policy (§15.4), numeric comparison policy (§15.5), stable-proxies rule (§15.6), cross-backend capture requirements (§15.7), determinism verification (§15.8), reviewer sign-off sequencing (§15.9), and stop conditions (§15.10) are all formally defined. The 8-run cross-backend capture (4 SQLite + 4 PostgreSQL with real PG 14.23 service at `127.0.0.1:5432`) is committed to `/tmp/task011b-expected-output-amendment4/` (NOT in the repo). The canonical content is byte-identical across SQLite and PostgreSQL (canonical SHA-256 `d6775a79...` for baseline_feasible, `a326a54b...` for high_throughput_review). This amendment is **docs-only**; expected outputs remain separately unauthorized. PR #60 remains Draft.
+
+- 2026-07-11 (Amendment 5, expected-output path + scenario semantics correction): §16 added. §16.1 corrects the Amendment 4 §15.1 path assertion: the `.gitignore` rule at line 67 (`backend/tests/evaluation/*`) excludes the design-frozen expected-output path; Amendment 5 ratifies a future `.gitignore` whitelist (path-precise, allowing only the two freeze-listed expected-output files) and **forbids `git add -f`** as a workaround. §16.2 records the current repository fact that `high_throughput_review` is not an independent scenario (correlation_id-only delta). §16.3 freezes `baseline_feasible` semantics as the canonical feasible baseline. §16.4 documents a read-only feasibility probe (under `/tmp/task011b-amendment5/probe2_variant.py`) that confirms a 2×-scale variant produces a substantively distinct `combined_source_hash` (`3573a597…` vs baseline `60e11cace…`) and `content_hash` (`966e3de9…` vs baseline `ad7fa7da…`) when run via the unmodified production adapter against a fresh SQLite database. §16.5 codifies the four-criterion distinction rule. §16.6 records the **Outcome B decision**: `high_throughput_review` is REMOVED from the current expected-output set (which is reduced to `baseline_feasible.v1.json` only) because the only mechanical paths to materialize a §16.5-distinct second scenario require modifying `_seed_helpers.py`, modifying `.gitignore`, or using `git add -f` — all forbidden in this round's §3 boundary. §16.7 freezes the proposed future implementation allowlist. §16.8 adds 11 additional stop conditions on top of §15.10. PR #60 remains Draft; the expected-output commit + sign-off + push + Ready steps are deferred to a future implementation round that freezes a parameterizable seed function (Amendment 6 or later). This amendment is docs-only; no `_seed_helpers.py` / `.gitignore` / tests / candidate-file mutation occurred.
