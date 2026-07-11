@@ -314,12 +314,6 @@
     ],
     "exact_match_decimal_canonicalization": "Decimal and monetary values are normalized as canonical decimal strings via the domain canonical_json_bytes rule (no float, no binary).",
     "exact_match_float_quantization": "Float-derived engineering values (e.g. partition_length_proxy_m) are exact-string-equal because production serializes Decimal via canonical_json_bytes (round-trip stable across SQLite / PostgreSQL).",
-    "stable_proxies": [
-      "combined_source_hash = '60e11cacea5868d1650e40f72186618e4a01f29b1655e9aa531deccaf0633206' (cross-backend normalized, captures 5-stage slot fingerprints)",
-      "source_binding_proxy = 'a1-test-binding-001' (semantic SourceBindingRecord.id, NOT DB PK)",
-      "weight_set_revision_proxy = 'a1-test-wrev-001' (semantic SchemeWeightSetRevisionRecord.id)",
-      "content_hash = 'ea4ab8cd7f73b50c8cd83865adc9ec90428d8d60a9fc2e7d823a0c8fdb16fe46' (production-side scheme_run_record.content_hash, byte-equal across SQLite and PostgreSQL — verified in Commit C capture)"
-    ],
     "field_normalization_mapping": {
       "scheme_run.warning_messages": "review_reasons (canonical form: ordered list[str], same content as raw)",
       "scheme_run.source_binding_id": "source_binding_proxy (canonical form: semantic ID)",
@@ -334,6 +328,28 @@
       "Any _meta runtime sentinel",
       "Any database-generated integer primary key (SQLite rowid, PostgreSQL bigserial)",
       "Any test-recomputed content_hash (production-side value MUST be used directly)"
-    ]
+    ],
+    "leaf_coverage_summary": {
+      "exact_match_leaf_examples": [
+        "$.review_reasons",
+        "$.combined_source_hash",
+        "$.content_hash",
+        "$.schema_version",
+        "$.scenario_id"
+      ],
+      "normalized_proxy_leaf_examples": [
+        "$.source_binding_proxy",
+        "$.weight_set_revision_proxy"
+      ],
+      "no_excluded_canonical_field": true
+    },
+    "exact_field_evidence": {
+      "$.combined_source_hash": "cross-backend byte-equal canonical production hash",
+      "$.content_hash": "production-side content_hash, byte-equal across SQLite and PostgreSQL"
+    },
+    "normalized_proxy_evidence": {
+      "$.source_binding_proxy": "semantic SourceBindingRecord.id, not database-generated PK",
+      "$.weight_set_revision_proxy": "semantic SchemeWeightSetRevisionRecord.id, not database-generated PK"
+    }
   }
 }

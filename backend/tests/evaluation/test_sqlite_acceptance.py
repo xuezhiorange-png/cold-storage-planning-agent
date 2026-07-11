@@ -1477,11 +1477,12 @@ def test_negative_policy_30_exact_proxy_overlap_fails() -> None:
         validate_expected_output_comparison_policy(g, backend="sqlite")
     except AssertionError as exc:
         msg = str(exc)
-        assert "POLICY_EXACT_PROXY_OVERLAP" in msg or "POLICY_LEAF_MULTI_CLASSIFIED" in msg
+        assert "POLICY_EXACT_PROXY_OVERLAP" in msg
+        assert "POLICY_LEAF_MULTI_CLASSIFIED" not in msg
         return
     raise AssertionError(
         "validator accepted $.source_binding_proxy in both exact and proxy; "
-        "expected POLICY_EXACT_PROXY_OVERLAP or POLICY_LEAF_MULTI_CLASSIFIED"
+        "expected POLICY_EXACT_PROXY_OVERLAP only"
     )
 
 
@@ -1624,72 +1625,185 @@ def test_negative_policy_34_warning_messages_not_excluded_but_mapped() -> None:
         "field_normalization_mapping must document the "
         "scheme_run.warning_messages → review_reasons normalization"
     )
+    assert (
+        mapping["scheme_run.warning_messages"]
+        == "review_reasons (canonical form: ordered list[str], same content as raw)"
+    )
+    assert "$.review_reasons" in p["exact_match_fields"]
+    assert "$.review_reasons" not in p["normalized_proxy_fields"]
+    assert "$.review_reasons" not in p["excluded_runtime_fields"]
 
-# ── Commit E §6 negative-policy tests (TASK-011B §6) ────────────────────────
 
 
-def test_negative_policy_35_leaf_coverage_summary_rejected() -> None:
-    """Neg test 35: injecting ``leaf_coverage_summary`` (a duplicate
-    classification summary) into ``_comparison_policy`` MUST be
-    rejected with ``POLICY_REDUNDANT_CLASSIFICATION_SUMMARY``."""
+# ── Commit F §5 metadata-drift negative-policy tests ─────────────────────
+
+
+
+def test_negative_policy_35_proxy_summary_drift_fails() -> None:
+    """Neg test 35: adding ``$.content_hash`` (an exact field) to
+    ``normalized_proxy_leaf_examples`` MUST be rejected with
+    ``POLICY_PROXY_SUMMARY_MISMATCH`` because the summary set would
+    no longer exactly equal ``normalized_proxy_fields``."""
     from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
 
     g = _negative_golden()
     p = g["_comparison_policy"]
-    p["leaf_coverage_summary"] = {
-        "exact_match_leaf_examples": [
-            "$.combined_source_hash",
-            "$.content_hash",
-            "$.scenario_id",
-        ],
-        "normalized_proxy_leaf_examples": [
-            "$.source_binding_proxy (← scheme_run.source_binding_id)",
-        ],
-        "no_excluded_canonical_field": True,
-    }
+    p["leaf_coverage_summary"]["normalized_proxy_leaf_examples"] = list(
+        p["leaf_coverage_summary"]["normalized_proxy_leaf_examples"]
+    ) + ["$.content_hash"]
     try:
         validate_expected_output_comparison_policy(g, backend="sqlite")
     except AssertionError as exc:
         msg = str(exc)
-        assert "POLICY_REDUNDANT_CLASSIFICATION_SUMMARY" in msg
-        assert "leaf_coverage_summary" in msg
+        assert "POLICY_PROXY_SUMMARY_MISMATCH" in msg
         return
     raise AssertionError(
-        "validator accepted injected leaf_coverage_summary; "
-        "expected POLICY_REDUNDANT_CLASSIFICATION_SUMMARY"
+        "validator accepted drifted normalized_proxy_leaf_examples; "
+        "expected POLICY_PROXY_SUMMARY_MISMATCH"
+    )
+
+def test_negative_policy_36_exact_summary_class_mismatch_fails() -> None:
+    """Neg test 36: adding ``$.source_binding_proxy`` (a normalized
+    proxy path) to ``exact_match_leaf_examples`` MUST be rejected with
+    ``POLICY_EXACT_SUMMARY_CLASS_MISMATCH`` because the path is not in
+    ``exact_match_fields``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["leaf_coverage_summary"]["exact_match_leaf_examples"] = list(
+        p["leaf_coverage_summary"]["exact_match_leaf_examples"]
+    ) + ["$.source_binding_proxy"]
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_EXACT_SUMMARY_CLASS_MISMATCH" in msg
+        return
+    raise AssertionError(
+        "validator accepted proxy path in exact_match_leaf_examples; "
+        "expected POLICY_EXACT_SUMMARY_CLASS_MISMATCH"
+    )
+
+def test_negative_policy_37_exact_evidence_misclassification_fails() -> None:
+    """Neg test 37: adding ``$.source_binding_proxy`` (a normalized
+    proxy path) to ``exact_field_evidence`` MUST be rejected with
+    ``POLICY_EXACT_EVIDENCE_CLASS_MISMATCH``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["exact_field_evidence"]["$.source_binding_proxy"] = "wrong class"
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_EXACT_EVIDENCE_CLASS_MISMATCH" in msg
+        return
+    raise AssertionError(
+        "validator accepted proxy path in exact_field_evidence; "
+        "expected POLICY_EXACT_EVIDENCE_CLASS_MISMATCH"
+    )
+
+def test_negative_policy_38_proxy_evidence_mismatch_fails() -> None:
+    """Neg test 38: adding ``$.content_hash`` (an exact field) to
+    ``normalized_proxy_evidence`` MUST be rejected with
+    ``POLICY_PROXY_EVIDENCE_MISMATCH`` because the evidence keys must
+    exactly equal ``normalized_proxy_fields``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["normalized_proxy_evidence"]["$.content_hash"] = "wrong class"
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_PROXY_EVIDENCE_MISMATCH" in msg
+        return
+    raise AssertionError(
+        "validator accepted drifted normalized_proxy_evidence; "
+        "expected POLICY_PROXY_EVIDENCE_MISMATCH"
+    )
+
+def test_negative_policy_39_warning_mapping_wrong_target_fails() -> None:
+    """Neg test 39: changing the value of
+    ``field_normalization_mapping["scheme_run.warning_messages"]`` to
+    a wrong canonical form MUST be rejected with
+    ``POLICY_WARNING_MAPPING_MISMATCH``."""
+    from tests.evaluation._seed_helpers import validate_expected_output_comparison_policy
+
+    g = _negative_golden()
+    p = g["_comparison_policy"]
+    p["field_normalization_mapping"]["scheme_run.warning_messages"] = (
+        "some other target"
+    )
+    try:
+        validate_expected_output_comparison_policy(g, backend="sqlite")
+    except AssertionError as exc:
+        msg = str(exc)
+        assert "POLICY_WARNING_MAPPING_MISMATCH" in msg
+        return
+    raise AssertionError(
+        "validator accepted drifted warning_messages mapping; "
+        "expected POLICY_WARNING_MAPPING_MISMATCH"
     )
 
 
-def test_positive_current_golden_has_no_leaf_coverage_summary() -> None:
-    """Positive assertion: the current canonical golden MUST NOT
-    contain ``leaf_coverage_summary`` and MUST still pass the
-    validator."""
+
+# ── Commit F positive policy-metadata consistency test ───────────────────
+
+
+
+def test_positive_policy_metadata_consistency() -> None:
+    """Positive §5: the canonical golden MUST be self-consistent
+    across executable sets, leaf_coverage_summary, exact_field_evidence,
+    normalized_proxy_evidence, and the warning mapping.
+    """
     from tests.evaluation._seed_helpers import (
         validate_expected_output_comparison_policy,
     )
 
     g = _negative_golden()
-    p = g["_comparison_policy"]
-    assert "leaf_coverage_summary" not in p, (
-        "leaf_coverage_summary was removed in Commit E and must not "
-        "re-appear in the canonical golden"
-    )
     validate_expected_output_comparison_policy(g, backend="sqlite")
+    p = g["_comparison_policy"]
 
+    # 1. Summary matches executable sets
+    summary = p["leaf_coverage_summary"]
+    assert (
+        set(summary["normalized_proxy_leaf_examples"])
+        == set(p["normalized_proxy_fields"])
+    )
+    assert set(summary["exact_match_leaf_examples"]) <= set(
+        p["exact_match_fields"]
+    )
+    assert summary["no_excluded_canonical_field"] is True
 
-def test_positive_comparison_classes_pairwise_disjoint() -> None:
-    """Positive assertion: in the current canonical golden, the three
-    comparison-class arrays MUST be pairwise disjoint."""
-    from tests.evaluation._seed_helpers import (
-        validate_expected_output_comparison_policy,
+    # 2. Evidence matches executable sets
+    assert set(p["exact_field_evidence"].keys()) <= set(
+        p["exact_match_fields"]
+    )
+    assert set(p["normalized_proxy_evidence"].keys()) == set(
+        p["normalized_proxy_fields"]
+    )
+    assert set(p["exact_field_evidence"].keys()) & set(
+        p["normalized_proxy_evidence"].keys()
+    ) == set()
+
+    # 3. Warning mapping is exact
+    assert (
+        p["field_normalization_mapping"]["scheme_run.warning_messages"]
+        == "review_reasons (canonical form: ordered list[str], same content as raw)"
     )
 
-    g = _negative_golden()
-    p = g["_comparison_policy"]
-    exact = set(p["exact_match_fields"])
-    excluded = set(p["excluded_runtime_fields"])
-    proxy = set(p["normalized_proxy_fields"])
-    assert exact & proxy == set(), f"exact ∩ proxy = {exact & proxy}"
-    assert exact & excluded == set(), f"exact ∩ excluded = {exact & excluded}"
-    assert proxy & excluded == set(), f"proxy ∩ excluded = {proxy & excluded}"
-    validate_expected_output_comparison_policy(g, backend="sqlite")
+    # 4. content_hash, combined_source_hash, review_reasons are exact
+    for path in ("$.content_hash", "$.combined_source_hash", "$.review_reasons"):
+        assert path in p["exact_match_fields"]
+        assert path not in p["normalized_proxy_fields"]
+        assert path not in p["excluded_runtime_fields"]
+
+    # 5. Exactly two proxy fields remain
+    assert set(p["normalized_proxy_fields"]) == {
+        "$.source_binding_proxy",
+        "$.weight_set_revision_proxy",
+    }

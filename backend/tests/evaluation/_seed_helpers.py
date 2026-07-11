@@ -1204,35 +1204,6 @@ def validate_expected_output_comparison_policy(
     if missing:
         raise AssertionError(f"POLICY_KEYS_MISSING: {sorted(missing)} (backend={backend})")
 
-    # §5: Reject duplicate classification summaries (drift risk).
-    # The authoritative comparison-class arrays (exact_match_fields,
-    # normalized_proxy_fields, excluded_runtime_fields) are the SINGLE
-    # source of truth for leaf-to-class mapping. A redundant summary
-    # (e.g. ``leaf_coverage_summary`` with hand-curated examples or
-    # counts) can drift from the authoritative arrays and create a
-    # second opinion on classification. We reject any such key.
-    # Allowed self-description keys (which do NOT define comparison
-    # class membership and are intentionally preserved):
-    #   - deterministic_categorical_fields
-    #   - exact_match_decimal_canonicalization
-    #   - exact_match_float_quantization
-    #   - stable_proxies
-    #   - field_normalization_mapping
-    #   - forbidden_in_expected_output
-    redundant_summary_keys = {
-        "leaf_coverage_summary",
-    }
-    found_redundant = redundant_summary_keys & set(policy.keys())
-    if found_redundant:
-        raise AssertionError(
-            f"POLICY_REDUNDANT_CLASSIFICATION_SUMMARY: {sorted(found_redundant)} "
-            f"are duplicate classification summaries; classification "
-            f"authority must remain single-source in "
-            f"(exact_match_fields, normalized_proxy_fields, "
-            f"excluded_runtime_fields). validator dynamically computes "
-            f"leaf coverage (backend={backend})"
-        )
-
     exact = list(policy["exact_match_fields"])
     excluded = list(policy["excluded_runtime_fields"])
     proxy = list(policy["normalized_proxy_fields"])
@@ -1295,6 +1266,155 @@ def validate_expected_output_comparison_policy(
     missing_forbidden = sorted(set(must_have_forbidden) - set(forbidden))
     if missing_forbidden:
         raise AssertionError(f"POLICY_FORBIDDEN_MISSING: {missing_forbidden} (backend={backend})")
+
+    # ── Commit F §3.1: leaf_coverage_summary self-consistency ───────────
+    # Per Charles's Commit F spec, the leaf_coverage_summary
+    # documents the executable comparison classes. Drift between the
+    # summary and the executable arrays creates a second opinion on
+    # classification and is therefore rejected with stable error
+    # codes. Per §4 "Deterministic overlap order", these checks run
+    # BEFORE leaf traversal so any overlap raises
+    # POLICY_EXACT_PROXY_OVERLAP (never POLICY_LEAF_MULTI_CLASSIFIED).
+    summary = policy.get("leaf_coverage_summary")
+    if not isinstance(summary, dict):
+        raise AssertionError(
+            f"POLICY_SUMMARY_TYPE: leaf_coverage_summary must be object, "
+            f"got {type(summary).__name__} (backend={backend})"
+        )
+    required_summary_keys = {
+        "exact_match_leaf_examples",
+        "normalized_proxy_leaf_examples",
+        "no_excluded_canonical_field",
+    }
+    missing_summary = required_summary_keys - set(summary.keys())
+    if missing_summary:
+        raise AssertionError(
+            f"POLICY_SUMMARY_TYPE: leaf_coverage_summary missing keys "
+            f"{sorted(missing_summary)} (backend={backend})"
+        )
+    exact_examples = summary["exact_match_leaf_examples"]
+    proxy_examples = summary["normalized_proxy_leaf_examples"]
+    if not isinstance(exact_examples, list) or not all(isinstance(x, str) for x in exact_examples):
+        raise AssertionError(
+            f"POLICY_SUMMARY_TYPE: exact_match_leaf_examples must be list[str] (backend={backend})"
+        )
+    if not isinstance(proxy_examples, list) or not all(isinstance(x, str) for x in proxy_examples):
+        raise AssertionError(
+            f"POLICY_SUMMARY_TYPE: normalized_proxy_leaf_examples must be "
+            f"list[str] (backend={backend})"
+        )
+    if len(exact_examples) != len(set(exact_examples)):
+        dups = sorted({x for x in exact_examples if exact_examples.count(x) > 1})
+        raise AssertionError(f"POLICY_SUMMARY_DUP_EXACT: {dups} (backend={backend})")
+    if len(proxy_examples) != len(set(proxy_examples)):
+        dups = sorted({x for x in proxy_examples if proxy_examples.count(x) > 1})
+        raise AssertionError(f"POLICY_SUMMARY_DUP_PROXY: {dups} (backend={backend})")
+    if set(proxy_examples) != proxy_set:
+        raise AssertionError(
+            f"POLICY_PROXY_SUMMARY_MISMATCH: "
+            f"normalized_proxy_leaf_examples={sorted(set(proxy_examples))} "
+            f"must exactly equal normalized_proxy_fields={sorted(proxy_set)} "
+            f"(backend={backend})"
+        )
+    exact_examples_set = set(exact_examples)
+    bad_exact = sorted(exact_examples_set - exact_set)
+    if bad_exact:
+        raise AssertionError(
+            f"POLICY_EXACT_SUMMARY_CLASS_MISMATCH: {bad_exact} are not in "
+            f"exact_match_fields (backend={backend})"
+        )
+    if exact_examples_set & proxy_set:
+        overlap = sorted(exact_examples_set & proxy_set)
+        raise AssertionError(
+            f"POLICY_SUMMARY_CLASS_OVERLAP: exact_match_leaf_examples ∩ "
+            f"normalized_proxy_fields = {overlap} (backend={backend})"
+        )
+    if summary["no_excluded_canonical_field"] is not True:
+        raise AssertionError(
+            f"POLICY_SUMMARY_EXCLUDED_FLAG_INVALID: "
+            f"no_excluded_canonical_field must be True, "
+            f"got {summary['no_excluded_canonical_field']!r} "
+            f"(backend={backend})"
+        )
+
+    # ── Commit F §3.2: evidence object self-consistency ─────────────────
+    exact_evidence = policy.get("exact_field_evidence")
+    if not isinstance(exact_evidence, dict):
+        raise AssertionError(
+            f"POLICY_EXACT_EVIDENCE_CLASS_MISMATCH: exact_field_evidence "
+            f"must be object, got {type(exact_evidence).__name__} "
+            f"(backend={backend})"
+        )
+    proxy_evidence = policy.get("normalized_proxy_evidence")
+    if not isinstance(proxy_evidence, dict):
+        raise AssertionError(
+            f"POLICY_PROXY_EVIDENCE_MISMATCH: normalized_proxy_evidence "
+            f"must be object, got {type(proxy_evidence).__name__} "
+            f"(backend={backend})"
+        )
+    for k, v in exact_evidence.items():
+        if not isinstance(k, str) or not k or not isinstance(v, str) or not v:
+            raise AssertionError(
+                f"POLICY_EXACT_EVIDENCE_CLASS_MISMATCH: exact_field_evidence "
+                f"keys and values must be non-empty strings "
+                f"(backend={backend})"
+            )
+    for k, v in proxy_evidence.items():
+        if not isinstance(k, str) or not k or not isinstance(v, str) or not v:
+            raise AssertionError(
+                f"POLICY_PROXY_EVIDENCE_MISMATCH: normalized_proxy_evidence "
+                f"keys and values must be non-empty strings "
+                f"(backend={backend})"
+            )
+    if not set(exact_evidence.keys()) <= exact_set:
+        bad = sorted(set(exact_evidence.keys()) - exact_set)
+        raise AssertionError(
+            f"POLICY_EXACT_EVIDENCE_CLASS_MISMATCH: {bad} are not in "
+            f"exact_match_fields (backend={backend})"
+        )
+    if set(proxy_evidence.keys()) != proxy_set:
+        raise AssertionError(
+            f"POLICY_PROXY_EVIDENCE_MISMATCH: "
+            f"normalized_proxy_evidence.keys()={sorted(set(proxy_evidence.keys()))} "
+            f"must exactly equal normalized_proxy_fields={sorted(proxy_set)} "
+            f"(backend={backend})"
+        )
+    if set(exact_evidence.keys()) & set(proxy_evidence.keys()):
+        overlap = sorted(set(exact_evidence.keys()) & set(proxy_evidence.keys()))
+        raise AssertionError(
+            f"POLICY_EVIDENCE_CLASS_OVERLAP: exact_field_evidence ∩ "
+            f"normalized_proxy_evidence = {overlap} (backend={backend})"
+        )
+
+    # ── Commit F §3.3: warning_messages mapping exactly validated ───────
+    expected_warning_value = (
+        "review_reasons (canonical form: ordered list[str], same content as raw)"
+    )
+    mapping = policy.get("field_normalization_mapping", {})
+    actual_warning_value = mapping.get("scheme_run.warning_messages")
+    if actual_warning_value != expected_warning_value:
+        raise AssertionError(
+            f"POLICY_WARNING_MAPPING_MISMATCH: "
+            f"field_normalization_mapping['scheme_run.warning_messages']="
+            f"{actual_warning_value!r} must equal {expected_warning_value!r} "
+            f"(backend={backend})"
+        )
+    review_reasons_path = "$.review_reasons"
+    if review_reasons_path not in exact_set:
+        raise AssertionError(
+            f"POLICY_WARNING_TARGET_NOT_EXACT: {review_reasons_path} must be "
+            f"in exact_match_fields (backend={backend})"
+        )
+    if review_reasons_path in proxy_set:
+        raise AssertionError(
+            f"POLICY_WARNING_TARGET_PROXY_OVERLAP: {review_reasons_path} "
+            f"must NOT be in normalized_proxy_fields (backend={backend})"
+        )
+    if review_reasons_path in excluded_set:
+        raise AssertionError(
+            f"POLICY_WARNING_TARGET_EXCLUDED: {review_reasons_path} "
+            f"must NOT be in excluded_runtime_fields (backend={backend})"
+        )
 
     # Every golden non-policy leaf must classify into EXACTLY ONE
     # comparison class (no double-counting, no fallback).
