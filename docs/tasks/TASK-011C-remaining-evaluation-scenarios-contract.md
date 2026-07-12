@@ -200,20 +200,43 @@ This contract is built from the following source-of-truth artifacts. Every claus
 
 ### 6.2 High-throughput / review-required (G1)
 
-A new scenario `high_throughput_review` that **MUST** be substantively distinct from `baseline_feasible`. The contract freezes the following properties:
+A new scenario `high_throughput_review` that **MUST** be substantively distinct from `baseline_feasible`. The contract freezes EXACTLY the following properties:
 
-| Property | Contract requirement |
+| Property | Contract requirement (FROZEN) |
 |---|---|
 | `scenario_id` | `high_throughput_review` (string, no spaces) |
 | `fixture_revision` | positive integer (≥ 1) |
-| Substantive input differences from baseline | REQUIRED (see below) |
-| Expected production outcome | `SUCCEEDED` (production run completes) **OR** explicitly frozen alternative |
-| Expected review/blocker propagation | REQUIRED — must declare whether `review_required: true` and what `review_reasons` are expected |
+| `execution_outcome` | `SUCCEEDED` (production run completes successfully) |
+| `scheme_run.status` | `completed` (persisted SchemeRun row records the completed status) |
+| `requires_review` | `true` (business field; review is required for downstream processing) |
+| `review_state` | `REQUIRED` (business field; review propagation has happened) |
+| Substantive input differences from baseline | REQUIRED (see HIGH_THROUGHPUT_MUST_BE_SUBSTANTIVELY_DISTINCT below) |
 | Required production stages | `["zone", "cooling_load", "equipment", "power", "investment"]` (same as baseline) |
 | Required exact fields | All `exact_match_fields` of baseline, plus any scenario-specific additional fields |
 | Required numeric fields | All `decimal_fields` of baseline, plus any scenario-specific additional fields |
 | Runtime-only excluded fields | `["correlation_id", "run_attempt_id", "executed_at_timestamp", "database_session_uuid", "calculation_run_id[]"]` (or explicitly justified per-scenario) |
 | SQLite/PostgreSQL equivalence | `substantive normalized result parity` required; backend-specific runtime metadata allowed |
+
+**CLI exit semantics (per §7.1 below):** `high_throughput_review` exits with CLI success code `0` (NOT exit code `5`). `requires_review=true` and `review_state=REQUIRED` are business fields of a successful run, NOT a runner-level failure.
+
+**HIGH_THROUGHPUT_REVIEW_EXACT_FOUR_FIELDS (frozen invariant):**
+
+The four business fields `execution_outcome=SUCCEEDED`, `scheme_run.status=completed`, `requires_review=true`, `review_state=REQUIRED` MUST hold for **both** SQLite and PostgreSQL production runs of this scenario. If any of the four is not produced by real production logic, the scenario cannot be authored as a high-throughput scenario under this contract — the stop condition `TASK_011C_HIGH_THROUGHPUT_REQUIRES_REVIEW_PRODUCTION_RULE_MUTATION` (per §16) applies.
+
+**HIGH_THROUGHPUT_REVIEW_REAL_PRODUCTION_REVIEW_SIGNAL (frozen invariant):**
+
+The `review_state=REQUIRED` signal MUST come from a real production review rule. It is **forbidden** to trigger, synthesize, or rename this scenario's review signal via:
+- correlation ID;
+- scenario ID;
+- runner-level reclassification or special-case logic;
+- CLI-level special-case logic;
+- test-only relabeling;
+- hand-editing the expected-output file;
+- modifying production formula / threshold / coefficient / scoring / review rule.
+
+**HIGH_THROUGHPUT_MUST_BE_SUBSTANTIVELY_DISTINCT (frozen invariant):**
+
+A high-throughput scenario is "substantively distinct" from baseline if and only if it differs in **at least one** of the following observable properties:
 
 **HIGH_THROUGHPUT_MUST_BE_SUBSTANTIVELY_DISTINCT (frozen invariant):**
 
@@ -247,22 +270,45 @@ The implementation round is **forbidden** from:
 
 ### 6.3 Invalid / blocked (G2)
 
-A new scenario `invalid_blocked` that exercises a **real production validation/blocker pathway**. The contract freezes:
+A new scenario `invalid_blocked` that exercises a **real production validation/blocker pathway**. The contract freezes the following field-by-field, EXACTLY:
 
-| Property | Contract requirement |
+| Property | Contract requirement (FROZEN) |
 |---|---|
 | `scenario_id` | `invalid_blocked` |
 | `fixture_revision` | positive integer (≥ 1) |
-| Fixture input defect | A SPECIFIC pre-existing production validation defect (NOT a runtime exception, NOT an evaluation-layer-injected error) |
-| Production validation entrypoint | A pre-existing production entrypoint in `backend/src/cold_storage/modules/...` that raises a typed exception (NOT `Exception` / NOT `BaseException`) |
-| Expected exception class | A specific, pre-existing production exception class — must be enumerated by class FQN |
-| Stable code | A specific exception code / marker that the production code already emits |
-| Field | The exception's structured field that identifies the failure (e.g., `field` in a `ValidationError`) |
-| Details shape | A pre-existing structured `details` dict on the exception; no new shape is allowed |
-| Blocked stage | One of `["zone", "cooling_load", "equipment", "power", "investment", "pre_orchestration", "source_binding_verification"]` |
-| Side-effect expectations | The blocked stage MUST NOT create a `SchemeRun` row, MUST NOT create `CalculationRunRecord` rows beyond the stage that raised, and MUST leave orchestration identity / attempt / execution-snapshot state consistent with production's pre-block policy |
-| Absence of success artifacts | The normalized result MUST NOT contain `production_outputs` beyond the stage that raised; runner MUST assert absence |
-| CLI exit semantics | Non-zero exit; typed `RunnerSummary.evaluation_result = "fail"`; typed reason code for the validation defect |
+| `scenario input difference` | A SPECIFIC pre-existing production validation defect (NOT a runtime exception, NOT an evaluation-layer-injected error, NOT a `correlation_id` change, NOT a `scenario_id` change) |
+| `production validation stage` | A pre-existing production entrypoint in `backend/src/cold_storage/modules/...` that raises a typed exception (NOT `Exception` / NOT `BaseException`) |
+| `typed exception or structured result` | A specific, pre-existing production exception class — must be enumerated by class FQN; structured result MUST come from a real production error model |
+| `exact error code` | A specific exception code / marker that the production code already emits (e.g., a stable `code` attribute on the typed exception) |
+| `exact error field/path` | The exception's structured field that identifies the failure (e.g., `field` in a `ValidationError`, or `details.path` for nested paths) |
+| `expected execution outcome` | `BLOCKED` (production run is blocked at the validation stage) |
+| `whether SchemeRun is created` | MUST be `false` if the failure happens at or before SchemeRun creation; if the production contract specifies a persisted failure record, that record is the only SchemeRun-equivalent state allowed |
+| `expected database row deltas` | Explicitly enumerated: which rows are NOT created, which rows MAY be created (e.g., validation ledger entries), and which rows MUST be left untouched |
+| `SQLite behavior` | The full validation pathway MUST be reproducible on SQLite with the same typed exception / code / field / row delta as on PostgreSQL |
+| `PostgreSQL behavior` | The full validation pathway MUST be reproducible on PostgreSQL with the same typed exception / code / field / row delta as on SQLite |
+| `CLI exit semantics` | Non-zero CLI exit (per §7.1); typed `RunnerSummary.evaluation_result = "fail"`; typed reason code for the validation defect |
+| `blocked stage` | One of `["zone", "cooling_load", "equipment", "power", "investment", "pre_orchestration", "source_binding_verification"]` — frozen per scenario |
+| `side-effect expectations` | The blocked stage MUST NOT create a `SchemeRun` row, MUST NOT create `CalculationRunRecord` rows beyond the stage that raised, and MUST leave orchestration identity / attempt / execution-snapshot state consistent with production's pre-block policy |
+| `absence of success artifacts` | The normalized result MUST NOT contain `production_outputs` beyond the stage that raised; runner MUST assert absence |
+| `SQLite/PG business parity` | The same business verdict (blocked vs succeeded) MUST hold on both backends; no business-outcome drift allowed |
+
+**INVALID_BLOCKED_FORBIDDEN_CIRCUMVENTION (frozen invariants):**
+
+The implementation round is **forbidden** from:
+1. Using a valid baseline `SourceBinding` and then renaming a successful result as `blocked` (e.g., by mutating the SchemeRun status after the fact).
+2. Triggering the blocked state via `correlation_id` or `scenario_id` special-case logic.
+3. Creating a fake `SchemeRun` row (or fake `CalculationRunRecord` / orchestration identity / attempt / execution-snapshot row) to represent the failed scenario.
+4. Classifying errors by parsing `args[0]` / `str(exception)` / `repr(exception)` / message-text regex. The classification MUST use the typed exception class and the structured error code/field.
+5. Building an evaluation-layer-injected `Exception` / `ValueError` / `RuntimeError` to simulate a production failure. The failure MUST come from a real production validation entrypoint.
+6. Producing a `invalid_blocked` expected output that asserts presence of `production_outputs` past the blocked stage.
+
+**INVALID_BLOCKED_FAIL_CLOSED (frozen invariant):**
+
+If the production code cannot provide a real validation pathway that produces a typed exception / structured error result, the implementation round MUST:
+- Stop the `invalid_blocked` scenario implementation.
+- Trigger the stop condition `TASK_011C_INVALID_BLOCKED_PRODUCTION_PATH_NOT_ESTABLISHED` (per §16).
+- NOT produce an `invalid_blocked` expected output or test.
+- NOT invent a fake validation path to complete the contract documentation.
 
 **INVALID_BLOCKED_FORBIDDEN (frozen invariants):**
 
@@ -276,6 +322,47 @@ The implementation round is **forbidden** from:
 ---
 
 ## 7. Manifest contract
+
+### 7.0 Manifest schema path (FROZEN, single-path)
+
+The TASK-011C implementation round MUST use the following SINGLE manifest schema path:
+
+```
+backend/src/cold_storage/evaluation/schema/manifest.schema.json
+```
+
+The following are **NOT authorized** in TASK-011C:
+- A top-level `evaluation/` directory (any tracked path under `evaluation/` is out of scope).
+- A second / alternate / duplicate manifest schema path.
+- A copy of the manifest schema at any other path.
+- Any modification to `.gitignore` to add manifest / expected-output / fixture paths.
+
+The implementation round MUST NOT create the schema file in this contract round. The schema path is frozen for the future implementation round only.
+
+### 7.1 CLI exit code (FROZEN, no redefinition in TASK-011C)
+
+The current main `backend/src/cold_storage/evaluation/cli.py` exit codes are FROZEN as follows. The TASK-011C contract does NOT redefine, remove, or change these exit codes:
+
+| Exit code | Meaning |
+|---|---|
+| `0` | SUCCEEDED — execution outcome is `SUCCEEDED` (with or without `requires_review=true`) |
+| `1` | production error (unhandled production-side failure) |
+| `2` | invalid input (manifest / adapter / CLI input) |
+| `3` | runner contract violation (manifest / runner contract mismatch) |
+| `4` | historical blocked (legacy Phase B block; reserved) |
+| `5` | REVIEW_REQUIRED (general review-required signal) |
+| `6` | FAILED (general failure) |
+
+**CRITICAL — high_throughput_review exit code (FROZEN):**
+
+The `high_throughput_review` scenario MUST exit with code `0` (SUCCEEDED). It is an execution success. `requires_review=true` and `review_state=REQUIRED` are business fields of a successful run, NOT a runner-level failure. The contract explicitly **forbids**:
+- Mapping `high_throughput_review` to exit code `5` (REVIEW_REQUIRED) as a runner-level outcome.
+- Reclassifying the scenario as `failed` because `requires_review=true`.
+- Introducing a new exit code for TASK-011C.
+
+The contract is intentionally consistent with the general exit code `5` meaning: exit code `5` is reserved for the runner-level "review-required" verdict (not currently used by the main runner's exit code map but reserved for future expansion). The high-throughput scenario's `requires_review=true` business field is independent of this reserved exit code.
+
+### 7.2 Manifest content (FROZEN)
 
 The manifest (`backend/src/cold_storage/evaluation/manifest.json` or per-test-suite) MUST validate, fail-closed, and contain:
 
@@ -312,9 +399,9 @@ Implementation choice is therefore:
 
 ---
 
-## 8. Expected-output authority flow
+## 8. Expected-output authority flow (per-file freeze)
 
-The expected output for a new scenario is **not** a product of the implementation round. The contract freezes the following 8-step authority flow:
+The expected output for a new scenario is **not** a product of the implementation round. The contract freezes the following 8-step authority flow AND the per-file authority status of the three expected-output JSON files:
 
 1. **Source-definition approval** — Charles approves the substantive source definition (G1: high-throughput source definition; G2: invalid-blocked validation defect) as a separate document, citing the production pathway and the expected production result.
 2. **SQLite candidate capture** — The implementation round runs the scenario in SQLite (fresh isolated run-directory) and captures a `candidate.v{revision}.sqlite.json` artifact. The candidate is gitignored (not tracked).
@@ -340,6 +427,20 @@ The expected output for a new scenario is **not** a product of the implementatio
   - The `production_outputs.content_hash` recorded in the expected JSON.
   - The cross-backend diff report (typed artifact, gitignored).
   - The sign-off commit SHA.
+
+---
+
+### 8.10 Per-file expected-output authority (FROZEN)
+
+The contract freezes the per-file authority status of the three expected-output JSON files. The contract merge does NOT authorize two new expected-output files. Each new expected-output file requires its own separate Charles sign-off.
+
+| File | Status | Authority | Required flow |
+|---|---|---|---|
+| `backend/tests/evaluation/data/expected/baseline_feasible.v1.json` | **ALREADY FROZEN** | Approved by TASK-011B sign-off (`f274db66…`); golden SHA-256 `2d45ea2291c726460d80b0cbca0a771edda9812aa3a6cb017328af458b65ca73`; production content hash `ea4ab8cd7f73b50c8cd83865adc9ec90428d8d60a9fc2e7d823a0c8fdb16fe46` | **No regeneration, no modification.** This file is the regression anchor. |
+| `backend/tests/evaluation/data/expected/high_throughput_review.v1.json` | **NOT YET AUTHORED** | Will require: candidate generation (per §8.1–§8.8) → provenance + hash record → reviewer inspection → separate Charles sign-off → frozen. | Future implementation round ONLY. This contract does NOT authorize creating or modifying this file. |
+| `backend/tests/evaluation/data/expected/invalid_blocked.v1.json` | **NOT YET AUTHORED** | Will require: real production validation run → candidate generation → provenance + hash record → reviewer inspection → separate Charles sign-off → frozen. | Future implementation round ONLY. This contract does NOT authorize creating or modifying this file. |
+
+**Critical: merging this contract does NOT authorize either of the two new expected-output files.** Each requires its own sign-off identity, recorded in its own sign-off document under `docs/tasks/TASK-011C-expected-outputs-{scenario_id}-reviewer-sign-off.md`.
 
 ---
 
@@ -378,14 +479,68 @@ The manifest MUST declare the expected `business outcome` for each scenario. The
 
 ---
 
-## 10. Canonicalization contract
+## 10. Canonicalization contract (Path A or Path B — see §10.1)
 
-The implementation round MUST reuse the existing authoritative canonicalization, not build a second canonicalizer. The contract freezes:
+The implementation round MUST resolve the canonicalization authority per **Path A** or **Path B** below. The contract does NOT permit a third option. "Reuse existing canonicalization" without naming the exact module/function and its semantics is **NOT implementable** under this contract.
+
+### 10.1 Path decision (audit completed in this contract round)
+
+After auditing the current main repository, the canonicalization situation is:
+
+**Path A — Unique existing authority** applies if and only if a SINGLE module in current main provides:
+- a single, named public function/class for canonicalization;
+- typed input/output;
+- a stable byte representation used for both persisted normalized artifact and runtime comparison;
+- callers that include the manifest validator, the runner, and the expected-output comparison.
+
+**Path B — Main does not provide a complete authority** applies if:
+- No such single module exists;
+- OR multiple disjoint JSON-normalization helpers exist in different modules with inconsistent semantics;
+- OR the existing module lacks typed input/output or stable byte representation.
+
+The current main repository audit (per source-of-truth S10 / S13 / S14) shows: the existing `backend/src/cold_storage/evaluation/execute.py` and `backend/src/cold_storage/evaluation/run_directory.py` provide run-orchestration helpers but **DO NOT** provide a single, named, typed canonicalization authority with stable bytes used for comparison. The architecture boundary tests do not enforce a single canonicalizer either. The local JSON helper utilities that do exist in test files are not the canonicalization authority.
+
+**Therefore the canonicalization decision is: Path B — main does not provide a complete authority.**
+
+### 10.2 Path B contract (FROZEN)
+
+The future TASK-011C implementation round is authorized to create **exactly one** new canonicalization module. The contract freezes:
+
+| Property | FROZEN value |
+|---|---|
+| Exact future module path | `backend/src/cold_storage/evaluation/canonicalize.py` |
+| Public function name | `canonicalize_production_outputs` (frozen; no other public function for canonicalization) |
+| Public class name | `Canonicalizer` (frozen dataclass / frozen class for stateful canonicalization, if used) |
+| Typed input | `Mapping[str, Any]` (production-path normalized dict) — type hint MUST be present in the public signature |
+| Typed output | `bytes` (canonical byte representation) — type hint MUST be present in the public signature |
+| `Decimal` handling | `Decimal` values serialized with explicit fixed scale; no scientific notation; no `float()` conversion |
+| `NaN` / `Infinity` handling | Reject (raise `CanonicalizationError`) — neither `NaN` nor `Infinity` may appear in canonical bytes |
+| Ignored-path handling | Per-scenario `excluded_fields` (manifest-declared, runner-resolved); canonicalizer MUST accept an `excluded_paths: Sequence[str]` argument and MUST NOT silently drop any other path |
+| Error behavior | Fail-closed: any uncaught exception during canonicalization propagates to the runner as `CanonicalizationError`, which the runner records as `infrastructure_error` (non-zero exit) |
+| Manifest validator caller | `validate_manifest(manifest_bytes) -> Manifest` — produces canonical bytes from raw manifest for manifest_sha computation |
+| Runner caller | `canonicalize_production_outputs(normalized_dict, excluded_paths) -> bytes` — produces the persisted normalized artifact bytes |
+| Expected-output comparison caller | Same `canonicalize_production_outputs` MUST be used for the expected JSON's `production_outputs` to produce the comparison target bytes; the comparison then operates on these canonical bytes |
+| No second canonicalizer | Strictly forbidden. Any helper function that produces JSON byte representation outside `canonicalize.py` MUST route through `canonicalize_production_outputs` |
+| No `json.dumps(..., sort_keys=True)` ad-hoc | Strictly forbidden. Any `json.dumps` outside `canonicalize.py` is a hard violation. |
+
+**Path B stop conditions:** if the future implementation round cannot satisfy the Path B contract (e.g., cannot create a single canonicalization module without touching forbidden paths, or finds an existing canonicalization module that satisfies Path A), the round MUST trigger `TASK_011C_CANONICALIZATION_AUTHORITY_REMAINS_AMBIGUOUS` (per §16) and STOP.
+
+### 10.3 Forbidden claims about existing canonicalization (binding)
+
+The contract explicitly **forbids** the following claim patterns in future contract rounds or implementation reports:
+
+- "Main already has a canonicalization module" — without naming a specific module + function + its callers.
+- "Reuse existing canonicalization" — without identifying the existing module.
+- "The existing canonicalization is `X`" — where `X` is a fragment of `run_directory.py` or `execute.py` that does not actually implement canonicalization.
+
+The local JSON helpers in `backend/tests/evaluation/_seed_helpers.py` and similar test-side utilities are NOT canonicalization authorities. They are test helpers.
+
+### 10.4 Canonicalization properties (general, applies to both Path A and Path B)
 
 | Property | Contract requirement |
 |---|---|
 | Strict JSON values only | The canonicalizer accepts only JSON-serializable values. No Python tuples, no sets, no custom objects. |
-| No `NaN` / `Infinity` | The canonicalizer rejects (or normalizes) `NaN` and `Infinity` to `null` / `0` / explicit error. The current main canonicalizer does NOT emit `NaN` / `Infinity`. |
+| No `NaN` / `Infinity` | The canonicalizer rejects `NaN` and `Infinity` (or normalizes them — but the contract prefers rejection to silent normalization). |
 | Decimal fixed-scale representation | `Decimal` values are serialized with a fixed scale (per comparison policy `decimal_fields`). No scientific notation. |
 | Exact array order | Arrays are serialized in declared order. Reordering during normalization is forbidden. |
 | Ignored paths declared and justified | Every path in `excluded_fields` has a justification string recorded in the manifest's `comparison_policy.excluded_fields` array. No "ignore everything in `production_outputs`" blanket rules. |
@@ -394,35 +549,125 @@ The implementation round MUST reuse the existing authoritative canonicalization,
 | SHA-256 over the same canonical bytes | The `content_hash` field of the expected JSON is SHA-256 of the canonical bytes of the expected JSON itself (self-hash for tamper detection). |
 | Policy metadata vs executable policy consistency | The manifest's `comparison_policy` is parseable, machine-readable, and matches the runner's executable comparison logic byte-for-byte. Drift is a hard failure. |
 
-The existing `canonicalize` module in main (per S10 / S13) is the authoritative implementation. The contract explicitly **forbids** building a second canonicalizer (e.g., "for high-throughput only" or "for invalid-blocked only"). All three scenarios use the same canonicalizer.
-
 ---
 
-## 11. Cleanup + stale-output contract
+## 11. Runner + run-artifact contract
+
+### 11.0 Current main behavior vs future TASK-011C contract (READ-ONLY clarification)
+
+The current main `backend/src/cold_storage/evaluation/run_directory.py` provides:
+- `RunDirectory` (a path-construction helper that computes a per-scenario directory path)
+- `execute_in_run_directory(...)` (a context manager that creates the path and yields a working directory)
+- `_validate_scenario_id` (input validation helper)
+
+**Current main behavior** (READ-ONLY audit):
+- `RunDirectory` only **computes the path** to a per-scenario directory.
+- The current main runner does **NOT** write a `run.json` artifact, does **NOT** write a `summary.json` artifact, does **NOT** write a normalized artifact, and does **NOT** write a raw artifact.
+- The current main execution in `execute.py` records the run outcome in memory and returns the typed result to the caller. The `RunDirectory` context manager is used for filesystem isolation but not for persisted artifact output.
+
+**The contract does NOT misdescribe current behavior as already writing `run.json` or `summary.json`.** The contract describes the **FUTURE TASK-011C IMPLEMENTATION CONTRACT** for what the runner will write.
+
+### 11.1 `run.json` schema (FROZEN, future implementation)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `schema_version` | string | yes | `task011c-run.v1` |
+| `run_identity` | string | yes | SHA-256 hex digest of (manifest_sha + code_commit_sha + scenario_id + started_at_nanos + uuid) |
+| `scenario_id` | string | yes | matches manifest `scenarios[i].scenario_id` |
+| `manifest_path` | string | yes | relative path to the manifest file used for this run |
+| `manifest_sha256` | string | yes | SHA-256 hex digest of the manifest canonical bytes |
+| `code_commit_sha` | string | yes | SHA-1 hex of the code HEAD commit at run time |
+| `database_backend` | enum | yes | `sqlite` or `postgresql` |
+| `started_at` | string (ISO-8601 UTC) | yes | start timestamp |
+| `completion_state` | enum | yes | `in_progress` / `completed` / `failed` / `incomplete` |
+| `input_authority` / `fixture_authority` | object | yes | fixture path, fixture revision, fixture SHA-256 |
+| `expected_output_authority` | object | conditional | required if manifest declared expected output; path, revision, SHA-256, sign-off identity |
+
+### 11.2 `summary.json` schema (FROZEN, future implementation)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `schema_version` | string | yes | `task011c-summary.v1` |
+| `run_identity` | string | yes | matches `run.json.run_identity` |
+| `scenario_id` | string | yes | matches manifest `scenarios[i].scenario_id` |
+| `execution_outcome` | enum | yes | `SUCCEEDED` / `REVIEW_REQUIRED` / `BLOCKED` / `INVALID` / `FAILED` / `INFRASTRUCTURE_ERROR` |
+| `scheme_status` | enum | yes | `completed` / `blocked` / `not_created` |
+| `requires_review` | bool | yes | matches production path result |
+| `review_state` | enum | yes | `NOT_REQUIRED` / `REQUIRED` / `NOT_APPLICABLE` |
+| `comparison_result` | enum | yes | `pass` / `fail` / `not_applicable` |
+| `error_or_blocker_result` | object | conditional | typed exception class FQN + code + field; required when `execution_outcome` is `BLOCKED` / `INVALID` / `FAILED` |
+| `raw_artifact_sha256` | string | yes | SHA-256 of the raw production-path output |
+| `normalized_artifact_sha256` | string | yes | SHA-256 of the canonical-bytes normalized output (per §10) |
+| `expected_output_sha256` | string | conditional | SHA-256 of the expected JSON file; required when manifest declared expected output |
+| `completed_at` | string (ISO-8601 UTC) | yes | end timestamp |
+
+### 11.3 Run-artifact semantics (FROZEN, future implementation)
 
 | Property | Contract requirement |
 |---|---|
-| Per-scenario isolated SQLite state | Each scenario's SQLite run uses a fresh, isolated database (file or `:memory:` scoped to the run-directory). No shared SQLite state across scenarios. |
-| PostgreSQL isolation strategy | Each scenario's PostgreSQL run uses either a fresh schema (`CREATE SCHEMA … SET search_path = …`) or a transaction-scope (`SET TRANSACTION ISOLATION LEVEL SERIALIZABLE` + `ROLLBACK` after scenario). The strategy is declared in the manifest's per-scenario `isolation_strategy` field. |
-| Temporary DB ownership | The runner OWNS the temporary database (SQLite file or PG schema) and is responsible for cleanup in all paths (success / failure / exception). No caller is expected to clean up. |
-| Cleanup in success / failure / exception paths | The runner's `finally` block (or equivalent) deletes the SQLite file, drops the PG schema, and removes the run-directory. Cleanup failures are recorded as `infrastructure_error` with a typed reason. |
-| Stale prior run cannot satisfy current manifest | The runner MUST refuse to read a `run.json` / `summary.json` / normalized artifact from a prior run-directory. The run-directory is created fresh per scenario, identified by a fresh `run_identity` (UUIDv4 + scenario_id + manifest_sha + commit_sha). |
-| Run identity binds manifest SHA | The run identity is `sha256(manifest_sha + commit_sha + scenario_id + started_at_nanos + uuid)`. The runner rejects a scenario whose `run_identity` does not match the current `manifest_sha`. |
-| Summary identity binds run / manifest / suite / scenarios / backend / commit | The summary.json's identity is the hash of the sorted concatenation of all `run.json` identities + the `manifest_sha` + `commit_sha`. |
-| Generated artifacts never treated as repository-owned golden | All `run.json`, `summary.json`, `candidate.*.json`, normalized artifacts, raw artifacts, and run-directories are gitignored. They MUST NOT be committed. |
-| Cleanup proof by deterministic resource / file existence test | The contract explicitly **forbids** requiring long-running repeated full pytest to prove cleanup. Cleanup is proven by deterministic resource tests (e.g., "after runner exits, the SQLite file is gone", "after runner exits, the PG schema does not exist", "the run-directory is empty"). |
+| Single writer ownership | A single, named writer class is the only writer of `run.json` and `summary.json`. No parallel writer implementations. |
+| Atomic write | Each artifact is written to a temp file in the same directory, fsync'd, then atomically renamed. The `rename` is the publish operation. |
+| `incomplete` state | If the runner crashes mid-run, the on-disk artifact is left in `completion_state = "incomplete"` (or absent). The runner never partially writes a `completed` artifact. |
+| Success-completion marker | `completion_state = "completed"` is set only after all fields are fully populated and the artifact has been atomically renamed. |
+| Manifest SHA binding | `run.json.manifest_sha256` MUST equal the manifest's canonical-bytes SHA-256. Mismatch fails closed. |
+| Commit SHA binding | `run.json.code_commit_sha` MUST equal the code HEAD SHA at run time. The runner reads this from a frozen env var or git resolution at run start, not from the artifact itself. |
+| Failure-state files | On runner infrastructure failure, the on-disk artifact is `completion_state = "failed"` or `"incomplete"`. The runner does NOT write a `summary.json` with `comparison_result = "pass"` for a failed scenario. |
+| Stale-output rejection | A `run.json` / `summary.json` from a prior run-directory MUST NOT satisfy the current manifest. The runner refuses to read prior artifacts. |
+| Per-scenario isolated directory | Each scenario runs in its own per-scenario subdirectory under the suite root. No shared state. |
+| Rerun cleanup | The runner cleans the per-scenario subdirectory on entry (success / failure / exception paths). The cleanup is part of the `finally` block. |
+| Manifest / expected-output SHA mismatch | If the on-disk expected output's SHA-256 does not match the manifest's declared expected-output SHA-256, the runner fails closed and records `INFRASTRUCTURE_ERROR` with a typed reason. |
 
 ---
 
-## 12. SQLite / PostgreSQL boundary
+## 12. SQLite / PostgreSQL boundary (field-by-field parity, FROZEN)
+
+### 12.0 Field-by-field parity table (FROZEN)
+
+The contract freezes the per-field parity between SQLite and PostgreSQL runs of the same scenario. Fields are listed in two categories: **must-match** (business-authoritative) and **may-differ** (backend-specific or runtime).
+
+#### 12.0.1 Must-match fields (business-authoritative)
+
+The following fields MUST be byte-identical (or `decimal_fields`-quantization-equal) across SQLite and PostgreSQL runs of the same scenario. The runner MUST reject any scenario where these fields differ.
+
+| Field | JSON path | Notes |
+|---|---|---|
+| `scenario_id` | `summary.scenario_id` | matches manifest |
+| Manifest schema/version | `summary.manifest_schema_version` | matches manifest |
+| `execution_outcome` | `summary.execution_outcome` | `SUCCEEDED` / `REVIEW_REQUIRED` / `BLOCKED` / `INVALID` / `FAILED` |
+| Scheme business status | `summary.scheme_status` | `completed` / `blocked` / `not_created` |
+| `requires_review` | `summary.requires_review` | bool |
+| `review_state` | `summary.review_state` | `NOT_REQUIRED` / `REQUIRED` / `NOT_APPLICABLE` |
+| Comparison classification | `summary.comparison_result` | `pass` / `fail` / `not_applicable` |
+| Deterministic calculated values | `summary.normalized_artifact_sha256` | SHA-256 of canonical bytes — must match |
+| Source/content hashes | `summary.raw_artifact_sha256`, `summary.normalized_artifact_sha256`, `summary.expected_output_sha256` | must match (when applicable) |
+| Blocker/error code | `summary.error_or_blocker_result.code` | must match (when applicable) |
+| Blocker/error field | `summary.error_or_blocker_result.field` | must match (when applicable) |
+| Expected-output match result | `summary.comparison_result` + per-leaf diff | must match |
+
+#### 12.0.2 May-differ fields (backend-specific or runtime, must be normalized or excluded)
+
+The following fields MAY differ between SQLite and PostgreSQL runs of the same scenario. For each, the contract requires an explicit JSON path, a reason for exclusion, a normalization rule, and a proof that the field is not business-authoritative.
+
+| Field | JSON path | Reason | Normalization / exclusion rule | Business-authoritative? |
+|---|---|---|---|---|
+| `database_backend` | `summary.database_backend` | Backend identity is a tag, not a result. | Record as declared; comparison excludes this field. | NO (tag) |
+| Generated database primary keys | any `*_id`, `database_session_uuid`, `run_id` | DB-generated, not part of business outcome. | Excluded from comparison; SHA-256 of normalized output still depends on these for raw artifact, but the `summary.normalized_artifact_sha256` is the same because normalization replaces these. | NO (DB-generated) |
+| Backend-specific timestamps | `run.started_at` (precise nanos) | Wall-clock may differ; only `completed_at` to nearest second matters for cross-backend comparison. | Round to nearest second before comparison. | NO (clock skew) |
+| Database URL | env var `DATABASE_URL` | Not part of output. | Not recorded in artifact. | NO (env) |
+| Transaction / internal sequence values | `orchestration.attempt_internal_seq`, `*_audit_seq` | Internal counters. | Excluded from comparison. | NO (internal) |
+| Backend-specific diagnostic text | `error_or_blocker_result.engine_diagnostic` (if any) | Engine-version specific. | Stripped from canonical bytes. | NO (diagnostic) |
+
+**Prohibition:** It is **forbidden** to manufacture SQLite/PG parity by deleting many fields from the comparison. Any excluded field MUST be enumerated in the table above with its exact JSON path, reason, normalization rule, and proof of non-business-authority.
+
+### 12.1 Boundary contract (general)
 
 | Boundary | Contract requirement |
 |---|---|
 | SQLite — full TASK-011C scenario acceptance | All TASK-011C scenarios (`baseline_feasible`, `high_throughput_review`, `invalid_blocked`) MUST pass on SQLite in the `backend-sqlite` CI job. |
 | PostgreSQL — required where persistence, transaction, uniqueness, ordering, JSON behavior, or backend parity may differ | All TASK-011C scenarios MUST also pass on PostgreSQL in the `backend-postgresql` CI job. |
-| Substantive normalized result parity | The canonical bytes of the normalized SQLite result and the canonical bytes of the normalized PostgreSQL result MUST be byte-identical for `exact_match_fields` and `decimal_fields`; `excluded_fields` may differ (e.g., `database_session_uuid`). |
-| Allowed backend-specific runtime metadata | The runner may record backend-specific runtime metadata (e.g., `database_backend`, `engine_version`) in `excluded_fields`. |
-| Forbidden backend-specific business outcome drift | The runner MUST reject any scenario whose `business outcome` differs between SQLite and PostgreSQL (e.g., `SUCCEEDED` on SQLite but `BLOCKED` on PostgreSQL for the same scenario). |
+| Substantive normalized result parity | The canonical bytes of the normalized SQLite result and the canonical bytes of the normalized PostgreSQL result MUST be byte-identical for `exact_match_fields` and `decimal_fields`; `excluded_fields` may differ per the table above. |
+| Allowed backend-specific runtime metadata | The runner may record backend-specific runtime metadata in `excluded_fields` per §12.0.2. |
+| Forbidden backend-specific business outcome drift | The runner MUST reject any scenario whose business-authoritative field (per §12.0.1) differs between SQLite and PostgreSQL (e.g., `SUCCEEDED` on SQLite but `BLOCKED` on PostgreSQL for the same scenario). |
 
 ---
 
@@ -535,6 +780,22 @@ The future TASK-011C implementation round MUST stop and report a BLOCKER if any 
 
 A stop condition is a hard round-end. The implementation round must produce a `BLOCKED` report, NOT a partial implementation.
 
+**Review-round additions (P0 / explicit):** The following stop conditions are binding on the future implementation round and were added in response to the Issue #20 review comment `4949858037`:
+
+| # | Stop condition | Trigger |
+|---|---|---|
+| S13 | `TASK_011C_INVALID_BLOCKED_PRODUCTION_PATH_NOT_ESTABLISHED` | Production code cannot provide a real validation pathway that produces a typed exception / structured error result. |
+| S14 | `TASK_011C_HIGH_THROUGHPUT_REQUIRES_REVIEW_PRODUCTION_RULE_MUTATION` | To produce `requires_review=true` and `review_state=REQUIRED` for `high_throughput_review`, a production formula / threshold / coefficient / scoring / review rule change would be required. |
+| S15 | `TASK_011C_CANONICALIZATION_AUTHORITY_REMAINS_AMBIGUOUS` | After Path A / Path B audit, the canonicalization authority cannot be resolved to a single, named, typed module. |
+| S16 | `TASK_011C_MANIFEST_SCHEMA_PATH_CONFLICTS` | The required manifest schema path `backend/src/cold_storage/evaluation/schema/manifest.schema.json` cannot be created without modifying forbidden paths (top-level `evaluation/`, `.gitignore`). |
+| S17 | `TASK_011C_BASELINE_GOLDEN_MODIFICATION_REQUIRED` | Any future implementation would require modification of the frozen `baseline_feasible.v1.json` golden. |
+| S18 | `TASK_011C_EXPECTED_OUTPUT_AUTHORED_WITHOUT_SEPARATE_SIGNOFF` | A new expected-output file is authored or proposed for commit without the separate Charles sign-off required by §8.10. |
+| S19 | `TASK_011C_PR21_OR_PR23_MUTATION_REQUIRED` | The implementation cannot proceed without touching PR #21 or PR #23 (state, draft, head, base, comments, reviews, files, branch, force-push). |
+| S20 | `TASK_011C_SCOPE_DRIFT_TO_TASK011D_OR_TASK12` | A future implementation round attempts to absorb TASK-011D scope (multilingual / sample doc / pilot runbook / frontend demo / Issue #20 closure) or Task 12 scope. |
+| S21 | `TASK_011C_REMOTE_COMMIT_CANNOT_BE_ESTABLISHED` | The contract commit cannot be pushed to a GitHub-visible branch. |
+| S22 | `TASK_011C_CONTRACT_SOURCE_CONFLICTS_WITH_MAIN` | The contract's source-of-truth matrix (§5) becomes inconsistent with the current main (e.g., new commits change evaluation module structure). |
+| S23 | `TASK_011C_HIGH_THROUGHPUT_SUBSTANTIVE_INVARIANT_UNIDENTIFIED` | No production pathway produces a substantively distinct result for the `high_throughput_review` scenario without violating the substantively-distinct invariants of §6.2. |
+
 ---
 
 ## 17. Validation (docs-only, this round)
@@ -599,14 +860,20 @@ A Feishu card is sent to the `hxforge-agent` group (chat_id `oc_7807111a5c0ff61a
 
 ## 20. Final verdict (this round)
 
+**Round status: `TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW`** (this round corrects the previous round's draft against the Issue #20 review comment `4949858037`).
+
 ```
-TASK_011C_REMAINING_EVALUATION_SCENARIOS_CONTRACT_AUTHORED
-DOCS_ONLY_COMMIT_CREATED
-DRAFT_PR_CREATED
+TASK_011C_CONTRACT_REVIEW_CORRECTIONS_COMPLETED
+TASK_011C_DOCS_ONLY_COMMIT_PUSHED
+TASK_011C_DRAFT_PR_CREATED
+TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW
+TASK_011C_CONTRACT_NOT_FROZEN
+TASK_011C_IMPLEMENTATION_NOT_AUTHORIZED
 PR21_SUPERSEDED_OPEN_DRAFT_NOT_MERGED
+PR21_UNTOUCHED
 PR23_RETAINED_AS_HISTORICAL_DESIGN_AUTHORITY
+PR23_UNTOUCHED
 ISSUE20_REMAINS_OPEN
-TASK011C_IMPLEMENTATION_NOT_AUTHORIZED
 TASK011D_NOT_AUTHORIZED
 TASK12_NOT_AUTHORIZED
 READY_NOT_AUTHORIZED
@@ -624,7 +891,9 @@ PR21_PR23_UNTOUCHED
 ISSUE20_REMAINS_OPEN
 ```
 
-This round ends after the commit + push + Draft PR creation + Feishu report. The future TASK-011C implementation round requires separate Charles authorization and is NOT in this round.
+If the remote push or Draft PR creation fails, the round reports a `TASK_011C_REMOTE_PUSH_FAILED` / `TASK_011C_DRAFT_PR_CREATION_BLOCKED` BLOCKER and does NOT claim completion.
+
+**Lifecycle reminder:** A `Draft PR created` state is NOT the same as `contract frozen`. The contract is only `frozen` after Charles sign-off. This round is at the `authored` / `committed and pushed` / `Draft PR created` stage.
 
 ---
 
@@ -632,4 +901,5 @@ This round ends after the commit + push + Draft PR creation + Feishu report. The
 
 | Round | Date | Author | Change |
 |---|---|---|---|
-| Initial freeze | 2026-07-12 | Hermes | First freeze of TASK-011C remaining evaluation scenarios contract |
+| Initial authoring | 2026-07-12 | Hermes | Initial authoring of TASK-011C remaining evaluation scenarios contract (NOT frozen at this stage) |
+| Review-correction round | 2026-07-12 | Hermes | Corrected against Issue #20 review comment `4949858037` (P0 + 8 required contract corrections). Changes: §1 status wording (authored pending review, not frozen); §6.2 high-throughput exact four business fields + real-production review signal; §6.3 invalid_blocked field-by-field freeze + fail-closed; §7.0 manifest schema single-path freeze; §7.1 CLI exit codes frozen (no redefinition); §8.10 per-file expected-output authority; §10 Path A/B canonicalization decision (Path B chosen); §11 current-main-vs-future contract for run.json/summary.json; §12 field-by-field SQLite/PG parity; §16 added 11 review-round stop conditions (S13–S23); §20 final verdict lifecycle wording |
