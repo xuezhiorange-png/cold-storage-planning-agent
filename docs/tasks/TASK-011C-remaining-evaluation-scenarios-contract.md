@@ -1,6 +1,6 @@
-# TASK-011C Remaining Evaluation Scenarios — Contract Freeze Proposal
+# TASK-011C Remaining Evaluation Scenarios — Frozen V1 Contract
 
-> **Status:** Contract-freeze proposal (docs-only). NOT yet frozen by Charles. NOT approved for implementation. NOT approved for fixture / expected-output authoring. NOT approved for production-path execution.
+> **Status:** Frozen V1 contract. The V1 contract is bound by `TASK_011C_V1_CONTRACT_FROZEN` per PR #61 review `4679730144`. The contract is frozen. Implementation, fixture authoring, expected-output authoring, production-path execution, and production-integration prerequisite implementation are NOT authorized by this freeze decision. The PR remains Draft / Not merged / No Ready / No Merge.
 > **This document is the canonical TASK-011C contract.** It supersedes all prior TASK-011C contract drafts in this branch's history; prior `D3_DECISION_PENDING` / `D9_DECISION_PENDING` / `TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_D3_AND_D9` / `TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_D9_ONLY` / `D9_ARCHITECTURE_DISPOSITION_PENDING` / `HIGH_THROUGHPUT_SOURCE_DEFINITION_PENDING` / `D3_EMPTY_LIST_NOT_APPROVED` / `D3_CANDIDATE_EXCLUDED_JSON_PATHS=NOT_PROPOSED` wording in prior round change-log rows is preserved only as labeled historical audit trace, never as current operative status.
 > **V1 scope (this round):** the **only** scenarios in V1 are `baseline_feasible` (already frozen by TASK-011B) and `invalid_blocked` (D10 source-defined). **`high_throughput_review` is REMOVED from V1 scope** and is **deferred** to a future production-integration prerequisite round (see §21).
 > **All D3-D10 decisions (this round):** D1, D2, D3, D4, D5, D6, D7, D8, D10 **APPROVED**. D9 **DEFERRED_FROM_TASK_011C_V1** (high-throughput production-integration prerequisite; no V1 obligation; no task number assigned).
@@ -9,7 +9,7 @@
 
 ## 0. Preamble
 
-This document is a **contract-freeze proposal** (NOT yet frozen) for TASK-011C = the remaining evaluation scenarios plus the manifest / runner / canonicalization / cleanup completeness that TASK-011B did not deliver. The contract targets the **5 implementation gaps G1–G5**, scoped strictly to `baseline_feasible` (TASK-011B-frozen) and `invalid_blocked` (D10 source-defined) for V1.
+This document is the **frozen V1 contract** for TASK-011C = the remaining evaluation scenarios plus the manifest / runner / canonicalization / cleanup completeness that TASK-011B did not deliver. The contract targets the **4 implementation gaps for V1** (manifest, runner, canonicalization, cleanup), scoped strictly to `baseline_feasible` (TASK-011B-frozen) and `invalid_blocked` (D10 source-defined). The V1 contract is bound by `TASK_011C_V1_CONTRACT_FROZEN` per PR #61 review `4679730144`.
 
 In this round, the binding maintainer decisions for TASK-011C are recorded as follows:
 
@@ -64,11 +64,24 @@ D9_EXACT_INPUT_SEARCH_CLOSED_WITHOUT_SOURCE_DEFINITION
 The future production-integration prerequisite scope is described in §21; it is **NOT** authorized for implementation by this contract-freeze proposal. The deferred scope requires a separate, future Charles authorization; the future round is NOT pre-assigned any task number (TASK-011D is NOT authorized; no task number is unilaterally assigned in this round).
 
 ```
-TASK_011C_FINAL_DECISIONS_INTEGRATED
+TASK_011C_V1_CONTRACT_FROZEN
+TASK_011C_CONTRACT_FREEZE_AUTHORITY=PR61_REVIEW_4679730144
 TASK_011C_V1_SCOPE_CLOSED
 TASK_011C_MAINTAINER_AUTHORITY_ESTABLISHED
-TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY
-TASK_011C_CONTRACT_NOT_YET_FROZEN
+TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE
+D1_APPROVED
+D2_APPROVED
+D3_APPROVED
+D3_V1_EXCLUDED_JSON_PATHS=[]
+D4_APPROVED
+D5_APPROVED
+D6_APPROVED
+D7_APPROVED
+D8_APPROVED
+D9_DEFERRED_FROM_TASK_011C_V1
+D9_HIGH_THROUGHPUT_REVIEW_DEFERRED
+D9_DECISION_CLOSED_FOR_TASK_011C_V1
+D10_APPROVED
 TASK_011C_IMPLEMENTATION_NOT_AUTHORIZED
 EXPECTED_OUTPUT_AUTHORING_NOT_AUTHORIZED
 FIXTURE_AUTHORING_NOT_AUTHORIZED
@@ -78,10 +91,10 @@ READY_NOT_AUTHORIZED
 MERGE_NOT_AUTHORIZED
 ```
 
-**Historical reference (NOT current operative status):** the binding maintainer comment `4950035046` records the pre-audit framing of D3 as `D3_EXCLUDED_JSON_PATHS = PENDING_NORMALIZED_OUTPUT_SCHEMA_VOLATILITY_AUDIT`. That pre-audit framing is preserved here only as a verbatim citation of the maintainer comment, not as the current operative D3 status. The current operative D3 status is `D3_APPROVED` with `D3_V1_EXCLUDED_JSON_PATHS=[]`, as established by the D3 evidence-validation round and the V1 final decision integration round.
+**Historical reference (NOT current operative status, preserved for audit traceability):** the prior-round V1 final decision integration operative markers `TASK_011C_FINAL_DECISIONS_INTEGRATED` / `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY` / `TASK_011C_CONTRACT_NOT_YET_FROZEN` / `TASK_011C_CONTRACT_FREEZE_NOT_AUTHORIZED` / `TASK_011C_CONTRACT_AUTHORED_PENDING_CHARLES_FREEZE` / `proposal ready for Charles review` / `Charles retains the contract-freeze decision authority` are preserved in the §20 change log as historical audit trace; they are NOT current operative status. The current operative V1 status is `TASK_011C_V1_CONTRACT_FROZEN` per PR #61 review `4679730144`.
 
 This document **does not**:
-- Authorize TASK-011C implementation in this round.
+- Authorize TASK-011C implementation in this round or in any future round without separate Charles authorization.
 - Authorize authoring of any expected-output file (golden) for the V1 scenarios beyond what TASK-011B already froze for `baseline_feasible`.
 - Create a TASK-011C implementation branch, PR, commit, push, Ready, or Merge.
 - Mutate PR #21, PR #23, PR #60, Issue #20, Issue #22, or any other GitHub object.
@@ -89,15 +102,19 @@ This document **does not**:
 - Touch any production code, evaluation runner code, evaluation fixture, manifest, expected output, baseline golden, sign-off, comparison policy, bootstrap, coefficients, migration, frontend, docker, .github, pyproject, uv.lock, or .gitignore.
 - Implement or authorize the deferred `high_throughput_review` scenario or any production-integration prerequisite (TASK-011D / §21).
 
-This round **only modifies** `docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md`. This document integrates the D3 approval and D9 deferral decisions; it does not freeze the contract by itself; it does not authorize implementation. Charles retains the contract-freeze decision authority.
+This round **only modifies** `docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md`. This document records the V1 freeze decision per PR #61 review `4679730144`; the freeze is binding but does NOT authorize implementation, fixture authoring, expected-output authoring, Ready, or Merge. Implementation requires separate, future Charles authorization.
 
 ---
 
 ## 1. Authority and status
 
-**Document status: `TASK_011C_MAINTAINER_AUTHORITY_ESTABLISHED` / `TASK_011C_V1_SCOPE_CLOSED` / `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY` / `TASK_011C_CONTRACT_NOT_YET_FROZEN`**
+**Document status: `TASK_011C_V1_CONTRACT_FROZEN`**
 
-This contract-freeze proposal is **authored, D1 / D2 / D3 / D4–D8 / D10 approved by the binding maintainer authority, and NOT yet frozen by Charles**. D9 is **DEFERRED_FROM_TASK_011C_V1**. Implementation of the V1 contract requires separate Charles-authorized rounds and is NOT in this round's scope. The V1 scope is `baseline_feasible` (TASK-011B-frozen) + `invalid_blocked` (D10 source-defined); `high_throughput_review` is REMOVED from V1.
+**Binding freeze authority:** **PR #61 Review `4679730144`** (V1 contract freeze decision; binding; recorded in this contract as `TASK_011C_CONTRACT_FREEZE_AUTHORITY=PR61_REVIEW_4679730144`).
+
+The V1 contract is **frozen** by the binding freeze authority. D1 / D2 / D3 / D4–D8 / D10 are APPROVED. D9 is DEFERRED_FROM_TASK_011C_V1 (high-throughput production-integration prerequisite; no V1 obligation; no task number assigned). The V1 scope is `baseline_feasible` (TASK-011B-frozen) + `invalid_blocked` (D10 source-defined); `high_throughput_review` is REMOVED from V1.
+
+**The contract is frozen. Implementation is not authorized by the freeze decision.** Implementation of the V1 contract requires a separate, future Charles authorization and is NOT in this round's scope and NOT in this freeze decision's scope.
 
 **Binding maintainer authority (PR #61 top-level comment `4950035046` + review `4679707878` for D3 + review `4679711007` for D9):**
 
@@ -175,29 +192,28 @@ PR23_DESIGN_EXTRACTION_NOT_AUTHORIZED
 ISSUE20_REMAINS_OPEN
 ```
 
-**TASK-011C implementation status:**
+**TASK-011C implementation status (this round):**
 
 ```
+TASK_011C_V1_CONTRACT_FROZEN
+TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE
 TASK_011C_IMPLEMENTATION_NOT_AUTHORIZED
-TASK_011C_CONTRACT_FREEZE_NOT_AUTHORIZED
 TASK_011C_V1_SCOPE_CLOSED
-TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY
-TASK_011C_CONTRACT_AUTHORED_PENDING_CHARLES_FREEZE
-TASK_011C_CONTRACT_NOT_YET_FROZEN
 TASK011D_NOT_AUTHORIZED
 TASK12_NOT_AUTHORIZED
 PRODUCTION_PREREQUISITE_IMPLEMENTATION_NOT_AUTHORIZED
 READY_NOT_AUTHORIZED
 MERGE_NOT_AUTHORIZED
 EXPECTED_OUTPUT_AUTHORING_NOT_AUTHORIZED
+FIXTURE_AUTHORING_NOT_AUTHORIZED
 ```
 
 **Contract-freeze status (this round):**
 
 ```
-TASK_011C_FINAL_DECISIONS_INTEGRATED
+TASK_011C_V1_CONTRACT_FROZEN
+TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE
 TASK_011C_V1_SCOPE_CLOSED
-TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY
 D1_APPROVED
 D2_APPROVED
 D3_APPROVED
@@ -213,11 +229,10 @@ D9_DECISION_CLOSED_FOR_TASK_011C_V1
 D10_APPROVED
 INVALID_BLOCKED_SOURCE_DEFINITION_CLOSED_BY_D10
 HIGH_THROUGHPUT_REVIEW_NOT_IN_V1_SCOPE
-HIGH_THROUGHPUT_REVIEW_DEFERRED_TO_PRODUCTION_INTEGRATION_PREREQUISITE
 ```
 
-While TASK-011C remains proposed (not yet frozen by Charles):
-- Charles MUST NOT sign off the contract as frozen until separately authorizing freeze.
+While TASK-011C V1 contract is **frozen** (per PR #61 review `4679730144`):
+- Charles MUST NOT sign off the contract as frozen again (the freeze is already binding per the recorded freeze authority).
 - PR #61 MUST NOT be marked Ready.
 - PR #61 MUST NOT be merged.
 - TASK-011C implementation MUST NOT be authorized.
@@ -225,7 +240,7 @@ While TASK-011C remains proposed (not yet frozen by Charles):
 - Expected-output authoring (other than what TASK-011B already froze for `baseline_feasible`) MUST NOT be authorized.
 - Deferred production-integration prerequisite (§21) MUST NOT be implemented without separate future Charles authorization.
 
-The D3 decision is closed. The D9 decision is closed for V1 with deferral. The contract-freeze blocker is removed (D3 and D9 are no longer pending decisions). The contract remains `TASK_011C_CONTRACT_NOT_YET_FROZEN` until Charles separately authorizes freeze; the proposal is ready for Charles review.
+The D3 decision is closed (V1 exclusion set is `[]`; the 4 runtime-volatile fields are structurally absent from the projected output). The D9 decision is closed for V1 with deferral to §21. The V1 contract is frozen; the V1 scope is `baseline_feasible` (TASK-011B-frozen) + `invalid_blocked` (D10 source-defined); `high_throughput_review` is NOT in V1.
 
 ---
 
@@ -1045,25 +1060,28 @@ This round is docs-only:
 ## 18. Commit, push, and Draft PR (docs-only)
 
 - **Branch:** `docs/task-011c-remaining-evaluation-scenarios-contract`
-- **Base SHA:** `b54668d521344ffb57c54b0896db716bf4f5813d`
-- **Single commit (this round):** `docs(task-011c): integrate final D3 D9 decisions`
+- **Base SHA:** `ba08b6b3ee92ebdb8122b3660ff2d08a16e25b03` (Repository Freeze Stamp Round, this round)
+- **Single commit (this round):** `docs(task-011c): stamp frozen V1 contract`
 - **Push target:** `origin HEAD:refs/heads/docs/task-011c-remaining-evaluation-scenarios-contract`
 - **Draft PR:** #61 — title remains unchanged: `TASK-011C: remaining evaluation scenarios contract`. No PR title or body mutation was authorized to the coding software in this round. **Draft / Not merged / No Ready**.
 - **PR #61 body update in this software round:** **NOT AUTHORIZED IN THIS SOFTWARE ROUND** — the body update must wait for Charles/ChatGPT to perform a manual paste after this commit is independently verified at the new Head.
 - **`PR_BODY_UPDATE_NOT_AUTHORIZED_IN_SOFTWARE_ROUND`**: confirmed binding for this round.
 - **Required current markers (for the future PR body update by Charles/ChatGPT):**
-  - `TASK_011C_FINAL_DECISIONS_INTEGRATED`
+  - `TASK_011C_V1_CONTRACT_FROZEN`
+  - `TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE`
+  - `TASK_011C_CONTRACT_FREEZE_AUTHORITY=PR61_REVIEW_4679730144`
   - `TASK_011C_V1_SCOPE_CLOSED`
   - `TASK_011C_MAINTAINER_AUTHORITY_ESTABLISHED`
   - `D1_D2_D3_D4_D5_D6_D7_D8_D10_APPROVED`
   - `D3_V1_EXCLUDED_JSON_PATHS=[]`
-  - `D3_EVIDENCE_RESULT=EMPTY_EXCLUSION_SET_SUPPORTED`
   - `D9_DEFERRED_FROM_TASK_011C_V1`
   - `D9_HIGH_THROUGHPUT_REVIEW_DEFERRED`
   - `D9_DECISION_CLOSED_FOR_TASK_011C_V1`
-  - `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY`
-  - `TASK_011C_CONTRACT_NOT_YET_FROZEN`
+  - `HIGH_THROUGHPUT_REVIEW_NOT_IN_V1_SCOPE`
   - `TASK_011C_IMPLEMENTATION_NOT_AUTHORIZED`
+  - `EXPECTED_OUTPUT_AUTHORING_NOT_AUTHORIZED`
+  - `FIXTURE_AUTHORING_NOT_AUTHORIZED`
+  - `PRODUCTION_PREREQUISITE_IMPLEMENTATION_NOT_AUTHORIZED`
   - `READY_NOT_AUTHORIZED`
   - `MERGE_NOT_AUTHORIZED`
   - `PR21_UNTOUCHED`
@@ -1074,63 +1092,46 @@ This round is docs-only:
 
 ## 19. Final verdict (this round)
 
-**Round status: `TASK_011C_FINAL_DECISIONS_INTEGRATED` / `TASK_011C_V1_SCOPE_CLOSED` / `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY`**
+**Round status: `TASK_011C_V1_CONTRACT_FROZEN` / `TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE`**
 
 ```
-TASK_011C_FINAL_DECISIONS_INTEGRATED
+TASK_011C_V1_CONTRACT_FROZEN
+TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE
 TASK_011C_V1_SCOPE_CLOSED
 TASK_011C_MAINTAINER_AUTHORITY_ESTABLISHED
 D1_APPROVED
 D2_APPROVED
 D3_APPROVED
 D3_V1_EXCLUDED_JSON_PATHS=[]
-D3_EVIDENCE_RESULT=EMPTY_EXCLUSION_SET_SUPPORTED
-D3_EMPTY_EXCLUSION_SET_APPROVED
-D3_DECISION_CLOSED
-D3_SQLITE_REPEATABILITY=PASS
-D3_POSTGRESQL_REPEATABILITY=PASS
-D3_CROSS_BACKEND_PARITY=PASS
-D3_PROJECTED_DIFFERENCE_COUNT=0
-COMBINED_SOURCE_HASH_PARITY=PASS
-CONTENT_HASH_PARITY=PASS
-CANDIDATES_SNAPSHOT_PARITY=PASS
-DECIMAL_SERIALIZATION_PARITY=PASS
 D4_APPROVED
 D5_APPROVED
 D6_APPROVED
 D7_APPROVED
 D8_APPROVED
 D9_DEFERRED_FROM_TASK_011C_V1
-D9_DEFERRED_TO_PRODUCTION_INTEGRATION_PREREQUISITE
-D9_HIGH_THROUGHPUT_REVIEW_DEFERRED
-D9_EXACT_INPUT_SEARCH_CLOSED_WITHOUT_SOURCE_DEFINITION
-D9_DECISION_CLOSED_FOR_TASK_011C_V1
-D9_EVIDENCE_RESULT=CURRENT_MAIN_UNREACHABLE
-D9_BLOCKER_TYPE=PRODUCTION_INTEGRATION_ARCHITECTURE_GAP
 D10_APPROVED
-TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY
-TASK_011C_CONTRACT_NOT_YET_FROZEN
-INVALID_BLOCKED_SOURCE_DEFINITION_CLOSED_BY_D10
 HIGH_THROUGHPUT_REVIEW_NOT_IN_V1_SCOPE
-HIGH_THROUGHPUT_REVIEW_DEFERRED_TO_PRODUCTION_INTEGRATION_PREREQUISITE
-TASK_011C_CONTRACT_FREEZE_NOT_AUTHORIZED
+D9_HIGH_THROUGHPUT_REVIEW_DEFERRED
+D9_DECISION_CLOSED_FOR_TASK_011C_V1
 TASK_011C_IMPLEMENTATION_NOT_AUTHORIZED
 EXPECTED_OUTPUT_AUTHORING_NOT_AUTHORIZED
 FIXTURE_AUTHORING_NOT_AUTHORIZED
 PRODUCTION_PREREQUISITE_IMPLEMENTATION_NOT_AUTHORIZED
-PR61_BODY_UPDATE_NOT_AUTHORIZED_IN_SOFTWARE_ROUND
 PR61_OPEN_DRAFT_NOT_MERGED
+READY_NOT_AUTHORIZED
+MERGE_NOT_AUTHORIZED
+INVALID_BLOCKED_SOURCE_DEFINITION_CLOSED_BY_D10
+TASK011D_NOT_AUTHORIZED
+TASK12_NOT_AUTHORIZED
 PR21_UNTOUCHED
 PR23_UNTOUCHED
 ISSUE20_REMAINS_OPEN
-TASK011D_NOT_AUTHORIZED
-TASK12_NOT_AUTHORIZED
-READY_NOT_AUTHORIZED
-MERGE_NOT_AUTHORIZED
 CLI_EXIT_5_RESERVED_NOT_USED_BY_TASK011C
 ```
 
-This round integrates the D3 approval and D9 deferral decisions into the V1 contract-freeze proposal. D3 evidence is binding; D9 is deferred to §21. PR #61 stays Draft / Not merged; no Ready / no Merge / no implementation / no fixture / no expected-output / no production-path execution / no PR metadata mutation / no production-integration prerequisite implementation. Charles retains the contract-freeze decision authority. The next allowed work, if Charles separately authorizes it, is a `future implementation round` for the V1 contract (`baseline_feasible` + `invalid_blocked` only), which does NOT automatically authorize fixture / expected-output / canonicalizer / runner / manifest / production-code authoring — each of those requires its own sign-off per the §8 authority flow. The deferred production-integration prerequisite scope (§21) requires a separate future Charles authorization and is NOT pre-assigned any task number.
+This round records the binding V1 contract freeze per PR #61 review `4679730144`. The V1 contract is frozen. The freeze is binding for the V1 contract clauses; it does NOT authorize implementation, fixture authoring, expected-output authoring, production-path execution, Ready, or Merge. PR #61 stays Draft / Not merged. The next allowed work, if Charles separately authorizes it, is a `future implementation round` for the V1 contract (`baseline_feasible` + `invalid_blocked` only), which does NOT automatically authorize fixture / expected-output / canonicalizer / runner / manifest / production-code authoring — each of those requires its own sign-off per the §8 authority flow. The deferred production-integration prerequisite scope (§21) requires a separate future Charles authorization and is NOT pre-assigned any task number.
+
+**Historical reference (NOT current operative status, preserved for audit):** the prior-round V1 final decision integration operative markers `TASK_011C_FINAL_DECISIONS_INTEGRATED` / `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY` / `TASK_011C_CONTRACT_NOT_YET_FROZEN` / `TASK_011C_CONTRACT_FREEZE_NOT_AUTHORIZED` / `TASK_011C_CONTRACT_AUTHORED_PENDING_CHARLES_FREEZE` / `proposal ready for Charles review` / `Charles retains the contract-freeze decision authority` are preserved in the §20 change log as historical audit trace; they are NOT current operative status. The current operative V1 status is `TASK_011C_V1_CONTRACT_FROZEN` per PR #61 review `4679730144`.
 
 ---
 
@@ -1146,7 +1147,8 @@ This round integrates the D3 approval and D9 deferral decisions into the V1 cont
 | **Commit-Chain Reconciliation + Final D3/D9 Status Cleanup Round (prior round)** | 2026-07-12 | Hermes | **Read the correction directive from PR #61 review `4679487987` (D3/D9 Residual Correction Re-review, CHANGES_REQUESTED)**. **Phase A — commit-chain reconciliation**: discovered the actual commit chain between auth-required starting head `5495e948...` and current head `b203c33...` contains **2 commits, not 1**: intermediate commit `0711cfdaed83990e909366b9c1df77c318f0e820` (`docs(task-011c): align D3 and D9 pending authority`, author `root`, 2026-07-12 05:24:49 UTC, 1 file changed 39 insertions / 34 deletions, parent `5495e948`, tree `b9d4455c8088b0e6bba7baf8b51ee374c71a1bbd`) was created earlier but was not disclosed in the prior round's report. Both commits modify only the target contract. No scope violation; no history rewrite. **Phase B — single-file docs residual correction**: §6.2 split the four pre-D9-pending parenthetical clause labels — the two proposed TASK-011C invariants became `(proposed, pending D9 decision and contract freeze)` and the two current-main observed facts became `(current-main observed fact; not a complete D9 source definition)` with explicit marker blocks `CURRENT_MAIN_OBSERVED_FACT` / `NOT_D9_DECISION` / `NOT_COMPLETE_SOURCE_DEFINITION`. Replaced the legacy audit-pending variant in §6.2 status block with the canonical D9 lifecycle triplet. Restored empty §11.3 to a non-empty proposed-status statement. Fixed §18 PR title claim to `PR #61 title remains unchanged: TASK-011C: remaining evaluation scenarios contract` (per actual GitHub API). Added `PR_BODY_UPDATE_NOT_AUTHORIZED_IN_SOFTWARE_ROUND` marker to §18. Added review `4679487987` to Authoritative references with explicit `NOT a D3 or D9 approval decision` disclaimer. **Preserved** D1, D2, D4–D8, D10 as approved; D3 / D9 decisions and evidence remain pending. PR #21 / PR #23 / PR #60 / Issue #20 untouched; no fixture / no expected-output / no production-path execution / no PR metadata mutation / no implementation authorized. |
 | **Second Commit-Chain Reconciliation + D3 Operative-Lifecycle Correction Round (prior round)** | 2026-07-12 | Hermes | **Read the correction directive from PR #61 review `4679499719` (Second Commit-Chain Reconciliation + D3 Operative-Lifecycle Correction, CHANGES_REQUESTED)**. **Phase A — second commit-chain reconciliation**: discovered the actual commit chain between auth-required starting head `b203c33c1303b4ac94f3852991769104ff7ce4fd` and prior-reported current head `ec25e53375b317751872be72623060141fc452ae` contains **2 commits, not 1**: intermediate commit `f9c33f4a19f029e0f7392603a2300160b5689cce` (`docs(task-011c): remove final D3 D9 freeze residuals`, author `root`, 2026-07-12 05:35:51 UTC, 1 file changed 45 insertions / 17 deletions, parent `b203c33`, child of `b203c33` and parent of `ec25e533`) was created earlier but was not disclosed in the prior round's report. The substantive §6.2 / §11.3 / §18 corrections are in this unreported intermediate commit. No scope violation; no history rewrite. **Phase B — D3 operative-lifecycle correction**: the operative preamble (former line 32) and §1 (former line 69) both still stated the legacy pre-audit D3 wording. Replaced the operative D3 status in the §0 Preamble with the canonical D3 lifecycle triplet (`D3_READ_ONLY_AUDIT_COMPLETED` / `D3_DECISION_EVIDENCE_NOT_ESTABLISHED` / `D3_DECISION_PENDING`). Replaced the §1 narrative phrasing `D3 (normalized-output volatility audit pending)` with `D3 (audit completed, decision evidence not established, decision pending)`. Preserved the pre-audit framing only as an explicitly labeled historical reference of the binding maintainer comment `4950035046`, not as current operative status. **Preserved** D1, D2, D4–D8, D10 as approved; D3 / D9 decisions and evidence remain pending. PR #21 / PR #23 / PR #60 / Issue #20 untouched; no fixture / no expected-output / no production-path execution / no PR metadata mutation / no implementation authorized. |
 | **Final Verdict Metadata Correction Round (prior round)** | 2026-07-12 | Hermes | **Read the correction directive from PR #61 review `4679518692` (Final Verdict Metadata Correction, CHANGES_REQUESTED)**. **Review 4679518692 required only the final-verdict and change-log metadata correction. It did not approve D3. It did not approve D9. It did not authorize contract freeze or implementation.** Updated §19 Final Verdict operative markers: removed the prior-round operative markers `TASK_011C_COMMIT_CHAIN_RECONCILED` and `TASK_011C_D3_D9_FINAL_STATUS_CLEANUP_COMPLETED`; added the current-round operative markers `TASK_011C_SECOND_COMMIT_CHAIN_RECONCILED` / `TASK_011C_D3_OPERATIVE_LIFECYCLE_CORRECTED` / `TASK_011C_FINAL_VERDICT_METADATA_CORRECTED`; added `HIGH_THROUGHPUT_SOURCE_DEFINITION_PENDING` for completeness. Updated §20 Change Log: relabeled the prior-round `Commit-Chain Reconciliation + Final D3/D9 Status Cleanup Round` row from `(this round)` to `(prior round)`; relabeled the prior-round `Second Commit-Chain Reconciliation + D3 Operative-Lifecycle Correction Round` row from `(this round)` to `(prior round)`. No new business decisions authored in this round. D3 / D9 decisions and evidence remain pending. PR #21 / PR #23 / PR #60 / Issue #20 untouched; no fixture / no expected-output / no production-path execution / no PR metadata mutation / no implementation authorized. |
-| **Final Maintainer Decision Integration Round (this round)** | 2026-07-12 | Hermes | **Read the binding maintainer decisions from PR #61 review `4679707878` (D3 approval) and PR #61 review `4679711007` (D9 Path A deferral)**. **Phase A — D3 approval integration**: replaced the operative D3 status with `D3_APPROVED` + `D3_V1_EXCLUDED_JSON_PATHS=[]` + `D3_EVIDENCE_RESULT=EMPTY_EXCLUSION_SET_SUPPORTED` + `D3_EMPTY_EXCLUSION_SET_APPROVED` + `D3_DECISION_CLOSED`. Captured D3 evidence base: `D3_SQLITE_REPEATABILITY=PASS` + `D3_POSTGRESQL_REPEATABILITY=PASS` + `D3_CROSS_BACKEND_PARITY=PASS` + `D3_PROJECTED_DIFFERENCE_COUNT=0` + `COMBINED_SOURCE_HASH_PARITY=PASS` + `CONTENT_HASH_PARITY=PASS` + `CANDIDATES_SNAPSHOT_PARITY=PASS` + `DECIMAL_SERIALIZATION_PARITY=PASS`. Made the D3 cross-backend parity rule binding in §11.2 / §12.0.1 / §12.1 (no longer conditional on a pending decision). Made the D3-approved empty V1 exclusion set binding in §10.3 / §12.0.2 (no future amendment without separate Charles authorization). **Phase B — D9 deferral integration**: removed `high_throughput_review` from V1 scenario set (§2.1 / §4 / §6.2 / §7.2 / §8 / §9 / §13 allowlist / §15 / §16); moved the production-integration prerequisite to a new §21 (deferred scope); recorded D9 disposition `D9_DEFERRED_FROM_TASK_011C_V1` + `D9_DEFERRED_TO_PRODUCTION_INTEGRATION_PREREQUISITE` + `D9_HIGH_THROUGHPUT_REVIEW_DEFERRED` + `D9_EXACT_INPUT_SEARCH_CLOSED_WITHOUT_SOURCE_DEFINITION` + `D9_DECISION_CLOSED_FOR_TASK_011C_V1`. Preserved prior-round D9 audit evidence as historical audit trace in §10.6 + §6.2 (NO_CURRENT_PRODUCTION_HIGH_THROUGHPUT_THRESHOLD_REVIEW_TRIGGER block, `_coefficient_review` production-rule candidate, `COEFFICIENT_REQUIRES_REVIEW` warning code candidate, `计算使用了未批准或需复核的系数` message candidate) for forward traceability to the future §21 round. **Phase C — V1 scope closure**: §2.1 / §4 / §6 / §7.2 / §8 / §9 / §10.5 / §10.6 / §11.2 / §12 / §13 / §14 / §15 / §16 / §19 all reflect the V1 scope: `baseline_feasible` (TASK-011B-frozen) + `invalid_blocked` (D10 source-defined). The future `high_throughput_review` scenario is NOT in V1; the future production-integration prerequisite scope is described in §21; the future scope requires a separate future Charles authorization and is NOT pre-assigned any task number (`TASK011D_NOT_AUTHORIZED`). **Phase D — V1 final verdict**: replaced the prior-round operative markers with the V1 final decision integration markers: `TASK_011C_FINAL_DECISIONS_INTEGRATED` / `TASK_011C_V1_SCOPE_CLOSED` / `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY` / `TASK_011C_CONTRACT_NOT_YET_FROZEN` / `PRODUCTION_PREREQUISITE_IMPLEMENTATION_NOT_AUTHORIZED` / `HIGH_THROUGHPUT_REVIEW_NOT_IN_V1_SCOPE` / `HIGH_THROUGHPUT_REVIEW_DEFERRED_TO_PRODUCTION_INTEGRATION_PREREQUISITE`. **This round integrates decisions only; it does not freeze the contract by itself; it does not authorize implementation.** PR #21 / PR #23 / PR #60 / Issue #20 / Issue #22 untouched; no fixture / no expected-output / no production-path execution / no PR metadata mutation / no implementation authorized. |
+| **Final Maintainer Decision Integration Round (prior round)** | 2026-07-12 | Hermes | **Read the binding maintainer decisions from PR #61 review `4679707878` (D3 approval) and PR #61 review `4679711007` (D9 Path A deferral)**. **Phase A — D3 approval integration**: replaced the operative D3 status with `D3_APPROVED` + `D3_V1_EXCLUDED_JSON_PATHS=[]` + `D3_EVIDENCE_RESULT=EMPTY_EXCLUSION_SET_SUPPORTED` + `D3_EMPTY_EXCLUSION_SET_APPROVED` + `D3_DECISION_CLOSED`. Captured D3 evidence base: `D3_SQLITE_REPEATABILITY=PASS` + `D3_POSTGRESQL_REPEATABILITY=PASS` + `D3_CROSS_BACKEND_PARITY=PASS` + `D3_PROJECTED_DIFFERENCE_COUNT=0` + `COMBINED_SOURCE_HASH_PARITY=PASS` + `CONTENT_HASH_PARITY=PASS` + `CANDIDATES_SNAPSHOT_PARITY=PASS` + `DECIMAL_SERIALIZATION_PARITY=PASS`. Made the D3 cross-backend parity rule binding in §11.2 / §12.0.1 / §12.1 (no longer conditional on a pending decision). Made the D3-approved empty V1 exclusion set binding in §10.3 / §12.0.2 (no future amendment without separate Charles authorization). **Phase B — D9 deferral integration**: removed `high_throughput_review` from V1 scenario set (§2.1 / §4 / §6.2 / §7.2 / §8 / §9 / §13 allowlist / §15 / §16); moved the production-integration prerequisite to a new §21 (deferred scope); recorded D9 disposition `D9_DEFERRED_FROM_TASK_011C_V1` + `D9_DEFERRED_TO_PRODUCTION_INTEGRATION_PREREQUISITE` + `D9_HIGH_THROUGHPUT_REVIEW_DEFERRED` + `D9_EXACT_INPUT_SEARCH_CLOSED_WITHOUT_SOURCE_DEFINITION` + `D9_DECISION_CLOSED_FOR_TASK_011C_V1`. Preserved prior-round D9 audit evidence as historical audit trace in §10.6 + §6.2 (NO_CURRENT_PRODUCTION_HIGH_THROUGHPUT_THRESHOLD_REVIEW_TRIGGER block, `_coefficient_review` production-rule candidate, `COEFFICIENT_REQUIRES_REVIEW` warning code candidate, `计算使用了未批准或需复核的系数` message candidate) for forward traceability to the future §21 round. **Phase C — V1 scope closure**: §2.1 / §4 / §6 / §7.2 / §8 / §9 / §10.5 / §10.6 / §11.2 / §12 / §13 / §14 / §15 / §16 / §19 all reflect the V1 scope: `baseline_feasible` (TASK-011B-frozen) + `invalid_blocked` (D10 source-defined). The future `high_throughput_review` scenario is NOT in V1; the future production-integration prerequisite scope is described in §21; the future scope requires a separate future Charles authorization and is NOT pre-assigned any task number (`TASK011D_NOT_AUTHORIZED`). **Phase D — V1 final verdict**: replaced the prior-round operative markers with the V1 final decision integration markers: `TASK_011C_FINAL_DECISIONS_INTEGRATED` / `TASK_011C_V1_SCOPE_CLOSED` / `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY` / `TASK_011C_CONTRACT_NOT_YET_FROZEN` / `PRODUCTION_PREREQUISITE_IMPLEMENTATION_NOT_AUTHORIZED` / `HIGH_THROUGHPUT_REVIEW_NOT_IN_V1_SCOPE` / `HIGH_THROUGHPUT_REVIEW_DEFERRED_TO_PRODUCTION_INTEGRATION_PREREQUISITE`. **This round integrates decisions only; it does not freeze the contract by itself; it does not authorize implementation.** PR #21 / PR #23 / PR #60 / Issue #20 / Issue #22 untouched; no fixture / no expected-output / no production-path execution / no PR metadata mutation / no implementation authorized. |
+| **Repository Freeze Stamp Round (this round)** | 2026-07-12 | Hermes | **Read the binding V1 contract freeze decision from PR #61 review `4679730144`**. **Phase A — title + status block freeze**: changed the document title to `Frozen V1 Contract`; rewrote the top-level status block (§0) to begin with `TASK_011C_V1_CONTRACT_FROZEN` + `TASK_011C_CONTRACT_FREEZE_AUTHORITY=PR61_R...4`; updated the §1 Authority and status to `Document status: TASK_011C_V1_CONTRACT_FROZEN` and added `Binding freeze authority: PR #61 Review 4679730144`. **Phase B — operative-wording scrub**: removed `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY` / `TASK_011C_CONTRACT_NOT_YET_FROZEN` / `TASK_011C_CONTRACT_FREEZE_NOT_AUTHORIZED` / `TASK_011C_CONTRACT_AUTHORED_PENDING_CHARLES_FREEZE` / `Charles retains the contract-freeze decision authority` / `proposal ready for Charles review` from the operative status blocks (§0, §1, §19); preserved them in the change log and in explicitly labeled `Historical reference (NOT current operative status, preserved for audit traceability)` paragraphs. **Phase C — §19 Final Verdict rewrite**: rewrote §19 with `Round status: TASK_011C_V1_CONTRACT_FROZEN / TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE`; removed D3 evidence ledger / D9 disposition details from the operative verdict (they remain in §10.5 / §10.6 as binding records); kept the V1 scope markers (`baseline_feasible` + `invalid_blocked`) and the deferred-scope markers (`HIGH_THROUGHPUT_REVIEW_NOT_IN_V1_SCOPE` / `D9_HIGH_THROUGHPUT_REVIEW_DEFERRED` / `D9_DECISION_CLOSED_FOR_TASK_011C_V1`) in the operative verdict. **Phase D — §18 Commit metadata + PR body markers**: updated §18 `Base SHA` to `ba08b6b3...`; updated `Single commit (this round)` to `docs(task-011c): stamp frozen V1 contract`; updated the `Required current markers` list to reflect the freeze (added `TASK_011C_V1_CONTRACT_FROZEN` / `TASK_011C_REPOSITORY_FREEZE_STAMP_COMPLETE` / `TASK_011C_CONTRACT_FREEZE_AUTHORITY=PR61_REVIEW_4679730144` / `HIGH_THROUGHPUT_REVIEW_NOT_IN_V1_SCOPE` / `PRODUCTION_PREREQUISITE_IMPLEMENTATION_NOT_AUTHORIZED`; removed `TASK_011C_FINAL_DECISIONS_INTEGRATED` / `TASK_011C_CONTRACT_FREEZE_PROPOSAL_READY` / `TASK_011C_CONTRACT_NOT_YET_FROZEN` / `D3_EVIDENCE_RESULT=EMPTY_EXCLUSION_SET_SUPPORTED`). **Phase E — §20 Change Log relabel**: relabeled the `Final Maintainer Decision Integration Round` row from `(this round)` to `(prior round)`. **This round records the binding V1 contract freeze. It does not authorize implementation, fixture authoring, expected-output authoring, Ready, or merge.** PR #21 / PR #23 / PR #60 / Issue #20 / Issue #22 untouched; no fixture / no expected-output / no production-path execution / no PR metadata mutation / no implementation authorized. |
 
 ---
 
