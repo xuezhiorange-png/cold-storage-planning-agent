@@ -92,6 +92,28 @@ READY_NOT_AUTHORIZED
 MERGE_NOT_AUTHORIZED
 ```
 
+**Contract-freeze blocker (binding, this round):**
+```
+TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_PENDING_SOURCE_DEFINITIONS
+HIGH_THROUGHPUT_SOURCE_DEFINITION_PENDING
+INVALID_BLOCKED_SOURCE_DEFINITION_PENDING
+```
+
+The contract **cannot** be frozen (Charles cannot sign off) while either of the two source-definition gates is open. While the freeze is blocked:
+- Charles MUST NOT sign off the contract as frozen.
+- PR #61 MUST NOT be marked Ready.
+- PR #61 MUST NOT be merged.
+- TASK-011C implementation MUST NOT be authorized.
+- Fixture authoring MUST NOT be authorized.
+- Expected-output authoring MUST NOT be authorized.
+
+**Lifecycle distinction (binding, this round):**
+- `mechanical consistency corrections completed` — applies to this round (the document is internally consistent; FROZEN labels are now PROPOSED; §6.4 field mapping is unique; §10.4 canonicalization is Path-B-consistent; etc.).
+- `source definition incomplete` — applies because both new scenarios still need repository-backed source items (SD-1..SD-6 for high-throughput; IB-SD-1..IB-SD-16 for invalid_blocked, per §6.3).
+- `contract freeze blocked` — applies because source definition is incomplete.
+
+These three states are independent. Mechanical corrections do not authorize source-definition completion or contract freeze.
+
 ---
 
 ## 2. Objectives and scope
@@ -104,11 +126,11 @@ TASK-011C (when implemented) must close the 5 implementation gaps G1–G5 from t
 2. A `high_throughput_review` scenario whose **production outcome is substantively distinct** from `baseline_feasible` (not a `correlation_id` / `run_id` / `timestamp` / database-generated ID rename of baseline).
 3. An `invalid_blocked` scenario that exercises a **real production validation/blocker pathway** (not an evaluation-layer-injected exception).
 4. A repeatable runner that executes multiple scenarios in one invocation, with typed run.json / summary.json / raw and normalized artifacts, fail-closed validation, and zero exit only on full match.
-5. Reuse of the existing canonicalization (no second canonicalizer), with stale-output detection and per-scenario cleanup discipline.
+5. Use of the single proposed Path-B canonicalization authority (per §10), with stale-output detection and per-scenario cleanup discipline.
 
 ### 2.2 Scope (in this contract)
 
-This contract freezes:
+This draft **proposes** the following clauses for Charles review and future freeze (each clause is a `PROPOSED / PENDING REVIEW` target, not currently `FROZEN`):
 - Scenario set (§6)
 - Manifest contract (§7)
 - Expected-output authority flow (§8)
@@ -196,11 +218,13 @@ This contract is built from the following source-of-truth artifacts. Every claus
 
 ---
 
-## 6. Scenario set (frozen)
+## 6. Scenario set (PROPOSED / PENDING REVIEW)
 
 ### 6.1 Already-frozen `baseline_feasible` (DO NOT REOPEN)
 
-| Property | Frozen value | Source |
+The `baseline_feasible` scenario is **already frozen** by the TASK-011B sign-off chain (see source-of-truth S7 and S15 in §5). This section is documentary only; TASK-011C does not propose any new clause for `baseline_feasible`. The properties below are reproduced from the upstream frozen artifact for reference and are not subject to change in any TASK-011C round.
+
+| Property | Upstream frozen value (TASK-011B-approved) | Source |
 |---|---|---|
 | `scenario_id` | `baseline_feasible` | S15 |
 | `expected_outcome` | `SUCCEEDED` | S15 |
@@ -216,9 +240,9 @@ This contract is built from the following source-of-truth artifacts. Every claus
 
 ### 6.2 High-throughput / review-required (G1)
 
-A new scenario `high_throughput_review` that **MUST** be substantively distinct from `baseline_feasible`. The contract freezes EXACTLY the following properties:
+A new scenario `high_throughput_review` that **MUST** be substantively distinct from `baseline_feasible`. The contract proposes the following EXACTLY properties (PENDING REVIEW):
 
-| Property | Contract requirement (FROZEN) |
+| Property | Proposed contract requirement (PROPOSED / PENDING REVIEW) |
 |---|---|
 | `scenario_id` | `high_throughput_review` (string, no spaces) |
 | `fixture_revision` | positive integer (≥ 1) |
@@ -262,7 +286,7 @@ The four target fields above are **NOT yet source-defined**. The contract does N
 
 The four target fields in `HIGH_THROUGHPUT_REVIEW_EXACT_FOUR_FIELDS` above are target business invariants; they are **NOT** a source definition. Reaching `source defined` requires the 6 items above to be evidenced.
 
-**HIGH_THROUGHPUT_REVIEW_REAL_PRODUCTION_REVIEW_SIGNAL (frozen invariant):**
+**HIGH_THROUGHPUT_REVIEW_REAL_PRODUCTION_REVIEW_SIGNAL (proposed invariant, pending review):**
 
 The `review_state=REQUIRED` signal MUST come from a real production review rule. It is **forbidden** to trigger, synthesize, or rename this scenario's review signal via:
 - correlation ID;
@@ -290,7 +314,7 @@ It is **FORBIDDEN** to create a high-throughput scenario that differs from basel
 - A re-shuffled `production_outputs.candidates_snapshot` where every numeric value is identical to baseline modulo comparison policy rounding
 - A scenario that asserts `review_required: true` with empty `review_reasons: []` (or only database-internal reasons)
 
-**HIGH_THROUGHPUT_SCENARIO_SOURCE_DEFINITION_REQUIRED (frozen invariant):**
+**HIGH_THROUGHPUT_SCENARIO_SOURCE_DEFINITION_REQUIRED (proposed invariant, pending review):**
 
 If the current production capability cannot form a substantively distinct high-throughput scenario (e.g., no production pathway produces a substantively different result for any permitted input variation), the implementation round MUST **fail closed** by:
 1. Stopping the high-throughput scenario implementation.
@@ -305,29 +329,47 @@ The implementation round is **forbidden** from:
 
 ### 6.3 Invalid / blocked (G2)
 
-A new scenario `invalid_blocked` that exercises a **real production validation/blocker pathway**. The contract freezes the following field-by-field, EXACTLY:
+A new scenario `invalid_blocked` that exercises a **real production validation/blocker pathway**. The contract proposes the following constraints, structured as **two independent tables**: (A) PROPOSED TARGET GUARDS — already-fixed invariants; (B) PENDING SOURCE INVENTORY — concrete source values still required. The scenario is `INVALID_BLOCKED_SOURCE_DEFINITION_PENDING`; fixture, expected output, and implementation are NOT AUTHORIZED until the pending source items are repository-backed.
 
-| Property | Contract requirement (FROZEN) |
-|---|---|
-| `scenario_id` | `invalid_blocked` |
-| `fixture_revision` | positive integer (≥ 1) |
-| `scenario input difference` | A SPECIFIC pre-existing production validation defect (NOT a runtime exception, NOT an evaluation-layer-injected error, NOT a `correlation_id` change, NOT a `scenario_id` change) |
-| `production validation stage` | A pre-existing production entrypoint in `backend/src/cold_storage/modules/...` that raises a typed exception (NOT `Exception` / NOT `BaseException`) |
-| `typed exception or structured result` | A specific, pre-existing production exception class — must be enumerated by class FQN; structured result MUST come from a real production error model |
-| `exact error code` | A specific exception code / marker that the production code already emits (e.g., a stable `code` attribute on the typed exception) |
-| `exact error field/path` | The exception's structured field that identifies the failure (e.g., `field` in a `ValidationError`, or `details.path` for nested paths) |
-| `expected execution outcome` | `BLOCKED` (production run is blocked at the validation stage) |
-| `whether SchemeRun is created` | MUST be `false` if the failure happens at or before SchemeRun creation; if the production contract specifies a persisted failure record, that record is the only SchemeRun-equivalent state allowed |
-| `expected database row deltas` | Explicitly enumerated: which rows are NOT created, which rows MAY be created (e.g., validation ledger entries), and which rows MUST be left untouched |
-| `SQLite behavior` | The full validation pathway MUST be reproducible on SQLite with the same typed exception / code / field / row delta as on PostgreSQL |
-| `PostgreSQL behavior` | The full validation pathway MUST be reproducible on PostgreSQL with the same typed exception / code / field / row delta as on SQLite |
-| `CLI exit semantics` | Non-zero CLI exit (per §7.1); typed `RunnerSummary.evaluation_result = "fail"`; typed reason code for the validation defect |
-| `blocked stage` | One of `["zone", "cooling_load", "equipment", "power", "investment", "pre_orchestration", "source_binding_verification"]` — frozen per scenario |
-| `side-effect expectations` | The blocked stage MUST NOT create a `SchemeRun` row, MUST NOT create `CalculationRunRecord` rows beyond the stage that raised, and MUST leave orchestration identity / attempt / execution-snapshot state consistent with production's pre-block policy |
-| `absence of success artifacts` | The normalized result MUST NOT contain `production_outputs` beyond the stage that raised; runner MUST assert absence |
-| `SQLite/PG business parity` | The same business verdict (blocked vs succeeded) MUST hold on both backends; no business-outcome drift allowed |
+**A. PROPOSED TARGET GUARDS (fixed invariants, do not change pending source definition):**
 
-**INVALID_BLOCKED_SOURCE_DEFINITION_PENDING (binding gate, this round):**
+| # | Guard | Value |
+|---|---|---|
+| A1 | `scenario_id` | `invalid_blocked` |
+| A2 | `expected execution outcome` | `BLOCKED` (production run is blocked at the validation stage) |
+| A3 | must use real production validation | required (not an evaluation-injected exception) |
+| A4 | no evaluation-injected exception | required |
+| A5 | no correlation/scenario-ID special case | required |
+| A6 | no fake SchemeRun | required |
+| A7 | no message-text parsing | required (classification uses typed exception + structured field, not string matching) |
+| A8 | SQLite/PostgreSQL business verdict must agree | required (no business-outcome drift) |
+| A9 | CLI exit semantics | non-zero CLI exit; typed `RunnerSummary.evaluation_result = "fail"`; typed reason code for the validation defect |
+| A10 | side-effect expectations (target) | blocked stage MUST NOT create a `SchemeRun` row, MUST NOT create `CalculationRunRecord` rows beyond the stage that raised, and MUST leave orchestration identity / attempt / execution-snapshot state consistent with production's pre-block policy |
+
+**B. PENDING SOURCE INVENTORY (exact 16 items, each `PENDING` until repository-backed):**
+
+| # | Source item | Status |
+|---|---|---|
+| IB-SD-1 | exact invalid input defect (which field, which value, why invalid) | `PENDING` |
+| IB-SD-2 | production entrypoint FQN (module path + function/class) | `PENDING` |
+| IB-SD-3 | validation stage (e.g., `pre_orchestration`, `source_binding_verification`, or one of the 5 calculation stages) | `PENDING` |
+| IB-SD-4 | typed exception or structured-result FQN | `PENDING` |
+| IB-SD-5 | exact error code (stable, production-emitted) | `PENDING` |
+| IB-SD-6 | exact error field/path (e.g., `ValidationError.field`, `details.path`) | `PENDING` |
+| IB-SD-7 | exact execution outcome mapping (which `execution_outcome` value the runner emits; per §6.4.4) | `PENDING` |
+| IB-SD-8 | exact `SchemeRun` creation behavior (created vs not-created) | `PENDING` |
+| IB-SD-9 | exact `SchemeRun` row delta (which columns populated vs null) | `PENDING` |
+| IB-SD-10 | exact `CalculationRunRecord` row delta (which rows absent vs present) | `PENDING` |
+| IB-SD-11 | exact orchestration identity row delta | `PENDING` |
+| IB-SD-12 | exact orchestration attempt row delta | `PENDING` |
+| IB-SD-13 | exact SQLite result (reproducible on SQLite with same typed exception / code / field / row delta) | `PENDING` |
+| IB-SD-14 | exact PostgreSQL result (reproducible on PostgreSQL with same typed exception / code / field / row delta) | `PENDING` |
+| IB-SD-15 | exact CLI exit code (one of the codes listed in §7.1) | `PENDING` |
+| IB-SD-16 | exact normalized summary shape (which fields emitted, in which format) | `PENDING` |
+
+**Total pending source items: 16 (IB-SD-1 through IB-SD-16).**
+
+**Note**: This is a correction from the previous round. The previous §6.3 said "14 SOURCE PENDING fields" but mixed fixed identity / target constraints with unresolved source values, and the actual inventory of source items is 16. The contract now separates (A) PROPOSED TARGET GUARDS from (B) PENDING SOURCE INVENTORY.**INVALID_BLOCKED_SOURCE_DEFINITION_PENDING (binding gate, this round):**
 
 The 14 `SOURCE PENDING` fields in the §6.3 table above are the open items required before this scenario can be authored. The contract does NOT freeze any of them as concrete values (no FQN, no error code, no field path, no row-delta) until each is evidenced from current production code.
 
@@ -342,7 +384,7 @@ The 14 `SOURCE PENDING` fields in the §6.3 table above are the open items requi
 
 The contract does NOT manufacture a placeholder path to complete the documentation.
 
-**INVALID_BLOCKED_FORBIDDEN_CIRCUMVENTION (frozen invariants):**
+**INVALID_BLOCKED_FORBIDDEN_CIRCUMVENTION (proposed invariants, pending review):**
 
 The implementation round is **forbidden** from:
 1. Using a valid baseline `SourceBinding` and then renaming a successful result as `blocked` (e.g., by mutating the SchemeRun status after the fact).
@@ -352,7 +394,7 @@ The implementation round is **forbidden** from:
 5. Building an evaluation-layer-injected `Exception` / `ValueError` / `RuntimeError` to simulate a production failure. The failure MUST come from a real production validation entrypoint.
 6. Producing a `invalid_blocked` expected output that asserts presence of `production_outputs` past the blocked stage.
 
-**INVALID_BLOCKED_FAIL_CLOSED (frozen invariant):**
+**INVALID_BLOCKED_FAIL_CLOSED (proposed invariant, pending review):**
 
 If the production code cannot provide a real validation pathway that produces a typed exception / structured error result, the implementation round MUST:
 - Stop the `invalid_blocked` scenario implementation.
@@ -360,7 +402,7 @@ If the production code cannot provide a real validation pathway that produces a 
 - NOT produce an `invalid_blocked` expected output or test.
 - NOT invent a fake validation path to complete the contract documentation.
 
-**INVALID_BLOCKED_FORBIDDEN (frozen invariants):**
+**INVALID_BLOCKED_FORBIDDEN (proposed invariants, pending review):**
 
 The implementation round is **forbidden** from:
 - Adding new business validation rules in the evaluation layer.
@@ -371,9 +413,9 @@ The implementation round is **forbidden** from:
 
 ---
 
-## 6.4 Review-field vocabulary mapping (FROZEN for naming, PENDING for source)
+## 6.4 Review-field vocabulary mapping (PROPOSED / PENDING REVIEW for naming; SOURCE PENDING)
 
-The contract uses three distinct layers for review fields, with a single, frozen mapping between them. The contract explicitly **forbids** treating `requires_review` / `review_required` / `review_state` / `review_reasons` as interchangeable names without a typed mapping.
+The contract uses three distinct layers for review fields, with a single, PROPOSED mapping between them (PROPOSED / PENDING REVIEW). The contract explicitly **forbids** treating `requires_review` / `review_required` / `review_state` / `review_reasons` as interchangeable names without a typed mapping.
 
 ### 6.4.1 Layer A — Production source fields (current production model)
 
@@ -408,7 +450,7 @@ The expected-output JSON files for `high_throughput_review` and `invalid_blocked
 | `review_state` | `normalized.review_state` |
 | `review_reasons` | `normalized.review_reasons` |
 
-### 6.4.4 Single-source-of-truth naming (FROZEN)
+### 6.4.4 Single-source-of-truth naming (PROPOSED / PENDING REVIEW)
 
 The contract uses ONE naming per concept, with the mapping above. Specifically:
 
@@ -416,10 +458,43 @@ The contract uses ONE naming per concept, with the mapping above. Specifically:
 - The normalized evaluation field is `requires_review` (per Layer B), inheriting the production name 1-to-1. The contract MUST NOT introduce `review_required` as a separate field.
 - If a future implementation or test refers to `review_required`, that reference MUST be either (a) renamed to `requires_review` (per Layer A/B), or (b) explicitly justified as legacy naming with a one-line comment AND deprecated. The contract does NOT treat `review_required` as a parallel authority.
 - The review reasons field is `review_reasons` (production + normalized + expected-output). The contract MUST NOT introduce `review_reason_codes` as a separate field without separate review.
-- `execution_outcome` is the **proposed normalized field name** for the runner-emitted business outcome. The TASK-011B baseline expected output uses the field name `expected_outcome` (not `execution_outcome`). The contract clarifies that, for cross-compatibility with the existing baseline, the future expected-output files may declare their outcome field as either:
-  - `execution_outcome` (newly proposed normalized name, used in this contract's §6.2), or
-  - `expected_outcome` (existing baseline field name, preserved for cross-compatibility).
-  - The choice is to be made by the future implementation round and recorded in the per-scenario expected-output sign-off document. The contract does NOT force a rename of the baseline `expected_outcome` field.
+- The contract freezes ONE canonical mapping between layers. Future implementation does NOT choose between field names. The mapping is:
+
+  | Layer | Field name (UNIQUE) | Type | Source / target |
+  |---|---|---|---|
+  | Production (production model) | `execution_outcome` | enum | The business outcome produced by the production code path (e.g., `SUCCEEDED` for `high_throughput_review`; `BLOCKED` for `invalid_blocked`). |
+  | Normalized (runner output, summary.json) | `execution_outcome` | enum | The runner-emitted business outcome (same field name as production, normalized through canonicalization). |
+  | Tracked expected-output JSON | `expected_outcome` | enum | For compatibility with the already-frozen `baseline_feasible.v1.json`, the expected-output file uses `expected_outcome` (not `execution_outcome`). The future `high_throughput_review.v1.json` and `invalid_blocked.v1.json` files use the SAME `expected_outcome` field name. |
+  | **One-way mapping:** `runner.execution_outcome` → `expected_output.expected_outcome` (assertion-time only; the field name is set by the schema above). |
+
+- For review boolean:
+
+  | Layer | Field name (UNIQUE) | Type |
+  |---|---|---|
+  | Production | `requires_review` | bool |
+  | Normalized | `requires_review` | bool (carried 1-to-1 from production) |
+  | Tracked expected-output JSON | `review_required` | bool (baseline-compatible legacy field) |
+  | **One-way mapping:** `production.requires_review` → `normalized.requires_review` → `expected_output.review_required`. |
+
+- For review state:
+
+  | Layer | Field name (UNIQUE) | Type |
+  |---|---|---|
+  | Production | (production has NO `review_state` field; the contract MUST NOT claim production has one) | n/a |
+  | Normalized | `review_state` | enum `REQUIRED` / `NOT_REQUIRED` / `NOT_APPLICABLE` |
+  | Tracked expected-output JSON | `review_state` (derived; not claimed to exist in production) | enum |
+  | **One-way mapping:** `production.requires_review == true` → `normalized.review_state = REQUIRED`; `production.requires_review == false` → `normalized.review_state = NOT_REQUIRED`. |
+
+- For review reasons:
+
+  | Layer | Field name (UNIQUE) | Type |
+  |---|---|---|
+  | Production | `review_reasons` | `list[str]` |
+  | Normalized | `review_reasons` | `list[str]` (carried 1-to-1) |
+  | Tracked expected-output JSON | `review_reasons` | `list[str]` |
+
+- The contract does NOT permit future implementation to choose alternative names. If a future implementation needs an alternative name, that requires a separate contract amendment.
+- The contract does NOT allow both `requires_review` AND `review_required` to coexist in the same expected-output JSON. The expected-output JSON uses exactly ONE of them, by layer (per the table above).
 
 The contract freezes ONE canonical mapping table. `requires_review` / `review_required` / `review_state` / `review_reasons` are NOT interchangeable. Each has a specific layer and a specific source. Cross-layer mapping MUST go through the table above.
 
@@ -427,7 +502,7 @@ The contract freezes ONE canonical mapping table. `requires_review` / `review_re
 
 ## 7. Manifest contract
 
-### 7.0 Manifest schema path (FROZEN, single-path)
+### 7.0 Manifest schema path (PROPOSED / PENDING REVIEW, single-path)
 
 The TASK-011C implementation round MUST use the following SINGLE manifest schema path:
 
@@ -441,11 +516,11 @@ The following are **NOT authorized** in TASK-011C:
 - A copy of the manifest schema at any other path.
 - Any modification to `.gitignore` to add manifest / expected-output / fixture paths.
 
-The implementation round MUST NOT create the schema file in this contract round. The schema path is frozen for the future implementation round only.
+The implementation round MUST NOT create the schema file in this contract round. The schema path is PROPOSED (PROPOSED / PENDING REVIEW) for the future implementation round only.
 
-### 7.1 CLI exit code (FROZEN, no redefinition in TASK-011C)
+### 7.1 CLI exit code (PROPOSED / PENDING REVIEW, no redefinition in TASK-011C)
 
-The current main `backend/src/cold_storage/evaluation/cli.py` exit codes are FROZEN as follows. The TASK-011C contract does NOT redefine, remove, or change these exit codes:
+The current main `backend/src/cold_storage/evaluation/cli.py` exit codes are FROZEN as follows (these are TASK-011B-approved current main values; the contract does NOT redefine, remove, or change these exit codes:
 
 | Exit code | Meaning |
 |---|---|
@@ -457,7 +532,7 @@ The current main `backend/src/cold_storage/evaluation/cli.py` exit codes are FRO
 | `5` | REVIEW_REQUIRED (general review-required signal) |
 | `6` | FAILED (general failure) |
 
-**CRITICAL — high_throughput_review exit code (FROZEN):**
+**CRITICAL — high_throughput_review exit code (PROPOSED / PENDING REVIEW):**
 
 The `high_throughput_review` scenario MUST exit with code `0` (SUCCEEDED). It is an execution success. `requires_review=true` and `review_state=REQUIRED` are business fields of a successful run, NOT a runner-level failure. The contract explicitly **forbids**:
 - Mapping `high_throughput_review` to exit code `5` (REVIEW_REQUIRED) as a runner-level outcome.
@@ -466,13 +541,13 @@ The `high_throughput_review` scenario MUST exit with code `0` (SUCCEEDED). It is
 
 The contract is intentionally consistent with the general exit code `5` meaning: exit code `5` is reserved for the runner-level "review-required" verdict (not currently used by the main runner's exit code map but reserved for future expansion). The high-throughput scenario's `requires_review=true` business field is independent of this reserved exit code.
 
-### 7.2 Manifest content (FROZEN)
+### 7.2 Manifest content (PROPOSED / PENDING REVIEW)
 
 The manifest (`backend/src/cold_storage/evaluation/manifest.json` or per-test-suite) MUST validate, fail-closed, and contain:
 
 | Required field | Description |
 |---|---|
-| `schema_version` | Frozen string `task011c-manifest.v1` |
+| `schema_version` | Proposed value (PROPOSED / PENDING REVIEW) `task011c-manifest.v1` |
 | `suite_id` | Stable string identifying the test-suite version |
 | `manifest_sha` | SHA-256 of the canonical bytes of the manifest itself, computed by the canonicalizer (§10) |
 | `scenarios[]` | Array of scenario declarations, each with: `scenario_id`, `fixture_revision`, `fixture_path`, `expected_output_path` (when required), `outcome_class`, `comparison_policy`, `provenance` |
@@ -488,7 +563,7 @@ The manifest (`backend/src/cold_storage/evaluation/manifest.json` or per-test-su
 - `expected outcome` explicit (one of `SUCCEEDED`, `REVIEW_REQUIRED`, `BLOCKED`, `INVALID`)
 - `comparison policy complete` (see §10)
 - `provenance complete` (scenario author, reviewer, signoff, committed_at, committed_by)
-- `no unknown fields` (manifest schema rejects any field not in the frozen schema)
+- `no unknown fields` (manifest schema rejects any field not in the PROPOSED schema (PROPOSED / PENDING REVIEW))
 - `no undeclared expected paths` (every JSON path read at runtime must be declared in `comparison_policy.exact_match_fields` / `decimal_fields` / `excluded_fields`)
 
 **HIGH_THROUGHPUT_REVIEW and INVALID_BLOCKED manifest requirements (frozen choice):**
@@ -523,7 +598,7 @@ The expected output for a new scenario is **not** a product of the implementatio
 - Implementation-generated authority (the implementation round cannot assert its own compliance without Charles's sign-off).
 - Reusing the baseline sign-off (`f274db66…`) as authorization for any other scenario.
 
-**Per-scenario sign-off identity (frozen):**
+**Per-scenario sign-off identity (PROPOSED / PENDING REVIEW):**
 - Each scenario's expected output has its own sign-off identity, recorded in its own sign-off document under `docs/tasks/TASK-011C-expected-outputs-{scenario_id}-reviewer-sign-off.md`.
 - Sign-off identity is bound to:
   - The expected-output file's tracked path.
@@ -534,7 +609,7 @@ The expected output for a new scenario is **not** a product of the implementatio
 
 ---
 
-### 8.10 Per-file expected-output authority (FROZEN)
+### 8.10 Per-file expected-output authority (PROPOSED / PENDING REVIEW)
 
 The contract freezes the per-file authority status of the three expected-output JSON files. The contract merge does NOT authorize two new expected-output files. Each new expected-output file requires its own separate Charles sign-off.
 
@@ -583,15 +658,24 @@ The manifest MUST declare the expected `business outcome` for each scenario. The
 
 ---
 
-## 10. Canonicalization contract (Path A or Path B — see §10.1)
+## 10. Proposed canonicalization contract — Path B selected
 
 The implementation round MUST resolve the canonicalization authority per **Path A** or **Path B** below. The contract does NOT permit a third option. "Reuse existing canonicalization" without naming the exact module/function and its semantics is **NOT implementable** under this contract.
 
-### 10.1 Path decision (audit completed in this contract round)
+### 10.1 Path B selected (binding, single conclusion)
 
-After auditing the current main repository, the canonicalization situation is:
+**Single conclusion (binding):**
+```
+CURRENT_MAIN_COMPLETE_CANONICALIZATION_AUTHORITY=ABSENT...UTHORITY_PROPOSED = backend/src/cold_storage/evaluation/canonicalize.py
+FUTURE_SINGLE_FUNCTION_PROPOSED = canonicalize_production_outputs(...)
+PATH_B_SELECTED
+```
 
-**Path A — Unique existing authority** applies if and only if a SINGLE module in current main provides:
+There is no Path A. There is no choice between Path A and Path B. Path B is the only decision. The contract does not permit future implementation to re-evaluate the path. If the future implementation round finds an existing complete authority in current main, that finding requires a separate contract amendment (and contradicts the present §10 audit).
+
+**Audit basis (preserved for traceability):** After auditing the current main repository, the canonicalization situation was:
+
+**Path A — Unique existing authority** would have applied if and only if a SINGLE module in current main provided:
 - a single, named public function/class for canonicalization;
 - typed input/output;
 - a stable byte representation used for both persisted normalized artifact and runtime comparison;
@@ -606,15 +690,15 @@ The current main repository audit (per source-of-truth S10 / S13 / S14) shows: t
 
 **Therefore the canonicalization decision is: Path B — main does not provide a complete authority.**
 
-### 10.2 Path B contract (FROZEN)
+### 10.2 Path B contract (PROPOSED / PENDING REVIEW)
 
-The future TASK-011C implementation round is authorized to create **exactly one** new canonicalization module. The contract freezes:
+If Charles separately authorizes a future TASK-011C implementation round, that round will be permitted to create **exactly one** new canonicalization module. The contract freezes:
 
-| Property | FROZEN value |
+| Property | Proposed value (PROPOSED / PENDING REVIEW) |
 |---|---|
 | Exact future module path | `backend/src/cold_storage/evaluation/canonicalize.py` |
-| Public function name | `canonicalize_production_outputs` (frozen; no other public function for canonicalization) |
-| Public class name | `Canonicalizer` (frozen dataclass / frozen class for stateful canonicalization, if used) |
+| Public function name | `canonicalize_production_outputs` (PROPOSED / PENDING REVIEW; no other public function for canonicalization) |
+| Public class name | `Canonicalizer` (PROPOSED / PENDING REVIEW dataclass / class for stateful canonicalization, if used) |
 | Typed input | `Mapping[str, Any]` (production-path normalized dict) — type hint MUST be present in the public signature |
 | Typed output | `bytes` (canonical byte representation) — type hint MUST be present in the public signature |
 | `Decimal` handling | `Decimal` values serialized with explicit fixed scale; no scientific notation; no `float()` conversion |
@@ -671,7 +755,7 @@ The current main `backend/src/cold_storage/evaluation/run_directory.py` provides
 
 **The contract does NOT misdescribe current behavior as already writing `run.json` or `summary.json`.** The contract describes the **FUTURE TASK-011C IMPLEMENTATION CONTRACT** for what the runner will write.
 
-### 11.1 `run.json` schema (FROZEN, future implementation)
+### 11.1 `run.json` schema (PROPOSED / PENDING REVIEW, future implementation)
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -687,7 +771,7 @@ The current main `backend/src/cold_storage/evaluation/run_directory.py` provides
 | `input_authority` / `fixture_authority` | object | yes | fixture path, fixture revision, fixture SHA-256 |
 | `expected_output_authority` | object | conditional | required if manifest declared expected output; path, revision, SHA-256, sign-off identity |
 
-### 11.2 `summary.json` schema (FROZEN, future implementation)
+### 11.2 `summary.json` schema (PROPOSED / PENDING REVIEW, future implementation)
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -705,7 +789,7 @@ The current main `backend/src/cold_storage/evaluation/run_directory.py` provides
 | `expected_output_sha256` | string | conditional | SHA-256 of the expected JSON file; required when manifest declared expected output |
 | `completed_at` | string (ISO-8601 UTC) | yes | end timestamp |
 
-### 11.3 Run-artifact semantics (FROZEN, future implementation)
+### 11.3 Run-artifact semantics (PROPOSED / PENDING REVIEW, future implementation)
 
 | Property | Contract requirement |
 |---|---|
@@ -714,7 +798,7 @@ The current main `backend/src/cold_storage/evaluation/run_directory.py` provides
 | `incomplete` state | If the runner crashes mid-run, the on-disk artifact is left in `completion_state = "incomplete"` (or absent). The runner never partially writes a `completed` artifact. |
 | Success-completion marker | `completion_state = "completed"` is set only after all fields are fully populated and the artifact has been atomically renamed. |
 | Manifest SHA binding | `run.json.manifest_sha256` MUST equal the manifest's canonical-bytes SHA-256. Mismatch fails closed. |
-| Commit SHA binding | `run.json.code_commit_sha` MUST equal the code HEAD SHA at run time. The runner reads this from a frozen env var or git resolution at run start, not from the artifact itself. |
+| Commit SHA binding | `run.json.code_commit_sha` MUST equal the code HEAD SHA at run time. The runner reads this from a git resolution at run start (no frozen env var; the env var is read fresh per run), not from the artifact itself. |
 | Failure-state files | On runner infrastructure failure, the on-disk artifact is `completion_state = "failed"` or `"incomplete"`. The runner does NOT write a `summary.json` with `comparison_result = "pass"` for a failed scenario. |
 | Stale-output rejection | A `run.json` / `summary.json` from a prior run-directory MUST NOT satisfy the current manifest. The runner refuses to read prior artifacts. |
 | Per-scenario isolated directory | Each scenario runs in its own per-scenario subdirectory under the suite root. No shared state. |
@@ -723,9 +807,9 @@ The current main `backend/src/cold_storage/evaluation/run_directory.py` provides
 
 ---
 
-## 12. SQLite / PostgreSQL boundary (field-by-field parity, FROZEN)
+## 12. SQLite / PostgreSQL boundary (field-by-field parity, PROPOSED / PENDING REVIEW)
 
-### 12.0 Field-by-field parity table (FROZEN)
+### 12.0 Field-by-field parity table (PROPOSED / PENDING REVIEW)
 
 The contract freezes the per-field parity between SQLite and PostgreSQL runs of the same scenario. Fields are listed in two categories: **must-match** (business-authoritative) and **may-differ** (backend-specific or runtime).
 
@@ -747,7 +831,7 @@ The following fields MUST be byte-identical (or `decimal_fields`-quantization-eq
 | Blocker/error field | `summary.error_or_blocker_result.field` | must match (when applicable) |
 | Expected-output match result | `summary.comparison_result` + per-leaf diff | must match |
 
-#### 12.0.1.1 Hash-category requirements (FROZEN, addresses prior contradiction)
+#### 12.0.1.1 Hash-category requirements (PROPOSED / PENDING REVIEW)
 
 The contract freezes three distinct hash categories. Each category has its own cross-backend parity rule:
 
@@ -770,11 +854,29 @@ The following fields MAY differ between SQLite and PostgreSQL runs of the same s
 | Field | JSON path | Reason | Normalization / exclusion rule | Business-authoritative? |
 |---|---|---|---|---|
 | `database_backend` | `summary.database_backend` | Backend identity is a tag, not a result. | Record as declared; comparison excludes this field. | NO (tag) |
-| Generated database primary keys | any `*_id`, `database_session_uuid`, `run_id` | DB-generated, not part of business outcome. | Excluded from comparison; SHA-256 of normalized output still depends on these for raw artifact, but the `summary.normalized_artifact_sha256` is the same because normalization replaces these. | NO (DB-generated) |
+| Generated database primary keys (per scenario) | `summary.run_identity` | DB-generated run identifier; not business-authoritative. | Excluded from cross-backend comparison. | NO (DB-generated) |
+| Database session UUID (raw artifact only) | `raw.database_session_uuid` | DB-generated session; not business-authoritative. | Excluded from normalized bytes; raw artifact retains it for integrity verification. | NO (DB-generated) |
+| Orchestration attempt ID (raw artifact only) | `raw.orchestration.attempt_id` | DB-generated attempt identifier. | Excluded from normalized bytes. | NO (DB-generated) |
+| Calculation run IDs per stage (raw artifact only) | `raw.calculation_run_ids.zone`, `raw.calculation_run_ids.cooling_load`, `raw.calculation_run_ids.equipment`, `raw.calculation_run_ids.power`, `raw.calculation_run_ids.investment` | DB-generated per-stage calculation identifiers. | Excluded from normalized bytes. | NO (DB-generated) |
 | Backend-specific timestamps | `run.started_at` (precise nanos) | Wall-clock may differ; only `completed_at` to nearest second matters for cross-backend comparison. | Round to nearest second before comparison. | NO (clock skew) |
 | Database URL | env var `DATABASE_URL` | Not part of output. | Not recorded in artifact. | NO (env) |
 | Transaction / internal sequence values | `orchestration.attempt_internal_seq`, `*_audit_seq` | Internal counters. | Excluded from comparison. | NO (internal) |
 | Backend-specific diagnostic text | `error_or_blocker_result.engine_diagnostic` (if any) | Engine-version specific. | Stripped from canonical bytes. | NO (diagnostic) |
+
+**Provenance fields NOT excluded** (must be present in normalized bytes; do not auto-exclude `*_id`):
+- `summary.scenario_id`
+- `summary.manifest_sha256` (and any manifest identity field)
+- `summary.code_commit_sha`
+- `summary.source_binding_proxy` (or equivalent — see §6.4 for normalization mapping)
+- `summary.weight_set_revision_proxy` (or equivalent)
+- `summary.project_id`, `summary.project_version_id` (business-provenance; NOT auto-excluded by any `*_id` wildcard)
+
+**Excluded-path status:**
+```
+CROSS_BACKEND_EXCLUDED_PATH_SET_PENDING_SCHEMA_REVIEW
+```
+
+The exact JSON paths in the table above are placeholders pending a future schema-review round that defines the full normalized-output schema. The principle is binding NOW: every excluded path MUST be an exact JSON path, MUST state a reason, MUST state a normalization / exclusion rule, and MUST prove that the field is not business-authoritative. The use of wildcards such as `any *_id` is FORBIDDEN (the previous round's wildcard is removed in this round).
 
 **Prohibition:** It is **forbidden** to manufacture SQLite/PG parity by deleting many fields from the comparison. Any excluded field MUST be enumerated in the table above with its exact JSON path, reason, normalization rule, and proof of non-business-authority.
 
@@ -797,7 +899,7 @@ This contract proposes the following allowlist for a future TASK-011C implementa
 | Path | Purpose | Round scope |
 |---|---|---|
 | `backend/src/cold_storage/evaluation/manifest.py` (new) | Manifest schema + loader + validator | C-1 (manifest schema) |
-| `backend/src/cold_storage/evaluation/canonicalize.py` (new) | Standalone canonicalizer (if not already a separate module) | C-1 (manifest schema) |
+| `backend/src/cold_storage/evaluation/canonicalize.py` (new) | the single proposed Path-B canonicalization authority (per §10.1) | C-1 (manifest schema) |
 | `backend/src/cold_storage/evaluation/sqlite_scope.py` (new) | Per-scenario SQLite isolation | C-1 (manifest schema) |
 | `backend/src/cold_storage/evaluation/paths.py` (new) | Path safety helpers | C-1 (manifest schema) |
 | `backend/src/cold_storage/evaluation/models.py` (new) | Pydantic models for manifest / run.json / summary.json | C-1 (manifest schema) |
@@ -820,7 +922,6 @@ This contract proposes the following allowlist for a future TASK-011C implementa
 | `backend/tests/evaluation/data/expected/invalid_blocked.v{revision}.json` (new, tracked) | Invalid-blocked expected output | C-3 (expected output) — REQUIRES sign-off |
 | `docs/tasks/TASK-011C-expected-outputs-high_throughput_review-reviewer-sign-off.md` (new, tracked) | Sign-off document | C-3 (expected output) |
 | `docs/tasks/TASK-011C-expected-outputs-invalid_blocked-reviewer-sign-off.md` (new, tracked) | Sign-off document | C-3 (expected output) |
-| `docs/tasks/TASK-011-evaluation-pilot-readiness.md` (new, tracked) | Pilot doc (currently missing from main) | C-1 (manifest schema) — if extracted from PR #21 |
 | `docs/tasks/TASK-011C-manifest-schema-design.md` (new, tracked) | Manifest schema design contract | C-1 (manifest schema) — separate Charles authorization |
 
 **Forbidden paths (any mutation is a hard violation):**
@@ -838,10 +939,13 @@ This contract proposes the following allowlist for a future TASK-011C implementa
 - `.gitignore` modifications — **NOT AUTHORIZED** in TASK-011C. The TASK-011C implementation contract does NOT authorize any `.gitignore` modification. If the future implementation round discovers that a target path is gitignored, it MUST trigger the stop condition `TASK_011C_GITIGNORE_CHANGE_REQUIRES_SEPARATE_AMENDMENT` (per §16) and STOP — it MUST NOT mutate `.gitignore` in the TASK-011C implementation round. Any future `.gitignore` change requires a separate TASK-011C contract amendment with its own Charles sign-off.
 - `README.md`, `CODEX_TASKS.md` — top-level project files not modified
 - `docs/roadmap/**` — roadmap not modified
+- `docs/roadmap/**` — roadmap not modified
+
+**No extraction from PR #21 (binding):** TASK-011C does NOT authorize extracting, copying, cherry-picking, or restoring any file from PR #21 branch (`codex/task-11-evaluation`). The future `TASK-011-evaluation-pilot-readiness.md`, if needed, MUST be independently authored from current main under a separate TASK-011D round or a closure round, NOT extracted from PR #21.
 
 ---
 
-## 14. Explicit TASK-011D exclusions (frozen)
+## 14. Explicit TASK-011D exclusions (PROPOSED / PENDING REVIEW)
 
 The following are **reserved for TASK-011D** or a separate closure gate and are **NOT** in this contract:
 
@@ -939,9 +1043,9 @@ This round produces:
 
 - **Branch:** `docs/task-011c-remaining-evaluation-scenarios-contract`
 - **Base SHA:** `1636f25d4b6fafa38bfc9747938d0cba8b2abf50` (= `origin/main` HEAD at this round)
-- **Commit message (suggested):** `docs(task-011c): freeze remaining evaluation scenario contract`
+- **Commit message (suggested, for correction rounds only):** `docs(task-011c): resolve [Nth] contract [review / consistency / source-definition]`
 - **Push target:** `origin HEAD:refs/heads/docs/task-011c-remaining-evaluation-scenarios-contract`
-- **Draft PR title (suggested):** `TASK-011C: freeze remaining evaluation scenarios contract`
+- **Draft PR title (suggested):** `TASK-011C: source-definition contract (DRAFT, NOT FROZEN)`
 - **Draft PR body MUST include:**
   - `docs-only`
   - `implementation not authorized`
@@ -981,18 +1085,20 @@ A Feishu card is sent to the `hxforge-agent` group (chat_id `oc_7807111a5c0ff61a
 
 ## 20. Final verdict (this round)
 
-**Round status: `TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW`** (this round corrects the previous round's draft against the Issue #20 review comment `4949858037`).
+**Round status: `TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW`** (this round is the third mechanical consistency correction; the contract remains DRAFT, NOT FROZEN).
 
 ```
-TASK_011C_CONTRACT_REVIEW_CORRECTIONS_COMPLETED
+TASK_011C_THIRD_CONTRACT_CORRECTIONS_COMPLETED
 TASK_011C_DOCS_ONLY_COMMIT_PUSHED
-TASK_011C_DRAFT_PR_CREATED
 TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW
 TASK_011C_CONTRACT_NOT_FROZEN
+TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_PENDING_SOURCE_DEFINITIONS
+HIGH_THROUGHPUT_SOURCE_DEFINITION_PENDING
+INVALID_BLOCKED_SOURCE_DEFINITION_PENDING
 TASK_011C_IMPLEMENTATION_NOT_AUTHORIZED
-PR21_SUPERSEDED_OPEN_DRAFT_NOT_MERGED
+EXPECTED_OUTPUT_AUTHORING_NOT_AUTHORIZED
+PR61_OPEN_DRAFT_NOT_MERGED
 PR21_UNTOUCHED
-PR23_RETAINED_AS_HISTORICAL_DESIGN_AUTHORITY
 PR23_UNTOUCHED
 ISSUE20_REMAINS_OPEN
 TASK011D_NOT_AUTHORIZED
