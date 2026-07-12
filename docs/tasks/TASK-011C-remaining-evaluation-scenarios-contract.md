@@ -1,4 +1,4 @@
-# TASK-011C Remaining Evaluation Scenarios — Draft Contract (Charles Partial Decision Closure Round)
+# TASK-011C Remaining Evaluation Scenarios — Draft Contract
 
 **Status:** `TASK_011C_MAINTAINER_AUTHORITY_ESTABLISHED` / `TASK_011C_CONTRACT_NOT_FROZEN` / D3 + D9 audits completed, pending Charles decision
 **Branch base:** `main @ 1636f25d4b6fafa38bfc9747938d0cba8b2abf50` (= `origin/main` HEAD)
@@ -161,7 +161,7 @@ While D3 and D9 remain pending:
 - Fixture authoring MUST NOT be authorized.
 - Expected-output authoring MUST NOT be authorized.
 
-The invalid_blocked source definition is **closed** (D10 chosen); only D9 remains open.
+The contract-freeze blocker is `TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_D3_AND_D9` (D3 AND D9, NOT D9 alone). Closing either D3 or D9 requires separate Charles authorization.
 
 ---
 
@@ -179,16 +179,16 @@ TASK-011C (when implemented) must close the 5 implementation gaps G1–G5 from t
 
 ### 2.2 Scope (this contract)
 
-This contract proposes the following clauses; the Charles-signed clauses are binding, the rest remain `PROPOSED / PENDING REVIEW`:
+This contract proposes the following clauses; the Charles-approved clauses are binding, the rest remain `PROPOSED / PENDING CONTRACT FREEZE`:
 - Scenario set (§6)
-- Manifest contract (§7)
-- Expected-output authority flow (§8)
-- Runner contract (§9)
-- Canonicalization contract (§10) — **D1 signed: §10 binding; D2 signed: §10.4 strict JSON; D3 signed: §12 excluded paths in V1 = empty; D4 signed: §10.4 numeric defaults**
-- Cleanup + stale-output contract (§11)
-- SQLite / PostgreSQL boundary (§12) — **D3 signed: no excluded paths in V1; §12.0.2 cleared**
-- Future implementation allowlist proposal (§13) — **D6, D7, D8 signed: §13 updated to reflect final canonicalization/loader/distribution module names**
-- Stop conditions for the future implementation round (§16)
+- Manifest contract (§7) — D5/D6/D7/D8 binding per comment `4950035046`
+- Expected-output authority flow (§8) — proposed, pending contract freeze
+- Runner contract (§9) — proposed, pending contract freeze
+- Canonicalization contract (§10) — **D1 signed: §10 binding; D2 signed: §10.4 strict JSON; D4 signed: §10.4 numeric defaults; D3 audit completed read-only; candidate exclusion set and empty-list decision remain pending separate Charles decision**
+- Cleanup + stale-output contract (§11) — proposed, pending contract freeze
+- SQLite / PostgreSQL boundary (§12) — **D3 audit completed read-only; no excluded fields are currently approved; the final exact exclusion set, including the possibility of an empty set, remains pending D3 decision**
+- Future implementation allowlist proposal (§13) — **D6, D7, D8 signed: §13 updated to reflect final canonicalization/loader/distribution module names; D3 test name corrected to non-empty-asserting name; all other allowlist items remain proposed, pending contract freeze**
+- Stop conditions for the future implementation round (§16) — proposed, pending contract freeze
 
 ### 2.3 Out of scope (explicit exclusions)
 
@@ -723,16 +723,19 @@ Both layers fail closed:
 **D3 verdict (binding, this round):**
 
 ```
+D3_READ_ONLY_AUDIT_COMPLETED
 D3_AUDIT_RESULT = NOT_ESTABLISHED
-D3_NORMALIZED_SCHEMA_AUDIT_PENDING
+D3_NORMALIZED_SCHEMA_AUDIT_PENDING = FALSE (audit itself completed read-only)
+D3_DECISION_EVIDENCE_NOT_ESTABLISHED
 D3_CANDIDATE_EXCLUDED_JSON_PATHS = NOT_PROPOSED
-D3_DECISION_STATUS = PENDING_NORMALIZED_SCHEMA_AUDIT
+D3_DECISION_STATUS = PENDING
+D3_DECISION_PENDING
 D3_EMPTY_LIST_NOT_APPROVED
 ```
 
 **Rationale:** the docs-only audit cannot definitively prove that the production runtime path produces byte-identical normalized output across SQLite and PostgreSQL for all high-throughput inputs. The `_seed_helpers.py` test path is deterministic (fixed string IDs), but the production path uses DB-generated PKs that are NOT in the `AdapterResult` output by design. A full proof requires executing the production path on both backends with the high-throughput input; this round is docs-only and cannot run the production path. The honest verdict is `NOT_ESTABLISHED`, NOT a fabricated empty-list approval.
 
-**Allowed next step:** a future implementation round (not this round) may run the production path on both backends with a high-throughput input and produce empirical evidence; the resulting D3 audit may then be re-classified to `EMPTY_EXCLUSION_SET_SUPPORTED` or to `EXACT_EXCLUSION_PATHS_REQUIRED` based on observed cross-backend variance.
+**Allowed next step:** a future separately authorized evidence-validation round, NOT an implementation round, may run the production path on both backends with a high-throughput input and produce empirical evidence. That future round does NOT automatically authorize: fixture authoring, expected-output authoring, canonicalizer implementation, runner implementation, manifest implementation, or any production-code mutation. Each of those requires a separate Charles authorization with explicit file / command / database / side-effect boundary.
 
 ### 10.6 D9 high-throughput exact-input audit (read-only, this round)
 
@@ -750,33 +753,39 @@ D3_EMPTY_LIST_NOT_APPROVED
 **D9 verdict (binding, this round):**
 
 ```
+D9_READ_ONLY_AUDIT_COMPLETED
 D9_AUDIT_RESULT = NOT_ESTABLISHED
 HIGH_THROUGHPUT_SOURCE_DEFINITION_NOT_ESTABLISHED
 D9_CANDIDATE_INPUT_PATH = NOT_PROPOSED
 D9_BASELINE_VALUE = NOT_PROPOSED
 D9_CANDIDATE_VALUE = NOT_PROPOSED
-D9_PRODUCTION_RULE = _coefficient_review_at_calculations/domain/service.py
-D9_EXPECTED_REVIEW_REASON = DEMO_COEFFICIENT_REQUIRES_REVIEW
-D9_DECISION_STATUS = PENDING_EXACT_INPUT_VALUES
+D9_PRODUCTION_RULE_CANDIDATE = backend/src/cold_storage/modules/calculations/domain/service.py::_coefficient_review
+D9_PRODUCTION_WARNING_CODE_CANDIDATE = COEFFICIENT_REQUIRES_REVIEW
+D9_PRODUCTION_WARNING_MESSAGE_CANDIDATE = 计算使用了未批准或需复核的系数
+D9_EXPECTED_REVIEW_REASON = NOT_ESTABLISHED
+D9_EXACT_INPUT_EVIDENCE_NOT_ESTABLISHED
+D9_DECISION_STATUS = PENDING
+D9_DECISION_PENDING
 D9_NOT_APPROVED_DURING_THIS_ROUND
 ```
 
-**Rationale:** the production rule that naturally produces `requires_review=true` + non-empty `review_reasons` is the `_coefficient_review` mechanism in `backend/src/cold_storage/modules/calculations/domain/service.py`, triggered by demo coefficients (per `AGENTS.md`). However, the **exact input values** (the `project_input` payload, weight-set IDs, source-binding IDs, and the specific `SourceBinding` configuration) that produce the high-throughput scenario's `requires_review=true` with `execution_outcome=SUCCEEDED` are **NOT** established at the docs-only audit level. Establishing them requires:
+**Rationale:** the production rule that naturally produces `requires_review=true` + non-empty `review_reasons` is the `_coefficient_review` mechanism in `backend/src/cold_storage/modules/calculations/domain/service.py`, triggered by demo coefficients (per `AGENTS.md`). The candidate production-rule warning code is `COEFFICIENT_REQUIRES_REVIEW` and the production message is `计算使用了未批准或需复核的系数` (per the production code review). However, the **exact input values** (the `project_input` payload, weight-set IDs, source-binding IDs, and the specific `SourceBinding` configuration) that produce the high-throughput scenario's `requires_review=true` with `execution_outcome=SUCCEEDED` are **NOT** established at the docs-only audit level. Furthermore, the final persisted `review_reasons` array order, exact composition, and warning-message mapping have NOT been executed and confirmed; therefore the exact `review_reasons` value remains `NOT_ESTABLISHED`. Establishing them requires:
 - authoring a fixture (FORBIDDEN this round, per §6.2 "no fixture authoring"),
 - authoring an expected-output file (FORBIDDEN this round, per §0 "no expected-output authoring"),
 - running the production path on both backends (OUT of scope, this round is read-only).
 
-The honest verdict is `NOT_ESTABLISHED`. The production rule is identified; the exact input values are NOT.
+The honest verdict is `NOT_ESTABLISHED`. The production rule is identified as a candidate; the exact input values, the exact persisted `review_reasons` array, and the final source definition are NOT.
 
-**Forbidden methods (binding, per review `4679463188` and this round's auth §6.2):**
+**Forbidden methods (binding, per review `4679463188`, this round's auth §6.2, and review `4679476507`):**
 - Setting `requires_review` based on `scenario_id` or `correlation_id`.
 - Injecting review flag in evaluation adapter.
 - Monkey-patching production rules in tests.
 - Modifying production thresholds.
 - Inventing review reasons.
 - Creating fixture or expected-output files.
+- Asserting a review reason value that is not produced by the identified production rule.
 
-**Allowed next step:** a future implementation round (not this round) may propose a repository-backed fixture that exercises the `_coefficient_review` path, and the resulting D9 audit may then be re-classified to `EXACT_INPUT_CANDIDATE_ESTABLISHED` based on observed production-path behavior.
+**Allowed next step:** a future separately authorized evidence-validation round, NOT an implementation round, may propose a repository-backed fixture that exercises the `_coefficient_review` path. That future round does NOT automatically authorize: fixture authoring, expected-output authoring, canonicalizer implementation, runner implementation, manifest implementation, or any production-code mutation. Each of those requires a separate Charles authorization with explicit file / command / database / side-effect boundary.
 
 ---
 
@@ -784,23 +793,19 @@ The honest verdict is `NOT_ESTABLISHED`. The production rule is identified; the 
 
 ### 11.0 Current main behavior vs TASK-011C contract (read-only)
 
-Same as prior; current `run_directory.py` computes paths only, does not write `run.json` / `summary.json` / normalized artifacts. TASK-011C contract describes what the future implementation round will write.
+Read-only description; current `run_directory.py` computes paths only, does not write `run.json` / `summary.json` / normalized artifacts. TASK-011C contract describes what a future separately authorized evidence-validation round, NOT an implementation round, may write.
 
-### 11.1 `run.json` schema (frozen)
+### 11.1 `run.json` schema
 
-Same fields as prior; semantic-versioning is still bound to D5 (`schema_version` literal in nested run.json follows `"task011c-run.v1"` as a string label, not a numeric version).
+Proposed, pending contract freeze. The semantic-versioning literal is bound to D5 (`schema_version` literal in nested run.json follows `"task011c-run.v1"` as a string label, not a numeric version). The other field shapes and semantics remain proposed and require Charles sign-off before freeze.
 
-### 11.2 `summary.json` schema (frozen)
+### 11.2 `summary.json` schema
 
-Same fields as prior; `summary.normalized_artifact_sha256` MUST be equal across SQLite and PostgreSQL (per §12).
+Proposed, pending contract freeze. The requirement that `summary.normalized_artifact_sha256` MUST be equal across SQLite and PostgreSQL is conditional on the D3 final exclusion set decision (§12.0.2, §10.5); the rest of the field set remains proposed.
 
-### 11.3 Run-artifact semantics (frozen)
+### 11.3 Run-artifact semantics
 
-Same as prior; canonical bytes produced by `canonicalize_production_outputs` (D1).
-
----
-
-## 12. SQLite / PostgreSQL boundary (D3 EXCLUDED_JSON_PATHS = empty)
+Proposed, pending contract freeze. The canonical-bytes concept is anchored in the D1 canonicalization authority (`canonicalize_production_outputs`); the rest of the artifact semantics remain proposed.
 
 ### 12.0 Field-by-field parity (frozen)
 
@@ -1091,5 +1096,5 @@ This round commits and pushes only the contract amendment; PR #61 stays Draft / 
 |---|---|---|---|
 | Initial authoring | 2026-07-12 | Hermes | Initial TASK-011C remaining evaluation scenarios contract (NOT frozen) |
 | Review-correction round | 2026-07-12 | Hermes | Corrected against Issue #20 review comment `4949858037` (P0 + 8 contract corrections; §1 status wording; §6.2 high-throughput four-field invariants + real-production review signal; §6.3 invalid_blocked field-by-field; §7.0 manifest single-path; §7.1 CLI exit codes; §8.10 per-file expected-output authority; §10 Path B canonicalization; §11 current-main-vs-future contract; §12 field-by-field SQLite/PG parity; §16 stop conditions S13–S23; §20 verdict lifecycle) |
-| **Charles Partial Decision Closure Round (prior round)** | 2026-07-12 | Hermes | Integrated prior-round Charles authority: D1 (canonicalization `canonicalization.py::canonicalize_production_outputs`); D2 (strict JSON two-layer); D3 (V1 excluded paths empty per prior-round authority); D4 (exact numeric default, no global tolerance); D5 (`schema_version="1.0"` Charles policy); D6 (loader `manifest.py::load_and_validate_manifest`); D7 (setuptools package-data); D8 (importlib.resources); D10 (`PRODUCTION_CALCULATION_PROJECTION_MISSING_TOTAL_AREA_M2` source-defines `invalid_blocked`). D9 retains `PENDING_EXACT_INPUT_VALUES_ONLY` and was treated as the (then-perceived) sole remaining contract-freeze blocker. Rewrote §6.3 invalid_blocked source inventory to remove prior staged PENDING counters and close the source definition; removed §12.0.2 wildcard exclusions table (D3 = empty excluded paths in V1); updated §10 manifest decisions to reflect D1; updated §13 implementation allowlist with new test names; updated §16 stop conditions S25–S30 for D1–D8/D10; replaced the prior pending-state marker for invalid_blocked with `INVALID_BLOCKED_SOURCE_DEFINITION_CLOSED`. PR #21 / PR #23 / PR #60 / Issue #20 untouched. |
-| **Maintainer Authority Provenance Correction + D3/D9 Audit Round (this round)** | 2026-07-12 | Hermes | **Read the binding maintainer authority from PR #61 top-level comment `4950035046` and review `4679463188` (NOT the local `/root/TASK-011C-Charles-Decision-Closure-Packet.md`)**. Downgraded the local packet to "historical work material only", not a repository authority source. **Updated status** to `TASK_011C_MAINTAINER_AUTHORITY_ESTABLISHED` / `TASK_011C_CONTRACT_NOT_FROZEN`. **Marked D3** as `PENDING_NORMALIZED_SCHEMA_AUDIT` (replaced the frozen `TASK_011C_V1_EXCLUDED_JSON_PATHS = []` with `PENDING` + D3 audit evidence ledger in new §10.5, verdict `D3_AUDIT_RESULT = NOT_ESTABLISHED`). **Marked D9** as `PENDING_EXACT_INPUT_VALUES` (replaced "D9 sole remaining blocker" with new §10.6 D9 audit evidence ledger, verdict `D9_AUDIT_RESULT = NOT_ESTABLISHED`; production rule identified = `_coefficient_review` in `backend/src/cold_storage/modules/calculations/domain/service.py:89, 189, 274, 309`, but exact input values NOT established at docs-only audit level). **Updated contract-freeze blocker** from the prior-round D9-only formulation to `TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_D3_AND_D9` (§1, §6.2, §19). **Preserved** D1, D2, D4–D8, D10 as approved. **Preserved** `INVALID_BLOCKED_SOURCE_DEFINITION_CLOSED_BY_D10` (D10 closure unchanged). **Updated** §6.2 D9 disposition, §6.3 D10 disposition, §10.1 D1 path, §12.0.2 D3 pending state, §19 final verdict to reflect the new maintainer-authority framework. PR #21 / PR #23 / PR #60 / Issue #20 untouched; no fixture / no expected-output / no implementation authorized. |
+| **Charles Partial Decision Closure Round (prior round)** | 2026-07-12 | Hermes | Integrated prior-round Charles authority: D1 (canonicalization `canonicalization.py::canonicalize_production_outputs`); D2 (strict JSON two-layer); D3 (prior-round authority's candidate proposed an empty excluded-paths claim — later audited and superseded to pending-audit per maintainer authority round; no empty-list claim survives); D4 (exact numeric default, no global tolerance); D5 (`schema_version="1.0"` Charles policy); D6 (loader `manifest.py::load_and_validate_manifest`); D7 (setuptools package-data); D8 (importlib.resources); D10 (`PRODUCTION_CALCULATION_PROJECTION_MISSING_TOTAL_AREA_M2` source-defines `invalid_blocked`). D9 was carried as `PENDING_EXACT_INPUT_VALUES` during the prior round; the prior round also temporarily treated it as the single remaining deficit, which was subsequently corrected to `TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_D3_AND_D9` in the maintainer-authority round. Rewrote §6.3 invalid_blocked source inventory to remove prior staged PENDING counters and close the source definition; removed §12.0.2 wildcard exclusions table (the prior-round empty-list claim was later superseded); updated §10 manifest decisions to reflect D1; updated §13 implementation allowlist with new test names; updated §16 stop conditions S25–S30 for D1–D8/D10; replaced the prior pending-state marker for invalid_blocked with `INVALID_BLOCKED_SOURCE_DEFINITION_CLOSED`. PR #21 / PR #23 / PR #60 / Issue #20 untouched. |
+| **Maintainer Authority Provenance Correction + D3/D9 Audit Round (this round)** | 2026-07-12 | Hermes | **Read the binding maintainer authority from PR #61 top-level comment `4950035046` and review `4679463188` (NOT the local `/root/TASK-011C-Charles-Decision-Closure-Packet.md`)**. Downgraded the local packet to "historical work material only", not a repository authority source. **Updated status** to `TASK_011C_MAINTAINER_AUTHORITY_ESTABLISHED` / `TASK_011C_CONTRACT_NOT_FROZEN`. **Marked D3** as `PENDING_NORMALIZED_SCHEMA_AUDIT` (replaced the prior-round empty-list claim with `PENDING` + D3 audit evidence ledger in new §10.5, verdict `D3_AUDIT_RESULT = NOT_ESTABLISHED`). **Marked D9** as `PENDING_EXACT_INPUT_VALUES` (replaced the prior-round single-deficit framing with the new D3+D9 dual-blocker framing and §10.6 D9 audit evidence ledger, verdict `D9_AUDIT_RESULT = NOT_ESTABLISHED`; production rule identified = `_coefficient_review` in `backend/src/cold_storage/modules/calculations/domain/service.py:89, 189, 274, 309`, but exact input values NOT established at docs-only audit level). **Updated contract-freeze blocker** from the prior-round D9-only formulation to `TASK_011C_CONTRACT_FREEZE_BLOCKED_BY_D3_AND_D9` (§1, §6.2, §19). **Preserved** D1, D2, D4–D8, D10 as approved. **Preserved** `INVALID_BLOCKED_SOURCE_DEFINITION_CLOSED_BY_D10` (D10 closure unchanged). **Updated** §6.2 D9 disposition, §6.3 D10 disposition, §10.1 D1 path, §12.0.2 D3 pending state, §19 final verdict to reflect the new maintainer-authority framework. PR #21 / PR #23 / PR #60 / Issue #20 untouched; no fixture / no expected-output / no implementation authorized. |
