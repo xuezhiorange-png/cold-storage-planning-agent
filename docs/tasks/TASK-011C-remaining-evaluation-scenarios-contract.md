@@ -1,6 +1,6 @@
-# TASK-011C Remaining Evaluation Scenarios — Frozen Contract
+# TASK-011C Remaining Evaluation Scenarios — Draft Contract
 
-**Status:** DESIGN-ONLY / DRAFT / awaiting Charles freeze authorization
+**Status:** `TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW` / `TASK_011C_CONTRACT_NOT_FROZEN` / awaiting Charles freeze authorization
 **Created:** 2026-07-12 (server UTC)
 **Author:** Hermes (proposal subject to Charles-authorized freeze review)
 **Branch base:** `main @ 1636f25d4b6fafa38bfc9747938d0cba8b2abf50` (= `origin/main` HEAD post-PR-#60 + PR-#60 closeout)
@@ -22,7 +22,7 @@
 
 ## 0. Preamble
 
-This document **freezes the contract** for **TASK-011C** = the remaining evaluation scenarios (high-throughput-review, invalid-blocked) plus the manifest / runner / canonicalization / cleanup completeness that TASK-011B did not deliver.
+This document is a **draft contract** (not yet frozen) for **TASK-011C** = the remaining evaluation scenarios (high-throughput-review, invalid-blocked) plus the manifest / runner / canonicalization / cleanup completeness that TASK-011B did not deliver. The contract targets the **5 implementation gaps G1–G5**, but the document itself is pending Charles sign-off and is therefore `AUTHORED_PENDING_REVIEW` / `NOT FROZEN`.
 
 This document covers the **5 implementation gaps G1–G5** identified by the post-B audit (per the previous round's corrected audit matrix 5 PASS / 5 PARTIAL / 4 MISSING / 1 UNKNOWN):
 
@@ -44,18 +44,34 @@ This document **does not**:
 - Modify any tracked file outside `docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md`.
 - Touch any production code, evaluation runner code, evaluation fixture, manifest, expected output, baseline golden, sign-off, comparison policy, bootstrap, coefficients, migration, frontend, docker, .github, pyproject, uv.lock, or .gitignore.
 
-This document **does**:
-- Freeze the scenario set (§6), manifest contract (§7), expected-output authority flow (§8), runner contract (§9), canonicalization contract (§10), cleanup contract (§11), SQLite/PostgreSQL boundary (§12), future implementation allowlist proposal (§13), and stop conditions (§16).
-- Cite every source-of-truth in §5.
-- Surface the gaps and bounded scope so that Charles can authorize (or reject) a future TASK-011C implementation round.
+This document **proposes** (subject to Charles sign-off, NOT yet frozen):
+- A scenario set (§6), manifest contract (§7), expected-output authority flow (§8), runner contract (§9), canonicalization contract (§10), cleanup contract (§11), SQLite/PostgreSQL boundary (§12), future implementation allowlist proposal (§13), and stop conditions (§16) — each as a **proposed** contract clause to be reviewed and frozen by Charles.
+- A citation of every source-of-truth in §5.
+- A surfacing of the gaps and bounded scope so that Charles can authorize (or reject) a future TASK-011C implementation round.
 
 ---
 
 ## 1. Authority and status
 
-This contract is **frozen** as a single-file docs-only commit on branch `docs/task-011c-remaining-evaluation-scenarios-contract` (from `main @ 1636f25d4b6fafa38bfc9747938d0cba8b2abf50`). Implementation of the contract requires a separate Charles-authorized round and is NOT in this round's scope.
+**Document status: `TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW` / `TASK_011C_CONTRACT_NOT_FROZEN`**
 
-**Frozen disposition of legacy PRs (per Review 4679338799, binding):**
+This contract is **authored but NOT frozen** as a single-file docs-only commit on branch `docs/task-011c-remaining-evaluation-scenarios-contract` (from `main @ 1636f25d4b6fafa38bfc9747938d0cba8b2abf50`). Implementation of the contract requires a separate Charles-authorized round and is NOT in this round's scope.
+
+**Contract lifecycle (proposed, NOT yet activated):**
+```
+authored -> committed and pushed -> Draft PR created -> review corrections completed -> Charles sign-off -> contract frozen -> separate implementation authorization
+```
+
+**Document-marker rules (binding, this round):**
+- Do NOT describe the current contract document as `frozen` until Charles sign-off is recorded.
+- Do NOT use `contract frozen` / `freeze complete` / `ready for implementation` / `implementation may begin` / `frozen contract` until sign-off.
+- Use `TASK_011C_CONTRACT_AUTHORED_PENDING_REVIEW` and `TASK_011C_CONTRACT_NOT_FROZEN` for the current state.
+- The word `frozen` is allowed in the document ONLY when:
+  - referring to upstream artifacts that are already frozen (e.g., `baseline_feasible.v1.json` golden, TASK-011B pre-freeze contract, TASK-011B sign-off identity); or
+  - referring to a target contract clause that WILL be frozen upon Charles sign-off (and even then, the clause must be marked `proposed` / `pending review` until sign-off).
+- The document title is `TASK-011C Remaining Evaluation Scenarios — Draft Contract`, NOT `Frozen Contract`.
+
+**Disposition of legacy PRs (per Review 4679338799, binding):**
 ```
 PR21_SUPERSEDED
 PR21_REMAINS_OPEN_DRAFT_NOT_MERGED
@@ -219,9 +235,32 @@ A new scenario `high_throughput_review` that **MUST** be substantively distinct 
 
 **CLI exit semantics (per §7.1 below):** `high_throughput_review` exits with CLI success code `0` (NOT exit code `5`). `requires_review=true` and `review_state=REQUIRED` are business fields of a successful run, NOT a runner-level failure.
 
-**HIGH_THROUGHPUT_REVIEW_EXACT_FOUR_FIELDS (frozen invariant):**
+**HIGH_THROUGHPUT_REVIEW_EXACT_FOUR_FIELDS (target business invariants, NOT yet source-defined):**
 
-The four business fields `execution_outcome=SUCCEEDED`, `scheme_run.status=completed`, `requires_review=true`, `review_state=REQUIRED` MUST hold for **both** SQLite and PostgreSQL production runs of this scenario. If any of the four is not produced by real production logic, the scenario cannot be authored as a high-throughput scenario under this contract — the stop condition `TASK_011C_HIGH_THROUGHPUT_REQUIRES_REVIEW_PRODUCTION_RULE_MUTATION` (per §16) applies.
+The four business fields `execution_outcome=SUCCEEDED`, `scheme_run.status=completed`, `requires_review=true`, `review_state=REQUIRED` are the **target** business invariants for this scenario. They MUST hold for **both** SQLite and PostgreSQL production runs of this scenario. If any of the four is not produced by real production logic, the scenario cannot be authored as a high-throughput scenario under this contract — the stop condition `TASK_011C_HIGH_THROUGHPUT_REQUIRES_REVIEW_PRODUCTION_RULE_MUTATION` (per §16) applies.
+
+**HIGH_THROUGHPUT_SOURCE_DEFINITION_PENDING (binding gate, this round):**
+
+The four target fields above are **NOT yet source-defined**. The contract does NOT freeze any of the following 6 source items (each is left as `PENDING` until repository-backed evidence is provided):
+
+| # | Source item | Status |
+|---|---|---|
+| SD-1 | The exact fixture/input difference from baseline (the concrete project input, weight-set revision, source binding, or other input that produces a substantively distinct production result) | `PENDING` |
+| SD-2 | The exact production review rule that sets the review signal (the production code path that decides `requires_review=true` for this scenario's inputs) | `PENDING` |
+| SD-3 | The exact normalized review reason(s) emitted by production (the specific strings / codes the production layer populates) | `PENDING` |
+| SD-4 | The exact production field-to-expected-output mapping (which production fields map to which expected-output fields, and the mapping is stable across backends) | `PENDING` |
+| SD-5 | The exact source field that sets `requires_review` in the production model (the typed model field, e.g., `SchemeRunRecord.requires_review` or the equivalent, with documented FQN) | `PENDING` |
+| SD-6 | Proof that the current production path can reach the `requires_review=true` + `review_state=REQUIRED` state for an input variation, without modifying production formula / threshold / coefficient / scoring / review rule | `PENDING` |
+
+**Until all 6 source items above are repository-backed (with concrete file paths, function/class FQNs, and reproducible evidence), the following are NOT AUTHORIZED in this contract round:**
+- Creating the `high_throughput_review` fixture.
+- Creating the `high_throughput_review` expected output.
+- Implementing any runner special case (correlation-ID branch, scenario-ID branch, CLI flag branch, test-only relabel).
+- Modifying any production review rule, threshold, coefficient, or scoring function.
+- Treating `correlation_id` or `scenario_id` as a business input for the review signal.
+- Announcing that the `high_throughput_review` scenario is implementation-ready.
+
+The four target fields in `HIGH_THROUGHPUT_REVIEW_EXACT_FOUR_FIELDS` above are target business invariants; they are **NOT** a source definition. Reaching `source defined` requires the 6 items above to be evidenced.
 
 **HIGH_THROUGHPUT_REVIEW_REAL_PRODUCTION_REVIEW_SIGNAL (frozen invariant):**
 
@@ -234,11 +273,7 @@ The `review_state=REQUIRED` signal MUST come from a real production review rule.
 - hand-editing the expected-output file;
 - modifying production formula / threshold / coefficient / scoring / review rule.
 
-**HIGH_THROUGHPUT_MUST_BE_SUBSTANTIVELY_DISTINCT (frozen invariant):**
-
-A high-throughput scenario is "substantively distinct" from baseline if and only if it differs in **at least one** of the following observable properties:
-
-**HIGH_THROUGHPUT_MUST_BE_SUBSTANTIVELY_DISTINCT (frozen invariant):**
+**HIGH_THROUGHPUT_MUST_BE_SUBSTANTIVELY_DISTINCT (proposed invariant, pending review):**
 
 A high-throughput scenario is "substantively distinct" from baseline if and only if it differs in **at least one** of the following observable properties:
 - `expected_outcome` (e.g., baseline `SUCCEEDED` + `review_required: false` vs. high-throughput `SUCCEEDED` + `review_required: true`)
@@ -292,6 +327,21 @@ A new scenario `invalid_blocked` that exercises a **real production validation/b
 | `absence of success artifacts` | The normalized result MUST NOT contain `production_outputs` beyond the stage that raised; runner MUST assert absence |
 | `SQLite/PG business parity` | The same business verdict (blocked vs succeeded) MUST hold on both backends; no business-outcome drift allowed |
 
+**INVALID_BLOCKED_SOURCE_DEFINITION_PENDING (binding gate, this round):**
+
+The 14 `SOURCE PENDING` fields in the §6.3 table above are the open items required before this scenario can be authored. The contract does NOT freeze any of them as concrete values (no FQN, no error code, no field path, no row-delta) until each is evidenced from current production code.
+
+**Until the 14 source items above are repository-backed (with concrete file paths, function/class FQNs, error codes, field paths, row deltas, and reproducible evidence), the following are NOT AUTHORIZED in this contract round:**
+- `invalid_blocked` fixture NOT AUTHORIZED.
+- `invalid_blocked` expected output NOT AUTHORIZED.
+- `invalid_blocked` implementation NOT AUTHORIZED.
+- Selecting an arbitrary production exception to "fill" the contract is NOT AUTHORIZED.
+
+**Fail-closed stop condition (binding):** If the production code cannot provide a real validation pathway that produces a typed exception / structured error result, the implementation round MUST trigger:
+- `TASK_011C_INVALID_BLOCKED_PRODUCTION_PATH_NOT_ESTABLISHED` (per §16)
+
+The contract does NOT manufacture a placeholder path to complete the documentation.
+
 **INVALID_BLOCKED_FORBIDDEN_CIRCUMVENTION (frozen invariants):**
 
 The implementation round is **forbidden** from:
@@ -318,6 +368,60 @@ The implementation round is **forbidden** from:
 - Using a fixture that does NOT trigger a real production validation defect.
 - Mocking / stubbing the production validation entrypoint to return a synthetic exception.
 - Producing a `invalid_blocked` expected output that asserts presence of `production_outputs` past the blocked stage.
+
+---
+
+## 6.4 Review-field vocabulary mapping (FROZEN for naming, PENDING for source)
+
+The contract uses three distinct layers for review fields, with a single, frozen mapping between them. The contract explicitly **forbids** treating `requires_review` / `review_required` / `review_state` / `review_reasons` as interchangeable names without a typed mapping.
+
+### 6.4.1 Layer A — Production source fields (current production model)
+
+The current production model (in `main @ 1636f25d4b6fafa38bfc9747938d0cba8b2abf50`) exposes the following fields on the relevant production types (the exact FQN is `PENDING` source-definition per §6.2 SD-5):
+
+| Production source field | Type | Notes |
+|---|---|---|
+| `requires_review` | `bool` | Production-side boolean indicating whether the persisted result requires downstream review. |
+| `review_reasons` | `list[str]` | Production-side list of human-readable reason strings. |
+
+The contract does NOT introduce additional production-side fields. If the production model does not currently have a typed `review_state` enum field, the contract MUST NOT invent one in the production layer.
+
+### 6.4.2 Layer B — Normalized evaluation fields (runner-emitted, contract-defined)
+
+The normalized evaluation fields are emitted by the runner after canonicalization. They form the contract-defined vocabulary for the runner's output and the comparison target:
+
+| Normalized field | Type | Mapping rule |
+|---|---|---|
+| `normalized.requires_review` | `bool` | Set to the production source `requires_review` (1-to-1). |
+| `normalized.review_state` | enum | `REQUIRED` ⇔ `production.requires_review == true`; `NOT_REQUIRED` ⇔ `production.requires_review == false`; `NOT_APPLICABLE` ⇔ scenario not relevant for review (e.g., a scenario whose business outcome is `BLOCKED` and review is not part of the model). |
+| `normalized.review_reasons` | `list[str]` | Set to the production source `review_reasons` (1-to-1). |
+
+### 6.4.3 Layer C — Expected-output fields (tracked golden JSON)
+
+The expected-output JSON files for `high_throughput_review` and `invalid_blocked` (when they are authored in a future implementation round under separate Charles sign-off) MUST use the **Layer B (normalized) field names**, NOT the Layer A (production) field names. The contract fixes this single naming for the future expected-output files:
+
+| Expected-output field (canonical) | Maps from |
+|---|---|
+| `expected_outcome` | `execution_outcome` (proposed normalized name) — see §6.4.4 below |
+| `scheme_status` | production-side `SchemeRun.status` (e.g., `completed`, `blocked`, `not_created`) |
+| `requires_review` | `normalized.requires_review` |
+| `review_state` | `normalized.review_state` |
+| `review_reasons` | `normalized.review_reasons` |
+
+### 6.4.4 Single-source-of-truth naming (FROZEN)
+
+The contract uses ONE naming per concept, with the mapping above. Specifically:
+
+- The production-side field is `requires_review` (per Layer A). The contract MUST NOT refer to this as `review_required` in the production layer.
+- The normalized evaluation field is `requires_review` (per Layer B), inheriting the production name 1-to-1. The contract MUST NOT introduce `review_required` as a separate field.
+- If a future implementation or test refers to `review_required`, that reference MUST be either (a) renamed to `requires_review` (per Layer A/B), or (b) explicitly justified as legacy naming with a one-line comment AND deprecated. The contract does NOT treat `review_required` as a parallel authority.
+- The review reasons field is `review_reasons` (production + normalized + expected-output). The contract MUST NOT introduce `review_reason_codes` as a separate field without separate review.
+- `execution_outcome` is the **proposed normalized field name** for the runner-emitted business outcome. The TASK-011B baseline expected output uses the field name `expected_outcome` (not `execution_outcome`). The contract clarifies that, for cross-compatibility with the existing baseline, the future expected-output files may declare their outcome field as either:
+  - `execution_outcome` (newly proposed normalized name, used in this contract's §6.2), or
+  - `expected_outcome` (existing baseline field name, preserved for cross-compatibility).
+  - The choice is to be made by the future implementation round and recorded in the per-scenario expected-output sign-off document. The contract does NOT force a rename of the baseline `expected_outcome` field.
+
+The contract freezes ONE canonical mapping table. `requires_review` / `review_required` / `review_state` / `review_reasons` are NOT interchangeable. Each has a specific layer and a specific source. Cross-layer mapping MUST go through the table above.
 
 ---
 
@@ -638,11 +742,26 @@ The following fields MUST be byte-identical (or `decimal_fields`-quantization-eq
 | `requires_review` | `summary.requires_review` | bool |
 | `review_state` | `summary.review_state` | `NOT_REQUIRED` / `REQUIRED` / `NOT_APPLICABLE` |
 | Comparison classification | `summary.comparison_result` | `pass` / `fail` / `not_applicable` |
-| Deterministic calculated values | `summary.normalized_artifact_sha256` | SHA-256 of canonical bytes — must match |
-| Source/content hashes | `summary.raw_artifact_sha256`, `summary.normalized_artifact_sha256`, `summary.expected_output_sha256` | must match (when applicable) |
+| Deterministic calculated values | `summary.normalized_artifact_sha256` | SHA-256 of canonical bytes — must match (cross-backend) |
 | Blocker/error code | `summary.error_or_blocker_result.code` | must match (when applicable) |
 | Blocker/error field | `summary.error_or_blocker_result.field` | must match (when applicable) |
 | Expected-output match result | `summary.comparison_result` + per-leaf diff | must match |
+
+#### 12.0.1.1 Hash-category requirements (FROZEN, addresses prior contradiction)
+
+The contract freezes three distinct hash categories. Each category has its own cross-backend parity rule:
+
+| Hash category | Cross-backend rule | Used for |
+|---|---|---|
+| `summary.raw_artifact_sha256` | **Per-backend stable, NOT required to be equal across SQLite and PostgreSQL.** Recorded separately for each backend run. Used only for **integrity verification** of the raw artifact (e.g., file system or transport corruption), NOT for cross-backend business parity. | Integrity check |
+| `summary.normalized_artifact_sha256` | **MUST be equal across SQLite and PostgreSQL**, conditional on all allowed-difference fields being properly canonicalized or excluded. SHA-256 of canonical bytes of the normalized output (per §10). | Cross-backend business parity |
+| `summary.expected_output_sha256` | **MUST be the same for the same scenario + revision** — it is the file-level SHA-256 of the repository-owned golden expected-output JSON. It is NOT cross-backend (it is a file hash, not a runtime hash). | Repository-owned golden integrity |
+
+The contract explicitly **forbids** asserting that `raw_artifact_sha256` is equal across SQLite and PostgreSQL while simultaneously permitting backend-specific fields (database IDs, timestamps, diagnostics) to differ. Such a combination is logically inconsistent. The contract removes the contradiction by:
+1. Removing `raw_artifact_sha256` from the must-match table (§12.0.1).
+2. Adding a per-backend recording rule: each backend's run records its own `raw_artifact_sha256` in its own `summary.json`.
+3. Cross-backend business parity is established via `normalized_artifact_sha256` (which already excludes backend-specific fields per §12.0.2).
+4. `expected_output_sha256` is the file hash of the golden, recorded once per scenario, not per backend.
 
 #### 12.0.2 May-differ fields (backend-specific or runtime, must be normalized or excluded)
 
@@ -716,7 +835,7 @@ This contract proposes the following allowlist for a future TASK-011C implementa
 - `.github/**` — CI workflow not modified
 - `docker-compose*` — Docker not modified
 - `pyproject.toml`, `uv.lock` — dependencies not modified
-- `.gitignore` modifications — proposed only with explicit per-path allowlist and Charles sign-off
+- `.gitignore` modifications — **NOT AUTHORIZED** in TASK-011C. The TASK-011C implementation contract does NOT authorize any `.gitignore` modification. If the future implementation round discovers that a target path is gitignored, it MUST trigger the stop condition `TASK_011C_GITIGNORE_CHANGE_REQUIRES_SEPARATE_AMENDMENT` (per §16) and STOP — it MUST NOT mutate `.gitignore` in the TASK-011C implementation round. Any future `.gitignore` change requires a separate TASK-011C contract amendment with its own Charles sign-off.
 - `README.md`, `CODEX_TASKS.md` — top-level project files not modified
 - `docs/roadmap/**` — roadmap not modified
 
@@ -756,7 +875,7 @@ The future TASK-011C implementation round is **forbidden** from:
 12. Extracting or committing PR #23's 1,728-line design document.
 13. Authoring any expected output without the §8 authority flow.
 14. Using `git add -f`, `update-golden` subcommand, or self-approval.
-15. Creating a second canonicalizer (reuse the existing authoritative one).
+15. **Canonicalization authority is single, future-only, and separately authorized.** Per §10 (Path B decision), the current main does NOT provide a complete canonicalization authority. The future TASK-011C implementation round MUST use the single future authority `backend/src/cold_storage/evaluation/canonicalize.py::canonicalize_production_outputs(...)` (per §10.2), and ONLY that authority. **It is forbidden to create a second canonicalizer. It is forbidden to claim that a current main module is the authoritative canonicalizer. The runner / manifest validator / expected-output comparison / compare / CLI / test helpers MUST NOT each write their own ad-hoc JSON normalization; all of them MUST go through the single future `canonicalize_production_outputs` once it is separately authorized and implemented. Until that module exists, no canonicalization is performed and no canonical bytes are produced.**
 16. Building a runner that can produce zero-exit while a `fail` scenario is unaccounted for.
 
 ---
@@ -795,6 +914,8 @@ A stop condition is a hard round-end. The implementation round must produce a `B
 | S21 | `TASK_011C_REMOTE_COMMIT_CANNOT_BE_ESTABLISHED` | The contract commit cannot be pushed to a GitHub-visible branch. |
 | S22 | `TASK_011C_CONTRACT_SOURCE_CONFLICTS_WITH_MAIN` | The contract's source-of-truth matrix (§5) becomes inconsistent with the current main (e.g., new commits change evaluation module structure). |
 | S23 | `TASK_011C_HIGH_THROUGHPUT_SUBSTANTIVE_INVARIANT_UNIDENTIFIED` | No production pathway produces a substantively distinct result for the `high_throughput_review` scenario without violating the substantively-distinct invariants of §6.2. |
+| S24 | `TASK_011C_GITIGNORE_CHANGE_REQUIRES_SEPARATE_AMENDMENT` | The TASK-011C implementation round discovers a target path that is gitignored (e.g., `backend/src/cold_storage/evaluation/canonicalize.py`, or any other expected path). The implementation round MUST NOT mutate `.gitignore`; it MUST STOP and request a separate contract amendment. |
+
 
 ---
 
