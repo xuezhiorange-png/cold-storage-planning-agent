@@ -47,3 +47,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
+
+# TASK-011C V1 — D7: package-data declaration for the V1 manifest
+# schema. The schema is package-owned and shipped inside the wheel.
+# No other pyproject.toml sections are modified by this round.
+[tool.setuptools.package-data]
+"cold_storage.evaluation.schema" = ["manifest.schema.json"]
