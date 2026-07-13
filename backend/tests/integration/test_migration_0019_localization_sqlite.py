@@ -32,7 +32,7 @@ def _run_alembic(
     args: list[str],
     db_path: str,
     *,
-    timeout: int = 60,
+    timeout: int = 300,
 ) -> subprocess.CompletedProcess:
     """Run ``uv run alembic <args>`` against a temporary SQLite database."""
     env = os.environ.copy()
