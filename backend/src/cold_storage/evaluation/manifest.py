@@ -41,6 +41,7 @@ from typing import Any, Final
 from pydantic import ValidationError
 
 from cold_storage.evaluation.canonicalization import (
+    UnsupportedJSONValueError,
     canonicalize_production_outputs,
 )
 from cold_storage.evaluation.models import MANIFEST_SCHEMA_VERSION, Manifest
@@ -133,30 +134,40 @@ class ManifestMalformedJSONError(ManifestError):
 # ── Public API (D6 single entry point) ───────────────────────────────
 
 
-def load_and_validate_manifest(
-    manifest_path: Path,
-    *,
-    referenced_files_check: bool = True,
-) -> Manifest:
+def load_and_validate_manifest(manifest_path: Path) -> Manifest:
     """Load and validate the manifest at ``manifest_path``.
 
     This is the **single** entry point for manifest loading. It
-    performs:
+    performs fail-closed validation in the order:
 
     1. Path-safety resolution of ``manifest_path`` (via
        :func:`safe_resolve_manifest_path` against the manifest's
        parent directory).
     2. UTF-8 read with size cap.
-    3. JSON parse with typed error mapping.
-    4. JSON Schema validation against the V1 schema (loaded via
+    3. JSON parse with typed error mapping. ``parse_constant`` is
+       configured to reject ``NaN`` / ``Infinity`` / ``-Infinity``
+       as :class:`ManifestUnsupportedJSONValueError`
+       (P0-4 fail-closed).
+    4. Recursive strict-value validation (D2 / D1 strict-JSON
+       value domain) of the raw parsed object. The D1 authority
+       is reused (:func:`canonicalize_production_outputs`); no
+       second recursive canonicalizer is created. Failures map
+       to :class:`ManifestUnsupportedJSONValueError`.
+    5. JSON Schema validation against the V1 schema (loaded via
        :func:`load_manifest_schema_text`, which uses
        ``importlib.resources`` — no repository-relative fallback).
-    5. Pydantic model validation (forbids unknown fields, enforces
+    6. Pydantic model validation (forbids unknown fields, enforces
        ``schema_version="1.0"`` literal, enforces empty
        ``excluded_paths``).
-    6. Cross-scenario duplicate detection (fixture_id, scenario_id
-       + db_dialect combination).
-    7. (Optional) referenced-files existence check.
+    7. Cross-scenario duplicate detection (fixture_id + scenario_id
+       + per-scenario backend identity combination).
+    8. Mandatory referenced-files existence check (file-safety
+       and path-safety validation of every declared
+       ``fixtures[].path`` and ``expected_output.path``).
+
+    The ``referenced_files_check`` parameter was removed
+    (review 4689545688 P0-4). The check is mandatory and
+    internal; there is no public bypass.
 
     Parameters
     ----------
@@ -164,13 +175,6 @@ def load_and_validate_manifest(
         Filesystem path to the manifest JSON. MUST be an absolute
         path. The path is validated for safety (no ``..`` escape,
         no absolute path under the parent, no symlink escape).
-    referenced_files_check:
-        If ``True`` (default), the loader checks that every path
-        declared in the manifest (fixtures, expected outputs) exists
-        on disk and resolves to a sub-path of the manifest's
-        parent directory. Set ``False`` to skip the filesystem
-        check (e.g., for in-memory tests that only need schema
-        validation).
 
     Returns
     -------
@@ -190,9 +194,25 @@ def load_and_validate_manifest(
     # 2. Read
     raw_text = _read_manifest_text(manifest_path)
 
-    # 3. JSON parse
+    # 3. JSON parse with fail-closed ``parse_constant``. NaN /
+    # Infinity / -Infinity are mapped to
+    # ManifestUnsupportedJSONValueError before Pydantic sees the
+    # value.
     try:
-        raw_obj = json.loads(raw_text)
+        raw_obj = json.loads(
+            raw_text,
+            parse_constant=_reject_nonfinite_json_constant,
+        )
+    except _NonFiniteJSONConstantError as exc:
+        raise ManifestUnsupportedJSONValueError(
+            f"manifest contains a non-finite JSON constant: {exc.token!r}. "
+            "NaN, Infinity, and -Infinity are not part of the V1 strict "
+            "JSON value domain (D2).",
+            details={
+                "value": exc.token,
+                "manifest_path": str(manifest_path),
+            },
+        ) from exc
     except json.JSONDecodeError as exc:
         raise ManifestMalformedJSONError(
             f"manifest is not valid JSON: {exc.msg} at line {exc.lineno} col {exc.colno}.",
@@ -204,10 +224,27 @@ def load_and_validate_manifest(
             },
         ) from exc
 
-    # 4. JSON Schema validation
+    # 4. Recursive strict-value validation (D2). The D1 authority
+    # is reused; the strict-JSON canonicalizer validates every
+    # value against the D2 allow-list. Any non-JSON value
+    # (NaN, Decimal, datetime, tuple, set, custom class, non-string
+    # key, etc.) is rejected.
+    try:
+        canonicalize_production_outputs(raw_obj, excluded_paths=())
+    except UnsupportedJSONValueError as exc:
+        # Map the D1 typed error to the loader's typed error.
+        raise ManifestUnsupportedJSONValueError(
+            f"manifest contains an unsupported JSON value: {exc}",
+            details={
+                **(exc.details or {}),
+                "manifest_path": str(manifest_path),
+            },
+        ) from exc
+
+    # 5. JSON Schema validation
     _validate_against_json_schema(raw_obj, manifest_path)
 
-    # 5. Pydantic model validation (forbids unknown fields, etc.)
+    # 6. Pydantic model validation (forbids unknown fields, etc.)
     try:
         manifest = Manifest.model_validate(raw_obj)
     except ValidationError as exc:
@@ -215,12 +252,11 @@ def load_and_validate_manifest(
         # the error ``type`` string to map to the right code.
         raise _map_pydantic_error(exc, manifest_path) from exc
 
-    # 6. Cross-scenario duplicate detection
+    # 7. Cross-scenario duplicate detection
     _check_no_duplicate_fixture_ids(manifest, manifest_path)
 
-    # 7. Optional referenced-files check
-    if referenced_files_check:
-        _check_referenced_files_exist(manifest, manifest_root, manifest_path)
+    # 8. Mandatory referenced-files existence + path-safety check.
+    _check_referenced_files_exist(manifest, manifest_root, manifest_path)
 
     return manifest
 
@@ -228,9 +264,14 @@ def load_and_validate_manifest(
 def compute_manifest_sha(manifest: Manifest) -> str:
     """Compute the canonical SHA-256 of a manifest.
 
-    The canonical form is the D1 canonicalizer's output (UTF-8
-    text, sorted keys, fixed separators). Downstream code uses
-    this SHA to bind a run to a specific manifest.
+    The canonical form is the D1 canonicalizer's output
+    (real :class:`bytes`, UTF-8 encoded, sorted keys, fixed
+    separators). Downstream code uses this SHA to bind a run to
+    a specific manifest.
+
+    Per Charles's review 4689545688 P0-2, the SHA-256 is computed
+    directly on the returned canonical bytes (no intermediate
+    ``.encode(...)`` step).
 
     Parameters
     ----------
@@ -248,14 +289,47 @@ def compute_manifest_sha(manifest: Manifest) -> str:
     # tuple containers remain as lists. The D2 strict-JSON
     # canonicalizer accepts the resulting value domain directly.
     dumped = manifest.model_dump(mode="json")
-    canonical = canonicalize_production_outputs(
+    canonical_bytes = canonicalize_production_outputs(
         dumped,
         excluded_paths=(),
     )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    # Hash the bytes directly. Per Charles's review 4689545688
+    # P0-2, no second ``.encode("utf-8")`` is performed on the
+    # canonical output.
+    return hashlib.sha256(canonical_bytes).hexdigest()
 
 
 # ── Private helpers (D6, D5, D7, D8) ────────────────────────────────
+
+
+class _NonFiniteJSONConstantError(ValueError):
+    """Internal sentinel raised by ``_reject_nonfinite_json_constant``.
+
+    The loader catches this and re-raises as
+    :class:`ManifestUnsupportedJSONValueError`. Using an internal
+    exception type avoids message-text classification.
+    """
+
+    def __init__(self, token: str) -> None:
+        super().__init__(f"non-finite JSON constant: {token!r}")
+        self.token = token
+
+
+def _reject_nonfinite_json_constant(_constant: str) -> None:
+    """``parse_constant`` callback for :func:`json.loads`.
+
+    The Python ``json`` module accepts the non-standard tokens
+    ``NaN``, ``Infinity``, and ``-Infinity`` (and their lowercase
+    forms) and maps them to ``float('nan')`` /
+    ``float('inf')`` / ``float('-inf')`` respectively. These
+    are NOT part of the V1 strict JSON value domain (D2). The
+    V1 loader must reject them at parse time.
+
+    The callback raises :class:`_NonFiniteJSONConstantError`; the
+    loader catches it and re-raises as
+    :class:`ManifestUnsupportedJSONValueError`.
+    """
+    raise _NonFiniteJSONConstantError(_constant)
 
 
 def _validate_manifest_path_safety(manifest_path: Path) -> Path:

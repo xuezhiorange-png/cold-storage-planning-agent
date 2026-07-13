@@ -7,18 +7,21 @@ authoring are not part of C-1 and are explicitly out of scope.
 
 Boundary note
 -------------
-The V1 manifest JSON wire form keeps the contract-mandated field name
-``DB_DIALECT_JSON_FIELD`` (per the frozen TASK-011C contract, §6.4
-"Database backend identity" and §7.0 schema). To avoid colliding with
-the production ORM field carve-out enforced by the architecture
-boundary suite, which restricts the literal token to the production
-adapter and executor modules only, the Pydantic attribute name in
-this module is the alias ``db_dialect``. The JSON wire form is
-unchanged; the in-process Python attribute is ``db_dialect``.
-
-The constant ``DB_DIALECT_JSON_FIELD`` and the alias
-``DB_DIALECT_FIELD_ALIAS`` capture this duality; the rest of the module
-treats ``db_dialect`` as the canonical attribute name.
+The V1 manifest JSON wire form uses the contract-mandated field name
+``database_backend`` (per the frozen TASK-011C contract, §6.4
+"Database backend identity" and §7.0 schema). Per Issue #20
+architecture amendment comment ``4963778355``, the architecture
+boundary suite permits the literal ``database_backend`` token in
+this single file (``models.py``) and only for the single purpose
+of declaring the Pydantic typed scenario / run / summary identity
+field (and its Pydantic ``Field`` alias / serialization alias). The
+amendment does not permit any other token, any other file, any raw
+SQL, any ORM attribute access, any repository call, any
+``session.*`` call, or any production record construction from this
+module. The amendment is path-precise, token-precise, and
+purpose-precise; this module honors that amendment by keeping the
+``database_backend`` references strictly to Pydantic typed-model
+surface use only.
 """
 
 from __future__ import annotations
@@ -36,20 +39,8 @@ MANIFEST_SCHEMA_VERSION: Final[str] = "1.0"
 #: ignored in V1.
 D3_V1_EXCLUDED_JSON_PATHS: Final[tuple[str, ...]] = ()
 
-#: The contract-mandated JSON wire name for the per-scenario backend
-#: identity. Kept as the alias on the Pydantic attribute ``db_dialect``.
-#: The literal string is composed at import time to keep the source
-#: free of the production-ORM-field token that the boundary test
-#: restricts to the production adapter and executor modules.
-DB_DIALECT_JSON_FIELD: Final[str] = "data" + "base_" + "backend"
-
-#: The in-process Python attribute name on the typed model. Pairs
-#: with the alias ``DB_DIALECT_JSON_FIELD``. Same composition rule
-#: as ``DB_DIALECT_JSON_FIELD``.
-DB_DIALECT_FIELD_ALIAS: Final[str] = "data" + "base_" + "backend"
-
-#: Allowed backend dialect values (V1). Mirrors
-#: ``DB_DIALECT_JSON_FIELD``'s contract-mandated value set.
+#: Allowed backend dialect values (V1). Mirrors the JSON enum
+#: declared in ``backend/src/cold_storage/evaluation/schema/manifest.schema.json``.
 ALLOWED_DATABASE_BACKENDS: Final[frozenset[str]] = frozenset({"sqlite", "postgresql"})
 
 #: Allowed ``expected_outcome`` values (V1).
@@ -103,15 +94,24 @@ class EvaluationResult(str, enum.Enum):  # noqa: UP042
     INFRASTRUCTURE_ERROR = "infrastructure_error"
 
 
+# V1: only EXACT and DECIMAL are valid comparison kinds. EXCLUDED
+# was removed because the D3 V1 exclusion set is empty and
+# Charles's review (4689545688 P0-3) rejected the accepted-but-
+# unused kind. See ``TASK-011C-remaining-evaluation-scenarios-contract.md``
+# §10.3 for the empty-exclusion-set binding.
+
+
 class ComparisonKind(str, enum.Enum):  # noqa: UP042
     """Per-leaf comparison kind. Default is EXACT (D4).
 
-    See ``DatabaseBackend`` for the ``str``-mixin rationale.
+    V1 accepts ``EXACT`` and ``DECIMAL`` only. There is no
+    ``EXCLUDED`` kind because the D3 V1 exclusion set is empty
+    and Charles's review (4689545688 P0-3) explicitly rejected
+    it.
     """
 
     EXACT = "exact"
-    DECIMAL_CANONICAL = "decimal_canonical"
-    EXCLUDED = "excluded"  # unused in V1 (D3: empty exclusion set)
+    DECIMAL = "decimal"
 
 
 # ── Sub-models ───────────────────────────────────────────────────────
@@ -120,9 +120,8 @@ class ComparisonKind(str, enum.Enum):  # noqa: UP042
 class ComparisonPolicyLeaf(BaseModel):
     """A single leaf in the comparison policy.
 
-    V1 only emits ``EXACT`` and ``DECIMAL_CANONICAL`` kinds; the
-    ``EXCLUDED`` kind is retained for type completeness but is
-    unused in V1 (D3 empty exclusion set).
+    V1 only emits ``EXACT`` and ``DECIMAL`` kinds. The ``EXCLUDED``
+    kind was removed by the review correction (4689545688 P0-3).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -135,8 +134,8 @@ class ComparisonPolicy(BaseModel):
     """Per-scenario comparison policy.
 
     The V1 default is exact equality (D4). No global float tolerance
-    is permitted; decimal fields are compared via
-    ``DECIMAL_CANONICAL`` (fixed scale, exact string match).
+    is permitted; decimal-valued fields are compared via
+    ``DECIMAL`` (fixed scale, exact string match).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -179,27 +178,18 @@ class ScenarioDeclaration(BaseModel):
 
     V1 scenario_ids: ``baseline_feasible`` and ``invalid_blocked``.
 
-    The ``db_dialect`` attribute maps to the contract-mandated JSON
-    field ``DB_DIALECT_JSON_FIELD`` via Pydantic's ``alias`` mechanism.
-    The in-process Python attribute is intentionally renamed to avoid
-    the production ORM field carve-out; the JSON wire form is unchanged.
+    The ``database_backend`` field is the contract-mandated JSON
+    wire field (per the frozen TASK-011C contract, §6.4 and §7.0).
+    Per Issue #20 architecture amendment comment ``4963778355``,
+    the literal token is permitted in this file only and only for
+    Pydantic typed-model surface use (field declaration, Pydantic
+    ``Field`` alias / serialization alias, enum value validation).
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        populate_by_name=True,
-    )
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     scenario_id: str = Field(min_length=1)
-    # The constant ``DB_DIALECT_JSON_FIELD`` is composed at import
-    # time to keep the source free of the production-ORM-field
-    # literal; the ``# type: ignore`` is required because Pydantic's
-    # mypy plugin only accepts a string literal for the ``alias``
-    # argument.
-    db_dialect: DatabaseBackend = Field(  # type: ignore[literal-required]
-        alias=DB_DIALECT_JSON_FIELD,
-    )
+    database_backend: DatabaseBackend
     expected_outcome: ExpectedOutcome
     fixtures: tuple[FixtureRef, ...] = Field(default_factory=tuple)
     expected_output: ExpectedOutputRef | None = None
@@ -276,11 +266,11 @@ class Manifest(BaseModel):
     ) -> tuple[ScenarioDeclaration, ...]:
         seen: set[tuple[str, str]] = set()
         for s in value:
-            key = (s.scenario_id, s.db_dialect.value)
+            key = (s.scenario_id, s.database_backend.value)
             if key in seen:
                 raise ValueError(
                     f"duplicate scenario declaration: scenario_id={s.scenario_id!r} "
-                    f"dialect={s.db_dialect.value!r}."
+                    f"database_backend={s.database_backend.value!r}."
                 )
             seen.add(key)
         return value
@@ -309,23 +299,19 @@ class Manifest(BaseModel):
 
 
 class RunRecord(BaseModel):
-    """A per-scenario run record (C-1 minimal: structural only)."""
+    """A per-scenario run record (C-1 minimal: structural only).
 
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        populate_by_name=True,
-    )
+    The ``database_backend`` field carries the same V1 contract
+    identity as ``ScenarioDeclaration.database_backend`` and is
+    permitted here for the same reason (Pydantic typed-model
+    surface use only, per Issue #20 architecture amendment
+    comment ``4963778355``).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     scenario_id: str
-    # The constant ``DB_DIALECT_JSON_FIELD`` is composed at import
-    # time to keep the source free of the production-ORM-field
-    # literal; the ``# type: ignore`` is required because Pydantic's
-    # mypy plugin only accepts a string literal for the ``alias``
-    # argument.
-    db_dialect: DatabaseBackend = Field(  # type: ignore[literal-required]
-        alias=DB_DIALECT_JSON_FIELD,
-    )
+    database_backend: DatabaseBackend
     manifest_sha: str
     expected_outcome: ExpectedOutcome
     actual_outcome: str
@@ -336,24 +322,20 @@ class RunRecord(BaseModel):
 
 
 class SummaryRecord(BaseModel):
-    """A run-suite summary record (C-1 minimal: structural only)."""
+    """A run-suite summary record (C-1 minimal: structural only).
 
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        populate_by_name=True,
-    )
+    The ``database_backend`` field carries the same V1 contract
+    identity as ``ScenarioDeclaration.database_backend`` and is
+    permitted here for the same reason (Pydantic typed-model
+    surface use only, per Issue #20 architecture amendment
+    comment ``4963778355``).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     suite_id: str
     manifest_sha: str
-    # The constant ``DB_DIALECT_JSON_FIELD`` is composed at import
-    # time to keep the source free of the production-ORM-field
-    # literal; the ``# type: ignore`` is required because Pydantic's
-    # mypy plugin only accepts a string literal for the ``alias``
-    # argument.
-    db_dialect: DatabaseBackend = Field(  # type: ignore[literal-required]
-        alias=DB_DIALECT_JSON_FIELD,
-    )
+    database_backend: DatabaseBackend
     commit_sha: str
     started_at: str
     completed_at: str
@@ -369,8 +351,6 @@ __all__ = [
     "ComparisonPolicy",
     "ComparisonPolicyLeaf",
     "D3_V1_EXCLUDED_JSON_PATHS",
-    "DB_DIALECT_FIELD_ALIAS",
-    "DB_DIALECT_JSON_FIELD",
     "DatabaseBackend",
     "ExpectedOutcome",
     "ExpectedOutputRef",

@@ -55,11 +55,16 @@ from typing import Any, Final
 #                           | dict[str, "JSONValue"]
 JSONValue = None | bool | int | float | str | list[Any] | dict[str, Any]
 
-# Sentinel used as the canonical-byte marker.
-# The canonicalizer does not actually return a wrapper; it returns
-# ``str`` (UTF-8 text). The docstring uses "CanonicalBytes" for
-# clarity but the runtime type is plain ``str``.
-CanonicalBytes = str
+#: Real alias for the canonical byte output of
+#: :func:`canonicalize_production_outputs`.
+#:
+#: This is a real :class:`bytes` alias, NOT a :class:`str` alias
+#: (Charles's review 4689545688 P0-2). The canonicalizer returns
+#: actual UTF-8 bytes (``json.dumps(..., ensure_ascii=False,
+#: sort_keys=True, separators=(",", ":")).encode("utf-8")``);
+#: downstream SHA-256 derivation hashes the bytes directly
+#: (``hashlib.sha256(canonical_bytes).hexdigest()``).
+type CanonicalBytes = bytes
 
 # Hard bound for nested object depth (defense-in-depth against
 # pathological inputs that could otherwise overflow Python's
@@ -210,14 +215,22 @@ def canonicalize_production_outputs(
     # into the canonical form.
     walked = _walk_strict_json(value, depth=0, path="$")
 
-    # Serialize with deterministic options.
-    return json.dumps(
+    # Serialize with deterministic options. ``allow_nan=False`` is
+    # belt-and-braces: we already rejected non-finite floats in
+    # ``_walk_strict_json``; ``allow_nan=False`` raises a
+    # ``ValueError`` if any non-finite float slipped through.
+    json_text = json.dumps(
         walked,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
-        allow_nan=False,  # belt-and-braces; we already rejected NaN above
+        allow_nan=False,
     )
+
+    # Return actual UTF-8 bytes (Charles's review 4689545688 P0-2).
+    # Downstream code calls ``hashlib.sha256(canonical_bytes)``
+    # directly on the returned bytes.
+    return json_text.encode("utf-8")
 
 
 def _walk_strict_json(

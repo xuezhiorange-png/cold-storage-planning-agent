@@ -98,7 +98,8 @@
         "path": { "type": "string" },
         "kind": {
           "type": "string",
-          "enum": ["exact", "decimal_canonical", "excluded"]
+          "enum": ["exact", "decimal"],
+          "description": "V1 comparison kind. EXCLUDED was removed (D3 V1 empty exclusion set; review 4689545688 P0-3). Wildcards, tolerances, and excluded kinds are not permitted in V1."
         }
       }
     },

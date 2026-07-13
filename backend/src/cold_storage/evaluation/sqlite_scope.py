@@ -8,7 +8,7 @@ This module provides a single, narrowly-scoped helper for C-1:
   deterministic, explicit cleanup on exit (no stale DB reuse,
   no cross-scenario leakage).
 
-Hard rules (binding, Charles §15 + §16):
+Hard rules (binding, Charles §15 + §16 + review 4689545688 P1-2):
 
 * No production ORM rows are created by this module.
 * No ``CalculationRunRecord`` is constructed.
@@ -20,6 +20,11 @@ Hard rules (binding, Charles §15 + §16):
 * The scope is for **C-1 foundation only**. C-2 (the runner) is
   the only authorized consumer and is not implemented in this
   round.
+* The previous ``keep_db`` option was removed (review 4689545688
+  P1-2). The ``keep_db`` branch was broken — it skipped the file
+  unlink but then always called ``TemporaryDirectory.cleanup()``,
+  which removed the directory and database anyway. The contract
+  requires deterministic cleanup, so the option is gone.
 
 The scope guarantees:
 
@@ -28,8 +33,12 @@ The scope guarantees:
 * The temporary file path is constructed via ``tempfile`` and is
   unique to the process + thread (no fixed-path reuse).
 * Engine disposal is performed deterministically in ``__exit__``.
-* The temp file is unlinked on ``__exit__`` unless ``keep_db=True``
-  is passed (useful for debugging; the runner never passes it).
+* The temp file is unlinked on ``__exit__`` (mandatory).
+* The temp directory is removed on ``__exit__`` (mandatory).
+* Internal references are cleared on ``__exit__``; subsequent
+  access raises :class:`SQLiteScopeError`.
+* Cleanup is performed even on exception (``__exit__`` always
+  runs the cleanup path).
 * No thread or process fork: a fresh engine is created per scope.
 * No cross-scenario state: each scope owns its own engine, its own
   file, and its own schema (initialized by the caller; this
@@ -84,19 +93,13 @@ class InvalidScopeIDError(SQLiteScopeError):
 class _SQLiteScenarioScope:
     """Internal implementation of the scope. Use :func:`sqlite_scenario_scope`."""
 
-    def __init__(
-        self,
-        *,
-        scope_id: str,
-        keep_db: bool = False,
-    ) -> None:
+    def __init__(self, *, scope_id: str) -> None:
         if not isinstance(scope_id, str) or not _SAFE_SCOPE_ID.match(scope_id):
             raise InvalidScopeIDError(
                 f"scope_id must match {_SAFE_SCOPE_ID.pattern!r}; got {scope_id!r}.",
                 details={"scope_id": scope_id},
             )
         self.scope_id: str = scope_id
-        self.keep_db: bool = keep_db
         # The actual database file is created lazily on __enter__.
         self._db_path: Path | None = None
         self._engine: Engine | None = None
@@ -139,13 +142,16 @@ class _SQLiteScenarioScope:
                 self._engine.dispose()
             finally:
                 self._engine = None
-        # 2. Unlink the DB file (unless the caller asked to keep it).
-        if self._db_path is not None and not self.keep_db:
+        # 2. Unlink the DB file. The previous ``keep_db`` option
+        # was removed (review 4689545688 P1-2): cleanup is
+        # mandatory and deterministic.
+        if self._db_path is not None:
             try:
                 self._db_path.unlink(missing_ok=True)
             finally:
                 self._db_path = None
-        # 3. Remove the tempdir (best-effort).
+        # 3. Remove the tempdir. The previous ``keep_db`` branch
+        # always called cleanup; we now always call cleanup.
         if self._tmpdir is not None:
             try:
                 self._tmpdir.cleanup()
@@ -172,16 +178,17 @@ class _SQLiteScenarioScope:
 
 
 @contextmanager
-def sqlite_scenario_scope(
-    scope_id: str,
-    *,
-    keep_db: bool = False,
-) -> Iterator[_SQLiteScenarioScope]:
+def sqlite_scenario_scope(scope_id: str) -> Iterator[_SQLiteScenarioScope]:
     """Open a per-scenario SQLite scope.
 
     The returned object exposes ``engine`` (a SQLAlchemy ``Engine``
     bound to a fresh, empty SQLite file) and ``db_path`` (the file
-    path). On exit the engine is disposed and the file is unlinked.
+    path). On exit the engine is disposed, the file is unlinked, and
+    the temp directory is removed (mandatory, deterministic).
+
+    The previous ``keep_db`` parameter was removed (review
+    4689545688 P1-2). Cleanup is always performed; there is no
+    debug-retention option in V1.
 
     Example (C-1 foundation; the C-2 runner is the only authorized
     consumer in production code)::
@@ -196,16 +203,13 @@ def sqlite_scenario_scope(
     scope_id:
         A scenario-identifier-shaped string. Must match the safe
         character set enforced by ``run_directory._SAFE_SCENARIO_ID``.
-    keep_db:
-        If ``True``, the temporary file is not unlinked on exit.
-        Useful only for debugging; the runner never sets this.
 
     Yields
     ------
     _SQLiteScenarioScope
         The scope object.
     """
-    scope = _SQLiteScenarioScope(scope_id=scope_id, keep_db=keep_db)
+    scope = _SQLiteScenarioScope(scope_id=scope_id)
     with scope:
         yield scope
 

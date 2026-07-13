@@ -30,6 +30,7 @@ manifest consumer.
 
 from __future__ import annotations
 
+import ntpath
 import os
 import re
 from pathlib import Path
@@ -41,12 +42,63 @@ from typing import Final
 # the resolver might silently accept on some platforms.
 _SAFE_RELATIVE = re.compile(r"^[A-Za-z0-9._/-]+$")
 
+# Windows drive-letter / rooted / UNC detection. Even on POSIX
+# hosts, we must reject any path that looks like a Windows absolute
+# path (drive letter, root, UNC). The regex is deliberately strict;
+# the safety contract forbids Windows-specific path forms in V1.
+_WINDOWS_DRIVE_LETTER = re.compile(r"^[A-Za-z]:[\\/]")
+_WINDOWS_ROOTED = re.compile(r"^\\")  # one backslash, e.g. "\rooted"
+_WINDOWS_DRIVE_RELATIVE = re.compile(r"^[A-Za-z]:[^\\/]")  # e.g. "C:relative"
+_WINDOWS_UNC = re.compile(r"^//[^/]+/[^/]+")  # POSIX-style UNC, e.g. //server/share
+_BACKSLASH_TRAVERSAL = re.compile(r"(?:^|[\\/])\.\.(?:[\\/]|$)")
+
 # Whitespace-only or empty path check.
 _WHITESPACE = re.compile(r"^\s*$")
 
 # Maximum length of a manifest-declared path string. Defensive
 # bound; no real manifest path is anywhere near this.
 _MAX_PATH_LENGTH: Final[int] = 4096
+
+
+def _looks_like_windows_path(declared_path: str) -> bool:
+    """Return True if ``declared_path`` looks like a Windows
+    absolute / rooted / UNC path on any host.
+
+    Detection rules (review 4689545688 P1-1):
+
+    * ``C:\\x`` / ``C:/x`` — Windows drive-letter absolute.
+    * ``C:relative`` — Windows drive-relative (no leading slash).
+    * ``\\rooted`` — Windows rooted (leading backslash).
+    * ``\\\\server\\share\\x`` — Windows UNC.
+    * ``//server/share/x`` — POSIX-form UNC (same form on POSIX).
+
+    The detection is independent of the host platform; a
+    Windows-style path supplied to a POSIX loader is rejected
+    as an absolute path.
+    """
+    if _WINDOWS_DRIVE_LETTER.match(declared_path):
+        return True
+    if _WINDOWS_DRIVE_RELATIVE.match(declared_path):
+        return True
+    if _WINDOWS_ROOTED.match(declared_path):
+        return True
+    return bool(_WINDOWS_UNC.match(declared_path))
+
+
+def _contains_backslash_traversal(declared_path: str) -> bool:
+    """Return True if ``declared_path`` contains a backslash
+    ``..`` segment (Windows-style traversal).
+
+    Forms rejected (review 4689545688 P1-1):
+
+    * ``..\\escape.json`` — backslash ``..`` then a file name.
+    * ``..\\..\\escape.json`` — multi-level backslash traversal.
+    * ``a\\..\\..\\escape.json`` — backslash ``..`` in the middle.
+
+    Note: forward-slash ``..`` traversal is already rejected by
+    the POSIX ``os.path.normpath`` check below.
+    """
+    return _BACKSLASH_TRAVERSAL.search(declared_path) is not None
 
 
 class PathSafetyError(Exception):
@@ -180,19 +232,45 @@ def safe_resolve_manifest_path(
                 details={"codepoint": ord(ch)},
             )
 
-    # Reject absolute paths. We use ``os.path.isabs`` which is
-    # platform-aware (handles Windows drive letters and UNC paths).
-    if os.path.isabs(declared_path):
+    # Reject absolute paths. We use BOTH ``os.path.isabs`` (POSIX
+    # semantics on the host platform) AND ``ntpath.isabs`` +
+    # ``PureWindowsPath`` so that Windows drive-letter (``C:\x``,
+    # ``C:/x``), Windows rooted (``\x``), and Windows UNC
+    # (``\\server\share\x``, ``//server/share/x``) forms are
+    # rejected on any host (review 4689545688 P1-1).
+    if os.path.isabs(declared_path) or ntpath.isabs(declared_path):
         raise AbsolutePathForbidden(
             f"declared_path is absolute: {declared_path!r}.",
             details={"value": declared_path},
         )
 
+    # Cross-platform Windows-path detection. Even on POSIX hosts,
+    # a Windows-style path is treated as absolute / rooted. This
+    # catches attacker-supplied manifest paths that would resolve
+    # on a Windows CI worker but appear relative on POSIX.
+    if _looks_like_windows_path(declared_path):
+        raise AbsolutePathForbidden(
+            f"declared_path is a Windows absolute / rooted / UNC path: {declared_path!r}.",
+            details={"value": declared_path},
+        )
+
+    # Reject backslash traversal (Windows-style ``..\\..`` or
+    # ``..\escape.json``). On POSIX, ``os.path.normpath`` keeps
+    # backslashes as literal characters, so ``..\\..`` is not
+    # seen as a ``..`` segment by the POSIX split. The contract
+    # forbids both forms; we explicitly reject backslash
+    # traversal here.
+    if _contains_backslash_traversal(declared_path):
+        raise TraversalForbidden(
+            f"declared_path contains backslash traversal: {declared_path!r}.",
+            details={"value": declared_path},
+        )
+
     # Reject any ``..`` segment in the raw path. The check is
     # performed on each separator-split component, AFTER normalizing
-    # the path. We do not allow any component to be exactly ``..`` or
-    # to begin with ``..`` (e.g., ``..foo`` is OK on POSIX but
-    # suspicious; we reject it conservatively).
+    # the path with POSIX semantics. We do not allow any component
+    # to be exactly ``..`` or to begin with ``..`` (e.g., ``..foo`` is
+    # OK on POSIX but suspicious; we reject it conservatively).
     normalized = os.path.normpath(declared_path)
     for part in normalized.split(os.sep):
         if part == "..":
