@@ -63,29 +63,29 @@ def test_d1_canonicalize_simple_object_is_deterministic() -> None:
     out1 = canonicalize_production_outputs({"a": 1, "b": [1, 2, 3]}, excluded_paths=())
     out2 = canonicalize_production_outputs({"b": [1, 2, 3], "a": 1}, excluded_paths=())
     assert out1 == out2
-    assert out1 == '{"a":1,"b":[1,2,3]}'
+    assert out1 == b'{"a":1,"b":[1,2,3]}'
 
 
 def test_d1_canonicalize_arrays_preserve_order() -> None:
     out = canonicalize_production_outputs([3, 1, 2], excluded_paths=())
-    assert out == "[3,1,2]"
+    assert out == b"[3,1,2]"
 
 
 def test_d1_canonicalize_nested() -> None:
     value = {"z": [{"y": 2, "x": 1}], "a": None}
     out = canonicalize_production_outputs(value, excluded_paths=())
-    assert out == '{"a":null,"z":[{"x":1,"y":2}]}'
+    assert out == b'{"a":null,"z":[{"x":1,"y":2}]}'
 
 
 def test_d1_canonicalize_empty_excluded_paths_is_accepted() -> None:
     out = canonicalize_production_outputs({"x": 1}, excluded_paths=())
-    assert out == '{"x":1}'
+    assert out == b'{"x":1}'
 
 
 def test_d1_empty_sequence_excluded_paths_accepted() -> None:
     # A list (not tuple) of zero length is also OK.
     out = canonicalize_production_outputs({"x": 1}, excluded_paths=[])
-    assert out == '{"x":1}'
+    assert out == b'{"x":1}'
 
 
 def test_d1_non_empty_excluded_paths_raises() -> None:
@@ -204,12 +204,12 @@ def test_d1_canonicalize_does_not_call_str_on_unknown_object() -> None:
 
 def test_d1_canonicalize_bool_is_preserved_not_coerced_to_int() -> None:
     out = canonicalize_production_outputs([True, False, 0, 1], excluded_paths=())
-    assert out == "[true,false,0,1]"
+    assert out == b"[true,false,0,1]"
 
 
 def test_d1_canonicalize_int_and_float_coexist() -> None:
     out = canonicalize_production_outputs([1, 1.5, 2], excluded_paths=())
-    assert out == "[1,1.5,2]"
+    assert out == b"[1,1.5,2]"
 
 
 def test_d1_canonicalize_does_not_coerce_bool_to_int() -> None:
@@ -220,7 +220,7 @@ def test_d1_canonicalize_does_not_coerce_bool_to_int() -> None:
     out = canonicalize_production_outputs({"a": True, "b": 1}, excluded_paths=())
     # If bool were silently coerced, the output would be
     # {"a":1,"b":1}. The contract preserves the distinction.
-    assert out == '{"a":true,"b":1}'
+    assert out == b'{"a":true,"b":1}'
 
 
 def test_d1_canonicalize_all_exception_classes_have_code() -> None:

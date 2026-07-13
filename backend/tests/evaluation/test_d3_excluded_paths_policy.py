@@ -32,12 +32,12 @@ from cold_storage.evaluation.models import Manifest
 
 def test_d3_empty_exclusion_set_accepted() -> None:
     out = canonicalize_production_outputs({"x": 1}, excluded_paths=())
-    assert out == '{"x":1}'
+    assert out == b'{"x":1}'
 
 
 def test_d3_empty_list_exclusion_accepted() -> None:
     out = canonicalize_production_outputs({"x": 1}, excluded_paths=[])
-    assert out == '{"x":1}'
+    assert out == b'{"x":1}'
 
 
 def test_d3_single_exact_path_rejected() -> None:
@@ -165,7 +165,7 @@ def test_d3_manifest_loader_rejects_non_empty_exclusion(tmp_path: Path) -> None:
         )
     )
     with pytest.raises(ManifestError):
-        load_and_validate_manifest(mf, referenced_files_check=False)
+        load_and_validate_manifest(mf)
 
 
 def test_d3_manifest_loader_rejects_wildcard_exclusion(tmp_path: Path) -> None:
@@ -192,4 +192,4 @@ def test_d3_manifest_loader_rejects_wildcard_exclusion(tmp_path: Path) -> None:
         )
     )
     with pytest.raises(ManifestError):
-        load_and_validate_manifest(mf, referenced_files_check=False)
+        load_and_validate_manifest(mf)

@@ -16,8 +16,10 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
+from sqlalchemy import Engine
 
 from cold_storage.evaluation.paths import (
     AbsolutePathForbidden,
@@ -249,3 +251,167 @@ def test_safe_path_rejects_non_path_root() -> None:
     """The manifest_root must be a pathlib.Path."""
     with tempfile.TemporaryDirectory() as tmp, pytest.raises(PathSafetyError):
         safe_resolve_manifest_path("data.json", manifest_root=tmp)  # type: ignore[arg-type]
+
+
+# ── P1-1: cross-platform Windows / UNC / backslash path detection ────
+# These tests run on Linux CI but exercise Windows-style path forms
+# (review 4689545688 P1-1). The path-safety layer must reject
+# Windows drive-letter, Windows rooted, and Windows UNC forms on
+# any host, plus backslash-style ``..`` traversal.
+
+
+@pytest.mark.parametrize(
+    "bad_path",
+    [
+        r"C:\x",
+        r"C:/x",
+        "C:relative",
+        r"\rooted",
+        r"\\server\share\x",
+        "//server/share/x",
+    ],
+)
+def test_safe_path_rejects_windows_absolute_path_on_linux(tmp_path: Path, bad_path: str) -> None:
+    """Windows absolute / drive-letter / UNC paths are rejected on
+    any host, including Linux CI."""
+    with pytest.raises(AbsolutePathForbidden):
+        safe_resolve_manifest_path(bad_path, manifest_root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "bad_path",
+    [
+        r"..\escape.json",
+        r"..\..\escape.json",
+        r"a\..\..\escape.json",
+    ],
+)
+def test_safe_path_rejects_backslash_traversal_on_linux(tmp_path: Path, bad_path: str) -> None:
+    """Windows-style backslash ``..`` traversal is rejected on
+    any host."""
+    with pytest.raises(TraversalForbidden):
+        safe_resolve_manifest_path(bad_path, manifest_root=tmp_path)
+
+
+def test_safe_path_still_accepts_posix_relative_paths(tmp_path: Path) -> None:
+    """POSIX relative paths (no leading slash, no drive letter, no
+    backslash ``..``) are still accepted. The Windows / backslash
+    rejections do not break the happy path."""
+    p = safe_resolve_manifest_path("data/file.json", manifest_root=tmp_path)
+    assert p.exists() is False  # the file does not exist, but resolution worked
+    p2 = safe_resolve_manifest_path("data.v1/file-name_1.json", manifest_root=tmp_path)
+    assert p2 is not None
+
+
+# ── P1-2: SQLite scope deterministic cleanup (P1-2 lifecycle) ────────
+# The ``keep_db`` option was removed (review 4689545688 P1-2). These
+# tests live in ``test_path_safety.py`` (per Charles's amendment
+# recommendation) because they exercise the same temp-path /
+# lifecycle discipline as the rest of the file. They do NOT
+# require a new tracked test file.
+
+
+def _exercise_scope(scope: Any) -> tuple[Path, Engine]:
+    """Touch the engine and return (db_path, engine) for assertion."""
+    engine = scope.engine
+    db_path = scope.db_path
+    # Issue a trivial SQL statement to ensure the engine is alive.
+    with engine.connect() as conn:
+        conn.exec_driver_sql("SELECT 1")
+    return db_path, engine
+
+
+def test_sqlite_scope_db_path_exists_within_scope() -> None:
+    """Inside the scope, the db file exists and the engine is usable."""
+    from cold_storage.evaluation.sqlite_scope import sqlite_scenario_scope
+
+    with sqlite_scenario_scope("baseline_feasible") as scope:
+        db_path, engine = _exercise_scope(scope)
+        assert db_path.exists()
+        assert engine is not None
+
+
+def test_sqlite_scope_db_path_removed_after_exit() -> None:
+    """After exit, the db file is unlinked and the tempdir is gone."""
+    from cold_storage.evaluation.sqlite_scope import sqlite_scenario_scope
+
+    with sqlite_scenario_scope("baseline_feasible") as scope:
+        db_path, engine = _exercise_scope(scope)
+        tmpdir = db_path.parent
+
+    assert not db_path.exists()
+    assert not tmpdir.exists()
+
+
+def test_sqlite_scope_engine_raises_after_exit() -> None:
+    """After exit, accessing ``engine`` raises ``SQLiteScopeError``."""
+    from cold_storage.evaluation.sqlite_scope import (
+        SQLiteScopeError,
+        sqlite_scenario_scope,
+    )
+
+    with sqlite_scenario_scope("baseline_feasible") as scope:
+        engine = scope.engine
+        _ = engine  # silence unused
+    # Outside the with-block: re-binding the scope object via the
+    # ``scope`` variable is impossible because the with-block
+    # hides it. We use a separate reference (via a holder class)
+    # to demonstrate the post-exit invariant.
+
+    class _Holder:
+        pass
+
+    holder = _Holder()
+    with sqlite_scenario_scope("baseline_feasible") as scope:
+        _exercise_scope(scope)
+        holder.scope = scope
+    with pytest.raises(SQLiteScopeError):
+        _ = holder.scope.engine
+
+
+def test_sqlite_scope_db_path_raises_after_exit() -> None:
+    """After exit, accessing ``db_path`` raises ``SQLiteScopeError``."""
+    from cold_storage.evaluation.sqlite_scope import (
+        SQLiteScopeError,
+        sqlite_scenario_scope,
+    )
+
+    class _Holder:
+        pass
+
+    holder = _Holder()
+    with sqlite_scenario_scope("baseline_feasible") as scope:
+        _exercise_scope(scope)
+        holder.scope = scope
+    with pytest.raises(SQLiteScopeError):
+        _ = holder.scope.db_path
+
+
+def test_sqlite_scope_cleanup_on_exception() -> None:
+    """The scope is cleaned up even when the body raises."""
+    from cold_storage.evaluation.sqlite_scope import sqlite_scenario_scope
+
+    db_path: Path
+    with pytest.raises(RuntimeError), sqlite_scenario_scope("baseline_feasible") as scope:
+        db_path, _ = _exercise_scope(scope)
+        raise RuntimeError("simulated failure")
+    assert not db_path.exists()
+    assert not db_path.parent.exists()
+
+
+def test_sqlite_scope_two_scopes_have_distinct_paths_and_no_leak() -> None:
+    """Two scopes opened in sequence have distinct db paths and
+    do not leak state across exits."""
+    from cold_storage.evaluation.sqlite_scope import sqlite_scenario_scope
+
+    with sqlite_scenario_scope("scenario_a") as scope_a:
+        path_a, _ = _exercise_scope(scope_a)
+    with sqlite_scenario_scope("scenario_b") as scope_b:
+        path_b, _ = _exercise_scope(scope_b)
+
+    assert path_a != path_b
+    assert not path_a.exists()
+    assert not path_b.exists()
+    # The tempdirs are also gone.
+    assert not path_a.parent.exists()
+    assert not path_b.parent.exists()

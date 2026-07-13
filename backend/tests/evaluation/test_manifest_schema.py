@@ -80,11 +80,20 @@ def test_schema_scenario_rejects_unknown_fields() -> None:
 def test_schema_comparison_policy_uses_exact_default() -> None:
     """D4: the default comparison kind is ``exact``. The schema
     advertises ``exact`` as a valid kind (alongside the
-    decimal_canonical / excluded alternatives)."""
+    ``decimal`` alternative). The ``decimal_canonical`` /
+    ``excluded`` alternatives were removed by review 4689545688
+    P0-3 (``decimal_canonical`` was renamed to ``decimal``; the
+    ``excluded`` kind is forbidden by the D3 empty exclusion
+    set)."""
     parsed = json.loads(_schema_path().read_text(encoding="utf-8"))
     leaf = parsed["$defs"]["comparison_policy_leaf"]
     assert "exact" in leaf["properties"]["kind"]["enum"]
-    assert "decimal_canonical" in leaf["properties"]["kind"]["enum"]
+    assert "decimal" in leaf["properties"]["kind"]["enum"]
+    # ``decimal_canonical`` was renamed to ``decimal``; the
+    # old name must NOT appear.
+    assert "decimal_canonical" not in leaf["properties"]["kind"]["enum"]
+    # ``excluded`` was removed (D3 / review 4689545688 P0-3).
+    assert "excluded" not in leaf["properties"]["kind"]["enum"]
 
 
 def test_schema_validates_against_draft202012() -> None:

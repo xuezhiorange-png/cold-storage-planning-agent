@@ -28,42 +28,42 @@ from cold_storage.evaluation.canonicalization import (
 
 
 def test_d2_null_accepted() -> None:
-    assert canonicalize_production_outputs(None, excluded_paths=()) == "null"
+    assert canonicalize_production_outputs(None, excluded_paths=()) == b"null"
 
 
 def test_d2_boolean_true_accepted() -> None:
-    assert canonicalize_production_outputs(True, excluded_paths=()) == "true"
+    assert canonicalize_production_outputs(True, excluded_paths=()) == b"true"
 
 
 def test_d2_boolean_false_accepted() -> None:
-    assert canonicalize_production_outputs(False, excluded_paths=()) == "false"
+    assert canonicalize_production_outputs(False, excluded_paths=()) == b"false"
 
 
 def test_d2_integer_accepted() -> None:
-    assert canonicalize_production_outputs(42, excluded_paths=()) == "42"
-    assert canonicalize_production_outputs(-1, excluded_paths=()) == "-1"
-    assert canonicalize_production_outputs(0, excluded_paths=()) == "0"
+    assert canonicalize_production_outputs(42, excluded_paths=()) == b"42"
+    assert canonicalize_production_outputs(-1, excluded_paths=()) == b"-1"
+    assert canonicalize_production_outputs(0, excluded_paths=()) == b"0"
 
 
 def test_d2_finite_float_accepted() -> None:
-    assert canonicalize_production_outputs(1.5, excluded_paths=()) == "1.5"
-    assert canonicalize_production_outputs(0.0, excluded_paths=()) == "0.0"
-    assert canonicalize_production_outputs(-2.5, excluded_paths=()) == "-2.5"
+    assert canonicalize_production_outputs(1.5, excluded_paths=()) == b"1.5"
+    assert canonicalize_production_outputs(0.0, excluded_paths=()) == b"0.0"
+    assert canonicalize_production_outputs(-2.5, excluded_paths=()) == b"-2.5"
 
 
 def test_d2_string_accepted() -> None:
-    assert canonicalize_production_outputs("hello", excluded_paths=()) == '"hello"'
-    assert canonicalize_production_outputs("", excluded_paths=()) == '""'
+    assert canonicalize_production_outputs("hello", excluded_paths=()) == b'"hello"'
+    assert canonicalize_production_outputs("", excluded_paths=()) == b'""'
 
 
 def test_d2_array_of_allowed_values_accepted() -> None:
     out = canonicalize_production_outputs([1, "a", None, True, 1.5], excluded_paths=())
-    assert out == '[1,"a",null,true,1.5]'
+    assert out == b'[1,"a",null,true,1.5]'
 
 
 def test_d2_object_with_string_keys_accepted() -> None:
     out = canonicalize_production_outputs({"k": "v"}, excluded_paths=())
-    assert out == '{"k":"v"}'
+    assert out == b'{"k":"v"}'
 
 
 # ── Rejected values (D2) ─────────────────────────────────────────────

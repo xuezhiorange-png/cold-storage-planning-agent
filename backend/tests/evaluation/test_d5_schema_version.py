@@ -162,7 +162,7 @@ def test_d5_loader_rejects_numeric_version(tmp_path: Path) -> None:
         )
     )
     with pytest.raises(ManifestSchemaVersionError):
-        load_and_validate_manifest(mf, referenced_files_check=False)
+        load_and_validate_manifest(mf)
 
 
 def test_d5_loader_rejects_unknown_version(tmp_path: Path) -> None:
@@ -183,7 +183,7 @@ def test_d5_loader_rejects_unknown_version(tmp_path: Path) -> None:
         )
     )
     with pytest.raises(ManifestSchemaVersionError):
-        load_and_validate_manifest(mf, referenced_files_check=False)
+        load_and_validate_manifest(mf)
 
 
 def test_d5_loader_rejects_missing_version(tmp_path: Path) -> None:
@@ -203,7 +203,7 @@ def test_d5_loader_rejects_missing_version(tmp_path: Path) -> None:
         )
     )
     with pytest.raises(ManifestSchemaVersionError):
-        load_and_validate_manifest(mf, referenced_files_check=False)
+        load_and_validate_manifest(mf)
 
 
 def test_d5_loader_accepts_literal_1_0(tmp_path: Path) -> None:
@@ -223,7 +223,7 @@ def test_d5_loader_accepts_literal_1_0(tmp_path: Path) -> None:
             }
         )
     )
-    m = load_and_validate_manifest(mf, referenced_files_check=False)
+    m = load_and_validate_manifest(mf)
     assert m.schema_version == "1.0"
 
 

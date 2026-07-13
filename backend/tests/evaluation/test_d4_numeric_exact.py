@@ -55,8 +55,8 @@ def test_d4_integer_1_and_float_1_0_produce_different_canonical_bytes() -> None:
     different canonical bytes."""
     out_int = canonicalize_production_outputs(1, excluded_paths=())
     out_float = canonicalize_production_outputs(1.0, excluded_paths=())
-    assert out_int == "1"
-    assert out_float == "1.0"
+    assert out_int == b"1"
+    assert out_float == b"1.0"
     assert out_int != out_float
 
 
@@ -75,26 +75,26 @@ def test_d4_decimal_governed_field_pattern_example() -> None:
         {"value": "123.45"},
         excluded_paths=(),
     )
-    assert out == '{"value":"123.45"}'
+    assert out == b'{"value":"123.45"}'
 
     out2 = canonicalize_production_outputs(
         {"value": "-12.500"},
         excluded_paths=(),
     )
-    assert out2 == '{"value":"-12.500"}'
+    assert out2 == b'{"value":"-12.500"}'
 
     out3 = canonicalize_production_outputs(
         {"value": "0"},
         excluded_paths=(),
     )
-    assert out3 == '{"value":"0"}'
+    assert out3 == b'{"value":"0"}'
 
 
 def test_d4_no_scientific_notation_for_integers() -> None:
     out = canonicalize_production_outputs(123456789, excluded_paths=())
-    assert out == "123456789"
+    assert out == b"123456789"
     # No exponent character
-    assert "e" not in out and "E" not in out
+    assert b"e" not in out and b"E" not in out
 
 
 def test_d4_no_implicit_rounding_of_floats() -> None:
@@ -104,7 +104,7 @@ def test_d4_no_implicit_rounding_of_floats() -> None:
     bit-exact.)"""
     out = canonicalize_production_outputs(0.1 + 0.2, excluded_paths=())
     # 0.1 + 0.2 == 0.30000000000000004 in IEEE 754.
-    assert out == "0.30000000000000004"
+    assert out == b"0.30000000000000004"
 
 
 def test_d4_no_field_tolerance() -> None:

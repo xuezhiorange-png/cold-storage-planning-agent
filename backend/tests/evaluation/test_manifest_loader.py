@@ -43,7 +43,7 @@ def test_loader_returns_typed_manifest(tmp_path: Path) -> None:
             ],
         },
     )
-    m = load_and_validate_manifest(mf, referenced_files_check=False)
+    m = load_and_validate_manifest(mf)
     assert m.suite_id == "t11c-v1"
     assert m.schema_version == "1.0"
     assert len(m.scenarios) == 1
@@ -62,8 +62,8 @@ def test_loader_sha_is_deterministic(tmp_path: Path) -> None:
         ],
     }
     mf = _write_manifest(tmp_path, body)
-    m1 = load_and_validate_manifest(mf, referenced_files_check=False)
-    m2 = load_and_validate_manifest(mf, referenced_files_check=False)
+    m1 = load_and_validate_manifest(mf)
+    m2 = load_and_validate_manifest(mf)
     assert compute_manifest_sha(m1) == compute_manifest_sha(m2)
 
 
@@ -93,8 +93,8 @@ def test_loader_sha_is_independent_of_field_order(tmp_path: Path) -> None:
     }
     mf_a = _write_manifest(tmp_path, a_body, name="a.json")
     mf_b = _write_manifest(tmp_path, b_body, name="b.json")
-    m_a = load_and_validate_manifest(mf_a, referenced_files_check=False)
-    m_b = load_and_validate_manifest(mf_b, referenced_files_check=False)
+    m_a = load_and_validate_manifest(mf_a)
+    m_b = load_and_validate_manifest(mf_b)
     assert compute_manifest_sha(m_a) == compute_manifest_sha(m_b)
 
 
@@ -119,9 +119,9 @@ def test_loader_with_baseline_scenario(tmp_path: Path) -> None:
             "excluded_paths": [],
         },
     )
-    m = load_and_validate_manifest(mf, referenced_files_check=False)
+    m = load_and_validate_manifest(mf)
     assert m.scenarios[0].scenario_id == "baseline_feasible"
-    assert m.scenarios[0].db_dialect.value == "sqlite"
+    assert m.scenarios[0].database_backend.value == "sqlite"
     assert m.scenarios[0].expected_outcome.value == "SUCCEEDED"
 
 
@@ -144,7 +144,7 @@ def test_loader_rejects_file_with_no_extension(tmp_path: Path) -> None:
             }
         )
     )
-    m = load_and_validate_manifest(mf, referenced_files_check=False)
+    m = load_and_validate_manifest(mf)
     assert m.suite_id == "t"
 
 
@@ -163,7 +163,7 @@ def test_loader_computes_64_char_hex_sha(tmp_path: Path) -> None:
             ],
         },
     )
-    m = load_and_validate_manifest(mf, referenced_files_check=False)
+    m = load_and_validate_manifest(mf)
     sha = compute_manifest_sha(m)
     assert len(sha) == 64
     int(sha, 16)  # must be valid hex
