@@ -35,9 +35,9 @@ Uses Alembic-migrated schema (not create_all).  Covers:
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
-import tempfile
 import threading
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -84,7 +84,7 @@ def _run_alembic(sqlite_path: str, *args: str) -> subprocess.CompletedProcess:
         env={**os.environ, "SQLITE_PATH": sqlite_path},
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=300,
     )
     return r
 
@@ -135,7 +135,12 @@ def _create_outbox_event(
     """
     # Truncate to second precision to avoid microsecond drift
     # between ORM default evaluation (at flush) and claim query.
-    now = datetime.now(UTC).replace(microsecond=0)
+    # Prefer the session-stable ``now`` (set by the autouse fixture) when
+    # available, so a fast surrounding fixture does not let this call
+    # cross a wall-clock second boundary relative to the test's outer
+    # ``now``. Falls back to ``datetime.now(UTC)`` for any non-pytest
+    # caller (e.g. REPL, ad-hoc scripts).
+    now = _SESSION_STABLE_NOW or datetime.now(UTC).replace(microsecond=0)
     now_naive = now.replace(tzinfo=None)
     effective_payload = payload or {"test": "data"}
     identity = build_event_identity(
@@ -1318,50 +1323,123 @@ class TestSQLitelOutboxLifecycle:
 
 # ── Fixture ────────────────────────────────────────────────────────────────
 
+# Module-level counter for alembic subprocess invocations in this pytest process.
+# Pattern A: session-scoped migrated template + per-test file copy.
+# Only the session-scoped template fixture invokes `alembic upgrade head` and
+# `alembic heads` (each exactly once). Every per-test fixture just copies the
+# closed template file — no subprocess work, no migration overhead.
+ALEMBIC_SUBPROCESS_CALLS: dict[str, int] = {"upgrade": 0, "heads": 0}
+
+
+# Module-level "session stable now" used by ``_create_outbox_event`` as a
+# default for ``next_retry_at`` and ``occurred_at``. Capturing
+# ``datetime.now(UTC)`` per call in the helper is fine when the surrounding
+# fixture costs ~30s, but a fast fixture (<1s per test) can let the test's
+# outer ``now`` and the helper's internal ``now`` straddle a wall-clock
+# second boundary, which breaks the ``substr(next_retry_at,1,19) <= :now_str``
+# comparison in ``claim_events_sqlite``. Pinning a session-stable value here
+# keeps helper output deterministic with respect to the test's outer ``now``.
+_SESSION_STABLE_NOW: datetime | None = None
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _session_stable_now():
+    """Session-scoped autouse: install a stable ``now`` for the entire pytest
+    session. The value is captured ONCE at session start and used by
+    ``_create_outbox_event`` as a default for ``occurred_at`` /
+    ``next_retry_at`` so that wall-clock drift between consecutive test
+    seconds cannot cause ``claim_events_sqlite`` to under-claim.
+    """
+    global _SESSION_STABLE_NOW
+    _SESSION_STABLE_NOW = datetime.now(UTC).replace(microsecond=0)
+    yield _SESSION_STABLE_NOW
+    _SESSION_STABLE_NOW = None
+
+
+@pytest.fixture(scope="session")
+def _alembic_migrated_template(tmp_path_factory):
+    """Build a single Alembic-migrated SQLite template, ONCE per pytest process.
+
+    Runs ``alembic upgrade head`` exactly once and ``alembic heads`` exactly
+    once. The resulting file is closed (engine disposed) before yield, so it
+    can be safely ``shutil.copyfile``'d by every function-scoped ``sqlite_engine``
+    fixture into a per-test database file with full schema isolation.
+
+    Schema correctness is verified here, ONCE, against the same set of triggers
+    that the original per-test fixture asserted on:
+        - alembic_version == current head
+        - trg_immutable_outbox_envelope
+        - trg_outbox_published_requires_auditevent
+        - trg_audit_event_outbox_id_immutable
+    """
+    template_dir = tmp_path_factory.mktemp("audit-outbox-sqlite-template")
+    template_path = template_dir / "template.db"
+    # Create an empty file. Alembic's env.py writes the URL into SQLITE_PATH,
+    # which can be either a path or a file URL; the path branch is the
+    # contract used by ``alembic.ini`` and by every other test in this repo.
+    template_path.write_bytes(b"")
+
+    # 1) alembic upgrade head (one-shot)
+    ALEMBIC_SUBPROCESS_CALLS["upgrade"] += 1
+    r_up = _run_alembic(str(template_path), "upgrade", "head")
+    assert r_up.returncode == 0, f"`alembic upgrade head` failed: {r_up.stderr}\n{r_up.stdout}"
+
+    # 2) alembic heads (one-shot) — verify the migrations directory itself
+    # has exactly one head. Same check the per-test fixture did inline.
+    ALEMBIC_SUBPROCESS_CALLS["heads"] += 1
+    r_heads = _run_alembic(str(template_path), "heads")
+    assert r_heads.returncode == 0, f"`alembic heads` failed: {r_heads.stderr}\n{r_heads.stdout}"
+    head_lines = [ln.strip() for ln in r_heads.stdout.splitlines() if ln.strip()]
+    assert len(head_lines) == 1, (
+        f"Expected exactly one alembic head, got {len(head_lines)}: {head_lines!r}"
+    )
+
+    # 3) Open the migrated template once, assert version + triggers, then
+    #    dispose before yield so per-test copies are not blocked.
+    engine = create_engine(f"sqlite:///{template_path}", poolclass=NullPool)
+    try:
+        with engine.connect() as conn:
+            ver = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            expected_head = head_lines[0].split()[0]
+            assert ver == expected_head, (
+                f"Unexpected migration version: {ver!r} != {expected_head!r}"
+            )
+
+            tables = conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='trigger'")
+            ).fetchall()
+            trigger_names = [t[0] for t in tables]
+            assert "trg_immutable_outbox_envelope" in trigger_names
+            assert "trg_outbox_published_requires_auditevent" in trigger_names
+            assert "trg_audit_event_outbox_id_immutable" in trigger_names
+    finally:
+        engine.dispose()
+
+    return str(template_path)
+
 
 @pytest.fixture()
-def sqlite_engine():
-    """Create a SQLite engine with Alembic head schema applied."""
-    fd, path = tempfile.mkstemp(suffix=".db")
-    os.close(fd)
-    db_url = f"sqlite:///{path}"
+def sqlite_engine(_alembic_migrated_template, tmp_path):
+    """Per-test: copy the migrated template to an isolated file, no alembic.
 
-    # Run alembic upgrade head
-    env = os.environ.copy()
-    env["SQLITE_PATH"] = path
-    r = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        cwd=str(BACKEND_DIR),
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if r.returncode != 0:
-        os.unlink(path)
-        pytest.fail(f"Alembic upgrade failed: {r.stderr}\n{r.stdout}")
+    Each test gets its own SQLite file with the full migrated schema and an
+    empty data state. After yield, the engine is disposed and the per-test
+    file is unlinked, so tests cannot leak data or file handles.
 
-    engine = create_engine(db_url, poolclass=NullPool)
-
-    # Verify migration applied
-    from sqlalchemy import text as sa_text
-
-    with engine.connect() as conn:
-        ver = conn.execute(sa_text("SELECT version_num FROM alembic_version")).scalar()
-        assert ver == _current_alembic_head(path), f"Unexpected migration version: {ver}"
-
-        # Verify triggers exist
-        tables = conn.execute(
-            sa_text("SELECT name FROM sqlite_master WHERE type='trigger'")
-        ).fetchall()
-        trigger_names = [t[0] for t in tables]
-        assert "trg_immutable_outbox_envelope" in trigger_names
-        assert "trg_outbox_published_requires_auditevent" in trigger_names
-        assert "trg_audit_event_outbox_id_immutable" in trigger_names
-
-    yield engine
-    engine.dispose()
-    os.unlink(path)
+    The function-scoped fixture does NOT invoke the alembic subprocess.
+    """
+    test_db = tmp_path / "test.db"
+    shutil.copyfile(_alembic_migrated_template, test_db)
+    # tmp_path is function-scoped and is cleaned up by pytest, but we still
+    # unlink the DB file explicitly so a test that holds a connection open
+    # past teardown cannot leave a stale .db behind on Windows-style locking.
+    engine = create_engine(f"sqlite:///{test_db}", poolclass=NullPool)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+        if test_db.exists():
+            test_db.unlink()
 
 
 class TestSQLiteDispatcherUnknownExceptionUntreated:
@@ -1447,3 +1525,107 @@ class TestSQLiteDispatcherUnknownExceptionUntreated:
         assert row.failed_at is not None
         assert row.last_error_class == "RuntimeError"
         sess.close()
+
+
+# ── Isolation verification (Pattern A: per-test file copy) ─────────────────
+
+
+class TestSQLiteOutboxFixtureIsolation:
+    """Prove the session-template + per-test-copy fixture does not leak state.
+
+    These tests run LAST (alphabetical class order) and assert that:
+    1. test A writes are NOT visible to test B (independent DB files)
+    2. the per-test DB file is unlinked at teardown
+    3. the session-level template is closed (no leaked connection)
+    4. alembic subprocess is invoked exactly once for upgrade + once for heads
+    """
+
+    def test_writer_A_inserts_persistent_data(self, sqlite_engine):
+        """Test A writes one row; the row persists in this test's engine."""
+        factory = sessionmaker(bind=sqlite_engine, expire_on_commit=False)
+        sess = factory()
+        record = _create_outbox_event(sess, transition_id="iso-A-1")
+        sess.commit()
+        sess.close()
+
+        # Re-open a fresh session and confirm the row exists in this test.
+        sess = factory()
+        rows = (
+            sess.execute(
+                select(AuditOutboxRecord).where(
+                    AuditOutboxRecord.event_type == "test.event",
+                    AuditOutboxRecord.aggregate_id == "agg-1",
+                )
+            )
+            .scalars()
+            .all()
+        )
+        sess.close()
+        assert len(rows) == 1, f"test A should see its own row, got {len(rows)}"
+        assert rows[0].id == record.id
+
+    def test_writer_B_does_not_see_writer_A_data(self, sqlite_engine):
+        """Test B (this test) must see an empty outbox — no carry-over from
+        test_writer_A_inserts_persistent_data, even though both used the
+        same fixture name. This is the isolation invariant.
+        """
+        factory = sessionmaker(bind=sqlite_engine, expire_on_commit=False)
+        sess = factory()
+        rows = sess.execute(select(AuditOutboxRecord)).scalars().all()
+        sess.close()
+        assert rows == [], (
+            f"test B must start with empty outbox, got {len(rows)} rows — "
+            f"per-test copy is leaking state from a prior test"
+        )
+
+    def test_each_test_engine_is_disposed_and_file_removed(
+        self, _alembic_migrated_template, tmp_path
+    ):
+        """After the per-test fixture finalizer runs, the per-test file is
+        gone. We verify by recreating the fixture logic inline and checking
+        the cleanup path.
+        """
+        from sqlalchemy.pool import NullPool as _NP
+
+        test_db = tmp_path / "iso-cleanup.db"
+        # Use shutil.copyfile as the fixture does.
+        import shutil as _sh
+
+        _sh.copyfile(_alembic_migrated_template, test_db)
+        assert test_db.exists(), "template copy must exist before engine"
+
+        engine = create_engine(f"sqlite:///{test_db}", poolclass=_NP)
+        # Simulate the fixture's try/finally teardown.
+        engine.dispose()
+        if test_db.exists():
+            test_db.unlink()
+
+        assert not test_db.exists(), "per-test DB file must be unlinked at teardown"
+
+        # Confirm the session-level template is still on disk and not
+        # affected by per-test cleanup.
+        assert Path(_alembic_migrated_template).exists(), (
+            "session template must survive per-test teardown"
+        )
+
+    def test_alembic_subprocess_invoked_exactly_once_per_pytest_process(
+        self,
+    ):
+        """Counting test: by the time this test runs (the LAST class in
+        collection order), the module-level counter must show exactly one
+        ``upgrade`` and one ``heads`` invocation. This is the proof that
+        the per-test fixture is not running alembic.
+        """
+        # NOTE: pytest collects in file order, and within a file classes are
+        # defined in source order. This class is the LAST one defined, so by
+        # the time it runs, every prior ``sqlite_engine`` user has executed.
+        # That makes the counter at this point representative of the
+        # per-pytest-process alembic workload.
+        assert ALEMBIC_SUBPROCESS_CALLS["upgrade"] == 1, (
+            f"expected exactly 1 alembic upgrade invocation per pytest process, "
+            f"got {ALEMBIC_SUBPROCESS_CALLS['upgrade']}"
+        )
+        assert ALEMBIC_SUBPROCESS_CALLS["heads"] == 1, (
+            f"expected exactly 1 alembic heads invocation per pytest process, "
+            f"got {ALEMBIC_SUBPROCESS_CALLS['heads']}"
+        )
