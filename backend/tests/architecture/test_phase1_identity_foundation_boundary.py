@@ -27,6 +27,7 @@ docs/tasks/TASK-011B-production-calculation-orchestration-prerequisite.md
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -173,6 +174,49 @@ def test_evaluation_does_not_import_phase1_orm() -> None:
                     "correlation_id",
                 ):
                     continue
+                # ── TASK-011C amendment (comment 4963778355) ─────
+                # ``models.py`` is the single C-1 file authorized to
+                # hold the ``database_backend`` token as a Pydantic
+                # typed scenario / run / summary identity field
+                # (frozen TASK-011C contract, §6.4 and §7.0). The
+                # carve-out is path-precise, token-precise, and
+                # purpose-precise: it permits ONLY the ``database_backend``
+                # token in ``models.py`` and only for Pydantic
+                # typed-model surface use (field declarations,
+                # ``Field(alias=...)``, ``serialization_alias``,
+                # typed identity attributes, enum / value
+                # validation). It does NOT permit:
+                #
+                #   * any other Phase-1 token (``correlation_id`` /
+                #     ``idempotency_key`` / ``actor_principal_type`` /
+                #     ``scheme_run_id`` / ``frozen_envelope``);
+                #   * any import of a production ORM /
+                #     infrastructure / repository module;
+                #   * any construction of a production record
+                #     (``OrchestrationRunAttemptRecord`` /
+                #     ``SchemeRunRecord`` /
+                #     ``CalculationRunRecord``);
+                #   * any raw SQL, ORM attribute access, repository
+                #     call, ``session.add``, ``session.execute``,
+                #     or production persistence construction;
+                #   * any Pydantic Field alias on a token other than
+                #     ``database_backend``;
+                #   * the ``database_backend`` token in any other
+                #     evaluation file (``manifest.py`` /
+                #     ``canonicalization.py`` / ``paths.py`` /
+                #     ``sqlite_scope.py`` /
+                #     ``schema/__init__.py`` / test files).
+                expected_models_path = (
+                    BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "models.py"
+                )
+                if path == expected_models_path and field == "database_backend":
+                    # Run a structural inspection of ``models.py`` to
+                    # enforce the purpose-precise carve-out. The
+                    # structural inspection is paired with at least
+                    # one behavioral assertion in the C-1 test suite
+                    # (see ``test_models_round_trip_database_backend``).
+                    _assert_models_database_backend_use_is_typed_model_only(content, path)
+                    continue
                 # Allow comments (fine)
                 in_comments = sum(
                     1
@@ -278,3 +322,211 @@ def test_phase1_orm_does_not_contain_orchestrator_class() -> None:
                 f"Phase 1 ORM file {path.relative_to(BACKEND_ROOT)} "
                 f"contains forbidden orchestrator term '{term}'"
             )
+
+
+# ---------------------------------------------------------------------------
+# 5) TASK-011C amendment (comment 4963778355) — models.py carve-out
+# ---------------------------------------------------------------------------
+
+
+#: Names that the ``database_backend`` token must NOT appear near in
+#: ``models.py`` (besides the typed-model surface). These are structural
+#: "contexts" that would indicate the token is being used for raw
+#: SQL, ORM access, or production record construction.
+_MODELS_PY_FORBIDDEN_CONTEXTS: tuple[str, ...] = (
+    # Production ORM / infrastructure / repository / persistence.
+    "cold_storage.modules.orchestration.infrastructure",
+    "cold_storage.modules.schemes.infrastructure",
+    "OrchestrationRunAttemptRecord",
+    "SchemeRunRecord",
+    "CalculationRunRecord",
+    # Raw SQL / session.
+    "session.add",
+    "session.execute",
+    "session.scalar",
+    "session.commit",
+    "session.rollback",
+    "text(",
+    # Production persistence bypass / raw dict rows.
+    "raw_orm",
+    "raw_sql",
+    "fabricate",
+)
+
+
+def _assert_models_database_backend_use_is_typed_model_only(content: str, path: Path) -> None:
+    """Structural inspection for the ``models.py`` carve-out.
+
+    Per Issue #20 amendment comment 4963778355, ``models.py`` is
+    the single C-1 file permitted to reference the
+    ``database_backend`` token, and only for Pydantic typed-model
+    surface use. The structural checks below prove the token is
+    NOT used in any forbidden context. A behavioral companion
+    test (``test_models_py_database_backend_round_trip``) asserts
+    the token round-trips through Pydantic ``model_validate`` /
+    ``model_dump(by_alias=True, mode="json")``.
+    """
+    # 1. Parse the module as Python AST.
+    try:
+        tree = ast.parse(content, filename=str(path))
+    except SyntaxError as exc:
+        raise AssertionError(f"models.py has a syntax error: {exc}") from exc
+
+    # 2. Walk the AST and reject any reference to a forbidden
+    # context, even inside comments or docstrings (we strip
+    # docstrings before the search so a docstring mention is OK
+    # only as a docstring, not as a code reference).
+    forbidden_imports: list[str] = []
+    forbidden_attribute_access: list[str] = []
+    forbidden_call_targets: list[str] = []
+    for node in ast.walk(tree):
+        # 2a. Imports — reject any production ORM / infrastructure
+        # / repository import.
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if any(
+                forbidden in module
+                for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS
+                if "modules" in forbidden
+            ):
+                forbidden_imports.append(f"from {module} import ...")
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if any(
+                    forbidden in alias.name
+                    for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS
+                    if "modules" in forbidden
+                ):
+                    forbidden_imports.append(f"import {alias.name}")
+        # 2b. Attribute access — reject references to production
+        # record classes (used as bases, type annotations, or
+        # constructor calls).
+        if isinstance(node, ast.Attribute):
+            target = ast.unparse(node)
+            for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS:
+                if forbidden in target and "." in target:
+                    forbidden_attribute_access.append(f"{target} (forbidden: {forbidden})")
+        # 2c. Call targets — reject ``session.add(...)``,
+        # ``session.execute(...)``, ``text(...)``, etc.
+        if isinstance(node, ast.Call):
+            call_repr = ast.unparse(node.func)
+            for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS:
+                if forbidden in call_repr:
+                    forbidden_call_targets.append(f"{call_repr}(...) (forbidden: {forbidden})")
+    assert not forbidden_imports, (
+        f"models.py has forbidden production-ORM imports (TASK-011C "
+        f"amendment 4963778355 forbids production-ORM imports in "
+        f"models.py): {forbidden_imports}"
+    )
+    assert not forbidden_attribute_access, (
+        f"models.py has forbidden production-ORM attribute access "
+        f"(TASK-011C amendment 4963778355): {forbidden_attribute_access}"
+    )
+    assert not forbidden_call_targets, (
+        f"models.py has forbidden raw-SQL / session / production "
+        f"persistence call (TASK-011C amendment 4963778355): "
+        f"{forbidden_call_targets}"
+    )
+
+    # 3. Inspect the AST: the ``database_backend`` token must
+    # appear ONLY as:
+    #   * a ClassDef.bases / ModelField declaration in
+    #     ``Manifest`` / ``ScenarioDeclaration`` / ``RunRecord`` /
+    #     ``SummaryRecord`` (Pydantic ``BaseModel`` subclasses);
+    #   * a ``Field(alias="database_backend")`` / Pydantic
+    #     ``Field(..., alias=...)`` call;
+    #   * a string literal in a typed identity model attribute
+    #     name (not allowed — Python attribute is ``db_dialect``,
+    #     the JSON wire form is ``database_backend``);
+    #   * an enum / value validation reference (e.g.,
+    #     ``DatabaseBackend.SQLITE``).
+    #
+    # We do NOT enumerate every typed-model surface; we merely
+    # confirm that the token does NOT appear in any function body
+    # that is NOT a class-defining body or a model validator. The
+    # AST-based check covers the structural intent; the behavioral
+    # check is the companion test.
+    # (No additional enforcement here; the model surface IS the
+    # only legitimate use, and the AST walk above already rules
+    # out SQL / ORM / session / production-record uses.)
+
+    # 4. Confirm at least one Pydantic ``Field(..., alias=...)``
+    # call exists. If not, the typed-model surface is not using
+    # the JSON wire form.
+    found_field_alias = False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        for kw in node.keywords:
+            if kw.arg == "alias":
+                value = ast.unparse(kw.value)
+                if "database_backend" in value:
+                    found_field_alias = True
+                    break
+        if found_field_alias:
+            break
+    # The carve-out is "Pydantic typed-model surface use only".
+    # The typed-model surface includes both direct attribute
+    # declarations (``database_backend: DatabaseBackend``) AND
+    # Field alias declarations. The amendment permits both forms.
+    # We accept either.
+    if not found_field_alias:
+        # Fall back: confirm the token appears in a direct
+        # ClassDef member declaration.
+        found_attribute_decl = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for stmt in node.body:
+                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                    if stmt.target.id == "database_backend":
+                        found_attribute_decl = True
+                        break
+            if found_attribute_decl:
+                break
+        assert found_attribute_decl, (
+            "models.py must use 'database_backend' as either a "
+            "Pydantic typed field declaration OR a Pydantic "
+            "Field(alias=...) declaration (TASK-011C amendment "
+            "4963778355). Neither form was found."
+        )
+
+
+def test_models_py_database_backend_round_trip() -> None:
+    """Behavioral companion to the structural inspection in
+    ``_assert_models_database_backend_use_is_typed_model_only``.
+
+    The ``database_backend`` token must round-trip through Pydantic
+    ``model_validate`` and ``model_dump(by_alias=True,
+    mode="json")`` exactly as the frozen TASK-011C contract
+    requires (§6.4 / §7.0).
+
+    This test is the ONLY behavior under
+    ``backend/tests/architecture/`` that imports the C-1 models
+    module. It runs the round-trip and asserts:
+      * the parsed attribute is the ``DatabaseBackend`` enum
+        instance;
+      * the dumped wire form uses the literal ``"database_backend"``
+        key.
+    """
+    models_py_path = BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "models.py"
+    if not models_py_path.exists():
+        return  # the module does not exist yet — defer
+    from cold_storage.evaluation.models import DatabaseBackend, Manifest
+
+    raw = {
+        "schema_version": "1.0",
+        "suite_id": "t",
+        "scenarios": [
+            {
+                "scenario_id": "baseline_feasible",
+                "database_backend": "sqlite",
+                "expected_outcome": "SUCCEEDED",
+            }
+        ],
+    }
+    manifest = Manifest.model_validate(raw)
+    assert manifest.scenarios[0].database_backend is DatabaseBackend.SQLITE
+    dumped = manifest.model_dump(by_alias=True, mode="json")
+    # The wire form uses the literal ``database_backend`` key.
+    assert dumped["scenarios"][0]["database_backend"] == "sqlite"

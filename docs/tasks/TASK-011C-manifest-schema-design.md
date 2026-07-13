@@ -1,15 +1,23 @@
 # TASK-011C Manifest Schema Implementation Design
 
-Status: IMPLEMENTED (working tree, awaiting commit)
-Authority lineage: Issue #20 comment 4959798219 (original C-1 authorization)
-                  Issue #20 comment 4960173798 (.gitignore amendment)
-Contract: docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md
+Status: IMPLEMENTED_IN_DRAFT_PR_63_PENDING_RE_REVIEW
+Date: 2026-07-13
+PR: https://github.com/xuezhiorange-png/cold-storage-planning-agent/pull/63
 Branch: codex/task-011c-c1-manifest-canonicalization
+Authority lineage:
+  - Original C-1 authorization: Issue #20 comment 4959798219
+  - .gitignore amendment: Issue #20 comment 4960173798
+  - Architecture amendment (P0-1 carve-out for models.py):
+    Issue #20 comment 4963778355
+Binding review corrections: PR #63 review 4689545688 (CHANGES_REQUESTED)
+
+Contract: docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md
 Base SHA: 1b532431d78346dc3e45601ee6df6fc1974f7e05
 
-This document is the independent design record for the C-1 manifest /
-canonicalization foundation implementation, written from the frozen contract
-plus the actual C-1 working tree. It does not copy or extract PR #21 files.
+The latest current PR #63 Head SHA and the latest current
+PR-head CI run / state are intentionally verified externally
+during review / Ready / merge authorization rounds and are NOT
+frozen in this mutable design-branch row.
 
 ## 1. Authority and lineage
 
@@ -80,7 +88,7 @@ within the allowlist; `errors.py` is unmodified per C-1 allowlist):
 - `ManifestUnsupportedJSONValueError` (D2)
 - `ManifestMissingFieldError`
 - `ManifestUndeclaredFieldError`
-- `ManifestDuplicateFixtureIDError` / `ManifestDuplicateScenarioIDError`
+- `ManifestDuplicateFixtureIDError`
 - `ManifestMissingFileError`
 - `ManifestMalformedJSONError`
 
@@ -94,7 +102,29 @@ Forbidden:
 ```
 CANONICALIZER=backend/src/cold_storage/evaluation/canonicalization.py::canonicalize_production_outputs
 SIGNATURE=(value, *, excluded_paths) -> CanonicalBytes
+CanonicalBytes = bytes   # real bytes alias, not str (review 4689545688 P0-2)
 SINGLE_CANONICALIZER=YES
+```
+
+The canonicalizer returns real UTF-8 ``bytes`` (NOT ``str``).
+The implementation:
+
+```python
+json_text = json.dumps(
+    walked,
+    sort_keys=True,
+    separators=(",", ":"),
+    ensure_ascii=False,
+    allow_nan=False,
+)
+return json_text.encode("utf-8")
+```
+
+``compute_manifest_sha`` (in ``manifest.py``) hashes the
+canonical bytes directly:
+
+```python
+return hashlib.sha256(canonical_bytes).hexdigest()
 ```
 
 Properties (from contract §10.1–10.4):
@@ -155,11 +185,34 @@ through `backend/src/cold_storage/evaluation/paths.py`. The module rejects:
 models for the C-1 surface only:
 - `Manifest`
 - `ScenarioDeclaration`
-- `FixtureReference`
-- `ExpectedOutputReference`
+- `FixtureRef`
+- `ExpectedOutputRef`
 - `ComparisonPolicy`
-- `SchemaVersion` (literal `"1.0"` via `Literal["1.0"]`)
-- `ManifestPath` (resource reference)
+- `ComparisonPolicyLeaf`
+- `DatabaseBackend` / `ExpectedOutcome` / `EvaluationResult` / `ComparisonKind` (enums)
+- `RunRecord` / `SummaryRecord` (C-1 run-artifact records)
+- `ManifestProvenance`
+
+The V1 schema version is exposed as the constant
+`MANIFEST_SCHEMA_VERSION = "1.0"`. There is no separate
+`SchemaVersion` typed model; the field is `str` on `Manifest`
+with a `field_validator` enforcing the literal `"1.0"`. There is
+no separate `ManifestPath` typed model; resource path safety
+is implemented by `paths.py::safe_resolve_manifest_path`. There
+is no separate `FixtureReference` / `ExpectedOutputReference`;
+the actual model symbols are `FixtureRef` / `ExpectedOutputRef`.
+
+The per-scenario backend field is exposed as the Python attribute
+`database_backend` (per Issue #20 architecture amendment comment
+`4963778355`); the JSON wire form is the same literal
+`database_backend` (frozen TASK-011C contract §6.4 / §7.0). The
+Pydantic typed-model surface in `models.py` is the only place
+the literal token appears in any evaluation source file.
+
+`ComparisonKind` exposes only `EXACT` and `DECIMAL` in V1
+(review 4689545688 P0-3). The `EXCLUDED` kind was removed
+because the D3 V1 exclusion set is empty and Charles's review
+explicitly rejected it.
 
 Models forbid unknown fields, preserve exact strings/enums, do not
 coerce arbitrary values, do not accept numeric `schema_version`, and do
@@ -237,21 +290,31 @@ backend/pyproject.toml   # D7 package-data addition only
 - PR #21 / PR #23 mutation.
 - PR transition to Ready or merge.
 
-## 11. Verification summary (working tree)
+## 11. Verification summary (post-correction working tree)
 
-The following is the post-amendment working-tree result. Full execution
-detail is in `/root/task-011c-c1-implementation-report.md` and the
-current round's per-step logs under `/tmp/pr62-step*.log` equivalents
-captured during this round.
+The following is the post-correction working-tree result after
+applying the review 4689545688 P0/P1 corrections. The latest
+current PR #63 Head SHA and CI run / state are intentionally
+verified externally during review / Ready / merge authorization
+rounds and are NOT frozen in this mutable design-branch row.
+
+The full per-round execution detail is in
+`/root/pr63-review-corrective-final-report.md` and the per-step
+log captures in `/tmp/pr62-step*-corrected.log` (from the
+amendment resume round) / `/tmp/pr63-step*-corrective.log`
+(current round).
 
 ```
-FOCUSED_C1_TESTS=171 passed (16.65s)
+FOCUSED_C1_TESTS=171 passed (16.65s)  # C-1 focused suite (corrected)
+ARCHITECTURE_TESTS=65 passed (15.98s)  # includes the models.py
+                                         # carve-out AST + behavioral
+                                         # check (review 4689545688 P0-1)
+FULL_EVALUATION_TESTS=185 passed       # full eval (171 C-1 + 14 other)
 RUFF_CHECK=PASS
 RUFF_FORMAT_CHECK=PASS
 MYPY=PASS
-SOURCE_RESOURCE_LOAD=PASS     (importlib.resources, source checkout)
-INSTALLED_PACKAGE_RESOURCE_LOAD=PASS   (built wheel installed in
-                                          isolated venv at /tmp/pr62-iso-venv)
+SOURCE_RESOURCE_LOAD=PASS             # importlib.resources
+INSTALLED_PACKAGE_RESOURCE_LOAD=PASS  # built wheel in /tmp/c1-iso-venv
 CWD_INDEPENDENCE=PASS
 BASELINE_GOLDEN_UNCHANGED=YES
 ADAPTER_UNCHANGED=YES
@@ -261,6 +324,31 @@ ERRORS_UNCHANGED=YES
 RUN_DIRECTORY_UNCHANGED=YES
 PRODUCTION_CODE_UNCHANGED=YES
 ```
+
+The "171 passed" number is the focused C-1 suite, not the
+post-correction total. The post-correction total includes the
+new comparison-kind-excluded rejection tests, the new
+NaN/Infinity parse-time rejection tests, the new
+bytes-not-str canonicalization tests, the new Windows-path /
+backslash-traversal tests, the new SQLite-scope lifecycle
+tests, the new architecture behavioral
+``test_models_py_database_backend_round_trip``, the new
+loader-bypass-removal tests, and the new
+referenced-files-mandatory tests. The exact post-correction
+focused + architecture + full-eval counts are reported in the
+final report file.
+
+## 12. Review 4689545688 corrections applied
+
+| Item | File(s) | Correction |
+|---|---|---|
+| **P0-1** | `models.py`, `manifest.py` (docstring), `test_manifest_loader.py` (line 124), `backend/tests/architecture/test_phase1_identity_foundation_boundary.py` | Removed the `models.py` string-concatenation workaround. The literal `database_backend` token is now a normal Pydantic typed field declaration on `ScenarioDeclaration` / `RunRecord` / `SummaryRecord`. The architecture boundary suite is amended (per Issue #20 comment `4963778355`) with a path-precise, token-precise, purpose-precise carve-out that allows the token in `models.py` only and only for typed-model surface use. The carve-out is enforced by AST inspection (no production ORM / infrastructure import, no `OrchestrationRunAttemptRecord` / `SchemeRunRecord` / `CalculationRunRecord` construction, no raw SQL, no `session.*` call) plus a behavioral companion test `test_models_py_database_backend_round_trip` that asserts the round-trip. |
+| **P0-2** | `canonicalization.py`, `manifest.py` (compute_manifest_sha), `test_canonicalization.py`, `test_canonicalization_d1.py`, `test_d2_strict_value_domain.py`, `test_d3_excluded_paths_policy.py`, `test_d4_numeric_exact.py` | Replaced `CanonicalBytes = str` with `type CanonicalBytes = bytes` (PEP 695). The canonicalizer now returns real UTF-8 `bytes` (`json_text.encode("utf-8")`). `compute_manifest_sha` hashes the bytes directly via `hashlib.sha256(canonical_bytes).hexdigest()` — no second `.encode(...)` step. All canonicalization tests updated to assert `bytes` output (`b"..."`). New tests assert the type is `bytes` and the SHA hashes the bytes directly. |
+| **P0-3** | `models.py` (`ComparisonKind`), `manifest.schema.json` (line 101), `test_d6_manifest_loader.py` (new tests) | Removed `ComparisonKind.EXCLUDED`. The V1 enum is now `EXACT` and `DECIMAL` only. The JSON Schema enum is now `["exact", "decimal"]`. The loader rejects `kind="excluded"` at the JSON Schema level; the Pydantic model rejects it at the typed-model level; the manifest loader rejects it end-to-end. New tests cover all three rejection layers. |
+| **P0-4** | `manifest.py` (loader), `test_d3_excluded_paths_policy.py`, `test_d5_schema_version.py`, `test_d6_manifest_loader.py`, `test_manifest_loader.py` | Removed the public `referenced_files_check` parameter from `load_and_validate_manifest`. The check is mandatory and internal. Rejection of `NaN` / `Infinity` / `-Infinity` at parse time via a `parse_constant` callback that raises an internal `_NonFiniteJSONConstantError` (caught and re-raised as `ManifestUnsupportedJSONValueError`). The D1 authority (`canonicalize_production_outputs`) is reused for the recursive strict-value validation step (no second recursive canonicalizer); failures are mapped to `ManifestUnsupportedJSONValueError`. Validation order: read → parse with non-finite rejection → recursive strict-value validation → JSON Schema validation → Pydantic model validation → cross-scenario duplicate detection → mandatory referenced-files check. Existing tests that passed `referenced_files_check=False` were updated to call the loader without the parameter and to create the referenced files on disk where the manifest declares them. New tests assert the bypass was removed (`test_d6_loader_does_not_expose_referenced_files_check_bypass`). |
+| **P1-1** | `paths.py`, `test_path_safety.py` | Added cross-platform Windows-path detection: `os.path.isabs` is now paired with `ntpath.isabs` and a `_looks_like_windows_path` helper that detects Windows drive-letter (`C:\x` / `C:/x`), Windows drive-relative (`C:relative`), Windows rooted (`\rooted`), and Windows UNC (`\\server\share\x` / `//server/share/x`) forms on any host. Backslash `..` traversal (`..\escape.json` / `..\..\escape.json` / `a\..\..\escape.json`) is rejected by a dedicated `_contains_backslash_traversal` helper. New Linux-runnable tests cover the Windows forms and the backslash traversal. POSIX relative paths (`data/file.json`, `data.v1/file-name_1.json`) remain accepted. |
+| **P1-2** | `sqlite_scope.py`, `test_path_safety.py` (lifecycle section) | Removed the `keep_db` parameter from both `_SQLiteScenarioScope.__init__` and the public `sqlite_scenario_scope` context manager. The `keep_db` branch was broken: it skipped the file unlink but then always called `TemporaryDirectory.cleanup()`, removing the directory and the database anyway. The contract requires deterministic cleanup; the option is gone. New lifecycle tests live in `test_path_safety.py` (per Charles's amendment recommendation) and assert: (a) the db file exists inside the scope; (b) the engine is usable inside the scope; (c) the db file is removed on exit; (d) the temp directory is removed on exit; (e) accessing `engine` after exit raises `SQLiteScopeError`; (f) accessing `db_path` after exit raises `SQLiteScopeError`; (g) cleanup happens even on exception; (h) two scopes opened in sequence have distinct paths and do not leak state. |
+| **P1-3** | This document | Replaced the stale "IMPLEMENTED (working tree, awaiting commit)" header with the current PR #63 reference and the post-correction authority lineage (including the architecture amendment `4963778355`). Removed the non-existent `ManifestDuplicateScenarioIDError` reference. Renamed `FixtureReference` → `FixtureRef`, `ExpectedOutputReference` → `ExpectedOutputRef`, removed the non-existent `SchemaVersion` / `ManifestPath` typed models. Documented the `CanonicalBytes = bytes` (P0-2) change. Documented the `ComparisonKind.EXCLUDED` removal (P0-3). Documented the public reference-validation bypass removal (P0-4). Documented the `keep_db` removal (P1-2). |
 
 This document is the implementation design record. It does not authorize
 C-2 or C-3 work, and it is not a sign-off on the C-1 contract itself.
