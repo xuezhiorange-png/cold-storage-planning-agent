@@ -1,6 +1,6 @@
 # TASK-011C Manifest Schema Implementation Design
 
-Status: CORRECTED_IN_DRAFT_PR_63_PENDING_FOURTH_RE_REVIEW
+Status: CORRECTED_IN_DRAFT_PR_63_PENDING_FIFTH_RE_REVIEW
 Date: 2026-07-13
 PR: https://github.com/xuezhiorange-png/cold-storage-planning-agent/pull/63
 Branch: codex/task-011c-c1-manifest-canonicalization
@@ -20,7 +20,10 @@ Binding review corrections:
   - Third re-review: PR #63 review 4690110096
     - Third re-review platform state: COMMENTED
     - Third re-review body verdict: TASK_011C_C1_THIRD_RE_REVIEW_CHANGES_REQUESTED
-  - Full third re-review findings: Issue #20 comment 4964388017
+  - Full third re-review findings: PR #63 conversation comment 4964388017
+  - Fourth re-review: PR #63 review 4690297649
+    - Fourth re-review platform state: COMMENTED
+    - Fourth re-review body verdict: TASK_011C_C1_FOURTH_RE_REVIEW_CHANGES_REQUESTED
 
 Note on platform state vs body verdict:
   This repository is personally maintained. GitHub records
@@ -28,7 +31,8 @@ Note on platform state vs body verdict:
   disposition is carried by the review body verdict (which is
   TASK_011C_C1_REVIEW_CHANGES_REQUESTED /
   TASK_011C_C1_RE_REVIEW_CHANGES_REQUESTED /
-  TASK_011C_C1_THIRD_RE_REVIEW_CHANGES_REQUESTED). The body
+  TASK_011C_C1_THIRD_RE_REVIEW_CHANGES_REQUESTED /
+  TASK_011C_C1_FOURTH_RE_REVIEW_CHANGES_REQUESTED). The body
   verdict is the binding signal, NOT the platform state.
 
 Contract: docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md
@@ -36,11 +40,12 @@ Base SHA: 1b532431d78346dc3e45601ee6df6fc1974f7e05
 
 The latest current PR #63 Head SHA, the latest current
 PR-head CI run / state, per-round test counts, and per-round
-external evidence (logs, wheels, scratch files in /tmp/ or
-/root/) are intentionally verified externally during the
-corresponding review / Ready / merge authorization rounds and
-are NOT frozen in this mutable design-branch row. Per-round
-execution evidence is external to this frozen design record.
+external evidence (per-round reports, log captures, wheel
+artifacts, machine-local transient artifacts) are intentionally
+verified externally during the corresponding review / Ready /
+merge authorization rounds and are NOT frozen in this mutable
+design-branch row. Per-round execution evidence is external to
+this frozen design record.
 
 ## 1. Authority and lineage
 
@@ -397,8 +402,9 @@ corrections and review rebases:
 Per-round execution evidence (per-round reports, log
 captures, wheel artifacts, scratch files, etc.) lives
 outside this repository. The mutable design-branch row
-deliberately does NOT reference per-host /tmp/ or /root/
-paths or specific per-round test counts; those are
+deliberately does NOT reference per-host scratch paths
+or machine-local transient artifacts, and does NOT
+record specific per-round test counts; those are
 re-derived on demand by the next review / Ready / merge
 authorization round.
 
@@ -456,3 +462,52 @@ forward-compatible: `Field(alias="database_backend")`,
 method attribute reads, unrelated validators, wrong
 receivers, missing `.value`, etc. are all rejected.
 ```
+
+### 12.4 Exact occurrence cardinality contract (P0-1 of review 4690297649)
+
+The real `models.py` MUST have exactly the following
+code-level `database_backend` occurrence counts; no more,
+no fewer. If the real model surface ever grows a 4th
+typed field or a 3rd validator read, this contract and
+the architecture guard test file's constants MUST be
+updated in lockstep — never silently widened.
+
+```
+AUTHORIZED_FIELD_COUNT=3
+AUTHORIZED_VALIDATOR_READ_COUNT=2
+TOTAL_DATABASE_BACKEND_OCCURRENCE_COUNT=5
+REJECTED_OCCURRENCE_COUNT=0
+```
+
+Per-class field occurrence counter MUST be exactly:
+
+```
+Counter(
+    {
+        "ScenarioDeclaration": 1,
+        "RunRecord": 1,
+        "SummaryRecord": 1,
+    }
+)
+```
+
+### 12.5 Exact decorator contract
+
+The Manifest validator MUST carry the exact
+`@field_validator("scenarios")` decorator, with no other
+positional arguments and no keyword arguments.
+
+```
+DECORATOR_FUNCTION=field_validator
+POSITIONAL_ARGUMENT_COUNT=1
+POSITIONAL_ARGUMENT_0="scenarios"
+KEYWORD_ARGUMENT_COUNT=0
+```
+
+Any of the following is REJECTED:
+
+* `@field_validator("other", "scenarios")`
+* `@field_validator("scenarios", "other")`
+* `@field_validator("scenarios", mode="before")`
+* `@field_validator(*FIELDS)`
+* bare non-`Call` decorators.
