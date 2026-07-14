@@ -149,3 +149,120 @@ def test_canonical_output_bytes_decodes_to_deterministic_utf8() -> None:
     # Bytes are valid UTF-8.
     decoded = out.decode("utf-8")
     assert decoded == '{"a":1}'
+
+
+# ---------------------------------------------------------------------------
+# P0-2 of review 4689835238 — hostile object must not trigger str()/repr()
+# ---------------------------------------------------------------------------
+
+
+class _HostileKey:
+    """A hostile non-string dict key whose __str__/__repr__ raise.
+
+    Per P0-2 of review 4689835238, the canonicalizer must reject this
+    key without ever invoking ``str(key)`` or ``repr(key)``. The
+    canonicalizer only inspects the type (via ``isinstance``) and
+    records the type name; it never reads or stringifies the
+    user-supplied value.
+    """
+
+    def __init__(self) -> None:
+        self.str_called = False
+        self.repr_called = False
+
+    def __str__(self) -> str:
+        self.str_called = True
+        raise AssertionError("__str__ must not be called on a hostile key")
+
+    def __repr__(self) -> str:
+        self.repr_called = True
+        raise AssertionError("__repr__ must not be called on a hostile key")
+
+    def __hash__(self) -> int:
+        return 0  # make it hashable so it can be a dict key at all
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+
+def test_hostile_dict_key_does_not_trigger_str_or_repr() -> None:
+    """A hostile non-string dict key must be rejected via type check
+    only; neither ``str(key)`` nor ``repr(key)`` may be invoked.
+
+    The error details record ONLY the structural path and the
+    key's type name (``_HostileKey``); the key itself is never
+    read or stringified.
+    """
+    from cold_storage.evaluation.canonicalization import (
+        UnsupportedJSONValueError,
+    )
+
+    hostile = _HostileKey()
+    try:
+        canonicalize_production_outputs({hostile: "value"}, excluded_paths=())
+    except UnsupportedJSONValueError as exc:
+        assert exc.code == "UNSUPPORTED_JSON_VALUE", f"unexpected code {exc.code!r}"
+        details = exc.details
+        assert details["key_type"] == "_HostileKey", (
+            f"key_type should be the class name, got {details.get('key_type')!r}"
+        )
+        # The hostile key itself must NOT be in the details.
+        assert "value" not in details, (
+            f"hostile value must not be recorded; got details={details!r}"
+        )
+        assert "key_repr" not in details, (
+            f"key_repr must not be recorded (P0-2); got details={details!r}"
+        )
+    else:
+        raise AssertionError("expected UnsupportedJSONValueError for hostile dict key")
+    # The hostile object's __str__/__repr__ must NEVER have been called.
+    assert hostile.str_called is False, "__str__ was called on hostile key — P0-2 violation"
+    assert hostile.repr_called is False, "__repr__ was called on hostile key — P0-2 violation"
+
+
+def test_hostile_excluded_paths_entry_does_not_trigger_str_or_repr() -> None:
+    """A hostile entry in ``excluded_paths`` must be rejected via
+    type check only; neither ``str(entry)`` nor ``repr(entry)`` may
+    be invoked.
+
+    The error details record ONLY the field name, the entry's
+    index, and the entry's type name.
+    """
+    from typing import cast
+
+    from cold_storage.evaluation.canonicalization import (
+        UnsupportedJSONValueError,
+    )
+
+    hostile = _HostileKey()
+    try:
+        # type: ignore[arg-type] — hostile is intentionally not a str
+        canonicalize_production_outputs(
+            {"a": 1},
+            excluded_paths=cast("list[str]", [hostile]),
+        )
+    except UnsupportedJSONValueError as exc:
+        assert exc.code == "UNSUPPORTED_JSON_VALUE", f"unexpected code {exc.code!r}"
+        details = exc.details
+        assert details["field"] == "excluded_paths", (
+            f"field should be 'excluded_paths', got {details.get('field')!r}"
+        )
+        assert details["index"] == 0, (
+            f"index should be 0 (the hostile position), got {details.get('index')!r}"
+        )
+        assert details["value_type"] == "_HostileKey", (
+            f"value_type should be the class name, got {details.get('value_type')!r}"
+        )
+        # The hostile value itself must NOT be in the details.
+        assert "value" not in details, (
+            f"hostile value must not be recorded; got details={details!r}"
+        )
+    else:
+        raise AssertionError("expected UnsupportedJSONValueError for hostile excluded_paths entry")
+    # The hostile object's __str__/__repr__ must NEVER have been called.
+    assert hostile.str_called is False, (
+        "__str__ was called on hostile excluded_paths entry — P0-2 violation"
+    )
+    assert hostile.repr_called is False, (
+        "__repr__ was called on hostile excluded_paths entry — P0-2 violation"
+    )
