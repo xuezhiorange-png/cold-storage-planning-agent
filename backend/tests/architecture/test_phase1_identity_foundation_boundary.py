@@ -434,9 +434,7 @@ ERROR_MARKER_FIELD_CLASS_SET_MISMATCH: str = "DATABASE_BACKEND_FIELD_CLASS_SET_M
 ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH: str = "DATABASE_BACKEND_VALIDATOR_CARDINALITY_MISMATCH"
 ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH: str = "DATABASE_BACKEND_TOTAL_CARDINALITY_MISMATCH"
 ERROR_MARKER_DECORATOR_MISMATCH: str = "DATABASE_BACKEND_DECORATOR_MISMATCH"
-ERROR_MARKER_DECORATOR_STACK_MISMATCH: str = (
-    "DATABASE_BACKEND_DECORATOR_STACK_MISMATCH"
-)
+ERROR_MARKER_DECORATOR_STACK_MISMATCH: str = "DATABASE_BACKEND_DECORATOR_STACK_MISMATCH"
 
 
 @dataclass(frozen=True)
@@ -589,9 +587,8 @@ def _has_exact_manifest_validator_decorator_stack(
     if not _is_exact_scenarios_field_validator(decorators[0]):
         return False
     classmethod_decorator = decorators[1]
-    if not (
-        isinstance(classmethod_decorator, ast.Name)
-        and classmethod_decorator.id == "classmethod"
+    if not (  # noqa: SIM103
+        isinstance(classmethod_decorator, ast.Name) and classmethod_decorator.id == "classmethod"
     ):
         return False
     return True
@@ -1063,9 +1060,7 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
                     and fn.name == _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME
                 ):
                     actual_count = len(fn.decorator_list)
-                    actual_nodes_repr = [
-                        ast.unparse(d) for d in fn.decorator_list
-                    ]
+                    actual_nodes_repr = [ast.unparse(d) for d in fn.decorator_list]
                     if not _has_exact_manifest_validator_decorator_stack(fn):
                         raise AssertionError(
                             f"{ERROR_MARKER_DECORATOR_STACK_MISMATCH}: "
@@ -2042,7 +2037,6 @@ def test_exact_decorator_unpacked_args() -> None:
     )
 
 
-
 # ---------------------------------------------------------------------------
 # P0 of review 4690695361 — full decorator stack enforcement
 # ---------------------------------------------------------------------------
@@ -2090,7 +2084,8 @@ def _sixth_round_models_source(
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id}'\n"
+        "                    f' with database_backend {s.database_backend.value}'\n"
         "                )\n"
         "        return value\n"
     )
@@ -2125,9 +2120,7 @@ def test_exact_decorator_missing_classmethod() -> None:
     field_validator_then_classmethod.
     """
     source = _sixth_round_models_source(
-        extra_decorator_lines=(
-            "    @field_validator('scenarios')\n"
-        )
+        extra_decorator_lines=("    @field_validator('scenarios')\n")
     )
     _assert_rejected(
         source,
@@ -2143,10 +2136,7 @@ def test_exact_decorator_reversed_order() -> None:
     reverse is forbidden.
     """
     source = _sixth_round_models_source(
-        extra_decorator_lines=(
-            "    @classmethod\n"
-            "    @field_validator('scenarios')\n"
-        )
+        extra_decorator_lines=("    @classmethod\n    @field_validator('scenarios')\n")
     )
     _assert_rejected(
         source,
@@ -2164,9 +2154,7 @@ def test_exact_decorator_extra_decorator_before() -> None:
     """
     source = _sixth_round_models_source(
         extra_decorator_lines=(
-            "    @other_decorator\n"
-            "    @field_validator('scenarios')\n"
-            "    @classmethod\n"
+            "    @other_decorator\n    @field_validator('scenarios')\n    @classmethod\n"
         )
     )
     _assert_rejected(
@@ -2185,9 +2173,7 @@ def test_exact_decorator_extra_decorator_after() -> None:
     """
     source = _sixth_round_models_source(
         extra_decorator_lines=(
-            "    @field_validator('scenarios')\n"
-            "    @classmethod\n"
-            "    @other_decorator\n"
+            "    @field_validator('scenarios')\n    @classmethod\n    @other_decorator\n"
         )
     )
     _assert_rejected(
@@ -2204,9 +2190,7 @@ def test_exact_decorator_duplicate_classmethod() -> None:
     """
     source = _sixth_round_models_source(
         extra_decorator_lines=(
-            "    @field_validator('scenarios')\n"
-            "    @classmethod\n"
-            "    @classmethod\n"
+            "    @field_validator('scenarios')\n    @classmethod\n    @classmethod\n"
         )
     )
     _assert_rejected(
@@ -2224,10 +2208,7 @@ def test_exact_decorator_bare_field_validator() -> None:
     ``field_validator`` Name node.
     """
     source = _sixth_round_models_source(
-        extra_decorator_lines=(
-            "    @field_validator\n"
-            "    @classmethod\n"
-        )
+        extra_decorator_lines=("    @field_validator\n    @classmethod\n")
     )
     _assert_rejected(
         source,
@@ -2247,10 +2228,7 @@ def test_exact_decorator_authorized_full_stack() -> None:
     invariants, not a replacement.
     """
     source = _sixth_round_models_source(
-        extra_decorator_lines=(
-            "    @field_validator('scenarios')\n"
-            "    @classmethod\n"
-        )
+        extra_decorator_lines=("    @field_validator('scenarios')\n    @classmethod\n")
     )
     _assert_authorized(source)
     # Re-verify cardinality invariants against the synthetic
@@ -2299,9 +2277,7 @@ def test_exact_decorator_real_models_py_full_stack() -> None:
         / "models.py"
     )
     content = models_py_path.read_text(encoding="utf-8")
-    _assert_models_database_backend_use_is_typed_model_only(
-        content, models_py_path
-    )
+    _assert_models_database_backend_use_is_typed_model_only(content, models_py_path)
 
     # Additionally assert the real file's decorator stack is
     # exactly the frozen two-node form. This is the dedicated
