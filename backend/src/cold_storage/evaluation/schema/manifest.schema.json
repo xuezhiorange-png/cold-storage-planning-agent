@@ -77,7 +77,18 @@
           "type": "string",
           "enum": ["SUCCEEDED", "BLOCKED", "INVALID_INPUT"]
         },
-        "commit_sha": { "type": ["string", "null"] }
+        "commit_sha": { "type": ["string", "null"] },
+        "expected_error": { "$ref": "#/$defs/expected_error" }
+      }
+    },
+    "expected_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exception_type", "code", "field"],
+      "properties": {
+        "exception_type": { "type": "string", "minLength": 1 },
+        "code": { "type": "string", "minLength": 1 },
+        "field": { "type": "string", "minLength": 1 }
       }
     },
     "comparison_policy": {

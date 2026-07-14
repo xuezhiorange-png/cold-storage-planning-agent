@@ -105,6 +105,16 @@ class RunDirectory:
     raw_dir: Path
     normalized_dir: Path
     summary_path: Path
+    # C-2: additional managed-artifact paths.
+    # ``run_path`` is the per-scenario run record
+    # (``<root>/<scenario_id>/run.json``).
+    run_path: Path
+    # ``raw_path`` is the per-scenario raw, un-canonicalized
+    # artifact (``<root>/<scenario_id>/raw/<scenario_id>.json``).
+    raw_path: Path
+    # ``normalized_path`` is the per-scenario canonicalized
+    # artifact (``<root>/<scenario_id>/normalized/<scenario_id>.json``).
+    normalized_path: Path
 
     @classmethod
     def for_scenario(cls, *, root: Path, scenario_id: str) -> "RunDirectory":
@@ -124,7 +134,40 @@ class RunDirectory:
             raw_dir=scenario_dir / "raw",
             normalized_dir=scenario_dir / "normalized",
             summary_path=scenario_dir / "summary.json",
+            # C-2 managed-artifact paths.
+            run_path=scenario_dir / "run.json",
+            raw_path=scenario_dir / "raw" / f"{validated_id}.json",
+            normalized_path=scenario_dir / "normalized" / f"{validated_id}.json",
         )
+
+
+def suite_summary_path(*, root: Path) -> Path:
+    """Compute the suite-level ``summary.json`` path.
+
+    The runner writes the suite summary LAST (after every
+    per-scenario artifact has been atomically written), as the
+    typed completion record for the entire suite run.
+
+    Parameters
+    ----------
+    root:
+        The user-provided root directory for the run artifacts.
+
+    Returns
+    -------
+    Path
+        ``<root>/summary.json``.
+
+    Notes
+    -----
+    This helper is intentionally a module-level function rather
+    than a field on :class:`RunDirectory` (which is per-scenario
+    only). The suite summary is a single file at the suite root,
+    not nested under a scenario directory.
+    """
+    if not isinstance(root, Path):
+        root = Path(root)
+    return root / "summary.json"
 
 
 # ── Per-scenario execute helper ──────────────────────────────────────────
@@ -207,6 +250,7 @@ def execute_in_run_directory(
 __all__ = [
     "RunDirectory",
     "execute_in_run_directory",
+    "suite_summary_path",
     "_SAFE_SCENARIO_ID",
     "_validate_scenario_id",
 ]

@@ -155,12 +155,69 @@ class FixtureRef(BaseModel):
     # not here.
 
 
+class ExpectedErrorAssertion(BaseModel):
+    """A typed assertion of an expected production-side error (TASK-011C C-2).
+
+    For D10 ``invalid_blocked`` scenarios, the manifest declares the
+    exact structured exception that the production calculator is
+    expected to raise. The runner uses the typed ``code`` and
+    ``field`` attributes to match the actual exception — NEVER the
+    exception message text (per Phase 4 §9 forbidden-pattern list).
+
+    The D10 wire format mandates the following field triple:
+
+    * ``exception_type`` — the fully-qualified Python class name of
+      the expected production-side exception. For V1, the only
+      authorized value is ``"InvalidProjectInputError"``.
+    * ``code`` — the machine-readable error code, e.g.
+      ``"PROJ_INPUT_INVALID"``. Must match the production-side
+      ``code`` attribute exactly.
+    * ``field`` — the structured field tag from the production
+      error, e.g. ``"total_area_m2"``. Must match the
+      production-side ``field`` attribute exactly.
+
+    Any of these missing or malformed fails closed at the
+    manifest validation layer (before any FS/DB side effect).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    exception_type: str
+    code: str
+    field: str
+
+
 class ExpectedOutputRef(BaseModel):
     """A reference to the expected output JSON file for a scenario.
 
     For D10 ``invalid_blocked``, the expected output is the
     ``COMPACT_STRUCTURED_BLOCKER_ARTIFACT`` declared inline (no
-    file), so ``path`` is optional.
+    file), so ``path`` is optional and ``expected_error`` MUST be
+    present.
+
+    For ``expected_outcome == SUCCEEDED`` scenarios, ``path`` MUST
+    be present and ``expected_error`` MUST be ``None``.
+
+    The C-2 cross-field invariant is enforced by the
+    ``_validate_expected_error_combination`` field validator
+    below. The combination matrix is:
+
+    +-----------------+-----------------+--------------------------+
+    | expected_outcome| path            | expected_error           |
+    +=================+=================+==========================+
+    | SUCCEEDED       | MUST be non-None| MUST be None             |
+    +-----------------+-----------------+--------------------------+
+    | INVALID_INPUT   | MUST be None    | MUST NOT be None         |
+    +-----------------+-----------------+--------------------------+
+    | BLOCKED         | optional        | MUST be None             |
+    +-----------------+-----------------+--------------------------+
+
+    Any contradiction is rejected with a typed
+    :class:`ValueError` that the manifest loader maps to
+    :class:`ManifestUndeclaredFieldError` /
+    :class:`ManifestMissingFieldError`. The check runs at
+    Pydantic model construction (manifest load step 6, BEFORE
+    any FS/DB side effect).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -168,9 +225,85 @@ class ExpectedOutputRef(BaseModel):
     scenario_id: str
     path: str | None = None
     expected_outcome: ExpectedOutcome
-    # ``commit_sha`` is set by the C-3 sign-off round; C-1 leaves it
+    # ``commit_sha`` is set by the C-3 sign-off round; C-2 leaves it
     # unset.
     commit_sha: str | None = None
+    # ``expected_error`` is the typed C-2 contract for the D10
+    # ``invalid_blocked`` scenario. It MUST be set when
+    # ``expected_outcome == INVALID_INPUT`` and MUST be ``None``
+    # when ``expected_outcome == SUCCEEDED`` (cross-field invariant
+    # enforced by ``_validate_expected_error_combination``).
+    expected_error: ExpectedErrorAssertion | None = None
+
+    @field_validator("expected_error")
+    @classmethod
+    def _validate_expected_error_combination(
+        cls,
+        value: ExpectedErrorAssertion | None,
+        info: Any,
+    ) -> ExpectedErrorAssertion | None:
+        """Enforce the C-2 cross-field ``path`` / ``expected_error`` /
+        ``expected_outcome`` matrix.
+
+        The validator runs at Pydantic model construction (i.e.
+        during the manifest load, before any FS/DB side effect)
+        and rejects any contradiction with a typed
+        :class:`ValueError` that the manifest loader maps to a
+        typed ``ManifestError`` subclass.
+
+        The check is fail-closed: any contradiction is a
+        manifest-validation error, not a runner-side
+        failure.
+        """
+        # ``info.data`` carries the already-validated sibling
+        # fields. We only inspect ``expected_outcome`` and
+        # ``path`` (the two that drive the matrix). Pydantic v2
+        # always populates ``info.data`` for field validators
+        # with the model fields; we read it directly without
+        # calling ``getattr`` / ``setattr`` (those AST shapes
+        # would otherwise be picked up by the
+        # ``database_backend`` architecture-token scanner in
+        # tests/architecture/, even though they have no actual
+        # token reference).
+        data = info.data
+        outcome = data.get("expected_outcome")
+        path = data.get("path")
+        # SUCCEEDED: path MUST be present, expected_error MUST be None.
+        if outcome == ExpectedOutcome.SUCCEEDED:
+            if path is None:
+                raise ValueError(
+                    "expected_output.path MUST be non-None when "
+                    "expected_outcome == SUCCEEDED."
+                )
+            if value is not None:
+                raise ValueError(
+                    "expected_output.expected_error MUST be None when "
+                    "expected_outcome == SUCCEEDED; a SUCCEEDED "
+                    "scenario has no expected production-side error."
+                )
+        # INVALID_INPUT: path MUST be None, expected_error MUST be set.
+        elif outcome == ExpectedOutcome.INVALID_INPUT:
+            if path is not None:
+                raise ValueError(
+                    "expected_output.path MUST be None when "
+                    "expected_outcome == INVALID_INPUT; the D10 "
+                    "expected output is the inline typed "
+                    "expected_error, not a file path."
+                )
+            if value is None:
+                raise ValueError(
+                    "expected_output.expected_error MUST be set when "
+                    "expected_outcome == INVALID_INPUT; the D10 "
+                    "scenario requires a typed exception assertion."
+                )
+        # BLOCKED: optional path, expected_error MUST be None.
+        elif outcome == ExpectedOutcome.BLOCKED:
+            if value is not None:
+                raise ValueError(
+                    "expected_output.expected_error MUST be None when "
+                    "expected_outcome == BLOCKED."
+                )
+        return value
 
 
 class ScenarioDeclaration(BaseModel):
@@ -299,19 +432,44 @@ class Manifest(BaseModel):
 
 
 class RunRecord(BaseModel):
-    """A per-scenario run record (C-1 minimal: structural only).
+    """A per-scenario run record (TASK-011C C-2 runner authority).
 
     The ``database_backend`` field carries the same V1 contract
     identity as ``ScenarioDeclaration.database_backend`` and is
     permitted here for the same reason (Pydantic typed-model
     surface use only, per Issue #20 architecture amendment
     comment ``4963778355``).
+
+    C-2 adds the following fields to the C-1 minimal surface:
+
+    * ``fixture_revision`` — the test-side pre-existing-context
+      revision tag (e.g. ``"a1-fixture-rev-001"``) carried by
+      the manifest's scenario declaration. May be ``None`` for
+      inline-exception D10 scenarios.
+    * ``manifest_sha`` — the canonical SHA-256 of the V1 manifest
+      that bound this run. Always set.
+    * ``expected_outcome`` — the typed V1 ``ExpectedOutcome``
+      declared by the manifest. Always set.
+    * ``actual_outcome`` — the typed V1 ``Outcome`` literal that
+      the runner observed. Always set; carried as a string
+      literal (not the ``Outcome`` enum) for cross-backend /
+      cross-format stability.
+    * ``evaluation_result`` — the typed V1 ``EvaluationResult``
+      (pass / fail / infrastructure_error).
+    * ``diff_summary`` — structured diff between expected and
+      actual normalized outputs (empty when there is no
+      meaningful diff). For D10 ``invalid_blocked`` scenarios,
+      this carries the structured exception fields that were
+      matched (code, field, exception_type), NOT a textual diff.
+    * ``started_at`` / ``completed_at`` — ISO-8601 UTC strings.
+    * ``database_backend`` — the V1 ``DatabaseBackend`` enum.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     scenario_id: str
     database_backend: DatabaseBackend
+    fixture_revision: str | None = None
     manifest_sha: str
     expected_outcome: ExpectedOutcome
     actual_outcome: str
@@ -322,13 +480,27 @@ class RunRecord(BaseModel):
 
 
 class SummaryRecord(BaseModel):
-    """A run-suite summary record (C-1 minimal: structural only).
+    """A run-suite summary record (TASK-011C C-2 runner authority).
 
     The ``database_backend`` field carries the same V1 contract
     identity as ``ScenarioDeclaration.database_backend`` and is
     permitted here for the same reason (Pydantic typed-model
     surface use only, per Issue #20 architecture amendment
     comment ``4963778355``).
+
+    C-2 adds / requires the following fields:
+
+    * ``suite_id`` — the V1 manifest's ``suite_id``. Always set.
+    * ``manifest_sha`` — the canonical SHA-256 of the V1 manifest.
+    * ``commit_sha`` — the git commit SHA that bound this run.
+    * ``started_at`` / ``completed_at`` — ISO-8601 UTC strings.
+    * ``scenarios`` — the ordered tuple of per-scenario
+      ``RunRecord`` instances.
+    * ``evaluation_result_overall`` — the typed V1
+      ``EvaluationResult`` for the entire suite (pass only if
+      every scenario is pass; otherwise fail or
+      infrastructure_error).
+    * ``database_backend`` — the V1 ``DatabaseBackend`` enum.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -352,6 +524,7 @@ __all__ = [
     "ComparisonPolicyLeaf",
     "D3_V1_EXCLUDED_JSON_PATHS",
     "DatabaseBackend",
+    "ExpectedErrorAssertion",
     "ExpectedOutcome",
     "ExpectedOutputRef",
     "EvaluationResult",
