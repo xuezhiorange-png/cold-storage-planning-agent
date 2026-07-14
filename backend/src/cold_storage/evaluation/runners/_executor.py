@@ -36,6 +36,7 @@ deterministic function.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from cold_storage.evaluation.canonicalization import (
@@ -43,6 +44,57 @@ from cold_storage.evaluation.canonicalization import (
 )
 from cold_storage.evaluation.errors import EvaluationRunnerError
 from cold_storage.evaluation.models import ScenarioDeclaration
+
+# ---------------------------------------------------------------------------
+# C-2 baseline execution artifact carrier (P0-1 of review 4693931575).
+#
+# The three artifacts MUST be kept semantically disjoint:
+#
+#   * ``raw_value``           — the un-canonicalized production
+#                               result, derived from the live
+#                               ``AdapterResult`` / production
+#                               ``SchemeRun`` (NOT from
+#                               ``expected_output`` or the manifest
+#                               golden).
+#   * ``normalized_bytes``    — the D1-canonicalized byte form
+#                               (the single authoritative normalized
+#                               payload; the runner MUST persist
+#                               these exact bytes — never a re-
+#                               serialization).
+#   * ``normalized_value``    — the structured JSON value derived
+#                               from ``normalized_bytes`` for
+#                               comparison purposes only.
+#
+# Persisting ``expected_normalized`` (or any value derived from
+# ``expected_output``) into ``raw/<scenario_id>.json`` is the
+# historical P0-1 defect; this carrier type makes the contract
+# structural.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class BaselineExecutionArtifacts:
+    """The typed artifact carrier for a SUCCEEDED scenario.
+
+    The carrier is the single boundary between the production
+    seam and the runner's artifact persistence + comparison
+    pipeline. The three fields carry three distinct semantics;
+    the runner MUST use them disjointly:
+
+    * ``raw_value`` is written to
+      ``<run_dir>/raw/<scenario_id>.json`` verbatim (P0-1).
+    * ``normalized_bytes`` is written to
+      ``<run_dir>/normalized/<scenario_id>.json`` verbatim
+      (P0-2: byte-for-byte equality with the canonicalizer
+      return value).
+    * ``normalized_value`` is the structured form passed to
+      :func:`compare_outputs` for the comparison pass.
+    """
+
+    raw_value: object
+    normalized_bytes: bytes
+    normalized_value: object
+
 
 # D10 default fixture payload. The INVARIANT is that the FIRST
 # missing required field of the declared calculation type
@@ -116,23 +168,25 @@ def execute_d10_pure(
     )
 
     # The production function requires a ``database_backend`` kwarg.
-    # The architecture guard scans the source for the literal
-    # token; the dict-spread indirection hides the kwarg name
-    # from the AST scan while still passing the value to the
-    # production function. (The runtime value of
-    # ``"dat" + "abase_backend"`` is the literal string
-    # ``"database_backend"``; Python's call machinery accepts
-    # the dict-spread form as a regular keyword argument.)
+    # Per review 4693931575 P0-5 the architecture guard
+    # boundary test authorizes the literal tokens
+    # ``database_backend`` and ``correlation_id`` in
+    # ``backend/src/cold_storage/evaluation/runners/_executor.py``
+    # ONLY at this single call site (the C-2 production-boundary
+    # call into ``project_calculator_input`` and
+    # ``adapter_execute_scenario``). The two AST-enforced
+    # carve-out rules in the Phase-1 architecture boundary
+    # test file block:
+    #   * any BinOp(Add) string-concatenation bypass for the
+    #     two tokens;
+    #   * any ``**dict``-spread bypass for the two tokens;
+    # so the literal keyword form below is the only legal shape.
     project_calculator_input(
         calculation_type=CalculationType.INVESTMENT,
         raw_inputs=_D10_INVALID_BLOCKED_DEFAULT_RAW_INPUTS,
         actor=f"d10-actor-{scenario.scenario_id}",
-        **{
-            "correl" + "ation_id": f"d10-corr-{scenario.scenario_id}",
-        },
-        **{
-            "dat" + "abase_backend": (ScenarioDeclaration.get_scenario_backend(scenario).value),
-        },
+        correlation_id=f"d10-corr-{scenario.scenario_id}",
+        database_backend=ScenarioDeclaration.get_scenario_backend(scenario).value,
         upstream_calculation_ids=None,
         calculator_name="investment_estimate",
         calculator_version="1.0.0",
@@ -143,7 +197,7 @@ def execute_baseline_succeeded(
     *,
     scenario: ScenarioDeclaration,
     session_factory: Callable[[], Any],
-) -> dict[str, Any]:
+) -> BaselineExecutionArtifacts:
     """Execute the production pipeline for a SUCCEEDED scenario
     and return the canonicalized actual output.
 
@@ -175,9 +229,11 @@ def execute_baseline_succeeded(
 
     Returns
     -------
-    dict[str, Any]
-        The actual normalized output, ready for comparison
-        against the expected normalized output.
+    BaselineExecutionArtifacts
+        The three typed artifacts (raw production value,
+        canonical bytes, structured normalized value) ready
+        for the runner's artifact persistence + comparison
+        pipeline (per P0-1 / P0-2 of review 4693931575).
     """
     # Lazy import: the production modules and the adapter
     # are not required for unit tests that only exercise
@@ -197,21 +253,13 @@ def execute_baseline_succeeded(
     # values. Real backend runners (sqlite.py /
     # postgresql.py) seed the database with the A1-2a
     # pre-existing context before invoking the runner.
-    # The production function requires a ``database_backend`` kwarg.
-    # The architecture guard scans the source for the literal
-    # token; the dict-spread indirection hides the kwarg name
-    # from the AST scan while still passing the value to the
-    # production function.
+    backend_value = ScenarioDeclaration.get_scenario_backend(scenario).value
     result = adapter_execute_scenario(
         session_factory,
         source_binding_id="a1-test-binding-001",
         weight_set_revision_id="a1-test-wrev-001",
-        **{
-            "correl" + "ation_id": f"c2-runner-{scenario.scenario_id}",
-        },
-        **{
-            "dat" + "abase_backend": (ScenarioDeclaration.get_scenario_backend(scenario).value),
-        },
+        correlation_id=f"c2-runner-{scenario.scenario_id}",
+        database_backend=backend_value,
     )
     # The AdapterResult is converted to a JSON-domain
     # value via Pydantic model_dump (typed, no
@@ -224,13 +272,33 @@ def execute_baseline_succeeded(
 
     # The ``SchemeRun`` domain object exposes its data via the
     # Pydantic v2 ``model_dump`` interface; the strict-JSON
-    # canonicalizer accepts the result.
+    # canonicalizer accepts the result. ``mode="python"``
+    # preserves Python-domain types (``Decimal`` etc.) for
+    # the canonicalizer; ``mode="json"`` is the JSON-domain
+    # projection and is reserved for the comparison layer
+    # (which only sees JSON-domain values).
     dumped: dict[str, Any] = result.scheme_run.model_dump(mode="python")  # type: ignore[attr-defined]
+    # P0-1 of review 4693931575: the ``raw_value`` for the
+    # raw artifact is the JSON-domain projection of the live
+    # ``AdapterResult.scheme_run`` (Pydantic
+    # ``model_dump(mode="json")``). It MUST NOT be derived
+    # from ``expected_output`` or any baseline golden value.
+    raw_value: dict[str, Any] = result.scheme_run.model_dump(mode="json")  # type: ignore[attr-defined]
+    # P0-2 of review 4693931575: the canonicalizer's raw
+    # byte output is the SINGLE AUTHORITATIVE byte form of
+    # the normalized artifact. The runner persists these
+    # exact bytes — never a re-serialization.
     canonical_bytes = canonicalize_production_outputs(dumped, excluded_paths=())
-    return json.loads(canonical_bytes)  # type: ignore[no-any-return]
+    normalized_value = json.loads(canonical_bytes)
+    return BaselineExecutionArtifacts(
+        raw_value=raw_value,
+        normalized_bytes=canonical_bytes,
+        normalized_value=normalized_value,
+    )
 
 
 __all__ = [
+    "BaselineExecutionArtifacts",
     "execute_baseline_succeeded",
     "execute_d10_pure",
 ]

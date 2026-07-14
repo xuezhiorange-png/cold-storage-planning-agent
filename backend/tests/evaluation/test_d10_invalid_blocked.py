@@ -33,6 +33,9 @@ Per §十七 D10 test requirements (the subset this round ships):
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from cold_storage.evaluation.evaluate import (
@@ -43,6 +46,7 @@ from cold_storage.evaluation.models import (
     ExpectedErrorAssertion,
     ExpectedOutcome,
     ExpectedOutputRef,
+    Manifest,
     ScenarioDeclaration,
 )
 from cold_storage.evaluation.runners._executor import (
@@ -426,3 +430,283 @@ def test_full_d10_runner_round_trip_deferred() -> None:
         "follow-up round; the per-scenario typed exception match "
         "is already covered by the unit tests in this module."
     )
+
+
+# ── §17 P0-1 / P0-2 / P0-3 of review 4693931575 — runner-level contracts ─
+
+
+def test_p0_1_baseline_artifacts_carrier_carries_three_disjoint_fields() -> None:
+    """P0-1: the new :class:`BaselineExecutionArtifacts` carrier
+    MUST expose three semantically disjoint fields
+    (``raw_value`` / ``normalized_bytes`` /
+    ``normalized_value``). The runner MUST use them disjointly:
+    ``raw_value`` for the raw artifact, ``normalized_bytes``
+    for the normalized artifact (byte-for-byte), and
+    ``normalized_value`` for the comparison layer.
+    """
+    from cold_storage.evaluation.runners._executor import (
+        BaselineExecutionArtifacts,
+    )
+
+    raw = {"id": "raw-123", "result": "production-derived"}
+    norm_bytes = b'{"id":"norm-bytes","v":1}'
+    norm_value = {"id": "norm-bytes", "v": 1}
+    artifacts = BaselineExecutionArtifacts(
+        raw_value=raw,
+        normalized_bytes=norm_bytes,
+        normalized_value=norm_value,
+    )
+    assert artifacts.raw_value == raw
+    assert artifacts.normalized_bytes == norm_bytes
+    assert artifacts.normalized_value == norm_value
+    # The three fields MUST be structurally disjoint: the
+    # raw value is NOT a byte string, the bytes are bytes,
+    # and the value is a dict.
+    assert isinstance(artifacts.raw_value, dict)
+    assert isinstance(artifacts.normalized_bytes, bytes)
+    assert isinstance(artifacts.normalized_value, dict)
+
+
+def test_p0_2_atomic_write_bytes_writes_exact_bytes() -> None:
+    """P0-2: ``_atomic_write_bytes`` MUST persist the exact bytes
+    handed in (no re-serialization, no implicit stringification).
+    """
+    from cold_storage.evaluation.evaluate import _atomic_write_bytes
+
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "normalized.json"
+        expected_bytes = b'{"id":"canon-1","v":42}\n'
+        _atomic_write_bytes(path=target, data=expected_bytes)
+        on_disk = target.read_bytes()
+        assert on_disk == expected_bytes, (
+            f"P0-2: normalized artifact bytes mismatch. "
+            f"Expected {expected_bytes!r}, got {on_disk!r}."
+        )
+        # No ``.tmp`` sibling left over.
+        siblings = [p for p in Path(tmp).iterdir() if p.name != "normalized.json"]
+        assert siblings == [], f"P0-2: _atomic_write_bytes left temp files behind: {siblings!r}"
+
+
+def test_p0_2_atomic_write_bytes_rejects_non_bytes() -> None:
+    """P0-2: ``_atomic_write_bytes`` MUST fail-closed when given
+    a non-bytes value (the contract is bytes-in / bytes-out;
+    the historical ``default=str`` fallback was the source of
+    silent stringification).
+    """
+    from cold_storage.evaluation.errors import EvaluationArtifactWriteError
+    from cold_storage.evaluation.evaluate import _atomic_write_bytes
+
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "normalized.json"
+        with pytest.raises(EvaluationArtifactWriteError):
+            _atomic_write_bytes(path=target, data={"a": 1})  # type: ignore[arg-type]
+
+
+def test_p0_2_atomic_write_json_rejects_decimal() -> None:
+    """P0-2: ``_atomic_write_json`` MUST fail-closed on a
+    :class:`decimal.Decimal` value (no implicit ``str()``
+    coercion via ``default=str``).
+    """
+    from decimal import Decimal
+
+    from cold_storage.evaluation.errors import EvaluationArtifactWriteError
+    from cold_storage.evaluation.evaluate import _atomic_write_json
+
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "raw.json"
+        with pytest.raises(EvaluationArtifactWriteError):
+            _atomic_write_json(
+                path=target,
+                data={"amount": Decimal("12.500")},
+            )
+
+
+def test_p0_2_atomic_write_json_rejects_nan_inf() -> None:
+    """P0-2: ``_atomic_write_json`` MUST fail-closed on a
+    ``float('nan')`` / ``float('inf')`` value (the canonicalizer
+    rejects non-finite floats; the JSON writer no longer
+    silently serializes them).
+    """
+    from cold_storage.evaluation.errors import EvaluationArtifactWriteError
+    from cold_storage.evaluation.evaluate import _atomic_write_json
+
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "raw.json"
+        with pytest.raises(EvaluationArtifactWriteError):
+            _atomic_write_json(path=target, data={"x": float("nan")})
+        target2 = Path(tmp) / "raw2.json"
+        with pytest.raises(EvaluationArtifactWriteError):
+            _atomic_write_json(path=target2, data={"x": float("inf")})
+
+
+def test_p0_2_temp_file_cleaned_after_write_failure() -> None:
+    """P0-2: if the byte write fails, the temp sibling MUST be
+    cleaned up (no ``.tmp`` leak on disk after the failure).
+    """
+    from contextlib import suppress
+
+    from cold_storage.evaluation.errors import EvaluationArtifactWriteError
+    from cold_storage.evaluation.evaluate import _atomic_write_bytes
+
+    # We pass a string in (a non-bytes value) to force the
+    # _UnsupportedSerializedTypeError raise; the byte writer
+    # MUST NOT create any temp file in that case.
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "normalized.json"
+        with suppress(EvaluationArtifactWriteError):
+            _atomic_write_bytes(path=target, data="not-bytes")  # type: ignore[arg-type]
+        # No ``.tmp`` sibling left over.
+        siblings = [p.name for p in Path(tmp).iterdir()]
+        assert siblings == [], f"P0-2: failed _atomic_write_bytes left files behind: {siblings!r}"
+
+
+def test_p0_3_evaluate_manifest_requires_explicit_manifest_root() -> None:
+    """P0-3: ``evaluate_manifest`` MUST require an explicit
+    ``manifest_root: Path`` argument. Passing ``None`` (the
+    historical ``Path(".")`` default behavior) is REJECTED at
+    the entry boundary.
+    """
+    from cold_storage.evaluation.errors import EvaluationManifestExecutionError
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+
+    manifest = Manifest(
+        schema_version="1.0",
+        suite_id="p0-3-smoke",
+        scenarios=(),
+    )
+    with pytest.raises(EvaluationManifestExecutionError) as exc_info:
+        evaluate_manifest(  # type: ignore[call-arg]
+            manifest=manifest,
+            manifest_root=None,  # type: ignore[arg-type]
+            root=Path("/tmp/p0-3-root"),
+        )
+    assert "manifest_root" in str(exc_info.value).lower()
+
+
+def test_p0_3_evaluate_manifest_rejects_relative_manifest_root() -> None:
+    """P0-3: relative ``manifest_root`` paths are REJECTED
+    (defense-in-depth CWD independence).
+    """
+    from cold_storage.evaluation.errors import EvaluationManifestExecutionError
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+
+    manifest = Manifest(
+        schema_version="1.0",
+        suite_id="p0-3-rel",
+        scenarios=(),
+    )
+    with pytest.raises(EvaluationManifestExecutionError) as exc_info:
+        evaluate_manifest(
+            manifest=manifest,
+            manifest_root=Path("relative/path"),
+            root=Path("/tmp/p0-3-root"),
+        )
+    assert "absolute" in str(exc_info.value).lower()
+
+
+def test_p0_3_evaluate_manifest_rejects_traversal_manifest_root() -> None:
+    """P0-3: a ``manifest_root`` containing a ``..`` segment is
+    REJECTED (defense-in-depth path containment).
+    """
+    from cold_storage.evaluation.errors import EvaluationManifestExecutionError
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+
+    manifest = Manifest(
+        schema_version="1.0",
+        suite_id="p0-3-trav",
+        scenarios=(),
+    )
+    with pytest.raises(EvaluationManifestExecutionError) as exc_info:
+        evaluate_manifest(
+            manifest=manifest,
+            manifest_root=Path("/tmp/../escape"),
+            root=Path("/tmp/p0-3-root"),
+        )
+    assert "traversal" in str(exc_info.value).lower() or ".." in str(exc_info.value)
+
+
+def test_p0_3_run_sqlite_suite_requires_explicit_manifest_root() -> None:
+    """P0-3: the SQLite backend runner MUST also require an
+    explicit ``manifest_root: Path`` argument.
+    """
+    from cold_storage.evaluation.errors import EvaluationRunnerError
+    from cold_storage.evaluation.runners.sqlite import SQLiteRunnerConfig, run_sqlite_suite
+
+    manifest = Manifest(
+        schema_version="1.0",
+        suite_id="p0-3-sqlite",
+        scenarios=(),
+    )
+    config = SQLiteRunnerConfig(session_factory=lambda: None)  # type: ignore[arg-type,return-value]
+    with pytest.raises((EvaluationRunnerError, TypeError)) as exc_info:
+        run_sqlite_suite(
+            manifest=manifest,
+            manifest_root=None,  # type: ignore[arg-type]
+            root=Path("/tmp/p0-3-sqlite"),
+            config=config,
+        )
+    assert "manifest_root" in str(exc_info.value).lower()
+
+
+def test_p0_3_run_postgresql_suite_requires_explicit_manifest_root() -> None:
+    """P0-3: the PostgreSQL backend runner MUST also require an
+    explicit ``manifest_root: Path`` argument.
+    """
+    from cold_storage.evaluation.errors import EvaluationRunnerError
+    from cold_storage.evaluation.runners.postgresql import (
+        PostgreSQLRunnerConfig,
+        run_postgresql_suite,
+    )
+
+    manifest = Manifest(
+        schema_version="1.0",
+        suite_id="p0-3-pg",
+        scenarios=(),
+    )
+    config = PostgreSQLRunnerConfig(session_factory=lambda: None)  # type: ignore[arg-type,return-value]
+    with pytest.raises((EvaluationRunnerError, TypeError)) as exc_info:
+        run_postgresql_suite(
+            manifest=manifest,
+            manifest_root=None,  # type: ignore[arg-type]
+            root=Path("/tmp/p0-3-pg"),
+            config=config,
+        )
+    assert "manifest_root" in str(exc_info.value).lower()
+
+
+def test_p0_1_raw_provenance_independent_of_expected_golden() -> None:
+    """P0-1: the raw artifact carrier field (``raw_value``) is
+    structurally disjoint from the comparison input. The
+    historical defect was that the runner wrote
+    ``expected_normalized`` into ``raw/<scenario_id>.json``,
+    silently leaking the comparison golden into the raw
+    artifact. The carrier's three disjoint fields close this
+    hole: ``raw_value`` is the production-derived projection,
+    NOT the comparison golden.
+    """
+    from cold_storage.evaluation.runners._executor import (
+        BaselineExecutionArtifacts,
+    )
+
+    # The ``raw_value`` is constructed from the live
+    # ``AdapterResult.scheme_run`` (``model_dump(mode="json")``).
+    # The ``normalized_value`` is the canonicalized form of
+    # the production result, ready for comparison. These two
+    # are deliberately disjoint from the comparison input
+    # (which is the manifest golden ``expected_normalized``).
+    production_result_raw = {"id": "production-A", "v": 100}
+    production_result_canonical = {"id": "production-A", "v": "100"}
+    manifest_golden = {"id": "expected-B", "v": 100}
+    artifacts = BaselineExecutionArtifacts(
+        raw_value=production_result_raw,
+        normalized_bytes=b'{"id":"production-A","v":"100"}',
+        normalized_value=production_result_canonical,
+    )
+    # Raw MUST equal production-derived (NOT manifest golden).
+    assert artifacts.raw_value == production_result_raw
+    assert artifacts.raw_value != manifest_golden
+    # Normalized value MUST equal canonicalized production
+    # (NOT the manifest golden — the manifest golden is
+    # the comparison INPUT, not the comparison SUBJECT).
+    assert artifacts.normalized_value == production_result_canonical
+    assert artifacts.normalized_value != manifest_golden

@@ -64,3 +64,41 @@ def test_run_path_distinct_from_summary_path() -> None:
     assert rd.run_path != rd.summary_path
     assert rd.run_path.name == "run.json"
     assert rd.summary_path.name == "summary.json"
+
+
+# ── §17 P0-3 of review 4693931575 — manifest_root binding at runner boundary ──
+
+
+def test_p0_3_run_directory_paths_depend_only_on_explicit_root() -> None:
+    """P0-3: the per-scenario ``RunDirectory`` path layout depends
+    ONLY on the explicit ``root`` argument (defense-in-depth
+    CWD independence). Two ``for_scenario`` invocations with
+    the same ``root`` produce the same paths regardless of
+    the process CWD. The historical ``manifest_root(manifest) -> Path: return Path(".")``
+    helper silently depended on the process CWD; the new
+    runner boundary owns an explicit ``manifest_root`` value
+    that MUST NOT be derived from CWD.
+    """
+    import os
+
+    original_cwd = os.getcwd()
+    try:
+        # CWD = ``/tmp``.
+        os.chdir("/tmp")
+        rd_in_tmp = RunDirectory.for_scenario(
+            root=Path("/var/data/run_root"), scenario_id="scenario-001"
+        )
+        # CWD = ``/var``.
+        os.chdir("/var")
+        rd_in_var = RunDirectory.for_scenario(
+            root=Path("/var/data/run_root"), scenario_id="scenario-001"
+        )
+        # Both calls produce the same paths because the layout
+        # depends only on the explicit ``root`` argument, not
+        # on the process CWD.
+        assert rd_in_tmp.scenario_dir == rd_in_var.scenario_dir
+        assert rd_in_tmp.run_path == rd_in_var.run_path
+        assert rd_in_tmp.raw_path == rd_in_var.raw_path
+        assert rd_in_tmp.normalized_path == rd_in_var.normalized_path
+    finally:
+        os.chdir(original_cwd)

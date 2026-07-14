@@ -272,3 +272,97 @@ def test_exact_equal_dict_preserves_object_identity() -> None:
     assert _exact_equal({"a": 1, "b": 2}, {"b": 2, "a": 1}) is True  # dict equality
     assert _exact_equal([1, 2, 3], [1, 2, 3]) is True
     assert _exact_equal([1, 2, 3], [3, 2, 1]) is False
+
+
+# ── §17 P0-4 of review 4693931575 — recursive undeclared-leaf detection ──
+
+
+def test_p0_4_nested_object_extra_leaf_reported() -> None:
+    """P0-4: a nested object extra leaf (``$.outer.extra``) when
+    only ``$.outer.inner`` is declared MUST be surfaced as a
+    structured ``unexpected`` diff at the nested path. The
+    historical top-level-key scan missed this.
+    """
+    result = compare_outputs(
+        expected={"outer": {"inner": 1, "extra": 2}},
+        actual={"outer": {"inner": 1, "extra": 2}},
+        policy=_exact_policy("$.outer.inner"),
+    )
+    assert result.passed is False
+    unexpected_paths = {d.path for d in result.diffs if d.kind == "unexpected"}
+    assert "$.outer.extra" in unexpected_paths, (
+        f"P0-4: expected $.outer.extra in unexpected diffs, got {unexpected_paths}"
+    )
+
+
+def test_p0_4_nested_array_extra_element_reported() -> None:
+    """P0-4: an extra element in a nested array (``$.items[1].id``)
+    when only ``$.items[0].id`` is declared MUST be surfaced
+    as a structured ``unexpected`` diff.
+    """
+    result = compare_outputs(
+        expected={"items": [{"id": "a"}, {"id": "b"}]},
+        actual={"items": [{"id": "a"}, {"id": "b"}]},
+        policy=_exact_policy("$.items[0].id"),
+    )
+    assert result.passed is False
+    unexpected_paths = {d.path for d in result.diffs if d.kind == "unexpected"}
+    assert "$.items[1].id" in unexpected_paths, (
+        f"P0-4: expected $.items[1].id in unexpected diffs, got {unexpected_paths}"
+    )
+
+
+def test_p0_4_declared_descendant_does_not_cover_parent() -> None:
+    """P0-4: having a declared DESCENDANT does NOT cover the
+    whole parent container. If the parent has another leaf
+    that is not declared, that leaf MUST be reported as
+    ``unexpected`` even though the parent has a declared
+    descendant.
+    """
+    result = compare_outputs(
+        expected={"outer": {"inner": 1, "extra": "leak"}},
+        actual={"outer": {"inner": 1, "extra": "leak"}},
+        policy=_exact_policy("$.outer.inner"),
+    )
+    assert result.passed is False
+    unexpected_paths = {d.path for d in result.diffs if d.kind == "unexpected"}
+    assert "$.outer.extra" in unexpected_paths
+
+
+def test_p0_4_declared_container_path_covers_subtree() -> None:
+    """P0-4: when the policy declares a CONTAINER path (e.g.
+    ``$.outer``), all descendants inside that container are
+    considered covered and MUST NOT be reported as
+    ``unexpected`` (the parent declaration is sufficient).
+    """
+    result = compare_outputs(
+        expected={"outer": {"inner": 1, "extra": 2}},
+        actual={"outer": {"inner": 1, "extra": 2}},
+        policy=_exact_policy("$.outer"),
+    )
+    # No ``unexpected`` diffs — the container covers its subtree.
+    unexpected = [d for d in result.diffs if d.kind == "unexpected"]
+    assert list(unexpected) == [], (
+        f"P0-4: declared container path should cover subtree, got unexpected {unexpected}"
+    )
+    # And the whole-container comparison is exact-PASS.
+    assert result.passed is True
+
+
+def test_p0_4_array_order_remains_exact() -> None:
+    """P0-4: the P0-4 recursive undeclared-leaf detection MUST
+    NOT weaken the D4 array-order-exact semantic. A
+    permuted array still produces a ``value_mismatch`` diff
+    (NOT silently accepted as just an undeclared leaf).
+    """
+    result = compare_outputs(
+        expected={"items": [1, 2, 3]},
+        actual={"items": [3, 2, 1]},
+        policy=_exact_policy("$.items"),
+    )
+    assert result.passed is False
+    # The diff MUST be a value_mismatch on $.items — not
+    # decomposed into per-index undeclared leaves.
+    assert any(d.path == "$.items" and d.kind == "value_mismatch" for d in result.diffs), (
+        f"P0-4: expected value_mismatch on $.items, got {result.diffs}"
+    )

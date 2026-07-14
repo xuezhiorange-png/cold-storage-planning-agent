@@ -84,6 +84,9 @@ from cold_storage.evaluation.run_directory import (
     RunDirectory,
     suite_summary_path,
 )
+from cold_storage.evaluation.runners._executor import (
+    BaselineExecutionArtifacts,
+)
 
 # ── Manifest exception type registry (C-2 typed D10 boundary) ──────
 #
@@ -139,6 +142,7 @@ class SuiteRunResult:
 def evaluate_manifest(
     *,
     manifest: Manifest,
+    manifest_root: Path,
     root: Path,
     session_factory: Callable[[], Any] | None = None,
     commit_sha: str = "unknown",
@@ -160,6 +164,19 @@ def evaluate_manifest(
         cross-field invariants (path / expected_error /
         expected_outcome) defensively before any FS/DB side
         effect.
+    manifest_root:
+        The root directory for resolving the manifest's
+        referenced files (``expected_output.path`` and
+        ``fixtures[].path``). The root is REQUIRED; the runner
+        does NOT default to ``Path(".")`` (per review 4693931575
+        P0-3, the previous ``manifest_root(manifest) -> Path: return Path(".")``
+        helper is removed because it silently depended on the
+        process CWD). The backend runners (``runners/sqlite.py`` /
+        ``runners/postgresql.py``) are the boundary that owns
+        this value and forwards it to the suite runner. The
+        path is normalized to an absolute path at the entry
+        boundary and used as the base for traversal / symlink
+        containment checks.
     root:
         The target root directory for the per-scenario
         artifacts. Must NOT already contain a managed
@@ -203,6 +220,18 @@ def evaluate_manifest(
             "evaluate_manifest requires a Manifest instance.",
             details={"manifest_type": type(manifest).__name__},
         )
+    if not isinstance(manifest_root, Path):
+        raise EvaluationManifestExecutionError(
+            "evaluate_manifest requires an explicit manifest_root: Path "
+            "argument; the historical Path('.') default was removed per "
+            "review 4693931575 P0-3 (defense-in-depth CWD independence).",
+            details={"manifest_root_type": type(manifest_root).__name__},
+        )
+    # Resolve to an absolute, symlink-resolved path for
+    # defense-in-depth path containment. Any relative path
+    # raises (the runner never silently resolves against
+    # the process CWD).
+    manifest_root = _assert_manifest_root_contained(manifest_root)
     if not isinstance(root, Path):
         root = Path(root)
     started_at = _now_iso8601_utc()
@@ -214,7 +243,7 @@ def evaluate_manifest(
     #    the manifest was constructed programmatically without
     #    going through the loader).
     for scenario in manifest.scenarios:
-        _assert_cross_field_invariant(scenario, manifest_root=root)
+        _assert_cross_field_invariant(scenario, manifest_root=manifest_root)
 
     # 2. Compute manifest SHA from the canonicalized manifest
     #    (delegates to the D1 canonicalizer).
@@ -236,6 +265,7 @@ def evaluate_manifest(
             scenario=scenario,
             manifest=manifest,
             manifest_sha=manifest_sha,
+            manifest_root=manifest_root,
             root=root,
             session_factory=session_factory,
             commit_sha=commit_sha,
@@ -287,6 +317,7 @@ def _execute_one_scenario(
     scenario: ScenarioDeclaration,
     manifest: Manifest,
     manifest_sha: str,
+    manifest_root: Path,
     root: Path,
     session_factory: Callable[[], Any] | None,
     commit_sha: str,
@@ -322,6 +353,7 @@ def _execute_one_scenario(
             scenario=scenario,
             manifest=manifest,
             manifest_sha=manifest_sha,
+            manifest_root=manifest_root,
             run_dir=run_dir,
             commit_sha=commit_sha,
             started_at=scenario_started_at,
@@ -331,6 +363,7 @@ def _execute_one_scenario(
             scenario=scenario,
             manifest=manifest,
             manifest_sha=manifest_sha,
+            manifest_root=manifest_root,
             run_dir=run_dir,
             session_factory=session_factory,
             commit_sha=commit_sha,
@@ -367,6 +400,7 @@ def _execute_invalid_input(
     scenario: ScenarioDeclaration,
     manifest: Manifest,
     manifest_sha: str,
+    manifest_root: Path,
     run_dir: RunDirectory,
     commit_sha: str,
     started_at: str,
@@ -485,6 +519,7 @@ def _execute_succeeded(
     scenario: ScenarioDeclaration,
     manifest: Manifest,
     manifest_sha: str,
+    manifest_root: Path,
     run_dir: RunDirectory,
     session_factory: Callable[[], Any] | None,
     commit_sha: str,
@@ -534,7 +569,7 @@ def _execute_succeeded(
     )
 
     try:
-        actual_normalized = execute_baseline_succeeded(
+        baseline_artifacts: BaselineExecutionArtifacts = execute_baseline_succeeded(
             scenario=scenario,
             session_factory=session_factory,
         )
@@ -579,8 +614,13 @@ def _execute_succeeded(
             "SUCCEEDED scenario MUST have a non-None expected_output.path.",
             details={"scenario_id": scenario.scenario_id},
         )
+    # P0-3 of review 4693931575: the manifest_root is now an
+    # explicit, required Path argument forwarded from the
+    # backend runner; the previous ``Path(".")`` default is
+    # removed. The helper still rejects absolute paths and
+    # traversal; the runner boundary owns the root value.
     expected_full_path = _resolve_expected_output_path(
-        expected_path=expected_path, manifest_root=manifest_root(manifest)
+        expected_path=expected_path, manifest_root=manifest_root
     )
     expected_text = expected_full_path.read_text(encoding="utf-8")
     expected_normalized = json.loads(expected_text)
@@ -603,7 +643,7 @@ def _execute_succeeded(
 
     comparison: ComparisonResult = compare_outputs(
         expected=expected_normalized,
-        actual=actual_normalized,
+        actual=baseline_artifacts.normalized_value,
         policy=scenario.comparison_policy or ComparisonPolicy(),
     )
 
@@ -625,13 +665,29 @@ def _execute_succeeded(
 
     # Persist the raw + normalized per-scenario artifacts
     # (atomic).
+    #
+    # P0-1 of review 4693931575: the raw artifact MUST be the
+    # production-derived value (the live ``AdapterResult``
+    # JSON-domain projection), NOT ``expected_normalized``
+    # (which the manifest golden holds) and NOT the
+    # comparison result. We use the typed
+    # ``baseline_artifacts.raw_value`` from the production
+    # seam, which is structurally disjoint from the
+    # comparison input.
     _atomic_write_json(
         path=run_dir.raw_path,
-        data=expected_normalized,
+        data=baseline_artifacts.raw_value,
     )
-    _atomic_write_json(
+    # P0-2 of review 4693931575: the normalized artifact MUST
+    # be the canonicalizer's exact byte output. We persist
+    # ``baseline_artifacts.normalized_bytes`` byte-for-byte
+    # (no re-serialization, no ``json.dump`` round-trip, no
+    # ``default=str`` fallback). The byte writer
+    # ``_atomic_write_bytes`` is fail-closed and rejects
+    # implicit stringification of unsupported types.
+    _atomic_write_bytes(
         path=run_dir.normalized_path,
-        data=actual_normalized,
+        data=baseline_artifacts.normalized_bytes,
     )
 
     return RunRecord.from_scenario(
@@ -645,7 +701,90 @@ def _execute_succeeded(
     )
 
 
-# ── Atomic write helper (C-2 mandatory) ────────────────────────────
+# ── Atomic write helpers (C-2 mandatory) ────────────────────────────
+
+
+#: Bytes that the JSON-domain normalized artifact writer MUST
+#: persist verbatim — no re-serialization, no canonicalizer
+#: round-trip, no implicit stringification. The runner's
+#: P0-2 contract requires the on-disk bytes to be identical
+#: (==) to the value returned by ``canonicalize_production_outputs``.
+class _UnsupportedSerializedTypeError(EvaluationArtifactWriteError):
+    """The bytes-to-write are not in the strict-JSON value
+    domain. The atomic byte writer fails closed: the runner
+    never silently coerces unsupported Python objects to
+    strings (the historical ``default=str`` fallback was the
+    source of the P0-2 defect).
+
+    The error inherits the typed ``code`` attribute contract
+    from :class:`EvaluationArtifactWriteError`.
+    """
+
+
+def _atomic_write_bytes(*, path: Path, data: bytes) -> None:
+    """Atomically write ``data`` (bytes) to ``path``.
+
+    The write uses a temporary sibling file (created in the
+    same directory as ``path``), followed by a flush, an
+    fsync where supported, and ``os.replace`` for the atomic
+    rename. This is the C-2 mandatory atomic-byte-write
+    contract for the normalized artifact (P0-2 of review
+    4693931575): the on-disk bytes MUST equal the canonicalizer
+    return value byte-for-byte; no ``json.dump`` /
+    ``default=str`` round-trip is allowed.
+
+    The write is fail-closed: any IO failure raises a typed
+    :class:`EvaluationArtifactWriteError` with a stable
+    ``code`` attribute. The function does not coerce ``data``
+    in any way; the caller is responsible for handing in
+    pre-canonicalized bytes (typically the value returned by
+    :func:`cold_storage.evaluation.canonicalization.canonicalize_production_outputs`).
+    """
+    if not isinstance(data, bytes):
+        # Defense-in-depth: the contract is bytes-in / bytes-out.
+        raise _UnsupportedSerializedTypeError(
+            "_atomic_write_bytes requires pre-canonicalized bytes; "
+            "implicit stringification is forbidden (P0-2 contract).",
+            details={"data_type": type(data).__name__},
+        )
+    if not isinstance(path, Path):
+        path = Path(path)
+    parent = path.parent
+    try:
+        _safe_makedirs(parent)
+    except OSError as exc:
+        raise EvaluationArtifactWriteError(
+            f"Cannot create parent directory for atomic byte write: {exc}",
+            details={"path": str(path), "parent": str(parent)},
+        ) from exc
+    try:
+        # ``delete=False`` so we can ``os.replace`` across
+        # filesystems. We always ``delete=True`` in the
+        # ``finally`` block.
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=path.name + ".",
+            suffix=".tmp",
+            dir=str(parent),
+        )
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+                f.flush()
+                # fsync may fail on some filesystems
+                # (e.g. some FUSE mounts). We log the
+                # failure but proceed with the rename.
+                with suppress(OSError):  # noqa: SIM105
+                    os.fsync(f.fileno())
+            os.replace(tmp_name, path)
+        except BaseException:
+            with suppress(OSError):  # noqa: SIM105
+                os.unlink(tmp_name)
+            raise
+    except OSError as exc:
+        raise EvaluationArtifactWriteError(
+            f"Atomic byte write to {path} failed: {exc}",
+            details={"path": str(path)},
+        ) from exc
 
 
 def _atomic_write_json(*, path: Path, data: Any) -> None:
@@ -657,9 +796,20 @@ def _atomic_write_json(*, path: Path, data: Any) -> None:
     rename. This pattern is the C-2 mandatory atomic-write
     contract.
 
-    The write is fail-closed: any IO failure raises a typed
-    :class:`EvaluationArtifactWriteError` with a stable
-    ``code`` attribute.
+    Per review 4693931575 P0-2: the JSON writer is now
+    **fail-closed** and rejects unsupported Python objects
+    (no ``default=str`` fallback). The contract is: ``data``
+    MUST be a value in the strict-JSON value domain (``None`` /
+    ``bool`` / ``int`` / ``float`` / ``str`` / ``list`` /
+    ``dict`` of the same); any unsupported value raises a
+    typed :class:`EvaluationArtifactWriteError` with the
+    stable ``code`` ``"EVALUATION_ARTIFACT_WRITE_ERROR"``.
+
+    The runner's only JSON writes are Pydantic v2
+    ``model_dump(mode="json")`` projections (typed) and the
+    summary record (also typed). Both produce strict-JSON
+    values; the ``default=str`` fallback was the source of
+    the historical silent-stringification defect.
     """
     if not isinstance(path, Path):
         path = Path(path)
@@ -670,6 +820,24 @@ def _atomic_write_json(*, path: Path, data: Any) -> None:
         raise EvaluationArtifactWriteError(
             f"Cannot create parent directory for atomic write: {exc}",
             details={"path": str(path), "parent": str(parent)},
+        ) from exc
+    # Validate that the value is in the strict-JSON value
+    # domain. The canonicalizer enforces the same domain for
+    # the canonicalized payload; the raw + summary artifacts
+    # are typed Pydantic projections and are also in the
+    # domain. We delegate the validation to the canonicalizer
+    # for consistency.
+    try:
+        canonicalize_production_outputs(data, excluded_paths=())
+    except Exception as exc:
+        raise _UnsupportedSerializedTypeError(
+            "_atomic_write_json received a value that is not in the "
+            "strict-JSON value domain; the runner fails closed and does "
+            "NOT implicitly stringify (P0-2 of review 4693931575).",
+            details={
+                "data_type": type(data).__name__,
+                "canonicalizer_code": str(getattr(exc, "code", "CANONICALIZATION_ERROR")),
+            },
         ) from exc
     try:
         # ``delete=False`` so we can ``os.replace`` across
@@ -682,8 +850,19 @@ def _atomic_write_json(*, path: Path, data: Any) -> None:
             dir=str(parent),
         )
         try:
+            # P0-2: we still use ``json.dump`` for the
+            # *summary* / *raw* artifacts (Pydantic typed
+            # projections that are already in the strict-JSON
+            # domain). The writer does NOT pass
+            # ``default=str``; the value-domain validation
+            # above guarantees no implicit stringification
+            # is needed. ``sort_keys=True`` keeps the
+            # on-disk form stable across Python dict
+            # iteration order changes; the *normalized*
+            # artifact uses ``_atomic_write_bytes`` which
+            # bypasses ``json.dump`` entirely.
             with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, sort_keys=True, default=str)
+                json.dump(data, f, ensure_ascii=False, sort_keys=True)
                 f.flush()
                 # fsync may fail on some filesystems
                 # (e.g. some FUSE mounts). We log the
@@ -803,18 +982,52 @@ def _compute_manifest_sha(manifest: Manifest) -> str:
 # ── Helpers ──────────────────────────────────────────────────────
 
 
-def manifest_root(manifest: Manifest) -> Path:
-    """Return the manifest's logical root directory.
+def _assert_manifest_root_contained(candidate: Path) -> Path:
+    """Resolve and validate the manifest root for path containment.
 
-    The V1 manifest does not carry an explicit root path; the
-    convention is that the manifest's parent directory is the
-    root for all referenced files (``fixtures[].path``,
-    ``expected_output.path``). The runner does NOT assume
-    any specific filesystem layout here; it only uses the
-    helper to resolve the expected output file for SUCCEEDED
-    scenarios.
+    Per review 4693931575 P0-3: the runner requires an EXPLICIT
+    manifest_root (no ``Path(".")`` default). The helper enforces
+    defense-in-depth containment:
+
+    * the candidate path MUST be absolute (relative paths
+      raise — the runner never silently resolves against the
+      process CWD);
+    * the resolved path MUST NOT contain a ``..`` segment
+      (defense-in-depth against traversal; the loader
+      already rejects per-scenario ``..`` but the root-level
+      check is a second line of defense);
+    * the resolved path is symlink-resolved so that
+      containment comparisons downstream compare the same
+      filesystem object.
+
+    Returns the absolute, symlink-resolved path on success;
+    raises :class:`EvaluationManifestExecutionError` otherwise.
     """
-    return Path(".")
+    if not isinstance(candidate, Path):
+        candidate = Path(candidate)
+    if not candidate.is_absolute():
+        raise EvaluationManifestExecutionError(
+            "manifest_root MUST be an absolute path; relative paths "
+            "are rejected (defense-in-depth CWD independence per "
+            "review 4693931575 P0-3).",
+            details={"manifest_root": str(candidate)},
+        )
+    # Reject ``..`` segments in the candidate before resolving.
+    if any(part == ".." for part in candidate.parts):
+        raise EvaluationManifestExecutionError(
+            "manifest_root MUST NOT contain a '..' segment; traversal "
+            "rejected (defense-in-depth path containment per "
+            "review 4693931575 P0-3).",
+            details={"manifest_root": str(candidate)},
+        )
+    try:
+        resolved = candidate.resolve(strict=False)
+    except OSError as exc:
+        raise EvaluationManifestExecutionError(
+            f"manifest_root could not be resolved: {exc}",
+            details={"manifest_root": str(candidate)},
+        ) from exc
+    return resolved
 
 
 def _resolve_expected_output_path(*, expected_path: str, manifest_root: Path) -> Path:
@@ -945,6 +1158,5 @@ __all__ = [
     "SuiteRunResult",
     "V1_EXCEPTION_REGISTRY",
     "evaluate_manifest",
-    "manifest_root",
     "suite_summary_path",
 ]

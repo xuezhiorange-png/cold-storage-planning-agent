@@ -219,6 +219,53 @@ def test_evaluation_does_not_import_phase1_orm() -> None:
                     # (see ``test_models_round_trip_database_backend``).
                     _assert_models_database_backend_use_is_typed_model_only(content, path)
                     continue
+                # ── TASK-011C C-2 amendment (review 4693931575 P0-5) ─────
+                # ``runners/_executor.py`` is the C-2 production-boundary
+                # seam. It is authorized to hold the A1-2a contract
+                # token names (``database_backend`` and
+                # ``correlation_id``) ONLY at the two production-boundary
+                # call sites (``adapter_execute_scenario(...)`` and
+                # ``project_calculator_input(...)``). The runner does
+                # NOT call any production ORM / repository / production
+                # persistence internals; it only forwards the canonical
+                # A1-2a kwarg names to the typed A1-2a adapter path.
+                # The carve-out is path-precise (only
+                # ``runners/_executor.py``) and token-precise (only
+                # ``database_backend`` and ``correlation_id``). All
+                # other evaluation files (errors.py / run_directory.py /
+                # cli.py / __init__.py / tests / seed helpers) remain
+                # subject to the original Phase-1 field ban. The
+                # carve-out does NOT allow ``project_input``,
+                # ``scenario_id``, ``calculation_run_ids``,
+                # ``idempotency_key``, ``actor_principal_type``,
+                # ``scheme_run_id``, ``frozen_envelope``,
+                # ``production_seeding``, or any raw ORM /
+                # production-row fabrication token in
+                # ``runners/_executor.py``. The structural
+                # inspection in P0-5 (see
+                # ``test_executor_authorized_call_sites_emit_literal_keywords``
+                # + ``test_executor_rejects_string_concatenation_bypass``
+                # + ``test_executor_rejects_dict_spread_bypass``) is
+                # the paired AST enforcement for this carve-out.
+                expected_executor_path = (
+                    BACKEND_ROOT
+                    / "src"
+                    / "cold_storage"
+                    / "evaluation"
+                    / "runners"
+                    / "_executor.py"
+                )
+                if path == expected_executor_path and field in (
+                    "database_backend",
+                    "correlation_id",
+                ):
+                    # Run a structural AST inspection to enforce
+                    # the purpose-precise carve-out: the tokens
+                    # MUST appear only as literal keyword args at
+                    # the two authorized call sites (and nowhere
+                    # else in the file).
+                    _assert_executor_database_backend_use_is_typed_call_only(content, path)
+                    continue
                 # Allow comments (fine)
                 in_comments = sum(
                     1
@@ -2313,3 +2360,384 @@ def test_exact_decorator_real_models_py_full_stack() -> None:
         f"not the authorized frozen order. Got: "
         f"{[ast.unparse(d) for d in target_fn.decorator_list]!r}."
     )
+
+
+# ---------------------------------------------------------------------------
+# 6) P0-5 of review 4693931575 — token / call-site discipline for
+#    ``backend/src/cold_storage/evaluation/runners/_executor.py``
+# ---------------------------------------------------------------------------
+#
+# The literal tokens ``database_backend`` and ``correlation_id``
+# are authorized in ``_executor.py`` ONLY at the C-2 production
+# boundary calls (the call into
+# ``adapter_execute_scenario(...)`` and
+# ``project_calculator_input(...)``). The token MUST appear as
+# a literal keyword argument in a call; any other shape is
+# REJECTED:
+#
+#   * BinOp(Add) string-concatenation that produces the token
+#     at runtime (e.g. ``"dat" + "abase_backend"``) is REJECTED.
+#   * ``**dict`` spread whose dict-key is the token (or builds
+#     it via concatenation) is REJECTED.
+#   * Any other Phase-1 token (``idempotency_key`` /
+#     ``actor_principal_type`` / ``scheme_run_id`` /
+#     ``frozen_envelope``) is REJECTED in the entire
+#     ``_executor.py`` source.
+#   * Raw SQL / ORM / session calls in ``_executor.py`` are
+#     REJECTED.
+#
+# The carve-out is path-precise, token-precise, and
+# purpose-precise (review 4693931575 P0-5).
+
+
+def _assert_executor_database_backend_use_is_typed_call_only(content: str, path: Path) -> None:
+    """Structural AST inspection paired with the P0-5 carve-out
+    for ``runners/_executor.py``.
+
+    Asserts that the only ``database_backend`` /
+    ``correlation_id`` occurrences in the file are the
+    literal keyword arguments at the two authorized
+    production-boundary call sites
+    (``adapter_execute_scenario(...)`` and
+    ``project_calculator_input(...)``). Any other occurrence
+    (import, class attribute, local variable, ``**dict``
+    spread, BinOp(Add) concatenation, etc.) is REJECTED.
+
+    This is the structural counterpart to the new
+    ``test_executor_*`` P0-5 tests below; the in-line
+    carve-out check above delegates to this helper so the
+    pre-existing ``test_evaluation_does_not_import_phase1_orm``
+    AST walk accepts the two authorized call sites.
+    """
+    tree = ast.parse(content, filename=str(path))
+    authorized_call_sites = frozenset({"adapter_execute_scenario", "project_calculator_input"})
+    authorized_tokens = frozenset({"database_backend", "correlation_id"})
+    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+        callee = call.func
+        callee_name: str | None = None
+        if isinstance(callee, ast.Name):
+            callee_name = callee.id
+        elif isinstance(callee, ast.Attribute):
+            callee_name = callee.attr
+        for kw in call.keywords:
+            if kw.arg in authorized_tokens:
+                # The token MUST be at an authorized call site
+                # AND MUST be a literal keyword arg (NOT a
+                # ``**dict`` spread, NOT a string-concat value).
+                if callee_name not in authorized_call_sites:
+                    raise AssertionError(
+                        f"P0-5 carve-out: ``_executor.py`` call to "
+                        f"``{callee_name}(...)`` at "
+                        f"{getattr(call, 'lineno', '?')}:{getattr(call, 'col_offset', '?')} "
+                        f"carries the authorized token ``{kw.arg}`` "
+                        f"outside the two authorized call sites "
+                        f"{sorted(authorized_call_sites)}."
+                    )
+                if kw.value is None:
+                    raise AssertionError(
+                        f"P0-5 carve-out: ``_executor.py`` call to "
+                        f"``{callee_name}(...)`` at "
+                        f"{getattr(call, 'lineno', '?')}:{getattr(call, 'col_offset', '?')} "
+                        f"supplies ``{kw.arg}`` via ``**dict``-spread; "
+                        f"the literal keyword form is required."
+                    )
+
+
+_EXECUTOR_PY_PATH: Path = (
+    Path(__file__).resolve().parent.parent.parent
+    / "src"
+    / "cold_storage"
+    / "evaluation"
+    / "runners"
+    / "_executor.py"
+)
+_PHASE1_FORBIDDEN_TOKENS_IN_EXECUTOR: tuple[str, ...] = (
+    "idempotency_key",
+    "actor_principal_type",
+    "scheme_run_id",
+    "frozen_envelope",
+)
+#: The two Phase-1 tokens that are LEGAL in ``_executor.py`` —
+#: ONLY at the two production-boundary call sites listed in
+#: ``_EXECUTOR_AUTHORIZED_CALL_SITES``. Any other occurrence
+#: (import statement, class attribute, local variable, etc.)
+#: is REJECTED.
+_EXECUTOR_AUTHORIZED_TOKENS: frozenset[str] = frozenset({"database_backend", "correlation_id"})
+#: The exact set of function names that may receive the
+#: ``database_backend`` / ``correlation_id`` keyword
+#: arguments. Any other call-site carrying these tokens is
+#: REJECTED.
+_EXECUTOR_AUTHORIZED_CALL_SITES: frozenset[str] = frozenset(
+    {"adapter_execute_scenario", "project_calculator_input"}
+)
+#: Forbidden attribute / call names that would indicate
+#: ``_executor.py`` is reaching into the production ORM,
+#: session, or repository surface.
+_EXECUTOR_FORBIDDEN_PRODUCTION_TOKENS: tuple[str, ...] = (
+    "session.add",
+    "session.execute",
+    "session.scalar",
+    "session.commit",
+    "session.rollback",
+    "text(",
+    # Production persistence / production record construction.
+    "OrchestrationRunAttemptRecord",
+    "SchemeRunRecord",
+    "CalculationRunRecord",
+    # Production repositories.
+    "coefficient_resolver_infrastructure",
+    "raw_orm",
+    "raw_sql",
+    "fabricate",
+)
+
+
+def _executor_call_kw_arg_value(call: ast.Call, kw_name: str) -> ast.AST | None:
+    """Return the AST value node for a literal keyword arg
+    ``kw_name`` in ``call``. Returns ``None`` if the keyword
+    is not present, or if the keyword is supplied via a
+    ``**spread``.
+    """
+    for kw in call.keywords:
+        if kw.arg == kw_name and kw.value is not None:
+            return kw.value
+    return None
+
+
+def _ast_const_str_concat(value: ast.AST) -> str | None:
+    """Return the concatenated string of a constant string
+    expression. Walks ``ast.BinOp(Add)`` left-right and
+    collects the ``ast.Constant`` string literals.
+
+    Returns ``None`` if the expression is not a pure string
+    constant concatenation.
+    """
+    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+        return value.value
+    if isinstance(value, ast.BinOp) and isinstance(value.op, ast.Add):
+        left = _ast_const_str_concat(value.left)
+        right = _ast_const_str_concat(value.right)
+        if left is not None and right is not None:
+            return left + right
+    return None
+
+
+def _is_dict_spread_with_token(call: ast.Call, token: str) -> bool:
+    """Return True if any ``**``-spread argument is a dict
+    whose key is ``token`` (literal or string-concatenated)."""
+    for kw in call.keywords:
+        if kw.arg is None and isinstance(kw.value, ast.Dict):
+            for k in kw.value.keys:
+                if k is None:
+                    continue
+                if isinstance(k, ast.Constant) and isinstance(k.value, str) and k.value == token:
+                    return True
+                concat = _ast_const_str_concat(k)
+                if concat is not None and concat == token:
+                    return True
+    return False
+
+
+def test_executor_authorized_call_sites_emit_literal_keywords() -> None:
+    """P0-5 positive case: the two authorized production-boundary
+    call sites in ``_executor.py`` (``adapter_execute_scenario``
+    + ``project_calculator_input``) MUST receive the
+    ``database_backend`` and ``correlation_id`` keywords as
+    AST literal keyword arguments (NOT via ``**dict`` spread
+    and NOT via string concatenation).
+    """
+    content = _EXECUTOR_PY_PATH.read_text(encoding="utf-8")
+    tree = ast.parse(content, filename=str(_EXECUTOR_PY_PATH))
+    authorized_calls: dict[str, list[ast.Call]] = {
+        name: [] for name in _EXECUTOR_AUTHORIZED_CALL_SITES
+    }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            # Identify the call by its callee name (either bare
+            # name or ``alias as bare``).
+            callee = node.func
+            if isinstance(callee, ast.Name) and callee.id in _EXECUTOR_AUTHORIZED_CALL_SITES:
+                authorized_calls[callee.id].append(node)
+            elif (
+                isinstance(callee, ast.Attribute)
+                and isinstance(callee.value, ast.Name)
+                and callee.attr in _EXECUTOR_AUTHORIZED_CALL_SITES
+            ):
+                # Allow ``adapter.adapter_execute_scenario`` etc.
+                authorized_calls[callee.attr].append(node)
+    for site, calls in authorized_calls.items():
+        assert calls, (
+            f"P0-5: ``_executor.py`` is missing the authorized call "
+            f"site ``{site}(...)`` (P0-5 of review 4693931575)."
+        )
+        for call in calls:
+            for token in _EXECUTOR_AUTHORIZED_TOKENS:
+                # The token MUST appear as a literal keyword arg
+                # with a non-constant-concat value (i.e. a real
+                # value expression, not a synthetic string
+                # alias).
+                value = _executor_call_kw_arg_value(call, token)
+                if value is None:
+                    # ``project_calculator_input`` is the D10
+                    # pure projection call; both tokens are
+                    # authorized but the call MAY be invoked
+                    # without the ``correlation_id`` keyword
+                    # (it has a project-side default in V1).
+                    # The ``database_backend`` keyword is
+                    # required at the call site.
+                    if site == "project_calculator_input" and token == "correlation_id":
+                        continue
+                    raise AssertionError(
+                        f"P0-5: ``_executor.py`` call to ``{site}(...)`` "
+                        f"is missing the literal keyword ``{token}``; "
+                        f"the architecture boundary requires the literal "
+                        f"keyword form (no ``**dict``-spread, no "
+                        f"string-concatenated token)."
+                    )
+                # Reject any BinOp(Add) string-concat that
+                # evaluates to the token.
+                concat = _ast_const_str_concat(value)
+                if concat is not None and concat == token:
+                    raise AssertionError(
+                        f"P0-5: ``_executor.py`` call to ``{site}(...)`` "
+                        f"passes ``{token}`` as a string-concatenated "
+                        f"value (``{concat!r}``); the architecture "
+                        f"boundary requires the literal keyword form."
+                    )
+                # Reject any ``**dict``-spread that supplies the
+                # token.
+                if _is_dict_spread_with_token(call, token):
+                    raise AssertionError(
+                        f"P0-5: ``_executor.py`` call to ``{site}(...)`` "
+                        f"passes ``{token}`` via ``**dict``-spread; "
+                        f"the architecture boundary requires the "
+                        f"literal keyword form."
+                    )
+
+
+def test_executor_rejects_string_concatenation_bypass() -> None:
+    """P0-5 negative case: BinOp(Add) string concatenation
+    that builds the literal ``database_backend`` or
+    ``correlation_id`` token at runtime is REJECTED anywhere
+    in ``_executor.py`` (the runtime value is forbidden even
+    if the source looks opaque to a substring search).
+    """
+    content = _EXECUTOR_PY_PATH.read_text(encoding="utf-8")
+    tree = ast.parse(content, filename=str(_EXECUTOR_PY_PATH))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Add):
+            continue
+        concat = _ast_const_str_concat(node)
+        if concat is None:
+            continue
+        if concat in _EXECUTOR_AUTHORIZED_TOKENS:
+            raise AssertionError(
+                f"P0-5: ``_executor.py`` builds the token ``{concat!r}`` "
+                f"via BinOp(Add) string-concatenation at "
+                f"{getattr(node, 'lineno', '?')}:{getattr(node, 'col_offset', '?')}; "
+                f"the architecture boundary requires the literal "
+                f"keyword form (no string-concatenation bypass)."
+            )
+
+
+def test_executor_rejects_dict_spread_bypass() -> None:
+    """P0-5 negative case: ``**dict``-spread whose key is the
+    literal ``database_backend`` or ``correlation_id`` (or
+    builds it via concatenation) is REJECTED anywhere in
+    ``_executor.py``.
+    """
+    content = _EXECUTOR_PY_PATH.read_text(encoding="utf-8")
+    tree = ast.parse(content, filename=str(_EXECUTOR_PY_PATH))
+    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+        for token in _EXECUTOR_AUTHORIZED_TOKENS:
+            if _is_dict_spread_with_token(call, token):
+                raise AssertionError(
+                    f"P0-5: ``_executor.py`` call at "
+                    f"{getattr(call, 'lineno', '?')}:{getattr(call, 'col_offset', '?')} "
+                    f"passes ``{token}`` via ``**dict``-spread; "
+                    f"the architecture boundary requires the literal "
+                    f"keyword form (no ``**dict``-spread bypass)."
+                )
+
+
+def test_executor_other_phase1_tokens_remain_rejected() -> None:
+    """P0-5 negative case: any other Phase-1 token
+    (``idempotency_key`` / ``actor_principal_type`` /
+    ``scheme_run_id`` / ``frozen_envelope``) is REJECTED
+    anywhere in ``_executor.py``.
+    """
+    content = _EXECUTOR_PY_PATH.read_text(encoding="utf-8")
+    tree = ast.parse(content, filename=str(_EXECUTOR_PY_PATH))
+    identifiers: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            identifiers.add(node.id)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            # Track string constants to detect string-concat
+            # bypasses; this is the second line of defense
+            # against concatenation-bypass (the first is the
+            # BinOp(Add) walk in
+            # ``test_executor_rejects_string_concatenation_bypass``).
+            if any(tok in node.value for tok in _PHASE1_FORBIDDEN_TOKENS_IN_EXECUTOR):
+                raise AssertionError(
+                    f"P0-5: ``_executor.py`` contains a string constant "
+                    f"that embeds a forbidden Phase-1 token: "
+                    f"{node.value!r} at "
+                    f"{getattr(node, 'lineno', '?')}:{getattr(node, 'col_offset', '?')}"
+                )
+        elif isinstance(node, ast.arg) or isinstance(node, ast.keyword) and node.arg is not None:
+            identifiers.add(node.arg)
+    for token in _PHASE1_FORBIDDEN_TOKENS_IN_EXECUTOR:
+        assert token not in identifiers, (
+            f"P0-5: ``_executor.py`` references the forbidden Phase-1 "
+            f"token ``{token}``; the architecture boundary permits "
+            f"only the two authorized tokens ``database_backend`` and "
+            f"``correlation_id`` in this file (and only at the two "
+            f"authorized call sites)."
+        )
+
+
+def test_executor_rejects_production_orm_session_infrastructure() -> None:
+    """P0-5 negative case: ``_executor.py`` MUST NOT import
+    production ORM / session / repository surface or
+    construct production rows. The previous guard ``PATH_PRECISE =
+    runner_whole_evaluation_pkg`` is narrowed to
+    ``_executor.py`` only.
+    """
+    content = _EXECUTOR_PY_PATH.read_text(encoding="utf-8")
+    for forbidden in _EXECUTOR_FORBIDDEN_PRODUCTION_TOKENS:
+        assert forbidden not in content, (
+            f"P0-5: ``_executor.py`` references the forbidden production "
+            f"surface token ``{forbidden}``; the runner boundary permits "
+            f"only typed Pydantic-model projections and the D1 "
+            f"canonicalizer at the production seam."
+        )
+
+
+def test_executor_authorized_token_call_sites_precise() -> None:
+    """P0-5 precision guard: the only two functions in
+    ``_executor.py`` that may receive ``database_backend`` /
+    ``correlation_id`` keyword arguments are
+    ``adapter_execute_scenario`` and ``project_calculator_input``.
+    Any other function call carrying these tokens is REJECTED.
+    """
+    content = _EXECUTOR_PY_PATH.read_text(encoding="utf-8")
+    tree = ast.parse(content, filename=str(_EXECUTOR_PY_PATH))
+    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+        for kw in call.keywords:
+            if kw.arg in _EXECUTOR_AUTHORIZED_TOKENS:
+                callee = call.func
+                callee_name: str | None = None
+                if isinstance(callee, ast.Name):
+                    callee_name = callee.id
+                elif isinstance(callee, ast.Attribute):
+                    callee_name = callee.attr
+                assert callee_name in _EXECUTOR_AUTHORIZED_CALL_SITES, (
+                    f"P0-5: ``_executor.py`` call to ``{callee_name}(...)`` "
+                    f"at "
+                    f"{getattr(call, 'lineno', '?')}:{getattr(call, 'col_offset', '?')} "
+                    f"passes the authorized token ``{kw.arg}``; only the two "
+                    f"authorized call sites "
+                    f"{sorted(_EXECUTOR_AUTHORIZED_CALL_SITES)} are permitted "
+                    f"to carry these tokens."
+                )

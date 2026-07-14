@@ -292,44 +292,142 @@ def compare_outputs(
                     details={"path": leaf.path, "kind": str(leaf.kind)},
                 )
 
-    # Detect unexpected actual leaves that are not covered by
-    # any declared policy leaf. We do this ONLY when the policy
-    # is non-empty (a declared policy means "compare exactly
-    # these leaves and nothing else"). When the policy is
-    # empty, the whole-structure comparison already captured
-    # every difference.
-    if declared_leaves and isinstance(actual, Mapping):
-        for actual_key in actual.keys():  # noqa: SIM118
-            if not isinstance(actual_key, str):
-                # Untyped key (numeric, tuple, etc.) is a
-                # canonicalizer rejection upstream, but we
-                # surface a typed error here.
-                raise EvaluationComparisonError(
-                    "compare_outputs received an actual value with a "
-                    "non-string dict key; the D1 canonicalizer should "
-                    "have rejected it.",
-                    details={"key_type": type(actual_key).__name__},
+    # P0-4 of review 4693931575: detect unexpected actual
+    # leaves RECURSIVELY (the historical top-level-key scan
+    # missed ``$.outer.extra`` when only ``$.outer.inner``
+    # was declared). The contract:
+    #
+    #   * every actual leaf MUST be either a declared
+    #     comparison path OR strictly inside a declared
+    #     container path;
+    #   * having a declared descendant does NOT cover the
+    #     whole parent — the parent must still be declared
+    #     explicitly for the recursive walk to consider it
+    #     covered.
+    #
+    # The structured unexpected diff carries the V1 JSON
+    # Path of the offending leaf (e.g. ``$.outer.extra`` or
+    # ``$.items[1].id``), so downstream code classifies by
+    # the diff ``kind`` enum (NEVER by ``reason`` text).
+    if declared_leaves and (isinstance(actual, (Mapping, list)) or _is_scalar(actual)):
+        actual_leaves = _enumerate_actual_leaves(actual)
+        # A declared path is a "container" iff its target
+        # is a dict / list under V1 semantics. The helper
+        # decides: a path ending in ``.key`` / ``[N]`` is
+        # NOT itself a container (it points to a scalar
+        # inside a container); a path WITHOUT a trailing
+        # step IS a container (e.g. ``$.outer`` /
+        # ``$.items`` / ``$.items[0]`` / ``$``). We walk
+        # the actual tree and only treat a path as
+        # "covering a subtree" if it actually points to a
+        # container in the actual value.
+        declared_container_paths: set[str] = set()
+        for declared in declared_paths:
+            target = _resolve_path(actual, declared)
+            if isinstance(target, (Mapping, list)):
+                declared_container_paths.add(declared)
+        for leaf_path, leaf_value in actual_leaves:
+            if leaf_path in declared_paths:
+                continue
+            if _path_is_under_container(leaf_path, declared_container_paths):
+                continue
+            diffs.append(
+                ComparisonDiffEntry(
+                    path=leaf_path,
+                    kind="unexpected",
+                    expected=None,
+                    actual=leaf_value,
+                    reason=(
+                        "actual value has a leaf that is not covered by the "
+                        "declared policy (recursive undeclared-leaf detection "
+                        "per review 4693931575 P0-4)"
+                    ),
                 )
-            candidate = f"$.{actual_key}"
-            if candidate not in declared_paths and not _has_subpath_match(
-                declared_paths, candidate
-            ):
-                diffs.append(
-                    ComparisonDiffEntry(
-                        path=candidate,
-                        kind="unexpected",
-                        expected=None,
-                        actual=actual[actual_key],
-                        reason=(
-                            "actual value has a leaf that is not covered by the declared policy"
-                        ),
-                    )
-                )
+            )
 
     return ComparisonResult(
         passed=len(diffs) == 0,
         diffs=tuple(diffs),
     )
+
+
+def _is_scalar(value: object) -> bool:
+    """Return True iff ``value`` is a strict-JSON scalar (None /
+    bool / int / float / str)."""
+    return isinstance(value, (type(None), bool, int, float, str))
+
+
+def _enumerate_actual_leaves(
+    value: object,
+) -> list[tuple[str, object]]:
+    """Recursively enumerate every JSON-domain leaf in ``value``.
+
+    The implementation is the in-module counterpart to the
+    ``enumerate_leaves`` helper in
+    :mod:`cold_storage.evaluation.json_path` (which is
+    intentionally NOT touched in this corrective round per
+    the path-precise authority of review 4693931575 P0-3).
+    The output format is identical: a list of
+    ``(path, leaf_value)`` tuples with V1 restricted JSON
+    Path strings (e.g. ``"$.outer.inner"`` /
+    ``"$.items[0].id"``).
+
+    The function is depth-first and preserves list order
+    (V1 contract is order-exact). Dicts are walked in
+    insertion order (Python 3.7+ invariant). The function
+    raises :class:`EvaluationComparisonError` on a non-JSON
+    value (defense-in-depth; the canonicalizer rejects
+    non-JSON values upstream).
+    """
+    leaves: list[tuple[str, object]] = []
+    _walk_leaves(value, parent_path="$", out=leaves)
+    return leaves
+
+
+def _walk_leaves(value: object, *, parent_path: str, out: list[tuple[str, object]]) -> None:
+    if isinstance(value, Mapping):
+        for key, sub in value.items():
+            if not isinstance(key, str):
+                raise EvaluationComparisonError(
+                    "_enumerate_actual_leaves received a dict with a "
+                    "non-string key; the value is not in the strict-JSON "
+                    "domain.",
+                    details={
+                        "parent_path": parent_path,
+                        "non_str_key_type": type(key).__name__,
+                    },
+                )
+            child_path = f"{parent_path}.{key}"
+            if isinstance(sub, (Mapping, list)):
+                _walk_leaves(sub, parent_path=child_path, out=out)
+            else:
+                out.append((child_path, sub))
+    elif isinstance(value, list):
+        for index, sub in enumerate(value):
+            child_path = f"{parent_path}[{index}]"
+            if isinstance(sub, (Mapping, list)):
+                _walk_leaves(sub, parent_path=child_path, out=out)
+            else:
+                out.append((child_path, sub))
+    else:
+        # Scalar (None / bool / int / float / str).
+        out.append((parent_path, value))
+
+
+def _path_is_under_container(path: str, container_paths: set[str]) -> bool:
+    """Return True iff ``path`` is strictly under any container in
+    ``container_paths`` (i.e. one of the container paths is a strict
+    ancestor of ``path``).
+    """
+    for container in container_paths:
+        if not container:
+            continue
+        # ``path`` is under ``container`` iff ``path`` starts
+        # with ``container + "."`` (a key-step descendant) or
+        # ``container + "["`` (an index-step descendant).
+        if path.startswith(container + ".") or path.startswith(container + "["):
+            return True
+    return False
 
 
 # ── Internal helpers ────────────────────────────────────────────────
@@ -413,19 +511,16 @@ def _exact_equal(a: object, b: object) -> bool:
 
 
 def _has_subpath_match(declared_paths: set[str], candidate: str) -> bool:
-    """Return True iff any declared path is a strict subpath of
-    ``candidate``.
+    """Deprecated.
 
-    Example: if the declared paths are ``{"$.a.b"}`` and the
-    candidate is ``"$.a"``, the candidate has a subpath match
-    and is therefore not reported as unexpected.
+    The P0-4 recursive undeclared-leaf detection uses
+    :func:`_path_is_under_container` instead. This helper is
+    kept as a thin wrapper for any external test that may
+    import it (the public ``compare_outputs`` no longer
+    references it). It MUST NOT be used inside the
+    comparison executor.
     """
-    for declared in declared_paths:  # noqa: SIM110
-        # declared starts with candidate + "." (i.e. declared is
-        # deeper than candidate).
-        if declared.startswith(candidate + "."):
-            return True
-    return False
+    return any(declared.startswith(candidate + ".") for declared in declared_paths)
 
 
 __all__ = [

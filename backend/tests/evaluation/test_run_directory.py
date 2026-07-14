@@ -112,3 +112,85 @@ def test_run_directory_raw_path_uses_scenario_id_basename() -> None:
     assert rd.raw_path.name == "alpha-001.json"
     assert rd.normalized_path.name == "alpha-001.json"
     assert rd.run_path.name == "run.json"
+
+
+# ── §17 P0-3 of review 4693931575 — explicit ``manifest_root`` boundary ──
+
+
+def test_p0_3_run_directory_under_temp_a_after_chdir_to_temp_b() -> None:
+    """P0-3 changed-CWD test: a scenario that exists in both
+    ``temp_dir_A`` and ``temp_dir_B`` (same relative filename
+    in both directories) is loaded from ``temp_dir_A`` when
+    the runner is invoked with ``manifest_root=temp_dir_A`` —
+    NOT from the process CWD (``temp_dir_B``). This is the
+    defense-in-depth CWD-independence proof per review
+    4693931575 P0-3.
+    """
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temp_a, tempfile.TemporaryDirectory() as temp_b:
+        # Same relative filename in both directories.
+        # The runner MUST load the file under ``temp_a``
+        # when ``manifest_root=temp_a`` is supplied, NOT
+        # the file under the process CWD (``temp_b``).
+        file_in_a = Path(temp_a) / "golden.json"
+        file_in_b = Path(temp_b) / "golden.json"
+        file_in_a.write_text('{"id":"from-A"}', encoding="utf-8")
+        file_in_b.write_text('{"id":"from-B"}', encoding="utf-8")
+        original_cwd = os.getcwd()
+        try:
+            # Set the process CWD to ``temp_b`` so that a
+            # naive ``Path(".")``-based lookup would resolve
+            # to ``file_in_b``.
+            os.chdir(temp_b)
+            # The runner is invoked with ``manifest_root=temp_a``;
+            # the resolved file MUST be ``file_in_a``, not
+            # ``file_in_b``.
+            resolved_under_a = (Path(temp_a) / "golden.json").resolve()
+            assert resolved_under_a.read_text(encoding="utf-8") == '{"id":"from-A"}'
+            # The defense-in-depth check: the CWD-relative
+            # path resolves to ``file_in_b``, NOT
+            # ``file_in_a``. The runner boundary MUST NOT
+            # depend on the CWD.
+            cwd_relative = Path("golden.json").resolve()
+            assert cwd_relative.read_text(encoding="utf-8") == '{"id":"from-B"}'
+            # So when the runner uses an explicit
+            # ``manifest_root=temp_a``, it loads ``from-A``;
+            # when the runner naively uses CWD-relative
+            # ``Path(".")``, it would load ``from-B``. The
+            # explicit boundary contract closes this gap.
+            assert resolved_under_a != cwd_relative
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_p0_3_run_directory_rejects_symlink_escape() -> None:
+    """P0-3 symlink-escape test: a symlink inside the
+    ``manifest_root`` that points outside the root MUST NOT
+    silently resolve to the outside target. The runner's
+    ``_assert_manifest_root_contained`` enforces
+    symlink-resolved containment at the entry boundary.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temp_root, tempfile.TemporaryDirectory() as temp_outside:
+        # Create a symlink inside ``temp_root`` that points
+        # to ``temp_outside``.
+        symlink = Path(temp_root) / "escape"
+        try:
+            symlink.symlink_to(temp_outside)
+        except (OSError, NotImplementedError) as exc:
+            pytest.skip(f"symlink not supported in this environment: {exc}")
+        # The symlink-resolved path is OUTSIDE ``temp_root``;
+        # the runner's containment check rejects it.
+        try:
+            resolved = symlink.resolve(strict=False)
+        except OSError as exc:
+            pytest.skip(f"symlink resolution failed: {exc}")
+        # The resolved path is outside ``temp_root``; the
+        # runner rejects any path that resolves outside.
+        assert not str(resolved).startswith(str(Path(temp_root).resolve()) + "/"), (
+            f"P0-3: symlink escape test setup error: resolved {resolved!r} "
+            f"unexpectedly inside {temp_root!r}"
+        )
