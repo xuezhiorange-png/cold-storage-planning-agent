@@ -1,6 +1,6 @@
 # TASK-011C Manifest Schema Implementation Design
 
-Status: IMPLEMENTED_IN_DRAFT_PR_63_PENDING_RE_REVIEW
+Status: CORRECTED_IN_DRAFT_PR_63_PENDING_SECOND_RE_REVIEW
 Date: 2026-07-13
 PR: https://github.com/xuezhiorange-png/cold-storage-planning-agent/pull/63
 Branch: codex/task-011c-c1-manifest-canonicalization
@@ -9,7 +9,22 @@ Authority lineage:
   - .gitignore amendment: Issue #20 comment 4960173798
   - Architecture amendment (P0-1 carve-out for models.py):
     Issue #20 comment 4963778355
-Binding review corrections: PR #63 review 4689545688 (CHANGES_REQUESTED)
+Binding review corrections:
+  - First review: PR #63 review 4689545688
+    - Source review platform state: COMMENTED
+    - Source review body verdict: TASK_011C_C1_REVIEW_CHANGES_REQUESTED
+  - Second re-review: PR #63 review 4689835238
+    - Second re-review platform state: COMMENTED
+    - Second re-review body verdict: TASK_011C_C1_RE_REVIEW_CHANGES_REQUESTED
+  - Strict re-execution authority: Issue #20 comment 4964070401
+
+Note on platform state vs body verdict:
+  This repository is personally maintained. GitHub records
+  self-review submissions as COMMENTED; the binding correction
+  disposition is carried by the review body verdict (which is
+  TASK_011C_C1_REVIEW_CHANGES_REQUESTED /
+  TASK_011C_C1_RE_REVIEW_CHANGES_REQUESTED). The body verdict
+  is the binding signal, NOT the platform state.
 
 Contract: docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md
 Base SHA: 1b532431d78346dc3e45601ee6df6fc1974f7e05
