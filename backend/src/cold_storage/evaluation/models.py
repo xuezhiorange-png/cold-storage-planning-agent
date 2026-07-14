@@ -265,7 +265,10 @@ class ExpectedOutputRef(BaseModel):
         # token reference).
         data = info.data
         outcome = data.get("expected_outcome")
-        path = data.get("path")
+        # The ``path`` field is checked separately by the
+        # ``_validate_path_combination`` field validator when
+        # it is explicitly set; this validator's only concern
+        # is the ``expected_error is not None`` invariant.
         # When the user explicitly provides an ``expected_error``,
         # the outcome and path must already be validated (they
         # appear earlier in the field declaration order). We
@@ -280,8 +283,7 @@ class ExpectedOutputRef(BaseModel):
             )
         if value is not None and outcome == ExpectedOutcome.BLOCKED:
             raise ValueError(
-                "expected_output.expected_error MUST be None when "
-                "expected_outcome == BLOCKED."
+                "expected_output.expected_error MUST be None when expected_outcome == BLOCKED."
             )
         return value
 
@@ -312,7 +314,7 @@ class ExpectedOutputRef(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _check_cross_field_invariant(self) -> "ExpectedOutputRef":
+    def _check_cross_field_invariant(self) -> ExpectedOutputRef:
         """Enforce the C-2 cross-field ``path`` / ``expected_error`` /
         ``expected_outcome`` matrix on the fully-constructed model.
 
@@ -336,8 +338,7 @@ class ExpectedOutputRef(BaseModel):
         if outcome == ExpectedOutcome.SUCCEEDED:
             if path is None:
                 raise ValueError(
-                    "expected_output.path MUST be non-None when "
-                    "expected_outcome == SUCCEEDED."
+                    "expected_output.path MUST be non-None when expected_outcome == SUCCEEDED."
                 )
             if err is not None:
                 raise ValueError(
@@ -362,8 +363,7 @@ class ExpectedOutputRef(BaseModel):
         elif outcome == ExpectedOutcome.BLOCKED:
             if err is not None:
                 raise ValueError(
-                    "expected_output.expected_error MUST be None when "
-                    "expected_outcome == BLOCKED."
+                    "expected_output.expected_error MUST be None when expected_outcome == BLOCKED."
                 )
         return self
 
@@ -404,7 +404,7 @@ class ScenarioDeclaration(BaseModel):
         return value
 
     @classmethod
-    def get_scenario_backend(cls, scenario: "ScenarioDeclaration") -> DatabaseBackend:
+    def get_scenario_backend(cls, scenario: ScenarioDeclaration) -> DatabaseBackend:
         """Return the typed :class:`DatabaseBackend` of ``scenario``.
 
         This classmethod is the C-2 indirection that lets the
@@ -435,9 +435,7 @@ class ScenarioDeclaration(BaseModel):
         The factory indirection keeps the total within the
         frozen contract.
         """
-        result: DatabaseBackend = scenario.__getattribute__(
-            "dat" + "abase_backend"
-        )
+        result: DatabaseBackend = scenario.__getattribute__("dat" + "abase_backend")
         return result
 
 
@@ -580,7 +578,7 @@ class RunRecord(BaseModel):
     @classmethod
     def from_scenario(
         cls,
-        scenario: "ScenarioDeclaration",
+        scenario: ScenarioDeclaration,
         *,
         manifest_sha: str,
         actual_outcome: str,
@@ -588,7 +586,7 @@ class RunRecord(BaseModel):
         diff_summary: dict[str, Any] | None = None,
         started_at: str,
         completed_at: str,
-    ) -> "RunRecord":
+    ) -> RunRecord:
         """Build a :class:`RunRecord` from a ``ScenarioDeclaration``.
 
         The factory centralizes the
@@ -607,9 +605,7 @@ class RunRecord(BaseModel):
         """
         return cls(
             scenario_id=scenario.scenario_id,
-            database_backend=scenario.__getattribute__(
-                "dat" + "abase_backend"
-            ),
+            database_backend=scenario.__getattribute__("dat" + "abase_backend"),
             fixture_revision=None,
             manifest_sha=manifest_sha,
             expected_outcome=scenario.expected_outcome,
@@ -659,7 +655,7 @@ class SummaryRecord(BaseModel):
     @classmethod
     def from_manifest(
         cls,
-        manifest: "Manifest",
+        manifest: Manifest,
         *,
         manifest_sha: str,
         commit_sha: str,
@@ -667,7 +663,7 @@ class SummaryRecord(BaseModel):
         completed_at: str,
         scenarios: tuple[RunRecord, ...],
         evaluation_result_overall: EvaluationResult,
-    ) -> "SummaryRecord":
+    ) -> SummaryRecord:
         """Build a :class:`SummaryRecord` from a ``Manifest``.
 
         The factory centralizes the
@@ -690,9 +686,7 @@ class SummaryRecord(BaseModel):
         return cls(
             suite_id=manifest.suite_id,
             manifest_sha=manifest_sha,
-            database_backend=manifest.scenarios[0].__getattribute__(
-                "dat" + "abase_backend"
-            ),
+            database_backend=manifest.scenarios[0].__getattribute__("dat" + "abase_backend"),
             commit_sha=commit_sha,
             started_at=started_at,
             completed_at=completed_at,
