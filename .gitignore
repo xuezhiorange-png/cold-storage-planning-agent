@@ -114,7 +114,8 @@ backend/tests/evaluation/data/*
 backend/tests/evaluation/data/expected/*
 !backend/tests/evaluation/data/expected/baseline_feasible.v1.json
 
-# TASK-011C C-2 runner allowlist (Issue #20 comment 4965825762).
+# TASK-011C C-2 runner allowlist (Issue #20 comment 4965825762 +
+# path-specific amendment 4966973464 for the shared C-2 executor).
 # Path-precise: tracks ONLY the Charles-authorized C-2 runner source
 # and test files. Does NOT un-ignore the whole evaluation/ tree, any
 # other JSON, or any downstream change. Forbidden directory-wide
@@ -125,6 +126,7 @@ backend/tests/evaluation/data/expected/*
 !backend/src/cold_storage/evaluation/runners/
 backend/src/cold_storage/evaluation/runners/*
 !backend/src/cold_storage/evaluation/runners/__init__.py
+!backend/src/cold_storage/evaluation/runners/_executor.py
 !backend/src/cold_storage/evaluation/runners/sqlite.py
 !backend/src/cold_storage/evaluation/runners/postgresql.py
 !backend/tests/evaluation/test_compare.py
