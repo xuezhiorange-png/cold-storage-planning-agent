@@ -74,6 +74,31 @@ backend/tests/evaluation/*
 # not in the adapter or runner).
 !backend/tests/evaluation/_seed_helpers.py
 
+# Task 11C C-1 manifest/canonicalization foundation allowlist.
+# Retain the generic evaluation/ guardrail and permit only the
+# Charles-authorized C-1 source, schema, and test files.
+!backend/src/cold_storage/evaluation/canonicalization.py
+!backend/src/cold_storage/evaluation/manifest.py
+!backend/src/cold_storage/evaluation/models.py
+!backend/src/cold_storage/evaluation/paths.py
+!backend/src/cold_storage/evaluation/sqlite_scope.py
+!backend/src/cold_storage/evaluation/schema/
+backend/src/cold_storage/evaluation/schema/*
+!backend/src/cold_storage/evaluation/schema/__init__.py
+!backend/src/cold_storage/evaluation/schema/manifest.schema.json
+!backend/tests/evaluation/test_manifest_schema.py
+!backend/tests/evaluation/test_manifest_loader.py
+!backend/tests/evaluation/test_canonicalization.py
+!backend/tests/evaluation/test_canonicalization_d1.py
+!backend/tests/evaluation/test_path_safety.py
+!backend/tests/evaluation/test_d2_strict_value_domain.py
+!backend/tests/evaluation/test_d3_excluded_paths_policy.py
+!backend/tests/evaluation/test_d4_numeric_exact.py
+!backend/tests/evaluation/test_d5_schema_version.py
+!backend/tests/evaluation/test_d6_manifest_loader.py
+!backend/tests/evaluation/test_d7_distribution.py
+!backend/tests/evaluation/test_d8_resource_loading.py
+
 # Hermes agent local state
 .hermes/
 
