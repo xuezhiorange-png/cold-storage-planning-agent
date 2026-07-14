@@ -176,6 +176,14 @@ def load_and_validate_manifest(manifest_path: Path) -> Manifest:
         path. The path is validated for safety (no ``..`` escape,
         no absolute path under the parent, no symlink escape).
 
+        Relative paths are rejected with
+        :class:`ManifestError` (code ``MANIFEST_ERROR``) **before
+        any file I/O**: the loader never resolves a relative
+        input against the current working directory. The
+        rejection is identical regardless of which directory the
+        process is running in and regardless of whether a file
+        with that relative name happens to exist in cwd.
+
     Returns
     -------
     Manifest
@@ -339,13 +347,20 @@ def _validate_manifest_path_safety(manifest_path: Path) -> Path:
             details={"value_type": type(manifest_path).__name__},
         )
     if not manifest_path.is_absolute():
-        # Convert to absolute relative to cwd only for the purpose
-        # of reading the file. The cwd-dependent resolution is
-        # permitted here ONLY for the manifest file itself, not for
-        # any path it references. (The manifest's referenced paths
-        # are resolved against the manifest's parent directory,
-        # which is fixed once we have the manifest_path.)
-        manifest_path = manifest_path.resolve()
+        # Per P0-3 of review 4689835238: relative manifest paths
+        # are rejected **before any file I/O** so the loader is
+        # strictly cwd-independent. The previous implementation
+        # used ``Path.resolve()`` which silently binds the
+        # relative path to the current working directory; that
+        # behavior was non-deterministic across cwd changes.
+        # The loader now refuses relative input outright. The
+        # typed error ``ManifestError`` (code=MANIFEST_ERROR) is
+        # raised regardless of whether the relative file happens
+        # to exist in the current cwd.
+        raise ManifestError(
+            "manifest_path must be absolute.",
+            details={"manifest_path_kind": "relative"},
+        )
     # Use the path-safety helper to validate the path itself. We
     # treat the manifest's parent directory as the "manifest root"
     # for safety purposes. This catches the edge case where

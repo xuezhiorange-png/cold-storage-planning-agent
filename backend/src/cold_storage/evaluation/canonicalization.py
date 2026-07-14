@@ -172,11 +172,16 @@ def canonicalize_production_outputs(
     Returns
     -------
     CanonicalBytes:
-        Deterministic UTF-8 text serialization of ``value`` with
-        sorted object keys, fixed separators ``(",", ":")``, and
-        ``ensure_ascii=False``. Arrays preserve declared order.
-        The returned string can be encoded to bytes via ``.encode("utf-8")``
-        and SHA-256-hashed for ``content_hash`` derivation.
+        Deterministic UTF-8 bytes. The return value is already
+        encoded (UTF-8) and may be passed directly to
+        ``hashlib.sha256`` without an additional encode/decode
+        step.
+
+        Object keys are sorted, arrays preserve declared order,
+        fixed separators ``(",", ":")`` are used, and
+        ``ensure_ascii=False`` so multi-byte characters (e.g.
+        Chinese, emoji) appear as their UTF-8 byte sequence
+        rather than ``\\uXXXX`` escape sequences.
 
     Raises
     ------
@@ -192,12 +197,20 @@ def canonicalize_production_outputs(
     # D3 guard: V1 exclusion set is the empty set.
     if len(excluded_paths) > 0:
         # Wildcard check first (more specific error).
-        for path in excluded_paths:
+        for index, path in enumerate(excluded_paths):
             if not isinstance(path, str):
+                # Per P0-2 of review 4689835238: never invoke str()/repr()/
+                # format()/f-string on user-supplied values. Error details
+                # record ONLY the container position and the value's type
+                # name. The hostile value itself is never read or stringified.
                 raise UnsupportedJSONValueError(
                     "excluded_paths must be a sequence of strings; "
                     f"got element of type {type(path).__name__}.",
-                    details={"field": "excluded_paths", "value": str(path)},
+                    details={
+                        "field": "excluded_paths",
+                        "index": index,
+                        "value_type": type(path).__name__,
+                    },
                 )
             if "*" in path:
                 raise WildcardExclusionForbidden(
@@ -290,9 +303,16 @@ def _walk_strict_json(
     # float — must be finite (reject NaN / +/-Inf per D2)
     if isinstance(value, float):
         if not math.isfinite(value):
+            # Per P0-2 of review 4689835238: do not record the
+            # rejected value via repr/str/format/f-string in the
+            # error details. ``value`` is a primitive float (NaN /
+            # Inf) and ``repr`` would produce a string the user
+            # controls only in the sense of bit-pattern; the
+            # strict-safe policy is to record only the JSONPath
+            # and a fixed type tag.
             raise UnsupportedJSONValueError(
-                f"non-finite float at {path!r}: {value!r}.",
-                details={"path": path, "value": value, "type": "float"},
+                f"non-finite float at {path!r}.",
+                details={"path": path, "type": "float"},
             )
         return value
 
@@ -325,12 +345,19 @@ def _walk_strict_json(
         result: dict[str, Any] = {}
         for k, v in value.items():
             if not isinstance(k, str):
+                # Per P0-2 of review 4689835238: never invoke str()/repr()/
+                # format()/f-string on the user-supplied key. Error details
+                # record ONLY the structural path and the key's type name.
+                # The hostile key itself is never read or stringified.
                 raise UnsupportedJSONValueError(
                     f"non-string dict key at {path!r}: key of type {type(k).__name__}.",
                     details={
+                        # ``path`` is the JSONPath of the **container**
+                        # dict; the user-supplied key itself is not
+                        # recorded (P0-2 of review 4689835238 forbids
+                        # str()/repr() on user-supplied values).
                         "path": path,
                         "key_type": type(k).__name__,
-                        "key_repr": str(k)[:200],
                     },
                 )
             result[k] = _walk_strict_json(v, depth=depth + 1, path=f"{path}.{k}")
