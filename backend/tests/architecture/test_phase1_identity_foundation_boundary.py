@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import ast
 import re
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -396,6 +398,95 @@ _EXACT_MANIFEST_UNIQUE_RECEIVER: str = "s"
 _EXACT_MANIFEST_UNIQUE_TAIL_ATTR: str = "value"
 
 
+#: Expected exact occurrence cardinality for the real
+#: ``models.py`` source. The architecture contract is exact:
+#: no more, no fewer. If the real model surface ever grows
+#: a 4th typed field or a 3rd validator read, this constant
+#: (and the design record §12 frozen facts) MUST be updated
+#: in lockstep — never silently widened.
+_EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT: int = 3
+_EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT: int = 2
+_EXACT_EXPECTED_TOTAL_OCCURRENCE_COUNT: int = (
+    _EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT
+    + _EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT
+)
+_EXACT_EXPECTED_REJECTED_OCCURRENCE_COUNT: int = 0
+
+
+#: Expected per-class field occurrence counter. Each approved
+#: class MUST have exactly one ``database_backend: DatabaseBackend``
+#: declaration; any deviation (missing class, duplicate, extra
+#: field) is REJECTED.
+_EXACT_EXPECTED_FIELD_CLASS_COUNTER: dict[str, int] = {
+    "ScenarioDeclaration": 1,
+    "RunRecord": 1,
+    "SummaryRecord": 1,
+}
+
+
+#: Stable error markers used by ``_assert_rejected`` /
+#: ``_assert_authorized`` and surfaced to test assertions. Each
+#: marker corresponds to a distinct class of failure; tests
+#: assert the expected marker rather than accepting any
+#: AssertionError.
+ERROR_MARKER_REJECTED_OCCURRENCE: str = "DATABASE_BACKEND_REJECTED_OCCURRENCE"
+ERROR_MARKER_FIELD_CARDINALITY_MISMATCH: str = (
+    "DATABASE_BACKEND_FIELD_CARDINALITY_MISMATCH"
+)
+ERROR_MARKER_FIELD_CLASS_SET_MISMATCH: str = (
+    "DATABASE_BACKEND_FIELD_CLASS_SET_MISMATCH"
+)
+ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH: str = (
+    "DATABASE_BACKEND_VALIDATOR_CARDINALITY_MISMATCH"
+)
+ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH: str = (
+    "DATABASE_BACKEND_TOTAL_CARDINALITY_MISMATCH"
+)
+ERROR_MARKER_DECORATOR_MISMATCH: str = "DATABASE_BACKEND_DECORATOR_MISMATCH"
+
+
+@dataclass(frozen=True)
+class AuthorizedFieldOccurrence:
+    """Identity record for a single AUTHORIZED_FIELD occurrence.
+
+    Carries enough information to assert the exact field
+    declaration surface: class name, field name, annotation
+    name, whether a default is present, containing function
+    (always ``None`` for top-level class fields), and the
+    source line / column.
+    """
+
+    class_name: str
+    field_name: str
+    annotation_name: str
+    has_default: bool
+    containing_function: str | None
+    line: int
+    column: int
+
+
+@dataclass(frozen=True)
+class AuthorizedValidatorReadOccurrence:
+    """Identity record for a single AUTHORIZED_VALIDATOR_READ
+    occurrence.
+
+    Carries enough information to assert the exact validator
+    read surface: class name, function name, receiver name
+    (``s``), attribute name (``database_backend``), parent
+    attribute name (``value``), context type (always
+    ``ast.Load``), and the source line / column.
+    """
+
+    class_name: str
+    function_name: str
+    receiver_name: str
+    attribute_name: str
+    parent_attribute_name: str
+    context_type: str
+    line: int
+    column: int
+
+
 def _build_parent_map(tree: ast.AST) -> dict[int, ast.AST]:
     """Build a parent map for an AST.
 
@@ -437,7 +528,44 @@ def _containing_function(
     return None
 
 
-def _is_exact_manifest_uniqueness_validator(
+def _is_exact_scenarios_field_validator(decorator: ast.AST) -> bool:  # noqa: SIM103
+    """Return True if ``decorator`` is the exact
+    ``@field_validator("scenarios")`` decorator the typed-model
+    surface uses.
+
+    The check is exact, not positional-scan:
+
+    * the decorator must be an ``ast.Call`` whose function is
+      the literal ``field_validator`` symbol;
+    * the call must have **exactly one** positional argument;
+    * that argument must be the literal string ``"scenarios"``;
+    * the call must have **zero** keyword arguments.
+
+    Any of the following is REJECTED:
+
+    * ``@field_validator("other", "scenarios")``
+    * ``@field_validator("scenarios", "other")``
+    * ``@field_validator("scenarios", mode="before")``
+    * ``@field_validator(*FIELDS)``
+    * any decorator that is not a ``Call`` (e.g. a bare
+      ``Name``).
+    """
+    if not isinstance(decorator, ast.Call):
+        return False
+    func = decorator.func
+    if not (isinstance(func, ast.Name) and func.id == "field_validator"):
+        return False
+    if len(decorator.args) != 1:
+        return False
+    arg = decorator.args[0]
+    if not (isinstance(arg, ast.Constant) and arg.value == "scenarios"):
+        return False
+    if decorator.keywords:  # noqa: SIM103
+        return False
+    return True
+
+
+def _is_exact_manifest_uniqueness_validator(  # noqa: SIM110
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
     containing_cls: ast.ClassDef | None,
 ) -> bool:
@@ -449,25 +577,21 @@ def _is_exact_manifest_uniqueness_validator(
     The check is exact: function name must be
     :data:`_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME`, the parent
     class name must be ``Manifest``, and the function must
-    carry a ``@field_validator("scenarios")`` decorator. Any
-    other shape is REJECTED.
+    carry a ``@field_validator("scenarios")`` decorator whose
+    shape is verified by
+    :func:`_is_exact_scenarios_field_validator` (exactly 1
+    positional argument, that argument is the literal string
+    ``"scenarios"``, and 0 keyword arguments). Any other
+    shape is REJECTED.
     """
     if fn.name != _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME:
         return False
     if containing_cls is None or containing_cls.name != "Manifest":
         return False
-    has_field_validator_scenarios = False
-    for decorator in fn.decorator_list:
-        if not isinstance(decorator, ast.Call):
-            continue
-        func = decorator.func
-        if not (isinstance(func, ast.Name) and func.id == "field_validator"):
-            continue
-        for arg in decorator.args:
-            if isinstance(arg, ast.Constant) and arg.value == "scenarios":
-                has_field_validator_scenarios = True
-                break
-    return has_field_validator_scenarios
+    for decorator in fn.decorator_list:  # noqa: SIM110
+        if _is_exact_scenarios_field_validator(decorator):
+            return True
+    return False
 
 
 def _is_exact_database_backend_field(
@@ -811,23 +935,91 @@ def _classify_database_backend_occurrence(
     return "REJECTED"
 
 
-def _assert_all_database_backend_occurrences_authorized(
+def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
     source: str,
     path: Path,
 ) -> None:
-    """Enforce the exact-allowlist contract.
+    """Enforce the exact-allowlist contract AND the exact
+    cardinality contract.
 
-    Per P0 of review 4690110096, every code-level
+    Per P0-1 of review 4690297649, every code-level
     ``database_backend`` occurrence in ``source`` MUST match
     either the exact field-declaration allowlist or the exact
-    Manifest validator read allowlist. Any occurrence that
-    does not is REJECTED, and the assertion fails.
+    Manifest validator read allowlist. Any occurrence that does
+    not is REJECTED.
+
+    Per P0-1 of the same review, the real ``models.py`` MUST
+    have:
+
+    * exactly :data:`_EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT`
+      AUTHORIZED_FIELD occurrences (3);
+    * exactly
+      :data:`_EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT`
+      AUTHORIZED_VALIDATOR_READ occurrences (2);
+    * a total of
+      :data:`_EXACT_EXPECTED_TOTAL_OCCURRENCE_COUNT` (5)
+      code-level occurrences;
+    * zero REJECTED occurrences;
+    * a per-class field counter of
+      :data:`_EXACT_EXPECTED_FIELD_CLASS_COUNTER`
+      (``ScenarioDeclaration: 1, RunRecord: 1, SummaryRecord: 1``).
+
+    Each AUTHORIZED occurrence is recorded as a structured
+    :class:`AuthorizedFieldOccurrence` /
+    :class:`AuthorizedValidatorReadOccurrence` and the field
+    identity (class name, field name, annotation name, default
+    flag, containing function, line, column) is asserted
+    exactly. Test source and real ``models.py`` use the same
+    checker.
     """
     tree = ast.parse(source, filename=str(path))
     parents = _build_parent_map(tree)
     occurrences = _collect_database_backend_occurrences(tree)
-    authorized_field: list[tuple[int, int]] = []
-    authorized_validator_read: list[tuple[int, int]] = []
+
+    # --- 0. Pre-flight: detect the bad-decorator pattern.
+    # If ``Manifest._validate_unique_scenarios`` exists but
+    # carries a ``@field_validator(...)`` whose shape is not
+    # exactly ``@field_validator("scenarios")`` (multi-arg,
+    # keyword arg, unpacked, wrong literal, etc.), the
+    # decorator check fires first — DO NOT collapse the
+    # diagnosis into ``DATABASE_BACKEND_REJECTED_OCCURRENCE``,
+    # which would mask the decorator mismatch as a generic
+    # "wrong shape" rejection. Stable error marker:
+    # ``DATABASE_BACKEND_DECORATOR_MISMATCH``.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "Manifest":
+            for fn in node.body:
+                if (
+                    isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and fn.name == _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME
+                ):
+                    for decorator in fn.decorator_list:
+                        if isinstance(decorator, ast.Call) and (  # noqa: SIM102
+                            (
+                                isinstance(decorator.func, ast.Name)
+                                and decorator.func.id == "field_validator"
+                            )
+                        ):
+                            # The Manifest validator has a
+                            # ``@field_validator(...)`` call. Verify
+                            # it is exactly the single-positional
+                            # ``"scenarios"`` form.
+                            if not _is_exact_scenarios_field_validator(
+                                decorator
+                            ):
+                                raise AssertionError(
+                                    f"{ERROR_MARKER_DECORATOR_MISMATCH}: "
+                                    f"Manifest._validate_unique_scenarios "
+                                    f"decorator shape is not exactly "
+                                    f"@field_validator('scenarios') "
+                                    f"(must have exactly 1 positional "
+                                    f"argument equal to 'scenarios' and "
+                                    f"0 keyword arguments). Got: "
+                                    f"{ast.unparse(decorator)!r}."
+                                )
+
+    authorized_fields: list[AuthorizedFieldOccurrence] = []
+    authorized_validator_reads: list[AuthorizedValidatorReadOccurrence] = []
     rejected: list[tuple[int, int, str]] = []
     for (
         node,
@@ -839,27 +1031,199 @@ def _assert_all_database_backend_occurrences_authorized(
     ) in occurrences:
         verdict = _classify_database_backend_occurrence(node, parents)
         if verdict == "AUTHORIZED_FIELD":
-            authorized_field.append((line, col))
+            assert isinstance(node, ast.AnnAssign), (
+                "AUTHORIZED_FIELD verdict on a non-AnnAssign node: "
+                f"{type(node).__name__}"
+            )
+            containing_cls = _containing_class(node, parents)
+            containing_fn = _containing_function(node, parents)
+            target = node.target
+            annotation = node.annotation
+            assert isinstance(target, ast.Name)
+            assert isinstance(annotation, ast.Name)
+            authorized_fields.append(
+                AuthorizedFieldOccurrence(
+                    class_name=containing_cls.name
+                    if containing_cls is not None
+                    else "<none>",
+                    field_name=target.id,
+                    annotation_name=annotation.id,
+                    has_default=node.value is not None,
+                    containing_function=containing_fn.name
+                    if containing_fn is not None
+                    else None,
+                    line=line,
+                    column=col,
+                )
+            )
         elif verdict == "AUTHORIZED_VALIDATOR_READ":
-            authorized_validator_read.append((line, col))
+            assert isinstance(node, ast.Attribute), (
+                "AUTHORIZED_VALIDATOR_READ verdict on a non-Attribute "
+                f"node: {type(node).__name__}"
+            )
+            parent = parents.get(id(node))
+            containing_cls = _containing_class(node, parents)
+            containing_fn = _containing_function(node, parents)
+            receiver = node.value
+            assert isinstance(receiver, ast.Name)
+            assert isinstance(parent, ast.Attribute)
+            authorized_validator_reads.append(
+                AuthorizedValidatorReadOccurrence(
+                    class_name=containing_cls.name
+                    if containing_cls is not None
+                    else "<none>",
+                    function_name=containing_fn.name
+                    if containing_fn is not None
+                    else "<none>",
+                    receiver_name=receiver.id,
+                    attribute_name=node.attr,
+                    parent_attribute_name=parent.attr,
+                    context_type=type(parent.ctx).__name__,
+                    line=line,
+                    column=col,
+                )
+            )
         elif verdict == "REJECTED":
             node_type = type(node).__name__
             rejected.append((line, col, node_type))
-    assert not rejected, (
-        f"models.py has REJECTED database_backend occurrences "
-        f"(P0 of review 4690110096 carve-out is exact): {rejected!r}"
+
+    # --- 1. AUTHORIZED_FIELD count must be exact (run FIRST,
+    #        so the field-specific marker fires before
+    #        ``REJECTED`` / ``TOTAL`` for the common "wrong
+    #        field count" case).
+    assert (
+        len(authorized_fields)
+        == _EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT
+    ), (
+        f"{ERROR_MARKER_FIELD_CARDINALITY_MISMATCH}: source has "
+        f"{len(authorized_fields)} AUTHORIZED_FIELD occurrences; "
+        f"the exact allowlist requires "
+        f"{_EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT}."
     )
-    assert authorized_field, (
-        "models.py has zero AUTHORIZED_FIELD database_backend "
-        "occurrences; the exact allowlist requires the three "
-        "Pydantic typed-field declarations"
+
+    # --- 2. AUTHORIZED_VALIDATOR_READ count must be exact
+    #        (also before rejected / total, for the same reason).
+    assert (
+        len(authorized_validator_reads)
+        == _EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT
+    ), (
+        f"{ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH}: source has "
+        f"{len(authorized_validator_reads)} AUTHORIZED_VALIDATOR_READ "
+        f"occurrences; the exact allowlist requires "
+        f"{_EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT}."
     )
-    assert authorized_validator_read, (
-        "models.py has zero AUTHORIZED_VALIDATOR_READ "
-        "database_backend occurrences; the exact allowlist "
-        "requires the two Manifest._validate_unique_scenarios "
-        "reads of s.database_backend.value"
+
+    # --- 3. REJECTED occurrences must be exactly zero.
+    assert len(rejected) == _EXACT_EXPECTED_REJECTED_OCCURRENCE_COUNT, (
+        f"{ERROR_MARKER_REJECTED_OCCURRENCE}: source has {len(rejected)} "
+        f"REJECTED database_backend occurrences; the exact allowlist "
+        f"requires zero. Rejected: {rejected!r}"
     )
+
+    # --- 4. Total occurrence count must be exact.
+    total = (
+        len(authorized_fields)
+        + len(authorized_validator_reads)
+        + len(rejected)
+    )
+    assert total == _EXACT_EXPECTED_TOTAL_OCCURRENCE_COUNT, (
+        f"{ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH}: source has {total} "
+        f"total database_backend occurrences; the exact allowlist "
+        f"requires {_EXACT_EXPECTED_TOTAL_OCCURRENCE_COUNT} "
+        f"(={_EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT} fields "
+        f"+ {_EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT} validator "
+        f"reads). Breakdown: "
+        f"fields={len(authorized_fields)}, "
+        f"reads={len(authorized_validator_reads)}, "
+        f"rejected={len(rejected)}."
+    )
+
+    # --- 5. AUTHORIZED_FIELD per-class counter must be exact.
+    actual_class_counter: Counter[str] = Counter(
+        occurrence.class_name for occurrence in authorized_fields
+    )
+    expected_class_counter: Counter[str] = Counter(
+        _EXACT_EXPECTED_FIELD_CLASS_COUNTER
+    )
+    assert set(actual_class_counter) == set(expected_class_counter), (
+        f"{ERROR_MARKER_FIELD_CLASS_SET_MISMATCH}: AUTHORIZED_FIELD "
+        f"class set is {sorted(actual_class_counter)}; exact allowlist "
+        f"requires {sorted(expected_class_counter)}."
+    )
+    assert actual_class_counter == expected_class_counter, (
+        f"{ERROR_MARKER_FIELD_CARDINALITY_MISMATCH}: AUTHORIZED_FIELD "
+        f"per-class counter is {dict(actual_class_counter)}; exact "
+        f"allowlist requires {dict(expected_class_counter)}."
+    )
+
+    # --- 6. Each AUTHORIZED_FIELD occurrence must satisfy
+    #        the field identity invariant.
+    for occurrence in authorized_fields:
+        assert occurrence.field_name == "database_backend", (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_FIELD has "
+            f"unexpected field_name {occurrence.field_name!r}; exact "
+            f"allowlist requires 'database_backend'."
+        )
+        assert occurrence.annotation_name == "DatabaseBackend", (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_FIELD has "
+            f"unexpected annotation_name {occurrence.annotation_name!r}; "
+            f"exact allowlist requires 'DatabaseBackend'."
+        )
+        assert occurrence.has_default is False, (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_FIELD has "
+            f"a default value; exact allowlist requires no default."
+        )
+        assert occurrence.containing_function is None, (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_FIELD is "
+            f"inside function {occurrence.containing_function!r}; exact "
+            f"allowlist requires class-body scope."
+        )
+
+    # --- 7. Each AUTHORIZED_VALIDATOR_READ occurrence must satisfy
+    #        the read identity invariant.
+    for occurrence in authorized_validator_reads:
+        assert occurrence.class_name == "Manifest", (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
+            f"is in class {occurrence.class_name!r}; exact allowlist "
+            f"requires 'Manifest'."
+        )
+        assert (
+            occurrence.function_name
+            == _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME
+        ), (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
+            f"is in function {occurrence.function_name!r}; exact allowlist "
+            f"requires "
+            f"{_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME!r}."
+        )
+        assert (
+            occurrence.receiver_name == _EXACT_MANIFEST_UNIQUE_RECEIVER
+        ), (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
+            f"has receiver {occurrence.receiver_name!r}; exact allowlist "
+            f"requires {_EXACT_MANIFEST_UNIQUE_RECEIVER!r}."
+        )
+        assert (
+            occurrence.attribute_name == "database_backend"
+        ), (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
+            f"has attribute_name {occurrence.attribute_name!r}; exact "
+            f"allowlist requires 'database_backend'."
+        )
+        assert (
+            occurrence.parent_attribute_name
+            == _EXACT_MANIFEST_UNIQUE_TAIL_ATTR
+        ), (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
+            f"has parent_attribute_name "
+            f"{occurrence.parent_attribute_name!r}; exact allowlist "
+            f"requires {_EXACT_MANIFEST_UNIQUE_TAIL_ATTR!r}."
+        )
+        assert occurrence.context_type == "Load", (
+            f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
+            f"has context_type {occurrence.context_type!r}; exact allowlist "
+            f"requires 'Load'."
+        )
 
 
 def _assert_models_database_backend_use_is_typed_model_only(content: str, path: Path) -> None:
@@ -961,9 +1325,20 @@ def test_models_py_database_backend_round_trip() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _assert_rejected(source: str) -> None:
+def _assert_rejected(
+    source: str,
+    expected_marker: str | None = None,
+) -> None:
     """Helper: assert that ``source`` is REJECTED by the per-occurrence
-    classifier when treated as ``models.py`` content."""
+    classifier when treated as ``models.py`` content.
+
+    If ``expected_marker`` is provided, the test asserts that
+    the classifier's AssertionError message contains exactly
+    that stable marker (one of the ``ERROR_MARKER_*``
+    constants). If it is ``None``, the test accepts any of the
+    REJECTED-shaped messages (useful for shape rejections that
+    do not yet have a dedicated marker).
+    """
     tmp = Path("/tmp/_classifier_rejected.py")
     tmp.write_text(source)
     try:
@@ -971,9 +1346,25 @@ def _assert_rejected(source: str) -> None:
             _assert_all_database_backend_occurrences_authorized(source, tmp)
         except AssertionError as exc:
             msg = str(exc)
-            assert "REJECTED" in msg or "UNCLASSIFIED" in msg or "zero AUTHORIZED" in msg, (
-                f"unexpected assertion message: {msg!r}"
-            )
+            if expected_marker is not None:
+                assert expected_marker in msg, (
+                    f"expected stable marker {expected_marker!r} in "
+                    f"classifier error, but got: {msg!r}"
+                )
+            else:
+                # No specific marker required; accept any of the
+                # known REJECTED-shaped messages.
+                assert (
+                    "REJECTED" in msg
+                    or "UNCLASSIFIED" in msg
+                    or "zero AUTHORIZED" in msg
+                    or ERROR_MARKER_REJECTED_OCCURRENCE in msg
+                    or ERROR_MARKER_FIELD_CARDINALITY_MISMATCH in msg
+                    or ERROR_MARKER_FIELD_CLASS_SET_MISMATCH in msg
+                    or ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH in msg
+                    or ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH in msg
+                    or ERROR_MARKER_DECORATOR_MISMATCH in msg
+                ), f"unexpected assertion message: {msg!r}"
         else:
             raise AssertionError(
                 f"expected classifier to REJECT source, but it passed:\n---\n{source}\n---"
@@ -998,19 +1389,22 @@ def _assert_authorized(source: str) -> None:
 
 
 def test_classifier_authorizes_typed_field_declaration() -> None:
-    """The exact three typed field declarations and the
-    Manifest validator read are AUTHORIZED.
+    """The exact three typed field declarations and the two
+    Manifest validator reads are AUTHORIZED.
 
-    Per P0 of review 4690110096, the only two AUTHORIZED
+    Per P0-1 of review 4690297649, the only two AUTHORIZED
     shapes are:
 
     1. ``database_backend: DatabaseBackend`` in
        ``ScenarioDeclaration`` / ``RunRecord`` /
        ``SummaryRecord``;
     2. ``s.database_backend.value`` read inside
-       ``Manifest._validate_unique_scenarios``.
+       ``Manifest._validate_unique_scenarios`` (exactly two
+       occurrences per source: one in a tuple / dict key and
+       one in an error message).
 
-    This positive test includes BOTH shapes.
+    This positive test includes BOTH shapes with the exact
+    real ``models.py`` cardinality: 3 fields + 2 reads.
     """
     _assert_authorized(
         "from pydantic import BaseModel, field_validator\n"
@@ -1031,6 +1425,11 @@ def test_classifier_authorizes_typed_field_declaration() -> None:
         "    def _validate_unique_scenarios(cls, value):\n"
         "        for s in value:\n"
         "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
         "        return value\n"
     )
 
@@ -1247,4 +1646,368 @@ def test_classifier_rejects_self_database_backend_in_unapproved_class() -> None:
         "    database_backend: DatabaseBackend\n"
         "    def method(self):\n"
         "        return self.database_backend\n"
+    )
+
+
+
+# ---------------------------------------------------------------------------
+# P0-1 of review 4690297649 — exact occurrence cardinality adversarial tests
+# ---------------------------------------------------------------------------
+
+
+def test_exact_cardinality_real_models_py_passes() -> None:
+    """The real ``models.py`` satisfies the exact cardinality
+    contract: 3 fields / 2 reads / 0 rejected / 5 total.
+
+    This is the only positive test that exercises the real
+    production source through the same checker used by
+    adversarial tests.
+    """
+    models_py_path = BACKEND_ROOT / "src" / "cold_storage" / "evaluation" / "models.py"
+    if not models_py_path.exists():
+        return  # the module does not exist yet — defer
+    content = models_py_path.read_text()
+    _assert_all_database_backend_occurrences_authorized(
+        content, models_py_path
+    )
+
+
+def test_exact_cardinality_missing_summary_record_field() -> None:
+    """8.1: Missing the ``SummaryRecord`` field (only 2 fields,
+    2 reads) is REJECTED via
+    ``DATABASE_BACKEND_FIELD_CARDINALITY_MISMATCH``.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_FIELD_CARDINALITY_MISMATCH,
+    )
+
+
+def test_exact_cardinality_duplicate_scenario_declaration_field() -> None:
+    """8.2: A duplicate ``database_backend: DatabaseBackend``
+    field on ``ScenarioDeclaration`` (4 fields total, 2 reads)
+    is REJECTED via
+    ``DATABASE_BACKEND_FIELD_CARDINALITY_MISMATCH``.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "    database_backend: DatabaseBackend  # duplicate\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_FIELD_CARDINALITY_MISMATCH,
+    )
+
+
+def test_exact_cardinality_fourth_field_in_unapproved_class() -> None:
+    """8.3: A 4th ``database_backend: DatabaseBackend`` field
+    declaration in an unapproved class is REJECTED via
+    ``DATABASE_BACKEND_REJECTED_OCCURRENCE`` (the field is
+    in the right AST shape but in the wrong class, so the
+    classifier marks it as REJECTED rather than mis-credited
+    as AUTHORIZED).
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Extra(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_REJECTED_OCCURRENCE,
+    )
+
+
+def test_exact_cardinality_missing_validator_read() -> None:
+    """8.4: A source with the 3 required fields but only one
+    validator read (instead of two) is REJECTED via
+    ``DATABASE_BACKEND_VALIDATOR_CARDINALITY_MISMATCH``.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH,
+    )
+
+
+def test_exact_cardinality_third_validator_read() -> None:
+    """8.5: A 3rd ``s.database_backend.value`` validator read
+    (3 fields + 3 reads) is REJECTED via
+    ``DATABASE_BACKEND_VALIDATOR_CARDINALITY_MISMATCH``.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        for s in value:\n"
+        "            first = s.database_backend.value\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH,
+    )
+
+
+def test_exact_decorator_multi_field_arg_first() -> None:
+    """8.6 (order 1):
+    ``@field_validator("other", "scenarios")`` is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_MISMATCH`` — the decorator
+    must have exactly 1 positional argument, not 2.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    other: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('other', 'scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_MISMATCH,
+    )
+
+
+def test_exact_decorator_multi_field_arg_reversed() -> None:
+    """8.6 (order 2):
+    ``@field_validator("scenarios", "other")`` is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_MISMATCH`` — the decorator
+    must have exactly 1 positional argument, not 2.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    other: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios', 'other')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_MISMATCH,
+    )
+
+
+def test_exact_decorator_with_keyword_argument() -> None:
+    """8.7: ``@field_validator("scenarios", mode="before")`` is
+    REJECTED via ``DATABASE_BACKEND_DECORATOR_MISMATCH`` — the
+    decorator must have 0 keyword arguments.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios', mode='before')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_MISMATCH,
+    )
+
+
+def test_exact_decorator_unpacked_args() -> None:
+    """``@field_validator(*FIELDS)`` is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_MISMATCH`` — the decorator must
+    have a single literal ``Constant("scenarios")`` argument,
+    not an unpacked tuple.
+    """
+    source = (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "FIELDS = ('scenarios',)\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator(*FIELDS)\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_MISMATCH,
     )
