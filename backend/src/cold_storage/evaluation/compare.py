@@ -360,14 +360,14 @@ def _is_scalar(value: object) -> bool:
 def _enumerate_actual_leaves(
     value: object,
 ) -> list[tuple[str, object]]:
-    """Recursively enumerate every JSON-domain leaf in ``value``.
+    """Recursively enumerate every JSON-domain node in ``value``.
 
     The implementation is the in-module counterpart to the
     ``enumerate_leaves`` helper in
     :mod:`cold_storage.evaluation.json_path` (which is
     intentionally NOT touched in this corrective round per
-    the path-precise authority of review 4693931575 P0-3).
-    The output format is identical: a list of
+    the path-precise authority of review 4694841112). The
+    output format is identical: a list of
     ``(path, leaf_value)`` tuples with V1 restricted JSON
     Path strings (e.g. ``"$.outer.inner"`` /
     ``"$.items[0].id"``).
@@ -378,6 +378,14 @@ def _enumerate_actual_leaves(
     raises :class:`EvaluationComparisonError` on a non-JSON
     value (defense-in-depth; the canonicalizer rejects
     non-JSON values upstream).
+
+    P0-4 of review 4694841112: empty ``{}`` / ``[]`` are
+    emitted as terminal coverage nodes (the node ITSELF is
+    the leaf, with the empty container as the value). This
+    ensures that an undeclared empty ``{}`` / ``[]`` in the
+    actual value is surfaced as a structured ``unexpected``
+    diff instead of being silently absent from the leaf
+    enumeration.
     """
     leaves: list[tuple[str, object]] = []
     _walk_leaves(value, parent_path="$", out=leaves)
@@ -386,6 +394,15 @@ def _enumerate_actual_leaves(
 
 def _walk_leaves(value: object, *, parent_path: str, out: list[tuple[str, object]]) -> None:
     if isinstance(value, Mapping):
+        if not value:
+            # P0-4 of review 4694841112: an EMPTY mapping is
+            # itself a terminal coverage node. The diff is
+            # ``kind=unexpected`` if the policy did NOT
+            # declare the container path; the diff is
+            # skipped (covered) if the policy declared the
+            # container path.
+            out.append((parent_path, value))
+            return
         for key, sub in value.items():
             if not isinstance(key, str):
                 raise EvaluationComparisonError(
@@ -398,14 +415,27 @@ def _walk_leaves(value: object, *, parent_path: str, out: list[tuple[str, object
                     },
                 )
             child_path = f"{parent_path}.{key}"
-            if isinstance(sub, (Mapping, list)):
+            # P0-4 of review 4694841112: an empty
+            # ``Mapping`` or ``list`` is a terminal coverage
+            # node; recursion stops and the empty container
+            # itself is emitted as the leaf (so the
+            # comparison layer can detect undeclared
+            # ``{}`` / ``[]`` as a structured
+            # ``unexpected`` diff).
+            if isinstance(sub, (Mapping, list)) and sub:
                 _walk_leaves(sub, parent_path=child_path, out=out)
             else:
                 out.append((child_path, sub))
     elif isinstance(value, list):
+        if not value:
+            # P0-4 of review 4694841112: an EMPTY list is
+            # itself a terminal coverage node (same
+            # rationale as the empty-mapping case above).
+            out.append((parent_path, value))
+            return
         for index, sub in enumerate(value):
             child_path = f"{parent_path}[{index}]"
-            if isinstance(sub, (Mapping, list)):
+            if isinstance(sub, (Mapping, list)) and sub:
                 _walk_leaves(sub, parent_path=child_path, out=out)
             else:
                 out.append((child_path, sub))

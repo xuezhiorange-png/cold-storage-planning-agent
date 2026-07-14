@@ -1031,11 +1031,37 @@ def _assert_manifest_root_contained(candidate: Path) -> Path:
 
 
 def _resolve_expected_output_path(*, expected_path: str, manifest_root: Path) -> Path:
-    """Resolve a manifest's ``expected_output.path`` to an absolute file path.
+    """Resolve a manifest's ``expected_output.path`` to an
+    absolute, contained file path under ``manifest_root``.
 
-    The path is treated as relative to the manifest's logical
-    root. Absolute paths are rejected (defense-in-depth, mirrors
-    the manifest loader's path-safety check).
+    P0-3 of review 4694841112: the helper enforces
+    defense-in-depth path containment (the historical
+    implementation only returned ``manifest_root / candidate``
+    without symlink resolution or traversal containment).
+
+    The contract:
+
+    1. ``expected_path`` MUST be a non-empty string.
+    2. ``expected_path`` MUST be a relative path; absolute
+       paths are rejected.
+    3. ``expected_path`` MUST NOT contain a ``..`` segment
+       (defense-in-depth against traversal; the loader
+       already rejects per-scenario ``..`` but the runner
+       enforces the contract at the path-resolution boundary).
+    4. ``manifest_root`` is resolved to an absolute,
+       symlink-resolved path.
+    5. The candidate target is computed as
+       ``(resolved_root / candidate)`` and resolved
+       (following symlinks).
+    6. The resolved target is asserted to be under the
+       resolved root via component-aware
+       ``Path.relative_to`` containment. The
+       ``ValueError`` raised by ``relative_to`` on an
+       out-of-tree target is caught and re-raised as a
+       typed ``EvaluationManifestExecutionError``.
+    7. Symlink escape (an in-root symlink pointing to a
+       target outside the root) is rejected by the
+       containment check (step 6).
     """
     if not isinstance(expected_path, str) or not expected_path:
         raise EvaluationManifestExecutionError(
@@ -1049,7 +1075,63 @@ def _resolve_expected_output_path(*, expected_path: str, manifest_root: Path) ->
             "absolute paths are rejected.",
             details={"expected_path": expected_path},
         )
-    return manifest_root / candidate
+    # Reject ``..`` segments explicitly (the relative-to
+    # containment check below would also catch traversal, but
+    # the explicit rejection gives a clearer error message
+    # for the P0-3 audit trail).
+    candidate_parts = candidate.parts
+    if any(part == ".." for part in candidate_parts):
+        raise EvaluationManifestExecutionError(
+            "expected_output.path MUST NOT contain a '..' segment; "
+            "traversal is rejected (defense-in-depth path containment "
+            "per review 4694841112 P0-3).",
+            details={"expected_path": expected_path},
+        )
+    # Resolve the manifest root (symlink-resolved) so the
+    # containment check below compares the same filesystem
+    # object on both sides.
+    try:
+        resolved_root = manifest_root.resolve(strict=False)
+    except OSError as exc:
+        raise EvaluationManifestExecutionError(
+            f"manifest_root could not be resolved: {exc}",
+            details={"manifest_root": str(manifest_root)},
+        ) from exc
+    # Compose the candidate target under the resolved root
+    # and resolve (following any in-root symlinks).
+    composed = resolved_root / candidate
+    try:
+        resolved_target = composed.resolve(strict=False)
+    except OSError as exc:
+        raise EvaluationManifestExecutionError(
+            f"expected_output.path could not be resolved: {exc}",
+            details={
+                "expected_path": expected_path,
+                "composed_path": str(composed),
+            },
+        ) from exc
+    # Component-aware containment: the resolved target MUST
+    # be reachable from the resolved root via a sequence of
+    # ``.parts`` components that does NOT include ``..``.
+    # ``Path.relative_to`` raises ``ValueError`` on
+    # out-of-tree targets; the exception is mapped to a
+    # typed ``EvaluationManifestExecutionError`` with the
+    # symlink-escape diagnosis path.
+    try:
+        resolved_target.relative_to(resolved_root)
+    except ValueError as exc:
+        raise EvaluationManifestExecutionError(
+            "expected_output.path escapes the manifest root after "
+            "symlink resolution; in-root symlink escape is rejected "
+            "(defense-in-depth path containment per review 4694841112 "
+            "P0-3).",
+            details={
+                "expected_path": expected_path,
+                "resolved_root": str(resolved_root),
+                "resolved_target": str(resolved_target),
+            },
+        ) from exc
+    return resolved_target
 
 
 def _safe_makedirs(path: Path) -> None:

@@ -366,3 +366,95 @@ def test_p0_4_array_order_remains_exact() -> None:
     assert any(d.path == "$.items" and d.kind == "value_mismatch" for d in result.diffs), (
         f"P0-4: expected value_mismatch on $.items, got {result.diffs}"
     )
+
+
+# ── §17 P0-4 of review 4694841112 — empty-container fail-closed ──
+
+
+def test_p0_4_empty_object_under_declared_outer_is_unexpected() -> None:
+    """P0-4 of review 4694841112: an undeclared empty ``{}``
+    under a declared ``$.outer.inner`` parent MUST be
+    surfaced as a structured ``unexpected`` diff at the
+    path ``$.outer.extra``. The historical top-level-only
+    scan missed this; the recursive ``_walk_leaves`` now
+    emits empty containers as terminal coverage nodes.
+    """
+    result = compare_outputs(
+        expected={"outer": {"inner": 1, "extra": {}}},
+        actual={"outer": {"inner": 1, "extra": {}}},
+        policy=_exact_policy("$.outer.inner"),
+    )
+    assert result.passed is False
+    unexpected_paths = {d.path for d in result.diffs if d.kind == "unexpected"}
+    assert "$.outer.extra" in unexpected_paths, (
+        f"P0-4: expected $.outer.extra in unexpected diffs, got {unexpected_paths}"
+    )
+
+
+def test_p0_4_empty_array_under_declared_outer_is_unexpected() -> None:
+    """P0-4 of review 4694841112: an undeclared empty ``[]``
+    under a declared ``$.outer.inner`` parent MUST be
+    surfaced as a structured ``unexpected`` diff at the
+    path ``$.outer.extra``.
+    """
+    result = compare_outputs(
+        expected={"outer": {"inner": 1, "extra": []}},
+        actual={"outer": {"inner": 1, "extra": []}},
+        policy=_exact_policy("$.outer.inner"),
+    )
+    assert result.passed is False
+    unexpected_paths = {d.path for d in result.diffs if d.kind == "unexpected"}
+    assert "$.outer.extra" in unexpected_paths, (
+        f"P0-4: expected $.outer.extra in unexpected diffs, got {unexpected_paths}"
+    )
+
+
+def test_p0_4_empty_object_in_array_index_is_unexpected() -> None:
+    """P0-4 of review 4694841112: an undeclared empty ``{}``
+    at a nested array index (``$.items[1]`` when only
+    ``$.items[0].id`` is declared) MUST be surfaced as a
+    structured ``unexpected`` diff at the path
+    ``$.items[1]``.
+    """
+    result = compare_outputs(
+        expected={"items": [{"id": 1}, {}]},
+        actual={"items": [{"id": 1}, {}]},
+        policy=_exact_policy("$.items[0].id"),
+    )
+    assert result.passed is False
+    unexpected_paths = {d.path for d in result.diffs if d.kind == "unexpected"}
+    assert "$.items[1]" in unexpected_paths, (
+        f"P0-4: expected $.items[1] in unexpected diffs, got {unexpected_paths}"
+    )
+
+
+def test_p0_4_empty_array_in_array_index_is_unexpected() -> None:
+    """P0-4 of review 4694841112: an undeclared empty ``[]``
+    at a nested array index (``$.items[1]`` when only
+    ``$.items[0].id`` is declared) MUST be surfaced as a
+    structured ``unexpected`` diff at the path
+    ``$.items[1]``.
+    """
+    result = compare_outputs(
+        expected={"items": [{"id": 1}, []]},
+        actual={"items": [{"id": 1}, []]},
+        policy=_exact_policy("$.items[0].id"),
+    )
+    assert result.passed is False
+    unexpected_paths = {d.path for d in result.diffs if d.kind == "unexpected"}
+    assert "$.items[1]" in unexpected_paths, (
+        f"P0-4: expected $.items[1] in unexpected diffs, got {unexpected_paths}"
+    )
+
+
+def test_p0_4_declared_empty_container_passes() -> None:
+    """P0-4 of review 4694841112: when the policy declares
+    the container path (e.g. ``$.outer.extra``), the empty
+    container is COVERED and the comparison passes.
+    """
+    result = compare_outputs(
+        expected={"outer": {"inner": 1, "extra": {}}},
+        actual={"outer": {"inner": 1, "extra": {}}},
+        policy=_exact_policy("$.outer.inner", "$.outer.extra"),
+    )
+    assert result.passed is True, f"P0-4: expected pass, got diffs: {result.diffs}"

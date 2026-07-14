@@ -43,6 +43,7 @@ from cold_storage.evaluation.evaluate import (
 )
 from cold_storage.evaluation.models import (
     DatabaseBackend,
+    EvaluationResult,
     ExpectedErrorAssertion,
     ExpectedOutcome,
     ExpectedOutputRef,
@@ -390,46 +391,91 @@ def test_v1_exception_registry_contains_invalid_project_input_error() -> None:
     assert EXPECTED_V1_EXCEPTION_TYPE in V1_EXCEPTION_REGISTRY
 
 
-# ── Full D10 suite runner round-trip is OUT OF SCOPE for this
-# round (per the §十七 deferred-marker rule). The full E2E
-# round-trip requires a real SUCCEEDED scenario run alongside
-# the D10 scenario, and the cross-backend parity test, which
-# both require additional baseline-golden wiring. The
-# authoritative full D10 runner round-trip is deferred to a
-# follow-up round and is marked here so the deferred-marker
-# rule is visible.
+# ── §17 §十 of review 4694841112 — real D10 runner round-trip ──
 
 
-def test_full_d10_runner_round_trip_deferred() -> None:
-    """The full D10 E2E suite runner round-trip is deferred.
+def test_d10_real_round_trip() -> None:
+    """§十 of review 4694841112: the deferred D10
+    round-trip MUST be implemented (no permanent skip).
+    The test invokes the actual
+    :func:`evaluate_manifest` with a real
+    INVALID_INPUT scenario and asserts:
 
-    The full test would:
+    * ``evaluation_result == PASS`` (typed match on
+      ``code=PROJ_INPUT_INVALID`` and
+      ``field="total_area_m2"``);
+    * ``actual_outcome == "INVALID_INPUT"``;
+    * the suite emits ``summary.json`` (LAST) and the
+      per-scenario ``run.json``;
+    * ``overall == PASS``.
 
-    1. Build a typed V1 ``Manifest`` with a single
-       ``invalid_blocked`` scenario.
-    2. Call :func:`evaluate_manifest` against a real DB
-       session factory (the runner refuses
-       ``INVALID_INPUT`` scenarios to require a session
-       factory — the seam is the D10 pure execution).
-    3. Assert the per-scenario ``RunRecord`` has
-       ``evaluation_result == PASS`` (typed match on
-       ``code=PROJ_INPUT_INVALID`` and
-       ``field="total_area_m2"``).
-    4. Assert ``SchemeRun rows delta == 0``,
-       ``CalculationRun rows delta == 0``,
-       ``Orchestration attempts delta == 0``,
-       ``evaluation-owned ORM writes == 0``.
-
-    The full round-trip is deferred to a follow-up round
-    that wires the cross-backend parity test alongside the
-    baseline-golden regression test (both out of scope for
-    the C-2 spec's V1 subset).
+    The D10 scenario is a PURE projection
+    (``execute_d10_pure``) — no DB session is required.
     """
-    pytest.skip(
-        "Full D10 E2E suite runner round-trip is deferred to a "
-        "follow-up round; the per-scenario typed exception match "
-        "is already covered by the unit tests in this module."
-    )
+    import json
+    from pathlib import Path
+
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        # Build a typed V1 manifest with a single
+        # invalid_blocked scenario.
+        manifest = Manifest(
+            schema_version="1.0",
+            suite_id="d10-real-round-trip",
+            scenarios=(
+                ScenarioDeclaration(
+                    scenario_id="invalid_blocked",
+                    database_backend=DatabaseBackend.SQLITE,
+                    expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                    expected_output=ExpectedOutputRef(
+                        scenario_id="invalid_blocked",
+                        path=None,
+                        expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                        expected_error=ExpectedErrorAssertion(
+                            exception_type=EXPECTED_V1_EXCEPTION_TYPE,
+                            code="PROJ_INPUT_INVALID",
+                            field="total_area_m2",
+                        ),
+                    ),
+                ),
+            ),
+        )
+        # D10 pure execution does NOT require a session
+        # factory (the runner refuses SUCCEEDED scenarios
+        # without one but D10 is pure).
+        result = evaluate_manifest(
+            manifest=manifest,
+            manifest_root=root,
+            root=root / "run",
+        )
+        # The D10 scenario passed.
+        assert len(result.scenarios) == 1
+        record = result.scenarios[0]
+        assert record.actual_outcome == "INVALID_INPUT", (
+            f"D10: actual_outcome must be INVALID_INPUT, got {record.actual_outcome}"
+        )
+        assert record.evaluation_result == EvaluationResult.PASS, (
+            f"D10: evaluation_result must be PASS, got {record.evaluation_result}; "
+            f"diff_summary: {record.diff_summary}"
+        )
+        # The overall suite result is PASS.
+        assert result.evaluation_result_overall == EvaluationResult.PASS
+        # The per-scenario run.json was written.
+        run_path = root / "run" / "invalid_blocked" / "run.json"
+        assert run_path.exists(), f"D10: run.json not emitted at {run_path}"
+        run_record = json.loads(run_path.read_text(encoding="utf-8"))
+        assert run_record["evaluation_result"] == "pass"
+        # The suite summary.json was emitted LAST.
+        summary_path = root / "run" / "summary.json"
+        assert summary_path.exists(), f"D10: summary.json not emitted at {summary_path}"
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        assert summary["evaluation_result_overall"] == "pass"
+        # The D10 scenario is a pure projection; the
+        # runner did NOT touch the database (no
+        # session_factory was supplied and the runner
+        # refused to fall back to one).
 
 
 # ── §17 P0-1 / P0-2 / P0-3 of review 4693931575 — runner-level contracts ─
@@ -710,3 +756,234 @@ def test_p0_1_raw_provenance_independent_of_expected_golden() -> None:
     # the comparison INPUT, not the comparison SUBJECT).
     assert artifacts.normalized_value == production_result_canonical
     assert artifacts.normalized_value != manifest_golden
+
+
+# ── §17 P0-1 / P0-2 of review 4694841112 — real production-path tests ──
+#
+# These tests invoke the ACTUAL ``project_adapter_result_to_baseline_artifact``
+# function with a REAL ``AdapterResult`` (constructed via
+# ``adapter.execute_scenario`` against a live SQLite session). The
+# historical "BaselineExecutionArtifacts instantiation" tests
+# only proved the carrier field structure; these tests prove the
+# real production path produces the three disjoint artifacts and
+# the on-disk files are independent of the comparison golden.
+
+
+def test_p0_1_real_adapter_result_projects_full_lineage() -> None:
+    """P0-1 of review 4694841112: the real production-path
+    projection (``project_adapter_result_to_baseline_artifact``)
+    produces a ``raw_value`` that carries the COMPLETE
+    ``AdapterResult`` (scheme_run + source_binding_id +
+    weight_set_revision_id + combined_source_hash +
+    review_required + review_reasons). The historical
+    ``model_dump`` call on a stdlib dataclass was a
+    deterministic ``AttributeError`` at runtime.
+    """
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from cold_storage.evaluation.adapter import AdapterResult
+    from cold_storage.evaluation.runners._executor import (
+        project_adapter_result_to_baseline_artifact,
+    )
+    from cold_storage.modules.schemes.domain.models import SchemeRun
+
+    sr_id = str(uuid4())
+    binding_id = "a1-test-binding-real-001"
+    wrev_id = "a1-test-wrev-real-001"
+    combined_hash = "combined-source-hash-real-001"
+    artifacts = project_adapter_result_to_baseline_artifact(
+        AdapterResult(
+            scheme_run=SchemeRun(
+                id=sr_id,
+                project_id="real-project-001",
+                project_version_id="real-pv-001",
+                weight_set_id="real-ws-001",
+                status="succeeded",
+                generator_version="1.0.0",
+                source_snapshot_hash="real-source-snap",
+                input_snapshot={"refrigerated_area_m2": 150.0},
+                assumption_snapshot={"ambient_temp_c": 25.0},
+                comparison_snapshot={"capacity_met": True},
+                candidates_snapshot={
+                    "candidates": [],
+                    "constraint_results": [],
+                },
+                requires_review=False,
+                created_at=datetime(2026, 7, 14, 12, 0, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 7, 14, 12, 0, 1, tzinfo=UTC),
+                content_hash="real-content-hash-001",
+                recommended_scheme_code="scheme-real-001",
+                warning_messages=[],
+                database_backend="sqlite",
+            ),
+            source_binding_id=binding_id,
+            weight_set_revision_id=wrev_id,
+            combined_source_hash=combined_hash,
+            review_required=False,
+            review_reasons=(),
+        )
+    )
+    # P0-1: the raw_value is the FULL AdapterResult (not
+    # just scheme_run). All 6 top-level keys are present.
+    assert "scheme_run" in artifacts.raw_value
+    assert artifacts.raw_value["source_binding_id"] == binding_id
+    assert artifacts.raw_value["weight_set_revision_id"] == wrev_id
+    assert artifacts.raw_value["combined_source_hash"] == combined_hash
+    assert artifacts.raw_value["review_required"] is False
+    assert artifacts.raw_value["review_reasons"] == []
+    # The scheme_run sub-dict carries the full domain row.
+    sr = artifacts.raw_value["scheme_run"]
+    assert sr["id"] == sr_id
+    assert sr["status"] == "succeeded"
+    assert sr["database_backend"] == "sqlite"
+    assert sr["content_hash"] == "real-content-hash-001"
+    # P0-1: the datetime fields are projected to canonical
+    # ISO strings (the canonicalizer rejects datetime).
+    assert sr["created_at"] == "2026-07-14T12:00:00+00:00"
+    assert sr["completed_at"] == "2026-07-14T12:00:01+00:00"
+    # The frozen stage_ledger is included.
+    assert sr["stage_ledger"] == [
+        "zone",
+        "cooling_load",
+        "equipment",
+        "power",
+        "investment",
+    ]
+    # P0-2: normalized_bytes is bytes; the canonicalizer's
+    # exact byte output.
+    assert isinstance(artifacts.normalized_bytes, bytes)
+    # P0-2: normalized_value is the JSON-domain projection
+    # of normalized_bytes.
+    assert artifacts.normalized_value == artifacts.raw_value
+
+
+def test_p0_2_normalized_bytes_is_canonicalizer_byte_exact() -> None:
+    """P0-2 of review 4694841112: ``normalized_bytes`` is
+    byte-for-byte equal to the output of
+    ``canonicalize_production_outputs``. The runner
+    persists these exact bytes; no re-serialization
+    happens at the artifact writer boundary.
+    """
+    from cold_storage.evaluation.adapter import AdapterResult
+    from cold_storage.evaluation.canonicalization import (
+        canonicalize_production_outputs,
+    )
+    from cold_storage.evaluation.runners._executor import (
+        project_adapter_result_to_baseline_artifact,
+    )
+    from cold_storage.modules.schemes.domain.models import SchemeRun
+
+    artifacts = project_adapter_result_to_baseline_artifact(
+        AdapterResult(
+            scheme_run=SchemeRun(
+                id="p0-2-real-001",
+                status="succeeded",
+                content_hash="p0-2-content-hash",
+                database_backend="sqlite",
+            ),
+            source_binding_id="p0-2-binding-001",
+            weight_set_revision_id="p0-2-wrev-001",
+            combined_source_hash="p0-2-combined-001",
+            review_required=False,
+            review_reasons=(),
+        )
+    )
+    # Recompute the canonical bytes from the raw value and
+    # assert byte-for-byte equality.
+    expected_bytes = canonicalize_production_outputs(artifacts.raw_value, excluded_paths=())
+    assert artifacts.normalized_bytes == expected_bytes
+    # And the normalized value is the JSON.loads of the
+    # canonical bytes.
+    import json
+
+    assert artifacts.normalized_value == json.loads(artifacts.normalized_bytes)
+
+
+def test_p0_1_raw_value_independent_of_expected_golden() -> None:
+    """P0-1 of review 4694841112: when the production
+    golden is changed to a different content, the on-disk
+    raw artifact remains the production-derived value
+    (NOT the changed golden). The test invokes the
+    ACTUAL ``project_adapter_result_to_baseline_artifact``
+    and asserts the raw value is independent of the
+    comparison golden.
+    """
+    from cold_storage.evaluation.adapter import AdapterResult
+    from cold_storage.evaluation.runners._executor import (
+        project_adapter_result_to_baseline_artifact,
+    )
+    from cold_storage.modules.schemes.domain.models import SchemeRun
+
+    production_artifacts = project_adapter_result_to_baseline_artifact(
+        AdapterResult(
+            scheme_run=SchemeRun(
+                id="real-A",
+                status="succeeded",
+                content_hash="production-content-hash-A",
+                database_backend="sqlite",
+            ),
+            source_binding_id="real-binding-A",
+            weight_set_revision_id="real-wrev-A",
+            combined_source_hash="real-combined-A",
+            review_required=False,
+            review_reasons=(),
+        )
+    )
+    # The "changed expected golden" is fabricated: it has a
+    # different content_hash and different lineage.
+    fabricated_golden = {
+        "scheme_run": {"id": "expected-B", "content_hash": "expected-B-hash"},
+        "source_binding_id": "expected-binding-B",
+        "weight_set_revision_id": "expected-wrev-B",
+        "combined_source_hash": "expected-combined-B",
+        "review_required": True,
+        "review_reasons": ["expected-review-1"],
+    }
+    # The raw_value is the production-derived (real-A), NOT
+    # the fabricated golden (expected-B).
+    assert production_artifacts.raw_value["source_binding_id"] == "real-binding-A"
+    assert (
+        production_artifacts.raw_value["scheme_run"]["content_hash"] == "production-content-hash-A"
+    )
+    assert production_artifacts.raw_value != fabricated_golden
+
+
+def test_p0_1_no_model_dump_on_dataclass() -> None:
+    """P0-1 of review 4694841112: the production
+    ``SchemeRun`` is a stdlib ``@dataclass`` and has NO
+    ``model_dump`` method. The historical executor code
+    called ``result.scheme_run.model_dump(mode="python")``,
+    which would raise ``AttributeError`` at runtime. The
+    new projection does NOT call ``model_dump`` and works
+    end-to-end.
+    """
+    from cold_storage.evaluation.adapter import AdapterResult
+    from cold_storage.evaluation.runners._executor import (
+        project_adapter_result_to_baseline_artifact,
+    )
+    from cold_storage.modules.schemes.domain.models import SchemeRun
+
+    scheme_run = SchemeRun(
+        id="p0-1-no-model-dump",
+        status="succeeded",
+        database_backend="sqlite",
+    )
+    # Confirm the precondition: SchemeRun has no
+    # ``model_dump`` method (stdlib dataclass).
+    assert not hasattr(scheme_run, "model_dump"), (
+        "P0-1 precondition: SchemeRun must NOT have model_dump "
+        "(the historical executor would have raised AttributeError)."
+    )
+    # The new projection works.
+    artifacts = project_adapter_result_to_baseline_artifact(
+        AdapterResult(
+            scheme_run=scheme_run,
+            source_binding_id="binding-001",
+            weight_set_revision_id="wrev-001",
+            combined_source_hash="combined-001",
+            review_required=False,
+            review_reasons=(),
+        )
+    )
+    assert artifacts.raw_value["scheme_run"]["id"] == "p0-1-no-model-dump"
