@@ -359,19 +359,15 @@ _MODELS_PY_FORBIDDEN_CONTEXTS: tuple[str, ...] = (
 )
 
 
-#: Approved contexts in which the ``database_backend`` token is
-#: allowed to appear in ``models.py``. These are the **only** allowed
-#: occurrence sites; anything else MUST be classified as REJECTED
-#: (P0-1 of review 4689835238). The carve-out is:
-#:
-#:   * path-precise: only ``backend/src/cold_storage/evaluation/models.py``;
-#:   * token-precise: only the literal token ``database_backend``;
-#:   * purpose-precise: only as a Pydantic typed-model surface
-#:     (field declaration, ``Field(alias=...)``,
-#:     ``serialization_alias``, typed identity attribute, enum /
-#:     value validation reference, model-validator read of
-#:     ``scenario.database_backend``).
-_APPROVED_MODELS_PY_FIELD_CLASSES: frozenset[str] = frozenset(
+#: Approved field-class set for the exact-typed-field
+#: ``database_backend`` declaration surface. Per P0 of review
+#: 4690110096, the architecture guard no longer permits ANY
+#: "approved class attribute access" — instead the guard only
+#: accepts an exact, narrow surface: a Pydantic typed
+#: ``AnnAssign`` whose target name is ``database_backend`` and
+#: whose annotation is the literal ``DatabaseBackend`` symbol,
+#: inside one of these classes, with no default value.
+_EXACT_FIELD_CLASSES: frozenset[str] = frozenset(
     {
         "ScenarioDeclaration",
         "RunRecord",
@@ -380,16 +376,24 @@ _APPROVED_MODELS_PY_FIELD_CLASSES: frozenset[str] = frozenset(
 )
 
 
-#: Names of the Python Pydantic helper attributes that the canonical
-#: architecture surface legitimately reads when validating a typed
-#: model attribute. These are only allowed inside model-validator
-#: functions (``@model_validator(mode="after")`` /
-#: ``@field_validator``) on approved classes.
-_APPROVED_VALIDATOR_READ_ATTRIBUTES: frozenset[str] = frozenset(
-    {
-        "database_backend",
-    }
-)
+#: The exact Manifest validator function whose body may read
+#: ``s.database_backend.value``. Any other validator or any
+#: other read shape is REJECTED.
+_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME: str = "_validate_unique_scenarios"
+
+
+#: The exact receiver name used inside the body of
+#: :data:`_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME`. The guard
+#: rejects ``value.database_backend``, ``self.database_backend``,
+#: ``obj.database_backend``, etc.
+_EXACT_MANIFEST_UNIQUE_RECEIVER: str = "s"
+
+
+#: The exact trailing attribute that must follow
+#: ``s.database_backend`` inside
+#: :data:`_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME`. The guard
+#: rejects ``s.database_backend`` (without ``.value``).
+_EXACT_MANIFEST_UNIQUE_TAIL_ATTR: str = "value"
 
 
 def _build_parent_map(tree: ast.AST) -> dict[int, ast.AST]:
@@ -433,109 +437,338 @@ def _containing_function(
     return None
 
 
-def _is_validator_decorated(
+def _is_exact_manifest_uniqueness_validator(
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
+    containing_cls: ast.ClassDef | None,
 ) -> bool:
-    """Return True if ``fn`` is decorated with a Pydantic
-    validator decorator (``@field_validator``,
-    ``@model_validator``)."""
+    """Return True if ``fn`` is the exact
+    ``Manifest._validate_unique_scenarios`` ``@field_validator("scenarios")``
+    method that the typed-model surface uses to read
+    ``s.database_backend.value``.
+
+    The check is exact: function name must be
+    :data:`_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME`, the parent
+    class name must be ``Manifest``, and the function must
+    carry a ``@field_validator("scenarios")`` decorator. Any
+    other shape is REJECTED.
+    """
+    if fn.name != _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME:
+        return False
+    if containing_cls is None or containing_cls.name != "Manifest":
+        return False
+    has_field_validator_scenarios = False
     for decorator in fn.decorator_list:
-        # ``@field_validator("scenarios")`` is a Call with
-        # func=Name("field_validator").
-        if isinstance(decorator, ast.Call):
-            func = decorator.func
-            if isinstance(func, ast.Name) and func.id in {
-                "field_validator",
-                "model_validator",
-            }:
-                return True
-        # ``@model_validator(mode="after")`` is also a Call.
-        if isinstance(decorator, ast.Attribute) and decorator.attr in {
-            "field_validator",
-            "model_validator",
-        }:
-            return True
-        # Bare ``@field_validator`` (rare) — Name node.
-        if isinstance(decorator, ast.Name) and decorator.id in {
-            "field_validator",
-            "model_validator",
-        }:
-            return True
-    return False
+        if not isinstance(decorator, ast.Call):
+            continue
+        func = decorator.func
+        if not (isinstance(func, ast.Name) and func.id == "field_validator"):
+            continue
+        for arg in decorator.args:
+            if isinstance(arg, ast.Constant) and arg.value == "scenarios":
+                has_field_validator_scenarios = True
+                break
+    return has_field_validator_scenarios
+
+
+def _is_exact_database_backend_field(
+    node: ast.AST,
+    parents: dict[int, ast.AST],
+) -> bool:
+    """Exact allowlist predicate: is ``node`` one of the three
+    legal ``database_backend: DatabaseBackend`` field
+    declarations in :data:`_EXACT_FIELD_CLASSES`?
+
+    Required shape:
+
+    * ``ast.AnnAssign``
+    * ``target`` is ``ast.Name(id="database_backend")``
+    * ``annotation`` is ``ast.Name(id="DatabaseBackend")``
+    * ``value`` is ``None`` (no default)
+    * containing class is in :data:`_EXACT_FIELD_CLASSES`
+    * containing function is ``None`` (the field is at class
+      body scope, not inside a method)
+
+    Any deviation (wrong annotation, default value, wrong
+    class, inside a function body) is rejected.
+    """
+    if not isinstance(node, ast.AnnAssign):
+        return False
+    if not isinstance(node.target, ast.Name):
+        return False
+    if node.target.id != "database_backend":
+        return False
+    if not isinstance(node.annotation, ast.Name):
+        return False
+    if node.annotation.id != "DatabaseBackend":
+        return False
+    if node.value is not None:
+        return False
+    containing_cls = _containing_class(node, parents)
+    if containing_cls is None:
+        return False
+    if containing_cls.name not in _EXACT_FIELD_CLASSES:
+        return False
+    return _containing_function(node, parents) is None
+
+
+def _is_exact_manifest_uniqueness_read(
+    node: ast.AST,
+    parents: dict[int, ast.AST],
+) -> bool:
+    """Exact allowlist predicate: is ``node`` the
+    ``s.database_backend`` attribute access inside
+    ``Manifest._validate_unique_scenarios``, whose parent
+    is the ``.value`` attribute access?
+
+    The full read expression is ``s.database_backend.value``.
+    Python parses it as::
+
+        Attribute(
+            attr="value",
+            value=Attribute(
+                attr="database_backend",
+                value=Name(id="s"),
+            ),
+        )
+
+    The collector picks the inner ``Attribute(attr=
+    "database_backend", value=Name("s"))`` node. This
+    predicate verifies that node is exactly that inner
+    attribute, that its parent is the ``.value`` Attribute,
+    that the receiver is ``s``, and that the surrounding
+    function is the exact Manifest validator.
+
+    Required shape:
+
+    * ``ast.Attribute`` with ``attr == "database_backend"``
+      and ``value`` is ``ast.Name(id="s")``
+    * parent is ``ast.Attribute(attr="value")``
+    * parent context is ``ast.Load``
+    * containing function is
+      :data:`_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME` on
+      ``Manifest`` (decorator
+      ``@field_validator("scenarios")``)
+
+    Any deviation (wrong receiver, wrong parent attr, wrong
+    validator, different class) is rejected.
+    """
+    if not isinstance(node, ast.Attribute):
+        return False
+    if node.attr != "database_backend":
+        return False
+    # The value of this attribute must be the receiver
+    # ``ast.Name(id="s")``.
+    receiver = node.value
+    if not isinstance(receiver, ast.Name):
+        return False
+    if receiver.id != _EXACT_MANIFEST_UNIQUE_RECEIVER:
+        return False
+    # The parent must be the ``.value`` Attribute.
+    parent = parents.get(id(node))
+    if parent is None:
+        return False
+    if not isinstance(parent, ast.Attribute):
+        return False
+    if parent.attr != _EXACT_MANIFEST_UNIQUE_TAIL_ATTR:
+        return False
+    if not isinstance(parent.ctx, ast.Load):
+        return False
+    # Must be inside the exact Manifest validator.
+    containing_fn = _containing_function(node, parents)
+    if containing_fn is None:
+        return False
+    containing_cls = _containing_class(node, parents)
+    return _is_exact_manifest_uniqueness_validator(containing_fn, containing_cls)
 
 
 def _collect_database_backend_occurrences(
     tree: ast.AST,
-) -> list[tuple[ast.AST, int, int]]:
-    """Return every AST node in ``tree`` that is a code-level
-    reference to the token ``database_backend``.
+) -> list[tuple[ast.AST, int, int, str | None, str | None, str | None]]:
+    """Collect every code-level reference to the token
+    ``database_backend`` in ``tree``.
 
-    The returned list contains the node plus its 1-based line and
-    column. The function is purely lexical-AST; classification of
-    each occurrence (AUTHORIZED / REJECTED) is performed by
-    :func:`_classify_database_backend_occurrence`.
+    The returned tuple is ``(node, line, column, containing_class,
+    containing_function, parent_node_type)``. The function
+    walks the tree ONCE and uses the parent map for
+    containing-class / containing-function resolution; it does
+    NOT re-walk the tree per node.
 
     A node is a "code-level reference" if it is one of:
 
-    * ``ast.Name`` with ``id == "database_backend"`` (and not the
-      target of an ``AnnAssign`` / ``Assign`` — those are
-      captured by the parent assignment rule);
+    * ``ast.AnnAssign`` whose ``target`` is an
+      ``ast.Name(id="database_backend")``;
+    * ``ast.Assign`` whose target list contains a Name with
+      ``id == "database_backend"``;
+    * ``ast.NamedExpr`` whose target is a Name with
+      ``id == "database_backend"``;
     * ``ast.arg`` with ``arg == "database_backend"``;
-    * ``ast.Constant`` with ``value == "database_backend"`` (a
-      string literal occurrence);
-    * ``ast.Attribute`` with ``attr == "database_backend"`` (an
-      attribute read or write);
-    * ``ast.keyword`` with ``arg == "alias"`` and ``value`` being
-      a ``Constant`` whose ``value == "database_backend"``;
-    * ``ast.Call`` with any keyword whose ``arg == "alias"`` and
-      value unparse contains ``"database_backend"`` (Pydantic
-      ``Field(alias="database_backend")`` surface).
+    * ``ast.Name`` with ``id == "database_backend"`` (free
+      Name load / store);
+    * ``ast.Constant`` with ``value == "database_backend"``;
+    * ``ast.Attribute`` with ``attr == "database_backend"``;
+    * ``ast.keyword`` whose ``arg == "alias"`` or
+      ``arg == "serialization_alias"`` and whose value
+      unparse contains ``"database_backend"``;
+    * ``ast.Subscript`` whose ``slice`` is a
+      ``Constant(value="database_backend")``;
+    * ``ast.Call`` whose function is ``getattr`` or
+      ``setattr`` (any argument shape).
     """
-    occurrences: list[tuple[ast.AST, int, int]] = []
+    occurrences: list[tuple[ast.AST, int, int, str | None, str | None, str | None]] = []
+    parents = _build_parent_map(tree)
     for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and node.id == "database_backend":
-            # The Name ``database_backend`` is also a target of
-            # an ``AnnAssign`` or ``Assign`` statement; in that
-            # case the parent node already represents the
-            # occurrence and the Name is a duplicate. Skip the
-            # Name to avoid double-counting.
-            parent: ast.AST | None = None
-            for candidate in ast.walk(tree):
-                if node in getattr(candidate, "targets", []):
-                    parent = candidate
-                    break
-                if isinstance(candidate, ast.AnnAssign) and candidate.target is node:
-                    parent = candidate
-                    break
-            if parent is not None:
-                # Emit the parent (AnnAssign / Assign) instead.
-                if isinstance(parent, (ast.AnnAssign, ast.Assign)):
-                    occurrences.append((parent, parent.lineno, parent.col_offset))
-                continue
-            occurrences.append((node, node.lineno, node.col_offset))
-        elif (
-            isinstance(node, ast.arg)
-            and node.arg == "database_backend"
-            or (isinstance(node, ast.Constant) and node.value == "database_backend")
-            or (isinstance(node, ast.Attribute) and node.attr == "database_backend")
-            or (
-                isinstance(node, ast.keyword)
-                and node.arg == "alias"
-                and isinstance(node.value, ast.Constant)
-                and node.value.value == "database_backend"
-            )
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "database_backend"
         ):
-            occurrences.append((node, node.lineno, node.col_offset))
+            containing_cls = _containing_class(node, parents)
+            containing_fn = _containing_function(node, parents)
+            occurrences.append(
+                (
+                    node,
+                    node.lineno,
+                    node.col_offset,
+                    containing_cls.name if containing_cls else None,
+                    containing_fn.name if containing_fn else None,
+                    type(parents.get(id(node))).__name__
+                    if parents.get(id(node)) is not None
+                    else None,
+                )
+            )
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "database_backend":
+                    containing_cls = _containing_class(node, parents)
+                    containing_fn = _containing_function(node, parents)
+                    occurrences.append(
+                        (
+                            node,
+                            node.lineno,
+                            node.col_offset,
+                            containing_cls.name if containing_cls else None,
+                            containing_fn.name if containing_fn else None,
+                            type(parents.get(id(node))).__name__
+                            if parents.get(id(node)) is not None
+                            else None,
+                        )
+                    )
+                    break
+        elif (
+            isinstance(node, ast.NamedExpr)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "database_backend"
+        ) or (isinstance(node, ast.arg) and node.arg == "database_backend"):
+            containing_cls = _containing_class(node, parents)
+            containing_fn = _containing_function(node, parents)
+            occurrences.append(
+                (
+                    node,
+                    node.lineno,
+                    node.col_offset,
+                    containing_cls.name if containing_cls else None,
+                    containing_fn.name if containing_fn else None,
+                    type(parents.get(id(node))).__name__
+                    if parents.get(id(node)) is not None
+                    else None,
+                )
+            )
+        elif isinstance(node, ast.Name) and node.id == "database_backend":
+            parent = parents.get(id(node))
+            if isinstance(parent, ast.AnnAssign) and parent.target is node:
+                continue
+            if isinstance(parent, ast.Assign) and any(t is node for t in parent.targets):
+                continue
+            if isinstance(parent, ast.NamedExpr) and parent.target is node:
+                continue
+            containing_cls = _containing_class(node, parents)
+            containing_fn = _containing_function(node, parents)
+            occurrences.append(
+                (
+                    node,
+                    node.lineno,
+                    node.col_offset,
+                    containing_cls.name if containing_cls else None,
+                    containing_fn.name if containing_fn else None,
+                    type(parent).__name__ if parent is not None else None,
+                )
+            )
+        elif (isinstance(node, ast.Constant) and node.value == "database_backend") or (
+            isinstance(node, ast.Attribute) and node.attr == "database_backend"
+        ):
+            containing_cls = _containing_class(node, parents)
+            containing_fn = _containing_function(node, parents)
+            occurrences.append(
+                (
+                    node,
+                    node.lineno,
+                    node.col_offset,
+                    containing_cls.name if containing_cls else None,
+                    containing_fn.name if containing_fn else None,
+                    type(parents.get(id(node))).__name__
+                    if parents.get(id(node)) is not None
+                    else None,
+                )
+            )
+        elif isinstance(node, ast.keyword) and node.arg in {"alias", "serialization_alias"}:
+            try:
+                value_text = ast.unparse(node.value)
+            except Exception:  # pragma: no cover
+                value_text = ""
+            if "database_backend" in value_text:
+                containing_cls = _containing_class(node, parents)
+                containing_fn = _containing_function(node, parents)
+                occurrences.append(
+                    (
+                        node,
+                        node.lineno,
+                        node.col_offset,
+                        containing_cls.name if containing_cls else None,
+                        containing_fn.name if containing_fn else None,
+                        type(parents.get(id(node))).__name__
+                        if parents.get(id(node)) is not None
+                        else None,
+                    )
+                )
+        elif (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.slice, ast.Constant)
+            and node.slice.value == "database_backend"
+        ):
+            containing_cls = _containing_class(node, parents)
+            containing_fn = _containing_function(node, parents)
+            occurrences.append(
+                (
+                    node,
+                    node.lineno,
+                    node.col_offset,
+                    containing_cls.name if containing_cls else None,
+                    containing_fn.name if containing_fn else None,
+                    type(parents.get(id(node))).__name__
+                    if parents.get(id(node)) is not None
+                    else None,
+                )
+            )
         elif isinstance(node, ast.Call):
-            for kw in node.keywords:
-                if kw.arg == "alias":
-                    try:
-                        value_text = ast.unparse(kw.value)
-                    except Exception:  # pragma: no cover
-                        continue
-                    if "database_backend" in value_text:
-                        occurrences.append((node, node.lineno, node.col_offset))
-                        break
+            func = node.func
+            if isinstance(func, ast.Name) and func.id in {
+                "getattr",
+                "setattr",
+            }:
+                containing_cls = _containing_class(node, parents)
+                containing_fn = _containing_function(node, parents)
+                occurrences.append(
+                    (
+                        node,
+                        node.lineno,
+                        node.col_offset,
+                        containing_cls.name if containing_cls else None,
+                        containing_fn.name if containing_fn else None,
+                        type(parents.get(id(node))).__name__
+                        if parents.get(id(node)) is not None
+                        else None,
+                    )
+                )
     return occurrences
 
 
@@ -543,151 +776,38 @@ def _classify_database_backend_occurrence(
     node: ast.AST,
     parents: dict[int, ast.AST],
 ) -> str:
-    """Classify a single ``database_backend`` occurrence as
-    ``AUTHORIZED`` or ``REJECTED``.
+    """Classify a single ``database_backend`` occurrence with
+    the exact allowlist.
 
-    Rules (P0-1 of review 4689835238):
+    Per P0 of review 4690110096 the architecture contract is
+    narrowed: only two exact shapes are AUTHORIZED, and
+    everything else is REJECTED. The two authorized shapes
+    are:
 
-    AUTHORIZED only if ALL of the following hold:
+    1. :func:`_is_exact_database_backend_field` — an
+       ``ast.AnnAssign`` of the form
+       ``database_backend: DatabaseBackend`` (no default)
+       inside one of
+       :data:`_EXACT_FIELD_CLASSES`.
 
-    1. The occurrence is one of:
-       * ``ast.AnnAssign`` whose ``target`` is an
-         ``ast.Name(id="database_backend")`` and whose parent class
-         is in :data:`_APPROVED_MODELS_PY_FIELD_CLASSES`.
-       * ``ast.arg`` (function parameter) on a
-         ``model_validator`` / ``field_validator`` method of an
-         approved class — currently NOT used by the typed model
-         surface, so this branch is REJECTED for the existing
-         surface. (Kept for forward compatibility with future
-         validators that legitimately take a typed alias.)
-       * ``ast.Attribute(value=ast.Name(id="self"), attr="database_backend")``
-         inside a method of an approved class (typed-model
-         attribute read).
-       * ``ast.Call`` whose ``func`` is ``ast.Name(id="Field")`` and
-         which has a keyword argument ``alias=...`` whose unparse
-         contains ``"database_backend"`` (Pydantic Field alias).
-       * ``ast.keyword(arg="alias", value=ast.Constant(value="database_backend"))``
-         directly.
-       * ``ast.Constant(value="database_backend")`` (string literal
-         used as a key or alias).
-       * ``ast.Attribute(value=ast.Name(id="DatabaseBackend") or similar,
-         attr=...)`` referencing the enum class
-         (e.g. ``DatabaseBackend.SQLITE``).
-       * A read of the typed-model attribute in a model validator:
-         ``scenario.database_backend`` or
-         ``scenarios[i].database_backend`` where the attribute is
-         accessed on a Name whose name is in
-         :data:`_APPROVED_VALIDATOR_READ_ATTRIBUTES` (e.g. scenario
-         variable in a model-validator function body).
-       * ``getattr`` / ``setattr`` calls are REJECTED in all
-         contexts (P0-1 of review 4689835238).
+    2. :func:`_is_exact_manifest_uniqueness_read` — an
+       ``ast.Attribute`` of the form ``s.database_backend.value``
+       inside the exact
+       ``Manifest._validate_unique_scenarios`` validator.
 
-    REJECTED otherwise. In particular, the following are always
-    REJECTED:
-       * module-level assignment;
-       * function parameter on a non-validator function;
-       * local variable assignment / read;
-       * free Name load;
-       * unapproved attribute access;
-       * dict key mutation;
-       * ``getattr`` / ``setattr`` access;
-       * production record / ORM / SQL / session context.
+    The classifier returns one of:
+
+    * ``"AUTHORIZED_FIELD"``;
+    * ``"AUTHORIZED_VALIDATOR_READ"``;
+    * ``"REJECTED"``.
+
+    No generic / forward-compat allow is permitted. Anything
+    not matching an exact predicate is rejected.
     """
-    containing_cls = _containing_class(node, parents)
-    containing_fn = _containing_function(node, parents)
-    containing_cls_name = containing_cls.name if containing_cls else None
-
-    # 1. Module-level free Name assignment is REJECTED.
-    if (
-        isinstance(node, ast.AnnAssign)
-        and isinstance(node.target, ast.Name)
-        and node.target.id == "database_backend"
-    ):
-        if containing_cls_name in _APPROVED_MODELS_PY_FIELD_CLASSES:
-            return "AUTHORIZED"
-        return "REJECTED"
-    if isinstance(node, ast.Assign):
-        for target in node.targets:
-            if isinstance(target, ast.Name) and target.id == "database_backend":
-                return "REJECTED"
-    # 2. Function parameter on a non-validator function is REJECTED.
-    if isinstance(node, ast.arg) and node.arg == "database_backend":
-        return "REJECTED"
-    # 3. Local variable Name node — REJECTED unless this is the
-    # ``self.database_backend`` access on an approved class.
-    if isinstance(node, ast.Name) and node.id == "database_backend":
-        return "REJECTED"
-    # 4. ``self.database_backend`` Attribute access inside an
-    # approved class is AUTHORIZED. Also AUTHORIZED: ``<typed
-    # variable>.database_backend`` where the attribute is read
-    # inside a ``@field_validator`` / ``@model_validator``
-    # method on an approved model class (e.g.,
-    # ``s.database_backend.value`` inside
-    # ``_validate_unique_scenarios`` on ``Manifest``).
-    if isinstance(node, ast.Attribute) and node.attr == "database_backend":
-        if containing_cls_name in _APPROVED_MODELS_PY_FIELD_CLASSES:
-            return "AUTHORIZED"
-        # The attribute read happens inside a validator-decorated
-        # method (the parent class is a Pydantic BaseModel, even
-        # if not in the approved field-class set). This is a
-        # legitimate model-validator read of a typed-model
-        # attribute.
-        if (
-            containing_fn is not None
-            and _is_validator_decorated(containing_fn)
-            and containing_cls is not None
-        ):
-            return "AUTHORIZED"
-        return "REJECTED"
-    # 5. Field(alias="database_backend") call keyword is AUTHORIZED.
-    if (
-        isinstance(node, ast.keyword)
-        and node.arg == "alias"
-        and isinstance(node.value, ast.Constant)
-        and node.value.value == "database_backend"
-    ):
-        return "AUTHORIZED"
-    # 6. ``Field(...)`` call that has any keyword whose unparse
-    # contains ``"database_backend"`` is AUTHORIZED.
-    if isinstance(node, ast.Call):
-        call_text = ast.unparse(node)
-        if "Field(" in call_text and "database_backend" in call_text:
-            return "AUTHORIZED"
-        # ``getattr`` / ``setattr`` are REJECTED in any context.
-        func = node.func
-        if isinstance(func, ast.Name) and func.id in {"getattr", "setattr"}:
-            return "REJECTED"
-    # 7. ``getattr(obj, "database_backend")`` detected via the
-    # string-literal constant inside a Call is REJECTED.
-    if isinstance(node, ast.Constant) and node.value == "database_backend":
-        # String-literal usage is approved only when it appears
-        # inside a Pydantic ``Field(alias=...)`` keyword (rule 5
-        # already handles that case). All other string-literal
-        # occurrences of the bare token are REJECTED.
-        parent = parents.get(id(node))
-        if isinstance(parent, ast.keyword) and parent.arg == "alias":
-            return "AUTHORIZED"
-        return "REJECTED"
-    # 8. ``DatabaseBackend.SQLITE`` enum references are AUTHORIZED
-    # when they appear inside an approved class.
-    if (
-        isinstance(node, ast.Attribute)
-        and isinstance(node.value, ast.Name)
-        and node.value.id in {"DatabaseBackend"}
-    ):
-        if containing_cls_name in _APPROVED_MODELS_PY_FIELD_CLASSES:
-            return "AUTHORIZED"
-        return "REJECTED"
-    # 9. Dict key mutation: ``payload["database_backend"] = ...``
-    # is REJECTED.
-    if (
-        isinstance(node, ast.Subscript)
-        and isinstance(node.slice, ast.Constant)
-        and node.slice.value == "database_backend"
-    ):
-        return "REJECTED"
-    # 10. Anything else with ``database_backend`` text content that
-    # is NOT classified above is REJECTED. (No implicit allow.)
+    if _is_exact_database_backend_field(node, parents):
+        return "AUTHORIZED_FIELD"
+    if _is_exact_manifest_uniqueness_read(node, parents):
+        return "AUTHORIZED_VALIDATOR_READ"
     return "REJECTED"
 
 
@@ -695,47 +815,50 @@ def _assert_all_database_backend_occurrences_authorized(
     source: str,
     path: Path,
 ) -> None:
-    """Enforce the per-occurrence AUTHORIZED / REJECTED contract.
+    """Enforce the exact-allowlist contract.
 
-    Per P0-1 of review 4689835238, every code-level
-    ``database_backend`` occurrence in ``source`` MUST be
-    classified as either AUTHORIZED or REJECTED; UNCLASSIFIED
-    occurrences are not permitted (no implicit allow). REJECTED
-    occurrences cause a hard failure. AUTHORIZED occurrences are
-    recorded for the assertion message.
+    Per P0 of review 4690110096, every code-level
+    ``database_backend`` occurrence in ``source`` MUST match
+    either the exact field-declaration allowlist or the exact
+    Manifest validator read allowlist. Any occurrence that
+    does not is REJECTED, and the assertion fails.
     """
     tree = ast.parse(source, filename=str(path))
     parents = _build_parent_map(tree)
     occurrences = _collect_database_backend_occurrences(tree)
-    authorized: list[tuple[int, int]] = []
+    authorized_field: list[tuple[int, int]] = []
+    authorized_validator_read: list[tuple[int, int]] = []
     rejected: list[tuple[int, int, str]] = []
-    unclassified: list[tuple[int, int]] = []
-    for node, line, col in occurrences:
+    for (
+        node,
+        line,
+        col,
+        _cls,
+        _fn,
+        _parent_type,
+    ) in occurrences:
         verdict = _classify_database_backend_occurrence(node, parents)
-        if verdict == "AUTHORIZED":
-            authorized.append((line, col))
+        if verdict == "AUTHORIZED_FIELD":
+            authorized_field.append((line, col))
+        elif verdict == "AUTHORIZED_VALIDATOR_READ":
+            authorized_validator_read.append((line, col))
         elif verdict == "REJECTED":
             node_type = type(node).__name__
             rejected.append((line, col, node_type))
-        else:  # pragma: no cover — defensive
-            unclassified.append((line, col))
-    assert not unclassified, (
-        f"models.py has UNCLASSIFIED database_backend occurrences "
-        f"(P0-1 of review 4689835238): {unclassified!r}"
-    )
     assert not rejected, (
         f"models.py has REJECTED database_backend occurrences "
-        f"(P0-1 of review 4689835238 carve-out is purpose-precise): "
-        f"{rejected!r}"
+        f"(P0 of review 4690110096 carve-out is exact): {rejected!r}"
     )
-    # Sanity: at least one AUTHORIZED occurrence (the typed-model
-    # field declaration). If this is zero, the typed-model surface
-    # is not actually using the token, so the carve-out has no
-    # basis to apply.
-    assert authorized, (
-        "models.py has zero AUTHORIZED database_backend occurrences; "
-        "the typed-model carve-out requires at least one "
-        "Pydantic typed-model surface use of the token"
+    assert authorized_field, (
+        "models.py has zero AUTHORIZED_FIELD database_backend "
+        "occurrences; the exact allowlist requires the three "
+        "Pydantic typed-field declarations"
+    )
+    assert authorized_validator_read, (
+        "models.py has zero AUTHORIZED_VALIDATOR_READ "
+        "database_backend occurrences; the exact allowlist "
+        "requires the two Manifest._validate_unique_scenarios "
+        "reads of s.database_backend.value"
     )
 
 
@@ -875,16 +998,40 @@ def _assert_authorized(source: str) -> None:
 
 
 def test_classifier_authorizes_typed_field_declaration() -> None:
-    """A direct ``database_backend: DatabaseBackend`` field
-    declaration on an approved class is AUTHORIZED.
+    """The exact three typed field declarations and the
+    Manifest validator read are AUTHORIZED.
+
+    Per P0 of review 4690110096, the only two AUTHORIZED
+    shapes are:
+
+    1. ``database_backend: DatabaseBackend`` in
+       ``ScenarioDeclaration`` / ``RunRecord`` /
+       ``SummaryRecord``;
+    2. ``s.database_backend.value`` read inside
+       ``Manifest._validate_unique_scenarios``.
+
+    This positive test includes BOTH shapes.
     """
     _assert_authorized(
-        "from pydantic import BaseModel\n"
+        "from pydantic import BaseModel, field_validator\n"
         "from enum import Enum\n"
+        "from typing import Tuple\n"
         "class DatabaseBackend(str, Enum):\n"
         "    SQLITE = 'sqlite'\n"
         "class ScenarioDeclaration(BaseModel):\n"
         "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        return value\n"
     )
 
 
@@ -939,5 +1086,165 @@ def test_classifier_rejects_module_level_annassign_outside_class() -> None:
 
 def test_classifier_rejects_unapproved_class_attribute() -> None:
     """``database_backend`` declared on a class that is NOT in
-    the approved set (e.g., a free helper class) is REJECTED."""
+    the approved set (e.g., a free helper class) is REJECTED.
+    """
     _assert_rejected("class NotApproved:\n    database_backend: str = 'sqlite'\n")
+
+
+# ---------------------------------------------------------------------------
+# P0 of review 4690110096 — exact allowlist adversarial tests
+# ---------------------------------------------------------------------------
+
+
+def test_classifier_rejects_wrong_field_annotation_str() -> None:
+    """9.1: Wrong field annotation (``database_backend: str``)
+    is REJECTED. The exact allowlist requires the annotation
+    to be exactly the literal ``DatabaseBackend`` symbol.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: str\n"
+    )
+
+
+def test_classifier_rejects_wrong_field_annotation_any() -> None:
+    """9.1: ``database_backend: Any`` is REJECTED."""
+    _assert_rejected(
+        "from pydantic import BaseModel\n"
+        "from typing import Any\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: Any\n"
+    )
+
+
+def test_classifier_rejects_approved_class_method_attribute_read() -> None:
+    """9.2: ``self.database_backend`` read inside an
+    ``ScenarioDeclaration.helper`` method is REJECTED. The
+    exact allowlist only permits field declarations; ordinary
+    method attribute reads are NOT allowed.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "    def helper(self):\n"
+        "        return self.database_backend\n"
+    )
+
+
+def test_classifier_rejects_unrelated_manifest_validator() -> None:
+    """9.3: ``@field_validator("other")`` on ``Manifest`` reading
+    ``value.database_backend`` is REJECTED. The exact allowlist
+    only permits the unique-scenarios validator.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class Manifest(BaseModel):\n"
+        "    @field_validator('other')\n"
+        "    @classmethod\n"
+        "    def validate_other(cls, value):\n"
+        "        return value.database_backend\n"
+    )
+
+
+def test_classifier_rejects_other_model_field_validator() -> None:
+    """9.4: A different model class's ``@field_validator`` is
+    REJECTED, even with the same function name shape.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class OtherModel(BaseModel):\n"
+        "    @field_validator('x')\n"
+        "    @classmethod\n"
+        "    def validate_x(cls, value):\n"
+        "        return value.database_backend\n"
+    )
+
+
+def test_classifier_rejects_wrong_receiver_in_manifest_validator() -> None:
+    """9.5: ``Manifest._validate_unique_scenarios`` with the
+    wrong receiver (``value`` instead of ``s``) is REJECTED.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class Manifest(BaseModel):\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        return value.database_backend\n"
+    )
+
+
+def test_classifier_rejects_missing_value_attribute() -> None:
+    """9.6: ``s.database_backend`` (without the trailing
+    ``.value``) inside the exact validator is REJECTED. The
+    exact allowlist requires the trailing ``.value``.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class Manifest(BaseModel):\n"
+        "    @field_validator('scenarios')\n"
+        "    @classmethod\n"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = s.database_backend\n"
+        "        return value\n"
+    )
+
+
+def test_classifier_rejects_field_alias_database_backend() -> None:
+    """9.7: ``Field(alias="database_backend")`` is REJECTED.
+    The current implementation does not use any alias, and
+    the exact allowlist does not include alias shapes.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel, Field\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    backend: DatabaseBackend = Field(alias='database_backend')\n"
+    )
+
+
+def test_classifier_rejects_field_serialization_alias_database_backend() -> None:
+    """9.7: ``Field(serialization_alias="database_backend")`` is
+    REJECTED.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel, Field\n"
+        "class _M(BaseModel):\n"
+        "    backend: int = Field(serialization_alias='database_backend')\n"
+    )
+
+
+def test_classifier_rejects_self_database_backend_in_unapproved_class() -> None:
+    """``self.database_backend`` inside a class that is NOT in
+    the approved field-class set is REJECTED.
+    """
+    _assert_rejected(
+        "from pydantic import BaseModel\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class Helper(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "    def method(self):\n"
+        "        return self.database_backend\n"
+    )
