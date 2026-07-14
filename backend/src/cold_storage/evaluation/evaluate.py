@@ -48,9 +48,9 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import tempfile
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -60,7 +60,6 @@ from cold_storage.evaluation.canonicalization import (
     canonicalize_production_outputs,
 )
 from cold_storage.evaluation.compare import (
-    ComparisonDiffEntry,
     ComparisonResult,
     compare_outputs,
 )
@@ -74,11 +73,9 @@ from cold_storage.evaluation.errors import (
 from cold_storage.evaluation.models import (
     DatabaseBackend,
     EvaluationResult,
-    ExpectedErrorAssertion,
     ExpectedOutcome,
     ExpectedOutputRef,
     Manifest,
-    ManifestProvenance,
     RunRecord,
     ScenarioDeclaration,
     SummaryRecord,
@@ -105,7 +102,6 @@ from cold_storage.evaluation.run_directory import (
 # ``isinstance(actual, expected_class)`` classification. The
 # production code already raises the exception; the runner only
 # classifies it.
-
 from cold_storage.modules.orchestration.application.production_calculation.errors import (  # noqa: E501
     InvalidProjectInputError,
 )
@@ -352,10 +348,7 @@ def _execute_one_scenario(
             actual_outcome="NOT_EXERCISED",
             evaluation_result=EvaluationResult.FAIL,
             diff_summary={
-                "reason": (
-                    "BLOCKED outcome is reserved in V1 but not "
-                    "exercised by any V1 scenario"
-                )
+                "reason": ("BLOCKED outcome is reserved in V1 but not exercised by any V1 scenario")
             },
             started_at=scenario_started_at,
             completed_at=_now_iso8601_utc(),
@@ -393,13 +386,20 @@ def _execute_invalid_input(
     ``field``; the runner matches on these typed attributes
     (NEVER on the message text).
     """
-    expected_error = scenario.expected_output.expected_error
+    expected_output = scenario.expected_output
+    if expected_output is None:
+        # The cross-field validator should have caught this, but
+        # we surface a typed error here as defense-in-depth.
+        raise EvaluationManifestExecutionError(
+            "INVALID_INPUT scenario MUST have a non-None expected_output.",
+            details={"scenario_id": scenario.scenario_id},
+        )
+    expected_error = expected_output.expected_error
     if expected_error is None:
         # The cross-field validator should have caught this, but
         # we surface a typed error here as defense-in-depth.
         raise EvaluationManifestExecutionError(
-            "INVALID_INPUT scenario MUST have a non-None "
-            "expected_output.expected_error.",
+            "INVALID_INPUT scenario MUST have a non-None expected_output.expected_error.",
             details={"scenario_id": scenario.scenario_id},
         )
     actual_outcome = "INVALID_INPUT"
@@ -434,15 +434,12 @@ def _execute_invalid_input(
             # ``code`` and ``field`` attributes.
             actual_code = getattr(exc, "code", None)
             actual_field = getattr(exc, "field", None)
-            actual_code_str = (
-                actual_code.value
+            actual_code_str: str = (
+                actual_code.value  # type: ignore[union-attr]
                 if hasattr(actual_code, "value")
-                else actual_code
+                else actual_code  # type: ignore[assignment]
             )
-            if (
-                actual_code_str == expected_error.code
-                and actual_field == expected_error.field
-            ):
+            if actual_code_str == expected_error.code and actual_field == expected_error.field:
                 eval_result = EvaluationResult.PASS
                 diff_summary = {
                     "kind": "expected_exception",
@@ -456,14 +453,8 @@ def _execute_invalid_input(
                     "kind": "exception_mismatch",
                     "expected_code": expected_error.code,
                     "expected_field": expected_error.field,
-                    "actual_code": (
-                        str(actual_code_str)
-                        if actual_code_str is not None
-                        else None
-                    ),
-                    "actual_field": (
-                        str(actual_field) if actual_field is not None else None
-                    ),
+                    "actual_code": (str(actual_code_str) if actual_code_str is not None else None),
+                    "actual_field": (str(actual_field) if actual_field is not None else None),
                 }
         except BaseException as exc:  # noqa: BLE001 — typed classification
             eval_result = EvaluationResult.INFRASTRUCTURE_ERROR
@@ -574,12 +565,18 @@ def _execute_succeeded(
     # expected_output.path file. The cross-field validator
     # already asserted that path is non-None for SUCCEEDED
     # scenarios.
-    expected_path = scenario.expected_output.path
+    expected_output = scenario.expected_output
+    if expected_output is None:
+        # Defense-in-depth: the validator should have caught this.
+        raise EvaluationManifestExecutionError(
+            "SUCCEEDED scenario MUST have a non-None expected_output.",
+            details={"scenario_id": scenario.scenario_id},
+        )
+    expected_path: str | None = expected_output.path
     if expected_path is None:
         # Defense-in-depth: the validator should have caught this.
         raise EvaluationManifestExecutionError(
-            "SUCCEEDED scenario MUST have a non-None "
-            "expected_output.path.",
+            "SUCCEEDED scenario MUST have a non-None expected_output.path.",
             details={"scenario_id": scenario.scenario_id},
         )
     expected_full_path = _resolve_expected_output_path(
@@ -594,8 +591,7 @@ def _execute_succeeded(
     except Exception as exc:  # noqa: BLE001
         code = getattr(exc, "code", "CANONICALIZATION_ERROR")
         raise EvaluationManifestExecutionError(
-            "expected_output file contains a value that is not in "
-            "the strict-JSON value domain.",
+            "expected_output file contains a value that is not in the strict-JSON value domain.",
             details={
                 "expected_output_path": str(expected_full_path),
                 "canonicalizer_code": str(code),
@@ -611,9 +607,7 @@ def _execute_succeeded(
         policy=scenario.comparison_policy or ComparisonPolicy(),
     )
 
-    eval_result = (
-        EvaluationResult.PASS if comparison.passed else EvaluationResult.FAIL
-    )
+    eval_result = EvaluationResult.PASS if comparison.passed else EvaluationResult.FAIL
     diff_summary: dict[str, Any] = {
         "kind": "comparison",
         "passed": comparison.passed,
@@ -691,23 +685,19 @@ def _atomic_write_json(*, path: Path, data: Any) -> None:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, sort_keys=True, default=str)
                 f.flush()
-                try:
+                # fsync may fail on some filesystems
+                # (e.g. some FUSE mounts). We log the
+                # failure but proceed with the rename —
+                # the temp file is still on disk and the
+                # rename is atomic.
+                with suppress(OSError):  # noqa: SIM105
                     os.fsync(f.fileno())
-                except OSError:
-                    # fsync may fail on some filesystems
-                    # (e.g. some FUSE mounts). We log the
-                    # failure but proceed with the rename —
-                    # the temp file is still on disk and the
-                    # rename is atomic.
-                    pass
             os.replace(tmp_name, path)
         except BaseException:
             # Best-effort cleanup of the temp file on any
             # failure (write, flush, fsync, or replace).
-            try:
+            with suppress(OSError):  # noqa: SIM105
                 os.unlink(tmp_name)
-            except OSError:
-                pass
             raise
     except OSError as exc:
         raise EvaluationArtifactWriteError(

@@ -159,8 +159,7 @@ def parse_path(path: str) -> list[PathStep]:
             )
     if _FORBIDDEN_NEGATIVE_INDEX.search(path):
         raise JSONPathParseError(
-            "JSON Path contains a negative index; V1 only supports "
-            "non-negative integer indexes.",
+            "JSON Path contains a negative index; V1 only supports non-negative integer indexes.",
             details={"pattern": "[-N]"},
         )
     # The remaining strict form: ``$`` followed by zero or more
@@ -192,7 +191,7 @@ def parse_path(path: str) -> list[PathStep]:
                     details={"remainder_prefix": remainder[:8]},
                 )
             steps.append(PathStep(kind="key", value=field_match.group(1)))
-            remainder = remainder[field_match.end():]
+            remainder = remainder[field_match.end() :]
         elif remainder.startswith("["):
             # ``[N]`` — consume the bracketed integer.
             index_match = re.match(r"\[(\d+)\]", remainder)
@@ -203,7 +202,7 @@ def parse_path(path: str) -> list[PathStep]:
                     details={"remainder_prefix": remainder[:8]},
                 )
             steps.append(PathStep(kind="index", value=int(index_match.group(1))))
-            remainder = remainder[index_match.end():]
+            remainder = remainder[index_match.end() :]
         else:
             # The fullmatch guard already ensures this is
             # unreachable.
@@ -257,8 +256,7 @@ def lookup(value: object, path: list[PathStep]) -> object:
         if step.kind == "key":
             if not isinstance(current, dict):
                 raise JSONPathLookupError(
-                    "JSON Path step requires a dict container; "
-                    "got a non-dict value.",
+                    "JSON Path step requires a dict container; got a non-dict value.",
                     details={
                         "step_index": index,
                         "step_kind": step.kind,
@@ -279,8 +277,7 @@ def lookup(value: object, path: list[PathStep]) -> object:
         elif step.kind == "index":
             if not isinstance(current, list):
                 raise JSONPathLookupError(
-                    "JSON Path step requires a list container; "
-                    "got a non-list value.",
+                    "JSON Path step requires a list container; got a non-list value.",
                     details={
                         "step_index": index,
                         "step_kind": step.kind,

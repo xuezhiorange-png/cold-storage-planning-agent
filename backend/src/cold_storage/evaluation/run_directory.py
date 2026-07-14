@@ -66,8 +66,7 @@ _SAFE_SCENARIO_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 def _validate_scenario_id(scenario_id: str) -> str:
     if not isinstance(scenario_id, str) or not _SAFE_SCENARIO_ID.match(scenario_id):
         raise InvalidEvaluationScenarioError(
-            f"scenario_id must match {_SAFE_SCENARIO_ID.pattern!r}; got "
-            f"{scenario_id!r}.",
+            f"scenario_id must match {_SAFE_SCENARIO_ID.pattern!r}; got {scenario_id!r}.",
             details={"field": "scenario_id", "value": scenario_id},
         )
     return scenario_id
@@ -117,7 +116,7 @@ class RunDirectory:
     normalized_path: Path
 
     @classmethod
-    def for_scenario(cls, *, root: Path, scenario_id: str) -> "RunDirectory":
+    def for_scenario(cls, *, root: Path, scenario_id: str) -> RunDirectory:
         """Compute the per-scenario run-directory layout.
 
         Validates ``scenario_id`` at the input boundary; raises

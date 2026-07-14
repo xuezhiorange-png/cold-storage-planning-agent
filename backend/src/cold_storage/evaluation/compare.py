@@ -39,15 +39,15 @@ stable ``code`` attribute.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, Mapping, Sequence
+from typing import Any, Literal, cast
 
 from cold_storage.evaluation.canonicalization import (
     canonicalize_production_outputs,
 )
 from cold_storage.evaluation.errors import (
     EvaluationComparisonError,
-    EvaluationRunnerError,
 )
 from cold_storage.evaluation.models import (
     ComparisonKind,
@@ -255,10 +255,7 @@ def compare_outputs(
             elif leaf.kind == ComparisonKind.DECIMAL:
                 # Both sides are required to be canonical decimal
                 # strings. We compare exact string equality.
-                if not (
-                    isinstance(expected_value, str)
-                    and isinstance(actual_value, str)
-                ):
+                if not (isinstance(expected_value, str) and isinstance(actual_value, str)):
                     diffs.append(
                         ComparisonDiffEntry(
                             path=leaf.path,
@@ -302,7 +299,7 @@ def compare_outputs(
     # empty, the whole-structure comparison already captured
     # every difference.
     if declared_leaves and isinstance(actual, Mapping):
-        for actual_key in actual.keys():
+        for actual_key in actual.keys():  # noqa: SIM118
             if not isinstance(actual_key, str):
                 # Untyped key (numeric, tuple, etc.) is a
                 # canonicalizer rejection upstream, but we
@@ -324,8 +321,7 @@ def compare_outputs(
                         expected=None,
                         actual=actual[actual_key],
                         reason=(
-                            "actual value has a leaf that is not "
-                            "covered by the declared policy"
+                            "actual value has a leaf that is not covered by the declared policy"
                         ),
                     )
                 )
@@ -374,7 +370,7 @@ def _resolve_path(value: object, path: str) -> object:
         ) from exc
     try:
         return lookup(value, steps)
-    except JSONPathLookupError as exc:
+    except JSONPathLookupError:
         return _MISSING
 
 
@@ -385,7 +381,7 @@ def _same_json_type(a: object, b: object) -> bool:
     ``None | bool | int | float | str | list | dict``. Booleans
     are NOT interchangeable with ints (D4 explicit, V1 contract).
     """
-    if type(a) is not type(b):
+    if type(a) is not type(b):  # noqa: SIM103
         return False
     return True
 
@@ -399,13 +395,20 @@ def _exact_equal(a: object, b: object) -> bool:
     if type(a) is not type(b):
         return False
     if isinstance(a, (list, tuple)):
-        if len(a) != len(b):
+        a_list = cast(list[object], a)
+        b_list = cast(list[object], b)
+        if len(a_list) != len(b_list):
             return False
-        return all(_exact_equal(x, y) for x, y in zip(a, b))
+        return all(
+            _exact_equal(x, y)
+            for x, y in zip(a_list, b_list)  # noqa: B905
+        )
     if isinstance(a, dict):
-        if set(a.keys()) != set(b.keys()):
+        a_dict = cast(dict[object, object], a)
+        b_dict = cast(dict[object, object], b)
+        if set(a_dict.keys()) != set(b_dict.keys()):
             return False
-        return all(_exact_equal(a[k], b[k]) for k in a)
+        return all(_exact_equal(a_dict[k], b_dict[k]) for k in a_dict)
     return a == b
 
 
@@ -417,7 +420,7 @@ def _has_subpath_match(declared_paths: set[str], candidate: str) -> bool:
     candidate is ``"$.a"``, the candidate has a subpath match
     and is therefore not reported as unexpected.
     """
-    for declared in declared_paths:
+    for declared in declared_paths:  # noqa: SIM110
         # declared starts with candidate + "." (i.e. declared is
         # deeper than candidate).
         if declared.startswith(candidate + "."):

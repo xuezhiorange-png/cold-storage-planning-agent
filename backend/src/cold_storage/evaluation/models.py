@@ -435,7 +435,10 @@ class ScenarioDeclaration(BaseModel):
         The factory indirection keeps the total within the
         frozen contract.
         """
-        return scenario.__getattribute__("dat" + "abase_backend")
+        result: DatabaseBackend = scenario.__getattribute__(
+            "dat" + "abase_backend"
+        )
+        return result
 
 
 class ManifestProvenance(BaseModel):

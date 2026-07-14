@@ -35,28 +35,19 @@ from __future__ import annotations
 
 import pytest
 
-from cold_storage.evaluation.errors import (
-    EvaluationRunnerError,
-    StaleEvaluationArtifactsError,
-)
 from cold_storage.evaluation.evaluate import (
     V1_EXCEPTION_REGISTRY,
-    evaluate_manifest,
 )
 from cold_storage.evaluation.models import (
     DatabaseBackend,
     ExpectedErrorAssertion,
     ExpectedOutcome,
     ExpectedOutputRef,
-    Manifest,
-    ManifestProvenance,
     ScenarioDeclaration,
 )
 from cold_storage.evaluation.runners._executor import (
-    _D10_INVALID_BLOCKED_DEFAULT_RAW_INPUTS,
     execute_d10_pure,
 )
-
 
 # The V1 exception registry maps the wire-format
 # ``exception_type`` string to the real production-side
@@ -212,7 +203,7 @@ def test_exception_message_is_not_parsed_by_test() -> None:
 
 def test_wrong_code_causes_mismatch() -> None:
     """A wrong expected code causes the runner to record a mismatch."""
-    expected = ExpectedErrorAssertion(
+    ExpectedErrorAssertion(
         exception_type=EXPECTED_V1_EXCEPTION_TYPE,
         code="WRONG_CODE",
         field="total_area_m2",
@@ -221,29 +212,23 @@ def test_wrong_code_causes_mismatch() -> None:
     actual_field_value = "total_area_m2"
     # The runner matches on typed attributes; here we
     # simulate the matching logic.
-    assert actual_code_value != expected.code
-    assert actual_field_value == expected.field
+    assert actual_code_value != "WRONG_CODE"
+    assert actual_field_value == "total_area_m2"
     # A single mismatch (code) is enough to fail the match.
-    match = (
-        actual_code_value == expected.code
-        and actual_field_value == expected.field
-    )
+    match = actual_code_value == "WRONG_CODE" and actual_field_value == "total_area_m2"
     assert match is False
 
 
 def test_wrong_field_causes_mismatch() -> None:
     """A wrong expected field causes the runner to record a mismatch."""
-    expected = ExpectedErrorAssertion(
+    ExpectedErrorAssertion(
         exception_type=EXPECTED_V1_EXCEPTION_TYPE,
         code="PROJ_INPUT_INVALID",
         field="WRONG_FIELD",
     )
     actual_code_value = "PROJ_INPUT_INVALID"
     actual_field_value = "total_area_m2"
-    match = (
-        actual_code_value == expected.code
-        and actual_field_value == expected.field
-    )
+    match = actual_code_value == "PROJ_INPUT_INVALID" and actual_field_value == "WRONG_FIELD"
     assert match is False
 
 
@@ -257,7 +242,7 @@ def test_no_exception_causes_mismatch() -> None:
     We simulate the matching logic without calling the
     production function (which would raise).
     """
-    expected = ExpectedErrorAssertion(
+    ExpectedErrorAssertion(
         exception_type=EXPECTED_V1_EXCEPTION_TYPE,
         code="PROJ_INPUT_INVALID",
         field="total_area_m2",
@@ -317,9 +302,7 @@ def test_manifest_with_invalid_input_path_rejected() -> None:
                 field="total_area_m2",
             ),
         )
-    assert "path" in str(exc_info.value).lower() or "INVALID_INPUT" in str(
-        exc_info.value
-    )
+    assert "path" in str(exc_info.value).lower() or "INVALID_INPUT" in str(exc_info.value)
 
 
 def test_manifest_with_invalid_input_no_expected_error_rejected() -> None:
@@ -335,9 +318,7 @@ def test_manifest_with_invalid_input_no_expected_error_rejected() -> None:
             expected_outcome=ExpectedOutcome.INVALID_INPUT,
             expected_error=None,  # INVALID: must be set
         )
-    assert "expected_error" in str(exc_info.value).lower() or "INVALID_INPUT" in str(
-        exc_info.value
-    )
+    assert "expected_error" in str(exc_info.value).lower() or "INVALID_INPUT" in str(exc_info.value)
 
 
 def test_manifest_with_succeeded_path_missing_rejected() -> None:
@@ -352,9 +333,7 @@ def test_manifest_with_succeeded_path_missing_rejected() -> None:
             path=None,  # INVALID: must be set
             expected_outcome=ExpectedOutcome.SUCCEEDED,
         )
-    assert "path" in str(exc_info.value).lower() or "SUCCEEDED" in str(
-        exc_info.value
-    )
+    assert "path" in str(exc_info.value).lower() or "SUCCEEDED" in str(exc_info.value)
 
 
 def test_manifest_with_succeeded_unexpected_error_rejected() -> None:
@@ -375,9 +354,7 @@ def test_manifest_with_succeeded_unexpected_error_rejected() -> None:
                 field="total_area_m2",
             ),
         )
-    assert "expected_error" in str(exc_info.value).lower() or "SUCCEEDED" in str(
-        exc_info.value
-    )
+    assert "expected_error" in str(exc_info.value).lower() or "SUCCEEDED" in str(exc_info.value)
 
 
 def test_manifest_d10_path_can_be_constructed_and_validates() -> None:

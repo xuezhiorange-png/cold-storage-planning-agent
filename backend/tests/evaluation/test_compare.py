@@ -18,14 +18,9 @@ exception message text.
 
 from __future__ import annotations
 
-import pytest
-
 from cold_storage.evaluation.compare import (
-    ComparisonDiffEntry,
-    ComparisonResult,
     compare_outputs,
 )
-from cold_storage.evaluation.errors import EvaluationComparisonError
 from cold_storage.evaluation.models import (
     ComparisonKind,
     ComparisonPolicy,
@@ -36,18 +31,14 @@ from cold_storage.evaluation.models import (
 def _exact_policy(*paths: str) -> ComparisonPolicy:
     """Build an EXACT policy covering ``paths``."""
     return ComparisonPolicy(
-        leaves=tuple(
-            ComparisonPolicyLeaf(path=p, kind=ComparisonKind.EXACT) for p in paths
-        )
+        leaves=tuple(ComparisonPolicyLeaf(path=p, kind=ComparisonKind.EXACT) for p in paths)
     )
 
 
 def _decimal_policy(*paths: str) -> ComparisonPolicy:
     """Build a DECIMAL policy covering ``paths``."""
     return ComparisonPolicy(
-        leaves=tuple(
-            ComparisonPolicyLeaf(path=p, kind=ComparisonKind.DECIMAL) for p in paths
-        )
+        leaves=tuple(ComparisonPolicyLeaf(path=p, kind=ComparisonKind.DECIMAL) for p in paths)
     )
 
 

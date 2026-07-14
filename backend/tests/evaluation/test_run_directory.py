@@ -24,7 +24,6 @@ from cold_storage.evaluation.run_directory import (
     suite_summary_path,
 )
 
-
 # ── §7 deterministic paths ──────────────────────────────────────
 
 
@@ -55,16 +54,12 @@ def test_run_directory_extended_paths_match_spec() -> None:
     rd = RunDirectory.for_scenario(root=root, scenario_id="scenario_x")
     assert rd.run_path == Path("/tmp/rd_test/scenario_x/run.json")
     assert rd.raw_path == Path("/tmp/rd_test/scenario_x/raw/scenario_x.json")
-    assert rd.normalized_path == Path(
-        "/tmp/rd_test/scenario_x/normalized/scenario_x.json"
-    )
+    assert rd.normalized_path == Path("/tmp/rd_test/scenario_x/normalized/scenario_x.json")
 
 
 def test_suite_summary_path_helper() -> None:
     """``suite_summary_path(root)`` returns ``<root>/summary.json``."""
-    assert suite_summary_path(root=Path("/tmp/rd_test")) == Path(
-        "/tmp/rd_test/summary.json"
-    )
+    assert suite_summary_path(root=Path("/tmp/rd_test")) == Path("/tmp/rd_test/summary.json")
 
 
 def test_suite_summary_path_accepts_string_root() -> None:
@@ -95,18 +90,14 @@ def test_run_directory_rejects_path_traversal_scenario_id(
 ) -> None:
     """Path-traversal or otherwise invalid scenario IDs are rejected."""
     with pytest.raises(InvalidEvaluationScenarioError):
-        RunDirectory.for_scenario(
-            root=Path("/tmp/rd_test"), scenario_id=bad_id
-        )
+        RunDirectory.for_scenario(root=Path("/tmp/rd_test"), scenario_id=bad_id)
 
 
 def test_run_directory_accepts_root_path_object() -> None:
     """``for_scenario`` accepts a string-rooted ``Path`` and a path
     object that is a string-coerced Path.
     """
-    rd = RunDirectory.for_scenario(
-        root=Path("/tmp/rd_test"), scenario_id="valid_id"
-    )
+    rd = RunDirectory.for_scenario(root=Path("/tmp/rd_test"), scenario_id="valid_id")
     assert rd.scenario_dir == Path("/tmp/rd_test/valid_id")
 
 
@@ -117,9 +108,7 @@ def test_run_directory_raw_path_uses_scenario_id_basename() -> None:
     """The ``raw_path`` and ``normalized_path`` filenames equal
     the scenario_id (matching the C-2 §7 spec).
     """
-    rd = RunDirectory.for_scenario(
-        root=Path("/tmp/rd_test"), scenario_id="alpha-001"
-    )
+    rd = RunDirectory.for_scenario(root=Path("/tmp/rd_test"), scenario_id="alpha-001")
     assert rd.raw_path.name == "alpha-001.json"
     assert rd.normalized_path.name == "alpha-001.json"
     assert rd.run_path.name == "run.json"

@@ -18,20 +18,14 @@ from cold_storage.evaluation.run_directory import (
 
 def test_for_scenario_is_pure_function_of_inputs() -> None:
     """``for_scenario`` is a pure function: same inputs → same outputs."""
-    rd_a = RunDirectory.for_scenario(
-        root=Path("/var/tmp/x"), scenario_id="scenario-001"
-    )
-    rd_b = RunDirectory.for_scenario(
-        root=Path("/var/tmp/x"), scenario_id="scenario-001"
-    )
+    rd_a = RunDirectory.for_scenario(root=Path("/var/tmp/x"), scenario_id="scenario-001")
+    rd_b = RunDirectory.for_scenario(root=Path("/var/tmp/x"), scenario_id="scenario-001")
     assert rd_a == rd_b
 
 
 def test_for_scenario_paths_are_pathlib_path_objects() -> None:
     """All ``RunDirectory`` path fields are ``Path`` objects."""
-    rd = RunDirectory.for_scenario(
-        root=Path("/var/tmp/x"), scenario_id="scenario-001"
-    )
+    rd = RunDirectory.for_scenario(root=Path("/var/tmp/x"), scenario_id="scenario-001")
     for attr in (
         "scenario_dir",
         "raw_dir",
@@ -52,12 +46,8 @@ def test_suite_summary_path_is_root_relative() -> None:
 
 def test_different_scenario_ids_produce_different_layouts() -> None:
     """Two different scenario_ids produce two non-overlapping layouts."""
-    rd_a = RunDirectory.for_scenario(
-        root=Path("/var/tmp/x"), scenario_id="scenario-001"
-    )
-    rd_b = RunDirectory.for_scenario(
-        root=Path("/var/tmp/x"), scenario_id="scenario-002"
-    )
+    rd_a = RunDirectory.for_scenario(root=Path("/var/tmp/x"), scenario_id="scenario-001")
+    rd_b = RunDirectory.for_scenario(root=Path("/var/tmp/x"), scenario_id="scenario-002")
     assert rd_a.scenario_dir != rd_b.scenario_dir
     assert rd_a.run_path != rd_b.run_path
     assert rd_a.raw_path != rd_b.raw_path
@@ -70,9 +60,7 @@ def test_run_path_distinct_from_summary_path() -> None:
     managed record; ``summary_path`` is the C-1 legacy
     per-scenario summary (kept for compatibility).
     """
-    rd = RunDirectory.for_scenario(
-        root=Path("/var/tmp/x"), scenario_id="scenario-001"
-    )
+    rd = RunDirectory.for_scenario(root=Path("/var/tmp/x"), scenario_id="scenario-001")
     assert rd.run_path != rd.summary_path
     assert rd.run_path.name == "run.json"
     assert rd.summary_path.name == "summary.json"
