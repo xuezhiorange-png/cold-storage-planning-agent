@@ -1,6 +1,6 @@
 # TASK-011C Manifest Schema Implementation Design
 
-Status: CORRECTED_IN_DRAFT_PR_63_PENDING_FIFTH_RE_REVIEW
+Status: CORRECTED_IN_DRAFT_PR_63_PENDING_SIXTH_RE_REVIEW
 Date: 2026-07-13
 PR: https://github.com/xuezhiorange-png/cold-storage-planning-agent/pull/63
 Branch: codex/task-011c-c1-manifest-canonicalization
@@ -24,6 +24,9 @@ Binding review corrections:
   - Fourth re-review: PR #63 review 4690297649
     - Fourth re-review platform state: COMMENTED
     - Fourth re-review body verdict: TASK_011C_C1_FOURTH_RE_REVIEW_CHANGES_REQUESTED
+  - Fifth re-review: PR #63 review 4690695361
+    - Fifth re-review platform state: COMMENTED
+    - Fifth re-review body verdict: TASK_011C_C1_FIFTH_RE_REVIEW_CHANGES_REQUESTED
 
 Note on platform state vs body verdict:
   This repository is personally maintained. GitHub records
@@ -32,7 +35,8 @@ Note on platform state vs body verdict:
   TASK_011C_C1_REVIEW_CHANGES_REQUESTED /
   TASK_011C_C1_RE_REVIEW_CHANGES_REQUESTED /
   TASK_011C_C1_THIRD_RE_REVIEW_CHANGES_REQUESTED /
-  TASK_011C_C1_FOURTH_RE_REVIEW_CHANGES_REQUESTED). The body
+  TASK_011C_C1_FOURTH_RE_REVIEW_CHANGES_REQUESTED /
+  TASK_011C_C1_FIFTH_RE_REVIEW_CHANGES_REQUESTED). The body
   verdict is the binding signal, NOT the platform state.
 
 Contract: docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md
@@ -511,3 +515,80 @@ Any of the following is REJECTED:
 * `@field_validator("scenarios", mode="before")`
 * `@field_validator(*FIELDS)`
 * bare non-`Call` decorators.
+
+### 12.6 Exact full decorator stack contract (P0 of fifth re-review)
+
+The fourth re-review (PR #63 review 4690297649) closed the
+single-decorator argument shape (§12.5) but the fifth
+re-review (PR #63 review 4690695361) found that the
+production validator's `decorator_list` was not yet
+asserted as a complete stack. Per the fifth re-review:
+
+> The validator is authorized only when its complete
+> `decorator_list` contains exactly two nodes in the frozen
+> order. Merely containing an exact
+> `@field_validator("scenarios")` call is insufficient.
+
+The full frozen stack is:
+
+```
+EXACT_DECORATOR_COUNT=2
+EXACT_DECORATOR_ORDER=field_validator_then_classmethod
+DECORATOR_INDEX_0=field_validator("scenarios")
+DECORATOR_INDEX_1=classmethod
+EXTRA_DECORATORS_ALLOWED=NO
+DUPLICATE_DECORATORS_ALLOWED=NO
+REVERSED_ORDER_ALLOWED=NO
+MISSING_CLASSMETHOD_ALLOWED=NO
+```
+
+The validator function is
+`Manifest._validate_unique_scenarios`. Its full AST
+`decorator_list` MUST be exactly:
+
+1. `ast.Call` with `func=ast.Name("field_validator")`,
+   exactly 1 positional argument equal to the literal
+   string `"scenarios"`, and 0 keyword arguments.
+2. `ast.Name("classmethod")` — bare, no call, no arguments.
+
+Any of the following is REJECTED with the stable marker
+`DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`:
+
+* decorator count `!= 2` (one extra, one missing, or
+  empty);
+* duplicate `@field_validator("scenarios")` at any
+  position;
+* duplicate `@classmethod` at any position;
+* missing `@classmethod` (only `@field_validator(...)`
+  present);
+* reversed order (`@classmethod` before
+  `@field_validator("scenarios")`);
+* any extra decorator at any position (e.g.
+  `@other_decorator` before the field_validator or after
+  the classmethod);
+* bare `@field_validator` (no call arguments);
+* `@field_validator(*FIELDS)` (unpacked args);
+* multi-arg `@field_validator("other", "scenarios")` or
+  `@field_validator("scenarios", "other")`;
+* keyword arg `@field_validator("scenarios", mode="before")`.
+
+The check is implemented in
+`_has_exact_manifest_validator_decorator_stack` (in
+`backend/tests/architecture/test_phase1_identity_foundation_boundary.py`)
+and invoked from
+`_assert_all_database_backend_occurrences_authorized`. The
+real production `models.py` and synthetic test sources use
+the **same** checker; there is no test-only lenient
+allowlist.
+
+The exact-cardinality invariants from §12.4 remain
+unmodified and are re-asserted on top of the new
+decorator-stack check (decorator stack enforcement is
+**additive**, never a relaxation):
+
+```
+AUTHORIZED_FIELD_COUNT=3
+AUTHORIZED_VALIDATOR_READ_COUNT=2
+TOTAL_DATABASE_BACKEND_OCCURRENCE_COUNT=5
+REJECTED_OCCURRENCE_COUNT=0
+```
