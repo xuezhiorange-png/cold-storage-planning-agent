@@ -1,6 +1,6 @@
 # TASK-011C Manifest Schema Implementation Design
 
-Status: CORRECTED_IN_DRAFT_PR_63_PENDING_SECOND_RE_REVIEW
+Status: CORRECTED_IN_DRAFT_PR_63_PENDING_FOURTH_RE_REVIEW
 Date: 2026-07-13
 PR: https://github.com/xuezhiorange-png/cold-storage-planning-agent/pull/63
 Branch: codex/task-011c-c1-manifest-canonicalization
@@ -17,22 +17,30 @@ Binding review corrections:
     - Second re-review platform state: COMMENTED
     - Second re-review body verdict: TASK_011C_C1_RE_REVIEW_CHANGES_REQUESTED
   - Strict re-execution authority: Issue #20 comment 4964070401
+  - Third re-review: PR #63 review 4690110096
+    - Third re-review platform state: COMMENTED
+    - Third re-review body verdict: TASK_011C_C1_THIRD_RE_REVIEW_CHANGES_REQUESTED
+  - Full third re-review findings: Issue #20 comment 4964388017
 
 Note on platform state vs body verdict:
   This repository is personally maintained. GitHub records
   self-review submissions as COMMENTED; the binding correction
   disposition is carried by the review body verdict (which is
   TASK_011C_C1_REVIEW_CHANGES_REQUESTED /
-  TASK_011C_C1_RE_REVIEW_CHANGES_REQUESTED). The body verdict
-  is the binding signal, NOT the platform state.
+  TASK_011C_C1_RE_REVIEW_CHANGES_REQUESTED /
+  TASK_011C_C1_THIRD_RE_REVIEW_CHANGES_REQUESTED). The body
+  verdict is the binding signal, NOT the platform state.
 
 Contract: docs/tasks/TASK-011C-remaining-evaluation-scenarios-contract.md
 Base SHA: 1b532431d78346dc3e45601ee6df6fc1974f7e05
 
-The latest current PR #63 Head SHA and the latest current
-PR-head CI run / state are intentionally verified externally
-during review / Ready / merge authorization rounds and are NOT
-frozen in this mutable design-branch row.
+The latest current PR #63 Head SHA, the latest current
+PR-head CI run / state, per-round test counts, and per-round
+external evidence (logs, wheels, scratch files in /tmp/ or
+/root/) are intentionally verified externally during the
+corresponding review / Ready / merge authorization rounds and
+are NOT frozen in this mutable design-branch row. Per-round
+execution evidence is external to this frozen design record.
 
 ## 1. Authority and lineage
 
@@ -265,7 +273,23 @@ sections are modified):
 
 ## 10. C-1 allowlist and C-2/C-3 non-authorization
 
-### 10.1 C-1 allowed tracked paths (this round)
+### 10.1 C-1 allowed tracked paths
+
+The C-1 allowlist is composed of two parts: the original
+22 paths authorized by Issue #20 comment 4959798219, plus
+1 additional path authorized by the architecture amendment
+in Issue #20 comment 4963778355 (the
+`test_phase1_identity_foundation_boundary.py` carve-out
+test for the `database_backend` typed-model field). The
+total C-1 correction path count is 23.
+
+```
+ORIGINAL_C1_PATHS=22
+ARCHITECTURE_AMENDMENT_PATHS=1
+TOTAL_C1_CORRECTION_PATHS=23
+```
+
+#### 10.1.1 Original C-1 paths (22, per Issue #20 comment 4959798219)
 
 ```
 backend/src/cold_storage/evaluation/canonicalization.py
@@ -292,6 +316,12 @@ backend/pyproject.toml   # D7 package-data addition only
 .gitignore              # C-1 allowlist addition only
 ```
 
+#### 10.1.2 Architecture amendment path (1, per Issue #20 comment 4963778355)
+
+```
+backend/tests/architecture/test_phase1_identity_foundation_boundary.py
+```
+
 ### 10.2 Not authorized in this round
 
 - C-2: `compare.py`, `evaluate.py`, `json_path.py`, `runners/sqlite.py`,
@@ -305,65 +335,124 @@ backend/pyproject.toml   # D7 package-data addition only
 - PR #21 / PR #23 mutation.
 - PR transition to Ready or merge.
 
-## 11. Verification summary (post-correction working tree)
+## 11. Required validation gates
 
-The following is the post-correction working-tree result after
-applying the review 4689545688 P0/P1 corrections. The latest
-current PR #63 Head SHA and CI run / state are intentionally
-verified externally during review / Ready / merge authorization
-rounds and are NOT frozen in this mutable design-branch row.
-
-The full per-round execution detail is in
-`/root/pr63-review-corrective-final-report.md` and the per-step
-log captures in `/tmp/pr62-step*-corrected.log` (from the
-amendment resume round) / `/tmp/pr63-step*-corrective.log`
-(current round).
+The C-1 implementation must pass the following validation
+gates. Specific test counts, exit codes, CI run IDs, and
+per-round execution evidence are intentionally NOT frozen in
+this mutable design-branch row; they are verified externally
+during the corresponding review / Ready / merge authorization
+round.
 
 ```
-FOCUSED_C1_TESTS=171 passed (16.65s)  # C-1 focused suite (corrected)
-ARCHITECTURE_TESTS=65 passed (15.98s)  # includes the models.py
-                                         # carve-out AST + behavioral
-                                         # check (review 4689545688 P0-1)
-FULL_EVALUATION_TESTS=185 passed       # full eval (171 C-1 + 14 other)
-RUFF_CHECK=PASS
-RUFF_FORMAT_CHECK=PASS
-MYPY=PASS
-SOURCE_RESOURCE_LOAD=PASS             # importlib.resources
-INSTALLED_PACKAGE_RESOURCE_LOAD=PASS  # built wheel in /tmp/c1-iso-venv
-CWD_INDEPENDENCE=PASS
-BASELINE_GOLDEN_UNCHANGED=YES
-ADAPTER_UNCHANGED=YES
-EXECUTE_UNCHANGED=YES
-CLI_UNCHANGED=YES
-ERRORS_UNCHANGED=YES
-RUN_DIRECTORY_UNCHANGED=YES
-PRODUCTION_CODE_UNCHANGED=YES
+REQUIRED_VALIDATION_GATES:
+  - focused C-1 tests
+  - exact architecture guard tests (P0 of review 4690110096)
+  - full evaluation tests
+  - full architecture tests
+  - ruff check
+  - ruff format check
+  - mypy
+  - source resource load
+  - installed-package resource load
+  - cwd-independence
+  - SQLite CI
+  - PostgreSQL CI
 ```
 
-The "171 passed" number is the focused C-1 suite, not the
-post-correction total. The post-correction total includes the
-new comparison-kind-excluded rejection tests, the new
-NaN/Infinity parse-time rejection tests, the new
-bytes-not-str canonicalization tests, the new Windows-path /
-backslash-traversal tests, the new SQLite-scope lifecycle
-tests, the new architecture behavioral
-``test_models_py_database_backend_round_trip``, the new
-loader-bypass-removal tests, and the new
-referenced-files-mandatory tests. The exact post-correction
-focused + architecture + full-eval counts are reported in the
-final report file.
+### 11.1 Frozen design facts (NOT mutable per-round)
 
-## 12. Review 4689545688 corrections applied
+The following are frozen design facts that survive per-round
+corrections and review rebases:
 
-| Item | File(s) | Correction |
-|---|---|---|
-| **P0-1** | `models.py`, `manifest.py` (docstring), `test_manifest_loader.py` (line 124), `backend/tests/architecture/test_phase1_identity_foundation_boundary.py` | Removed the `models.py` string-concatenation workaround. The literal `database_backend` token is now a normal Pydantic typed field declaration on `ScenarioDeclaration` / `RunRecord` / `SummaryRecord`. The architecture boundary suite is amended (per Issue #20 comment `4963778355`) with a path-precise, token-precise, purpose-precise carve-out that allows the token in `models.py` only and only for typed-model surface use. The carve-out is enforced by AST inspection (no production ORM / infrastructure import, no `OrchestrationRunAttemptRecord` / `SchemeRunRecord` / `CalculationRunRecord` construction, no raw SQL, no `session.*` call) plus a behavioral companion test `test_models_py_database_backend_round_trip` that asserts the round-trip. |
-| **P0-2** | `canonicalization.py`, `manifest.py` (compute_manifest_sha), `test_canonicalization.py`, `test_canonicalization_d1.py`, `test_d2_strict_value_domain.py`, `test_d3_excluded_paths_policy.py`, `test_d4_numeric_exact.py` | Replaced `CanonicalBytes = str` with `type CanonicalBytes = bytes` (PEP 695). The canonicalizer now returns real UTF-8 `bytes` (`json_text.encode("utf-8")`). `compute_manifest_sha` hashes the bytes directly via `hashlib.sha256(canonical_bytes).hexdigest()` — no second `.encode(...)` step. All canonicalization tests updated to assert `bytes` output (`b"..."`). New tests assert the type is `bytes` and the SHA hashes the bytes directly. |
-| **P0-3** | `models.py` (`ComparisonKind`), `manifest.schema.json` (line 101), `test_d6_manifest_loader.py` (new tests) | Removed `ComparisonKind.EXCLUDED`. The V1 enum is now `EXACT` and `DECIMAL` only. The JSON Schema enum is now `["exact", "decimal"]`. The loader rejects `kind="excluded"` at the JSON Schema level; the Pydantic model rejects it at the typed-model level; the manifest loader rejects it end-to-end. New tests cover all three rejection layers. |
-| **P0-4** | `manifest.py` (loader), `test_d3_excluded_paths_policy.py`, `test_d5_schema_version.py`, `test_d6_manifest_loader.py`, `test_manifest_loader.py` | Removed the public `referenced_files_check` parameter from `load_and_validate_manifest`. The check is mandatory and internal. Rejection of `NaN` / `Infinity` / `-Infinity` at parse time via a `parse_constant` callback that raises an internal `_NonFiniteJSONConstantError` (caught and re-raised as `ManifestUnsupportedJSONValueError`). The D1 authority (`canonicalize_production_outputs`) is reused for the recursive strict-value validation step (no second recursive canonicalizer); failures are mapped to `ManifestUnsupportedJSONValueError`. Validation order: read → parse with non-finite rejection → recursive strict-value validation → JSON Schema validation → Pydantic model validation → cross-scenario duplicate detection → mandatory referenced-files check. Existing tests that passed `referenced_files_check=False` were updated to call the loader without the parameter and to create the referenced files on disk where the manifest declares them. New tests assert the bypass was removed (`test_d6_loader_does_not_expose_referenced_files_check_bypass`). |
-| **P1-1** | `paths.py`, `test_path_safety.py` | Added cross-platform Windows-path detection: `os.path.isabs` is now paired with `ntpath.isabs` and a `_looks_like_windows_path` helper that detects Windows drive-letter (`C:\x` / `C:/x`), Windows drive-relative (`C:relative`), Windows rooted (`\rooted`), and Windows UNC (`\\server\share\x` / `//server/share/x`) forms on any host. Backslash `..` traversal (`..\escape.json` / `..\..\escape.json` / `a\..\..\escape.json`) is rejected by a dedicated `_contains_backslash_traversal` helper. New Linux-runnable tests cover the Windows forms and the backslash traversal. POSIX relative paths (`data/file.json`, `data.v1/file-name_1.json`) remain accepted. |
-| **P1-2** | `sqlite_scope.py`, `test_path_safety.py` (lifecycle section) | Removed the `keep_db` parameter from both `_SQLiteScenarioScope.__init__` and the public `sqlite_scenario_scope` context manager. The `keep_db` branch was broken: it skipped the file unlink but then always called `TemporaryDirectory.cleanup()`, removing the directory and the database anyway. The contract requires deterministic cleanup; the option is gone. New lifecycle tests live in `test_path_safety.py` (per Charles's amendment recommendation) and assert: (a) the db file exists inside the scope; (b) the engine is usable inside the scope; (c) the db file is removed on exit; (d) the temp directory is removed on exit; (e) accessing `engine` after exit raises `SQLiteScopeError`; (f) accessing `db_path` after exit raises `SQLiteScopeError`; (g) cleanup happens even on exception; (h) two scopes opened in sequence have distinct paths and do not leak state. |
-| **P1-3** | This document | Replaced the stale "IMPLEMENTED (working tree, awaiting commit)" header with the current PR #63 reference and the post-correction authority lineage (including the architecture amendment `4963778355`). Removed the non-existent `ManifestDuplicateScenarioIDError` reference. Renamed `FixtureReference` → `FixtureRef`, `ExpectedOutputReference` → `ExpectedOutputRef`, removed the non-existent `SchemaVersion` / `ManifestPath` typed models. Documented the `CanonicalBytes = bytes` (P0-2) change. Documented the `ComparisonKind.EXCLUDED` removal (P0-3). Documented the public reference-validation bypass removal (P0-4). Documented the `keep_db` removal (P1-2). |
+- CanonicalBytes = bytes (canonicalizer returns actual
+  UTF-8 bytes; the value is already encoded and may be
+  passed directly to `hashlib.sha256`).
+- `D3_V1_EXCLUDED_JSON_PATHS=[]` (V1 exclusion set is empty;
+  non-empty raises).
+- `ComparisonKind.EXCLUDED` is absent from V1 (rejected at
+  schema, model, and loader levels).
+- The public `referenced_files_check` loader bypass is
+  absent (P0-4 of review 4689545688); the check is mandatory.
+- NaN / Infinity / -Infinity are rejected at JSON parse
+  time via `parse_constant` (P0-4 of review 4689545688).
+- Relative manifest paths are rejected before any file I/O
+  (P0-3 of review 4689835238); the loader never resolves a
+  relative input against cwd.
+- `keep_db` constructor / public function arguments are
+  removed; cleanup is mandatory and deterministic
+  (P1-2 of review 4689545688).
+- The literal `database_backend` token in `models.py` is
+  restricted to the exact allowlist (P0 of review
+  4690110096): three `database_backend: DatabaseBackend`
+  field declarations in `ScenarioDeclaration` /
+  `RunRecord` / `SummaryRecord` and the two
+  `s.database_backend.value` reads in
+  `Manifest._validate_unique_scenarios`. No `Field(alias=
+  ...)`, no `Field(serialization_alias=...)`, no
+  forward-compat branches.
 
-This document is the implementation design record. It does not authorize
-C-2 or C-3 work, and it is not a sign-off on the C-1 contract itself.
+### 11.2 Per-round external evidence
+
+Per-round execution evidence (per-round reports, log
+captures, wheel artifacts, scratch files, etc.) lives
+outside this repository. The mutable design-branch row
+deliberately does NOT reference per-host /tmp/ or /root/
+paths or specific per-round test counts; those are
+re-derived on demand by the next review / Ready / merge
+authorization round.
+
+```
+PER_ROUND_EVIDENCE=EXTERNAL
+```
+
+## 12. Architecture guard exact-allowlist contract (P0 of review 4690110096)
+
+The `database_backend` token carve-out in
+`models.py` is enforced by an exact AST allowlist. Every
+code-level `database_backend` occurrence in `models.py`
+must match one of two exact shapes; all other shapes are
+REJECTED.
+
+### 12.1 AUTHORIZED_FIELD (3 occurrences)
+
+An `ast.AnnAssign` of the form
+`database_backend: DatabaseBackend` (no default value),
+inside one of the approved field classes
+`ScenarioDeclaration`, `RunRecord`, `SummaryRecord`, at
+class body scope (not inside a method or function body).
+
+```
+NODE_TYPE=ast.AnnAssign
+TARGET=ast.Name("database_backend")
+ANNOTATION=ast.Name("DatabaseBackend")
+VALUE=None
+CONTAINING_CLASS in {ScenarioDeclaration, RunRecord, SummaryRecord}
+CONTAINING_FUNCTION=None
+```
+
+### 12.2 AUTHORIZED_VALIDATOR_READ (2 occurrences)
+
+An `ast.Attribute` reading `s.database_backend`, whose
+parent is `ast.Attribute(attr="value")`, inside the exact
+`Manifest._validate_unique_scenarios` method decorated
+with `@field_validator("scenarios")`.
+
+```
+NODE_TYPE=ast.Attribute
+ATTR="database_backend"
+VALUE=ast.Name("s")
+PARENT=ast.Attribute(attr="value")
+CONTAINING_CLASS=Manifest
+CONTAINING_FUNCTION=_validate_unique_scenarios
+DECORATOR=field_validator("scenarios")
+```
+
+### 12.3 REJECTED (everything else)
+
+Any other shape is REJECTED. The classifier is not
+forward-compatible: `Field(alias="database_backend")`,
+`Field(serialization_alias="database_backend")`, ordinary
+method attribute reads, unrelated validators, wrong
+receivers, missing `.value`, etc. are all rejected.
+```
