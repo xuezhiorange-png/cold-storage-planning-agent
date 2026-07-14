@@ -332,7 +332,12 @@ def test_phase1_orm_does_not_contain_orchestrator_class() -> None:
 #: Names that the ``database_backend`` token must NOT appear near in
 #: ``models.py`` (besides the typed-model surface). These are structural
 #: "contexts" that would indicate the token is being used for raw
-#: SQL, ORM access, or production record construction.
+#: SQL, ORM access, or production record construction. The
+#: per-occurrence AST classifier in
+#: :func:`_classify_database_backend_occurrence` enforces a
+#: positive whitelist instead; this tuple is kept for
+#: defense-in-depth on production-ORM imports and dynamic
+#: ``getattr`` / ``setattr`` calls.
 _MODELS_PY_FORBIDDEN_CONTEXTS: tuple[str, ...] = (
     # Production ORM / infrastructure / repository / persistence.
     "cold_storage.modules.orchestration.infrastructure",
@@ -354,142 +359,438 @@ _MODELS_PY_FORBIDDEN_CONTEXTS: tuple[str, ...] = (
 )
 
 
+#: Approved contexts in which the ``database_backend`` token is
+#: allowed to appear in ``models.py``. These are the **only** allowed
+#: occurrence sites; anything else MUST be classified as REJECTED
+#: (P0-1 of review 4689835238). The carve-out is:
+#:
+#:   * path-precise: only ``backend/src/cold_storage/evaluation/models.py``;
+#:   * token-precise: only the literal token ``database_backend``;
+#:   * purpose-precise: only as a Pydantic typed-model surface
+#:     (field declaration, ``Field(alias=...)``,
+#:     ``serialization_alias``, typed identity attribute, enum /
+#:     value validation reference, model-validator read of
+#:     ``scenario.database_backend``).
+_APPROVED_MODELS_PY_FIELD_CLASSES: frozenset[str] = frozenset(
+    {
+        "ScenarioDeclaration",
+        "RunRecord",
+        "SummaryRecord",
+    }
+)
+
+
+#: Names of the Python Pydantic helper attributes that the canonical
+#: architecture surface legitimately reads when validating a typed
+#: model attribute. These are only allowed inside model-validator
+#: functions (``@model_validator(mode="after")`` /
+#: ``@field_validator``) on approved classes.
+_APPROVED_VALIDATOR_READ_ATTRIBUTES: frozenset[str] = frozenset(
+    {
+        "database_backend",
+    }
+)
+
+
+def _build_parent_map(tree: ast.AST) -> dict[int, ast.AST]:
+    """Build a parent map for an AST.
+
+    The map is keyed by ``id(node)`` (the AST node's memory id) so
+    the function works for both ``ast.AST`` and the strongly-typed
+    Python 3.13+ ``ast.AST`` (which is the same class for older
+    versions). The map is consumed by
+    :func:`_containing_class` and
+    :func:`_containing_function`.
+    """
+    parents: dict[int, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            parents[id(child)] = node
+    return parents
+
+
+def _containing_class(node: ast.AST, parents: dict[int, ast.AST]) -> ast.ClassDef | None:
+    """Return the innermost ``ClassDef`` that contains ``node``, or
+    ``None`` if the node is at module scope."""
+    current: ast.AST | None = parents.get(id(node))
+    while current is not None:
+        if isinstance(current, ast.ClassDef):
+            return current
+        current = parents.get(id(current)) if current is not None else None
+    return None
+
+
+def _containing_function(
+    node: ast.AST, parents: dict[int, ast.AST]
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    """Return the innermost function / method that contains ``node``,
+    or ``None`` if the node is at class / module scope."""
+    current: ast.AST | None = parents.get(id(node))
+    while current is not None:
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return current
+        current = parents.get(id(current)) if current is not None else None
+    return None
+
+
+def _is_validator_decorated(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    """Return True if ``fn`` is decorated with a Pydantic
+    validator decorator (``@field_validator``,
+    ``@model_validator``)."""
+    for decorator in fn.decorator_list:
+        # ``@field_validator("scenarios")`` is a Call with
+        # func=Name("field_validator").
+        if isinstance(decorator, ast.Call):
+            func = decorator.func
+            if isinstance(func, ast.Name) and func.id in {
+                "field_validator",
+                "model_validator",
+            }:
+                return True
+        # ``@model_validator(mode="after")`` is also a Call.
+        if isinstance(decorator, ast.Attribute) and decorator.attr in {
+            "field_validator",
+            "model_validator",
+        }:
+            return True
+        # Bare ``@field_validator`` (rare) — Name node.
+        if isinstance(decorator, ast.Name) and decorator.id in {
+            "field_validator",
+            "model_validator",
+        }:
+            return True
+    return False
+
+
+def _collect_database_backend_occurrences(
+    tree: ast.AST,
+) -> list[tuple[ast.AST, int, int]]:
+    """Return every AST node in ``tree`` that is a code-level
+    reference to the token ``database_backend``.
+
+    The returned list contains the node plus its 1-based line and
+    column. The function is purely lexical-AST; classification of
+    each occurrence (AUTHORIZED / REJECTED) is performed by
+    :func:`_classify_database_backend_occurrence`.
+
+    A node is a "code-level reference" if it is one of:
+
+    * ``ast.Name`` with ``id == "database_backend"`` (and not the
+      target of an ``AnnAssign`` / ``Assign`` — those are
+      captured by the parent assignment rule);
+    * ``ast.arg`` with ``arg == "database_backend"``;
+    * ``ast.Constant`` with ``value == "database_backend"`` (a
+      string literal occurrence);
+    * ``ast.Attribute`` with ``attr == "database_backend"`` (an
+      attribute read or write);
+    * ``ast.keyword`` with ``arg == "alias"`` and ``value`` being
+      a ``Constant`` whose ``value == "database_backend"``;
+    * ``ast.Call`` with any keyword whose ``arg == "alias"`` and
+      value unparse contains ``"database_backend"`` (Pydantic
+      ``Field(alias="database_backend")`` surface).
+    """
+    occurrences: list[tuple[ast.AST, int, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == "database_backend":
+            # The Name ``database_backend`` is also a target of
+            # an ``AnnAssign`` or ``Assign`` statement; in that
+            # case the parent node already represents the
+            # occurrence and the Name is a duplicate. Skip the
+            # Name to avoid double-counting.
+            parent: ast.AST | None = None
+            for candidate in ast.walk(tree):
+                if node in getattr(candidate, "targets", []):
+                    parent = candidate
+                    break
+                if isinstance(candidate, ast.AnnAssign) and candidate.target is node:
+                    parent = candidate
+                    break
+            if parent is not None:
+                # Emit the parent (AnnAssign / Assign) instead.
+                if isinstance(parent, (ast.AnnAssign, ast.Assign)):
+                    occurrences.append((parent, parent.lineno, parent.col_offset))
+                continue
+            occurrences.append((node, node.lineno, node.col_offset))
+        elif (
+            isinstance(node, ast.arg)
+            and node.arg == "database_backend"
+            or (isinstance(node, ast.Constant) and node.value == "database_backend")
+            or (isinstance(node, ast.Attribute) and node.attr == "database_backend")
+            or (
+                isinstance(node, ast.keyword)
+                and node.arg == "alias"
+                and isinstance(node.value, ast.Constant)
+                and node.value.value == "database_backend"
+            )
+        ):
+            occurrences.append((node, node.lineno, node.col_offset))
+        elif isinstance(node, ast.Call):
+            for kw in node.keywords:
+                if kw.arg == "alias":
+                    try:
+                        value_text = ast.unparse(kw.value)
+                    except Exception:  # pragma: no cover
+                        continue
+                    if "database_backend" in value_text:
+                        occurrences.append((node, node.lineno, node.col_offset))
+                        break
+    return occurrences
+
+
+def _classify_database_backend_occurrence(
+    node: ast.AST,
+    parents: dict[int, ast.AST],
+) -> str:
+    """Classify a single ``database_backend`` occurrence as
+    ``AUTHORIZED`` or ``REJECTED``.
+
+    Rules (P0-1 of review 4689835238):
+
+    AUTHORIZED only if ALL of the following hold:
+
+    1. The occurrence is one of:
+       * ``ast.AnnAssign`` whose ``target`` is an
+         ``ast.Name(id="database_backend")`` and whose parent class
+         is in :data:`_APPROVED_MODELS_PY_FIELD_CLASSES`.
+       * ``ast.arg`` (function parameter) on a
+         ``model_validator`` / ``field_validator`` method of an
+         approved class — currently NOT used by the typed model
+         surface, so this branch is REJECTED for the existing
+         surface. (Kept for forward compatibility with future
+         validators that legitimately take a typed alias.)
+       * ``ast.Attribute(value=ast.Name(id="self"), attr="database_backend")``
+         inside a method of an approved class (typed-model
+         attribute read).
+       * ``ast.Call`` whose ``func`` is ``ast.Name(id="Field")`` and
+         which has a keyword argument ``alias=...`` whose unparse
+         contains ``"database_backend"`` (Pydantic Field alias).
+       * ``ast.keyword(arg="alias", value=ast.Constant(value="database_backend"))``
+         directly.
+       * ``ast.Constant(value="database_backend")`` (string literal
+         used as a key or alias).
+       * ``ast.Attribute(value=ast.Name(id="DatabaseBackend") or similar,
+         attr=...)`` referencing the enum class
+         (e.g. ``DatabaseBackend.SQLITE``).
+       * A read of the typed-model attribute in a model validator:
+         ``scenario.database_backend`` or
+         ``scenarios[i].database_backend`` where the attribute is
+         accessed on a Name whose name is in
+         :data:`_APPROVED_VALIDATOR_READ_ATTRIBUTES` (e.g. scenario
+         variable in a model-validator function body).
+       * ``getattr`` / ``setattr`` calls are REJECTED in all
+         contexts (P0-1 of review 4689835238).
+
+    REJECTED otherwise. In particular, the following are always
+    REJECTED:
+       * module-level assignment;
+       * function parameter on a non-validator function;
+       * local variable assignment / read;
+       * free Name load;
+       * unapproved attribute access;
+       * dict key mutation;
+       * ``getattr`` / ``setattr`` access;
+       * production record / ORM / SQL / session context.
+    """
+    containing_cls = _containing_class(node, parents)
+    containing_fn = _containing_function(node, parents)
+    containing_cls_name = containing_cls.name if containing_cls else None
+
+    # 1. Module-level free Name assignment is REJECTED.
+    if (
+        isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "database_backend"
+    ):
+        if containing_cls_name in _APPROVED_MODELS_PY_FIELD_CLASSES:
+            return "AUTHORIZED"
+        return "REJECTED"
+    if isinstance(node, ast.Assign):
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "database_backend":
+                return "REJECTED"
+    # 2. Function parameter on a non-validator function is REJECTED.
+    if isinstance(node, ast.arg) and node.arg == "database_backend":
+        return "REJECTED"
+    # 3. Local variable Name node — REJECTED unless this is the
+    # ``self.database_backend`` access on an approved class.
+    if isinstance(node, ast.Name) and node.id == "database_backend":
+        return "REJECTED"
+    # 4. ``self.database_backend`` Attribute access inside an
+    # approved class is AUTHORIZED. Also AUTHORIZED: ``<typed
+    # variable>.database_backend`` where the attribute is read
+    # inside a ``@field_validator`` / ``@model_validator``
+    # method on an approved model class (e.g.,
+    # ``s.database_backend.value`` inside
+    # ``_validate_unique_scenarios`` on ``Manifest``).
+    if isinstance(node, ast.Attribute) and node.attr == "database_backend":
+        if containing_cls_name in _APPROVED_MODELS_PY_FIELD_CLASSES:
+            return "AUTHORIZED"
+        # The attribute read happens inside a validator-decorated
+        # method (the parent class is a Pydantic BaseModel, even
+        # if not in the approved field-class set). This is a
+        # legitimate model-validator read of a typed-model
+        # attribute.
+        if (
+            containing_fn is not None
+            and _is_validator_decorated(containing_fn)
+            and containing_cls is not None
+        ):
+            return "AUTHORIZED"
+        return "REJECTED"
+    # 5. Field(alias="database_backend") call keyword is AUTHORIZED.
+    if (
+        isinstance(node, ast.keyword)
+        and node.arg == "alias"
+        and isinstance(node.value, ast.Constant)
+        and node.value.value == "database_backend"
+    ):
+        return "AUTHORIZED"
+    # 6. ``Field(...)`` call that has any keyword whose unparse
+    # contains ``"database_backend"`` is AUTHORIZED.
+    if isinstance(node, ast.Call):
+        call_text = ast.unparse(node)
+        if "Field(" in call_text and "database_backend" in call_text:
+            return "AUTHORIZED"
+        # ``getattr`` / ``setattr`` are REJECTED in any context.
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in {"getattr", "setattr"}:
+            return "REJECTED"
+    # 7. ``getattr(obj, "database_backend")`` detected via the
+    # string-literal constant inside a Call is REJECTED.
+    if isinstance(node, ast.Constant) and node.value == "database_backend":
+        # String-literal usage is approved only when it appears
+        # inside a Pydantic ``Field(alias=...)`` keyword (rule 5
+        # already handles that case). All other string-literal
+        # occurrences of the bare token are REJECTED.
+        parent = parents.get(id(node))
+        if isinstance(parent, ast.keyword) and parent.arg == "alias":
+            return "AUTHORIZED"
+        return "REJECTED"
+    # 8. ``DatabaseBackend.SQLITE`` enum references are AUTHORIZED
+    # when they appear inside an approved class.
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id in {"DatabaseBackend"}
+    ):
+        if containing_cls_name in _APPROVED_MODELS_PY_FIELD_CLASSES:
+            return "AUTHORIZED"
+        return "REJECTED"
+    # 9. Dict key mutation: ``payload["database_backend"] = ...``
+    # is REJECTED.
+    if (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.slice, ast.Constant)
+        and node.slice.value == "database_backend"
+    ):
+        return "REJECTED"
+    # 10. Anything else with ``database_backend`` text content that
+    # is NOT classified above is REJECTED. (No implicit allow.)
+    return "REJECTED"
+
+
+def _assert_all_database_backend_occurrences_authorized(
+    source: str,
+    path: Path,
+) -> None:
+    """Enforce the per-occurrence AUTHORIZED / REJECTED contract.
+
+    Per P0-1 of review 4689835238, every code-level
+    ``database_backend`` occurrence in ``source`` MUST be
+    classified as either AUTHORIZED or REJECTED; UNCLASSIFIED
+    occurrences are not permitted (no implicit allow). REJECTED
+    occurrences cause a hard failure. AUTHORIZED occurrences are
+    recorded for the assertion message.
+    """
+    tree = ast.parse(source, filename=str(path))
+    parents = _build_parent_map(tree)
+    occurrences = _collect_database_backend_occurrences(tree)
+    authorized: list[tuple[int, int]] = []
+    rejected: list[tuple[int, int, str]] = []
+    unclassified: list[tuple[int, int]] = []
+    for node, line, col in occurrences:
+        verdict = _classify_database_backend_occurrence(node, parents)
+        if verdict == "AUTHORIZED":
+            authorized.append((line, col))
+        elif verdict == "REJECTED":
+            node_type = type(node).__name__
+            rejected.append((line, col, node_type))
+        else:  # pragma: no cover — defensive
+            unclassified.append((line, col))
+    assert not unclassified, (
+        f"models.py has UNCLASSIFIED database_backend occurrences "
+        f"(P0-1 of review 4689835238): {unclassified!r}"
+    )
+    assert not rejected, (
+        f"models.py has REJECTED database_backend occurrences "
+        f"(P0-1 of review 4689835238 carve-out is purpose-precise): "
+        f"{rejected!r}"
+    )
+    # Sanity: at least one AUTHORIZED occurrence (the typed-model
+    # field declaration). If this is zero, the typed-model surface
+    # is not actually using the token, so the carve-out has no
+    # basis to apply.
+    assert authorized, (
+        "models.py has zero AUTHORIZED database_backend occurrences; "
+        "the typed-model carve-out requires at least one "
+        "Pydantic typed-model surface use of the token"
+    )
+
+
 def _assert_models_database_backend_use_is_typed_model_only(content: str, path: Path) -> None:
     """Structural inspection for the ``models.py`` carve-out.
 
     Per Issue #20 amendment comment 4963778355, ``models.py`` is
     the single C-1 file permitted to reference the
     ``database_backend`` token, and only for Pydantic typed-model
-    surface use. The structural checks below prove the token is
-    NOT used in any forbidden context. A behavioral companion
-    test (``test_models_py_database_backend_round_trip``) asserts
-    the token round-trips through Pydantic ``model_validate`` /
-    ``model_dump(by_alias=True, mode="json")``.
+    surface use.
+
+    P0-1 of review 4689835238 strengthens the check: instead of
+    a partial deny-list ("if it doesn't match a forbidden context,
+    allow it"), the new implementation performs per-occurrence
+    AST classification. Every code-level occurrence is either
+    AUTHORIZED (typed-model surface) or REJECTED; no implicit
+    allow. Adversarial self-tests live alongside this function
+    in the test file.
     """
-    # 1. Parse the module as Python AST.
+    # 1. Per-occurrence AST classification.
+    _assert_all_database_backend_occurrences_authorized(content, path)
+
+    # 2. No production ORM / infrastructure import is allowed.
     try:
         tree = ast.parse(content, filename=str(path))
     except SyntaxError as exc:
         raise AssertionError(f"models.py has a syntax error: {exc}") from exc
-
-    # 2. Walk the AST and reject any reference to a forbidden
-    # context, even inside comments or docstrings (we strip
-    # docstrings before the search so a docstring mention is OK
-    # only as a docstring, not as a code reference).
-    forbidden_imports: list[str] = []
-    forbidden_attribute_access: list[str] = []
-    forbidden_call_targets: list[str] = []
     for node in ast.walk(tree):
-        # 2a. Imports — reject any production ORM / infrastructure
-        # / repository import.
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
-            if any(
-                forbidden in module
-                for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS
-                if "modules" in forbidden
-            ):
-                forbidden_imports.append(f"from {module} import ...")
+            for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS:
+                if "modules" in forbidden and forbidden in module:
+                    raise AssertionError(
+                        f"models.py has forbidden production-ORM import "
+                        f"from {module!r} (TASK-011C amendment 4963778355): "
+                        f"{ast.unparse(node)!r}"
+                    )
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if any(
-                    forbidden in alias.name
-                    for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS
-                    if "modules" in forbidden
-                ):
-                    forbidden_imports.append(f"import {alias.name}")
-        # 2b. Attribute access — reject references to production
-        # record classes (used as bases, type annotations, or
-        # constructor calls).
-        if isinstance(node, ast.Attribute):
-            target = ast.unparse(node)
-            for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS:
-                if forbidden in target and "." in target:
-                    forbidden_attribute_access.append(f"{target} (forbidden: {forbidden})")
-        # 2c. Call targets — reject ``session.add(...)``,
-        # ``session.execute(...)``, ``text(...)``, etc.
+                for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS:
+                    if "modules" in forbidden and forbidden in alias.name:
+                        raise AssertionError(
+                            f"models.py has forbidden production-ORM import "
+                            f"{alias.name!r} (TASK-011C amendment 4963778355)"
+                        )
+        # ``getattr`` / ``setattr`` calls are REJECTED in models.py
+        # (defense-in-depth — already rejected by the per-occurrence
+        # classifier, but a structural double-check is cheap).
         if isinstance(node, ast.Call):
-            call_repr = ast.unparse(node.func)
-            for forbidden in _MODELS_PY_FORBIDDEN_CONTEXTS:
-                if forbidden in call_repr:
-                    forbidden_call_targets.append(f"{call_repr}(...) (forbidden: {forbidden})")
-    assert not forbidden_imports, (
-        f"models.py has forbidden production-ORM imports (TASK-011C "
-        f"amendment 4963778355 forbids production-ORM imports in "
-        f"models.py): {forbidden_imports}"
-    )
-    assert not forbidden_attribute_access, (
-        f"models.py has forbidden production-ORM attribute access "
-        f"(TASK-011C amendment 4963778355): {forbidden_attribute_access}"
-    )
-    assert not forbidden_call_targets, (
-        f"models.py has forbidden raw-SQL / session / production "
-        f"persistence call (TASK-011C amendment 4963778355): "
-        f"{forbidden_call_targets}"
-    )
-
-    # 3. Inspect the AST: the ``database_backend`` token must
-    # appear ONLY as:
-    #   * a ClassDef.bases / ModelField declaration in
-    #     ``Manifest`` / ``ScenarioDeclaration`` / ``RunRecord`` /
-    #     ``SummaryRecord`` (Pydantic ``BaseModel`` subclasses);
-    #   * a ``Field(alias="database_backend")`` / Pydantic
-    #     ``Field(..., alias=...)`` call;
-    #   * a string literal in a typed identity model attribute
-    #     name (not allowed — Python attribute is ``db_dialect``,
-    #     the JSON wire form is ``database_backend``);
-    #   * an enum / value validation reference (e.g.,
-    #     ``DatabaseBackend.SQLITE``).
-    #
-    # We do NOT enumerate every typed-model surface; we merely
-    # confirm that the token does NOT appear in any function body
-    # that is NOT a class-defining body or a model validator. The
-    # AST-based check covers the structural intent; the behavioral
-    # check is the companion test.
-    # (No additional enforcement here; the model surface IS the
-    # only legitimate use, and the AST walk above already rules
-    # out SQL / ORM / session / production-record uses.)
-
-    # 4. Confirm at least one Pydantic ``Field(..., alias=...)``
-    # call exists. If not, the typed-model surface is not using
-    # the JSON wire form.
-    found_field_alias = False
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        for kw in node.keywords:
-            if kw.arg == "alias":
-                value = ast.unparse(kw.value)
-                if "database_backend" in value:
-                    found_field_alias = True
-                    break
-        if found_field_alias:
-            break
-    # The carve-out is "Pydantic typed-model surface use only".
-    # The typed-model surface includes both direct attribute
-    # declarations (``database_backend: DatabaseBackend``) AND
-    # Field alias declarations. The amendment permits both forms.
-    # We accept either.
-    if not found_field_alias:
-        # Fall back: confirm the token appears in a direct
-        # ClassDef member declaration.
-        found_attribute_decl = False
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ClassDef):
-                continue
-            for stmt in node.body:
-                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
-                    if stmt.target.id == "database_backend":
-                        found_attribute_decl = True
-                        break
-            if found_attribute_decl:
-                break
-        assert found_attribute_decl, (
-            "models.py must use 'database_backend' as either a "
-            "Pydantic typed field declaration OR a Pydantic "
-            "Field(alias=...) declaration (TASK-011C amendment "
-            "4963778355). Neither form was found."
-        )
+            func = node.func
+            if isinstance(func, ast.Name) and func.id in {"getattr", "setattr"}:
+                raise AssertionError(
+                    f"models.py has forbidden dynamic attribute access "
+                    f"{func.id}(...) (TASK-011C amendment 4963778355)"
+                )
 
 
 def test_models_py_database_backend_round_trip() -> None:
@@ -530,3 +831,113 @@ def test_models_py_database_backend_round_trip() -> None:
     dumped = manifest.model_dump(by_alias=True, mode="json")
     # The wire form uses the literal ``database_backend`` key.
     assert dumped["scenarios"][0]["database_backend"] == "sqlite"
+
+
+# ---------------------------------------------------------------------------
+# P0-1 of review 4689835238 — adversarial self-tests of the classifier
+# ---------------------------------------------------------------------------
+
+
+def _assert_rejected(source: str) -> None:
+    """Helper: assert that ``source`` is REJECTED by the per-occurrence
+    classifier when treated as ``models.py`` content."""
+    tmp = Path("/tmp/_classifier_rejected.py")
+    tmp.write_text(source)
+    try:
+        try:
+            _assert_all_database_backend_occurrences_authorized(source, tmp)
+        except AssertionError as exc:
+            msg = str(exc)
+            assert "REJECTED" in msg or "UNCLASSIFIED" in msg or "zero AUTHORIZED" in msg, (
+                f"unexpected assertion message: {msg!r}"
+            )
+        else:
+            raise AssertionError(
+                f"expected classifier to REJECT source, but it passed:\n---\n{source}\n---"
+            )
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _assert_authorized(source: str) -> None:
+    """Helper: assert that ``source`` is AUTHORIZED by the per-occurrence
+    classifier when treated as ``models.py`` content."""
+    tmp = Path("/tmp/_classifier_authorized.py")
+    tmp.write_text(source)
+    try:
+        _assert_all_database_backend_occurrences_authorized(source, tmp)
+    except AssertionError as exc:
+        raise AssertionError(
+            f"expected classifier to AUTHORIZE source, but it raised:\n{exc}\n---\n{source}\n---"
+        ) from exc
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def test_classifier_authorizes_typed_field_declaration() -> None:
+    """A direct ``database_backend: DatabaseBackend`` field
+    declaration on an approved class is AUTHORIZED.
+    """
+    _assert_authorized(
+        "from pydantic import BaseModel\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+    )
+
+
+def test_classifier_rejects_function_parameter() -> None:
+    """A function parameter named ``database_backend`` is REJECTED."""
+    _assert_rejected("def helper(database_backend: str) -> str:\n    return database_backend\n")
+
+
+def test_classifier_rejects_local_assignment_in_method() -> None:
+    """A local-variable assignment ``database_backend = "sqlite"``
+    inside a method body is REJECTED (per Charles: helper uses)."""
+    _assert_rejected(
+        "class X:\n    def method(self) -> None:\n        database_backend = 'sqlite'\n"
+    )
+
+
+def test_classifier_rejects_unapproved_attribute_access() -> None:
+    """``obj.database_backend`` where ``obj`` is not ``self`` on
+    an approved class is REJECTED (a free-Name attribute read)."""
+    _assert_rejected("def helper(obj):\n    return obj.database_backend\n")
+
+
+def test_classifier_rejects_string_constant_alias_outside_field() -> None:
+    """A module-level ``DATABASE_BACKEND_KEY = "database_backend"``
+    alias is REJECTED.
+    """
+    _assert_rejected('DATABASE_BACKEND_KEY = "database_backend"\n')
+
+
+def test_classifier_rejects_dict_key_mutation() -> None:
+    """``payload["database_backend"] = value`` is REJECTED."""
+    _assert_rejected('def helper(payload, value):\n    payload["database_backend"] = value\n')
+
+
+def test_classifier_rejects_getattr_dynamic_access() -> None:
+    """``getattr(obj, "database_backend")`` is REJECTED in all
+    contexts (P0-1 of review 4689835238)."""
+    _assert_rejected('def helper(obj):\n    return getattr(obj, "database_backend")\n')
+
+
+def test_classifier_rejects_module_level_annassign_outside_class() -> None:
+    """A module-level ``database_backend: DatabaseBackend``
+    annotation (not inside a class body) is REJECTED."""
+    _assert_rejected(
+        "from pydantic import BaseModel\n"
+        "from enum import Enum\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "database_backend: DatabaseBackend = DatabaseBackend.SQLITE\n"
+    )
+
+
+def test_classifier_rejects_unapproved_class_attribute() -> None:
+    """``database_backend`` declared on a class that is NOT in
+    the approved set (e.g., a free helper class) is REJECTED."""
+    _assert_rejected("class NotApproved:\n    database_backend: str = 'sqlite'\n")
