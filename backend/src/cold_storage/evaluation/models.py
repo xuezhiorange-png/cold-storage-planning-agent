@@ -29,7 +29,7 @@ from __future__ import annotations
 import enum
 from typing import Any, Final
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 #: The V1 manifest schema version (D5). The literal string ``"1.0"``;
 #: numeric ``1.0`` is rejected.
@@ -242,18 +242,16 @@ class ExpectedOutputRef(BaseModel):
         value: ExpectedErrorAssertion | None,
         info: Any,
     ) -> ExpectedErrorAssertion | None:
-        """Enforce the C-2 cross-field ``path`` / ``expected_error`` /
-        ``expected_outcome`` matrix.
+        """Pre-validate the C-2 cross-field invariant when
+        ``expected_error`` is explicitly set.
 
-        The validator runs at Pydantic model construction (i.e.
-        during the manifest load, before any FS/DB side effect)
-        and rejects any contradiction with a typed
-        :class:`ValueError` that the manifest loader maps to a
-        typed ``ManifestError`` subclass.
-
-        The check is fail-closed: any contradiction is a
-        manifest-validation error, not a runner-side
-        failure.
+        Pydantic v2 only invokes ``@field_validator`` hooks for
+        fields that are explicitly constructed (i.e. when the
+        field has a non-default value at construction time).
+        When ``expected_error`` is left as its ``None`` default,
+        the cross-field check is performed by the
+        :meth:`_check_cross_field_invariant` model validator
+        below, which runs after the model is fully constructed.
         """
         # ``info.data`` carries the already-validated sibling
         # fields. We only inspect ``expected_outcome`` and
@@ -268,20 +266,85 @@ class ExpectedOutputRef(BaseModel):
         data = info.data
         outcome = data.get("expected_outcome")
         path = data.get("path")
-        # SUCCEEDED: path MUST be present, expected_error MUST be None.
+        # When the user explicitly provides an ``expected_error``,
+        # the outcome and path must already be validated (they
+        # appear earlier in the field declaration order). We
+        # only check the ``value is not None`` invariant here;
+        # the full cross-field matrix is enforced by the model
+        # validator below.
+        if value is not None and outcome == ExpectedOutcome.SUCCEEDED:
+            raise ValueError(
+                "expected_output.expected_error MUST be None when "
+                "expected_outcome == SUCCEEDED; a SUCCEEDED "
+                "scenario has no expected production-side error."
+            )
+        if value is not None and outcome == ExpectedOutcome.BLOCKED:
+            raise ValueError(
+                "expected_output.expected_error MUST be None when "
+                "expected_outcome == BLOCKED."
+            )
+        return value
+
+    @field_validator("path")
+    @classmethod
+    def _validate_path_combination(
+        cls,
+        value: str | None,
+        info: Any,
+    ) -> str | None:
+        """Pre-validate the C-2 cross-field invariant when
+        ``path`` is explicitly set.
+
+        Pydantic v2 only invokes ``@field_validator`` hooks for
+        fields that are explicitly constructed. The full
+        cross-field matrix is enforced by the model validator
+        below.
+        """
+        data = info.data
+        outcome = data.get("expected_outcome")
+        if value is not None and outcome == ExpectedOutcome.INVALID_INPUT:
+            raise ValueError(
+                "expected_output.path MUST be None when "
+                "expected_outcome == INVALID_INPUT; the D10 "
+                "expected output is the inline typed "
+                "expected_error, not a file path."
+            )
+        return value
+
+    @model_validator(mode="after")
+    def _check_cross_field_invariant(self) -> "ExpectedOutputRef":
+        """Enforce the C-2 cross-field ``path`` / ``expected_error`` /
+        ``expected_outcome`` matrix on the fully-constructed model.
+
+        The model validator runs after every field has been
+        parsed, so it always sees the final values for
+        ``path`` / ``expected_error`` / ``expected_outcome``
+        (including the ``None`` defaults). Pydantic v2's
+        ``@field_validator`` hooks are skipped for fields that
+        fall through to their default value, so the field-level
+        hooks alone are insufficient; the model validator
+        fills the gap.
+
+        The check is fail-closed: any contradiction is a
+        manifest-validation error, not a runner-side failure,
+        and runs at Pydantic model construction (i.e. during
+        the manifest load, before any FS/DB side effect).
+        """
+        outcome = self.expected_outcome
+        path = self.path
+        err = self.expected_error
         if outcome == ExpectedOutcome.SUCCEEDED:
             if path is None:
                 raise ValueError(
                     "expected_output.path MUST be non-None when "
                     "expected_outcome == SUCCEEDED."
                 )
-            if value is not None:
+            if err is not None:
                 raise ValueError(
                     "expected_output.expected_error MUST be None when "
                     "expected_outcome == SUCCEEDED; a SUCCEEDED "
                     "scenario has no expected production-side error."
                 )
-        # INVALID_INPUT: path MUST be None, expected_error MUST be set.
         elif outcome == ExpectedOutcome.INVALID_INPUT:
             if path is not None:
                 raise ValueError(
@@ -290,20 +353,19 @@ class ExpectedOutputRef(BaseModel):
                     "expected output is the inline typed "
                     "expected_error, not a file path."
                 )
-            if value is None:
+            if err is None:
                 raise ValueError(
                     "expected_output.expected_error MUST be set when "
                     "expected_outcome == INVALID_INPUT; the D10 "
                     "scenario requires a typed exception assertion."
                 )
-        # BLOCKED: optional path, expected_error MUST be None.
         elif outcome == ExpectedOutcome.BLOCKED:
-            if value is not None:
+            if err is not None:
                 raise ValueError(
                     "expected_output.expected_error MUST be None when "
                     "expected_outcome == BLOCKED."
                 )
-        return value
+        return self
 
 
 class ScenarioDeclaration(BaseModel):

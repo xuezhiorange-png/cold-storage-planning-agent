@@ -130,3 +130,5 @@ backend/src/cold_storage/evaluation/runners/*
 !backend/tests/evaluation/test_compare.py
 !backend/tests/evaluation/test_json_path.py
 !backend/tests/evaluation/test_d10_invalid_blocked.py
+!backend/tests/evaluation/test_run_directory.py
+!backend/tests/evaluation/test_run_directory_identity.py
