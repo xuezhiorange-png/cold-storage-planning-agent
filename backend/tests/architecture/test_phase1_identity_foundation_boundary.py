@@ -434,6 +434,9 @@ ERROR_MARKER_FIELD_CLASS_SET_MISMATCH: str = "DATABASE_BACKEND_FIELD_CLASS_SET_M
 ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH: str = "DATABASE_BACKEND_VALIDATOR_CARDINALITY_MISMATCH"
 ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH: str = "DATABASE_BACKEND_TOTAL_CARDINALITY_MISMATCH"
 ERROR_MARKER_DECORATOR_MISMATCH: str = "DATABASE_BACKEND_DECORATOR_MISMATCH"
+ERROR_MARKER_DECORATOR_STACK_MISMATCH: str = (
+    "DATABASE_BACKEND_DECORATOR_STACK_MISMATCH"
+)
 
 
 @dataclass(frozen=True)
@@ -556,33 +559,73 @@ def _is_exact_scenarios_field_validator(decorator: ast.AST) -> bool:  # noqa: SI
     return True
 
 
+def _has_exact_manifest_validator_decorator_stack(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    """Return True iff ``fn.decorator_list`` is EXACTLY the
+    two-node frozen stack ``[@field_validator("scenarios"),
+    @classmethod]`` — same order, no extras, no duplicates,
+    no reversed order, no missing ``@classmethod``.
+
+    This is the full-stack counterpart of
+    :func:`_is_exact_scenarios_field_validator`. The latter
+    only checks that a single decorator in the list has the
+    authorized shape; this function checks that the *complete*
+    decorator list matches the authorized production model.
+
+    Authorized stack (frozen order):
+
+    * ``decorators[0]`` = ``ast.Call`` whose
+      ``func`` is ``ast.Name(id="field_validator")`` and whose
+      single positional argument is
+      ``ast.Constant(value="scenarios")`` (no keyword args).
+    * ``decorators[1]`` = ``ast.Name(id="classmethod")``.
+
+    ``len(decorator_list) != 2`` → False.
+    """
+    decorators = fn.decorator_list
+    if len(decorators) != 2:
+        return False
+    if not _is_exact_scenarios_field_validator(decorators[0]):
+        return False
+    classmethod_decorator = decorators[1]
+    if not (
+        isinstance(classmethod_decorator, ast.Name)
+        and classmethod_decorator.id == "classmethod"
+    ):
+        return False
+    return True
+
+
 def _is_exact_manifest_uniqueness_validator(  # noqa: SIM110
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
     containing_cls: ast.ClassDef | None,
 ) -> bool:
     """Return True if ``fn`` is the exact
-    ``Manifest._validate_unique_scenarios`` ``@field_validator("scenarios")``
-    method that the typed-model surface uses to read
-    ``s.database_backend.value``.
+    ``Manifest._validate_unique_scenarios`` validator that the
+    typed-model surface uses to read ``s.database_backend.value``.
 
     The check is exact: function name must be
     :data:`_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME`, the parent
-    class name must be ``Manifest``, and the function must
-    carry a ``@field_validator("scenarios")`` decorator whose
-    shape is verified by
-    :func:`_is_exact_scenarios_field_validator` (exactly 1
-    positional argument, that argument is the literal string
-    ``"scenarios"``, and 0 keyword arguments). Any other
-    shape is REJECTED.
+    class name must be ``Manifest``, and the function's FULL
+    ``decorator_list`` must match the frozen two-node stack
+    ``[@field_validator("scenarios"), @classmethod]`` (verified
+    by :func:`_has_exact_manifest_validator_decorator_stack`).
+
+    Merely containing an exact ``@field_validator("scenarios")``
+    call in the decorator list is no longer sufficient — the
+    ``@classmethod`` and the frozen order are part of the
+    contract. Any deviation (missing ``@classmethod``,
+    extra decorators, duplicate ``@field_validator``,
+    duplicate ``@classmethod``, reversed order, bare
+    ``@field_validator``, unpacked arguments, multi-arg
+    ``@field_validator``, keyword args, etc.) is REJECTED.
     """
     if fn.name != _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME:
         return False
     if containing_cls is None or containing_cls.name != "Manifest":
         return False
-    for decorator in fn.decorator_list:  # noqa: SIM110
-        if _is_exact_scenarios_field_validator(decorator):
-            return True
-    return False
+    return _has_exact_manifest_validator_decorator_stack(fn)
 
 
 def _is_exact_database_backend_field(
@@ -1004,6 +1047,40 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
                                     f"0 keyword arguments). Got: "
                                     f"{ast.unparse(decorator)!r}."
                                 )
+
+    # --- 0b. Exact decorator stack check (post-shape). The
+    #         full ``Manifest._validate_unique_scenarios`` decorator
+    #         list must be exactly two nodes in the frozen order
+    #         ``@field_validator("scenarios")`` then
+    #         ``@classmethod``. A subset, a superset, a duplicate,
+    #         or a reversed order each raise
+    #         ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH``.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "Manifest":
+            for fn in node.body:
+                if (
+                    isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and fn.name == _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME
+                ):
+                    actual_count = len(fn.decorator_list)
+                    actual_nodes_repr = [
+                        ast.unparse(d) for d in fn.decorator_list
+                    ]
+                    if not _has_exact_manifest_validator_decorator_stack(fn):
+                        raise AssertionError(
+                            f"{ERROR_MARKER_DECORATOR_STACK_MISMATCH}: "
+                            f"Manifest._validate_unique_scenarios full "
+                            f"decorator stack is not the authorized "
+                            f"frozen order. "
+                            f"class_name='Manifest', "
+                            f"function_name="
+                            f"'{_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME}', "
+                            f"actual_decorator_count={actual_count}, "
+                            f"actual_decorator_nodes={actual_nodes_repr!r}, "
+                            f"expected_stack="
+                            f"['field_validator(\"scenarios\")', "
+                            f"'classmethod']."
+                        )
 
     authorized_fields: list[AuthorizedFieldOccurrence] = []
     authorized_validator_reads: list[AuthorizedValidatorReadOccurrence] = []
@@ -1962,4 +2039,301 @@ def test_exact_decorator_unpacked_args() -> None:
     _assert_rejected(
         source,
         expected_marker=ERROR_MARKER_DECORATOR_MISMATCH,
+    )
+
+
+
+# ---------------------------------------------------------------------------
+# P0 of review 4690695361 — full decorator stack enforcement
+# ---------------------------------------------------------------------------
+# The validator decorator check is strengthened from "the decorator
+# list contains an exact @field_validator('scenarios') call" to
+# "the complete decorator_list is exactly
+# [@field_validator('scenarios'), @classmethod] in the frozen
+# order". Merely containing an exact field_validator call is no
+# longer sufficient. The tests below pin each of the seven
+# stack-level failure modes that the production contract forbids
+# and re-pin the positive case to confirm the full stack passes
+# the same checker.
+# ---------------------------------------------------------------------------
+
+
+def _sixth_round_models_source(
+    extra_decorator_lines: str = "",
+) -> str:
+    """Build a synthetic ``models.py``-shaped source that has all
+    three authorized fields and a Manifest class with the
+    standard ``_validate_unique_scenarios`` method. The
+    ``extra_decorator_lines`` string is inserted between the
+    field declarations and the validator method, allowing each
+    test to insert extra / wrong / duplicated decorators
+    in different positions to exercise the full-stack check.
+    """
+    return (
+        "from pydantic import BaseModel, field_validator\n"
+        "from enum import Enum\n"
+        "from typing import Tuple\n"
+        "class DatabaseBackend(str, Enum):\n"
+        "    SQLITE = 'sqlite'\n"
+        "class ScenarioDeclaration(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class RunRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class SummaryRecord(BaseModel):\n"
+        "    database_backend: DatabaseBackend\n"
+        "class Manifest(BaseModel):\n"
+        "    scenarios: Tuple[ScenarioDeclaration, ...]\n"
+        f"{extra_decorator_lines}"
+        "    def _validate_unique_scenarios(cls, value):\n"
+        "        for s in value:\n"
+        "            key = (s.scenario_id, s.database_backend.value)\n"
+        "        for s in value:\n"
+        "            if s.scenario_id == 'x':\n"
+        "                raise ValueError(\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                )\n"
+        "        return value\n"
+    )
+
+
+def test_exact_decorator_duplicate_field_validator() -> None:
+    """A duplicate ``@field_validator('scenarios')`` before
+    ``@classmethod`` is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`` — the full
+    decorator list must be exactly
+    ``[field_validator('scenarios'), classmethod]``; a
+    duplicate field_validator is forbidden.
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @field_validator('scenarios')\n"
+            "    @field_validator('scenarios')\n"
+            "    @classmethod\n"
+        )
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_STACK_MISMATCH,
+    )
+
+
+def test_exact_decorator_missing_classmethod() -> None:
+    """A validator that has ``@field_validator('scenarios')``
+    but NO ``@classmethod`` is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`` — the frozen
+    stack requires exactly two decorators in the order
+    field_validator_then_classmethod.
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @field_validator('scenarios')\n"
+        )
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_STACK_MISMATCH,
+    )
+
+
+def test_exact_decorator_reversed_order() -> None:
+    """Reversing the order (``@classmethod`` BEFORE
+    ``@field_validator('scenarios')``) is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`` — the
+    frozen order is field_validator_then_classmethod; the
+    reverse is forbidden.
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @classmethod\n"
+            "    @field_validator('scenarios')\n"
+        )
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_STACK_MISMATCH,
+    )
+
+
+def test_exact_decorator_extra_decorator_before() -> None:
+    """An extra ``@other_decorator`` BEFORE the frozen stack
+    is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`` — the
+    decorator list must be EXACTLY two nodes; an extra
+    decorator before the field_validator breaks the count
+    invariant.
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @other_decorator\n"
+            "    @field_validator('scenarios')\n"
+            "    @classmethod\n"
+        )
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_STACK_MISMATCH,
+    )
+
+
+def test_exact_decorator_extra_decorator_after() -> None:
+    """An extra ``@other_decorator`` AFTER the frozen stack
+    is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`` — the
+    decorator list must be EXACTLY two nodes; an extra
+    decorator after the classmethod breaks the count
+    invariant (no position is allowed for extras).
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @field_validator('scenarios')\n"
+            "    @classmethod\n"
+            "    @other_decorator\n"
+        )
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_STACK_MISMATCH,
+    )
+
+
+def test_exact_decorator_duplicate_classmethod() -> None:
+    """A duplicate ``@classmethod`` is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`` — only one
+    classmethod is allowed; the second classmethod is an
+    unauthorized extra decorator.
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @field_validator('scenarios')\n"
+            "    @classmethod\n"
+            "    @classmethod\n"
+        )
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_STACK_MISMATCH,
+    )
+
+
+def test_exact_decorator_bare_field_validator() -> None:
+    """A bare ``@field_validator`` (no call arguments) before
+    ``@classmethod`` is REJECTED via
+    ``DATABASE_BACKEND_DECORATOR_STACK_MISMATCH`` — the
+    decorator list must start with an EXACT
+    ``field_validator('scenarios')`` Call node, not a bare
+    ``field_validator`` Name node.
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @field_validator\n"
+            "    @classmethod\n"
+        )
+    )
+    _assert_rejected(
+        source,
+        expected_marker=ERROR_MARKER_DECORATOR_STACK_MISMATCH,
+    )
+
+
+def test_exact_decorator_authorized_full_stack() -> None:
+    """The exact authorized two-node stack
+    ``[@field_validator('scenarios'), @classmethod]`` is
+    AUTHORIZED. The full checker continues to assert
+    :data:`_EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT` (3),
+    :data:`_EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT`
+    (2), :data:`_EXACT_EXPECTED_TOTAL_OCCURRENCE_COUNT` (5),
+    and :data:`_EXACT_EXPECTED_REJECTED_OCCURRENCE_COUNT`
+    (0) — decorator stack enforcement is on top of these
+    invariants, not a replacement.
+    """
+    source = _sixth_round_models_source(
+        extra_decorator_lines=(
+            "    @field_validator('scenarios')\n"
+            "    @classmethod\n"
+        )
+    )
+    _assert_authorized(source)
+    # Re-verify cardinality invariants against the synthetic
+    # source — the decorator stack enforcement is additive, it
+    # must not silently relax any prior exact-cardinality
+    # assertion.
+    tmp = Path("/tmp/_sixth_round_authorized.py")
+    tmp.write_text(source)
+    try:
+        tree = ast.parse(source)
+        parents = _build_parent_map(tree)
+        occurrences = _collect_database_backend_occurrences(tree)
+        authorized_fields = 0
+        authorized_reads = 0
+        for node, _line, _col, _cls, _fn, _pt in occurrences:
+            verdict = _classify_database_backend_occurrence(node, parents)
+            if verdict == "AUTHORIZED_FIELD":
+                authorized_fields += 1
+            elif verdict == "AUTHORIZED_VALIDATOR_READ":
+                authorized_reads += 1
+        assert len(occurrences) == 5
+        assert authorized_fields == 3
+        assert authorized_reads == 2
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def test_exact_decorator_real_models_py_full_stack() -> None:
+    """The real production ``models.py`` must pass the FULL
+    decorator stack check — not just the field_validator
+    shape check. The real model has:
+
+    * ``@field_validator('scenarios')``
+    * ``@classmethod``
+    * ``def _validate_unique_scenarios(...)``
+
+    in that exact order. There is no test-only lenient
+    rule; the real file and the synthetic source use the
+    same checker.
+    """
+    models_py_path = (
+        Path(__file__).resolve().parent.parent.parent
+        / "src"
+        / "cold_storage"
+        / "evaluation"
+        / "models.py"
+    )
+    content = models_py_path.read_text(encoding="utf-8")
+    _assert_models_database_backend_use_is_typed_model_only(
+        content, models_py_path
+    )
+
+    # Additionally assert the real file's decorator stack is
+    # exactly the frozen two-node form. This is the dedicated
+    # stack-level assertion for the production file.
+    tree = ast.parse(content, filename=str(models_py_path))
+    target_fn: ast.FunctionDef | ast.AsyncFunctionDef | None = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "Manifest":
+            for fn in node.body:
+                if (
+                    isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and fn.name == _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME
+                ):
+                    target_fn = fn
+                    break
+            if target_fn is not None:
+                break
+    assert target_fn is not None, (
+        f"real models.py does not contain "
+        f"Manifest.{_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME}; cannot "
+        f"verify decorator stack."
+    )
+    assert len(target_fn.decorator_list) == 2, (
+        f"{ERROR_MARKER_DECORATOR_STACK_MISMATCH}: real models.py "
+        f"Manifest._validate_unique_scenarios has "
+        f"{len(target_fn.decorator_list)} decorators; authorized "
+        f"stack requires exactly 2. Got: "
+        f"{[ast.unparse(d) for d in target_fn.decorator_list]!r}."
+    )
+    assert _has_exact_manifest_validator_decorator_stack(target_fn), (
+        f"{ERROR_MARKER_DECORATOR_STACK_MISMATCH}: real models.py "
+        f"Manifest._validate_unique_scenarios decorator stack is "
+        f"not the authorized frozen order. Got: "
+        f"{[ast.unparse(d) for d in target_fn.decorator_list]!r}."
     )
