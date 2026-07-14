@@ -407,8 +407,7 @@ _EXACT_MANIFEST_UNIQUE_TAIL_ATTR: str = "value"
 _EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT: int = 3
 _EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT: int = 2
 _EXACT_EXPECTED_TOTAL_OCCURRENCE_COUNT: int = (
-    _EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT
-    + _EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT
+    _EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT + _EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT
 )
 _EXACT_EXPECTED_REJECTED_OCCURRENCE_COUNT: int = 0
 
@@ -430,18 +429,10 @@ _EXACT_EXPECTED_FIELD_CLASS_COUNTER: dict[str, int] = {
 #: assert the expected marker rather than accepting any
 #: AssertionError.
 ERROR_MARKER_REJECTED_OCCURRENCE: str = "DATABASE_BACKEND_REJECTED_OCCURRENCE"
-ERROR_MARKER_FIELD_CARDINALITY_MISMATCH: str = (
-    "DATABASE_BACKEND_FIELD_CARDINALITY_MISMATCH"
-)
-ERROR_MARKER_FIELD_CLASS_SET_MISMATCH: str = (
-    "DATABASE_BACKEND_FIELD_CLASS_SET_MISMATCH"
-)
-ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH: str = (
-    "DATABASE_BACKEND_VALIDATOR_CARDINALITY_MISMATCH"
-)
-ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH: str = (
-    "DATABASE_BACKEND_TOTAL_CARDINALITY_MISMATCH"
-)
+ERROR_MARKER_FIELD_CARDINALITY_MISMATCH: str = "DATABASE_BACKEND_FIELD_CARDINALITY_MISMATCH"
+ERROR_MARKER_FIELD_CLASS_SET_MISMATCH: str = "DATABASE_BACKEND_FIELD_CLASS_SET_MISMATCH"
+ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH: str = "DATABASE_BACKEND_VALIDATOR_CARDINALITY_MISMATCH"
+ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH: str = "DATABASE_BACKEND_TOTAL_CARDINALITY_MISMATCH"
 ERROR_MARKER_DECORATOR_MISMATCH: str = "DATABASE_BACKEND_DECORATOR_MISMATCH"
 
 
@@ -995,18 +986,14 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
                 ):
                     for decorator in fn.decorator_list:
                         if isinstance(decorator, ast.Call) and (  # noqa: SIM102
-                            (
-                                isinstance(decorator.func, ast.Name)
-                                and decorator.func.id == "field_validator"
-                            )
+                            isinstance(decorator.func, ast.Name)
+                            and decorator.func.id == "field_validator"
                         ):
                             # The Manifest validator has a
                             # ``@field_validator(...)`` call. Verify
                             # it is exactly the single-positional
                             # ``"scenarios"`` form.
-                            if not _is_exact_scenarios_field_validator(
-                                decorator
-                            ):
+                            if not _is_exact_scenarios_field_validator(decorator):
                                 raise AssertionError(
                                     f"{ERROR_MARKER_DECORATOR_MISMATCH}: "
                                     f"Manifest._validate_unique_scenarios "
@@ -1032,8 +1019,7 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
         verdict = _classify_database_backend_occurrence(node, parents)
         if verdict == "AUTHORIZED_FIELD":
             assert isinstance(node, ast.AnnAssign), (
-                "AUTHORIZED_FIELD verdict on a non-AnnAssign node: "
-                f"{type(node).__name__}"
+                f"AUTHORIZED_FIELD verdict on a non-AnnAssign node: {type(node).__name__}"
             )
             containing_cls = _containing_class(node, parents)
             containing_fn = _containing_function(node, parents)
@@ -1043,23 +1029,18 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
             assert isinstance(annotation, ast.Name)
             authorized_fields.append(
                 AuthorizedFieldOccurrence(
-                    class_name=containing_cls.name
-                    if containing_cls is not None
-                    else "<none>",
+                    class_name=containing_cls.name if containing_cls is not None else "<none>",
                     field_name=target.id,
                     annotation_name=annotation.id,
                     has_default=node.value is not None,
-                    containing_function=containing_fn.name
-                    if containing_fn is not None
-                    else None,
+                    containing_function=containing_fn.name if containing_fn is not None else None,
                     line=line,
                     column=col,
                 )
             )
         elif verdict == "AUTHORIZED_VALIDATOR_READ":
             assert isinstance(node, ast.Attribute), (
-                "AUTHORIZED_VALIDATOR_READ verdict on a non-Attribute "
-                f"node: {type(node).__name__}"
+                f"AUTHORIZED_VALIDATOR_READ verdict on a non-Attribute node: {type(node).__name__}"
             )
             parent = parents.get(id(node))
             containing_cls = _containing_class(node, parents)
@@ -1069,12 +1050,8 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
             assert isinstance(parent, ast.Attribute)
             authorized_validator_reads.append(
                 AuthorizedValidatorReadOccurrence(
-                    class_name=containing_cls.name
-                    if containing_cls is not None
-                    else "<none>",
-                    function_name=containing_fn.name
-                    if containing_fn is not None
-                    else "<none>",
+                    class_name=containing_cls.name if containing_cls is not None else "<none>",
+                    function_name=containing_fn.name if containing_fn is not None else "<none>",
                     receiver_name=receiver.id,
                     attribute_name=node.attr,
                     parent_attribute_name=parent.attr,
@@ -1091,10 +1068,7 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
     #        so the field-specific marker fires before
     #        ``REJECTED`` / ``TOTAL`` for the common "wrong
     #        field count" case).
-    assert (
-        len(authorized_fields)
-        == _EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT
-    ), (
+    assert len(authorized_fields) == _EXACT_EXPECTED_AUTHORIZED_FIELD_COUNT, (
         f"{ERROR_MARKER_FIELD_CARDINALITY_MISMATCH}: source has "
         f"{len(authorized_fields)} AUTHORIZED_FIELD occurrences; "
         f"the exact allowlist requires "
@@ -1103,10 +1077,7 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
 
     # --- 2. AUTHORIZED_VALIDATOR_READ count must be exact
     #        (also before rejected / total, for the same reason).
-    assert (
-        len(authorized_validator_reads)
-        == _EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT
-    ), (
+    assert len(authorized_validator_reads) == _EXACT_EXPECTED_AUTHORIZED_VALIDATOR_READ_COUNT, (
         f"{ERROR_MARKER_VALIDATOR_CARDINALITY_MISMATCH}: source has "
         f"{len(authorized_validator_reads)} AUTHORIZED_VALIDATOR_READ "
         f"occurrences; the exact allowlist requires "
@@ -1121,11 +1092,7 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
     )
 
     # --- 4. Total occurrence count must be exact.
-    total = (
-        len(authorized_fields)
-        + len(authorized_validator_reads)
-        + len(rejected)
-    )
+    total = len(authorized_fields) + len(authorized_validator_reads) + len(rejected)
     assert total == _EXACT_EXPECTED_TOTAL_OCCURRENCE_COUNT, (
         f"{ERROR_MARKER_TOTAL_CARDINALITY_MISMATCH}: source has {total} "
         f"total database_backend occurrences; the exact allowlist "
@@ -1142,9 +1109,7 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
     actual_class_counter: Counter[str] = Counter(
         occurrence.class_name for occurrence in authorized_fields
     )
-    expected_class_counter: Counter[str] = Counter(
-        _EXACT_EXPECTED_FIELD_CLASS_COUNTER
-    )
+    expected_class_counter: Counter[str] = Counter(_EXACT_EXPECTED_FIELD_CLASS_COUNTER)
     assert set(actual_class_counter) == set(expected_class_counter), (
         f"{ERROR_MARKER_FIELD_CLASS_SET_MISMATCH}: AUTHORIZED_FIELD "
         f"class set is {sorted(actual_class_counter)}; exact allowlist "
@@ -1187,33 +1152,23 @@ def _assert_all_database_backend_occurrences_authorized(  # noqa: SIM102
             f"is in class {occurrence.class_name!r}; exact allowlist "
             f"requires 'Manifest'."
         )
-        assert (
-            occurrence.function_name
-            == _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME
-        ), (
+        assert occurrence.function_name == _EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME, (
             f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
             f"is in function {occurrence.function_name!r}; exact allowlist "
             f"requires "
             f"{_EXACT_MANIFEST_UNIQUE_VALIDATOR_NAME!r}."
         )
-        assert (
-            occurrence.receiver_name == _EXACT_MANIFEST_UNIQUE_RECEIVER
-        ), (
+        assert occurrence.receiver_name == _EXACT_MANIFEST_UNIQUE_RECEIVER, (
             f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
             f"has receiver {occurrence.receiver_name!r}; exact allowlist "
             f"requires {_EXACT_MANIFEST_UNIQUE_RECEIVER!r}."
         )
-        assert (
-            occurrence.attribute_name == "database_backend"
-        ), (
+        assert occurrence.attribute_name == "database_backend", (
             f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
             f"has attribute_name {occurrence.attribute_name!r}; exact "
             f"allowlist requires 'database_backend'."
         )
-        assert (
-            occurrence.parent_attribute_name
-            == _EXACT_MANIFEST_UNIQUE_TAIL_ATTR
-        ), (
+        assert occurrence.parent_attribute_name == _EXACT_MANIFEST_UNIQUE_TAIL_ATTR, (
             f"{ERROR_MARKER_REJECTED_OCCURRENCE}: AUTHORIZED_VALIDATOR_READ "
             f"has parent_attribute_name "
             f"{occurrence.parent_attribute_name!r}; exact allowlist "
@@ -1428,7 +1383,7 @@ def test_classifier_authorizes_typed_field_declaration() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
@@ -1649,7 +1604,6 @@ def test_classifier_rejects_self_database_backend_in_unapproved_class() -> None:
     )
 
 
-
 # ---------------------------------------------------------------------------
 # P0-1 of review 4690297649 — exact occurrence cardinality adversarial tests
 # ---------------------------------------------------------------------------
@@ -1667,9 +1621,7 @@ def test_exact_cardinality_real_models_py_passes() -> None:
     if not models_py_path.exists():
         return  # the module does not exist yet — defer
     content = models_py_path.read_text()
-    _assert_all_database_backend_occurrences_authorized(
-        content, models_py_path
-    )
+    _assert_all_database_backend_occurrences_authorized(content, models_py_path)
 
 
 def test_exact_cardinality_missing_summary_record_field() -> None:
@@ -1697,7 +1649,7 @@ def test_exact_cardinality_missing_summary_record_field() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
@@ -1736,7 +1688,7 @@ def test_exact_cardinality_duplicate_scenario_declaration_field() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
@@ -1778,7 +1730,7 @@ def test_exact_cardinality_fourth_field_in_unapproved_class() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
@@ -1847,7 +1799,7 @@ def test_exact_cardinality_third_validator_read() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        for s in value:\n"
         "            first = s.database_backend.value\n"
@@ -1888,7 +1840,7 @@ def test_exact_decorator_multi_field_arg_first() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
@@ -1927,7 +1879,7 @@ def test_exact_decorator_multi_field_arg_reversed() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
@@ -1964,7 +1916,7 @@ def test_exact_decorator_with_keyword_argument() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
@@ -2003,7 +1955,7 @@ def test_exact_decorator_unpacked_args() -> None:
         "        for s in value:\n"
         "            if s.scenario_id == 'x':\n"
         "                raise ValueError(\n"
-        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"
+        "                    f'duplicate scenario {s.scenario_id} with database_backend {s.database_backend.value}'\n"  # noqa: E501
         "                )\n"
         "        return value\n"
     )
