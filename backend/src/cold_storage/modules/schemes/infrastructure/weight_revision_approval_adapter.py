@@ -54,14 +54,36 @@ _AUTHORITY_PK_CONSTRAINT = {
 }
 
 _AUTHORITY_TABLE = "scheme_weight_set_active_revisions"
+_REVISIONS_TABLE = "scheme_weight_set_revisions"
+
+# SQLite authority conflict signature:
+# - (a) authority table composite PK: scheme_weight_set_active_revisions(weight_set_id, code)
+# - (b) revisions table partial unique index: scheme_weight_set_revisions(weight_set_id, code)
+#   WHERE status = 'approved' — fires when both threads pass the application-level
+#   check simultaneously
+# - (c) trigger trg_authority_check_on_approve raises RAISE(ABORT, 'active_revision_conflict:
+#   another revision already approved for this weight_set_id/code') — fires BEFORE the
+#   partial unique index and preempts it in the concurrent race
+_SQLITE_AUTHORITY_PK_MSG = (
+    _AUTHORITY_TABLE + ".weight_set_id",
+    _AUTHORITY_TABLE + ".code",
+)
+_SQLITE_REVISIONS_UNIQUE_MSG = (
+    _REVISIONS_TABLE + ".weight_set_id",
+    _REVISIONS_TABLE + ".code",
+)
+_SQLITE_TRIGGER_MSG_TOKEN = "active_revision_conflict"
 
 
-# SQLite names it: pk_scheme_weight_set_active_revisions (or similar)
 def _is_authority_unique_conflict(exc: Any) -> bool:
-    """Return True only if *exc* is an IntegrityError on the authority table PK.
+    """Return True only if *exc* is an IntegrityError on the authority constraint.
 
     PostgreSQL: check SQLSTATE 23505 (unique_violation) + constraint name.
-    SQLite: check error message contains the exact unique columns.
+    SQLite: classify by error message payload:
+    - authority-table composite PK violation
+    - revisions-table partial unique index violation
+    - authority-claim trigger ``active_revision_conflict`` RAISE(ABORT)
+    Reject all other IntegrityError variants.
     """
     orig = getattr(exc, "orig", None)
     if orig is None:
@@ -81,14 +103,22 @@ def _is_authority_unique_conflict(exc: Any) -> bool:
     if sqlstate == "23505" and constraint_name in _AUTHORITY_PK_CONSTRAINT:
         return True
 
-    # SQLite: check error message for exact unique columns
+    # SQLite: check error message for exact authority-table PK, revisions-table
+    # partial unique index, or authority-claim trigger payload.
+    # Reject any other IntegrityError (NOT NULL / FK / CHECK / other unique).
     err_str = str(orig).lower()
-    return (
-        "unique constraint failed" in err_str
-        and _AUTHORITY_TABLE in err_str
-        and "weight_set_id" in err_str
-        and "code" in err_str
-    )
+
+    # Trigger-raised case: authority-claim trigger explicitly raises
+    # 'active_revision_conflict' via RAISE(ABORT). Only convert when this
+    # exact token is present (not for arbitrary trigger messages).
+    if _SQLITE_TRIGGER_MSG_TOKEN in err_str:
+        return True
+
+    if "unique constraint failed" not in err_str:
+        return False
+    _authority_pk_match = all(token in err_str for token in _SQLITE_AUTHORITY_PK_MSG)
+    _revisions_unique_match = all(token in err_str for token in _SQLITE_REVISIONS_UNIQUE_MSG)
+    return _authority_pk_match or _revisions_unique_match
 
 
 class InvalidStatusTransitionError(WeightRevisionGovernanceError):
