@@ -47,6 +47,8 @@ list. The PG suite asserts the same runtime invariants:
 
 from __future__ import annotations
 
+import json
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -976,3 +978,113 @@ def test_positive_comparison_classes_pairwise_disjoint() -> None:
     assert exact & excluded == set(), f"exact ∩ excluded = {exact & excluded}"
     assert proxy & excluded == set(), f"proxy ∩ excluded = {proxy & excluded}"
     validate_expected_output_comparison_policy(g, backend="postgresql")
+
+
+
+# ── TASK-011C C-2 Round 3 — real baseline E2E on PostgreSQL
+#    (authority comment 4974759224) ─────────────────────────────
+
+
+def test_baseline_feasible_real_e2e_on_postgresql(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 3 §11: real PostgreSQL baseline E2E through the
+    suite runner, asserting the same byte authority as the
+    SQLite runner (D3 cross-backend byte parity).
+    """
+    import json
+    import shutil
+    from pathlib import Path
+
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+    from cold_storage.evaluation.models import (
+        DatabaseBackend,
+        ExpectedOutcome,
+        ExpectedOutputRef,
+        Manifest,
+        ScenarioDeclaration,
+    )
+    from cold_storage.evaluation.run_directory import suite_summary_path
+
+    # 1. Seed the canonical A1 pre-existing production
+    #    context on the live PG database.
+    seed_s = a2_pg_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        # 2. Copy the frozen golden into the manifest_root.
+        expected_path = root / "expected" / "baseline_feasible.v1.json"
+        expected_path.parent.mkdir(parents=True, exist_ok=True)
+        src_golden = (
+            Path(__file__).resolve().parent / "data" / "expected" / "baseline_feasible.v1.json"
+        )
+        shutil.copyfile(src_golden, expected_path)
+
+        manifest = Manifest(
+            schema_version="1.0",
+            suite_id="c2-round3-pg-baseline-real-e2e",
+            scenarios=(
+                ScenarioDeclaration(
+                    scenario_id="baseline_feasible",
+                    database_backend=DatabaseBackend.POSTGRESQL,
+                    expected_outcome=ExpectedOutcome.SUCCEEDED,
+                    expected_output=ExpectedOutputRef(
+                        scenario_id="baseline_feasible",
+                        path="expected/baseline_feasible.v1.json",
+                        expected_outcome=ExpectedOutcome.SUCCEEDED,
+                        expected_error=None,
+                    ),
+                ),
+            ),
+        )
+        # 3. Real evaluate_manifest run on PG.
+        result = evaluate_manifest(
+            manifest=manifest,
+            manifest_root=root,
+            root=root / "run",
+            session_factory=a2_pg_session_factory,
+            commit_sha="c2-round3-pg-test",
+        )
+        # 4. overall == PASS (real PG production values
+        #    match the frozen golden).
+        assert result.evaluation_result_overall.value == "pass", (
+            f"C-2 PG E2E: overall result MUST be pass; "
+            f"diffs={result.scenarios[0].diff_summary!r}"
+        )
+        # 5. On-disk normalized bytes == frozen business
+        #    payload (the canonical contract).
+        norm_artifact = (
+            root / "run" / "baseline_feasible"
+            / "normalized" / "baseline_feasible.json"
+        )
+        on_disk_bytes = norm_artifact.read_bytes()
+        on_disk_value = json.loads(on_disk_bytes)
+        frozen_business_payload = {
+            k: v for k, v in json.loads(src_golden.read_text()).items()
+            if k != "_comparison_policy"
+        }
+        assert on_disk_value == frozen_business_payload, (
+            "C-2 PG E2E: on-disk normalized value MUST equal "
+            "the frozen business payload (golden minus "
+            "``_comparison_policy``). PG establishes byte "
+            "parity with the canonical frozen business "
+            "payload — the production-side ``content_hash`` "
+            "is the same across SQLite and PostgreSQL "
+            "backends (per the golden's documented "
+            "stable_proxies contract)."
+        )
+        # 6. On-disk raw artifact carries the full
+        #    production lineage.
+        raw_artifact = root / "run" / "baseline_feasible" / "raw" / "baseline_feasible.json"
+        raw_data = json.loads(raw_artifact.read_text(encoding="utf-8"))
+        assert raw_data["c2_persisted"]["database_backend"] == "postgresql"
+        assert raw_data["c2_persisted"]["source_mode"] == "production"
+        # 7. summary.json was written last.
+        summary_path = suite_summary_path(root=root / "run")
+        assert summary_path.exists()

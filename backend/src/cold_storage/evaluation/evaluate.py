@@ -623,7 +623,22 @@ def _execute_succeeded(
         expected_path=expected_path, manifest_root=manifest_root
     )
     expected_text = expected_full_path.read_text(encoding="utf-8")
-    expected_normalized = json.loads(expected_text)
+    expected_normalized_full = json.loads(expected_text)
+    # Round 3 (review 4696284808): the expected golden carries
+    # the ``_comparison_policy`` block as golden-only metadata
+    # (the actual normalized business projection does NOT
+    # include it). The comparison MUST operate on the frozen
+    # business payload only (the V1 contract: "after removing
+    # ``_comparison_policy``"). The helper drops the key in a
+    # typed, explicit way.
+    if not isinstance(expected_normalized_full, dict):
+        raise EvaluationManifestExecutionError(
+            "expected_output file MUST be a JSON object at the top level.",
+            details={"expected_output_path": str(expected_full_path)},
+        )
+    expected_normalized: dict[str, Any] = {
+        k: v for k, v in expected_normalized_full.items() if k != "_comparison_policy"
+    }
     # Validate the expected output is in the strict-JSON value
     # domain; if not, the manifest is malformed.
     try:

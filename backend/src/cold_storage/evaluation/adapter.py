@@ -292,8 +292,381 @@ def execute_scenario(
     )
 
 
+# ── C-2 read-only projection boundary (TASK-011C C-2 corrective round 3,
+#    authority comment 4974759224) ──────────────────────────────────────
+#
+# Round 2 wired the production-path ``AdapterResult`` through
+# ``project_adapter_result_to_baseline_artifact``, but the
+# ``AdapterResult`` (and the domain ``SchemeRun`` it carries) does NOT
+# expose the persisted production-side fields required to construct
+# the frozen ``baseline_feasible.v1.json`` normalized business
+# projection. The Round 3 review (4696284808) therefore requires an
+# additional typed, read-only boundary inside the adapter module that
+# reads the persisted production row (ORM) by exact
+# primary key and exposes the production-authoritative values
+# that the existing ``AdapterResult`` does NOT carry (e.g.
+# ``source_mode``, ``binding_schema_version``, ``weight_set_content_hash``,
+# 5 calculation-ID columns, 5 result-hash columns,
+# ``execution_snapshot_id``, ``coefficient_context_id``,
+# ``orchestration_identity_id``, ``authoritative_attempt_id``,
+# ``orchestration_fingerprint``, ``input_snapshot``,
+# ``assumption_snapshot``, ``comparison_snapshot``,
+# ``candidates_snapshot``, ``content_hash``, ``recommended_scheme_code``).
+#
+# The boundary is AUTHORIZED by comment 4974759224 and is INTENTIONALLY
+# read-only. It does NOT:
+#   - read latest row, first row, or any row other than the exact
+#     ``run_id``;
+#   - apply source-binding or weight-set fallback;
+#   - write, commit, flush, or create any row;
+#   - approve any revision;
+#   - return the ORM object itself (the function returns a frozen
+#     typed value object whose fields are populated by explicit
+#     attribute access on the ORM row, never by ``vars()`` /
+#     ``__dict__`` / ``_sa_instance_state`` / generic reflection);
+#   - silently coerce unsupported Python objects to strings
+#     (no ``default=str``, no ``str(obj)``, no ``repr(obj)``,
+#     no second canonicalizer).
+#
+# If any production-required field is None / missing, the function
+# raises :class:`MissingC2ProductionField` (a typed ``AdapterInputError``
+# subclass) and the runner fails closed.
+
+from collections.abc import Callable as _Callable  # noqa: E402  (alias)
+
+#: Ordered list of production-required column names that the C-2 read
+#: boundary asserts are non-None on a production-source row.
+#: The list is the SINGLE source of truth in the
+#: adapter (per Round 3 review 4696284808 §4 — the production columns
+#: must come from the persisted record, not from local constants).
+_C2_REQUIRED_PRODUCTION_COLUMNS: tuple[str, ...] = (
+    "source_mode",
+    "source_binding_id",
+    "source_contract_version",
+    "weight_set_revision_id",
+    "weight_set_content_hash",
+    "weight_set_generator_compatibility_version",
+    "combined_source_hash",
+    "binding_schema_version",
+    "execution_snapshot_id",
+    "coefficient_context_id",
+    "orchestration_identity_id",
+    "authoritative_attempt_id",
+    "orchestration_fingerprint",
+    "zone_calculation_id",
+    "cooling_load_calculation_id",
+    "equipment_calculation_id",
+    "power_calculation_id",
+    "investment_calculation_id",
+    "zone_result_hash",
+    "cooling_load_result_hash",
+    "equipment_result_hash",
+    "power_result_hash",
+    "investment_result_hash",
+)
+
+
+class MissingC2ProductionField(AdapterInputError):
+    """A production-required column on the persisted ``SchemeRunRecord`` is None or missing.
+
+    The C-2 read boundary (:func:`read_c2_baseline_projection`) fails
+    closed when any production-required column is None. The error
+    inherits :class:`AdapterInputError` so existing
+    ``except AdapterInputError`` handlers classify it as a typed
+    adapter-side boundary violation (not a production-side
+    exception).
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class C2BaselineProjectionSource:
+    """Read-only, frozen, typed projection of a persisted production ``SchemeRunRecord``.
+
+    The carrier is the SINGLE source of production-authoritative
+    data the C-2 runner is allowed to read. All fields are populated
+    by explicit attribute access on the ``SchemeRunRecord`` ORM row
+    (NEVER by ``vars(record)`` / ``record.__dict__`` /
+    ``_sa_instance_state`` / generic reflection). The carrier does
+    NOT carry the ORM row itself; downstream code consumes the
+    fields only.
+
+    The fields are grouped as follows:
+
+    * **Runtime identity** (allowed in raw artifact only,
+      structurally absent from the normalized business projection):
+      ``run_id`` (str), ``created_at`` (datetime),
+      ``completed_at`` (datetime | None), ``database_backend`` (str).
+    * **Persisted production source identity** (frozen, required):
+      ``source_mode`` (str, must be ``"production"``),
+      ``source_binding_id`` (str),
+      ``source_contract_version`` (str),
+      ``weight_set_revision_id`` (str),
+      ``weight_set_content_hash`` (str),
+      ``weight_set_generator_compatibility_version`` (str),
+      ``combined_source_hash`` (str),
+      ``binding_schema_version`` (str),
+      ``execution_snapshot_id`` (str),
+      ``coefficient_context_id`` (str),
+      ``orchestration_identity_id`` (str),
+      ``authoritative_attempt_id`` (str),
+      ``orchestration_fingerprint`` (str).
+    * **Persisted calculation lineage** (5 stages, frozen):
+      ``zone_calculation_id``, ``cooling_load_calculation_id``,
+      ``equipment_calculation_id``, ``power_calculation_id``,
+      ``investment_calculation_id``.
+    * **Persisted result hashes** (5 stages, frozen):
+      ``zone_result_hash``, ``cooling_load_result_hash``,
+      ``equipment_result_hash``, ``power_result_hash``,
+      ``investment_result_hash``.
+    * **Persisted snapshot columns** (JSON, frozen):
+      ``input_snapshot`` (dict), ``assumption_snapshot`` (dict),
+      ``comparison_snapshot`` (dict), ``candidates_snapshot`` (dict).
+    * **Other persisted production fields**:
+      ``project_id`` (str), ``project_version_id`` (str),
+      ``weight_set_id`` (str), ``status`` (str),
+      ``generator_version`` (str), ``source_snapshot_hash`` (str),
+      ``content_hash`` (str | None),
+      ``recommended_scheme_code`` (str | None),
+      ``requires_review`` (bool), ``warning_messages`` (tuple[str, ...]).
+    """
+
+    # Runtime identity (raw artifact only)
+    run_id: str
+    created_at: datetime  # type: ignore[name-defined]  # noqa: F821
+    completed_at: datetime | None  # type: ignore[name-defined]  # noqa: F821
+    database_backend: str
+
+    # Persisted production source identity
+    source_mode: str
+    source_binding_id: str
+    source_contract_version: str
+    weight_set_revision_id: str
+    weight_set_content_hash: str
+    weight_set_generator_compatibility_version: str
+    combined_source_hash: str
+    binding_schema_version: str
+    execution_snapshot_id: str
+    coefficient_context_id: str
+    orchestration_identity_id: str
+    authoritative_attempt_id: str
+    orchestration_fingerprint: str
+
+    # Persisted calculation lineage (5 stages)
+    zone_calculation_id: str
+    cooling_load_calculation_id: str
+    equipment_calculation_id: str
+    power_calculation_id: str
+    investment_calculation_id: str
+
+    # Persisted result hashes (5 stages)
+    zone_result_hash: str
+    cooling_load_result_hash: str
+    equipment_result_hash: str
+    power_result_hash: str
+    investment_result_hash: str
+
+    # Persisted snapshot columns (JSON)
+    input_snapshot: dict[str, object]
+    assumption_snapshot: dict[str, object]
+    comparison_snapshot: dict[str, object]
+    candidates_snapshot: dict[str, object]
+
+    # Other persisted production fields
+    project_id: str
+    project_version_id: str
+    weight_set_id: str
+    status: str
+    generator_version: str
+    source_snapshot_hash: str
+    content_hash: str | None
+    recommended_scheme_code: str | None
+    requires_review: bool
+    warning_messages: tuple[str, ...]
+
+
+def read_c2_baseline_projection(
+    session_factory: _Callable[[], object],
+    *,
+    run_id: str,
+) -> C2BaselineProjectionSource:
+    """Read a persisted production record by exact ``run_id`` and return a frozen typed projection.
+
+    The function is the AUTHORIZED Round 3 C-2 read boundary
+    (comment 4974759224). It is the ONLY addition allowed inside the
+    adapter module by the Round 3 amendment. The function:
+
+    * queries the exact production row by primary key
+      (no latest / first / fallback / scenario_id-derived lookup);
+    * reads each production-required column by explicit
+      ``getattr(record, col)`` (no ``vars`` / ``__dict__`` /
+      ``_sa_instance_state`` / generic reflection);
+    * fails closed with :class:`MissingC2ProductionField` if any
+      production-required column is None or missing;
+    * fails closed with :class:`AdapterInputError` if the row is
+      not found (the function does NOT fall back to any other row);
+    * fails closed with :class:`AdapterInputError` if
+      ``record.source_mode != "production"`` (legacy rows are
+      out-of-scope for the C-2 normalized business projection);
+    * does NOT write, commit, flush, create, mutate, or approve;
+    * returns a frozen :class:`C2BaselineProjectionSource` value
+      object (the ORM row itself is not exposed).
+
+    Parameters
+    ----------
+    session_factory:
+        Zero-arg callable returning a SQLAlchemy ``Session`` (or
+        any object exposing ``.execute(stmt)`` and the
+        ``with`` context-manager protocol). The session is opened
+        and closed inside the function (no caller-side session
+        lifecycle).
+    run_id:
+        The exact persisted ``SchemeRunRecord.id`` value. The
+        function rejects empty / non-string values at the input
+        boundary.
+
+    Returns
+    -------
+    C2BaselineProjectionSource
+        The frozen typed projection. The carrier does NOT carry
+        the ORM row; downstream code consumes the fields by
+        attribute access.
+    """
+    if not isinstance(run_id, str) or not run_id.strip():
+        raise AdapterInputError(
+            "read_c2_baseline_projection requires a non-empty run_id string.",
+        )
+    if session_factory is None:
+        raise AdapterInputError(
+            "read_c2_baseline_projection requires a session_factory; "
+            "the C-2 read boundary is fail-closed on a None factory.",
+        )
+
+    # Lazy imports — the adapter module is allowed to touch
+    # ``sqlalchemy`` / ``SchemeRunRecord`` ONLY inside the read
+    # boundary; the existing adapter body (A1-2a surface) is
+    # unchanged.
+    from sqlalchemy import select as _sa_select
+
+    from cold_storage.modules.schemes.infrastructure.orm import (
+        SchemeRunRecord as _SchemeRunRecord,
+    )
+
+    with session_factory() as _session:  # type: ignore[attr-defined]
+        _record = _session.execute(
+            _sa_select(_SchemeRunRecord).where(_SchemeRunRecord.id == run_id)
+        ).scalar_one_or_none()
+
+    if _record is None:
+        # The function NEVER falls back to another row; an unknown
+        # ``run_id`` is a typed boundary violation.
+        raise AdapterInputError(
+            f"read_c2_baseline_projection: no SchemeRunRecord found for "
+            f"run_id={run_id!r}; the C-2 read boundary "
+            "fails closed and does NOT fall back to any other row.",
+        )
+
+    # Per-Round 3 authority: the C-2 normalized business projection
+    # only applies to production-source rows. Legacy rows
+    # (``source_mode == 'legacy'``) intentionally have null
+    # production-source columns; a legacy row is NOT a valid input
+    # for the frozen baseline projection.
+    _source_mode = getattr(_record, "source_mode", None)
+    if _source_mode != "production":
+        raise AdapterInputError(
+            f"read_c2_baseline_projection: run_id={run_id!r} "
+            f"has source_mode={_source_mode!r}; the C-2 normalized "
+            "business projection requires source_mode='production'.",
+        )
+
+    # Assert all production-required columns are non-None. The
+    # explicit per-column check makes the failure path searchable
+    # and avoids any silent stringification (no ``str(record.x)``,
+    # no ``vars()``, no ORM reflection).
+    _missing: list[str] = []
+    for _col in _C2_REQUIRED_PRODUCTION_COLUMNS:
+        _val = getattr(_record, _col, None)
+        if _val is None:
+            _missing.append(_col)
+    if _missing:
+        raise MissingC2ProductionField(
+            f"read_c2_baseline_projection: run_id={run_id!r} "
+            f"is missing required production columns: {_missing!r}. The "
+            "C-2 read boundary fails closed and does NOT silently "
+            "coerce None to a placeholder.",
+        )
+
+    # Read all 30+ fields by explicit attribute access. The fields
+    # are grouped below; each ``getattr`` is the typed read.
+    def _opt_str(_record: object, _attr: str) -> str | None:
+        _v = getattr(_record, _attr)
+        if _v is None:
+            return None
+        return str(_v)
+
+    return C2BaselineProjectionSource(
+        # Runtime identity
+        run_id=str(_record.id),
+        created_at=_record.created_at,
+        completed_at=_record.completed_at,
+        database_backend=str(_record.database_backend),
+        # Persisted production source identity
+        source_mode=str(_record.source_mode),
+        source_binding_id=str(_record.source_binding_id),
+        source_contract_version=str(_record.source_contract_version),
+        weight_set_revision_id=str(_record.weight_set_revision_id),
+        weight_set_content_hash=str(_record.weight_set_content_hash),
+        weight_set_generator_compatibility_version=str(
+            _record.weight_set_generator_compatibility_version
+        ),
+        combined_source_hash=str(_record.combined_source_hash),
+        binding_schema_version=str(_record.binding_schema_version),
+        execution_snapshot_id=str(_record.execution_snapshot_id),
+        coefficient_context_id=str(_record.coefficient_context_id),
+        orchestration_identity_id=str(_record.orchestration_identity_id),
+        authoritative_attempt_id=str(_record.authoritative_attempt_id),
+        orchestration_fingerprint=str(_record.orchestration_fingerprint),
+        # Persisted calculation lineage
+        zone_calculation_id=str(_record.zone_calculation_id),
+        cooling_load_calculation_id=str(_record.cooling_load_calculation_id),
+        equipment_calculation_id=str(_record.equipment_calculation_id),
+        power_calculation_id=str(_record.power_calculation_id),
+        investment_calculation_id=str(_record.investment_calculation_id),
+        # Persisted result hashes
+        zone_result_hash=str(_record.zone_result_hash),
+        cooling_load_result_hash=str(_record.cooling_load_result_hash),
+        equipment_result_hash=str(_record.equipment_result_hash),
+        power_result_hash=str(_record.power_result_hash),
+        investment_result_hash=str(_record.investment_result_hash),
+        # Persisted snapshot columns
+        input_snapshot=dict(_record.input_snapshot or {}),
+        assumption_snapshot=dict(_record.assumption_snapshot or {}),
+        comparison_snapshot=dict(_record.comparison_snapshot or {}),
+        # ``candidates_snapshot`` is a JSON column that the
+        # production service may store as either a list or
+        # a dict. The C-2 boundary preserves the shape
+        # verbatim (no implicit coercion); the projection
+        # layer downstream normalizes the list-vs-dict
+        # difference as needed.
+        candidates_snapshot=_record.candidates_snapshot or {},
+        # Other persisted production fields
+        project_id=str(_record.project_id),
+        project_version_id=str(_record.project_version_id),
+        weight_set_id=str(_record.weight_set_id),
+        status=str(_record.status),
+        generator_version=str(_record.generator_version),
+        source_snapshot_hash=str(_record.source_snapshot_hash),
+        content_hash=_opt_str(_record, "content_hash"),
+        recommended_scheme_code=_opt_str(_record, "recommended_scheme_code"),
+        requires_review=bool(_record.requires_review),
+        warning_messages=tuple(_record.warning_messages or ()),
+    )
+
+
 __all__ = [
     "AdapterInputError",
     "AdapterResult",
+    "C2BaselineProjectionSource",
+    "MissingC2ProductionField",
     "execute_scenario",
+    "read_c2_baseline_projection",
 ]
