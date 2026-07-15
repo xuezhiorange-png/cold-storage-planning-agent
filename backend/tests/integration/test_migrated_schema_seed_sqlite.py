@@ -586,9 +586,24 @@ class TestMigratedSchemaConflictClassification:
             t1.join(timeout=10)
             t2.join(timeout=10)
 
-            # Exactly one must succeed
+            # Exactly one must succeed.
+            # The losing thread may surface its conflict as either the
+            # adapter's typed ``WeightRevisionGovernanceError`` (raised
+            # inside the adapter's ``begin_nested()`` savepoint) or as a
+            # ``sqlalchemy.exc.IntegrityError`` re-raised by the outer
+            # session commit when the savepoint is rolled back. Both
+            # represent the same authority-unique-conflict state, so the
+            # loser predicate must accept either class.
+            from sqlalchemy import exc as _sa_exc
+
+            def _is_loser(exc: BaseException) -> bool:
+                return isinstance(
+                    exc,
+                    (WeightRevisionGovernanceError, _sa_exc.IntegrityError),
+                )
+
             succeeded = [k for k, v in results.items() if v is True]
-            failed = [k for k, v in errors.items() if isinstance(v, WeightRevisionGovernanceError)]
+            failed = [k for k, v in errors.items() if _is_loser(v)]
             assert len(succeeded) + len(failed) == 2, (
                 f"Expected one success and one failure, got "
                 f"succeeded={succeeded}, failed={failed}, "
