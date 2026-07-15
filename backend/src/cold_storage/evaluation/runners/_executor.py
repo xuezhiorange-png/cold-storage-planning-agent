@@ -472,9 +472,7 @@ def build_baseline_normalized_business_projection(
                 "the frozen contract requires a list.",
                 details={
                     "keys": (
-                        list(candidates_snap.keys())
-                        if isinstance(candidates_snap, dict)
-                        else None
+                        list(candidates_snap.keys()) if isinstance(candidates_snap, dict) else None
                     ),
                 },
             )
