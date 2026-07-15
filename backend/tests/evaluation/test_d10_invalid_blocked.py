@@ -1586,3 +1586,253 @@ def test_d10_zero_row_delta_and_summary_last_db_backed(
         f"the orchestration-run-attempts table; "
         f"before={before_attempt} after={after_attempt}"
     )
+
+
+# ── Round 5 §9.1: full managed-artifact write order (SQLite).
+# The D10 zero-row-delta tests above prove
+# ``invalid_blocked`` does not add rows; the Round 5
+# full-artifact-order test proves the EXACT event
+# sequence for a BOTH-scenario manifest
+# (``baseline_feasible`` + ``invalid_blocked``):
+#
+#   json   <run>/baseline_feasible/raw/baseline_feasible.json
+#   bytes  <run>/baseline_feasible/normalized/baseline_feasible.json
+#   json   <run>/baseline_feasible/run.json
+#   json   <run>/invalid_blocked/run.json
+#   json   <run>/summary.json
+#
+# The summary MUST be the final event. The normalized
+# artifact MUST use the bytes writer (not json).
+# No managed write may occur after the summary.
+# ``mtime`` is NOT a completion authority; the recorder
+# is.
+
+
+def test_c2_r5_full_managed_artifact_event_sequence_sqlite(
+    a1_engine: Any,
+    a1_session_factory: Any,
+) -> None:
+    """Round 5 §9.1: full five-artifact-order test
+    (SQLite).
+
+    Asserts the EXACT event sequence
+    ``baseline_feasible`` SUCCEEDED + ``invalid_blocked``
+    INVALID_INPUT:
+
+    1. ``json <run>/baseline_feasible/raw/baseline_feasible.json``
+    2. ``bytes <run>/baseline_feasible/normalized/baseline_feasible.json``
+    3. ``json <run>/baseline_feasible/run.json``
+    4. ``json <run>/invalid_blocked/run.json``
+    5. ``json <run>/summary.json``
+
+    Asserts the summary is the final event, written
+    exactly once, with no managed write after it. Asserts
+    the normalized artifact used the bytes writer
+    (not json). Asserts all five artifacts exist on
+    disk.
+
+    The baseline scenario's D10-equivalent zero-row-delta
+    assertion is NOT re-checked here (it is asserted in
+    the existing D10 test above for the ``invalid_blocked``
+    path; the baseline scenario's persistence is part of
+    the production orchestration path, NOT the
+    evaluation runner's own writes).
+    """
+    from pathlib import Path as _Path
+
+    from cold_storage.evaluation import evaluate as _evaluate_mod
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+    from cold_storage.evaluation.models import (
+        DatabaseBackend,
+        ExpectedErrorAssertion,
+        ExpectedOutcome,
+        ExpectedOutputRef,
+        Manifest,
+        ScenarioDeclaration,
+    )
+    from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+    # 1. Seed pre-existing production context (the
+    # baseline scenario needs a real A1 prereq set to
+    # run end-to-end).
+    seed_s = a1_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 2. Copy the frozen baseline golden into a
+    # temporary ``manifest_root`` so the runner can
+    # find it (the runner reads the golden from
+    # ``manifest_root``/data/expected/<scenario>.json).
+    with tempfile.TemporaryDirectory() as tmp_root:
+        root = Path(tmp_root).resolve()
+        manifest_root = root / "manifest"
+        manifest_root.mkdir(parents=True, exist_ok=True)
+        # The frozen baseline golden lives under
+        # ``backend/tests/evaluation/data/expected``.
+        # We need to copy it so the runner's manifest
+        # resolution picks it up. The path
+        # ``manifest_root / 'data' / 'expected' / 'baseline_feasible.v1.json'``
+        # is the documented resolution root.
+        _golden_src = (
+            Path(__file__).resolve().parent / "data" / "expected" / "baseline_feasible.v1.json"
+        )
+        _golden_dst_dir = manifest_root / "data" / "expected"
+        _golden_dst_dir.mkdir(parents=True, exist_ok=True)
+        _golden_dst = _golden_dst_dir / "baseline_feasible.v1.json"
+        _golden_dst.write_text(_golden_src.read_text())
+
+        # 3. The WriteEventRecorder wraps BOTH atomic
+        # writers (json + bytes); it delegates to the
+        # original writer (no fakes, no short-circuits).
+
+        class _WriteEventRecorder:
+            def __init__(self) -> None:
+                self.events: list[tuple[str, str]] = []
+
+            def record(self, kind: str, path: _Path) -> None:
+                self.events.append((kind, str(path)))
+
+        _recorder = _WriteEventRecorder()
+        _orig_write_json = _evaluate_mod._atomic_write_json
+        _orig_write_bytes = _evaluate_mod._atomic_write_bytes
+
+        def _wrapped_write_json(*, path: _Path, data: Any) -> None:
+            _recorder.record("json", path)
+            _orig_write_json(path=path, data=data)
+
+        def _wrapped_write_bytes(*, path: _Path, data: bytes) -> None:
+            _recorder.record("bytes", path)
+            _orig_write_bytes(path=path, data=data)
+
+        _evaluate_mod._atomic_write_json = _wrapped_write_json
+        _evaluate_mod._atomic_write_bytes = _wrapped_write_bytes
+        try:
+            manifest = Manifest(
+                schema_version="1.0",
+                suite_id="c2-round5-full-artifact-order-sqlite",
+                scenarios=(
+                    ScenarioDeclaration(
+                        scenario_id="baseline_feasible",
+                        database_backend=DatabaseBackend.SQLITE,
+                        expected_outcome=ExpectedOutcome.SUCCEEDED,
+                        expected_output=ExpectedOutputRef(
+                            scenario_id="baseline_feasible",
+                            path="data/expected/baseline_feasible.v1.json",
+                            expected_outcome=ExpectedOutcome.SUCCEEDED,
+                        ),
+                    ),
+                    ScenarioDeclaration(
+                        scenario_id="invalid_blocked",
+                        database_backend=DatabaseBackend.SQLITE,
+                        expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                        expected_output=ExpectedOutputRef(
+                            scenario_id="invalid_blocked",
+                            path=None,
+                            expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                            expected_error=ExpectedErrorAssertion(
+                                exception_type="InvalidProjectInputError",
+                                code="PROJ_INPUT_INVALID",
+                                field="total_area_m2",
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            run_root = root / "run"
+            result = evaluate_manifest(
+                manifest=manifest,
+                manifest_root=manifest_root,
+                root=run_root,
+                # The SUCCEEDED ``baseline_feasible`` scenario
+                # requires a real session factory; the
+                # ``invalid_blocked`` D10 path does NOT
+                # (its outcome is determined by the typed
+                # exception match).
+                session_factory=a1_session_factory,
+            )
+            if result.evaluation_result_overall.value != "pass":
+                # Debug aid: print the actual scenario
+                # outcomes before re-raising.
+                print("\n=== Full-artifact-order debug ===")
+                for _sc in result.scenarios:
+                    print(
+                        f"  scenario_id={_sc.scenario_id} "
+                        f"actual_outcome={_sc.actual_outcome!r} "
+                        f"evaluation_result={_sc.evaluation_result!r} "
+                        f"diff_summary={_sc.diff_summary!r}"
+                    )
+                print("=== End debug ===")
+            assert result.evaluation_result_overall.value == "pass", (
+                f"Full-artifact-order: suite overall MUST be pass; "
+                f"got {result.evaluation_result_overall!r}; "
+                f"scenarios={[s.actual_outcome for s in result.scenarios]!r}"
+            )
+            # baseline scenario=pass / SUCCEEDED
+            assert result.scenarios[0].evaluation_result.value == "pass"
+            assert result.scenarios[0].actual_outcome == "SUCCEEDED"
+            # invalid scenario=pass / INVALID_INPUT
+            assert result.scenarios[1].evaluation_result.value == "pass"
+            assert result.scenarios[1].actual_outcome == "INVALID_INPUT"
+        finally:
+            _evaluate_mod._atomic_write_json = _orig_write_json
+            _evaluate_mod._atomic_write_bytes = _orig_write_bytes
+
+        # 4. Assert the exact five-event sequence.
+        # Resolve run_root from the result (post-close).
+        expected_paths = [
+            str(run_root / "baseline_feasible" / "raw" / "baseline_feasible.json"),
+            str(run_root / "baseline_feasible" / "normalized" / "baseline_feasible.json"),
+            str(run_root / "baseline_feasible" / "run.json"),
+            str(run_root / "invalid_blocked" / "run.json"),
+            str(run_root / "summary.json"),
+        ]
+        expected_kinds = ["json", "bytes", "json", "json", "json"]
+        actual = _recorder.events
+        # The recorder may have additional intra-scenario
+        # events; assert the FIVE expected events appear
+        # in the documented order. Find the first match
+        # for each.
+        matched_idx: list[int] = []
+        j = 0
+        for i, (kind, path) in enumerate(actual):
+            if j < len(expected_kinds) and kind == expected_kinds[j] and path == expected_paths[j]:
+                matched_idx.append(i)
+                j += 1
+            if j == len(expected_kinds):
+                break
+        assert j == len(expected_kinds), (
+            f"Full-artifact-order: expected {len(expected_kinds)} ordered events "
+            f"{list(zip(expected_kinds, expected_paths, strict=True))!r}; "
+            f"got matched {j}; full events: {actual!r}"
+        )
+        assert matched_idx == sorted(matched_idx), (
+            f"Full-artifact-order: matched events MUST be in strictly ascending order; "
+            f"got matched_idx={matched_idx}"
+        )
+        # 5. The summary MUST be the FINAL event.
+        assert matched_idx[-1] == len(actual) - 1, (
+            f"Full-artifact-order: summary.json MUST be the final managed write; "
+            f"summary event index={matched_idx[-1]}, total events={len(actual)}, "
+            f"trailing event={actual[-1]!r}"
+        )
+        # 6. The summary MUST be written exactly once.
+        summary_events = [e for e in actual if e[1] == expected_paths[-1]]
+        assert len(summary_events) == 1, (
+            f"Full-artifact-order: summary.json MUST be written exactly once; "
+            f"got {len(summary_events)} writes"
+        )
+        # 7. The normalized artifact MUST use the bytes writer.
+        normalized_event = next((e for e in actual if e[1] == expected_paths[1]), None)
+        assert normalized_event is not None
+        assert normalized_event[0] == "bytes", (
+            f"Full-artifact-order: normalized artifact MUST use the bytes writer; "
+            f"got kind={normalized_event[0]!r}"
+        )
+        # 8. All five artifacts MUST exist on disk.
+        # Check existence INSIDE the
+        # ``with tempfile.TemporaryDirectory()`` block —
+        # the tempdir is deleted when the with exits.
+        for p in expected_paths:
+            assert Path(p).exists(), f"Full-artifact-order: artifact {p!r} MUST exist on disk"

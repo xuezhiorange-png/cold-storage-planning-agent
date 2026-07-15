@@ -552,52 +552,13 @@ def read_c2_baseline_projection(
         SchemeRunRecord as _SchemeRunRecord,
     )
 
-    with session_factory() as _session:  # type: ignore[attr-defined]
-        _record = _session.execute(
-            _sa_select(_SchemeRunRecord).where(_SchemeRunRecord.id == run_id)
-        ).scalar_one_or_none()
-
-    if _record is None:
-        # The function NEVER falls back to another row; an unknown
-        # ``run_id`` is a typed boundary violation.
-        raise AdapterInputError(
-            f"read_c2_baseline_projection: no SchemeRunRecord found for "
-            f"run_id={run_id!r}; the C-2 read boundary "
-            "fails closed and does NOT fall back to any other row.",
-        )
-
-    # Per-Round 3 authority: the C-2 normalized business projection
-    # only applies to production-source rows. Legacy rows
-    # (``source_mode == 'legacy'``) intentionally have null
-    # production-source columns; a legacy row is NOT a valid input
-    # for the frozen baseline projection.
-    _source_mode = getattr(_record, "source_mode", None)
-    if _source_mode != "production":
-        raise AdapterInputError(
-            f"read_c2_baseline_projection: run_id={run_id!r} "
-            f"has source_mode={_source_mode!r}; the C-2 normalized "
-            "business projection requires source_mode='production'.",
-        )
-
-    # Assert all production-required columns are non-None using
-    # STRICT typed validators. The validators reject any silent
-    # stringification / truthiness conversion (no ``str(x)``,
-    # no ``bool(x)``, no ``x or default``). A null production
-    # column is a typed boundary violation.
-    _missing: list[str] = []
-    for _col in _C2_REQUIRED_PRODUCTION_COLUMNS:
-        _val = getattr(_record, _col, None)
-        if _val is None:
-            _missing.append(_col)
-    if _missing:
-        raise MissingC2ProductionField(
-            f"read_c2_baseline_projection: run_id={run_id!r} "
-            f"is missing required production columns: {_missing!r}. The "
-            "C-2 read boundary fails closed and does NOT silently "
-            "coerce None to a placeholder.",
-        )
-
-    # ── Strict typed validators (Round 4 §5) ────────────────────────
+    # Read the record + the cross-backend bool verify INSIDE the
+    # same ``with`` block. The session stays open so the verify
+    # query (``typeof()`` on SQLite, ``pg_typeof()`` on
+    # PostgreSQL) runs in the SAME read transaction as the
+    # primary record read (Round 5 §6.5: no second session; no
+    # row-vanished race).
+    # ── Strict typed validators (Round 4 §5 / Round 5 §6 + §7) ──────
     # Each validator enforces the exact Python type expected by the
     # C-2 contract. ``bool`` is a subclass of ``int``, so a strict
     # boolean check uses ``type(v) is bool`` (not ``isinstance(v,
@@ -605,14 +566,16 @@ def read_c2_baseline_projection(
     # silently pass a truthiness check. The validators raise
     # :class:`MissingC2ProductionField` so the runner fails closed
     # with a searchable failure path.
+    #
+    # Round 5 §7 splits the required-vs-optional string validator
+    # into two SEPARATE functions; ``# type: ignore[return-value]``
+    # masking is REMOVED. The optional validator returns a real
+    # ``str | None``; the required validator returns a real
+    # ``str`` and raises typed failure on None.
 
-    def _require_non_empty_str(
-        _record: object, _attr: str, *, allow_none: bool = False
-    ) -> str:
+    def _require_non_empty_str(_record: object, _attr: str) -> str:
         _v = getattr(_record, _attr)
         if _v is None:
-            if allow_none:
-                return None  # type: ignore[return-value]
             raise MissingC2ProductionField(
                 f"read_c2_baseline_projection: required str field {_attr!r} "
                 f"is None on run_id={run_id!r}; the C-2 read boundary "
@@ -628,69 +591,31 @@ def read_c2_baseline_projection(
             )
         return _v
 
-    def _require_exact_bool(_record: object, _attr: str) -> bool:
-        """Require a strict ``bool`` value.
+    def _require_optional_non_empty_str(_record: object, _attr: str) -> str | None:
+        """Optional ``str | None`` validator (Round 5 §7).
 
-        Per Round 4 §5.2: the C-2 boundary must reject
-        ``requires_review`` stored as 0 / 1 / string. The
-        Python-side check is ``type(v) is bool`` (NOT
-        ``isinstance(v, bool)`` for ints — ``bool`` is
-        an ``int`` subclass). Additionally, the boundary
-        performs a raw SQL type check via ``typeof()``
-        to defeat SQLAlchemy's ``Boolean`` column type
-        coercion, which silently converts int 0/1 (or
-        any truthy text) to a Python ``bool`` on read.
+        * ``None`` → returns ``None``
+        * non-empty ``str`` → returns the same string
+        * empty ``str`` → typed boundary failure (no silent ``''``)
+        * non-``str`` (incl. bool, int, dict, list) → typed failure
         """
         _v = getattr(_record, _attr)
-        if type(_v) is not bool:
+        if _v is None:
+            return None
+        if not isinstance(_v, str):
             raise MissingC2ProductionField(
-                f"read_c2_baseline_projection: required bool field {_attr!r} "
-                f"is not an exact bool on run_id={run_id!r} "
+                f"read_c2_baseline_projection: optional str field {_attr!r} "
+                f"is not a str on run_id={run_id!r} "
                 f"(actual type={type(_v).__name__}, value={_v!r}); "
-                "the C-2 read boundary fails closed and does NOT silently "
-                "apply bool() coercion.",
+                "the C-2 read boundary fails closed and does NOT "
+                "silently apply str() coercion.",
             )
-        # ── Defeat SQLAlchemy's ``Boolean`` column coercion ──
-        # The Python value is already a bool (SQLAlchemy
-        # converted int/str). To detect the underlying DB
-        # type, do a raw ``typeof()`` query. If the
-        # original column is NOT a numeric 0/1 (e.g. it's
-        # a text 'true'), the strict boundary MUST reject.
-        # The query uses the live record's primary key so
-        # it is exact and side-effect free.
-        try:
-            from sqlalchemy import text as _sa_text
-
-            with session_factory() as _verify_session:  # type: ignore[attr-defined]
-                _raw = _verify_session.execute(
-                    _sa_text("SELECT typeof(" + _attr + ") FROM scheme_runs WHERE id = :i"),
-                    {"i": run_id},
-                ).scalar_one_or_none()
-        except Exception:
-            # If the raw type-check query fails (e.g. a
-            # non-SQLite backend or a non-scheme_runs
-            # table), fall back to the Python-side check
-            # (which has already passed).
-            return _v
-        if _raw is None:
-            # The row vanished between the read and the
-            # verify call; this is a race that the
-            # boundary treats as a typed failure.
+        if not _v:
             raise MissingC2ProductionField(
-                f"read_c2_baseline_projection: required bool field {_attr!r} "
-                f"row vanished during typeof() verify on run_id={run_id!r}; "
-                "the C-2 read boundary fails closed.",
-            )
-        if _raw != "integer":
-            # The persisted column is NOT 0/1 (e.g. it's
-            # a text 'true' or any other type). The
-            # strict boundary rejects — a production
-            # ``requires_review`` column MUST be 0 or 1.
-            raise MissingC2ProductionField(
-                f"read_c2_baseline_projection: required bool field {_attr!r} "
-                f"is stored as DB type={_raw!r} (NOT 0/1) on "
-                f"run_id={run_id!r}; the C-2 read boundary fails closed "
-                "and does NOT silently apply SQLite Boolean type affinity.",
+                f"read_c2_baseline_projection: optional str field {_attr!r} "
+                f"is an empty string on run_id={run_id!r}; "
+                "the C-2 read boundary fails closed and does NOT "
+                "silently coerce '' to None.",
             )
         return _v
 
@@ -718,19 +643,18 @@ def read_c2_baseline_projection(
             )
         return _v
 
-    def _require_json_object(
-        _record: object, _attr: str, *, allow_none: bool = False
-    ) -> dict[str, object]:
-        """Require a JSON object (dict). Reject None unless allow_none=True.
+    def _require_json_object(_record: object, _attr: str) -> dict[str, object]:
+        """Require a JSON object (dict). Reject None.
 
         Per Round 4 §5.3 the C-2 boundary REJECTS null snapshot
         columns; a missing snapshot is a typed boundary violation.
-        The function does NOT silently default to ``{}``.
+        The function does NOT silently default to ``{}``. The
+        ``allow_none`` branch was REMOVED in Round 5 §7 because no
+        caller invokes it with ``allow_none=True``; the required
+        snapshots are always fail-closed.
         """
         _v = getattr(_record, _attr)
         if _v is None:
-            if allow_none:
-                return None  # type: ignore[return-value]
             raise MissingC2ProductionField(
                 f"read_c2_baseline_projection: required JSON-object field "
                 f"{_attr!r} is None on run_id={run_id!r}; the C-2 read "
@@ -807,6 +731,201 @@ def read_c2_baseline_projection(
                 )
         return tuple(_v)
 
+    def _verify_persisted_bool(
+        _session: object,
+        _attr: str,
+        _raw_value: object,
+    ) -> bool:
+        """Cross-backend strict boolean verification (Round 5 §6).
+
+        Defeats SQLAlchemy's ``Boolean`` column coercion by issuing
+        a raw, dialect-specific type check on the same read
+        transaction. The function is the SINGLE typed boundary
+        failure path for ``requires_review`` and any other strict
+        boolean column. It does NOT swallow exceptions; any
+        verification failure is converted to a typed boundary
+        error with the original exception preserved as ``__cause__``.
+
+        * SQLite branch — uses ``typeof(<col>)`` and the raw
+          integer value. The persisted column MUST be
+          ``typeof == 'integer'`` AND the raw value MUST be
+          exactly ``0`` or ``1``. Anything else (NULL, text
+          'true'/'false', integer 2/-1, real, blob, row
+          missing, multiple rows) is a typed boundary failure.
+        * PostgreSQL branch — uses ``pg_typeof(<col>)`` and the
+          Python type of the returned value. The persisted
+          column MUST be ``pg_typeof == 'boolean'`` AND the
+          Python value MUST be exactly ``bool``. The
+          PostgreSQL schema itself rejects non-boolean
+          persistence at the database layer; this branch
+          treats the schema guarantee as DB-layer evidence
+          and re-asserts it at the boundary.
+        * Unknown dialect — typed boundary failure (the
+          function does NOT default to SQLite or PostgreSQL).
+        """
+        if type(_raw_value) is not bool:
+            raise MissingC2ProductionField(
+                f"read_c2_baseline_projection: required bool field {_attr!r} "
+                f"is not an exact bool on run_id={run_id!r} "
+                f"(actual type={type(_raw_value).__name__}, value={_raw_value!r}); "
+                "the C-2 read boundary fails closed and does NOT silently "
+                "apply bool() coercion.",
+            )
+        # Resolve the dialect from the SAME session that
+        # produced the record. The verify query is issued
+        # inside the same read transaction so the row
+        # cannot vanish between the read and the verify
+        # call.
+        _bind = _session.get_bind()  # type: ignore[attr-defined]
+        _dialect_name = _bind.dialect.name
+        if _dialect_name == "sqlite":
+            try:
+                from sqlalchemy import text as _sa_text
+
+                _row = _session.execute(  # type: ignore[attr-defined]
+                    _sa_text(
+                        "SELECT typeof(" + _attr + "), " + _attr + " FROM scheme_runs WHERE id = :i"
+                    ),
+                    {"i": run_id},
+                ).one_or_none()
+            except Exception as _exc:
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: unexpected error during "
+                    f"SQLite typeof() verify on bool field {_attr!r} for "
+                    f"run_id={run_id!r}; the C-2 read boundary fails closed "
+                    f"and does NOT swallow database verification errors."
+                ) from _exc
+            if _row is None:
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: required bool field "
+                    f"{_attr!r} row vanished during typeof() verify on "
+                    f"run_id={run_id!r}; the C-2 read boundary fails closed.",
+                )
+            _raw_type, _raw_int = _row
+            if _raw_type != "integer":
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: required bool field "
+                    f"{_attr!r} is stored as SQLite typeof={_raw_type!r} "
+                    f"(NOT integer 0/1) on run_id={run_id!r}; the C-2 read "
+                    "boundary fails closed and does NOT silently apply "
+                    "SQLite Boolean type affinity.",
+                )
+            if _raw_int not in (0, 1):
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: required bool field "
+                    f"{_attr!r} is stored as integer value={_raw_int!r} "
+                    f"(NOT exactly 0 or 1) on run_id={run_id!r}; the C-2 "
+                    "read boundary fails closed — values like 2 / -1 / "
+                    "any non-{0,1} integer are rejected.",
+                )
+            return _raw_value
+        if _dialect_name == "postgresql":
+            try:
+                from sqlalchemy import text as _sa_text
+
+                _row = _session.execute(  # type: ignore[attr-defined]
+                    _sa_text(
+                        "SELECT pg_typeof(" + _attr + ")::text, " + _attr + " "
+                        "FROM scheme_runs WHERE id = :i"
+                    ),
+                    {"i": run_id},
+                ).one_or_none()
+            except Exception as _exc:
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: unexpected error during "
+                    f"PostgreSQL pg_typeof() verify on bool field "
+                    f"{_attr!r} for run_id={run_id!r}; the C-2 read "
+                    f"boundary fails closed and does NOT swallow database "
+                    f"verification errors."
+                ) from _exc
+            if _row is None:
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: required bool field "
+                    f"{_attr!r} row vanished during pg_typeof() verify on "
+                    f"run_id={run_id!r}; the C-2 read boundary fails closed.",
+                )
+            _pg_type, _pg_value = _row
+            if _pg_type != "boolean":
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: required bool field "
+                    f"{_attr!r} is stored as PostgreSQL pg_typeof="
+                    f"{_pg_type!r} (NOT boolean) on run_id={run_id!r}; the "
+                    "C-2 read boundary fails closed.",
+                )
+            if type(_pg_value) is not bool:
+                raise MissingC2ProductionField(
+                    f"read_c2_baseline_projection: required bool field "
+                    f"{_attr!r} PostgreSQL value has Python type="
+                    f"{type(_pg_value).__name__} (NOT bool) on "
+                    f"run_id={run_id!r}; the C-2 read boundary fails closed.",
+                )
+            return _raw_value
+        # Unknown dialect — typed boundary failure. The
+        # function does NOT default to SQLite or PostgreSQL.
+        raise MissingC2ProductionField(
+            f"read_c2_baseline_projection: unsupported dialect="
+            f"{_dialect_name!r} on bool field {_attr!r} for run_id="
+            f"{run_id!r}; the C-2 read boundary only supports "
+            "'sqlite' and 'postgresql' and fails closed on any other "
+            "dialect.",
+        )
+
+    with session_factory() as _session:  # type: ignore[attr-defined]
+        _record = _session.execute(
+            _sa_select(_SchemeRunRecord).where(_SchemeRunRecord.id == run_id)
+        ).scalar_one_or_none()
+
+        if _record is None:
+            # The function NEVER falls back to another row; an unknown
+            # ``run_id`` is a typed boundary violation.
+            raise AdapterInputError(
+                f"read_c2_baseline_projection: no SchemeRunRecord found for "
+                f"run_id={run_id!r}; the C-2 read boundary "
+                "fails closed and does NOT fall back to any other row.",
+            )
+
+        # Pre-verify the strict bool fields using the live
+        # session. Each pre-verify call returns the verified
+        # ``bool`` value; downstream validators consume the
+        # returned value (not the ORM attribute). The pre-verify
+        # is the ONLY place the cross-backend dialect
+        # branching happens — it never silently falls back
+        # to a Python-side check on dialect mismatch.
+        _verified_requires_review = _verify_persisted_bool(
+            _session, "requires_review", _record.requires_review
+        )
+
+    # Per-Round 3 authority: the C-2 normalized business projection
+    # only applies to production-source rows. Legacy rows
+    # (``source_mode == 'legacy'``) intentionally have null
+    # production-source columns; a legacy row is NOT a valid input
+    # for the frozen baseline projection.
+    _source_mode = getattr(_record, "source_mode", None)
+    if _source_mode != "production":
+        raise AdapterInputError(
+            f"read_c2_baseline_projection: run_id={run_id!r} "
+            f"has source_mode={_source_mode!r}; the C-2 normalized "
+            "business projection requires source_mode='production'.",
+        )
+
+    # Assert all production-required columns are non-None using
+    # STRICT typed validators. The validators reject any silent
+    # stringification / truthiness conversion (no ``str(x)``,
+    # no ``bool(x)``, no ``x or default``). A null production
+    # column is a typed boundary violation.
+    _missing: list[str] = []
+    for _col in _C2_REQUIRED_PRODUCTION_COLUMNS:
+        _val = getattr(_record, _col, None)
+        if _val is None:
+            _missing.append(_col)
+    if _missing:
+        raise MissingC2ProductionField(
+            f"read_c2_baseline_projection: run_id={run_id!r} "
+            f"is missing required production columns: {_missing!r}. The "
+            "C-2 read boundary fails closed and does NOT silently "
+            "coerce None to a placeholder.",
+        )
+
     # ── Build the C-2 source by explicit typed reads (NO silent coercion) ──
     return C2BaselineProjectionSource(
         # Runtime identity
@@ -862,10 +981,8 @@ def read_c2_baseline_projection(
         # coming from production; the boundary rejects None
         # BEFORE the dataclass is constructed.
         content_hash=_require_non_empty_str(_record, "content_hash"),
-        recommended_scheme_code=_require_non_empty_str(
-            _record, "recommended_scheme_code", allow_none=True
-        ),
-        requires_review=_require_exact_bool(_record, "requires_review"),
+        recommended_scheme_code=_require_optional_non_empty_str(_record, "recommended_scheme_code"),
+        requires_review=_verified_requires_review,
         warning_messages=_require_string_array(_record, "warning_messages"),
     )
 
