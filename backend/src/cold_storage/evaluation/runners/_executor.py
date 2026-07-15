@@ -440,68 +440,178 @@ def build_baseline_normalized_business_projection(
         source_snapshot_hashes[stage] = getattr(source, attr)
 
     # Build production_outputs sub-fields from the persisted
-    # snapshot columns. A missing field raises typed error
-    # (no silent backfill from the golden).
-    input_snap = source.input_snapshot or {}
-    candidates_snap = source.candidates_snapshot or {}
-
-    # Candidates must be a list; the frozen contract requires a
-    # candidates_snapshot that is indexable. The C-2 boundary
-    # fails closed if the shape does not match.
-    if not isinstance(candidates_snap, dict) and not isinstance(candidates_snap, list):
+    # snapshot columns. A missing required leaf raises a typed
+    # error (no silent backfill, no ``None`` placeholder, no
+    # ``.get(...)``). Per Round 4 §5.3 the projection layer
+    # MUST fail-closed on missing required snapshot leaves.
+    _input_snap = source.input_snapshot
+    if not isinstance(_input_snap, dict):
+        raise UnsupportedProductionProjectionType(
+            "build_baseline_normalized_business_projection: source.input_snapshot "
+            "is not a JSON object; the C-2 boundary fails closed and does NOT "
+            "silently default to {}.",
+            details={"actual_type": type(_input_snap).__name__},
+        )
+    _candidates_snap = source.candidates_snapshot
+    if not isinstance(_candidates_snap, (dict, list)):
         raise UnsupportedProductionProjectionType(
             "build_baseline_normalized_business_projection: candidates_snapshot "
-            "must be a JSON object or array (per the frozen contract).",
-            details={"actual_type": type(candidates_snap).__name__},
+            "is neither a list nor a dict; the C-2 boundary fails closed.",
+            details={"actual_type": type(_candidates_snap).__name__},
         )
-    if not isinstance(candidates_snap, list):
-        # The historical test fixture stores candidates as
-        # ``{"candidates": [...]}``; the production-side
-        # ``candidates_snapshot`` is a JSON column that may be
-        # either a list or an object. The frozen golden's
-        # ``production_outputs.candidates_snapshot`` is a list.
-        # The C-2 boundary tolerates the dict form by extracting
-        # the ``candidates`` key (if present) and rejects any
-        # other dict shape.
-        if isinstance(candidates_snap, dict) and "candidates" in candidates_snap:
-            candidates_snap = candidates_snap["candidates"]  # type: ignore[assignment]
-        else:
+    # The candidates_snapshot historical test fixture uses
+    # ``{"candidates": [...]}``; the production-side canonical
+    # shape is a list. The boundary tolerates both and rejects
+    # other dict shapes.
+    _narrowed: list[object] | None = None
+    if isinstance(_candidates_snap, dict):
+        if "candidates" not in _candidates_snap:
             raise UnsupportedProductionProjectionType(
                 "build_baseline_normalized_business_projection: "
                 "candidates_snapshot is a dict without a 'candidates' key; "
                 "the frozen contract requires a list.",
-                details={
-                    "keys": (
-                        list(candidates_snap.keys()) if isinstance(candidates_snap, dict) else None
-                    ),
-                },
+                details={"keys": list(_candidates_snap.keys())},
             )
-    if not candidates_snap:
+        _narrowed = _candidates_snap["candidates"]  # type: ignore[assignment]
+    elif isinstance(_candidates_snap, list):
+        _narrowed = _candidates_snap
+    if _narrowed is None:
+        # Already rejected above; defensive guard.
+        raise UnsupportedProductionProjectionType(
+            "build_baseline_normalized_business_projection: candidates_snapshot "
+            "is neither a list nor a dict after narrowing; the C-2 boundary "
+            "fails closed.",
+        )
+    _candidates_snap = _narrowed
+    if not _candidates_snap:
         raise UnsupportedProductionProjectionType(
             "build_baseline_normalized_business_projection: candidates_snapshot "
             "is empty; the C-2 boundary fails closed (no silent backfill).",
         )
 
-    c0 = candidates_snap[0]  # type: ignore[index]
-    if not isinstance(c0, dict):
+    _c0 = _candidates_snap[0]
+    if not isinstance(_c0, dict):
         raise UnsupportedProductionProjectionType(
             "build_baseline_normalized_business_projection: candidates_snapshot[0] "
             "is not a JSON object.",
-            details={"actual_type": type(c0).__name__},
+            details={"actual_type": type(_c0).__name__},
         )
-    constraint_results = c0.get("constraint_results")
-    if not isinstance(constraint_results, list):
+    _constraint_results = _c0.get("constraint_results")
+    if not isinstance(_constraint_results, list):
         raise UnsupportedProductionProjectionType(
             "build_baseline_normalized_business_projection: "
             "candidates_snapshot[0].constraint_results is missing or not a list.",
         )
+    if not _constraint_results:
+        raise UnsupportedProductionProjectionType(
+            "build_baseline_normalized_business_projection: "
+            "candidates_snapshot[0].constraint_results is an empty list; "
+            "the frozen contract requires a non-empty array of constraint "
+            "objects. The C-2 boundary fails closed (no silent backfill).",
+        )
 
-    n_pass = sum(1 for c in constraint_results if c.get("passed") is True)
-    n_fail = sum(1 for c in constraint_results if c.get("passed") is False)
-    failed_codes = [
-        c.get("constraint_code") for c in constraint_results if c.get("passed") is False
-    ]
-    expected_failed_code = failed_codes[0] if failed_codes else None
+    # Helper: required-leaf extractor. ``name`` is the
+    # production-side snapshot key the frozen normalized value
+    # carries verbatim. A missing leaf (KeyError) OR a
+    # stored-None leaf (explicit None) is a typed boundary
+    # violation; the function does NOT emit ``None`` into the
+    # normalized projection under any circumstance.
+    def _require_snapshot_leaf(name: str) -> object:
+        if name not in _input_snap:
+            raise UnsupportedProductionProjectionType(
+                f"build_baseline_normalized_business_projection: "
+                f"required snapshot leaf {name!r} is missing from "
+                "input_snapshot; the C-2 boundary fails closed.",
+                details={"missing_field": name},
+            )
+        _leaf = _input_snap[name]
+        if _leaf is None:
+            raise UnsupportedProductionProjectionType(
+                f"build_baseline_normalized_business_projection: "
+                f"required snapshot leaf {name!r} is stored as None; "
+                "the C-2 boundary fails closed (no silent None emission).",
+                details={"null_field": name},
+            )
+        return _leaf
+
+    # Helper: persisted dict reader — reject None.
+    def _require_persisted_dict(_name: str, _value: object) -> dict[str, object]:
+        if _value is None:
+            raise UnsupportedProductionProjectionType(
+                f"build_baseline_normalized_business_projection: "
+                f"required persisted dict {_name!r} is None; the C-2 "
+                "boundary fails closed and does NOT silently default "
+                "to an empty dict.",
+                details={"field": _name},
+            )
+        if not isinstance(_value, dict):
+            raise UnsupportedProductionProjectionType(
+                f"build_baseline_normalized_business_projection: "
+                f"required persisted dict {_name!r} is not a dict; the "
+                f"C-2 boundary fails closed (actual type={type(_value).__name__}).",
+                details={"field": _name, "actual_type": type(_value).__name__},
+            )
+        return _value
+
+    _n_pass = 0
+    _n_fail = 0
+    _failed_codes: list[str] = []
+    for _c in _constraint_results:
+        if not isinstance(_c, dict):
+            raise UnsupportedProductionProjectionType(
+                "build_baseline_normalized_business_projection: "
+                "constraint_results entry is not a JSON object.",
+                details={"actual_type": type(_c).__name__},
+            )
+        if "passed" not in _c:
+            raise UnsupportedProductionProjectionType(
+                "build_baseline_normalized_business_projection: "
+                "constraint_results entry is missing the 'passed' field.",
+                details={"constraint_keys": list(_c.keys())},
+            )
+        _passed = _c["passed"]
+        if type(_passed) is not bool:
+            raise UnsupportedProductionProjectionType(
+                "build_baseline_normalized_business_projection: "
+                "constraint_results entry 'passed' is not an exact bool.",
+                details={"actual_type": type(_passed).__name__},
+            )
+        if "constraint_code" not in _c:
+            raise UnsupportedProductionProjectionType(
+                "build_baseline_normalized_business_projection: "
+                "constraint_results entry is missing the 'constraint_code' field.",
+                details={"constraint_keys": list(_c.keys())},
+            )
+        _ccode = _c["constraint_code"]
+        if not isinstance(_ccode, str):
+            raise UnsupportedProductionProjectionType(
+                "build_baseline_normalized_business_projection: "
+                "constraint_results entry 'constraint_code' is not a str.",
+                details={"actual_type": type(_ccode).__name__},
+            )
+        if _passed is True:
+            _n_pass += 1
+        else:
+            _n_fail += 1
+            _failed_codes.append(_ccode)
+    _expected_failed_code: str | None = _failed_codes[0] if _failed_codes else None
+
+    # All required snapshot leaves are now extracted via
+    # ``_require_snapshot_leaf`` (Round 4 §5.3) — a missing
+    # key OR a stored-None value raises a typed boundary
+    # violation. The frozen normalized business projection
+    # does NOT emit ``None`` for any of these leaves.
+    _cooling_load_result = _require_snapshot_leaf("cooling_load_result")
+    _equipment_result = _require_snapshot_leaf("equipment_result")
+    _investment_result = _require_snapshot_leaf("investment_result")
+    _power_result = _require_snapshot_leaf("power_result")
+    _zone_results = _require_snapshot_leaf("zone_results")
+    _profile_codes = _require_snapshot_leaf("profile_codes")
+    _profile_parameters = _require_snapshot_leaf("profile_parameters")
+    _total_daily_throughput_kg_day = _require_snapshot_leaf("total_daily_throughput_kg_day")
+    _total_position_count = _require_snapshot_leaf("total_position_count")
+    _total_storage_capacity_kg = _require_snapshot_leaf("total_storage_capacity_kg")
+    _weight_set_id = _require_snapshot_leaf("weight_set_id")
 
     production_outputs: dict[str, object] = {
         "generator_version": source.generator_version,
@@ -513,20 +623,24 @@ def build_baseline_normalized_business_projection(
         "weight_set_content_hash": source.weight_set_content_hash,
         "source_calculation_ids": source_calculation_ids,
         "source_snapshot_hashes": source_snapshot_hashes,
-        "candidates_snapshot": list(candidates_snap),
-        "comparison_snapshot": dict(source.comparison_snapshot or {}),
-        "assumption_snapshot": dict(source.assumption_snapshot or {}),
-        "cooling_load_result": input_snap.get("cooling_load_result"),
-        "equipment_result": input_snap.get("equipment_result"),
-        "investment_result": input_snap.get("investment_result"),
-        "power_result": input_snap.get("power_result"),
-        "zone_results": input_snap.get("zone_results"),
-        "profile_codes": input_snap.get("profile_codes"),
-        "profile_parameters": input_snap.get("profile_parameters"),
-        "total_daily_throughput_kg_day": input_snap.get("total_daily_throughput_kg_day"),
-        "total_position_count": input_snap.get("total_position_count"),
-        "total_storage_capacity_kg": input_snap.get("total_storage_capacity_kg"),
-        "weight_set_id": input_snap.get("weight_set_id"),
+        "candidates_snapshot": list(_candidates_snap),
+        "comparison_snapshot": _require_persisted_dict(
+            "comparison_snapshot", source.comparison_snapshot
+        ),
+        "assumption_snapshot": _require_persisted_dict(
+            "assumption_snapshot", source.assumption_snapshot
+        ),
+        "cooling_load_result": _cooling_load_result,
+        "equipment_result": _equipment_result,
+        "investment_result": _investment_result,
+        "power_result": _power_result,
+        "zone_results": _zone_results,
+        "profile_codes": _profile_codes,
+        "profile_parameters": _profile_parameters,
+        "total_daily_throughput_kg_day": _total_daily_throughput_kg_day,
+        "total_position_count": _total_position_count,
+        "total_storage_capacity_kg": _total_storage_capacity_kg,
+        "weight_set_id": _weight_set_id,
     }
 
     # Build the top-level projection. Runtime volatile fields
@@ -548,9 +662,9 @@ def build_baseline_normalized_business_projection(
         "production_outputs": production_outputs,
         "content_hash": source.content_hash,
         "constraint_check_summary": {
-            "expected_passed_count": n_pass,
-            "expected_failed_count": n_fail,
-            "expected_failed_code": expected_failed_code,
+            "expected_passed_count": _n_pass,
+            "expected_failed_count": _n_fail,
+            "expected_failed_code": _expected_failed_code,
         },
     }
     # Validate the entire projection is in the strict-JSON
@@ -613,20 +727,25 @@ def project_adapter_result_to_baseline_artifact(
         )
 
     # ── Raw value: full production result (AdapterResult + C-2 lineage) ──
-    # Walk AdapterResult fields explicitly (the production SchemeRun
-    # is a stdlib dataclass, no model_dump).
+    # The C-2 source fields are populated by the strict typed
+    # validators in :func:`read_c2_baseline_projection`, so the
+    # snapshot columns are guaranteed to be non-None dicts and the
+    # production identity columns are guaranteed to be non-empty
+    # strs. The raw artifact preserves the live values verbatim
+    # (no silent ``dict(x or {})`` defaulting, no ``str(x)``
+    # coercion on already-typed str fields).
     raw_value: dict[str, object] = {
         "adapter_result": {
             "scheme_run": _project_scheme_run_fields(adapter_result.scheme_run),
-            "source_binding_id": str(adapter_result.source_binding_id),
-            "weight_set_revision_id": str(adapter_result.weight_set_revision_id),
+            "source_binding_id": adapter_result.source_binding_id,
+            "weight_set_revision_id": adapter_result.weight_set_revision_id,
             "combined_source_hash": (
-                str(adapter_result.combined_source_hash)
+                adapter_result.combined_source_hash
                 if adapter_result.combined_source_hash is not None
                 else None
             ),
-            "review_required": bool(adapter_result.review_required),
-            "review_reasons": [str(reason) for reason in adapter_result.review_reasons],
+            "review_required": adapter_result.review_required,
+            "review_reasons": list(adapter_result.review_reasons),
         },
         # The typed C-2 production-source identity. These are the
         # REAL persisted production values (NOT golden-derived).
@@ -667,16 +786,18 @@ def project_adapter_result_to_baseline_artifact(
             "equipment_result_hash": c2_source.equipment_result_hash,
             "power_result_hash": c2_source.power_result_hash,
             "investment_result_hash": c2_source.investment_result_hash,
-            "input_snapshot": dict(c2_source.input_snapshot or {}),
-            "assumption_snapshot": dict(c2_source.assumption_snapshot or {}),
-            "comparison_snapshot": dict(c2_source.comparison_snapshot or {}),
+            # The C-2 boundary guarantees these are dicts (not
+            # None), so the value is passed through verbatim.
+            "input_snapshot": c2_source.input_snapshot,
+            "assumption_snapshot": c2_source.assumption_snapshot,
+            "comparison_snapshot": c2_source.comparison_snapshot,
             # candidates_snapshot shape is preserved verbatim
             # (the production service may store either a
             # list or a dict).
             "candidates_snapshot": (
-                list(c2_source.candidates_snapshot)
+                c2_source.candidates_snapshot
                 if isinstance(c2_source.candidates_snapshot, list)
-                else dict(c2_source.candidates_snapshot or {})
+                else c2_source.candidates_snapshot
             ),
             "project_id": c2_source.project_id,
             "project_version_id": c2_source.project_version_id,

@@ -880,7 +880,20 @@ def test_p0_1_real_adapter_result_projects_full_lineage() -> None:
             equipment_result_hash="ehash-001",
             power_result_hash="phash-001",
             investment_result_hash="ihash-001",
-            input_snapshot={"refrigerated_area_m2": 150.0},
+            input_snapshot={
+                "refrigerated_area_m2": 150.0,
+                "cooling_load_result": {"total_cooling_load_kw": 12.5},
+                "equipment_result": {"selected_equipment": ["evaporator-001"]},
+                "investment_result": {"total_area_m2": 150.0},
+                "power_result": {"total_power_kw": 12.0},
+                "zone_results": [{"zone_id": "z1"}],
+                "profile_codes": ["balanced"],
+                "profile_parameters": {"balanced": {"position_count": 30}},
+                "total_daily_throughput_kg_day": 5000.0,
+                "total_position_count": 30,
+                "total_storage_capacity_kg": 50000.0,
+                "weight_set_id": "real-ws-001",
+            },
             assumption_snapshot={"ambient_temp_c": 25.0},
             comparison_snapshot={"capacity_met": True},
             candidates_snapshot=[
@@ -1034,7 +1047,19 @@ def test_p0_2_normalized_bytes_is_canonicalizer_byte_exact() -> None:
             equipment_result_hash="p0-2-eh-001",
             power_result_hash="p0-2-ph-001",
             investment_result_hash="p0-2-ih-001",
-            input_snapshot={},
+            input_snapshot={
+                "cooling_load_result": {"total_cooling_load_kw": 12.5},
+                "equipment_result": {"selected_equipment": ["evaporator-001"]},
+                "investment_result": {"total_area_m2": 150.0},
+                "power_result": {"total_power_kw": 12.0},
+                "zone_results": [{"zone_id": "z1"}],
+                "profile_codes": ["balanced"],
+                "profile_parameters": {"balanced": {"position_count": 30}},
+                "total_daily_throughput_kg_day": 5000.0,
+                "total_position_count": 30,
+                "total_storage_capacity_kg": 50000.0,
+                "weight_set_id": "real-ws-001",
+            },
             assumption_snapshot={},
             comparison_snapshot={},
             candidates_snapshot=[
@@ -1147,7 +1172,19 @@ def test_p0_1_raw_value_independent_of_expected_golden() -> None:
             equipment_result_hash="real-eh-A",
             power_result_hash="real-ph-A",
             investment_result_hash="real-ih-A",
-            input_snapshot={},
+            input_snapshot={
+                "cooling_load_result": {"total_cooling_load_kw": 12.5},
+                "equipment_result": {"selected_equipment": ["evaporator-001"]},
+                "investment_result": {"total_area_m2": 150.0},
+                "power_result": {"total_power_kw": 12.0},
+                "zone_results": [{"zone_id": "z1"}],
+                "profile_codes": ["balanced"],
+                "profile_parameters": {"balanced": {"position_count": 30}},
+                "total_daily_throughput_kg_day": 5000.0,
+                "total_position_count": 30,
+                "total_storage_capacity_kg": 50000.0,
+                "weight_set_id": "real-ws-001",
+            },
             assumption_snapshot={},
             comparison_snapshot={},
             candidates_snapshot=[
@@ -1270,7 +1307,19 @@ def test_p0_1_no_model_dump_on_dataclass() -> None:
             equipment_result_hash="eh-001",
             power_result_hash="ph-001",
             investment_result_hash="ih-001",
-            input_snapshot={},
+            input_snapshot={
+                "cooling_load_result": {"total_cooling_load_kw": 12.5},
+                "equipment_result": {"selected_equipment": ["evaporator-001"]},
+                "investment_result": {"total_area_m2": 150.0},
+                "power_result": {"total_power_kw": 12.0},
+                "zone_results": [{"zone_id": "z1"}],
+                "profile_codes": ["balanced"],
+                "profile_parameters": {"balanced": {"position_count": 30}},
+                "total_daily_throughput_kg_day": 5000.0,
+                "total_position_count": 30,
+                "total_storage_capacity_kg": 50000.0,
+                "weight_set_id": "real-ws-001",
+            },
             assumption_snapshot={},
             comparison_snapshot={},
             candidates_snapshot=[
@@ -1320,6 +1369,7 @@ def test_d10_zero_row_delta_and_summary_last_db_backed(
     """
     import json
 
+    from cold_storage.evaluation import evaluate as _evaluate_mod
     from cold_storage.evaluation.evaluate import evaluate_manifest
     from cold_storage.evaluation.models import (
         DatabaseBackend,
@@ -1369,64 +1419,115 @@ def test_d10_zero_row_delta_and_summary_last_db_backed(
     before_identity = _count("orchestration_identities")
     before_attempt = _count("orchestration_run_attempts")
 
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp).resolve()
-        manifest = Manifest(
-            schema_version="1.0",
-            suite_id="c2-round3-d10-zero-delta",
-            scenarios=(
-                ScenarioDeclaration(
-                    scenario_id="invalid_blocked",
-                    database_backend=DatabaseBackend.SQLITE,
-                    expected_outcome=ExpectedOutcome.INVALID_INPUT,
-                    expected_output=ExpectedOutputRef(
+    # Round 4 §七: explicit call-order instrumentation
+    # via a WriteEventRecorder that wraps the runner's
+    # two atomic-write functions. The recorder
+    # delegates to the original writer (no fakes, no
+    # short-circuits).
+    from pathlib import Path as _Path
+
+    class _WriteEventRecorder:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str]] = []
+
+        def record(self, kind: str, path: _Path) -> None:
+            self.events.append((kind, str(path)))
+
+    _recorder = _WriteEventRecorder()
+    _orig_write_json = _evaluate_mod._atomic_write_json
+    _orig_write_bytes = _evaluate_mod._atomic_write_bytes
+
+    def _wrapped_write_json(*, path: _Path, data: Any) -> None:
+        _recorder.record("json", path)
+        _orig_write_json(path=path, data=data)
+
+    def _wrapped_write_bytes(*, path: _Path, data: bytes) -> None:
+        _recorder.record("bytes", path)
+        _orig_write_bytes(path=path, data=data)
+
+    _evaluate_mod._atomic_write_json = _wrapped_write_json
+    _evaluate_mod._atomic_write_bytes = _wrapped_write_bytes
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            manifest = Manifest(
+                schema_version="1.0",
+                suite_id="c2-round4-d10-zero-delta-sqlite",
+                scenarios=(
+                    ScenarioDeclaration(
                         scenario_id="invalid_blocked",
-                        path=None,
+                        database_backend=DatabaseBackend.SQLITE,
                         expected_outcome=ExpectedOutcome.INVALID_INPUT,
-                        expected_error=ExpectedErrorAssertion(
-                            exception_type="InvalidProjectInputError",
-                            code="PROJ_INPUT_INVALID",
-                            field="total_area_m2",
+                        expected_output=ExpectedOutputRef(
+                            scenario_id="invalid_blocked",
+                            path=None,
+                            expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                            expected_error=ExpectedErrorAssertion(
+                                exception_type="InvalidProjectInputError",
+                                code="PROJ_INPUT_INVALID",
+                                field="total_area_m2",
+                            ),
                         ),
                     ),
                 ),
-            ),
-        )
-        result = evaluate_manifest(
-            manifest=manifest,
-            manifest_root=root,
-            root=root / "run",
-            # D10 is a pure projection; no session_factory
-            # is required. The runner falls through to a
-            # typed error if the projection raises.
-        )
-        # 1. evaluation_result == PASS
-        assert result.evaluation_result_overall.value == "pass"
-        assert result.scenarios[0].actual_outcome == "INVALID_INPUT"
-        assert result.scenarios[0].evaluation_result.value == "pass"
-        # 2. The summary.json was written LAST (after
-        #    the per-scenario run.json). The runner
-        #    wrote summary.json after the per-scenario
-        #    artifacts; the file exists at the suite
-        #    root.
-        from cold_storage.evaluation.run_directory import suite_summary_path
+            )
+            result = evaluate_manifest(
+                manifest=manifest,
+                manifest_root=root,
+                root=root / "run",
+                # D10 is a pure projection; no session_factory
+                # is required. The runner falls through to a
+                # typed error if the projection raises.
+            )
+            # 1. evaluation_result == PASS
+            assert result.evaluation_result_overall.value == "pass"
+            assert result.scenarios[0].actual_outcome == "INVALID_INPUT"
+            assert result.scenarios[0].evaluation_result.value == "pass"
+            # 2. The summary.json was written. The runner
+            #    wrote summary.json after the per-scenario
+            #    artifacts; the file exists at the suite
+            #    root.
+            from cold_storage.evaluation.run_directory import suite_summary_path
 
-        summary_path = suite_summary_path(root=root / "run")
-        assert summary_path.exists()
-        summary = json.loads(summary_path.read_text())
-        assert summary["evaluation_result_overall"] == "pass"
-        # 3. The per-scenario run.json was written BEFORE
-        #    the summary.json. We use os.path.getmtime
-        #    to assert the ordering.
-        import os
+            summary_path = suite_summary_path(root=root / "run")
+            assert summary_path.exists()
+            summary = json.loads(summary_path.read_text())
+            assert summary["evaluation_result_overall"] == "pass"
+    finally:
+        _evaluate_mod._atomic_write_json = _orig_write_json
+        _evaluate_mod._atomic_write_bytes = _orig_write_bytes
 
-        run_path = root / "run" / "invalid_blocked" / "run.json"
-        assert run_path.exists()
-        run_mtime = os.path.getmtime(run_path)
-        summary_mtime = os.path.getmtime(summary_path)
-        assert run_mtime <= summary_mtime, (
-            f"D10: run.json mtime ({run_mtime}) MUST be <= summary.json mtime ({summary_mtime})"
-        )
+    # 3. Call-order assertion (Round 4 §七): the final
+    # managed-artifact write MUST be summary.json.
+    assert len(_recorder.events) > 0, (
+        "D10 SQLite call-order: WriteEventRecorder MUST have observed "
+        "at least one managed-artifact write; got an empty event list"
+    )
+    last_kind, last_path = _recorder.events[-1]
+    assert last_kind == "json", (
+        f"D10 SQLite call-order: the final managed-artifact write "
+        f"MUST be a ``_atomic_write_json`` call (summary.json); "
+        f"got kind={last_kind!r} path={last_path!r}"
+    )
+    assert last_path == str(summary_path), (
+        f"D10 SQLite call-order: the final managed-artifact write "
+        f"MUST be ``<run-root>/summary.json``; "
+        f"got {last_path!r} expected {str(summary_path)!r}"
+    )
+    # 4. The summary MUST be written exactly once.
+    summary_writes = [e for e in _recorder.events if e[1] == str(summary_path)]
+    assert len(summary_writes) == 1, (
+        f"D10 SQLite call-order: summary.json MUST be written "
+        f"exactly once; got {len(summary_writes)} writes"
+    )
+    # 5. NO managed-artifact write occurs after the summary.
+    summary_idx = _recorder.events.index(summary_writes[0])
+    assert summary_idx == len(_recorder.events) - 1, (
+        f"D10 SQLite call-order: NO managed-artifact write MUST "
+        f"occur after summary.json; summary_idx={summary_idx}, "
+        f"total_events={len(_recorder.events)}, "
+        f"trailing event={_recorder.events[-1]!r}"
+    )
 
     # 4. Zero-row-delta: the D10 INVALID_INPUT scenario
     #    MUST NOT add new SchemeRun / CalculationRun /

@@ -1850,6 +1850,26 @@ def test_baseline_feasible_real_e2e(
             "match the captured Commit C golden values when "
             "the canonical correlation_id is used)."
         )
+        # ── Direct canonical byte equality (Round 4 §八) ──
+        # The on-disk normalized bytes are byte-exact the
+        # canonicalizer's output on the frozen business
+        # payload with empty excluded_paths. This is the
+        # PRIMARY byte-parity proof; the structural
+        # ``on_disk_value == frozen_business_payload``
+        # check above is a secondary shape check.
+        from cold_storage.evaluation.canonicalization import (
+            canonicalize_production_outputs,
+        )
+        expected_canonical_bytes = canonicalize_production_outputs(
+            frozen_business_payload,
+            excluded_paths=(),
+        )
+        assert on_disk_bytes == expected_canonical_bytes, (
+            "C-2 E2E: on-disk normalized bytes MUST equal the "
+            "canonicalizer's byte-exact output on the frozen "
+            "business payload (Round 4 §八 direct byte equality)."
+        )
+        # Round 4 §八: continue the structural assertions.
         # Runtime volatile fields are absent.
         for v in (
             "id",

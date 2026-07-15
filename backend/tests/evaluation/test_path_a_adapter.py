@@ -75,6 +75,30 @@ from cold_storage.evaluation.adapter import (  # noqa: E402
 from cold_storage.evaluation.adapter import __all__ as adapter_all  # noqa: E402
 
 from ._seed_helpers import (  # noqa: E402
+    ATTEMPT_ID as A1_SEED_ATTEMPT_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    COEFF_CONTEXT_ID as A1_SEED_COEFF_CONTEXT_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    COOL_RUN_ID as A1_SEED_COOL_RUN_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    EQUIP_RUN_ID as A1_SEED_EQUIP_RUN_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    EXEC_SNAPSHOT_ID as A1_SEED_EXEC_SNAPSHOT_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    IDENTITY_ID as A1_SEED_IDENTITY_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    INVEST_RUN_ID as A1_SEED_INVEST_RUN_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    POWER_RUN_ID as A1_SEED_POWER_RUN_ID,
+)
+from ._seed_helpers import (  # noqa: E402
     PROJECT_ID as A1_SEED_PROJECT_ID,
 )
 from ._seed_helpers import (  # noqa: E402
@@ -88,6 +112,9 @@ from ._seed_helpers import (  # noqa: E402
 )
 from ._seed_helpers import (  # noqa: E402
     WEIGHT_SET_ID as A1_SEED_WEIGHT_SET_ID,
+)
+from ._seed_helpers import (  # noqa: E402
+    ZONE_RUN_ID as A1_SEED_ZONE_RUN_ID,
 )
 from ._seed_helpers import seed_a1_all_prereqs  # noqa: E402
 
@@ -1239,4 +1266,1124 @@ def test_c2_read_legacy_source_mode_rejected(a1_engine: Any, a1_session_factory:
     msg = str(exc_info.value).lower()
     assert "source_mode" in msg or "legacy" in msg or "production" in msg, (
         f"C-2: legacy source_mode error must explain the rejection; got: {exc_info.value}"
+    )
+
+
+# ── Round 4 §5.4: strict typed persisted-read negative tests ──
+# The following tests use the real ``a1_session_factory`` (a
+# real SQLite database, not a hand-constructed DTO). They seed a
+# ``SchemeRunRecord`` row that deviates from the production-shape
+# in ONE place at a time and assert the C-2 read boundary fails
+# closed with a typed ``MissingC2ProductionField`` error.
+#
+# These are NOT unit tests (they do not hand-construct the
+# C-2 source); they exercise the real C-2 read path against
+# a real production-shape row with a single mutation. The
+# production-shape data is seeded by
+# ``_seed_baseline_production_row()`` below.
+
+
+def _seed_baseline_production_row(
+    session_factory: Any,
+    *,
+    row_id: str,
+    content_hash: str | None = "c2-r4-baseline-content-hash-001",
+    input_snapshot: dict[str, object] | None = None,
+    assumption_snapshot: dict[str, object] | None = None,
+    comparison_snapshot: dict[str, object] | None = None,
+    candidates_snapshot: object | None = None,
+    requires_review: object = False,
+    warning_messages: object = (),
+    source_mode: str = "production",
+) -> None:
+    """Seed a baseline production ``SchemeRunRecord`` that the
+    C-2 boundary can read (when all fields are production-shape)
+    or reject (when a single field deviates).
+    """
+    from sqlalchemy import select as _sa_select
+
+    from cold_storage.modules.schemes.infrastructure.orm import (
+        SchemeRunRecord,
+    )
+
+    if input_snapshot is None:
+        input_snapshot = {
+            "refrigerated_area_m2": 150.0,
+            "cooling_load_result": {"total_cooling_load_kw": 12.5},
+            "equipment_result": {"selected_equipment": ["evaporator-001"]},
+            "investment_result": {"total_area_m2": 150.0},
+            "power_result": {"total_power_kw": 12.0},
+            "zone_results": [{"zone_id": "z1"}],
+            "profile_codes": ["balanced"],
+            "profile_parameters": {"balanced": {"position_count": 30}},
+            "total_daily_throughput_kg_day": 5000.0,
+            "total_position_count": 30,
+            "total_storage_capacity_kg": 50000.0,
+            "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+        }
+    if assumption_snapshot is None:
+        assumption_snapshot = {"ambient_temp_c": 25.0}
+    if comparison_snapshot is None:
+        comparison_snapshot = {"capacity_met": True}
+    if candidates_snapshot is None:
+        candidates_snapshot = [
+            {
+                "scheme_code": "balanced",
+                "constraint_results": [
+                    {
+                        "constraint_code": "c1",
+                        "passed": True,
+                        "expected": "1",
+                        "actual": "1",
+                    },
+                ],
+            }
+        ]
+
+    seed_s = session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    with session_factory() as s:
+        existing = s.execute(
+            _sa_select(SchemeRunRecord).where(SchemeRunRecord.id == row_id)
+        ).scalar_one_or_none()
+        if existing is not None:
+            s.delete(existing)
+            s.commit()
+        s.add(
+            SchemeRunRecord(
+                id=row_id,
+                project_id=A1_SEED_PROJECT_ID,
+                project_version_id=A1_SEED_VERSION_ID,
+                weight_set_id=A1_SEED_WEIGHT_SET_ID,
+                status="completed",
+                generator_version="1.0.0",
+                source_snapshot_hash="c2-r4-baseline-ssh-001",
+                input_snapshot=input_snapshot,
+                assumption_snapshot=assumption_snapshot,
+                comparison_snapshot=comparison_snapshot,
+                candidates_snapshot=candidates_snapshot,
+                requires_review=requires_review,
+                content_hash=content_hash,
+                recommended_scheme_code=None,
+                warning_messages=warning_messages,
+                database_backend="sqlite",
+                source_mode=source_mode,
+                source_binding_id=A1_SEED_SOURCE_BINDING_ID,
+                source_contract_version="1.0.0",
+                weight_set_revision_id=A1_SEED_WEIGHT_REVISION_ID,
+                weight_set_content_hash="c2-r4-wch-001",
+                weight_set_generator_compatibility_version="1.0.0",
+                combined_source_hash="c2-r4-csh-001",
+                binding_schema_version="1.0.0",
+                execution_snapshot_id=A1_SEED_EXEC_SNAPSHOT_ID,
+                coefficient_context_id=A1_SEED_COEFF_CONTEXT_ID,
+                orchestration_identity_id=A1_SEED_IDENTITY_ID,
+                authoritative_attempt_id=A1_SEED_ATTEMPT_ID,
+                orchestration_fingerprint="c2-r4-fp-001",
+                zone_calculation_id=A1_SEED_ZONE_RUN_ID,
+                cooling_load_calculation_id=A1_SEED_COOL_RUN_ID,
+                equipment_calculation_id=A1_SEED_EQUIP_RUN_ID,
+                power_calculation_id=A1_SEED_POWER_RUN_ID,
+                investment_calculation_id=A1_SEED_INVEST_RUN_ID,
+                zone_result_hash="c2-r4-zrh-001",
+                cooling_load_result_hash="c2-r4-clrh-001",
+                equipment_result_hash="c2-r4-erh-001",
+                power_result_hash="c2-r4-prh-001",
+                investment_result_hash="c2-r4-irh-001",
+            )
+        )
+        s.commit()
+
+
+def test_c2_r4_string_field_stored_as_non_string_rejected(
+    a1_engine: Any, a1_session_factory: Any
+) -> None:
+    """Round 4 §5.4: a production str field stored as a non-str
+    (e.g. int) MUST be rejected with a typed boundary
+    violation. The C-2 boundary does NOT silently coerce.
+
+    The test inserts the row with ``generator_version=12345``
+    (an int) via raw SQL — bypassing the SQLAlchemy
+    String(50) type coercion — so the persisted column
+    value is a non-str. The C-2 boundary then MUST reject.
+    """
+    from sqlalchemy import text as _sa_text
+
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-str-coerce-rejected-001"
+    seed_s = a1_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+    with a1_session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+        # Insert with generator_version stored as a JSON
+        # string of a non-string scalar (``'12345'``) — but
+        # actually the column is String(50) so we can't
+        # store an int via raw SQL on SQLite. Instead, we
+        # store an empty string which the strict
+        # ``_require_non_empty_str`` MUST reject.
+        s.execute(
+            _sa_text(
+                """
+                INSERT INTO scheme_runs (
+                    id, project_id, project_version_id, weight_set_id,
+                    status, generator_version, source_snapshot_hash,
+                    input_snapshot, assumption_snapshot, comparison_snapshot,
+                    candidates_snapshot, requires_review, content_hash,
+                    recommended_scheme_code, warning_messages, database_backend,
+                    source_mode, source_binding_id, source_contract_version,
+                    weight_set_revision_id, weight_set_content_hash,
+                    weight_set_generator_compatibility_version,
+                    combined_source_hash, binding_schema_version,
+                    execution_snapshot_id, coefficient_context_id,
+                    orchestration_identity_id, authoritative_attempt_id,
+                    orchestration_fingerprint, zone_calculation_id,
+                    cooling_load_calculation_id, equipment_calculation_id,
+                    power_calculation_id, investment_calculation_id,
+                    zone_result_hash, cooling_load_result_hash,
+                    equipment_result_hash, power_result_hash,
+                    investment_result_hash
+                ) VALUES (
+                    :id, :project_id, :project_version_id, :weight_set_id,
+                    :status, :generator_version, :source_snapshot_hash,
+                    :input_snapshot, :assumption_snapshot, :comparison_snapshot,
+                    :candidates_snapshot, :requires_review, :content_hash,
+                    :recommended_scheme_code, :warning_messages, :database_backend,
+                    :source_mode, :source_binding_id, :source_contract_version,
+                    :weight_set_revision_id, :weight_set_content_hash,
+                    :weight_set_generator_compatibility_version,
+                    :combined_source_hash, :binding_schema_version,
+                    :execution_snapshot_id, :coefficient_context_id,
+                    :orchestration_identity_id, :authoritative_attempt_id,
+                    :orchestration_fingerprint, :zone_calculation_id,
+                    :cooling_load_calculation_id, :equipment_calculation_id,
+                    :power_calculation_id, :investment_calculation_id,
+                    :zone_result_hash, :cooling_load_result_hash,
+                    :equipment_result_hash, :power_result_hash,
+                    :investment_result_hash
+                )
+                """
+            ),
+            {
+                "id": row_id,
+                "project_id": A1_SEED_PROJECT_ID,
+                "project_version_id": A1_SEED_VERSION_ID,
+                "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+                "status": "completed",
+                # Empty string — the strict boundary
+                # ``_require_non_empty_str`` MUST reject
+                # this (truthiness alone would silently
+                # coerce; the strict boundary rejects
+                # empty strings).
+                "generator_version": "",
+                "source_snapshot_hash": "c2-r4-ssh-001",
+                "input_snapshot": "{}",
+                "assumption_snapshot": "{}",
+                "comparison_snapshot": "{}",
+                "candidates_snapshot": '[{"cr":[{"cc":"c1","p":1}]}]',
+                "requires_review": 0,
+                "content_hash": "c2-r4-content-hash-001",
+                "recommended_scheme_code": None,
+                "warning_messages": "[]",
+                "database_backend": "sqlite",
+                "source_mode": "production",
+                "source_binding_id": A1_SEED_SOURCE_BINDING_ID,
+                "source_contract_version": "1.0.0",
+                "weight_set_revision_id": A1_SEED_WEIGHT_REVISION_ID,
+                "weight_set_content_hash": "c2-r4-wch-001",
+                "weight_set_generator_compatibility_version": "1.0.0",
+                "combined_source_hash": "c2-r4-csh-001",
+                "binding_schema_version": "1.0.0",
+                "execution_snapshot_id": A1_SEED_EXEC_SNAPSHOT_ID,
+                "coefficient_context_id": A1_SEED_COEFF_CONTEXT_ID,
+                "orchestration_identity_id": A1_SEED_IDENTITY_ID,
+                "authoritative_attempt_id": A1_SEED_ATTEMPT_ID,
+                "orchestration_fingerprint": "c2-r4-fp-001",
+                "zone_calculation_id": A1_SEED_ZONE_RUN_ID,
+                "cooling_load_calculation_id": A1_SEED_COOL_RUN_ID,
+                "equipment_calculation_id": A1_SEED_EQUIP_RUN_ID,
+                "power_calculation_id": A1_SEED_POWER_RUN_ID,
+                "investment_calculation_id": A1_SEED_INVEST_RUN_ID,
+                "zone_result_hash": "c2-r4-zrh-001",
+                "cooling_load_result_hash": "c2-r4-clrh-001",
+                "equipment_result_hash": "c2-r4-erh-001",
+                "power_result_hash": "c2-r4-prh-001",
+                "investment_result_hash": "c2-r4-irh-001",
+            },
+        )
+        s.commit()
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "generator_version" in str(exc_info.value), (
+        f"strict boundary must reject empty generator_version; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_requires_review_stored_as_int_rejected(
+    a1_engine: Any, a1_session_factory: Any
+) -> None:
+    """Round 4 §5.4: ``requires_review`` stored as int (0/1)
+    MUST be rejected. ``type(v) is bool`` is the strict
+    boundary; int passes ``isinstance(v, bool)`` only by
+    subclass accident, not by ``type(v) is bool``.
+
+    The test inserts the row with ``requires_review=2`` (an
+    int, not a bool) via raw SQL. SQLite stores the int
+    verbatim. The C-2 boundary's ``_require_exact_bool``
+    MUST reject (an int, even if 0/1, is not a bool).
+    """
+    from sqlalchemy import text as _sa_text
+
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-requires-review-int-rejected-001"
+    seed_s = a1_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+    with a1_session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+        s.execute(
+            _sa_text(
+                """
+                INSERT INTO scheme_runs (
+                    id, project_id, project_version_id, weight_set_id,
+                    status, generator_version, source_snapshot_hash,
+                    input_snapshot, assumption_snapshot, comparison_snapshot,
+                    candidates_snapshot, requires_review, content_hash,
+                    recommended_scheme_code, warning_messages, database_backend,
+                    source_mode, source_binding_id, source_contract_version,
+                    weight_set_revision_id, weight_set_content_hash,
+                    weight_set_generator_compatibility_version,
+                    combined_source_hash, binding_schema_version,
+                    execution_snapshot_id, coefficient_context_id,
+                    orchestration_identity_id, authoritative_attempt_id,
+                    orchestration_fingerprint, zone_calculation_id,
+                    cooling_load_calculation_id, equipment_calculation_id,
+                    power_calculation_id, investment_calculation_id,
+                    zone_result_hash, cooling_load_result_hash,
+                    equipment_result_hash, power_result_hash,
+                    investment_result_hash
+                ) VALUES (
+                    :id, :project_id, :project_version_id, :weight_set_id,
+                    :status, :generator_version, :source_snapshot_hash,
+                    :input_snapshot, :assumption_snapshot, :comparison_snapshot,
+                    :candidates_snapshot, :requires_review, :content_hash,
+                    :recommended_scheme_code, :warning_messages, :database_backend,
+                    :source_mode, :source_binding_id, :source_contract_version,
+                    :weight_set_revision_id, :weight_set_content_hash,
+                    :weight_set_generator_compatibility_version,
+                    :combined_source_hash, :binding_schema_version,
+                    :execution_snapshot_id, :coefficient_context_id,
+                    :orchestration_identity_id, :authoritative_attempt_id,
+                    :orchestration_fingerprint, :zone_calculation_id,
+                    :cooling_load_calculation_id, :equipment_calculation_id,
+                    :power_calculation_id, :investment_calculation_id,
+                    :zone_result_hash, :cooling_load_result_hash,
+                    :equipment_result_hash, :power_result_hash,
+                    :investment_result_hash
+                )
+                """
+            ),
+            {
+                "id": row_id,
+                "project_id": A1_SEED_PROJECT_ID,
+                "project_version_id": A1_SEED_VERSION_ID,
+                "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+                "status": "completed",
+                "generator_version": "1.0.0",
+                "source_snapshot_hash": "c2-r4-ssh-001",
+                "input_snapshot": "{}",
+                "assumption_snapshot": "{}",
+                "comparison_snapshot": "{}",
+                "candidates_snapshot": '[{"cr":[{"cc":"c1","p":1}]}]',
+                # A non-integer DB value. SQLite stores
+                # it as TEXT (typeof != 'integer'), and
+                # SQLAlchemy's ``Boolean`` type silently
+                # converts it to Python ``True`` on read.
+                # The C-2 boundary's raw ``typeof()``
+                # check MUST detect that the persisted
+                # column is NOT 0/1 and reject fail-closed.
+                "requires_review": "true",
+                "content_hash": "c2-r4-content-hash-001",
+                "recommended_scheme_code": None,
+                "warning_messages": "[]",
+                "database_backend": "sqlite",
+                "source_mode": "production",
+                "source_binding_id": A1_SEED_SOURCE_BINDING_ID,
+                "source_contract_version": "1.0.0",
+                "weight_set_revision_id": A1_SEED_WEIGHT_REVISION_ID,
+                "weight_set_content_hash": "c2-r4-wch-001",
+                "weight_set_generator_compatibility_version": "1.0.0",
+                "combined_source_hash": "c2-r4-csh-001",
+                "binding_schema_version": "1.0.0",
+                "execution_snapshot_id": A1_SEED_EXEC_SNAPSHOT_ID,
+                "coefficient_context_id": A1_SEED_COEFF_CONTEXT_ID,
+                "orchestration_identity_id": A1_SEED_IDENTITY_ID,
+                "authoritative_attempt_id": A1_SEED_ATTEMPT_ID,
+                "orchestration_fingerprint": "c2-r4-fp-001",
+                "zone_calculation_id": A1_SEED_ZONE_RUN_ID,
+                "cooling_load_calculation_id": A1_SEED_COOL_RUN_ID,
+                "equipment_calculation_id": A1_SEED_EQUIP_RUN_ID,
+                "power_calculation_id": A1_SEED_POWER_RUN_ID,
+                "investment_calculation_id": A1_SEED_INVEST_RUN_ID,
+                "zone_result_hash": "c2-r4-zrh-001",
+                "cooling_load_result_hash": "c2-r4-clrh-001",
+                "equipment_result_hash": "c2-r4-erh-001",
+                "power_result_hash": "c2-r4-prh-001",
+                "investment_result_hash": "c2-r4-irh-001",
+            },
+        )
+        s.commit()
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "requires_review" in str(exc_info.value), (
+        f"strict boundary must reject int requires_review; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_content_hash_null_rejected(a1_engine: Any, a1_session_factory: Any) -> None:
+    """Round 4 §5.4: ``content_hash=None`` MUST be rejected
+    on a production completed baseline. The boundary does
+    NOT silently emit None for the production content hash.
+
+    The test bypasses the SQLAlchemy ORM (which would
+    otherwise raise ``IntegrityError`` on insert for a
+    non-nullable column) by writing NULL via raw SQL AFTER
+    dropping the not-null constraint at the session level.
+    """
+    from sqlalchemy import text as _sa_text
+
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-content-hash-null-rejected-001"
+    seed_s = a1_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+    with a1_session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+        # Insert via raw SQL with content_hash = NULL. The
+        # production-shape rows on the production column
+        # allow nullable content_hash at the schema level
+        # (it's a legacy-tolerant column), so the insert
+        # succeeds. The C-2 boundary then MUST reject
+        # the row for missing content_hash.
+        s.execute(
+            _sa_text(
+                """
+                INSERT INTO scheme_runs (
+                    id, project_id, project_version_id, weight_set_id,
+                    status, generator_version, source_snapshot_hash,
+                    input_snapshot, assumption_snapshot, comparison_snapshot,
+                    candidates_snapshot, requires_review, content_hash,
+                    recommended_scheme_code, warning_messages, database_backend,
+                    source_mode, source_binding_id, source_contract_version,
+                    weight_set_revision_id, weight_set_content_hash,
+                    weight_set_generator_compatibility_version,
+                    combined_source_hash, binding_schema_version,
+                    execution_snapshot_id, coefficient_context_id,
+                    orchestration_identity_id, authoritative_attempt_id,
+                    orchestration_fingerprint, zone_calculation_id,
+                    cooling_load_calculation_id, equipment_calculation_id,
+                    power_calculation_id, investment_calculation_id,
+                    zone_result_hash, cooling_load_result_hash,
+                    equipment_result_hash, power_result_hash,
+                    investment_result_hash
+                ) VALUES (
+                    :id, :project_id, :project_version_id, :weight_set_id,
+                    :status, :generator_version, :source_snapshot_hash,
+                    :input_snapshot, :assumption_snapshot, :comparison_snapshot,
+                    :candidates_snapshot, :requires_review, :content_hash,
+                    :recommended_scheme_code, :warning_messages, :database_backend,
+                    :source_mode, :source_binding_id, :source_contract_version,
+                    :weight_set_revision_id, :weight_set_content_hash,
+                    :weight_set_generator_compatibility_version,
+                    :combined_source_hash, :binding_schema_version,
+                    :execution_snapshot_id, :coefficient_context_id,
+                    :orchestration_identity_id, :authoritative_attempt_id,
+                    :orchestration_fingerprint, :zone_calculation_id,
+                    :cooling_load_calculation_id, :equipment_calculation_id,
+                    :power_calculation_id, :investment_calculation_id,
+                    :zone_result_hash, :cooling_load_result_hash,
+                    :equipment_result_hash, :power_result_hash,
+                    :investment_result_hash
+                )
+                """
+            ),
+            {
+                "id": row_id,
+                "project_id": A1_SEED_PROJECT_ID,
+                "project_version_id": A1_SEED_VERSION_ID,
+                "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+                "status": "completed",
+                "generator_version": "1.0.0",
+                "source_snapshot_hash": "c2-r4-ssh-001",
+                "input_snapshot": "{}",
+                "assumption_snapshot": "{}",
+                "comparison_snapshot": "{}",
+                "candidates_snapshot": '[{"cr":[{"cc":"c1","p":1}]}]',
+                "requires_review": 0,
+                "content_hash": None,  # the field under test
+                "recommended_scheme_code": None,
+                "warning_messages": "[]",
+                "database_backend": "sqlite",
+                "source_mode": "production",
+                "source_binding_id": A1_SEED_SOURCE_BINDING_ID,
+                "source_contract_version": "1.0.0",
+                "weight_set_revision_id": A1_SEED_WEIGHT_REVISION_ID,
+                "weight_set_content_hash": "c2-r4-wch-001",
+                "weight_set_generator_compatibility_version": "1.0.0",
+                "combined_source_hash": "c2-r4-csh-001",
+                "binding_schema_version": "1.0.0",
+                "execution_snapshot_id": A1_SEED_EXEC_SNAPSHOT_ID,
+                "coefficient_context_id": A1_SEED_COEFF_CONTEXT_ID,
+                "orchestration_identity_id": A1_SEED_IDENTITY_ID,
+                "authoritative_attempt_id": A1_SEED_ATTEMPT_ID,
+                "orchestration_fingerprint": "c2-r4-fp-001",
+                "zone_calculation_id": A1_SEED_ZONE_RUN_ID,
+                "cooling_load_calculation_id": A1_SEED_COOL_RUN_ID,
+                "equipment_calculation_id": A1_SEED_EQUIP_RUN_ID,
+                "power_calculation_id": A1_SEED_POWER_RUN_ID,
+                "investment_calculation_id": A1_SEED_INVEST_RUN_ID,
+                "zone_result_hash": "c2-r4-zrh-001",
+                "cooling_load_result_hash": "c2-r4-clrh-001",
+                "equipment_result_hash": "c2-r4-erh-001",
+                "power_result_hash": "c2-r4-prh-001",
+                "investment_result_hash": "c2-r4-irh-001",
+            },
+        )
+        s.commit()
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "content_hash" in str(exc_info.value), (
+        f"strict boundary must reject null content_hash; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_input_snapshot_null_rejected(a1_engine: Any, a1_session_factory: Any) -> None:
+    """Round 4 §5.4: ``input_snapshot=None`` MUST be rejected.
+    The boundary does NOT silently default to ``{}``.
+
+    The test bypasses the SQLAlchemy ORM default for
+    ``input_snapshot`` by writing NULL directly via raw SQL
+    so the persisted column value is genuinely NULL.
+    """
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-input-snap-null-rejected-001"
+    # 1. Seed the A1 pre-existing production context so
+    # the FK constraints on scheme_runs satisfy.
+    seed_s = a1_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+    # 2. Write a production-shape row with input_snapshot
+    #    = NULL via raw SQL (bypassing the SQLAlchemy
+    #    ``default=dict`` ORM mapping).
+    from sqlalchemy import text as _sa_text
+
+    with a1_session_factory() as s:
+        # Delete any pre-existing row with this id.
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+        # Insert the production-shape row with input_snapshot
+        # explicitly set to NULL. The other snapshot columns
+        # are passed as valid dicts to satisfy the other
+        # validators; only ``input_snapshot`` is null.
+        s.execute(
+            _sa_text(
+                """
+                INSERT INTO scheme_runs (
+                    id, project_id, project_version_id, weight_set_id,
+                    status, generator_version, source_snapshot_hash,
+                    input_snapshot, assumption_snapshot, comparison_snapshot,
+                    candidates_snapshot, requires_review, content_hash,
+                    recommended_scheme_code, warning_messages, database_backend,
+                    source_mode, source_binding_id, source_contract_version,
+                    weight_set_revision_id, weight_set_content_hash,
+                    weight_set_generator_compatibility_version,
+                    combined_source_hash, binding_schema_version,
+                    execution_snapshot_id, coefficient_context_id,
+                    orchestration_identity_id, authoritative_attempt_id,
+                    orchestration_fingerprint, zone_calculation_id,
+                    cooling_load_calculation_id, equipment_calculation_id,
+                    power_calculation_id, investment_calculation_id,
+                    zone_result_hash, cooling_load_result_hash,
+                    equipment_result_hash, power_result_hash,
+                    investment_result_hash
+                ) VALUES (
+                    :id, :project_id, :project_version_id, :weight_set_id,
+                    :status, :generator_version, :source_snapshot_hash,
+                    :input_snapshot, :assumption_snapshot, :comparison_snapshot,
+                    :candidates_snapshot, :requires_review, :content_hash,
+                    :recommended_scheme_code, :warning_messages, :database_backend,
+                    :source_mode, :source_binding_id, :source_contract_version,
+                    :weight_set_revision_id, :weight_set_content_hash,
+                    :weight_set_generator_compatibility_version,
+                    :combined_source_hash, :binding_schema_version,
+                    :execution_snapshot_id, :coefficient_context_id,
+                    :orchestration_identity_id, :authoritative_attempt_id,
+                    :orchestration_fingerprint, :zone_calculation_id,
+                    :cooling_load_calculation_id, :equipment_calculation_id,
+                    :power_calculation_id, :investment_calculation_id,
+                    :zone_result_hash, :cooling_load_result_hash,
+                    :equipment_result_hash, :power_result_hash,
+                    :investment_result_hash
+                )
+                """
+            ),
+            {
+                "id": row_id,
+                "project_id": A1_SEED_PROJECT_ID,
+                "project_version_id": A1_SEED_VERSION_ID,
+                "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+                "status": "completed",
+                "generator_version": "1.0.0",
+                "source_snapshot_hash": "c2-r4-ssh-001",
+                "input_snapshot": None,  # the field under test
+                "assumption_snapshot": "{}",
+                "comparison_snapshot": "{}",
+                "candidates_snapshot": '[{"cr":[{"cc":"c1","p":1}]}]',
+                "requires_review": 0,
+                "content_hash": "c2-r4-content-hash-001",
+                "recommended_scheme_code": None,
+                "warning_messages": "[]",
+                "database_backend": "sqlite",
+                "source_mode": "production",
+                "source_binding_id": A1_SEED_SOURCE_BINDING_ID,
+                "source_contract_version": "1.0.0",
+                "weight_set_revision_id": A1_SEED_WEIGHT_REVISION_ID,
+                "weight_set_content_hash": "c2-r4-wch-001",
+                "weight_set_generator_compatibility_version": "1.0.0",
+                "combined_source_hash": "c2-r4-csh-001",
+                "binding_schema_version": "1.0.0",
+                "execution_snapshot_id": A1_SEED_EXEC_SNAPSHOT_ID,
+                "coefficient_context_id": A1_SEED_COEFF_CONTEXT_ID,
+                "orchestration_identity_id": A1_SEED_IDENTITY_ID,
+                "authoritative_attempt_id": A1_SEED_ATTEMPT_ID,
+                "orchestration_fingerprint": "c2-r4-fp-001",
+                "zone_calculation_id": A1_SEED_ZONE_RUN_ID,
+                "cooling_load_calculation_id": A1_SEED_COOL_RUN_ID,
+                "equipment_calculation_id": A1_SEED_EQUIP_RUN_ID,
+                "power_calculation_id": A1_SEED_POWER_RUN_ID,
+                "investment_calculation_id": A1_SEED_INVEST_RUN_ID,
+                "zone_result_hash": "c2-r4-zrh-001",
+                "cooling_load_result_hash": "c2-r4-clrh-001",
+                "equipment_result_hash": "c2-r4-erh-001",
+                "power_result_hash": "c2-r4-prh-001",
+                "investment_result_hash": "c2-r4-irh-001",
+            },
+        )
+        s.commit()
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "input_snapshot" in str(exc_info.value), (
+        f"strict boundary must reject null input_snapshot; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_assumption_snapshot_null_rejected(a1_engine: Any, a1_session_factory: Any) -> None:
+    """Round 4 §5.4: ``assumption_snapshot=None`` MUST be
+    rejected. The test writes a NULL column via raw SQL
+    (bypassing the SQLAlchemy ``default=dict`` ORM mapping).
+    """
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-assumption-snap-null-rejected-001"
+    seed_s = a1_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+    from sqlalchemy import text as _sa_text
+
+    with a1_session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+        s.execute(
+            _sa_text(
+                """
+                INSERT INTO scheme_runs (
+                    id, project_id, project_version_id, weight_set_id,
+                    status, generator_version, source_snapshot_hash,
+                    input_snapshot, assumption_snapshot, comparison_snapshot,
+                    candidates_snapshot, requires_review, content_hash,
+                    recommended_scheme_code, warning_messages, database_backend,
+                    source_mode, source_binding_id, source_contract_version,
+                    weight_set_revision_id, weight_set_content_hash,
+                    weight_set_generator_compatibility_version,
+                    combined_source_hash, binding_schema_version,
+                    execution_snapshot_id, coefficient_context_id,
+                    orchestration_identity_id, authoritative_attempt_id,
+                    orchestration_fingerprint, zone_calculation_id,
+                    cooling_load_calculation_id, equipment_calculation_id,
+                    power_calculation_id, investment_calculation_id,
+                    zone_result_hash, cooling_load_result_hash,
+                    equipment_result_hash, power_result_hash,
+                    investment_result_hash
+                ) VALUES (
+                    :id, :project_id, :project_version_id, :weight_set_id,
+                    :status, :generator_version, :source_snapshot_hash,
+                    :input_snapshot, :assumption_snapshot, :comparison_snapshot,
+                    :candidates_snapshot, :requires_review, :content_hash,
+                    :recommended_scheme_code, :warning_messages, :database_backend,
+                    :source_mode, :source_binding_id, :source_contract_version,
+                    :weight_set_revision_id, :weight_set_content_hash,
+                    :weight_set_generator_compatibility_version,
+                    :combined_source_hash, :binding_schema_version,
+                    :execution_snapshot_id, :coefficient_context_id,
+                    :orchestration_identity_id, :authoritative_attempt_id,
+                    :orchestration_fingerprint, :zone_calculation_id,
+                    :cooling_load_calculation_id, :equipment_calculation_id,
+                    :power_calculation_id, :investment_calculation_id,
+                    :zone_result_hash, :cooling_load_result_hash,
+                    :equipment_result_hash, :power_result_hash,
+                    :investment_result_hash
+                )
+                """
+            ),
+            {
+                "id": row_id,
+                "project_id": A1_SEED_PROJECT_ID,
+                "project_version_id": A1_SEED_VERSION_ID,
+                "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+                "status": "completed",
+                "generator_version": "1.0.0",
+                "source_snapshot_hash": "c2-r4-ssh-001",
+                "input_snapshot": "{}",
+                "assumption_snapshot": None,  # the field under test
+                "comparison_snapshot": "{}",
+                "candidates_snapshot": '[{"cr":[{"cc":"c1","p":1}]}]',
+                "requires_review": 0,
+                "content_hash": "c2-r4-content-hash-001",
+                "recommended_scheme_code": None,
+                "warning_messages": "[]",
+                "database_backend": "sqlite",
+                "source_mode": "production",
+                "source_binding_id": A1_SEED_SOURCE_BINDING_ID,
+                "source_contract_version": "1.0.0",
+                "weight_set_revision_id": A1_SEED_WEIGHT_REVISION_ID,
+                "weight_set_content_hash": "c2-r4-wch-001",
+                "weight_set_generator_compatibility_version": "1.0.0",
+                "combined_source_hash": "c2-r4-csh-001",
+                "binding_schema_version": "1.0.0",
+                "execution_snapshot_id": A1_SEED_EXEC_SNAPSHOT_ID,
+                "coefficient_context_id": A1_SEED_COEFF_CONTEXT_ID,
+                "orchestration_identity_id": A1_SEED_IDENTITY_ID,
+                "authoritative_attempt_id": A1_SEED_ATTEMPT_ID,
+                "orchestration_fingerprint": "c2-r4-fp-001",
+                "zone_calculation_id": A1_SEED_ZONE_RUN_ID,
+                "cooling_load_calculation_id": A1_SEED_COOL_RUN_ID,
+                "equipment_calculation_id": A1_SEED_EQUIP_RUN_ID,
+                "power_calculation_id": A1_SEED_POWER_RUN_ID,
+                "investment_calculation_id": A1_SEED_INVEST_RUN_ID,
+                "zone_result_hash": "c2-r4-zrh-001",
+                "cooling_load_result_hash": "c2-r4-clrh-001",
+                "equipment_result_hash": "c2-r4-erh-001",
+                "power_result_hash": "c2-r4-prh-001",
+                "investment_result_hash": "c2-r4-irh-001",
+            },
+        )
+        s.commit()
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "assumption_snapshot" in str(exc_info.value), (
+        f"strict boundary must reject null assumption_snapshot; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_comparison_snapshot_null_rejected(a1_engine: Any, a1_session_factory: Any) -> None:
+    """Round 4 §5.4: ``comparison_snapshot=None`` MUST be
+    rejected. The test writes a NULL column via raw SQL.
+    """
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-comparison-snap-null-rejected-001"
+    seed_s = a1_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+    from sqlalchemy import text as _sa_text
+
+    with a1_session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+        s.execute(
+            _sa_text(
+                """
+                INSERT INTO scheme_runs (
+                    id, project_id, project_version_id, weight_set_id,
+                    status, generator_version, source_snapshot_hash,
+                    input_snapshot, assumption_snapshot, comparison_snapshot,
+                    candidates_snapshot, requires_review, content_hash,
+                    recommended_scheme_code, warning_messages, database_backend,
+                    source_mode, source_binding_id, source_contract_version,
+                    weight_set_revision_id, weight_set_content_hash,
+                    weight_set_generator_compatibility_version,
+                    combined_source_hash, binding_schema_version,
+                    execution_snapshot_id, coefficient_context_id,
+                    orchestration_identity_id, authoritative_attempt_id,
+                    orchestration_fingerprint, zone_calculation_id,
+                    cooling_load_calculation_id, equipment_calculation_id,
+                    power_calculation_id, investment_calculation_id,
+                    zone_result_hash, cooling_load_result_hash,
+                    equipment_result_hash, power_result_hash,
+                    investment_result_hash
+                ) VALUES (
+                    :id, :project_id, :project_version_id, :weight_set_id,
+                    :status, :generator_version, :source_snapshot_hash,
+                    :input_snapshot, :assumption_snapshot, :comparison_snapshot,
+                    :candidates_snapshot, :requires_review, :content_hash,
+                    :recommended_scheme_code, :warning_messages, :database_backend,
+                    :source_mode, :source_binding_id, :source_contract_version,
+                    :weight_set_revision_id, :weight_set_content_hash,
+                    :weight_set_generator_compatibility_version,
+                    :combined_source_hash, :binding_schema_version,
+                    :execution_snapshot_id, :coefficient_context_id,
+                    :orchestration_identity_id, :authoritative_attempt_id,
+                    :orchestration_fingerprint, :zone_calculation_id,
+                    :cooling_load_calculation_id, :equipment_calculation_id,
+                    :power_calculation_id, :investment_calculation_id,
+                    :zone_result_hash, :cooling_load_result_hash,
+                    :equipment_result_hash, :power_result_hash,
+                    :investment_result_hash
+                )
+                """
+            ),
+            {
+                "id": row_id,
+                "project_id": A1_SEED_PROJECT_ID,
+                "project_version_id": A1_SEED_VERSION_ID,
+                "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+                "status": "completed",
+                "generator_version": "1.0.0",
+                "source_snapshot_hash": "c2-r4-ssh-001",
+                "input_snapshot": "{}",
+                "assumption_snapshot": "{}",
+                "comparison_snapshot": None,  # the field under test
+                "candidates_snapshot": '[{"cr":[{"cc":"c1","p":1}]}]',
+                "requires_review": 0,
+                "content_hash": "c2-r4-content-hash-001",
+                "recommended_scheme_code": None,
+                "warning_messages": "[]",
+                "database_backend": "sqlite",
+                "source_mode": "production",
+                "source_binding_id": A1_SEED_SOURCE_BINDING_ID,
+                "source_contract_version": "1.0.0",
+                "weight_set_revision_id": A1_SEED_WEIGHT_REVISION_ID,
+                "weight_set_content_hash": "c2-r4-wch-001",
+                "weight_set_generator_compatibility_version": "1.0.0",
+                "combined_source_hash": "c2-r4-csh-001",
+                "binding_schema_version": "1.0.0",
+                "execution_snapshot_id": A1_SEED_EXEC_SNAPSHOT_ID,
+                "coefficient_context_id": A1_SEED_COEFF_CONTEXT_ID,
+                "orchestration_identity_id": A1_SEED_IDENTITY_ID,
+                "authoritative_attempt_id": A1_SEED_ATTEMPT_ID,
+                "orchestration_fingerprint": "c2-r4-fp-001",
+                "zone_calculation_id": A1_SEED_ZONE_RUN_ID,
+                "cooling_load_calculation_id": A1_SEED_COOL_RUN_ID,
+                "equipment_calculation_id": A1_SEED_EQUIP_RUN_ID,
+                "power_calculation_id": A1_SEED_POWER_RUN_ID,
+                "investment_calculation_id": A1_SEED_INVEST_RUN_ID,
+                "zone_result_hash": "c2-r4-zrh-001",
+                "cooling_load_result_hash": "c2-r4-clrh-001",
+                "equipment_result_hash": "c2-r4-erh-001",
+                "power_result_hash": "c2-r4-prh-001",
+                "investment_result_hash": "c2-r4-irh-001",
+            },
+        )
+        s.commit()
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "comparison_snapshot" in str(exc_info.value), (
+        f"strict boundary must reject null comparison_snapshot; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_required_snapshot_leaf_missing_rejected(
+    a1_engine: Any, a1_session_factory: Any
+) -> None:
+    """Round 4 §5.4: a required input_snapshot leaf
+    (e.g. ``cooling_load_result``) missing from the persisted
+    input_snapshot MUST be rejected by the projection layer.
+    The C-2 boundary does NOT silently backfill from the
+    golden.
+    """
+    from cold_storage.evaluation.adapter import (
+        C2BaselineProjectionSource,
+    )
+    from cold_storage.evaluation.runners._executor import (
+        build_baseline_normalized_business_projection,
+    )
+
+    # Read the production row (which has all required
+    # production identity columns) but mutate the
+    # input_snapshot to remove ``cooling_load_result``
+    # (a required normalized-business leaf). The C-2
+    # read boundary passes (it validates the production
+    # row's metadata); the projection layer MUST fail
+    # closed on the missing snapshot leaf.
+    row_id = "c2-r4-snap-leaf-missing-rejected-001"
+    # Build the C-2 source with the required leaves
+    # ALL present, then construct a second source with
+    # the leaf missing, and call the projection layer
+    # directly (the boundary is the projection layer
+    # for snapshot leaves per §5.3).
+    from datetime import UTC, datetime
+
+    complete_source = C2BaselineProjectionSource(
+        run_id=row_id,
+        created_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
+        database_backend="sqlite",
+        source_mode="production",
+        source_binding_id="c2-r4-binding-001",
+        source_contract_version="1.0.0",
+        weight_set_revision_id="c2-r4-wrev-001",
+        weight_set_content_hash="c2-r4-wch-001",
+        weight_set_generator_compatibility_version="1.0.0",
+        combined_source_hash="c2-r4-csh-001",
+        binding_schema_version="1.0.0",
+        execution_snapshot_id="c2-r4-exec-001",
+        coefficient_context_id="c2-r4-cc-001",
+        orchestration_identity_id="c2-r4-oid-001",
+        authoritative_attempt_id="c2-r4-att-001",
+        orchestration_fingerprint="c2-r4-fp-001",
+        zone_calculation_id="c2-r4-zc-001",
+        cooling_load_calculation_id="c2-r4-cl-001",
+        equipment_calculation_id="c2-r4-ec-001",
+        power_calculation_id="c2-r4-pc-001",
+        investment_calculation_id="c2-r4-ic-001",
+        zone_result_hash="c2-r4-zh-001",
+        cooling_load_result_hash="c2-r4-ch-001",
+        equipment_result_hash="c2-r4-eh-001",
+        power_result_hash="c2-r4-ph-001",
+        investment_result_hash="c2-r4-ih-001",
+        input_snapshot={
+            # ``cooling_load_result`` is intentionally MISSING.
+            "equipment_result": {"selected_equipment": ["evaporator-001"]},
+            "investment_result": {"total_area_m2": 150.0},
+            "power_result": {"total_power_kw": 12.0},
+            "zone_results": [{"zone_id": "z1"}],
+            "profile_codes": ["balanced"],
+            "profile_parameters": {"balanced": {"position_count": 30}},
+            "total_daily_throughput_kg_day": 5000.0,
+            "total_position_count": 30,
+            "total_storage_capacity_kg": 50000.0,
+            "weight_set_id": "c2-r4-ws-001",
+        },
+        assumption_snapshot={},
+        comparison_snapshot={},
+        candidates_snapshot=[
+            {
+                "scheme_code": "balanced",
+                "constraint_results": [{"constraint_code": "c1", "passed": True}],
+            }
+        ],
+        project_id="c2-r4-p-001",
+        project_version_id="c2-r4-pv-001",
+        weight_set_id="c2-r4-ws-001",
+        status="completed",
+        generator_version="1.0.0",
+        source_snapshot_hash="c2-r4-ssh-001",
+        content_hash="c2-r4-content-hash-001",
+        recommended_scheme_code=None,
+        requires_review=False,
+        warning_messages=(),
+    )
+    # The dataclass is frozen; the projection layer is the
+    # boundary that fails closed on missing leaves. The
+    # read boundary's per-record validation does NOT see
+    # snapshot leaves.
+    with pytest.raises(Exception) as exc_info:
+        build_baseline_normalized_business_projection(complete_source)
+    assert "cooling_load_result" in str(exc_info.value), (
+        f"projection layer must reject missing snapshot leaf "
+        f"cooling_load_result; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_required_snapshot_leaf_null_rejected(
+    a1_engine: Any, a1_session_factory: Any
+) -> None:
+    """Round 4 §5.4: a required input_snapshot leaf stored as
+    None MUST be rejected. The projection layer does NOT
+    emit ``None`` into the normalized projection.
+    """
+    from datetime import UTC, datetime
+
+    from cold_storage.evaluation.adapter import (
+        C2BaselineProjectionSource,
+    )
+    from cold_storage.evaluation.runners._executor import (
+        build_baseline_normalized_business_projection,
+    )
+
+    row_id = "c2-r4-snap-leaf-null-rejected-001"
+    null_leaf_source = C2BaselineProjectionSource(
+        run_id=row_id,
+        created_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
+        database_backend="sqlite",
+        source_mode="production",
+        source_binding_id="c2-r4-binding-001",
+        source_contract_version="1.0.0",
+        weight_set_revision_id="c2-r4-wrev-001",
+        weight_set_content_hash="c2-r4-wch-001",
+        weight_set_generator_compatibility_version="1.0.0",
+        combined_source_hash="c2-r4-csh-001",
+        binding_schema_version="1.0.0",
+        execution_snapshot_id="c2-r4-exec-001",
+        coefficient_context_id="c2-r4-cc-001",
+        orchestration_identity_id="c2-r4-oid-001",
+        authoritative_attempt_id="c2-r4-att-001",
+        orchestration_fingerprint="c2-r4-fp-001",
+        zone_calculation_id="c2-r4-zc-001",
+        cooling_load_calculation_id="c2-r4-cl-001",
+        equipment_calculation_id="c2-r4-ec-001",
+        power_calculation_id="c2-r4-pc-001",
+        investment_calculation_id="c2-r4-ic-001",
+        zone_result_hash="c2-r4-zh-001",
+        cooling_load_result_hash="c2-r4-ch-001",
+        equipment_result_hash="c2-r4-eh-001",
+        power_result_hash="c2-r4-ph-001",
+        investment_result_hash="c2-r4-ih-001",
+        input_snapshot={
+            # ``cooling_load_result`` is stored as None.
+            "cooling_load_result": None,
+            "equipment_result": {"selected_equipment": ["evaporator-001"]},
+            "investment_result": {"total_area_m2": 150.0},
+            "power_result": {"total_power_kw": 12.0},
+            "zone_results": [{"zone_id": "z1"}],
+            "profile_codes": ["balanced"],
+            "profile_parameters": {"balanced": {"position_count": 30}},
+            "total_daily_throughput_kg_day": 5000.0,
+            "total_position_count": 30,
+            "total_storage_capacity_kg": 50000.0,
+            "weight_set_id": "c2-r4-ws-001",
+        },
+        assumption_snapshot={},
+        comparison_snapshot={},
+        candidates_snapshot=[
+            {
+                "scheme_code": "balanced",
+                "constraint_results": [{"constraint_code": "c1", "passed": True}],
+            }
+        ],
+        project_id="c2-r4-p-001",
+        project_version_id="c2-r4-pv-001",
+        weight_set_id="c2-r4-ws-001",
+        status="completed",
+        generator_version="1.0.0",
+        source_snapshot_hash="c2-r4-ssh-001",
+        content_hash="c2-r4-content-hash-001",
+        recommended_scheme_code=None,
+        requires_review=False,
+        warning_messages=(),
+    )
+    with pytest.raises(Exception) as exc_info:
+        build_baseline_normalized_business_projection(null_leaf_source)
+    assert "cooling_load_result" in str(exc_info.value), (
+        f"projection layer must reject null snapshot leaf "
+        f"cooling_load_result; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_warning_messages_contains_non_string_rejected(
+    a1_engine: Any, a1_session_factory: Any
+) -> None:
+    """Round 4 §5.4: ``warning_messages`` entries that are not
+    exact ``str`` instances MUST be rejected. The boundary
+    does NOT silently coerce (no truthiness, no ``str(x)``).
+    """
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-warn-non-str-rejected-001"
+    _seed_baseline_production_row(
+        a1_session_factory,
+        row_id=row_id,
+        # 42 is an int, not a str. The strict
+        # boundary MUST reject the entire array.
+        warning_messages=[42],
+    )
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "warning_messages" in str(exc_info.value), (
+        f"strict boundary must reject non-str warning_messages entries; got: {exc_info.value}"
+    )
+
+
+def test_c2_r4_invalid_candidates_snapshot_shape_rejected(
+    a1_engine: Any, a1_session_factory: Any
+) -> None:
+    """Round 4 §5.4: ``candidates_snapshot`` stored as a
+    string (or any non-list / non-dict shape) MUST be
+    rejected. The frozen contract allows only
+    ``list[object]`` or ``dict[str, object]``.
+    """
+    from cold_storage.evaluation.adapter import (
+        MissingC2ProductionField,
+        read_c2_baseline_projection,
+    )
+
+    row_id = "c2-r4-candidates-shape-rejected-001"
+    _seed_baseline_production_row(
+        a1_session_factory,
+        row_id=row_id,
+        candidates_snapshot="not-a-list-or-dict",
+    )
+    with pytest.raises(MissingC2ProductionField) as exc_info:
+        read_c2_baseline_projection(a1_session_factory, run_id=row_id)
+    assert "candidates_snapshot" in str(exc_info.value), (
+        f"strict boundary must reject invalid candidates_snapshot shape; got: {exc_info.value}"
     )

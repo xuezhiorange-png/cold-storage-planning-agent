@@ -1079,6 +1079,26 @@ def test_baseline_feasible_real_e2e_on_postgresql(
             "backends (per the golden's documented "
             "stable_proxies contract)."
         )
+        # ── Direct canonical byte equality (Round 4 §八) ──
+        # The on-disk normalized bytes are byte-exact the
+        # canonicalizer's output on the frozen business
+        # payload with empty excluded_paths. This is the
+        # PRIMARY byte-parity proof; the structural
+        # ``on_disk_value == frozen_business_payload``
+        # check above is a secondary shape check.
+        from cold_storage.evaluation.canonicalization import (
+            canonicalize_production_outputs,
+        )
+        expected_canonical_bytes = canonicalize_production_outputs(
+            frozen_business_payload,
+            excluded_paths=(),
+        )
+        assert on_disk_bytes == expected_canonical_bytes, (
+            "C-2 PG E2E: on-disk normalized bytes MUST equal "
+            "the canonicalizer's byte-exact output on the "
+            "frozen business payload (Round 4 §八 direct byte "
+            "equality). This is the PRIMARY byte-parity proof."
+        )
         # 6. On-disk raw artifact carries the full
         #    production lineage.
         raw_artifact = root / "run" / "baseline_feasible" / "raw" / "baseline_feasible.json"
@@ -1088,3 +1108,206 @@ def test_baseline_feasible_real_e2e_on_postgresql(
         # 7. summary.json was written last.
         summary_path = suite_summary_path(root=root / "run")
         assert summary_path.exists()
+
+
+# ── Round 4 §六: real PostgreSQL D10 zero-row-delta + call-order ──
+
+
+def test_d10_zero_row_delta_and_call_order_instrumentation_on_postgresql(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 4 §六: real PostgreSQL D10 acceptance.
+
+    The D10 ``invalid_blocked`` scenario runs against a real
+    PostgreSQL database (NOT SQLite, NOT a temp DB, NOT a mock
+    repository). The test:
+
+    1. seeds the canonical A1 production pre-existing context
+       into the PG database;
+    2. instruments :func:`_atomic_write_json` and
+       :func:`_atomic_write_bytes` at the runner boundary with
+       a :class:`WriteEventRecorder` (a monkeypatch wrapper
+       that records the resolved written path of every
+       managed-artifact write in call-order);
+    3. executes :func:`evaluate_manifest` with a manifest
+       that contains BOTH a ``baseline_feasible`` SUCCEEDED
+       scenario AND an ``invalid_blocked`` INVALID_INPUT
+       scenario;
+    4. asserts the actual outcome of ``invalid_blocked`` is
+       ``INVALID_INPUT``, the scenario evaluation_result is
+       ``pass``, and the suite overall result is ``pass``;
+    5. asserts the four row-count deltas (scheme_runs,
+       calculation_runs, orchestration_identities,
+       orchestration_run_attempts) are ZERO;
+    6. asserts the call-order recorder's final
+       managed-artifact write is exactly
+       ``<run-root>/summary.json``;
+    7. asserts every scenario raw / normalized / run
+       artifact is written BEFORE the summary;
+    8. asserts the summary is written exactly ONCE;
+    9. asserts NO managed-artifact write occurs after the
+       summary write.
+
+    Round 4 §七: ``run_mtime <= summary_mtime`` is NOT
+    acceptable as the call-order proof. The recorder is the
+    primary authority.
+    """
+    from sqlalchemy import text as _sa_text
+
+    from cold_storage.evaluation import evaluate as _evaluate_mod
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+    from cold_storage.evaluation.models import (
+        DatabaseBackend,
+        ExpectedErrorAssertion,
+        ExpectedOutcome,
+        ExpectedOutputRef,
+        Manifest,
+        ScenarioDeclaration,
+    )
+    from cold_storage.evaluation.run_directory import suite_summary_path
+
+    assert a2_pg_engine.dialect.name == "postgresql"
+
+    # 1. Seed pre-existing production context.
+    seed_s = a2_pg_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 2. Capture BEFORE row counts via raw text() (no
+    # Phase-1 record-class imports per the architecture
+    # test ban).
+    def _count(table_name: str) -> int:
+        with a2_pg_session_factory() as s:
+            return int(s.execute(_sa_text(f"SELECT COUNT(*) FROM {table_name}")).scalar_one())
+
+    before_scheme = _count("scheme_runs")
+    before_calc = _count("calculation_runs")
+    before_identity = _count("orchestration_identities")
+    before_attempt = _count("orchestration_run_attempts")
+
+    # 3. Instrumentation: a WriteEventRecorder that wraps
+    # the runner's two atomic-write functions and appends
+    # the resolved path (and timestamp) of every
+    # managed-artifact write in call-order. The wrapper
+    # delegates to the original writer (no fakes, no
+    # short-circuits).
+    from pathlib import Path as _Path
+
+    class _WriteEventRecorder:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str]] = []
+
+        def record(self, kind: str, path: _Path) -> None:
+            self.events.append((kind, str(path)))
+
+    _recorder = _WriteEventRecorder()
+    _orig_write_json = _evaluate_mod._atomic_write_json
+    _orig_write_bytes = _evaluate_mod._atomic_write_bytes
+
+    def _wrapped_write_json(*, path: _Path, data: Any) -> None:
+        _recorder.record("json", path)
+        _orig_write_json(path=path, data=data)
+
+    def _wrapped_write_bytes(*, path: _Path, data: bytes) -> None:
+        _recorder.record("bytes", path)
+        _orig_write_bytes(path=path, data=data)
+
+    _evaluate_mod._atomic_write_json = _wrapped_write_json
+    _evaluate_mod._atomic_write_bytes = _wrapped_write_bytes
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _Path(tmp).resolve()
+            manifest = Manifest(
+                schema_version="1.0",
+                suite_id="c2-round4-d10-zero-delta-pg",
+                scenarios=(
+                    ScenarioDeclaration(
+                        scenario_id="invalid_blocked",
+                        database_backend=DatabaseBackend.POSTGRESQL,
+                        expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                        expected_output=ExpectedOutputRef(
+                            scenario_id="invalid_blocked",
+                            path=None,
+                            expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                            expected_error=ExpectedErrorAssertion(
+                                exception_type="InvalidProjectInputError",
+                                code="PROJ_INPUT_INVALID",
+                                field="total_area_m2",
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            result = evaluate_manifest(
+                manifest=manifest,
+                manifest_root=root,
+                root=root / "run",
+            )
+            assert result.evaluation_result_overall.value == "pass"
+            assert result.scenarios[0].actual_outcome == "INVALID_INPUT"
+            assert result.scenarios[0].evaluation_result.value == "pass"
+            summary_path = suite_summary_path(root=root / "run")
+            assert summary_path.exists()
+    finally:
+        _evaluate_mod._atomic_write_json = _orig_write_json
+        _evaluate_mod._atomic_write_bytes = _orig_write_bytes
+
+    # 4. Call-order assertion (Round 4 §七): the final
+    # managed-artifact write MUST be ``<run-root>/summary.json``.
+    assert len(_recorder.events) > 0, (
+        "D10 PG call-order: WriteEventRecorder MUST have observed "
+        "at least one managed-artifact write; got an empty event list"
+    )
+    last_kind, last_path = _recorder.events[-1]
+    assert last_kind == "json", (
+        f"D10 PG call-order: the final managed-artifact write "
+        f"MUST be a ``_atomic_write_json`` call (summary.json); "
+        f"got kind={last_kind!r} path={last_path!r}"
+    )
+    assert last_path == str(summary_path), (
+        f"D10 PG call-order: the final managed-artifact write "
+        f"MUST be ``<run-root>/summary.json``; "
+        f"got {last_path!r} expected {str(summary_path)!r}"
+    )
+    # 5. The summary MUST be written exactly once.
+    summary_writes = [e for e in _recorder.events if e[1] == str(summary_path)]
+    assert len(summary_writes) == 1, (
+        f"D10 PG call-order: summary.json MUST be written exactly "
+        f"once; got {len(summary_writes)} writes"
+    )
+    # 6. NO managed-artifact write occurs after the summary.
+    summary_idx = _recorder.events.index(summary_writes[0])
+    assert summary_idx == len(_recorder.events) - 1, (
+        f"D10 PG call-order: NO managed-artifact write MUST occur "
+        f"after summary.json; "
+        f"summary_idx={summary_idx}, total_events={len(_recorder.events)}, "
+        f"trailing event={_recorder.events[-1]!r}"
+    )
+
+    # 7. Zero-row-delta: SchemeRun / CalculationRun /
+    # OrchestrationIdentity / OrchestrationRunAttempt counts
+    # MUST be unchanged.
+    after_scheme = _count("scheme_runs")
+    after_calc = _count("calculation_runs")
+    after_identity = _count("orchestration_identities")
+    after_attempt = _count("orchestration_run_attempts")
+    assert after_scheme == before_scheme, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"scheme-runs table; before={before_scheme} after={after_scheme}"
+    )
+    assert after_calc == before_calc, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"calculation-runs table; before={before_calc} after={after_calc}"
+    )
+    assert after_identity == before_identity, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"orchestration-identities table; "
+        f"before={before_identity} after={after_identity}"
+    )
+    assert after_attempt == before_attempt, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"orchestration-run-attempts table; "
+        f"before={before_attempt} after={after_attempt}"
+    )
