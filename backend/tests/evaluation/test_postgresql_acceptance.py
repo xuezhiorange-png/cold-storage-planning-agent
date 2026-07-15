@@ -1520,20 +1520,20 @@ def _pg_seed_baseline_production_row(
     # SQLAlchemy. PG's Boolean column stores real
     # bools; the C-2 boundary must accept them.
     from tests.evaluation._seed_helpers import (
-        A1_SEED_ATTEMPT_ID,
-        A1_SEED_COEFF_CONTEXT_ID,
-        A1_SEED_COOL_RUN_ID,
-        A1_SEED_EQUIP_RUN_ID,
-        A1_SEED_EXEC_SNAPSHOT_ID,
-        A1_SEED_IDENTITY_ID,
-        A1_SEED_INVEST_RUN_ID,
-        A1_SEED_POWER_RUN_ID,
-        A1_SEED_PROJECT_ID,
-        A1_SEED_SOURCE_BINDING_ID,
-        A1_SEED_VERSION_ID,
-        A1_SEED_WEIGHT_REVISION_ID,
-        A1_SEED_WEIGHT_SET_ID,
-        A1_SEED_ZONE_RUN_ID,
+        ATTEMPT_ID as A1_SEED_ATTEMPT_ID,
+        COEFF_CONTEXT_ID as A1_SEED_COEFF_CONTEXT_ID,
+        COOL_RUN_ID as A1_SEED_COOL_RUN_ID,
+        EQUIP_RUN_ID as A1_SEED_EQUIP_RUN_ID,
+        EXEC_SNAPSHOT_ID as A1_SEED_EXEC_SNAPSHOT_ID,
+        IDENTITY_ID as A1_SEED_IDENTITY_ID,
+        INVEST_RUN_ID as A1_SEED_INVEST_RUN_ID,
+        POWER_RUN_ID as A1_SEED_POWER_RUN_ID,
+        PROJECT_ID as A1_SEED_PROJECT_ID,
+        SOURCE_BINDING_ID as A1_SEED_SOURCE_BINDING_ID,
+        VERSION_ID as A1_SEED_VERSION_ID,
+        WEIGHT_REVISION_ID as A1_SEED_WEIGHT_REVISION_ID,
+        WEIGHT_SET_ID as A1_SEED_WEIGHT_SET_ID,
+        ZONE_RUN_ID as A1_SEED_ZONE_RUN_ID,
     )
 
     with session_factory() as s:
