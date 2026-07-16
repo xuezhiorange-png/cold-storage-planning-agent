@@ -65,6 +65,8 @@ suite.
 from __future__ import annotations
 
 import inspect
+import json
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -1693,3 +1695,198 @@ def test_positive_comparison_classes_pairwise_disjoint() -> None:
     assert exact & excluded == set(), f"exact ∩ excluded = {exact & excluded}"
     assert proxy & excluded == set(), f"proxy ∩ excluded = {proxy & excluded}"
     validate_expected_output_comparison_policy(g, backend="sqlite")
+
+
+
+# ── TASK-011C C-2 Round 3 — real baseline E2E (authority comment 4974759224) ──
+
+
+def test_baseline_feasible_real_e2e(
+    a1_engine: Any, a1_session_factory: Any
+) -> None:
+    """Round 3 §10: real baseline E2E through the suite
+    runner. The test:
+
+    1. seeds the canonical A1 pre-existing production
+       context;
+    2. copies the frozen baseline_feasible.v1.json golden
+       into the manifest_root;
+    3. invokes the real :func:`evaluate_manifest` (not
+       ``run_scenario``);
+    4. asserts ``evaluation_result_overall == PASS``;
+    5. asserts the on-disk raw artifact is the
+       production-derived value (NOT the golden);
+    6. asserts the on-disk normalized artifact is the
+       byte-exact D1 canonical output;
+    7. asserts the normalized business projection matches
+       the frozen business payload (golden minus
+       ``_comparison_policy``);
+    8. asserts runtime volatile fields are absent from the
+       normalized projection.
+    """
+    import json
+    import shutil
+    from pathlib import Path
+
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+    from cold_storage.evaluation.models import (
+        DatabaseBackend,
+        ExpectedOutcome,
+        ExpectedOutputRef,
+        Manifest,
+        ScenarioDeclaration,
+    )
+    from cold_storage.evaluation.run_directory import suite_summary_path
+
+    # 1. Seed pre-existing production context.
+    seed_s = a1_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        # 2. Copy the frozen golden into the manifest_root.
+        expected_path = root / "expected" / "baseline_feasible.v1.json"
+        expected_path.parent.mkdir(parents=True, exist_ok=True)
+        src_golden = (
+            Path(__file__).resolve().parent / "data" / "expected" / "baseline_feasible.v1.json"
+        )
+        # The seed_helpers expose a loader for the golden;
+        # we use the file-system path so the runner resolves
+        # the expected_output through the manifest_root.
+        shutil.copyfile(src_golden, expected_path)
+        # The Manifest's expected_output.path is RELATIVE
+        # to the manifest_root.
+        rel_expected = "expected/baseline_feasible.v1.json"
+        # 3. Build the typed V1 manifest.
+        manifest = Manifest(
+            schema_version="1.0",
+            suite_id="c2-round3-baseline-real-e2e",
+            scenarios=(
+                ScenarioDeclaration(
+                    scenario_id="baseline_feasible",
+                    database_backend=DatabaseBackend.SQLITE,
+                    expected_outcome=ExpectedOutcome.SUCCEEDED,
+                    expected_output=ExpectedOutputRef(
+                        scenario_id="baseline_feasible",
+                        path=rel_expected,
+                        expected_outcome=ExpectedOutcome.SUCCEEDED,
+                        expected_error=None,
+                    ),
+                ),
+            ),
+        )
+        # 4. Real evaluate_manifest run.
+        result = evaluate_manifest(
+            manifest=manifest,
+            manifest_root=root,
+            root=root / "run",
+            session_factory=a1_session_factory,
+            commit_sha="c2-round3-test",
+        )
+        # 5. The overall result is PASS (real production
+        #    values match the frozen golden).
+        assert result.evaluation_result_overall.value == "pass", (
+            f"C-2 E2E: overall result MUST be pass; "
+            f"diffs={result.scenarios[0].diff_summary!r}"
+        )
+        # 6. Inspect the on-disk raw artifact.
+        raw_artifact = root / "run" / "baseline_feasible" / "raw" / "baseline_feasible.json"
+        assert raw_artifact.exists(), f"C-2 E2E: raw artifact missing at {raw_artifact}"
+        raw_data = json.loads(raw_artifact.read_text(encoding="utf-8"))
+        # The raw artifact carries the full production
+        # lineage (AdapterResult + C-2 production-source
+        # identity). Runtime volatile fields ARE present
+        # in the raw artifact.
+        assert "adapter_result" in raw_data
+        assert "c2_persisted" in raw_data
+        c2 = raw_data["c2_persisted"]
+        assert c2["database_backend"] == "sqlite"
+        assert c2["source_mode"] == "production"
+        assert c2["source_binding_id"] == "a1-test-binding-001"
+        assert c2["weight_set_revision_id"] == "a1-test-wrev-001"
+        # 7. The on-disk normalized artifact is the
+        # byte-exact D1 canonical output.
+        norm_artifact = (
+            root / "run" / "baseline_feasible"
+            / "normalized" / "baseline_feasible.json"
+        )
+        assert norm_artifact.exists(), (
+            f"C-2 E2E: normalized artifact missing at {norm_artifact}"
+        )
+        on_disk_bytes = norm_artifact.read_bytes()
+        # The normalized projection shape (re-derived from
+        # the bytes).
+        on_disk_value = json.loads(on_disk_bytes)
+        # The runner now reaches evaluation_result_overall=PASS
+        # (the real production data matches the frozen golden
+        # under the canonical correlation_id). The on-disk
+        # raw artifact + normalized artifact are present.
+        # We now compare the on-disk normalized value
+        # against the FROZEN golden's business payload
+        # (golden minus ``_comparison_policy``). The
+        # production-side ``expected_outcome`` is derived
+        # from the live ``source.status`` (SUCCEEDED when
+        # ``status == "completed"``); the golden captures
+        # the same value.
+        from tests.evaluation._seed_helpers import load_baseline_golden
+        src_golden_path = (
+            Path(__file__).resolve().parent / "data" / "expected" / "baseline_feasible.v1.json"
+        )
+        frozen_business_payload = {
+            k: v for k, v in json.loads(src_golden_path.read_text()).items()
+            if k != "_comparison_policy"
+        }
+        assert on_disk_value == frozen_business_payload, (
+            "C-2 E2E: on-disk normalized value MUST equal the "
+            "frozen business payload (golden minus "
+            "``_comparison_policy``). The two are byte-exact "
+            "by construction (canonicalize_production_outputs "
+            "is deterministic; the live production values "
+            "match the captured Commit C golden values when "
+            "the canonical correlation_id is used)."
+        )
+        # ── Direct canonical byte equality (Round 4 §八) ──
+        # The on-disk normalized bytes are byte-exact the
+        # canonicalizer's output on the frozen business
+        # payload with empty excluded_paths. This is the
+        # PRIMARY byte-parity proof; the structural
+        # ``on_disk_value == frozen_business_payload``
+        # check above is a secondary shape check.
+        from cold_storage.evaluation.canonicalization import (
+            canonicalize_production_outputs,
+        )
+        expected_canonical_bytes = canonicalize_production_outputs(
+            frozen_business_payload,
+            excluded_paths=(),
+        )
+        assert on_disk_bytes == expected_canonical_bytes, (
+            "C-2 E2E: on-disk normalized bytes MUST equal the "
+            "canonicalizer's byte-exact output on the frozen "
+            "business payload (Round 4 §八 direct byte equality)."
+        )
+        # Round 4 §八: continue the structural assertions.
+        # Runtime volatile fields are absent.
+        for v in (
+            "id",
+            "created_at",
+            "completed_at",
+            "database_backend",
+        ):
+            assert v not in on_disk_value, (
+                f"C-2 E2E: normalized_value MUST NOT contain runtime "
+                f"volatile field {v!r}"
+            )
+        # The constraint_check_summary is derived from
+        # production data (deterministic from the persisted
+        # candidates_snapshot[0].constraint_results).
+        assert on_disk_value["constraint_check_summary"] == (
+            frozen_business_payload["constraint_check_summary"]
+        )
+        # The summary.json was written LAST.
+        summary_path = suite_summary_path(root=root / "run")
+        assert summary_path.exists(), f"C-2 E2E: summary.json missing at {summary_path}"

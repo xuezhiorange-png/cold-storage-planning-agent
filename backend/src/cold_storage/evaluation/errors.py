@@ -146,10 +146,99 @@ def is_evaluation_runner_error(exc: BaseException) -> bool:
     return isinstance(exc, EvaluationRunnerError)
 
 
+# ── C-2 typed error classes (TASK-011C runner authority) ────────────────
+#
+# These classes are the C-2 runner's typed error surface. Each has a
+# stable ``code`` attribute; downstream code classifies by ``code``,
+# NEVER by parsing ``str(exc)`` (per Phase 4 §9 forbidden-pattern
+# list). All subclasses inherit ``details`` from the umbrella
+# :class:`EvaluationRunnerError`.
+
+
+class EvaluationManifestExecutionError(EvaluationRunnerError):
+    """Raised when manifest validation OR a manifest-driven manifest
+    *execution* step fails BEFORE any FS/DB side effect.
+
+    Distinct from :class:`InvalidEvaluationScenarioError` (which is
+    a per-scenario input contract violation) and from the existing
+    manifest loader errors (which live in
+    :mod:`cold_storage.evaluation.manifest`). This class covers the
+    runner's *executive* use of the manifest (e.g. cross-scenario
+    consistency checks, missing-revision detection, mismatched
+    backend identity between scenario and runner).
+    """
+
+    code = "EVALUATION_MANIFEST_EXECUTION_ERROR"
+
+
+class EvaluationComparisonError(EvaluationRunnerError):
+    """Raised when the manifest-driven comparison executor fails
+    *outside* a normal ``passed=False`` comparison result.
+
+    Normal expected-vs-actual mismatches return
+    :class:`cold_storage.evaluation.compare.ComparisonResult` with
+    ``passed=False`` and a populated ``diffs`` tuple. This class
+    covers the *infrastructure* failures of the comparison layer
+    (e.g. undeclared path, tolerance forbidden, canonicalizer
+    rejection, etc.).
+    """
+
+    code = "EVALUATION_COMPARISON_ERROR"
+
+
+class EvaluationInfrastructureError(EvaluationRunnerError):
+    """Raised when a downstream infrastructure operation (DB session,
+    filesystem write, network) fails during a runner call.
+
+    Distinct from production-side errors (which the runner
+    forwards unchanged per the A1 ownership boundary) and from
+    *expected* production exceptions (e.g.
+    :class:`cold_storage.modules.orchestration.application.production_calculation.errors.InvalidProjectInputError`
+    for D10). This class covers the runner's own
+    infrastructure-level failures.
+    """
+
+    code = "EVALUATION_INFRASTRUCTURE_ERROR"
+
+
+class StaleEvaluationArtifactsError(EvaluationRunnerError):
+    """Raised when a managed artifact (per-scenario
+    ``run.json`` / ``raw/<scenario_id>.json`` /
+    ``normalized/<scenario_id>.json`` or the suite
+    ``summary.json``) already exists at the target path BEFORE
+    the runner has started writing.
+
+    The runner NEVER silently overwrites a previous run's
+    artifacts; the stale state must be inspected and resolved by
+    the caller (e.g. by removing the artifact directory). This
+    error is the typed signal for that inspection.
+    """
+
+    code = "STALE_EVALUATION_ARTIFACTS_ERROR"
+
+
+class EvaluationArtifactWriteError(EvaluationRunnerError):
+    """Raised when an atomic artifact write fails (temp sibling
+    creation, flush, fsync, os.replace, etc.).
+
+    Distinct from a stale-artifact detection (which raises
+    :class:`StaleEvaluationArtifactsError` BEFORE any write
+    attempt). This class covers write-side infrastructure
+    failures.
+    """
+
+    code = "EVALUATION_ARTIFACT_WRITE_ERROR"
+
+
 __all__ = [
+    "EvaluationArtifactWriteError",
+    "EvaluationComparisonError",
+    "EvaluationInfrastructureError",
+    "EvaluationManifestExecutionError",
     "EvaluationRunnerError",
-    "PhaseBBlockedError",
-    "InvalidEvaluationScenarioError",
     "EvaluationRunnerContractViolationError",
+    "InvalidEvaluationScenarioError",
+    "PhaseBBlockedError",
+    "StaleEvaluationArtifactsError",
     "is_evaluation_runner_error",
 ]

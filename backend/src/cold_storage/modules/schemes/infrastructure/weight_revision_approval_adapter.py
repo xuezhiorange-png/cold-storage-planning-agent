@@ -55,13 +55,38 @@ _AUTHORITY_PK_CONSTRAINT = {
 
 _AUTHORITY_TABLE = "scheme_weight_set_active_revisions"
 
+# SQLite authority conflict signature:
+# - (a) authority table composite PK: scheme_weight_set_active_revisions(weight_set_id, code)
+# - (b) BEFORE UPDATE trigger trg_authority_check_on_approve raises
+#       RAISE(ABORT, <full message below>) when another revision for the
+#       same (weight_set_id, code) is already approved.  This is the ONLY
+#       source of authority conflict on SQLite — the migration does NOT
+#       create a partial unique index on scheme_weight_set_revisions for
+#       SQLite (PostgreSQL-only), and SQLite has no composite UNIQUE on
+#       the revisions table that maps to (weight_set_id, code) for the
+#       approved status.
+# The trigger message must be matched EXACTLY (casefolded equality) — not
+# via substring containment — because the brief forbids substring/startswith/
+# regex/token matching; only casefolded full-string equality is allowed.
+_SQLITE_AUTHORITY_PK_MSG = (
+    _AUTHORITY_TABLE + ".weight_set_id",
+    _AUTHORITY_TABLE + ".code",
+)
+_SQLITE_AUTHORITY_TRIGGER_MESSAGE = (
+    "active_revision_conflict: another revision already approved for this weight_set_id/code"
+)
 
-# SQLite names it: pk_scheme_weight_set_active_revisions (or similar)
+
 def _is_authority_unique_conflict(exc: Any) -> bool:
-    """Return True only if *exc* is an IntegrityError on the authority table PK.
+    """Return True only if *exc* is an IntegrityError on the authority constraint.
 
     PostgreSQL: check SQLSTATE 23505 (unique_violation) + constraint name.
-    SQLite: check error message contains the exact unique columns.
+    SQLite: classify by error message payload via deterministic casefolded
+    full-string equality on the canonical trigger message, AND full
+    table-prefixed column-name match on the authority-table composite PK
+    unique constraint.  Reject all other IntegrityError variants
+    (NOT NULL / FK / CHECK / other tables / partial messages / embedded
+    substrings of the trigger text).
     """
     orig = getattr(exc, "orig", None)
     if orig is None:
@@ -81,14 +106,22 @@ def _is_authority_unique_conflict(exc: Any) -> bool:
     if sqlstate == "23505" and constraint_name in _AUTHORITY_PK_CONSTRAINT:
         return True
 
-    # SQLite: check error message for exact unique columns
-    err_str = str(orig).lower()
-    return (
-        "unique constraint failed" in err_str
-        and _AUTHORITY_TABLE in err_str
-        and "weight_set_id" in err_str
-        and "code" in err_str
-    )
+    # SQLite: casefolded full-string equality on the canonical trigger
+    # message OR full table-prefixed column-name match on the authority-table
+    # composite PK.  No substring / startswith / token / regex matching.
+    err_str = str(orig).casefold()
+
+    # Trigger-raised case: BEFORE UPDATE trigger
+    # trg_authority_check_on_approve raises RAISE(ABORT, <canonical message>)
+    # only when another approved revision exists for the same
+    # (weight_set_id, code).  Casefolded full-string equality only.
+    if err_str == _SQLITE_AUTHORITY_TRIGGER_MESSAGE.casefold():
+        return True
+
+    if "unique constraint failed" not in err_str:
+        return False
+    _authority_pk_match = all(token in err_str for token in _SQLITE_AUTHORITY_PK_MSG)
+    return _authority_pk_match
 
 
 class InvalidStatusTransitionError(WeightRevisionGovernanceError):

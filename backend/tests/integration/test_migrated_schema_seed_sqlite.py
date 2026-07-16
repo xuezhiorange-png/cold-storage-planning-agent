@@ -586,15 +586,36 @@ class TestMigratedSchemaConflictClassification:
             t1.join(timeout=10)
             t2.join(timeout=10)
 
-            # Exactly one must succeed
+            # Exactly one must succeed.
+            # The losing thread MUST surface its conflict as the adapter's typed
+            # ``WeightRevisionGovernanceError`` (raised inside the adapter's
+            # ``begin_nested()`` savepoint). A raw ``sqlalchemy.exc.IntegrityError``
+            # escaping from the adapter would indicate the authority-conflict
+            # classifier failed to convert the database-level unique violation —
+            # this is a real bug, not a legitimate loser, and must be flagged.
+            def _is_loser(exc: BaseException) -> bool:
+                return isinstance(exc, WeightRevisionGovernanceError)
+
+            def _is_raw_integrity_loser(exc: BaseException) -> bool:
+                from sqlalchemy import exc as _sa_exc
+
+                return isinstance(exc, _sa_exc.IntegrityError)
+
             succeeded = [k for k, v in results.items() if v is True]
-            failed = [k for k, v in errors.items() if isinstance(v, WeightRevisionGovernanceError)]
+            failed = [k for k, v in errors.items() if _is_loser(v)]
+            raw_integrity_losers = [k for k, v in errors.items() if _is_raw_integrity_loser(v)]
             assert len(succeeded) + len(failed) == 2, (
                 f"Expected one success and one failure, got "
                 f"succeeded={succeeded}, failed={failed}, "
                 f"all_results={results}, all_errors={errors}"
             )
             assert len(succeeded) == 1, f"Expected exactly one winner, got {succeeded}"
+            assert len(raw_integrity_losers) == 0, (
+                f"Expected 0 raw sqlalchemy.exc.IntegrityError losers "
+                f"(adapter must convert authority conflicts to "
+                f"WeightRevisionGovernanceError), got {raw_integrity_losers}, "
+                f"all_errors={errors}"
+            )
 
             # Final state check
             sess_final = factory_a()
@@ -652,4 +673,407 @@ class TestMigratedSchemaConflictClassification:
             with pytest.raises((sa_exc.IntegrityError, sa_exc.InternalError)):
                 sess.flush()
         finally:
+            sess.close()
+
+
+# ── Deterministic classifier regression tests ────────────────────────────────
+# These tests exercise ``_is_authority_unique_conflict`` directly with
+# SQLAlchemy ``IntegrityError`` objects constructed from real ``sqlite3.IntegrityError``
+# messages. They are deterministic: no random timing, no threading, no DB race.
+
+
+def _build_sqlite_sa_integrity_error(sqlite_msg: str) -> Exception:
+    """Build a real ``sqlalchemy.exc.IntegrityError`` whose ``.orig`` is a real
+    ``sqlite3.IntegrityError`` carrying the given SQLite error message.
+
+    This mirrors what SQLAlchemy constructs internally when SQLite raises an
+    IntegrityError — no mocking of the classifier itself.
+    """
+    import sqlite3 as _sqlite3
+
+    from sqlalchemy import exc as _sa_exc
+
+    inner = _sqlite3.IntegrityError(sqlite_msg)
+    sa_exc_obj = _sa_exc.IntegrityError(
+        "(sqlite3.IntegrityError) " + sqlite_msg,
+        params={},
+        orig=inner,
+    )
+    return sa_exc_obj
+
+
+class TestIsAuthorityUniqueConflictSqliteClassifier:
+    """Direct, deterministic tests for the SQLite branch of
+    ``_is_authority_unique_conflict``. Each test builds a real SA
+    ``IntegrityError`` whose ``.orig`` is a real ``sqlite3.IntegrityError``
+    carrying the canonical SQLite error message format.
+    """
+
+    def test_authority_table_pk_exact_message_returns_true(self):
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "UNIQUE constraint failed: "
+            "scheme_weight_set_active_revisions.weight_set_id, "
+            "scheme_weight_set_active_revisions.code"
+        )
+        assert _is_authority_unique_conflict(exc) is True
+
+    def test_revisions_table_synthetic_unique_message_returns_false(self):
+        """SQLite does NOT create a partial unique index on
+        ``scheme_weight_set_revisions(weight_set_id, code) WHERE status = 'approved'``
+        (only PostgreSQL does, in migration 0031).  Therefore the SQLite
+        database NEVER produces a ``UNIQUE constraint failed:
+        scheme_weight_set_revisions.weight_set_id, scheme_weight_set_revisions.code``
+        message.  If such a message ever arrived, it would indicate a schema
+        regression — it must NOT be classified as an authority conflict.
+
+        This test pins the contract that the SQLite classifier returns False
+        for the synthetic revisions-table unique message.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "UNIQUE constraint failed: "
+            "scheme_weight_set_revisions.weight_set_id, "
+            "scheme_weight_set_revisions.code"
+        )
+        assert _is_authority_unique_conflict(exc) is False
+
+    def test_unrelated_table_unique_violation_returns_false(self):
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "UNIQUE constraint failed: some_other_table.col_a, some_other_table.col_b"
+        )
+        assert _is_authority_unique_conflict(exc) is False
+
+    def test_same_table_wrong_columns_returns_false(self):
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        # Right table, but columns are NOT (weight_set_id, code)
+        exc = _build_sqlite_sa_integrity_error(
+            "UNIQUE constraint failed: "
+            "scheme_weight_set_revisions.id, scheme_weight_set_revisions.code"
+        )
+        assert _is_authority_unique_conflict(exc) is False
+
+        exc2 = _build_sqlite_sa_integrity_error(
+            "UNIQUE constraint failed: "
+            "scheme_weight_set_active_revisions.weight_set_id, "
+            "scheme_weight_set_active_revisions.revision"
+        )
+        assert _is_authority_unique_conflict(exc2) is False
+
+    def test_not_null_violation_returns_false(self):
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "NOT NULL constraint failed: scheme_weight_set_revisions.weight_set_id"
+        )
+        assert _is_authority_unique_conflict(exc) is False
+
+    def test_foreign_key_violation_returns_false(self):
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error("FOREIGN KEY constraint failed")
+        assert _is_authority_unique_conflict(exc) is False
+
+    def test_check_violation_returns_false(self):
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error("CHECK constraint failed: status_check")
+        assert _is_authority_unique_conflict(exc) is False
+
+    def test_authority_claim_trigger_canonical_message_returns_true(self):
+        """Authority-conflict BEFORE UPDATE trigger
+        ``trg_authority_check_on_approve`` raises
+        ``RAISE(ABORT, 'active_revision_conflict: another revision already
+        approved for this weight_set_id/code')`` when a concurrent draft is
+        upgraded to approved for a (weight_set_id, code) pair that already
+        has an approved revision.  SQLite surfaces the RAISE payload as
+        the exact ``sqlite3.IntegrityError`` message (no wrapping).
+
+        The classifier must match this via casefolded FULL-STRING EQUALITY
+        — NOT via substring / startswith / regex / token matching.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "active_revision_conflict: "
+            "another revision already approved for this weight_set_id/code"
+        )
+        assert _is_authority_unique_conflict(exc) is True
+
+    def test_trigger_canonical_message_uppercased_returns_true(self):
+        """Casefolded equality must accept any-case variations of the
+        canonical message (e.g. uppercase, mixed case).  This is the
+        'deterministic大小写归一化' the brief allows.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "ACTIVE_REVISION_CONFLICT: ANOTHER REVISION ALREADY APPROVED "
+            "FOR THIS WEIGHT_SET_ID/CODE"
+        )
+        assert _is_authority_unique_conflict(exc) is True
+
+    def test_trigger_token_embedded_in_unrelated_text_returns_false(self):
+        """The trigger token ``active_revision_conflict`` MUST NOT be
+        accepted when it appears embedded in unrelated text — only the
+        exact canonical message authorizes classification.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "some unrelated error containing active_revision_conflict"
+        )
+        assert _is_authority_unique_conflict(exc) is False
+
+        exc2 = _build_sqlite_sa_integrity_error("active_revision_conflict_but_not_authority")
+        assert _is_authority_unique_conflict(exc2) is False
+
+    def test_trigger_message_with_prefix_returns_false(self):
+        """A leading prefix on the canonical message MUST be rejected —
+        only casefolded FULL-STRING EQUALITY is allowed.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "prefix active_revision_conflict: another revision already "
+            "approved for this weight_set_id/code"
+        )
+        assert _is_authority_unique_conflict(exc) is False
+
+    def test_trigger_message_with_suffix_returns_false(self):
+        """A trailing suffix on the canonical message MUST be rejected —
+        only casefolded FULL-STRING EQUALITY is allowed.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error(
+            "active_revision_conflict: another revision already approved "
+            "for this weight_set_id/code extra"
+        )
+        assert _is_authority_unique_conflict(exc) is False
+
+    def test_trigger_message_incomplete_returns_false(self):
+        """Truncated or partial versions of the canonical message MUST be
+        rejected.  The full message must arrive intact.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error("active_revision_conflict:")
+        assert _is_authority_unique_conflict(exc) is False
+
+        exc2 = _build_sqlite_sa_integrity_error(
+            "active_revision_conflict: another revision already approved"
+        )
+        assert _is_authority_unique_conflict(exc2) is False
+
+    def test_unrelated_trigger_message_returns_false(self):
+        """Other trigger messages (e.g. immutability, status-transition) must
+        NOT be converted — only the specific ``active_revision_conflict``
+        token authorizes classification.
+        """
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _build_sqlite_sa_integrity_error("sealed revision immutability: immutable fields")
+        assert _is_authority_unique_conflict(exc) is False
+
+        exc2 = _build_sqlite_sa_integrity_error("invalid status transition")
+        assert _is_authority_unique_conflict(exc2) is False
+
+        exc3 = _build_sqlite_sa_integrity_error(
+            "direct INSERT of approved is forbidden; use controlled draft→approved transition"
+        )
+        assert _is_authority_unique_conflict(exc3) is False
+
+    def test_orig_is_none_returns_false(self):
+        from sqlalchemy import exc as _sa_exc
+
+        from cold_storage.modules.schemes.infrastructure.weight_revision_approval_adapter import (
+            _is_authority_unique_conflict,
+        )
+
+        exc = _sa_exc.IntegrityError("no orig", params={}, orig=None)
+        assert _is_authority_unique_conflict(exc) is False
+
+
+class TestAdapterSqliteConflictConversionDeterministic:
+    """Adapter-boundary deterministic test: when the SQLite
+    ``trg_authority_check_on_approve`` BEFORE UPDATE trigger fires inside
+    the adapter's savepoint, the surfaced exception MUST be
+    ``WeightRevisionGovernanceError`` with
+    ``error_code="active_revision_conflict"`` and ``__cause__`` being the
+    original ``sqlalchemy.exc.IntegrityError``.
+
+    Per brief §六, the test must NOT depend on random timing or thread
+    races.  It exercises the *database-level* classifier path by
+    temporarily suppressing the application-level check (so the BEFORE
+    UPDATE trigger fires inside the savepoint), then verifies the typed
+    error + ``__cause__`` contract.
+
+    The test MUST NOT mock the classifier, the database exception
+    return-value, or ``WeightRevisionGovernanceError`` itself.  Only
+    ``has_approved_revision`` may be patched because it is an
+    application-layer short-circuit; the database trigger is the actual
+    source of truth on SQLite.
+    """
+
+    def test_trigger_authority_conflict_yields_typed_error_with_cause(
+        self, session_factory, adapter
+    ):
+        """Approve revision #1, then attempt to approve revision #2 with the
+        same (weight_set_id, code).  We bypass ``has_approved_revision``
+        so the savepoint hits the BEFORE UPDATE trigger
+        ``trg_authority_check_on_approve``, which raises the canonical
+        SQLite message.  The adapter must convert this database-level
+        IntegrityError to ``WeightRevisionGovernanceError`` with the
+        correct ``code`` and a chained ``__cause__`` of type
+        ``sqlalchemy.exc.IntegrityError`` whose ``.orig`` message equals
+        the canonical trigger payload.
+        """
+        import contextlib
+        from unittest.mock import patch as _patch
+
+        from sqlalchemy import exc as _sa_exc
+
+        from cold_storage.modules.schemes.application.weight_revision_governance import (
+            WeightRevisionGovernanceError,
+        )
+
+        sess = session_factory()
+        try:
+            # Seed parent + first draft, approve it normally
+            ws = SchemeWeightSetRecord(
+                id="ws-cls-test",
+                code="cls-code",
+                name="cls",
+                revision=1,
+                status="approved",
+                source_type="system",
+                criteria=[],
+                requires_review=False,
+                approved_at=datetime.now(UTC),
+            )
+            sess.add(ws)
+            rev_a = SchemeWeightSetRevisionRecord(
+                id="rev-cls-A",
+                weight_set_id="ws-cls-test",
+                code="cls-code",
+                revision=1,
+                status="draft",
+                content={"v": 1},
+                content_hash="a" * 64,
+                generator_compatibility_version="v1",
+                approved_at=None,
+                approved_by=None,
+                sealed_at=None,
+            )
+            sess.add(rev_a)
+            sess.commit()
+
+            ok1 = adapter.approve_revision(
+                sess,
+                revision_id="rev-cls-A",
+                content={"v": 1},
+                approved_at=datetime.now(UTC),
+                approved_by="cls-tester",
+            )
+            sess.commit()
+            assert ok1 is True
+
+            # Add second draft revision with same (weight_set_id, code)
+            rev_b = SchemeWeightSetRevisionRecord(
+                id="rev-cls-B",
+                weight_set_id="ws-cls-test",
+                code="cls-code",
+                revision=2,
+                status="draft",
+                content={"v": 2},
+                content_hash="b" * 64,
+                generator_compatibility_version="v1",
+                approved_at=None,
+                approved_by=None,
+                sealed_at=None,
+            )
+            sess.add(rev_b)
+            sess.commit()
+            sess.close()
+
+            # Now exercise the database-level trigger path.  We patch
+            # has_approved_revision to return False so the application-level
+            # guard is bypassed and the BEFORE UPDATE trigger
+            # trg_authority_check_on_approve fires inside the savepoint.
+            # This is the path that the SQLite branch of
+            # _is_authority_unique_conflict must classify.
+            sess2 = session_factory()
+            try:
+                with (
+                    _patch(
+                        "cold_storage.modules.schemes.infrastructure"
+                        ".weight_revision_approval_adapter"
+                        ".SqlAlchemyWeightRevisionApprovalAdapter"
+                        ".has_approved_revision",
+                        return_value=False,
+                    ),
+                    pytest.raises(WeightRevisionGovernanceError) as excinfo,
+                ):
+                    adapter.approve_revision(
+                        sess2,
+                        revision_id="rev-cls-B",
+                        content={"v": 2},
+                        approved_at=datetime.now(UTC),
+                        approved_by="cls-tester",
+                    )
+                # Typed-error contract: code and __cause__ provenance.
+                assert excinfo.value.code == "active_revision_conflict"
+                assert isinstance(excinfo.value.__cause__, _sa_exc.IntegrityError), (
+                    f"Expected __cause__ to be sqlalchemy.exc.IntegrityError, "
+                    f"got {type(excinfo.value.__cause__).__name__}: "
+                    f"{excinfo.value.__cause__!r}"
+                )
+                # __cause__.orig message must equal the canonical trigger
+                # message (casefolded) — NOT just contain the token.
+                orig_msg = str(excinfo.value.__cause__.orig)
+                assert orig_msg.casefold() == (
+                    "active_revision_conflict: "
+                    "another revision already approved for this weight_set_id/code"
+                )
+            finally:
+                with contextlib.suppress(Exception):
+                    sess2.rollback()
+                sess2.close()
+        finally:
+            with contextlib.suppress(Exception):
+                sess.rollback()
             sess.close()

@@ -47,7 +47,8 @@ list. The PG suite asserts the same runtime invariants:
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -58,10 +59,8 @@ import pytest
 pytest_plugins = ["tests.evaluation._seed_helpers"]
 
 from sqlalchemy import func, select  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
 
 from cold_storage.evaluation.errors import (  # noqa: E402
-    InvalidEvaluationScenarioError,
     PhaseBBlockedError,
 )
 from cold_storage.evaluation.execute import (  # noqa: E402
@@ -407,7 +406,6 @@ def test_runner_does_not_raise_phase_b_blocked_on_postgresql_happy_path(
     a2_pg_engine: Any, a2_pg_session_factory: Any
 ) -> None:
     """Pre-freeze §8 #12 invariant holds on PG."""
-    from cold_storage.evaluation.errors import PhaseBBlockedError
 
     seed_s = a2_pg_session_factory()
     try:
@@ -566,8 +564,9 @@ def test_baseline_golden_consumed_by_production_path(
 
 def _negative_golden() -> dict[str, Any]:
     """Return a deep copy of the loaded golden for mutation."""
-    from tests.evaluation._seed_helpers import load_baseline_golden
     import copy as _copy
+
+    from tests.evaluation._seed_helpers import load_baseline_golden
 
     return _copy.deepcopy(load_baseline_golden())
 
@@ -976,3 +975,807 @@ def test_positive_comparison_classes_pairwise_disjoint() -> None:
     assert exact & excluded == set(), f"exact ∩ excluded = {exact & excluded}"
     assert proxy & excluded == set(), f"proxy ∩ excluded = {proxy & excluded}"
     validate_expected_output_comparison_policy(g, backend="postgresql")
+
+
+
+# ── TASK-011C C-2 Round 3 — real baseline E2E on PostgreSQL
+#    (authority comment 4974759224) ─────────────────────────────
+
+
+def test_baseline_feasible_real_e2e_on_postgresql(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 3 §11: real PostgreSQL baseline E2E through the
+    suite runner, asserting the same byte authority as the
+    SQLite runner (D3 cross-backend byte parity).
+    """
+    import shutil
+
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+    from cold_storage.evaluation.models import (
+        DatabaseBackend,
+        ExpectedOutcome,
+        ExpectedOutputRef,
+        Manifest,
+        ScenarioDeclaration,
+    )
+    from cold_storage.evaluation.run_directory import suite_summary_path
+
+    # 1. Seed the canonical A1 pre-existing production
+    #    context on the live PG database.
+    seed_s = a2_pg_session_factory()
+    try:
+        from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        # 2. Copy the frozen golden into the manifest_root.
+        expected_path = root / "expected" / "baseline_feasible.v1.json"
+        expected_path.parent.mkdir(parents=True, exist_ok=True)
+        src_golden = (
+            Path(__file__).resolve().parent / "data" / "expected" / "baseline_feasible.v1.json"
+        )
+        shutil.copyfile(src_golden, expected_path)
+
+        manifest = Manifest(
+            schema_version="1.0",
+            suite_id="c2-round3-pg-baseline-real-e2e",
+            scenarios=(
+                ScenarioDeclaration(
+                    scenario_id="baseline_feasible",
+                    database_backend=DatabaseBackend.POSTGRESQL,
+                    expected_outcome=ExpectedOutcome.SUCCEEDED,
+                    expected_output=ExpectedOutputRef(
+                        scenario_id="baseline_feasible",
+                        path="expected/baseline_feasible.v1.json",
+                        expected_outcome=ExpectedOutcome.SUCCEEDED,
+                        expected_error=None,
+                    ),
+                ),
+            ),
+        )
+        # 3. Real evaluate_manifest run on PG.
+        result = evaluate_manifest(
+            manifest=manifest,
+            manifest_root=root,
+            root=root / "run",
+            session_factory=a2_pg_session_factory,
+            commit_sha="c2-round3-pg-test",
+        )
+        # 4. overall == PASS (real PG production values
+        #    match the frozen golden).
+        assert result.evaluation_result_overall.value == "pass", (
+            f"C-2 PG E2E: overall result MUST be pass; "
+            f"diffs={result.scenarios[0].diff_summary!r}"
+        )
+        # 5. On-disk normalized bytes == frozen business
+        #    payload (the canonical contract).
+        norm_artifact = (
+            root / "run" / "baseline_feasible"
+            / "normalized" / "baseline_feasible.json"
+        )
+        on_disk_bytes = norm_artifact.read_bytes()
+        on_disk_value = json.loads(on_disk_bytes)
+        frozen_business_payload = {
+            k: v for k, v in json.loads(src_golden.read_text()).items()
+            if k != "_comparison_policy"
+        }
+        assert on_disk_value == frozen_business_payload, (
+            "C-2 PG E2E: on-disk normalized value MUST equal "
+            "the frozen business payload (golden minus "
+            "``_comparison_policy``). PG establishes byte "
+            "parity with the canonical frozen business "
+            "payload — the production-side ``content_hash`` "
+            "is the same across SQLite and PostgreSQL "
+            "backends (per the golden's documented "
+            "stable_proxies contract)."
+        )
+        # ── Direct canonical byte equality (Round 4 §八) ──
+        # The on-disk normalized bytes are byte-exact the
+        # canonicalizer's output on the frozen business
+        # payload with empty excluded_paths. This is the
+        # PRIMARY byte-parity proof; the structural
+        # ``on_disk_value == frozen_business_payload``
+        # check above is a secondary shape check.
+        from cold_storage.evaluation.canonicalization import (
+            canonicalize_production_outputs,
+        )
+        expected_canonical_bytes = canonicalize_production_outputs(
+            frozen_business_payload,
+            excluded_paths=(),
+        )
+        assert on_disk_bytes == expected_canonical_bytes, (
+            "C-2 PG E2E: on-disk normalized bytes MUST equal "
+            "the canonicalizer's byte-exact output on the "
+            "frozen business payload (Round 4 §八 direct byte "
+            "equality). This is the PRIMARY byte-parity proof."
+        )
+        # 6. On-disk raw artifact carries the full
+        #    production lineage.
+        raw_artifact = root / "run" / "baseline_feasible" / "raw" / "baseline_feasible.json"
+        raw_data = json.loads(raw_artifact.read_text(encoding="utf-8"))
+        assert raw_data["c2_persisted"]["database_backend"] == "postgresql"
+        assert raw_data["c2_persisted"]["source_mode"] == "production"
+        # 7. summary.json was written last.
+        summary_path = suite_summary_path(root=root / "run")
+        assert summary_path.exists()
+
+
+# ── Round 4 §六: real PostgreSQL D10 zero-row-delta + call-order ──
+
+
+def test_d10_zero_row_delta_and_call_order_instrumentation_on_postgresql(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 4 §六: real PostgreSQL D10 acceptance.
+
+    The D10 ``invalid_blocked`` scenario runs against a real
+    PostgreSQL database (NOT SQLite, NOT a temp DB, NOT a mock
+    repository). The test:
+
+    1. seeds the canonical A1 production pre-existing context
+       into the PG database;
+    2. instruments :func:`_atomic_write_json` and
+       :func:`_atomic_write_bytes` at the runner boundary with
+       a :class:`WriteEventRecorder` (a monkeypatch wrapper
+       that records the resolved written path of every
+       managed-artifact write in call-order);
+    3. executes :func:`evaluate_manifest` with a manifest
+       that contains BOTH a ``baseline_feasible`` SUCCEEDED
+       scenario AND an ``invalid_blocked`` INVALID_INPUT
+       scenario;
+    4. asserts the actual outcome of ``invalid_blocked`` is
+       ``INVALID_INPUT``, the scenario evaluation_result is
+       ``pass``, and the suite overall result is ``pass``;
+    5. asserts the four row-count deltas (scheme_runs,
+       calculation_runs, orchestration_identities,
+       orchestration_run_attempts) are ZERO;
+    6. asserts the call-order recorder's final
+       managed-artifact write is exactly
+       ``<run-root>/summary.json``;
+    7. asserts every scenario raw / normalized / run
+       artifact is written BEFORE the summary;
+    8. asserts the summary is written exactly ONCE;
+    9. asserts NO managed-artifact write occurs after the
+       summary write.
+
+    Round 4 §七: ``run_mtime <= summary_mtime`` is NOT
+    acceptable as the call-order proof. The recorder is the
+    primary authority.
+    """
+    from sqlalchemy import text as _sa_text
+
+    from cold_storage.evaluation import evaluate as _evaluate_mod
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+    from cold_storage.evaluation.models import (
+        DatabaseBackend,
+        ExpectedErrorAssertion,
+        ExpectedOutcome,
+        ExpectedOutputRef,
+        Manifest,
+        ScenarioDeclaration,
+    )
+    from cold_storage.evaluation.run_directory import suite_summary_path
+
+    assert a2_pg_engine.dialect.name == "postgresql"
+
+    # 1. Seed pre-existing production context.
+    seed_s = a2_pg_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # 2. Capture BEFORE row counts via raw text() (no
+    # Phase-1 record-class imports per the architecture
+    # test ban).
+    def _count(table_name: str) -> int:
+        with a2_pg_session_factory() as s:
+            return int(s.execute(_sa_text(f"SELECT COUNT(*) FROM {table_name}")).scalar_one())
+
+    before_scheme = _count("scheme_runs")
+    before_calc = _count("calculation_runs")
+    before_identity = _count("orchestration_identities")
+    before_attempt = _count("orchestration_run_attempts")
+
+    # 3. Instrumentation: a WriteEventRecorder that wraps
+    # the runner's two atomic-write functions and appends
+    # the resolved path (and timestamp) of every
+    # managed-artifact write in call-order. The wrapper
+    # delegates to the original writer (no fakes, no
+    # short-circuits).
+    from pathlib import Path as _Path
+
+    class _WriteEventRecorder:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str]] = []
+
+        def record(self, kind: str, path: _Path) -> None:
+            self.events.append((kind, str(path)))
+
+    _recorder = _WriteEventRecorder()
+    _orig_write_json = _evaluate_mod._atomic_write_json
+    _orig_write_bytes = _evaluate_mod._atomic_write_bytes
+
+    def _wrapped_write_json(*, path: _Path, data: Any) -> None:
+        _recorder.record("json", path)
+        _orig_write_json(path=path, data=data)
+
+    def _wrapped_write_bytes(*, path: _Path, data: bytes) -> None:
+        _recorder.record("bytes", path)
+        _orig_write_bytes(path=path, data=data)
+
+    _evaluate_mod._atomic_write_json = _wrapped_write_json
+    _evaluate_mod._atomic_write_bytes = _wrapped_write_bytes
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _Path(tmp).resolve()
+            manifest = Manifest(
+                schema_version="1.0",
+                suite_id="c2-round4-d10-zero-delta-pg",
+                scenarios=(
+                    ScenarioDeclaration(
+                        scenario_id="invalid_blocked",
+                        database_backend=DatabaseBackend.POSTGRESQL,
+                        expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                        expected_output=ExpectedOutputRef(
+                            scenario_id="invalid_blocked",
+                            path=None,
+                            expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                            expected_error=ExpectedErrorAssertion(
+                                exception_type="InvalidProjectInputError",
+                                code="PROJ_INPUT_INVALID",
+                                field="total_area_m2",
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            result = evaluate_manifest(
+                manifest=manifest,
+                manifest_root=root,
+                root=root / "run",
+            )
+            assert result.evaluation_result_overall.value == "pass"
+            assert result.scenarios[0].actual_outcome == "INVALID_INPUT"
+            assert result.scenarios[0].evaluation_result.value == "pass"
+            summary_path = suite_summary_path(root=root / "run")
+            assert summary_path.exists()
+    finally:
+        _evaluate_mod._atomic_write_json = _orig_write_json
+        _evaluate_mod._atomic_write_bytes = _orig_write_bytes
+
+    # 4. Call-order assertion (Round 4 §七): the final
+    # managed-artifact write MUST be ``<run-root>/summary.json``.
+    assert len(_recorder.events) > 0, (
+        "D10 PG call-order: WriteEventRecorder MUST have observed "
+        "at least one managed-artifact write; got an empty event list"
+    )
+    last_kind, last_path = _recorder.events[-1]
+    assert last_kind == "json", (
+        f"D10 PG call-order: the final managed-artifact write "
+        f"MUST be a ``_atomic_write_json`` call (summary.json); "
+        f"got kind={last_kind!r} path={last_path!r}"
+    )
+    assert last_path == str(summary_path), (
+        f"D10 PG call-order: the final managed-artifact write "
+        f"MUST be ``<run-root>/summary.json``; "
+        f"got {last_path!r} expected {str(summary_path)!r}"
+    )
+    # 5. The summary MUST be written exactly once.
+    summary_writes = [e for e in _recorder.events if e[1] == str(summary_path)]
+    assert len(summary_writes) == 1, (
+        f"D10 PG call-order: summary.json MUST be written exactly "
+        f"once; got {len(summary_writes)} writes"
+    )
+    # 6. NO managed-artifact write occurs after the summary.
+    summary_idx = _recorder.events.index(summary_writes[0])
+    assert summary_idx == len(_recorder.events) - 1, (
+        f"D10 PG call-order: NO managed-artifact write MUST occur "
+        f"after summary.json; "
+        f"summary_idx={summary_idx}, total_events={len(_recorder.events)}, "
+        f"trailing event={_recorder.events[-1]!r}"
+    )
+
+    # 7. Zero-row-delta: SchemeRun / CalculationRun /
+    # OrchestrationIdentity / OrchestrationRunAttempt counts
+    # MUST be unchanged.
+    after_scheme = _count("scheme_runs")
+    after_calc = _count("calculation_runs")
+    after_identity = _count("orchestration_identities")
+    after_attempt = _count("orchestration_run_attempts")
+    assert after_scheme == before_scheme, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"scheme-runs table; before={before_scheme} after={after_scheme}"
+    )
+    assert after_calc == before_calc, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"calculation-runs table; before={before_calc} after={after_calc}"
+    )
+    assert after_identity == before_identity, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"orchestration-identities table; "
+        f"before={before_identity} after={after_identity}"
+    )
+    assert after_attempt == before_attempt, (
+        f"D10 PG: INVALID_INPUT MUST NOT add a new row in the "
+        f"orchestration-run-attempts table; "
+        f"before={before_attempt} after={after_attempt}"
+    )
+
+
+# ── Round 5 §8: cross-backend strict bool + PostgreSQL branch
+# tests. The PostgreSQL ``requires_review`` column is a real
+# ``boolean`` (per the production schema). The C-2 boundary's
+# verify branch MUST:
+#   1. detect the dialect (``postgresql``) from
+#      ``session.get_bind().dialect.name``;
+#   2. issue ``SELECT pg_typeof(...)::text, ...`` and accept
+#      ``pg_typeof == 'boolean'`` + Python ``type(v) is bool``;
+#   3. NOT enter the SQLite ``typeof()`` path;
+#   4. convert any unexpected verify error to a typed
+#      boundary failure (NOT swallow it).
+
+
+def test_c2_r5_postgresql_dialect_is_postgresql(
+    a2_pg_engine: Any,
+) -> None:
+    """Round 5 §8: the test-side PG fixture's engine is
+    exactly ``postgresql``. This guards the C-2
+    boundary's ``dialect_name == 'postgresql'`` branch.
+    """
+    assert a2_pg_engine.dialect.name == "postgresql"
+
+
+def test_c2_r5_postgresql_persisted_boolean_false_accepted(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 5 §8: PostgreSQL persisted ``requires_review=False``
+    is accepted by the C-2 boundary. The verify branch
+    issues ``pg_typeof()`` and asserts ``pg_typeof == 'boolean'``.
+    """
+    from sqlalchemy import text as _sa_text
+
+    from cold_storage.evaluation.adapter import read_c2_baseline_projection
+
+    row_id = "c2-r5-pg-req-false-accepted-001"
+    with a2_pg_session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+    _pg_seed_baseline_production_row(
+        a2_pg_session_factory, row_id=row_id, requires_review=False
+    )
+    # Sanity check: pg_typeof returns 'boolean' for False
+    with a2_pg_session_factory() as s:
+        _t, _v = s.execute(
+            _sa_text(
+                "SELECT pg_typeof(requires_review)::text, requires_review "
+                "FROM scheme_runs WHERE id = :i"
+            ),
+            {"i": row_id},
+        ).one()
+    assert _t == "boolean"
+    assert _v is False
+    src = read_c2_baseline_projection(a2_pg_session_factory, run_id=row_id)
+    assert src.requires_review is False
+
+
+def test_c2_r5_postgresql_persisted_boolean_true_accepted(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 5 §8: PostgreSQL persisted ``requires_review=True``
+    is accepted. Mirrors the False case.
+    """
+    from sqlalchemy import text as _sa_text
+
+    from cold_storage.evaluation.adapter import read_c2_baseline_projection
+
+    row_id = "c2-r5-pg-req-true-accepted-001"
+    with a2_pg_session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+    _pg_seed_baseline_production_row(
+        a2_pg_session_factory, row_id=row_id, requires_review=True
+    )
+    with a2_pg_session_factory() as s:
+        _t, _v = s.execute(
+            _sa_text(
+                "SELECT pg_typeof(requires_review)::text, requires_review "
+                "FROM scheme_runs WHERE id = :i"
+            ),
+            {"i": row_id},
+        ).one()
+    assert _t == "boolean"
+    assert _v is True
+    src = read_c2_baseline_projection(a2_pg_session_factory, run_id=row_id)
+    assert src.requires_review is True
+
+
+def test_c2_r5_postgresql_verification_query_does_not_enter_sqlite_path(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 5 §8 / §6.4: the PostgreSQL verify branch MUST
+    NOT execute the SQLite-specific ``typeof()`` SQL.
+
+    This is a structural contract test: we read the
+    boundary's source and assert the verify branch
+    for the postgresql dialect uses ``pg_typeof``
+    and the verify branch for the sqlite dialect
+    uses ``typeof``. The SQLite branch is exercised
+    by the round-trip tests; the PG branch is
+    exercised by the round-trip tests against a
+    real PG engine. This test asserts the
+    cross-branch source structure.
+    """
+    import inspect
+
+    from cold_storage.evaluation import adapter as _adapter_mod
+
+    src = inspect.getsource(_adapter_mod)
+    # The PG branch MUST use ``pg_typeof``.
+    assert "pg_typeof" in src, (
+        "Round 5 §6.4: the boundary MUST use ``pg_typeof`` "
+        "for the postgresql verify branch"
+    )
+    # The SQLite branch MUST use ``typeof``.
+    assert "SELECT typeof(" in src, (
+        "Round 5 §6.3: the boundary MUST use ``typeof`` "
+        "for the sqlite verify branch"
+    )
+    # The PG branch's verify query MUST be guarded by
+    # ``if _dialect_name == "postgresql":``.
+    pg_branch_idx = src.find('if _dialect_name == "postgresql":')
+    sqlite_branch_idx = src.find('if _dialect_name == "sqlite":')
+    assert pg_branch_idx > 0 and sqlite_branch_idx > 0
+    # Inside the PG branch the verify SQL MUST use
+    # ``pg_typeof`` and MUST NOT use SQLite ``typeof``.
+    # The PG branch ends at the next ``if _dialect_name``
+    # or ``# Unknown dialect`` marker. We slice
+    # from the PG branch start to the next branch.
+    pg_branch_end = src.find(
+        "# Unknown dialect", pg_branch_idx
+    )
+    pg_branch_block = src[pg_branch_idx:pg_branch_end]
+    assert "pg_typeof" in pg_branch_block
+    # The PG branch MUST NOT execute a SQLite
+    # ``typeof()`` query (the substring
+    # ``SELECT typeof(`` MUST NOT appear in the
+    # PG branch).
+    assert "SELECT typeof(" not in pg_branch_block, (
+        "Round 5 §6.4: the postgresql verify branch "
+        "MUST NOT issue a SQLite ``SELECT typeof(`` "
+        "query"
+    )
+
+
+def test_c2_r5_postgresql_unexpected_verify_error_fail_closed(
+    a2_pg_engine: Any, a2_pg_session_factory: Any
+) -> None:
+    """Round 5 §8 / §6.4: an unexpected error during the
+    PostgreSQL ``pg_typeof()`` verify is converted to a
+    typed boundary failure. The function does NOT
+    silently swallow the exception.
+
+    Structural contract test: the boundary's
+    postgresql branch wraps the verify call in a
+    ``try / except Exception`` that re-raises a
+    typed ``MissingC2ProductionField`` with the
+    original exception as ``__cause__``. The
+    function does NOT ``return _raw_value`` on
+    failure.
+    """
+    import inspect
+
+    from cold_storage.evaluation import adapter as _adapter_mod
+
+    src = inspect.getsource(_adapter_mod)
+    # The PG branch's verify call MUST be inside a
+    # try / except that re-raises with
+    # ``raise MissingC2ProductionField(...) from _exc``.
+    assert "raise MissingC2ProductionField(" in src, (
+        "Round 5 §6.4: the boundary MUST raise a typed "
+        "``MissingC2ProductionField`` on unexpected "
+        "verify error"
+    )
+    assert "from _exc" in src, (
+        "Round 5 §6.4: the boundary MUST preserve the "
+        "original exception as ``__cause__`` via "
+        "``raise ... from _exc``"
+    )
+    # The boundary MUST NOT have a catch-all
+    # ``except Exception: return`` pattern.
+    assert "except Exception: return" not in src, (
+        "Round 5 §6.4: the boundary MUST NOT silently "
+        "swallow exceptions with a catch-all "
+        "``except Exception: return`` pattern"
+    )
+
+
+def _pg_seed_baseline_production_row(
+    session_factory: Any,
+    *,
+    row_id: str,
+    requires_review: bool = False,
+    recommended_scheme_code: str | None = "balanced",
+) -> None:
+    """Seed a baseline production ``SchemeRunRecord`` on the
+    real PG test database. Mirrors the SQLite
+    ``_seed_baseline_production_row`` helper but is
+    PG-typed (real ``boolean``).
+    """
+    from sqlalchemy import text as _sa_text
+
+
+    seed_s = session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    # Build the production-shape row directly via
+    # SQLAlchemy. PG's Boolean column stores real
+    # bools; the C-2 boundary must accept them.
+    from tests.evaluation._seed_helpers import (
+        ATTEMPT_ID as A1_SEED_ATTEMPT_ID,
+        COEFF_CONTEXT_ID as A1_SEED_COEFF_CONTEXT_ID,
+        COOL_RUN_ID as A1_SEED_COOL_RUN_ID,
+        EQUIP_RUN_ID as A1_SEED_EQUIP_RUN_ID,
+        EXEC_SNAPSHOT_ID as A1_SEED_EXEC_SNAPSHOT_ID,
+        IDENTITY_ID as A1_SEED_IDENTITY_ID,
+        INVEST_RUN_ID as A1_SEED_INVEST_RUN_ID,
+        POWER_RUN_ID as A1_SEED_POWER_RUN_ID,
+        PROJECT_ID as A1_SEED_PROJECT_ID,
+        SOURCE_BINDING_ID as A1_SEED_SOURCE_BINDING_ID,
+        VERSION_ID as A1_SEED_VERSION_ID,
+        WEIGHT_REVISION_ID as A1_SEED_WEIGHT_REVISION_ID,
+        WEIGHT_SET_ID as A1_SEED_WEIGHT_SET_ID,
+        ZONE_RUN_ID as A1_SEED_ZONE_RUN_ID,
+    )
+
+    with session_factory() as s:
+        s.execute(_sa_text("DELETE FROM scheme_runs WHERE id = :i"), {"i": row_id})
+        s.commit()
+        s.execute(
+            _sa_text(
+                "INSERT INTO scheme_runs (id, project_id, project_version_id, "
+                "weight_set_id, status, generator_version, source_snapshot_hash, "
+                "input_snapshot, assumption_snapshot, comparison_snapshot, "
+                "candidates_snapshot, requires_review, content_hash, "
+                "recommended_scheme_code, warning_messages, database_backend, "
+                "source_mode, source_binding_id, source_contract_version, "
+                "weight_set_revision_id, weight_set_content_hash, "
+                "weight_set_generator_compatibility_version, "
+                "combined_source_hash, binding_schema_version, "
+                "execution_snapshot_id, coefficient_context_id, "
+                "orchestration_identity_id, authoritative_attempt_id, "
+                "orchestration_fingerprint, zone_calculation_id, "
+                "cooling_load_calculation_id, equipment_calculation_id, "
+                "power_calculation_id, investment_calculation_id, "
+                "zone_result_hash, cooling_load_result_hash, "
+                "equipment_result_hash, power_result_hash, "
+                "investment_result_hash) "
+                "VALUES (:id, :project_id, :project_version_id, :weight_set_id, "
+                ":status, :generator_version, :source_snapshot_hash, "
+                ":input_snapshot, :assumption_snapshot, :comparison_snapshot, "
+                ":candidates_snapshot, :requires_review, :content_hash, "
+                ":recommended_scheme_code, :warning_messages, :database_backend, "
+                ":source_mode, :source_binding_id, :source_contract_version, "
+                ":weight_set_revision_id, :weight_set_content_hash, "
+                ":weight_set_generator_compatibility_version, "
+                ":combined_source_hash, :binding_schema_version, "
+                ":execution_snapshot_id, :coefficient_context_id, "
+                ":orchestration_identity_id, :authoritative_attempt_id, "
+                ":orchestration_fingerprint, :zone_calculation_id, "
+                ":cooling_load_calculation_id, :equipment_calculation_id, "
+                ":power_calculation_id, :investment_calculation_id, "
+                ":zone_result_hash, :cooling_load_result_hash, "
+                ":equipment_result_hash, :power_result_hash, "
+                ":investment_result_hash)"
+            ),
+            {
+                "id": row_id,
+                "project_id": A1_SEED_PROJECT_ID,
+                "project_version_id": A1_SEED_VERSION_ID,
+                "weight_set_id": A1_SEED_WEIGHT_SET_ID,
+                "status": "completed",
+                "generator_version": "1.0.0",
+                "source_snapshot_hash": "c2-r5-pg-ssh-001",
+                "input_snapshot": "{}",
+                "assumption_snapshot": "{}",
+                "comparison_snapshot": "{}",
+                "candidates_snapshot": '[{"cr":[{"cc":"c1","p":1}]}]',
+                "requires_review": requires_review,
+                "content_hash": "c2-r5-pg-content-hash-001",
+                "recommended_scheme_code": recommended_scheme_code,
+                "warning_messages": "[]",
+                "database_backend": "postgresql",
+                "source_mode": "production",
+                "source_binding_id": A1_SEED_SOURCE_BINDING_ID,
+                "source_contract_version": "1.0.0",
+                "weight_set_revision_id": A1_SEED_WEIGHT_REVISION_ID,
+                "weight_set_content_hash": "c2-r5-pg-wch-001",
+                "weight_set_generator_compatibility_version": "1.0.0",
+                "combined_source_hash": "c2-r5-pg-csh-001",
+                "binding_schema_version": "1.0.0",
+                "execution_snapshot_id": A1_SEED_EXEC_SNAPSHOT_ID,
+                "coefficient_context_id": A1_SEED_COEFF_CONTEXT_ID,
+                "orchestration_identity_id": A1_SEED_IDENTITY_ID,
+                "authoritative_attempt_id": A1_SEED_ATTEMPT_ID,
+                "orchestration_fingerprint": "c2-r5-pg-fp-001",
+                "zone_calculation_id": A1_SEED_ZONE_RUN_ID,
+                "cooling_load_calculation_id": A1_SEED_COOL_RUN_ID,
+                "equipment_calculation_id": A1_SEED_EQUIP_RUN_ID,
+                "power_calculation_id": A1_SEED_POWER_RUN_ID,
+                "investment_calculation_id": A1_SEED_INVEST_RUN_ID,
+                "zone_result_hash": "c2-r5-pg-zh-001",
+                "cooling_load_result_hash": "c2-r5-pg-ch-001",
+                "equipment_result_hash": "c2-r5-pg-eh-001",
+                "power_result_hash": "c2-r5-pg-ph-001",
+                "investment_result_hash": "c2-r5-pg-ih-001",
+            },
+        )
+        s.commit()
+
+
+
+# ── Round 5 §9.2: full managed-artifact write order (PG).
+
+
+def test_c2_r5_full_managed_artifact_event_sequence_postgresql(
+    a2_pg_engine: Any,
+    a2_pg_session_factory: Any,
+) -> None:
+    """Round 5 §9.2: full five-artifact-order test
+    (PostgreSQL).
+
+    Mirrors the SQLite §9.1 test on the real PG
+    test database, asserting the same five-event
+    sequence.
+    """
+    from pathlib import Path as _Path
+
+    from cold_storage.evaluation import evaluate as _evaluate_mod
+    from cold_storage.evaluation.evaluate import evaluate_manifest
+    from cold_storage.evaluation.models import (
+        DatabaseBackend,
+        ExpectedErrorAssertion,
+        ExpectedOutcome,
+        ExpectedOutputRef,
+        Manifest,
+        ScenarioDeclaration,
+    )
+    from tests.evaluation._seed_helpers import seed_a1_all_prereqs
+
+    assert a2_pg_engine.dialect.name == "postgresql"
+
+    seed_s = a2_pg_session_factory()
+    try:
+        seed_a1_all_prereqs(seed_s)
+    finally:
+        seed_s.close()
+
+    class _WriteEventRecorder:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str]] = []
+
+        def record(self, kind: str, path: _Path) -> None:
+            self.events.append((kind, str(path)))
+
+    with tempfile.TemporaryDirectory() as tmp_root:
+        root = Path(tmp_root).resolve()
+        manifest_root = root / "manifest"
+        manifest_root.mkdir(parents=True, exist_ok=True)
+        _golden_src = (
+            Path(__file__).resolve().parent
+            / "data"
+            / "expected"
+            / "baseline_feasible.v1.json"
+        )
+        _golden_dst_dir = manifest_root / "data" / "expected"
+        _golden_dst_dir.mkdir(parents=True, exist_ok=True)
+        _golden_dst_dir.joinpath("baseline_feasible.v1.json").write_text(
+            _golden_src.read_text()
+        )
+
+        _recorder = _WriteEventRecorder()
+        _orig_write_json = _evaluate_mod._atomic_write_json
+        _orig_write_bytes = _evaluate_mod._atomic_write_bytes
+
+        def _wrapped_write_json(*, path: _Path, data: Any) -> None:
+            _recorder.record("json", path)
+            _orig_write_json(path=path, data=data)
+
+        def _wrapped_write_bytes(*, path: _Path, data: bytes) -> None:
+            _recorder.record("bytes", path)
+            _orig_write_bytes(path=path, data=data)
+
+        _evaluate_mod._atomic_write_json = _wrapped_write_json
+        _evaluate_mod._atomic_write_bytes = _wrapped_write_bytes
+        try:
+            manifest = Manifest(
+                schema_version="1.0",
+                suite_id="c2-round5-full-artifact-order-pg",
+                scenarios=(
+                    ScenarioDeclaration(
+                        scenario_id="baseline_feasible",
+                        database_backend=DatabaseBackend.POSTGRESQL,
+                        expected_outcome=ExpectedOutcome.SUCCEEDED,
+                        expected_output=ExpectedOutputRef(
+                            scenario_id="baseline_feasible",
+                            path="data/expected/baseline_feasible.v1.json",
+                            expected_outcome=ExpectedOutcome.SUCCEEDED,
+                        ),
+                    ),
+                    ScenarioDeclaration(
+                        scenario_id="invalid_blocked",
+                        database_backend=DatabaseBackend.POSTGRESQL,
+                        expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                        expected_output=ExpectedOutputRef(
+                            scenario_id="invalid_blocked",
+                            path=None,
+                            expected_outcome=ExpectedOutcome.INVALID_INPUT,
+                            expected_error=ExpectedErrorAssertion(
+                                exception_type="InvalidProjectInputError",
+                                code="PROJ_INPUT_INVALID",
+                                field="total_area_m2",
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            run_root = root / "run"
+            result = evaluate_manifest(
+                manifest=manifest,
+                manifest_root=manifest_root,
+                root=run_root,
+                session_factory=a2_pg_session_factory,
+            )
+            assert result.evaluation_result_overall.value == "pass"
+            assert result.scenarios[0].actual_outcome == "SUCCEEDED"
+            assert result.scenarios[1].actual_outcome == "INVALID_INPUT"
+        finally:
+            _evaluate_mod._atomic_write_json = _orig_write_json
+            _evaluate_mod._atomic_write_bytes = _orig_write_bytes
+
+        expected_paths = [
+            str(run_root / "baseline_feasible" / "raw" / "baseline_feasible.json"),
+            str(run_root / "baseline_feasible" / "normalized" / "baseline_feasible.json"),
+            str(run_root / "baseline_feasible" / "run.json"),
+            str(run_root / "invalid_blocked" / "run.json"),
+            str(run_root / "summary.json"),
+        ]
+        expected_kinds = ["json", "bytes", "json", "json", "json"]
+        actual = _recorder.events
+        matched_idx: list[int] = []
+        j = 0
+        for i, (kind, path) in enumerate(actual):
+            if (
+                j < len(expected_kinds)
+                and kind == expected_kinds[j]
+                and path == expected_paths[j]
+            ):
+                matched_idx.append(i)
+                j += 1
+            if j == len(expected_kinds):
+                break
+        assert j == len(expected_kinds), (
+            f"PG full-artifact-order: expected 5 ordered events; matched {j}; "
+            f"actual events: {actual!r}"
+        )
+        assert matched_idx == sorted(matched_idx)
+        assert matched_idx[-1] == len(actual) - 1
+        summary_events = [e for e in actual if e[1] == expected_paths[-1]]
+        assert len(summary_events) == 1
+        normalized_event = next(
+            (e for e in actual if e[1] == expected_paths[1]), None
+        )
+        assert normalized_event[0] == "bytes"
+        # Check existence INSIDE the tempdir
+        # block (the tempdir is deleted when the
+        # ``with`` exits).
+        for p in expected_paths:
+            assert Path(p).exists()
