@@ -102,17 +102,18 @@ backend/src/cold_storage/evaluation/schema/*
 # Hermes agent local state
 .hermes/
 
-# Task 11B Path A baseline-only expected-output tracking whitelist (Amendment 5 / §16.9.2).
-# Path-precise: tracks ONLY backend/tests/evaluation/data/expected/baseline_feasible.v1.json.
-# Does NOT un-ignore the whole data/expected/ directory, any other JSON, or any
-# downstream change. high_throughput_review.v1.json MUST NOT be added through this
-# whitelist; it requires a separate Amendment and a separate whitelist entry per
-# §16.9.4 future-restoration conditions.
+# Task 11 path-precise expected-output tracking whitelist.
+# Tracks ONLY the approved TASK-011B baseline golden and the independently
+# approved TASK-011C C-3 invalid_blocked golden.
+# Does NOT un-ignore the whole data/expected/ directory or any other JSON.
+# high_throughput_review.v1.json remains excluded and requires a separate
+# future production-integration authorization.
 !backend/tests/evaluation/data/
 backend/tests/evaluation/data/*
 !backend/tests/evaluation/data/expected/
 backend/tests/evaluation/data/expected/*
 !backend/tests/evaluation/data/expected/baseline_feasible.v1.json
+!backend/tests/evaluation/data/expected/invalid_blocked.v1.json
 
 # TASK-011C C-2 runner allowlist (Issue #20 comment 4965825762 +
 # path-specific amendment 4966973464 for the shared C-2 executor).
