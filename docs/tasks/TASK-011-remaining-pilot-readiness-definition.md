@@ -1,6 +1,6 @@
 # TASK-011 Remaining Pilot Readiness — Freeze Candidate
 
-> **Status:** `FREEZE_CANDIDATE_PENDING_CHARLES_AUTHORIZATION`
+> **Status:** `FINAL_FREEZE_CANDIDATE_PENDING_CI_AND_CHARLES_AUTHORIZATION`
 >
 > **Authority:** Issue #20 comment `4993536755`.
 >
@@ -17,7 +17,7 @@ SOURCE_MAIN_SHA=a16075fed9ef7cabafc41cf0398c54fd6088f578
 BRANCH=codex/task-011-remaining-pilot-readiness-definition
 DOCUMENT_PATH=docs/tasks/TASK-011-remaining-pilot-readiness-definition.md
 ROUND1_REVIEW_ID=4715270274
-DOCUMENT_STATUS=FREEZE_CANDIDATE_PENDING_CHARLES_AUTHORIZATION
+DOCUMENT_STATUS=FINAL_FREEZE_CANDIDATE_PENDING_CI_AND_CHARLES_AUTHORIZATION
 CONTRACT_FROZEN=NO
 ```
 
@@ -111,9 +111,11 @@ expected_output.path=expected/baseline_feasible.v1.json
 expected_output.expected_outcome=SUCCEEDED
 expected_output.commit_sha=f274db66fe4bb2de206d12c2d561d1b3549ab6c0
 excluded_paths=[]
-fixtures=[] or omitted
-comparison_policy=existing exact/decimal policy or omitted when the runner derives the frozen default
+fixtures=OMITTED
+comparison_policy=OMITTED
 ```
+
+Omitting `comparison_policy` means the existing frozen exact-equality default applies. The implementation must not introduce an alternative comparison strategy.
 
 Backend identity differs only as follows:
 
@@ -512,6 +514,7 @@ backend/src/cold_storage/evaluation/evaluate.py
 backend/src/cold_storage/evaluation/pilot_reports.py
 backend/tests/evaluation/data/task011-pilot-sqlite.v1.json
 backend/tests/evaluation/data/task011-pilot-postgresql.v1.json
+backend/tests/evaluation/test_artifact_io.py
 backend/tests/evaluation/test_run_directory.py
 backend/tests/pilot/run_multilingual_report_pilot.py
 backend/tests/pilot/test_multilingual_report_pilot.py
@@ -578,13 +581,14 @@ The future Slice 1 may add path-precise exceptions only for the new files in thi
 
 ## 12. Exact commands
 
-All file paths passed to Python are absolute. The commands are executed from `backend/`.
+All file paths passed to Python are absolute. Commands execute from `backend/` and derive the exact implementation Head from Git.
 
 ### 12.1 SQLite
 
 ```bash
 cd backend
 REPO_BACKEND_ROOT="$(pwd -P)"
+IMPLEMENTATION_HEAD_SHA="$(git rev-parse HEAD)"
 PILOT_ROOT="$(mktemp -d)"
 uv run python tests/pilot/run_multilingual_report_pilot.py run \
   --backend sqlite \
@@ -592,7 +596,7 @@ uv run python tests/pilot/run_multilingual_report_pilot.py run \
   --manifest "${REPO_BACKEND_ROOT}/tests/evaluation/data/task011-pilot-sqlite.v1.json" \
   --output-root "${PILOT_ROOT}/run-1" \
   --repeat-index 1 \
-  --commit-sha "<40-character-implementation-head-sha>"
+  --commit-sha "${IMPLEMENTATION_HEAD_SHA}"
 ```
 
 Repeat with a new `PILOT_ROOT` and `--repeat-index 2`.
@@ -602,6 +606,7 @@ Repeat with a new `PILOT_ROOT` and `--repeat-index 2`.
 ```bash
 cd backend
 REPO_BACKEND_ROOT="$(pwd -P)"
+IMPLEMENTATION_HEAD_SHA="$(git rev-parse HEAD)"
 PILOT_ROOT="$(mktemp -d)"
 uv run python tests/pilot/run_multilingual_report_pilot.py run \
   --backend postgresql \
@@ -609,17 +614,19 @@ uv run python tests/pilot/run_multilingual_report_pilot.py run \
   --manifest "${REPO_BACKEND_ROOT}/tests/evaluation/data/task011-pilot-postgresql.v1.json" \
   --output-root "${PILOT_ROOT}/run-1" \
   --repeat-index 1 \
-  --commit-sha "<40-character-implementation-head-sha>"
+  --commit-sha "${IMPLEMENTATION_HEAD_SHA}"
 ```
 
 Repeat with a fresh database/schema, a new `PILOT_ROOT`, and `--repeat-index 2`.
 
 ### 12.3 Cleanup
 
+Cleanup uses the exact output root created in the same shell session:
+
 ```bash
 cd backend
 uv run python tests/pilot/run_multilingual_report_pilot.py cleanup \
-  --output-root "/absolute/path/to/one/validated/pilot-run-root"
+  --output-root "${PILOT_ROOT}/run-1"
 ```
 
 The CLI rejects relative manifest/output paths and refuses unsafe cleanup roots.
@@ -732,8 +739,8 @@ BRANCH_DELETION_NOT_AUTHORIZED
 ## 19. Freeze-candidate completion marker
 
 ```text
-FINAL_CLASSIFICATION=TASK_011_REMAINING_PILOT_READINESS_DEFINITION_FREEZE_CANDIDATE
-DOCUMENT_STATUS=FREEZE_CANDIDATE_PENDING_CHARLES_AUTHORIZATION
+FINAL_CLASSIFICATION=TASK_011_REMAINING_PILOT_READINESS_DEFINITION_FINAL_FREEZE_CANDIDATE
+DOCUMENT_STATUS=FINAL_FREEZE_CANDIDATE_PENDING_CI_AND_CHARLES_AUTHORIZATION
 CONTRACT_FROZEN=NO
 IMPLEMENTATION_AUTHORIZED=NO
 STOPPED_AWAITING_CHARLES_DEFINITION_FREEZE_AUTHORIZATION
