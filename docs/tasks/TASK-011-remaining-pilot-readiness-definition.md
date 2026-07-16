@@ -1,12 +1,12 @@
-# TASK-011 Remaining Pilot Readiness — Definition Proposal
+# TASK-011 Remaining Pilot Readiness — Freeze Candidate
 
-> **Status:** `REVIEW_CORRECTIONS_APPLIED_PENDING_RE_REVIEW`
+> **Status:** `FREEZE_CANDIDATE_PENDING_CHARLES_AUTHORIZATION`
 >
 > **Authority:** Issue #20 comment `4993536755`.
 >
 > **Round-1 review:** PR #66 review `4715270274`.
 >
-> **Round type:** docs-only definition. This document does not authorize implementation, fixtures, expected outputs, manifest changes, production behavior changes, CI workflow changes, Ready, Merge, Issue #20 closure, Task 12, or any work named TASK-011D.
+> **Round type:** docs-only definition. This document does not itself authorize implementation, Ready, Merge, Issue #20 closure, Task 12, or any work named TASK-011D.
 
 ## 1. Repository identity
 
@@ -17,13 +17,13 @@ SOURCE_MAIN_SHA=a16075fed9ef7cabafc41cf0398c54fd6088f578
 BRANCH=codex/task-011-remaining-pilot-readiness-definition
 DOCUMENT_PATH=docs/tasks/TASK-011-remaining-pilot-readiness-definition.md
 ROUND1_REVIEW_ID=4715270274
-DOCUMENT_STATUS=REVIEW_CORRECTIONS_APPLIED_PENDING_RE_REVIEW
+DOCUMENT_STATUS=FREEZE_CANDIDATE_PENDING_CHARLES_AUTHORIZATION
 CONTRACT_FROZEN=NO
 ```
 
-This proposal follows the TASK-011 work merged through PRs #60, #64, and #65. It does not reopen or modify the frozen TASK-011C V1 scenario set (`baseline_feasible` and `invalid_blocked`).
+This definition follows the TASK-011 work merged through PRs #60, #64, and #65. It does not reopen or modify the frozen TASK-011C V1 scenario semantics, schema, golden files, formulas, coefficients, thresholds, scoring, or production review rules.
 
-## 2. Current completed state
+## 2. Verified completed state
 
 ```text
 BASELINE_FEASIBLE_EXPECTED_OUTPUT=MERGED
@@ -36,30 +36,18 @@ D3_V1_EXCLUDED_JSON_PATHS=[]
 HIGH_THROUGHPUT_REVIEW=DEFERRED_FROM_TASK_011C_V1
 ```
 
-The remaining work is pilot readiness. It is not a formula, coefficient, threshold, scoring, or production-review-rule change.
+Repository audit of PR #63 and PR #64 confirms that those rounds delivered the manifest schema, loader, models, canonicalization, comparison, and runners, but did **not** commit an executable repository-owned V1 manifest instance.
 
-## 3. Evidence base
+```text
+TRACKED_EXECUTABLE_V1_MANIFEST_INSTANCE=ABSENT
+PILOT_MANIFEST_PATH_PLACEHOLDERS=FORBIDDEN
+```
 
-The existing repository provides:
+Therefore this contract defines two new backend-specific pilot manifest instances without changing the frozen schema or expected outputs.
 
-- locales `zh-CN` and `en-US`;
-- formats `docx` and `pdf`;
-- modes `draft` and `formal`;
-- report/revision creation through the report application service and `/api/v1/reports` endpoints;
-- rendering through `/api/v1/reports/{report_id}/revisions/{revision_number}/render`;
-- export listing/detail and verified download endpoints;
-- artifact metadata including source hash, template identity, locale, translation-catalog identity, localized-template hash, file hash, and file size;
-- verified-download headers including `X-Content-SHA256`, `X-Source-Content-Hash`, locale, template locale, translation-catalog identity, and localized-template hash;
-- a real report data provider and production report/render services;
-- a frontend export panel with report/revision, format, mode, locale, render, list, and download actions;
-- an existing production E2E pattern proving that four locale/format renders originate from one canonical report revision;
-- an evaluation runner that rejects stale managed outputs and writes its completion summary last.
+## 3. Remaining deliverables
 
-No new report engine, localization engine, translation service, formula calculator, or frontend redesign is proposed.
-
-## 4. Remaining deliverables
-
-After a separate implementation authorization, the remaining TASK-011 deliverables are:
+After separate implementation authorization, the remaining TASK-011 deliverables are:
 
 1. multilingual report pilot acceptance;
 2. repository-owned pilot/demo runbook;
@@ -75,54 +63,112 @@ Explicit exclusions:
 - real customer, farm, factory, personal, confidential, or secret data;
 - replacement of the report or evaluation architecture.
 
-## 5. Binding R1–R14 decisions integrated from review 4715270274
+## 4. Binding R1–R14 freeze candidate
 
 ```text
 R1_PILOT_CHECK_ID=multilingual_report_same_revision
-R2_FOUR_RENDER_DRAFT_MATRIX=APPROVED
+R2_FOUR_RENDER_DRAFT_MATRIX=zh-CN/en-US_x_docx/pdf
 R3_FORMAL_MODE_SMOKE_SCOPE=DEFERRED_OUT_OF_CURRENT_SCOPE
-R4_CROSS_RENDER_INVARIANTS=AXIS_SPECIFIC_WITH_EXPLICIT_EVIDENCE_SOURCES
-R5_PERMITTED_DIFFERENCE_SET=AXIS_SPECIFIC
-R6_SEMANTIC_ALLOWLIST_AUTHORITY=EXACT_PRODUCTION_SYMBOLS
+R4_CROSS_RENDER_INVARIANTS=AXIS_SPECIFIC_WITH_EXPLICIT_EVIDENCE
+R5_PERMITTED_DIFFERENCES=AXIS_SPECIFIC_SELF_INTEGRITY_ONLY
+R6_SEMANTIC_AUTHORITY=EXISTING_PRODUCTION_SYMBOLS
 R7_REPEATABILITY_RUNS_PER_BACKEND=2
 R8_RESULT_SCHEMA_VERSION=task11-pilot-report.v1
 R9_ARTIFACT_IO_AUTHORITY=SINGLE_PUBLIC_SHARED_MODULE
-R10_IMPLEMENTATION_SURFACE=CORE_VERIFIER_PLUS_TEST_SIDE_PILOT_COMPOSITION
+R10_IMPLEMENTATION_SURFACE=EXACT_PATH_ALLOWLIST
 R11_CI_BOUNDARY=EXISTING_BACKEND_SQLITE_AND_POSTGRESQL_JOBS
 R12_RUNBOOK_PATH=docs/tasks/TASK-011-pilot-demo-runbook.md
 R13_HIGH_THROUGHPUT_DISPOSITION=PATH_A
 R14_ISSUE20_CLOSURE=SEPARATE_AUTHORIZATION_AFTER_FRESH_CHECKOUT_EVIDENCE
 ```
 
-These decisions are integrated into this correction commit but are not frozen until a subsequent Charles re-review explicitly freezes the document.
+## 5. Pilot source manifests
 
-## 6. Multilingual pilot check contract
+### 5.1 Exact tracked paths
 
-### 6.1 Identity and relationship to TASK-011C
+```text
+SQLITE_PILOT_MANIFEST=
+  backend/tests/evaluation/data/task011-pilot-sqlite.v1.json
+
+POSTGRESQL_PILOT_MANIFEST=
+  backend/tests/evaluation/data/task011-pilot-postgresql.v1.json
+```
+
+Each file is a valid `schema_version="1.0"` manifest loaded only through:
+
+```text
+cold_storage.evaluation.manifest::load_and_validate_manifest
+```
+
+### 5.2 Exact semantic content
+
+Each manifest contains exactly one scenario:
+
+```text
+scenario_id=baseline_feasible
+expected_outcome=SUCCEEDED
+expected_output.path=expected/baseline_feasible.v1.json
+expected_output.expected_outcome=SUCCEEDED
+expected_output.commit_sha=f274db66fe4bb2de206d12c2d561d1b3549ab6c0
+excluded_paths=[]
+fixtures=[] or omitted
+comparison_policy=existing exact/decimal policy or omitted when the runner derives the frozen default
+```
+
+Backend identity differs only as follows:
+
+```text
+task011-pilot-sqlite.v1.json:
+  suite_id=task011-pilot-multilingual-sqlite
+  database_backend=sqlite
+
+task011-pilot-postgresql.v1.json:
+  suite_id=task011-pilot-multilingual-postgresql
+  database_backend=postgresql
+```
+
+The manifests must not:
+
+- contain `invalid_blocked` or `high_throughput_review`;
+- modify the baseline expected output;
+- introduce a new expected output;
+- use a non-empty exclusion set;
+- reference a path outside their own parent directory;
+- introduce scenario-specific production behavior;
+- contain real or confidential data.
+
+The expected-output relative path is valid because both manifests live beside the existing `expected/` directory under `backend/tests/evaluation/data/`.
+
+### 5.3 Path-precise tracking
+
+A future separately authorized Slice 1 may amend `.gitignore` only to track these exact files and the exact new implementation files listed in §11. Directory-wide unignore and `git add -f` remain forbidden.
+
+## 6. Multilingual pilot execution
+
+### 6.1 Pilot identity
 
 ```text
 PILOT_CHECK_ID=multilingual_report_same_revision
 PILOT_CHECK_CLASS=REPORT_VERIFICATION
 SOURCE_SCENARIO=baseline_feasible
 SOURCE_DATA=SYNTHETIC_REPOSITORY_OWNED
-TASK011C_V1_MANIFEST_AMENDMENT=NO
+TASK011C_SCHEMA_CHANGE=NO
+TASK011C_GOLDEN_CHANGE=NO
 ```
-
-This pilot check is not a new TASK-011C V1 scenario and must not be inserted into the frozen V1 manifest.
-
-### 6.2 Source execution and binding
 
 For each backend and repetition, the pilot composition must:
 
-1. validate the existing V1 manifest through `cold_storage.evaluation.manifest::load_and_validate_manifest`;
-2. inspect the pilot output root before any database, report, or filesystem side effect;
-3. execute the existing `baseline_feasible` production-bound evaluation path using the existing backend runner and a fresh database;
+1. validate the backend-specific pilot manifest;
+2. reject stale managed pilot outputs before database/report/filesystem side effects;
+3. execute the existing `baseline_feasible` production-bound evaluation path against a fresh database;
 4. require the baseline evaluation result to be PASS;
-5. obtain the persisted project/version identities from the baseline normalized result and persisted state;
-6. create one report and generate exactly one report revision through the production report application services;
-7. render all four mandatory artifacts from that exact report revision without executing a second calculation or scheme run.
+5. obtain the persisted project/version identities from the normalized result and persisted production state;
+6. create one report and generate exactly one report revision through production report application services;
+7. render all four mandatory artifacts from that exact revision without executing a second calculation or scheme run;
+8. download each artifact through production download verification;
+9. write `pilot-summary.json` last.
 
-The bound source identity is:
+### 6.2 Exact source identity
 
 ```text
 source_commit_sha
@@ -134,12 +180,10 @@ report_revision_id
 revision_number
 report_revision_content_hash
 report_type=cold_storage_concept_design
-schema_version
+report_schema_version
 ```
 
 ### 6.3 Mandatory render matrix
-
-Slice 1 requires exactly four draft renders:
 
 | Locale | Format | Mode |
 |---|---|---|
@@ -148,32 +192,60 @@ Slice 1 requires exactly four draft renders:
 | `en-US` | `docx` | `draft` |
 | `en-US` | `pdf` | `draft` |
 
-Formal-mode verification is deferred from Slice 1. A future formal-mode check requires a separate scope amendment and must use the existing report review/approval lifecycle.
+Formal-mode verification is deferred. It requires a future scope amendment and the existing report review/approval lifecycle.
 
-### 6.4 Evidence sources
+## 7. Evidence and invariants
 
-The pilot verifier must bind claims to the following existing sources:
+### 7.1 Required production authorities
 
-| Claim | Required evidence source |
+```text
+CANONICAL_MODEL_AUTHORITY=
+  cold_storage.modules.reports.application.canonical_render_model_builder
+  ::build_canonical_render_model
+
+LOCALIZATION_AUTHORITY=
+  cold_storage.modules.reports.application.render_model_localizer
+  ::localize_render_model
+
+CATALOG_AUTHORITY=
+  cold_storage.modules.reports.localization.catalog
+  ::get_catalog
+  ::compute_catalog_content_hash
+
+DATA_PROVIDER_AUTHORITY=
+  cold_storage.modules.reports.infrastructure.real_data_provider
+  ::RealReportDataProvider
+
+ARTIFACT_STORAGE_AUTHORITY=
+  cold_storage.modules.reports.infrastructure.artifact_storage
+  ::ReportArtifactStorage
+
+TEMPLATE_PROVENANCE_AUTHORITY=
+  persisted ReportTemplate.manifest_json
+  persisted ReportTemplate.template_content_hash
+  production ReportRenderService template selection
+```
+
+The pilot must not use `_RichDataProvider`, mock storage, fabricated report contents, handwritten translated report bodies, or a second report assembler.
+
+### 7.2 Evidence sources
+
+| Claim | Required source |
 |---|---|
-| project/report relationship | persisted `Report` and production report service result |
-| revision number/content hash | persisted `ReportRevision` and revision API/service result |
-| artifact report/revision binding | persisted `ReportExportArtifact` |
-| requested format/locale | artifact fields plus request parameters |
+| project/report relationship | persisted `Report` plus production report service result |
+| revision identity | persisted `ReportRevision` plus revision service result |
+| artifact/report/revision binding | persisted `ReportExportArtifact` |
+| format and locale | request values plus persisted artifact fields |
 | render mode | `ReportExportArtifact.render_manifest_json["render_mode"]` |
-| template provenance | persisted template ID/version/content hash/schema plus render manifest |
-| translation catalog provenance | artifact catalog version/hash plus catalog authority |
+| template provenance | persisted template plus render manifest |
+| catalog provenance | artifact catalog version/hash plus catalog authority |
 | localized template provenance | artifact localized-template hash |
-| file integrity | artifact metadata, downloaded bytes, and verified-download headers |
-| semantic section/value checks | canonical render model, localization authorities, and extracted downloaded content |
+| file integrity | persisted artifact, downloaded bytes, and verified-download headers |
+| sections and numeric semantics | canonical model, localization authorities, and extracted downloaded content |
 
-The verifier must not infer `mode` from a top-level artifact API response because the current top-level artifact response does not expose that field.
+The verifier must not assume render mode exists as a top-level artifact API field.
 
-### 6.5 Axis-specific invariants
-
-#### A. Global invariants across all four renders
-
-The following must be exact for all four artifacts:
+### 7.3 Global invariants across all four renders
 
 ```text
 project_id
@@ -183,8 +255,8 @@ report_revision_id
 revision_number
 report_revision_content_hash
 source_content_hash
-report_type=cold_storage_concept_design
-schema_version
+report_type
+report_schema_version
 render_mode=draft
 canonical_section_key_set
 canonical_numeric_field_path_set
@@ -193,9 +265,7 @@ canonical_numeric_value_and_unit_set
 
 `source_content_hash` must equal `report_revision_content_hash`.
 
-#### B. Same-locale invariants across DOCX and PDF
-
-For the same locale, the following must be exact across both formats:
+### 7.4 Same-locale invariants across DOCX/PDF
 
 ```text
 locale
@@ -209,9 +279,7 @@ canonical_numeric_value_and_unit_set
 
 `template_locale` must equal the requested locale.
 
-#### C. Same locale+format invariants across repetitions and backends
-
-For the same locale/format pair, the following must be exact across both fresh runs and both database backends:
+### 7.5 Same locale+format invariants across repetitions/backends
 
 ```text
 format
@@ -228,15 +296,9 @@ numeric_semantic_result
 PASS_FAIL_classification
 ```
 
-Database-generated template IDs need not be equal across backends; template version and content hash are the governed identity.
+Database-generated template IDs need not match across backends; template version and content hash are the governed identity.
 
-#### D. Cross-locale rule
-
-Human-language strings may differ. The canonical section keys, canonical field paths, numeric values, and canonical unit codes must remain exact. No client-side translation may manufacture the English result.
-
-### 6.6 Self-integrity-only fields
-
-The following may differ across renders, repetitions, or backends, but every value must pass its own type, request-binding, and integrity rule:
+### 7.6 Permitted self-integrity-only differences
 
 ```text
 artifact_id
@@ -247,10 +309,10 @@ generated_at
 storage_key
 mime_type
 downloaded binary bytes
-container metadata internal to DOCX/PDF
+DOCX/PDF container metadata
 ```
 
-Each artifact must satisfy:
+Each artifact must independently satisfy:
 
 ```text
 artifact_status=completed
@@ -259,48 +321,28 @@ file_sha256=LOWERCASE_SHA256_HEX
 DOWNLOAD_BYTES_SHA256=file_sha256
 DOWNLOAD_HEADER_X_CONTENT_SHA256=file_sha256
 DOWNLOAD_HEADER_X_SOURCE_CONTENT_HASH=source_content_hash
+DOWNLOAD_HEADER_X_REPORT_LOCALE=locale
+DOWNLOAD_HEADER_X_TEMPLATE_LOCALE=template_locale
 translation_catalog_version=NON_EMPTY
 translation_catalog_content_hash=LOWERCASE_SHA256_HEX
 localized_template_content_hash=LOWERCASE_SHA256_HEX
 ```
 
-Complete DOCX/PDF byte equality is never required across formats, locales, repetitions, or backends.
+Complete DOCX/PDF byte equality is never required.
 
-### 6.7 Semantic authority
+### 7.7 Semantic verification
 
-The exact semantic authorities are:
+Required headings are derived from canonical `section_key` values and catalog keys `section.<section_key>`. Numeric verification is derived from canonical field paths, raw canonical values, and canonical unit codes.
 
-```text
-CANONICAL_MODEL_AUTHORITY=
-  cold_storage.modules.reports.application.canonical_render_model_builder
-  ::build_canonical_render_model
+The implementation must prove:
 
-LOCALIZATION_AUTHORITY=
-  cold_storage.modules.reports.application.render_model_localizer
-  ::localize_render_model
+- every required canonical section is represented in each locale;
+- localized headings equal the catalog values for that locale;
+- numeric values and units are semantically equivalent across locales and formats;
+- missing sections, units, or numeric drift fail closed;
+- the verifier does not recompute engineering formulas.
 
-CATALOG_AUTHORITY=
-  cold_storage.modules.reports.localization.catalog
-  ::get_catalog
-  ::compute_catalog_content_hash
-
-TEMPLATE_PROVENANCE_AUTHORITY=
-  persisted ReportTemplate.manifest_json
-  persisted ReportTemplate.template_content_hash
-  production ReportRenderService template selection
-```
-
-Required section headings are derived from canonical `section_key` values and catalog keys `section.<section_key>`. Numeric verification is derived from canonical field paths, raw canonical values, and canonical unit codes. The implementation must not maintain an independent handwritten frontend heading or numeric allowlist.
-
-Downloaded-file checks must prove:
-
-- all required canonical sections are represented in each locale;
-- localized headings match the catalog values for that locale;
-- declared numeric values and units are semantically equivalent across locales and formats;
-- missing sections, units, or numeric drift cannot be hidden by broad normalization;
-- engineering formulas are not recomputed by the verifier.
-
-### 6.8 Repeatability and backend coverage
+## 8. Repeatability and backend coverage
 
 ```text
 SQLITE_REPORT_PILOT=REQUIRED
@@ -311,52 +353,38 @@ CLEAN_OUTPUT_ROOT_PER_RUN=YES
 CROSS_BACKEND_BUSINESS_INVARIANTS=EXACT
 ```
 
-Generated database IDs, timestamps, storage keys, and binary file hashes are not required to be identical between SQLite and PostgreSQL.
+Generated database IDs, timestamps, storage keys, and binary hashes are not required to be identical between backends.
 
-## 7. V1 pilot result schema and managed layout
-
-### 7.1 Schema identity
+## 9. Result schema and managed layout
 
 ```text
 PILOT_RESULT_SCHEMA_VERSION=task11-pilot-report.v1
 ```
 
-Unknown, missing, or non-string schema versions fail closed.
-
-### 7.2 Managed output layout
-
-Each fresh run owns one absolute output root outside tracked repository files:
+Each run owns one absolute output root outside tracked repository files:
 
 ```text
 <output-root>/
   pilot-run.json
   artifacts/
-    zh-CN/
-      docx/
-        report.docx
-        artifact-metadata.json
-        semantic-checks.json
-      pdf/
-        report.pdf
-        artifact-metadata.json
-        semantic-checks.json
-    en-US/
-      docx/
-        report.docx
-        artifact-metadata.json
-        semantic-checks.json
-      pdf/
-        report.pdf
-        artifact-metadata.json
-        semantic-checks.json
+    zh-CN/docx/report.docx
+    zh-CN/docx/artifact-metadata.json
+    zh-CN/docx/semantic-checks.json
+    zh-CN/pdf/report.pdf
+    zh-CN/pdf/artifact-metadata.json
+    zh-CN/pdf/semantic-checks.json
+    en-US/docx/report.docx
+    en-US/docx/artifact-metadata.json
+    en-US/docx/semantic-checks.json
+    en-US/pdf/report.pdf
+    en-US/pdf/artifact-metadata.json
+    en-US/pdf/semantic-checks.json
   pilot-summary.json
 ```
 
-`pilot-summary.json` is written last and is the only completion marker. A directory without a successful `pilot-summary.json` is incomplete and can never be classified PASS.
+`pilot-summary.json` is written last and is the sole completion marker.
 
-### 7.3 `pilot-run.json`
-
-Required fields:
+### 9.1 `pilot-run.json`
 
 ```text
 schema_version
@@ -372,13 +400,11 @@ report_revision_id
 revision_number
 report_revision_content_hash
 report_type
-schema_version_of_report
+report_schema_version
 started_at
 ```
 
-### 7.4 `artifact-metadata.json`
-
-Required fields:
+### 9.2 `artifact-metadata.json`
 
 ```text
 schema_version
@@ -405,9 +431,7 @@ download_headers
 integrity_result
 ```
 
-### 7.5 `semantic-checks.json`
-
-Required fields:
+### 9.3 `semantic-checks.json`
 
 ```text
 schema_version
@@ -424,9 +448,7 @@ numeric_mismatches
 semantic_result
 ```
 
-### 7.6 `pilot-summary.json`
-
-Required fields:
+### 9.4 `pilot-summary.json`
 
 ```text
 schema_version
@@ -445,11 +467,11 @@ overall_result
 managed_file_sha256
 ```
 
-`overall_result=PASS` only when every source-binding, artifact-integrity, and semantic check is PASS.
+`overall_result=PASS` only when every subordinate check is PASS.
 
-## 8. Failure classification
+## 10. Failure classification
 
-The implementation must fail closed using stable machine-readable codes. At minimum:
+At minimum, implementation must use stable machine-readable codes:
 
 ```text
 SOURCE_BINDING_MISMATCH
@@ -477,11 +499,28 @@ UNSAFE_OUTPUT_ROOT
 INFRASTRUCTURE_ERROR
 ```
 
-Exception-message parsing is forbidden. Classification must use typed exceptions, structured domain fields, HTTP status/headers where applicable, persisted records, and explicit result records.
+Message-text parsing is forbidden. Classification uses typed exceptions, structured fields, persisted records, and verified response headers.
 
-## 9. Atomic write, stale-output, and cleanup authority
+## 11. Exact Slice 1 implementation allowlist
 
-Slice 1 is authorized to propose one public shared module:
+A future Slice 1 requires separate Charles implementation authorization. Its maximum tracked-file allowlist is:
+
+```text
+.gitignore
+backend/src/cold_storage/evaluation/artifact_io.py
+backend/src/cold_storage/evaluation/evaluate.py
+backend/src/cold_storage/evaluation/pilot_reports.py
+backend/tests/evaluation/data/task011-pilot-sqlite.v1.json
+backend/tests/evaluation/data/task011-pilot-postgresql.v1.json
+backend/tests/evaluation/test_run_directory.py
+backend/tests/pilot/run_multilingual_report_pilot.py
+backend/tests/pilot/test_multilingual_report_pilot.py
+backend/tests/architecture/test_phase1_identity_foundation_boundary.py
+```
+
+No other tracked path is authorized by this definition.
+
+### 11.1 Shared artifact-I/O authority
 
 ```text
 MODULE=backend/src/cold_storage/evaluation/artifact_io.py
@@ -494,92 +533,98 @@ PUBLIC_SYMBOLS=
 
 Rules:
 
-- the existing suite runner must be refactored to call the same public JSON-write/stale-artifact functions without semantic change;
-- the pilot verifier must call the same public authority;
-- private `_atomic_write_json` or `_assert_no_stale_artifacts` imports are forbidden;
+- `evaluate.py` is refactored to use the public shared authority with no C-2 semantic change;
+- the pilot verifier uses the same authority;
+- importing private `_atomic_write_json` or `_assert_no_stale_artifacts` is forbidden;
 - a second implementation is forbidden;
-- regression tests must prove existing C-2 stale-output and summary-last behavior remains unchanged;
-- output-root inspection occurs before database, report, or managed-file side effects;
-- managed files are written through temp sibling + flush/fsync where supported + atomic replace;
-- prior runs are never overwritten in place;
-- cleanup removes only the exact validated run root and rejects repository root, backend root, home directory, filesystem root, symlink escapes, and non-owned paths;
-- failed-run evidence remains until explicit cleanup;
-- generated reports, databases, and pilot result roots are never committed.
+- regression tests preserve existing stale-output and summary-last behavior;
+- output-root inspection precedes DB/report/managed-file side effects;
+- writes use temp sibling, flush/fsync where supported, and atomic replace;
+- prior runs are never overwritten;
+- cleanup removes only the exact validated owned run root and rejects roots, home, repo root, backend root, symlink escapes, and non-owned paths;
+- failed-run evidence remains until explicit cleanup.
 
-## 10. Implementation module and command surface
-
-### 10.1 Core verifier
+### 11.2 Core verifier
 
 ```text
 CORE_MODULE=backend/src/cold_storage/evaluation/pilot_reports.py
 PUBLIC_FUNCTION=verify_multilingual_report_pilot
 ```
 
-The core verifier receives existing production service/query/storage ports and typed source identities. It must not construct production ORM rows, seed databases, modify report behavior, or import test modules.
+The core receives production service/query/storage ports and typed source identities. It does not seed databases, construct production ORM rows, modify report behavior, or import tests.
 
-### 10.2 Repository-owned pilot composition
+### 11.3 Repository-owned composition
 
 ```text
 COMPOSITION_MODULE=backend/tests/pilot/run_multilingual_report_pilot.py
 ENTRY_FUNCTION=main
 ```
 
-The test-side composition may reuse the already authorized repository-owned synthetic evaluation seed helpers and must compose:
+The composition may reuse the already authorized synthetic evaluation seed helpers and must compose:
 
-- existing V1 manifest loader and backend runner;
+- the backend-specific pilot manifest;
+- existing manifest loader and backend runner;
 - existing production project/calculation/scheme query services;
 - `RealReportDataProvider`;
 - production `ReportService` and `ReportRenderService`;
-- real filesystem artifact storage under the named temporary pilot root;
-- the core pilot verifier.
+- `ReportArtifactStorage` rooted under the named pilot output root;
+- the core verifier.
 
-It must not use `_RichDataProvider`, mock artifact storage, fabricated report contents, a second report assembler, or hand-built expected report text.
+It must not use `_RichDataProvider`, mock storage, fabricated report contents, or hand-built translated text.
 
-### 10.3 Command contract
+### 11.4 `.gitignore` amendment
 
-The entry point requires explicit paths; no current-working-directory defaults are permitted.
+The future Slice 1 may add path-precise exceptions only for the new files in this allowlist. It must retain the generic `data/` and evaluation guardrails, and must not unignore a directory broadly.
 
-SQLite:
+## 12. Exact commands
+
+All file paths passed to Python are absolute. The commands are executed from `backend/`.
+
+### 12.1 SQLite
 
 ```bash
 cd backend
+REPO_BACKEND_ROOT="$(pwd -P)"
+PILOT_ROOT="$(mktemp -d)"
 uv run python tests/pilot/run_multilingual_report_pilot.py run \
   --backend sqlite \
-  --database-url "sqlite:////absolute/path/task011-pilot.sqlite3" \
-  --manifest "/absolute/path/to/the/repository-owned-v1-manifest.json" \
-  --manifest-root "/absolute/path/to/its/data-root" \
-  --output-root "/absolute/path/task011-pilot-sqlite-run-1" \
+  --database-url "sqlite:///${PILOT_ROOT}/task011-pilot.sqlite3" \
+  --manifest "${REPO_BACKEND_ROOT}/tests/evaluation/data/task011-pilot-sqlite.v1.json" \
+  --output-root "${PILOT_ROOT}/run-1" \
   --repeat-index 1 \
-  --commit-sha "<40-character-sha>"
+  --commit-sha "<40-character-implementation-head-sha>"
 ```
 
-PostgreSQL:
+Repeat with a new `PILOT_ROOT` and `--repeat-index 2`.
+
+### 12.2 PostgreSQL
 
 ```bash
 cd backend
+REPO_BACKEND_ROOT="$(pwd -P)"
+PILOT_ROOT="$(mktemp -d)"
 uv run python tests/pilot/run_multilingual_report_pilot.py run \
   --backend postgresql \
   --database-url "$TASK011_PILOT_POSTGRESQL_URL" \
-  --manifest "/absolute/path/to/the/repository-owned-v1-manifest.json" \
-  --manifest-root "/absolute/path/to/its/data-root" \
-  --output-root "/absolute/path/task011-pilot-postgresql-run-1" \
+  --manifest "${REPO_BACKEND_ROOT}/tests/evaluation/data/task011-pilot-postgresql.v1.json" \
+  --output-root "${PILOT_ROOT}/run-1" \
   --repeat-index 1 \
-  --commit-sha "<40-character-sha>"
+  --commit-sha "<40-character-implementation-head-sha>"
 ```
 
-Cleanup:
+Repeat with a fresh database/schema, a new `PILOT_ROOT`, and `--repeat-index 2`.
+
+### 12.3 Cleanup
 
 ```bash
 cd backend
 uv run python tests/pilot/run_multilingual_report_pilot.py cleanup \
-  --output-root "/absolute/path/to/one/named/pilot-run-root"
+  --output-root "/absolute/path/to/one/validated/pilot-run-root"
 ```
 
-The implementation PR and runbook must replace the manifest placeholders with the exact repository path discovered on the implementation Head. The CLI must reject relative paths.
+The CLI rejects relative manifest/output paths and refuses unsafe cleanup roots.
 
-## 11. CI boundary
-
-Slice 1 uses existing CI jobs only:
+## 13. CI boundary
 
 ```text
 CI_SQLITE_JOB=backend-sqlite
@@ -588,102 +633,73 @@ WORKFLOW_FILE_CHANGE=NO
 NEW_CI_JOB=NO
 ```
 
-Focused pilot tests must be discovered by the normal backend test command in both jobs. No `.github/workflows` change is authorized for Slice 1. Runtime impact must be reported in the implementation PR.
+Focused pilot tests are discovered by normal backend test execution in both existing jobs. No `.github/workflows` change is authorized in Slice 1.
 
-## 12. Repository-owned pilot/demo runbook
+## 14. Runbook
 
 ```text
 RUNBOOK_PATH=docs/tasks/TASK-011-pilot-demo-runbook.md
 ```
 
-The runbook must include:
+Slice 2 is a separate docs PR and requires separate authorization. The runbook must include exact commands, PostgreSQL variables, fresh-checkout setup, expected PASS results, backend/API path, frontend report-export path, visible outcomes, integrity headers, hash distinctions, failure interpretation, stale-output demonstration, cleanup/rerun, limitations, and synthetic-data confirmation.
 
-- prerequisites and supported local environment;
-- exact SQLite and PostgreSQL commands;
-- required PostgreSQL environment variables;
-- fresh-checkout setup;
-- expected PASS summary;
-- backend/API path;
-- frontend report-export path;
-- expected visible report/export result;
-- exact integrity fields and headers;
-- distinction between report revision hash and binary file hash;
-- failure-code interpretation;
-- stale-output rejection demonstration;
-- cleanup and rerun procedure;
-- known non-production limitations;
-- confirmation that all data is synthetic and repository-owned.
-
-Screenshots may supplement but cannot replace machine-readable evidence.
-
-## 13. High-throughput governance disposition
+## 15. High-throughput disposition
 
 ```text
 HIGH_THROUGHPUT_DISPOSITION=PATH_A
 ```
 
-PATH_A is accepted: `high_throughput_review` and its production-integration prerequisite move to a separately authorized follow-up Issue. This document does not create that Issue and does not authorize its implementation.
+`high_throughput_review` moves to a separately authorized follow-up Issue. This definition does not create that Issue and does not authorize implementation.
 
-Before Issue #20 may be proposed for closure:
+Before Issue #20 closure may be proposed:
 
-1. Charles must separately authorize creation of the follow-up Issue;
-2. the follow-up Issue must exist, remain open unless separately completed, and link Issue #20 and the frozen TASK-011C deferral authority;
-3. Issue #20 closure evidence must record the follow-up Issue number and explicitly state that high-throughput implementation is not part of the closure.
+1. Charles separately authorizes creation of the follow-up Issue;
+2. the Issue exists and links Issue #20 plus the frozen TASK-011C deferral authority;
+3. closure evidence records its number and states that high-throughput implementation is outside Issue #20 closure.
 
-PATH_B is rejected for this proposal.
+PATH_B is rejected for this definition.
 
-## 14. Issue #20 closure criteria
+## 16. Issue #20 closure criteria
 
-Issue #20 may be proposed for closure only after all conditions are repository-verifiable:
+Issue #20 may be proposed for closure only after repository-verifiable evidence proves:
 
-1. baseline expected output remains unchanged and reproducible;
-2. `invalid_blocked` expected output remains unchanged and reproducible;
-3. SQLite evaluation passes;
-4. PostgreSQL evaluation passes;
-5. the four-render multilingual matrix passes twice per backend on fresh databases;
-6. same project/version/report/revision source binding is proven across all renders;
-7. downloaded file hashes match persisted metadata and response headers;
-8. locale-specific sections and numeric semantic invariants pass;
-9. stale-output rejection, cleanup, and rerun procedures pass;
-10. the pilot/demo runbook is merged;
-11. normal repository CI is green on the exact implementation Head;
-12. a fresh checkout executes the documented SQLite and PostgreSQL pilot commands successfully;
-13. no real or confidential data is committed;
-14. the PATH_A follow-up Issue exists and is linked;
-15. a final closure evidence comment binds all relevant PRs, merge commits, exact-head CI runs, commands, result-file hashes, and the follow-up Issue;
-16. Charles separately authorizes Issue #20 closure.
+1. baseline and `invalid_blocked` goldens remain unchanged and reproducible;
+2. SQLite and PostgreSQL evaluation pass;
+3. the four-render matrix passes twice per backend on fresh databases;
+4. one report revision binds all four renders;
+5. downloaded hashes match persisted metadata and response headers;
+6. sections and numeric semantic invariants pass;
+7. stale-output rejection, cleanup, and rerun pass;
+8. the runbook is merged;
+9. normal CI is green on exact implementation Heads;
+10. a fresh checkout executes the documented SQLite and PostgreSQL pilot commands successfully;
+11. no real/confidential data is committed;
+12. the PATH_A follow-up Issue exists and is linked;
+13. a closure comment binds PRs, merge commits, exact-head CI, commands, result hashes, and follow-up Issue;
+14. Charles separately authorizes Issue #20 closure.
 
-Task 12 remains blocked until Issue #20 is actually closed with complete closure evidence.
+Task 12 remains blocked until Issue #20 is actually closed.
 
-## 15. Delivery slices
+## 17. Delivery slices
 
 ### Slice 1 — multilingual report acceptance
 
-- shared artifact-I/O authority extraction with C-2 regression protection;
-- core pilot verifier;
-- test-side SQLite/PostgreSQL pilot composition;
-- two fresh runs per backend;
-- four-render matrix;
-- source binding, download integrity, semantic checks, stale-output, cleanup, and rerun tests.
+Implementation is limited to §11 after separate authorization.
 
 ### Slice 2 — pilot/demo runbook
 
-- repository-owned operator instructions;
-- backend/API and frontend paths;
-- expected visible outcomes;
-- failure, cleanup, rerun, and limitations.
+One docs file at §14 after separate authorization.
 
 ### Slice 3 — closure evidence
 
 - create the PATH_A follow-up Issue only after separate authorization;
-- run the final fresh-checkout pilot on both backends;
-- collect merged identities and exact-head CI;
-- post Issue #20 closure evidence;
+- run final fresh-checkout pilots;
+- post closure evidence;
 - request separate closure authorization.
 
-Each slice requires a new Draft PR, independent review, exact-head CI, separate Ready authorization, and separate Merge authorization.
+Each code/docs PR follows Draft → review → exact-head CI → separate Ready authorization → separate Merge authorization.
 
-## 16. Hard boundaries
+## 18. Hard boundaries
 
 ```text
 DOCS_ONLY_THIS_ROUND=YES
@@ -694,7 +710,8 @@ IMPLEMENTATION_NOT_AUTHORIZED
 PRODUCTION_BEHAVIOR_CHANGE_NOT_AUTHORIZED
 FIXTURE_AUTHORING_NOT_AUTHORIZED
 EXPECTED_OUTPUT_AUTHORING_NOT_AUTHORIZED
-TASK011C_MANIFEST_CHANGE_NOT_AUTHORIZED
+TASK011C_SCHEMA_CHANGE_NOT_AUTHORIZED
+TASK011C_GOLDEN_CHANGE_NOT_AUTHORIZED
 REPORT_TEMPLATE_CHANGE_NOT_AUTHORIZED
 TRANSLATION_CATALOG_CHANGE_NOT_AUTHORIZED
 FRONTEND_CHANGE_NOT_AUTHORIZED
@@ -712,12 +729,12 @@ PR23_UNTOUCHED
 BRANCH_DELETION_NOT_AUTHORIZED
 ```
 
-## 17. Correction-round completion marker
+## 19. Freeze-candidate completion marker
 
 ```text
-FINAL_CLASSIFICATION=TASK_011_REMAINING_PILOT_READINESS_DEFINITION_REVIEW_CORRECTIONS_APPLIED
-DOCUMENT_STATUS=REVIEW_CORRECTIONS_APPLIED_PENDING_RE_REVIEW
+FINAL_CLASSIFICATION=TASK_011_REMAINING_PILOT_READINESS_DEFINITION_FREEZE_CANDIDATE
+DOCUMENT_STATUS=FREEZE_CANDIDATE_PENDING_CHARLES_AUTHORIZATION
 CONTRACT_FROZEN=NO
 IMPLEMENTATION_AUTHORIZED=NO
-STOPPED_AWAITING_CHARLES_DEFINITION_RE_REVIEW
+STOPPED_AWAITING_CHARLES_DEFINITION_FREEZE_AUTHORIZATION
 ```
