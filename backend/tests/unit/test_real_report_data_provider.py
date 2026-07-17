@@ -22,7 +22,7 @@ slice-1 unblock authorization.
 
 from __future__ import annotations
 
-import math
+import math  # noqa: F401  # retained for explicit module-level import surface
 from decimal import Decimal
 from typing import Any
 
