@@ -250,7 +250,11 @@ def _semantic_checks(
                     if isinstance(raw, int) or hasattr(raw, "as_tuple"):
                         inspect_metric(cell)
 
-    result = "PASS" if not missing_sections and not missing_units and not numeric_mismatches else "FAIL"
+    result = (
+        "PASS"
+        if not missing_sections and not missing_units and not numeric_mismatches
+        else "FAIL"
+    )
     return {
         "schema_version": PILOT_RESULT_SCHEMA_VERSION,
         "locale": locale.value,
@@ -479,7 +483,9 @@ def verify_multilingual_report_pilot(
         ],
         "source_binding_result": "PASS",
         "artifact_integrity_result": "PASS",
-        "semantic_result": "PASS" if all(result == "PASS" for result in semantic_results) else "FAIL",
+        "semantic_result": (
+            "PASS" if all(result == "PASS" for result in semantic_results) else "FAIL"
+        ),
         "overall_result": "PASS",
         "managed_file_sha256": managed_hashes,
     }
