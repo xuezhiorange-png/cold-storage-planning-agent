@@ -304,9 +304,8 @@ def verify_multilingual_report_pilot(
         project_version_id=project_version_id,
         report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
         actor=actor,
-        idempotency_key=None,
     )
-    revision = report_service.generate_revision(report.id, actor, idempotency_key=None)
+    revision = report_service.generate_revision(report.id, actor)
     if revision.report_id != report.id:
         _fail("REPORT_REVISION_MISMATCH", "Generated revision report ID mismatch.")
 
@@ -354,7 +353,6 @@ def verify_multilingual_report_pilot(
             template_version=None,
             mode="draft",
             actor=actor,
-            idempotency_key=None,
             locale=locale,
         )
         template = template_repository.get_template(artifact.template_id)
