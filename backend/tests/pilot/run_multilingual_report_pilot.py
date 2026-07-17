@@ -404,18 +404,27 @@ class _PilotCalcSection:
     (passed by reference, not deep-copied).
     """
 
-    __slots__ = ("id", "calculator_version", "result", "content_hash", "tool_call_status")
+    __slots__ = (
+        "id",
+        "calculator_name",
+        "calculator_version",
+        "result",
+        "content_hash",
+        "tool_call_status",
+    )
 
     def __init__(
         self,
         *,
         id: str,
+        calculator_name: str,
         calculator_version: str,
         result: dict[str, Any],
         content_hash: str | None,
         tool_call_status: str | None,
     ) -> None:
         self.id = id
+        self.calculator_name = calculator_name
         self.calculator_version = calculator_version
         self.result = result
         self.content_hash = content_hash
@@ -505,8 +514,9 @@ class _PilotCalculationQueryAdapter:
             # protocol, NOT hidden by adapter-side fabrication.
             sections[attr_name] = _PilotCalcSection(
                 id=str(record.id),
+                calculator_name=str(record.calculator_name or ""),
                 calculator_version=str(record.calculator_version or "1.0.0"),
-                result=dict(record.result_snapshot or {}),
+                result=record.result_snapshot or {},
                 content_hash=str(record.result_hash) if record.result_hash else None,
                 tool_call_status=None,
             )
