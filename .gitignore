@@ -135,3 +135,16 @@ backend/src/cold_storage/evaluation/runners/*
 !backend/tests/evaluation/test_d10_invalid_blocked.py
 !backend/tests/evaluation/test_run_directory.py
 !backend/tests/evaluation/test_run_directory_identity.py
+
+# TASK-011 remaining pilot-readiness Slice 1 allowlist.
+# Preserve the generic evaluation/data guardrails and track only the frozen
+# implementation, tests, composition entry point, and two backend manifests.
+!backend/src/cold_storage/evaluation/artifact_io.py
+!backend/src/cold_storage/evaluation/pilot_reports.py
+!backend/tests/evaluation/test_artifact_io.py
+!backend/tests/evaluation/data/task011-pilot-sqlite.v1.json
+!backend/tests/evaluation/data/task011-pilot-postgresql.v1.json
+!backend/tests/pilot/
+backend/tests/pilot/*
+!backend/tests/pilot/run_multilingual_report_pilot.py
+!backend/tests/pilot/test_multilingual_report_pilot.py
