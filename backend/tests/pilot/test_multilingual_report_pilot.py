@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import inspect
 import json
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -415,70 +417,54 @@ def test_p1_1_golden_only_comparison_policy_metadata_excluded(
     assert comparison.passed is True
 
 
-def test_p1_1_does_not_modify_p1_2_through_p1_4_areas(
+def test_p1_1_does_not_modify_p1_3_or_p1_4_areas(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """P1-1 Test 6: P1-1 fix MUST NOT touch P1-2 / P1-3 / P1-4 surfaces.
+    """P1-1 Test 6 (rewritten in P1-2 round): P1-1 fix MUST NOT touch
+    P1-3 / P1-4 surfaces.
 
     The composition MUST NOT:
 
-    * catch :class:`PilotVerificationError` (P1-2 — exit code 4
-      unreachable);
     * change ``_semantic_checks`` numeric / unit substring logic
       (P1-3 — global-substring false-pass);
     * add a four-render end-to-end test or change the verifier
-      artifact schema (P1-4 — E2E acceptance missing);
-    * touch ``EXIT_VERIFIER_ERROR=4``.
+      artifact schema (P1-4 — E2E acceptance missing).
+
+    The P1-2 territory (verifier-exit-code reachability) is the
+    subject of the separate ``P1-2`` corrective round and is
+    covered by ``test_p1_2_pilot_verification_error_returns_exit_4``
+    et al. — this test MUST NOT lock down the pre-P1-2 behaviour
+    any longer (it is a confirmed old defect, not a P1-1 invariant).
     """
-    # 1. The composition's exception handler still does NOT
-    # catch :class:`PilotVerificationError`. A verifier contract
-    # violation (P1-2 territory) MUST continue to escape as an
-    # unhandled :class:`PilotVerificationError` (P1-2 is OUT OF
-    # SCOPE for this round; we only assert the current behavior is
-    # preserved). The check is structural: ``_cmd_run``'s except
-    # block targets ``PilotCompositionError`` only, so a
-    # ``PilotVerificationError`` raised anywhere inside the body
-    # MUST bubble out.
+    # 1. The composition's exit-code contract: the four
+    # machine-readable exit-code constants MUST keep their
+    # documented values (0 / 1 / 2 / 3 / 4). The P1-1 fix MUST
+    # NOT add a new exit code, and MUST NOT change an existing
+    # one's value.
+    assert rmp.EXIT_OK == 0
+    assert rmp.EXIT_INFRA_ERROR == 1
+    assert rmp.EXIT_INPUT_ERROR == 2
+    assert rmp.EXIT_BACKEND_ERROR == 3
+    assert rmp.EXIT_VERIFIER_ERROR == 4
+    # The P1-2 catch MUST be exception-type-driven, not driven
+    # by a hand-written ``exc.code`` allowlist. The catch MUST
+    # NOT enumerate verifier codes — any ``PilotVerificationError``
+    # raised from the verifier seam MUST map to exit 4.
     cmd_run_src = inspect.getsource(rmp._cmd_run)
-    assert "except PilotCompositionError" in cmd_run_src
-    assert "except PilotVerificationError" not in cmd_run_src, (
-        "P1-1 fix MUST NOT catch PilotVerificationError; that is P1-2 territory."
+    assert "except PilotVerificationError" in cmd_run_src, (
+        "P1-2 remediation: _cmd_run MUST catch PilotVerificationError "
+        "to map verifier failures to EXIT_VERIFIER_ERROR = 4."
     )
-
-    # Programmatic check via monkeypatch: monkeypatch an early
-    # step (before any DB work) to raise PilotVerificationError;
-    # _cmd_run MUST let it escape.
-    def _raise_verifier_error(*, manifest_path: Path) -> object:
-        raise PilotVerificationError(
-            code="DOWNLOAD_INTEGRITY_MISMATCH",
-            message="P1-2 territory; intentionally raised for the P1-1 invariant test.",
-        )
-
-    monkeypatch.setattr(rmp, "_load_pilot_manifest", _raise_verifier_error)
-    args = argparse.Namespace(
-        commit_sha="a" * 40,
-        manifest=str((tmp_path / "dummy.json").resolve()),
-        output_root=str(tmp_path / "out"),
-        backend="sqlite",
-        database_url="sqlite:///:memory:",
-        repeat_index=1,
+    # Defense-in-depth: the catch is NOT a blanket ``except Exception``
+    # or ``except BaseException`` (which would swallow unrelated
+    # programming errors / RuntimeError and return 4). The verifier
+    # catch MUST be specifically ``PilotVerificationError``.
+    assert "except Exception" not in cmd_run_src, (
+        "P1-2 remediation MUST NOT use a blanket ``except Exception`` "
+        "to map verifier failures to 4; unrelated runtime errors MUST "
+        "still propagate (see test_p1_2_generic_runtime_error_propagates)."
     )
-    (tmp_path / "dummy.json").write_text("{}", encoding="utf-8")
-    (tmp_path / "out").mkdir()
-    with pytest.raises(PilotVerificationError):
-        rmp._cmd_run(args)
-
-    # 2. The composition MUST NOT have changed the exit-code
-    # contract (P1-2 territory; the fix MUST remain
-    # 4-unreachable in this round).
-    assert rmp.EXIT_VERIFIER_ERROR == 4  # constant value unchanged
-    # No new exit code was added.
-    assert getattr(rmp, "EXIT_OK", None) == 0
-    assert getattr(rmp, "EXIT_INPUT_ERROR", None) == 2
-    assert getattr(rmp, "EXIT_BACKEND_ERROR", None) == 3
-    assert getattr(rmp, "EXIT_INFRA_ERROR", None) == 1
-
-    # 3. The composition's manifest-golden binding MUST NOT touch
+    # The composition's manifest-golden binding MUST NOT touch
     # the verifier's numeric / unit substring logic (P1-3) or
     # add a four-render e2e (P1-4). The P1-1 helper is intentionally
     # narrow: it only loads the golden, builds the actual, calls
@@ -508,13 +494,6 @@ def test_p1_1_does_not_modify_p1_2_through_p1_4_areas(
             f"P1-1 fix MUST NOT touch P1-4 territory; "
             f"found {forbidden_token!r} in _verify_manifest_golden_binding."
         )
-    # P1-2 territory: the manifest-golden helper MUST NOT catch
-    # ``PilotVerificationError`` (exit code 4 unreachable is OUT
-    # OF SCOPE for this round).
-    assert "PilotVerificationError" not in src, (
-        "P1-1 fix MUST NOT catch PilotVerificationError; "
-        "that is P1-2 territory and is explicitly out of scope."
-    )
 
 
 def test_p1_1_manifest_bundle_retains_typed_manifest_object() -> None:
@@ -840,3 +819,354 @@ def test_p1_1_real_sqlite_production_projection_matches_frozen_manifest_golden(
         engine.dispose()
         if sqlite_file.exists():
             sqlite_file.unlink()
+
+
+# ── P1-2 corrective round tests (verifier exit-code reachability) ──────────
+#
+# Four new focused tests added in the P1-2 corrective round:
+#
+# * P1-2 Test 1: ``_cmd_run`` catches a ``PilotVerificationError``
+#   raised from the verifier seam, writes a stable
+#   ``PILOT_VERIFICATION_ERROR code=<typed-code>: <message>`` line
+#   to stderr, and returns ``EXIT_VERIFIER_ERROR = 4``. The
+#   stdout summary is NOT written (no false PASS).
+# * P1-2 Test 2: parameterised across at least two distinct
+#   ``PilotVerificationError.code`` values to prove the mapping
+#   is exception-type-driven (NOT a code allowlist).
+# * P1-2 Test 3: a generic ``RuntimeError`` raised from the
+#   verifier seam MUST propagate (not be swallowed by a
+#   blanket catch returning 4).
+# * P1-2 Test 4: regression — the existing composition-error
+#   mapping (``PilotCompositionError(code=INPUT_ERROR)`` →
+#   ``EXIT_INPUT_ERROR = 2``) is preserved.
+#
+# The shared ``_patch_cmd_run_to_reach_verifier`` helper builds
+# a minimal stand-in environment that lets ``_cmd_run`` reach
+# the ``verify_multilingual_report_pilot`` call site without
+# touching alembic / seed / real production / real golden
+# comparison / real report service composition. The helper
+# only patches the EXPENSIVE P1-2-UNRELATED infrastructure
+# (allowed per the round's design contract); the verifier
+# seam itself is either monkeypatched to raise the desired
+# exception or to return a stub summary (in Test 4 we patch
+# it to raise ``PilotCompositionError`` from the seam to
+# exercise the composition-error path with the same minimal
+# scaffold).
+
+
+def _patch_cmd_run_to_reach_verifier(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    verifier_effect: BaseException | dict[str, object],
+) -> argparse.Namespace:
+    """Build a minimal scaffold that lets ``_cmd_run`` reach the verifier seam.
+
+    The helper monkeypatches ONLY the expensive P1-2-unrelated
+    infrastructure (database provision, real seed, real production
+    runner, golden comparison, report-service composition,
+    template seed, download callable). The verifier seam
+    (``verify_multilingual_report_pilot`` at the call site inside
+    ``_cmd_run``) is the only seam the test is interested in; the
+    caller passes ``verifier_effect`` to control what the seam
+    does:
+
+    * ``BaseException`` (subclass of ``Exception``) — the seam
+      RAISES that exception; the test asserts how ``_cmd_run``
+      classifies and exits.
+    * ``dict`` — the seam RETURNS the dict (success stub).
+
+    Returns an ``argparse.Namespace`` pre-loaded with the values
+    ``_cmd_run`` needs (commit_sha / manifest / output_root /
+    backend / database_url / repeat_index).
+    """
+    # 1. The manifest bundle (typed ``Manifest`` + scenario + SHA)
+    # is loaded once and reused; the test does NOT need to
+    # construct the bundle by hand. ``_load_pilot_manifest`` is
+    # cheap (purely file I/O + JSON validation), so it is NOT
+    # monkeypatched — the real loader is exercised.
+    manifest_path = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    bundle = rmp._load_pilot_manifest(manifest_path=manifest_path)
+    scenario = bundle.scenario
+
+    # 2. Engine stand-in. The real ``_provision_sqlite_database``
+    # spawns a subprocess alembic upgrade; the test uses a
+    # private ``SimpleNamespace`` to satisfy the post-``_cmd_run``
+    # engine attribute surface (engine.dispose() is NOT called
+    # in the catch path, so a stand-in is safe).
+    engine_stub = SimpleNamespace(
+        dispose=lambda: None,
+    )
+
+    # 3. Session factory stand-in. ``_cmd_run`` only calls
+    # ``session_factory()`` inside a ``with`` to seed and inside
+    # the real ``run_scenario_via_markers`` (which we patch).
+    # A no-op context manager satisfies the ``with`` protocol.
+    @contextlib.contextmanager
+    def _session_factory_stub() -> Any:
+        yield SimpleNamespace(
+            commit=lambda: None,
+            close=lambda: None,
+        )
+
+    # 4. ``outcome`` stand-in. The real ``run_scenario_via_markers``
+    # is patched; the test only needs ``outcome.outcome`` and
+    # ``outcome.scheme_run.id`` to satisfy the cheap post-run
+    # validation in ``_cmd_run``.
+    outcome_stub = SimpleNamespace(
+        outcome="SUCCEEDED",
+        scheme_run=SimpleNamespace(
+            id="p1-2-stub-scheme-run-id",
+            project_id="a1-test-p-001",
+            project_version_id="a1-test-v-001",
+        ),
+    )
+
+    # 5. ``_verify_manifest_golden_binding`` stand-in. Returns a
+    # synthetic ``(expected, actual, comparison)`` triple so the
+    # post-``golden`` ``run_identity`` dict can be built without
+    # touching the real golden file.
+    golden_comparison_stub = (
+        {"scenario_id": "baseline_feasible", "expected_outcome": "SUCCEEDED"},
+        {"scenario_id": "baseline_feasible", "expected_outcome": "SUCCEEDED"},
+        SimpleNamespace(passed=True, diffs=()),
+    )
+
+    # 6. ``_compose_report_services`` stand-in. The composition
+    # tuple is unpacked positionally; we return five placeholders.
+    compose_stub = (
+        SimpleNamespace(name="report_service_stub"),
+        SimpleNamespace(name="render_service_stub"),
+        SimpleNamespace(name="template_repo_stub", commit=lambda: None),
+        SimpleNamespace(name="artifact_storage_stub"),
+        SimpleNamespace(name="project_service_stub"),
+    )
+
+    # 7. ``_build_download_artifact`` stand-in.
+    def _download_stub(*_args: object, **_kwargs: object) -> tuple[bytes, dict[str, str]]:
+        return (b"", {})
+
+    # 8. Apply all the patches. Each is restricted to the
+    # functions / module-level symbols that ``_cmd_run`` calls;
+    # the verifier call site itself is patched by
+    # ``_patch_verifier_seam`` below.
+    monkeypatch.setattr(rmp, "_provision_sqlite_database", lambda *, database_url: engine_stub)
+    monkeypatch.setattr(rmp, "_build_session_factory", lambda _engine: _session_factory_stub)
+    monkeypatch.setattr(rmp, "seed_a1_all_prereqs", lambda _session: None)
+    monkeypatch.setattr(rmp, "_expected_source_binding_sha", lambda _session: "a" * 64)
+    monkeypatch.setattr(rmp, "run_scenario_via_markers", lambda *_a, **_kw: outcome_stub)
+    monkeypatch.setattr(
+        rmp,
+        "_verify_manifest_golden_binding",
+        lambda **_kw: golden_comparison_stub,
+    )
+    monkeypatch.setattr(rmp, "_compose_report_services", lambda **_kw: compose_stub)
+    monkeypatch.setattr(rmp, "_seed_report_templates", lambda _repo: None)
+    monkeypatch.setattr(rmp, "_build_download_artifact", lambda **_kw: _download_stub)
+
+    # 9. The verifier seam itself. ``_cmd_run`` imports
+    # ``verify_multilingual_report_pilot`` from the module; we
+    # patch the symbol on the rmp module (where the call
+    # resolves to ``rmp.verify_multilingual_report_pilot``).
+    def _verifier_seam(**_kwargs: object) -> dict[str, object]:
+        if isinstance(verifier_effect, BaseException):
+            raise verifier_effect
+        if isinstance(verifier_effect, dict):
+            return verifier_effect
+        # Defensive: caller passed a non-exception non-dict.
+        raise TypeError(
+            f"_patch_cmd_run_to_reach_verifier: verifier_effect must be "
+            f"BaseException or dict; got {type(verifier_effect).__name__}"
+        )
+
+    monkeypatch.setattr(rmp, "verify_multilingual_report_pilot", _verifier_seam)
+
+    # 10. Build a writable empty output root + a manifest that
+    # the cheap CLI argument validation will accept.
+    out_root = rmp.BACKEND_DIR / f"p1-2-out-{scenario.scenario_id}-test"
+    if out_root.exists():
+        # Clean up stale state from a previous run.
+        for child in out_root.iterdir():
+            if child.is_file():
+                child.unlink()
+            else:
+                # Recursive cleanup via shutil to handle nested dirs.
+                import shutil
+
+                shutil.rmtree(child)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    args = argparse.Namespace(
+        commit_sha="a" * 40,
+        manifest=str(manifest_path),
+        output_root=str(out_root),
+        backend=scenario.database_backend.value,  # must match scenario
+        database_url=f"sqlite:///{out_root / 'stub.sqlite'}",
+        repeat_index=1,
+    )
+    return args
+
+
+def test_p1_2_pilot_verification_error_returns_exit_4(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """P1-2 Test 1: ``PilotVerificationError`` from the verifier seam → exit 4.
+
+    The composition MUST catch the typed verifier error, write a
+    stable stderr line ``PILOT_VERIFICATION_ERROR code=<typed-code>:
+    <message>``, and return ``EXIT_VERIFIER_ERROR = 4``. The
+    stdout summary MUST NOT be written (no false PASS).
+
+    The error is raised from the real ``verify_multilingual_report_pilot``
+    call site (the verifier seam), NOT from an unrelated
+    pre-step. The pre-step infrastructure (database provision /
+    seed / backend runner / golden comparison / report-service
+    composition / template seed / download callable) is
+    monkeypatched via ``_patch_cmd_run_to_reach_verifier`` so
+    the test runs in milliseconds while still exercising the
+    real ``_cmd_run`` orchestration logic and the new typed
+    ``except PilotVerificationError`` block.
+    """
+    forced_message = "forced verifier failure for P1-2 test 1"
+    args = _patch_cmd_run_to_reach_verifier(
+        monkeypatch,
+        verifier_effect=PilotVerificationError(
+            code="DOWNLOAD_INTEGRITY_MISMATCH",
+            message=forced_message,
+        ),
+    )
+    rc = rmp._cmd_run(args)
+    captured = capsys.readouterr()
+    # Exit code MUST be EXIT_VERIFIER_ERROR (= 4) exactly.
+    assert rc == rmp.EXIT_VERIFIER_ERROR == 4, f"verifier failure MUST map to exit 4; got rc={rc!r}"
+    # stderr MUST contain the typed code in the stable prefix.
+    assert "PILOT_VERIFICATION_ERROR" in captured.err, (
+        f"stderr MUST carry the PILOT_VERIFICATION_ERROR prefix; got {captured.err!r}"
+    )
+    assert "code=DOWNLOAD_INTEGRITY_MISMATCH" in captured.err, (
+        f"stderr MUST surface the typed verifier code; got {captured.err!r}"
+    )
+    # The exception MUST NOT propagate to the test driver (the
+    # composition catches it; the test sees a clean rc).
+    # stdout MUST be empty (no false PASS summary).
+    assert captured.out == "", f"stdout MUST be empty on verifier failure; got {captured.out!r}"
+
+
+@pytest.mark.parametrize(
+    ("verifier_code", "verifier_message"),
+    [
+        ("DOWNLOAD_INTEGRITY_MISMATCH", "download bytes do not match X-Content-SHA256"),
+        ("SEMANTIC_NUMERIC_MISMATCH", "extracted numeric field disagrees with golden"),
+    ],
+)
+def test_p1_2_multiple_verifier_codes_map_to_4(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    verifier_code: str,
+    verifier_message: str,
+) -> None:
+    """P1-2 Test 2: every ``PilotVerificationError`` code → exit 4.
+
+    The exit-code classification MUST be exception-type-driven,
+    NOT ``exc.code``-driven. Two distinct typed codes (one
+    download-integrity, one semantic-numeric — covering both
+    the "download path" and the "semantic path" failure
+    families) MUST both map to ``EXIT_VERIFIER_ERROR = 4``.
+
+    The parameterised body reuses
+    ``_patch_cmd_run_to_reach_verifier`` so the verifier seam
+    is the only piece raising an exception; the test fails
+    if the composition has built a hand-written code allowlist
+    that maps e.g. only DOWNLOAD_INTEGRITY_MISMATCH to 4 and
+    silently propagates other codes.
+    """
+    args = _patch_cmd_run_to_reach_verifier(
+        monkeypatch,
+        verifier_effect=PilotVerificationError(
+            code=verifier_code,
+            message=verifier_message,
+        ),
+    )
+    rc = rmp._cmd_run(args)
+    captured = capsys.readouterr()
+    assert rc == rmp.EXIT_VERIFIER_ERROR == 4, (
+        f"verifier code={verifier_code!r} MUST map to exit 4; got rc={rc!r}"
+    )
+    assert f"code={verifier_code}" in captured.err, (
+        f"stderr MUST surface the typed code={verifier_code!r}; got {captured.err!r}"
+    )
+
+
+def test_p1_2_generic_runtime_error_propagates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """P1-2 Test 3: a generic ``RuntimeError`` from the verifier seam propagates.
+
+    The P1-2 fix MUST NOT be implemented as a blanket
+    ``except Exception`` / ``except BaseException`` that swallows
+    unrelated programming errors and returns 4. A
+    ``RuntimeError("unexpected failure")`` raised from the
+    verifier seam MUST propagate out of ``_cmd_run`` unchanged
+    so the operator / CI can see the real failure (not a
+    misclassified "verifier error").
+
+    ``pytest.raises(RuntimeError)`` asserts the exception
+    escaped; the captured stdout/stderr is checked secondarily
+    to confirm no classification stderr was written.
+    """
+    args = _patch_cmd_run_to_reach_verifier(
+        monkeypatch,
+        verifier_effect=RuntimeError("unexpected failure"),
+    )
+    with pytest.raises(RuntimeError) as caught:
+        rmp._cmd_run(args)
+    # The exception type and message MUST be preserved
+    # (the composition MUST NOT wrap it into a different type
+    # or rewrite the message).
+    assert isinstance(caught.value, RuntimeError)
+    assert "unexpected failure" in str(caught.value)
+    # Defense-in-depth: the P1-2 catch MUST NOT have fired
+    # (no PILOT_VERIFICATION_ERROR stderr).
+    captured = capsys.readouterr()
+    assert "PILOT_VERIFICATION_ERROR" not in captured.err, (
+        f"a generic RuntimeError MUST NOT be classified as a verifier "
+        f"failure; got stderr={captured.err!r}"
+    )
+
+
+def test_p1_2_composition_error_mapping_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """P1-2 Test 4: existing ``PilotCompositionError`` mapping is preserved.
+
+    The pre-existing composition-error classifier (P1-1 round)
+    maps ``PilotCompositionError(code=INPUT_ERROR)`` to
+    ``EXIT_INPUT_ERROR = 2`` and writes
+    ``PILOT_COMPOSITION_ERROR code=<typed-code>:`` to stderr.
+    The P1-2 catch MUST NOT swallow this exception class (it is
+    a separate class from ``PilotVerificationError``) and MUST
+    NOT change the exit-code mapping.
+
+    The test raises the composition error from the verifier seam
+    via the same ``_patch_cmd_run_to_reach_verifier`` helper, so
+    the post-catch flow is exercised against a real
+    ``_cmd_run`` body (the helper does not bypass the catch).
+    """
+    args = _patch_cmd_run_to_reach_verifier(
+        monkeypatch,
+        verifier_effect=rmp.PilotCompositionError(
+            code="INPUT_ERROR",
+            message="forced composition error for P1-2 regression test 4",
+        ),
+    )
+    rc = rmp._cmd_run(args)
+    captured = capsys.readouterr()
+    # Pre-P1-2 mapping MUST still hold: INPUT_ERROR → 2.
+    assert rc == rmp.EXIT_INPUT_ERROR == 2, (
+        f"PilotCompositionError(INPUT_ERROR) MUST still map to EXIT_INPUT_ERROR=2; got rc={rc!r}"
+    )
+    assert "PILOT_COMPOSITION_ERROR" in captured.err
+    assert "code=INPUT_ERROR" in captured.err
+    # The P1-2 catch MUST NOT have fired (it is typed to
+    # ``PilotVerificationError``, not ``PilotCompositionError``).
+    assert "PILOT_VERIFICATION_ERROR" not in captured.err

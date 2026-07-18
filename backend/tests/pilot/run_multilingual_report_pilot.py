@@ -77,6 +77,7 @@ from cold_storage.evaluation.paths import (  # noqa: E402
     safe_resolve_manifest_path,
 )
 from cold_storage.evaluation.pilot_reports import (  # noqa: E402
+    PilotVerificationError,
     verify_multilingual_report_pilot,
 )
 from cold_storage.evaluation.runners._executor import (  # noqa: E402
@@ -1140,6 +1141,24 @@ def _cmd_run(args: argparse.Namespace) -> int:
         if exc.code == "BACKEND_RUNNER_FAILED":
             return EXIT_BACKEND_ERROR
         return EXIT_INFRA_ERROR
+    except PilotVerificationError as exc:
+        # P1-2 remediation: ``verify_multilingual_report_pilot`` raises
+        # a typed ``PilotVerificationError`` for any acceptance
+        # mismatch (download integrity / semantic numeric mismatch /
+        # report-content mismatch / etc.). The composition MUST
+        # classify the failure by ``exc.code`` (per §10.3
+        # forbidden-behavior discipline) and return
+        # ``EXIT_VERIFIER_ERROR = 4`` so downstream automation
+        # can detect verifier-side failures without parsing
+        # the message. No composition-side mutation is performed
+        # on this path — the catch only maps the typed error to
+        # the documented exit code and writes a stable stderr
+        # line. The classification is exception-type-driven, NOT
+        # ``exc.code``-driven (any ``PilotVerificationError`` code
+        # maps to 4; the typed code is surfaced for downstream
+        # debugging via the ``code=<typed-code>`` stderr prefix).
+        sys.stderr.write(f"PILOT_VERIFICATION_ERROR code={exc.code}: {exc}\n")
+        return EXIT_VERIFIER_ERROR
 
 
 # ── Cleanup sub-command ─────────────────────────────────────────────────────
