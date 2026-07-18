@@ -37,6 +37,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -59,15 +60,27 @@ from sqlalchemy.engine import Engine  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
+from cold_storage.evaluation.adapter import read_c2_baseline_projection  # noqa: E402
 from cold_storage.evaluation.artifact_io import remove_managed_output_root  # noqa: E402
+from cold_storage.evaluation.compare import ComparisonResult, compare_outputs  # noqa: E402
 from cold_storage.evaluation.execute import run_scenario_via_markers  # noqa: E402
 from cold_storage.evaluation.manifest import (  # noqa: E402
     compute_manifest_sha,
     load_and_validate_manifest,
 )
-from cold_storage.evaluation.models import ScenarioDeclaration  # noqa: E402
+from cold_storage.evaluation.models import (  # noqa: E402
+    Manifest,
+    ScenarioDeclaration,
+)
+from cold_storage.evaluation.paths import (  # noqa: E402
+    PathSafetyError,
+    safe_resolve_manifest_path,
+)
 from cold_storage.evaluation.pilot_reports import (  # noqa: E402
     verify_multilingual_report_pilot,
+)
+from cold_storage.evaluation.runners._executor import (  # noqa: E402
+    build_baseline_normalized_business_projection,
 )
 from cold_storage.modules.projects.infrastructure.database import (  # noqa: E402
     DatabaseProjectService,
@@ -340,13 +353,39 @@ def _build_session_factory(engine: Engine) -> Callable[[], Session]:
 # ── Manifest loading + scenario lookup ──────────────────────────────────────
 
 
-def _load_pilot_manifest(*, manifest_path: Path) -> tuple[ScenarioDeclaration, str]:
-    """Load + validate the frozen pilot manifest and return its sole scenario + SHA-256.
+@dataclass(frozen=True, slots=True)
+class _PilotManifestBundle:
+    """Typed bundle of validated manifest + sole scenario + identity fields.
+
+    The composition MUST keep the typed :class:`Manifest` object (not
+    a re-parsed JSON) and the resolved manifest path alive for the
+    lifetime of ``_cmd_run()`` so the golden comparison can resolve
+    ``scenario.expected_output.path`` against the actual manifest
+    directory without re-reading or hand-parsing the manifest JSON.
+    The frozen contract forbids re-reading manifest JSON
+    (§11.3 "manifest is loaded only through
+    ``load_and_validate_manifest(...)``").
+    """
+
+    manifest: Manifest
+    scenario: ScenarioDeclaration
+    source_manifest_sha: str
+    manifest_path: Path
+
+
+def _load_pilot_manifest(*, manifest_path: Path) -> _PilotManifestBundle:
+    """Load + validate the frozen pilot manifest and return a typed bundle.
 
     The frozen manifest carries exactly one scenario
     (``baseline_feasible``); this helper enforces that invariant and
-    returns the typed :class:`ScenarioDeclaration` plus the canonical
-    SHA-256 used as ``source_manifest_sha`` in ``pilot-run.json``.
+    returns a typed bundle that holds the validated
+    :class:`Manifest`, the sole :class:`ScenarioDeclaration`, the
+    canonical SHA-256 used as ``source_manifest_sha`` in
+    ``pilot-run.json``, and the resolved manifest path.
+
+    The returned bundle is the single source of manifest identity
+    for ``_cmd_run()``; nothing else may re-read or hand-parse
+    the manifest JSON after this helper returns.
     """
     resolved = _require_absolute(manifest_path, label="manifest")
     manifest = load_and_validate_manifest(resolved)
@@ -358,7 +397,12 @@ def _load_pilot_manifest(*, manifest_path: Path) -> tuple[ScenarioDeclaration, s
                 f"{len(manifest.scenarios)} in {str(resolved)!r}."
             ),
         )
-    return manifest.scenarios[0], compute_manifest_sha(manifest)
+    return _PilotManifestBundle(
+        manifest=manifest,
+        scenario=manifest.scenarios[0],
+        source_manifest_sha=compute_manifest_sha(manifest),
+        manifest_path=resolved,
+    )
 
 
 # ── Commit SHA validation ───────────────────────────────────────────────────
@@ -575,6 +619,197 @@ class _PilotSchemeQueryAdapter:
         return run
 
 
+# ── Manifest-golden binding (P1-1) ─────────────────────────────────────────
+
+
+def _assert_scenario_baseline_feasible(
+    *,
+    scenario: ScenarioDeclaration,
+    backend_marker: str,
+) -> None:
+    """Assert scenario id / expected_outcome / backend / expected_output are bound.
+
+    The frozen contract (§11.3 + §6.2 + §6.3) requires the manifest
+    to declare exactly one ``baseline_feasible`` scenario with
+    ``expected_outcome=SUCCEEDED`` whose ``database_backend`` matches
+    the CLI ``--backend`` and whose ``expected_output`` is a
+    relative file path. This helper fails closed with stable typed
+    codes (no message-text parsing by downstream automation).
+    """
+    if scenario.scenario_id != "baseline_feasible":
+        raise PilotCompositionError(
+            code="MANIFEST_SCENARIO_MISMATCH",
+            message=(
+                f"manifest scenario_id must be 'baseline_feasible'; got {scenario.scenario_id!r}."
+            ),
+        )
+    if scenario.expected_outcome.value != "SUCCEEDED":
+        raise PilotCompositionError(
+            code="MANIFEST_SCENARIO_MISMATCH",
+            message=(
+                f"manifest expected_outcome must be 'SUCCEEDED'; got "
+                f"{scenario.expected_outcome.value!r}."
+            ),
+        )
+    if scenario.database_backend.value != backend_marker:
+        raise PilotCompositionError(
+            code="MANIFEST_SCENARIO_MISMATCH",
+            message=(
+                f"manifest database_backend {scenario.database_backend.value!r} "
+                f"disagrees with --backend {backend_marker!r}."
+            ),
+        )
+    expected = scenario.expected_output
+    if expected is None or expected.path is None:
+        raise PilotCompositionError(
+            code="MANIFEST_SCENARIO_MISMATCH",
+            message=(
+                "manifest scenario expected_output.path MUST be present for "
+                f"SUCCEEDED scenario_id={scenario.scenario_id!r}; got None."
+            ),
+        )
+
+
+def _load_manifest_golden(
+    *,
+    scenario: ScenarioDeclaration,
+    manifest_path: Path,
+) -> dict[str, object]:
+    """Load + validate the golden JSON referenced by ``scenario.expected_output.path``.
+
+    Uses the public :func:`safe_resolve_manifest_path` authority for
+    containment (rejects absolute paths, ``..`` traversal, symlink
+    escape, empty / non-string inputs). The golden file is read
+    once as UTF-8 JSON; the top level MUST be a JSON object.
+
+    Returns the full golden dict (caller is responsible for
+    stripping the golden-only ``_comparison_policy`` metadata key).
+    """
+    declared = scenario.expected_output
+    assert declared is not None and declared.path is not None  # narrow: pre-checked
+    manifest_root = manifest_path.parent
+    try:
+        golden_path = safe_resolve_manifest_path(declared.path, manifest_root=manifest_root)
+    except PathSafetyError as exc:
+        raise PilotCompositionError(
+            code="MANIFEST_GOLDEN_PATH_UNSAFE",
+            message=(
+                f"manifest expected_output.path failed safety check: "
+                f"{declared.path!r} (scenario={scenario.scenario_id!r}): {exc}"
+            ),
+        ) from exc
+    if not golden_path.exists():
+        raise PilotCompositionError(
+            code="MANIFEST_GOLDEN_MISSING",
+            message=(
+                f"manifest expected_output file does not exist: "
+                f"{str(golden_path)!r} (scenario={scenario.scenario_id!r})."
+            ),
+        )
+    try:
+        golden_text = golden_path.read_text(encoding="utf-8")
+        golden_full = json.loads(golden_text)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PilotCompositionError(
+            code="MANIFEST_GOLDEN_INVALID",
+            message=(
+                f"manifest expected_output file could not be read/parsed: "
+                f"{str(golden_path)!r}: {exc}"
+            ),
+        ) from exc
+    if not isinstance(golden_full, dict):
+        raise PilotCompositionError(
+            code="MANIFEST_GOLDEN_INVALID",
+            message=(
+                f"manifest expected_output file MUST be a JSON object at the "
+                f"top level; got {type(golden_full).__name__} in {str(golden_path)!r}."
+            ),
+        )
+    return golden_full
+
+
+def _build_actual_normalized_business_projection(
+    *,
+    session_factory: Callable[[], Any],
+    scheme_run_id: str,
+) -> dict[str, object]:
+    """Build the actual normalized business projection from the persisted SchemeRun.
+
+    Reuses the existing C-2 read boundary
+    (:func:`read_c2_baseline_projection`) and the runner-owned
+    projection builder (:func:`build_baseline_normalized_business_projection`).
+    NO second production execution, NO golden-derived actual,
+    NO DOCX/PDF-derived actual, NO mock production output.
+    """
+    persisted_source = read_c2_baseline_projection(session_factory, run_id=scheme_run_id)
+    actual_normalized = build_baseline_normalized_business_projection(persisted_source)
+    return actual_normalized
+
+
+def _verify_manifest_golden_binding(
+    *,
+    scenario: ScenarioDeclaration,
+    manifest_path: Path,
+    session_factory: Callable[[], Any],
+    scheme_run_id: str,
+) -> tuple[dict[str, object], dict[str, object], ComparisonResult]:
+    """Run the manifest-golden comparison in strict order.
+
+    The helper is intentionally narrow and owns exactly four steps:
+
+    1. Load the golden via :func:`_load_manifest_golden` (uses the
+       manifest-declared ``expected_output.path`` — no hard-coded
+       path).
+    2. Build the actual normalized business projection from the
+       **current run's** persisted SchemeRun via
+       :func:`_build_actual_normalized_business_projection` (uses
+       the C-2 read boundary and the runner-owned projection
+       builder — no second production execution, no golden-derived
+       actual, no DOCX/PDF-derived actual, no mock production
+       output).
+    3. Strip the golden-only ``_comparison_policy`` metadata key
+       from the business payload (mirrors §7.7 "after removing
+       ``_comparison_policy``" — the key is golden-only and must
+       not participate in business payload comparison).
+    4. Call the existing :func:`compare_outputs` with
+       ``scenario.comparison_policy`` (the frozen V1 default
+       exact-equality policy). On failure, raise a typed
+       :class:`PilotCompositionError` with
+       ``code='MANIFEST_GOLDEN_MISMATCH'``; downstream automation
+       MUST classify by code, not by message text.
+
+    Returns ``(expected_normalized, actual_normalized, comparison)``
+    so the caller can persist the comparison result into
+    ``run_identity`` without re-running the comparison.
+    """
+    golden_full = _load_manifest_golden(scenario=scenario, manifest_path=manifest_path)
+    expected_normalized: dict[str, object] = {
+        key: value for key, value in golden_full.items() if key != "_comparison_policy"
+    }
+    actual_normalized = _build_actual_normalized_business_projection(
+        session_factory=session_factory,
+        scheme_run_id=scheme_run_id,
+    )
+    comparison = compare_outputs(
+        expected=expected_normalized,
+        actual=actual_normalized,
+        policy=scenario.comparison_policy,
+    )
+    if not comparison.passed:
+        diff_count = len(comparison.diffs)
+        sample_paths: tuple[str, ...] = tuple(entry.path for entry in comparison.diffs[:5])
+        raise PilotCompositionError(
+            code="MANIFEST_GOLDEN_MISMATCH",
+            message=(
+                f"golden comparison FAILED for scenario_id={scenario.scenario_id!r} "
+                f"manifest_path={str(manifest_path)!r} "
+                f"expected_output_path={scenario.expected_output.path!r}: "
+                f"diff_count={diff_count} sample_diff_paths={list(sample_paths)!r}."
+            ),
+        )
+    return expected_normalized, actual_normalized, comparison
+
+
 # ── Production service composition ──────────────────────────────────────────
 
 
@@ -760,7 +995,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
             )
         output_root.mkdir(parents=True, exist_ok=True)
 
-        scenario, source_manifest_sha = _load_pilot_manifest(manifest_path=manifest_path)
+        bundle = _load_pilot_manifest(manifest_path=manifest_path)
+        scenario = bundle.scenario
+        source_manifest_sha = bundle.source_manifest_sha
+        manifest = bundle.manifest
         backend = scenario.database_backend.value
         if backend != args.backend:
             raise PilotCompositionError(
@@ -770,6 +1008,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
                     f"database_backend {backend!r}."
                 ),
             )
+        # P1-1: strict manifest-scenario binding (defense-in-depth;
+        # the helper is idempotent with the legacy backend-mismatch
+        # check above, but uses the stable ``MANIFEST_SCENARIO_MISMATCH``
+        # code that downstream automation MUST classify by).
+        _assert_scenario_baseline_feasible(scenario=scenario, backend_marker=backend)
 
         if backend == DATABASE_BACKEND_SQLITE:
             engine = _provision_sqlite_database(database_url=args.database_url)
@@ -800,6 +1043,26 @@ def _cmd_run(args: argparse.Namespace) -> int:
         project_id = scheme_run.project_id
         project_version_id = scheme_run.project_version_id
 
+        # P1-1: manifest-golden binding MUST succeed before any of
+        # the four-render composition steps below (no
+        # ``_compose_report_services`` / no ``_seed_report_templates``
+        # / no ``verify_multilingual_report_pilot`` on mismatch).
+        # ``_verify_manifest_golden_binding`` raises
+        # ``PilotCompositionError(code='MANIFEST_GOLDEN_MISMATCH')``
+        # on failure; the comparison result is captured for the
+        # run_identity summary below.
+        _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
+            scenario=scenario,
+            manifest_path=bundle.manifest_path,
+            session_factory=session_factory,
+            scheme_run_id=str(scheme_run.id),
+        )
+        # ``_manifest_handle`` retains the typed ``Manifest`` object
+        # for the lifetime of ``_cmd_run()`` (P1-1 binding
+        # requirement: the manifest MUST remain held as a typed
+        # object, not re-read or hand-parsed).
+        _manifest_handle = manifest
+
         (
             report_service,
             render_service,
@@ -817,6 +1080,14 @@ def _cmd_run(args: argparse.Namespace) -> int:
             "source_binding_id": SOURCE_BINDING_ID,
             "weight_set_revision_id": WEIGHT_REVISION_ID,
             "combined_source_hash": combined_source_hash,
+            "manifest_scenario_id": scenario.scenario_id,
+            "manifest_expected_output_path": str(scenario.expected_output.path)
+            if scenario.expected_output is not None and scenario.expected_output.path is not None
+            else "",
+            "manifest_expected_output_commit_sha": str(scenario.expected_output.commit_sha or "")
+            if scenario.expected_output is not None
+            else "",
+            "manifest_golden_comparison_result": "PASS",
         }
         summary = verify_multilingual_report_pilot(
             report_service=report_service,
