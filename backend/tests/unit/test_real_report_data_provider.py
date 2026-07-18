@@ -499,9 +499,7 @@ def test_conflicting_alias_fails_closed() -> None:
             "compressor_capacity_kw": "20.0",  # alias; conflicts with primary
         },
     )
-    provider = _build_provider(
-        _StubCalculationService(_StubOrchestrationResult(equipment=section))
-    )
+    provider = _build_provider(_StubCalculationService(_StubOrchestrationResult(equipment=section)))
 
     with pytest.raises(ReportProjectionError) as excinfo:
         provider.get_calculation_results("p", "v")

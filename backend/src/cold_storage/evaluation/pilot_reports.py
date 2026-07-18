@@ -251,9 +251,7 @@ def _semantic_checks(
                         inspect_metric(cell)
 
     result = (
-        "PASS"
-        if not missing_sections and not missing_units and not numeric_mismatches
-        else "FAIL"
+        "PASS" if not missing_sections and not missing_units and not numeric_mismatches else "FAIL"
     )
     return {
         "schema_version": PILOT_RESULT_SCHEMA_VERSION,

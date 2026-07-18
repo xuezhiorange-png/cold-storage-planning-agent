@@ -364,10 +364,7 @@ def _project_v0_to_v1_section(
                 result_id=result_id,
                 field_path=v0_field,
                 reason_code="REQUIRED_SOURCE_FIELD_MISSING",
-                detail=(
-                    f"v1 field {v1_field!r} requires v0 source "
-                    f"{v0_field!r}"
-                ),
+                detail=(f"v1 field {v1_field!r} requires v0 source {v0_field!r}"),
             )
         if len(present_fields) > 1:
             # Aliases exist alongside the primary v0 field; this is a
@@ -530,8 +527,7 @@ class RealReportDataProvider(ReportDataProvider):
                     field_path="result",
                     reason_code="UNSUPPORTED_SOURCE_TYPE",
                     detail=(
-                        "persisted result_snapshot is not a dict: "
-                        f"{type(section_data).__name__}"
+                        f"persisted result_snapshot is not a dict: {type(section_data).__name__}"
                     ),
                 )
             # Project v0 → v1 with strict typing.  Any unknown / missing

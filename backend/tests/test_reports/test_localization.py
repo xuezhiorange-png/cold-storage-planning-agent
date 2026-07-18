@@ -6747,10 +6747,7 @@ class TestCondenserHeatRejectionLocalization:
     # ── 1. zh-CN field label ──────────────────────────────────────
     def test_field_condenser_heat_rejection_zh_cn(self) -> None:
         """zh-CN returns the Chinese label."""
-        assert (
-            translate(ReportLocale.ZH_CN, "field.condenser_heat_rejection")
-            == "冷凝器排热量"
-        )
+        assert translate(ReportLocale.ZH_CN, "field.condenser_heat_rejection") == "冷凝器排热量"
 
     # ── 2. en-US field label ──────────────────────────────────────
     def test_field_condenser_heat_rejection_en_us(self) -> None:
@@ -6850,9 +6847,7 @@ class TestCondenserHeatRejectionLocalization:
             )
 
     # ── 6. localized metric preserves raw value, unit, and label ─
-    def test_localized_condenser_metric_preserves_value_and_label(
-        self, session_factory
-    ) -> None:
+    def test_localized_condenser_metric_preserves_value_and_label(self, session_factory) -> None:
         """After localization, the canonical metric retains its
         numeric raw value, ``display_unit == "kW(th)"``, and the
         correct label for the requested locale.

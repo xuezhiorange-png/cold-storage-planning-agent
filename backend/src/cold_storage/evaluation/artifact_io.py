@@ -86,9 +86,7 @@ def atomic_write_json(*, path: Path, data: Any) -> None:
             details={
                 "path": str(path),
                 "data_type": type(data).__name__,
-                "canonicalizer_code": str(
-                    getattr(exc, "code", "CANONICALIZATION_ERROR")
-                ),
+                "canonicalizer_code": str(getattr(exc, "code", "CANONICALIZATION_ERROR")),
             },
         ) from exc
 

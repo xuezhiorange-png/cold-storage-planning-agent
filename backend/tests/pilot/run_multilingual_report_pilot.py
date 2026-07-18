@@ -384,9 +384,7 @@ def _validate_commit_sha(commit_sha: str) -> str:
 # composition; the result/calculator_version/content_hash fields below each
 # attribute are read directly from the persisted ``CalculationRunRecord``
 # row (no recalculation, no fabrication).
-_PILOT_STAGE_TO_DATA_PROVIDER_ATTR: tuple[
-    tuple[str, str, str, str], ...
-] = (
+_PILOT_STAGE_TO_DATA_PROVIDER_ATTR: tuple[tuple[str, str, str, str], ...] = (
     # (stage, data_provider_attr, section_key, tool_name)
     ("zone", "throughput_result", "throughput_inventory_area", "throughput_calculator"),
     ("cooling_load", "cooling_load_result", "cooling_load", "cooling_load_calculator"),
@@ -492,8 +490,7 @@ class _PilotCalculationQueryAdapter:
                 CalculationRunRecord.project_version_id == version_id,
             )
             rows: dict[str, CalculationRunRecord] = {
-                str(record.calculation_type or ""): record
-                for record in session.scalars(stmt).all()
+                str(record.calculation_type or ""): record for record in session.scalars(stmt).all()
             }
 
         if not rows:
@@ -553,28 +550,20 @@ class _PilotSchemeQueryAdapter:
     def __init__(self, inner: SchemeQueryService) -> None:
         self._inner = inner
 
-    def get_completed_runs_for_project(
-        self, project_id: str
-    ) -> list[dict[str, Any]]:
-        runs: list[dict[str, Any]] = list(
-            self._inner.get_completed_runs_for_project(project_id)
-        )
+    def get_completed_runs_for_project(self, project_id: str) -> list[dict[str, Any]]:
+        runs: list[dict[str, Any]] = list(self._inner.get_completed_runs_for_project(project_id))
         return [self._coerce(run) for run in runs]
 
     def get_completed_runs_for_project_version(
         self, project_id: str, version_id: str
     ) -> list[dict[str, Any]]:
         runs: list[dict[str, Any]] = list(
-            self._inner.get_completed_runs_for_project_version(
-                project_id, version_id
-            )
+            self._inner.get_completed_runs_for_project_version(project_id, version_id)
         )
         return [self._coerce(run) for run in runs]
 
     def get_candidates_for_run(self, run_id: str) -> list[dict[str, Any]]:
-        candidates: list[dict[str, Any]] = list(
-            self._inner.get_candidates_for_run(run_id)
-        )
+        candidates: list[dict[str, Any]] = list(self._inner.get_candidates_for_run(run_id))
         return candidates
 
     @staticmethod
@@ -803,8 +792,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             raise PilotCompositionError(
                 code="BACKEND_RUNNER_FAILED",
                 message=(
-                    f"backend runner returned outcome={outcome.outcome!r}; "
-                    "expected 'SUCCEEDED'."
+                    f"backend runner returned outcome={outcome.outcome!r}; expected 'SUCCEEDED'."
                 ),
             )
 
