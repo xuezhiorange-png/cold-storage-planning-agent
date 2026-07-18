@@ -128,6 +128,21 @@ ALLOWED_DATABASE_BACKENDS: frozenset[str] = frozenset(
 )
 SQLITE_ALEMBIC_TIMEOUT_SECONDS = 120
 SQLITE_URL_SCHEME = "sqlite:///"
+# P1-1 (Round 1 corrective): the canonical correlation marker that
+# the production runner bakes into ``assumption_snapshot.correlation_id``
+# (see ``runners._executor.execute_baseline_succeeded``). The frozen
+# ``baseline_feasible.v1.json`` golden bakes the same value into
+# ``production_outputs.assumption_snapshot.correlation_id`` AND uses
+# it (via the production-side ``content_hash``) to derive the byte-
+# stable top-level ``content_hash`` (``ea4ab8cd...``) and
+# ``combined_source_hash`` (``60e11cac...``). The runtime path MUST
+# forward this exact marker to ``run_scenario_via_markers`` (which
+# routes it to ``run_scenario(correlation_id=...)`` and then to the
+# production ``AdapterResult``) and record it in ``run_identity``;
+# otherwise the real production run produces a different
+# ``content_hash`` and the manifest-golden comparison fails closed
+# on the root ``value_mismatch`` (P1-1 finding).
+PILOT_BASELINE_CORRELATION_ID = "test-a15-baseline-001"
 
 
 # ── Exit-code contract (mirrors §10 forbidden-behavior discipline) ──────────
@@ -998,7 +1013,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
         bundle = _load_pilot_manifest(manifest_path=manifest_path)
         scenario = bundle.scenario
         source_manifest_sha = bundle.source_manifest_sha
-        manifest = bundle.manifest
+        # P1-1 binding requirement: the typed ``Manifest`` object
+        # remains held in ``bundle.manifest`` for the lifetime of
+        # ``_cmd_run()`` (the bundle is the single source of
+        # manifest identity; the manifest MUST NOT be re-read or
+        # hand-parsed after ``_load_pilot_manifest`` returns).
         backend = scenario.database_backend.value
         if backend != args.backend:
             raise PilotCompositionError(
@@ -1012,7 +1031,16 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # the helper is idempotent with the legacy backend-mismatch
         # check above, but uses the stable ``MANIFEST_SCENARIO_MISMATCH``
         # code that downstream automation MUST classify by).
-        _assert_scenario_baseline_feasible(scenario=scenario, backend_marker=backend)
+        # P2-1 (P1-1 corrective round): the helper MUST be fed the
+        # CLI ``--backend`` authority (``args.backend``), NOT the
+        # scenario-derived ``scenario.database_backend.value``
+        # (``backend``). The previous ``backend_marker=backend`` form
+        # was a self-comparison (helper compared scenario to itself
+        # and always passed); the structural invariant we want is
+        # "manifest scenario backend agrees with the operator-
+        # supplied CLI backend" and the helper must enforce that on
+        # its own inputs, not echo its own output.
+        _assert_scenario_baseline_feasible(scenario=scenario, backend_marker=args.backend)
 
         if backend == DATABASE_BACKEND_SQLITE:
             engine = _provision_sqlite_database(database_url=args.database_url)
@@ -1028,7 +1056,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             session_factory,
             source_binding_id=SOURCE_BINDING_ID,
             weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker="task011-pilot-correlation",
+            correlation_marker=PILOT_BASELINE_CORRELATION_ID,
             backend_marker=backend,
         )
         if outcome.outcome != "SUCCEEDED":
@@ -1057,11 +1085,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
             session_factory=session_factory,
             scheme_run_id=str(scheme_run.id),
         )
-        # ``_manifest_handle`` retains the typed ``Manifest`` object
-        # for the lifetime of ``_cmd_run()`` (P1-1 binding
-        # requirement: the manifest MUST remain held as a typed
-        # object, not re-read or hand-parsed).
-        _manifest_handle = manifest
+        # P1-1 binding requirement: the typed ``Manifest`` object
+        # remains held in ``bundle.manifest`` for the lifetime of
+        # ``_cmd_run()`` (the bundle is a single source of
+        # manifest identity; the manifest MUST NOT be re-read or
+        # hand-parsed after ``_load_pilot_manifest`` returns).
 
         (
             report_service,
@@ -1076,7 +1104,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         run_identity: dict[str, str] = {
             "database_backend": backend,
             "scenario_id": scenario.scenario_id,
-            "correlation_id": "task011-pilot-correlation",
+            "correlation_id": PILOT_BASELINE_CORRELATION_ID,
             "source_binding_id": SOURCE_BINDING_ID,
             "weight_set_revision_id": WEIGHT_REVISION_ID,
             "combined_source_hash": combined_source_hash,
