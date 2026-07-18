@@ -14,7 +14,7 @@
 > BINDING_REVIEW_ID=4727663461
 > STATUS_CONFIRMATION_COMMENT_ID=5009963180
 > AMENDMENT_ROUND_TYPE=DOCS_ONLY_CONTRACT_AMENDMENT_NO_IMPLEMENTATION
-> AUTHORIZATION=AUTHORIZE_TASK011_SLICE1_CONTRACT_AMENDMENT_001_DOCS_ONLY
+> AUTHORIZATION=AUTHORIZE_TASK011_SLICE1_AMENDMENT_COLLISION_RESOLUTION_AND_DOC_CORRECTION
 > ```
 >
 > **Round type:** one-file docs-only contract amendment. This document is
@@ -40,8 +40,8 @@ REPOSITORY=xuezhiorange-png/cold-storage-planning-agent
 This amendment is authored on top of the same `main` that PR #66 merged
 into. It does not fold into PR #66, PR #21, PR #23, PR #60, PR #64, or
 PR #65. No PR comment is added from this round — the GitHub audit trail
-is the future Draft PR's body and the Issue #20 status confirmation
-comment `5009963180`.
+is the future Draft PR's body and the PR #67 conversation comment
+`5009963180` (a comment on the PR #67 issue thread, NOT on Issue #20).
 
 ## 2. Purpose and binding scope
 
@@ -70,8 +70,9 @@ corrective obligations that the binding engineering review
   semantics required by the binding engineering review but is not
   authorized to Ready or Merge under any current amendment of this round.
 - **Binding engineering review** — PR #67 review id `4727663461`,
-  status `CHANGES_REQUESTED`, with status confirmation in Issue #20
-  comment `5009963180`.
+  status `CHANGES_REQUESTED`, with status confirmation in PR #67
+  conversation comment `5009963180` (a comment on the PR #67 issue
+  thread, NOT on Issue #20).
 - **Five-path scope expansion** — the five tracked paths enumerated in
   §4 of this amendment. They are technically present on PR #67 as of
   this amendment's authoring moment but remain **retroactively
@@ -81,14 +82,67 @@ corrective obligations that the binding engineering review
   enumerated in §5 plus the existing `evaluate.py` obligation carried
   over from §6.
 
-## 4. Frozen path expansion (extends §11 of source contract)
+## 3a. Public surface resolution for the production runner
+
+```text
+ADAPTER_PUBLIC_SURFACE=
+  cold_storage.evaluation.adapter::execute_scenario
+EVALUATION_RUNNER_PUBLIC_SURFACE=
+  cold_storage.evaluation.execute::run_scenario
+PILOT_COMPOSITION_REQUIRED_SURFACE=
+  cold_storage.evaluation.execute::run_scenario
+RUN_SCENARIO_VIA_MARKERS_CLASSIFICATION=
+  INTERNAL_RUN_DIRECTORY_COMPATIBILITY_WRAPPER
+PILOT_IMPORT_RUN_SCENARIO_VIA_MARKERS=FORBIDDEN
+PILOT_DIRECT_ADAPTER_IMPORT=FORBIDDEN
+```
+
+Future PR #67 corrective implementation MUST, where applicable:
+
+- import the pilot composition from the frozen runner entry point
+  `cold_storage.evaluation.execute::run_scenario`, NOT from
+  `run_scenario_via_markers`, and NOT directly from
+  `cold_storage.evaluation.adapter::execute_scenario`;
+- pass the canonical kwargs `correlation_id=` and `database_backend=`
+  to that entry point;
+- NOT modify `backend/src/cold_storage/evaluation/execute.py` as part
+  of the PR #67 corrective round, even if the existing entry point's
+  signature lags the call site;
+- NOT widen the §11 allowlist beyond the five proposed paths in §4
+  of this amendment, even if the runner surface resolution appears
+  to require it;
+- NOT rely on the wrapper being listed in `__all__` of its module as
+  evidence that it is part of the public authority.
+
+```text
+PREEXISTING_EXECUTE_MODULE_SURFACE_INCONSISTENCY=
+  run_scenario_via_markers is described as internal but exported in __all__
+PREEXISTING_SURFACE_INCONSISTENCY_RESOLUTION=
+  OUTSIDE_THIS_AMENDMENT_AND_OUTSIDE_PR67
+PR67_REQUIRED_ACTION=
+  STOP_IMPORTING_THE_INTERNAL_WRAPPER_ONLY
+```
+
+The pre-existing inconsistency in the `execute` module's `__all__`
+list (the literal entry `run_scenario_via_markers` coexists with the
+intent that this name is an internal wrapper) is recorded here as a
+separate observation and is OUT OF SCOPE for this amendment AND OUT
+OF SCOPE for the PR #67 corrective round. PR #67 may not touch
+`execute.py` even to "fix" this inconsistency. Future correction
+rounds must address `__all__` separately under their own scope.
+
+## 4. Proposed path expansion pending freeze authorization (extends §11 of source contract)
 
 The source contract §11 "Exact Slice 1 implementation allowlist"
-remains authoritative. This amendment authorizes the following five
-**additional** tracked paths, with frozen purpose and frozen forbidden
-scope. The expansion is conditional on this amendment itself being
-freeze-authorized, merged, and post-merge main identity verified.
-Until then:
+remains authoritative. After independent review, explicit Charles
+freeze authorization, Ready, Merge, and post-merge main identity
+verification, this amendment would authorize the following five
+**additional** tracked paths, with the proposed purpose and proposed
+forbidden scope below. Until Charles freeze authorization of this
+amendment is granted in a separate round, NONE of the proposed
+authorizations below is binding, and PR #67 remains frozen at
+`CHANGES_REQUESTED` per the binding review `4727663461`. The current
+text is recorded as the proposed-post-freeze contract delta only.
 
 ```text
 FIVE_PATH_SCOPE_AMENDMENT_AUTHORED=YES
@@ -243,17 +297,18 @@ NO_ENGINEERING_FORMULA_TEST_ADDITION
 NO_SCHEMA_CHANGE_TEST
 ```
 
-## 5. Corrective obligation clauses (binding after Charles freeze)
+## 5. Proposed corrective obligation clauses (binding only after Charles freeze)
 
 The five-path expansion is NECESSARY but NOT SUFFICIENT for Slice 1
-acceptance. Four corrective obligations are also frozen by this
-amendment. Each obligation is binding only after this amendment is
-itself reviewed, freeze-authorized, Ready, merged, and the post-merge
-main identity is verified; none is enforceable in this authoring round.
+acceptance. Four corrective obligations are proposed by this
+amendment for future freeze authorization. Each obligation would
+become binding only after this amendment is itself reviewed, freeze-
+authorized, Ready, merged, and the post-merge main identity is
+verified; none is enforceable in this authoring round.
 
 ### 5.1 Exact manifest and golden acceptance binding
 
-Future Slice 1 implementation MUST validate, at runtime, the frozen
+After the post-freeze state takes effect, future Slice 1 implementation MUST validate, at runtime, the frozen
 manifest identity and execute the frozen exact-equality comparison
 against the existing evaluation authority. Specifically:
 
@@ -369,8 +424,13 @@ POSTGRESQL_REPEAT_2=REQUIRED
 
 Each run MUST independently prove:
 
-- one production evaluation execution through the existing
-  `run_scenario_via_markers`-style authority;
+- one production evaluation execution through the **frozen** public
+  runner entry point `cold_storage.evaluation.execute::run_scenario`
+  (imported as `from cold_storage.evaluation.execute import run_scenario`)
+  with canonical kwargs `correlation_id=` and `database_backend=`;
+  use of the internal compatibility wrapper or direct import of the
+  adapter-layer entry point is forbidden by this amendment (see §3a
+  Public surface resolution);
 - one `Report` created;
 - one `ReportRevision` generated and bound to the report;
 - four renders produced (zh-CN/docx, zh-CN/pdf, en-US/docx, en-US/pdf,
@@ -511,29 +571,39 @@ round.
 ## 9. Charles freeze-authorization language gates
 
 Until Charles's freeze-authorization round, this document MUST NOT
-be cited, modified, or relied upon using any of the following
-language forms:
+be cited or relied upon using any pre-freeze-claim that conveys
+binding effect. Specifically the following composite claims are
+prohibited before Charles freeze authorization is issued and they
+remain exclusively reserved for the post-freeze rounds:
 
 ```text
-FROZEN
-APPROVED
-AUTHORIZED_FOR_IMPLEMENTATION
-P0_CLOSED
-PR67_BODY_RESYNC_AUTHORIZED
-PR67_READY_PERFORMED
-ISSUE20_CLOSURE_AUTHORIZED
-TASK12_AUTHORIZED
+PROHIBITED_PRE_FREEZE_CLAIMS=
+  CONTRACT_AMENDMENT_FROZEN=YES
+  AUTHORIZED_FOR_IMPLEMENTATION=YES
+  P0_CLOSED=YES
+  PR67_CORRECTION_AUTHORIZED=YES
 ```
 
-The above forms remain reserved exclusively for Charles's
-freeze-authorization round and any subsequent PR #67 corrective-
-authorization round. Their appearance in this document today would be
-fabricated and is therefore forbidden.
+The four composite claims above are the pre-freeze-prohibited
+claims for this amendment. The set is intentionally narrow: it does
+NOT prohibit the bare token strings `FROZEN` or `APPROVED` from
+appearing inside carefully scoped citations of other documents,
+inside status-survey text describing the current PR #67 review
+state, or inside quoted material from the binding review
+`4727663461`. What IS prohibited is the assertion that those tokens
+apply to THIS amendment prior to Charles's freeze-authorization
+round.
+
+It remains reserved exclusively for Charles's freeze-authorization
+round and any subsequent PR #67 corrective-authorization round to
+issue any of the four composite claims above. Their appearance as
+claims about THIS amendment today would be fabricated and is
+therefore forbidden.
 
 ## 10. Final classification
 
 ```text
-FINAL_CLASSIFICATION=TASK011_SLICE1_CONTRACT_AMENDMENT_001_AUTHORED_PENDING_REVIEW
+FINAL_CLASSIFICATION=TASK011_SLICE1_CONTRACT_AMENDMENT_001_CORRECTED_PENDING_INDEPENDENT_REVIEW
 
 PR67_CORRECTION_AUTHORIZED=NO
 PR67_READY_AUTHORIZED=NO
@@ -542,11 +612,16 @@ ISSUE20_CLOSURE_AUTHORIZED=NO
 TASK12_AUTHORIZED=NO
 ```
 
-This document is authored, single-file, docs-only, and pending
-independent contract review. It contains zero implementation
-authority, zero PR #67 mutation authority, and zero GitHub workflow
-change authority. The next round after this one requires Charles's
-explicit freeze authorization to transition any of the
-`AUTHORED_*` items above into a binding contract delta; absent that,
-this document remains in `AUTHORED_PENDING_REVIEW` indefinitely and
-PR #67 remains in its current `CHANGES_REQUESTED` Draft state.
+This document is corrected (single-file docs-only patch on top
+of the prior authored commit), and is pending independent contract
+review. It contains zero implementation authority, zero PR #67
+mutation authority, and zero GitHub workflow change authority as a
+result of this round's correction. The contract corrections this
+document records (surface resolution, status language, comment
+location, catalog key preservation, four-P1 retention) are recorded
+in proposed-for-freeze form: they would become binding only after
+Charles's explicit freeze authorization in a separate round
+followed by Ready, Merge, and post-merge main-identity verification.
+Absent that freeze-authorization round, this document remains in
+`CORRECTED_PENDING_REVIEW` indefinitely and PR #67 remains in its
+current `CHANGES_REQUESTED` Draft state.
