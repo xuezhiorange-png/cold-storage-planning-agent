@@ -745,3 +745,204 @@ CONTRACT_FROZEN=NO
 IMPLEMENTATION_AUTHORIZED=NO
 STOPPED_AWAITING_CHARLES_DEFINITION_FREEZE_AUTHORIZATION
 ```
+
+---
+
+## 20. Amendment 001 — Slice 1 P0 frozen-allowlist reconciliation
+
+> **Scope of this section**: this is a *separately authorized, single-purpose amendment* to the TASK-011 remaining-pilot-readiness definition document. It does **not** retro-rewrite the original contract; it adds an explicit, dated, auditable extension that lists exactly which additional tracked paths and which narrow semantic operations are now authorized for the implementation observed in PR #67. All other sections of this document (§1–§19) remain in force, except where they are explicitly narrowed below.
+
+### 20.1 Amendment identity
+
+```text
+AMENDMENT_ID=TASK-011_SLICE_1_P0_ALLOWLIST_AMENDMENT_001
+AMENDMENT_TARGET=TASK-011_SLICE_1
+SOURCE_CONTRACT_PR=66
+SOURCE_CONTRACT_MERGE_COMMIT=e6922ce406e093ec06fbbf23ca89a0d65a5956f0
+IMPLEMENTATION_PR=67
+OBSERVED_IMPLEMENTATION_HEAD=f315f6a57cf5b1fbbca97856069bf10975ec0415
+AMENDMENT_REASON=P0_FROZEN_ALLOWLIST_RECONCILIATION
+AMENDMENT_PATH=B
+AMENDMENT_DOCS_ONLY=YES
+AMENDMENT_REQUIRES_FUTURE_PR_MERGE=YES
+AMENDMENT_ACTIVATION=ON_MERGE_OF_THIS_AMENDMENT_PR
+AMENDMENT_SCOPE_OF_EFFECT=PR_67_IMPLEMENTATION_ONLY
+AMENDMENT_REMAINS_VALID_AFTER_PR_67_MERGE=YES
+AMENDMENT_EXPIRES=NEVER_UNLESS_REVOKED
+```
+
+### 20.2 New additional allowed paths (additive only)
+
+The following five (5) tracked paths are added to the §11 maximum allowlist, **additively**. No path already in §11 is removed, and no other unlisted tracked path is added.
+
+```text
+ADDITIONAL_ALLOWED_PATH_COUNT=5
+
+ADDITIONAL_ALLOWED_PATHS=
+  backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py
+  backend/src/cold_storage/modules/reports/localization/en_us.py
+  backend/src/cold_storage/modules/reports/localization/zh_cn.py
+  backend/tests/test_reports/test_localization.py
+  backend/tests/unit/test_real_report_data_provider.py
+
+ALL_OTHER_UNLISTED_TRACKED_PATHS_REMAIN_UNAUTHORIZED=YES
+```
+
+The combined Slice 1 allowlist is the union of the §11 list and the five paths above. The §11 clause
+
+> "No other tracked path is authorized by this definition."
+
+remains in force for every tracked path **not** named in §11 or in this §20.2 list.
+
+### 20.3 Authorized semantic operations (narrow, non-general)
+
+This amendment authorizes **only** the following narrowly-scoped semantic operations, each of which corresponds directly to the implementation observed in PR #67 at `f315f6a57cf5b1fbbca97856069bf10975ec0415`:
+
+```text
+AUTHORIZED_OPERATION_PROJECTION=YES
+  Description: project a persisted evaluation result_snapshot from the existing
+  v0 shape into the existing report v1 schema shape, using a strict typed
+  projection that preserves the field-path and unit contract from
+  §7.7 ("Semantic verification") and §9 ("Result schema and managed layout").
+  No new field is added; no existing field is removed or renamed.
+
+AUTHORIZED_OPERATION_FAIL_CLOSED_NUMERIC_AND_CONFLICT=YES
+  Description: for the projection inputs above, perform fail-closed numeric
+  coercion and fail-closed field-conflict detection; raise a typed error
+  (ReportProjectionError) when (a) a value cannot be coerced to the target
+  numeric type, (b) the same canonical field is bound to multiple distinct
+  raw values, or (c) a required v0 source field is missing for a v1 field.
+
+AUTHORIZED_OPERATION_TRANSLATION_CATALOG_EXACT_KEYS=YES
+  Description: extend the translation catalog with exactly the following two
+  (2) keys, only, each in both en_us and zh_cn:
+    condenser_heat_rejection
+    kW(th)
+  No other translation key, pluralization rule, locale, or fallback is added
+  or changed.
+
+AUTHORIZED_OPERATION_CORRESPONDING_TESTS=YES
+  Description: add tests that directly cover the projection logic, the
+  fail-closed numeric/conflict checks, and the two new translation keys.
+  The test files listed in §20.2 (test_localization.py,
+  test_real_report_data_provider.py) are the only authorized test
+  locations for this work.
+```
+
+### 20.4 Explicit non-authorizations (boundaries reaffirmed)
+
+The following remain **not** authorized by this amendment. They are stated explicitly to prevent scope drift:
+
+```text
+GENERAL_REPORT_PROVIDER_REDESIGN_AUTHORIZED=NO
+UNRELATED_LOCALIZATION_CHANGE_AUTHORIZED=NO
+ADDITIONAL_TRANSLATION_KEY_AUTHORIZED=NO
+REPORT_SCHEMA_CHANGE_AUTHORIZED=NO
+REPORT_TEMPLATE_CHANGE_AUTHORIZED=NO
+GOLDEN_CHANGE_AUTHORIZED=NO
+FRONTEND_CHANGE_AUTHORIZED=NO
+WORKFLOW_CHANGE_AUTHORIZED=NO
+```
+
+### 20.5 Narrowing of the §18 "TRANSLATION_CATALOG_CHANGE_NOT_AUTHORIZED" clause
+
+The §18 hard-boundary clause
+
+```text
+TRANSLATION_CATALOG_CHANGE_NOT_AUTHORIZED
+```
+
+is **narrowed** by this amendment to the following, and only the following:
+
+```text
+TRANSLATION_CATALOG_CHANGE_NARROW_AUTHORIZATION=
+  Scope: backend/src/cold_storage/modules/reports/localization/en_us.py
+         and
+         backend/src/cold_storage/modules/reports/localization/zh_cn.py
+  Permitted addition set: exactly the two keys
+    condenser_heat_rejection
+    kW(th)
+  Method constraint: keys may be added, but existing keys, fallbacks,
+    pluralization, locale list, and any non-key catalog structure must
+    remain unchanged.
+  Audit constraint: the PR body must list these two keys verbatim and
+    must not assert TRANSLATION_CATALOG_CHANGE=NO.
+
+TRANSLATION_CATALOG_CHANGE_OTHER_THAN_THE_TWO_KEYS_NOT_AUTHORIZED=YES
+```
+
+All other §18 hard boundaries remain in force exactly as written.
+
+### 20.6 Other clauses that are **not** changed by this amendment
+
+For audit clarity, the following are **not** modified by this amendment and continue to bind PR #67:
+
+```text
+DOCS_ONLY_THIS_ROUND=YES
+CHANGED_PATH_COUNT_THIS_ROUND=1
+TASK011D_NOT_ASSIGNED
+TASK011D_NOT_AUTHORIZED
+IMPLEMENTATION_NOT_AUTHORIZED
+PRODUCTION_BEHAVIOR_CHANGE_NOT_AUTHORIZED
+FIXTURE_AUTHORING_NOT_AUTHORIZED
+EXPECTED_OUTPUT_AUTHORING_NOT_AUTHORIZED
+TASK011C_SCHEMA_CHANGE_NOT_AUTHORIZED
+TASK011C_GOLDEN_CHANGE_NOT_AUTHORIZED
+REPORT_TEMPLATE_CHANGE_NOT_AUTHORIZED
+FRONTEND_CHANGE_NOT_AUTHORIZED
+GITHUB_WORKFLOW_CHANGE_NOT_AUTHORIZED
+DEPENDENCY_CHANGE_NOT_AUTHORIZED
+READY_NOT_AUTHORIZED
+MERGE_NOT_AUTHORIZED
+ISSUE20_REMAINS_OPEN
+ISSUE20_CLOSURE_NOT_AUTHORIZED
+TASK12_NOT_AUTHORIZED
+HIGH_THROUGHPUT_IMPLEMENTATION_NOT_AUTHORIZED
+FOLLOW_UP_ISSUE_CREATION_NOT_AUTHORIZED
+PR21_UNTOUCHED
+PR23_UNTOUCHED
+BRANCH_DELETION_NOT_AUTHORIZED
+```
+
+### 20.7 P1 remediation is **not** authorized by this amendment
+
+This amendment **does not** authorize any P1 finding remediation. Each P1 item below requires a separate round-specific authorization from Charles:
+
+```text
+P1_1_MANIFEST_GOLDEN_REMEDIATION_AUTHORIZED=NO
+P1_2_EXIT_CODE_REMEDIATION_AUTHORIZED=NO
+P1_3_SEMANTIC_CHECK_REMEDIATION_AUTHORIZED=NO
+P1_4_E2E_TEST_REMEDIATION_AUTHORIZED=NO
+PR67_BODY_SYNC_AUTHORIZED=NO
+PR67_REBASE_OR_MAIN_MERGE_AUTHORIZED=NO
+```
+
+After this amendment is merged, P1-1 through P1-4 and PR #67 body synchronization still require Charles's next round of independent authorization. This amendment only resolves the single P0 frozen-allowlist blocker.
+
+### 20.8 PR #67 status under this amendment
+
+```text
+PR67_STATE_AT_AMENDMENT_TIME=open
+PR67_DRAFT_AT_AMENDMENT_TIME=true
+PR67_HEAD_AT_AMENDMENT_TIME=f315f6a57cf5b1fbbca97856069bf10975ec0415
+PR67_BODY_MUTATION_BY_THIS_AMENDMENT=NO
+PR67_BRANCH_HISTORY_REWRITE_BY_THIS_AMENDMENT=NO
+PR67_MERGE_STATE_AFTER_AMENDMENT_MERGE=REMAINS_DRAFT
+PR67_READY_TRANSITION_BY_THIS_AMENDMENT=NO
+PR67_MERGE_TRANSITION_BY_THIS_AMENDMENT=NO
+PR67_REMAINS_DRAFT_UNTIL_NEXT_ROUND_AUTHORIZATION=YES
+```
+
+### 20.9 Amendment validity and revocation
+
+```text
+AMENDMENT_VALIDITY=PERMANENT_UNTIL_REVOKED
+AMENDMENT_REVOCATION_MECHANISM=A_FUTURE_AMENDMENT_OR_CONTRACT_REVISION_PR
+AMENDMENT_DOES_NOT_AUTO_REVOKE=YES
+AMENDMENT_DOES_NOT_TRIGGER_PR67_MERGE=YES
+AMENDMENT_REQUIRES_CHARLES_FINAL_REVIEW=YES
+```
+
+---
+
+*End of Amendment 001.*
