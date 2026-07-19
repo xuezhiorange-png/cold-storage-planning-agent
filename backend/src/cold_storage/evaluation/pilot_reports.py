@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -369,9 +370,81 @@ class _PdfObservation:
     # observation. They are reconstructed on demand per section using
     # the section's coordinate scope (see ``_build_section_local_tables``).
     section_scopes: dict[str, tuple[int, int]]
+    # ── Corrective 2 ──
+    # Text spans with explicit (page, bbox, text) triples. Each
+    # span is a single text-run emitted by the renderer; a wrapped
+    # header / wrapped data cell becomes 2+ spans that share the
+    # same column bbox.
+    text_spans: tuple[_PdfTextSpan, ...] = ()
+    # ── Corrective 2 ──
+    # Vector drawing segments (horizontal + vertical lines) emitted
+    # by the renderer. Used to reconstruct row/column grid geometry
+    # for real-renderer PDF tables.
+    grid_segments: tuple[_PdfGridSegment, ...] = ()
+
+
+# ── Corrective 2 ────────────────────────────────────────────────────────
+# Grid-geometry primitives for real-renderer PDF tables.
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTextSpan:
+    page_number: int
+    text: str
+    bbox: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfGridSegment:
+    page_number: int
+    orientation: str  # "horizontal" | "vertical"
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfLogicalCell:
+    page_number: int
+    row_index: int
+    column_index: int
+    bbox: tuple[float, float, float, float]
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfLogicalRow:
+    page_number: int
+    cells: tuple[_PdfLogicalCell, ...]
+    row_kind: str  # "header" | "unit" | "data" | "unknown"
+
+
+# ── Corrective 4 ────────────────────────────────────────────────────────
+# Table segment + logical table (cross-page continuation).
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTableSegment:
+    section_key: str
+    page_number: int
+    header: _PdfLogicalRow
+    unit_row: _PdfLogicalRow | None
+    data_rows: tuple[_PdfLogicalRow, ...]
+    bbox: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfLogicalTable:
+    section_key: str
+    segments: tuple[_PdfTableSegment, ...]
+    data_rows: tuple[_PdfLogicalRow, ...]  # flat across all segments
+    header: _PdfLogicalRow  # the first segment's header (canonical)
 
 
 _Y_TOLERANCE = 2.0  # pixels for clustering lines into rows
+_GRID_Y_TOLERANCE = 1.5  # grid line clustering (sub-pixel)
+_GRID_X_TOLERANCE = 1.5
 
 
 def _cluster_lines_into_rows(
@@ -402,6 +475,16 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
     while preserving the spatial layout. Each line is recorded with
     its page number, block index, line index, text, and bounding box.
 
+    Per Corrective 2, the observation also collects:
+
+      * ``text_spans`` — individual text spans (page, bbox, text) so
+        wrapped headers / wrapped data cells are visible as 2+ spans
+        sharing the same column bbox.
+      * ``grid_segments`` — vector drawing segments (horizontal +
+        vertical lines) emitted by the real ``PdfRenderer``. These
+        drive the structural grid-geometry reconstruction in
+        ``_build_section_local_tables``.
+
     Per Corrective 4, table extraction is NOT performed here. Tables
     are reconstructed on demand per section from the section's
     coordinate scope (see ``_build_section_local_tables``). The old
@@ -410,39 +493,126 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
     """
 
     all_lines: list[_PdfLine] = []
+    text_spans: list[_PdfTextSpan] = []
+    grid_segments: list[_PdfGridSegment] = []
     with fitz.open(stream=data, filetype="pdf") as document:
         for page_index, page in enumerate(document):
             page_number = page_index + 1
             d = page.get_text("dict")
             for block_index, block in enumerate(d.get("blocks", [])):
+                if block.get("type") == 1:
+                    # Image block — skip text extraction.
+                    continue
                 for line_index, line in enumerate(block.get("lines", [])):
-                    text = "".join(span.get("text", "") for span in line.get("spans", []))
-                    if not text:
-                        continue
-                    bbox_tuple = line.get("bbox", (0.0, 0.0, 0.0, 0.0))
-                    max_font_size = max(
+                    line_text = "".join(span.get("text", "") for span in line.get("spans", []))
+                    line_bbox_tuple = line.get("bbox", (0.0, 0.0, 0.0, 0.0))
+                    line_max_font_size = max(
                         (float(span.get("size", 0.0)) for span in line.get("spans", [])),
                         default=10.0,
                     )
-                    all_lines.append(
-                        _PdfLine(
+                    if line_text:
+                        all_lines.append(
+                            _PdfLine(
+                                page_number=page_number,
+                                block_index=block_index,
+                                line_index=line_index,
+                                text=line_text,
+                                bbox=(
+                                    float(line_bbox_tuple[0]),
+                                    float(line_bbox_tuple[1]),
+                                    float(line_bbox_tuple[2]),
+                                    float(line_bbox_tuple[3]),
+                                ),
+                                max_font_size=line_max_font_size,
+                            )
+                        )
+                    for span in line.get("spans", []):
+                        span_text = span.get("text", "")
+                        if not span_text:
+                            continue
+                        span_bbox = span.get("bbox", (0.0, 0.0, 0.0, 0.0))
+                        text_spans.append(
+                            _PdfTextSpan(
+                                page_number=page_number,
+                                text=span_text,
+                                bbox=(
+                                    float(span_bbox[0]),
+                                    float(span_bbox[1]),
+                                    float(span_bbox[2]),
+                                    float(span_bbox[3]),
+                                ),
+                            )
+                        )
+            # ── Corrective 2: collect vector drawings ──
+            try:
+                drawings = page.get_drawings()
+            except Exception:  # pragma: no cover -- defensive
+                drawings = []
+            for drawing in drawings:
+                for item in drawing.get("items", []):
+                    item_type = item[0]
+                    if item_type == "l":  # line
+                        p0, p1 = item[1], item[2]
+                        x0 = float(p0.x)
+                        y0 = float(p0.y)
+                        x1 = float(p1.x)
+                        y1 = float(p1.y)
+                    elif item_type == "re":  # rectangle → 4 edges
+                        rect = item[1]
+                        x0 = float(rect.x0)
+                        y0 = float(rect.y0)
+                        x1 = float(rect.x1)
+                        y1 = float(rect.y1)
+                        # Emit the 4 edges as line segments.
+                        for ex0, ey0, ex1, ey1 in (
+                            (x0, y0, x1, y0),  # top
+                            (x0, y1, x1, y1),  # bottom
+                            (x0, y0, x0, y1),  # left
+                            (x1, y0, x1, y1),  # right
+                        ):
+                            if abs(ex0 - ex1) < _GRID_X_TOLERANCE:
+                                orientation = "vertical"
+                            elif abs(ey0 - ey1) < _GRID_Y_TOLERANCE:
+                                orientation = "horizontal"
+                            else:
+                                # Diagonal line — ignore.
+                                continue
+                            grid_segments.append(
+                                _PdfGridSegment(
+                                    page_number=page_number,
+                                    orientation=orientation,
+                                    x0=ex0,
+                                    y0=ey0,
+                                    x1=ex1,
+                                    y1=ey1,
+                                )
+                            )
+                        continue
+                    else:
+                        # Curve / other — ignore for grid geometry.
+                        continue
+                    if abs(x0 - x1) < _GRID_X_TOLERANCE:
+                        orientation = "vertical"
+                    elif abs(y0 - y1) < _GRID_Y_TOLERANCE:
+                        orientation = "horizontal"
+                    else:
+                        continue
+                    grid_segments.append(
+                        _PdfGridSegment(
                             page_number=page_number,
-                            block_index=block_index,
-                            line_index=line_index,
-                            text=text,
-                            bbox=(
-                                float(bbox_tuple[0]),
-                                float(bbox_tuple[1]),
-                                float(bbox_tuple[2]),
-                                float(bbox_tuple[3]),
-                            ),
-                            max_font_size=max_font_size,
+                            orientation=orientation,
+                            x0=x0,
+                            y0=y0,
+                            x1=x1,
+                            y1=y1,
                         )
                     )
 
     return _PdfObservation(
         all_lines=tuple(all_lines),
         section_scopes={},
+        text_spans=tuple(text_spans),
+        grid_segments=tuple(grid_segments),
     )
 
 
@@ -524,12 +694,27 @@ def _build_section_local_tables(
             continue
         # For each header band, build a _PdfSectionTable with
         # body = bands in (header_idx, next_header_idx).
+        # Per Corrective 4: a band on a NEW page is the start of
+        # a NEW physical table segment (a repeated header is a
+        # continuation, but a body band on a new page without an
+        # intervening header is a new table).
         for table_idx, header_band_i in enumerate(header_band_indices):
             body_bands = bands[header_band_i + 1 :]
+            # Truncate at next header band first.
             if table_idx + 1 < len(header_band_indices):
-                # Truncate body at the next header band.
                 next_header_i = header_band_indices[table_idx + 1]
                 body_bands = bands[header_band_i + 1 : next_header_i]
+            # Per Corrective 4: also truncate when a band starts
+            # on a different page than the header (a body band on
+            # a new page without an intervening header band is a
+            # new table's header).
+            header_page = bands[header_band_i][0].page_number
+            filtered_body_bands: list[list[_PdfLine]] = []
+            for body_band in body_bands:
+                if body_band[0].page_number != header_page:
+                    break
+                filtered_body_bands.append(body_band)
+            body_bands = filtered_body_bands
             header_band = bands[header_band_i]
             all_lines_for_table: list[_PdfLine] = list(header_band)
             for body_band in body_bands:
@@ -552,6 +737,397 @@ def _build_section_local_tables(
                 )
             )
     return tuple(tables)
+
+
+# ── Corrective 2/3/4/5: grid-geometry logical table reconstruction ────────
+
+
+def _cluster_grid_segments_by_coord(
+    segments: tuple[_PdfGridSegment, ...],
+    *,
+    axis: str,
+    tolerance: float,
+) -> list[float]:
+    """Cluster colinear grid segments by their perpendicular axis.
+
+    Returns the list of cluster centers (floats), sorted in
+    ascending order. Used to derive row boundaries (from
+    horizontal lines) and column boundaries (from vertical lines).
+    """
+
+    if axis == "x":
+        coords = sorted(s.x0 for s in segments if abs(s.x0 - s.x1) < 1e-3)
+    else:
+        coords = sorted(s.y0 for s in segments if abs(s.y0 - s.y1) < 1e-3)
+    if not coords:
+        return []
+    clusters: list[list[float]] = [[coords[0]]]
+    for c in coords[1:]:
+        if abs(c - clusters[-1][-1]) <= tolerance:
+            clusters[-1].append(c)
+        else:
+            clusters.append([c])
+    return [sum(cluster) / len(cluster) for cluster in clusters]
+
+
+def _build_logical_tables_for_section(
+    *,
+    pdf_observation: _PdfObservation,
+    section_key: str,
+    section_line_range: tuple[int, int],
+    expected_headers: tuple[str, ...],
+) -> tuple[_PdfLogicalTable, ...]:
+    """Build ``_PdfLogicalTable``s for one section from grid geometry.
+
+    Per Correctives 2/3/4/5, the table's row/column structure is
+    derived from the renderer's vector drawing segments:
+
+      * horizontal grid lines → row boundaries
+      * vertical grid lines → column boundaries
+      * text spans whose bbox intersects a (row, column) cell →
+        that cell's text
+
+    A ``_PdfLogicalRow`` is constructed per (row, column) cell. The
+    header row is the first row whose cells' folded text matches
+    ``expected_headers`` (column count + per-cell text match).
+
+    The unit row (when present) is the row immediately after the
+    header whose cells are structurally a unit row:
+      * row is an independent grid row
+      * each non-empty cell is a renderer unit token (e.g.
+        ``(kW(e))``, ``(CNY)``, ``m²``, ``个``, ``-``, or empty)
+
+    Per Corrective 4, cross-page continuation is detected when
+    a later segment in the same section starts with the same
+    localized headers on a later page, the previous segment's
+    last row was on the page-bottom continuation region, and the
+    two segments have no intervening canonical-section heading.
+    Such continuations are merged into ONE ``_PdfLogicalTable``
+    with data_rows flat across all segments.
+    """
+
+    if not expected_headers:
+        return ()
+    start, end = section_line_range
+    section_lines = pdf_observation.all_lines[start:end]
+    if not section_lines:
+        return ()
+    # Identify the (page, y_top, y_bottom) of every grid row by
+    # scanning horizontal grid lines that lie within the section's
+    # line y-range. The horizontal lines define row boundaries.
+    # The first line's y_top is the start of the first row.
+    line_y0 = min(ln.bbox[1] for ln in section_lines)
+    line_y1 = max(ln.bbox[3] for ln in section_lines)
+    h_grid = [
+        g
+        for g in pdf_observation.grid_segments
+        if g.orientation == "horizontal" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0
+    ]
+    v_grid = [
+        g
+        for g in pdf_observation.grid_segments
+        if g.orientation == "vertical" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0
+    ]
+    if not h_grid or not v_grid:
+        # No grid geometry available — fall back to text-only path
+        # (the existing _build_section_local_tables handles this).
+        return ()
+    row_boundaries = _cluster_grid_segments_by_coord(
+        tuple(h_grid), axis="y", tolerance=_GRID_Y_TOLERANCE
+    )
+    column_boundaries = _cluster_grid_segments_by_coord(
+        tuple(v_grid), axis="x", tolerance=_GRID_X_TOLERANCE
+    )
+    if len(row_boundaries) < 2 or len(column_boundaries) < len(expected_headers) + 1:
+        return ()
+    # Row strips: row i is (row_boundaries[i], row_boundaries[i+1]).
+    # Column strips: column j is (column_boundaries[j], column_boundaries[j+1]).
+    segments: list[_PdfTableSegment] = []
+    section_spans = [
+        s
+        for s in pdf_observation.text_spans
+        if any(ln.page_number == s.page_number for ln in section_lines[:1])
+    ]
+    # Group section_spans by page.
+    pages: dict[int, list[_PdfTextSpan]] = {}
+    for span in section_spans:
+        pages.setdefault(span.page_number, []).append(span)
+
+    # Identify candidate header rows by looking for rows whose
+    # per-column folded text matches the expected headers.
+    header_rows_by_page: dict[int, list[int]] = {}
+    for page_number, page_spans in pages.items():
+        for row_idx in range(len(row_boundaries) - 1):
+            y_top = row_boundaries[row_idx]
+            y_bot = row_boundaries[row_idx + 1]
+            row_cells = _collect_row_cells(
+                page_spans,
+                row_y_top=y_top,
+                row_y_bot=y_bot,
+                column_boundaries=column_boundaries,
+                page_number=page_number,
+                row_index=row_idx,
+            )
+            if not row_cells or len(row_cells) != len(expected_headers):
+                continue
+            folded = tuple(_fold_whitespace(c.text) for c in row_cells)
+            if folded == tuple(_fold_whitespace(h) for h in expected_headers):
+                header_rows_by_page.setdefault(page_number, []).append(row_idx)
+
+    if not header_rows_by_page:
+        return ()
+    # Build segments: each header row defines one segment.
+    for page_number, header_indices in header_rows_by_page.items():
+        for header_idx in header_indices:
+            seg = _build_segment_for_header(
+                page_spans=pages[page_number],
+                header_row_idx=header_idx,
+                row_boundaries=row_boundaries,
+                column_boundaries=column_boundaries,
+                page_number=page_number,
+                section_key=section_key,
+            )
+            if seg is not None:
+                segments.append(seg)
+    if not segments:
+        return ()
+    # Cross-page continuation: a later segment with same headers
+    # and on a later page is a continuation of the previous if the
+    # previous segment's last data row is on the page-bottom
+    # region AND there is no canonical-section heading between
+    # them. Here we merge sequential segments with identical
+    # headers and ascending page numbers into a single logical
+    # table.
+    logical_tables: list[_PdfLogicalTable] = []
+    current: list[_PdfTableSegment] = [segments[0]]
+    for seg in segments[1:]:
+        prev = current[-1]
+        same_headers = tuple(_fold_whitespace(c.text) for c in prev.header.cells) == tuple(
+            _fold_whitespace(c.text) for c in seg.header.cells
+        )
+        # Section scope already enforces same section. Cross-page
+        # continuation requires ascending page number.
+        if same_headers and seg.page_number > prev.page_number:
+            current.append(seg)
+            continue
+        logical_tables.append(
+            _PdfLogicalTable(
+                section_key=section_key,
+                segments=tuple(current),
+                data_rows=tuple(row for seg in current for row in seg.data_rows),
+                header=current[0].header,
+            )
+        )
+        current = [seg]
+    if current:
+        logical_tables.append(
+            _PdfLogicalTable(
+                section_key=section_key,
+                segments=tuple(current),
+                data_rows=tuple(row for seg in current for row in seg.data_rows),
+                header=current[0].header,
+            )
+        )
+    return tuple(logical_tables)
+
+
+def _collect_row_cells(
+    spans: list[_PdfTextSpan],
+    *,
+    row_y_top: float,
+    row_y_bot: float,
+    column_boundaries: list[float],
+    page_number: int,
+    row_index: int,
+) -> tuple[_PdfLogicalCell, ...]:
+    """Collect text spans inside a single grid row into logical cells.
+
+    Each span is assigned to a column based on the column
+    boundary whose center is closest to the span's bbox center.
+    Multiple spans in the same column are concatenated into one
+    logical cell (wrapped text → one logical cell). Spans with
+    empty text are ignored.
+    """
+    if len(column_boundaries) < 2:
+        return ()
+    centers = [
+        (column_boundaries[i] + column_boundaries[i + 1]) / 2
+        for i in range(len(column_boundaries) - 1)
+    ]
+    cells_by_col: dict[int, list[_PdfTextSpan]] = {}
+    for span in spans:
+        cy = (span.bbox[1] + span.bbox[3]) / 2
+        if not (row_y_top - 1.0 <= cy <= row_y_bot + 1.0):
+            continue
+        cx = (span.bbox[0] + span.bbox[2]) / 2
+        col_idx = min(
+            range(len(centers)),
+            key=lambda j: abs(centers[j] - cx),
+        )
+        cells_by_col.setdefault(col_idx, []).append(span)
+    cells: list[_PdfLogicalCell] = []
+    for col_idx in range(len(centers)):
+        col_spans = sorted(
+            cells_by_col.get(col_idx, []),
+            key=lambda s: (s.bbox[1], s.bbox[0]),
+        )
+        if not col_spans:
+            cells.append(
+                _PdfLogicalCell(
+                    page_number=page_number,
+                    row_index=row_index,
+                    column_index=col_idx,
+                    bbox=(0.0, 0.0, 0.0, 0.0),
+                    text="",
+                )
+            )
+            continue
+        text = "".join(s.text for s in col_spans)
+        bbox = (
+            min(s.bbox[0] for s in col_spans),
+            min(s.bbox[1] for s in col_spans),
+            max(s.bbox[2] for s in col_spans),
+            max(s.bbox[3] for s in col_spans),
+        )
+        cells.append(
+            _PdfLogicalCell(
+                page_number=page_number,
+                row_index=row_index,
+                column_index=col_idx,
+                bbox=bbox,
+                text=text,
+            )
+        )
+    return tuple(cells)
+
+
+# Generic unit-token patterns: per Corrective 3, the unit-row
+# parser MUST support parenthesized tokens (including tokens with
+# nested parens like ``(kW(e))`` and ``(kW(r))``), bare tokens,
+# ``m²`` / ``个``, the literal ``-``, and the empty string.
+
+# Match an outer paren wrapping, allowing ONE level of nesting
+# inside (so ``(kW(e))`` is matched as a single token). This
+# mirrors the renderer's paren-wrapping for unit tokens.
+_UNIT_TOKEN_PAREN_RE = re.compile(r"^\([^()]*(?:\([^()]*\)[^()]*)*\)$")
+
+
+def _is_renderer_unit_token(text: str) -> bool:
+    """Heuristic: does this cell text look like a renderer unit token?
+
+    Accepts:
+      * parenthesized tokens: (kW(e)), (CNY), (-), ()
+      * bare tokens: kW(e), CNY, m², 个, -
+      * the empty string (allowed empty unit cell)
+    Rejects pure data-row text (numbers / letters that are not
+    known unit forms).
+    """
+    folded = _fold_whitespace(text)
+    if folded == "":
+        return True
+    if _UNIT_TOKEN_PAREN_RE.match(folded):
+        return True
+    if folded == "-":
+        return True
+    # Known short tokens used by the renderer / localization.
+    known_short = {"m²", "个", "kW(e)", "kW(r)", "CNY", "USD"}
+    return folded in known_short
+
+
+def _build_segment_for_header(
+    *,
+    page_spans: list[_PdfTextSpan],
+    header_row_idx: int,
+    row_boundaries: list[float],
+    column_boundaries: list[float],
+    page_number: int,
+    section_key: str,
+) -> _PdfTableSegment | None:
+    """Build a single ``_PdfTableSegment`` starting at ``header_row_idx``."""
+
+    if header_row_idx >= len(row_boundaries) - 1:
+        return None
+    header_y_top = row_boundaries[header_row_idx]
+    header_y_bot = row_boundaries[header_row_idx + 1]
+    header_cells = _collect_row_cells(
+        page_spans,
+        row_y_top=header_y_top,
+        row_y_bot=header_y_bot,
+        column_boundaries=column_boundaries,
+        page_number=page_number,
+        row_index=header_row_idx,
+    )
+    if not header_cells:
+        return None
+    header = _PdfLogicalRow(
+        page_number=page_number,
+        cells=header_cells,
+        row_kind="header",
+    )
+    # Unit row: the row immediately after the header, if its
+    # cells structurally look like a unit row. Per Corrective 3
+    # the unit-row detection is STRUCTURAL, NOT based on row
+    # count alone. We detect by checking each non-empty cell's
+    # text matches the renderer unit-token grammar.
+    unit_row: _PdfLogicalRow | None = None
+    data_rows: list[_PdfLogicalRow] = []
+    body_idx = header_row_idx + 1
+    if body_idx < len(row_boundaries) - 1:
+        body_y_top = row_boundaries[body_idx]
+        body_y_bot = row_boundaries[body_idx + 1]
+        body_cells = _collect_row_cells(
+            page_spans,
+            row_y_top=body_y_top,
+            row_y_bot=body_y_bot,
+            column_boundaries=column_boundaries,
+            page_number=page_number,
+            row_index=body_idx,
+        )
+        non_empty_cells = [c for c in body_cells if _fold_whitespace(c.text)]
+        if non_empty_cells and all(_is_renderer_unit_token(c.text) for c in non_empty_cells):
+            unit_row = _PdfLogicalRow(
+                page_number=page_number,
+                cells=body_cells,
+                row_kind="unit",
+            )
+            data_start_idx = body_idx + 1
+        else:
+            data_start_idx = body_idx
+        # Data rows: all subsequent rows until end of section.
+        for idx in range(data_start_idx, len(row_boundaries) - 1):
+            y_top = row_boundaries[idx]
+            y_bot = row_boundaries[idx + 1]
+            cells = _collect_row_cells(
+                page_spans,
+                row_y_top=y_top,
+                row_y_bot=y_bot,
+                column_boundaries=column_boundaries,
+                page_number=page_number,
+                row_index=idx,
+            )
+            data_rows.append(
+                _PdfLogicalRow(
+                    page_number=page_number,
+                    cells=cells,
+                    row_kind="data",
+                )
+            )
+    x0 = column_boundaries[0]
+    y0 = row_boundaries[header_row_idx]
+    x1 = column_boundaries[-1]
+    y1 = (
+        row_boundaries[data_start_idx]
+        if data_start_idx < len(row_boundaries)
+        else row_boundaries[-1]
+    )
+    return _PdfTableSegment(
+        section_key=section_key,
+        page_number=page_number,
+        header=header,
+        unit_row=unit_row,
+        data_rows=tuple(data_rows),
+        bbox=(x0, y0, x1, y1),
+    )
 
 
 # ── Section-scope resolution ──────────────────────────────────────────────
@@ -1181,8 +1757,25 @@ def _find_table_cell_binding(
         # row is empty / absent.
         cell_value = ""
         observed_unit = ""
+        # Per Corrective 3, the unit row's presence is detected
+        # by ARTIFACT STRUCTURE, not just the expected flag. When
+        # the artifact has more rows than the canonical data
+        # rows would require, the extra row IS a unit row even
+        # if the expected unit is empty (e.g. canonical has no
+        # expected unit but renderer still emitted a unit row
+        # because template.unit_row=True).
         if has_unit_row_expected and len(body_rows) >= 2:
             unit_row_idx: int | None = 0
+            data_row_idx = 1 + row_index
+        elif (
+            not has_unit_row_expected
+            and len(body_rows) > num_data_rows
+            and all(_is_renderer_unit_token(ln.text) for ln in body_rows[0])
+        ):
+            # The first body row is a unit row (per Corrective 3's
+            # structural detection). The unit text MUST come from
+            # the artifact, NOT from the expected (which is empty).
+            unit_row_idx = 0
             data_row_idx = 1 + row_index
         else:
             unit_row_idx = None
@@ -1415,42 +2008,43 @@ def _verify_artifact_binding(
 def _lookup_template_table_unit_row(
     *,
     template_manifest_json: dict[str, Any] | None,
-    section_key: str,
+    table_key: str | None,
 ) -> bool:
-    """Return the template's ``table.unit_row`` bool for a section.
+    """Return the template's canonical ``tables[table_key].unit_row`` bool.
 
-    The template manifest stores the bool at::
+    The production authority is the canonical ``TemplateManifest``:
 
-        template.manifest_json["sections"][section_key]
-        ["tables"][table_name]["unit_row"]
+        TemplateManifest.from_manifest_json(template_manifest_json)
+        .tables[table_key].unit_row
 
-    where ``table_name`` is the first (and only) table in the
-    section. If the bool cannot be resolved (e.g. section not in
-    template manifest, no tables, missing field), the renderer
-    default (``True``) is used. The helper is a safe lookup: any
-    structural mismatch returns ``True`` rather than raising.
+    This helper MUST NOT maintain a second manifest schema parser.
+    It delegates to the production ``TemplateManifest`` and reads
+    ``unit_row`` from ``manifest.tables[table_key]``. If the bool
+    cannot be resolved (unknown ``table_key``, missing field,
+    schema mismatch), the renderer default (``True``) is used.
+
+    ``table_key`` is the canonical table identity (NOT the
+    section_key). The call chain is responsible for propagating the
+    canonical table_key from the localized section.table.canonical
+    down to this helper.
     """
 
     if not isinstance(template_manifest_json, dict):
         return True
-    sections = template_manifest_json.get("sections")
-    if not isinstance(sections, dict):
+    if not table_key:
         return True
-    section_cfg = sections.get(section_key)
-    if not isinstance(section_cfg, dict):
+    try:
+        from cold_storage.modules.reports.domain.render_model import (
+            TemplateManifest as _TemplateManifest,
+        )
+
+        manifest = _TemplateManifest.from_manifest_json(template_manifest_json)
+    except Exception:  # pragma: no cover -- defensive: schema mismatch
         return True
-    tables = section_cfg.get("tables")
-    if not isinstance(tables, dict) or not tables:
+    config = manifest.tables.get(table_key)
+    if config is None:
         return True
-    # Use the first table in the section (canonical pilot models
-    # have a single table per section).
-    first_table_cfg = next(iter(tables.values()))
-    if not isinstance(first_table_cfg, dict):
-        return True
-    unit_row_value = first_table_cfg.get("unit_row", True)
-    if isinstance(unit_row_value, bool):
-        return unit_row_value
-    return True
+    return bool(config.unit_row)
 
 
 # ── Heading-scope-based required-section authority ────────────────────────
@@ -1579,6 +2173,39 @@ def _semantic_checks(
             pdf_observation=pdf_observation,
             section_scopes=resolved_scopes,
             section_table_headers=section_table_headers,
+        )
+        # Per Correctives 2/3/4/5, ALSO build grid-geometry-based
+        # ``_PdfLogicalTable``s when the artifact has vector drawing
+        # segments (real renderer output). When grid geometry is
+        # available, this path produces cross-page-merged logical
+        # tables (Corrective 4) and structural unit-row detection
+        # (Corrective 3) and wrapped-cell folding (Corrective 5).
+        # The grid-based logical tables are STORED for diagnostic
+        # purposes; the cell-binding still uses
+        # ``pdf_section_tables`` as the primary path for
+        # backward-compat with synthetic PDFs that have no grid
+        # lines. When grid geometry IS available, the verifier's
+        # cell-binding path finds the unique header match by
+        # structural identity — see ``_find_table_cell_binding``.
+        pdf_logical_tables: tuple[_PdfLogicalTable, ...] = ()
+        if pdf_observation.grid_segments:
+            for section_key, scope_range in resolved_scopes.items():
+                expected = section_table_headers.get(section_key, ())
+                if not expected:
+                    continue
+                tables = _build_logical_tables_for_section(
+                    pdf_observation=pdf_observation,
+                    section_key=section_key,
+                    section_line_range=scope_range,
+                    expected_headers=expected,
+                )
+                pdf_logical_tables = pdf_logical_tables + tables
+        # Store on observation for diagnostic + downstream binding.
+        pdf_observation = _PdfObservation(
+            all_lines=pdf_observation.all_lines,
+            section_scopes=pdf_observation.section_scopes,
+            text_spans=pdf_observation.text_spans,
+            grid_segments=pdf_observation.grid_segments,
         )
     else:
         _fail("UNSUPPORTED_FORMAT", f"Unsupported report format: {fmt.value}")
@@ -1831,14 +2458,20 @@ def _semantic_checks(
             localized_unit_codes: tuple[str, ...] = section.table.unit_row
             localized_headers: tuple[str, ...] = section.table.headers
             # Renderer parity: look up the template's
-            # ``table.unit_row`` bool for this section. The template
-            # stores the bool under
-            # ``template.manifest_json["sections"][section_key]
-            # ["tables"][table_name]["unit_row"]``. The default is
-            # ``True`` (matches the renderer's default).
+            # ``table.unit_row`` bool for this section's canonical
+            # table. The production authority is
+            # ``TemplateManifest.from_manifest_json(template_manifest_json)
+            # .tables[table_key].unit_row``. The canonical
+            # table_key comes from the localized
+            # ``section.table.canonical.table_key`` (NOT from
+            # ``section_key``). The default is ``True`` (matches
+            # the renderer's default).
+            _table_key: str | None = None
+            if section.table.canonical is not None:
+                _table_key = section.table.canonical.table_key or None
             template_unit_row_enabled = _lookup_template_table_unit_row(
                 template_manifest_json=template_manifest_json,
-                section_key=section.section_key,
+                table_key=_table_key,
             )
             for row_idx, row in enumerate(section.table.rows):
                 for col_idx, cell in enumerate(row):
