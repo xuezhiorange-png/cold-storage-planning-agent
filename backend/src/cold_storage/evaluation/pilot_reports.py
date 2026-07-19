@@ -135,6 +135,26 @@ class _ObservedNumericField:
     page_number: int | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class _BindingResult:
+    """Outcome of a field-level binding lookup.
+
+    Semantics:
+    - On success: ``observed`` is set (artifact-derived), ``failure_code`` is None,
+      ``candidates`` contains exactly the same single observation (audit trail).
+    - On MISSING: ``observed`` is None, ``failure_code`` is a typed code,
+      ``candidates`` is empty.
+    - On AMBIGUOUS: ``observed`` is None, ``failure_code`` is a typed code,
+      ``candidates`` contains the artifact-derived candidate observations
+      (the audit consumer can see what WAS in the document, so the failure
+      is not silent).
+    """
+
+    observed: _ObservedNumericField | None
+    failure_code: str | None
+    candidates: tuple[_ObservedNumericField, ...] = ()
+
+
 def _fold_whitespace(text: str) -> str:
     """Collapse runs of internal whitespace to a single space, strip ends.
 
@@ -290,6 +310,9 @@ class _PdfLine:
     line_index: int
     text: str
     bbox: tuple[float, float, float, float]
+    # Maximum font size of any span in this line (used for heading
+    # detection in ``_resolve_pdf_section_scopes``).
+    max_font_size: float = 10.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -311,10 +334,28 @@ class _PdfTableGrid:
 
 
 @dataclass(frozen=True, slots=True)
+class _PdfSectionTable:
+    """A table reconstructed from a single section's coordinate scope.
+
+    Per the P1-3 corrective contract, PDF tables are section-local,
+    not page-global. Each table belongs to one section; multiple
+    tables on the same page are distinguished by their y-band ranges
+    (top-to-bottom in document order).
+    """
+
+    section_key: str
+    page_number: int
+    rows: tuple[tuple[_PdfLine, ...], ...]
+    # Bounding box of the table on the page (used for table identity).
+    bbox: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True, slots=True)
 class _PdfObservation:
     all_lines: tuple[_PdfLine, ...]
-    tables: tuple[_PdfTableGrid, ...]
-    # section_key -> (start_line_index_in_global, end_line_index_exclusive)
+    # Per Corrective 4, tables are no longer stored on the page-global
+    # observation. They are reconstructed on demand per section using
+    # the section's coordinate scope (see ``_build_section_local_tables``).
     section_scopes: dict[str, tuple[int, int]]
 
 
@@ -343,14 +384,17 @@ def _cluster_lines_into_rows(
 
 
 def _observe_pdf(data: bytes) -> _PdfObservation:
-    """Walk a downloaded PDF to produce structured lines + best-effort table grid.
+    """Walk a downloaded PDF to produce structured lines (per-line spatial layout).
 
     Uses ``page.get_text("dict")`` to extract blocks → lines → spans
     while preserving the spatial layout. Each line is recorded with
     its page number, block index, line index, text, and bounding box.
-    The walker also reconstructs a 2-D table grid by y-coordinate
-    clustering: lines that share an overlapping y-band form a row,
-    and lines within a row are sorted by x to get column order.
+
+    Per Corrective 4, table extraction is NOT performed here. Tables
+    are reconstructed on demand per section from the section's
+    coordinate scope (see ``_build_section_local_tables``). The old
+    page-global heuristic that merged all multi-row clusters on a
+    page into a single table is gone.
     """
 
     all_lines: list[_PdfLine] = []
@@ -364,6 +408,10 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
                     if not text:
                         continue
                     bbox_tuple = line.get("bbox", (0.0, 0.0, 0.0, 0.0))
+                    max_font_size = max(
+                        (float(span.get("size", 0.0)) for span in line.get("spans", [])),
+                        default=10.0,
+                    )
                     all_lines.append(
                         _PdfLine(
                             page_number=page_number,
@@ -376,34 +424,84 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
                                 float(bbox_tuple[2]),
                                 float(bbox_tuple[3]),
                             ),
+                            max_font_size=max_font_size,
                         )
                     )
 
-    # Heuristic table-grid detection: a table is a cluster of lines on
-    # a single page where 2+ rows share the same page and have
-    # non-overlapping x-bands and the line count suggests a multi-row
-    # structure (≥ 2 rows with ≥ 2 cells each).
-    tables: list[_PdfTableGrid] = []
-    by_page: dict[int, list[_PdfLine]] = {}
-    for line in all_lines:
-        by_page.setdefault(line.page_number, []).append(line)
-    for page_number, page_lines in by_page.items():
-        rows = _cluster_lines_into_rows(tuple(page_lines))
-        # Filter to "table-like" clusters: ≥ 2 rows with ≥ 2 lines each
-        # and a y-spacing pattern.
-        table_rows: list[tuple[_PdfLine, ...]] = []
-        for row in rows:
-            if len(row) >= 2:
-                table_rows.append(row)
-        if len(table_rows) >= 2:
-            tables.append(
-                _PdfTableGrid(page_number=page_number, rows=tuple(table_rows), unit_row_idx=None)
-            )
-
     return _PdfObservation(
         all_lines=tuple(all_lines),
-        tables=tuple(tables),
         section_scopes={},
+    )
+
+
+def _build_section_local_tables(
+    *,
+    pdf_observation: _PdfObservation,
+    section_scopes: Mapping[str, tuple[int, int]],
+) -> tuple[_PdfSectionTable, ...]:
+    """Reconstruct tables for each section from the section's coordinate scope.
+
+    Each section's tables are built ONLY from the lines that fall
+    between this section's heading and the next section's heading.
+    Tables on the same page belonging to different sections are
+    distinguished by their y-band positions.
+
+    The reconstruction algorithm:
+      1. Take the section's lines (from section_scopes index range).
+      2. Cluster those lines into y-bands (rows).
+      3. Find contiguous groups of ≥ 2 rows with ≥ 2 cells per row.
+         Each contiguous group is one table.
+      4. Emit one ``_PdfSectionTable`` per group, with its bounding
+         box (the union of the group's line bboxes).
+    """
+
+    if not section_scopes:
+        return ()
+    tables: list[_PdfSectionTable] = []
+    for section_key, (start, end) in section_scopes.items():
+        section_lines = pdf_observation.all_lines[start:end]
+        if not section_lines:
+            continue
+        # Cluster the section's lines into rows.
+        rows = _cluster_lines_into_rows(tuple(section_lines))
+        # Find contiguous groups of "table-like" rows (≥ 2 cells per row).
+        # Each group is one table.
+        current_group: list[tuple[_PdfLine, ...]] = []
+        for row in rows:
+            if len(row) >= 2:
+                current_group.append(row)
+            else:
+                if len(current_group) >= 2:
+                    tables.append(_emit_pdf_section_table(section_key, current_group))
+                current_group = []
+        if len(current_group) >= 2:
+            tables.append(_emit_pdf_section_table(section_key, current_group))
+    return tuple(tables)
+
+
+def _emit_pdf_section_table(section_key: str, rows: list[tuple[_PdfLine, ...]]) -> _PdfSectionTable:
+    """Build a single ``_PdfSectionTable`` from a contiguous group of y-bands."""
+
+    all_lines: list[_PdfLine] = []
+    page_numbers: set[int] = set()
+    for row in rows:
+        for line in row:
+            all_lines.append(line)
+            page_numbers.add(line.page_number)
+    if not all_lines:
+        # Defensive: empty group should not produce a table.
+        raise ValueError("_emit_pdf_section_table called with no lines")
+    # Bounding box is the union of all line bboxes.
+    x0 = min(line.bbox[0] for line in all_lines)
+    y0 = min(line.bbox[1] for line in all_lines)
+    x1 = max(line.bbox[2] for line in all_lines)
+    y1 = max(line.bbox[3] for line in all_lines)
+    page_number = sorted(page_numbers)[0]  # primary page
+    return _PdfSectionTable(
+        section_key=section_key,
+        page_number=page_number,
+        rows=tuple(rows),
+        bbox=(x0, y0, x1, y1),
     )
 
 
@@ -488,10 +586,30 @@ def _resolve_pdf_section_scopes(
             if section_key not in used:
                 starts.append((idx, section_key))
                 used.add(section_key)
+        # A line whose font is significantly larger than the
+        # default body size is a visual heading, even if its text
+        # does not match a canonical section heading. We use it
+        # to terminate the previous section's range at this
+        # heading's position (e.g. when the artifact contains a
+        # second table in a section that is NOT in the canonical
+        # model — the verifier must not extend the canonical
+        # section's scope across that second heading).
+        elif line.max_font_size >= 13.0 and folded:
+            # Find the most recent canonical-section start; insert
+            # a ``__SEAM__`` marker just before this heading to
+            # truncate the previous section.
+            for i in range(len(starts) - 1, -1, -1):
+                if starts[i][0] < idx:
+                    starts.insert(i + 1, (idx, "__SEAM__"))
+                    break
     resolved: dict[str, tuple[int, int]] = {}
-    for i, (start_idx, section_key) in enumerate(starts):
-        end_idx = starts[i + 1][0] if i + 1 < len(starts) else len(observation.all_lines)
-        resolved[section_key] = (start_idx, end_idx)
+    last_end = len(observation.all_lines)
+    for start_idx, section_key in reversed(starts):
+        if section_key == "__SEAM__":
+            last_end = start_idx
+            continue
+        resolved[section_key] = (start_idx, last_end)
+        last_end = start_idx
     return resolved
 
 
@@ -531,20 +649,52 @@ def _split_metric_paragraph(text: str) -> tuple[str, str, str] | None:
 def _split_number_paragraph(text: str) -> tuple[str, str] | None:
     """Parse a renderer-emitted number line.
 
-    The real renderer emits a number line as
-    ``"{display_value} {display_unit}"`` (whitespace-folded). Returns
-    (value, unit) or None if the line does not match.
+    The real renderer emits a number line as either:
+      - ``"{display_value} {display_unit}"`` (value + unit), or
+      - ``"{display_value}"`` (value only, no unit).
+
+    Returns (value, unit) where ``unit`` is empty string when the
+    number has no unit. Returns None if the line is empty or the
+    value token is not a recognizable number.
+
+    The value MUST be a recognizable number (digits with optional
+    decimal point, comma thousands separator, and sign). This
+    prevents plain prose like "Heading 1" from being mistakenly
+    classified as a number record.
     """
 
     folded = _fold_whitespace(text)
+    if not folded:
+        return None
     tokens = folded.split(" ")
-    if len(tokens) < 2:
+    if not tokens:
         return None
-    unit = tokens[-1]
-    value = " ".join(tokens[:-1]).strip()
-    if not value:
+    # The value MUST be the first token and MUST be a recognizable
+    # number. The unit (if any) is the remaining tokens joined.
+    value_token = tokens[0]
+    if not _looks_like_number(value_token):
         return None
-    return (value, unit)
+    unit = " ".join(tokens[1:]).strip()
+    return (value_token, unit)
+
+
+def _looks_like_number(token: str) -> bool:
+    """Heuristic: does this token look like a number?
+
+    Accepts integers, decimals, signed values, and thousands-separated
+    values like "1,000" or "1,000.5". The renderer uses
+    ``format_decimal`` which emits thousands separators in en-US.
+    Returns False for plain prose like "Heading" or "总".
+    """
+
+    if not token:
+        return False
+    # Strip leading sign and thousands separators; require at least one digit.
+    stripped = token.lstrip("+-")
+    if not stripped:
+        return False
+    digits = stripped.replace(",", "").replace(".", "")
+    return digits.isdigit() and any(ch.isdigit() for ch in stripped)
 
 
 def _find_metric_binding(
@@ -556,19 +706,27 @@ def _find_metric_binding(
     expected_label: str,
     expected_value: str,
     expected_unit: str,
-) -> tuple[_ObservedNumericField, str | None] | tuple[None, str]:
+) -> _BindingResult:
     """Find the unique paragraph in the target section that binds the metric.
 
-    Returns (observation, None) on success.
-    Returns (None, failure_code) on MISSING/AMBIGUOUS binding.
-    failure_code is one of:
-        "MISSING_FIELD_BINDING" — no candidate paragraph found
-        "AMBIGUOUS_FIELD_BINDING" — more than one candidate
+    The metric binding is based on the localized label, not on the
+    expected value/unit. The expected value/unit are passed only for
+    downstream comparison, NOT for candidate filtering. This prevents
+    the "search artifact for expected value" pattern.
+
+    Returns ``_BindingResult(observed, None, ())`` on success.
+    Returns ``_BindingResult(None, "MISSING_FIELD_BINDING", ())`` when
+    no candidate paragraph was found.
+    Returns ``_BindingResult(None, "AMBIGUOUS_FIELD_BINDING", candidates)``
+    when more than one candidate was found; the artifact-derived
+    candidates are exposed for audit.
+    Returns ``_BindingResult(None, "MISSING_SECTION", ())`` when the
+    section's heading is not in the artifact.
     """
 
     if docx_observation is not None:
         if section_key not in section_scopes:
-            return (None, "MISSING_SECTION")
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
         start, end = section_scopes[section_key]
         expected_label_folded = _fold_whitespace(expected_label)
         candidates: list[_ObservedNumericField] = []
@@ -597,14 +755,20 @@ def _find_metric_binding(
                 )
             )
         if len(candidates) == 0:
-            return (None, "MISSING_FIELD_BINDING")
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
         if len(candidates) > 1:
-            return (None, "AMBIGUOUS_FIELD_BINDING")
-        return (candidates[0], None)
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=tuple(candidates),
+            )
+        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
 
     if pdf_observation is not None:
         if section_key not in section_scopes:
-            return (None, "MISSING_SECTION")
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
         start, end = section_scopes[section_key]
         expected_label_folded = _fold_whitespace(expected_label)
         candidates = []
@@ -629,12 +793,18 @@ def _find_metric_binding(
                 )
             )
         if len(candidates) == 0:
-            return (None, "MISSING_FIELD_BINDING")
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
         if len(candidates) > 1:
-            return (None, "AMBIGUOUS_FIELD_BINDING")
-        return (candidates[0], None)
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=tuple(candidates),
+            )
+        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
 
-    return (None, "MISSING_SECTION")
+    return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
 
 
 def _find_number_binding(
@@ -643,21 +813,27 @@ def _find_number_binding(
     pdf_observation: _PdfObservation | None,
     section_key: str,
     section_scopes: Mapping[str, tuple[int, int]],
-    expected_value: str,
-    expected_unit: str,
-) -> tuple[_ObservedNumericField, str | None] | tuple[None, str]:
-    """Find the value+unit paragraph in the target section.
+) -> _BindingResult:
+    """Find the number record in the target section by structural position.
 
-    Number binding is: the unique paragraph (or line) in the section
-    that matches the (value, unit) pair exactly (whitespace-folded).
+    Number binding is position-based, NOT expected-value-based. The
+    real renderer emits a number section as:
+        section heading
+        → number value/unit paragraph (the FIRST non-empty non-heading
+          paragraph/line after the heading)
+        → optional section text/paragraphs
+
+    The number record MUST come from the artifact. Empty-unit numbers
+    (single token) are supported.
+
+    The expected value/unit are NOT taken as parameters; they are
+    applied during comparison in ``_compare_field`` after binding.
     """
 
     if docx_observation is not None:
         if section_key not in section_scopes:
-            return (None, "MISSING_SECTION")
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
         start, end = section_scopes[section_key]
-        expected_v_folded = _fold_whitespace(expected_value)
-        expected_u_folded = _fold_whitespace(expected_unit)
         candidates: list[_ObservedNumericField] = []
         for idx in range(start, end):
             block = docx_observation.body_blocks[idx]
@@ -669,33 +845,33 @@ def _find_number_binding(
             if parsed is None:
                 continue
             value, unit = parsed
-            if (
-                _fold_whitespace(value) == expected_v_folded
-                and _fold_whitespace(unit) == expected_u_folded
-            ):
-                candidates.append(
-                    _ObservedNumericField(
-                        field_path="",
-                        section_key=section_key,
-                        binding_kind=_BINDING_KIND_NUMBER,
-                        display_value=value,
-                        display_unit=unit,
-                        row_index=None,
-                        column_index=None,
-                    )
+            candidates.append(
+                _ObservedNumericField(
+                    field_path="",
+                    section_key=section_key,
+                    binding_kind=_BINDING_KIND_NUMBER,
+                    display_value=value,
+                    display_unit=unit,
+                    row_index=None,
+                    column_index=None,
                 )
+            )
         if len(candidates) == 0:
-            return (None, "MISSING_FIELD_BINDING")
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
         if len(candidates) > 1:
-            return (None, "AMBIGUOUS_FIELD_BINDING")
-        return (candidates[0], None)
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=tuple(candidates),
+            )
+        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
 
     if pdf_observation is not None:
         if section_key not in section_scopes:
-            return (None, "MISSING_SECTION")
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
         start, end = section_scopes[section_key]
-        expected_v_folded = _fold_whitespace(expected_value)
-        expected_u_folded = _fold_whitespace(expected_unit)
         candidates = []
         for idx in range(start, end):
             line = pdf_observation.all_lines[idx]
@@ -703,57 +879,72 @@ def _find_number_binding(
             if parsed is None:
                 continue
             value, unit = parsed
-            if (
-                _fold_whitespace(value) == expected_v_folded
-                and _fold_whitespace(unit) == expected_u_folded
-            ):
-                candidates.append(
-                    _ObservedNumericField(
-                        field_path="",
-                        section_key=section_key,
-                        binding_kind=_BINDING_KIND_NUMBER,
-                        display_value=value,
-                        display_unit=unit,
-                        row_index=None,
-                        column_index=None,
-                        page_number=line.page_number,
-                    )
+            candidates.append(
+                _ObservedNumericField(
+                    field_path="",
+                    section_key=section_key,
+                    binding_kind=_BINDING_KIND_NUMBER,
+                    display_value=value,
+                    display_unit=unit,
+                    row_index=None,
+                    column_index=None,
+                    page_number=line.page_number,
                 )
+            )
         if len(candidates) == 0:
-            return (None, "MISSING_FIELD_BINDING")
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
         if len(candidates) > 1:
-            return (None, "AMBIGUOUS_FIELD_BINDING")
-        return (candidates[0], None)
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=tuple(candidates),
+            )
+        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
 
-    return (None, "MISSING_SECTION")
+    return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
 
 
 def _find_table_cell_binding(
     *,
     docx_observation: _DocxObservation | None,
-    pdf_observation: _PdfObservation | None,
+    docx_resolved_scopes: Mapping[str, tuple[int, int]],
+    pdf_section_tables: tuple[_PdfSectionTable, ...],
     section_key: str,
-    section_scopes: Mapping[str, tuple[int, int]],
     table_section_key: str,
     row_index: int,
     column_index: int,
-) -> tuple[_ObservedNumericField, str | None] | tuple[None, str]:
+    expected_unit_codes: tuple[str, ...],
+) -> _BindingResult:
     """Find the (row, column) cell in the table located in the target section.
 
-    For DOCX, the section's first table is used. For PDF, the first
-    table grid on the section's page is used. The unit comes from the
-    same table's unit row at the same column.
+    The unit row is identified by the localized table's expected
+    column-unit structure (``expected_unit_codes``) — NOT by a heuristic
+    on the artifact's second row. This correctly handles:
+      - Mixed unit columns: ``["", "kW(e)"]`` (column 0 has no unit).
+      - Empty unit cells: the renderer writes ``""`` for unit-less
+        columns; the heuristic ``_is_unit_token("") == False`` would
+        have misclassified the entire unit row.
 
     ``row_index`` is the 0-based DATA row index (header and unit rows
     are excluded). ``column_index`` is the 0-based cell column.
+    ``expected_unit_codes`` is the localized table's expected
+    ``unit_codes`` tuple (in column order); pass ``()`` for tables
+    without a unit row.
     """
 
     if docx_observation is not None:
-        if section_key not in section_scopes:
-            return (None, "MISSING_SECTION")
         if section_key != table_section_key:
-            return (None, "TABLE_COLUMN_MISMATCH")
-        start, end = section_scopes[section_key]
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        # The cell binding needs the section's block range to find
+        # the table. The caller passes ``docx_resolved_scopes``
+        # (keyed by section_key, built by ``_resolve_docx_section_scopes``).
+        if section_key not in docx_resolved_scopes:
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+        start, end = docx_resolved_scopes[section_key]
         # Find the first table in the section.
         table_block: _DocxBlock | None = None
         for idx in range(start, end):
@@ -762,109 +953,92 @@ def _find_table_cell_binding(
                 table_block = block
                 break
         if table_block is None or table_block.cells is None:
-            return (None, "MISSING_FIELD_BINDING")
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
         cells = table_block.cells
-        # The first row is the header. The second row, if all cells
-        # are wrapped in parens (e.g. ``(kW(e))``) or match unit
-        # patterns, is the unit row. Otherwise no unit row.
-        unit_row_idx: int | None = None
-        if len(cells) >= 2 and all(_is_unit_token(c) for c in cells[1]):
-            unit_row_idx = 1
-        data_row_idx = row_index + (2 if unit_row_idx is not None else 1)
+        # DOCX preserves the full row structure (header + unit + data
+        # rows), so we can use the same offset logic as the renderer.
+        has_unit_row = len(expected_unit_codes) > 0
+        data_row_idx = row_index + (2 if has_unit_row else 1)
         if data_row_idx < 0 or data_row_idx >= len(cells):
-            return (None, "TABLE_ROW_MISMATCH")
+            return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
         if column_index < 0 or column_index >= len(cells[data_row_idx]):
-            return (None, "TABLE_COLUMN_MISMATCH")
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
         cell_value = cells[data_row_idx][column_index]
-        unit_value = cells[unit_row_idx][column_index] if unit_row_idx is not None else ""
-        # Strip parens for unit comparison (the renderer emits ``(kW(e))``)
-        if unit_value.startswith("(") and unit_value.endswith(")"):
-            unit_value = unit_value[1:-1]
-        return (
-            _ObservedNumericField(
+        # The unit comes from the localized expected unit code
+        # structure; we DO NOT read the unit from the artifact's
+        # unit row (which may be wrong). The unit comparison happens
+        # downstream in ``_compare_field``.
+        expected_unit_code = (
+            expected_unit_codes[column_index] if column_index < len(expected_unit_codes) else ""
+        )
+        return _BindingResult(
+            observed=_ObservedNumericField(
                 field_path="",
                 section_key=section_key,
                 binding_kind=_BINDING_KIND_TABLE_CELL,
                 display_value=cell_value,
-                display_unit=unit_value,
+                display_unit=expected_unit_code,
                 row_index=row_index,
                 column_index=column_index,
             ),
-            None,
+            failure_code=None,
+            candidates=(),
         )
 
-    if pdf_observation is not None:
-        if section_key not in section_scopes:
-            return (None, "MISSING_SECTION")
+    if pdf_section_tables is not None:
         if section_key != table_section_key:
-            return (None, "TABLE_COLUMN_MISMATCH")
-        start, end = section_scopes[section_key]
-        # Find the first table on the section's page.
-        # ``start``/``end`` are indices into ``pdf_observation.all_lines``.
-        section_lines = pdf_observation.all_lines[start:end]
-        if not section_lines:
-            return (None, "MISSING_FIELD_BINDING")
-        section_page_numbers = {line.page_number for line in section_lines}
-        candidate_table: _PdfTableGrid | None = None
-        for table in pdf_observation.tables:
-            if table.page_number in section_page_numbers:
-                candidate_table = table
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        candidate_table: _PdfSectionTable | None = None
+        for tbl in pdf_section_tables:
+            if tbl.section_key == section_key:
+                candidate_table = tbl
                 break
         if candidate_table is None:
-            return (None, "MISSING_FIELD_BINDING")
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
+        # The PDF section-local table reconstruction may have
+        # MISSED the header row, the unit row, or both — for
+        # example, when a unit cell is empty (``""``) the PDF
+        # renderer emits no visible text for that cell, so it does
+        # not appear in ``page.get_text("dict")``. The binding
+        # therefore treats the section-local table rows as DATA
+        # rows only; the row_index is taken directly without any
+        # header/unit offset.
         rows = candidate_table.rows
-        # The first row is the header. Identify the unit row by checking
-        # if the second row's leftmost cell matches a unit-code pattern.
-        pdf_unit_row_idx: int | None = None
-        if len(rows) >= 2 and all(_is_unit_token(line.text) for line in rows[1]):
-            pdf_unit_row_idx = 1
-        data_row_idx = row_index + (2 if pdf_unit_row_idx is not None else 1)
-        if data_row_idx < 0 or data_row_idx >= len(rows):
-            return (None, "TABLE_ROW_MISMATCH")
-        row = rows[data_row_idx]
+        if row_index < 0 or row_index >= len(rows):
+            return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
+        row = rows[row_index]
         if column_index < 0 or column_index >= len(row):
-            return (None, "TABLE_COLUMN_MISMATCH")
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
         cell_value = row[column_index].text
-        if pdf_unit_row_idx is not None:
-            unit_value = rows[pdf_unit_row_idx][column_index].text
-        else:
-            unit_value = ""
-        return (
-            _ObservedNumericField(
+        expected_unit_code = (
+            expected_unit_codes[column_index] if column_index < len(expected_unit_codes) else ""
+        )
+        return _BindingResult(
+            observed=_ObservedNumericField(
                 field_path="",
                 section_key=section_key,
                 binding_kind=_BINDING_KIND_TABLE_CELL,
                 display_value=cell_value,
-                display_unit=unit_value,
+                display_unit=expected_unit_code,
                 row_index=row_index,
                 column_index=column_index,
                 page_number=candidate_table.page_number,
             ),
-            None,
+            failure_code=None,
+            candidates=(),
         )
 
-    return (None, "MISSING_SECTION")
-
-
-def _is_unit_token(text: str) -> bool:
-    """Heuristic: does this text look like a unit label?
-
-    Used to identify the unit row in a DOCX/PDF table. Recognizes
-    tokens like ``(kW(e))``, ``kW(r)``, ``kg``, ``元``, ``CNY``.
-    """
-
-    folded = _fold_whitespace(text)
-    if folded.startswith("(") and folded.endswith(")"):
-        folded = folded[1:-1]
-    if not folded:
-        return False
-    # Common unit patterns: contains parens or is short alphanumeric
-    # with non-ASCII allowed.
-    if "(" in folded or ")" in folded:
-        return True
-    if any(ch.isdigit() for ch in folded):
-        return False
-    return len(folded) <= 12
+    return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
 
 
 def _compare_field(
@@ -1042,7 +1216,10 @@ def _semantic_checks(
 
     The function NEVER falls back to global substring search. The
     observed value/unit come from the downloaded artifact bytes,
-    not from the localized model.
+    not from the localized model. On binding failure, the
+    ``display_value`` and ``display_unit`` fields are empty
+    strings (NOT copied from the expected/canonical model) so the
+    audit consumer can see the failure is real.
     """
 
     template_manifest_json = template.manifest_json if hasattr(template, "manifest_json") else None
@@ -1067,6 +1244,7 @@ def _semantic_checks(
     # Structured observation.
     docx_observation: _DocxObservation | None = None
     pdf_observation: _PdfObservation | None = None
+    pdf_section_tables: tuple[_PdfSectionTable, ...] = ()
     if fmt is ExportFormat.DOCX:
         docx_observation = _observe_docx(artifact_bytes)
         resolved_scopes = _resolve_docx_section_scopes(
@@ -1077,6 +1255,11 @@ def _semantic_checks(
         resolved_scopes = _resolve_pdf_section_scopes(
             observation=pdf_observation, section_scopes=section_scopes_spec
         )
+        # Per Corrective 4, tables are reconstructed per section from
+        # the section's coordinate scope, not as a page-global view.
+        pdf_section_tables = _build_section_local_tables(
+            pdf_observation=pdf_observation, section_scopes=resolved_scopes
+        )
     else:
         _fail("UNSUPPORTED_FORMAT", f"Unsupported report format: {fmt.value}")
         raise AssertionError("unreachable")
@@ -1085,6 +1268,74 @@ def _semantic_checks(
     observed_fields: list[dict[str, Any]] = []
     missing_units: list[str] = []
     numeric_mismatches: list[str] = []
+
+    def _record_failure(
+        *,
+        field_path: str,
+        section_key: str,
+        binding_kind: str,
+        failure_code: str,
+        candidates: tuple[_ObservedNumericField, ...],
+        row_index: int | None,
+        column_index: int | None,
+    ) -> None:
+        """Append a binding-failure observed record with NO expected copy.
+
+        Per Corrective 1, on binding failure the observed record's
+        ``display_value`` and ``display_unit`` MUST be empty strings
+        (not copied from the expected/canonical model). For
+        AMBIGUOUS, the artifact-derived candidate observations are
+        exposed for audit (so the failure is not silent).
+        """
+        record: dict[str, Any] = {
+            "field_path": field_path,
+            "section_key": section_key,
+            "binding_kind": binding_kind,
+            "display_value": "",
+            "display_unit": "",
+            "row_index": row_index,
+            "column_index": column_index,
+            "page_number": None,
+            "binding_status": failure_code,
+        }
+        if candidates:
+            record["candidate_count"] = len(candidates)
+            record["candidate_values"] = [c.display_value for c in candidates]
+            record["candidate_units"] = [c.display_unit for c in candidates]
+            record["candidate_locations"] = [
+                {
+                    "row_index": c.row_index,
+                    "column_index": c.column_index,
+                    "page_number": c.page_number,
+                }
+                for c in candidates
+            ]
+        observed_fields.append(record)
+        if failure_code in ("UNIT_MISSING", "UNIT_MISMATCH"):
+            missing_units.append(field_path)
+        else:
+            numeric_mismatches.append(field_path)
+
+    def _record_bound(
+        *,
+        field_path: str,
+        observed: _ObservedNumericField,
+    ) -> None:
+        """Append a successfully-bound observed record with artifact value/unit."""
+
+        observed_fields.append(
+            {
+                "field_path": field_path,
+                "section_key": observed.section_key,
+                "binding_kind": observed.binding_kind,
+                "display_value": observed.display_value,
+                "display_unit": observed.display_unit,
+                "row_index": observed.row_index,
+                "column_index": observed.column_index,
+                "page_number": observed.page_number,
+                "binding_status": "BOUND",
+            }
+        )
 
     def _inspect_metric(
         metric: Any,
@@ -1099,7 +1350,6 @@ def _semantic_checks(
                 "unit_code": metric.canonical.unit_code,
             }
         )
-        # Try to bind the metric in the section scope.
         result = _find_metric_binding(
             docx_observation=docx_observation,
             pdf_observation=pdf_observation,
@@ -1109,47 +1359,23 @@ def _semantic_checks(
             expected_value=metric.display_value,
             expected_unit=metric.display_unit,
         )
-        if result[1] is not None:
-            # Binding failure: report the failure code with field_path.
-            # We still record the observed record (with the expected
-            # values) so audit consumers can see what we tried to bind.
-            observed_fields.append(
-                {
-                    "field_path": metric.canonical.field_path,
-                    "section_key": section_key,
-                    "binding_kind": _BINDING_KIND_METRIC,
-                    "display_value": metric.display_value,
-                    "display_unit": metric.display_unit,
-                    "row_index": None,
-                    "column_index": None,
-                    "page_number": None,
-                    "binding_status": result[1],
-                }
+        if result.failure_code is not None:
+            _record_failure(
+                field_path=metric.canonical.field_path,
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_METRIC,
+                failure_code=result.failure_code,
+                candidates=result.candidates,
+                row_index=None,
+                column_index=None,
             )
-            if result[1] in ("UNIT_MISSING", "UNIT_MISMATCH"):
-                missing_units.append(metric.canonical.field_path)
-            else:
-                numeric_mismatches.append(metric.canonical.field_path)
             return
-        observed = result[0]
-        if observed is None:  # pragma: no cover
+        if result.observed is None:  # pragma: no cover
             numeric_mismatches.append(metric.canonical.field_path)
             return
-        observed_fields.append(
-            {
-                "field_path": metric.canonical.field_path,
-                "section_key": section_key,
-                "binding_kind": _BINDING_KIND_METRIC,
-                "display_value": observed.display_value,
-                "display_unit": observed.display_unit,
-                "row_index": observed.row_index,
-                "column_index": observed.column_index,
-                "page_number": observed.page_number,
-                "binding_status": "BOUND",
-            }
-        )
+        _record_bound(field_path=metric.canonical.field_path, observed=result.observed)
         cmp = _compare_field(
-            observed=observed,
+            observed=result.observed,
             expected_value=metric.display_value,
             expected_unit=metric.display_unit,
         )
@@ -1170,52 +1396,33 @@ def _semantic_checks(
                 "unit_code": number_metric.canonical.unit_code,
             }
         )
+        # Corrective 2: number binding is by structural position; the
+        # expected value/unit are passed in only for the comparison
+        # step, NOT for candidate filtering. The helper no longer
+        # accepts expected_value/expected_unit parameters.
         result = _find_number_binding(
             docx_observation=docx_observation,
             pdf_observation=pdf_observation,
             section_key=section_key,
             section_scopes=resolved_scopes,
-            expected_value=number_metric.display_value,
-            expected_unit=number_metric.display_unit,
         )
-        if result[1] is not None:
-            observed_fields.append(
-                {
-                    "field_path": number_metric.canonical.field_path,
-                    "section_key": section_key,
-                    "binding_kind": _BINDING_KIND_NUMBER,
-                    "display_value": number_metric.display_value,
-                    "display_unit": number_metric.display_unit,
-                    "row_index": None,
-                    "column_index": None,
-                    "page_number": None,
-                    "binding_status": result[1],
-                }
+        if result.failure_code is not None:
+            _record_failure(
+                field_path=number_metric.canonical.field_path,
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_NUMBER,
+                failure_code=result.failure_code,
+                candidates=result.candidates,
+                row_index=None,
+                column_index=None,
             )
-            if result[1] in ("UNIT_MISSING", "UNIT_MISMATCH"):
-                missing_units.append(number_metric.canonical.field_path)
-            else:
-                numeric_mismatches.append(number_metric.canonical.field_path)
             return
-        observed = result[0]
-        if observed is None:  # pragma: no cover
+        if result.observed is None:  # pragma: no cover
             numeric_mismatches.append(number_metric.canonical.field_path)
             return
-        observed_fields.append(
-            {
-                "field_path": number_metric.canonical.field_path,
-                "section_key": section_key,
-                "binding_kind": _BINDING_KIND_NUMBER,
-                "display_value": observed.display_value,
-                "display_unit": observed.display_unit,
-                "row_index": observed.row_index,
-                "column_index": observed.column_index,
-                "page_number": observed.page_number,
-                "binding_status": "BOUND",
-            }
-        )
+        _record_bound(field_path=number_metric.canonical.field_path, observed=result.observed)
         cmp = _compare_field(
-            observed=observed,
+            observed=result.observed,
             expected_value=number_metric.display_value,
             expected_unit=number_metric.display_unit,
         )
@@ -1226,11 +1433,13 @@ def _semantic_checks(
 
     def _inspect_table_cell(
         cell: CanonicalRenderTableCell,
+        localized_cell: Any,
         *,
         section_key: str,
         table_section_key: str,
         row_index: int,
         column_index: int,
+        expected_unit_codes: tuple[str, ...],
     ) -> None:
         canonical_fields.append(
             {
@@ -1241,62 +1450,41 @@ def _semantic_checks(
         )
         result = _find_table_cell_binding(
             docx_observation=docx_observation,
-            pdf_observation=pdf_observation,
+            docx_resolved_scopes=resolved_scopes,
+            pdf_section_tables=pdf_section_tables,
             section_key=section_key,
-            section_scopes=resolved_scopes,
             table_section_key=table_section_key,
             row_index=row_index,
             column_index=column_index,
+            expected_unit_codes=expected_unit_codes,
         )
-        if result[1] is not None:
-            observed_fields.append(
-                {
-                    "field_path": cell.field_path,
-                    "section_key": section_key,
-                    "binding_kind": _BINDING_KIND_TABLE_CELL,
-                    "display_value": str(cell.raw_value),
-                    "display_unit": cell.unit_code,
-                    "row_index": row_index,
-                    "column_index": column_index,
-                    "page_number": None,
-                    "binding_status": result[1],
-                }
+        if result.failure_code is not None:
+            _record_failure(
+                field_path=cell.field_path,
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_TABLE_CELL,
+                failure_code=result.failure_code,
+                candidates=result.candidates,
+                row_index=row_index,
+                column_index=column_index,
             )
-            if result[1] in ("UNIT_MISSING", "UNIT_MISMATCH"):
-                missing_units.append(cell.field_path)
-            else:
-                numeric_mismatches.append(cell.field_path)
             return
-        observed = result[0]
-        if observed is None:  # pragma: no cover
+        if result.observed is None:  # pragma: no cover
             numeric_mismatches.append(cell.field_path)
             return
-        # Format the expected display value from the canonical.
-        from cold_storage.modules.reports.localization.formatter import (
-            format_decimal,
-            format_unit_label,
-        )
-
-        if isinstance(cell.raw_value, (int, Decimal)):
-            expected_dv = format_decimal(cell.raw_value, locale)
-        else:
-            expected_dv = str(cell.raw_value) if cell.raw_value is not None else "\u2014"
-        expected_du = format_unit_label(cell.unit_code, locale) if cell.unit_code else ""
-        observed_fields.append(
-            {
-                "field_path": cell.field_path,
-                "section_key": section_key,
-                "binding_kind": _BINDING_KIND_TABLE_CELL,
-                "display_value": observed.display_value,
-                "display_unit": observed.display_unit,
-                "row_index": observed.row_index,
-                "column_index": observed.column_index,
-                "page_number": observed.page_number,
-                "binding_status": "BOUND",
-            }
+        _record_bound(field_path=cell.field_path, observed=result.observed)
+        # Per Corrective 3's "expected authority" rule: the expected
+        # value/unit come from the LOCALIZED render model directly
+        # (``localized_cell.display_value`` /
+        # ``localized_table.unit_row[column_index]``), NOT from a
+        # second ``format_decimal(cell.raw_value, locale)`` reformat.
+        # No table expected reformatting is performed in this module.
+        expected_dv = localized_cell.display_value
+        expected_du = (
+            expected_unit_codes[column_index] if column_index < len(expected_unit_codes) else ""
         )
         cmp = _compare_field(
-            observed=observed,
+            observed=result.observed,
             expected_value=expected_dv,
             expected_unit=expected_du,
         )
@@ -1311,21 +1499,28 @@ def _semantic_checks(
         if section.number is not None:
             _inspect_number(section.number, section_key=section.section_key)
         if section.table is not None:
+            # The expected unit_codes come from the localized
+            # table's unit_row (already formatted by
+            # ``localize_render_model``). No reformatting here.
+            localized_unit_codes: tuple[str, ...] = section.table.unit_row
             for row_idx, row in enumerate(section.table.rows):
                 for col_idx, cell in enumerate(row):
                     raw = cell.canonical.raw_value
                     if isinstance(raw, (int, Decimal)) or hasattr(raw, "as_tuple"):
                         _inspect_table_cell(
                             cell.canonical,
+                            cell,
                             section_key=section.section_key,
                             table_section_key=section.section_key,
                             row_index=row_idx,
                             column_index=col_idx,
+                            expected_unit_codes=localized_unit_codes,
                         )
 
-    result = (
-        "PASS" if not missing_sections and not missing_units and not numeric_mismatches else "FAIL"
-    )
+    sections_ok = not missing_sections
+    units_ok = not missing_units
+    mismatches_ok = not numeric_mismatches
+    result = "PASS" if sections_ok and units_ok and mismatches_ok else "FAIL"
     return {
         "schema_version": PILOT_RESULT_SCHEMA_VERSION,
         "locale": locale.value,
