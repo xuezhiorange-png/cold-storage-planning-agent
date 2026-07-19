@@ -917,19 +917,31 @@ PR67_READY_AUTHORIZED=NO
 PR67_MERGE_AUTHORIZED=NO
 ISSUE20_CLOSURE_AUTHORIZED=NO
 TASK12_AUTHORIZED=NO
+# Post-freeze canonical binding activation (RULE_B)
+PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_TEXT_FROZEN=YES
+PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_CURRENTLY_BINDING=NO
+PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_BINDING_TRIGGER=PR69_MERGE_AND_POST_MERGE_MAIN_IDENTITY_VERIFICATION
+FREEZE_ALONE_CREATES_SOURCE_CONTRACT_AUTHORITY=NO
+CANONICAL_BINDING_RULE=RULE_B
+FROZEN_MARKERS_RECORD_TEXT_FREEZE_ONLY=YES
+FROZEN_MARKERS_CREATE_CURRENT_AUTHORITY=NO
+FROZEN_MARKERS_MAKE_OBLIGATIONS_BINDING=NO
 ```
 
-The `*_OBLIGATION_AUTHORED` lines above are now retired by
-this freeze commit; the corresponding `_FROZEN` markers are
-the current authority for the five new Slice 1 acceptance
-obligations. The round terminates at this freeze commit on top
-of the documented `FREEZE_AUTHORIZATION_BASE_HEAD`; the Draft
-PR is open and CI may run, but no Readiness, Merge, Issue #20
-closure, Task 12 start, or PR #67 mutation is authorized by this
-freeze. `AUTHORED_FOR_IMPLEMENTATION`, `PR69_READY_AUTHORIZED`,
-`PR69_MERGE_AUTHORIZED`, and `PR67_CORRECTION_AUTHORIZED` all
-remain at their pre-freeze `=NO` values, requiring their own
-separate authorization rounds to flip.
+The `*_OBLIGATION_AUTHORED` lines above are retired by the
+freeze commit. The corresponding `_FROZEN` markers record only
+that the obligation text is frozen. They do not create current
+source-contract authority and do not make the five new Slice 1
+acceptance obligations binding. The five new obligations enter
+the source-contract authority chain only after PR #69 merge and
+post-merge main identity verification. The round terminates at
+this freeze commit on top of the documented `FREEZE_AUTHORIZATION_BASE_HEAD`;
+the Draft PR is open and CI may run, but no Readiness, Merge,
+Issue #20 closure, Task 12 start, or PR #67 mutation is
+authorized by this freeze. `AUTHORED_FOR_IMPLEMENTATION`,
+`PR69_READY_AUTHORIZED`, `PR69_MERGE_AUTHORIZED`, and
+`PR67_CORRECTION_AUTHORIZED` all remain at their pre-freeze `=NO`
+values, requiring their own separate authorization rounds to flip.
 
 ## 9. Post-freeze governance gates
 
