@@ -1,12 +1,12 @@
 # TASK-011 Slice 1 Contract Amendment 001
 
-> **Status:** `AUTHORED_PENDING_REVIEW` (corrective-3 applied 2026-07-19)
+> **Status:** `FROZEN` (Charles freeze authorization applied 2026-07-19, base head `edcc4f9bb9dcf25ac298ebf2a47a875b84030258`)
 >
 > **Authority sequence:**
 >
 > ```text
-> DOCUMENT_STATUS=AUTHORED_PENDING_REVIEW
-> CONTRACT_AMENDMENT_FROZEN=NO
+> DOCUMENT_STATUS=FROZEN
+> CONTRACT_AMENDMENT_FROZEN=YES
 > SOURCE_CONTRACT_PR=66
 > SOURCE_CONTRACT_MERGE_SHA=e6922ce406e093ec06fbbf23ca89a0d65a5956f0
 > SOURCE_CONTRACT_DOCUMENT=docs/tasks/TASK-011-remaining-pilot-readiness-definition.md
@@ -34,18 +34,22 @@
 > PR67_REMAINS_IN_CHANGES_REQUESTED_STATE=YES  (snapshot per 2026-07-19)
 > PR67_READY_AUTHORIZED=NO
 > PR67_MERGE_AUTHORIZED=NO
-> AMENDMENT_ROUND_TYPE=DOCS_ONLY_CORRECTIVE_ROUND_3
-> AUTHORIZATION=AUTHORIZE_PR69_CONTRACT_AMENDMENT_CORRECTIVE_3
+> AMENDMENT_ROUND_TYPE=CONTRACT_FREEZE
+> AUTHORIZATION=AUTHORIZE_PR69_CONTRACT_AMENDMENT_FREEZE
+> FREEZE_AUTHORIZATION=CHARLES_EXPLICIT_AUTHORIZATION
+> FREEZE_AUTHORIZATION_BASE_HEAD=edcc4f9bb9dcf25ac298ebf2a47a875b84030258
+> FREEZE_SCOPE=TASK011_SLICE1_CONTRACT_AMENDMENT_001
+> FREEZE_SEMANTIC_CHANGE_PERFORMED=NO
 > ```
 >
-> **Round type:** one-file docs-only contract amendment (corrective-3).
+> **Round type:** one-file docs-only contract freeze.
 > This document amends the frozen contract merged through PR #66 and
 > operates additively to merged PR #68 §20. It does NOT freeze
 > implementation, does NOT authorize Readiness, Merge, Issue #20
 > closure, Task 12, or any PR #67 mutation. PR #67 remains untouched.
-> After this round, Charles freeze-authorization in a SEPARATE round is
-> the sole path to converting this draft amendment into a binding
-> contract delta.
+> Charles has explicitly authorized this amendment freeze at
+> FREEZE_AUTHORIZATION_BASE_HEAD. This freeze does not authorize
+> PR #69 Ready or Merge and does not authorize any PR #67 mutation.
 
 ## 0. Relationship to merged PR #68 and source-contract §20
 This amendment is explicitly **additive-clarifying** relative to the
@@ -498,12 +502,12 @@ NO_ENGINEERING_FORMULA_TEST_ADDITION
 NO_SCHEMA_CHANGE_TEST
 ```
 
-## 5. Five additional acceptance obligations (binding only after Charles freeze)
+## 5. Five additional acceptance obligations (FROZEN; binding under post-freeze state)
 
 The five-path authority inherited from §20 (PR #68) is **necessary
 but not sufficient** for Slice 1 acceptance. This amendment proposes
 five additional acceptance obligations that become binding only after
-this amendment is itself reviewed, freeze-authorized, Ready, merged,
+this amendment is itself FROZEN, then would pass through Ready, Merge, and
 and the post-merge main identity is verified; none is enforceable in
 this authoring round. The `evaluate.py` refactor reminder in §6 below
 is a **retained source-contract obligation** and is not counted among
@@ -519,13 +523,13 @@ OBLIGATION_5_5=Production runner prerequisite and invocation contract
 EVALUATE_PY_REFACTOR_REMINDER=RETAINED_FROM_SOURCE_CONTRACT_NOT_COUNTED_HERE
 ```
 
-After the post-freeze state takes effect, each obligation below
+Under the current frozen state, each obligation below
 becomes binding. PR #67 readiness review will check that the merged
 PR #67 satisfies all five.
 
 ### 5.1 Exact manifest and golden acceptance binding
 
-After the post-freeze state takes effect, future Slice 1 implementation MUST validate, at runtime, the frozen
+Under the current frozen state, future Slice 1 implementation MUST validate, at runtime, the frozen
 manifest identity and execute the frozen exact-equality comparison
 against the existing evaluation authority. Specifically:
 
@@ -708,7 +712,7 @@ UNSAFE_CLEANUP_REJECTION
 
 ### 5.5 Production runner prerequisite and invocation contract
 
-After the post-freeze state takes effect, future Slice 1 implementation MUST satisfy the runner surface and prerequisite-provisioning contract specified in §3a. Concretely:
+Under the current frozen state, future Slice 1 implementation MUST satisfy the runner surface and prerequisite-provisioning contract specified in §3a. Concretely:
 
 - The pilot composition MUST call
   `cold_storage.evaluation.execute::run_scenario` with all four
@@ -867,18 +871,18 @@ non-normative snapshot.
 ## 8. State surface at end of this round
 
 ```text
-DOCUMENT_STATUS=AUTHORED_PENDING_REVIEW
-CONTRACT_AMENDMENT_FROZEN=NO
+DOCUMENT_STATUS=FROZEN
+CONTRACT_AMENDMENT_FROZEN=YES
 PR68_STATE=MERGED
 PR68_MERGE_COMMIT=4603648045a031667f992500c59ee1deb026cd53
 PR68_FIVE_PATH_AUTHORITY=ACTIVE_AND_CONTINUING
 PR69_FIVE_PATH_AUTHORITY=INHERITED_FROM_PR68_REVIEW_RESTATEMENT_ONLY
 PR69_FIVE_PATH_REAUTHORIZATION=NO
-MANIFEST_GOLDEN_BINDING_OBLIGATION_AUTHORED=YES
-EXIT_CODE_4_OBLIGATION_AUTHORED=YES
-FIELD_BOUND_SEMANTIC_OBLIGATION_AUTHORED=YES
-FOUR_RUN_E2E_OBLIGATION_AUTHORED=YES
-RUNNER_PREREQUISITE_OBLIGATION_AUTHORED=YES
+MANIFEST_GOLDEN_BINDING_OBLIGATION_FROZEN=YES
+EXIT_CODE_4_OBLIGATION_FROZEN=YES
+FIELD_BOUND_SEMANTIC_OBLIGATION_FROZEN=YES
+FOUR_RUN_E2E_OBLIGATION_FROZEN=YES
+RUNNER_PREREQUISITE_OBLIGATION_FROZEN=YES
 PR67_CORRECTION_AUTHORIZED=NO
 PR67_READY_AUTHORIZED=NO
 PR67_MERGE_AUTHORIZED=NO
@@ -886,54 +890,76 @@ ISSUE20_CLOSURE_AUTHORIZED=NO
 TASK12_AUTHORIZED=NO
 ```
 
-Charles freeze authorization in a separate round is required before
-any of the `AUTHORED_*` items above may transition to `FROZEN` or
-`BINDING`. The round terminates at this document authored; the Draft
+The `*_OBLIGATION_AUTHORED` lines above are now retired by
+this freeze commit; the corresponding `_FROZEN` markers are
+the current authority for the five new Slice 1 acceptance
+obligations. The round terminates at this freeze commit on top
+of the documented `FREEZE_AUTHORIZATION_BASE_HEAD`; the Draft
 PR is open and CI may run, but no Readiness, Merge, Issue #20
 closure, Task 12 start, or PR #67 mutation is authorized by this
-round.
+freeze. `AUTHORED_FOR_IMPLEMENTATION`, `PR69_READY_AUTHORIZED`,
+`PR69_MERGE_AUTHORIZED`, and `PR67_CORRECTION_AUTHORIZED` all
+remain at their pre-freeze `=NO` values, requiring their own
+separate authorization rounds to flip.
 
-## 9. Charles freeze-authorization language gates
+## 9. Post-freeze governance gates
 
-Until Charles's freeze-authorization round, this document MUST NOT
-be cited or relied upon using any pre-freeze-claim that conveys
-binding effect. Specifically the following composite claims are
-prohibited before Charles freeze authorization is issued and they
-remain exclusively reserved for the post-freeze rounds:
+This amendment is now FROZEN. The pre-freeze prohibitive gate that
+previously lived in this section has been retired by the freeze
+commit on top of `FREEZE_AUTHORIZATION_BASE_HEAD`. The gates that
+remain in force under the post-freeze state are:
+
+- Freeze has been completed.
+- Any contract-semantic change is forbidden by this round.
+- The next allowed governance action is an independent
+  post-freeze engineering review only.
+- After post-freeze review passes, Ready still requires an
+  explicit Charles authorization in a SEPARATE round.
+- After Ready, Merge still requires an explicit Charles
+  authorization in a SEPARATE round.
+- The five new acceptance obligations enter the source-contract
+  authority chain only after PR #69 Merge and post-merge main
+  identity verification.
+- No new PR #67 corrective round may begin before PR #69 Merge.
 
 ```text
-PROHIBITED_PRE_FREEZE_CLAIMS=
-  CONTRACT_AMENDMENT_FROZEN=YES
-  AUTHORIZED_FOR_IMPLEMENTATION=YES
-  P0_CLOSED=YES
-  PR67_CORRECTION_AUTHORIZED=YES
+CONTRACT_AMENDMENT_FROZEN=YES
+AUTHORIZED_FOR_IMPLEMENTATION=NO
+PR69_READY_AUTHORIZED=NO
+PR69_MERGE_AUTHORIZED=NO
+PR67_CORRECTION_AUTHORIZED=NO
+AUTHORIZATION=AUTHORIZE_PR69_CONTRACT_AMENDMENT_FREEZE
+FREEZE_AUTHORIZATION=CHARLES_EXPLICIT_AUTHORIZATION
+FREEZE_AUTHORIZATION_BASE_HEAD=edcc4f9bb9dcf25ac298ebf2a47a875b84030258
 ```
 
-The four composite claims above are the pre-freeze-prohibited
-claims for this amendment. The set is intentionally narrow: it does
-NOT prohibit the bare token strings `FROZEN` or `APPROVED` from
-appearing inside carefully scoped citations of other documents,
-inside status-survey text describing the current PR #67 review
-state, or inside quoted material from the binding review
-`4727663461`. What IS prohibited is the assertion that those tokens
-apply to THIS amendment prior to Charles's freeze-authorization
-round.
-
-It remains reserved exclusively for Charles's freeze-authorization
-round and any subsequent PR #67 corrective-authorization round to
-issue any of the four composite claims above. Their appearance as
-claims about THIS amendment today would be fabricated and is
-therefore forbidden.
+The four pre-freeze-prohibited composite claims referred to
+in the legacy §9 above — namely `CONTRACT_AMENDMENT_FROZEN`,
+`AUTHORIZED_FOR_IMPLEMENTATION`, `P0_CLOSED`, and
+`PR67_CORRECTION_AUTHORIZED` — are no longer prohibited in the
+post-freeze state. The first of those four is now asserted by
+this freeze commit itself (see the top status block and §10
+final classification). The second and fourth remain unset and
+will require their own future authorization rounds before
+their corresponding assertions can be made. The third
+(`P0_CLOSED`) is intentionally not asserted by this amendment
+because this amendment's freeze scope is Slice 1 acceptance
+obligations only — it does not retroactively close PR #67's
+engineering review items.
 
 ## 10. Final classification
 
 ```text
 FINAL_CLASSIFICATION=
-  TASK011_SLICE1_CONTRACT_AMENDMENT_001_CORRECTED_3_PENDING_INDEPENDENT_REVIEW
+  TASK011_SLICE1_CONTRACT_AMENDMENT_001_FROZEN_PENDING_POST_FREEZE_REVIEW
+  DOCUMENT_STATUS=FROZEN
+  CONTRACT_AMENDMENT_FROZEN=YES
+  AUTHORIZED_FOR_IMPLEMENTATION=NO
   PR68_FIVE_PATH_AUTHORITY=ACTIVE
   PR67_FIVE_PATH_P0=RESOLVED_BY_MERGED_PR68
-  PR69_FIVE_NEW_OBLIGATIONS=AUTHORED_PENDING_REVIEW
-  PR69_CONTRACT_AMENDMENT_FROZEN=NO
+  PR69_FIVE_NEW_OBLIGATIONS=FROZEN_PENDING_MERGE
+  PR69_READY_AUTHORIZED=NO
+  PR69_MERGE_AUTHORIZED=NO
   PR67_CORRECTION_AUTHORIZED=NO
   PR67_READY_AUTHORIZED=NO
   PR67_MERGE_AUTHORIZED=NO
@@ -941,22 +967,25 @@ FINAL_CLASSIFICATION=
   TASK12_AUTHORIZED=NO
 ```
 
-This document is corrected (single-file docs-only patch on top
-of the prior committed corrective-2 round), and is pending
-independent contract review. It contains zero implementation
-authority, zero PR #67 mutation authority, and zero GitHub
-workflow change authority as a result of this round's
-correction. The contract corrections this document records
-(markdown §0 and §1 structural repair, machine-readable
-governance marker normalization, duplicate authority marker
-rename, structural restoration of §0 authority values
-truncated by the prior round's corrective-2 patches, and
-PR-body full identity sync) are recorded in proposed-for-freeze
-form: they would become binding only after Charles's explicit
-freeze authorization in a separate round followed by Ready,
-Merge, and post-merge main-identity verification. Absent that
-freeze-authorization round, this document remains in
-`CORRECTED_3_PENDING_INDEPENDENT_REVIEW` indefinitely and
+This amendment is FROZEN as of the freeze commit on top of
+freeze-authorization base head `edcc4f9bb9dcf25ac298ebf2a47a875b84030258`.
+FREEZE_AUTHORIZATION_BASE_HEAD records that base. The freeze
+commits the five new Slice 1 acceptance obligations, the
+runner four-argument contract, the production correlation-ID
+contract, the PR #68 / PR #69 authority precedence, and the
+five-path audit restatement; it grants NO implementation
+authority, NO PR #67 Ready/Merge authorization, NO Issue #20
+closure authorization, and NO Task 12 authorization. Any
+post-freeze contract-semantic change must come from a
+separately authorized amendment (a new TASK-011-amendment
+document or equivalent), not from a corrective round.
+
+The previous authored paragraph (which kept this document in
+proposed-for-freeze form pending Charles's explicit freeze
+authorization in a separate round) is hereby superseded by
+this freeze commit. The prior `CORRECTED_3_PENDING_INDEPENDENT_REVIEW`
+classification is also superseded; the current classification
+is `TASK011_SLICE1_CONTRACT_AMENDMENT_001_FROZEN_PENDING_POST_FREEZE_REVIEW`.
 PR #69 remains in its current Draft state.
 
-*End of Amendment 001 (corrective-3).*
+*End of Amendment 001 (frozen).*
