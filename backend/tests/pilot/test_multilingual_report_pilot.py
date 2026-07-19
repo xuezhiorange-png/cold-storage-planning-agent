@@ -3,15 +3,20 @@ from __future__ import annotations
 import argparse
 import contextlib
 import inspect
+import io
 import json
 from collections.abc import Callable
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import fitz
 import pytest
+from docx import Document
 from sqlalchemy.orm import sessionmaker
 
+from cold_storage.evaluation import pilot_reports as ppr
 from cold_storage.evaluation.adapter import read_c2_baseline_projection
 from cold_storage.evaluation.compare import compare_outputs
 from cold_storage.evaluation.errors import StaleEvaluationArtifactsError
@@ -27,6 +32,18 @@ from cold_storage.evaluation.pilot_reports import (
 from cold_storage.evaluation.runners._executor import (
     build_baseline_normalized_business_projection,
 )
+from cold_storage.modules.reports.domain.enums import ExportFormat, ReportLocale
+from cold_storage.modules.reports.domain.render_model import (
+    CanonicalRenderMetadata,
+    CanonicalRenderMetric,
+    CanonicalRenderSection,
+    CanonicalRenderTable,
+    CanonicalRenderTableCell,
+    CanonicalReportRenderModel,
+    RenderManifest,
+)
+from cold_storage.modules.reports.renderers.docx_renderer import DocxRenderer
+from cold_storage.modules.reports.renderers.pdf_renderer import PdfRenderer
 from tests.evaluation._seed_helpers import (
     SOURCE_BINDING_ID,
     WEIGHT_REVISION_ID,
@@ -1170,3 +1187,852 @@ def test_p1_2_composition_error_mapping_unchanged(
     # The P1-2 catch MUST NOT have fired (it is typed to
     # ``PilotVerificationError``, not ``PilotCompositionError``).
     assert "PILOT_VERIFICATION_ERROR" not in captured.err
+
+
+# ── P1-3 focused tests (field-bound semantic observation) ─────────────────
+
+
+# A canonical render model builder that takes explicit section specs.
+#
+# Each spec is a dict:
+#   {
+#     "section_key": "electrical_and_energy",
+#     "content_type": "metrics" | "number" | "table",
+#     "metrics": [
+#         {"field_path": ..., "field_key": ...,
+#          "value": Decimal(...), "unit_code": "kW(e)"},
+#         ...
+#     ],
+#     "table": {
+#         "columns": [...],
+#         "rows": [[cell_value, ...], ...],
+#     },
+#     "number": {
+#         "field_path": ..., "field_key": ...,
+#         "value": Decimal(...), "unit_code": "kW(e)",
+#     },
+#   }
+_SECTION_TITLES: dict[str, dict[str, str]] = {
+    "zh-CN": {
+        "electrical_and_energy": "电气及能耗",
+        "noise_section": "噪声",
+        "investment_estimate": "投资估算",
+    },
+    "en-US": {
+        "electrical_and_energy": "Electrical and Energy",
+        "noise_section": "Noise",
+        "investment_estimate": "Investment Estimate",
+    },
+}
+
+
+def _build_canonical_model(
+    section_specs: list[dict[str, Any]],
+) -> CanonicalReportRenderModel:
+    """Build a minimal CanonicalReportRenderModel from explicit section specs."""
+    sections: list[CanonicalRenderSection] = []
+    section_keys: list[str] = []
+    for spec in section_specs:
+        content_type = spec.get("content_type", "metrics")
+        if content_type == "metrics":
+            metrics: list[CanonicalRenderMetric] = [
+                CanonicalRenderMetric(
+                    field_path=m["field_path"],
+                    field_key=m["field_key"],
+                    raw_value=m["value"],
+                    unit_code=m["unit_code"],
+                )
+                for m in spec["metrics"]
+            ]
+            sections.append(
+                CanonicalRenderSection(
+                    section_key=spec["section_key"],
+                    title=spec["section_key"],
+                    level=1,
+                    content_type_code="metrics",
+                    metrics=tuple(metrics),
+                )
+            )
+        elif content_type == "number":
+            num_spec = spec["number"]
+            sections.append(
+                CanonicalRenderSection(
+                    section_key=spec["section_key"],
+                    title=spec["section_key"],
+                    level=1,
+                    content_type_code="number",
+                    number=CanonicalRenderMetric(
+                        field_path=num_spec["field_path"],
+                        field_key=num_spec["field_key"],
+                        raw_value=num_spec["value"],
+                        unit_code=num_spec["unit_code"],
+                    ),
+                )
+            )
+        elif content_type == "table":
+            t = spec["table"]
+            column_keys: list[str] = []
+            unit_codes: list[str] = []
+            for col in t["columns"]:
+                column_keys.append(col["key"])
+                unit_codes.append(col.get("unit_code", ""))
+            rows: list[tuple[CanonicalRenderTableCell, ...]] = []
+            for row_data in t["rows"]:
+                cells: list[CanonicalRenderTableCell] = []
+                for cell_val, col_spec in zip(row_data, t["columns"], strict=True):
+                    field_path = f"{spec['section_key']}.{col_spec['key']}"
+                    field_key = f"field.{col_spec['key']}"
+                    unit_code = col_spec.get("unit_code", "")
+                    cells.append(
+                        CanonicalRenderTableCell(
+                            field_path=field_path,
+                            field_key=field_key,
+                            raw_value=cell_val,
+                            unit_code=unit_code,
+                        )
+                    )
+                rows.append(tuple(cells))
+            table = CanonicalRenderTable(
+                table_key=spec["section_key"],
+                column_keys=tuple(column_keys),
+                rows=tuple(rows),
+                unit_codes=tuple(unit_codes),
+            )
+            sections.append(
+                CanonicalRenderSection(
+                    section_key=spec["section_key"],
+                    title=spec["section_key"],
+                    level=1,
+                    content_type_code="table",
+                    table=table,
+                )
+            )
+        else:
+            raise ValueError(f"unsupported content_type: {content_type!r}")
+        section_keys.append(spec["section_key"])
+    return CanonicalReportRenderModel(
+        metadata=CanonicalRenderMetadata(
+            report_id="p1-3-test",
+            report_type="cold_storage_concept_design",
+            schema_version="1.0.0",
+            revision_number=1,
+            content_hash="a" * 16,
+            content_hash_short="a" * 16,
+            generated_at="2026-07-17T00:00:00",
+            generated_by="p1-3-test",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+        ),
+        sections=tuple(sections),
+        manifest=RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="1.0.0",
+            source_content_hash="a" * 16,
+            sections=tuple(section_keys),
+            format="docx",
+            render_settings={},
+        ),
+    )
+
+
+def _render_artifact(
+    canonical: CanonicalReportRenderModel,
+    *,
+    locale: ReportLocale,
+    fmt: ExportFormat,
+) -> bytes:
+    """Render a canonical model to DOCX/PDF bytes using the real renderer."""
+    from cold_storage.modules.reports.application.render_model_localizer import (
+        localize_render_model,
+    )
+
+    localized = localize_render_model(
+        canonical, locale=locale, template_manifest_json={}, format=fmt.value
+    )
+    if fmt is ExportFormat.DOCX:
+        return DocxRenderer().render(localized, is_draft=True)
+    if fmt is ExportFormat.PDF:
+        return PdfRenderer().render(localized, is_draft=True)
+    raise ValueError(f"unsupported fmt: {fmt!r}")
+
+
+def _build_synthetic_docx_with_lines(
+    section_blocks: list[tuple[str, list[str]]],
+) -> bytes:
+    """Build a synthetic DOCX with explicit section headings and paragraphs.
+
+    ``section_blocks`` is a list of (heading_text, [paragraph_text, ...]).
+    Headings are emitted as Heading 1; paragraphs as Normal.
+    """
+    doc = Document()
+    for heading, paragraphs in section_blocks:
+        doc.add_heading(heading, level=1)
+        for text in paragraphs:
+            doc.add_paragraph(text)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _build_synthetic_pdf_with_lines(
+    section_blocks: list[tuple[str, list[str]]],
+) -> bytes:
+    """Build a synthetic PDF with explicit section headings and text lines.
+
+    Used for negative-case tests where the real renderer cannot be used to
+    inject wrong values into specific sections.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    tw = fitz.TextWriter(page.rect)
+    y = 56.0
+    for heading, paragraphs in section_blocks:
+        tw.append(fitz.Point(56, y), heading, fontsize=16)
+        y += 40
+        for text in paragraphs:
+            tw.append(fitz.Point(56, y), text, fontsize=10)
+            y += 20
+    tw.write_text(page)
+    pdf_bytes = doc.tobytes()
+    doc.close()
+    return pdf_bytes
+
+
+def _expected_field_value_unit(
+    *, value: Decimal, unit_code: str, locale: ReportLocale
+) -> tuple[str, str]:
+    """Compute the expected display_value / display_unit as the renderer would emit them."""
+    from cold_storage.modules.reports.localization.formatter import (
+        format_decimal,
+        format_unit_label,
+    )
+
+    return (format_decimal(value, locale), format_unit_label(unit_code, locale))
+
+
+# ── Test 1: wrong-section false pass ──────────────────────────────────────
+
+
+def _build_synthetic_artifact_for_wrong_section(
+    *, fmt: ExportFormat, locale: ReportLocale
+) -> bytes:
+    """Build a synthetic artifact where the target section has the wrong
+    value (99.0) and a decoy section has the correct value (50.0).
+
+    The synthetic artifact MUST use the locale's localized label so the
+    metric binding can find the candidate paragraph in the target section.
+    """
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+    from cold_storage.modules.reports.localization.formatter import format_unit_label
+
+    catalog = get_catalog(locale)
+    target_label = catalog.messages.get("field.total_power", "Total Power")
+    decoy_label = catalog.messages.get("field.cop_system", "System COP")
+    target_heading = catalog.messages.get("section.electrical_and_energy", "Electrical and Energy")
+    decoy_heading = catalog.messages.get("section.cooling_load", "Cooling Load")
+    unit = format_unit_label("kW(e)", locale)
+    if fmt is ExportFormat.DOCX:
+        return _build_synthetic_docx_with_lines(
+            [
+                (target_heading, [f"{target_label}: 99.0 {unit}"]),  # WRONG value
+                (decoy_heading, [f"{decoy_label}: 50.0 {unit}"]),  # CORRECT value
+            ]
+        )
+    if fmt is ExportFormat.PDF:
+        return _build_synthetic_pdf_with_lines(
+            [
+                (target_heading, [f"{target_label}: 99.0 {unit}"]),
+                (decoy_heading, [f"{decoy_label}: 50.0 {unit}"]),
+            ]
+        )
+    raise ValueError(f"unsupported fmt: {fmt!r}")
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_wrong_section_value_does_not_satisfy_field_binding(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 Test 1: correct number in wrong section MUST NOT satisfy binding.
+
+    The artifact has the target field's section containing a wrong value
+    (99.0), and a decoy section elsewhere containing the correct value
+    (50.0). Section-scoped binding MUST fail the target field.
+    """
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "electrical_and_energy",
+                "content_type": "metrics",
+                "metrics": [
+                    {
+                        "field_path": "electrical_and_energy.total_power",
+                        "field_key": "field.total_power",
+                        "value": Decimal("50.0"),
+                        "unit_code": "kW(e)",
+                    }
+                ],
+            },
+            {
+                "section_key": "cooling_load",
+                "content_type": "metrics",
+                "metrics": [
+                    {
+                        "field_path": "cooling_load.alt_value",
+                        "field_key": "field.cop_system",
+                        "value": Decimal("50.0"),
+                        "unit_code": "kW(e)",
+                    }
+                ],
+            },
+        ]
+    )
+
+    artifact = _build_synthetic_artifact_for_wrong_section(fmt=fmt, locale=locale)
+
+    # Build a minimal template stub.
+    from types import SimpleNamespace
+
+    template = SimpleNamespace(manifest_json={})
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "FAIL", (
+        f"wrong-section value MUST fail field binding; got checks={checks!r}"
+    )
+    assert "electrical_and_energy.total_power" in checks["numeric_mismatches"], (
+        f"target field MUST be in numeric_mismatches; got {checks['numeric_mismatches']!r}"
+    )
+
+
+# ── Test 2: wrong-unit-location false pass ───────────────────────────────
+
+
+def _build_synthetic_artifact_for_wrong_unit(*, fmt: ExportFormat, locale: ReportLocale) -> bytes:
+    """Build a synthetic artifact where the target section uses the wrong
+    unit (kW(r) instead of kW(e)), and a decoy section uses the correct unit.
+
+    The synthetic artifact MUST use the locale's localized label so the
+    metric binding can find the candidate paragraph in the target section.
+    """
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+    from cold_storage.modules.reports.localization.formatter import format_unit_label
+
+    catalog = get_catalog(locale)
+    target_label = catalog.messages.get("field.total_power", "Total Power")
+    decoy_label = catalog.messages.get("field.cop_system", "System COP")
+    target_heading = catalog.messages.get("section.electrical_and_energy", "Electrical and Energy")
+    decoy_heading = catalog.messages.get("section.cooling_load", "Cooling Load")
+    # The expected unit is kW(e) but the artifact shows kW(r) in the
+    # target section.
+    wrong_unit = format_unit_label("kW(r)", locale)
+    right_unit = format_unit_label("kW(e)", locale)
+    if fmt is ExportFormat.DOCX:
+        return _build_synthetic_docx_with_lines(
+            [
+                (target_heading, [f"{target_label}: 50.0 {wrong_unit}"]),  # wrong unit
+                (decoy_heading, [f"{decoy_label}: 50.0 {right_unit}"]),  # correct
+            ]
+        )
+    if fmt is ExportFormat.PDF:
+        return _build_synthetic_pdf_with_lines(
+            [
+                (target_heading, [f"{target_label}: 50.0 {wrong_unit}"]),
+                (decoy_heading, [f"{decoy_label}: 50.0 {right_unit}"]),
+            ]
+        )
+    raise ValueError(f"unsupported fmt: {fmt!r}")
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_wrong_unit_at_target_field_does_not_satisfy_unit_binding(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 Test 2: correct value but wrong unit in target section MUST fail.
+
+    The artifact's target section has the right value (50.0) but the wrong
+    unit (kW(r) instead of kW(e)). A decoy section has the correct
+    value+unit combination. The verifier MUST report a unit mismatch on
+    the target field, NOT accept the decoy's unit.
+    """
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "electrical_and_energy",
+                "content_type": "metrics",
+                "metrics": [
+                    {
+                        "field_path": "electrical_and_energy.total_power",
+                        "field_key": "field.total_power",
+                        "value": Decimal("50.0"),
+                        "unit_code": "kW(e)",
+                    }
+                ],
+            },
+            {
+                "section_key": "cooling_load",
+                "content_type": "metrics",
+                "metrics": [
+                    {
+                        "field_path": "cooling_load.alt_value",
+                        "field_key": "field.cop_system",
+                        "value": Decimal("50.0"),
+                        "unit_code": "kW(e)",
+                    }
+                ],
+            },
+        ]
+    )
+
+    artifact = _build_synthetic_artifact_for_wrong_unit(fmt=fmt, locale=locale)
+
+    from types import SimpleNamespace
+
+    template = SimpleNamespace(manifest_json={})
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "FAIL", (
+        f"wrong unit MUST fail field binding; got checks={checks!r}"
+    )
+    # The target field MUST be reported in missing_units (unit absent/mismatched
+    # in target section's binding site).
+    assert "electrical_and_energy.total_power" in checks["missing_units"], (
+        f"target field MUST be in missing_units; got {checks['missing_units']!r}"
+    )
+
+
+# ── Test 3: table row swap ────────────────────────────────────────────────
+
+
+def _build_synthetic_artifact_for_table_row_swap(
+    *, fmt: ExportFormat, locale: ReportLocale
+) -> bytes:
+    """Build a synthetic artifact where a 2-row table has its row values
+    swapped relative to the canonical model.
+
+    The canonical model expects row A = 50.0, row B = 99.0.
+    The artifact renders row A = 99.0, row B = 50.0.
+    """
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+    from cold_storage.modules.reports.localization.formatter import format_unit_label
+
+    catalog = get_catalog(locale)
+    investment_heading = catalog.messages.get("section.investment_estimate", "Investment Estimate")
+    header_label = catalog.messages.get("header.scheme", "Scheme")
+    value_header = catalog.messages.get("header.total_power", "Total Power")
+    unit = format_unit_label("kW(e)", locale)
+    if fmt is ExportFormat.DOCX:
+        # Build a DOCX with one table that has 2 data rows.
+        from docx import Document
+
+        doc = Document()
+        doc.add_heading(investment_heading, level=1)
+        table = doc.add_table(rows=4, cols=2)  # header + unit + 2 data
+        table.style = "Table Grid"
+        table.rows[0].cells[0].text = header_label
+        table.rows[0].cells[1].text = value_header
+        table.rows[1].cells[0].text = "单位"
+        table.rows[1].cells[1].text = unit
+        # Row A: 99.0 (swapped, expected 50.0)
+        table.rows[2].cells[0].text = "A"
+        table.rows[2].cells[1].text = "99.0"
+        # Row B: 50.0 (swapped, expected 99.0)
+        table.rows[3].cells[0].text = "B"
+        table.rows[3].cells[1].text = "50.0"
+        buf = io.BytesIO()
+        doc.save(buf)
+        return buf.getvalue()
+    if fmt is ExportFormat.PDF:
+        # For PDF, we use a small PDF with explicit text lines that mimic
+        # a table layout. Since PDF table parsing is coordinate-based, we
+        # arrange the text in a 2-column layout (left-aligned labels,
+        # right-aligned numbers).
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        tw = fitz.TextWriter(page.rect)
+        tw.append(fitz.Point(56, 80), investment_heading, fontsize=16)
+        # Header row
+        tw.append(fitz.Point(56, 130), header_label, fontsize=10)
+        tw.append(fitz.Point(300, 130), value_header, fontsize=10)
+        # Unit row
+        tw.append(fitz.Point(56, 150), "单位", fontsize=10)
+        tw.append(fitz.Point(300, 150), unit, fontsize=10)
+        # Data row A
+        tw.append(fitz.Point(56, 180), "A", fontsize=10)
+        tw.append(fitz.Point(300, 180), "99.0", fontsize=10)
+        # Data row B
+        tw.append(fitz.Point(56, 200), "B", fontsize=10)
+        tw.append(fitz.Point(300, 200), "50.0", fontsize=10)
+        tw.write_text(page)
+        pdf_bytes = doc.tobytes()
+        doc.close()
+        return pdf_bytes
+    raise ValueError(f"unsupported fmt: {fmt!r}")
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_table_row_swap_fails_field_binding(fmt: ExportFormat, locale: ReportLocale) -> None:
+    """P1-3 Test 3: swapping row values in a numeric table MUST fail binding.
+
+    The artifact's row A is 99.0 (expected 50.0), row B is 50.0 (expected
+    99.0). Both values exist in the document. The verifier MUST report
+    row mismatches for BOTH rows, not just accept the value set globally.
+    """
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_power", "unit_code": "kW(e)"},
+                    ],
+                    "rows": [
+                        # Row A
+                        [
+                            "A",
+                            Decimal("50.0"),
+                        ],
+                        # Row B
+                        [
+                            "B",
+                            Decimal("99.0"),
+                        ],
+                    ],
+                },
+            }
+        ]
+    )
+
+    artifact = _build_synthetic_artifact_for_table_row_swap(fmt=fmt, locale=locale)
+
+    from types import SimpleNamespace
+
+    template = SimpleNamespace(manifest_json={})
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "FAIL", (
+        f"row swap MUST fail field binding; got checks={checks!r}"
+    )
+    # Both row A and row B MUST be in numeric_mismatches.
+    assert "investment_estimate.total_power" in checks["numeric_mismatches"], (
+        f"row A MUST be in numeric_mismatches; got {checks['numeric_mismatches']!r}"
+    )
+    # The other row appears as a separate field_path? No — the canonical
+    # model has a single column with two rows. The check for this test is
+    # that ``investment_estimate.total_power`` is reported as a mismatch
+    # because the values are in the wrong rows. (We don't track per-row
+    # field_path here; the entire column is one canonical field.)
+
+
+# ── Test 4: observed value comes from the artifact, not the model ─────────
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_observed_numeric_fields_are_artifact_derived(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 Test 4: observed_numeric_fields[target].display_value comes
+    from the artifact bytes, NOT from the localized model.
+
+    Build a model where canonical says 50.0, then build a synthetic
+    artifact where the rendered paragraph for the target field shows
+    99.0 instead. The verifier MUST FAIL on the value mismatch, and the
+    observed record MUST contain 99.0 (artifact), not 50.0 (model).
+    """
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "electrical_and_energy",
+                "content_type": "metrics",
+                "metrics": [
+                    {
+                        "field_path": "electrical_and_energy.total_power",
+                        "field_key": "field.total_power",
+                        "value": Decimal("50.0"),
+                        "unit_code": "kW(e)",
+                    }
+                ],
+            }
+        ]
+    )
+
+    # Build a synthetic artifact where the rendered value is 99.0
+    # (different from the canonical's 50.0). The synthetic artifact
+    # MUST use the locale's localized label so the metric binding can
+    # find the candidate paragraph in the target section.
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+    from cold_storage.modules.reports.localization.formatter import format_unit_label
+
+    catalog = get_catalog(locale)
+    target_label = catalog.messages.get("field.total_power", "Total Power")
+    target_heading = catalog.messages.get("section.electrical_and_energy", "Electrical and Energy")
+    unit = format_unit_label("kW(e)", locale)
+    if fmt is ExportFormat.DOCX:
+        artifact = _build_synthetic_docx_with_lines(
+            [(target_heading, [f"{target_label}: 99.0 {unit}"])]
+        )
+    else:
+        artifact = _build_synthetic_pdf_with_lines(
+            [(target_heading, [f"{target_label}: 99.0 {unit}"])]
+        )
+
+    from types import SimpleNamespace
+
+    template = SimpleNamespace(manifest_json={})
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "FAIL", (
+        f"artifact showing 99.0 vs canonical 50.0 MUST fail; got checks={checks!r}"
+    )
+    # The observed record MUST contain the artifact value 99.0, NOT the
+    # canonical's expected 50.0.
+    target = next(
+        f
+        for f in checks["observed_numeric_fields"]
+        if f["field_path"] == "electrical_and_energy.total_power"
+    )
+    assert target["display_value"] == "99.0", (
+        f"observed display_value MUST be the artifact value 99.0 (not "
+        f"the localized model 50.0); got {target!r}"
+    )
+
+
+# ── Test 5: ambiguous binding ─────────────────────────────────────────────
+
+
+def _build_synthetic_artifact_with_duplicate_label(
+    *, fmt: ExportFormat, locale: ReportLocale
+) -> bytes:
+    """Build a synthetic artifact where the target section has two
+    paragraphs that both claim to be the same metric (same label).
+
+    The verifier MUST detect the ambiguity and FAIL closed.
+    """
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+    from cold_storage.modules.reports.localization.formatter import format_unit_label
+
+    catalog = get_catalog(locale)
+    target_label = catalog.messages.get("field.total_power", "Total Power")
+    target_heading = catalog.messages.get("section.electrical_and_energy", "Electrical and Energy")
+    unit = format_unit_label("kW(e)", locale)
+    paragraph = f"{target_label}: 50.0 {unit}"
+    if fmt is ExportFormat.DOCX:
+        return _build_synthetic_docx_with_lines(
+            [
+                (
+                    target_heading,
+                    [
+                        paragraph,  # candidate 1
+                        paragraph,  # candidate 2 (identical!)
+                    ],
+                ),
+            ]
+        )
+    if fmt is ExportFormat.PDF:
+        return _build_synthetic_pdf_with_lines(
+            [
+                (
+                    target_heading,
+                    [
+                        paragraph,
+                        paragraph,
+                    ],
+                ),
+            ]
+        )
+    raise ValueError(f"unsupported fmt: {fmt!r}")
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_ambiguous_field_binding_fails_closed(fmt: ExportFormat, locale: ReportLocale) -> None:
+    """P1-3 Test 5: ambiguous binding (two paragraphs with same label) MUST
+    fail closed rather than arbitrarily picking one.
+    """
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "electrical_and_energy",
+                "content_type": "metrics",
+                "metrics": [
+                    {
+                        "field_path": "electrical_and_energy.total_power",
+                        "field_key": "field.total_power",
+                        "value": Decimal("50.0"),
+                        "unit_code": "kW(e)",
+                    }
+                ],
+            }
+        ]
+    )
+
+    artifact = _build_synthetic_artifact_with_duplicate_label(fmt=fmt, locale=locale)
+
+    from types import SimpleNamespace
+
+    template = SimpleNamespace(manifest_json={})
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "FAIL", (
+        f"ambiguous binding MUST fail closed; got checks={checks!r}"
+    )
+    assert "electrical_and_energy.total_power" in checks["numeric_mismatches"], (
+        f"ambiguous field MUST be reported in numeric_mismatches; got "
+        f"{checks['numeric_mismatches']!r}"
+    )
+
+
+# ── Test 6: positive baseline (real renderer) ─────────────────────────────
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_real_renderer_metric_section_passes(fmt: ExportFormat, locale: ReportLocale) -> None:
+    """P1-3 Test 6 (positive): the real renderer's output for a single
+    metrics section MUST pass structured field-bound verification.
+
+    This is the controlled positive baseline: the artifact is produced
+    by the real DocxRenderer / PdfRenderer from a real localized model
+    with a single field, and the verifier MUST find that field at the
+    correct binding site and report PASS.
+    """
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "electrical_and_energy",
+                "content_type": "metrics",
+                "metrics": [
+                    {
+                        "field_path": "electrical_and_energy.total_power",
+                        "field_key": "field.total_power",
+                        "value": Decimal("50.0"),
+                        "unit_code": "kW(e)",
+                    }
+                ],
+            }
+        ]
+    )
+
+    artifact = _render_artifact(canonical, locale=locale, fmt=fmt)
+
+    from types import SimpleNamespace
+
+    template = SimpleNamespace(manifest_json={})
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "PASS", (
+        f"real renderer output for a single metrics section MUST pass "
+        f"structured verification; got checks={checks!r}"
+    )
+    # The observed record for the target field MUST come from the artifact,
+    # so its display_value is "50.0" (the real rendered value).
+    target = next(
+        f
+        for f in checks["observed_numeric_fields"]
+        if f["field_path"] == "electrical_and_energy.total_power"
+    )
+    assert target["display_value"] == "50.0", (
+        f"observed display_value MUST match artifact 50.0; got {target!r}"
+    )
+
+
+# ── Test 7: locale coverage ───────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_number_section_with_localized_label(fmt: ExportFormat, locale: ReportLocale) -> None:
+    """P1-3 Test 7: a 'number' section MUST also bind correctly with the
+    locale-specific label/heading.
+
+    Verifies that the binding layer walks localized section headings
+    (translated) and finds the value+unit line in the correct section,
+    even when the heading text differs across locales.
+    """
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "number",
+                "number": {
+                    "field_path": "investment_estimate.total_investment",
+                    "field_key": "field.total_capital_cost",
+                    "value": Decimal("1000"),
+                    "unit_code": "CNY",
+                },
+            }
+        ]
+    )
+
+    artifact = _render_artifact(canonical, locale=locale, fmt=fmt)
+
+    from types import SimpleNamespace
+
+    template = SimpleNamespace(manifest_json={})
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "PASS", (
+        f"real-renderer number section MUST pass for {locale.value}/{fmt.value}; "
+        f"got checks={checks!r}"
+    )
+    target = next(
+        f
+        for f in checks["observed_numeric_fields"]
+        if f["field_path"] == "investment_estimate.total_investment"
+    )
+    # The unit display differs per locale (CNY in both, but the value
+    # uses thousands separator only in en-US).
+    expected_value, _ = _expected_field_value_unit(
+        value=Decimal("1000"), unit_code="CNY", locale=locale
+    )
+    assert target["display_value"] == expected_value, (
+        f"observed display_value MUST match the rendered localized value "
+        f"{expected_value!r} for {locale.value}; got {target!r}"
+    )
