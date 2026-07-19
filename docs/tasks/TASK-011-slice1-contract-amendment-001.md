@@ -502,16 +502,24 @@ NO_ENGINEERING_FORMULA_TEST_ADDITION
 NO_SCHEMA_CHANGE_TEST
 ```
 
-## 5. Five additional acceptance obligations (FROZEN; binding under post-freeze state)
+## 5. Five additional acceptance obligations
+### (FROZEN text; binding only after PR #69 merge and post-merge main identity verification)
 
 The five-path authority inherited from §20 (PR #68) is **necessary
-but not sufficient** for Slice 1 acceptance. This amendment proposes
-five additional acceptance obligations that become binding only after
-this amendment is itself FROZEN, then would pass through Ready, Merge, and
-and the post-merge main identity is verified; none is enforceable in
-this authoring round. The `evaluate.py` refactor reminder in §6 below
-is a **retained source-contract obligation** and is not counted among
-these five.
+but not sufficient** for Slice 1 acceptance. The text of these five
+additional acceptance obligations is **frozen by this round**
+(`DOCUMENT_TEXT_FROZEN=YES`, `CONTRACT_AMENDMENT_FROZEN=YES`,
+`PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_TEXT_FROZEN=YES`,
+`PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_CURRENTLY_BINDING=NO`).
+The obligations **do not enter the source-contract authority chain**
+(`FREEZE_ALONE_CREATES_SOURCE_CONTRACT_AUTHORITY=NO`) until
+**PR #69 is merged and the post-merge main identity is verified**
+(`PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_BINDING_TRIGGER=`
+`PR69_MERGE_AND_POST_MERGE_MAIN_IDENTITY_VERIFICATION`). Until that
+trigger fires, the obligations remain a frozen proposed contract delta
+and are **not** current authority for PR #67. The `evaluate.py` refactor
+reminder in §6 below is a **retained source-contract obligation** and is
+not counted among these five.
 
 ```text
 TOTAL_ADDITIONAL_ACCEPTANCE_OBLIGATIONS=5
@@ -523,15 +531,18 @@ OBLIGATION_5_5=Production runner prerequisite and invocation contract
 EVALUATE_PY_REFACTOR_REMINDER=RETAINED_FROM_SOURCE_CONTRACT_NOT_COUNTED_HERE
 ```
 
-Under the current frozen state, each obligation below
-becomes binding. PR #67 readiness review will check that the merged
-PR #67 satisfies all five.
+Once PR #69 has merged and post-merge main identity verification has
+passed, each obligation below becomes binding. Until that trigger fires,
+PR #67 readiness review **must not** apply the five new obligations as
+acceptance criteria (the PR #67 five-path P0 stays resolved by merged
+PR #68 §20, see §7.1).
 
 ### 5.1 Exact manifest and golden acceptance binding
 
-Under the current frozen state, future Slice 1 implementation MUST validate, at runtime, the frozen
-manifest identity and execute the frozen exact-equality comparison
-against the existing evaluation authority. Specifically:
+Once PR #69 has merged and post-merge main identity verification has
+passed, future Slice 1 implementation MUST validate, at runtime, the
+frozen manifest identity and execute the frozen exact-equality
+comparison against the existing evaluation authority. Specifically:
 
 - exact backend-specific `suite_id`
 - exactly one scenario
@@ -712,7 +723,9 @@ UNSAFE_CLEANUP_REJECTION
 
 ### 5.5 Production runner prerequisite and invocation contract
 
-Under the current frozen state, future Slice 1 implementation MUST satisfy the runner surface and prerequisite-provisioning contract specified in §3a. Concretely:
+Once PR #69 has merged and post-merge main identity verification has
+passed, future Slice 1 implementation MUST satisfy the runner surface
+and prerequisite-provisioning contract specified in §3a. Concretely:
 
 - The pilot composition MUST call
   `cold_storage.evaluation.execute::run_scenario` with all four
@@ -752,14 +765,18 @@ REPEAT_1_PRODUCTION_CORRELATION_ID_EQUALS_REPEAT_2=YES
 REPEAT_UNIQUENESS_DOES_NOT_REQUIRE_CORRELATION_VARIATION=YES
 CROSS_REPEAT_GOLDEN_INVARIANT_INCLUDES_CORRELATION_ID=YES
 ```
-- Freeze of this amendment becomes binding immediately on main merge,
-  but enforcement for PR #67 waits for Charles's separate PR #67
-  corrective authorization.
+- The five new acceptance obligations become binding only after PR #69
+  merge and post-merge main identity verification; enforcement for
+  PR #67 additionally waits for Charles's separate PR #67 corrective
+  authorization.
 
 ```text
-OBLIGATION_5_5_BINDING_AFTER_MERGE=YES
+OBLIGATION_5_5_BINDING_AFTER_MERGE_AND_POST_MERGE_VERIFICATION=YES
 OBLIGATION_5_5_ENFORCEMENT_FOR_PR67=REQUIRES_SEPARATE_PR67_CORRECTIVE_ROUND
 RUNNER_PREREQUISITES_EXPLICIT=YES
+PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_BINDING_TRIGGER=PR69_MERGE_AND_POST_MERGE_MAIN_IDENTITY_VERIFICATION
+FIVE_NEW_OBLIGATIONS_CURRENTLY_BINDING=NO
+FREEZE_ALONE_CREATES_SOURCE_CONTRACT_AUTHORITY=NO
 ```
 
 ## 6. Source-contract obligations retained
@@ -808,7 +825,10 @@ PR67_REMAINS_OPEN_AND_DRAFT=YES
 # Three concepts that MUST remain distinct:
 A_HISTORICAL_PRE_PR68_MUTATION_AUTHORIZATION_STATUS=HISTORICAL_FACT_NOT_REWRITTEN
 B_CURRENT_PR67_FIVE_PATH_AUTHORITY=ACTIVE_VIA_MERGED_PR68_SECTION_20
-C_PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS=NOT_BINDING_UNTIL_PR69_MERGE
+C_PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS=NOT_BINDING_UNTIL_PR69_MERGE_AND_POST_MERGE_MAIN_IDENTITY_VERIFICATION
+PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_TEXT_FROZEN=YES
+PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_CURRENTLY_BINDING=NO
+PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS_BINDING_TRIGGER=PR69_MERGE_AND_POST_MERGE_MAIN_IDENTITY_VERIFICATION
 ```
 
 ### 7.1 Five-path P0 status (already resolved)
@@ -830,11 +850,20 @@ provides) but because the following unrelated conditions are open:
    `4727663461` verdict `CHANGES_REQUESTED` remains the controlling
    verdict until separate, individually authorized corrective
    rounds lift or replace it.
-2. **Five new acceptance obligations proposed by PR #69 are not
-   yet binding** — they are authored in this draft and require
-   Charles's freeze authorization, then Ready, then Merge, then
-   post-merge main identity verification, in four separate
-   rounds.
+2. **Five new acceptance obligations proposed by PR #69 are frozen
+   text but currently not binding** — Charles's freeze authorization
+   has been applied (`FREEZE_AUTHORIZATION=CHARLES_EXPLICIT_AUTHORIZATION`,
+   `FREEZE_AUTHORIZATION_BASE_HEAD=edcc4f9bb9dcf25ac298ebf2a47a875b84030258`),
+   so the remaining activation gates are: post-freeze engineering
+   review pass, Charles's explicit Ready authorization,
+   Charles's explicit Merge authorization, PR #69 merge, and
+   post-merge main identity verification, in five separate rounds.
+   `FREEZE_AUTHORIZATION_PENDING=NO`;
+   `POST_FREEZE_ENGINEERING_REVIEW_PASS_PENDING=YES`;
+   `READY_AUTHORIZATION_PENDING=YES`;
+   `MERGE_AUTHORIZATION_PENDING=YES`;
+   `POST_MERGE_MAIN_IDENTITY_VERIFICATION_PENDING=YES`;
+   `FIVE_NEW_OBLIGATIONS_CURRENTLY_BINDING=NO`.
 3. **No PR #67 corrective/Ready/Merge authorization issued** —
    Charles has not yet issued any of these authorizations for
    PR #67 directly.
@@ -965,6 +994,8 @@ FINAL_CLASSIFICATION=
   PR67_MERGE_AUTHORIZED=NO
   ISSUE20_CLOSURE_AUTHORIZED=NO
   TASK12_AUTHORIZED=NO
+  FREEZE_ALONE_CREATES_SOURCE_CONTRACT_AUTHORITY=NO
+  CANONICAL_BINDING_RULE=RULE_B
 ```
 
 This amendment is FROZEN as of the freeze commit on top of
