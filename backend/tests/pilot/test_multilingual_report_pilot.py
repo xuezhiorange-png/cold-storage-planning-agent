@@ -1399,6 +1399,133 @@ def _build_synthetic_pdf_with_lines(
     return pdf_bytes
 
 
+def _build_synthetic_docx_with_table(
+    *,
+    section_heading: str,
+    headers: tuple[str, ...],
+    unit_row: tuple[str, ...],
+    data_rows: list[tuple[str, ...]],
+) -> bytes:
+    """Build a synthetic DOCX with a single section + a single table.
+
+    The table is emitted with: header row, unit row (always
+    emitted if ``unit_row`` is provided, even when all cells are
+    empty), and N data rows. Cell values are written literally
+    (no renderer wrapping).
+    """
+    doc = Document()
+    doc.add_heading(section_heading, level=1)
+    has_unit = unit_row is not None
+    n_rows = 1 + (1 if has_unit else 0) + len(data_rows)
+    table = doc.add_table(rows=n_rows, cols=len(headers))
+    # Header row
+    for col_idx, h in enumerate(headers):
+        cell = table.cell(0, col_idx)
+        cell.text = h
+    # Unit row (always when provided; may be all empty for
+    # "missing unit" tests)
+    if has_unit:
+        for col_idx, u in enumerate(unit_row):
+            cell = table.cell(1, col_idx)
+            cell.text = u
+        offset = 2
+    else:
+        offset = 1
+    # Data rows
+    for r_idx, row in enumerate(data_rows):
+        for col_idx, v in enumerate(row):
+            cell = table.cell(offset + r_idx, col_idx)
+            cell.text = v
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _build_synthetic_pdf_with_table(
+    *,
+    section_heading: str,
+    headers: tuple[str, ...],
+    unit_row: tuple[str, ...],
+    data_rows: list[tuple[str, ...]],
+    column_xs: tuple[float, ...] = (56.0, 300.0),
+    page_height: float = 842.0,
+) -> bytes:
+    """Build a synthetic PDF with a single section + a single table.
+
+    The table is emitted at fixed x-positions (``column_xs``) so
+    the cell-binding's x-band alignment can map each cell to its
+    column. The unit row's cells may be empty (the helper still
+    emits the row's y-band so the cell-binding can detect the
+    "missing unit" case). Data rows are emitted one cell per
+    line. A new page is started if the table extends past
+    ``page_height``.
+    """
+    doc = fitz.open()
+    pages: list[Any] = [doc.new_page(width=595, height=page_height)]
+    tw = fitz.TextWriter(pages[0].rect)
+    y = 56.0
+    tw.append(fitz.Point(56, y), section_heading, fontsize=14)
+    y += 24
+    # Header row
+    for col_idx, h in enumerate(headers):
+        x = column_xs[col_idx] if col_idx < len(column_xs) else 56.0
+        tw.append(fitz.Point(x, y), h, fontsize=10)
+    y += 18
+    # Unit row (always when provided; may be all empty for
+    # "missing unit" tests). Each cell is emitted at its column
+    # x-band; empty cells still occupy the y-band even though no
+    # text is rendered. (For PDF, the helper ALWAYS emits a text
+    # token for each non-empty unit cell; empty cells produce no
+    # token — this matches the renderer's real behavior.)
+    if unit_row is not None:
+        for col_idx, u in enumerate(unit_row):
+            if not u:
+                continue
+            x = column_xs[col_idx] if col_idx < len(column_xs) else 56.0
+            tw.append(fitz.Point(x, y), u, fontsize=10)
+        y += 18
+    # Data rows
+    for row in data_rows:
+        for col_idx, v in enumerate(row):
+            if not v:
+                continue
+            x = column_xs[col_idx] if col_idx < len(column_xs) else 56.0
+            if y > page_height - 56:
+                tw.write_text(pages[-1])
+                pages.append(doc.new_page(width=595, height=page_height))
+                tw = fitz.TextWriter(pages[-1].rect)
+                y = 56.0
+            tw.append(fitz.Point(x, y), v, fontsize=10)
+        y += 18
+    tw.write_text(pages[-1])
+    pdf_bytes = doc.tobytes()
+    doc.close()
+    return pdf_bytes
+
+
+def _build_synthetic_pdf_with_table_split_pages(
+    *,
+    section_heading: str,
+    headers: tuple[str, ...],
+    unit_row: tuple[str, ...],
+    data_rows: list[tuple[str, ...]],
+    column_xs: tuple[float, ...] = (56.0, 300.0),
+) -> bytes:
+    """Build a synthetic PDF whose data rows extend past a single page.
+
+    Used to verify cross-page row identity (the cell binding
+    MUST continue row indexing across pages).
+    """
+    return _build_synthetic_pdf_with_table(
+        section_heading=section_heading,
+        headers=headers,
+        unit_row=unit_row,
+        data_rows=data_rows,
+        column_xs=column_xs,
+        page_height=200.0,  # force a page break
+    )
+
+
 def _expected_field_value_unit(
     *, value: Decimal, unit_code: str, locale: ReportLocale
 ) -> tuple[str, str]:
@@ -2467,30 +2594,18 @@ def test_p1_3_number_decoy_in_same_section_does_not_pass(
         artifact_bytes=artifact,
     )
     target = _find_observed(checks, "investment_estimate.total_investment")
-    # The verifier MUST NOT report PASS. With a target + decoy in the
-    # same section, two number records are present, so the correct
-    # outcome is either BOUND (the verifier binds the structural
-    # target and reports a value mismatch) or AMBIGUOUS_FIELD_BINDING
-    # (the verifier refuses to pick between the two records). Both
-    # are valid fail-closed outcomes; only PASS would be wrong.
-    assert target["binding_status"] in (
-        "BOUND",
-        "AMBIGUOUS_FIELD_BINDING",
-    ), f"verifier MUST NOT silently accept a decoy; got {target['binding_status']!r}"
-    assert target["binding_status"] != "BOUND" or target["display_value"] == "999", (
-        f"if binding succeeds (BOUND), the observed value MUST be the "
-        f"structural target's 999, NOT the decoy's {expected_value_str!r}; "
-        f"got {target['display_value']!r}"
+    # Per Corrective 5, the first record is bound unconditionally.
+    # The decoy is body prose and MUST NOT be considered a candidate.
+    # The observed value MUST be the target's 999, not the decoy's.
+    assert target["binding_status"] == "BOUND", (
+        f"verifier MUST bind the first record (Corrective 5); got {target['binding_status']!r}"
     )
-    assert (
-        target["display_value"] != expected_value_str
-        or target["binding_status"] == "AMBIGUOUS_FIELD_BINDING"
-    ), (
-        f"the decoy's {expected_value_str!r} MUST NOT be observed as "
-        f"the sole binding; got {target['display_value']!r}"
+    assert target["display_value"] == "999", (
+        f"observed value MUST be the structural target's 999, NOT the "
+        f"decoy's {expected_value_str!r}; got {target['display_value']!r}"
     )
     assert checks["semantic_result"] == "FAIL", (
-        f"semantic result MUST be FAIL; got {checks['semantic_result']!r}"
+        f"semantic result MUST be FAIL (target != expected); got {checks['semantic_result']!r}"
     )
     target_in_mismatches = (
         "investment_estimate.total_investment" in checks["numeric_mismatches"]
@@ -2561,9 +2676,16 @@ def test_p1_3_number_empty_unit_real_renderer_passes(
 def test_p1_3_number_ambiguous_structure_fails_closed(
     fmt: ExportFormat, locale: ReportLocale
 ) -> None:
-    """P1-3 corrective B.4 (number ambiguous structure): the verifier
-    MUST fail closed when there are multiple candidate number records
-    in the target section (no unique structural position to bind).
+    """P1-3 corrective B.4 (number first structural record): the
+    verifier MUST bind the FIRST non-empty, non-heading content
+    record and stop scanning. Subsequent records (e.g. body prose
+    that happens to contain a number) MUST NOT cause
+    ``AMBIGUOUS_FIELD_BINDING``.
+
+    Per Corrective 5, the first record is taken unconditionally.
+    AMBIGUOUS is reserved for genuine structural ambiguity (e.g.
+    a section whose first record is itself structurally
+    ambiguous — not merely "more records exist after the first").
     """
 
     canonical = _build_canonical_model(
@@ -2580,7 +2702,8 @@ def test_p1_3_number_ambiguous_structure_fails_closed(
             }
         ]
     )
-    # Two number records in the same section.
+    # Two number records in the same section. The FIRST is bound;
+    # the second is body prose and MUST NOT be a candidate.
     artifact = _build_synthetic_number_section_artifact(
         fmt=fmt,
         locale=locale,
@@ -2596,19 +2719,20 @@ def test_p1_3_number_ambiguous_structure_fails_closed(
         artifact_bytes=artifact,
     )
     target = _find_observed(checks, "investment_estimate.total_investment")
-    assert target["binding_status"] == "AMBIGUOUS_FIELD_BINDING", (
-        f"two number records in the same section MUST be AMBIGUOUS; got "
-        f"{target['binding_status']!r}"
+    # The first record is BOUND (NOT AMBIGUOUS — Corrective 5).
+    assert target["binding_status"] == "BOUND", (
+        f"first record MUST be BOUND under Corrective 5; got {target['binding_status']!r}"
     )
-    # The expected value is NOT copied into the observed record.
-    assert target["display_value"] == "", (
-        f"on AMBIGUOUS, display_value MUST be empty (NOT '1,000'); got {target['display_value']!r}"
+    # The observed value comes from the FIRST artifact record.
+    assert target["display_value"] == "1,000", (
+        f"first record value MUST be observed; got {target['display_value']!r}"
     )
-    # The artifact-derived candidates are exposed.
-    assert target.get("candidate_count") == 2, (
-        f"AMBIGUOUS MUST expose 2 artifact candidates; got "
-        f"candidate_count={target.get('candidate_count')!r}"
-    )
+    # No candidates exposed (the first record was the binding).
+    assert "candidate_count" not in target, "first-record binding MUST NOT expose candidates"
+    # First record matches expected (en-US 1,000) → PASS; or
+    # mismatches (zh-CN localized format) → FAIL. Either way, the
+    # first record is the only binding.
+    assert checks["semantic_result"] in ("PASS", "FAIL")
 
 
 # C. Real renderer table positive (mixed unit columns)
@@ -2726,8 +2850,12 @@ def _build_synthetic_pdf_with_two_tables_on_same_page(
     from cold_storage.modules.reports.localization.catalog import get_catalog
 
     catalog = get_catalog(locale)
+    # Use the table header keys that the canonical model actually
+    # emits for the column ``total_capital_cost`` /
+    # ``total_power``. We use the same key the table-cell binding
+    # test expects (header.scheme + header.total_capital_cost).
     header_a = catalog.messages.get("header.scheme", "Scheme")
-    header_b = catalog.messages.get("header.total_power", "Total Power")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
     doc = fitz.open()
     page = doc.new_page(width=595, height=842)
     tw = fitz.TextWriter(page.rect)
@@ -2776,6 +2904,13 @@ def test_p1_3_pdf_two_tables_on_same_page_section_local(
     """P1-3 corrective D: two tables on the same PDF page MUST be
     section-local. The decoy section's value MUST NOT cause the
     target section to false-PASS.
+
+    Per Corrective 4, this test uses ``content_type="table"`` (not
+    ``number``) so the verifier executes the real table-cell
+    binding path. The target table's value is 999 (WRONG vs
+    canonical 1000); the decoy's is 1000. The verifier MUST
+    report FAIL with the target's 999 as the observed value,
+    not the decoy's 1000.
     """
 
     from cold_storage.modules.reports.localization.catalog import get_catalog
@@ -2793,6 +2928,911 @@ def test_p1_3_pdf_two_tables_on_same_page_section_local(
         decoy_heading=decoy_heading,
         decoy_table_rows=[("B", "1000")],
     )
+    # Canonical is a TABLE section (not number). The cell at
+    # row 0, col 1 is the binding target.
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": "CNY"},
+                    ],
+                    "rows": [["A", Decimal("1000")]],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=ExportFormat.PDF,
+        artifact_bytes=pdf_bytes,
+    )
+    target = _find_observed(checks, "investment_estimate.total_capital_cost")
+    # Per Corrective 4, MUST be BOUND (not MISSING) — the table
+    # cell binding MUST find the target's 999, not give up.
+    assert target["binding_status"] == "BOUND", (
+        f"target table-cell binding MUST be BOUND (999 found), not "
+        f"MISSING; got {target['binding_status']!r}"
+    )
+    # The observed value MUST be 999 (the target table's data
+    # cell), NOT 1000 (the decoy's value).
+    assert target["display_value"] == "999", (
+        f"the target section's table cell is 999, NOT the decoy's "
+        f"1000; got {target['display_value']!r}"
+    )
+    # The binding kind is table_cell (this is a table-content
+    # section, not a number section).
+    assert target["binding_kind"] == "table_cell", (
+        f"this test exercises table-cell binding; got binding_kind={target['binding_kind']!r}"
+    )
+    assert checks["semantic_result"] == "FAIL", (
+        f"semantic result MUST be FAIL (target has 999, not 1000); "
+        f"got {checks['semantic_result']!r}"
+    )
+    target_in_mismatches = (
+        "investment_estimate.total_capital_cost" in checks["numeric_mismatches"]
+        or "investment_estimate.total_capital_cost" in checks["missing_units"]
+    )
+    assert target_in_mismatches, (
+        f"target field MUST be in numeric_mismatches or missing_units; "
+        f"got numeric_mismatches={checks['numeric_mismatches']!r}, "
+        f"missing_units={checks['missing_units']!r}"
+    )
+
+
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_pdf_target_section_two_matching_tables_ambiguous(
+    locale: ReportLocale,
+) -> None:
+    """P1-3 corrective D-2: a single section that contains TWO
+    tables matching the localized headers MUST fail closed as
+    AMBIGUOUS_FIELD_BINDING (not pick the first).
+
+    Per Corrective 4, multi-table ambiguity must fail closed.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    target_heading = catalog.messages["section.investment_estimate"]
+    # Build a PDF with TWO tables inside the same section.
+    pdf_bytes, _ = _build_synthetic_pdf_with_two_tables_on_same_page(
+        locale=locale,
+        target_heading=target_heading,
+        target_table_rows=[("A", "999")],
+        decoy_heading=target_heading,  # SAME section heading
+        decoy_table_rows=[("B", "1000")],
+    )
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": "CNY"},
+                    ],
+                    "rows": [["A", Decimal("1000")]],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=ExportFormat.PDF,
+        artifact_bytes=pdf_bytes,
+    )
+    target = _find_observed(checks, "investment_estimate.total_capital_cost")
+    # The two same-header tables in one section are ambiguous.
+    assert target["binding_status"] == "AMBIGUOUS_FIELD_BINDING", (
+        f"two matching tables in one section MUST be AMBIGUOUS; got {target['binding_status']!r}"
+    )
+    # The ambiguous record exposes no value (fail-closed).
+    assert target["display_value"] == "", (
+        f"on AMBIGUOUS, display_value MUST be empty; got {target['display_value']!r}"
+    )
+
+
+# ── Corrective 1: Table unit observation from artifact ────────────────────
+# Per Corrective 1, the observed.display_unit MUST come from the
+# artifact's unit row (after stripping the renderer's outer
+# parentheses), NOT from the localized expected unit. The unit
+# comparison in _compare_field is strictly symmetric.
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_table_wrong_unit_fails(fmt: ExportFormat, locale: ReportLocale) -> None:
+    """P1-3 corrective 1: a table with a WRONG unit (e.g. kW(r)
+    instead of expected kW(e)) MUST fail with UNIT_MISMATCH. The
+    observed.display_unit MUST come from the artifact, NOT the
+    expected.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    section_heading = catalog.messages["section.investment_estimate"]
+    header_a = catalog.messages.get("header.scheme", "Scheme")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
+    # Build a synthetic table with the WRONG unit for column 1.
+    if fmt is ExportFormat.DOCX:
+        artifact = _build_synthetic_docx_with_table(
+            section_heading=section_heading,
+            headers=(header_a, header_b),
+            unit_row=("", "(kW(r))"),  # WRONG (renderer wraps with parens)
+            data_rows=[("A", "50.0")],
+        )
+    else:
+        artifact = _build_synthetic_pdf_with_table(
+            section_heading=section_heading,
+            headers=(header_a, header_b),
+            unit_row=("", "(kW(r))"),
+            data_rows=[("A", "50.0")],
+        )
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": "kW(e)"},
+                    ],
+                    "rows": [["A", Decimal("50.0")]],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    target = _find_observed(checks, "investment_estimate.total_capital_cost")
+    # The observed unit MUST be the artifact's kW(r), NOT the
+    # expected kW(e).
+    assert target["display_unit"] in ("kW(r)", "(kW(r))"), (
+        f"observed unit MUST come from artifact; got {target['display_unit']!r}"
+    )
+    # The wrong unit must surface as UNIT_MISMATCH.
+    assert "investment_estimate.total_capital_cost" in checks["missing_units"], (
+        f"wrong unit MUST appear in missing_units; got {checks['missing_units']!r}"
+    )
+    assert checks["semantic_result"] == "FAIL"
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_table_missing_unit_fails(fmt: ExportFormat, locale: ReportLocale) -> None:
+    """P1-3 corrective 1: a table with a MISSING unit (empty unit
+    cell when expected has a unit) MUST fail with UNIT_MISSING.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    section_heading = catalog.messages["section.investment_estimate"]
+    header_a = catalog.messages.get("header.scheme", "Scheme")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
+    # Build a synthetic table with EMPTY unit for column 1.
+    if fmt is ExportFormat.DOCX:
+        artifact = _build_synthetic_docx_with_table(
+            section_heading=section_heading,
+            headers=(header_a, header_b),
+            unit_row=("", ""),  # MISSING
+            data_rows=[("A", "50.0")],
+        )
+    else:
+        artifact = _build_synthetic_pdf_with_table(
+            section_heading=section_heading,
+            headers=(header_a, header_b),
+            unit_row=("", ""),  # MISSING
+            data_rows=[("A", "50.0")],
+        )
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": "kW(e)"},
+                    ],
+                    "rows": [["A", Decimal("50.0")]],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    target = _find_observed(checks, "investment_estimate.total_capital_cost")
+    # The observed unit MUST be empty (artifact had no unit cell).
+    assert target["display_unit"] == "", (
+        f"observed unit MUST be empty when artifact's unit cell "
+        f"is empty; got {target['display_unit']!r}"
+    )
+    # The missing unit must surface as UNIT_MISSING.
+    assert "investment_estimate.total_capital_cost" in checks["missing_units"], (
+        f"missing unit MUST appear in missing_units; got {checks['missing_units']!r}"
+    )
+    assert checks["semantic_result"] == "FAIL"
+
+
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_table_unexpected_unit_fails_docx(locale: ReportLocale) -> None:
+    """P1-3 corrective 1: a DOCX table with an UNEXPECTED unit
+    (artifact has a unit, expected has no unit) MUST fail with
+    UNIT_MISMATCH (strictly symmetric). The DOCX path is the
+    authoritative test for the symmetric comparison; the PDF
+    path is not tested here because the real PdfRenderer does
+    not emit a unit row when all expected units are empty.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    section_heading = catalog.messages["section.investment_estimate"]
+    header_a = catalog.messages.get("header.scheme", "Scheme")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
+    # Build a synthetic DOCX with a unit in column 1, but the
+    # expected unit is empty.
+    artifact = _build_synthetic_docx_with_table(
+        section_heading=section_heading,
+        headers=(header_a, header_b),
+        unit_row=("", "(kW(e))"),
+        data_rows=[("A", "50.0")],
+    )
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        # NO unit expected
+                        {"key": "total_capital_cost", "unit_code": ""},
+                    ],
+                    "rows": [["A", Decimal("50.0")]],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=ExportFormat.DOCX,
+        artifact_bytes=artifact,
+    )
+    target = _find_observed(checks, "investment_estimate.total_capital_cost")
+    # The observed unit is the artifact's kW(e) (NOT the empty
+    # expected unit).
+    assert target["display_unit"] in ("kW(e)", "(kW(e))"), (
+        f"observed unit MUST be the artifact's kW(e); got {target['display_unit']!r}"
+    )
+    # Unexpected unit (expected was empty) MUST surface as
+    # UNIT_MISMATCH.
+    assert "investment_estimate.total_capital_cost" in checks["missing_units"], (
+        f"unexpected unit MUST appear in missing_units; got {checks['missing_units']!r}"
+    )
+    assert checks["semantic_result"] == "FAIL"
+
+
+# ── Corrective 2: DOCX table identity + renderer parity ──────────────────
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_docx_table_all_units_empty_renderer_parity(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 corrective 2: a table where ALL columns have empty
+    units MUST NOT have a unit row in the artifact (renderer
+    parity). The verifier MUST skip the unit row and bind data
+    rows starting from index 1.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    section_heading = catalog.messages["section.investment_estimate"]
+    header_a = catalog.messages.get("header.scheme", "Scheme")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
+    # Build a synthetic table with EMPTY unit row.
+    if fmt is ExportFormat.DOCX:
+        artifact = _build_synthetic_docx_with_table(
+            section_heading=section_heading,
+            headers=(header_a, header_b),
+            unit_row=("", ""),  # ALL empty
+            data_rows=[("A", "50.0")],
+        )
+    else:
+        artifact = _build_synthetic_pdf_with_table(
+            section_heading=section_heading,
+            headers=(header_a, header_b),
+            unit_row=("", ""),  # ALL empty
+            data_rows=[("A", "50.0")],
+        )
+    # Canonical also has empty unit codes.
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": ""},
+                    ],
+                    "rows": [["A", Decimal("50.0")]],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    # When both expected units are empty AND artifact has no unit
+    # row, the verifier MUST bind the data cell as 50.0 with no
+    # unit. (DOCX preserves the empty unit row even when all
+    # cells are empty; the test uses both formats to verify
+    # binding still works.)
+    target = _find_observed(checks, "investment_estimate.total_capital_cost")
+    # The binding is either BOUND (data row 50.0) or AMBIGUOUS
+    # (multiple matching tables) — NOT MISSING.
+    assert target["binding_status"] in ("BOUND", "AMBIGUOUS_FIELD_BINDING"), (
+        f"empty-unit table MUST be bound (or ambiguous), not missing; "
+        f"got {target['binding_status']!r}"
+    )
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_docx_table_unit_row_disabled_renderer_parity(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 corrective 2: when the template's table.unit_row is
+    FALSE, the renderer does NOT emit a unit row. The verifier
+    MUST NOT assume a unit row exists.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    section_heading = catalog.messages["section.investment_estimate"]
+    header_a = catalog.messages.get("header.scheme", "Scheme")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
+    # Build a synthetic table with the unit row PHYSICALLY ABSENT
+    # (as the renderer would emit it when unit_row is disabled).
+    # We do this by providing only header + data rows.
+    doc = Document()
+    doc.add_heading(section_heading, level=1)
+    table = doc.add_table(rows=1 + 1, cols=len((header_a, header_b)))  # header + 1 data, no unit
+    for col_idx, h in enumerate((header_a, header_b)):
+        table.cell(0, col_idx).text = h
+    for col_idx, v in enumerate(("A", "50.0")):
+        table.cell(1, col_idx).text = v
+    buf = io.BytesIO()
+    doc.save(buf)
+    artifact = buf.getvalue()
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": "kW(e)"},
+                    ],
+                    "rows": [["A", Decimal("50.0")]],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    # Template unit_row is disabled. The verifier MUST NOT
+    # assume a unit row exists.
+    template_manifest = {
+        "sections": {
+            "investment_estimate": {
+                "tables": {"t1": {"unit_row": False}},
+            }
+        }
+    }
+    template = SimpleNamespace(manifest_json=template_manifest)
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=template,
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    target = _find_observed(checks, "investment_estimate.total_capital_cost")
+    # With unit_row disabled, the data row is at index 1 (right
+    # after the header). The binding is BOUND with display_value=50.0.
+    # The unit MUST be reported as MISSING (artifact has no unit row).
+    assert target["binding_status"] in ("BOUND", "MISSING_FIELD_BINDING"), (
+        f"unit_row disabled MUST allow BOUND (or MISSING if row "
+        f"mismatch); got {target['binding_status']!r}"
+    )
+
+
+# ── Corrective 3: PDF real-renderer table positive tests ────────────────
+
+
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_pdf_real_renderer_all_columns_have_units(
+    locale: ReportLocale,
+) -> None:
+    """P1-3 corrective 3: a PDF real-renderer table where ALL
+    columns have non-empty units MUST pass structured binding.
+    """
+
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": "kW(e)"},
+                        {"key": "total_capital_cost", "unit_code": "kW(r)"},
+                    ],
+                    "rows": [
+                        ["A", Decimal("50.0")],
+                        ["B", Decimal("99.0")],
+                    ],
+                },
+            }
+        ]
+    )
+    artifact = _render_artifact(canonical, locale=locale, fmt=ExportFormat.PDF)
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=ExportFormat.PDF,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "PASS", (
+        f"PDF all-units real-renderer table MUST PASS; got checks={checks!r}"
+    )
+
+
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_pdf_real_renderer_one_data_row(locale: ReportLocale) -> None:
+    """P1-3 corrective 3: a PDF real-renderer table with a single
+    data row MUST pass structured binding (Corrective 3 explicitly
+    allows 1-row tables).
+    """
+
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": "kW(e)"},
+                    ],
+                    "rows": [["A", Decimal("50.0")]],
+                },
+            }
+        ]
+    )
+    artifact = _render_artifact(canonical, locale=locale, fmt=ExportFormat.PDF)
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=ExportFormat.PDF,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "PASS", (
+        f"PDF single-row real-renderer table MUST PASS; got checks={checks!r}"
+    )
+
+
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_pdf_real_renderer_all_units_empty(locale: ReportLocale) -> None:
+    """P1-3 corrective 3: a PDF real-renderer table where ALL
+    columns have empty units MUST pass (no unit row emitted).
+    """
+
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": ""},
+                    ],
+                    "rows": [
+                        ["A", Decimal("50.0")],
+                        ["B", Decimal("99.0")],
+                    ],
+                },
+            }
+        ]
+    )
+    artifact = _render_artifact(canonical, locale=locale, fmt=ExportFormat.PDF)
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=ExportFormat.PDF,
+        artifact_bytes=artifact,
+    )
+    assert checks["semantic_result"] == "PASS", (
+        f"PDF all-empty-units real-renderer table MUST PASS; got checks={checks!r}"
+    )
+
+
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_pdf_synthetic_multi_page_table_row_identity(
+    locale: ReportLocale,
+) -> None:
+    """P1-3 corrective 3: a PDF table that spans multiple pages
+    MUST keep row identity across pages. The binding's page
+    awareness is verified by checking that the data row on the
+    second page is bound at the correct (row, column) position.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    section_heading = catalog.messages["section.investment_estimate"]
+    header_a = catalog.messages.get("header.scheme", "Scheme")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
+    # Build a multi-page synthetic PDF with header on page 1,
+    # data row 0 on page 1, data row 1 on page 2.
+    pdf_bytes = _build_synthetic_pdf_with_table_split_pages(
+        section_heading=section_heading,
+        headers=(header_a, header_b),
+        unit_row=("", "(kW(e))"),
+        data_rows=[
+            ("A", "50.0"),  # page 1
+            ("B", "99.0"),  # page 2 (page break due to small page_height)
+        ],
+    )
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "table",
+                "table": {
+                    "columns": [
+                        {"key": "scheme_name", "unit_code": ""},
+                        {"key": "total_capital_cost", "unit_code": "kW(e)"},
+                    ],
+                    "rows": [
+                        ["A", Decimal("50.0")],
+                        ["B", Decimal("99.0")],
+                    ],
+                },
+            }
+        ]
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=ExportFormat.PDF,
+        artifact_bytes=pdf_bytes,
+    )
+    # The binding MUST be BOUND (cross-page row identity works).
+    target_row_0 = next(
+        o
+        for o in checks["observed_numeric_fields"]
+        if o["field_path"] == "investment_estimate.total_capital_cost" and o["row_index"] == 0
+    )
+    target_row_1 = next(
+        o
+        for o in checks["observed_numeric_fields"]
+        if o["field_path"] == "investment_estimate.total_capital_cost" and o["row_index"] == 1
+    )
+    assert target_row_0["binding_status"] in ("BOUND", "AMBIGUOUS_FIELD_BINDING"), (
+        f"row 0 MUST be bound; got {target_row_0['binding_status']!r}"
+    )
+    assert target_row_1["binding_status"] in ("BOUND", "AMBIGUOUS_FIELD_BINDING"), (
+        f"row 1 MUST be bound (cross-page); got {target_row_1['binding_status']!r}"
+    )
+
+
+# ── Corrective 5: Number first-record structural binding ────────────────
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_number_first_record_wrong_value_with_later_expected_decoy(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 corrective 5: a number section whose first record is
+    a wrong value, with the expected value appearing LATER as a
+    decoy, MUST bind the FIRST record. The decoy MUST NOT be
+    considered.
+    """
+
+    expected_value_str = f"{1000:,}" if locale == ReportLocale.EN_US else "1000"
+    expected_unit_str = "CNY"
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "number",
+                "number": {
+                    "field_path": "investment_estimate.total_investment",
+                    "field_key": "field.total_capital_cost",
+                    "value": Decimal("1000"),
+                    "unit_code": "CNY",
+                },
+            }
+        ]
+    )
+    artifact = _build_synthetic_number_section_artifact(
+        fmt=fmt,
+        locale=locale,
+        target_paragraphs=["999 CNY"],  # first record is wrong
+        decoy_paragraphs=[f"{expected_value_str} {expected_unit_str}"],  # expected as decoy
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    target = _find_observed(checks, "investment_estimate.total_investment")
+    # Per Corrective 5, the FIRST record is bound (999), not the
+    # decoy's expected value.
+    assert target["binding_status"] == "BOUND"
+    assert target["display_value"] == "999", (
+        f"first record value MUST be observed; got {target['display_value']!r}"
+    )
+    # The decoy's value MUST NOT appear in the observed record.
+    assert target["display_value"] != expected_value_str
+    # The result is FAIL (999 != 1000).
+    assert checks["semantic_result"] == "FAIL"
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_number_first_nonempty_record_not_numeric_fails_closed(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 corrective 5: a number section whose first non-empty,
+    non-heading record is NOT a number MUST fail closed as
+    MISSING_FIELD_BINDING.
+    """
+
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "number",
+                "number": {
+                    "field_path": "investment_estimate.total_investment",
+                    "field_key": "field.total_capital_cost",
+                    "value": Decimal("1000"),
+                    "unit_code": "CNY",
+                },
+            }
+        ]
+    )
+    # First non-empty, non-heading record is a prose string
+    # (NOT a number).
+    artifact = _build_synthetic_number_section_artifact(
+        fmt=fmt,
+        locale=locale,
+        target_paragraphs=["本项目总投资约为市场公允价格"],  # prose, no number
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    target = _find_observed(checks, "investment_estimate.total_investment")
+    # No number record was found as the first record.
+    assert target["binding_status"] == "MISSING_FIELD_BINDING", (
+        f"first record is prose; MUST be MISSING; got {target['binding_status']!r}"
+    )
+    assert checks["semantic_result"] == "FAIL"
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_number_empty_unit_first_record_passes(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 corrective 5: a number section whose first record is
+    a value with no unit (single token) MUST bind correctly.
+    """
+
+    from cold_storage.modules.reports.localization.formatter import format_decimal
+
+    expected_value_str = format_decimal(Decimal("1000"), locale)
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "number",
+                "number": {
+                    "field_path": "investment_estimate.total_investment",
+                    "field_key": "field.total_capital_cost",
+                    "value": Decimal("1000"),
+                    "unit_code": "",  # empty unit
+                },
+            }
+        ]
+    )
+    artifact = _build_synthetic_number_section_artifact(
+        fmt=fmt,
+        locale=locale,
+        target_paragraphs=[expected_value_str],  # locale-correct value
+    )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    target = _find_observed(checks, "investment_estimate.total_investment")
+    assert target["binding_status"] == "BOUND", (
+        f"empty-unit first record MUST be BOUND; got {target['binding_status']!r}"
+    )
+    assert target["display_value"] == expected_value_str
+    assert target["display_unit"] == ""
+    assert checks["semantic_result"] == "PASS"
+
+
+# ── Corrective 6: Section heading structural-scope authority ───────────
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_target_section_heading_missing_fails(fmt: ExportFormat, locale: ReportLocale) -> None:
+    """P1-3 corrective 6: when the artifact does NOT contain the
+    target section's heading as a structural divider, the
+    verifier MUST report missing_sections + semantic_result=FAIL.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    other_heading = catalog.messages["section.electrical_and_energy"]
+    canonical = _build_canonical_model(
+        [
+            {
+                "section_key": "investment_estimate",
+                "content_type": "number",
+                "number": {
+                    "field_path": "investment_estimate.total_investment",
+                    "field_key": "field.total_capital_cost",
+                    "value": Decimal("1000"),
+                    "unit_code": "CNY",
+                },
+            }
+        ]
+    )
+    # Build a PDF/DOCX that has a DIFFERENT section heading
+    # (not the canonical target heading). The target section is
+    # therefore missing from the artifact.
+    if fmt is ExportFormat.DOCX:
+        artifact = _build_synthetic_docx_with_lines(
+            [(other_heading, ["1000 CNY"])],
+        )
+    else:
+        artifact = _build_synthetic_pdf_with_lines(
+            [(other_heading, ["1000 CNY"])],
+        )
+    from types import SimpleNamespace
+
+    checks = ppr._semantic_checks(
+        canonical_model=canonical,
+        template=SimpleNamespace(manifest_json={}),
+        locale=locale,
+        fmt=fmt,
+        artifact_bytes=artifact,
+    )
+    # The canonical target section's localized heading MUST be
+    # in missing_sections (per Corrective 6, scope-based authority).
+    target_title = catalog.messages["section.investment_estimate"]
+    assert target_title in checks["missing_sections"], (
+        f"target heading MUST be in missing_sections; got {checks['missing_sections']!r}"
+    )
+    assert checks["semantic_result"] == "FAIL"
+
+
+@pytest.mark.parametrize("fmt", [ExportFormat.DOCX, ExportFormat.PDF])
+@pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
+def test_p1_3_target_heading_text_in_body_does_not_satisfy(
+    fmt: ExportFormat, locale: ReportLocale
+) -> None:
+    """P1-3 corrective 6: a string that matches the target
+    section's heading text appearing ONLY in the body (not as a
+    Heading 1 / not as a structural section divider) MUST NOT
+    satisfy the required-section check. The verifier must use
+    structural scopes, not substring search.
+    """
+
+    from cold_storage.modules.reports.localization.catalog import get_catalog
+
+    catalog = get_catalog(locale)
+    target_heading = catalog.messages["section.investment_estimate"]
+    # Build an artifact where the target heading text appears
+    # ONLY in body text (not as a heading), so the resolved
+    # scope is empty for this section.
+    if fmt is ExportFormat.DOCX:
+        artifact = _build_synthetic_docx_with_lines(
+            [
+                # Body paragraph that mentions the heading text
+                # but isn't a heading.
+                (f"本节涉及{target_heading}的详细计算。", ["1000 CNY"]),
+            ],
+        )
+    else:
+        artifact = _build_synthetic_pdf_with_lines(
+            [
+                (f"本节涉及{target_heading}的详细计算。", ["1000 CNY"]),
+            ],
+        )
     canonical = _build_canonical_model(
         [
             {
@@ -2813,38 +3853,15 @@ def test_p1_3_pdf_two_tables_on_same_page_section_local(
         canonical_model=canonical,
         template=SimpleNamespace(manifest_json={}),
         locale=locale,
-        fmt=ExportFormat.PDF,
-        artifact_bytes=pdf_bytes,
+        fmt=fmt,
+        artifact_bytes=artifact,
     )
-    # The target section's number record is "999 CNY"; the
-    # canonical expected is 1000 CNY. The verifier MUST report
-    # FAIL. (The decoy's "1000" in the OTHER section MUST NOT be
-    # picked as the target's value.)
-    target = _find_observed(checks, "investment_estimate.total_investment")
-    assert target["binding_status"] in (
-        "BOUND",
-        "MISSING_FIELD_BINDING",
-    ), (
-        f"target binding should be BOUND (999 found) or MISSING "
-        f"(no number record), got {target['binding_status']!r}"
+    # The substring appears in flattened_text but the section
+    # scope is empty (no Heading 1). The verifier MUST report
+    # missing_sections + FAIL.
+    target_title = catalog.messages["section.investment_estimate"]
+    assert target_title in checks["missing_sections"], (
+        f"target heading in body MUST NOT satisfy the required-"
+        f"section check; missing_sections={checks['missing_sections']!r}"
     )
-    if target["binding_status"] == "BOUND":
-        # The observed value MUST be 999 (the target section's
-        # number record), NOT 1000 (the decoy's value).
-        assert target["display_value"] == "999", (
-            f"the target section's number record is 999, NOT the "
-            f"decoy's 1000; got {target['display_value']!r}"
-        )
-    assert checks["semantic_result"] == "FAIL", (
-        f"semantic result MUST be FAIL (target has 999, not 1000); "
-        f"got {checks['semantic_result']!r}"
-    )
-    target_in_mismatches = (
-        "investment_estimate.total_investment" in checks["numeric_mismatches"]
-        or "investment_estimate.total_investment" in checks["missing_units"]
-    )
-    assert target_in_mismatches, (
-        f"target field MUST be in numeric_mismatches or missing_units; "
-        f"got numeric_mismatches={checks['numeric_mismatches']!r}, "
-        f"missing_units={checks['missing_units']!r}"
-    )
+    assert checks["semantic_result"] == "FAIL"

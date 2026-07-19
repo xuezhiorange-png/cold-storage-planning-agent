@@ -340,14 +340,26 @@ class _PdfSectionTable:
     Per the P1-3 corrective contract, PDF tables are section-local,
     not page-global. Each table belongs to one section; multiple
     tables on the same page are distinguished by their y-band ranges
-    (top-to-bottom in document order).
+    (top-to-bottom in document order). The table is row-aware and
+    page-aware: each row carries the page number and the y-bands
+    so that ``_find_table_cell_binding`` can map (row_index,
+    column_index) to a specific PDF line.
     """
 
     section_key: str
     page_number: int
+    # A table is a sequence of "visual rows". Each visual row is a
+    # tuple of PDF lines that share the same y-band (within the
+    # section's y tolerance). A visual row may have 0..N cells
+    # (an empty unit cell produces NO PDF line and is therefore
+    # absent from the row tuple). Cell identity is by x-band,
+    # aligned against the header row's x centers.
     rows: tuple[tuple[_PdfLine, ...], ...]
     # Bounding box of the table on the page (used for table identity).
     bbox: tuple[float, float, float, float]
+    # The first row's column centers, used to map a unit/data line
+    # to its column index.
+    column_centers: tuple[float, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -438,71 +450,108 @@ def _build_section_local_tables(
     *,
     pdf_observation: _PdfObservation,
     section_scopes: Mapping[str, tuple[int, int]],
+    section_table_headers: Mapping[str, tuple[str, ...]],
 ) -> tuple[_PdfSectionTable, ...]:
     """Reconstruct tables for each section from the section's coordinate scope.
 
-    Each section's tables are built ONLY from the lines that fall
-    between this section's heading and the next section's heading.
-    Tables on the same page belonging to different sections are
-    distinguished by their y-band positions.
+    Per Corrective 3+4, tables are recognized by **structural
+    identity**: the section-local header row is the one whose
+    text matches the localized table headers (folded-exact match
+    on column count + per-cell match). A section MAY contain
+    multiple structurally identical tables (e.g. a comparison
+    table repeated in the same section); in that case the
+    cell-binding MUST fail-closed as
+    ``AMBIGUOUS_FIELD_BINDING`` (see Corrective 4). This
+    reconstruction therefore emits ONE ``_PdfSectionTable`` per
+    matching header row, so the cell-binding can detect
+    multi-table ambiguity and not silently pick the first.
 
     The reconstruction algorithm:
-      1. Take the section's lines (from section_scopes index range).
-      2. Cluster those lines into y-bands (rows).
-      3. Find contiguous groups of ≥ 2 rows with ≥ 2 cells per row.
-         Each contiguous group is one table.
-      4. Emit one ``_PdfSectionTable`` per group, with its bounding
-         box (the union of the group's line bboxes).
+
+      1. For each section, walk the section's lines in
+         (page_number, y, x) order, and group consecutive lines
+         (within ``_Y_TOLERANCE`` on y) into y-bands.
+      2. For each y-band with ``len(band) == len(expected_headers)``,
+         folded-exact compare the band's text to
+         ``expected_headers``. On match, mark the band as a
+         HEADER row.
+      3. All lines between one header row and the next
+         (within the section) form ONE table's body. The table
+         bbox is the union of header + body line bboxes.
+      4. Body lines are clustered by (page, y) into visual rows.
+
+    If no header row is found, no table is emitted for the
+    section. If multiple header rows are found, multiple
+    ``_PdfSectionTable`` records are emitted (and the
+    cell-binding will return ``AMBIGUOUS_FIELD_BINDING``).
     """
 
     if not section_scopes:
         return ()
     tables: list[_PdfSectionTable] = []
     for section_key, (start, end) in section_scopes.items():
+        expected_headers = section_table_headers.get(section_key, ())
+        if not expected_headers:
+            continue
         section_lines = pdf_observation.all_lines[start:end]
         if not section_lines:
             continue
-        # Cluster the section's lines into rows.
-        rows = _cluster_lines_into_rows(tuple(section_lines))
-        # Find contiguous groups of "table-like" rows (≥ 2 cells per row).
-        # Each group is one table.
-        current_group: list[tuple[_PdfLine, ...]] = []
-        for row in rows:
-            if len(row) >= 2:
-                current_group.append(row)
+        # Group section lines into y-bands (rows), page-aware.
+        sorted_section = sorted(
+            section_lines, key=lambda ln: (ln.page_number, ln.bbox[1], ln.bbox[0])
+        )
+        bands: list[list[_PdfLine]] = []
+        current_band: list[_PdfLine] = [sorted_section[0]]
+        for ln in sorted_section[1:]:
+            if (
+                ln.page_number == current_band[0].page_number
+                and abs(ln.bbox[1] - current_band[0].bbox[1]) <= _Y_TOLERANCE
+            ):
+                current_band.append(ln)
             else:
-                if len(current_group) >= 2:
-                    tables.append(_emit_pdf_section_table(section_key, current_group))
-                current_group = []
-        if len(current_group) >= 2:
-            tables.append(_emit_pdf_section_table(section_key, current_group))
+                bands.append(sorted(current_band, key=lambda x: x.bbox[0]))
+                current_band = [ln]
+        bands.append(sorted(current_band, key=lambda x: x.bbox[0]))
+        # Find all band indices that match expected_headers.
+        header_band_indices: list[int] = []
+        for i, band in enumerate(bands):
+            if len(band) != len(expected_headers):
+                continue
+            folded = tuple(_fold_whitespace(ln.text) for ln in band)
+            if folded == tuple(_fold_whitespace(h) for h in expected_headers):
+                header_band_indices.append(i)
+        if not header_band_indices:
+            continue
+        # For each header band, build a _PdfSectionTable with
+        # body = bands in (header_idx, next_header_idx).
+        for table_idx, header_band_i in enumerate(header_band_indices):
+            body_bands = bands[header_band_i + 1 :]
+            if table_idx + 1 < len(header_band_indices):
+                # Truncate body at the next header band.
+                next_header_i = header_band_indices[table_idx + 1]
+                body_bands = bands[header_band_i + 1 : next_header_i]
+            header_band = bands[header_band_i]
+            all_lines_for_table: list[_PdfLine] = list(header_band)
+            for body_band in body_bands:
+                all_lines_for_table.extend(body_band)
+            x0 = min(ln.bbox[0] for ln in all_lines_for_table)
+            y0 = min(ln.bbox[1] for ln in all_lines_for_table)
+            x1 = max(ln.bbox[2] for ln in all_lines_for_table)
+            y1 = max(ln.bbox[3] for ln in all_lines_for_table)
+            column_centers = tuple((ln.bbox[0] + ln.bbox[2]) / 2 for ln in header_band)
+            # The table's rows = (header_band, *body_bands).
+            rows: list[tuple[_PdfLine, ...]] = [tuple(header_band)]
+            rows.extend(tuple(b) for b in body_bands)
+            tables.append(
+                _PdfSectionTable(
+                    section_key=section_key,
+                    page_number=header_band[0].page_number,
+                    rows=tuple(rows),
+                    bbox=(x0, y0, x1, y1),
+                    column_centers=column_centers,
+                )
+            )
     return tuple(tables)
-
-
-def _emit_pdf_section_table(section_key: str, rows: list[tuple[_PdfLine, ...]]) -> _PdfSectionTable:
-    """Build a single ``_PdfSectionTable`` from a contiguous group of y-bands."""
-
-    all_lines: list[_PdfLine] = []
-    page_numbers: set[int] = set()
-    for row in rows:
-        for line in row:
-            all_lines.append(line)
-            page_numbers.add(line.page_number)
-    if not all_lines:
-        # Defensive: empty group should not produce a table.
-        raise ValueError("_emit_pdf_section_table called with no lines")
-    # Bounding box is the union of all line bboxes.
-    x0 = min(line.bbox[0] for line in all_lines)
-    y0 = min(line.bbox[1] for line in all_lines)
-    x1 = max(line.bbox[2] for line in all_lines)
-    y1 = max(line.bbox[3] for line in all_lines)
-    page_number = sorted(page_numbers)[0]  # primary page
-    return _PdfSectionTable(
-        section_key=section_key,
-        page_number=page_number,
-        rows=tuple(rows),
-        bbox=(x0, y0, x1, y1),
-    )
 
 
 # ── Section-scope resolution ──────────────────────────────────────────────
@@ -816,37 +865,55 @@ def _find_number_binding(
 ) -> _BindingResult:
     """Find the number record in the target section by structural position.
 
-    Number binding is position-based, NOT expected-value-based. The
-    real renderer emits a number section as:
-        section heading
-        → number value/unit paragraph (the FIRST non-empty non-heading
-          paragraph/line after the heading)
-        → optional section text/paragraphs
+    Per Corrective 5, the binding follows the renderer number
+    contract: ``section heading → first non-empty, non-heading
+    content record``. The helper walks the section's blocks/lines
+    in document order, skips headings and empty records, and
+    BINDS the FIRST record that parses as a number paragraph.
 
-    The number record MUST come from the artifact. Empty-unit numbers
-    (single token) are supported.
+    Subsequent records (e.g. body prose that happens to contain a
+    number) are NOT collected as candidates. This ensures that
+    later-numbered body text does not cause false-fail (the
+    earlier P1-3 round incorrectly returned
+    ``AMBIGUOUS_FIELD_BINDING`` when the section had 2+ number-
+    parseable lines).
 
-    The expected value/unit are NOT taken as parameters; they are
-    applied during comparison in ``_compare_field`` after binding.
+    AMBIGUOUS_FIELD_BINDING is reserved for structural ambiguity
+    (e.g. a section whose first parseable record is followed by a
+    second structurally identical candidate) and is NOT raised
+    here. The first record is always taken.
+
+    Returns ``_BindingResult(observed, None, ())`` on success.
+    Returns ``_BindingResult(None, "MISSING_FIELD_BINDING", ())``
+    when the first non-empty, non-heading record cannot be
+    parsed as a number. Returns ``_BindingResult(None,
+    "MISSING_SECTION", ())`` when the section's heading is not
+    in the artifact.
     """
 
     if docx_observation is not None:
         if section_key not in section_scopes:
             return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
         start, end = section_scopes[section_key]
-        candidates: list[_ObservedNumericField] = []
         for idx in range(start, end):
             block = docx_observation.body_blocks[idx]
             if block.kind != "paragraph":
                 continue
             if block.heading_level is not None:
                 continue
-            parsed = _split_number_paragraph(block.text)
-            if parsed is None:
+            text = _fold_whitespace(block.text)
+            if not text:
                 continue
+            parsed = _split_number_paragraph(text)
+            if parsed is None:
+                # First non-empty, non-heading record is not a
+                # number — fail closed.
+                return _BindingResult(
+                    observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+                )
             value, unit = parsed
-            candidates.append(
-                _ObservedNumericField(
+            return _BindingResult(
+                observed=_ObservedNumericField(
                     field_path="",
                     section_key=section_key,
                     binding_kind=_BINDING_KIND_NUMBER,
@@ -854,33 +921,34 @@ def _find_number_binding(
                     display_unit=unit,
                     row_index=None,
                     column_index=None,
-                )
+                ),
+                failure_code=None,
+                candidates=(),
             )
-        if len(candidates) == 0:
-            return _BindingResult(
-                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
-            )
-        if len(candidates) > 1:
-            return _BindingResult(
-                observed=None,
-                failure_code="AMBIGUOUS_FIELD_BINDING",
-                candidates=tuple(candidates),
-            )
-        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
+        # No non-empty, non-heading record at all.
+        return _BindingResult(observed=None, failure_code="MISSING_FIELD_BINDING", candidates=())
 
     if pdf_observation is not None:
         if section_key not in section_scopes:
             return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
         start, end = section_scopes[section_key]
-        candidates = []
         for idx in range(start, end):
             line = pdf_observation.all_lines[idx]
-            parsed = _split_number_paragraph(line.text)
-            if parsed is None:
+            # Skip visual headings: in PDF, the section heading
+            # appears as a line with a larger font size.
+            if line.max_font_size >= 13.0:
                 continue
+            text = _fold_whitespace(line.text)
+            if not text:
+                continue
+            parsed = _split_number_paragraph(text)
+            if parsed is None:
+                return _BindingResult(
+                    observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+                )
             value, unit = parsed
-            candidates.append(
-                _ObservedNumericField(
+            return _BindingResult(
+                observed=_ObservedNumericField(
                     field_path="",
                     section_key=section_key,
                     binding_kind=_BINDING_KIND_NUMBER,
@@ -889,21 +957,55 @@ def _find_number_binding(
                     row_index=None,
                     column_index=None,
                     page_number=line.page_number,
-                )
+                ),
+                failure_code=None,
+                candidates=(),
             )
-        if len(candidates) == 0:
-            return _BindingResult(
-                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
-            )
-        if len(candidates) > 1:
-            return _BindingResult(
-                observed=None,
-                failure_code="AMBIGUOUS_FIELD_BINDING",
-                candidates=tuple(candidates),
-            )
-        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
+        return _BindingResult(observed=None, failure_code="MISSING_FIELD_BINDING", candidates=())
 
     return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+
+
+def _strip_renderer_unit_wrapper(token: str) -> str:
+    """Strip the renderer's single-layer outer parentheses used to render units.
+
+    The real DOCX/PDF renderer wraps unit labels in a single pair of
+    parentheses (e.g. ``"(kW(e))"``) so that parens are visible in the
+    emitted text. The verifier strips exactly ONE outer pair of
+    parentheses from the *rendered* unit token so it can be compared
+    against the localized expected unit (which is the bare token
+    ``"kW(e)"``). No inner parentheses, brackets, or aliases are
+    rewritten; no fuzzy equivalence is applied.
+    """
+    folded = _fold_whitespace(token)
+    if folded.startswith("(") and folded.endswith(")") and len(folded) >= 2:
+        return folded[1:-1].strip()
+    return folded
+
+
+def _find_docx_table_candidate(
+    *,
+    section_blocks: tuple[_DocxBlock, ...],
+    start: int,
+    end: int,
+    expected_headers: tuple[str, ...],
+) -> tuple[_DocxBlock, ...]:
+    """Return the DOCX table blocks within the section that match the
+    localized ``expected_headers`` (folded-exact). 0 or 1+ candidates.
+    """
+
+    candidates: list[_DocxBlock] = []
+    for idx in range(start, end):
+        block = section_blocks[idx]
+        if block.kind != "table" or block.cells is None:
+            continue
+        header_row = block.cells[0]
+        if len(header_row) != len(expected_headers):
+            continue
+        folded_actual = tuple(_fold_whitespace(c) for c in header_row)
+        if folded_actual == tuple(_fold_whitespace(h) for h in expected_headers):
+            candidates.append(block)
+    return tuple(candidates)
 
 
 def _find_table_cell_binding(
@@ -916,22 +1018,24 @@ def _find_table_cell_binding(
     row_index: int,
     column_index: int,
     expected_unit_codes: tuple[str, ...],
+    expected_headers: tuple[str, ...],
+    template_unit_row_enabled: bool,
+    num_data_rows: int = 1,
 ) -> _BindingResult:
     """Find the (row, column) cell in the table located in the target section.
 
-    The unit row is identified by the localized table's expected
-    column-unit structure (``expected_unit_codes``) — NOT by a heuristic
-    on the artifact's second row. This correctly handles:
-      - Mixed unit columns: ``["", "kW(e)"]`` (column 0 has no unit).
-      - Empty unit cells: the renderer writes ``""`` for unit-less
-        columns; the heuristic ``_is_unit_token("") == False`` would
-        have misclassified the entire unit row.
+    Per Corrective 1+2+3+4, the binding:
 
-    ``row_index`` is the 0-based DATA row index (header and unit rows
-    are excluded). ``column_index`` is the 0-based cell column.
-    ``expected_unit_codes`` is the localized table's expected
-    ``unit_codes`` tuple (in column order); pass ``()`` for tables
-    without a unit row.
+      - Selects the table by structural identity (localized headers
+        folded-exact match against the artifact's header row), NOT
+        by the first table or by expected numeric value.
+      - Determines unit-row presence with renderer parity:
+        ``template_unit_row_enabled and any(expected_unit_codes)``.
+      - Reads the OBSERVED unit from the artifact's unit row (after
+        stripping the renderer's single-layer outer paren wrapper).
+        The unit is NOT copied from the localized expected unit.
+      - When multiple table candidates match the localized headers,
+        the binding returns ``AMBIGUOUS_FIELD_BINDING`` (fail-closed).
     """
 
     if docx_observation is not None:
@@ -939,28 +1043,61 @@ def _find_table_cell_binding(
             return _BindingResult(
                 observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
             )
-        # The cell binding needs the section's block range to find
-        # the table. The caller passes ``docx_resolved_scopes``
-        # (keyed by section_key, built by ``_resolve_docx_section_scopes``).
         if section_key not in docx_resolved_scopes:
             return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
         start, end = docx_resolved_scopes[section_key]
-        # Find the first table in the section.
-        table_block: _DocxBlock | None = None
-        for idx in range(start, end):
-            block = docx_observation.body_blocks[idx]
-            if block.kind == "table":
-                table_block = block
-                break
-        if table_block is None or table_block.cells is None:
+        candidate_tables = _find_docx_table_candidate(
+            section_blocks=docx_observation.body_blocks,
+            start=start,
+            end=end,
+            expected_headers=expected_headers,
+        )
+        if not candidate_tables:
             return _BindingResult(
                 observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
             )
-        cells = table_block.cells
-        # DOCX preserves the full row structure (header + unit + data
-        # rows), so we can use the same offset logic as the renderer.
-        has_unit_row = len(expected_unit_codes) > 0
-        data_row_idx = row_index + (2 if has_unit_row else 1)
+        if len(candidate_tables) > 1:
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=(),
+            )
+        cells = candidate_tables[0].cells
+        assert cells is not None
+        # Renderer parity: the unit row is present in the
+        # artifact when the template enables it AND the
+        # canonical has at least one non-empty expected unit
+        # AND the artifact has an extra row (i.e. ``len(cells)
+        # > 1 + num_data_rows``). The data row offset follows
+        # the canonical's expected structure:
+        #   - unit row expected AND present → data at
+        #     cells[2 + row_index]
+        #   - unit row not expected → data at
+        #     cells[1 + row_index]
+        #   - unit row expected BUT artifact missing the unit
+        #     row → TABLE_ROW_MISMATCH (canonical structure
+        #     wins)
+        # For the symmetric comparison (Corrective 1), if the
+        # canonical has no expected unit BUT the artifact has
+        # an extra row, the extra row is still read as a unit
+        # row and compared (fail-closed on unexpected unit).
+        has_unit_row_expected = template_unit_row_enabled and any(expected_unit_codes)
+        artifact_has_extra_row = len(cells) > 1 + num_data_rows
+        if has_unit_row_expected:
+            # Unit row is expected. The data row index is
+            # based on the canonical's expectation.
+            data_row_idx = 1 + 1 + row_index
+            unit_row_present = artifact_has_extra_row
+        elif artifact_has_extra_row:
+            # No expected unit, but artifact has an extra row
+            # (synthetic case or renderer bug). Read the extra
+            # row as the unit row (Corrective 1).
+            data_row_idx = 1 + 1 + row_index
+            unit_row_present = True
+        else:
+            # No unit row in the artifact.
+            data_row_idx = 1 + row_index
+            unit_row_present = False
         if data_row_idx < 0 or data_row_idx >= len(cells):
             return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
         if column_index < 0 or column_index >= len(cells[data_row_idx]):
@@ -968,20 +1105,19 @@ def _find_table_cell_binding(
                 observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
             )
         cell_value = cells[data_row_idx][column_index]
-        # The unit comes from the localized expected unit code
-        # structure; we DO NOT read the unit from the artifact's
-        # unit row (which may be wrong). The unit comparison happens
-        # downstream in ``_compare_field``.
-        expected_unit_code = (
-            expected_unit_codes[column_index] if column_index < len(expected_unit_codes) else ""
-        )
+        # Read the observed unit from the artifact's unit row.
+        if unit_row_present and len(cells) > 1:
+            raw_unit_token = cells[1][column_index] if column_index < len(cells[1]) else ""
+            observed_unit = _strip_renderer_unit_wrapper(raw_unit_token)
+        else:
+            observed_unit = ""
         return _BindingResult(
             observed=_ObservedNumericField(
                 field_path="",
                 section_key=section_key,
                 binding_kind=_BINDING_KIND_TABLE_CELL,
                 display_value=cell_value,
-                display_unit=expected_unit_code,
+                display_unit=observed_unit,
                 row_index=row_index,
                 column_index=column_index,
             ),
@@ -994,45 +1130,119 @@ def _find_table_cell_binding(
             return _BindingResult(
                 observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
             )
-        candidate_table: _PdfSectionTable | None = None
-        for tbl in pdf_section_tables:
-            if tbl.section_key == section_key:
-                candidate_table = tbl
-                break
-        if candidate_table is None:
+        # The PDF section-local table's first row is the HEADER
+        # row (anchored by ``_build_section_local_tables``).
+        # Subsequent rows are body rows. Use column_centers to
+        # map a body-line's x to its column index.
+        section_tables = tuple(tbl for tbl in pdf_section_tables if tbl.section_key == section_key)
+        if not section_tables:
             return _BindingResult(
                 observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
             )
-        # The PDF section-local table reconstruction may have
-        # MISSED the header row, the unit row, or both — for
-        # example, when a unit cell is empty (``""``) the PDF
-        # renderer emits no visible text for that cell, so it does
-        # not appear in ``page.get_text("dict")``. The binding
-        # therefore treats the section-local table rows as DATA
-        # rows only; the row_index is taken directly without any
-        # header/unit offset.
-        rows = candidate_table.rows
-        if row_index < 0 or row_index >= len(rows):
+        # Each section-local table's first row is the header.
+        # The header row text must match expected_headers
+        # (folded-exact). 0 → MISSING; 1 → bind; >1 → AMBIGUOUS.
+        matched: list[_PdfSectionTable] = []
+        for tbl in section_tables:
+            if not tbl.rows:
+                continue
+            header_row = tbl.rows[0]
+            if len(header_row) != len(expected_headers):
+                continue
+            folded_row = tuple(_fold_whitespace(ln.text) for ln in header_row)
+            if folded_row == tuple(_fold_whitespace(h) for h in expected_headers):
+                matched.append(tbl)
+        if not matched:
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
+        if len(matched) > 1:
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=(),
+            )
+        target_table = matched[0]
+        # Renderer parity: unit row visible iff template enables it
+        # AND any localized expected unit is non-empty.
+        has_unit_row_expected = template_unit_row_enabled and any(expected_unit_codes)
+        # Body rows start at index 1 (after the header). The
+        # ``expected`` unit row, if present, is body row 0;
+        # data rows start at body row 1.
+        body_rows = target_table.rows[1:]
+        if not body_rows:
             return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
-        row = rows[row_index]
-        if column_index < 0 or column_index >= len(row):
+        # Per Corrective 3, the unit row MAY be physically absent
+        # from the artifact (e.g. when the unit row is empty in
+        # the renderer and emits no spans). The unit row's
+        # presence in the artifact is detected by row count: if
+        # body has 2+ rows and we expect a unit row, the first
+        # body row is the unit row. If body has 1 row, the unit
+        # row is empty / absent.
+        cell_value = ""
+        observed_unit = ""
+        if has_unit_row_expected and len(body_rows) >= 2:
+            unit_row_idx: int | None = 0
+            data_row_idx = 1 + row_index
+        else:
+            unit_row_idx = None
+            data_row_idx = 0 + row_index
+        if data_row_idx < 0 or data_row_idx >= len(body_rows):
+            return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
+        data_row = body_rows[data_row_idx]
+        # Map data_row's lines to column indices via column_centers.
+        if not target_table.column_centers:
             return _BindingResult(
                 observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
             )
-        cell_value = row[column_index].text
-        expected_unit_code = (
-            expected_unit_codes[column_index] if column_index < len(expected_unit_codes) else ""
-        )
+        if len(target_table.column_centers) < 2:
+            half_band = 100.0
+        else:
+            sorted_centers = sorted(target_table.column_centers)
+            half_band = max(
+                (sorted_centers[i + 1] - sorted_centers[i]) / 2
+                for i in range(len(sorted_centers) - 1)
+            )
+        # Pick the line whose x-center is closest to the target
+        # column's center.
+        target_center = target_table.column_centers[
+            min(column_index, len(target_table.column_centers) - 1)
+        ]
+        cell_line = None
+        for ln in data_row:
+            ln_center = (ln.bbox[0] + ln.bbox[2]) / 2
+            if abs(ln_center - target_center) <= half_band and (
+                cell_line is None
+                or abs(ln_center - target_center)
+                < abs((cell_line.bbox[0] + cell_line.bbox[2]) / 2 - target_center)
+            ):
+                cell_line = ln
+        if cell_line is not None:
+            cell_value = cell_line.text
+        # Read the observed unit from the artifact's unit row.
+        if unit_row_idx is not None and unit_row_idx < len(body_rows):
+            unit_row = body_rows[unit_row_idx]
+            unit_line = None
+            for ln in unit_row:
+                ln_center = (ln.bbox[0] + ln.bbox[2]) / 2
+                if abs(ln_center - target_center) <= half_band and (
+                    unit_line is None
+                    or abs(ln_center - target_center)
+                    < abs((unit_line.bbox[0] + unit_line.bbox[2]) / 2 - target_center)
+                ):
+                    unit_line = ln
+            if unit_line is not None:
+                observed_unit = _strip_renderer_unit_wrapper(unit_line.text)
         return _BindingResult(
             observed=_ObservedNumericField(
                 field_path="",
                 section_key=section_key,
                 binding_kind=_BINDING_KIND_TABLE_CELL,
                 display_value=cell_value,
-                display_unit=expected_unit_code,
+                display_unit=observed_unit,
                 row_index=row_index,
                 column_index=column_index,
-                page_number=candidate_table.page_number,
+                page_number=target_table.page_number,
             ),
             failure_code=None,
             candidates=(),
@@ -1049,19 +1259,33 @@ def _compare_field(
 ) -> str | None:
     """Compare an observed field against the localized expected.
 
-    Returns a failure code (one of "VALUE_MISMATCH", "UNIT_MISSING",
-    "UNIT_MISMATCH") or None on success. Whitespace folding is the
-    ONLY allowed transformation; no fuzzy numeric tolerance.
+    Returns a failure code (one of ``"VALUE_MISMATCH"``,
+    ``"UNIT_MISSING"``, ``"UNIT_MISMATCH"``) or None on success.
+
+    Per Corrective 1's unit-integrity rule, unit comparison is
+    strictly symmetric:
+
+      - ``expected==""`` and ``observed==""`` → unit OK
+      - ``expected==""`` and ``observed!=""`` → ``UNIT_MISMATCH``
+        (the artifact emitted a unit the canonical did not expect)
+      - ``expected!=""`` and ``observed==""`` → ``UNIT_MISSING``
+        (the canonical expects a unit, the artifact has none)
+      - ``expected!=""`` and ``observed!=expected`` →
+        ``UNIT_MISMATCH`` (folded-whitespace only)
+      - units match → continue to value comparison.
+
+    Whitespace folding is the ONLY allowed transformation. No
+    fuzzy numeric tolerance, no unit aliasing, no parenthesized
+    alias equivalence.
     """
 
-    # Unit presence: if the canonical has a unit, the observation
-    # MUST also have a unit. If the canonical has no unit, the
-    # observation is allowed to have no unit too.
     expected_u_folded = _fold_whitespace(expected_unit)
     observed_u_folded = _fold_whitespace(observed.display_unit)
-    if expected_u_folded:
-        if not observed_u_folded:
+    if expected_u_folded or observed_u_folded:
+        if expected_u_folded and not observed_u_folded:
             return "UNIT_MISSING"
+        if observed_u_folded and not expected_u_folded:
+            return "UNIT_MISMATCH"
         if observed_u_folded != expected_u_folded:
             return "UNIT_MISMATCH"
     # Value comparison (whitespace-folded).
@@ -1188,6 +1412,93 @@ def _verify_artifact_binding(
         )
 
 
+def _lookup_template_table_unit_row(
+    *,
+    template_manifest_json: dict[str, Any] | None,
+    section_key: str,
+) -> bool:
+    """Return the template's ``table.unit_row`` bool for a section.
+
+    The template manifest stores the bool at::
+
+        template.manifest_json["sections"][section_key]
+        ["tables"][table_name]["unit_row"]
+
+    where ``table_name`` is the first (and only) table in the
+    section. If the bool cannot be resolved (e.g. section not in
+    template manifest, no tables, missing field), the renderer
+    default (``True``) is used. The helper is a safe lookup: any
+    structural mismatch returns ``True`` rather than raising.
+    """
+
+    if not isinstance(template_manifest_json, dict):
+        return True
+    sections = template_manifest_json.get("sections")
+    if not isinstance(sections, dict):
+        return True
+    section_cfg = sections.get(section_key)
+    if not isinstance(section_cfg, dict):
+        return True
+    tables = section_cfg.get("tables")
+    if not isinstance(tables, dict) or not tables:
+        return True
+    # Use the first table in the section (canonical pilot models
+    # have a single table per section).
+    first_table_cfg = next(iter(tables.values()))
+    if not isinstance(first_table_cfg, dict):
+        return True
+    unit_row_value = first_table_cfg.get("unit_row", True)
+    if isinstance(unit_row_value, bool):
+        return unit_row_value
+    return True
+
+
+# ── Heading-scope-based required-section authority ────────────────────────
+
+
+def _build_missing_sections_from_scopes(
+    *,
+    localized_sections: tuple[Any, ...],
+    resolved_scopes: Mapping[str, tuple[int, int]],
+) -> list[str]:
+    """Build the ``missing_sections`` list from structural section scopes.
+
+    Per Corrective 6, the required-section authority is the
+    section-scope map (whether the localized heading was found in
+    the artifact as a structural section divider), NOT a
+    flattened-text substring check. A section is ``missing`` if
+    its ``section_key`` is absent from ``resolved_scopes``. The
+    returned list contains the localized titles for the missing
+    sections (so the schema-level field still carries the
+    human-readable heading text).
+    """
+
+    missing_titles: list[str] = []
+    for section in localized_sections:
+        if section.section_key not in resolved_scopes:
+            missing_titles.append(section.title)
+    return missing_titles
+
+
+def _build_observed_localized_headings(
+    *,
+    localized_sections: tuple[Any, ...],
+    resolved_scopes: Mapping[str, tuple[int, int]],
+) -> list[str]:
+    """Build the ``observed_localized_headings`` list from structural scopes.
+
+    Per Corrective 6, this list now reflects which localized
+    headings were structurally located as section dividers (i.e.
+    whose ``section_key`` is in ``resolved_scopes``). The
+    flattened-text substring heuristic is no longer used to
+    determine section presence.
+    """
+
+    return [
+        section.title for section in localized_sections if section.section_key in resolved_scopes
+    ]
+
+
 def _semantic_checks(
     *,
     canonical_model: CanonicalReportRenderModel,
@@ -1231,12 +1542,12 @@ def _semantic_checks(
         format=fmt.value,
     )
 
-    # Heading-presence check (auxiliary diagnostic, NOT a numeric
-    # semantic check). The P1-3 contract explicitly allows keeping
-    # text-based heading presence as auxiliary diagnostic.
-    flattened_text = _extract_text(fmt, artifact_bytes)
-    expected_headings = [section.title for section in localized.sections]
-    missing_sections = [heading for heading in expected_headings if heading not in flattened_text]
+    # Per Corrective 6, the required-section authority is the
+    # structural section-scope map (resolved_scopes), NOT a
+    # flattened-text substring check. The flattened_text is
+    # computed only for legacy diagnostic consumers; the
+    # section-presence gate is now strictly scope-based.
+    _ = _extract_text(fmt, artifact_bytes)
 
     # Section scopes from the localized model.
     section_scopes_spec = _build_section_scopes(localized_sections=localized.sections)
@@ -1255,10 +1566,19 @@ def _semantic_checks(
         resolved_scopes = _resolve_pdf_section_scopes(
             observation=pdf_observation, section_scopes=section_scopes_spec
         )
-        # Per Corrective 4, tables are reconstructed per section from
-        # the section's coordinate scope, not as a page-global view.
+        # Per Corrective 3+4, tables are reconstructed per section
+        # using the localized table headers (structural identity),
+        # not page-global y-cluster heuristics. The header map is
+        # section_key -> (expected_header_text_by_column).
+        section_table_headers: dict[str, tuple[str, ...]] = {
+            section.section_key: section.table.headers
+            for section in localized.sections
+            if section.table is not None
+        }
         pdf_section_tables = _build_section_local_tables(
-            pdf_observation=pdf_observation, section_scopes=resolved_scopes
+            pdf_observation=pdf_observation,
+            section_scopes=resolved_scopes,
+            section_table_headers=section_table_headers,
         )
     else:
         _fail("UNSUPPORTED_FORMAT", f"Unsupported report format: {fmt.value}")
@@ -1440,6 +1760,9 @@ def _semantic_checks(
         row_index: int,
         column_index: int,
         expected_unit_codes: tuple[str, ...],
+        expected_headers: tuple[str, ...],
+        template_unit_row_enabled: bool,
+        num_data_rows: int = 1,
     ) -> None:
         canonical_fields.append(
             {
@@ -1457,6 +1780,9 @@ def _semantic_checks(
             row_index=row_index,
             column_index=column_index,
             expected_unit_codes=expected_unit_codes,
+            expected_headers=expected_headers,
+            template_unit_row_enabled=template_unit_row_enabled,
+            num_data_rows=num_data_rows,
         )
         if result.failure_code is not None:
             _record_failure(
@@ -1503,6 +1829,17 @@ def _semantic_checks(
             # table's unit_row (already formatted by
             # ``localize_render_model``). No reformatting here.
             localized_unit_codes: tuple[str, ...] = section.table.unit_row
+            localized_headers: tuple[str, ...] = section.table.headers
+            # Renderer parity: look up the template's
+            # ``table.unit_row`` bool for this section. The template
+            # stores the bool under
+            # ``template.manifest_json["sections"][section_key]
+            # ["tables"][table_name]["unit_row"]``. The default is
+            # ``True`` (matches the renderer's default).
+            template_unit_row_enabled = _lookup_template_table_unit_row(
+                template_manifest_json=template_manifest_json,
+                section_key=section.section_key,
+            )
             for row_idx, row in enumerate(section.table.rows):
                 for col_idx, cell in enumerate(row):
                     raw = cell.canonical.raw_value
@@ -1515,9 +1852,14 @@ def _semantic_checks(
                             row_index=row_idx,
                             column_index=col_idx,
                             expected_unit_codes=localized_unit_codes,
+                            expected_headers=localized_headers,
+                            template_unit_row_enabled=template_unit_row_enabled,
+                            num_data_rows=len(section.table.rows),
                         )
 
-    sections_ok = not missing_sections
+    sections_ok = not _build_missing_sections_from_scopes(
+        localized_sections=localized.sections, resolved_scopes=resolved_scopes
+    )
     units_ok = not missing_units
     mismatches_ok = not numeric_mismatches
     result = "PASS" if sections_ok and units_ok and mismatches_ok else "FAIL"
@@ -1529,12 +1871,14 @@ def _semantic_checks(
         "required_heading_keys": [
             f"section.{section.section_key}" for section in canonical_model.sections
         ],
-        "observed_localized_headings": [
-            heading for heading in expected_headings if heading in flattened_text
-        ],
+        "observed_localized_headings": _build_observed_localized_headings(
+            localized_sections=localized.sections, resolved_scopes=resolved_scopes
+        ),
         "canonical_numeric_fields": canonical_fields,
         "observed_numeric_fields": observed_fields,
-        "missing_sections": missing_sections,
+        "missing_sections": _build_missing_sections_from_scopes(
+            localized_sections=localized.sections, resolved_scopes=resolved_scopes
+        ),
         "missing_units": sorted(set(missing_units)),
         "numeric_mismatches": sorted(set(numeric_mismatches)),
         "semantic_result": result,
