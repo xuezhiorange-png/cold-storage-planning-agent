@@ -15,7 +15,7 @@
 > PRIOR_AMENDMENT_MERGE_COMMIT=4603648045a031667f992500c59ee1deb026cd53
 > PRIOR_AMENDMENT_EFFECTIVE_AUTHORITY=SOURCE_CONTRACT_SECTION_20
 > PRIOR_AMENDMENT_FIVE_PATH_STATUS=ACTIVE_AND_CONTINUING
-> PRIOR_AMENDMENT_AMENDMENT_ACTIVATION=ON_PR68_MERGE
+> PRIOR_AMENDMENT_ACTIVATION=ON_PR68_MERGE
 > PRIOR_AMENDMENT_SCOPE_OF_EFFECT=PR67_IMPLEMENTATION
 > PR67_FIVE_PATH_ALLOWLIST_P0_CURRENT_STATUS=RESOLVED_BY_MERGED_PR68
 > PR67_FIVE_PATH_AUTHORITY_SOURCE=MERGED_PR68_SECTION_20
@@ -48,59 +48,58 @@
 > contract delta.
 
 ## 0. Relationship to merged PR #68 and source-contract §20
-|
-|This amendment is explicitly **additive-clarifying** relative to the
-|merged PR #68 amendment. It does **NOT** revoke, supersede, or
-|retroactively invalidate PR #68's authority. Required because the
-|engineering-review verdict on this draft identified an unqualified
-|"supersedes" claim that had to be reconciled with the fact that
-|PR #68 is already merged into `main`.
-|
-|```text
-|PR68_STATE=MERGED
-|PR68_MERGE_COMMIT=4603648045a031667f992500c59ee1deb026cd53
-|PR68_MERGE_TIMESTAMP=2026-07-18T05:50:37Z
-|PR68_EFFECTIVE_AUTHORITY=SOURCE_CONTRACT_SECTION_20
-|PR68_FIVE_PATH_AUTHORITY=ACTIVE_AND_CONTINUING
-|PR69_RETROACTIVE_INVALIDATION_OF_PR68=NO
-|PR69_REAUTHORIZES_FIVE_PATHS=NO
-|PR69_SUPERSEDES_PR68=NO          # This string MUST NOT appear unconditioned in any future restatement.
-|PR69_RELATIONSHIP_TO_PR68=ADDITIVE_CLARIFYING_AMENDMENT
-|PR69_ADDS_CLARIFICATIONS_AND_ACCEPTANCE_OBLIGATIONS_ONLY=YES
-|PR69_MERGES_AUTHORITY_PRECEDENCE=PR_68_AUTHORITY_CONTINUES_FOR_FIVE_PATHS,
-|                                 THIS_AMENDMENT_CONTROLS_NEW_OBLIGATIONS
-|```
-|
-|Normative rules for how the two amendments coexist on `main` after
-|PR #69 merges:
-|
-|1. PR #68 has merged into `main` and has written the five-path
-|   narrower authorization into source-contract §20. That authority
-|   continues in force exactly as written.
-|2. PR #69 does not reauthorize, withdraw, or retroactively alter
-|   those five paths. The paths are already effective via §20.
-|3. PR #69 is permitted to **clarify**, **restate for audit**, and
-|   **add new acceptance obligations** that were not present in §20.
-|4. Before PR #69 merges, it produces no new authority. The five
-|   paths are governed by §20 from PR #68's merge onward regardless
-|   of whether PR #69 ever merges.
-|5. After PR #69 merges, if any clause in this document appears to
-|   conflict with §20:
-|   - §20 continues to control the five-path authorization scope.
-|   - PR #69 controls the additional acceptance obligations and
-|     any prerequisite / runner surface clarification explicitly
-|     listed in §3a, §5, §6 below.
-|   - PR #69 never widens the five-path scope beyond §20.
-|6. Whether a historical PR #67 mutation was authorized at the time
-|   it was made remains a historical fact; PR #69 merge does not
-|   rewrite that history.
-|
-|When referring to PR #68 in this document or in the PR #69 body,
-|this amendment uses phrases equivalent to "clarifies and extends
-|the merged PR #68 amendment", never the unqualified verb
-|"supersedes".
-|
-|## 1. Repository identity
+This amendment is explicitly **additive-clarifying** relative to the
+merged PR #68 amendment. It does **NOT** revoke, supersede, or
+retroactively invalidate PR #68's authority. Required because the
+engineering-review verdict on this draft identified an unqualified
+"supersedes" claim that had to be reconciled with the fact that
+PR #68 is already merged into `main`.
+
+```text
+PR68_STATE=MERGED
+PR68_MERGE_COMMIT=4603648045a031667f992500c59ee1deb026cd53
+PR68_MERGE_TIMESTAMP=2026-07-18T05:50:37Z
+PR68_EFFECTIVE_AUTHORITY=SOURCE_CONTRACT_SECTION_20
+PR68_FIVE_PATH_AUTHORITY=ACTIVE_AND_CONTINUING
+PR69_RETROACTIVE_INVALIDATION_OF_PR68=NO
+PR69_REAUTHORIZES_FIVE_PATHS=NO
+PR69_SUPERSEDES_PR68=NO          # This string MUST NOT appear unconditioned in any future restatement.
+PR69_RELATIONSHIP_TO_PR68=ADDITIVE_CLARIFYING_AMENDMENT
+PR69_ADDS_CLARIFICATIONS_AND_ACCEPTANCE_OBLIGATIONS_ONLY=YES
+PR69_MERGES_AUTHORITY_PRECEDENCE=PR_68_FIVE_PATHS,
+                                 THIS_AMENDMENT_CONTROLS_NEW_OBLIGATIONS
+```
+
+Normative rules for how the two amendments coexist on `main` after
+PR #69 merges:
+
+1. PR #68 has merged into `main` and has written the five-path
+   narrower authorization into source-contract §20. That authority
+   continues in force exactly as written.
+2. PR #69 does not reauthorize, withdraw, or retroactively alter
+   those five paths. The paths are already effective via §20.
+3. PR #69 is permitted to **clarify**, **restate for audit**, and
+   **add new acceptance obligations** that were not present in §20.
+4. Before PR #69 merges, it produces no new authority. The five
+   paths are governed by §20 from PR #68's merge onward regardless
+   of whether PR #69 ever merges.
+5. After PR #69 merges, if any clause in this document appears to
+   conflict with §20:
+   - §20 continues to control the five-path authorization scope.
+   - PR #69 controls the additional acceptance obligations and
+     any prerequisite / runner surface clarification explicitly
+     listed in §3a, §5, §6 below.
+   - PR #69 never widens the five-path scope beyond §20.
+6. Whether a historical PR #67 mutation was authorized at the time
+   it was made remains a historical fact; PR #69 merge does not
+   rewrite that history.
+
+When referring to PR #68 in this document or in the PR #69 body,
+this amendment uses phrases equivalent to "clarifies and extends
+the merged PR #68 amendment", never the unqualified verb
+"supersedes".
+
+## 1. Repository identity
 
 ```text
 ISSUE_NUMBER=20
@@ -930,34 +929,34 @@ therefore forbidden.
 
 ```text
 FINAL_CLASSIFICATION=
-  TASK011_SLICE1_CONTRACT_AMENDMENT_001_CORRECTED_2_PENDING_INDEPENDENT_REVIEW
-
-PR68_FIVE_PATH_AUTHORITY=ACTIVE
-PR67_FIVE_PATH_P0=RESOLVED
-PR69_FIVE_NEW_OBLIGATIONS=AUTHORED_PENDING_REVIEW
-PR69_CONTRACT_AMENDMENT_FROZEN=***
-
-PR67_CORRECTION_AUTHORIZED=***
-PR67_READY_AUTHORIZED=***
-PR67_MERGE_AUTHORIZED=***
-ISSUE20_CLOSURE_AUTHORIZED=***
-TASK12_AUTHORIZED=***
+  TASK011_SLICE1_CONTRACT_AMENDMENT_001_CORRECTED_3_PENDING_INDEPENDENT_REVIEW
+  PR68_FIVE_PATH_AUTHORITY=ACTIVE
+  PR67_FIVE_PATH_P0=RESOLVED_BY_MERGED_PR68
+  PR69_FIVE_NEW_OBLIGATIONS=AUTHORED_PENDING_REVIEW
+  PR69_CONTRACT_AMENDMENT_FROZEN=NO
+  PR67_CORRECTION_AUTHORIZED=NO
+  PR67_READY_AUTHORIZED=NO
+  PR67_MERGE_AUTHORIZED=NO
+  ISSUE20_CLOSURE_AUTHORIZED=NO
+  TASK12_AUTHORIZED=NO
 ```
 
 This document is corrected (single-file docs-only patch on top
-of the prior committed corrective-1 round), and is pending
+of the prior committed corrective-2 round), and is pending
 independent contract review. It contains zero implementation
 authority, zero PR #67 mutation authority, and zero GitHub
 workflow change authority as a result of this round's
 correction. The contract corrections this document records
-(surface resolution, status language, repeat-identity
-clarification, allowlist authority separation, obligation
-count unification, final classification rewrite) are recorded
-in proposed-for-freeze form: they would become binding only
-after Charles's explicit freeze authorization in a separate
-round followed by Ready, Merge, and post-merge main-identity
-verification. Absent that freeze-authorization round, this
-document remains in `CORRECTED_2_PENDING_INDEPENDENT_REVIEW`
-indefinitely and PR #69 remains in its current Draft state.
+(markdown §0 and §1 structural repair, machine-readable
+governance marker normalization, duplicate authority marker
+rename, structural restoration of §0 authority values
+truncated by the prior round's corrective-2 patches, and
+PR-body full identity sync) are recorded in proposed-for-freeze
+form: they would become binding only after Charles's explicit
+freeze authorization in a separate round followed by Ready,
+Merge, and post-merge main-identity verification. Absent that
+freeze-authorization round, this document remains in
+`CORRECTED_3_PENDING_INDEPENDENT_REVIEW` indefinitely and
+PR #69 remains in its current Draft state.
 
-*End of Amendment 001 (corrective-2).*
+*End of Amendment 001 (corrective-3).*
