@@ -1,6 +1,6 @@
 # TASK-011 Slice 1 Contract Amendment 001
 
-> **Status:** `AUTHORED_PENDING_REVIEW` (corrective-2 applied 2026-07-19)
+> **Status:** `AUTHORED_PENDING_REVIEW` (corrective-3 applied 2026-07-19)
 >
 > **Authority sequence:**
 >
@@ -34,11 +34,11 @@
 > PR67_REMAINS_IN_CHANGES_REQUESTED_STATE=YES  (snapshot per 2026-07-19)
 > PR67_READY_AUTHORIZED=NO
 > PR67_MERGE_AUTHORIZED=NO
-> AMENDMENT_ROUND_TYPE=DOCS_ONLY_CORRECTIVE_ROUND_2
-> AUTHORIZATION=AUTHORIZE_PR69_CONTRACT_AMENDMENT_CORRECTIVE_2
+> AMENDMENT_ROUND_TYPE=DOCS_ONLY_CORRECTIVE_ROUND_3
+> AUTHORIZATION=AUTHORIZE_PR69_CONTRACT_AMENDMENT_CORRECTIVE_3
 > ```
 >
-> **Round type:** one-file docs-only contract amendment (corrective-2).
+> **Round type:** one-file docs-only contract amendment (corrective-3).
 > This document amends the frozen contract merged through PR #66 and
 > operates additively to merged PR #68 §20. It does NOT freeze
 > implementation, does NOT authorize Readiness, Merge, Issue #20
