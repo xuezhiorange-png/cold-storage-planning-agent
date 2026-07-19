@@ -1,44 +1,53 @@
 # TASK-011 Slice 1 Contract Amendment 001
 
-| **Status:** `AUTHORED_PENDING_REVIEW` (corrective-1 applied 2026-07-19)
-|>
-| **Authority sequence:**
-|>
-| ```text
-| DOCUMENT_STATUS=AUTHORED_PENDING_REVIEW
-| CONTRACT_AMENDMENT_FROZEN=NO
-| SOURCE_CONTRACT_PR=66
-| SOURCE_CONTRACT_MERGE_SHA=e6922ce406e093ec06fbbf23ca89a0d65a5956f0
-| SOURCE_CONTRACT_DOCUMENT=docs/tasks/TASK-011-remaining-pilot-readiness-definition.md
-| PRIOR_AMENDMENT_PR=68
-| PRIOR_AMENDMENT_STATE=MERGED
-| PRIOR_AMENDMENT_MERGE_COMMIT=4603648045a031667f992500c59ee1deb026cd53
-| PRIOR_AMENDMENT_EFFECTIVE_AUTHORITY=SOURCE_CONTRACT_SECTION_20
-| PRIOR_AMENDMENT_FIVE_PATH_STATUS=ACTIVE_AND_CONTINUING
-| PR69_RETROACTIVE_INVALIDATION_OF_PRIOR_AMENDMENT=NO
-| PR69_REAUTHORIZES_FIVE_PATHS=NO
-| PR69_RELATIONSHIP_TO_PRIOR_AMENDMENT=ADDITIVE_CLARIFYING_AMENDMENT
-| PR69_ADDS_CLARIFICATIONS_AND_ACCEPTANCE_OBLIGATIONS_ONLY=YES
-| BLOCKED_IMPLEMENTATION_PR=67
-| BLOCKED_IMPLEMENTATION_PR_CURRENT_HEAD=4ab6ebfa3d16c707f5aa849ff5b4bc831aa36669
-| BINDING_REVIEW_ID=4727663461
-| BINDING_REVIEW_VERDICT=CHANGES_REQUESTED  (on historical head f315f6a57cf5b1fbbca97856069bf10975ec0415)
-| STATUS_CONFIRMATION_COMMENT_ID=5009963180
-| PR67_REMAINS_IN_CHANGES_REQUESTED_STATE=YES  (snapshot per 2026-07-19)
-| AMENDMENT_ROUND_TYPE=DOCS_ONLY_CORRECTIVE_ROUND_1
-| AUTHORIZATION=AUTHORIZE_PR69_CONTRACT_AMENDMENT_CORRECTIVE_1
-| ```
+> **Status:** `AUTHORED_PENDING_REVIEW` (corrective-2 applied 2026-07-19)
 >
-|> **Round type:** one-file docs-only contract amendment (corrective-1).
-|> This document amends the frozen contract merged through PR #66 and
-|> operates additively to merged PR #68 §20. It does NOT freeze
-|> implementation, does NOT authorize Readiness, Merge, Issue #20
-|> closure, Task 12, or any PR #67 mutation. PR #67 remains untouched.
-|> After this round, Charles freeze-authorization in a SEPARATE round is
-|> the sole path to converting this draft amendment into a binding
-|> contract delta.
-|
-|## 0. Relationship to merged PR #68 and source-contract §20
+> **Authority sequence:**
+>
+> ```text
+> DOCUMENT_STATUS=AUTHORED_PENDING_REVIEW
+> CONTRACT_AMENDMENT_FROZEN=NO
+> SOURCE_CONTRACT_PR=66
+> SOURCE_CONTRACT_MERGE_SHA=e6922ce406e093ec06fbbf23ca89a0d65a5956f0
+> SOURCE_CONTRACT_DOCUMENT=docs/tasks/TASK-011-remaining-pilot-readiness-definition.md
+> PRIOR_AMENDMENT_PR=68
+> PRIOR_AMENDMENT_STATE=MERGED
+> PRIOR_AMENDMENT_MERGE_COMMIT=4603648045a031667f992500c59ee1deb026cd53
+> PRIOR_AMENDMENT_EFFECTIVE_AUTHORITY=SOURCE_CONTRACT_SECTION_20
+> PRIOR_AMENDMENT_FIVE_PATH_STATUS=ACTIVE_AND_CONTINUING
+> PRIOR_AMENDMENT_AMENDMENT_ACTIVATION=ON_PR68_MERGE
+> PRIOR_AMENDMENT_SCOPE_OF_EFFECT=PR67_IMPLEMENTATION
+> PR67_FIVE_PATH_ALLOWLIST_P0_CURRENT_STATUS=RESOLVED_BY_MERGED_PR68
+> PR67_FIVE_PATH_AUTHORITY_SOURCE=MERGED_PR68_SECTION_20
+> PR69_RETROACTIVE_INVALIDATION_OF_PRIOR_AMENDMENT=NO
+> PR69_REAUTHORIZES_FIVE_PATHS=NO
+> PR69_REACTIVATES_FIVE_PATHS=NO
+> PR69_GATES_PR68_FIVE_PATH_AUTHORITY=NO
+> PR69_RELATIONSHIP_TO_PRIOR_AMENDMENT=ADDITIVE_CLARIFYING_AMENDMENT
+> PR69_ADDS_CLARIFICATIONS_AND_ACCEPTANCE_OBLIGATIONS_ONLY=YES
+> PR69_ONLY_GOVERNS_FIVE_NEW_ACCEPTANCE_OBLIGATIONS=YES
+> BLOCKED_IMPLEMENTATION_PR=67
+> BLOCKED_IMPLEMENTATION_PR_CURRENT_HEAD=4ab6ebfa3d16c707f5aa849ff5b4bc831aa36669
+> BINDING_REVIEW_ID=4727663461
+> BINDING_REVIEW_VERDICT=CHANGES_REQUESTED  (on historical head f315f6a57cf5b1fbbca97856069bf10975ec0415)
+> STATUS_CONFIRMATION_COMMENT_ID=5009963180
+> PR67_REMAINS_IN_CHANGES_REQUESTED_STATE=YES  (snapshot per 2026-07-19)
+> PR67_READY_AUTHORIZED=NO
+> PR67_MERGE_AUTHORIZED=NO
+> AMENDMENT_ROUND_TYPE=DOCS_ONLY_CORRECTIVE_ROUND_2
+> AUTHORIZATION=AUTHORIZE_PR69_CONTRACT_AMENDMENT_CORRECTIVE_2
+> ```
+>
+> **Round type:** one-file docs-only contract amendment (corrective-2).
+> This document amends the frozen contract merged through PR #66 and
+> operates additively to merged PR #68 §20. It does NOT freeze
+> implementation, does NOT authorize Readiness, Merge, Issue #20
+> closure, Task 12, or any PR #67 mutation. PR #67 remains untouched.
+> After this round, Charles freeze-authorization in a SEPARATE round is
+> the sole path to converting this draft amendment into a binding
+> contract delta.
+
+## 0. Relationship to merged PR #68 and source-contract §20
 |
 |This amendment is explicitly **additive-clarifying** relative to the
 |merged PR #68 amendment. It does **NOT** revoke, supersede, or
@@ -123,9 +132,13 @@ pilot acceptance). It does NOT reopen or modify:
 - any production deployment hardening, or Task 12.
 
 The amendment binds ONLY the Slice 1 scope already defined by the
-source contract; it extends the path-precise allowlist and codifies four
-corrective obligations that the binding engineering review
-`4727663461` accepted as needed-for-acceptance.
+source contract. The five-path authority activated by merged PR #68 §20
+at `4603648045a031667f992500c59ee1deb026cd53` is **preserved
+unchanged**. This amendment proposes **five additional Slice 1
+acceptance obligations** and clarifies their execution and audit
+requirements. The `evaluate.py` shared artifact-I/O reminder remains a
+separate retained source-contract obligation and is not counted among
+the five new ones.
 
 ## 3. Terminology
 
@@ -207,12 +220,18 @@ from cold_storage.evaluation.execute import run_scenario
 # allowed to be random or placeholder strings.
 outcome = run_scenario(
     session_factory,
-    source_binding_id=<persisted SourceBindingRecord.id>,
-    weight_set_revision_id=<persisted ApprovedWeightSetRevision.id with status='approved'>,
-    correlation_id=<pilot correlation id>,
+    source_binding_id=<backend-local persisted SourceBindingRecord.id>,
+    weight_set_revision_id=<backend-local approved ApprovedWeightSetRevision.id>,
+    correlation_id=<frozen golden-bound pilot baseline correlation id>,
     database_backend='sqlite' | 'postgresql',
 )
 ```
+
+The pilot composition passes the **same frozen pilot baseline
+correlation ID** on every repeat. Two databases may have their
+own prerequisite rows (`source_binding_id` /
+`weight_set_revision_id`), but **the correlation ID is the same
+golden-bound value across all four runs**.
 
 Required conditions PR #67 must satisfy without modifying
 `backend/src/cold_storage/evaluation/execute.py`:
@@ -228,8 +247,13 @@ Required conditions PR #67 must satisfy without modifying
    row with `status='approved'`, not a synthesised constant.
 4. Neither ID MAY be forged as a random string. The IDs MAY be
    reused across repeated runs on the same backend provided they
-   resolve to the same persisted rows, but each repeated run MUST
-   use an independent `correlation_id`.
+   resolve to the same persisted rows. The production
+   `correlation_id` is golden-bound at the pilot baseline value
+   and MUST stay identical across every repeat (SQLite repeat
+   1/2, PostgreSQL repeat 1/2); repeat uniqueness MUST be
+   expressed through `repeat_index`, `run_root`, execution
+   metadata, timestamps and storage keys, not through
+   `correlation_id` variation.
 5. SQLite and PostgreSQL runs MUST each provision their prerequisite
    rows in their own database; the pilot MUST NOT depend on a shared
    cross-backend fixture.
@@ -303,9 +327,20 @@ additions; they become binding only after this amendment merges.
 
 ```text
 CURRENT_PR67_CONTENT_TECHNICALLY_PRESENT=YES
-CURRENT_PR67_CONTENT_RETROACTIVELY_AUTHORIZED=NO
-RETROACTIVE_RECONCILIATION_STATUS=PENDING_UNTIL_PR69_MERGES
+FIVE_PATH_AUTHORITY_CURRENTLY_ACTIVE=YES
+FIVE_PATH_AUTHORITY_SOURCE=PR68_SECTION_20
+HISTORICAL_MUTATION_TIMING_RECORDED_SEPARATELY=YES
+HISTORICAL_PRE_PR68_MUTATION_AUTHORIZATION_STATUS=HISTORICAL_FACT_NOT_REWRITTEN
+CURRENT_PR67_FIVE_PATH_AUTHORITY=ACTIVE_VIA_MERGED_PR68_SECTION_20
+PR67_FIVE_PATH_P0_RESOLVED_BY_PR68=YES
 ```
+
+The historical authorization status of PR #67's branch-time mutations
+is recorded under `HISTORICAL_PRE_PR68_MUTATION_AUTHORIZATION_STATUS`
+and is **not** rewritten by this amendment. The current PR #67 P0
+frozen-allowlist finding is **already resolved** by PR #68 §20; this
+amendment does **not** gate, reactivate, or re-freeze that
+resolution.
 
 ### 4.1 `backend/src/cold_storage/modules/reports/infrastructure/real_data_provider.py`
 
@@ -640,6 +675,9 @@ TRANSLATION_CATALOG_VERSION
 TRANSLATION_CATALOG_CONTENT_IDENTITY
 LOCALIZED_TEMPLATE_IDENTITY
 PASS_FAIL_CLASSIFICATION
+# correlation ID is golden-bound and MUST be identical across
+# every SQLite/PostgreSQL repeat per §5.5:
+CORRELATION_ID
 ```
 
 The following are explicitly NOT required to be identical across
@@ -688,8 +726,29 @@ After the post-freeze state takes effect, future Slice 1 implementation MUST sat
   and MUST NOT modify
   `backend/src/cold_storage/evaluation/execute.py`.
 - Repeated runs (SQLite repeat 1/2, PostgreSQL repeat 1/2) MAY reuse
-  the same prerequisite IDs in their respective database, but each
-  repeated run MUST use an independent `correlation_id`.
+  the same prerequisite IDs in their respective database.
+- Repeat uniqueness MUST be expressed through non-correlation-ID
+  channels: `database_backend`, `repeat_index`, `run_root` /
+  output-root identity, execution record, artifact identity,
+  timestamp, storage key — **never through varying the production
+  correlation ID**. The production correlation ID is part of the
+  golden-bound business projection and stays frozen at the pilot
+  baseline value across every repeat.
+
+```text
+PRODUCTION_CORRELATION_ID_SOURCE=FROZEN_GOLDEN_CONTRACT
+PRODUCTION_CORRELATION_ID_REPEAT_VARIATION=NO
+REPEAT_EXECUTION_IDENTITY_SOURCE=
+  database_backend
+  repeat_index
+  run_root
+  execution_metadata
+REPEAT_EXECUTION_IDENTITY_UNIQUE=YES
+PILOT_BASELINE_CORRELATION_ID_REQUIRED=YES
+REPEAT_1_PRODUCTION_CORRELATION_ID_EQUALS_REPEAT_2=YES
+REPEAT_UNIQUENESS_DOES_NOT_REQUIRE_CORRELATION_VARIATION=YES
+CROSS_REPEAT_GOLDEN_INVARIANT_INCLUDES_CORRELATION_ID=YES
+```
 - Freeze of this amendment becomes binding immediately on main merge,
   but enforcement for PR #67 waits for Charles's separate PR #67
   corrective authorization.
@@ -724,7 +783,7 @@ which remain in force regardless of this amendment's freeze status:
 - Issue #20 remains open.
 - Task 12 remains blocked until Issue #20 is actually closed.
 
-## 7. PR #67 governance state under this amendment
+## 7. PR #67 governance state and the effect of PR #69's new obligations
 
 This amendment tracks PR #67 identity using **stable identifiers**,
 not easily-stale head SHAs. Where a head SHA appears below it is
@@ -742,44 +801,69 @@ PR67_HEAD_CURRENT_SNAPSHOT_2026_07_19=4ab6ebfa3d16c707f5aa849ff5b4bc831aa36669
 PR67_HEAD_SNAPSHOT_NON_NORMATIVE=YES
 PR67_NEW_ENGINEERING_VERDICT_AFTER_CORRECTIVE_ROUNDS=NO  # No new review verdict anchored to the current head; the canonical binding remains review 4727663461.
 PR67_REMAINS_OPEN_AND_DRAFT=YES
-PR67_CANNOT_BE_READIED_UNDER_CURRENT_AMENDMENT_ALONE=YES
+
+# Three concepts that MUST remain distinct:
+A_HISTORICAL_PRE_PR68_MUTATION_AUTHORIZATION_STATUS=HISTORICAL_FACT_NOT_REWRITTEN
+B_CURRENT_PR67_FIVE_PATH_AUTHORITY=ACTIVE_VIA_MERGED_PR68_SECTION_20
+C_PR69_ADDITIONAL_ACCEPTANCE_OBLIGATIONS=NOT_BINDING_UNTIL_PR69_MERGE
 ```
 
-The amendment distinguishes:
+### 7.1 Five-path P0 status (already resolved)
 
-- **Technical presence** — the five paths enumerated in §4 are
-  physically committed on PR #67's branch history.
-- **Retroactive authorization** — at the moment of this authoring,
-  no retroactive authority has been conferred. Five-path authority
-  was independently granted by PR #68 §20 at
-  `4603648045...` merge, and remains in force regardless of whether
-  this amendment merges.
+The PR #67 P0 frozen-allowlist finding from binding review
+`4727663461` is **resolved by merged PR #68 §20**. PR #69 does not
+gate, reactivate, or re-freeze that resolution; PR #69 merge is
+**not** required for the five paths to be authorized for PR #67.
+This separation is binding: PR #69 merge MUST NOT be cited as
+proof of five-path authorization.
 
-The five paths inherit their scope from source-contract §20. They
-become retroactively authorized **for PR #67's own readiness
-review** only after the following sequence has been completed in
-separate, individually authorized rounds:
+### 7.2 Why PR #67 still cannot Ready/Merge
 
-1. This amendment is reviewed in an independent contract review.
-2. Charles issues an explicit freeze authorization for this amendment.
-3. A separate Ready authorization round transitions the amendment's
-   Draft PR to Ready.
-4. A separate Merge authorization round merges the amendment.
-5. A post-merge main identity verification round confirms the merged
-   amendment is at the expected post-merge SHA.
-6. Only after step 5 may a SEPARATE PR #67 corrective authorization
-   round authorize retention or amendment of the five paths as part of
-   PR #67 itself.
+PR #67 still cannot Ready or Merge under any current authorization,
+not because of the five-path authority (which §20 already
+provides) but because the following unrelated conditions are open:
 
-Until step 5 is complete, this amendment's authoring, the Draft PR
-creation, and any CI pass on the Draft PR MUST NOT be cited or framed as
-authorization that lifts the path blocker for the PR #67 P0 finding.
-The canonical binding review `PR67_BINDING_REVIEW_ID=4727663461`
-verdict `CHANGES_REQUESTED` remains the controlling PR #67 verdict
-(anchored historically to PR #67 head
-`f315f6a57cf5b1fbbca97856069bf10975ec0415`) until PR #67's own
-remediation is reviewed and approved in separate, individually
-authorized rounds.
+1. **Open engineering-findings on PR #67** — the binding review
+   `4727663461` verdict `CHANGES_REQUESTED` remains the controlling
+   verdict until separate, individually authorized corrective
+   rounds lift or replace it.
+2. **Five new acceptance obligations proposed by PR #69 are not
+   yet binding** — they are authored in this draft and require
+   Charles's freeze authorization, then Ready, then Merge, then
+   post-merge main identity verification, in four separate
+   rounds.
+3. **No PR #67 corrective/Ready/Merge authorization issued** —
+   Charles has not yet issued any of these authorizations for
+   PR #67 directly.
+
+### 7.3 Effect of a future PR #69 merge
+
+If and when PR #69 merges:
+
+- Its five new acceptance obligations become binding contract
+  delta on `main`.
+- Its merge does **not** retroactively rewrite whether PR #67's
+  branch-time mutations were authorized at the moment they were
+  made. That historical fact is preserved under §0 concept A
+  (above).
+- Its merge does **not** alter the five-path authorization already
+  in force via PR #68 §20.
+
+### 7.4 Canonical binding references
+
+The canonical binding references for PR #67 — **independent of
+easily-stale head SHAs** — are:
+
+```text
+PR_NUMBER=67
+PR67_BINDING_REVIEW_ID=4727663461
+PR67_BODY_CONVERSATION_COMMENT_ID=5009963180
+```
+
+The historical head `f315f6a57cf5b1fbbca97856069bf10975ec0415`
+records the head the binding review was anchored to. The
+current head `4ab6ebfa3d16c707f5aa849ff5b4bc831aa36669` is a
+non-normative snapshot.
 
 ## 8. State surface at end of this round
 
@@ -845,25 +929,35 @@ therefore forbidden.
 ## 10. Final classification
 
 ```text
-FINAL_CLASSIFICATION=TASK011_SLICE1_CONTRACT_AMENDMENT_001_CORRECTED_PENDING_INDEPENDENT_REVIEW
+FINAL_CLASSIFICATION=
+  TASK011_SLICE1_CONTRACT_AMENDMENT_001_CORRECTED_2_PENDING_INDEPENDENT_REVIEW
 
-PR67_CORRECTION_AUTHORIZED=NO
-PR67_READY_AUTHORIZED=NO
-PR67_MERGE_AUTHORIZED=NO
-ISSUE20_CLOSURE_AUTHORIZED=NO
-TASK12_AUTHORIZED=NO
+PR68_FIVE_PATH_AUTHORITY=ACTIVE
+PR67_FIVE_PATH_P0=RESOLVED
+PR69_FIVE_NEW_OBLIGATIONS=AUTHORED_PENDING_REVIEW
+PR69_CONTRACT_AMENDMENT_FROZEN=***
+
+PR67_CORRECTION_AUTHORIZED=***
+PR67_READY_AUTHORIZED=***
+PR67_MERGE_AUTHORIZED=***
+ISSUE20_CLOSURE_AUTHORIZED=***
+TASK12_AUTHORIZED=***
 ```
 
 This document is corrected (single-file docs-only patch on top
-of the prior authored commit), and is pending independent contract
-review. It contains zero implementation authority, zero PR #67
-mutation authority, and zero GitHub workflow change authority as a
-result of this round's correction. The contract corrections this
-document records (surface resolution, status language, comment
-location, catalog key preservation, four-P1 retention) are recorded
-in proposed-for-freeze form: they would become binding only after
-Charles's explicit freeze authorization in a separate round
-followed by Ready, Merge, and post-merge main-identity verification.
-Absent that freeze-authorization round, this document remains in
-`CORRECTED_PENDING_REVIEW` indefinitely and PR #67 remains in its
-current `CHANGES_REQUESTED` Draft state.
+of the prior committed corrective-1 round), and is pending
+independent contract review. It contains zero implementation
+authority, zero PR #67 mutation authority, and zero GitHub
+workflow change authority as a result of this round's
+correction. The contract corrections this document records
+(surface resolution, status language, repeat-identity
+clarification, allowlist authority separation, obligation
+count unification, final classification rewrite) are recorded
+in proposed-for-freeze form: they would become binding only
+after Charles's explicit freeze authorization in a separate
+round followed by Ready, Merge, and post-merge main-identity
+verification. Absent that freeze-authorization round, this
+document remains in `CORRECTED_2_PENDING_INDEPENDENT_REVIEW`
+indefinitely and PR #69 remains in its current Draft state.
+
+*End of Amendment 001 (corrective-2).*
