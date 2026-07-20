@@ -4234,31 +4234,30 @@ def test_p1_3_real_pdf_wrapped_header_passes(locale: ReportLocale) -> None:
         ]
     )
     artifact = _render_artifact(canonical, locale=locale, fmt=ExportFormat.PDF)
-    # Pre-condition: confirm the artifact has wrapped header
-    # (≥2 spans in same column bbox). This is observable via the
-    # observer's text_spans list.
+    # Pre-condition (P1-3 fourth corrective, strict): the artifact
+    # MUST actually contain a wrapped header (≥2 text spans in same
+    # column bbox). If the renderer did NOT wrap, this test MUST
+    # FAIL — there is no permissive "either wrap or no-wrap" fallback.
     observation = ppr._observe_pdf(artifact)
-    # Find the column for the long header: the bbox range should
-    # contain ≥2 text spans whose centers are close in x but
-    # different in y (wrapped text).
     page_one_spans = [s for s in observation.text_spans if s.page_number == 1]
+    # Bucket spans by (x-band of 50pt, y-band of 5pt).
     y_groups: dict[tuple[int, int], list[Any]] = {}
     for span in page_one_spans:
-        # Bucket by 50-pt x-band and 5-pt y-band.
         x_key = int(span.bbox[0] / 50.0)
         y_key = int(span.bbox[1] / 5.0)
         y_groups.setdefault((x_key, y_key), []).append(span)
-    # Look for any x-band that has 2+ distinct y-bands with text
-    # spans — that's a wrapped column.
     x_band_y_groups: dict[int, set[int]] = {}
     for (x_key, y_key), spans in y_groups.items():
         if spans:
             x_band_y_groups.setdefault(x_key, set()).add(y_key)
-    # Not all PDFs wrap. For this test we accept either wrap (≥2
-    # y-bands per x-band) or a single-line long header. The
-    # critical assertion is that the verifier binds correctly
-    # either way.
-    _ = x_band_y_groups  # observable proof of wrap or no-wrap
+    wrapped_x_bands = [x_key for x_key, y_set in x_band_y_groups.items() if len(y_set) >= 2]
+    assert wrapped_x_bands, (
+        f"wrap precondition FAILED: artifact header did not wrap; "
+        f"x_band_y_groups={x_band_y_groups!r}; the renderer must "
+        f"actually produce wrapped header spans for this test to be "
+        f"meaningful. If the wrap precondition does not hold, the "
+        f"verifier's multi-span reconstruction path is NOT exercised."
+    )
     from types import SimpleNamespace
 
     checks = ppr._semantic_checks(
@@ -4274,6 +4273,9 @@ def test_p1_3_real_pdf_wrapped_header_passes(locale: ReportLocale) -> None:
     )
     assert target["display_value"] == "50.0", (
         f"wrapped header MUST observe data row 0 value 50.0; got {target.get('display_value')!r}"
+    )
+    assert target["row_index"] == 0, (
+        f"wrapped header MUST NOT shift row_index; got {target.get('row_index')!r}"
     )
 
 
@@ -4298,11 +4300,17 @@ def test_p1_3_real_pdf_wrapped_data_cell_row_identity_passes(
                 "content_type": "table",
                 "table": {
                     "columns": [
+                        # Long localized header forces wrapping.
                         {"key": "scheme_name", "unit_code": ""},
-                        # Force a long text wrapping inside data cell.
+                        # Long data cell text forces wrapping inside data cell.
                         {"key": "total_capital_cost", "unit_code": "kW(e)"},
                     ],
-                    "rows": [["A", Decimal("50.0")]],
+                    "rows": [
+                        [
+                            "Scheme Alpha Plus Two Aux Variants Linked",
+                            Decimal("50.0"),
+                        ],
+                    ],
                 },
             }
         ]
@@ -4331,6 +4339,30 @@ def test_p1_3_real_pdf_wrapped_data_cell_row_identity_passes(
         fmt=ExportFormat.PDF,
         template_manifest_json=template_manifest,
     )
+    # Pre-condition (P1-3 fourth corrective, strict): the data cell
+    # MUST actually wrap (≥2 text spans in same column bbox). If the
+    # renderer did NOT wrap, the test MUST FAIL — there is no
+    # permissive "either wrap or no-wrap" fallback.
+    observation = ppr._observe_pdf(artifact)
+    page_one_spans = [s for s in observation.text_spans if s.page_number == 1]
+    # Identify a wrapped column: ≥2 distinct y-bands within the same
+    # 50-pt x-band.
+    y_groups: dict[tuple[int, int], list[Any]] = {}
+    for span in page_one_spans:
+        x_key = int(span.bbox[0] / 50.0)
+        y_key = int(span.bbox[1] / 5.0)
+        y_groups.setdefault((x_key, y_key), []).append(span)
+    x_band_y_groups: dict[int, set[int]] = {}
+    for (x_key, y_key), spans in y_groups.items():
+        if spans:
+            x_band_y_groups.setdefault(x_key, set()).add(y_key)
+    wrapped_x_bands = [x_key for x_key, y_set in x_band_y_groups.items() if len(y_set) >= 2]
+    assert wrapped_x_bands, (
+        f"data-cell wrap precondition FAILED: artifact data cell did "
+        f"not wrap; x_band_y_groups={x_band_y_groups!r}; the renderer "
+        f"must actually produce wrapped data-cell spans for this "
+        f"test to be meaningful."
+    )
     from types import SimpleNamespace
 
     checks = ppr._semantic_checks(
@@ -4347,6 +4379,10 @@ def test_p1_3_real_pdf_wrapped_data_cell_row_identity_passes(
     )
     assert target["row_index"] == 0, (
         f"wrapped data cell MUST NOT shift row index; got {target['row_index']!r}"
+    )
+    assert target["display_value"] == "50.0", (
+        f"wrapped data cell MUST observe value 50.0 (NOT shifted); "
+        f"got {target.get('display_value')!r}"
     )
 
 

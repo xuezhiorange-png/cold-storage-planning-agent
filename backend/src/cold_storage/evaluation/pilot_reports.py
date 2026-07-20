@@ -770,6 +770,179 @@ def _cluster_grid_segments_by_coord(
     return [sum(cluster) / len(cluster) for cluster in clusters]
 
 
+def _row_bbox(row: _PdfLogicalRow) -> tuple[float, float, float, float]:
+    """Return the (x0, y0, x1, y1) bbox spanning all cells of a row."""
+    cells = row.cells
+    if not cells:
+        return (0.0, 0.0, 0.0, 0.0)
+    x0 = min(c.bbox[0] for c in cells)
+    y0 = min(c.bbox[1] for c in cells)
+    x1 = max(c.bbox[2] for c in cells)
+    y1 = max(c.bbox[3] for c in cells)
+    return (x0, y0, x1, y1)
+
+
+def _row_column_xs(row: _PdfLogicalRow) -> tuple[float, ...]:
+    """Sorted cell x-centers of a row (used for column-band check)."""
+    return tuple(sorted((c.bbox[0] + c.bbox[2]) / 2 for c in row.cells))
+
+
+def _body_line_band_for(
+    line: _PdfLine,
+    column_centers: tuple[float, ...],
+    half_band: float | None = None,
+) -> int | None:
+    """Best-fit column band index for a body line, or None if no column
+    center fits within the band (used by text-only structural check).
+    """
+    if not column_centers:
+        return None
+    line_center = (line.bbox[0] + line.bbox[2]) / 2
+    sorted_centers = sorted(column_centers)
+    if half_band is None:
+        if len(sorted_centers) < 2:
+            half_band = 100.0
+        else:
+            half_band = max(
+                (sorted_centers[i + 1] - sorted_centers[i]) / 2
+                for i in range(len(sorted_centers) - 1)
+            )
+    # Use a tolerant half-band so x-jitter from the renderer doesn't
+    # cause a band mismatch when columns are clearly the same.
+    band = half_band
+    best_idx = -1
+    best_dist = float("inf")
+    for i, c in enumerate(sorted_centers):
+        d = abs(line_center - c)
+        if d <= band and d < best_dist:
+            best_dist = d
+            best_idx = i
+    return best_idx if best_idx >= 0 else None
+
+
+def _pdf_page_y_range(
+    pdf_observation: _PdfObservation,
+    page_number: int,
+) -> tuple[float, float] | None:
+    """Return (min_y, max_y) observed on the given page from artifact coords."""
+    ys: list[float] = []
+    for line in pdf_observation.all_lines:
+        if line.page_number != page_number:
+            continue
+        ys.append(line.bbox[1])
+        ys.append(line.bbox[3])
+    if not ys:
+        return None
+    return (min(ys), max(ys))
+
+
+def _has_intervening_marker(
+    pdf_observation: _PdfObservation,
+    prev_page: int,
+    prev_bot_y: float,
+    curr_page: int,
+    curr_top_y: float,
+) -> bool:
+    """True if a substantive text block sits between prev_bot_y (on
+    prev_page) and curr_top_y (on curr_page), suggesting an
+    intervening heading / independent table marker.
+    """
+    # Only same-page post-segment text counts: page transitions are
+    # already constrained by the page-bottom / page-top region tests.
+    for line in pdf_observation.all_lines:
+        if line.page_number != prev_page:
+            continue
+        if line.bbox[3] <= prev_bot_y + 2.0:
+            continue
+        text = _fold_whitespace(line.text)
+        if not text or len(text) < 2:
+            continue
+        if _is_renderer_unit_token(text):
+            continue
+        # Distinct paragraph-like content between segments suggests
+        # an intervening heading / text block, which would break
+        # the strict continuation evidence.
+        return True
+    return False
+
+
+def _is_pdf_table_continuation(
+    *,
+    previous: _PdfTableSegment,
+    current: _PdfTableSegment,
+    pdf_observation: _PdfObservation | None,
+    section_line_range: tuple[int, int],
+) -> bool:
+    """Strict continuation predicate for cross-page PDF tables.
+
+    Per P1-3.2 of the fourth corrective. Returns True only when
+    ALL of the following structural predicates hold:
+
+      SAME_SECTION=YES
+      SAME_HEADER_TEXT=YES (folded-exact)
+      SAME_COLUMN_COUNT=YES
+      SAME_COLUMN_X_BANDS=YES (within tolerance)
+      CURRENT_PAGE=PREVIOUS_PAGE+1 (immediately adjacent)
+      PREVIOUS_SEGMENT_REACHES_PAGE_BOTTOM_REGION=YES
+      CURRENT_SEGMENT_STARTS_NEAR_PAGE_TOP_TABLE_REGION=YES
+      NO_INTERVENING_SECTION_HEADING=YES
+      NO_INTERVENING_INDEPENDENT_TABLE_MARKER=YES
+
+    page-bottom / page-top region are derived from artifact
+    coordinates (per-page observed y-extents), NOT hard-coded
+    PDF page heights.
+    """
+    if previous.section_key != current.section_key:
+        return False
+    if previous.page_number + 1 != current.page_number:
+        return False
+    prev_header_cells = previous.header.cells
+    curr_header_cells = current.header.cells
+    if len(prev_header_cells) != len(curr_header_cells):
+        return False
+    if not prev_header_cells:
+        return False
+    if tuple(_fold_whitespace(c.text) for c in prev_header_cells) != tuple(
+        _fold_whitespace(c.text) for c in curr_header_cells
+    ):
+        return False
+    if pdf_observation is None:
+        return False
+    prev_data_rows = previous.data_rows
+    if not prev_data_rows:
+        return False
+    last_prev_data_row = prev_data_rows[-1]
+    prev_row_bot_y = _row_bbox(last_prev_data_row)[3]
+    curr_header_top_y = _row_bbox(current.header)[1]
+    prev_page_y_range = _pdf_page_y_range(pdf_observation, previous.page_number)
+    curr_page_y_range = _pdf_page_y_range(pdf_observation, current.page_number)
+    if prev_page_y_range is None or curr_page_y_range is None:
+        return False
+    prev_min_y, prev_max_y = prev_page_y_range
+    curr_min_y, curr_max_y = curr_page_y_range
+    prev_page_height = max(prev_max_y - prev_min_y, 1.0)
+    curr_page_height = max(curr_max_y - curr_min_y, 1.0)
+    prev_row_in_bottom_region = (prev_row_bot_y - prev_min_y) >= 0.75 * prev_page_height
+    curr_header_in_top_region = (curr_header_top_y - curr_min_y) <= 0.25 * curr_page_height
+    if not (prev_row_in_bottom_region and curr_header_in_top_region):
+        return False
+    # SAME_COLUMN_X_BANDS: column x-centers must match within tolerance.
+    prev_col_xs = _row_column_xs(previous.header)
+    curr_col_xs = _row_column_xs(current.header)
+    if len(prev_col_xs) != len(curr_col_xs):
+        return False
+    max_x_drift = max(abs(a - b) for a, b in zip(prev_col_xs, curr_col_xs, strict=False))
+    if max_x_drift > _GRID_X_TOLERANCE * 4:
+        return False
+    return not _has_intervening_marker(
+        pdf_observation,
+        previous.page_number,
+        prev_row_bot_y,
+        current.page_number,
+        curr_header_top_y,
+    )
+
+
 def _build_logical_tables_for_section(
     *,
     pdf_observation: _PdfObservation,
@@ -902,12 +1075,17 @@ def _build_logical_tables_for_section(
     current: list[_PdfTableSegment] = [segments[0]]
     for seg in segments[1:]:
         prev = current[-1]
-        same_headers = tuple(_fold_whitespace(c.text) for c in prev.header.cells) == tuple(
-            _fold_whitespace(c.text) for c in seg.header.cells
-        )
-        # Section scope already enforces same section. Cross-page
-        # continuation requires ascending page number.
-        if same_headers and seg.page_number > prev.page_number:
+        # Per P1-3.2 of the fourth corrective: cross-page continuation
+        # requires structural evidence (page-bottom / page-top region
+        # + same column bands + ascending page + same headers), NOT
+        # just header text + ascending page number. Independent tables
+        # are NOT merged.
+        if _is_pdf_table_continuation(
+            previous=prev,
+            current=seg,
+            pdf_observation=pdf_observation,
+            section_line_range=section_line_range,
+        ):
             current.append(seg)
             continue
         logical_tables.append(
@@ -1584,11 +1762,93 @@ def _find_docx_table_candidate(
     return tuple(candidates)
 
 
+def _find_table_cell_binding_via_logical_table(
+    *,
+    pdf_logical_tables: tuple[_PdfLogicalTable, ...],
+    section_key: str,
+    table_section_key: str,
+    row_index: int,
+    column_index: int,
+    expected_unit_codes: tuple[str, ...],
+    expected_headers: tuple[str, ...],
+    template_unit_row_enabled: bool,
+) -> _BindingResult:
+    """Resolve (row, column) using _PdfLogicalTable structural identity.
+
+    Per P1-3 fourth corrective: when grid geometry is available, this
+    path is the PRIMARY binding authority. Strategy:
+
+      1. Filter logical tables by section_key (== table_section_key).
+      2. Match each candidate by header folded-exact match.
+      3. 0 matches -> USE_SECTION_TABLES_FALLBACK (caller should
+         fall back to text-only).
+      4. >=2 matches -> AMBIGUOUS_FIELD_BINDING.
+      5. Use the unique logical_table.data_rows[row_index] as the data
+         row. The unit row, if present, is the _PdfLogicalRow with
+         ``row_kind == 'unit'`` in the FIRST segment (since each
+         segment carries its own unit row). If no logical_table
+         unit_row exists or row_kind != 'unit', observed_unit = ''.
+    """
+    if section_key != table_section_key:
+        return _BindingResult(observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=())
+    candidates = [
+        t
+        for t in pdf_logical_tables
+        if t.section_key == section_key
+        and tuple(_fold_whitespace(c.text) for c in t.header.cells)
+        == tuple(_fold_whitespace(h) for h in expected_headers)
+    ]
+    if not candidates:
+        return _BindingResult(
+            observed=None,
+            failure_code="USE_SECTION_TABLES_FALLBACK",
+            candidates=(),
+        )
+    if len(candidates) > 1:
+        return _BindingResult(
+            observed=None,
+            failure_code="AMBIGUOUS_FIELD_BINDING",
+            candidates=(),
+        )
+    target = candidates[0]
+    if row_index < 0 or row_index >= len(target.data_rows):
+        return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
+    data_row = target.data_rows[row_index]
+    cells = data_row.cells
+    if column_index < 0 or column_index >= len(cells):
+        return _BindingResult(observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=())
+    cell = cells[column_index]
+    cell_value = cell.text
+    observed_unit = ""
+    if target.segments:
+        unit_row = target.segments[0].unit_row
+        if (
+            unit_row is not None
+            and unit_row.row_kind == "unit"
+            and column_index < len(unit_row.cells)
+        ):
+            observed_unit = _strip_renderer_unit_wrapper(unit_row.cells[column_index].text)
+    return _BindingResult(
+        observed=_ObservedNumericField(
+            field_path="",
+            section_key=section_key,
+            binding_kind=_BINDING_KIND_TABLE_CELL,
+            display_value=cell_value,
+            display_unit=observed_unit,
+            row_index=row_index,
+            column_index=column_index,
+        ),
+        failure_code=None,
+        candidates=(),
+    )
+
+
 def _find_table_cell_binding(
     *,
     docx_observation: _DocxObservation | None,
     docx_resolved_scopes: Mapping[str, tuple[int, int]],
     pdf_section_tables: tuple[_PdfSectionTable, ...],
+    pdf_logical_tables: tuple[_PdfLogicalTable, ...] = (),
     section_key: str,
     table_section_key: str,
     row_index: int,
@@ -1614,6 +1874,24 @@ def _find_table_cell_binding(
         the binding returns ``AMBIGUOUS_FIELD_BINDING`` (fail-closed).
     """
 
+    # P1-3 fourth corrective: when ANY logical table exists for this
+    # section, use the LOGICAL-TABLE binding path as the PRIMARY
+    # authority. The text-only section-tables fallback is only used
+    # when (a) there are no logical tables OR (b) logical-table
+    # binding returns USE_SECTION_TABLES_FALLBACK (no header match).
+    if pdf_logical_tables and pdf_section_tables is not None:
+        result = _find_table_cell_binding_via_logical_table(
+            pdf_logical_tables=pdf_logical_tables,
+            section_key=section_key,
+            table_section_key=table_section_key,
+            row_index=row_index,
+            column_index=column_index,
+            expected_unit_codes=expected_unit_codes,
+            expected_headers=expected_headers,
+            template_unit_row_enabled=template_unit_row_enabled,
+        )
+        if result.failure_code != "USE_SECTION_TABLES_FALLBACK":
+            return result
     if docx_observation is not None:
         if section_key != table_section_key:
             return _BindingResult(
@@ -1757,25 +2035,29 @@ def _find_table_cell_binding(
         # row is empty / absent.
         cell_value = ""
         observed_unit = ""
-        # Per Corrective 3, the unit row's presence is detected
-        # by ARTIFACT STRUCTURE, not just the expected flag. When
-        # the artifact has more rows than the canonical data
-        # rows would require, the extra row IS a unit row even
-        # if the expected unit is empty (e.g. canonical has no
-        # expected unit but renderer still emitted a unit row
-        # because template.unit_row=True).
-        if has_unit_row_expected and len(body_rows) >= 2:
+        # P1-3 fourth corrective: unit-row presence is determined
+        # STRUCTURALLY. A body row is the unit row iff at least one
+        # of its non-empty cells, located in a non-leftmost column
+        # band, is a renderer unit token. The leftmost band is
+        # treated as a label column and NOT required to be a unit
+        # token (it may contain short scheme-name text in some
+        # renderers, or a label like \"单位\" in others).
+        # The ``has_unit_row_expected`` flag ONLY affects the post-
+        # bind unit comparison; it MUST NOT influence row 0's
+        # structural classification.
+        body0 = body_rows[0]
+        body0_non_empty = [ln for ln in body0 if _fold_whitespace(ln.text)]
+        # column band of each non-empty line
+        body0_band_to_text: list[tuple[int, str]] = []
+        for ln in body0_non_empty:
+            band = _body_line_band_for(ln, target_table.column_centers)
+            if band is None:
+                continue
+            body0_band_to_text.append((band, ln.text))
+        non_leftmost_texts = [t for b, t in body0_band_to_text if b > 0]
+        body0_is_unit_structurally = any(_is_renderer_unit_token(t) for t in non_leftmost_texts)
+        if body0_is_unit_structurally:
             unit_row_idx: int | None = 0
-            data_row_idx = 1 + row_index
-        elif (
-            not has_unit_row_expected
-            and len(body_rows) > num_data_rows
-            and all(_is_renderer_unit_token(ln.text) for ln in body_rows[0])
-        ):
-            # The first body row is a unit row (per Corrective 3's
-            # structural detection). The unit text MUST come from
-            # the artifact, NOT from the expected (which is empty).
-            unit_row_idx = 0
             data_row_idx = 1 + row_index
         else:
             unit_row_idx = None
@@ -2150,6 +2432,7 @@ def _semantic_checks(
     docx_observation: _DocxObservation | None = None
     pdf_observation: _PdfObservation | None = None
     pdf_section_tables: tuple[_PdfSectionTable, ...] = ()
+    pdf_logical_tables: tuple[_PdfLogicalTable, ...] = ()
     if fmt is ExportFormat.DOCX:
         docx_observation = _observe_docx(artifact_bytes)
         resolved_scopes = _resolve_docx_section_scopes(
@@ -2187,7 +2470,6 @@ def _semantic_checks(
         # lines. When grid geometry IS available, the verifier's
         # cell-binding path finds the unique header match by
         # structural identity — see ``_find_table_cell_binding``.
-        pdf_logical_tables: tuple[_PdfLogicalTable, ...] = ()
         if pdf_observation.grid_segments:
             for section_key, scope_range in resolved_scopes.items():
                 expected = section_table_headers.get(section_key, ())
@@ -2402,6 +2684,7 @@ def _semantic_checks(
             docx_observation=docx_observation,
             docx_resolved_scopes=resolved_scopes,
             pdf_section_tables=pdf_section_tables,
+            pdf_logical_tables=pdf_logical_tables,
             section_key=section_key,
             table_section_key=table_section_key,
             row_index=row_index,
