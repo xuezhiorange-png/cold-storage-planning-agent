@@ -6284,25 +6284,54 @@ def test_p1_3_real_multi_page_full_acceptance_exact_pages_derived_from_artifact(
         f"real multi-page MUST NOT produce AMBIGUOUS; got {ambiguous_count}"
     )
     bound_count = sum(1 for o in rows_for_field if o["binding_status"] == "BOUND")
-    # Brief §7 Test 1 demands 12/12 BOUND. The page-4-scope gap
-    # is a separate 4th blocker that this round is NOT authorized
-    # to introduce (per §11). The current verifier pipeline binds
-    # 10/12 (rows 0..9 from pages 2 + 3; rows 10..11 fall on
-    # page 4, which is past the resolved section scope). The 12
-    # data rows ARE structurally reconstructed (asserted above as
-    # DATA_ROW_COUNT=12 with exact values), and the structural
-    # assertions (LOGICAL_TABLE_COUNT=1, ACTUAL_SEGMENT_PAGES
-    # match, ROW_INDEXES=0..11, exact VALUES 50..160) are
-    # authoritative per §7. The verifier BOUND-count gap is
-    # acknowledged here, NOT papered over.
-    assert bound_count >= 10, f"at least 10 BOUND records expected; got {bound_count}"
-    if rows_for_field:
-        assert all(
-            o["binding_status"] in ("BOUND", "TABLE_ROW_MISMATCH") for o in rows_for_field
-        ), (
-            f"binding_status must be BOUND or TABLE_ROW_MISMATCH (4th "
-            f"blocker-acknowledged); got statuses={[o['binding_status'] for o in rows_for_field]!r}"
-        )
+    # Brief §7 Test 1 demands EXACT 12/12 BOUND (NOT >= 10,
+    # NOT TABLE_ROW_MISMATCH-acknowledged). The page-4-scope gap
+    # is closed by the grid-aware seam suppression in
+    # ``_resolve_pdf_section_scopes`` (per brief §4): the
+    # repeated table header on each continuation page is now
+    # classified as part of the coherent grid, not as a new
+    # section heading; the section scope therefore spans the
+    # full multi-page table, and every row from page 2 through
+    # page 4 is included in the resolved scope, so the verifier
+    # binds all 12/12 BOUND with semantic_result=PASS.
+    assert len(rows_for_field) == 12, (
+        f"verifier MUST observe exactly 12 records; got {len(rows_for_field)}"
+    )
+    assert tuple(record["row_index"] for record in rows_for_field) == tuple(range(12)), (
+        f"row_index sequence must be (0..11); got "
+        f"{tuple(record['row_index'] for record in rows_for_field)!r}"
+    )
+    assert tuple(record["display_value"] for record in rows_for_field) == (
+        "50.0",
+        "60.0",
+        "70.0",
+        "80.0",
+        "90.0",
+        "100.0",
+        "110.0",
+        "120.0",
+        "130.0",
+        "140.0",
+        "150.0",
+        "160.0",
+    ), (
+        "display_value sequence must be 50.0..160.0 in order; got "
+        f"{tuple(record['display_value'] for record in rows_for_field)!r}"
+    )
+    assert all(record["binding_status"] == "BOUND" for record in rows_for_field), (
+        f"all 12 binding_status MUST be BOUND; got "
+        f"{[record['binding_status'] for record in rows_for_field]!r}"
+    )
+    assert bound_count == 12, f"BOUND count must be exactly 12; got {bound_count}"
+    assert checks["semantic_result"] == "PASS", (
+        f"semantic_result MUST be PASS; got {checks['semantic_result']!r}"
+    )
+    assert checks["numeric_mismatches"] == [], (
+        f"numeric_mismatches MUST be empty; got {checks['numeric_mismatches']!r}"
+    )
+    assert checks["missing_units"] == [], (
+        f"missing_units MUST be empty; got {checks['missing_units']!r}"
+    )
 
 
 @pytest.mark.parametrize("locale", [ReportLocale.ZH_CN, ReportLocale.EN_US])
@@ -6311,106 +6340,487 @@ def test_p1_3_current_page_intervening_body_does_not_merge_via_production(
 ) -> None:
     """B3_TEST_2_CURRENT_PAGE_INTERVENING_MARKER=YES.
 
-    Construct a synthetic two-page observation where page 2 has
-    substantive body / title text BEFORE the repeated table
-    header. ALL other continuation predicates hold. The
-    production ``_build_logical_tables_for_section`` MUST
-    return TWO logical tables (page 1 segment + page 2 segment)
-    and MUST NOT merge.
+    Construct a DETERMINISTIC two-page ``_PdfObservation``
+    where the per-page table is intact but a substantive
+    body / title line on page 2 sits BEFORE the repeated
+    table header, OUTSIDE the page-2 segment bbox, OUTSIDE
+    the page-top-10% decoration margin, and INSIDE the
+    section line range. ALL other continuation predicates
+    hold. The production
+    ``_build_logical_tables_for_section`` MUST return
+    exactly TWO logical tables with segment-page-groups
+    ``((1,), (2,))`` and MUST NOT merge.
+
+    Page geometry: ``page_rect = (0, 0, 595, 800)`` (tall
+    page). The per-page table grid is the SAME coherent
+    column layout on both pages (so columns / headers
+    match and continuation would otherwise pass). The page
+    bottom of page 1 holds the last data row (so the
+    previous-near-bottom continuation predicate passes).
+    The intervening marker sits at ``y = 110..130``
+    (well below the top 10% decoration zone but above the
+    page-2 segment bbox top), with a body-style font size
+    (< 13.0) so ``_resolve_pdf_section_scopes`` does NOT
+    raise it to the level of a section heading.
     """
-    # Real artifact with the table on page 2 (also verifies
-    # the continuation helpers through the production path).
-    canonical = _build_canonical_model(
-        [
-            {
-                "section_key": "investment_estimate",
-                "content_type": "table",
-                "table": {
-                    "columns": [
-                        {"key": "scheme_name", "unit_code": ""},
-                        {"key": "total_capital_cost", "unit_code": "kW(e)"},
-                    ],
-                    "rows": [["A", Decimal(str(50.0 + i * 10.0))] for i in range(4)],
-                },
-            }
-        ]
-    )
-    template_manifest = {
-        "page": {"width_pt": 595.0, "height_pt": 800.0},
-        "tables": {
-            "investment_estimate": {
-                "columns": [],
-                "unit_row": True,
-                "repeat_header": True,
-            },
-        },
-    }
-    artifact = _render_artifact_with_manifest(
-        canonical,
-        locale=locale,
-        fmt=ExportFormat.PDF,
-        template_manifest_json=template_manifest,
-    )
-    # Verify the marker discipline via the verifier pipeline.
-    # Even with a body+title between segments, two distinct
-    # tables should NOT be created if the page margins and
-    # grid remain coherent.
-    checks = ppr._semantic_checks(
-        canonical_model=canonical,
-        template=SimpleNamespace(manifest_json=template_manifest),
-        locale=locale,
-        fmt=ExportFormat.PDF,
-        artifact_bytes=artifact,
-    )
-    # Run the production reconstruction path directly to assert
-    # the BRIEF §7 Test 2 structural expectations: LOGICAL_
-    # TABLE_COUNT=2, SEGMENT_PAGE_GROUPS=((1,), (2,)),
-    # MERGED=False. The intervening-marker handling is verified
-    # structurally (not just "AMBIGUOUS==0") to satisfy the
-    # brief's no-acceptance-substitution rule.
-    observation = ppr._observe_pdf(artifact)
     from cold_storage.modules.reports.localization.catalog import get_catalog
 
     catalog = get_catalog(locale)
-    expected_headers = (
-        catalog.messages.get("header.scheme", "Scheme"),
-        catalog.messages.get("header.total_capital_cost", "Total Capital Cost"),
+    header_a = catalog.messages.get("header.scheme", "Scheme")
+    header_b = catalog.messages.get("header.total_capital_cost", "Total Capital Cost")
+    expected_headers = (header_a, header_b)
+
+    page_rect = (0.0, 0.0, 595.0, 800.0)
+
+    # Per-page shared grid layout: 2 columns matching the 2
+    # ``expected_headers`` → 2 cells per row. Columns are
+    # 50..200 (scheme_name) and 200..420
+    # (total_capital_cost).
+    column_x_positions = (50.0, 200.0, 420.0)
+    row_y_positions_page1 = (
+        130.0,  # table top
+        170.0,  # header bot
+        200.0,  # unit bot
+        240.0,  # data 0 bot
+        280.0,  # data 1 bot
+        320.0,  # data 2 bot
+        360.0,  # data 3 bot (last)
+        400.0,  # bottom border
     )
-    # The synthetic artifact here may NOT actually trigger a
-    # continuation-intervening scenario (the body text is just
-    # the title on page 1; the test's strict assertion is
-    # adapted to the production path's natural pagination
-    # behavior). The strict assertion below is satisfied by
-    # any well-formed 1-segment OR 2-segment table output
-    # with no AMBIGUOUS_FIELD_BINDING.
+    row_y_positions_page2 = (
+        130.0,  # table top (repeated header)
+        170.0,  # header bot
+        200.0,  # unit bot
+        240.0,  # data 0 bot
+        280.0,  # data 1 bot
+        320.0,  # data 2 bot
+        360.0,  # data 3 bot
+        400.0,  # bottom border
+    )
+
+    grid_segments: list[ppr._PdfGridSegment] = []
+
+    # Horizontal lines per page.
+    for y in row_y_positions_page1:
+        grid_segments.append(
+            ppr._PdfGridSegment(
+                page_number=1,
+                orientation="horizontal",
+                x0=column_x_positions[0],
+                y0=y,
+                x1=column_x_positions[-1],
+                y1=y,
+            )
+        )
+    for y in row_y_positions_page2:
+        grid_segments.append(
+            ppr._PdfGridSegment(
+                page_number=2,
+                orientation="horizontal",
+                x0=column_x_positions[0],
+                y0=y,
+                x1=column_x_positions[-1],
+                y1=y,
+            )
+        )
+    # Vertical lines per page (2 columns → 3 verticals).
+    for page_number in (1, 2):
+        for x in column_x_positions:
+            grid_segments.append(
+                ppr._PdfGridSegment(
+                    page_number=page_number,
+                    orientation="vertical",
+                    x0=x,
+                    y0=row_y_positions_page1[0] if page_number == 1 else row_y_positions_page2[0],
+                    x1=x,
+                    y1=row_y_positions_page1[-1] if page_number == 1 else row_y_positions_page2[-1],
+                )
+            )
+
+    # Text spans for the page-1 table.
+    text_spans: list[ppr._PdfTextSpan] = []
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=1,
+            text=header_a,
+            bbox=(column_x_positions[0] + 5.0, 135.0, column_x_positions[1] - 5.0, 165.0),
+        )
+    )
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=1,
+            text=header_b,
+            bbox=(column_x_positions[1] + 5.0, 135.0, column_x_positions[2] - 5.0, 165.0),
+        )
+    )
+    # Unit row on page 1.
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=1,
+            text="",
+            bbox=(column_x_positions[0] + 5.0, 175.0, column_x_positions[1] - 5.0, 195.0),
+        )
+    )
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=1,
+            text="(kW(e))",
+            bbox=(column_x_positions[1] + 5.0, 175.0, column_x_positions[2] - 5.0, 195.0),
+        )
+    )
+    # Page-1 data rows: 4 rows; place at y bands ~205..395.
+    for ri, value in enumerate(("A", "B", "C", "D")):
+        y_top = (
+            row_y_positions_page1[2]
+            + 5
+            + ri * (row_y_positions_page1[3] - row_y_positions_page1[2])
+        )
+        y_bot = y_top + 30.0
+        text_spans.append(
+            ppr._PdfTextSpan(
+                page_number=1,
+                text=value,
+                bbox=(column_x_positions[0] + 5.0, y_top, column_x_positions[1] - 5.0, y_bot),
+            )
+        )
+        text_spans.append(
+            ppr._PdfTextSpan(
+                page_number=1,
+                text=str(50 + ri * 10),
+                bbox=(column_x_positions[1] + 5.0, y_top, column_x_positions[2] - 5.0, y_bot),
+            )
+        )
+
+    # Page-2 repeated header + unit + 4 data rows.
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=2,
+            text=header_a,
+            bbox=(column_x_positions[0] + 5.0, 135.0, column_x_positions[1] - 5.0, 165.0),
+        )
+    )
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=2,
+            text=header_b,
+            bbox=(column_x_positions[1] + 5.0, 135.0, column_x_positions[2] - 5.0, 165.0),
+        )
+    )
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=2,
+            text="",
+            bbox=(column_x_positions[0] + 5.0, 175.0, column_x_positions[1] - 5.0, 195.0),
+        )
+    )
+    text_spans.append(
+        ppr._PdfTextSpan(
+            page_number=2,
+            text="(kW(e))",
+            bbox=(column_x_positions[1] + 5.0, 175.0, column_x_positions[2] - 5.0, 195.0),
+        )
+    )
+    for ri, value in enumerate(("E", "F", "G", "H")):
+        y_top = (
+            row_y_positions_page2[2]
+            + 5
+            + ri * (row_y_positions_page2[3] - row_y_positions_page2[2])
+        )
+        y_bot = y_top + 30.0
+        text_spans.append(
+            ppr._PdfTextSpan(
+                page_number=2,
+                text=value,
+                bbox=(column_x_positions[0] + 5.0, y_top, column_x_positions[1] - 5.0, y_bot),
+            )
+        )
+        text_spans.append(
+            ppr._PdfTextSpan(
+                page_number=2,
+                text=str(90 + ri * 10),
+                bbox=(column_x_positions[1] + 5.0, y_top, column_x_positions[2] - 5.0, y_bot),
+            )
+        )
+
+    # INTERVENING MARKER: substantive body / title line on
+    # page 2, BEFORE the repeated table header (y=110..130),
+    # BELOW the top 10% decoration margin (page_height=800 →
+    # top_zone_limit=80, marker bottom y=130 > 80), ABOVE
+    # the segment bbox (segment top y=130). Body-style font
+    # size 10.0 (NOT a heading), so it MUST trigger the
+    # intervening-marker predicate on the page-1→page-2
+    # transition and MUST NOT merge page 1 + page 2 into
+    # one logical table.
+    marker_text = f"{locale.value} Concluding Remarks"
+    marker_span = ppr._PdfTextSpan(
+        page_number=2,
+        text=marker_text,
+        bbox=(60.0, 110.0, 400.0, 130.0),
+    )
+
+    text_spans.append(marker_span)
+
+    # Corresponding ALL_LINES: keep one line per text span
+    # (the section uses ALL_LINES index → section_line_range
+    # semantics; pages/sections arithmetic). Use small
+    # block_index for each span to keep the line id
+    # distinct.
+    all_lines: list[ppr._PdfLine] = []
+    line_id = [0]
+    for span in text_spans:
+        all_lines.append(
+            ppr._PdfLine(
+                page_number=span.page_number,
+                block_index=line_id[0],
+                line_index=0,
+                text=span.text,
+                bbox=span.bbox,
+                max_font_size=10.0,
+            )
+        )
+        line_id[0] += 1
+
+    observation = ppr._PdfObservation(
+        all_lines=tuple(all_lines),
+        section_scopes={},
+        text_spans=tuple(text_spans),
+        grid_segments=tuple(grid_segments),
+        page_rects={1: page_rect, 2: page_rect},
+    )
+
+    # Run the production reconstruction path on the FULL
+    # observation (wider range than the per-section scope,
+    # per brief §6). Verify the brief §7 Test 2 strict
+    # structural assertions.
     tables = ppr._build_logical_tables_for_section(
         pdf_observation=observation,
         section_key="investment_estimate",
         section_line_range=(0, len(observation.all_lines)),
         expected_headers=expected_headers,
     )
-    assert 1 <= len(tables) <= 2, (
-        f"intervening-marker test: 1 or 2 logical tables allowed "
-        f"(depends on real pagination); got {len(tables)}"
+    assert len(tables) == 2, (
+        f"current-page intervening-marker MUST yield EXACTLY 2 logical tables; got {len(tables)}"
     )
-    segment_page_groups = tuple(tuple(sorted(s.page_number for s in t.segments)) for t in tables)
-    # Each table's segments must all live on the SAME page or
-    # form a contiguous page span; no partial merges.
-    for t_idx, group in enumerate(segment_page_groups):
-        assert len(set(group)) == len(group), (
-            f"table {t_idx} has duplicate segment pages: {group!r}"
-        )
-    rows_for_field = [
-        o
-        for o in checks["observed_numeric_fields"]
-        if o["field_path"] == "investment_estimate.total_capital_cost"
+    actual_page_groups = tuple(
+        tuple(sorted(seg.page_number for seg in table.segments)) for table in tables
+    )
+    assert actual_page_groups == ((1,), (2,)), (
+        f"segment-page groups MUST be ((1,), (2,)); got {actual_page_groups!r}"
+    )
+    # The deterministic marker MUST force non-merging; the
+    # second table must contain ONLY page-2 data.
+    assert all(seg.page_number == 2 for seg in tables[1].segments), (
+        "second table must contain only page-2 segments"
+    )
+    assert all(seg.page_number == 1 for seg in tables[0].segments), (
+        "first table must contain only page-1 segments"
+    )
+
+
+def test_p1_3_pdf_section_scope_ignores_large_table_header_inside_grid() -> None:
+    """Grid-aware seam suppression per brief §4.
+
+    A line whose ``max_font_size >= 13.0`` and is NOT a
+    canonical section heading MUST terminate the previous
+    section's range ONLY when that line sits OUTSIDE a
+    coherent table grid on its page. A real renderer
+    repeats the table header on each continuation page; the
+    repeated header is typographically large
+    (``repeat_header=True``) but it is an integral part of
+    the table grid, NOT a new section heading. Suppressing
+    the seam when the line is inside a usable grid region
+    lets the section scope span the full multi-page table.
+
+    The resolver unit test exercises BOTH axes of the
+    predicate in a single fixture:
+
+      * SUBJECT_LARGE_INSIDE_GRID → NO seam (the fixture's
+        section_scope is NOT truncated mid-table).
+      * SUBJECT_LARGE_OUTSIDE_GRID → seam IS produced.
+    """
+    column_x = (50.0, 200.0, 420.0)
+    row_y_p1 = (
+        130.0,
+        170.0,
+        200.0,
+        240.0,
+        280.0,
+        320.0,
+        360.0,
+        400.0,
+    )
+
+    grid_segments: list[ppr._PdfGridSegment] = [
+        # Page 1: coherent table grid (3 verticals × 8 horizontals).
+        *[
+            ppr._PdfGridSegment(
+                page_number=1,
+                orientation="horizontal",
+                x0=column_x[0],
+                y0=y,
+                x1=column_x[-1],
+                y1=y,
+            )
+            for y in row_y_p1
+        ],
+        *[
+            ppr._PdfGridSegment(
+                page_number=1,
+                orientation="vertical",
+                x0=x,
+                y0=row_y_p1[0],
+                x1=x,
+                y1=row_y_p1[-1],
+            )
+            for x in column_x
+        ],
+        # Page 2: ONLY the grid lines of the table — NO
+        # canonical-section heading grid. The repeated header
+        # sits INSIDE this grid.
+        *[
+            ppr._PdfGridSegment(
+                page_number=2,
+                orientation="horizontal",
+                x0=column_x[0],
+                y0=y,
+                x1=column_x[-1],
+                y1=y,
+            )
+            for y in row_y_p1
+        ],
+        *[
+            ppr._PdfGridSegment(
+                page_number=2,
+                orientation="vertical",
+                x0=x,
+                y0=row_y_p1[0],
+                x1=x,
+                y1=row_y_p1[-1],
+            )
+            for x in column_x
+        ],
     ]
-    assert rows_for_field, "verifier MUST observe records"
-    ambiguous_count = sum(
-        1 for o in rows_for_field if o["binding_status"] == "AMBIGUOUS_FIELD_BINDING"
+
+    all_lines: list[ppr._PdfLine] = [
+        # Canonical section heading on page 1 at y ≈ 100 (above grid).
+        ppr._PdfLine(
+            page_number=1,
+            block_index=0,
+            line_index=0,
+            text="投资估算",
+            bbox=(50.0, 95.0, 200.0, 115.0),
+            max_font_size=16.0,
+        ),
+        ppr._PdfLine(
+            page_number=1,
+            block_index=1,
+            line_index=0,
+            text="方案",
+            bbox=(55.0, 135.0, 195.0, 165.0),
+        ),
+        ppr._PdfLine(
+            page_number=1,
+            block_index=2,
+            line_index=0,
+            text="总投资",
+            bbox=(205.0, 135.0, 415.0, 165.0),
+        ),
+        # Page 1: a large-font line INSIDE the grid — this is
+        # the repeated-header-style element. It MUST NOT
+        # become a seam.
+        ppr._PdfLine(
+            page_number=1,
+            block_index=3,
+            line_index=0,
+            text="方案",
+            bbox=(55.0, 135.0, 195.0, 165.0),
+            max_font_size=14.0,
+        ),
+        ppr._PdfLine(
+            page_number=1,
+            block_index=4,
+            line_index=0,
+            text="总投资",
+            bbox=(205.0, 135.0, 415.0, 165.0),
+            max_font_size=14.0,
+        ),
+        # Page 2: the SAME table's continuation header,
+        # typographically large. Must NOT be classified as
+        # a new section.
+        ppr._PdfLine(
+            page_number=2,
+            block_index=5,
+            line_index=0,
+            text="方案",
+            bbox=(55.0, 135.0, 195.0, 165.0),
+            max_font_size=14.0,
+        ),
+        ppr._PdfLine(
+            page_number=2,
+            block_index=6,
+            line_index=0,
+            text="总投资",
+            bbox=(205.0, 135.0, 415.0, 165.0),
+            max_font_size=14.0,
+        ),
+        # OFF-grid large line on page 2 — this IS a true
+        # unmodeled heading seam. It lives at y=730 (below
+        # the table bbox 130..400 and below the bottom-10%
+        # page-decoration margin), so it IS treated as a
+        # section terminator.
+        ppr._PdfLine(
+            page_number=2,
+            block_index=7,
+            line_index=0,
+            text="运营费用",
+            bbox=(50.0, 730.0, 200.0, 750.0),
+            max_font_size=14.0,
+        ),
+    ]
+
+    text_spans: list[ppr._PdfTextSpan] = [
+        ppr._PdfTextSpan(page_number=ln.page_number, text=ln.text, bbox=ln.bbox) for ln in all_lines
+    ]
+
+    observation = ppr._PdfObservation(
+        all_lines=tuple(all_lines),
+        section_scopes={},
+        text_spans=tuple(text_spans),
+        grid_segments=tuple(grid_segments),
+        page_rects={1: (0.0, 0.0, 595.0, 800.0), 2: (0.0, 0.0, 595.0, 800.0)},
     )
-    assert ambiguous_count == 0, (
-        f"intervening-marker handling MUST NOT produce AMBIGUOUS; got {ambiguous_count}"
+
+    # Section scopes: the canonical model has a single
+    # section ``investment_estimate`` whose heading is the
+    # first large line on page 1.
+    section_scopes = (
+        ppr._SectionScope(
+            section_key="investment_estimate",
+            heading_text="投资估算",
+        ),
+    )
+
+    resolved = ppr._resolve_pdf_section_scopes(
+        observation=observation,
+        section_scopes=section_scopes,
+    )
+
+    assert "investment_estimate" in resolved, (
+        f"resolver dropped the canonical section: resolved={list(resolved.keys())!r}"
+    )
+    section_start, section_end = resolved["investment_estimate"]
+    assert section_start == 0, (
+        f"canonical-section heading MUST start section; got section_start={section_start}"
+    )
+    # Per the brief, the off-grid large line at idx=7 IS a
+    # seam → section_end <= 7.
+    assert section_end <= 7, (
+        f"section_end MUST end at the off-grid seam (idx=7); got section_end={section_end}"
+    )
+    # The page-2 grid-large lines at idx=5,6 MUST be inside
+    # the section's range (i.e. NOT truncated by them).
+    assert section_end >= 7, (
+        f"section_end MUST include the off-grid seam line; got section_end={section_end}"
     )
 
 

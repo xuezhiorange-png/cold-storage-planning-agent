@@ -2171,9 +2171,26 @@ def _resolve_pdf_section_scopes(
         # model — the verifier must not extend the canonical
         # section's scope across that second heading).
         elif line.max_font_size >= 13.0 and folded:
-            # Find the most recent canonical-section start; insert
-            # a ``__SEAM__`` marker just before this heading to
-            # truncate the previous section.
+            # A visually-large line is treated as a section seam
+            # ONLY when it sits OUTSIDE a coherent table grid on its
+            # page. Real renderer artifacts repeat the table header
+            # on each continuation page; those repeated headers are
+            # typographically large (matched against `repeat_header`),
+            # but they are an integral part of the table grid, NOT a
+            # new section heading. Suppress the seam when the line is
+            # inside a usable grid region so the section scope spans
+            # the full multi-page table rather than truncating at the
+            # first repeated header.
+            line_is_inside_coherent_grid = bool(
+                _section_usable_grid_regions(
+                    pdf_observation=observation,
+                    section_line_range=(idx, idx + 1),
+                )
+            )
+            if line_is_inside_coherent_grid:
+                continue
+            # Otherwise the line is a true unmodeled heading seam;
+            # truncate the previous section's range here.
             for i in range(len(starts) - 1, -1, -1):
                 if starts[i][0] < idx:
                     starts.insert(i + 1, (idx, "__SEAM__"))
