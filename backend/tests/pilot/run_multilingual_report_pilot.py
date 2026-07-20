@@ -1233,9 +1233,564 @@ __all__ = [
     "EXIT_INFRA_ERROR",
     "EXIT_OK",
     "EXIT_VERIFIER_ERROR",
-    "PilotCompositionError",
+    "PilotAcceptanceError",
+    "PILOT_1_4_CANONICAL_BUSINESS_FIELDS",
+    "PILOT_1_4_CANONICAL_SECTION_INVARIANTS",
+    "PILOT_1_4_CANONICAL_NUMERIC_VALUE_AND_UNIT_INVARIANTS",
+    "PILOT_1_4_CROSS_RUN_EQUALITY_FIELDS",
+    "PILOT_1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES",
+    "PILOT_1_4_EXPECTED_RENDER_MATRIX",
+    "aggregate_p1_4_acceptance",
+    "provision_p1_4_pg_database",
     "main",
 ]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# P1-4 repeated four-render aggregate acceptance authority
+# ══════════════════════════════════════════════════════════════════════════════
+# Repository-owned (composition file), single source of truth for the
+# §4 / §5 / §6 / §7 / §10 P1-4 acceptance matrix. Per corrective §4 #2 the
+# test file MUST NOT retain a second copy of this authority.
+
+from collections.abc import Sequence  # noqa: E402  -- local section
+
+# Cross-run equality fields required by §七 (independent of
+# (locale, format)). These MUST match across ALL runs of the
+# SAME backend across both repeats.
+PILOT_1_4_CROSS_RUN_EQUALITY_FIELDS: tuple[str, ...] = (
+    "pilot_check_id",
+    "source_commit_sha",
+    "manifest_scenario_id",
+    "manifest_expected_outcome",
+    "manifest_database_backend",
+    "scenario_id",
+    "correlation_id",
+    "source_binding_id",
+    "report_type",
+    "report_schema_version",
+    "render_mode",
+)
+
+# Canonical 4-render matrix per §四. Every P1-4 run MUST land
+# the exact four (locale, format, mode) combinations; a
+# missing entry is a §十 ``MISSING_ONE_RENDER`` defect.
+PILOT_1_4_EXPECTED_RENDER_MATRIX: tuple[tuple[str, str, str], ...] = (
+    ("zh-CN", "docx", "draft"),
+    ("zh-CN", "pdf", "draft"),
+    ("en-US", "docx", "draft"),
+    ("en-US", "pdf", "draft"),
+)
+
+# Per-(locale, format) equality fields required by §七.
+# Sourced from the on-disk ``artifact-metadata.json`` + ``semantic-checks.json``.
+# Tuples are ``(canonical_name, "metadata" | "semantic_checks", source_key)``.
+PILOT_1_4_PER_LOCALE_FORMAT_EQUALITY_FIELDS: tuple[tuple[str, str, str], ...] = (
+    ("format", "metadata", "format"),
+    ("locale", "metadata", "locale"),
+    ("template_locale", "metadata", "template_locale"),
+    ("template_version", "metadata", "template_version"),
+    ("template_content_hash", "metadata", "template_content_hash"),
+    ("template_schema_version", "metadata", "template_schema_version"),
+    ("translation_catalog_version", "metadata", "translation_catalog_version"),
+    ("translation_catalog_content_hash", "metadata", "translation_catalog_content_hash"),
+    ("localized_template_content_hash", "metadata", "localized_template_content_hash"),
+    ("integrity_result", "metadata", "integrity_result"),
+    ("semantic_result", "semantic_checks", "semantic_result"),
+    ("missing_sections_empty", "semantic_checks", "missing_sections"),
+    ("missing_units_empty", "semantic_checks", "missing_units"),
+    ("numeric_mismatches_empty", "semantic_checks", "numeric_mismatches"),
+)
+
+# Canonical business-semantic invariants (corrective §4 #3):
+# these come from ``semantic-checks.canonical_section_keys`` /
+# ``semantic_checks.canonical_numeric_fields`` and MUST match
+# across all four (SQLite repeat 1, SQLite repeat 2, PG repeat
+# 1, PG repeat 2). Each is itself a set of strings / tuples;
+# the helper compares the SETS (order-insensitive).
+PILOT_1_4_CANONICAL_SECTION_INVARIANTS: tuple[str, ...] = ("canonical_section_key_set",)
+PILOT_1_4_CANONICAL_NUMERIC_VALUE_AND_UNIT_INVARIANTS: tuple[str, ...] = (
+    "canonical_numeric_field_path_set",
+    "canonical_numeric_value_and_unit_set",
+)
+PILOT_1_4_CANONICAL_BUSINESS_FIELDS: tuple[str, ...] = (
+    *PILOT_1_4_CANONICAL_SECTION_INVARIANTS,
+    *PILOT_1_4_CANONICAL_NUMERIC_VALUE_AND_UNIT_INVARIANTS,
+)
+
+# Cross-run backend-allowed differences per §七. These fields
+# MAY legitimately differ between SQLite and PostgreSQL because
+# each backend has its own frozen manifest + DB-generated IDs.
+PILOT_1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES: tuple[str, ...] = (
+    "source_manifest_sha",
+    "database_backend",
+    # Backend-generated / self-integrity per-artifact fields
+    # (the §七 "不要求跨后端相等" list):
+    "artifact_id",
+    "file_name",
+    "file_size_bytes",
+    "file_sha256",
+    "generated_at",
+    "storage_key",
+    "mime_type",
+    "report_id",
+    "report_revision_id",
+    "revision_number",
+    "downloaded_binary_sha256",
+)
+
+
+class PilotAcceptanceError(Exception):
+    """Typed fail-closed error for the §10 aggregate acceptance helper.
+
+    Repository-owned (lives in the composition file so positive
+    + negative tests MUST both call the same helper per
+    corrective §4 #2). Stable typed codes:
+
+    * ``MISSING_ONE_RENDER`` — one of the four (locale, format)
+      artifacts is absent from a run's output layout.
+    * ``CROSS_RUN_INVARIANT_DRIFT`` — a same-backend
+      cross-run invariant (repeat 1 vs repeat 2 of the same
+      backend) has diverged OR a same-backend per-(locale,
+      format) field has drifted.
+    * ``CROSS_BACKEND_INVARIANT_DRIFT`` — a cross-backend
+      invariant has diverged between SQLite and PostgreSQL
+      runs (i.e. SQLite vs PG fingerprints disagree on a
+      field that §七 requires equal across all four runs).
+    * ``RUN_SUMMARY_SCHEMA_DRIFT`` — a run summary required
+      by the helper is missing a top-level field or a
+      required ``semantic_checks`` / ``artifact-metadata``
+      slot.
+
+    Downstream automation MUST classify by :attr:`code` (no
+    message-text parsing).
+    """
+
+    code: str = "PILOT_ACCEPTANCE_ERROR"
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+# Each per-run tuple passed to ``aggregate_p1_4_acceptance`` is
+# ``(output_root, pilot_run, pilot_summary, artifacts_payload)``
+# where ``artifacts_payload`` is a ``dict[(locale, fmt)]`` mapping to
+# ``{"metadata": ..., "semantic_checks": ...}`` slot dicts. We
+# alias the tuple type for readability in the function signature
+# below.
+ArtifactSlot = dict[str, object]
+RunSummary = tuple[
+    Path,
+    dict[str, object],
+    dict[str, object],
+    dict[tuple[str, str], ArtifactSlot],
+]
+
+
+def _canonical_section_key_set(semantic_checks: dict[str, object]) -> frozenset[str]:
+    """Return the set of canonical section keys, sorted + deduped."""
+    section_keys = semantic_checks.get("canonical_section_keys")
+    if section_keys is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "semantic-checks.canonical_section_keys MUST be present for "
+                "§4 #3 canonical invariant comparison."
+            ),
+        )
+    if not isinstance(section_keys, list):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "semantic-checks.canonical_section_keys MUST be a list; got "
+                f"{type(section_keys).__name__}."
+            ),
+        )
+    return frozenset(str(key) for key in section_keys)
+
+
+def _canonical_numeric_field_path_set(
+    semantic_checks: dict[str, object],
+) -> frozenset[str]:
+    """Return the set of canonical numeric field_paths from the artifact."""
+    numeric_fields = semantic_checks.get("canonical_numeric_fields")
+    if numeric_fields is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "semantic-checks.canonical_numeric_fields MUST be present for "
+                "§4 #3 canonical numeric invariant comparison."
+            ),
+        )
+    if not isinstance(numeric_fields, list):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "semantic-checks.canonical_numeric_fields MUST be a list; got "
+                f"{type(numeric_fields).__name__}."
+            ),
+        )
+    paths: list[str] = []
+    for entry in numeric_fields:
+        if not isinstance(entry, dict):
+            continue
+        field_path = entry.get("field_path")
+        if isinstance(field_path, str):
+            paths.append(field_path)
+    return frozenset(paths)
+
+
+def _canonical_numeric_value_and_unit_set(
+    semantic_checks: dict[str, object],
+) -> frozenset[tuple[str, str]]:
+    """Return the set of ``(field_path, unit_code)`` tuples from observed artifact."""
+    observed = semantic_checks.get("observed_numeric_fields")
+    if observed is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "semantic-checks.observed_numeric_fields MUST be present for "
+                "§4 #3 canonical numeric value+unit comparison (the helper "
+                "reads the OBSERVED side because the artifact's raw_value is "
+                "the on-disk numeric, not the expected golden)."
+            ),
+        )
+    if not isinstance(observed, list):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(f"observed_numeric_fields MUST be a list; got {type(observed).__name__}."),
+        )
+    pairs: list[tuple[str, str]] = []
+    for entry in observed:
+        if not isinstance(entry, dict):
+            continue
+        field_path = entry.get("field_path")
+        unit_code = entry.get("unit_code")
+        if isinstance(field_path, str) and isinstance(unit_code, str):
+            pairs.append((field_path, unit_code))
+    return frozenset(pairs)
+
+
+def _metadata_field_value(slot: ArtifactSlot, key: str) -> object:
+    metadata = slot.get("metadata")
+    if not isinstance(metadata, dict):
+        return None
+    return metadata.get(key)
+
+
+def _semantic_checks_field_value(slot: ArtifactSlot, key: str) -> object:
+    sem = slot.get("semantic_checks")
+    if not isinstance(sem, dict):
+        return None
+    return sem.get(key)
+
+
+def _build_run_fingerprint(
+    *,
+    output_root: Path,
+    pilot_run: dict[str, object],
+    pilot_summary: dict[str, object],
+    artifact_slots: dict[tuple[str, str], ArtifactSlot],
+) -> dict[str, object]:
+    """Build the per-run comparison fingerprint for §七 aggregate acceptance.
+
+    Pulls EXCLUSIVELY from already-on-disk structured evidence
+    (pilot-run.json / pilot-summary.json / artifact-metadata.json
+    / semantic-checks.json). NEVER reads the database, never
+    re-renders, never recalcs business formulas.
+    """
+    fingerprint: dict[str, object] = {}
+
+    for field in PILOT_1_4_CROSS_RUN_EQUALITY_FIELDS:
+        fingerprint[field] = pilot_run.get(field)
+    for field in (
+        "manifest_scenario_id",
+        "manifest_expected_outcome",
+        "manifest_golden_comparison_result",
+        "database_backend",
+        "source_manifest_sha",
+        "semantic_result",
+        "artifact_integrity_result",
+        "overall_result",
+    ):
+        fingerprint[field] = pilot_summary.get(field)
+
+    for (locale, fmt), slot in sorted(artifact_slots.items()):
+        per_pair: dict[str, object] = {}
+        for canonical_name, group, key in PILOT_1_4_PER_LOCALE_FORMAT_EQUALITY_FIELDS:
+            if group == "metadata":
+                raw_value = _metadata_field_value(slot, key)
+            else:
+                raw_value = _semantic_checks_field_value(slot, key)
+            if canonical_name.endswith("_empty"):
+                # missing_sections / missing_units / numeric_mismatches
+                # carry a list value; the fingerprint records whether the
+                # list is empty (so cross-run comparisons do not require
+                # element-by-element equality on the list contents).
+                per_pair[canonical_name] = bool(
+                    raw_value is not None and isinstance(raw_value, list) and len(raw_value) == 0
+                )
+            else:
+                per_pair[canonical_name] = raw_value
+
+        # Canonical business-semantic invariant surfaces per §七.
+        # These come from the OBSERVED ``semantic-checks.json``
+        # files (``canonical_section_keys`` /
+        # ``canonical_numeric_fields`` /
+        # ``observed_numeric_fields``), never from the expected
+        # model or recomputed values.
+        sem = slot.get("semantic_checks")
+        if isinstance(sem, dict):
+            per_pair["canonical_section_key_set"] = _canonical_section_key_set(sem)
+            per_pair["canonical_numeric_field_path_set"] = _canonical_numeric_field_path_set(sem)
+            per_pair["canonical_numeric_value_and_unit_set"] = (
+                _canonical_numeric_value_and_unit_set(sem)
+            )
+
+        fingerprint[f"per_pair::{locale}::{fmt}"] = per_pair
+
+    fingerprint["__output_root__"] = str(output_root)
+    return fingerprint
+
+
+def _compare_fingerprints(
+    *,
+    reference: dict[str, object],
+    observed: dict[str, object],
+    allowed_differences: set[str],
+    error_code: str,
+    error_label: str,
+) -> None:
+    """Assert ``reference`` and ``observed`` agree on every key except ``allowed_differences``.
+
+    Compares frozenset values by equality so per-run invariant
+    sets like ``canonical_section_key_set`` are order-insensitive.
+    Raises :class:`PilotAcceptanceError(code=error_code)` on any
+    drift.
+    """
+    for key, ref_value in reference.items():
+        if key in {"__output_root__"}:
+            continue
+        if key in allowed_differences:
+            continue
+        obs_value = observed.get(key)
+        if ref_value != obs_value:
+            raise PilotAcceptanceError(
+                code=error_code,
+                message=(
+                    f"{error_label} invariant drift on field={key!r}: "
+                    f"reference={ref_value!r} observed={obs_value!r}"
+                ),
+            )
+
+
+def aggregate_p1_4_acceptance(
+    *,
+    runs: Sequence[RunSummary],
+    cross_backend: bool,
+) -> dict[str, object]:
+    """Compare a sequence of P1-4 run summaries and enforce §七 invariants.
+
+    Single repository-owned source of truth for the P1-4
+    aggregate acceptance (per corrective §4 #2 + §4 #3). Both
+    positive tests AND negative tests call this same helper.
+
+    Parameters
+    ----------
+    runs : Sequence[RunSummary]
+        Each element is
+        ``(output_root, pilot_run, pilot_summary, artifact_slots)``
+        where ``artifact_slots`` keys are ``(locale, fmt)`` and
+        values are ``{"metadata": ..., "semantic_checks": ...}``
+        as produced by the verifier's
+        ``atomic_write_*`` calls.
+    cross_backend : bool
+        ``False`` for same-backend aggregate (SQLite run 1 vs
+        SQLite run 2 of the same committed state). ``True``
+        for cross-backend aggregate (SQLite × PG). The helper
+        explicitly ALLOWS only
+        :data:`PILOT_1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES` to
+        differ.
+
+    Returns a dict with the fingerprints computed (for test
+    assertions); raises :class:`PilotAcceptanceError` on any
+    invariant breach.
+
+    Pure: does NOT query the database, does NOT render new
+    artifacts, does NOT recalc business formulas. Reads ONLY
+    the structured run summaries already on disk.
+    """
+    if not runs:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message="aggregate helper requires at least one run summary.",
+        )
+
+    # Step 0: every run must report overall PASS and have all
+    # four (locale, format) artifact slots — fail closed BEFORE
+    # cross-run comparison so the error code reflects structural
+    # incompleteness (NOT value-level drift).
+    canonical_pairs: set[tuple[str, str]] = {
+        (locale, fmt) for locale, fmt, _mode in PILOT_1_4_EXPECTED_RENDER_MATRIX
+    }
+    for output_root, _pilot_run, pilot_summary, artifact_slots in runs:
+        if pilot_summary.get("overall_result") != "PASS":
+            raise PilotAcceptanceError(
+                code="MISSING_ONE_RENDER",
+                message=(
+                    f"run overall_result MUST be PASS before cross-run "
+                    f"comparison; got {pilot_summary.get('overall_result')!r} "
+                    f"output_root={str(output_root)!r}"
+                ),
+            )
+        actual_pairs = set(artifact_slots.keys())
+        if actual_pairs != canonical_pairs:
+            raise PilotAcceptanceError(
+                code="MISSING_ONE_RENDER",
+                message=(
+                    f"per-run artifact_slots MUST equal the canonical "
+                    f"4-render set; output_root={str(output_root)!r} "
+                    f"missing={sorted(canonical_pairs - actual_pairs)!r} "
+                    f"extra={sorted(actual_pairs - canonical_pairs)!r}"
+                ),
+            )
+
+    # Step 1 + 2: collect fingerprints.
+    fingerprints = [
+        _build_run_fingerprint(
+            output_root=output_root,
+            pilot_run=pilot_run,
+            pilot_summary=pilot_summary,
+            artifact_slots=artifact_slots,
+        )
+        for output_root, pilot_run, pilot_summary, artifact_slots in runs
+    ]
+
+    allowed_differences = set(PILOT_1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES)
+
+    if not cross_backend:
+        reference = fingerprints[0]
+        for fingerprint in fingerprints[1:]:
+            _compare_fingerprints(
+                reference=reference,
+                observed=fingerprint,
+                allowed_differences=allowed_differences,
+                error_code="CROSS_RUN_INVARIANT_DRIFT",
+                error_label="cross-run (same-backend)",
+            )
+        return {
+            "fingerprint_count": len(fingerprints),
+            "cross_backend": False,
+            "per_run_overall_result": [run[2].get("overall_result") for run in runs],
+        }
+
+    # Cross-backend: partition fingerprints by database_backend
+    # BEFORE comparing within each backend. Then cross-backend
+    # overlap compares every SQLite fingerprint with every PG
+    # fingerprint on every field except the allowed-difference
+    # set.
+    frontends = [run[2].get("database_backend") for run in runs]
+    seen_backends: dict[object, list[int]] = {}
+    for idx, be in enumerate(frontends):
+        seen_backends.setdefault(be, []).append(idx)
+
+    for backend_marker, indices in seen_backends.items():
+        if len(indices) < 2:
+            continue
+        ref_idx = indices[0]
+        ref = fingerprints[ref_idx]
+        for idx in indices[1:]:
+            other = fingerprints[idx]
+            _compare_fingerprints(
+                reference=ref,
+                observed=other,
+                allowed_differences=allowed_differences,
+                error_code="CROSS_RUN_INVARIANT_DRIFT",
+                error_label=(f"per-backend (backend={backend_marker!r}) cross-run"),
+            )
+
+    sqlite_indices = seen_backends.get("sqlite", [])
+    postgres_indices = seen_backends.get("postgresql", [])
+    if sqlite_indices and postgres_indices:
+        sql_ref = fingerprints[sqlite_indices[0]]
+        pg_ref = fingerprints[postgres_indices[0]]
+        # Compare PG fingerprint directly (not just first SQLite
+        # ref) so all cross-backend field equality is verified.
+        for sql_idx in sqlite_indices:
+            sql_fp = fingerprints[sql_idx]
+            for pg_idx in postgres_indices:
+                pg_fp = fingerprints[pg_idx]
+                _compare_fingerprints(
+                    reference=sql_fp,
+                    observed=pg_fp,
+                    allowed_differences=allowed_differences,
+                    error_code="CROSS_BACKEND_INVARIANT_DRIFT",
+                    error_label="cross-backend (SQLite vs PostgreSQL)",
+                )
+        # ``sql_ref`` retained for backward compatibility /
+        # ``_compare_fingerprints`` ensures equal comparison.
+        del sql_ref, pg_ref
+
+    return {
+        "fingerprint_count": len(fingerprints),
+        "cross_backend": True,
+        "per_run_overall_result": [run[2].get("overall_result") for run in runs],
+    }
+
+
+# ── §4 #1 PostgreSQL fresh database authority ─────────────────────────────────
+
+POSTGRES_PROVISION_TIMEOUT_SECONDS = 300
+
+
+def provision_p1_4_pg_database(*, database_url: str) -> str:
+    """Apply ``alembic upgrade head`` to a freshly-created PG database.
+
+    Repository-owned (composition file). Used by the in-allowlist
+    P1-4 PG fixture to apply the production schema BEFORE the
+    composition script runs ``seed_a1_all_prereqs`` and
+    ``run_scenario_via_markers``. Fail-closed: raises
+    :class:`PilotCompositionError(code="POSTGRES_PROVISION_FAILED")`
+    with the database identifier + the real subprocess stdout /
+    stderr tail when ``alembic`` exits non-zero. Returns the
+    same ``database_url`` on success.
+
+    The provisioning subprocess inherits
+    ``PYTHONPATH=src`` + ``DATABASE_BACKEND=postgresql`` so the
+    alembic env (``backend/alembic/env.py``) resolves the
+    ``cold_storage`` package via the same sys.path the
+    composition's own alembic call uses.
+    """
+
+    env = os.environ.copy()
+    env["DATABASE_URL"] = database_url
+    env["DATABASE_BACKEND"] = "postgresql"
+    existing_pp = env.get("PYTHONPATH", "")
+    src_path = (BACKEND_DIR / "src").resolve()
+    pp_parts: list[str] = [str(src_path)] + ([existing_pp] if existing_pp else [])
+    env["PYTHONPATH"] = os.pathsep.join(pp_parts)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=str(BACKEND_DIR),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=POSTGRES_PROVISION_TIMEOUT_SECONDS,
+    )
+    if proc.returncode != 0:
+        stdout_tail: Any = proc.stdout[-2000:]
+        stderr_tail: Any = proc.stderr[-2000:]
+        raise PilotCompositionError(
+            code="POSTGRES_PROVISION_FAILED",
+            message=(
+                f"alembic upgrade head failed for database_url={database_url!r} "
+                f"(exit={proc.returncode}); "
+                f"stdout_tail={stdout_tail!r}; stderr_tail={stderr_tail!r}"
+            ),
+        )
+    return database_url
 
 
 # Defensive sentinel: ``hashlib`` and ``tempfile`` are imported above to
@@ -1243,4 +1798,4 @@ __all__ = [
 # helper bodies. They are referenced indirectly by the composition
 # flow (alembic subprocess, path resolution) so the explicit imports
 # make the dependency surface observable at module-load time.
-_ = (hashlib, tempfile)
+_ = (hashlib, tempfile, json, subprocess)

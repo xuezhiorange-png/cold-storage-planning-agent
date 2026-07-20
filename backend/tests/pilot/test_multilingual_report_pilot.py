@@ -125,10 +125,24 @@ def p1_4_pg_admin_url() -> str:
 def p1_4_pg_database_factory(p1_4_pg_admin_url: str) -> Generator[Callable[[str], str], None, None]:
     """Function-scoped factory yielding fresh PG database URLs.
 
-    On teardown, drops every database the factory created using
-    ``DROP DATABASE IF EXISTS ... WITH (FORCE)`` so no fresh-database
-    guarantee is faked by transaction rollback. Mirrors
-    ``tests/integration/conftest.py:pg_database_factory``.
+    Each call:
+
+    1. Allocates a UUID-suffixed DB name (PostgreSQL-name-safe).
+    2. ``DROP DATABASE IF EXISTS <name> WITH (FORCE)`` +
+       ``CREATE DATABASE <name>`` (via the admin connection).
+    3. **Applies ``alembic upgrade head``** to the fresh
+       database via the repository-owned
+       :func:`tests.pilot.run_multilingual_report_pilot.provision_p1_4_pg_database`
+       so the production schema is in place BEFORE the
+       composition script's
+       ``seed_a1_all_prereqs`` +
+       ``run_scenario_via_markers`` chain runs. Fail-closed
+       on migration error.
+
+    On teardown, drops every database the factory created
+    using ``DROP DATABASE IF EXISTS ... WITH (FORCE)`` so no
+    fresh-database guarantee is faked by transaction
+    rollback.
     """
     import contextlib
 
@@ -148,6 +162,11 @@ def p1_4_pg_database_factory(p1_4_pg_admin_url: str) -> Generator[Callable[[str]
             conn.execute(text(f"CREATE DATABASE {db_name}"))
         base_url = os.environ.get("DATABASE_URL", "").rsplit("/", 1)[0]
         db_url = f"{base_url}/{db_name}"
+        # Apply alembic upgrade head BEFORE returning. This is
+        # the §4 #1 fixup: previous round created the DB but
+        # didn't migrate, so ``seed_a1_all_prereqs`` failed with
+        # ``relation "scheme_runs" does not exist``.
+        rmp.provision_p1_4_pg_database(database_url=db_url)
         created.append(db_name)
         return db_url
 
@@ -7941,127 +7960,107 @@ def test_p1_3_grid_authority_coherent_2h_2v_accepted() -> None:
 #   :func:`_p1_4_aggregate_acceptance` helper.
 
 
-# ── §十 typed aggregate helper ──────────────────────────────────────────────
+# ── §十 typed aggregate helper (RE-EXPORTED from composition module) ──────────
+# Per corrective §4 #2, the typed ``PilotAcceptanceError`` +
+# the invariant field definitions +
+# ``_p1_4_aggregate_acceptance`` live in
+# :mod:`tests.pilot.run_multilingual_report_pilot` as the SINGLE
+# repository-owned source of truth. This test module
+# re-exports them so existing test references continue to
+# resolve unchanged; positive AND negative tests call the same
+# ``rmp.aggregate_p1_4_acceptance`` helper. The local class +
+# field tuples + helper previously duplicated here were
+# REMOVED in this corrective round.
+
+from tests.pilot.run_multilingual_report_pilot import (  # noqa: E402,F401
+    PILOT_1_4_EXPECTED_RENDER_MATRIX as _P1_4_EXPECTED_RENDER_MATRIX,
+)
+from tests.pilot.run_multilingual_report_pilot import (  # noqa: E402,F401
+    PilotAcceptanceError,
+)
+from tests.pilot.run_multilingual_report_pilot import (  # noqa: E402,F401
+    aggregate_p1_4_acceptance as _p1_4_aggregate_acceptance,
+)
 
 
-class PilotAcceptanceError(Exception):
-    """Typed fail-closed error for the §7 / §10 aggregate acceptance helper.
+def _p1_4_invoke_one_run(  # type: ignore[no-redef]  -- documented helper, not duplicate authority
+    *,
+    tmp_path: Path,
+    backend: str,
+    database_url: str,
+    manifest_path: Path,
+    repeat_index: int,
+    commit_sha: str,
+) -> tuple[Path, dict[str, object], dict[str, object]]:
+    """Invoke the frozen composition entry ``run`` sub-command for ONE repeat.
 
-    Downstream automation MUST classify by :attr:`code` (per §10.3
-    forbidden-behavior discipline: no message-text parsing).
+    Returns ``(output_root, pilot_run_dict, pilot_summary_dict)``.
 
-    Stable codes (frozen for this round):
+    The composition's :func:`run_multilingual_report_pilot._cmd_run`
+    already enforces:
 
-    * ``MISSING_ONE_RENDER`` — one of the four (locale, format)
-      artifacts is absent from a run's output layout (the run's
-      ``pilot-summary.overall_result`` MUST be ``PASS`` before the
-      helper is invoked; this code means a run is structurally
-      incomplete even though the per-run verifier passed).
-    * ``CROSS_RUN_INVARIANT_DRIFT`` — a cross-run invariant
-      (same-backend, repeat 1 vs repeat 2; or same (locale, format)
-      across all runs of the same backend) has diverged.
-    * ``CROSS_BACKEND_INVARIANT_DRIFT`` — a cross-backend
-      invariant the brief §7 lists under "全部四个运行之间必须相等"
-      has diverged between SQLite and PostgreSQL runs.
-    * ``BACKEND_SPECIFIC_FIELD_INVARIANT_BROKEN`` — a field the
-      brief §7 lists under "不要求跨后端相等" leaked into a
-      cross-backend equality check (i.e. the helper demanded
-      equality for a field it was supposed to allow to differ).
-      This code is reserved for defensive-coding disambiguation and
-      is not exercised by the brief's positive tests, but the
-      failure mode is documented so future rounds do not silently
-      relax it.
-    * ``RUN_SUMMARY_SCHEMA_DRIFT`` — a run summary required by the
-      helper is missing a top-level field, or a required
-      ``artifact-metadata`` key is absent (means a future verifier
-      change lost a contract field; the helper fails closed instead
-      of silently skipping).
+    * §五 #1: manifest loaded by production loader,
+      ``scenario.scenario_id == "baseline_feasible"``,
+      ``expected_outcome == SUCCEEDED``,
+      ``GOLDEN_COMPARISON_RESULT == PASS``,
+      exactly one ``scheme_run`` row.
+    * §八 fresh database per run: the script's
+      ``_provision_sqlite_database`` REFUSES a pre-existing
+      SQLite file (line 313-320).
+    * §六 managed layout (via ``atomic_write_*``).
+    * §五 #3 download integrity (lines 4047-4068).
+    * §五 #4 semantic checks (lines 4070-4084).
+
+    This helper re-raises ANY non-zero exit code as
+    :class:`PilotAcceptanceError` with diagnostics — including the
+    frozen ``PILOT_VERIFICATION_ERROR code=<typed>`` prefix from
+    the composition's exit-code mapping (P1-2 corrective).
     """
-
-    code: str = "PILOT_ACCEPTANCE_ERROR"
-
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
-
-
-# Per-(locale, format) equality fields required by §七.
-# These MUST match across repeat 1 / repeat 2 of the same backend,
-# AND across SQLite / PostgreSQL runs (when the same (locale,
-# format) combination is present in both backends).
-#
-# Sources:
-#   ``metadata.<field>`` → ``artifact-metadata.json`` keys
-#   ``semantic_checks.<field>`` → ``semantic-checks.json`` keys
-_P1_4_PER_LOCALE_FORMAT_EQUALITY_FIELDS: tuple[tuple[str, str], ...] = (
-    # (canonical field name, source-key path)
-    ("format", "metadata.format"),
-    ("locale", "metadata.locale"),
-    ("template_locale", "metadata.template_locale"),
-    ("template_version", "metadata.template_version"),
-    ("template_content_hash", "metadata.template_content_hash"),
-    ("template_schema_version", "metadata.template_schema_version"),
-    ("translation_catalog_version", "metadata.translation_catalog_version"),
-    ("translation_catalog_content_hash", "metadata.translation_catalog_content_hash"),
-    ("localized_template_content_hash", "metadata.localized_template_content_hash"),
-    ("integrity_result", "metadata.integrity_result"),
-    ("semantic_result", "semantic_checks.semantic_result"),
-    ("missing_sections_present", "semantic_checks.missing_sections"),
-    ("missing_units_present", "semantic_checks.missing_units"),
-    ("numeric_mismatches_present", "semantic_checks.numeric_mismatches"),
-)
-
-# Cross-run equality fields required by §七 (independent of
-# (locale, format)). These MUST match across ALL runs of the SAME
-# BACKEND across both repeats.
-_P1_4_CROSS_RUN_EQUALITY_FIELDS: tuple[str, ...] = (
-    "pilot_check_id",
-    "source_commit_sha",
-    "manifest_scenario_id",
-    "manifest_expected_outcome",
-    "manifest_database_backend",
-    "scenario_id",
-    "correlation_id",
-    "source_binding_id",
-    "report_type",
-    "report_schema_version",
-    "render_mode",
-)
-
-# Per-(locale, format) fields the brief §七 explicitly lists as
-# "not required to be equal across backends" (they are
-# backend-specific / DB-generated). The aggregate helper MUST NOT
-# demand equality for these fields across backends.
-_P1_4_BACKEND_SPECIFIC_PER_ARTIFACT_FIELDS: tuple[str, ...] = (
-    "report_id",
-    "report_revision_id",
-    "revision_number",
-    "artifact_id",
-    "file_name",
-    "file_size_bytes",
-    "file_sha256",
-    "generated_at",
-    "storage_key",
-    "mime_type",
-)
-
-# Cross-run backend-allowed differences per §七. These fields MAY
-# legitimately differ between SQLite and PostgreSQL because each
-# backend has its own frozen manifest.
-_P1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES: tuple[str, ...] = (
-    "source_manifest_sha",
-    "database_backend",
-)
-
-# Canonical 4-render matrix per §四. Every P1-4 run MUST land the
-# exact four (locale, format, mode) combinations; a missing entry
-# is a §十 MISSING_ONE_RENDER defect.
-_P1_4_EXPECTED_RENDER_MATRIX: tuple[tuple[str, str, str], ...] = (
-    ("zh-CN", "docx", "draft"),
-    ("zh-CN", "pdf", "draft"),
-    ("en-US", "docx", "draft"),
-    ("en-US", "pdf", "draft"),
-)
+    output_root = (tmp_path / f"run_{repeat_index}").resolve()
+    if output_root.exists():
+        # Defensive: refuse to reuse a prior run root even if
+        # ``_cmd_run`` would also refuse (the script refuses a
+        # NON-EMPTY root; we refuse any existing root so a stale
+        # empty directory does not silently pass).
+        for child in output_root.iterdir():
+            if child.is_dir():
+                for sub in child.rglob("*"):
+                    if sub.is_file():
+                        sub.unlink()
+                child.rmdir()
+            else:
+                child.unlink()
+        output_root.rmdir()
+    argv: list[str] = [
+        "run",
+        "--backend",
+        backend,
+        "--database-url",
+        database_url,
+        "--manifest",
+        str(manifest_path),
+        "--output-root",
+        str(output_root),
+        "--repeat-index",
+        str(repeat_index),
+        "--commit-sha",
+        commit_sha,
+    ]
+    exit_code = rmp.main(argv)
+    if exit_code != rmp.EXIT_OK:
+        raise PilotAcceptanceError(
+            code="MISSING_ONE_RENDER",
+            message=(
+                f"composition run sub-command returned exit_code={exit_code} "
+                f"backend={backend!r} repeat_index={repeat_index} "
+                f"output_root={str(output_root)!r}"
+            ),
+        )
+    pilot_run_path = output_root / "pilot-run.json"
+    pilot_summary_path = output_root / "pilot-summary.json"
+    pilot_run = json.loads(pilot_run_path.read_text(encoding="utf-8"))
+    pilot_summary = json.loads(pilot_summary_path.read_text(encoding="utf-8"))
+    return output_root, pilot_run, pilot_summary
 
 
 # ── Per-run post-conditions (§五 acceptance gates) ──────────────────────────
@@ -8370,319 +8369,15 @@ def _verify_per_run_managed_layout(output_root: Path) -> None:
 
 
 # ── Run-subprocess invocation (§四 / §八) ────────────────────────────────────
+# ``_p1_4_invoke_one_run`` is defined at the top of this section
+# (immediately below the imports). The local
+# ``_p1_4_aggregate_acceptance`` helper has been REMOVED in the
+# corrective round: positive + negative tests now call the
+# repository-owned ``rmp.aggregate_p1_4_acceptance`` instead,
+# via the ``_p1_4_aggregate_acceptance = rmp.aggregate_p1_4_acceptance``
+# alias above.
 
-
-def _p1_4_invoke_one_run(
-    *,
-    tmp_path: Path,
-    backend: str,
-    database_url: str,
-    manifest_path: Path,
-    repeat_index: int,
-    commit_sha: str,
-) -> tuple[Path, dict[str, object], dict[str, object]]:
-    """Invoke the frozen composition entry ``run`` sub-command for ONE repeat.
-
-    Returns ``(output_root, pilot_run_dict, pilot_summary_dict)``.
-
-    The composition's :func:`run_multilingual_report_pilot._cmd_run`
-    already enforces:
-
-    * §五 #1: manifest loaded by production loader,
-      ``scenario.scenario_id == "baseline_feasible"``,
-      ``expected_outcome == SUCCEEDED``,
-      ``GOLDEN_COMPARISON_RESULT == PASS``,
-      exactly one ``scheme_run`` row.
-    * §八 fresh database per run: the script's
-      ``_provision_sqlite_database`` REFUSES a pre-existing
-      SQLite file (line 313-320).
-    * §六 managed layout (via ``atomic_write_*``).
-    * §五 #3 download integrity (lines 4047-4068).
-    * §五 #4 semantic checks (lines 4070-4084).
-
-    This helper re-raises ANY non-zero exit code as
-    :class:`PilotAcceptanceError` with diagnostics — including the
-    frozen ``PILOT_VERIFICATION_ERROR code=<typed>`` prefix from
-    the composition's exit-code mapping (P1-2 corrective).
-    """
-    output_root = (tmp_path / f"run_{repeat_index}").resolve()
-    if output_root.exists():
-        # Defensive: refuse to reuse a prior run root even if
-        # ``_cmd_run`` would also refuse (the script refuses a
-        # NON-EMPTY root; we refuse any existing root so a stale
-        # empty directory does not silently pass).
-        for child in output_root.iterdir():
-            if child.is_dir():
-                for sub in child.rglob("*"):
-                    if sub.is_file():
-                        sub.unlink()
-                child.rmdir()
-            else:
-                child.unlink()
-        output_root.rmdir()
-    argv: list[str] = [
-        "run",
-        "--backend",
-        backend,
-        "--database-url",
-        database_url,
-        "--manifest",
-        str(manifest_path),
-        "--output-root",
-        str(output_root),
-        "--repeat-index",
-        str(repeat_index),
-        "--commit-sha",
-        commit_sha,
-    ]
-    exit_code = rmp.main(argv)
-    if exit_code != rmp.EXIT_OK:
-        raise PilotAcceptanceError(
-            code="MISSING_ONE_RENDER",
-            message=(
-                f"composition run sub-command returned exit_code={exit_code} "
-                f"backend={backend!r} repeat_index={repeat_index} "
-                f"output_root={str(output_root)!r}"
-            ),
-        )
-    pilot_run_path = output_root / "pilot-run.json"
-    pilot_summary_path = output_root / "pilot-summary.json"
-    pilot_run = json.loads(pilot_run_path.read_text(encoding="utf-8"))
-    pilot_summary = json.loads(pilot_summary_path.read_text(encoding="utf-8"))
-    return output_root, pilot_run, pilot_summary
-
-
-# ── Aggregate helper (§七 / §十) ──────────────────────────────────────────────
-
-
-def _p1_4_aggregate_acceptance(
-    *,
-    runs: list[
-        tuple[
-            Path,
-            dict[str, object],
-            dict[str, object],
-            dict[tuple[str, str], dict[str, object]],
-        ]
-    ],
-    cross_backend: bool,
-) -> dict[str, object]:
-    """Compare a sequence of P1-4 run summaries and enforce §七 invariants.
-
-    Parameters
-    ----------
-    runs : list
-        Each element is ``(output_root, pilot_run, pilot_summary,
-        artifact_metas)``. ``artifact_metas`` is the dict returned
-        by :func:`_verify_per_run_artifact_layout` (keyed by
-        ``(locale, fmt)``).
-    cross_backend : bool
-        ``False`` for same-backend aggregate (e.g. SQLite run 1 vs
-        run 2). ``True`` for cross-backend aggregate (SQLite vs
-        PostgreSQL); in the cross-backend case, the helper
-        explicitly ALLOWS ``source_manifest_sha`` and
-        ``database_backend`` to differ but enforces every other
-        §七 invariant.
-
-    Returns a small dict with the run-by-run invariant
-    fingerprints (for use by test assertions). Raises
-    :class:`PilotAcceptanceError` on any invariant breach with
-    the typed code documented on the exception class.
-
-    **Pure**: does NOT query the database, does NOT render new
-    artifacts, does NOT recalc business formulas. Reads ONLY the
-    already-on-disk structured run summaries.
-
-    **Equals-on (locale, format)** — helpers below share the same
-    pass.
-    """
-    if not runs:
-        raise PilotAcceptanceError(
-            code="RUN_SUMMARY_SCHEMA_DRIFT",
-            message="aggregate helper requires at least one run summary.",
-        )
-
-    # Step 0: every run must structurally carry all four (locale,
-    # format) artifact-metas — this fires BEFORE fingerprint
-    # equality so a missing artifact on one run surfaces as the
-    # exact §十 ``MISSING_ONE_RENDER`` code (NOT as a
-    # ``CROSS_RUN_INVARIANT_DRIFT`` which would imply a value-level
-    # disagreement on the same key). The per-run
-    # ``_verify_per_run_artifact_layout`` helper already rejects a
-    # partial on-disk layout; this defense-in-depth re-check reads
-    # the in-memory truth source used by the helper itself.
-    canonical_pairs: set[tuple[str, str]] = {
-        (locale, fmt) for locale, fmt, _mode in _P1_4_EXPECTED_RENDER_MATRIX
-    }
-    for output_root, _pilot_run, _pilot_summary, artifact_metas in runs:
-        actual_pairs = set(artifact_metas.keys())
-        if actual_pairs != canonical_pairs:
-            raise PilotAcceptanceError(
-                code="MISSING_ONE_RENDER",
-                message=(
-                    f"per-run artifact_metas MUST equal the canonical "
-                    f"4-render set; "
-                    f"output_root={str(output_root)!r} "
-                    f"missing={sorted(canonical_pairs - actual_pairs)!r} "
-                    f"extra={sorted(actual_pairs - canonical_pairs)!r}"
-                ),
-            )
-
-    # Step 1: every run must report overall PASS and have 4
-    # (locale, format) artifacts (already asserted by per-run
-    # callers; this is a defense-in-depth re-check).
-    for output_root, _pilot_run, pilot_summary, _metas in runs:
-        if pilot_summary.get("overall_result") != "PASS":
-            raise PilotAcceptanceError(
-                code="MISSING_ONE_RENDER",
-                message=(
-                    f"run overall_result MUST be PASS before cross-run "
-                    f"comparison; got {pilot_summary.get('overall_result')!r} "
-                    f"output_root={str(output_root)!r}"
-                ),
-            )
-
-    # Step 2: collect cross-run fingerprints.
-    fingerprints: list[dict[str, object]] = []
-    for _output_root, pilot_run, pilot_summary, artifact_metas in runs:
-        fingerprint: dict[str, object] = {}
-        # Top-level cross-run fields from §七.
-        for field in _P1_4_CROSS_RUN_EQUALITY_FIELDS:
-            fingerprint[field] = pilot_run.get(field)
-        # The run_identity fields the composition script writes into
-        # BOTH pilot-run.json and pilot-summary.json (P1-1 binding
-        # contract) — these are referenced verbatim in §七 and must
-        # match across runs of the same backend.
-        for field in (
-            "manifest_scenario_id",
-            "manifest_expected_outcome",
-            "manifest_golden_comparison_result",
-            "database_backend",
-            "source_manifest_sha",
-            "semantic_result",
-            "artifact_integrity_result",
-        ):
-            fingerprint[field] = pilot_summary.get(field)
-        # Per-(locale, format) fingerprints. Each slot is a dict
-        # ``{"metadata": ..., "semantic_checks": ...}`` produced by
-        # :func:`_verify_per_run_artifact_layout`.
-        for (locale, fmt), slot in sorted(artifact_metas.items()):
-            per_pair: dict[str, object] = {}
-            for canonical_name, source_path in _P1_4_PER_LOCALE_FORMAT_EQUALITY_FIELDS:
-                group, key = source_path.split(".", 1)
-                payload = slot.get(group)
-                if not isinstance(payload, dict):
-                    per_pair[canonical_name] = None
-                    continue
-                per_pair[canonical_name] = payload.get(key)
-            fingerprint[f"per_pair::{locale}::{fmt}"] = per_pair
-        fingerprints.append(fingerprint)
-
-    # Step 3: assert cross-run equality fingerprint-by-fingerprint.
-    if not cross_backend:
-        reference = fingerprints[0]
-        for idx, fp in enumerate(fingerprints[1:], start=1):
-            for key, ref_value in reference.items():
-                if key in _P1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES:
-                    continue
-                if fp.get(key) != ref_value:
-                    raise PilotAcceptanceError(
-                        code="CROSS_RUN_INVARIANT_DRIFT",
-                        message=(
-                            f"cross-run invariant drift on field={key!r} "
-                            f"between run[0] and run[{idx}]: "
-                            f"reference={ref_value!r} observed={fp.get(key)!r}"
-                        ),
-                    )
-    else:
-        # Cross-backend: explicitly partition the fingerprints by
-        # backend BEFORE comparing within each backend. The cross-
-        # backend OVERALL comparison allows only
-        # {source_manifest_sha, database_backend} to differ.
-        frontends = [fp.get("database_backend") for _, _, _, _ in runs]
-        # SQLite / PostgreSQL fingerprints MUST partition without
-        # overlap; if the test mixes only one backend (e.g. cross-
-        # backend disabled by the caller despite the flag) the
-        # helper still produces a per-backend equality result.
-        seen_backends: dict[object, list[int]] = {}
-        for idx, be in enumerate(frontends):
-            seen_backends.setdefault(be, []).append(idx)
-        for backend_marker, indices in seen_backends.items():
-            if not indices:
-                continue
-            ref_idx = indices[0]
-            ref = fingerprints[ref_idx]
-            for idx in indices[1:]:
-                other = fingerprints[idx]
-                for key, ref_value in ref.items():
-                    if key in _P1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES:
-                        continue
-                    if other.get(key) != ref_value:
-                        raise PilotAcceptanceError(
-                            code="CROSS_RUN_INVARIANT_DRIFT",
-                            message=(
-                                f"per-backend cross-run invariant drift on "
-                                f"backend={backend_marker!r} field={key!r} "
-                                f"between run[{ref_idx}] and run[{idx}]: "
-                                f"reference={ref_value!r} "
-                                f"observed={other.get(key)!r}"
-                            ),
-                        )
-        # Cross-backend overlap: every SQLite fingerprint MUST
-        # equal every PostgreSQL fingerprint on EVERY field except
-        # the allowed-difference set.
-        sqlite_indices = seen_backends.get("sqlite", [])
-        postgres_indices = seen_backends.get("postgresql", [])
-        if sqlite_indices and postgres_indices:
-            sql_ref = fingerprints[sqlite_indices[0]]
-            pg_ref = fingerprints[postgres_indices[0]]
-            for key, sql_value in sql_ref.items():
-                if key in _P1_4_CROSS_BACKEND_ALLOWED_DIFFERENCES:
-                    continue
-                if pg_ref.get(key) != sql_value:
-                    raise PilotAcceptanceError(
-                        code="CROSS_BACKEND_INVARIANT_DRIFT",
-                        message=(
-                            f"cross-backend invariant drift on field={key!r} "
-                            f"between sqlite and postgresql: "
-                            f"sqlite={sql_value!r} postgresql={pg_ref.get(key)!r}"
-                        ),
-                    )
-
-    # Step 4: structural invariant check (counts).
-    for _output_root, _pilot_run, _pilot_summary, artifact_metas in runs:
-        # Single report / revision / content-hash invariants from
-        # the pilot-run JSON. Each slot is
-        # ``{"metadata": ..., "semantic_checks": ...}`` so we
-        # extract the metadata layer before forming identity tuples.
-        render_ids = {
-            (
-                slot["metadata"]["report_id"],
-                slot["metadata"]["report_revision_id"],
-                slot["metadata"]["revision_number"],
-                slot["metadata"]["source_content_hash"],
-            )
-            for slot in artifact_metas.values()
-        }
-        if len(render_ids) != 1:
-            raise PilotAcceptanceError(
-                code="MISSING_ONE_RENDER",
-                message=(
-                    f"§五 #2 single-revision identity violated; "
-                    f"got {len(render_ids)} distinct identity tuples: "
-                    f"{render_ids!r}"
-                ),
-            )
-
-    return {
-        "fingerprint_count": len(fingerprints),
-        "fingerprint_keys_per_run": sorted(fingerprints[0].keys()),
-        "per_run_overall_result": [summary.get("overall_result") for _, _, summary, _ in runs],
-        "cross_backend": cross_backend,
-    }
-
-
-# ── §五 #5 per-run download + X-* header verification ───────────────────────
+# ── §八 SQLite two-repeated four-render acceptance test ──────────────────────
 
 
 def _verify_per_run_download_headers(
@@ -9283,6 +8978,13 @@ def test_p1_4_negative_cross_run_invariant_drift_fails_closed() -> None:
                 "missing_sections": [],
                 "missing_units": [],
                 "numeric_mismatches": [],
+                # §4 #3 canonical business-semantic fields — the
+                # negative test mutates ONLY ``required_section_result``;
+                # the helper's canonical-set comparison passes for
+                # both runs when these are identical.
+                "canonical_section_keys": [],
+                "canonical_numeric_fields": [],
+                "observed_numeric_fields": [],
             },
         }
 
@@ -9327,4 +9029,202 @@ def test_p1_4_negative_cross_run_invariant_drift_fails_closed() -> None:
         raise AssertionError(
             "aggregate helper MUST raise CROSS_RUN_INVARIANT_DRIFT on per-pair "
             "classification drift; no exception was raised"
+        )
+
+
+def test_p1_4_negative_cross_backend_canonical_numeric_drift_fails_closed() -> None:
+    """P1-4 §十: CROSS_BACKEND_INVARIANT_DRIFT fails closed with the exact typed code.
+
+    The repository-owned
+    :func:`tests.pilot.run_multilingual_report_pilot.aggregate_p1_4_acceptance`
+    (in-turn the SAME helper that powers the positive
+    cross-backend test) is fed TWO synthetic run summaries
+    shaped like a SQLite run and a PostgreSQL run, with the
+    OBSERVED ``semantic-checks.canonical_numeric_fields`` /
+    ``observed_numeric_fields`` lists differing between the
+    two runs on one ``(field_path, unit_code, raw_value)``
+    triple. The helper MUST raise
+    :class:`PilotAcceptanceError(code="CROSS_BACKEND_INVARIANT_DRIFT")`.
+
+    This proves the §4 #4 (3) requirement: a SQLite vs PG
+    drift on the canonical numeric surface is detected
+    fail-closed by the SAME helper that the positive
+    cross-backend test passes through. No mock of any
+    production-side helper; no expected-model self-check;
+    no extracted business-formula recalculation.
+    """
+    base_summary: dict[str, object] = {
+        "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+        "pilot_check_id": PILOT_CHECK_ID,
+        "source_commit_sha": "f6039eb9f45aeb87b3f96123c8d0b85dae47e4db",
+        "source_manifest_sha": "0" * 64,
+        "database_backend": "sqlite",
+        "repeat_index": 1,
+        "scenario_id": "baseline_feasible",
+        "correlation_id": "test-a15-baseline-001",
+        "source_binding_id": "a1-test-binding-001",
+        "report_type": "cold_storage_concept_design",
+        "report_schema_version": "1.0.0",
+        "manifest_scenario_id": "baseline_feasible",
+        "manifest_expected_outcome": "SUCCEEDED",
+        "manifest_database_backend": "sqlite",
+        "manifest_golden_comparison_result": "PASS",
+        "source_binding_result": "PASS",
+        "artifact_integrity_result": "PASS",
+        "semantic_result": "PASS",
+        "overall_result": "PASS",
+    }
+
+    def _build_meta(
+        *,
+        locale: str,
+        fmt: str,
+        observed_value: str,
+        observed_unit: str,
+    ) -> dict[str, object]:
+        # Synthesize a single (locale, fmt) slot keyed on the
+        # canonical numeric surface; pg-vs-sqlite drift will be
+        # injected by varying ``observed_value`` between the
+        # SQLite and PG runs.
+        field_path = "cooling_load.total_design_refrigeration_load"
+        sem_numeric_fields = [
+            {
+                "field_path": field_path,
+                "raw_value": observed_value,
+                "unit_code": observed_unit,
+            }
+        ]
+        sem_observed = [
+            {
+                "field_path": field_path,
+                "raw_value": observed_value,
+                "unit_code": observed_unit,
+            }
+        ]
+        return {
+            "metadata": {
+                "report_id": "rep-1",
+                "report_revision_id": "rev-1",
+                "revision_number": 1,
+                "artifact_id": f"art-{locale}-{fmt}",
+                "file_name": f"report.{fmt}",
+                "file_size_bytes": 1024,
+                "file_sha256": "a" * 64,
+                "generated_at": "2026-07-19T00:00:00+00:00",
+                "storage_key": f"artifacts/{locale}/{fmt}/report.{fmt}",
+                "mime_type": (
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    if fmt == "docx"
+                    else "application/pdf"
+                ),
+                "format": fmt,
+                "locale": locale,
+                "template_locale": locale,
+                "render_mode": "draft",
+                "template_version": "1.0.0",
+                "template_content_hash": "b" * 64,
+                "template_schema_version": "1.0.0",
+                "source_content_hash": "c" * 64,
+                "translation_catalog_version": "tc-v1",
+                "translation_catalog_content_hash": "d" * 64,
+                "localized_template_content_hash": "e" * 64,
+                "artifact_status": "completed",
+                "integrity_result": "PASS",
+                "download_headers": {},
+            },
+            "semantic_checks": {
+                "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+                "format": fmt,
+                "locale": locale,
+                "semantic_result": "PASS",
+                "missing_sections": [],
+                "missing_units": [],
+                "numeric_mismatches": [],
+                "canonical_section_keys": [],
+                "canonical_numeric_fields": sem_numeric_fields,
+                "observed_numeric_fields": sem_observed,
+            },
+        }
+
+    # SQLite run: every (locale, fmt) reports observed raw_value=25.0
+    # with unit_code="kW(r)".
+    sqlite_summary = dict(base_summary)
+    sqlite_summary["database_backend"] = "sqlite"
+    sqlite_summary["source_manifest_sha"] = "0" * 64
+    sqlite_metas: dict[tuple[str, str], dict[str, object]] = {}
+    for locale, fmt in (
+        ("zh-CN", "docx"),
+        ("zh-CN", "pdf"),
+        ("en-US", "docx"),
+        ("en-US", "pdf"),
+    ):
+        sqlite_metas[(locale, fmt)] = _build_meta(
+            locale=locale,
+            fmt=fmt,
+            observed_value="25.0",
+            observed_unit="kW(r)",
+        )
+
+    # PostgreSQL run: the zh-CN/pdf (locale, fmt) DRIFTS the
+    # observed numeric value+unit. Everything else matches.
+    pg_summary = dict(base_summary)
+    pg_summary["database_backend"] = "postgresql"
+    pg_summary["repeat_index"] = 2
+    # Each backend has its own manifest SHA — these intentionally
+    # differ (both fall under the allowed-difference set on the
+    # PostgreSQL side).
+    pg_summary["source_manifest_sha"] = "f" * 64
+    pg_metas: dict[tuple[str, str], dict[str, object]] = {}
+    for locale, fmt in (
+        ("zh-CN", "docx"),
+        ("zh-CN", "pdf"),
+        ("en-US", "docx"),
+        ("en-US", "pdf"),
+    ):
+        if (locale, fmt) == ("zh-CN", "pdf"):
+            pg_metas[(locale, fmt)] = _build_meta(
+                locale=locale,
+                fmt=fmt,
+                # Drift the canonical numeric value+unit (a
+                # "reasonable" postgres-side bug: same field
+                # reported with different unit encoding).
+                observed_value="30.0",
+                observed_unit="kW(th)",
+            )
+        else:
+            pg_metas[(locale, fmt)] = _build_meta(
+                locale=locale,
+                fmt=fmt,
+                observed_value="25.0",
+                observed_unit="kW(r)",
+            )
+
+    # The aggregates must land on at least one SQLite and one PG
+    # run so the cross-backend path is exercised; the helper
+    # partitions by ``database_backend`` and compares each
+    # SQLite fingerprint with each PG fingerprint. The drift
+    # in zh-CN/pdf's ``canonical_numeric_field_path_set`` +
+    # ``canonical_numeric_value_and_unit_set`` surfaces.
+    runs: list[
+        tuple[
+            Path,
+            dict[str, object],
+            dict[str, object],
+            dict[tuple[str, str], dict[str, object]],
+        ]
+    ] = [
+        (Path("/tmp/sqlite_run"), sqlite_summary, sqlite_summary, sqlite_metas),
+        (Path("/tmp/postgres_run"), pg_summary, pg_summary, pg_metas),
+    ]
+    try:
+        _p1_4_aggregate_acceptance(runs=runs, cross_backend=True)
+    except PilotAcceptanceError as exc:
+        assert exc.code == "CROSS_BACKEND_INVARIANT_DRIFT", (
+            f"helper MUST raise CROSS_BACKEND_INVARIANT_DRIFT on cross-backend "
+            f"canonical numeric drift; got {exc.code!r}"
+        )
+    else:  # pragma: no cover — must raise
+        raise AssertionError(
+            "aggregate helper MUST raise CROSS_BACKEND_INVARIANT_DRIFT on "
+            "cross-backend canonical numeric drift; no exception was raised"
         )
