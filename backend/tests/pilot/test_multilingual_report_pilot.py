@@ -4743,8 +4743,11 @@ def test_p1_3_grid_present_missing_logical_match_fails_closed() -> None:
 
     When the PDF has grid geometry but the section's expected
     headers do NOT match any candidate (e.g. malformed header),
-    the binding MUST return ``MISSING_FIELD_BINDING`` rather
-    than invoking a text-only fallback path.
+    the binding MUST return ``TABLE_STRUCTURE_MISMATCH`` rather
+    than invoking a text-only fallback path. Per P1-3 sixth
+    corrective the canonical failure code for "grid present,
+    reconstruction / header identity failed" is
+    ``TABLE_STRUCTURE_MISMATCH`` (not ``MISSING_FIELD_BINDING``).
     """
     # Build a minimal logical table whose headers do NOT match.
     from cold_storage.evaluation.pilot_reports import (
@@ -4788,7 +4791,7 @@ def test_p1_3_grid_present_missing_logical_match_fails_closed() -> None:
     )
     # When this table exists for the section but headers don't
     # match canonical expectations, the binding MUST return
-    # MISSING_FIELD_BINDING (no fallback to text-only).
+    # TABLE_STRUCTURE_MISMATCH (no fallback to text-only).
     result = ppr._find_table_cell_binding_via_logical_table(
         pdf_logical_tables=(fake_table,),
         section_key="investment_estimate",
@@ -4799,8 +4802,8 @@ def test_p1_3_grid_present_missing_logical_match_fails_closed() -> None:
         expected_headers=("方案", "总投资"),
         template_unit_row_enabled=True,
     )
-    assert result.failure_code == "MISSING_FIELD_BINDING", (
-        f"FAIL-CLOSED contract: expected MISSING_FIELD_BINDING, got {result.failure_code!r}"
+    assert result.failure_code == "TABLE_STRUCTURE_MISMATCH", (
+        f"FAIL-CLOSED contract: expected TABLE_STRUCTURE_MISMATCH, got {result.failure_code!r}"
     )
 
 
@@ -4983,17 +4986,65 @@ def test_p1_3_true_cross_page_continuation_merges_segments() -> None:
         section_line_range=scope,
         expected_headers=expected_headers,
     )
-    # Real renderer emits ≥2 segments that merge into ≥1
-    # logical table carrying all canonical data rows.
-    assert len(tables) >= 1, f"merged logical tables MUST be ≥1; got {len(tables)}"
-    largest = max(tables, key=lambda t: len(t.data_rows))
+    # Per P1-3 sixth corrective §7.2: EXACT structural assertions.
+    # Precondition: at least 2 segments exist on different pages.
+    all_segment_pages = sorted({seg.page_number for t in tables for seg in t.segments})
+    assert len(all_segment_pages) >= 2, (
+        f"multi-page continuation test MUST have >=2 distinct segment page numbers; "
+        f"got {all_segment_pages!r}"
+    )
+    expected_segment_pages = tuple(all_segment_pages)
+    # Multi-page must collapse all segments into a SINGLE logical
+    # table (no fallback to text heuristic).
+    assert len(tables) == 1, (
+        f"continuation MUST merge into exactly 1 logical table; got {len(tables)}: "
+        f"{[len(t.segments) for t in tables]!r}"
+    )
+    merged = tables[0]
+    actual_segment_pages = tuple(seg.page_number for seg in merged.segments)
+    assert len(merged.segments) == len(expected_segment_pages), (
+        f"merged.segments count MUST equal distinct segment page count "
+        f"({len(expected_segment_pages)}); got {len(merged.segments)}"
+    )
+    assert actual_segment_pages == expected_segment_pages, (
+        f"merged segment page_numbers MUST match expected "
+        f"{expected_segment_pages!r}; got {actual_segment_pages!r}"
+    )
     # After continuation merging, the merged table must carry
     # all 12 canonical rows.
-    assert len(largest.data_rows) == 12, (
-        f"merged logical table MUST carry all 12 rows; got {len(largest.data_rows)}"
+    assert len(merged.data_rows) == 12, (
+        f"merged logical table MUST carry all 12 rows; got {len(merged.data_rows)}"
     )
-    # All data row indexes continuous 0..11.
-    for r in largest.data_rows:
+    # Continuous row identity via artifact values [50.0..160.0].
+    expected_values = [
+        50.0,
+        60.0,
+        70.0,
+        80.0,
+        90.0,
+        100.0,
+        110.0,
+        120.0,
+        130.0,
+        140.0,
+        150.0,
+        160.0,
+    ]
+    observed_values: list[float] = []
+    for row in merged.data_rows:
+        for cell in row.cells:
+            try:
+                observed_values.append(float(cell.text))
+                break
+            except (TypeError, ValueError):
+                continue
+    assert len(observed_values) == 12, f"MUST observe 12 numeric values; got {observed_values!r}"
+    assert observed_values == expected_values, (
+        f"merged data_row values MUST equal canonical order {expected_values!r}; "
+        f"got {observed_values!r}"
+    )
+    # All data row row_kind == "data" (no leaked unit_row).
+    for r in merged.data_rows:
         assert r.row_kind == "data", (
             f"merged data_rows MUST all be row_kind='data', got {r.row_kind!r}"
         )
@@ -5081,7 +5132,7 @@ def test_p1_3_same_header_not_near_page_bottom_does_not_merge() -> None:
         current=curr,
         pdf_observation=obs,
         section_line_range=(0, 1),
-        curr_section_lines=tuple(),
+        curr_segment_line_ids=frozenset(),
     )
     assert result is False, (
         f"prev last data row NOT in bottom region MUST return False; got {result!r}"
@@ -5123,7 +5174,7 @@ def test_p1_3_current_page_body_before_header_does_not_merge() -> None:
         current=curr,
         pdf_observation=obs,
         section_line_range=(0, 1),
-        curr_section_lines=tuple(),
+        curr_segment_line_ids=frozenset(),
     )
     assert result is False, f"body text BEFORE curr header MUST break continuation; got {result!r}"
 
@@ -5203,7 +5254,7 @@ def test_p1_3_previous_page_body_after_table_does_not_merge() -> None:
         current=curr_high,
         pdf_observation=obs,
         section_line_range=(0, 1),
-        curr_section_lines=tuple(),
+        curr_segment_line_ids=frozenset(),
     )
     assert result is False, f"body text AFTER prev table MUST break continuation; got {result!r}"
 
@@ -5273,7 +5324,7 @@ def test_p1_3_intervening_section_heading_does_not_merge() -> None:
         current=curr,
         pdf_observation=obs,
         section_line_range=(0, 5),
-        curr_section_lines=tuple(),
+        curr_segment_line_ids=frozenset(),
     )
     assert result is False, f"intervening section heading MUST break continuation; got {result!r}"
 
@@ -5344,7 +5395,7 @@ def test_p1_3_column_x_band_drift_does_not_merge() -> None:
         current=curr,
         pdf_observation=obs,
         section_line_range=(0, 1),
-        curr_section_lines=tuple(),
+        curr_segment_line_ids=frozenset(),
     )
     assert result is False, f"x-band drift MUST break continuation; got {result!r}"
 
@@ -5710,4 +5761,366 @@ def test_p1_3_table_unexpected_unit_when_expected_empty(
     )
     assert checks["semantic_result"] == "FAIL", (
         f"unexpected unit MUST result in FAIL; got {checks['semantic_result']!r}"
+    )
+
+
+# === P1-3 sixth corrective: integration-level structural tests ==============
+
+
+def test_p1_3_build_logical_tables_current_page_body_before_header_not_merged() -> None:
+    """FINDING_5_CURRENT_PAGE_LEADING_MARKER_INTEGRATION=YES.
+
+    Per P1-3 sixth corrective, an INTEGRATION-level test
+    MUST exercise the strict segment-line whitelist helper
+    ``_pdf_segment_line_ids`` and prove that a substantive
+    body / title text line on the current page (above the
+    repeated header) is NOT whitelisted by the helper, even
+    though it shares the same section scope as the candidate
+    segment.
+    """
+    from cold_storage.evaluation.pilot_reports import (
+        _PdfLine,
+    )
+
+    # Build a segment with header on page 2 at y=[50,60] and
+    # a body line on page 2 at y=[15,25] that lives above it.
+    header_cell = ppr._PdfLogicalCell(
+        page_number=2,
+        row_index=0,
+        column_index=0,
+        bbox=(50.0, 50.0, 200.0, 60.0),
+        text="Scheme",
+    )
+    header_row = ppr._PdfLogicalRow(
+        page_number=2,
+        cells=(header_cell,),
+        row_kind="header",
+    )
+    data_cell = ppr._PdfLogicalCell(
+        page_number=2,
+        row_index=1,
+        column_index=0,
+        bbox=(50.0, 35.0, 200.0, 50.0),
+        text="60.0",
+    )
+    data_row = ppr._PdfLogicalRow(
+        page_number=2,
+        cells=(data_cell,),
+        row_kind="data",
+    )
+    seg = ppr._PdfTableSegment(
+        section_key="investment_estimate",
+        page_number=2,
+        header=header_row,
+        unit_row=None,
+        data_rows=(data_row,),
+        bbox=(50.0, 35.0, 200.0, 60.0),
+    )
+    body_line = _PdfLine(
+        page_number=2,
+        block_index=0,
+        line_index=0,
+        bbox=(50.0, 15.0, 250.0, 25.0),
+        text="Body text above table",
+    )
+    header_line = _PdfLine(
+        page_number=2,
+        block_index=1,
+        line_index=0,
+        bbox=(50.0, 50.0, 250.0, 60.0),
+        text="Scheme",
+    )
+    lines = (body_line, header_line)
+    seg_ids = ppr._pdf_segment_line_ids(segment=seg, lines=lines)
+    body_id = (body_line.page_number, body_line.block_index, body_line.line_index)
+    header_id = (header_line.page_number, header_line.block_index, header_line.line_index)
+    assert header_id in seg_ids, (
+        f"segment header line MUST be in segment_line_ids; got {sorted(seg_ids)!r}"
+    )
+    assert body_id not in seg_ids, (
+        f"body line above the segment header MUST NOT be whitelisted; got "
+        f"{body_id!r} in {sorted(seg_ids)!r}"
+    )
+
+
+def test_p1_3_grid_present_zero_logical_tables_fails_closed() -> None:
+    """FINDING_5_GRID_PRESENT_ZERO_LOGICAL_FAIL_CLOSED=YES.
+
+    Per P1-3 sixth corrective, when the section is in
+    ``pdf_grid_available_sections`` (grid present) AND
+    ``pdf_logical_tables`` is empty, the binding MUST fail
+    closed with ``TABLE_STRUCTURE_MISMATCH`` and MUST NOT
+    silently fall through to the text-only
+    ``_PdfSectionTable`` path that would otherwise match.
+    """
+    from cold_storage.evaluation.pilot_reports import (
+        _PdfLine,
+        _PdfSectionTable,
+    )
+
+    def _mk_line_fb2(text, x, page=1):
+        return _PdfLine(
+            page_number=page,
+            block_index=0,
+            line_index=0,
+            text=text,
+            bbox=(x, 100.0, x + 80.0, 110.0),
+        )
+
+    text_table = _PdfSectionTable(
+        section_key="investment_estimate",
+        page_number=1,
+        rows=(
+            (_mk_line_fb2("Scheme", 50.0), _mk_line_fb2("Total Capital Cost", 250.0)),
+            (_mk_line_fb2("A", 50.0), _mk_line_fb2("50.0", 250.0)),
+        ),
+        bbox=(50.0, 90.0, 350.0, 130.0),
+        column_centers=(90.0, 290.0),
+    )
+    result = ppr._find_table_cell_binding(
+        docx_observation=None,
+        docx_resolved_scopes={},
+        pdf_section_tables=(text_table,),
+        pdf_logical_tables=(),
+        section_key="investment_estimate",
+        table_section_key="investment_estimate",
+        row_index=0,
+        column_index=1,
+        expected_unit_codes=("kW(e)",),
+        expected_headers=("Scheme", "Total Capital Cost"),
+        template_unit_row_enabled=True,
+        num_data_rows=1,
+        pdf_grid_available_sections=frozenset({"investment_estimate"}),
+    )
+    assert result.observed is None, (
+        f"grid-present zero-logical MUST NOT silently bind; got observed={result.observed!r}"
+    )
+    assert result.failure_code == "TABLE_STRUCTURE_MISMATCH", (
+        f"grid-present zero-logical MUST report TABLE_STRUCTURE_MISMATCH; "
+        f"got {result.failure_code!r}"
+    )
+
+
+def test_p1_3_no_grid_authority_allows_text_fallback() -> None:
+    """FINDING_5_NO_GRID_TEXT_FALLBACK_VERIFIED=YES.
+
+    Per P1-3 sixth corrective, when the section has NO usable
+    grid geometry (``pdf_grid_available_sections`` does NOT
+    contain it), the binding MUST be allowed to fall through
+    to the text-only ``_PdfSectionTable`` path and bind a
+    fully-populated observed record.
+    """
+    from cold_storage.evaluation.pilot_reports import (
+        _PdfLine,
+        _PdfSectionTable,
+    )
+
+    def _mk_line_no_grid(text, x, page=1):
+        return _PdfLine(
+            page_number=page,
+            block_index=0,
+            line_index=0,
+            text=text,
+            bbox=(x, 100.0, x + 80.0, 110.0),
+        )
+
+    text_table = _PdfSectionTable(
+        section_key="investment_estimate",
+        page_number=1,
+        rows=(
+            (_mk_line_no_grid("Scheme", 50.0), _mk_line_no_grid("Total Capital Cost", 250.0)),
+            (_mk_line_no_grid("A", 50.0), _mk_line_no_grid("50.0", 250.0)),
+            (_mk_line_no_grid("B", 50.0), _mk_line_no_grid("60.0", 250.0)),
+        ),
+        bbox=(50.0, 90.0, 350.0, 130.0),
+        column_centers=(90.0, 290.0),
+    )
+    result = ppr._find_table_cell_binding(
+        docx_observation=None,
+        docx_resolved_scopes={},
+        pdf_section_tables=(text_table,),
+        pdf_logical_tables=(),
+        section_key="investment_estimate",
+        table_section_key="investment_estimate",
+        row_index=0,
+        column_index=1,
+        expected_unit_codes=("kW(e)",),
+        expected_headers=("Scheme", "Total Capital Cost"),
+        template_unit_row_enabled=False,
+        num_data_rows=2,
+        pdf_grid_available_sections=frozenset(),
+    )
+    assert result.failure_code is None, (
+        f"no-grid text fallback MUST allow binding; got failure_code={result.failure_code!r}"
+    )
+    assert result.observed is not None, (
+        "no-grid text fallback MUST populate observed; got observed=None"
+    )
+    assert result.observed.display_value == "50.0", (
+        f"display_value MUST equal artifact value '50.0'; got {result.observed.display_value!r}"
+    )
+    assert result.observed.row_index == 0, (
+        f"observed.row_index MUST equal 0; got {result.observed.row_index!r}"
+    )
+    assert result.observed.column_index == 1, (
+        f"observed.column_index MUST equal 1; got {result.observed.column_index!r}"
+    )
+
+
+def test_p1_3_section_grid_authority_independent_of_reconstruction() -> None:
+    """FINDING_5_SECTION_GRID_AUTHORITY_INDEPENDENT=***
+
+    Per P1-3 sixth corrective: the grid-availability signal is
+    ``_section_has_usable_grid_geometry``, which evaluates
+    horizontal + vertical grid SEGMENT presence on the
+    section's pages independently of whether
+    ``_build_logical_tables_for_section`` returns any
+    ``_PdfLogicalTable``. Reconstruction success and grid
+    availability are decoupled.
+    """
+    page1_h = ppr._PdfGridSegment(
+        page_number=1,
+        orientation="horizontal",
+        x0=50.0,
+        y0=80.0,
+        x1=500.0,
+        y1=80.0,
+    )
+    page1_v = ppr._PdfGridSegment(
+        page_number=1,
+        orientation="vertical",
+        x0=100.0,
+        y0=50.0,
+        x1=100.0,
+        y1=200.0,
+    )
+    page1_v2 = ppr._PdfGridSegment(
+        page_number=1,
+        orientation="vertical",
+        x0=250.0,
+        y0=50.0,
+        x1=250.0,
+        y1=200.0,
+    )
+    ln = ppr._PdfLine(
+        page_number=1,
+        block_index=0,
+        line_index=0,
+        bbox=(60.0, 90.0, 240.0, 105.0),
+        text="Investment Estimate",
+    )
+    obs_with_grid = ppr._PdfObservation(
+        all_lines=(ln,),
+        section_scopes={},
+        text_spans=tuple(),
+        grid_segments=(page1_h, page1_v, page1_v2),
+        page_rects={1: (0.0, 0.0, 595.0, 300.0)},
+    )
+    assert (
+        ppr._section_has_usable_grid_geometry(
+            pdf_observation=obs_with_grid, section_line_range=(0, 1)
+        )
+        is True
+    ), "section with H+V grid segments MUST be grid-available"
+    obs_no_grid = ppr._PdfObservation(
+        all_lines=(ln,),
+        section_scopes={},
+        text_spans=tuple(),
+        grid_segments=tuple(),
+        page_rects={1: (0.0, 0.0, 595.0, 300.0)},
+    )
+    assert (
+        ppr._section_has_usable_grid_geometry(
+            pdf_observation=obs_no_grid, section_line_range=(0, 1)
+        )
+        is False
+    ), "section with no grid_segments MUST NOT be grid-available"
+    obs_split_grid = ppr._PdfObservation(
+        all_lines=(
+            ppr._PdfLine(
+                page_number=1,
+                block_index=0,
+                line_index=0,
+                bbox=(60.0, 90.0, 240.0, 105.0),
+                text="Investment Estimate",
+            ),
+            ppr._PdfLine(
+                page_number=2,
+                block_index=0,
+                line_index=0,
+                bbox=(60.0, 90.0, 240.0, 105.0),
+                text="Continued",
+            ),
+        ),
+        section_scopes={},
+        text_spans=tuple(),
+        grid_segments=(
+            ppr._PdfGridSegment(
+                page_number=2,
+                orientation="horizontal",
+                x0=50.0,
+                y0=80.0,
+                x1=500.0,
+                y1=80.0,
+            ),
+            ppr._PdfGridSegment(
+                page_number=2,
+                orientation="vertical",
+                x0=100.0,
+                y0=50.0,
+                x1=100.0,
+                y1=200.0,
+            ),
+        ),
+        page_rects={2: (0.0, 0.0, 595.0, 300.0)},
+    )
+    assert (
+        ppr._section_has_usable_grid_geometry(
+            pdf_observation=obs_split_grid, section_line_range=(0, 2)
+        )
+        is True
+    ), "section spanning pages 1+2 with grid only on page 2 MUST still be grid-available"
+
+
+def test_p1_3_observation_second_wrapper_dropped() -> None:
+    """FINDING_6_PAGE_RECTS_PRESERVED=***
+
+    Per P1-3 sixth corrective the second ``_PdfObservation``
+    wrapper reconstruction that previously dropped
+    ``page_rects`` is REMOVED; downstream callers receive the
+    original immutable observation returned by
+    ``_observe_pdf``. This test verifies the production
+    call site: ``_semantic_checks`` does NOT call
+    ``_PdfObservation(...)`` after consuming
+    ``_observe_pdf(artifact_bytes)``.
+    """
+    import ast
+    from pathlib import Path
+
+    src_path = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "cold_storage"
+        / "evaluation"
+        / "pilot_reports.py"
+    )
+    src = src_path.read_text()
+    tree = ast.parse(src)
+    found_second_wrapper = False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                continue
+            if target.id != "pdf_observation":
+                continue
+            # We care about the LHS = pdf_observation, where the RHS
+            # is a Call to a Name that looks like _PdfObservation.
+            if isinstance(node.value, ast.Call):
+                func = node.value.func
+                if isinstance(func, ast.Name) and func.id == "_PdfObservation":
+                    found_second_wrapper = True
+    assert not found_second_wrapper, (
+        "second ``pdf_observation = _PdfObservation(...)`` wrapper MUST be removed"
     )

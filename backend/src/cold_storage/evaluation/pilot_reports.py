@@ -841,6 +841,72 @@ def _body_line_band_for(
     return best_idx if best_idx >= 0 else None
 
 
+def _section_has_usable_grid_geometry(
+    *,
+    pdf_observation: _PdfObservation,
+    section_line_range: tuple[int, int],
+) -> bool:
+    """Return True iff current section has usable horizontal + vertical grid segments.
+
+    Per P1-3 sixth corrective (Finding 5): this is the INDEPENDENT
+    grid-availability signal, separate from whether logical-table
+    reconstruction succeeds. A section can have grid geometry but
+    reconstruction can still fail (e.g. expected headers don't
+    match); in that case the caller MUST fail closed (NOT fall
+    through to the text-only ``_PdfSectionTable`` path).
+
+    A section "has usable grid geometry" iff BOTH of:
+
+      1. There is at least one horizontal ``_PdfGridSegment``
+         whose ``page_number`` is among the section's covered
+         pages.
+      2. There is at least one vertical ``_PdfGridSegment`` on
+         one of those pages.
+      3. Both the horizontal and vertical grids overlap the
+         section's line y-range (per page) within tolerance.
+
+    Each page's covered y-range is the bbox span of that page's
+    section lines.
+    """
+    start, end = section_line_range
+    section_lines = pdf_observation.all_lines[start:end]
+    if not section_lines:
+        return False
+    section_page_numbers = {ln.page_number for ln in section_lines}
+    if not section_page_numbers:
+        return False
+    # Page-level y-range of section lines.
+    page_y_range: dict[int, tuple[float, float]] = {}
+    for ln in section_lines:
+        p = ln.page_number
+        y0, y1 = ln.bbox[1], ln.bbox[3]
+        if p not in page_y_range:
+            page_y_range[p] = (y0, y1)
+        else:
+            cur = page_y_range[p]
+            page_y_range[p] = (min(cur[0], y0), max(cur[1], y1))
+    has_h = False
+    has_v = False
+    for g in pdf_observation.grid_segments:
+        if g.page_number not in section_page_numbers:
+            continue
+        rng = page_y_range.get(g.page_number)
+        if rng is None:
+            continue
+        page_line_y0, page_line_y1 = rng
+        if g.orientation == "horizontal":
+            g_y = (g.y0 + g.y1) / 2
+            if page_line_y0 - 50.0 <= g_y <= page_line_y1 + 50.0:
+                has_h = True
+        elif g.orientation == "vertical":
+            g_y = (g.y0 + g.y1) / 2
+            if page_line_y0 - 50.0 <= g_y <= page_line_y1 + 50.0:
+                has_v = True
+        if has_h and has_v:
+            return True
+    return has_h and has_v
+
+
 def _pdf_page_height_authority(
     *,
     pdf_observation: _PdfObservation,
@@ -883,6 +949,64 @@ def _pdf_page_y_range(
     return (min(ys), max(ys))
 
 
+def _pdf_segment_line_ids(
+    *,
+    segment: _PdfTableSegment,
+    lines: tuple[_PdfLine, ...],
+) -> frozenset[tuple[int, int, int]]:
+    """Return the line identities that belong to ``segment`` per the artifact.
+
+    Per P1-3 sixth corrective (§4.1) the segment-line whitelist
+    for the current-page intervening-marker check is computed
+    STRUCTURALLY (only lines on ``segment.page_number`` whose
+    bbox overlaps the segment's header / unit-row / each data-
+    row bboxes). It is NOT the entire ``section_lines`` of the
+    current section, which would incorrectly whitelist same-
+    section content that lives between the table on the page
+    and the page header.
+
+    Three bboxes in segment space contribute to the whitelist
+    union:
+
+      * segment.header bbox
+      * segment.unit_row bbox (when present)
+      * each segment.data_rows[i] bbox
+
+    A line ``ln`` is whitelisted iff its page_number matches
+    segment.page_number AND its bbox overlaps any of these
+    "segment-area" bboxes (vertical or horizontal overlap).
+    """
+    if not lines:
+        return frozenset()
+    # Compute segment-area bboxes (each a 4-tuple).
+    seg_bboxes: list[tuple[float, float, float, float]] = []
+    if segment.header.cells:
+        seg_bboxes.append(_row_bbox(segment.header))
+    if segment.unit_row is not None and segment.unit_row.cells:
+        seg_bboxes.append(_row_bbox(segment.unit_row))
+    for data_row in segment.data_rows:
+        if data_row.cells:
+            seg_bboxes.append(_row_bbox(data_row))
+    if not seg_bboxes:
+        return frozenset()
+    out: set[tuple[int, int, int]] = set()
+    for ln in lines:
+        if ln.page_number != segment.page_number:
+            continue
+        ln_x0, ln_y0, ln_x1, ln_y1 = ln.bbox
+        for bb in seg_bboxes:
+            bb_x0, bb_y0, bb_x1, bb_y1 = bb
+            # Lines and segment rows: a line "overlaps" a row
+            # iff its vertical span intersects the row's vertical
+            # span. Horizontal containment is allowed looser (any
+            # intersection) since columns aren't part of the
+            # whitelist filtering.
+            if not (ln_y1 < bb_y0 - 0.5 or ln_y0 > bb_y1 + 0.5):
+                out.add((ln.page_number, ln.block_index, ln.line_index))
+                break
+    return frozenset(out)
+
+
 def _has_intervening_marker(
     pdf_observation: _PdfObservation,
     *,
@@ -891,7 +1015,7 @@ def _has_intervening_marker(
     curr_page: int,
     curr_top_y: float,
     section_line_range: tuple[int, int],
-    curr_section_lines: tuple[_PdfLine, ...] = (),
+    curr_segment_line_ids: frozenset[tuple[int, int, int]] = frozenset(),
 ) -> bool:
     """True if a substantive intervening marker sits between segments.
 
@@ -908,6 +1032,18 @@ def _has_intervening_marker(
          endent table marker between page top and the current
          segment's header breaks continuation.
 
+    Per P1-3 sixth corrective (§4.2), the whitelist for "lines
+    that belong to the current segment" is an EXACT
+    ``curr_segment_line_ids`` set derived from structural overlap
+    with ``segment.header / unit_row / data_rows`` bboxes — NOT
+    the entire current-section's lines. Whitelisting all
+    current-section lines would silently permit substantive body
+    text, table titles, table descriptions, or separator text
+    that lies between the page header region and the repeated
+    header to be counted as "part of the segment" and thus
+    excluded from the intervening-marker check. That's the
+    bug this round closes.
+
     Page-structural elements (page numbers, recurring page
     header / footer template text, watermarks) are NOT
     intervening markers. Real intervening markers are
@@ -923,6 +1059,19 @@ def _has_intervening_marker(
         if not key:
             continue
         line_text_counts[key] = line_text_counts.get(key, 0) + 1
+    # Per P1-3 sixth corrective §4.3: ``section_line_range``
+    # MUST be honored. A line counts as "current section"
+    # iff it sits inside ``pdf_observation.all_lines[start:end]``.
+    # Lines outside this range on the same page are
+    # NOT eligible for the "current section" treatment — they
+    # fall through to the section-boundary / intervening-marker
+    # branch. The ``section_line_range`` parameter MUST actually
+    # participate in the computation; previously it was passed
+    # without enforcement.
+    range_start, range_end = section_line_range
+    section_line_id_set: set[tuple[int, int, int]] = set()
+    for ln in pdf_observation.all_lines[range_start:range_end]:
+        section_line_id_set.add((ln.page_number, ln.block_index, ln.line_index))
 
     def _is_page_structural(line: _PdfLine) -> bool:
         text = _fold_whitespace(line.text)
@@ -954,12 +1103,6 @@ def _has_intervening_marker(
             continue
         return True
     # B. Current page leading region.
-    if not curr_section_lines:
-        curr_segment_line_set: set[tuple[int, int, int]] = set()
-    else:
-        curr_segment_line_set = {
-            (line.page_number, line.block_index, line.line_index) for line in curr_section_lines
-        }
     for line in pdf_observation.all_lines:
         if line.page_number != curr_page:
             continue
@@ -976,7 +1119,7 @@ def _has_intervening_marker(
             line.page_number,
             line.block_index,
             line.line_index,
-        ) in curr_segment_line_set:
+        ) in curr_segment_line_ids:
             continue
         return True
     return False
@@ -988,7 +1131,7 @@ def _is_pdf_table_continuation(
     current: _PdfTableSegment,
     pdf_observation: _PdfObservation | None,
     section_line_range: tuple[int, int],
-    curr_section_lines: tuple[_PdfLine, ...] = (),
+    curr_segment_line_ids: frozenset[tuple[int, int, int]] = frozenset(),
 ) -> bool:
     """Strict continuation predicate for cross-page PDF tables.
 
@@ -1080,7 +1223,7 @@ def _is_pdf_table_continuation(
         curr_page=current.page_number,
         curr_top_y=curr_header_top_y,
         section_line_range=section_line_range,
-        curr_section_lines=curr_section_lines,
+        curr_segment_line_ids=curr_segment_line_ids,
     ):
         return False
     # NO_INTERVENING_SECTION_HEADING: previous segment's page
@@ -1329,24 +1472,25 @@ def _build_logical_tables_for_section(
     current: list[_PdfTableSegment] = [segments[0]]
     for seg in segments[1:]:
         prev = current[-1]
-        # Compute the current-section text lines that belong to
-        # the candidate new segment, so the intervening-marker
-        # check can skip them (they belong to the new segment,
-        # not an intervening marker).
-        new_seg_line_ids: set[tuple[int, int, int]] = set()
-        for ln in section_lines:
-            if ln.page_number == seg.page_number:
-                new_seg_line_ids.add((ln.page_number, ln.block_index, ln.line_index))
+        # Per P1-3 sixth corrective §4.1: compute the EXACT line
+        # identity set for the candidate NEW segment (structural
+        # overlap with its header / unit_row / data_rows bboxes),
+        # NOT a wholesale "all section lines on this page" set.
+        # This is the precise whitelist for the current-page
+        # intervening-marker check: substantive body / heading /
+        # separator text that sits between the page top and the
+        # candidate segment's header is NOT whitelisted and will
+        # correctly block continuation as an intervening marker.
+        new_seg_ids = _pdf_segment_line_ids(
+            segment=seg,
+            lines=section_lines,
+        )
         if _is_pdf_table_continuation(
             previous=prev,
             current=seg,
             pdf_observation=pdf_observation,
             section_line_range=section_line_range,
-            curr_section_lines=tuple(
-                ln
-                for ln in section_lines
-                if (ln.page_number, ln.block_index, ln.line_index) in new_seg_line_ids
-            ),
+            curr_segment_line_ids=new_seg_ids,
         ):
             current.append(seg)
             continue
@@ -2078,14 +2222,18 @@ def _find_table_cell_binding_via_logical_table(
         == tuple(_fold_whitespace(h) for h in expected_headers)
     ]
     if not candidates:
-        # FAIL-CLOSED: when grid geometry exists but headers don't
-        # match the canonical, the binding is structurally
-        # inconsistent — return MISSING_FIELD_BINDING, NOT
-        # USE_SECTION_TABLES_FALLBACK. Per Finding 5, the caller
-        # MUST NOT fall back to text-only heuristic in this state.
+        # FAIL-CLOSED per P1-3 sixth corrective Finding 5: when
+        # grid geometry exists for this section but the canonical
+        # headers do NOT match any logical table's headers (zero
+        # header match), the binding MUST return
+        # ``TABLE_STRUCTURE_MISMATCH`` — NOT
+        # ``MISSING_FIELD_BINDING`` (which implies a §7 / §8
+        # artifact absence) and NEVER fall back to text-only
+        # heuristic. The caller MUST NOT route this code to the
+        # ``_PdfSectionTable`` path.
         return _BindingResult(
             observed=None,
-            failure_code="MISSING_FIELD_BINDING",
+            failure_code="TABLE_STRUCTURE_MISMATCH",
             candidates=(),
         )
     if len(candidates) > 1:
@@ -2141,6 +2289,7 @@ def _find_table_cell_binding(
     expected_headers: tuple[str, ...],
     template_unit_row_enabled: bool,
     num_data_rows: int = 1,
+    pdf_grid_available_sections: frozenset[str] = frozenset(),
 ) -> _BindingResult:
     """Find the (row, column) cell in the table located in the target section.
 
@@ -2156,20 +2305,48 @@ def _find_table_cell_binding(
         The unit is NOT copied from the localized expected unit.
       - When multiple table candidates match the localized headers,
         the binding returns ``AMBIGUOUS_FIELD_BINDING`` (fail-closed).
+
+    Per P1-3 sixth corrective (Finding 5) — INDEPENDENT section-
+    level grid authority:
+
+      - The ``pdf_grid_available_sections`` frozenset is the
+        CALLER-COMPUTED set of section keys for which the PDF
+        artifact has usable horizontal + vertical grid
+        geometry. This is INDEPENDENT of whether
+        ``_build_logical_tables_for_section`` returned any
+        ``_PdfLogicalTable`` for the section.
+      - When ``section_key in pdf_grid_available_sections``,
+        the LOGICAL-TABLE binding path is the STRICT, EXCLUSIVE,
+        FAIL-CLOSED authority. The text-only
+        ``_PdfSectionTable`` fallback is FORBIDDEN for grid-
+        available sections — even if logical-table reconstruction
+        returned zero tables (header mismatch), the binding MUST
+        return ``TABLE_STRUCTURE_MISMATCH`` (or
+        ``MISSING_FIELD_BINDING``) and NOT silently fall through
+        to the text heuristic.
+      - When ``section_key NOT in pdf_grid_available_sections``,
+        the text-only ``_PdfSectionTable`` fallback IS allowed
+        (PDF without grid geometry).
+      - DOCX is always text-only (no grid geometry).
     """
 
-    # P1-3 fifth corrective (Finding 5): when ANY logical table
-    # exists for this section (i.e. REAL grid geometry was
-    # reconstructed), the LOGICAL-TABLE binding path is the
-    # STRICT, EXCLUSIVE, FAIL-CLOSED authority. The text-only
-    # section-tables fallback is ONLY used when zero logical
-    # tables exist for the section (i.e. no usable grid
-    # geometry was observed for the section). Once a logical
-    # table exists, the binding is bound to it; a header mismatch
-    # returns MISSING_FIELD_BINDING, NEVER USE_SECTION_TABLES_FALLBACK.
-    section_logical_tables = tuple(t for t in pdf_logical_tables if t.section_key == section_key)
-    if section_logical_tables:
-        result = _find_table_cell_binding_via_logical_table(
+    # P1-3 sixth corrective (Finding 5): INDEPENDENT grid authority.
+    # When the section is in ``pdf_grid_available_sections``,
+    # treat the LOGICAL-TABLE path as STRICT + EXCLUSIVE + FAIL-
+    # CLOSED. Do NOT proxy this off ``pdf_logical_tables`` being
+    # non-empty — even when logical-table reconstruction failed
+    # (e.g. expected headers didn't match any candidate), the
+    # binding MUST NOT silently fall through to the text-only
+    # ``_PdfSectionTable`` path. The logical-table helper
+    # itself returns ``MISSING_FIELD_BINDING`` (or
+    # ``TABLE_STRUCTURE_MISMATCH`` per §5.4) which we forward
+    # directly.
+    if section_key in pdf_grid_available_sections:
+        if section_key != table_section_key:
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        return _find_table_cell_binding_via_logical_table(
             pdf_logical_tables=pdf_logical_tables,
             section_key=section_key,
             table_section_key=table_section_key,
@@ -2179,11 +2356,6 @@ def _find_table_cell_binding(
             expected_headers=expected_headers,
             template_unit_row_enabled=template_unit_row_enabled,
         )
-        # Result may legitimately be MISSING_FIELD_BINDING /
-        # AMBIGUOUS_FIELD_BINDING / TABLE_ROW_MISMATCH etc. — none
-        # of those trigger a fallback. Only a renderer error
-        # (failure_code is None) returns at this layer.
-        return result
     # NO grid geometry for this section — DOCX path then text-only
     # PDF ``_PdfSectionTable`` reconstruction as last resort.
     if docx_observation is not None:
@@ -2727,6 +2899,7 @@ def _semantic_checks(
     pdf_observation: _PdfObservation | None = None
     pdf_section_tables: tuple[_PdfSectionTable, ...] = ()
     pdf_logical_tables: tuple[_PdfLogicalTable, ...] = ()
+    pdf_grid_available_sections: frozenset[str] = frozenset()
     if fmt is ExportFormat.DOCX:
         docx_observation = _observe_docx(artifact_bytes)
         resolved_scopes = _resolve_docx_section_scopes(
@@ -2776,13 +2949,31 @@ def _semantic_checks(
                     expected_headers=expected,
                 )
                 pdf_logical_tables = pdf_logical_tables + tables
-        # Store on observation for diagnostic + downstream binding.
-        pdf_observation = _PdfObservation(
-            all_lines=pdf_observation.all_lines,
-            section_scopes=pdf_observation.section_scopes,
-            text_spans=pdf_observation.text_spans,
-            grid_segments=pdf_observation.grid_segments,
+        # Per P1-3 sixth corrective Finding 5: compute the
+        # INDEPENDENT section-level grid authority. This
+        # ``frozenset`` is INDEPENDENT of whether
+        # ``pdf_logical_tables`` is non-empty — i.e. a section
+        # can have grid geometry but reconstruction can still
+        # fail (header mismatch). The
+        # ``pdf_grid_available_sections`` set tells the binding
+        # layer whether the section has real grid geometry,
+        # which is the FAIL-CLOSED authority for whether
+        # text-only fallback is allowed.
+        pdf_grid_available_sections = frozenset(
+            section_key
+            for section_key, scope_range in resolved_scopes.items()
+            if section_table_headers.get(section_key)
+            and _section_has_usable_grid_geometry(
+                pdf_observation=pdf_observation,
+                section_line_range=scope_range,
+            )
         )
+        # Per P1-3 sixth corrective (Finding 6, Finding 5): we keep
+        # using the ORIGINAL immutable ``_PdfObservation`` returned
+        # by ``_observe_pdf`` (which carries ``page_rects``); no
+        # second-wrapper reconstruction needed. The list of
+        # ``pdf_logical_tables`` is passed into the binding call
+        # via the ``pdf_grid_available_sections`` + tuple args.
     else:
         _fail("UNSUPPORTED_FORMAT", f"Unsupported report format: {fmt.value}")
         raise AssertionError("unreachable")
@@ -2987,6 +3178,7 @@ def _semantic_checks(
             expected_headers=expected_headers,
             template_unit_row_enabled=template_unit_row_enabled,
             num_data_rows=num_data_rows,
+            pdf_grid_available_sections=pdf_grid_available_sections,
         )
         if result.failure_code is not None:
             _record_failure(
