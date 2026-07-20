@@ -6,7 +6,7 @@ import hashlib
 import io
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -381,6 +381,14 @@ class _PdfObservation:
     # by the renderer. Used to reconstruct row/column grid geometry
     # for real-renderer PDF tables.
     grid_segments: tuple[_PdfGridSegment, ...] = ()
+    # ── P1-3 fifth corrective (Finding 3) ──
+    # Real per-page page rectangles captured from PyMuPDF
+    # ``page.rect`` at observation time. Authority for continuation
+    # predicate page-bottom / page-top region classification.
+    # Maps ``page_number`` (1-indexed) -> ``(x0, y0, x1, y1)``.
+    # Empty dict = no real page rects (e.g. synthetic PDF / unit
+    # test stubs); continuation helpers will fall back to FAIL.
+    page_rects: dict[int, tuple[float, float, float, float]] = field(default_factory=dict)
 
 
 # ── Corrective 2 ────────────────────────────────────────────────────────
@@ -495,9 +503,21 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
     all_lines: list[_PdfLine] = []
     text_spans: list[_PdfTextSpan] = []
     grid_segments: list[_PdfGridSegment] = []
+    # Real PyMuPDF page rects per page (P1-3 fifth corrective
+    # Finding 3). Captured BEFORE text / drawing extraction so any
+    # page is observable even when text is empty.
+    page_rects: dict[int, tuple[float, float, float, float]] = {}
     with fitz.open(stream=data, filetype="pdf") as document:
         for page_index, page in enumerate(document):
             page_number = page_index + 1
+            # Capture real page rect (P1-3 fifth corrective).
+            page_rect = page.rect
+            page_rects[page_number] = (
+                float(page_rect.x0),
+                float(page_rect.y0),
+                float(page_rect.x1),
+                float(page_rect.y1),
+            )
             d = page.get_text("dict")
             for block_index, block in enumerate(d.get("blocks", [])):
                 if block.get("type") == 1:
@@ -613,6 +633,7 @@ def _observe_pdf(data: bytes) -> _PdfObservation:
         section_scopes={},
         text_spans=tuple(text_spans),
         grid_segments=tuple(grid_segments),
+        page_rects=page_rects,
     )
 
 
@@ -820,6 +841,32 @@ def _body_line_band_for(
     return best_idx if best_idx >= 0 else None
 
 
+def _pdf_page_height_authority(
+    *,
+    pdf_observation: _PdfObservation,
+    page_number: int,
+) -> tuple[float, float, float] | None:
+    """Return authoritative page geometry for the given page.
+
+    Per P1-3 fifth corrective (Finding 3), continuation predicates
+    MUST use real PyMuPDF ``page.rect`` for page height / top / bottom
+    authority, not the observed-text bbox extrema (which falsely
+    suggest a table reaches page bottom when it is actually the only
+    content on the page).
+
+    Returns:
+      ``(page_y_top, page_y_bottom, page_height)`` where the heights
+      come directly from ``page.rect``. Returns ``None`` when no real
+      page rect is recorded for that page (e.g. synthetic stubs).
+    """
+    rect = pdf_observation.page_rects.get(page_number)
+    if rect is None:
+        return None
+    _x0, y0, _x1, y1 = rect
+    height = max(y1 - y0, 1.0)
+    return (y0, y1, height)
+
+
 def _pdf_page_y_range(
     pdf_observation: _PdfObservation,
     page_number: int,
@@ -838,17 +885,61 @@ def _pdf_page_y_range(
 
 def _has_intervening_marker(
     pdf_observation: _PdfObservation,
+    *,
     prev_page: int,
     prev_bot_y: float,
     curr_page: int,
     curr_top_y: float,
+    section_line_range: tuple[int, int],
+    curr_section_lines: tuple[_PdfLine, ...] = (),
 ) -> bool:
-    """True if a substantive text block sits between prev_bot_y (on
-    prev_page) and curr_top_y (on curr_page), suggesting an
-    intervening heading / independent table marker.
+    """True if a substantive intervening marker sits between segments.
+
+    Per P1-3 fifth corrective (Finding 3), the marker check is
+    **bidirectional**:
+
+      A. Previous page trailing region
+         (prev_bot_y, page_bottom) — any non-unit, non-page-
+         structural text block between the previous segment
+         and the page bottom breaks continuation.
+
+      B. Current page leading region
+         (page_top, curr_top_y) — any heading / body text / indep-
+         endent table marker between page top and the current
+         segment's header breaks continuation.
+
+    Page-structural elements (page numbers, recurring page
+    header / footer template text, watermarks) are NOT
+    intervening markers. Real intervening markers are
+    substantive body paragraphs, structural section headings,
+    independent-table titles, etc.
     """
-    # Only same-page post-segment text counts: page transitions are
-    # already constrained by the page-bottom / page-top region tests.
+    # Cache recurring-page-line sets: lines whose text appears on
+    # more than one page are TEMPLATE structural decoration and
+    # not intervening markers.
+    line_text_counts: dict[str, int] = {}
+    for ln in pdf_observation.all_lines:
+        key = _fold_whitespace(ln.text)
+        if not key:
+            continue
+        line_text_counts[key] = line_text_counts.get(key, 0) + 1
+
+    def _is_page_structural(line: _PdfLine) -> bool:
+        text = _fold_whitespace(line.text)
+        if not text:
+            return True
+        # Watermark / decorative shapes (very tall bbox).
+        if line.bbox[3] - line.bbox[1] > 30.0:
+            return True
+        # Page-number style tokens: "— 1 —", "— 2 —", "-1-", "1/12"
+        # (acceptable regex: optional spaces, dashes, digits, optional spaces)
+        if re.fullmatch(r"[\s—\-]*\d+[\s—\-/]*", text):
+            return True
+        # Recurring TEMPLATE header / footer (same text on multiple
+        # pages) — treat as page structural.
+        return line_text_counts.get(text, 0) > 1
+
+    # A. Previous page trailing region.
     for line in pdf_observation.all_lines:
         if line.page_number != prev_page:
             continue
@@ -859,9 +950,34 @@ def _has_intervening_marker(
             continue
         if _is_renderer_unit_token(text):
             continue
-        # Distinct paragraph-like content between segments suggests
-        # an intervening heading / text block, which would break
-        # the strict continuation evidence.
+        if _is_page_structural(line):
+            continue
+        return True
+    # B. Current page leading region.
+    if not curr_section_lines:
+        curr_segment_line_set: set[tuple[int, int, int]] = set()
+    else:
+        curr_segment_line_set = {
+            (line.page_number, line.block_index, line.line_index) for line in curr_section_lines
+        }
+    for line in pdf_observation.all_lines:
+        if line.page_number != curr_page:
+            continue
+        if line.bbox[1] >= curr_top_y - 2.0:
+            continue
+        text = _fold_whitespace(line.text)
+        if not text or len(text) < 2:
+            continue
+        if _is_renderer_unit_token(text):
+            continue
+        if _is_page_structural(line):
+            continue
+        if (
+            line.page_number,
+            line.block_index,
+            line.line_index,
+        ) in curr_segment_line_set:
+            continue
         return True
     return False
 
@@ -872,61 +988,48 @@ def _is_pdf_table_continuation(
     current: _PdfTableSegment,
     pdf_observation: _PdfObservation | None,
     section_line_range: tuple[int, int],
+    curr_section_lines: tuple[_PdfLine, ...] = (),
 ) -> bool:
     """Strict continuation predicate for cross-page PDF tables.
 
-    Per P1-3.2 of the fourth corrective. Returns True only when
-    ALL of the following structural predicates hold:
+    Per P1-3 fifth corrective (Finding 3), ALL of these structural
+    predicates MUST hold (else return False):
 
-      SAME_SECTION=YES
+      SAME_SECTION_SCOPE=YES
       SAME_HEADER_TEXT=YES (folded-exact)
       SAME_COLUMN_COUNT=YES
       SAME_COLUMN_X_BANDS=YES (within tolerance)
-      CURRENT_PAGE=PREVIOUS_PAGE+1 (immediately adjacent)
-      PREVIOUS_SEGMENT_REACHES_PAGE_BOTTOM_REGION=YES
-      CURRENT_SEGMENT_STARTS_NEAR_PAGE_TOP_TABLE_REGION=YES
+      CURRENT_PAGE = PREVIOUS_PAGE + 1 (immediately adjacent)
+      PREVIOUS_SEGMENT_NEAR_REAL_PAGE_BOTTOM=YES
+        (relative to real page.rect bottom)
+      CURRENT_HEADER_NEAR_REAL_PAGE_TOP=YES
+        (relative to real page.rect top)
+      NO_PREVIOUS_PAGE_TRAILING_MARKER=YES
+      NO_CURRENT_PAGE_LEADING_MARKER=YES
       NO_INTERVENING_SECTION_HEADING=YES
-      NO_INTERVENING_INDEPENDENT_TABLE_MARKER=YES
 
-    page-bottom / page-top region are derived from artifact
-    coordinates (per-page observed y-extents), NOT hard-coded
-    PDF page heights.
+    page-bottom / page-top region MUST be derived from real
+    ``page.rect`` (PyMuPDF), NOT observed-text bbox extrema.
     """
     if previous.section_key != current.section_key:
         return False
+    if pdf_observation is None:
+        return False
+    # CURRENT_PAGE = PREVIOUS_PAGE + 1.
     if previous.page_number + 1 != current.page_number:
         return False
+    # SAME_HEADER_TEXT.
     prev_header_cells = previous.header.cells
     curr_header_cells = current.header.cells
-    if len(prev_header_cells) != len(curr_header_cells):
+    if not prev_header_cells or not curr_header_cells:
         return False
-    if not prev_header_cells:
+    if len(prev_header_cells) != len(curr_header_cells):
         return False
     if tuple(_fold_whitespace(c.text) for c in prev_header_cells) != tuple(
         _fold_whitespace(c.text) for c in curr_header_cells
     ):
         return False
-    if pdf_observation is None:
-        return False
-    prev_data_rows = previous.data_rows
-    if not prev_data_rows:
-        return False
-    last_prev_data_row = prev_data_rows[-1]
-    prev_row_bot_y = _row_bbox(last_prev_data_row)[3]
-    curr_header_top_y = _row_bbox(current.header)[1]
-    prev_page_y_range = _pdf_page_y_range(pdf_observation, previous.page_number)
-    curr_page_y_range = _pdf_page_y_range(pdf_observation, current.page_number)
-    if prev_page_y_range is None or curr_page_y_range is None:
-        return False
-    prev_min_y, prev_max_y = prev_page_y_range
-    curr_min_y, curr_max_y = curr_page_y_range
-    prev_page_height = max(prev_max_y - prev_min_y, 1.0)
-    curr_page_height = max(curr_max_y - curr_min_y, 1.0)
-    prev_row_in_bottom_region = (prev_row_bot_y - prev_min_y) >= 0.75 * prev_page_height
-    curr_header_in_top_region = (curr_header_top_y - curr_min_y) <= 0.25 * curr_page_height
-    if not (prev_row_in_bottom_region and curr_header_in_top_region):
-        return False
-    # SAME_COLUMN_X_BANDS: column x-centers must match within tolerance.
+    # SAME_COLUMN_X_BANDS (within tolerance).
     prev_col_xs = _row_column_xs(previous.header)
     curr_col_xs = _row_column_xs(current.header)
     if len(prev_col_xs) != len(curr_col_xs):
@@ -934,13 +1037,65 @@ def _is_pdf_table_continuation(
     max_x_drift = max(abs(a - b) for a, b in zip(prev_col_xs, curr_col_xs, strict=False))
     if max_x_drift > _GRID_X_TOLERANCE * 4:
         return False
-    return not _has_intervening_marker(
-        pdf_observation,
-        previous.page_number,
-        prev_row_bot_y,
-        current.page_number,
-        curr_header_top_y,
+    # Real page rect authority for page-bottom / page-top region.
+    prev_geom = _pdf_page_height_authority(
+        pdf_observation=pdf_observation, page_number=previous.page_number
     )
+    curr_geom = _pdf_page_height_authority(
+        pdf_observation=pdf_observation, page_number=current.page_number
+    )
+    if prev_geom is None or curr_geom is None:
+        # Without real page rect, we cannot establish authority
+        # for the page-bottom / page-top region. Fail-closed: do
+        # not merge into a logical table.
+        return False
+    prev_page_top, prev_page_bot, prev_page_h = prev_geom
+    curr_page_top, curr_page_bot, curr_page_h = curr_geom
+    # The previous segment's last data row must lie within the
+    # bottom 25 % of the previous page (real page rect
+    # authority). 25 % is permissive enough to accommodate the
+    # renderer's bottom-margin + page-footer text on tight pages
+    # without falsely accepting mid-page continuations.
+    if not previous.data_rows:
+        return False
+    prev_row_bot_y = _row_bbox(previous.data_rows[-1])[3]
+    prev_row_in_bottom_region = (prev_row_bot_y - prev_page_top) >= 0.75 * prev_page_h
+    # The current segment's header must lie within the top 40 %
+    # of the current page (real page rect authority). 40 % is
+    # permissive enough to accommodate the renderer's
+    # top-margin + page-header + page-title text on tight pages.
+    # The current-page bidirectional intervening check (see
+    # below) eliminates risk of false-merging independent tables
+    # that happen to share the same header.
+    curr_header_top_y = _row_bbox(current.header)[1]
+    curr_header_in_top_region = (curr_header_top_y - curr_page_top) <= 0.40 * curr_page_h
+    if not (prev_row_in_bottom_region and curr_header_in_top_region):
+        return False
+    # NO_PREVIOUS_PAGE_TRAILING_MARKER + NO_CURRENT_PAGE_LEADING_MARKER
+    # using real page rect (page_bottom / page_top).
+    if _has_intervening_marker(
+        pdf_observation,
+        prev_page=previous.page_number,
+        prev_bot_y=prev_row_bot_y,
+        curr_page=current.page_number,
+        curr_top_y=curr_header_top_y,
+        section_line_range=section_line_range,
+        curr_section_lines=curr_section_lines,
+    ):
+        return False
+    # NO_INTERVENING_SECTION_HEADING: previous segment's page
+    # number must be inside the canonical section's page span.
+    # This is enforced by the section_scope computation in
+    # ``_build_logical_tables_for_section``, but defensively
+    # re-check that previous.page_number is in the union of all
+    # section_lines.page_number values from this section.
+    section_page_set = {
+        ln.page_number
+        for ln in pdf_observation.all_lines[section_line_range[0] : section_line_range[1]]
+    }
+    if previous.page_number not in section_page_set:
+        return False
+    return current.page_number in section_page_set
 
 
 def _build_logical_tables_for_section(
@@ -985,59 +1140,115 @@ def _build_logical_tables_for_section(
     section_lines = pdf_observation.all_lines[start:end]
     if not section_lines:
         return ()
+    # ── P1-3 fifth corrective (Finding 1) ──
+    # Compute the FULL section page span — every page on which any
+    # section line appears. This was previously broken by
+    # ``section_lines[:1]`` (only the section-heading page entered
+    # the candidate span pool, so multi-page continuation was
+    # impossible to discover).
+    section_page_numbers: tuple[int, ...] = tuple(sorted({ln.page_number for ln in section_lines}))
     # Identify the (page, y_top, y_bottom) of every grid row by
     # scanning horizontal grid lines that lie within the section's
-    # line y-range. The horizontal lines define row boundaries.
-    # The first line's y_top is the start of the first row.
-    line_y0 = min(ln.bbox[1] for ln in section_lines)
-    line_y1 = max(ln.bbox[3] for ln in section_lines)
-    h_grid = [
-        g
-        for g in pdf_observation.grid_segments
-        if g.orientation == "horizontal" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0
-    ]
-    v_grid = [
-        g
-        for g in pdf_observation.grid_segments
-        if g.orientation == "vertical" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0
-    ]
-    if not h_grid or not v_grid:
-        # No grid geometry available — fall back to text-only path
-        # (the existing _build_section_local_tables handles this).
+    # line y-range PER PAGE (page-aware boundaries, not a single
+    # collapsed global cluster). Per P1-3 fifth corrective (Finding
+    # 1), grid coordinates from different pages MUST NOT be
+    # clustered into a single fake row / column.
+    h_grid_per_page: dict[int, list[_PdfGridSegment]] = {}
+    v_grid_per_page: dict[int, list[_PdfGridSegment]] = {}
+    for g in pdf_observation.grid_segments:
+        if g.page_number not in section_page_numbers:
+            continue
+        # Section y-range per page (used to keep grid lines that
+        # overlap the section's content on that page).
+        page_lines = [ln for ln in section_lines if ln.page_number == g.page_number]
+        if not page_lines:
+            continue
+        page_line_y0 = min(ln.bbox[1] for ln in page_lines)
+        page_line_y1 = max(ln.bbox[3] for ln in page_lines)
+        line_y0 = page_line_y0
+        line_y1 = page_line_y1
+        if g.orientation == "horizontal" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0:
+            h_grid_per_page.setdefault(g.page_number, []).append(g)
+        elif g.orientation == "vertical" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0:
+            v_grid_per_page.setdefault(g.page_number, []).append(g)
+    if not h_grid_per_page or not v_grid_per_page:
+        # No grid geometry available — fall back to text-only path.
         return ()
-    row_boundaries = _cluster_grid_segments_by_coord(
-        tuple(h_grid), axis="y", tolerance=_GRID_Y_TOLERANCE
-    )
-    column_boundaries = _cluster_grid_segments_by_coord(
-        tuple(v_grid), axis="x", tolerance=_GRID_X_TOLERANCE
-    )
-    if len(row_boundaries) < 2 or len(column_boundaries) < len(expected_headers) + 1:
+    # SECTION_PAGES covers every page that has at least one
+    # horizontal AND one vertical grid line — i.e. a real grid.
+    grid_pages: tuple[int, ...] = tuple(sorted(set(h_grid_per_page) & set(v_grid_per_page)))
+    if not grid_pages:
         return ()
-    # Row strips: row i is (row_boundaries[i], row_boundaries[i+1]).
-    # Column strips: column j is (column_boundaries[j], column_boundaries[j+1]).
     segments: list[_PdfTableSegment] = []
-    section_spans = [
-        s
-        for s in pdf_observation.text_spans
-        if any(ln.page_number == s.page_number for ln in section_lines[:1])
-    ]
-    # Group section_spans by page.
+    # Filter candidate spans: every section page + structurally in
+    # the section's coordinate scope (i.e. not before the heading
+    # on the first page or after the next section heading).
+    section_spans = [s for s in pdf_observation.text_spans if s.page_number in section_page_numbers]
     pages: dict[int, list[_PdfTextSpan]] = {}
     for span in section_spans:
         pages.setdefault(span.page_number, []).append(span)
 
-    # Identify candidate header rows by looking for rows whose
-    # per-column folded text matches the expected headers.
+    # Identify candidate header rows per page, using that PAGE's
+    # grid boundaries (not a shared global boundary). Spans are
+    # also filtered to those STRUCTURALLY inside the page-local
+    # table bbox (between first/last row boundary AND within
+    # first/last column boundary). This excludes page-header /
+    # page-footer text that is OUTSIDE the table body.
     header_rows_by_page: dict[int, list[int]] = {}
-    for page_number, page_spans in pages.items():
-        for row_idx in range(len(row_boundaries) - 1):
-            y_top = row_boundaries[row_idx]
-            y_bot = row_boundaries[row_idx + 1]
+    for page_number in grid_pages:
+        page_h = h_grid_per_page.get(page_number, [])
+        page_v = v_grid_per_page.get(page_number, [])
+        if not page_h or not page_v:
+            continue
+        # Find the page-specific y-range for grid filtering.
+        page_lines = [ln for ln in section_lines if ln.page_number == page_number]
+        if not page_lines:
+            continue
+        page_y0 = min(ln.bbox[1] for ln in page_lines)
+        page_y1 = max(ln.bbox[3] for ln in page_lines)
+        # Per-page row/column boundary clustering.
+        page_h_filtered = [
+            g for g in page_h if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        page_v_filtered = [
+            g for g in page_v if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        if not page_h_filtered or not page_v_filtered:
+            continue
+        page_row_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_h_filtered), axis="y", tolerance=_GRID_Y_TOLERANCE
+        )
+        page_column_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_v_filtered), axis="x", tolerance=_GRID_X_TOLERANCE
+        )
+        if len(page_row_boundaries) < 2 or len(page_column_boundaries) < len(expected_headers) + 1:
+            continue
+        # Filter page-local spans to those STRUCTURALLY inside
+        # the table bbox: bbox[1] >= first row boundary AND
+        # bbox[3] <= last row boundary AND bbox[0]/bbox[2]
+        # within first/last column boundaries. This excludes
+        # page-header / page-footer text that sits outside the
+        # table body on the page.
+        page_table_x0 = page_column_boundaries[0]
+        page_table_x1 = page_column_boundaries[-1]
+        page_table_y_top = page_row_boundaries[0]
+        page_table_y_bot = page_row_boundaries[-1]
+        page_spans = [
+            s
+            for s in pages.get(page_number, [])
+            if s.bbox[3] >= page_table_y_top - 0.5
+            and s.bbox[1] <= page_table_y_bot + 0.5
+            and s.bbox[0] >= page_table_x0 - 0.5
+            and s.bbox[2] <= page_table_x1 + 0.5
+        ]
+        for row_idx in range(len(page_row_boundaries) - 1):
+            y_top = page_row_boundaries[row_idx]
+            y_bot = page_row_boundaries[row_idx + 1]
             row_cells = _collect_row_cells(
                 page_spans,
                 row_y_top=y_top,
                 row_y_bot=y_bot,
-                column_boundaries=column_boundaries,
+                column_boundaries=page_column_boundaries,
                 page_number=page_number,
                 row_index=row_idx,
             )
@@ -1049,14 +1260,49 @@ def _build_logical_tables_for_section(
 
     if not header_rows_by_page:
         return ()
-    # Build segments: each header row defines one segment.
-    for page_number, header_indices in header_rows_by_page.items():
-        for header_idx in header_indices:
+    # Build segments: each header row defines one segment, with
+    # per-page boundaries (NOT a single shared boundary).
+    for page_number in sorted(header_rows_by_page):
+        page_h = h_grid_per_page.get(page_number, [])
+        page_v = v_grid_per_page.get(page_number, [])
+        page_lines = [ln for ln in section_lines if ln.page_number == page_number]
+        if not page_lines:
+            continue
+        page_y0 = min(ln.bbox[1] for ln in page_lines)
+        page_y1 = max(ln.bbox[3] for ln in page_lines)
+        page_h_filtered = [
+            g for g in page_h if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        page_v_filtered = [
+            g for g in page_v if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        if not page_h_filtered or not page_v_filtered:
+            continue
+        page_row_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_h_filtered), axis="y", tolerance=_GRID_Y_TOLERANCE
+        )
+        page_column_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_v_filtered), axis="x", tolerance=_GRID_X_TOLERANCE
+        )
+        # Filter spans to those inside the page-local table bbox.
+        page_table_x0 = page_column_boundaries[0]
+        page_table_x1 = page_column_boundaries[-1]
+        page_table_y_top = page_row_boundaries[0]
+        page_table_y_bot = page_row_boundaries[-1]
+        page_spans = [
+            s
+            for s in pages.get(page_number, [])
+            if s.bbox[3] >= page_table_y_top - 0.5
+            and s.bbox[1] <= page_table_y_bot + 0.5
+            and s.bbox[0] >= page_table_x0 - 0.5
+            and s.bbox[2] <= page_table_x1 + 0.5
+        ]
+        for header_idx in header_rows_by_page[page_number]:
             seg = _build_segment_for_header(
-                page_spans=pages[page_number],
+                page_spans=page_spans,
                 header_row_idx=header_idx,
-                row_boundaries=row_boundaries,
-                column_boundaries=column_boundaries,
+                row_boundaries=page_row_boundaries,
+                column_boundaries=page_column_boundaries,
                 page_number=page_number,
                 section_key=section_key,
             )
@@ -1064,27 +1310,43 @@ def _build_logical_tables_for_section(
                 segments.append(seg)
     if not segments:
         return ()
-    # Cross-page continuation: a later segment with same headers
-    # and on a later page is a continuation of the previous if the
-    # previous segment's last data row is on the page-bottom
-    # region AND there is no canonical-section heading between
-    # them. Here we merge sequential segments with identical
-    # headers and ascending page numbers into a single logical
-    # table.
+    # Sort segments by (page_number, header_idx) so continuation
+    # is detected in document order.
+    segments.sort(
+        key=lambda s: (
+            s.page_number,
+            min(c.bbox[1] for c in s.header.cells) if s.header.cells else 0.0,
+        )
+    )
+    # Cross-page continuation predicate (P1-3.2 + P1-3 fifth
+    # corrective Findings 1/3). Merge sequential segments with
+    # identical headers, ascending page numbers, AND all the
+    # structural evidence (page-bottom / page-top relative to real
+    # page.rect + same column bands + no intervening section head-
+    # ing + bidirectional intervening marker check) into a single
+    # logical table.
     logical_tables: list[_PdfLogicalTable] = []
     current: list[_PdfTableSegment] = [segments[0]]
     for seg in segments[1:]:
         prev = current[-1]
-        # Per P1-3.2 of the fourth corrective: cross-page continuation
-        # requires structural evidence (page-bottom / page-top region
-        # + same column bands + ascending page + same headers), NOT
-        # just header text + ascending page number. Independent tables
-        # are NOT merged.
+        # Compute the current-section text lines that belong to
+        # the candidate new segment, so the intervening-marker
+        # check can skip them (they belong to the new segment,
+        # not an intervening marker).
+        new_seg_line_ids: set[tuple[int, int, int]] = set()
+        for ln in section_lines:
+            if ln.page_number == seg.page_number:
+                new_seg_line_ids.add((ln.page_number, ln.block_index, ln.line_index))
         if _is_pdf_table_continuation(
             previous=prev,
             current=seg,
             pdf_observation=pdf_observation,
             section_line_range=section_line_range,
+            curr_section_lines=tuple(
+                ln
+                for ln in section_lines
+                if (ln.page_number, ln.block_index, ln.line_index) in new_seg_line_ids
+            ),
         ):
             current.append(seg)
             continue
@@ -1125,6 +1387,12 @@ def _collect_row_cells(
     Multiple spans in the same column are concatenated into one
     logical cell (wrapped text → one logical cell). Spans with
     empty text are ignored.
+
+    Per P1-3 fifth corrective (Finding 1), spans whose bbox is
+    abnormally tall are treated as decorative watermarks /
+    background shapes (PyMuPDF includes the watermark bbox even
+    when its text is a single short word). Such spans are
+    excluded from cell content.
     """
     if len(column_boundaries) < 2:
         return ()
@@ -1136,6 +1404,12 @@ def _collect_row_cells(
     for span in spans:
         cy = (span.bbox[1] + span.bbox[3]) / 2
         if not (row_y_top - 1.0 <= cy <= row_y_bot + 1.0):
+            continue
+        bbox_height = span.bbox[3] - span.bbox[1]
+        # Watermark / decorative spans: bbox-height > 30pt
+        # indicates a non-text element. Skip them so they do not
+        # poison cell content.
+        if bbox_height > 30.0:
             continue
         cx = (span.bbox[0] + span.bbox[2]) / 2
         col_idx = min(
@@ -1250,6 +1524,9 @@ def _build_segment_for_header(
     unit_row: _PdfLogicalRow | None = None
     data_rows: list[_PdfLogicalRow] = []
     body_idx = header_row_idx + 1
+    # Default for the case where ``body_idx`` is out of range
+    # (very tight page with no room for body rows).
+    data_start_idx = body_idx
     if body_idx < len(row_boundaries) - 1:
         body_y_top = row_boundaries[body_idx]
         body_y_bot = row_boundaries[body_idx + 1]
@@ -1775,13 +2052,15 @@ def _find_table_cell_binding_via_logical_table(
 ) -> _BindingResult:
     """Resolve (row, column) using _PdfLogicalTable structural identity.
 
-    Per P1-3 fourth corrective: when grid geometry is available, this
-    path is the PRIMARY binding authority. Strategy:
+    Per P1-3 fifth corrective (Finding 5): when grid geometry is
+    available for this section, this path is the STRICT FAIL-CLOSED
+    authority for the binding. No text-only fallback is permitted.
+    Strategy:
 
       1. Filter logical tables by section_key (== table_section_key).
       2. Match each candidate by header folded-exact match.
-      3. 0 matches -> USE_SECTION_TABLES_FALLBACK (caller should
-         fall back to text-only).
+      3. 0 matches -> MISSING_FIELD_BINDING (fail-closed; do
+         NOT fall back to text heuristic).
       4. >=2 matches -> AMBIGUOUS_FIELD_BINDING.
       5. Use the unique logical_table.data_rows[row_index] as the data
          row. The unit row, if present, is the _PdfLogicalRow with
@@ -1799,9 +2078,14 @@ def _find_table_cell_binding_via_logical_table(
         == tuple(_fold_whitespace(h) for h in expected_headers)
     ]
     if not candidates:
+        # FAIL-CLOSED: when grid geometry exists but headers don't
+        # match the canonical, the binding is structurally
+        # inconsistent — return MISSING_FIELD_BINDING, NOT
+        # USE_SECTION_TABLES_FALLBACK. Per Finding 5, the caller
+        # MUST NOT fall back to text-only heuristic in this state.
         return _BindingResult(
             observed=None,
-            failure_code="USE_SECTION_TABLES_FALLBACK",
+            failure_code="MISSING_FIELD_BINDING",
             candidates=(),
         )
     if len(candidates) > 1:
@@ -1874,12 +2158,17 @@ def _find_table_cell_binding(
         the binding returns ``AMBIGUOUS_FIELD_BINDING`` (fail-closed).
     """
 
-    # P1-3 fourth corrective: when ANY logical table exists for this
-    # section, use the LOGICAL-TABLE binding path as the PRIMARY
-    # authority. The text-only section-tables fallback is only used
-    # when (a) there are no logical tables OR (b) logical-table
-    # binding returns USE_SECTION_TABLES_FALLBACK (no header match).
-    if pdf_logical_tables and pdf_section_tables is not None:
+    # P1-3 fifth corrective (Finding 5): when ANY logical table
+    # exists for this section (i.e. REAL grid geometry was
+    # reconstructed), the LOGICAL-TABLE binding path is the
+    # STRICT, EXCLUSIVE, FAIL-CLOSED authority. The text-only
+    # section-tables fallback is ONLY used when zero logical
+    # tables exist for the section (i.e. no usable grid
+    # geometry was observed for the section). Once a logical
+    # table exists, the binding is bound to it; a header mismatch
+    # returns MISSING_FIELD_BINDING, NEVER USE_SECTION_TABLES_FALLBACK.
+    section_logical_tables = tuple(t for t in pdf_logical_tables if t.section_key == section_key)
+    if section_logical_tables:
         result = _find_table_cell_binding_via_logical_table(
             pdf_logical_tables=pdf_logical_tables,
             section_key=section_key,
@@ -1890,8 +2179,13 @@ def _find_table_cell_binding(
             expected_headers=expected_headers,
             template_unit_row_enabled=template_unit_row_enabled,
         )
-        if result.failure_code != "USE_SECTION_TABLES_FALLBACK":
-            return result
+        # Result may legitimately be MISSING_FIELD_BINDING /
+        # AMBIGUOUS_FIELD_BINDING / TABLE_ROW_MISMATCH etc. — none
+        # of those trigger a fallback. Only a renderer error
+        # (failure_code is None) returns at this layer.
+        return result
+    # NO grid geometry for this section — DOCX path then text-only
+    # PDF ``_PdfSectionTable`` reconstruction as last resort.
     if docx_observation is not None:
         if section_key != table_section_key:
             return _BindingResult(
