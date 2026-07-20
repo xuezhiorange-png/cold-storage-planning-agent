@@ -413,6 +413,61 @@ class _PdfGridSegment:
 
 
 @dataclass(frozen=True, slots=True)
+class _PdfTextCell:
+    """A typed physical cell: row × column bbox with merged wrapped spans.
+
+    Per B2 §6.1+6.4 the no-grid PDF fallback path classifies every
+    ``_PdfLine`` into exactly one cell of the physical reconstruction
+    based on header-derived column x-intervals. Multiple wrapped
+    ``_PdfLine``s in the same physical cell are merged into a single
+    cell whose ``text`` is the fold-whitespace-normalized join of the
+    child spans sorted by (y, x).
+    """
+
+    row_index: int
+    column_index: int
+    bbox: tuple[float, float, float, float]
+    lines: tuple[_PdfLine, ...]
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTextRow:
+    """A typed physical row: index + bbox + ordered cells.
+
+    Per B2 §6.5 the unit-row full-structure predicate operates on
+    the rebuilt ``_PdfTextRow`` objects (NOT on raw ``_PdfLine``
+    lists) so that the cell count and every non-leftmost cell
+    membership is determined by the same physical-cell boundaries
+    that drive the value lookup.
+    """
+
+    row_index: int
+    bbox: tuple[float, float, float, float]
+    cells: tuple[_PdfTextCell, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTextTableReconstruction:
+    """Typed return value of the physical-cell reconstruction helper.
+
+    Per B2 §6.6:
+      * ``failure_code=None`` and ``rows`` non-empty → success.
+      * ``failure_code`` set → typed failure (one of:
+        - LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY
+        - INVALID_COLUMN_INTERVALS
+        - MISSING_TARGET_PHYSICAL_CELL
+        - ROW_INDEX_OUT_OF_RANGE
+      * On failure the caller MUST surface the exact failure_code;
+        silently returning ``cell_value=""`` with status BOUND is
+        FORBIDDEN.
+    """
+
+    rows: tuple[_PdfTextRow, ...]
+    failure_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class _PdfLogicalCell:
     page_number: int
     row_index: int
@@ -974,21 +1029,31 @@ def _section_usable_grid_regions(
     pdf_observation: _PdfObservation,
     section_line_range: tuple[int, int],
 ) -> tuple[_PdfGridRegion, ...]:
-    """Return coherent grid regions in the section (B1 §5.4).
+    """Return coherent grid regions in the section (B1 §5.2 + §5.4).
 
     A ``_PdfGridRegion`` is a same-page H × V grid that:
-        * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct horizontals
-        * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct verticals
-        * the region bbox overlaps the section's content (real
-          2D overlap)
+
+      * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct horizontals
+        on the same page
+      * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct verticals on
+        the same page
+      * each SELECTED horizontal intersects ≥2 SELECTED verticals
+        AND each SELECTED vertical intersects ≥2 SELECTED
+        horizontals (fixed-point coherence pruning using
+        ``_horizontal_vertical_grid_intersect``)
+      * positive width AND positive height region on the same page
+      * real 2D overlap with section text on that page
 
     Page-local (B1 §5.2): each coherent region is on a SINGLE
-    page. Cross-page H+V assembly is rejected.
+    page. Cross-page H+V assembly is REJECTED. "Same-page H
+    disjoint from same-page V" is REJECTED. "1 H + ≥2 V" or
+    "≥2 H + 1 V" are REJECTED (each selected H must cross ≥2
+    selected V, which implies ≥2 H AND ≥2 V).
 
-    The intersection per pair is determined by bounding-box
-    containment (mid_x_of_V ∈ horizontal span AND mid_y_of_H ∈
-    vertical span). At least one pair per region must intersect
-    so that the region's row/column axes are NOT disjoint.
+    The intersection per pair is determined by
+    ``_horizontal_vertical_grid_intersect`` (mid_x_of_V ∈
+    horizontal span AND mid_y_of_H ∈ vertical span, with
+    tolerance).
     """
     start, end = section_line_range
     section_lines = pdf_observation.all_lines[start:end]
@@ -1011,29 +1076,52 @@ def _section_usable_grid_regions(
 
     out: list[_PdfGridRegion] = []
     for page in section_page_numbers:
-        h_segs = h_per_page.get(page, ())
-        v_segs = v_per_page.get(page, ())
-        if len(h_segs) < _GRID_REGION_MIN_BOUNDARIES:
+        h_segs = tuple(h_per_page.get(page, ()))
+        v_segs = tuple(v_per_page.get(page, ()))
+        # Fixed-point coherence pruning (B1 §5.2): iteratively
+        # remove H segments that do not cross ≥2 V, and V segments
+        # that do not cross ≥2 of the surviving H.
+        selected_h = list(h_segs)
+        selected_v = list(v_segs)
+        while True:
+            next_h = [
+                h
+                for h in selected_h
+                if sum(1 for v in selected_v if _horizontal_vertical_grid_intersect(h, v))
+                >= _GRID_REGION_MIN_BOUNDARIES
+            ]
+            next_v = [
+                v
+                for v in selected_v
+                if sum(1 for h in next_h if _horizontal_vertical_grid_intersect(h, v))
+                >= _GRID_REGION_MIN_BOUNDARIES
+            ]
+            if next_h == selected_h and next_v == selected_v:
+                break
+            selected_h = next_h
+            selected_v = next_v
+        if len(selected_h) < _GRID_REGION_MIN_BOUNDARIES:
             continue
-        if len(v_segs) < _GRID_REGION_MIN_BOUNDARIES:
+        if len(selected_v) < _GRID_REGION_MIN_BOUNDARIES:
             continue
-        # Region bbox = union extent across the page's H and V segs.
-        h_ys_set = {(h.y0 + h.y1) / 2 for h in h_segs}
-        h_ys_set |= {h.y0 for h in h_segs} | {h.y1 for h in h_segs}
-        v_xs_set = {(v.x0 + v.x1) / 2 for v in v_segs}
-        v_xs_set |= {v.x0 for v in v_segs} | {v.x1 for v in v_segs}
+        h_ys_set = {(h.y0 + h.y1) / 2 for h in selected_h}
+        h_ys_set |= {h.y0 for h in selected_h} | {h.y1 for h in selected_h}
+        v_xs_set = {(v.x0 + v.x1) / 2 for v in selected_v}
+        v_xs_set |= {v.x0 for v in selected_v} | {v.x1 for v in selected_v}
         h_ys = sorted(h_ys_set)
         v_xs = sorted(v_xs_set)
-        # Need at least 2 distinct rows and 2 distinct columns
-        # for a real grid (otherwise not a coherent region).
-        if len(h_ys) < 2 or len(v_xs) < 2:
+        if len(h_ys) < _GRID_REGION_MIN_BOUNDARIES or len(v_xs) < _GRID_REGION_MIN_BOUNDARIES:
             continue
         region_bbox = (min(v_xs), min(h_ys), max(v_xs), max(h_ys))
         if region_bbox[2] - region_bbox[0] <= 0:
             continue
         if region_bbox[3] - region_bbox[1] <= 0:
             continue
-        # Region must have a section-text 2D overlap on the SAME page.
+        # REGION_OVERLAPS_CURRENT_SECTION_TEXT_ON_SAME_PAGE (B1
+        # §5.3): the section text must overlap this region in
+        # BOTH X AND Y (not y-band only). Use the existing
+        # ``_bbox_has_any_overlap`` for parity with the prior
+        # candidate-region predicate.
         any_overlap = any(
             _bbox_has_any_overlap(ln.bbox, region_bbox)
             for ln in section_lines
@@ -1101,83 +1189,139 @@ def _pdf_segment_line_ids(
 ) -> frozenset[tuple[int, int, int]]:
     """Return the line identities that belong to ``segment`` per the artifact.
 
-    Per P1-3 sixth corrective (§4.1) the segment-line whitelist
-    for the current-page intervening-marker check is computed
-    STRUCTURALLY (only lines on ``segment.page_number`` whose
-    bbox overlaps the segment's header / unit-row / each data-
-    row bboxes). It is NOT the entire ``section_lines`` of the
-    current section, which would incorrectly whitelist same-
-    section content that lives between the table on the page
-    and the page header.
+    A line is whitelisted iff ALL three predicates hold:
 
-    Three bboxes in segment space contribute to the whitelist
-    union:
+      * SAME_PAGE_REQUIRED: ``line.page_number == segment.page_number``
+      * SEGMENT_BBOX_X_AND_Y_OVERLAP_REQUIRED: ``line.bbox`` and
+        ``segment.bbox`` share STRICTLY POSITIVE 2D overlap (X AND Y)
+        per ``_bbox_has_positive_2d_overlap`` (edge-touch only is
+        rejected with a 0.5pt minimum).
+      * ROW_BBOX_X_AND_Y_OVERLAP_REQUIRED: ``line.bbox`` and any
+        of ``segment.header.bbox``, ``segment.unit_row.bbox`` (if
+        present), or ``segment.data_rows[i].bbox`` share STRICTLY
+        POSITIVE 2D overlap.
 
-      * segment.header bbox
-      * segment.unit_row bbox (when present)
-      * each segment.data_rows[i] bbox
+    HORIZONTAL_OUTSIDE_LINE_REJECTED: lines whose bbox lies to
+    the left, right, above, or below ALL of the segment's row
+    bboxes (even though they live on the same page) are NOT in
+    the whitelist — for example a body/title text line that
+    sits above the repeated header on a continuation page.
 
-    A line ``ln`` is whitelisted iff its page_number matches
-    segment.page_number AND its bbox overlaps any of these
-    "segment-area" bboxes (vertical or horizontal overlap).
+    The caller passes ALL section-scope lines plus extra same-
+    page lines (continuation candidates) — the SAME_PAGE gate
+    is the canonical filter. Edge-touch (overlap ≤ 0.5pt) on
+    X or Y is rejected.
+
+    Returned tuple of ``(page_number, block_index, line_index)``
+    matches ``_PdfLine`` identity.
     """
     if not lines:
         return frozenset()
-    # Compute segment-area bboxes (each a 4-tuple).
-    seg_bboxes: list[tuple[float, float, float, float]] = []
+    row_bboxes: list[tuple[float, float, float, float]] = []
     if segment.header.cells:
-        seg_bboxes.append(_row_bbox(segment.header))
+        row_bboxes.append(_row_bbox(segment.header))
     if segment.unit_row is not None and segment.unit_row.cells:
-        seg_bboxes.append(_row_bbox(segment.unit_row))
+        row_bboxes.append(_row_bbox(segment.unit_row))
     for data_row in segment.data_rows:
         if data_row.cells:
-            seg_bboxes.append(_row_bbox(data_row))
-    if not seg_bboxes:
+            row_bboxes.append(_row_bbox(data_row))
+    if not row_bboxes:
         return frozenset()
     out: set[tuple[int, int, int]] = set()
     for ln in lines:
         if ln.page_number != segment.page_number:
             continue
-        ln_x0, ln_y0, ln_x1, ln_y1 = ln.bbox
-        # Per P1-3 consolidated (seventh) corrective B1 §4.1:
-        # Use Y-band overlap (matches the artifact's row clustering
-        # tolerance). The line must live in the SAME y-band as one
-        # of the segment's rows. The x-axis is handled separately
-        # by the grid-reconstruction step; line-line membership in
-        # the whitelist is decided by y-band alone to avoid the
-        # adjacent-column pollution that the prior round's
-        # y-only heuristic suffered from — wait, no: the prior bug
-        # was y-only without x-band enforcement. The new rule
-        # requires both x AND y intersection (any positive).
-        for bb in seg_bboxes:
-            bb_x0, bb_y0, bb_x1, bb_y1 = bb
-            # y-band overlap (existing baseline).
-            if not (ln_y1 < bb_y0 - 0.5 or ln_y0 > bb_y1 + 0.5):
-                out.add((ln.page_number, ln.block_index, ln.line_index))
-                break
+        if not _bbox_has_positive_2d_overlap(ln.bbox, segment.bbox):
+            continue
+        if not any(_bbox_has_positive_2d_overlap(ln.bbox, row_bbox) for row_bbox in row_bboxes):
+            continue
+        out.add((ln.page_number, ln.block_index, ln.line_index))
     return frozenset(out)
+
+
+def _recurring_page_header_texts(
+    *,
+    pdf_observation: _PdfObservation,
+    section_line_range: tuple[int, int] | None = None,
+    min_pages: int = 2,
+    upper_fraction: float = 0.30,
+) -> set[str]:
+    """Return the set of texts that recur as page-headers across ≥``min_pages``.
+
+    A text qualifies as a recurring page header iff:
+
+      * its folded form appears on at least ``min_pages`` distinct
+        page numbers (real cross-page repetition, not within-page
+        row/column repetition)
+      * in at least one of those pages the line lives in the
+        upper ``upper_fraction`` of the page (default 30%) of the
+        real ``page.rect``
+
+    Pure-recurrence inside the body zone (e.g. a table header that
+    repeats across pages) is NOT a page header and is excluded
+    because recurring-text-only is rejected per B1 §4.3. We only
+    accept "recurring AND in upper-zone" as a page header.
+
+    When ``section_line_range`` is provided, the cross-page
+    recurrence check is restricted to the section's line range;
+    page-header detection otherwise spans the entire
+    ``pdf_observation.all_lines``.
+
+    Returns an empty set when ``page_rects`` is empty.
+    """
+    if not pdf_observation.page_rects:
+        return set()
+    if section_line_range is not None:
+        range_start, range_end = section_line_range
+        lines = pdf_observation.all_lines[range_start:range_end]
+    else:
+        lines = pdf_observation.all_lines
+    if not lines:
+        return set()
+    text_to_pages: dict[str, set[int]] = {}
+    for ln in lines:
+        text = _fold_whitespace(ln.text)
+        if not text:
+            continue
+        rect = pdf_observation.page_rects.get(ln.page_number)
+        if rect is None:
+            continue
+        _x0, y0, _x1, y1 = rect
+        page_height = max(y1 - y0, 1.0)
+        upper_limit = y0 + upper_fraction * page_height
+        # Upper-zone check on this line.
+        line_top = ln.bbox[1]
+        line_bottom = ln.bbox[3]
+        if line_bottom <= upper_limit or line_top <= upper_limit:
+            text_to_pages.setdefault(text, set()).add(ln.page_number)
+    return {text for text, pages in text_to_pages.items() if len(pages) >= min_pages}
 
 
 def _is_true_pdf_page_decoration(
     *,
     line: _PdfLine,
     pdf_observation: _PdfObservation,
+    recurring_page_header_texts: set[str] | None = None,
 ) -> bool:
-    """True iff line lives in a real page-marginal zone (top/bottom ≤ 10%).
+    """True iff line lives in a real page-marginal zone (top/bottom ≤ 10%)
+    OR is a recurring page header (same text in upper 30% on ≥2 pages).
 
-    Per P1-3 consolidated (seventh) corrective B1 §4.3: TRUE page
-    decoration is decided by SPATIAL position (within the top 10%
-    or bottom 10% of the real ``page.rect``), NOT by text-content
-    recurrence. Recurring repeated HEADER text that lives in the
-    body zone (middle 80%) of the page is REAL content, NOT
-    decoration — even if it repeats.
+    Per B1 §4.3 page decoration is decided by SPATIAL position
+    (within the top 10% or bottom 10% of the real ``page.rect``)
+    AND/OR by cross-page upper-zone header recurrence. Recurring
+    repeated HEADER text that lives strictly in the body zone
+    (middle 80% of the page) is NOT decoration.
 
-    Only three categories can be ignored as decoration:
+    Decoration categories that can be ignored:
 
       * Page-number-style tokens (regex) — always ignored.
       * Lines inside top-margin zone (line.bottom ≤ page_top + 0.10 * h).
       * Lines inside bottom-margin zone (line.top ≥ page_top + 0.90 * h).
       * Watermark / decorative shapes (very tall bbox).
+      * Cross-page recurring page header (same text in upper 30%
+        of ≥2 pages). The brief §4.3 forbids "unconditionally"
+        treating same-text recurrence as decoration; we only
+        combine recurrence with upper-zone spatial position.
 
     Returns True ONLY when ``page_rects`` is known for this page.
     When unknown (synthetic stub) the caller treats the line as
@@ -1192,6 +1336,11 @@ def _is_true_pdf_page_decoration(
         return True
     # Watermark / decorative shapes (very tall bbox).
     if line.bbox[3] - line.bbox[1] > 30.0:
+        return True
+    # Cross-page upper-zone recurring page header. Per B1 §4.3 we
+    # only ignore when the recurring text lives in the upper 30%
+    # of ≥2 pages — purely body-zone recurrence is content.
+    if recurring_page_header_texts is not None and text in recurring_page_header_texts:
         return True
     rect = pdf_observation.page_rects.get(line.page_number)
     if rect is None:
@@ -1259,6 +1408,13 @@ def _has_intervening_marker(
     section_line_id_set: set[tuple[int, int, int]] = set()
     for ln in pdf_observation.all_lines[range_start:range_end]:
         section_line_id_set.add((ln.page_number, ln.block_index, ln.line_index))
+    # Cross-page upper-zone recurring page-headers (B1 §4.3 explicit).
+    # Page-header detection spans the full ``pdf_observation.all_lines``
+    # (NOT restricted to ``section_line_range``) — a page header is a
+    # page header regardless of which section's scope it sits in.
+    recurring_headers = _recurring_page_header_texts(
+        pdf_observation=pdf_observation,
+    )
 
     def _classify(line: _PdfLine) -> str:
         line_id = (
@@ -1269,10 +1425,14 @@ def _has_intervening_marker(
         if line_id in curr_segment_line_ids:
             return "CURRENT_SEGMENT"
         # TRUE_PAGE_DECORATION: empty / page-number-style / watermark /
-        # margin-zone (B1 §4.3 explicit).
+        # margin-zone / cross-page upper-zone page header (B1 §4.3).
         if not _fold_whitespace(line.text):
             return "EMPTY"
-        if _is_true_pdf_page_decoration(line=line, pdf_observation=pdf_observation):
+        if _is_true_pdf_page_decoration(
+            line=line,
+            pdf_observation=pdf_observation,
+            recurring_page_header_texts=recurring_headers,
+        ):
             return "DECORATION"
         if line_id in section_line_id_set:
             return "SECTION_BUT_NOT_SEGMENT"
@@ -1667,9 +1827,15 @@ def _build_logical_tables_for_section(
         # separator text that sits between the page top and the
         # candidate segment's header is NOT whitelisted and will
         # correctly block continuation as an intervening marker.
+        # Per P1-3 completion follow-up B1-A: pass ALL pdf observation
+        # lines (same-page gate filters inside the helper). Using
+        # only ``section_lines`` would fail continuation when the
+        # section scope is narrower than the artifact's full line
+        # span (e.g. multi-page cases where page 2 onwards is past
+        # the section's heading-line range).
         new_seg_ids = _pdf_segment_line_ids(
             segment=seg,
-            lines=section_lines,
+            lines=pdf_observation.all_lines,
         )
         if _is_pdf_table_continuation(
             previous=prev,
@@ -2428,6 +2594,227 @@ def _classify_pdf_row_kind(
     return "unit"
 
 
+def _header_x_intervals_from_columns(
+    *,
+    column_centers: tuple[float, ...],
+    table_bbox: tuple[float, float, float, float],
+) -> tuple[tuple[float, float], ...] | None:
+    """Return column x-intervals derived from the table bbox + centers.
+
+    Per B2 §6.2, each column's x interval is:
+
+      * First column: ``[table_bbox.x0, midpoint_to_next_center]``
+      * Middle columns: ``[midpoint_to_prev, midpoint_to_next]``
+      * Last column: ``[midpoint_to_prev, table_bbox.x1]``
+
+    Returns ``None`` when ``column_centers`` is empty or the
+    table_bbox has degenerate width. When counts mismatch
+    (e.g. only 1 center but table has 2 columns expected),
+    returns ``None`` and the caller SHOULD surface
+    ``INVALID_COLUMN_INTERVALS``.
+    """
+    if not column_centers:
+        return None
+    if len(column_centers) < 1:
+        return None
+    table_x0, _table_y0, table_x1, _table_y1 = table_bbox
+    if table_x1 <= table_x0:
+        return None
+    sorted_centers = sorted(column_centers)
+    n = len(sorted_centers)
+    intervals: list[tuple[float, float]] = []
+    for i in range(n):
+        left = table_x0 if i == 0 else (sorted_centers[i - 1] + sorted_centers[i]) / 2
+        right = table_x1 if i == n - 1 else (sorted_centers[i] + sorted_centers[i + 1]) / 2
+        intervals.append((left, right))
+    return tuple(intervals)
+
+
+def _classify_pdf_text_line_to_columns(
+    *,
+    line: _PdfLine,
+    column_intervals: tuple[tuple[float, float], ...],
+    table_bbox: tuple[float, float, float, float],
+) -> list[int]:
+    """Return the column indices whose x-interval positively overlaps ``line``.
+
+    Per B2 §6.3:
+
+      * 0 candidates AND line is inside table bbox → MISSING column
+        attribution → caller surfaces TABLE_STRUCTURE_MISMATCH.
+      * 0 candidates AND line is outside table bbox → line ignored.
+      * 1 candidate → line belongs to that column.
+      * 2+ candidates → line crosses multiple columns → caller
+        surfaces AMBIGUOUS_FIELD_BINDING (unless a strict-max
+        overlap picks a unique winner).
+
+    The function uses STRICT 2D overlap (X positive) per the
+    brief — not nearest-center distance.
+    """
+    if not column_intervals:
+        return []
+    table_x0, _, table_x1, _ = table_bbox
+    line_x0, _, line_x1, _ = line.bbox
+    if line_x1 < table_x0 or line_x0 > table_x1:
+        return []
+    candidates: list[int] = []
+    for col_idx, (x0, x1) in enumerate(column_intervals):
+        # Positive x overlap (strict, not inclusive).
+        if min(line_x1, x1) - max(line_x0, x0) > 0.0:
+            candidates.append(col_idx)
+    return candidates
+
+
+def _reconstruct_pdf_text_cells(
+    *,
+    table_bbox: tuple[float, float, float, float],
+    column_centers: tuple[float, ...],
+    body_rows: tuple[tuple[_PdfLine, ...], ...],
+    target_row_index: int,
+    target_column_index: int,
+) -> _PdfTextTableReconstruction:
+    """Rebuild physical ``_PdfTextRow``s + ``_PdfTextCell``s from raw lines.
+
+    Per B2 §6.1–§6.4 the no-grid PDF fallback MUST classify every
+    line into exactly one physical cell via header-derived column
+    intervals (NOT nearest-line distance). Wrapped lines in the
+    same (row, column) are merged into a single logical cell.
+
+    Returns a typed ``_PdfTextTableReconstruction`` whose
+    ``failure_code`` is one of:
+
+      * ``None`` on success (rows tuple non-empty).
+      * ``"INVALID_COLUMN_INTERVALS"`` when the table bbox or
+        column centers are degenerate / empty.
+      * ``"LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY"`` when
+        ambiguity cannot be resolved.
+      * ``"MISSING_TARGET_PHYSICAL_CELL"`` when no candidate cell
+        exists for ``(target_row_index, target_column_index)``.
+      * ``"ROW_INDEX_OUT_OF_RANGE"`` when ``target_row_index``
+        is out of bounds.
+
+    Callers MUST NOT silently coerce a failure to BOUND with an
+    empty ``cell_value``.
+    """
+    intervals = _header_x_intervals_from_columns(
+        column_centers=column_centers,
+        table_bbox=table_bbox,
+    )
+    if intervals is None:
+        return _PdfTextTableReconstruction(
+            rows=(),
+            failure_code="INVALID_COLUMN_INTERVALS",
+        )
+    rows: list[_PdfTextRow] = []
+    for row_idx, body_row in enumerate(body_rows):
+        # Group lines by column.
+        col_to_lines: dict[int, list[_PdfLine]] = {}
+        for ln in body_row:
+            candidates = _classify_pdf_text_line_to_columns(
+                line=ln,
+                column_intervals=intervals,
+                table_bbox=table_bbox,
+            )
+            if not candidates:
+                # Line outside table bbox — ignored.
+                if _bbox_has_any_overlap(ln.bbox, table_bbox):
+                    return _PdfTextTableReconstruction(
+                        rows=(),
+                        failure_code="LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY",
+                    )
+                continue
+            if len(candidates) > 1:
+                # Strict-max overlap picks a unique winner.
+                ln_x0, _, ln_x1, _ = ln.bbox
+                widths = []
+                for ci in candidates:
+                    ci_x0, ci_x1 = intervals[ci]
+                    widths.append((ci, min(ln_x1, ci_x1) - max(ln_x0, ci_x0)))
+                max_w = max(w for _, w in widths)
+                winners = [ci for ci, w in widths if w == max_w]
+                if len(winners) > 1:
+                    return _PdfTextTableReconstruction(
+                        rows=(),
+                        failure_code="LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY",
+                    )
+                chosen = winners[0]
+            else:
+                chosen = candidates[0]
+            col_to_lines.setdefault(chosen, []).append(ln)
+        cells: list[_PdfTextCell] = []
+        for col_idx in range(len(intervals)):
+            col_lines = col_to_lines.get(col_idx, ())
+            if not col_lines:
+                # Empty cell placeholder — preserved so cell_index
+                # matches the column layout.
+                cells.append(
+                    _PdfTextCell(
+                        row_index=row_idx,
+                        column_index=col_idx,
+                        bbox=(0.0, 0.0, 0.0, 0.0),
+                        lines=(),
+                        text="",
+                    )
+                )
+                continue
+            sorted_lines = tuple(
+                sorted(
+                    col_lines,
+                    key=lambda ln: (ln.bbox[1], ln.bbox[0], ln.block_index, ln.line_index),
+                )
+            )
+            bbox = (
+                min(ln.bbox[0] for ln in sorted_lines),
+                min(ln.bbox[1] for ln in sorted_lines),
+                max(ln.bbox[2] for ln in sorted_lines),
+                max(ln.bbox[3] for ln in sorted_lines),
+            )
+            text = _fold_whitespace("".join(ln.text for ln in sorted_lines))
+            cells.append(
+                _PdfTextCell(
+                    row_index=row_idx,
+                    column_index=col_idx,
+                    bbox=bbox,
+                    lines=sorted_lines,
+                    text=text,
+                )
+            )
+        if not cells:
+            continue
+        nonempty_cell_bboxes = [c.bbox for c in cells if c.bbox != (0.0, 0.0, 0.0, 0.0)]
+        if nonempty_cell_bboxes:
+            row_bbox = (
+                min(b[0] for b in nonempty_cell_bboxes),
+                min(b[1] for b in nonempty_cell_bboxes),
+                max(b[2] for b in nonempty_cell_bboxes),
+                max(b[3] for b in nonempty_cell_bboxes),
+            )
+        else:
+            row_bbox = table_bbox
+        rows.append(
+            _PdfTextRow(
+                row_index=row_idx,
+                bbox=row_bbox,
+                cells=tuple(cells),
+            )
+        )
+    if target_row_index < 0 or target_row_index >= len(rows):
+        return _PdfTextTableReconstruction(
+            rows=tuple(rows),
+            failure_code="ROW_INDEX_OUT_OF_RANGE",
+        )
+    target_row = rows[target_row_index]
+    if target_column_index < 0 or target_column_index >= len(target_row.cells):
+        return _PdfTextTableReconstruction(
+            rows=tuple(rows),
+            failure_code="MISSING_TARGET_PHYSICAL_CELL",
+        )
+    return _PdfTextTableReconstruction(
+        rows=tuple(rows),
+        failure_code=None,
+    )
+
+
 def _find_table_cell_binding_via_logical_table(
     *,
     pdf_logical_tables: tuple[_PdfLogicalTable, ...],
@@ -2771,6 +3158,10 @@ def _find_table_cell_binding(
             )
             == "unit"
         )
+        # Per B2 §5.3 — compute the data-row index AFTER classifying
+        # the unit row, but BEFORE running the physical-cell
+        # reconstruction (which returns rows on the data-row
+        # offset).
         if body0_is_unit_structurally:
             unit_row_idx: int | None = 0
             data_row_idx = 1 + row_index
@@ -2779,56 +3170,60 @@ def _find_table_cell_binding(
             data_row_idx = 0 + row_index
         if data_row_idx < 0 or data_row_idx >= len(body_rows):
             return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
-        data_row = body_rows[data_row_idx]
-        # Map data_row's lines to column indices via column_centers.
+        # Per B2 §5.1-§5.4: replace the prior nearest-line-distance
+        # heuristic with header-derived column x-intervals + strict-
+        # overlap line classification + wrapped-line merge
+        # (_reconstruct_pdf_text_cells). The typed return value
+        # carries an explicit failure code so callers can fail
+        # closed (AMBIGUOUS_FIELD_BINDING, TABLE_ROW_MISMATCH,
+        # TABLE_STRUCTURE_MISMATCH) instead of silently returning
+        # BOUND with empty cell_value.
         if not target_table.column_centers:
             return _BindingResult(
                 observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
             )
-        if len(target_table.column_centers) < 2:
-            half_band = 100.0
-        else:
-            sorted_centers = sorted(target_table.column_centers)
-            half_band = max(
-                (sorted_centers[i + 1] - sorted_centers[i]) / 2
-                for i in range(len(sorted_centers) - 1)
+        reconstruction = _reconstruct_pdf_text_cells(
+            table_bbox=target_table.bbox,
+            column_centers=target_table.column_centers,
+            body_rows=body_rows,
+            target_row_index=data_row_idx,
+            target_column_index=column_index,
+        )
+        if reconstruction.failure_code is not None:
+            # Per B2 §6.6 typed failure mapping:
+            #   LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY
+            #     → AMBIGUOUS_FIELD_BINDING
+            #   INVALID_COLUMN_INTERVALS, MISSING_TARGET_PHYSICAL_CELL
+            #     → TABLE_STRUCTURE_MISMATCH
+            #   ROW_INDEX_OUT_OF_RANGE → TABLE_ROW_MISMATCH
+            raw_code = reconstruction.failure_code
+            if raw_code == "LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY":
+                mapped = "AMBIGUOUS_FIELD_BINDING"
+            elif raw_code == "ROW_INDEX_OUT_OF_RANGE":
+                mapped = "TABLE_ROW_MISMATCH"
+            else:
+                mapped = "TABLE_STRUCTURE_MISMATCH"
+            return _BindingResult(
+                observed=None,
+                failure_code=mapped,
+                candidates=(),
             )
-        # Pick the line whose x-center is closest to the target
-        # column's center.
-        target_center = target_table.column_centers[
-            min(column_index, len(target_table.column_centers) - 1)
-        ]
-        cell_line = None
-        for ln in data_row:
-            ln_center = (ln.bbox[0] + ln.bbox[2]) / 2
-            if abs(ln_center - target_center) <= half_band and (
-                cell_line is None
-                or abs(ln_center - target_center)
-                < abs((cell_line.bbox[0] + cell_line.bbox[2]) / 2 - target_center)
-            ):
-                cell_line = ln
-        if cell_line is not None:
-            cell_value = cell_line.text
-        # Read the observed unit from the artifact's unit row.
-        if unit_row_idx is not None and unit_row_idx < len(body_rows):
-            unit_row = body_rows[unit_row_idx]
-            unit_line = None
-            for ln in unit_row:
-                ln_center = (ln.bbox[0] + ln.bbox[2]) / 2
-                if abs(ln_center - target_center) <= half_band and (
-                    unit_line is None
-                    or abs(ln_center - target_center)
-                    < abs((unit_line.bbox[0] + unit_line.bbox[2]) / 2 - target_center)
-                ):
-                    unit_line = ln
-            if unit_line is not None:
-                observed_unit = _strip_renderer_unit_wrapper(unit_line.text)
+        rows = reconstruction.rows
+        # The data row lives at ``data_row_idx`` in the body_rows
+        # tuple, and rows have their own indices starting at 0 for
+        # the first body row. So ``rows[data_row_idx]`` is the
+        # target row.
+        target_row = rows[data_row_idx]
+        if unit_row_idx is not None and unit_row_idx < len(rows):
+            unit_row_cells = rows[unit_row_idx].cells
+            if 0 <= column_index < len(unit_row_cells):
+                observed_unit = _strip_renderer_unit_wrapper(unit_row_cells[column_index].text)
         return _BindingResult(
             observed=_ObservedNumericField(
                 field_path="",
                 section_key=section_key,
                 binding_kind=_BINDING_KIND_TABLE_CELL,
-                display_value=cell_value,
+                display_value=target_row.cells[column_index].text,
                 display_unit=observed_unit,
                 row_index=row_index,
                 column_index=column_index,
