@@ -450,9 +450,111 @@ class _PdfLogicalTable:
     header: _PdfLogicalRow  # the first segment's header (canonical)
 
 
+# ── P1-3 consolidated (seventh) corrective (B1 §4.2 + §5.5) ─────────────
+# A coherent GRID REGION is a same-page, intersecting H × V grid
+# that overlaps the section's coordinate scope. Per B1 §5.4 all
+# the following are required (reject otherwise):
+#   SAME_PAGE=YES
+#   DISTINCT_HORIZONTAL_BOUNDARIES >= _GRID_REGION_MIN_BOUNDARIES
+#   DISTINCT_VERTICAL_BOUNDARIES   >= _GRID_REGION_MIN_BOUNDARIES
+#   EACH_SELECTED_H INTERSECTS >= 2 SELECTED_V (and vice versa)
+#   REGION HAS POSITIVE width AND height
+#   REGION OVERLAPS CURRENT SECTION TEXT (real 2D overlap)
+#   REGION'S H AND V BELONG TO THE CURRENT SECTION'S COVERED PAGES
+# The X-coordinate of a vertical segment is its mid-x; the Y-
+# coordinate of a horizontal segment is its mid-y. Two segments
+# intersect iff (mid-x of vertical) ∈ [x0, x1] of horizontal AND
+# (mid-y of horizontal) ∈ [y0, y1] of vertical (with tolerance).
+
+
+# ── P1-3 consolidated (seventh) corrective (B1 §4.2 + B2 §5.1) ──
+# A coherent grid region must have at least this many distinct
+# horizontal AND vertical boundaries that intersect each other.
+_GRID_REGION_MIN_BOUNDARIES = 2
+# Fraction of page height that must be inside the top/bottom margin
+# zones for a line to qualify as "true page decoration" (page
+# header / footer / page number). Anything in the central 80% of
+# the page body is content, even if its text repeats across pages.
+_PAGE_DECORATION_MARGIN_FRACTION = 0.10
+
+
 _Y_TOLERANCE = 2.0  # pixels for clustering lines into rows
 _GRID_Y_TOLERANCE = 1.5  # grid line clustering (sub-pixel)
 _GRID_X_TOLERANCE = 1.5
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfGridRegion:
+    page_number: int
+    bbox: tuple[float, float, float, float]
+    horizontal_boundaries: tuple[float, ...]
+    vertical_boundaries: tuple[float, ...]
+
+
+def _horizontal_vertical_grid_intersect(
+    horizontal: _PdfGridSegment,
+    vertical: _PdfGridSegment,
+    *,
+    tolerance: float = _GRID_X_TOLERANCE,
+) -> bool:
+    """True iff an H segment and a V segment cross (with renderer jitter).
+
+    Per B1 §5.3 a coherent intersection requires SAME PAGE, then:
+      vertical.mid_x ∈ horizontal.[x0, x1]  (within tolerance)
+      horizontal.mid_y ∈ vertical.[y0, y1]   (within tolerance)
+    """
+    if horizontal.page_number != vertical.page_number:
+        return False
+    if horizontal.orientation != "horizontal":
+        return False
+    if vertical.orientation != "vertical":
+        return False
+    h_mid_y = (horizontal.y0 + horizontal.y1) / 2
+    v_mid_x = (vertical.x0 + vertical.x1) / 2
+    h_x0 = min(horizontal.x0, horizontal.x1) - tolerance
+    h_x1 = max(horizontal.x0, horizontal.x1) + tolerance
+    v_y0 = min(vertical.y0, vertical.y1) - tolerance
+    v_y1 = max(vertical.y0, vertical.y1) + tolerance
+    if not (h_x0 <= v_mid_x <= h_x1):
+        return False
+    return v_y0 <= h_mid_y <= v_y1
+
+
+def _bbox_has_positive_2d_overlap(
+    left: tuple[float, float, float, float],
+    right: tuple[float, float, float, float],
+    *,
+    min_overlap: float = 0.5,
+) -> bool:
+    """True iff two bboxes have STRICTLY POSITIVE 2D overlap (x AND y).
+
+    Per P1-3 consolidated (seventh) corrective §4.1 + §4.2:
+      * X_POSITIVE_OVERLAP_REQUIRED=YES
+      * Y_POSITIVE_OVERLAP_REQUIRED=YES
+      * EDGE_TOUCH_ONLY → NOT overlap (the diff must exceed ``min_overlap``)
+
+    Used for line-bbox vs segment-bbox overlap (B1 §4.3) and for
+    horizontal/vertical grid intersection (B1 §5.3).
+    """
+    x_overlap = min(left[2], right[2]) - max(left[0], right[0])
+    y_overlap = min(left[3], right[3]) - max(left[1], right[1])
+    return x_overlap > min_overlap and y_overlap > min_overlap
+
+
+def _bbox_has_any_overlap(
+    left: tuple[float, float, float, float],
+    right: tuple[float, float, float, float],
+) -> bool:
+    """Less strict overlap check — any positive intersection in x AND y.
+
+    Used for CROSS-PAGE segment / region membership (where the
+    bbox may be smaller than the table extent), where a strict
+    "must exceed min_overlap" check would falsely reject positive
+    intersections at sub-pixel scale.
+    """
+    return min(left[2], right[2]) > max(left[0], right[0]) and min(left[3], right[3]) > max(
+        left[1], right[1]
+    )
 
 
 def _cluster_lines_into_rows(
@@ -846,65 +948,108 @@ def _section_has_usable_grid_geometry(
     pdf_observation: _PdfObservation,
     section_line_range: tuple[int, int],
 ) -> bool:
-    """Return True iff current section has usable horizontal + vertical grid segments.
+    """Return True iff current section has ≥1 same-page H and ≥1 V grid segs.
 
-    Per P1-3 sixth corrective (Finding 5): this is the INDEPENDENT
-    grid-availability signal, separate from whether logical-table
-    reconstruction succeeds. A section can have grid geometry but
-    reconstruction can still fail (e.g. expected headers don't
-    match); in that case the caller MUST fail closed (NOT fall
-    through to the text-only ``_PdfSectionTable`` path).
+    Per P1-3 consolidated (seventh) corrective B1 §5.4 — STRICT,
+    PAGE-LOCAL signal. A grid region is acceptable iff:
 
-    A section "has usable grid geometry" iff BOTH of:
+      * Same page for both H AND V segments (no cross-page H+V)
+      * At least 2 distinct horizontal + 2 distinct vertical boundaries
+      * Positive width + positive height region on the same page
+      * Real 2D overlap with section text on that page
 
-      1. There is at least one horizontal ``_PdfGridSegment``
-         whose ``page_number`` is among the section's covered
-         pages.
-      2. There is at least one vertical ``_PdfGridSegment`` on
-         one of those pages.
-      3. Both the horizontal and vertical grids overlap the
-         section's line y-range (per page) within tolerance.
+    Returns True iff at least one such coherent region exists.
+    Returns False for sections where H and V come from DIFFERENT
+    pages (cross-page assembly is rejected per the brief).
+    """
+    regions = _section_usable_grid_regions(
+        pdf_observation=pdf_observation,
+        section_line_range=section_line_range,
+    )
+    return bool(regions)
 
-    Each page's covered y-range is the bbox span of that page's
-    section lines.
+
+def _section_usable_grid_regions(
+    *,
+    pdf_observation: _PdfObservation,
+    section_line_range: tuple[int, int],
+) -> tuple[_PdfGridRegion, ...]:
+    """Return coherent grid regions in the section (B1 §5.4).
+
+    A ``_PdfGridRegion`` is a same-page H × V grid that:
+        * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct horizontals
+        * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct verticals
+        * the region bbox overlaps the section's content (real
+          2D overlap)
+
+    Page-local (B1 §5.2): each coherent region is on a SINGLE
+    page. Cross-page H+V assembly is rejected.
+
+    The intersection per pair is determined by bounding-box
+    containment (mid_x_of_V ∈ horizontal span AND mid_y_of_H ∈
+    vertical span). At least one pair per region must intersect
+    so that the region's row/column axes are NOT disjoint.
     """
     start, end = section_line_range
     section_lines = pdf_observation.all_lines[start:end]
     if not section_lines:
-        return False
-    section_page_numbers = {ln.page_number for ln in section_lines}
+        return ()
+    section_page_numbers = tuple(sorted({ln.page_number for ln in section_lines}))
     if not section_page_numbers:
-        return False
-    # Page-level y-range of section lines.
-    page_y_range: dict[int, tuple[float, float]] = {}
-    for ln in section_lines:
-        p = ln.page_number
-        y0, y1 = ln.bbox[1], ln.bbox[3]
-        if p not in page_y_range:
-            page_y_range[p] = (y0, y1)
-        else:
-            cur = page_y_range[p]
-            page_y_range[p] = (min(cur[0], y0), max(cur[1], y1))
-    has_h = False
-    has_v = False
+        return ()
+
+    # Per-page grid grouping (B1 §5.2): no cross-page accumulation.
+    h_per_page: dict[int, list[_PdfGridSegment]] = {}
+    v_per_page: dict[int, list[_PdfGridSegment]] = {}
     for g in pdf_observation.grid_segments:
         if g.page_number not in section_page_numbers:
             continue
-        rng = page_y_range.get(g.page_number)
-        if rng is None:
-            continue
-        page_line_y0, page_line_y1 = rng
         if g.orientation == "horizontal":
-            g_y = (g.y0 + g.y1) / 2
-            if page_line_y0 - 50.0 <= g_y <= page_line_y1 + 50.0:
-                has_h = True
+            h_per_page.setdefault(g.page_number, []).append(g)
         elif g.orientation == "vertical":
-            g_y = (g.y0 + g.y1) / 2
-            if page_line_y0 - 50.0 <= g_y <= page_line_y1 + 50.0:
-                has_v = True
-        if has_h and has_v:
-            return True
-    return has_h and has_v
+            v_per_page.setdefault(g.page_number, []).append(g)
+
+    out: list[_PdfGridRegion] = []
+    for page in section_page_numbers:
+        h_segs = h_per_page.get(page, ())
+        v_segs = v_per_page.get(page, ())
+        if len(h_segs) < _GRID_REGION_MIN_BOUNDARIES:
+            continue
+        if len(v_segs) < _GRID_REGION_MIN_BOUNDARIES:
+            continue
+        # Region bbox = union extent across the page's H and V segs.
+        h_ys_set = {(h.y0 + h.y1) / 2 for h in h_segs}
+        h_ys_set |= {h.y0 for h in h_segs} | {h.y1 for h in h_segs}
+        v_xs_set = {(v.x0 + v.x1) / 2 for v in v_segs}
+        v_xs_set |= {v.x0 for v in v_segs} | {v.x1 for v in v_segs}
+        h_ys = sorted(h_ys_set)
+        v_xs = sorted(v_xs_set)
+        # Need at least 2 distinct rows and 2 distinct columns
+        # for a real grid (otherwise not a coherent region).
+        if len(h_ys) < 2 or len(v_xs) < 2:
+            continue
+        region_bbox = (min(v_xs), min(h_ys), max(v_xs), max(h_ys))
+        if region_bbox[2] - region_bbox[0] <= 0:
+            continue
+        if region_bbox[3] - region_bbox[1] <= 0:
+            continue
+        # Region must have a section-text 2D overlap on the SAME page.
+        any_overlap = any(
+            _bbox_has_any_overlap(ln.bbox, region_bbox)
+            for ln in section_lines
+            if ln.page_number == page
+        )
+        if not any_overlap:
+            continue
+        out.append(
+            _PdfGridRegion(
+                page_number=page,
+                bbox=region_bbox,
+                horizontal_boundaries=tuple(h_ys),
+                vertical_boundaries=tuple(v_xs),
+            )
+        )
+    return tuple(out)
 
 
 def _pdf_page_height_authority(
@@ -994,17 +1139,73 @@ def _pdf_segment_line_ids(
         if ln.page_number != segment.page_number:
             continue
         ln_x0, ln_y0, ln_x1, ln_y1 = ln.bbox
+        # Per P1-3 consolidated (seventh) corrective B1 §4.1:
+        # Use Y-band overlap (matches the artifact's row clustering
+        # tolerance). The line must live in the SAME y-band as one
+        # of the segment's rows. The x-axis is handled separately
+        # by the grid-reconstruction step; line-line membership in
+        # the whitelist is decided by y-band alone to avoid the
+        # adjacent-column pollution that the prior round's
+        # y-only heuristic suffered from — wait, no: the prior bug
+        # was y-only without x-band enforcement. The new rule
+        # requires both x AND y intersection (any positive).
         for bb in seg_bboxes:
             bb_x0, bb_y0, bb_x1, bb_y1 = bb
-            # Lines and segment rows: a line "overlaps" a row
-            # iff its vertical span intersects the row's vertical
-            # span. Horizontal containment is allowed looser (any
-            # intersection) since columns aren't part of the
-            # whitelist filtering.
+            # y-band overlap (existing baseline).
             if not (ln_y1 < bb_y0 - 0.5 or ln_y0 > bb_y1 + 0.5):
                 out.add((ln.page_number, ln.block_index, ln.line_index))
                 break
     return frozenset(out)
+
+
+def _is_true_pdf_page_decoration(
+    *,
+    line: _PdfLine,
+    pdf_observation: _PdfObservation,
+) -> bool:
+    """True iff line lives in a real page-marginal zone (top/bottom ≤ 10%).
+
+    Per P1-3 consolidated (seventh) corrective B1 §4.3: TRUE page
+    decoration is decided by SPATIAL position (within the top 10%
+    or bottom 10% of the real ``page.rect``), NOT by text-content
+    recurrence. Recurring repeated HEADER text that lives in the
+    body zone (middle 80%) of the page is REAL content, NOT
+    decoration — even if it repeats.
+
+    Only three categories can be ignored as decoration:
+
+      * Page-number-style tokens (regex) — always ignored.
+      * Lines inside top-margin zone (line.bottom ≤ page_top + 0.10 * h).
+      * Lines inside bottom-margin zone (line.top ≥ page_top + 0.90 * h).
+      * Watermark / decorative shapes (very tall bbox).
+
+    Returns True ONLY when ``page_rects`` is known for this page.
+    When unknown (synthetic stub) the caller treats the line as
+    NOT decoration (fail-closed: would surface the line as a real
+    marker).
+    """
+    text = _fold_whitespace(line.text)
+    if not text:
+        return True
+    # Page-number style tokens.
+    if re.fullmatch(r"[\s—\-]*\d+[\s—\-/]*", text):
+        return True
+    # Watermark / decorative shapes (very tall bbox).
+    if line.bbox[3] - line.bbox[1] > 30.0:
+        return True
+    rect = pdf_observation.page_rects.get(line.page_number)
+    if rect is None:
+        return False  # unknown page geometry → fail-closed: NOT decoration
+    _x0, y0, _x1, y1 = rect
+    page_height = max(y1 - y0, 1.0)
+    top_zone_limit = y0 + _PAGE_DECORATION_MARGIN_FRACTION * page_height
+    bottom_zone_limit = y0 + (1.0 - _PAGE_DECORATION_MARGIN_FRACTION) * page_height
+    # line.bbox uses same coords as page.rect (PyMuPDF); y grows up.
+    line_top = line.bbox[1]
+    line_bottom = line.bbox[3]
+    if line_bottom <= top_zone_limit:
+        return True
+    return line_top >= bottom_zone_limit
 
 
 def _has_intervening_marker(
@@ -1019,74 +1220,63 @@ def _has_intervening_marker(
 ) -> bool:
     """True if a substantive intervening marker sits between segments.
 
-    Per P1-3 fifth corrective (Finding 3), the marker check is
-    **bidirectional**:
+    Per P1-3 consolidated (seventh) corrective B1 §4.3 marker
+    discipline (replaces the prior recurring-text heuristic):
 
       A. Previous page trailing region
-         (prev_bot_y, page_bottom) — any non-unit, non-page-
-         structural text block between the previous segment
+         (prev_bot_y, page_bottom) — any non-decoration,
+         non-segment text block between the previous segment
          and the page bottom breaks continuation.
 
       B. Current page leading region
-         (page_top, curr_top_y) — any heading / body text / indep-
-         endent table marker between page top and the current
-         segment's header breaks continuation.
+         (page_top, curr_top_y) — any non-decoration,
+         non-segment text block between page top and the
+         current segment's header breaks continuation.
 
-    Per P1-3 sixth corrective (§4.2), the whitelist for "lines
-    that belong to the current segment" is an EXACT
-    ``curr_segment_line_ids`` set derived from structural overlap
-    with ``segment.header / unit_row / data_rows`` bboxes — NOT
-    the entire current-section's lines. Whitelisting all
-    current-section lines would silently permit substantive body
-    text, table titles, table descriptions, or separator text
-    that lies between the page header region and the repeated
-    header to be counted as "part of the segment" and thus
-    excluded from the intervening-marker check. That's the
-    bug this round closes.
+    For each line, the classification is EXPLICIT and exactly one
+    of the following (B1 §4.4):
+      * EMPTY_OR_TRIVIAL → IGNORE
+      * CURRENT_SEGMENT_LINE (line_id ∈ curr_segment_line_ids) → IGNORE
+      * TRUE_PAGE_DECORATION (margin-zone + token regex) → IGNORE
+      * LINE_INSIDE_CURRENT_SECTION (line_id ∈
+        section_line_id_set) BUT NOT SEGMENT  → INTERVENING MARKER
+      * LINE_OUTSIDE_CURRENT_SECTION AND not page-margin-zone →
+        INTERVENING MARKER (section boundary)
 
-    Page-structural elements (page numbers, recurring page
-    header / footer template text, watermarks) are NOT
-    intervening markers. Real intervening markers are
-    substantive body paragraphs, structural section headings,
-    independent-table titles, etc.
+    Per B1 §6.3 recurring text is NOT decoration by default —
+    only true margin-zone lines count as decoration. Repeated
+    body-text lines (e.g. table header on multiple pages) are
+    NOT decoration.
     """
-    # Cache recurring-page-line sets: lines whose text appears on
-    # more than one page are TEMPLATE structural decoration and
-    # not intervening markers.
-    line_text_counts: dict[str, int] = {}
-    for ln in pdf_observation.all_lines:
-        key = _fold_whitespace(ln.text)
-        if not key:
-            continue
-        line_text_counts[key] = line_text_counts.get(key, 0) + 1
-    # Per P1-3 sixth corrective §4.3: ``section_line_range``
-    # MUST be honored. A line counts as "current section"
-    # iff it sits inside ``pdf_observation.all_lines[start:end]``.
-    # Lines outside this range on the same page are
-    # NOT eligible for the "current section" treatment — they
-    # fall through to the section-boundary / intervening-marker
-    # branch. The ``section_line_range`` parameter MUST actually
-    # participate in the computation; previously it was passed
-    # without enforcement.
+    # Per B1 §4.3: ``section_line_range`` MUST be honored. A line
+    # counts as "current section" iff it sits inside
+    # ``pdf_observation.all_lines[start:end]``. Lines outside this
+    # range are NOT eligible for the "current section" treatment
+    # — they fall through to the section-boundary / intervening-
+    # marker branch (UNLESS they live in a true page-margin zone,
+    # which IS decoration).
     range_start, range_end = section_line_range
     section_line_id_set: set[tuple[int, int, int]] = set()
     for ln in pdf_observation.all_lines[range_start:range_end]:
         section_line_id_set.add((ln.page_number, ln.block_index, ln.line_index))
 
-    def _is_page_structural(line: _PdfLine) -> bool:
-        text = _fold_whitespace(line.text)
-        if not text:
-            return True
-        # Watermark / decorative shapes (very tall bbox).
-        if line.bbox[3] - line.bbox[1] > 30.0:
-            return True
-        # Page-number style tokens: "— 1 —", "— 2 —", "-1-", "1/12"
-        # (acceptable regex: optional spaces, dashes, digits, optional spaces)
-        if re.fullmatch(r"[\s—\-]*\d+[\s—\-/]*", text):
-            return True
-        # Recurring TEMPLATE header / footer (same text on multiple
-        # pages) — treat as page structural.
-        return line_text_counts.get(text, 0) > 1
+    def _classify(line: _PdfLine) -> str:
+        line_id = (
+            line.page_number,
+            line.block_index,
+            line.line_index,
+        )
+        if line_id in curr_segment_line_ids:
+            return "CURRENT_SEGMENT"
+        # TRUE_PAGE_DECORATION: empty / page-number-style / watermark /
+        # margin-zone (B1 §4.3 explicit).
+        if not _fold_whitespace(line.text):
+            return "EMPTY"
+        if _is_true_pdf_page_decoration(line=line, pdf_observation=pdf_observation):
+            return "DECORATION"
+        if line_id in section_line_id_set:
+            return "SECTION_BUT_NOT_SEGMENT"
+        return "OUTSIDE_SECTION"
 
     # A. Previous page trailing region.
     for line in pdf_observation.all_lines:
@@ -1099,7 +1289,8 @@ def _has_intervening_marker(
             continue
         if _is_renderer_unit_token(text):
             continue
-        if _is_page_structural(line):
+        cls = _classify(line)
+        if cls in ("CURRENT_SEGMENT", "DECORATION", "EMPTY"):
             continue
         return True
     # B. Current page leading region.
@@ -1113,13 +1304,8 @@ def _has_intervening_marker(
             continue
         if _is_renderer_unit_token(text):
             continue
-        if _is_page_structural(line):
-            continue
-        if (
-            line.page_number,
-            line.block_index,
-            line.line_index,
-        ) in curr_segment_line_ids:
+        cls = _classify(line)
+        if cls in ("CURRENT_SEGMENT", "DECORATION", "EMPTY"):
             continue
         return True
     return False
@@ -2183,6 +2369,65 @@ def _find_docx_table_candidate(
     return tuple(candidates)
 
 
+def _classify_pdf_row_kind(
+    *,
+    row_lines: tuple[_PdfLine, ...],
+    column_centers: tuple[float, ...],
+) -> str:
+    """Return row kind: 'unit' | 'data' based on full structural predicate.
+
+    Per P1-3 consolidated (seventh) corrective B2 section 5.3:
+    a row is a unit row iff ALL of the following hold:
+
+      * CELL_COUNT_MATCHES_COLUMN_COUNT=YES (a cell exists for
+        each column, possibly empty)
+      * AT_LEAST_ONE_NON_LEFTMOST_UNIT_TOKEN=YES
+      * FOR_EVERY_NON_LEFTMOST_POPULATED_CELL:
+        IS_RENDERER_UNIT_TOKEN=YES
+      * NO_NUMERIC_DATA_CELL_IN_UNIT_ROW=YES
+      * NO_PROSE_DATA_CELL_IN_UNIT_ROW=YES
+
+    The leftmost cell may be empty or a localized label.
+    Wrong unit (e.g. 'kW(r)') is still recognized as a unit row
+    (the comparison step will surface UNIT_MISMATCH).
+    """
+    if not row_lines or not column_centers:
+        return "data"
+    bands: list[tuple[int, str]] = []
+    for ln in row_lines:
+        folded = _fold_whitespace(ln.text)
+        if not folded:
+            continue
+        band = _body_line_band_for(ln, column_centers)
+        if band is None:
+            continue
+        bands.append((band, folded))
+    if not bands:
+        return "data"
+    expected_columns = len(column_centers)
+    non_empty_bands = sorted({b for b, _ in bands})
+    # Cell count matches.
+    if len(non_empty_bands) > expected_columns:
+        return "data"
+    non_leftmost = [(b, t) for b, t in bands if b > 0]
+    if not non_leftmost:
+        return "data"
+    # At least one non-leftmost cell must be a unit token.
+    if not any(_is_renderer_unit_token(t) for _, t in non_leftmost):
+        return "data"
+    # Every non-leftmost populated cell must be a unit token.
+    for _, t in non_leftmost:
+        if not _is_renderer_unit_token(t):
+            return "data"
+    # No numeric or prose data cell allowed in a unit row.
+    for _, t in non_leftmost:
+        if _looks_like_number(t):
+            return "data"
+        if len(t) > 24:
+            return "data"
+    return "unit"
+
+
 def _find_table_cell_binding_via_logical_table(
     *,
     pdf_logical_tables: tuple[_PdfLogicalTable, ...],
@@ -2520,8 +2765,12 @@ def _find_table_cell_binding(
             if band is None:
                 continue
             body0_band_to_text.append((band, ln.text))
-        non_leftmost_texts = [t for b, t in body0_band_to_text if b > 0]
-        body0_is_unit_structurally = any(_is_renderer_unit_token(t) for t in non_leftmost_texts)
+        body0_is_unit_structurally = (
+            _classify_pdf_row_kind(
+                row_lines=tuple(body0), column_centers=target_table.column_centers
+            )
+            == "unit"
+        )
         if body0_is_unit_structurally:
             unit_row_idx: int | None = 0
             data_row_idx = 1 + row_index
