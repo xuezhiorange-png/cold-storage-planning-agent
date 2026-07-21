@@ -829,26 +829,70 @@ def _verify_manifest_golden_binding(
 # ── Production service composition ──────────────────────────────────────────
 
 
+@dataclass
+class _PilotReportResources:
+    """Resource bundle returned by :func:`_compose_report_services`.
+
+    Carries the wired triplet + the two underlying SQLAlchemy
+    ``Session`` objects (the ``shared_session`` used by
+    ``SQLReportRepository`` + ``ReportRenderUnitOfWork`` and the
+    anonymous ``scheme_session`` used by ``SchemeRepository``) so the
+    caller can explicitly close them in a ``finally`` block.
+
+    The lifetime contract is **caller-owned** — the caller MUST
+    invoke :meth:`close` (or close both session fields directly)
+    before returning, on BOTH success and failure paths.
+    Composition code no longer relies on Python interpreter
+    shutdown / SQLAlchemy pool reset to release the connections.
+    """
+
+    report_service: ReportService
+    render_service: ReportRenderService
+    template_repository: SQLReportRepository
+    artifact_storage: ReportArtifactStorage
+    project_service: DatabaseProjectService
+    shared_session: Session
+    scheme_session: Session
+    _closed: bool = False
+
+    def close(self) -> None:
+        """Close the two composition-owned ``Session`` objects exactly once.
+
+        Idempotent — second call is a no-op. Errors during close are
+        swallowed (the connection pool will be disposed by the
+        caller's ``engine.dispose()``); the brief §5 ordered
+        release is preserved (report / UoW → scheme session →
+        engine).
+        """
+        if self._closed:
+            return
+        self._closed = True
+        for session_attr in ("shared_session", "scheme_session"):
+            sess = getattr(self, session_attr)
+            try:  # noqa: SIM105 - pool will release on engine.dispose
+                sess.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+
 def _compose_report_services(
     *,
     engine: Engine,
     output_root: Path,
-) -> tuple[
-    ReportService,
-    ReportRenderService,
-    SQLReportRepository,
-    ReportArtifactStorage,
-    DatabaseProjectService,
-]:
+) -> _PilotReportResources:
     """Compose the production report / render / storage triplet.
 
-    Returns the wired triplet in the order: ``report_service``,
-    ``render_service``, ``template_repository`` (the
-    ``SQLReportRepository`` instance, reused per app.py §Reports DI
-    wiring), ``artifact_storage`` (rooted under the pilot
-    ``output_root``), and ``project_service`` (production
-    ``DatabaseProjectService`` bound to the same engine — required by
-    :class:`RealReportDataProvider`).
+    Returns a :class:`_PilotReportResources` bundle; the caller owns
+    the bundle's lifecycle and MUST invoke
+    :meth:`_PilotReportResources.close` (or close both session
+    fields) in a ``finally`` block. This addresses the brief §5
+    resource-ownership gap: previously the composition opened
+    ``shared_session`` (report-side) + ``session_factory()``
+    (``SchemeRepository``) without returning either, relying on
+    Python interpreter shutdown / SQLAlchemy pool reset to release
+    the connections. On PostgreSQL this surfaced as pool-reset
+    ``psycopg2.OperationalError: SSL connection has been closed
+    unexpectedly`` during teardown.
 
     Composition-only boundary adapters (read-only, no production
     refactor) bridge two pre-existing ``RealReportDataProvider``
@@ -888,7 +932,8 @@ def _compose_report_services(
     )
     project_service = DatabaseProjectService(engine=engine)
     calculation_service = _PilotCalculationQueryAdapter(session_factory=session_factory)
-    scheme_repo = SchemeRepository(session_factory())
+    scheme_session = session_factory()
+    scheme_repo = SchemeRepository(scheme_session)
     scheme_query = _PilotSchemeQueryAdapter(
         inner=SchemeQueryService(repository=scheme_repo),
     )
@@ -899,12 +944,14 @@ def _compose_report_services(
     )
     assembler = ReportAssembler(data_provider=data_provider)
     report_service = ReportService(repository=report_repo, assembler=assembler)
-    return (
-        report_service,
-        render_service,
-        report_repo,
-        artifact_storage,
-        project_service,
+    return _PilotReportResources(
+        report_service=report_service,
+        render_service=render_service,
+        template_repository=report_repo,
+        artifact_storage=artifact_storage,
+        project_service=project_service,
+        shared_session=shared_session,
+        scheme_session=scheme_session,
     )
 
 
@@ -1047,93 +1094,112 @@ def _cmd_run(args: argparse.Namespace) -> int:
             engine = _provision_sqlite_database(database_url=args.database_url)
         else:
             engine = create_engine(args.database_url, future=True)
+        resources: _PilotReportResources | None = None
+        try:
+            session_factory = _build_session_factory(engine)
+            with session_factory() as seed_session:
+                seed_a1_all_prereqs(seed_session)
+                combined_source_hash = _expected_source_binding_sha(seed_session)
 
-        session_factory = _build_session_factory(engine)
-        with session_factory() as seed_session:
-            seed_a1_all_prereqs(seed_session)
-            combined_source_hash = _expected_source_binding_sha(seed_session)
+            outcome = run_scenario_via_markers(
+                session_factory,
+                source_binding_id=SOURCE_BINDING_ID,
+                weight_set_revision_id=WEIGHT_REVISION_ID,
+                correlation_marker=PILOT_BASELINE_CORRELATION_ID,
+                backend_marker=backend,
+            )
+            if outcome.outcome != "SUCCEEDED":
+                raise PilotCompositionError(
+                    code="BACKEND_RUNNER_FAILED",
+                    message=(
+                        f"backend runner returned outcome={outcome.outcome!r}; "
+                        "expected 'SUCCEEDED'."
+                    ),
+                )
 
-        outcome = run_scenario_via_markers(
-            session_factory,
-            source_binding_id=SOURCE_BINDING_ID,
-            weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker=PILOT_BASELINE_CORRELATION_ID,
-            backend_marker=backend,
-        )
-        if outcome.outcome != "SUCCEEDED":
-            raise PilotCompositionError(
-                code="BACKEND_RUNNER_FAILED",
-                message=(
-                    f"backend runner returned outcome={outcome.outcome!r}; expected 'SUCCEEDED'."
-                ),
+            scheme_run = outcome.scheme_run
+            project_id = scheme_run.project_id
+            project_version_id = scheme_run.project_version_id
+
+            # P1-1: manifest-golden binding MUST succeed before any of
+            # the four-render composition steps below (no
+            # ``_compose_report_services`` / no ``_seed_report_templates``
+            # / no ``verify_multilingual_report_pilot`` on mismatch).
+            # ``_verify_manifest_golden_binding`` raises
+            # ``PilotCompositionError(code='MANIFEST_GOLDEN_MISMATCH')``
+            # on failure; the comparison result is captured for the
+            # run_identity summary below.
+            _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
+                scenario=scenario,
+                manifest_path=bundle.manifest_path,
+                session_factory=session_factory,
+                scheme_run_id=str(scheme_run.id),
+            )
+            # P1-1 binding requirement: the typed ``Manifest`` object
+            # remains held in ``bundle.manifest`` for the lifetime of
+            # ``_cmd_run()`` (the bundle is a single source of
+            # manifest identity; the manifest MUST NOT be re-read or
+            # hand-parsed after ``_load_pilot_manifest`` returns).
+
+            resources = _compose_report_services(engine=engine, output_root=output_root)
+            template_repo = resources.template_repository
+            _seed_report_templates(template_repo)
+            download_artifact = _build_download_artifact(render_service=resources.render_service)
+
+            run_identity: dict[str, str] = {
+                "database_backend": backend,
+                "scenario_id": scenario.scenario_id,
+                "correlation_id": PILOT_BASELINE_CORRELATION_ID,
+                "source_binding_id": SOURCE_BINDING_ID,
+                "weight_set_revision_id": WEIGHT_REVISION_ID,
+                "combined_source_hash": combined_source_hash,
+                "manifest_scenario_id": scenario.scenario_id,
+                "manifest_expected_output_path": str(scenario.expected_output.path)
+                if scenario.expected_output is not None
+                and scenario.expected_output.path is not None
+                else "",
+                "manifest_expected_output_commit_sha": str(
+                    scenario.expected_output.commit_sha or ""
+                )
+                if scenario.expected_output is not None
+                else "",
+                "manifest_golden_comparison_result": "PASS",
+            }
+            summary = verify_multilingual_report_pilot(
+                report_service=resources.report_service,
+                render_service=resources.render_service,
+                template_repository=resources.template_repository,
+                project_id=project_id,
+                project_version_id=project_version_id,
+                source_commit_sha=commit_sha,
+                source_manifest_sha=source_manifest_sha,
+                output_root=output_root,
+                repeat_index=args.repeat_index,
+                run_identity=run_identity,
+                download_artifact=download_artifact,
             )
 
-        scheme_run = outcome.scheme_run
-        project_id = scheme_run.project_id
-        project_version_id = scheme_run.project_version_id
-
-        # P1-1: manifest-golden binding MUST succeed before any of
-        # the four-render composition steps below (no
-        # ``_compose_report_services`` / no ``_seed_report_templates``
-        # / no ``verify_multilingual_report_pilot`` on mismatch).
-        # ``_verify_manifest_golden_binding`` raises
-        # ``PilotCompositionError(code='MANIFEST_GOLDEN_MISMATCH')``
-        # on failure; the comparison result is captured for the
-        # run_identity summary below.
-        _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
-            scenario=scenario,
-            manifest_path=bundle.manifest_path,
-            session_factory=session_factory,
-            scheme_run_id=str(scheme_run.id),
-        )
-        # P1-1 binding requirement: the typed ``Manifest`` object
-        # remains held in ``bundle.manifest`` for the lifetime of
-        # ``_cmd_run()`` (the bundle is a single source of
-        # manifest identity; the manifest MUST NOT be re-read or
-        # hand-parsed after ``_load_pilot_manifest`` returns).
-
-        (
-            report_service,
-            render_service,
-            template_repo,
-            _artifact_storage,
-            _project_service,
-        ) = _compose_report_services(engine=engine, output_root=output_root)
-        _seed_report_templates(template_repo)
-        download_artifact = _build_download_artifact(render_service=render_service)
-
-        run_identity: dict[str, str] = {
-            "database_backend": backend,
-            "scenario_id": scenario.scenario_id,
-            "correlation_id": PILOT_BASELINE_CORRELATION_ID,
-            "source_binding_id": SOURCE_BINDING_ID,
-            "weight_set_revision_id": WEIGHT_REVISION_ID,
-            "combined_source_hash": combined_source_hash,
-            "manifest_scenario_id": scenario.scenario_id,
-            "manifest_expected_output_path": str(scenario.expected_output.path)
-            if scenario.expected_output is not None and scenario.expected_output.path is not None
-            else "",
-            "manifest_expected_output_commit_sha": str(scenario.expected_output.commit_sha or "")
-            if scenario.expected_output is not None
-            else "",
-            "manifest_golden_comparison_result": "PASS",
-        }
-        summary = verify_multilingual_report_pilot(
-            report_service=report_service,
-            render_service=render_service,
-            template_repository=template_repo,
-            project_id=project_id,
-            project_version_id=project_version_id,
-            source_commit_sha=commit_sha,
-            source_manifest_sha=source_manifest_sha,
-            output_root=output_root,
-            repeat_index=args.repeat_index,
-            run_identity=run_identity,
-            download_artifact=download_artifact,
-        )
-
-        sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
-        return EXIT_OK
+            sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
+            return EXIT_OK
+        finally:
+            # Brief §5 ordered release:
+            #   1. verifier/render/report operations complete (verified above)
+            #   2. report/UoW-owned sessions close (via resources.close())
+            #   3. scheme session closes (via resources.close())
+            #   4. any remaining session factories release connections
+            #   5. engine.dispose() releases the pool
+            # Releasing here on BOTH success and failure paths means
+            # the engine's connections are explicitly returned to
+            # PostgreSQL before pytest's fixture attempts
+            # ``DROP DATABASE ... WITH (FORCE)`` (preventing the
+            # "SQL connection has been closed unexpectedly" pool-reset
+            # errors observed in the prior round).
+            if resources is not None:
+                resources.close()
+            try:  # noqa: SIM105 - dispose best-effort
+                engine.dispose()
+            except Exception:  # noqa: BLE001
+                pass
     except PilotCompositionError as exc:
         sys.stderr.write(f"PILOT_COMPOSITION_ERROR code={exc.code}: {exc}\n")
         if exc.code in {"INPUT_ERROR", "MANIFEST_ERROR"}:
