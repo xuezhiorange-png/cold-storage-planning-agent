@@ -30,7 +30,6 @@ from __future__ import annotations
 import os
 import subprocess
 import uuid
-from urllib.parse import urlparse
 
 import pytest
 import sqlalchemy as sa
@@ -120,13 +119,16 @@ def _run_alembic(
     )
 
 
-def _admin_libpq_from_sa(url_sa: str) -> str:
-    """Convert a ``postgresql+psycopg2://`` URL to a plain libpq URL (no driver suffix)."""
-    parsed = urlparse(url_sa)
-    scheme = parsed.scheme.replace("+psycopg2", "")
-    pg_port = parsed.port or 5432
-    db_part = parsed.path.lstrip("/") or "postgres"
-    return f"{scheme}://{parsed.username}@{parsed.hostname}:{pg_port}/{db_part}"
+def _render_url_for_sa(url: sa.engine.URL) -> str:
+    """Render a SQLAlchemy URL to a string, preserving credentials & query params.
+
+    Wraps ``URL.render_as_string(hide_password=False)`` so that the
+    produced string carries the full credentialed, query-aware
+    representation that SQLAlchemy expects. Used by both the
+    SQLAlchemy ``sa.create_engine`` call and the Alembic subprocess
+    so they receive the **same** URL.
+    """
+    return url.render_as_string(hide_password=False)
 
 
 # ---------------------------------------------------------------------------
@@ -138,19 +140,22 @@ def _admin_libpq_from_sa(url_sa: str) -> str:
 def pg_test_db(pg_admin_url: str) -> str:
     """Per-test: a fresh PostgreSQL DATABASE (isolation unit).
 
-    Yields the test URL (``postgresql+psycopg2://.../<db>``). On
-    teardown, terminate open backends then ``DROP DATABASE ... WITH
+    Yields the test URL (``postgresql+psycopg2://.../<db>``) as a
+    string, with the **full** credentialed/query-aware URL preserved
+    from the original ``DATABASE_URL``. The database name is the only
+    field replaced — username, password, host, port, driver, query
+    parameters and SSL options all carry through unchanged.
+
+    On teardown, terminate open backends then ``DROP DATABASE ... WITH
     (FORCE)`` (no silent suppression).
     """
-    parsed = urlparse(pg_admin_url)
-    pg_user = parsed.username
-    pg_host = parsed.hostname
-    pg_port = parsed.port or 5432
+    admin_url = sa.engine.make_url(pg_admin_url)
     test_db_name = f"mig0039_{uuid.uuid4().hex[:12]}"
-    test_url = f"postgresql+psycopg2://{pg_user}@{pg_host}:{pg_port}/{test_db_name}"
-    admin_url_libpq = _admin_libpq_from_sa(pg_admin_url)
+    test_url_obj = admin_url.set(database=test_db_name)
+    test_url = _render_url_for_sa(test_url_obj)
+    admin_url_str = _render_url_for_sa(admin_url)
 
-    admin_eng = sa.create_engine(admin_url_libpq, isolation_level="AUTOCOMMIT")
+    admin_eng = sa.create_engine(admin_url_str, isolation_level="AUTOCOMMIT")
     try:
         with admin_eng.begin() as conn:
             conn.execute(sa.text(f'CREATE DATABASE "{test_db_name}"'))
@@ -183,11 +188,15 @@ def pg_test_schema(pg_test_db: str) -> str:
     """Per-test: a fresh PostgreSQL SCHEMA inside the test DB.
 
     Pre-creates the schema BEFORE alembic runs. Returns the schema
-    name. Disposes the admin engine on teardown.
+    name. Disposes the admin engine on teardown. The admin URL is
+    rebuilt via ``sa.engine.make_url`` so the test-DB URL (which
+    already has the per-test database name and the full original
+    credential/query options) is reused without manual reconstruction.
     """
     schema = f"tst_{uuid.uuid4().hex[:12]}"
-    admin_url_libpq = _admin_libpq_from_sa(pg_test_db)
-    admin_eng = sa.create_engine(admin_url_libpq, isolation_level="AUTOCOMMIT")
+    admin_url = sa.engine.make_url(pg_test_db)
+    admin_url_str = _render_url_for_sa(admin_url)
+    admin_eng = sa.create_engine(admin_url_str, isolation_level="AUTOCOMMIT")
     try:
         with admin_eng.begin() as conn:
             conn.execute(sa.text(f'CREATE SCHEMA "{schema}"'))

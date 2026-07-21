@@ -423,11 +423,8 @@ class TestMimeTypeMigrationSQLite:
             p = _insert_real_export_artifact(conn, mime_value=MIME_PDF)
 
         # Step 3: snapshot
-        pre_count = (
-            sqlite_engine.connect()
-            .execute(sa.text(f"SELECT COUNT(*) FROM {TBL_ARTIFACTS}"))
-            .scalar()
-        )
+        with sqlite_engine.connect() as conn:
+            pre_count = conn.execute(sa.text(f"SELECT COUNT(*) FROM {TBL_ARTIFACTS}")).scalar()
         pre_index_set = _index_names(sqlite_db_path, TBL_ARTIFACTS)
         pre_fk_set = _fk_list(sqlite_db_path, TBL_ARTIFACTS)
         pre_create_sql = _table_create_sql(sqlite_db_path, TBL_ARTIFACTS)
