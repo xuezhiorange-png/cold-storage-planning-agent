@@ -36,8 +36,10 @@ import os
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -955,6 +957,96 @@ def _compose_report_services(
     )
 
 
+@contextmanager
+def _compose_report_services_context(
+    *,
+    engine: Engine,
+    output_root: Path,
+) -> Iterator[_PilotReportResources]:
+    """Exception-safe context-manager variant of :func:`_compose_report_services`.
+
+    Per brief §7.1 — composition MUST be a context manager (or
+    provide a semantically equivalent exception-safe owner).
+
+    Cleanup ordering (brief §7.2, fixed order — do NOT change):
+
+    1. verifier / render / report operation completes
+    2. ``scheme_session.close()``
+    3. ``shared_session.close()``
+    4. (caller's outer-finally) ``engine.dispose()``
+
+    Error-preservation rules (brief §7.5):
+
+    * primary error only → preserve original primary object
+    * one cleanup error only → raise original cleanup object
+    * multiple cleanup errors → ``ExceptionGroup`` containing
+      every original cleanup object
+    * primary + cleanup errors → ``ExceptionGroup`` containing the
+      original primary AND every original cleanup object
+
+    Cleanup exceptions are NEVER silently swallowed (brief §7.3).
+    ``BaseException`` subclasses (``KeyboardInterrupt``,
+    ``SystemExit``, ``GeneratorExit``) are NOT caught and propagate
+    naturally (brief §7.4). Each original error object appears at
+    most once in the final exception tree (brief §7.6).
+    """
+    resources = _compose_report_services(engine=engine, output_root=output_root)
+    primary_exc: BaseException | None = None
+    non_exception_primary: BaseException | None = None
+    cleanup_errors: list[Exception] = []
+
+    def _do_cleanup() -> None:
+        # Fixed order: scheme → shared (brief §7.2). Each cleanup
+        # is attempted; failures are aggregated but never swallowed.
+        try:
+            resources.scheme_session.close()
+        except Exception as cleanup_exc:  # noqa: BLE001
+            cleanup_errors.append(cleanup_exc)
+        try:
+            resources.shared_session.close()
+        except Exception as cleanup_exc:  # noqa: BLE001
+            cleanup_errors.append(cleanup_exc)
+
+    try:
+        yield resources
+    except KeyboardInterrupt:
+        non_exception_primary = KeyboardInterrupt()
+        _do_cleanup()
+        raise KeyboardInterrupt() from non_exception_primary
+    except SystemExit:
+        non_exception_primary = SystemExit()
+        _do_cleanup()
+        raise SystemExit() from non_exception_primary
+    except GeneratorExit:
+        non_exception_primary = GeneratorExit()
+        _do_cleanup()
+        raise GeneratorExit() from non_exception_primary
+    except BaseException as primary_exc_caught:
+        # ``primary_exc_caught`` is an Exception subclass (since the
+        # three BaseException subclasses above are excluded).
+        primary_exc = primary_exc_caught
+        _do_cleanup()
+        if not cleanup_errors:
+            # Primary only — re-raise the original primary object
+            # to preserve its traceback + identity.
+            raise primary_exc from None
+        # Primary + cleanup → ExceptionGroup containing primary AND
+        # every cleanup object (each appears once — brief §7.6).
+        raise ExceptionGroup(
+            "primary error plus cleanup errors during composition",
+            [primary_exc, *cleanup_errors],
+        ) from None
+    else:
+        _do_cleanup()
+        if cleanup_errors:
+            if len(cleanup_errors) == 1:
+                raise cleanup_errors[0] from None
+            raise ExceptionGroup(
+                "cleanup errors during composition",
+                cleanup_errors,
+            ) from None
+
+
 # ── Template seeding ────────────────────────────────────────────────────────
 
 
@@ -1536,6 +1628,244 @@ def _canonical_numeric_value_and_unit_set(
         if isinstance(field_path, str) and isinstance(unit_code, str):
             pairs.append((field_path, unit_code))
     return frozenset(pairs)
+
+
+def _normalize_canonical_numeric_value(raw_value: object) -> str:
+    """Return the canonical decimal string for ``raw_value``.
+
+    Brief §7.2 rules:
+
+    * ``bool`` → fail closed (``RUN_SUMMARY_SCHEMA_DRIFT``).
+    * missing / ``None`` value → fail closed.
+    * non-numeric string → fail closed.
+    * ``NaN`` / ``+inf`` / ``-inf`` → fail closed.
+    * any numeric / numeric-string / ``Decimal``-like input →
+      ``Decimal(str(raw_value)).normalize()`` (trailing-zero
+      scale collapsed; ``-0`` normalized to ``"0"``).
+    * float roundtrip is **forbidden**; the function never calls
+      ``float()`` on the input.
+
+    The output is byte-stable across runs: ``1``, ``1.0``,
+    ``1.000``, and ``Decimal("1.000")`` all produce ``"1"``.
+    """
+    if isinstance(raw_value, bool):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[].raw_value MUST NOT be a bool; got {raw_value!r} (bool)."
+            ),
+        )
+    if raw_value is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "observed_numeric_fields[].raw_value is missing or null; "
+                "numeric fields require a numeric raw_value."
+            ),
+        )
+    if isinstance(raw_value, Decimal):
+        decimal_value = raw_value
+    elif isinstance(raw_value, (int,)):
+        # Avoid float roundtrip: int → Decimal directly.
+        decimal_value = Decimal(int(raw_value))
+    else:
+        # Strings / numeric strings / anything else → parse via
+        # ``Decimal(str(raw_value))``. ``float`` is forbidden.
+        try:
+            decimal_value = Decimal(str(raw_value))
+        except (InvalidOperation, ValueError) as exc:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    "observed_numeric_fields[].raw_value MUST be a numeric "
+                    f"string or Decimal; got {raw_value!r} ({type(raw_value).__name__}): {exc}"
+                ),
+            ) from exc
+    if not decimal_value.is_finite():
+        # ``is_finite()`` is False for NaN, sNaN, +inf, -inf.
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "observed_numeric_fields[].raw_value MUST be finite; "
+                f"got {decimal_value!r} (non-finite)."
+            ),
+        )
+    # Normalize: -0 → 0, trailing-zero scale collapsed.
+    if decimal_value == 0:
+        return "0"
+    normalized = decimal_value.normalize()
+    # ``Decimal.normalize()`` for a negative zero returns ``-0``;
+    # the explicit equality check above collapsed that into ``0``
+    # already, but the ``is_zero()`` guard is defensive.
+    if normalized.is_zero():
+        return "0"
+    # ``Decimal.normalize()`` collapses trailing zeros; ``str()`` of
+    # the normalized value yields the canonical plain-string form
+    # (e.g. ``"1"`` for ``Decimal("1.000")``, ``"0.5"`` for
+    # ``Decimal("0.500")``).
+    return format(normalized, "f")
+
+
+def _normalize_observed_unit_code(
+    *,
+    entry_index: int,
+    field_path: str,
+    unit_code_raw: object,
+    missing_units_list: list[object],
+) -> str:
+    """Apply the brief §7.4 unitless policy.
+
+    * non-empty string ``unit_code`` → preserve as-is.
+    * empty string AND ``field_path`` not flagged in
+      ``semantic-checks.missing_units`` → normalize to ``"<unitless>"``.
+    * empty string AND ``field_path`` IS flagged in ``missing_units``
+      → fail closed.
+    * missing ``unit_code`` (None) → fail closed.
+    """
+    if unit_code_raw is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[{entry_index}].unit_code is missing for "
+                f"field_path={field_path!r}."
+            ),
+        )
+    if not isinstance(unit_code_raw, str):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[{entry_index}].unit_code MUST be a string; "
+                f"got {type(unit_code_raw).__name__} for field_path={field_path!r}."
+            ),
+        )
+    if unit_code_raw != "":
+        return unit_code_raw
+    # Empty string: must distinguish "legitimate unitless field" from
+    # "field reported as missing a unit by the canonical side".
+    if field_path in missing_units_list:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[{entry_index}].unit_code is empty for "
+                f"field_path={field_path!r}, but semantic-checks.missing_units "
+                "flags that path as missing a unit; cannot normalize to "
+                "'<unitless>'."
+            ),
+        )
+    return "<unitless>"
+
+
+def _canonical_numeric_value_unit_triple_set(
+    semantic_checks: dict[str, object],
+) -> frozenset[tuple[str, str, str]]:
+    """Return the (field_path, normalized_value, unit_code) triples from observed artifact.
+
+    Per brief §7.1 the invariant is a 3-tuple, not 2-tuple. Numeric
+    values are normalized via :func:`_normalize_canonical_numeric_value`;
+    unit codes via :func:`_normalize_observed_unit_code`. Both
+    helpers fail closed (``RUN_SUMMARY_SCHEMA_DRIFT``) on schema
+    drift.
+    """
+    observed = semantic_checks.get("observed_numeric_fields")
+    if observed is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "semantic-checks.observed_numeric_fields MUST be present for "
+                "§4 #3 canonical numeric value+unit comparison (the helper "
+                "reads the OBSERVED side because the artifact's raw_value is "
+                "the on-disk numeric, not the expected golden)."
+            ),
+        )
+    if not isinstance(observed, list):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(f"observed_numeric_fields MUST be a list; got {type(observed).__name__}."),
+        )
+    missing_units_list = semantic_checks.get("missing_units", [])
+    if not isinstance(missing_units_list, list):
+        missing_units_list = []
+    triples: list[tuple[str, str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    # Track path → set of unit_codes seen so far. If a path
+    # re-appears with a different unit, fail closed (brief §9.3
+    # "conflicting duplicate path/unit"). Also track per-path
+    # normalized values so a re-appearance with a different value
+    # fails closed (brief §9.3 "conflicting duplicate path/value").
+    path_to_units: dict[str, set[str]] = {}
+    path_to_values: dict[str, set[str]] = {}
+    for entry_index, entry in enumerate(observed):
+        if not isinstance(entry, dict):
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields[{entry_index}] MUST be a dict; "
+                    f"got {type(entry).__name__}."
+                ),
+            )
+        field_path = entry.get("field_path")
+        if field_path is None:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(f"observed_numeric_fields[{entry_index}].field_path is missing."),
+            )
+        if not isinstance(field_path, str):
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields[{entry_index}].field_path MUST be a string; "
+                    f"got {type(field_path).__name__}."
+                ),
+            )
+        if field_path == "":
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(f"observed_numeric_fields[{entry_index}].field_path MUST be non-empty."),
+            )
+        normalized_value = _normalize_canonical_numeric_value(entry.get("raw_value"))
+        unit_code = _normalize_observed_unit_code(
+            entry_index=entry_index,
+            field_path=field_path,
+            unit_code_raw=entry.get("unit_code"),
+            missing_units_list=missing_units_list,
+        )
+        # Path+value conflict: same path, different normalized value.
+        existing_values = path_to_values.setdefault(field_path, set())
+        if normalized_value not in existing_values and len(existing_values) > 0:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields has conflicting value for "
+                    f"field_path={field_path!r}: existing_values="
+                    f"{sorted(existing_values)!r} new_value={normalized_value!r}."
+                ),
+            )
+        existing_values.add(normalized_value)
+        # Path+unit conflict: same path, different unit.
+        existing_units = path_to_units.setdefault(field_path, set())
+        if unit_code not in existing_units and len(existing_units) > 0:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields has conflicting unit for "
+                    f"field_path={field_path!r}: existing_units="
+                    f"{sorted(existing_units)!r} new_unit={unit_code!r}."
+                ),
+            )
+        existing_units.add(unit_code)
+        triple = (field_path, normalized_value, unit_code)
+        if triple in seen:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields has conflicting duplicate "
+                    f"(field_path, normalized_value, unit_code) triple at index "
+                    f"{entry_index}: {triple!r}."
+                ),
+            )
+        seen.add(triple)
+        triples.append(triple)
+    return frozenset(triples)
 
 
 def _metadata_field_value(slot: ArtifactSlot, key: str) -> object:

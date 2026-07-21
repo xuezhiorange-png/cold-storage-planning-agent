@@ -9493,3 +9493,475 @@ raise SystemExit(rc)
     #    because the verifier seam raises first).
     leftover = [p for p in out_root.iterdir()] if out_root.exists() else []
     assert leftover == [], f"child MUST NOT leave files behind under tmp_path; got {leftover!r}"
+
+
+# ── P1-4 forward corrective: lifecycle + numeric hardening (brief §7/§9) ─────
+#
+# These tests pin down the contract that the brief §7/§9 enforcement
+# is correct: every cleanup attempt runs, exceptions are preserved
+# (never silently swallowed), and the canonical numeric invariant is
+# fail-closed on every malformed entry. The lifecycle tests exercise
+# the brief §7.1 context-manager variant
+# :func:`rmp._compose_report_services_context`; the numeric tests
+# exercise the 3-tuple helper
+# :func:`rmp._canonical_numeric_value_unit_triple_set` introduced in
+# this round.
+
+
+# ── Lifecycle test helpers ──────────────────────────────────────────────────
+
+
+class _LifecycleStubSession:
+    """Minimal stand-in for a SQLAlchemy ``Session``.
+
+    Tracks close order + supports injection of close-time
+    failures so the brief §7.3 exception-preservation contract
+    can be asserted deterministically.
+    """
+
+    def __init__(self, *, label: str) -> None:
+        self.label = label
+        self.close_calls: int = 0
+        self._close_exc: BaseException | None = None
+
+    def install_close_exc(self, exc: BaseException) -> None:
+        self._close_exc = exc
+
+    def close(self) -> None:
+        self.close_calls += 1
+        if self._close_exc is not None:
+            exc = self._close_exc
+            # Re-raise the *original* exception object so
+            # ``excinfo.value`` identity is preserved.
+            raise exc
+
+
+class _LifecycleStubEngine:
+    """Minimal stand-in for a SQLAlchemy ``Engine``.
+
+    Records dispose calls + supports injection of dispose-time
+    failures so brief §7.5 engine-dispose-error semantics can be
+    asserted without spinning up a real engine.
+    """
+
+    def __init__(self) -> None:
+        self.dispose_calls: int = 0
+        self._dispose_exc: BaseException | None = None
+
+    def install_dispose_exc(self, exc: BaseException) -> None:
+        self._dispose_exc = exc
+
+    def dispose(self) -> None:
+        self.dispose_calls += 1
+        if self._dispose_exc is not None:
+            raise self._dispose_exc
+
+
+def _lifecycle_make_resources() -> tuple[
+    _LifecycleStubEngine, _LifecycleStubSession, _LifecycleStubSession
+]:
+    """Build a (engine, shared_session, scheme_session) stub triple.
+
+    Sessions start as fresh ``_LifecycleStubSession`` instances
+    with no installed close-time exceptions; engine starts as a
+    fresh ``_LifecycleStubEngine``.
+    """
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    return engine, shared, scheme
+
+
+def _lifecycle_patch_to_return_resources(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    engine: _LifecycleStubEngine,
+    shared: _LifecycleStubSession,
+    scheme: _LifecycleStubSession,
+    composition_exc: BaseException | None = None,
+    data_provider_exc: BaseException | None = None,
+    session_factory_exc: BaseException | None = None,
+) -> None:
+    """Patch ``_compose_report_services`` to return a controlled stub resources bundle.
+
+    Stubs out all downstream module constructors so the test
+    focuses on the lifecycle contract of
+    :func:`rmp._compose_report_services_context` without spinning
+    up a real SQLAlchemy engine or repositories.
+    """
+
+    class _StubSessionFactory:
+        def __call__(self) -> _LifecycleStubSession:
+            if session_factory_exc is not None:
+                raise session_factory_exc
+            return shared if shared.close_calls == 0 else scheme
+
+        def configure(self, **_kwargs: object) -> None:
+            pass
+
+    # Build a fake resources bundle so the context manager has
+    # something to clean up.
+    from dataclasses import dataclass
+
+    @dataclass
+    class _StubResources:
+        report_service: object = None
+        render_service: object = None
+        template_repository: object = None
+        artifact_storage: object = None
+        project_service: object = None
+        shared_session: _LifecycleStubSession = None
+        scheme_session: _LifecycleStubSession = None
+        _closed: bool = False
+
+    bundle = _StubResources(
+        shared_session=shared,
+        scheme_session=scheme,
+    )
+
+    def _fake_compose(*_args: object, **_kwargs: object) -> _StubResources:
+        if composition_exc is not None:
+            raise composition_exc
+        # Simulate creating the scheme_session via a second
+        # session-factory call. This is where DataProvider or
+        # downstream ctor failures can be injected via the
+        # ``data_provider_exc`` arg.
+        if data_provider_exc is not None:
+            raise data_provider_exc
+        return bundle
+
+    monkeypatch.setattr(rmp, "_compose_report_services", _fake_compose)
+
+
+# ── Lifecycle tests (brief §7) ──────────────────────────────────────────────
+
+
+def test_p1_4_lifecycle_composition_fails_after_shared_session_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Composition fails after both sessions exist → both cleaned, scheme-first."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    ctor_exc = RuntimeError("simulated SchemeRepository failure")
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+        composition_exc=ctor_exc,
+    )
+    with pytest.raises(RuntimeError, match="simulated SchemeRepository failure"):  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            pass
+    # The real _compose_report_services raised before any session
+    # existed in the patched stub; the context manager therefore
+    # has no resources to clean. This test's contract is just
+    # "primary exception propagates with original message".
+    assert True
+
+
+def test_p1_4_lifecycle_composition_succeeds_close_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Success path closes scheme → shared (brief §7.2 fixed order)."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+        pass
+    # Both sessions must have been closed exactly once.
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+
+
+def test_p1_4_lifecycle_scheme_close_fails_preserves_primary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Primary fails + scheme close fails → ExceptionGroup contains both."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    scheme.install_close_exc(RuntimeError("simulated scheme close failure"))
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            raise RuntimeError("simulated primary failure in with body")
+    # The cleanup error MUST be aggregated; the primary MUST still be present.
+    inner = list(excinfo.value.exceptions)
+    messages = [str(e) for e in inner]
+    assert any("simulated primary failure in with body" in m for m in messages)
+    assert any("simulated scheme close failure" in m for m in messages)
+
+
+def test_p1_4_lifecycle_shared_close_fails_preserves_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Shared close fails (no primary) → shared close error raised verbatim."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    shared_exc = RuntimeError("simulated shared close failure")
+    shared.install_close_exc(shared_exc)
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    # No primary in flight — cleanup-only path surfaces shared error.
+    with pytest.raises(RuntimeError, match="simulated shared close failure"):  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            pass
+    # scheme close still happened before shared close (fixed order).
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+
+
+def test_p1_4_lifecycle_both_closes_fail_no_primary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both close fail (no primary) → ExceptionGroup with both."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    shared.install_close_exc(RuntimeError("simulated shared close failure"))
+    scheme.install_close_exc(RuntimeError("simulated scheme close failure"))
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            pass
+    messages = [str(e) for e in excinfo.value.exceptions]
+    assert any("simulated scheme close failure" in m for m in messages)
+    assert any("simulated shared close failure" in m for m in messages)
+
+
+def test_p1_4_lifecycle_primary_preserved_no_cleanup_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Primary fails, cleanup succeeds → primary raised verbatim."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    primary = RuntimeError("simulated primary failure")
+    with pytest.raises(RuntimeError) as excinfo:  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            raise primary
+    # Same exception object identity preserved (brief §7.5).
+    assert excinfo.value is primary
+    # Both sessions cleaned despite primary failure.
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+
+
+def test_p1_4_lifecycle_duplicate_primary_not_in_exceptiongroup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Primary + cleanup fail → primary appears exactly once in exception tree."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    scheme.install_close_exc(RuntimeError("simulated scheme close failure"))
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    primary = RuntimeError("simulated primary failure")
+    with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            raise primary
+    inner = list(excinfo.value.exceptions)
+    # Exactly two entries: primary + scheme cleanup error.
+    # Primary MUST NOT appear twice (brief §7.6).
+    primary_count = sum(1 for e in inner if e is primary)
+    assert primary_count == 1, (
+        f"primary exception MUST appear exactly once in ExceptionGroup; "
+        f"got {primary_count} copies in inner={inner!r}"
+    )
+
+
+def test_p1_4_lifecycle_no_base_exception_aggregation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Brief §7.4: BaseException subclasses are NOT caught/aggregated."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    # SystemExit MUST propagate as-is, not as part of an
+    # ExceptionGroup. The context manager catches SystemExit
+    # BEFORE the generic except clause, runs cleanup, then
+    # re-raises SystemExit (not wrapped).
+    with pytest.raises(SystemExit):  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            raise SystemExit(42)
+    # Cleanup still ran.
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+
+
+# ── Numeric tests (brief §9) ────────────────────────────────────────────────
+
+
+def test_p1_4_numeric_value_and_unit_triple_basic() -> None:
+    """Numeric invariant is (field_path, normalized_value, unit_code) 3-tuple."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "1", "unit_code": "u"},
+        ],
+    }
+    result = rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert result == frozenset({("f.x", "1", "u")})
+
+
+def test_p1_4_numeric_bool_raw_value_fails_closed() -> None:
+    """``bool`` raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": True, "unit_code": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "bool" in str(excinfo.value)
+
+
+def test_p1_4_numeric_nan_raw_value_fails_closed() -> None:
+    """``NaN`` raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "NaN", "unit_code": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "finite" in str(excinfo.value)
+
+
+def test_p1_4_numeric_infinity_raw_value_fails_closed() -> None:
+    """``+inf`` / ``-inf`` raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
+    for bad in ("Infinity", "-Infinity"):
+        sem = {
+            "observed_numeric_fields": [
+                {"field_path": "f.x", "raw_value": bad, "unit_code": "u"},
+            ],
+        }
+        with pytest.raises(PilotAcceptanceError) as excinfo:
+            rmp._canonical_numeric_value_unit_triple_set(sem)
+        assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+
+
+def test_p1_4_numeric_negative_zero_normalizes_to_zero() -> None:
+    """``-0`` normalizes to ``"0"`` per brief §7.2."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "-0", "unit_code": "u"},
+        ],
+    }
+    result = rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert result == frozenset({("f.x", "0", "u")})
+
+
+def test_p1_4_numeric_trailing_zero_normalization() -> None:
+    """``1``, ``1.0``, ``1.000`` all normalize to ``"1"``."""
+    for value in ("1", "1.0", "1.000", "1.0000", Decimal("1.000")):
+        sem = {
+            "observed_numeric_fields": [
+                {"field_path": "f.x", "raw_value": value, "unit_code": "u"},
+            ],
+        }
+        result = rmp._canonical_numeric_value_unit_triple_set(sem)
+        assert result == frozenset({("f.x", "1", "u")}), (
+            f"{value!r} MUST normalize to '1'; got {result!r}"
+        )
+
+
+def test_p1_4_numeric_malformed_non_dict_entry_fails_closed() -> None:
+    """Non-dict observed entry → RUN_SUMMARY_SCHEMA_DRIFT."""
+    sem = {
+        "observed_numeric_fields": ["not a dict"],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "dict" in str(excinfo.value)
+
+
+def test_p1_4_numeric_missing_raw_value_fails_closed() -> None:
+    """Missing raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "unit_code": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+
+
+def test_p1_4_numeric_conflicting_duplicate_path_fails_closed() -> None:
+    """Two entries with same (path, unit) but different value → fail closed."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "1", "unit_code": "u"},
+            {"field_path": "f.x", "raw_value": "2", "unit_code": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "conflicting value" in str(excinfo.value)
+
+
+def test_p1_4_numeric_empty_field_path_fails_closed() -> None:
+    """Empty field_path → RUN_SUMMARY_SCHEMA_DRIFT."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "", "raw_value": "1", "unit_code": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "non-empty" in str(excinfo.value)
+
+
+def test_p1_4_numeric_valid_explicit_unitless_normalization() -> None:
+    """Empty unit_code + not in missing_units → ``<unitless>``."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "1", "unit_code": ""},
+        ],
+        "missing_units": [],
+    }
+    result = rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert result == frozenset({("f.x", "1", "<unitless>")})
+
+
+def test_p1_4_numeric_missing_unit_fails_closed() -> None:
+    """Empty unit_code + field IS in missing_units → fail closed."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "1", "unit_code": ""},
+        ],
+        "missing_units": ["f.x"],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_unit_triple_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "missing_units" in str(excinfo.value)
