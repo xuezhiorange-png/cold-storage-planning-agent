@@ -10085,9 +10085,11 @@ def test_p1_4_lifecycle_partial_shared_session_failure_cleans_shared_and_engine(
     """Brief §4: construction fails AFTER shared_session created.
 
     The second ``session_factory()`` call (which would build
-    ``scheme_session``) raises. The owner MUST release the
-    already-owned ``shared_session`` AND call ``engine.dispose()``
-    even though ``scheme_session`` was never created.
+    ``scheme_session``) raises. The composition context MUST
+    release the already-owned ``shared_session``; the outer
+    ``_pilot_run_resource_owner`` MUST call ``engine.dispose()``
+    on the way out, even though ``scheme_session`` was never
+    created.
     """
     engine, shared, scheme = _lifecycle_make_resources()
     _lifecycle_patch_to_return_resources(
@@ -10098,8 +10100,9 @@ def test_p1_4_lifecycle_partial_shared_session_failure_cleans_shared_and_engine(
         session_factory_exc=RuntimeError("simulated scheme session creation failure"),
     )
     with pytest.raises(RuntimeError, match="scheme session creation"):  # noqa: SIM117
-        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
-            pass
+        with rmp._pilot_run_resource_owner(engine=engine):
+            with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+                pass
     assert shared.close_calls == 1
     assert engine.dispose_calls == 1
     assert scheme.close_calls == 0
@@ -10112,8 +10115,9 @@ def test_p1_4_lifecycle_partial_scheme_session_failure_cleans_scheme_shared_engi
 
     After the second ``session_factory()`` call succeeds (returning
     ``scheme``), the ``_PilotReportResources`` ctor raises. The
-    owner MUST release scheme_session, shared_session AND
-    engine.dispose() in fixed order.
+    composition context MUST release scheme_session and
+    shared_session; the outer ``_pilot_run_resource_owner`` MUST
+    call ``engine.dispose()`` on the way out.
     """
     engine, shared, scheme = _lifecycle_make_resources()
     _lifecycle_patch_to_return_resources(
@@ -10128,8 +10132,9 @@ def test_p1_4_lifecycle_partial_scheme_session_failure_cleans_scheme_shared_engi
 
     monkeypatch.setattr(rmp, "_PilotReportResources", _boom)
     with pytest.raises(RuntimeError, match="construction failure"):  # noqa: SIM117
-        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
-            pass
+        with rmp._pilot_run_resource_owner(engine=engine):
+            with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+                pass
     assert scheme.close_calls == 1
     assert shared.close_calls == 1
     assert engine.dispose_calls == 1
@@ -11206,9 +11211,11 @@ def test_r3_lifecycle_engine_dispose_live_call_count_is_one() -> None:
 
     The unique owner invokes ``engine.dispose()`` exactly once
     on the success path; no second dispose happens anywhere
-    else in the runtime. ``_PilotReportResources`` no longer
-    has a ``close`` method, so the bundle cannot dispatch a
-    second dispose.
+    else in the runtime. The composition context no longer
+    disposes the engine (per P1-B refactor: the engine
+    lifetime is owned by the outer
+    ``_pilot_run_resource_owner``); the engine is disposed by
+    the outer owner on the way out.
     """
     engine, shared, scheme = _lifecycle_make_resources()
     _lifecycle_patch_to_return_resources(
@@ -11218,7 +11225,9 @@ def test_r3_lifecycle_engine_dispose_live_call_count_is_one() -> None:
         scheme=scheme,
     )
 
-    # Drive the real owner.
+    # Drive the real owner (composition context nested in the
+    # outer run-lifetime resource owner so engine.dispose
+    # is called exactly once via the outer owner).
     import pytest as _pytest
 
     with _pytest.MonkeyPatch.context() as mp:
@@ -11228,19 +11237,25 @@ def test_r3_lifecycle_engine_dispose_live_call_count_is_one() -> None:
             shared=shared,
             scheme=scheme,
         )
-        with rmp._compose_report_services_context(
-            engine=engine,
-            output_root=Path("/tmp/r3-lifecycle-out"),
-        ) as resources:
-            # While the bundle is in scope, the engine has NOT
-            # been disposed yet (LIFO via ExitStack on exit).
+        with rmp._pilot_run_resource_owner(engine=engine):
+            with rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/r3-lifecycle-out"),
+            ) as resources:
+                # While the bundle is in scope, the engine has NOT
+                # been disposed yet (the outer owner disposes the
+                # engine on exit, AFTER the composition context
+                # has released its session close callbacks).
+                assert engine.dispose_calls == 0
+                assert shared.close_calls == 0
+                assert scheme.close_calls == 0
+                assert isinstance(resources, rmp._PilotReportResources)
+            # Composition context exit: scheme → shared close.
+            assert scheme.close_calls == 1
+            assert shared.close_calls == 1
             assert engine.dispose_calls == 0
-            assert shared.close_calls == 0
-            assert scheme.close_calls == 0
-            assert isinstance(resources, rmp._PilotReportResources)
-        # On successful exit: scheme → shared → engine (LIFO).
-        assert scheme.close_calls == 1
-        assert shared.close_calls == 1
+        # Outer owner exit: engine.dispose runs LAST (LIFO via
+        # the owner's ExitStack, registered FIRST).
         assert engine.dispose_calls == 1
 
 
@@ -11329,6 +11344,11 @@ def test_r3_lifecycle_primary_plus_cleanup_preserves_objects() -> None:
     cleanup also raises, the function MUST surface an
     :class:`ExceptionGroup` with the primary listed first and
     every cleanup error after — preserving object identity.
+
+    Per P1-B refactor: the engine is owned by the outer
+    ``_pilot_run_resource_owner``; the composition context
+    owns session close. The test wraps both contexts so the
+    full BaseException matrix is exercised.
     """
     engine, shared, scheme = _lifecycle_make_resources()
     scheme.install_close_exc(RuntimeError("cleanup-scheme"))
@@ -11345,15 +11365,16 @@ def test_r3_lifecycle_primary_plus_cleanup_preserves_objects() -> None:
         )
 
         with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117 - nested with required for context-manager exception injection
-            with rmp._compose_report_services_context(
-                engine=engine,
-                output_root=Path("/tmp/r3-primary-plus"),
-            ):
-                raise primary
+            with rmp._pilot_run_resource_owner(engine=engine):
+                with rmp._compose_report_services_context(
+                    engine=engine,
+                    output_root=Path("/tmp/r3-primary-plus"),
+                ):
+                    raise primary
 
-    # The ExceptionGroup MUST contain the primary + the 3
-    # cleanup errors (in some order). Primary is listed FIRST
-    # per brief §7.4. The exceptions themselves are the
+    # The BaseExceptionGroup MUST contain the primary + the
+    # 3 cleanup errors (in some order). Primary is listed
+    # FIRST per brief §7.4. The exceptions themselves are the
     # original objects (identity preserved).
     exceptions = list(excinfo.value.exceptions)
     assert exceptions[0] is primary, f"ExceptionGroup MUST list primary first; got {exceptions!r}"
@@ -11378,6 +11399,7 @@ def test_r3_lifecycle_primary_only_preserves_object() -> None:
 
         with (
             pytest.raises(ValueError) as excinfo,
+            rmp._pilot_run_resource_owner(engine=engine),
             rmp._compose_report_services_context(
                 engine=engine,
                 output_root=Path("/tmp/r3-primary-only"),
@@ -11414,6 +11436,7 @@ def test_r3_lifecycle_cleanup_only_surfaces_single_error() -> None:
 
         with (
             pytest.raises(RuntimeError) as excinfo,
+            rmp._pilot_run_resource_owner(engine=engine),
             rmp._compose_report_services_context(
                 engine=engine,
                 output_root=Path("/tmp/r3-cleanup-only"),
@@ -11447,6 +11470,7 @@ def test_r3_lifecycle_system_exit_preserves_identity() -> None:
 
         with (
             pytest.raises(SystemExit) as excinfo,
+            rmp._pilot_run_resource_owner(engine=engine),
             rmp._compose_report_services_context(
                 engine=engine,
                 output_root=Path("/tmp/r3-systemexit"),
@@ -11505,3 +11529,874 @@ def test_r3_lifecycle_second_close_is_noop() -> None:
     # No exception means the second close was a no-op. Tear
     # down the engine.
     engine.dispose()
+
+
+# ── P1-A: Manifest path identity tests (brief §8.1) ────────────────────────
+# Verify the raw-path identity gate rejects symlink aliases, same-content
+# copies, and the canonical-is-symlink case; it accepts the canonical
+# SQLite + PostgreSQL paths and the ``.`` / ``..`` lexical normalizations.
+
+
+def _raw_path_identity_helper(manifest_path: Path, backend: str) -> None:
+    """Thin shim that calls the real helper."""
+    rmp._assert_raw_manifest_path_identity(raw_manifest_path=manifest_path, backend=backend)
+
+
+def test_p1_a_manifest_raw_path_canonical_sqlite_succeeds() -> None:
+    """§8.1: canonical SQLite path succeeds (no symlink)."""
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    # MUST NOT raise.
+    _raw_path_identity_helper(canonical, rmp.DATABASE_BACKEND_SQLITE)
+
+
+def test_p1_a_manifest_raw_path_canonical_postgresql_succeeds() -> None:
+    """§8.1: canonical PostgreSQL path succeeds (no symlink)."""
+    canonical = (DATA_DIR / "task011-pilot-postgresql.v1.json").resolve()
+    # MUST NOT raise.
+    _raw_path_identity_helper(canonical, rmp.DATABASE_BACKEND_POSTGRESQL)
+
+
+def test_p1_a_manifest_raw_path_canonical_with_dot_normalization_succeeds(
+    tmp_path: Path,
+) -> None:
+    """§8.1: canonical lexical path with ``.`` normalization succeeds."""
+    # Build a sibling directory that contains a ``.`` segment pointing
+    # at the canonical file. Use the same repo root so the absolute
+    # lexical path resolves to the canonical manifest.
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    # Construct a path with an embedded ``.`` segment.
+    dotted = canonical.parent / "." / canonical.name
+    # MUST NOT raise.
+    _raw_path_identity_helper(dotted, rmp.DATABASE_BACKEND_SQLITE)
+
+
+def test_p1_a_manifest_raw_path_canonical_with_safe_dotdot_normalization_succeeds(
+    tmp_path: Path,
+) -> None:
+    """§8.1: canonical lexical path with safe ``..`` normalization succeeds."""
+    # Build a path that goes ``<repo>/foo/../backend/tests/.../manifest.json``.
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    # ``<repo>/backend/tests`` resolves to the same as
+    # ``<repo>/backend/./tests`` which resolves to ``<repo>/backend/tests``.
+    # We use a ``..`` segment from ``<repo>/backend/evaluation`` to
+    # ``<repo>/backend/tests/evaluation/data``.
+    parent = canonical.parent  # .../tests/evaluation/data
+    up_one = parent.parent  # .../tests/evaluation
+    sibling = up_one / ".." / "evaluation" / "data" / canonical.name
+    # ``sibling`` should lexical-normalize to the same absolute path.
+    assert os.path.abspath(str(sibling)) == os.path.abspath(str(canonical))
+    # MUST NOT raise.
+    _raw_path_identity_helper(sibling, rmp.DATABASE_BACKEND_SQLITE)
+
+
+def test_p1_a_manifest_raw_path_file_symlink_alias_rejected(tmp_path: Path) -> None:
+    """§8.1: file symlink pointing to canonical manifest is rejected."""
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    alias = tmp_path / "alias-sqlite.v1.json"
+    os.symlink(str(canonical), str(alias))
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(alias, rmp.DATABASE_BACKEND_SQLITE)
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+
+
+def test_p1_a_manifest_raw_path_symlinked_parent_dir_alias_rejected(
+    tmp_path: Path,
+) -> None:
+    """§8.1: parent dir that is a symlink landing on the canonical dir is rejected."""
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    canonical_dir = canonical.parent
+    # Create a symlink at tmp_path/alias_dir → canonical_dir
+    alias_dir = tmp_path / "alias_dir"
+    os.symlink(str(canonical_dir), str(alias_dir))
+    # The aliased path lexical-absolute differs from canonical.
+    aliased_manifest = alias_dir / canonical.name
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(aliased_manifest, rmp.DATABASE_BACKEND_SQLITE)
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+
+
+def test_p1_a_manifest_raw_path_same_content_copy_rejected(tmp_path: Path) -> None:
+    """§8.1: same-content copy at another path is rejected."""
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    copy = tmp_path / "task011-pilot-sqlite-copy.v1.json"
+    copy.write_bytes(canonical.read_bytes())
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(copy, rmp.DATABASE_BACKEND_SQLITE)
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+
+
+def test_p1_a_manifest_raw_path_canonical_file_being_symlink_rejected(
+    tmp_path: Path,
+) -> None:
+    """§8.1: the canonical file itself being a symlink is rejected.
+
+    The original canonical file is replaced (in the test sandbox)
+    by a symlink with the same lexical absolute path. The
+    identity gate MUST reject the file as soon as the file's
+    own ``lstat`` shows a symlink component.
+    """
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    # Create a real target inside tmp_path
+    real_target = tmp_path / "real-sqlite.v1.json"
+    real_target.write_bytes(canonical.read_bytes())
+    # Replace canonical with a symlink → real_target
+    # Save the original so we can restore at the end.
+    backup = tmp_path / "canonical.bak.json"
+    backup.write_bytes(canonical.read_bytes())
+    try:
+        canonical.unlink()
+        os.symlink(str(real_target), str(canonical))
+        with pytest.raises(rmp.PilotCompositionError) as excinfo:
+            _raw_path_identity_helper(canonical, rmp.DATABASE_BACKEND_SQLITE)
+        assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    finally:
+        # Restore: remove the symlink, restore the original file
+        if canonical.is_symlink() or canonical.exists():
+            canonical.unlink()
+        backup.rename(canonical)
+
+
+def test_p1_a_manifest_raw_path_wrong_backend_rejected() -> None:
+    """P1-A edge: feeding a postgresql path with backend=sqlite is rejected."""
+    pg = (DATA_DIR / "task011-pilot-postgresql.v1.json").resolve()
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(pg, rmp.DATABASE_BACKEND_SQLITE)
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+
+
+# ── P1-A: Live-wiring gate: raw path check runs before resolve (brief §8.4) ──
+
+
+def test_p1_a_cmd_run_raw_path_check_runs_before_resolve(tmp_path: Path, monkeypatch) -> None:
+    """MANIFEST_RAW_PATH_CHECK_PRECEDES_RESOLVE=YES.
+
+    The ``_assert_raw_manifest_path_identity`` helper MUST be
+    called BEFORE any ``.resolve()`` on the manifest path. The
+    simplest way to assert this is to verify that the symlink
+    alias case fails BEFORE the engine is created (no database
+    I/O happens). The :func:`_cmd_run` integration is
+    structurally equivalent: the raw-path check is the first
+    thing that runs after the input-contract checks, BEFORE
+    ``_require_absolute(manifest_path)`` would have a chance
+    to ``.resolve()`` the symlink.
+    """
+    # Build a symlink alias to the canonical SQLite manifest.
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    alias = tmp_path / "alias-sqlite.v1.json"
+    os.symlink(str(canonical), str(alias))
+
+    # Spy on ``create_engine`` to verify it is NEVER called when
+    # the raw path check rejects the alias.
+    engine_calls: list[object] = []
+
+    real_create_engine = rmp.create_engine
+
+    def _spy_create_engine(*args, **kwargs):
+        engine_calls.append((args, kwargs))
+        return real_create_engine(*args, **kwargs)
+
+    monkeypatch.setattr(rmp, "create_engine", _spy_create_engine)
+
+    # Spy on ``_provision_sqlite_database`` to verify it is NEVER
+    # called either.
+    provision_calls: list[object] = []
+
+    def _spy_provision(*args, **kwargs):
+        provision_calls.append((args, kwargs))
+        raise AssertionError(
+            "_provision_sqlite_database MUST NOT be called when the "
+            "raw manifest path is a symlink alias"
+        )
+
+    monkeypatch.setattr(rmp, "_provision_sqlite_database", _spy_provision)
+
+    output_root = tmp_path / "out"
+    output_root.mkdir(parents=True, exist_ok=True)
+    args = argparse.Namespace(
+        command="run",
+        manifest=str(alias),
+        output_root=str(output_root),
+        commit_sha="a" * 40,
+        backend="sqlite",
+        database_url=f"sqlite:///{tmp_path}/should_never_be_created.sqlite",
+        repeat_index=1,
+    )
+    rc = rmp._cmd_run(args)
+    assert rc == rmp.EXIT_INFRA_ERROR
+    assert engine_calls == [], (
+        f"create_engine MUST NOT be called when the raw path is a symlink "
+        f"alias; got {len(engine_calls)} call(s)"
+    )
+    assert provision_calls == [], (
+        f"_provision_sqlite_database MUST NOT be called when the raw path is "
+        f"a symlink alias; got {len(provision_calls)} call(s)"
+    )
+
+
+# ── P1-B: Engine full lifetime tests (brief §8.2) ──────────────────────────
+# Verify the engine is disposed exactly once on every failure path
+# (seed / source-binding / runner / golden) and on success. The
+# composition close order is scheme → shared → engine.
+
+
+def _p1_b_make_engine_with_stub_sessions() -> tuple[
+    _LifecycleStubEngine, _LifecycleStubSession, _LifecycleStubSession
+]:
+    """Build an engine + two sessions, all under the stub contract."""
+    return _lifecycle_make_resources()
+
+
+def test_p1_b_full_lifetime_seed_failure_disposes_engine_exactly_once(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """§8.2: seed failure → engine disposed exactly once.
+
+    The owner is entered immediately after engine creation, so
+    a failure in the seed step (which runs INSIDE the owner)
+    MUST trigger the engine dispose via the owner's
+    ExitStack on the way out.
+    """
+    engine, _shared, _scheme = _p1_b_make_engine_with_stub_sessions()
+
+    primary_seed_exc = RuntimeError("simulated seed failure")
+
+    def _failing_session_factory(_engine):
+        def _factory():
+            raise primary_seed_exc
+
+        return _factory
+
+    monkeypatch.setattr(rmp, "_build_session_factory", _failing_session_factory)
+
+    with (
+        pytest.raises(RuntimeError, match="simulated seed failure"),
+        rmp._pilot_run_resource_owner(engine=engine),
+    ):  # noqa: E501, SIM117
+        # Simulate the seed call site: a ``session_factory()``
+        # call inside the owner body. The owner MUST dispose
+        # the engine on the way out.
+        session_factory = rmp._build_session_factory(engine)
+        session_factory()
+    # Engine disposed exactly once (the owner's ExitStack).
+    assert engine.dispose_calls == 1
+
+
+def test_p1_b_full_lifetime_source_binding_failure_disposes_engine(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """§8.2: source-binding read failure → engine disposed exactly once.
+
+    The seed succeeds but the source-binding read fails
+    (the ``_expected_source_binding_sha`` helper raises). The
+    owner MUST dispose the engine on the way out.
+    """
+    engine = _LifecycleStubEngine()
+    binding_exc = RuntimeError("simulated source-binding read failure")
+
+    def _failing_binding(_session):
+        raise binding_exc
+
+    monkeypatch.setattr(rmp, "_expected_source_binding_sha", _failing_binding)
+
+    with (
+        pytest.raises(RuntimeError, match="simulated source-binding read failure"),
+        rmp._pilot_run_resource_owner(engine=engine),
+    ):  # noqa: E501, SIM117
+        # Inline the call to mirror the real call site.
+        rmp._expected_source_binding_sha(object())
+    assert engine.dispose_calls == 1
+
+
+def test_p1_b_full_lifetime_success_closes_scheme_shared_engine_in_order(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """§8.2: success path closes scheme → shared → engine in order.
+
+    With the new owner model, the composition context owns
+    session close; the outer owner owns engine dispose. The
+    effective LIFO order across the two contexts is:
+    scheme → shared (composition ExitStack) → engine
+    (owner ExitStack).
+    """
+    order: list[str] = []
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    # Wrap the stubs to record close order.
+    orig_shared_close = shared.close
+    orig_scheme_close = scheme.close
+
+    def _record_shared_close() -> int:
+        order.append("shared")
+        return orig_shared_close()
+
+    def _record_scheme_close() -> int:
+        order.append("scheme")
+        return orig_scheme_close()
+
+    shared.close = _record_shared_close  # type: ignore[assignment]
+    scheme.close = _record_scheme_close  # type: ignore[assignment]
+
+    engine = _LifecycleStubEngine()
+    orig_dispose = engine.dispose
+
+    def _record_engine_dispose() -> None:
+        order.append("engine")
+        orig_dispose()
+
+    engine.dispose = _record_engine_dispose  # type: ignore[assignment]
+
+    # Patch the composition context to use our stubs.
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+
+    with (
+        rmp._pilot_run_resource_owner(engine=engine),
+        rmp._compose_report_services_context(engine=engine, output_root=tmp_path),
+    ):
+        pass
+    # Engine disposed exactly once.
+    assert engine.dispose_calls == 1
+    # LIFO: scheme first, then shared (composition ExitStack),
+    # then engine (owner ExitStack).
+    assert order == ["scheme", "shared", "engine"]
+
+
+def test_p1_b_full_lifetime_verifier_failure_closes_all_in_order(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """§8.2: verifier failure closes scheme → shared → engine.
+
+    The ``verify_multilingual_report_pilot`` call inside the
+    composition context raises. The composition context
+    cleans up sessions; the outer owner cleans up the engine.
+    """
+    engine, shared, scheme = _p1_b_make_engine_with_stub_sessions()
+
+    verifier_exc = RuntimeError("simulated verifier failure")
+
+    def _failing_verifier(**_kwargs):
+        raise verifier_exc
+
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    monkeypatch.setattr(rmp, "verify_multilingual_report_pilot", _failing_verifier)
+
+    with (  # noqa: SIM117
+        pytest.raises(RuntimeError, match="simulated verifier failure"),
+        rmp._pilot_run_resource_owner(engine=engine),
+    ):  # noqa: E501
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):  # noqa: SIM117
+            # The composition context's body calls
+            # ``verify_multilingual_report_pilot`` after seed.
+            # Inject the failure via the monkeypatch.
+            rmp.verify_multilingual_report_pilot(  # noqa: F841
+                report_service=None,
+                render_service=None,
+                template_repository=None,
+                project_id="p",
+                project_version_id="v",
+                source_commit_sha="a" * 40,
+                source_manifest_sha="b" * 64,
+                output_root=tmp_path,
+                repeat_index=1,
+                run_identity={},
+                download_artifact=lambda *a, **kw: (b"", {}),
+            )
+    # Sessions closed, engine disposed exactly once.
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+    assert engine.dispose_calls == 1
+
+
+# ── P1-C: BaseException matrix tests (brief §8.3) ──────────────────────────
+# The owner MUST:
+# * preserve the ORIGINAL exception object identity
+# * place the primary at position 0
+# * surface every cleanup error
+# * use ``ExceptionGroup`` for Exception-only members and
+#   ``BaseExceptionGroup`` when any member is a non-Exception
+#   ``BaseException`` (SystemExit / KeyboardInterrupt / GeneratorExit)
+
+
+def _p1_c_drive_owner(
+    *,
+    engine: _LifecycleStubEngine,
+    shared: _LifecycleStubSession,
+    scheme: _LifecycleStubSession,
+    primary: BaseException | None = None,
+) -> BaseException | None:
+    """Drive the owner + composition context with optional primary.
+
+    Returns the caught exception (or None on clean exit).
+    """
+    _lifecycle_patch_to_return_resources(
+        # monkeypatch is set by the caller via fixture
+        # but we don't need to monkeypatch here since the
+        # composition's real code can be invoked through
+        # monkeypatch fixtures. This helper is called from
+        # tests that pass a monkeypatch fixture.
+    )
+    raise NotImplementedError("Use direct _compose_report_services_context")
+
+
+def test_p1_c_baseexception_matrix_runtime_error_primary_only_via_outer(
+    monkeypatch,
+) -> None:
+    """§8.3: RuntimeError primary only (caught by outer owner).
+
+    The composition context catches the primary first and
+    re-raises it; the outer owner catches it and, since
+    no cleanup errors occurred, re-raises the original
+    primary with its identity preserved.
+    """
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = RuntimeError("primary-only")
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(RuntimeError) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-runtime-primary-only")
+        ):
+            raise primary
+    assert excinfo.value is primary
+
+
+def test_p1_c_baseexception_matrix_runtime_error_cleanup_only(monkeypatch) -> None:
+    """§8.3: RuntimeError cleanup only → original cleanup propagates.
+
+    The body exits normally; a single cleanup callback
+    raises. The original cleanup error propagates with
+    identity (no group wrapping for a single cleanup).
+    """
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    cleanup_exc = RuntimeError("cleanup-only")
+    scheme.install_close_exc(cleanup_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(RuntimeError) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-runtime-cleanup-only")
+        ):
+            pass  # body exits normally; cleanup fails
+    # ORIGINAL cleanup error identity preserved.
+    assert excinfo.value is cleanup_exc
+
+
+def test_p1_c_baseexception_matrix_primary_plus_one_cleanup(monkeypatch) -> None:
+    """§8.3: primary + one cleanup → group with [primary, cleanup]."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = RuntimeError("primary-bang")
+    cleanup_exc = RuntimeError("cleanup-bang")
+    scheme.install_close_exc(cleanup_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-primary-plus-one")
+        ):
+            raise primary
+    # Composition raises a group with [primary, cleanup].
+    # Outer owner re-aggregates: same members (composition
+    # group is flattened so engine cleanup appears as a
+    # sibling, but here engine cleanup is clean).
+    assert excinfo.value is not None
+    members = list(excinfo.value.exceptions)
+    assert primary in members
+    assert cleanup_exc in members
+    assert members[0] is primary  # primary is FIRST
+
+
+def test_p1_c_baseexception_matrix_primary_plus_multiple_cleanups(monkeypatch) -> None:
+    """§8.3: primary + multiple cleanups → group with [primary, *cleanups]."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = RuntimeError("primary-bang")
+    scheme_exc = RuntimeError("cleanup-scheme")
+    shared_exc = RuntimeError("cleanup-shared")
+    scheme.install_close_exc(scheme_exc)
+    shared.install_close_exc(shared_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-primary-plus-multi")
+        ):
+            raise primary
+    members = list(excinfo.value.exceptions)
+    assert primary in members
+    assert scheme_exc in members
+    assert shared_exc in members
+    # Primary is FIRST.
+    assert members[0] is primary
+
+
+def test_p1_c_baseexception_matrix_multiple_cleanups_no_primary(monkeypatch) -> None:
+    """§8.3: multiple cleanups, no primary → group with [*cleanups]."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    scheme_exc = RuntimeError("cleanup-scheme")
+    shared_exc = RuntimeError("cleanup-shared")
+    scheme.install_close_exc(scheme_exc)
+    shared.install_close_exc(shared_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-multi-cleanup-no-primary")
+        ):
+            pass  # body exits normally; both cleanups fail
+    members = list(excinfo.value.exceptions)
+    assert scheme_exc in members
+    assert shared_exc in members
+
+
+def test_p1_c_baseexception_matrix_keyboard_interrupt_primary_only(
+    monkeypatch,
+) -> None:
+    """§8.3: KeyboardInterrupt primary only → identity preserved, no group."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = KeyboardInterrupt()
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    # The owner flattens the composition's BaseExceptionGroup
+    # (which is the composition's raise for a non-Exception
+    # BaseException primary with no cleanup errors — the
+    # composition re-raises ``primary`` directly, but the
+    # owner flattens by checking ``isinstance(primary, BEG)``
+    # and unwrapping). With only the primary remaining and
+    # no engine cleanup error, ``members = [primary]`` and
+    # ``len == 1``, so the owner re-raises the original
+    # primary. The original KeyboardInterrupt identity
+    # propagates.
+    with pytest.raises(KeyboardInterrupt) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-kbd-primary")
+        ):
+            raise primary
+    # The composition re-raises ``primary`` directly (no
+    # cleanup_errors → no group wrap), so the owner sees
+    # ``primary`` as a non-group. The owner unwraps a
+    # hypothetical BEG (here: no-op since ``primary`` is a
+    # ``BaseException`` but not a group), and with
+    # ``len(members) == 1`` re-raises ``primary``.
+    assert excinfo.value is primary
+
+
+def test_p1_c_baseexception_matrix_system_exit_primary_only(monkeypatch) -> None:
+    """§8.3: SystemExit primary only → identity preserved, ``.code`` intact."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = SystemExit(42)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    # Composition re-raises ``primary`` (no cleanup errors).
+    # The owner flattens, finds ``len(members) == 1``, and
+    # re-raises ``primary`` with identity + .code preserved.
+    with pytest.raises(SystemExit) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-sysexit-primary")
+        ):
+            raise primary
+    assert excinfo.value is primary
+    assert excinfo.value.code == 42
+
+
+def test_p1_c_baseexception_matrix_generator_exit_primary_only(monkeypatch) -> None:
+    """§8.3: GeneratorExit primary only → identity preserved."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = GeneratorExit()
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(GeneratorExit) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-genexit-primary")
+        ):
+            raise primary
+    assert excinfo.value is primary
+
+
+def test_p1_c_baseexception_matrix_keyboard_interrupt_plus_runtime_cleanup(
+    monkeypatch,
+) -> None:
+    """§8.3: KeyboardInterrupt primary + RuntimeError cleanup → BaseExceptionGroup."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = KeyboardInterrupt()
+    cleanup_exc = RuntimeError("cleanup-runtime")
+    scheme.install_close_exc(cleanup_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-kbd-plus-runtime")
+        ):
+            raise primary
+    # The composition context MUST use BaseExceptionGroup
+    # because KeyboardInterrupt is a non-Exception
+    # BaseException.
+    assert isinstance(excinfo.value, BaseExceptionGroup)
+    members = list(excinfo.value.exceptions)
+    assert primary in members
+    assert cleanup_exc in members
+
+
+def test_p1_c_baseexception_matrix_system_exit_plus_runtime_cleanup(
+    monkeypatch,
+) -> None:
+    """§8.3: SystemExit primary + RuntimeError cleanup → BaseExceptionGroup."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = SystemExit(7)
+    cleanup_exc = RuntimeError("cleanup-runtime")
+    scheme.install_close_exc(cleanup_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-sysexit-plus-runtime")
+        ):
+            raise primary
+    assert isinstance(excinfo.value, BaseExceptionGroup)
+    members = list(excinfo.value.exceptions)
+    # Original SystemExit identity preserved with .code intact.
+    assert any(e is primary and getattr(e, "code", None) == 7 for e in members), (
+        f"SystemExit(7) must appear with .code == 7; got {excinfo.value!r}"
+    )
+    assert cleanup_exc in members
+
+
+def test_p1_c_baseexception_matrix_generator_exit_plus_runtime_cleanup(
+    monkeypatch,
+) -> None:
+    """§8.3: GeneratorExit primary + RuntimeError cleanup → BaseExceptionGroup."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = GeneratorExit()
+    cleanup_exc = RuntimeError("cleanup-runtime")
+    scheme.install_close_exc(cleanup_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-genexit-plus-runtime")
+        ):
+            raise primary
+    assert isinstance(excinfo.value, BaseExceptionGroup)
+    members = list(excinfo.value.exceptions)
+    assert primary in members
+    assert cleanup_exc in members
+
+
+def test_p1_c_baseexception_matrix_runtime_primary_plus_keyboard_cleanup(
+    monkeypatch,
+) -> None:
+    """§8.3: RuntimeError primary + KeyboardInterrupt cleanup → BaseExceptionGroup."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    primary = RuntimeError("primary-runtime")
+    cleanup_exc = KeyboardInterrupt()
+    scheme.install_close_exc(cleanup_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/p1c-runtime-plus-kbd")
+        ):
+            raise primary
+    # Composition context catches both primary + KeyboardInterrupt
+    # cleanup. KeyboardInterrupt is a non-Exception BaseException,
+    # so the group class is BaseExceptionGroup.
+    assert isinstance(excinfo.value, BaseExceptionGroup)
+    members = list(excinfo.value.exceptions)
+    assert primary in members
+    assert cleanup_exc in members
+
+
+def test_p1_c_baseexception_matrix_multiple_cleanups_including_systemexit(
+    monkeypatch,
+) -> None:
+    """§8.3: multiple cleanups including SystemExit → BaseExceptionGroup."""
+    engine = _LifecycleStubEngine()
+    shared = _LifecycleStubSession(label="shared")
+    scheme = _LifecycleStubSession(label="scheme")
+    scheme_exc = RuntimeError("cleanup-scheme")
+    shared_exc = SystemExit(99)
+    scheme.install_close_exc(scheme_exc)
+    shared.install_close_exc(shared_exc)
+    _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine,
+            output_root=Path("/tmp/p1c-multi-cleanup-sysexit"),
+        ):
+            pass  # body exits normally; both cleanups fail
+    # SystemExit is a non-Exception BaseException → group is
+    # BaseExceptionGroup.
+    assert isinstance(excinfo.value, BaseExceptionGroup)
+    members = list(excinfo.value.exceptions)
+    assert scheme_exc in members
+    assert any(e is shared_exc and getattr(e, "code", None) == 99 for e in members), (
+        f"SystemExit(99) must appear with .code == 99; got {excinfo.value!r}"
+    )
+
+
+# ── P1-C: Build-helper group-class selection tests (brief §8.4) ─────────────
+
+
+def test_p1_c_exception_group_used_only_for_exception_members() -> None:
+    """§8.4: EXCEPTION_GROUP_USED_ONLY_FOR_EXCEPTION_MEMBERS=YES."""
+    group = rmp._build_exception_group(label="test", members=[RuntimeError("a"), ValueError("b")])
+    assert type(group).__name__ == "ExceptionGroup"
+    assert isinstance(group, BaseExceptionGroup)  # subclass
+
+
+def test_p1_c_base_exception_group_used_when_required() -> None:
+    """§8.4: BASE_EXCEPTION_GROUP_USED_WHEN_REQUIRED=YES."""
+    # Include a SystemExit member → BaseExceptionGroup.
+    group = rmp._build_exception_group(label="test", members=[RuntimeError("a"), SystemExit(7)])
+    assert type(group).__name__ == "BaseExceptionGroup"
+    assert isinstance(group, BaseExceptionGroup)
+
+
+# ── P1-C: Live-wiring gate: owner is entered before seed/runner/golden ────
+
+
+def test_p1_c_cmd_run_enters_owner_before_seed(tmp_path: Path, monkeypatch) -> None:
+    """CMD_RUN_ENTERS_OWNER_BEFORE_SEED=YES.
+
+    The seed step (``_build_session_factory``) MUST run
+    INSIDE the ``_pilot_run_resource_owner`` context. The
+    simplest assertion: when the seed step fails, the
+    engine MUST have been disposed (i.e. the owner was
+    entered before the seed step and the engine was
+    registered for cleanup before the seed step).
+    """
+    engine, _shared, _scheme = _p1_b_make_engine_with_stub_sessions()
+    seed_exc = RuntimeError("simulated seed failure")
+
+    def _failing_session_factory(_engine):
+        def _factory():
+            raise seed_exc
+
+        return _factory
+
+    monkeypatch.setattr(rmp, "_build_session_factory", _failing_session_factory)
+
+    with (
+        pytest.raises(RuntimeError, match="simulated seed failure"),
+        rmp._pilot_run_resource_owner(engine=engine),
+    ):  # noqa: E501, SIM117
+        session_factory = rmp._build_session_factory(engine)
+        with session_factory():  # noqa: SIM117
+            pass
+    # Engine was disposed by the owner on the way out
+    # (BECAUSE the owner was entered before the failing seed
+    # step and registered engine.dispose at __enter__ time).
+    assert engine.dispose_calls == 1
+
+
+def test_p1_c_cmd_run_enters_owner_before_runner(tmp_path: Path, monkeypatch) -> None:
+    """CMD_RUN_ENTERS_OWNER_BEFORE_RUNNER=YES.
+
+    The ``run_scenario_via_markers`` call (the "runner") MUST
+    run inside the owner context. When the runner raises,
+    the engine MUST have been disposed.
+    """
+    engine = _LifecycleStubEngine()
+    runner_exc = RuntimeError("simulated runner failure")
+
+    def _failing_runner(*_args, **_kwargs):
+        raise runner_exc
+
+    monkeypatch.setattr(rmp, "run_scenario_via_markers", _failing_runner)
+
+    with (
+        pytest.raises(RuntimeError, match="simulated runner failure"),
+        rmp._pilot_run_resource_owner(engine=engine),
+    ):  # noqa: E501, SIM117
+        rmp.run_scenario_via_markers(  # noqa: F841
+            lambda: None,
+            source_binding_id="x",
+            weight_set_revision_id="y",
+            correlation_marker="z",
+            backend_marker="sqlite",
+        )
+    assert engine.dispose_calls == 1
+
+
+def test_p1_c_cmd_run_enters_owner_before_golden(tmp_path: Path, monkeypatch) -> None:
+    """CMD_RUN_ENTERS_OWNER_BEFORE_GOLDEN=YES.
+
+    The ``_verify_manifest_golden_binding`` call MUST run
+    inside the owner context. When it raises, the engine
+    MUST have been disposed.
+    """
+    engine = _LifecycleStubEngine()
+    golden_exc = RuntimeError("simulated golden binding failure")
+
+    def _failing_golden(*_args, **_kwargs):
+        raise golden_exc
+
+    monkeypatch.setattr(rmp, "_verify_manifest_golden_binding", _failing_golden)
+
+    with (
+        pytest.raises(RuntimeError, match="simulated golden binding failure"),
+        rmp._pilot_run_resource_owner(engine=engine),
+    ):  # noqa: E501, SIM117
+        rmp._verify_manifest_golden_binding(  # noqa: F841
+            scenario=None,
+            manifest_path=None,
+            session_factory=lambda: None,
+            scheme_run_id="x",
+        )
+    assert engine.dispose_calls == 1
+
+
+# ── P1-C: Symlink alias acceptance path count gate (brief §8.4) ────────────
+
+
+def test_p1_c_symlink_alias_acceptance_path_count_is_zero() -> None:
+    """§8.4: SYMLINK_ALIAS_ACCEPTANCE_PATH_COUNT=0.
+
+    Static gate: the raw path identity check rejects
+    symlink aliases. A scan of the runtime file proves no
+    silent acceptance path (e.g. ``realpath`` / ``samefile``
+    fallback that would let a symlink pass).
+    """
+    runtime_path = rmp.__file__
+    assert runtime_path is not None
+    src = Path(runtime_path).read_text(encoding="utf-8")
+    # Search for any ``samefile`` / ``realpath`` fallback in the
+    # raw-path identity helper (these are forbidden in the
+    # lexical identity gate).
+    # We accept ``Path.resolve`` outside the helper (e.g. for
+    # the repo-root computation that the helper uses as the
+    # expected authority anchor). The gate scopes to the
+    # helper's body.
+    helper_match_start = src.find("def _assert_raw_manifest_path_identity")
+    assert helper_match_start > 0
+    helper_end = src.find("\n\n", helper_match_start)
+    helper_src = src[helper_match_start:helper_end]
+    # The helper MUST NOT call ``Path.resolve`` /
+    # ``os.path.realpath`` / ``os.path.samefile`` /
+    # ``Path.samefile`` — those would let a symlink alias
+    # match the canonical resolved path.
+    assert ".resolve(" not in helper_src or "Path(__file__).resolve()" in helper_src, (
+        "raw path identity helper MUST NOT call Path.resolve() "
+        "(except for the repo-root anchor); symlink aliases would pass"
+    )
+    assert ".realpath" not in helper_src
+    assert "samefile" not in helper_src

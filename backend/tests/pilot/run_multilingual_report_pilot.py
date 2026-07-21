@@ -33,6 +33,7 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -667,6 +668,110 @@ class _PilotSchemeQueryAdapter:
 # ── Manifest-golden binding (P1-1) ─────────────────────────────────────────
 
 
+# ── Raw manifest path identity (P1-A) ────────────────────────────────────────
+# The frozen pilot manifest is referenced by its canonical repository
+# path. The identity authority is the LEXICAL absolute path of the
+# operator-supplied input (i.e. what the user typed on the command
+# line), NOT the ``.resolve()`` of that input. ``.resolve()`` follows
+# symlinks, so an alias (file symlink pointing to the canonical
+# manifest, or a symlinked parent directory that lands on the same
+# canonical file) would lexically equal the canonical path AFTER
+# ``.resolve()`` and pass identity — which is exactly the bug the
+# previous round shipped. The fix compares the LEXICAL absolute
+# path (no symlink resolution) and rejects any input whose lexical
+# path or any of its parent components traverses a symlink.
+#
+# ``os.path.abspath`` only normalizes ``.`` / ``..`` lexically and
+# prepends ``cwd``; it does NOT call ``realpath``. ``Path.resolve``
+# DOES follow symlinks, so we deliberately use ``os.path.abspath``
+# for the identity comparison.
+
+
+def _lexical_absolute(path: Path) -> str:
+    """Return the lexical absolute path string (no symlink resolution)."""
+    return os.path.abspath(str(path))
+
+
+def _path_components_have_no_symlink(absolute_path: str) -> int:
+    """Return the number of symlinked path components.
+
+    Walks the lexical path components via ``os.lstat`` and counts
+    the number of components that are symlinks. The ``/`` root
+    itself is ``os.lstat``-checked for completeness but does not
+    contribute to the count. An absolute path with zero symlink
+    components is the canonical-identity-friendly case.
+    """
+    symlink_count = 0
+    head, _tail = os.path.split(absolute_path)
+    while head and head != os.sep and head != "/":
+        try:
+            st = os.lstat(head)
+        except OSError:
+            return symlink_count
+        if stat.S_ISLNK(st.st_mode):
+            symlink_count += 1
+        if head == os.path.dirname(head):
+            break
+        head = os.path.dirname(head)
+    try:
+        st = os.lstat(absolute_path)
+        if stat.S_ISLNK(st.st_mode):
+            symlink_count += 1
+    except OSError:
+        pass
+    return symlink_count
+
+
+def _assert_raw_manifest_path_identity(*, raw_manifest_path: Path, backend: str) -> None:
+    """Validate the RAW (pre-resolve) manifest path matches the canonical authority.
+
+    The runner path exposes the operator-supplied ``--manifest`` string
+    via this helper BEFORE any ``.resolve()`` is performed. The
+    helper enforces the same canonical authority as
+    :func:`validate_frozen_manifest_identity`, but uses the LEXICAL
+    absolute path of the raw input and an ``lstat`` symlink walk,
+    so a symlink alias (file or parent-dir) is rejected with
+    ``MANIFEST_IDENTITY_MISMATCH``.
+    """
+    expected_relative = FROZEN_MANIFEST_PATHS_BY_BACKEND.get(backend)
+    if expected_relative is None:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"unsupported backend for raw manifest path validation: {backend!r}; "
+                f"expected one of {sorted(FROZEN_MANIFEST_PATHS_BY_BACKEND)!r}."
+            ),
+        )
+
+    raw_lexical_abs = _lexical_absolute(raw_manifest_path)
+    # The runtime file lives at
+    # ``<repo-root>/backend/tests/pilot/run_multilingual_report_pilot.py``
+    # so the repo root is 4 levels up from this file
+    # (parents[3]).
+    repo_root_lexical_abs = _lexical_absolute(Path(__file__).resolve().parents[3])
+    expected_lexical_abs = os.path.join(repo_root_lexical_abs, expected_relative)
+
+    if raw_lexical_abs != expected_lexical_abs:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"raw manifest path identity drift: raw_lexical={raw_lexical_abs!r} "
+                f"expected_lexical={expected_lexical_abs!r} (backend={backend!r})."
+            ),
+        )
+
+    symlink_count = _path_components_have_no_symlink(raw_lexical_abs)
+    if symlink_count > 0:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"raw manifest path traverses {symlink_count} symlinked "
+                f"component(s); rejected: raw_lexical={raw_lexical_abs!r} "
+                f"(backend={backend!r})."
+            ),
+        )
+
+
 def _assert_scenario_baseline_feasible(
     *,
     scenario: ScenarioDeclaration,
@@ -1121,27 +1226,34 @@ def _compose_report_services_context(
             cleanup_errors.append(exc)
 
     def _safe_dispose_engine() -> None:
-        """Dispose the engine; surface the failure on cleanup_errors."""
-        try:
-            engine.dispose()
-        except BaseException as exc:  # noqa: BLE001 - explicit per brief
-            cleanup_errors.append(exc)
+        """No-op stub: engine dispose is owned by the outer resource owner.
+
+        The engine's lifetime is owned by the outer
+        :func:`_pilot_run_resource_owner` (P1-B); this context
+        does NOT call ``engine.dispose()``. The function is
+        retained as a documentation marker to make the ownership
+        boundary explicit in the code (search for
+        ``_safe_dispose_engine`` to find the owner that actually
+        disposes the engine).
+        """
 
     primary_exc: BaseException | None = None
     try:
         with ExitStack() as stack:
-            # Build the typed bundle. Every resource is registered
+            # Build the typed bundle. Every session is registered
             # for cleanup IMMEDIATELY after creation; subsequent
             # constructor failures trigger the already-registered
             # cleanup in LIFO order via ``stack.__exit__``.
             #
             # LIFO registration order (first registered = last
             # executed) maps to the brief §7.3 order:
-            #   engine.dispose (registered first → runs last)
-            #   shared_session.close (registered second → runs middle)
-            #   scheme_session.close (registered last → runs first)
+            #   shared_session.close (registered first → runs last)
+            #   scheme_session.close (registered second → runs first)
+            #
+            # The engine is NOT registered here: the outer
+            # ``_pilot_run_resource_owner`` owns the engine
+            # (see ``_safe_dispose_engine`` doc-stub above).
             session_factory = _build_session_factory(engine)
-            stack.callback(_safe_dispose_engine)
 
             shared_session = session_factory()
             stack.callback(_safe_close_session, shared_session, label="shared_session.close")
@@ -1207,17 +1319,17 @@ def _compose_report_services_context(
         primary_exc = primary_caught
         if not cleanup_errors:
             raise primary_exc from None
-        raise ExceptionGroup(
-            "primary error plus cleanup errors during composition",
-            [primary_exc, *cleanup_errors],
-        ) from None
+        raise _build_exception_group(
+            label="primary error plus cleanup errors during composition",
+            members=[primary_exc, *cleanup_errors],
+        ) from primary_exc
 
     if cleanup_errors:
         if len(cleanup_errors) == 1:
             raise cleanup_errors[0]
-        raise ExceptionGroup(
-            "cleanup errors during composition",
-            cleanup_errors,
+        raise _build_exception_group(
+            label="cleanup errors during composition",
+            members=cleanup_errors,
         )
 
 
@@ -1230,6 +1342,117 @@ def _seed_report_templates(template_repo: SQLReportRepository) -> None:
     """
     seed_default_templates(template_repo)
     template_repo.commit()
+
+
+# ── Run-lifetime resource owner (P1-B + P1-C) ──────────────────────────────
+# The previous round's lifecycle only owned the engine once the
+# composition context was entered; a failure in seed / source-binding
+# lookup / runner / golden comparison left no owner responsible for
+# ``engine.dispose()``. This module-local owner is entered
+# IMMEDIATELY after engine creation (BEFORE seed) and stays in
+# scope for the entire run, registering the engine's dispose
+# callback at __enter__ time so the engine is disposed on
+# ANY exit path (success, exception, ``SystemExit``,
+# ``KeyboardInterrupt``).
+#
+# Exception aggregation rules (P1-C):
+# * primary-only → re-raise the original primary object
+# * one cleanup error → re-raise the original cleanup object
+# * multiple cleanup errors → ``ExceptionGroup`` (Exception
+#   members only) or ``BaseExceptionGroup`` (any
+#   ``BaseException`` non-``Exception`` member)
+# * primary + cleanup(s) → ``[primary, *cleanup]`` order, with the
+#   group class chosen by member types
+# * the original primary object identity is preserved; we never
+#   re-instantiate or replace the exception
+# * ``except Exception: pass`` is forbidden on the cleanup path
+
+
+def _build_exception_group(
+    *, label: str, members: list[BaseException]
+) -> BaseExceptionGroup[BaseException] | ExceptionGroup[BaseException]:
+    """Build the right exception group type for ``members``.
+
+    If ANY member is a ``BaseException`` that is not an
+    ``Exception`` (i.e. ``SystemExit`` / ``KeyboardInterrupt`` /
+    ``GeneratorExit``), build a :class:`BaseExceptionGroup`.
+    Otherwise build an :class:`ExceptionGroup`. The original
+    object identity is preserved: members are passed through as-is.
+    """
+    has_base_exception = any(not isinstance(m, Exception) for m in members)
+    if has_base_exception:
+        return BaseExceptionGroup(label, members)
+    return ExceptionGroup(label, members)
+
+
+@contextmanager
+def _pilot_run_resource_owner(*, engine: Engine) -> Iterator[None]:
+    """Run-lifetime owner for the engine (P1-B).
+
+    Entered immediately after engine creation; registers the
+    engine's dispose callback at __enter__ time so the engine is
+    disposed on every exit path (success, exception,
+    ``SystemExit`` / ``KeyboardInterrupt``). The composition
+    context (entered later in the run) registers its own session
+    close callbacks via :class:`contextlib.ExitStack`; the
+    composition context does NOT call ``engine.dispose()``
+    because the engine is already owned here.
+
+    Cleanup ordering: the engine.dispose callback is registered
+    FIRST (LIFO last), so it runs AFTER every other cleanup
+    callback the inner composition context has registered.
+    The body of the with-block yields control to the caller;
+    any exception that escapes the body is caught here, the
+    engine.dispose callback has already run by the time we
+    re-enter the with-block's outer scope, and we aggregate
+    primary + cleanup errors.
+    """
+    cleanup_errors: list[BaseException] = []
+    primary_exc: BaseException | None = None
+    try:
+        with ExitStack() as stack:
+
+            def _safe_dispose_engine() -> None:
+                """Dispose the engine; surface the failure on cleanup_errors."""
+                try:
+                    engine.dispose()
+                except BaseException as exc:  # noqa: BLE001 - explicit per brief
+                    cleanup_errors.append(exc)
+
+            stack.callback(_safe_dispose_engine)
+            yield
+    except BaseException as primary_caught:
+        # ``SystemExit`` / ``KeyboardInterrupt`` /
+        # ``GeneratorExit`` are NOT swallowed: their original
+        # type / instance / ``.code`` is preserved. The cleanup
+        # callbacks registered with the ExitStack have already
+        # run by the time we get here.
+        primary_exc = primary_caught
+    if primary_exc is None and not cleanup_errors:
+        return
+    # If the primary is itself a group (e.g. the composition
+    # context already aggregated its cleanup errors), flatten
+    # it so the engine cleanup error appears as a SIBLING of
+    # the original primary, not nested inside a sub-group.
+    # This keeps the top-level error surface a flat list of
+    # (primary, *cleanup) members where the original primary
+    # is the FIRST entry — per brief §7.4. Nested groups are
+    # intentionally NOT preserved at the owner boundary;
+    # the composition context already has the full grouped
+    # record in its ``primary_exc`` chain.
+    if isinstance(primary_exc, BaseExceptionGroup):
+        flat_primary_members: list[BaseException] = list(primary_exc.exceptions)
+    else:
+        flat_primary_members = [primary_exc] if primary_exc is not None else []
+    members: list[BaseException] = [*flat_primary_members, *cleanup_errors]
+    if not members:
+        return
+    if len(members) == 1:
+        raise members[0] from None
+    raise _build_exception_group(
+        label="primary error plus cleanup errors during pilot run",
+        members=members,
+    ) from primary_exc
 
 
 # ── download_artifact callable ──────────────────────────────────────────────
@@ -1342,6 +1565,19 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # the helper is idempotent with the legacy backend-mismatch
         # check above, but uses the stable ``MANIFEST_SCENARIO_MISMATCH``
         # code that downstream automation MUST classify by).
+        # P1-A: validate the RAW (pre-resolve) manifest path
+        # against the canonical authority (lexical absolute path
+        # + lstat symlink walk). This runs BEFORE engine
+        # creation so a symlink alias is rejected with
+        # ``MANIFEST_IDENTITY_MISMATCH`` without touching the
+        # database. The resolver-aware validator
+        # (:func:`validate_frozen_manifest_identity`) still runs
+        # for the load-and-validate the manifest content, but
+        # the raw-path identity check is the contract surface.
+        _assert_raw_manifest_path_identity(
+            raw_manifest_path=Path(args.manifest), backend=args.backend
+        )
+
         # P2-1 (P1-1 corrective round): the helper MUST be fed the
         # CLI ``--backend`` authority (``args.backend``), NOT the
         # scenario-derived ``scenario.database_backend.value``
