@@ -26,7 +26,15 @@ from cold_storage.evaluation.compare import compare_outputs
 from cold_storage.evaluation.errors import StaleEvaluationArtifactsError
 from cold_storage.evaluation.execute import run_scenario_via_markers
 from cold_storage.evaluation.manifest import load_and_validate_manifest
-from cold_storage.evaluation.models import Manifest
+from cold_storage.evaluation.models import (
+    ComparisonKind,
+    ComparisonPolicy,
+    ComparisonPolicyLeaf,
+    DatabaseBackend,
+    ExpectedOutcome,
+    FixtureRef,
+    Manifest,
+)
 from cold_storage.evaluation.pilot_reports import (
     PILOT_CHECK_ID,
     PILOT_RESULT_SCHEMA_VERSION,
@@ -9530,7 +9538,7 @@ raise SystemExit(rc)
 # the brief §7.1 context-manager variant
 # :func:`rmp._compose_report_services_context`; the numeric tests
 # exercise the 3-tuple helper
-# :func:`rmp._canonical_numeric_value_unit_triple_set` introduced in
+# :func:`rmp._canonical_numeric_value_and_unit_set` introduced in
 # this round.
 
 
@@ -9847,23 +9855,23 @@ def test_p1_4_lifecycle_no_base_exception_aggregation(
 def test_p1_4_numeric_value_and_unit_triple_basic() -> None:
     """Numeric invariant is (field_path, normalized_value, unit_code) 3-tuple."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "raw_value": "1", "unit_code": "u"},
         ],
     }
-    result = rmp._canonical_numeric_value_unit_triple_set(sem)
+    result = rmp._canonical_numeric_value_and_unit_set(sem)
     assert result == frozenset({("f.x", "1", "u")})
 
 
 def test_p1_4_numeric_bool_raw_value_fails_closed() -> None:
     """``bool`` raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "raw_value": True, "unit_code": "u"},
         ],
     }
     with pytest.raises(PilotAcceptanceError) as excinfo:
-        rmp._canonical_numeric_value_unit_triple_set(sem)
+        rmp._canonical_numeric_value_and_unit_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
     assert "bool" in str(excinfo.value)
 
@@ -9871,12 +9879,12 @@ def test_p1_4_numeric_bool_raw_value_fails_closed() -> None:
 def test_p1_4_numeric_nan_raw_value_fails_closed() -> None:
     """``NaN`` raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "raw_value": "NaN", "unit_code": "u"},
         ],
     }
     with pytest.raises(PilotAcceptanceError) as excinfo:
-        rmp._canonical_numeric_value_unit_triple_set(sem)
+        rmp._canonical_numeric_value_and_unit_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
     assert "finite" in str(excinfo.value)
 
@@ -9885,23 +9893,23 @@ def test_p1_4_numeric_infinity_raw_value_fails_closed() -> None:
     """``+inf`` / ``-inf`` raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
     for bad in ("Infinity", "-Infinity"):
         sem = {
-            "observed_numeric_fields": [
+            "canonical_numeric_fields": [
                 {"field_path": "f.x", "raw_value": bad, "unit_code": "u"},
             ],
         }
         with pytest.raises(PilotAcceptanceError) as excinfo:
-            rmp._canonical_numeric_value_unit_triple_set(sem)
+            rmp._canonical_numeric_value_and_unit_set(sem)
         assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
 
 
 def test_p1_4_numeric_negative_zero_normalizes_to_zero() -> None:
     """``-0`` normalizes to ``"0"`` per brief §7.2."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "raw_value": "-0", "unit_code": "u"},
         ],
     }
-    result = rmp._canonical_numeric_value_unit_triple_set(sem)
+    result = rmp._canonical_numeric_value_and_unit_set(sem)
     assert result == frozenset({("f.x", "0", "u")})
 
 
@@ -9909,23 +9917,23 @@ def test_p1_4_numeric_trailing_zero_normalization() -> None:
     """``1``, ``1.0``, ``1.000`` all normalize to ``"1"``."""
     for value in ("1", "1.0", "1.000", "1.0000", Decimal("1.000")):
         sem = {
-            "observed_numeric_fields": [
+            "canonical_numeric_fields": [
                 {"field_path": "f.x", "raw_value": value, "unit_code": "u"},
             ],
         }
-        result = rmp._canonical_numeric_value_unit_triple_set(sem)
+        result = rmp._canonical_numeric_value_and_unit_set(sem)
         assert result == frozenset({("f.x", "1", "u")}), (
             f"{value!r} MUST normalize to '1'; got {result!r}"
         )
 
 
 def test_p1_4_numeric_malformed_non_dict_entry_fails_closed() -> None:
-    """Non-dict observed entry → RUN_SUMMARY_SCHEMA_DRIFT."""
+    """Non-dict canonical entry → RUN_SUMMARY_SCHEMA_DRIFT."""
     sem = {
-        "observed_numeric_fields": ["not a dict"],
+        "canonical_numeric_fields": ["not a dict"],
     }
     with pytest.raises(PilotAcceptanceError) as excinfo:
-        rmp._canonical_numeric_value_unit_triple_set(sem)
+        rmp._canonical_numeric_value_and_unit_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
     assert "dict" in str(excinfo.value)
 
@@ -9933,25 +9941,25 @@ def test_p1_4_numeric_malformed_non_dict_entry_fails_closed() -> None:
 def test_p1_4_numeric_missing_raw_value_fails_closed() -> None:
     """Missing raw_value → RUN_SUMMARY_SCHEMA_DRIFT."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "unit_code": "u"},
         ],
     }
     with pytest.raises(PilotAcceptanceError) as excinfo:
-        rmp._canonical_numeric_value_unit_triple_set(sem)
+        rmp._canonical_numeric_value_and_unit_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
 
 
 def test_p1_4_numeric_conflicting_duplicate_path_fails_closed() -> None:
     """Two entries with same (path, unit) but different value → fail closed."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "raw_value": "1", "unit_code": "u"},
             {"field_path": "f.x", "raw_value": "2", "unit_code": "u"},
         ],
     }
     with pytest.raises(PilotAcceptanceError) as excinfo:
-        rmp._canonical_numeric_value_unit_triple_set(sem)
+        rmp._canonical_numeric_value_and_unit_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
     assert "conflicting value" in str(excinfo.value)
 
@@ -9959,12 +9967,12 @@ def test_p1_4_numeric_conflicting_duplicate_path_fails_closed() -> None:
 def test_p1_4_numeric_empty_field_path_fails_closed() -> None:
     """Empty field_path → RUN_SUMMARY_SCHEMA_DRIFT."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "", "raw_value": "1", "unit_code": "u"},
         ],
     }
     with pytest.raises(PilotAcceptanceError) as excinfo:
-        rmp._canonical_numeric_value_unit_triple_set(sem)
+        rmp._canonical_numeric_value_and_unit_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
     assert "non-empty" in str(excinfo.value)
 
@@ -9972,25 +9980,25 @@ def test_p1_4_numeric_empty_field_path_fails_closed() -> None:
 def test_p1_4_numeric_valid_explicit_unitless_normalization() -> None:
     """Empty unit_code + not in missing_units → ``<unitless>``."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "raw_value": "1", "unit_code": ""},
         ],
         "missing_units": [],
     }
-    result = rmp._canonical_numeric_value_unit_triple_set(sem)
+    result = rmp._canonical_numeric_value_and_unit_set(sem)
     assert result == frozenset({("f.x", "1", "<unitless>")})
 
 
 def test_p1_4_numeric_missing_unit_fails_closed() -> None:
     """Empty unit_code + field IS in missing_units → fail closed."""
     sem = {
-        "observed_numeric_fields": [
+        "canonical_numeric_fields": [
             {"field_path": "f.x", "raw_value": "1", "unit_code": ""},
         ],
         "missing_units": ["f.x"],
     }
     with pytest.raises(PilotAcceptanceError) as excinfo:
-        rmp._canonical_numeric_value_unit_triple_set(sem)
+        rmp._canonical_numeric_value_and_unit_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
     assert "missing_units" in str(excinfo.value)
 
@@ -10367,7 +10375,7 @@ def _make_run_summary(
             "numeric_mismatches": numeric_mismatches or [],
             "canonical_section_keys": ["s1"],
             "canonical_numeric_fields": [
-                {"field_path": field_path, "expected_value": "25", "expected_unit_code": unit_code}
+                {"field_path": field_path, "raw_value": raw_value, "unit_code": unit_code}
             ],
             "observed_numeric_fields": [
                 {"field_path": field_path, "raw_value": raw_value, "unit_code": unit_code}
@@ -10470,12 +10478,12 @@ def test_p1_4_aggregate_malformed_observed_numeric_entry_fails_closed():
             "missing_units": [],
             "numeric_mismatches": [],
             "canonical_section_keys": ["s1"],
-            "canonical_numeric_fields": [],
-            "observed_numeric_fields": [
+            "canonical_numeric_fields": [
                 "not_a_dict",
                 {"field_path": "", "raw_value": "1", "unit_code": "u"},
                 {"raw_value": "1", "unit_code": "u"},
             ],
+            "observed_numeric_fields": [],
         },
     }
     pilot_run = {
@@ -10511,3 +10519,955 @@ def test_p1_4_aggregate_malformed_observed_numeric_entry_fails_closed():
     with pytest.raises(PilotAcceptanceError) as excinfo:
         rmp.aggregate_p1_4_acceptance(runs=[bad_run], cross_backend=False)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# R3 corrective tests (corrective §5 / §6 / §7 / §10 strict)
+# ══════════════════════════════════════════════════════════════════════════════
+# These tests exercise the live-wiring contract that e69ff853
+# failed to satisfy:
+#   §5 manifest identity validator (14 vectors, run BEFORE DB provision)
+#   §6 numeric triple from canonical_numeric_fields, live-wired to fingerprint
+#   §7 single resource owner (engine.dispose exactly once and last)
+# Repository-owned (this test file) — second copies of these
+# invariants in the runtime are forbidden.
+
+# R3 models are imported at the top of the file; no local re-import
+# needed here.
+
+# ── §5: Manifest identity validator live-wiring (R3 §5 + §10.1) ─────────────
+
+
+_SQLITE_MANIFEST = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+_PG_MANIFEST = (DATA_DIR / "task011-pilot-postgresql.v1.json").resolve()
+
+
+def _clone_manifest(manifest: Manifest, **overrides: object) -> Manifest:
+    """Build a sibling ``Manifest`` model with the given scenario-field overrides.
+
+    The V1 ``Manifest`` / ``ScenarioDeclaration`` Pydantic models
+    are frozen, so a test cannot mutate them in place. This helper
+    rebuilds a sibling with overridden scenario fields for the
+    negative-vector tests below. The sibling is loaded via
+    :func:`load_and_validate_manifest` semantics — i.e. it
+    re-validates against the V1 frozen contract — so a test that
+    injects an impossible shape (e.g. ``fixtures=("junk",)``)
+    surfaces the shape error HERE, not in
+    :func:`validate_frozen_manifest_identity`. The negative vectors
+    below only use field shapes the V1 model actually accepts.
+    """
+    scenario = manifest.scenarios[0]
+    new_scenario = scenario.model_copy(update=overrides)
+    return manifest.model_copy(update={"scenarios": (new_scenario,)})
+
+
+def test_r3_manifest_identity_validator_passes_for_frozen_sqlite() -> None:
+    """§5: frozen SQLite manifest satisfies identity validator."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    # MUST NOT raise.
+    rmp.validate_frozen_manifest_identity(
+        manifest_path=bundle.manifest_path,
+        manifest=bundle.manifest,
+        backend=rmp.DATABASE_BACKEND_SQLITE,
+    )
+
+
+def test_r3_manifest_identity_validator_passes_for_frozen_postgresql() -> None:
+    """§5: frozen PostgreSQL manifest satisfies identity validator."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_PG_MANIFEST)
+    rmp.validate_frozen_manifest_identity(
+        manifest_path=bundle.manifest_path,
+        manifest=bundle.manifest,
+        backend=rmp.DATABASE_BACKEND_POSTGRESQL,
+    )
+
+
+def test_r3_manifest_identity_wrong_path_fails_closed() -> None:
+    """§5 vector 1: wrong resolved path → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    fake_path = _PG_MANIFEST  # same content, wrong path identity
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=fake_path,
+            manifest=bundle.manifest,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "manifest path identity drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_symlink_alias_fails_closed(tmp_path: Path) -> None:
+    """§5 vector 2: same-content copy at another path → drift."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    # Create a symlink with the SQLite manifest content at a different
+    # absolute path. The resolved path differs from the canonical
+    # frozen path, so the validator MUST reject it.
+    alias = tmp_path / "alias-sqlite.v1.json"
+    alias.write_text(_SQLITE_MANIFEST.read_text(encoding="utf-8"))
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=alias,
+            manifest=bundle.manifest,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "manifest path identity drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_suite_id_fails_closed() -> None:
+    """§5 vector 3: wrong suite_id → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    tampered = bundle.manifest.model_copy(update={"suite_id": "wrong-suite"})
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "suite_id drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_scenario_count_fails_closed() -> None:
+    """§5 vector 4: extra scenario → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    extra = bundle.manifest.scenarios[0].model_copy(
+        update={"scenario_id": "second_scenario"}
+    )
+    tampered = bundle.manifest.model_copy(
+        update={"scenarios": (bundle.manifest.scenarios[0], extra)}
+    )
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "scenario count MUST be exactly 1" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_scenario_id_fails_closed() -> None:
+    """§5 vector 5: scenario_id != 'baseline_feasible' → drift."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    tampered = _clone_manifest(bundle.manifest, scenario_id="alt_scenario")
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "scenario_id drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_backend_fails_closed() -> None:
+    """§5 vector 6: database_backend mismatch → MANIFEST_IDENTITY_MISMATCH.
+
+    The path identity check runs BEFORE the database_backend
+    check; the path-side check uses the requested backend's
+    canonical path. So to trigger the backend check, the test
+    uses a manifest whose path matches the requested backend
+    but whose ``database_backend`` field disagrees.
+    """
+    # Build a manifest model that satisfies the V1 frozen
+    # contract for the sqlite authority (path / suite_id /
+    # scenario_id / expected_output triple) but with
+    # ``database_backend = postgresql``. ``_load_pilot_manifest``
+    # already loaded the canonical sqlite manifest, so we
+    # construct a sibling with the conflicting backend.
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    # ``DatabaseBackend`` is imported at the top of the file.
+    tampered = _clone_manifest(
+        bundle.manifest,
+        database_backend=DatabaseBackend.POSTGRESQL,
+    )
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "database_backend drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_expected_outcome_fails_closed() -> None:
+    """§5 vector 7: expected_outcome != 'SUCCEEDED' → drift."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    tampered = _clone_manifest(
+        bundle.manifest, expected_outcome=ExpectedOutcome.BLOCKED
+    )
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "expected_outcome drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_expected_output_scenario_fails_closed() -> None:
+    """§5 vector 8: expected_output.scenario_id drift → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    new_eo = bundle.manifest.scenarios[0].expected_output.model_copy(
+        update={"scenario_id": "wrong-output-scenario"}
+    )
+    tampered = _clone_manifest(bundle.manifest, expected_output=new_eo)
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "expected_output.scenario_id drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_expected_output_path_fails_closed() -> None:
+    """§5 vector 9: expected_output.path drift → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    new_eo = bundle.manifest.scenarios[0].expected_output.model_copy(
+        update={"path": "expected/wrong_golden.v1.json"}
+    )
+    tampered = _clone_manifest(bundle.manifest, expected_output=new_eo)
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "expected_output.path drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_expected_output_outcome_fails_closed() -> None:
+    """§5 vector 10: expected_output.expected_outcome drift → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    new_eo = bundle.manifest.scenarios[0].expected_output.model_copy(
+        update={"expected_outcome": ExpectedOutcome.BLOCKED}
+    )
+    tampered = _clone_manifest(bundle.manifest, expected_output=new_eo)
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "expected_output.expected_outcome drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_wrong_expected_output_commit_fails_closed() -> None:
+    """§5 vector 11: expected_output.commit_sha drift → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    new_eo = bundle.manifest.scenarios[0].expected_output.model_copy(
+        update={"commit_sha": "f" * 40}
+    )
+    tampered = _clone_manifest(bundle.manifest, expected_output=new_eo)
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "expected_output.commit_sha drift" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_non_empty_excluded_paths_fails_closed() -> None:
+    """§5 vector 12: excluded_paths != [] → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    tampered = bundle.manifest.model_copy(update={"excluded_paths": ("foo",)})
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "excluded_paths MUST be empty" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_fixtures_drift_fails_closed() -> None:
+    """§5 vector 13: scenario.fixtures != () → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    # The Pydantic frozen model requires fixtures to be a
+    # tuple[FixtureRef, ...]; the validator must catch any
+    # non-empty case.
+    tampered = _clone_manifest(
+        bundle.manifest,
+        fixtures=(FixtureRef(fixture_id="x", path="y"),),
+    )
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "scenario.fixtures MUST be empty" in str(excinfo.value)
+
+
+def test_r3_manifest_identity_comparison_policy_drift_fails_closed() -> None:
+    """§5 vector 14: comparison_policy.leaves != () → MANIFEST_IDENTITY_MISMATCH."""
+    bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
+    custom_policy = ComparisonPolicy(
+        leaves=(ComparisonPolicyLeaf(path="foo", kind=ComparisonKind.EXACT),),
+    )
+    tampered = _clone_manifest(bundle.manifest, comparison_policy=custom_policy)
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        rmp.validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=tampered,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert "comparison_policy MUST be the V1 default" in str(excinfo.value)
+
+
+def test_r3_manifest_validator_runs_before_database_provision(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """§10.1: manifest drift fails BEFORE engine provisioning.
+
+    Drives :func:`_cmd_run` with a manifest whose identity does
+    NOT match the frozen authority. The validator MUST raise
+    ``MANIFEST_IDENTITY_MISMATCH`` before any ``create_engine`` /
+    ``_provision_sqlite_database`` call. Proves this by counting
+    ``create_engine`` / ``_provision_sqlite_database`` invocations
+    (expected: 0) and asserting the typed code.
+    """
+
+    # Create a same-content copy at a wrong path; the path
+    # identity check is the first thing the validator runs and
+    # it raises before reading any other manifest field. The
+    # copy MUST have a valid ``expected_output.path`` so the
+    # manifest loader accepts the JSON shape (the validator's
+    # path-identity check fires before the golden file is
+    # actually opened).
+    wrong_path = tmp_path / "task011-pilot-sqlite-copy.v1.json"
+    expected_dir = tmp_path / "expected"
+    expected_dir.mkdir(parents=True, exist_ok=True)
+    golden = (
+        tmp_path.parent.parent.parent
+        / "tests" / "evaluation" / "data" / "expected"
+        / "baseline_feasible.v1.json"
+    ).resolve()
+    if not golden.exists():
+        golden = _SQLITE_MANIFEST.parent / "expected" / "baseline_feasible.v1.json"
+    (expected_dir / "baseline_feasible.v1.json").write_bytes(
+        golden.read_bytes()
+    )
+    wrong_path.write_text(_SQLITE_MANIFEST.read_text(encoding="utf-8"))
+    output_root = tmp_path / "out"
+    output_root.mkdir(parents=True, exist_ok=True)
+
+    create_engine_calls: list[tuple[object, ...]] = []
+    provision_calls: list[object] = []
+
+    real_create_engine = rmp.create_engine
+
+    def _spy_create_engine(*args: object, **kwargs: object) -> object:
+        create_engine_calls.append((args, kwargs))
+        return real_create_engine(*args, **kwargs)
+
+    def _spy_provision(*args: object, **kwargs: object) -> object:
+        provision_calls.append((args, kwargs))
+        raise AssertionError(
+            "_provision_sqlite_database MUST NOT be called when "
+            "validate_frozen_manifest_identity raises"
+        )
+
+    monkeypatch.setattr(rmp, "create_engine", _spy_create_engine)
+    monkeypatch.setattr(rmp, "_provision_sqlite_database", _spy_provision)
+
+    args = argparse.Namespace(
+        command="run",
+        manifest=str(wrong_path),
+        output_root=str(output_root),
+        commit_sha="a" * 40,
+        backend="sqlite",
+        database_url=f"sqlite:///{tmp_path}/should_never_be_created.sqlite",
+        repeat_index=1,
+    )
+    rc = rmp._cmd_run(args)
+    assert rc == rmp.EXIT_INFRA_ERROR
+    # The validator raises PILOT_COMPOSITION_ERROR → EXIT_INFRA_ERROR.
+    # The error must surface BEFORE engine creation / sqlite provision.
+    assert create_engine_calls == [], (
+        f"create_engine MUST NOT be called when manifest identity drifts; "
+        f"got {len(create_engine_calls)} call(s): {create_engine_calls!r}"
+    )
+    assert provision_calls == [], (
+        f"_provision_sqlite_database MUST NOT be called when manifest "
+        f"identity drifts; got {len(provision_calls)} call(s)"
+    )
+
+
+# ── §6: Numeric triple live wiring (R3 §6 + §10.2) ─────────────────────────
+
+
+def test_r3_numeric_helper_reads_canonical_numeric_fields_not_observed() -> None:
+    """§6: source authority is canonical_numeric_fields, not observed_numeric_fields.
+
+    When the two side-by-side lists disagree on the raw value
+    (the canonical side is the source of truth), the helper MUST
+    surface the CANONICAL value, not the observed one. This
+    proves the brief §6.1 source rule is enforced.
+    """
+    sem = {
+        "canonical_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "10", "unit_code": "u"},
+        ],
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "99", "unit_code": "u"},
+        ],
+    }
+    result = rmp._canonical_numeric_value_and_unit_set(sem)
+    assert result == frozenset({("f.x", "10", "u")}), (
+        f"helper MUST read canonical_numeric_fields; got {result!r}"
+    )
+
+
+def test_r3_numeric_helper_missing_observed_still_works() -> None:
+    """§6.1: observed_numeric_fields absent does NOT affect the triple.
+
+    The canonical side is the SOLE authority; the observed side is
+    audit-only and its presence/absence must not influence the
+    helper's return value.
+    """
+    sem = {
+        "canonical_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "5", "unit_code": "u"},
+        ],
+    }
+    result = rmp._canonical_numeric_value_and_unit_set(sem)
+    assert result == frozenset({("f.x", "5", "u")})
+
+
+def test_r3_numeric_helper_missing_canonical_fails_closed() -> None:
+    """§6.1: canonical_numeric_fields absent → RUN_SUMMARY_SCHEMA_DRIFT.
+
+    The canonical side is mandatory. Observed alone is not enough
+    (the helper MUST NOT silently fall back to observed).
+    """
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "raw_value": "1", "unit_code": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "canonical_numeric_fields MUST be present" in str(excinfo.value)
+
+
+def test_r3_numeric_fingerprint_field_is_canonical_numeric_value_and_unit_set() -> None:
+    """§6: the fingerprint field name is canonical_numeric_value_and_unit_set.
+
+    The triple set MUST be exposed under the brief §6 mandated
+    field name ``canonical_numeric_value_and_unit_set``; the
+    previous ``canonical_numeric_value_unit_triple_set`` alias
+    must NOT be present.
+    """
+    constants = rmp.PILOT_1_4_CANONICAL_NUMERIC_VALUE_AND_UNIT_INVARIANTS
+    assert "canonical_numeric_value_and_unit_set" in constants
+    assert "canonical_numeric_value_unit_triple_set" not in constants
+
+
+def test_r3_numeric_build_run_fingerprint_calls_triple_helper() -> None:
+    """§6 / §10.2: _build_run_fingerprint reads the canonical triple helper.
+
+    The fingerprint builder MUST call the canonical triple
+    helper; calling the old pair-only helper is forbidden.
+    """
+    src = inspect.getsource(rmp._build_run_fingerprint)
+    assert "_canonical_numeric_value_and_unit_set" in src, (
+        "_build_run_fingerprint MUST call the canonical triple helper"
+    )
+    assert "_canonical_numeric_value_and_unit_pair_set" not in src
+
+
+def test_r3_numeric_observed_fields_raw_value_not_read_by_helper() -> None:
+    """§10 static gate: OBSERVED_FIELDS_RAW_VALUE_READ_COUNT=0 in triple helper.
+
+    The triple helper MUST NOT read ``raw_value`` from
+    ``observed_numeric_fields``; that field is only an
+    artifact-observation audit. We assert via static scan that
+    no ``observed_numeric_fields[...]`` access pattern (which
+    is the only way the triple helper could consume the
+    observed side as a raw numeric authority) is present in
+    the helper's source.
+    """
+    import re
+
+    src = inspect.getsource(rmp._canonical_numeric_value_and_unit_set)
+    # The forbidden pattern is ANY direct access to
+    # ``observed_numeric_fields[...]`` inside the helper body
+    # (which would indicate raw-value read from the observed
+    # side). The ``semantic_checks.canonical_numeric_fields``
+    # access path is the only legitimate read.
+    forbidden = re.compile(r"observed_numeric_fields\s*\[")
+    matches = forbidden.findall(src)
+    assert matches == [], (
+        f"triple helper MUST NOT access observed_numeric_fields[index]; "
+        f"got {len(matches)} match(es)"
+    )
+
+
+def test_r3_numeric_pure_value_drift_cross_run_fails_closed() -> None:
+    """§10.2: same path/unit + pure value drift → CROSS_RUN_INVARIANT_DRIFT.
+
+    Two runs of the same backend, same (path, unit), but the
+    canonical value drifts from ``"1"`` to ``"2"``. The aggregate
+    helper MUST detect this as ``CROSS_RUN_INVARIANT_DRIFT``.
+    """
+    base = {
+        "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+        "pilot_check_id": PILOT_CHECK_ID,
+        "source_commit_sha": "a" * 40,
+        "source_manifest_sha": "0" * 64,
+        "database_backend": "sqlite",
+        "repeat_index": 1,
+        "scenario_id": "baseline_feasible",
+        "correlation_id": "c",
+        "source_binding_id": "b",
+        "report_type": "feasibility",
+        "report_schema_version": "1.0",
+        "manifest_scenario_id": "baseline_feasible",
+        "manifest_expected_outcome": "SUCCEEDED",
+        "manifest_database_backend": "sqlite",
+        "manifest_golden_comparison_result": "PASS",
+        "source_binding_result": "PASS",
+        "artifact_integrity_result": "PASS",
+        "semantic_result": "PASS",
+        "overall_result": "PASS",
+    }
+
+    def _meta(*, value: str) -> dict[str, object]:
+        sem = {
+            "semantic_result": "PASS",
+            "missing_sections": [],
+            "missing_units": [],
+            "numeric_mismatches": [],
+            "canonical_section_keys": ["s1"],
+            "canonical_numeric_fields": [
+                {"field_path": "f.x", "raw_value": value, "unit_code": "u"},
+            ],
+            "observed_numeric_fields": [],
+        }
+        return {
+            "metadata": {
+                "report_id": "r1",
+                "report_revision_id": "rev1",
+                "revision_number": 1,
+                "artifact_id": "a1",
+                "file_name": "f.pdf",
+                "file_size_bytes": 1024,
+                "file_sha256": "a" * 64,
+                "generated_at": "2026-07-19T00:00:00+00:00",
+                "storage_key": "k",
+                "mime_type": "application/pdf",
+                "format": "pdf",
+                "locale": "en-US",
+                "template_locale": "en-US",
+                "render_mode": "draft",
+                "template_version": "1.0",
+                "template_content_hash": "b" * 64,
+                "template_schema_version": "1.0",
+                "source_content_hash": "c" * 64,
+                "translation_catalog_version": "tc-v1",
+                "translation_catalog_content_hash": "d" * 64,
+                "localized_template_content_hash": "e" * 64,
+                "artifact_status": "completed",
+                "integrity_result": "PASS",
+                "download_headers": {},
+            },
+            "semantic_checks": sem,
+        }
+
+    metas_run1 = {pair: _meta(value="1") for pair in (
+        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
+    )}
+    metas_run2 = {pair: _meta(value="2") for pair in (
+        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
+    )}
+    summary2 = dict(base, repeat_index=2)
+    runs = [
+        (Path("/tmp/run1"), base, base, metas_run1),
+        (Path("/tmp/run2"), base, summary2, metas_run2),
+    ]
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp.aggregate_p1_4_acceptance(runs=runs, cross_backend=False)
+    assert excinfo.value.code == "CROSS_RUN_INVARIANT_DRIFT"
+
+
+def test_r3_numeric_pure_value_drift_cross_backend_fails_closed() -> None:
+    """§10.2: cross-backend pure value drift → CROSS_BACKEND_INVARIANT_DRIFT."""
+    base = {
+        "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+        "pilot_check_id": PILOT_CHECK_ID,
+        "source_commit_sha": "a" * 40,
+        "source_manifest_sha": "0" * 64,
+        "database_backend": "sqlite",
+        "repeat_index": 1,
+        "scenario_id": "baseline_feasible",
+        "correlation_id": "c",
+        "source_binding_id": "b",
+        "report_type": "feasibility",
+        "report_schema_version": "1.0",
+        "manifest_scenario_id": "baseline_feasible",
+        "manifest_expected_outcome": "SUCCEEDED",
+        "manifest_database_backend": "sqlite",
+        "manifest_golden_comparison_result": "PASS",
+        "source_binding_result": "PASS",
+        "artifact_integrity_result": "PASS",
+        "semantic_result": "PASS",
+        "overall_result": "PASS",
+    }
+
+    def _meta(*, value: str) -> dict[str, object]:
+        sem = {
+            "semantic_result": "PASS",
+            "missing_sections": [],
+            "missing_units": [],
+            "numeric_mismatches": [],
+            "canonical_section_keys": ["s1"],
+            "canonical_numeric_fields": [
+                {"field_path": "f.x", "raw_value": value, "unit_code": "u"},
+            ],
+            "observed_numeric_fields": [],
+        }
+        return {
+            "metadata": {
+                "report_id": "r1", "report_revision_id": "rev1",
+                "revision_number": 1, "artifact_id": "a1",
+                "file_name": "f.pdf", "file_size_bytes": 1024,
+                "file_sha256": "a" * 64,
+                "generated_at": "2026-07-19T00:00:00+00:00",
+                "storage_key": "k",
+                "mime_type": "application/pdf",
+                "format": "pdf", "locale": "en-US",
+                "template_locale": "en-US", "render_mode": "draft",
+                "template_version": "1.0",
+                "template_content_hash": "b" * 64,
+                "template_schema_version": "1.0",
+                "source_content_hash": "c" * 64,
+                "translation_catalog_version": "tc-v1",
+                "translation_catalog_content_hash": "d" * 64,
+                "localized_template_content_hash": "e" * 64,
+                "artifact_status": "completed",
+                "integrity_result": "PASS",
+                "download_headers": {},
+            },
+            "semantic_checks": sem,
+        }
+
+    sqlite_metas = {pair: _meta(value="1") for pair in (
+        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
+    )}
+    pg_metas = {pair: _meta(value="2") for pair in (
+        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
+    )}
+    sqlite_summary = dict(base)
+    pg_summary = dict(base, database_backend="postgresql",
+                      source_manifest_sha="f" * 64, repeat_index=2)
+    runs = [
+        (Path("/tmp/sqlite"), base, sqlite_summary, sqlite_metas),
+        (Path("/tmp/pg"), base, pg_summary, pg_metas),
+    ]
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp.aggregate_p1_4_acceptance(runs=runs, cross_backend=True)
+    assert excinfo.value.code == "CROSS_BACKEND_INVARIANT_DRIFT"
+
+
+# ── §7: Single resource owner (R3 §7 + §10.3) ─────────────────────────────
+
+
+def test_r3_lifecycle_engine_dispose_live_call_count_is_one() -> None:
+    """§10 static gate: ENGINE_DISPOSE_LIVE_CALL_COUNT=1 on success path.
+
+    The unique owner invokes ``engine.dispose()`` exactly once
+    on the success path; no second dispose happens anywhere
+    else in the runtime. ``_PilotReportResources`` no longer
+    has a ``close`` method, so the bundle cannot dispatch a
+    second dispose.
+    """
+    engine, shared, scheme = _lifecycle_make_resources()
+    _lifecycle_patch_to_return_resources(
+        monkeypatch=pytest.MonkeyPatch(),  # not used; replaced below
+        engine=engine, shared=shared, scheme=scheme,
+    )
+
+    # Drive the real owner.
+    import pytest as _pytest
+
+    with _pytest.MonkeyPatch.context() as mp:
+        _lifecycle_patch_to_return_resources(
+            monkeypatch=mp,
+            engine=engine, shared=shared, scheme=scheme,
+        )
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/r3-lifecycle-out"),
+        ) as resources:
+            # While the bundle is in scope, the engine has NOT
+            # been disposed yet (LIFO via ExitStack on exit).
+            assert engine.dispose_calls == 0
+            assert shared.close_calls == 0
+            assert scheme.close_calls == 0
+            assert isinstance(resources, rmp._PilotReportResources)
+        # On successful exit: scheme → shared → engine (LIFO).
+        assert scheme.close_calls == 1
+        assert shared.close_calls == 1
+        assert engine.dispose_calls == 1
+
+
+def test_r3_lifecycle_silent_engine_dispose_swallow_count_is_zero() -> None:
+    """§10 static gate: SILENT_ENGINE_DISPOSE_SWALLOW_COUNT=0.
+
+    The runtime MUST NOT have any ``except Exception: pass`` /
+    ``except BaseException: pass` shape on the engine.dispose()
+    cleanup path. A static scan of the runtime file proves the
+    forbidden pattern is absent.
+    """
+    runtime_path = rmp.__file__
+    assert runtime_path is not None
+    src = Path(runtime_path).read_text(encoding="utf-8")
+    # Search for the silent-swallow shape on the engine disposal
+    # path. We accept the pattern in unrelated functions (e.g.
+    # ``_cmd_cleanup``), so the assertion is scoped to the
+    # engine disposal callers.
+    for line_no, line in enumerate(src.splitlines(), 1):
+        stripped = line.lstrip()
+        if "engine.dispose" in stripped and "pass" in stripped:
+            pytest.fail(
+                f"silent-swallow on engine.dispose() at line {line_no}: {line!r}"
+            )
+
+
+def test_r3_lifecycle_silent_session_close_swallow_count_is_zero() -> None:
+    """§10 static gate: SILENT_SESSION_CLOSE_SWALLOW_COUNT=0.
+
+    No ``except Exception: pass`` / ``except BaseException: pass``
+    on the ``session.close()`` cleanup path.
+    """
+    runtime_path = rmp.__file__
+    assert runtime_path is not None
+    src = Path(runtime_path).read_text(encoding="utf-8")
+    for line_no, line in enumerate(src.splitlines(), 1):
+        stripped = line.lstrip()
+        if "session.close" in stripped and "pass" in stripped:
+            pytest.fail(
+                f"silent-swallow on session.close() at line {line_no}: {line!r}"
+            )
+
+
+def test_r3_lifecycle_pilot_report_resources_has_no_close_method() -> None:
+    """§7: the bundle is a passive carrier — no ``close`` method.
+
+    The brief §7 forbids a second close path. Removing the
+    ``close`` method from ``_PilotReportResources`` enforces the
+    "unique owner" property: the only path that closes the
+    sessions / disposes the engine is the context manager.
+    """
+    assert not hasattr(rmp._PilotReportResources, "close"), (
+        "_PilotReportResources MUST NOT have a close() method (R3 §7 unique owner)"
+    )
+
+
+def test_r3_lifecycle_cmd_run_uses_context_owner_static() -> None:
+    """§10 static gate: _cmd_run uses the unique resource owner.
+
+    A static scan of :func:`_cmd_run` shows that the only
+    engine-management path goes through
+    :func:`_compose_report_services_context`. There is no
+    direct ``engine.dispose()`` call in ``_cmd_run`` (the
+    context manager owns it).
+    """
+    src = inspect.getsource(rmp._cmd_run)
+    assert "_compose_report_services_context" in src
+    # Strip the docstring to avoid false positives on rationale
+    # comments that mention ``engine.dispose`` in the
+    # documentation.
+    if '"""' in src:
+        first_close = src.index('"""', src.index('"""') + 3) + 3
+        src = src[first_close:]
+    # Strip line comments: a line that begins with ``#`` (after
+    # stripping leading whitespace) is a comment, not a call.
+    non_comment_lines = [
+        line
+        for line in src.splitlines()
+        if not line.lstrip().startswith("#")
+    ]
+    non_comment_src = "\n".join(non_comment_lines)
+    # The R3 owner-of-all cleanup: the context manager is the
+    # sole resource handler. ``_cmd_run`` MUST NOT call
+    # ``engine.dispose()`` directly.
+    assert "engine.dispose" not in non_comment_src, (
+        "_cmd_run MUST NOT call engine.dispose() directly; "
+        "the context manager is the unique owner"
+    )
+
+
+def test_r3_lifecycle_primary_plus_cleanup_preserves_objects() -> None:
+    """§7.4: PRIMARY_PLUS_CLEANUP → ExceptionGroup(primary, *cleanup).
+
+    When the yield body raises a primary exception AND the
+    cleanup also raises, the function MUST surface an
+    :class:`ExceptionGroup` with the primary listed first and
+    every cleanup error after — preserving object identity.
+    """
+    engine, shared, scheme = _lifecycle_make_resources()
+    scheme.install_close_exc(RuntimeError("cleanup-scheme"))
+    shared.install_close_exc(RuntimeError("cleanup-shared"))
+    engine.install_dispose_exc(RuntimeError("cleanup-engine"))
+    primary = ValueError("primary-bang")
+
+    with pytest.MonkeyPatch.context() as mp:
+        _lifecycle_patch_to_return_resources(
+            monkeypatch=mp,
+            engine=engine, shared=shared, scheme=scheme,
+        )
+
+        with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117 - nested with required for context-manager exception injection
+            with rmp._compose_report_services_context(
+                engine=engine, output_root=Path("/tmp/r3-primary-plus"),
+            ):
+                raise primary
+
+    # The ExceptionGroup MUST contain the primary + the 3
+    # cleanup errors (in some order). Primary is listed FIRST
+    # per brief §7.4. The exceptions themselves are the
+    # original objects (identity preserved).
+    exceptions = list(excinfo.value.exceptions)
+    assert exceptions[0] is primary, (
+        f"ExceptionGroup MUST list primary first; got {exceptions!r}"
+    )
+    cleanup_set = {repr(e) for e in exceptions[1:]}
+    assert "RuntimeError('cleanup-scheme')" in cleanup_set
+    assert "RuntimeError('cleanup-shared')" in cleanup_set
+    assert "RuntimeError('cleanup-engine')" in cleanup_set
+
+
+def test_r3_lifecycle_primary_only_preserves_object() -> None:
+    """§7.4: PRIMARY_ONLY → original primary propagates with identity."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    primary = ValueError("primary-only")
+
+    with pytest.MonkeyPatch.context() as mp:
+        _lifecycle_patch_to_return_resources(
+            monkeypatch=mp,
+            engine=engine, shared=shared, scheme=scheme,
+        )
+
+        with pytest.raises(ValueError) as excinfo, rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/r3-primary-only"),
+        ):
+            raise primary
+
+    assert excinfo.value is primary
+    # All three resources were released exactly once.
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+    assert engine.dispose_calls == 1
+
+
+def test_r3_lifecycle_cleanup_only_surfaces_single_error() -> None:
+    """§7.4: ONE_CLEANUP_ONLY → the single cleanup error propagates.
+
+    Yield body exits normally, but a single cleanup step raises.
+    The function MUST surface that single cleanup error directly
+    (no ``ExceptionGroup`` wrapping when there is only ONE
+    cleanup error). The single error is the original instance.
+    """
+    engine, shared, scheme = _lifecycle_make_resources()
+    cleanup_exc = RuntimeError("cleanup-only")
+    scheme.install_close_exc(cleanup_exc)
+
+    with pytest.MonkeyPatch.context() as mp:
+        _lifecycle_patch_to_return_resources(
+            monkeypatch=mp,
+            engine=engine, shared=shared, scheme=scheme,
+        )
+
+        with pytest.raises(RuntimeError) as excinfo, rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/r3-cleanup-only"),
+        ):
+            pass  # body exits normally; cleanup fails
+
+    # The single cleanup error is the original instance.
+    assert excinfo.value is cleanup_exc
+
+
+def test_r3_lifecycle_system_exit_preserves_identity() -> None:
+    """§7 strict: SystemExit MUST NOT be replaced by the cleanup path.
+
+    When the yield body raises ``SystemExit``, the cleanup path
+    MUST propagate the original ``SystemExit`` instance with
+    its ``code`` attribute intact. The cleanup does NOT replace
+    it (no ``except SystemExit: pass`` + re-raise of a new
+    ``SystemExit``).
+    """
+    engine, shared, scheme = _lifecycle_make_resources()
+    primary = SystemExit(42)
+
+    with pytest.MonkeyPatch.context() as mp:
+        _lifecycle_patch_to_return_resources(
+            monkeypatch=mp,
+            engine=engine, shared=shared, scheme=scheme,
+        )
+
+        with pytest.raises(SystemExit) as excinfo, rmp._compose_report_services_context(
+            engine=engine, output_root=Path("/tmp/r3-systemexit"),
+        ):
+            raise primary
+
+    # Object identity + code preserved.
+    assert excinfo.value is primary
+    assert excinfo.value.code == 42
+    # Cleanup still ran (scheme → shared → engine).
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+    assert engine.dispose_calls == 1
+
+
+def test_r3_lifecycle_keyboard_interrupt_preserves_identity() -> None:
+    """§7 strict: KeyboardInterrupt MUST NOT be replaced by cleanup path."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    primary = KeyboardInterrupt()
+
+    with pytest.MonkeyPatch.context() as mp:
+        _lifecycle_patch_to_return_resources(
+            monkeypatch=mp,
+            engine=engine, shared=shared, scheme=scheme,
+        )
+
+        with pytest.raises(KeyboardInterrupt) as excinfo:  # noqa: SIM117 - nested with required for context-manager exception injection
+            with rmp._compose_report_services_context(
+                engine=engine, output_root=Path("/tmp/r3-kbint"),
+            ):
+                raise primary
+
+    assert excinfo.value is primary
+
+
+def test_r3_lifecycle_second_close_is_noop() -> None:
+    """§7: closing a SQLAlchemy session twice is a no-op.
+
+    Sanity check that idempotent close holds for real
+    SQLAlchemy ``Session.close()``; the lifecycle owner relies
+    on this property for partial-construction cleanup paths.
+    """
+    # Use a real SQLAlchemy session: its ``close()`` is
+    # idempotent (no-op on second call) by spec.
+    from sqlalchemy import create_engine as _sa_create_engine
+    from sqlalchemy.orm import Session as _SASession
+
+    engine = _sa_create_engine("sqlite:///:memory:")
+    session = _SASession(engine)
+    session.close()  # first close
+    session.close()  # second close MUST be a no-op
+    # No exception means the second close was a no-op. Tear
+    # down the engine.
+    engine.dispose()

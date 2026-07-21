@@ -37,7 +37,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Iterator, Mapping
-from contextlib import contextmanager, suppress
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -131,6 +131,33 @@ ALLOWED_DATABASE_BACKENDS: frozenset[str] = frozenset(
 )
 SQLITE_ALEMBIC_TIMEOUT_SECONDS = 120
 SQLITE_URL_SCHEME = "sqlite:///"
+
+
+# ── Frozen manifest identity authority (corrective R3 §5) ───────────────────
+# The pilot run is a hard-frozen contract: the manifest path / suite_id /
+# scenario_id / database_backend / expected_outcome / expected_output
+# triple / excluded_paths MUST match the canonical authority for the
+# requested backend. Any drift (same-content copy at another path,
+# symlink alias, different suite, different golden commit, non-empty
+# excluded_paths, non-default comparison_policy, undeclared fixtures)
+# fails closed with ``MANIFEST_IDENTITY_MISMATCH`` BEFORE database
+# provisioning, seed, runner, report composition, or managed-output
+# write. The validator is the unique authority on manifest identity;
+# downstream automation MUST classify drift by the typed code, NOT by
+# message text.
+
+FROZEN_MANIFEST_PATHS_BY_BACKEND: dict[str, str] = {
+    DATABASE_BACKEND_SQLITE: "backend/tests/evaluation/data/task011-pilot-sqlite.v1.json",
+    DATABASE_BACKEND_POSTGRESQL: "backend/tests/evaluation/data/task011-pilot-postgresql.v1.json",
+}
+FROZEN_MANIFEST_SUITE_IDS_BY_BACKEND: dict[str, str] = {
+    DATABASE_BACKEND_SQLITE: "task011-pilot-multilingual-sqlite",
+    DATABASE_BACKEND_POSTGRESQL: "task011-pilot-multilingual-postgresql",
+}
+FROZEN_SCENARIO_ID = "baseline_feasible"
+FROZEN_EXPECTED_OUTCOME = "SUCCEEDED"
+FROZEN_EXPECTED_OUTPUT_PATH = "expected/baseline_feasible.v1.json"
+FROZEN_EXPECTED_OUTPUT_COMMIT_SHA = "f274db66fe4bb2de206d12c2d561d1b3549ab6c0"
 # P1-1 (Round 1 corrective): the canonical correlation marker that
 # the production runner bakes into ``assumption_snapshot.correlation_id``
 # (see ``runners._executor.execute_baseline_succeeded``). The frozen
@@ -688,6 +715,184 @@ def _assert_scenario_baseline_feasible(
         )
 
 
+def validate_frozen_manifest_identity(
+    *,
+    manifest_path: Path,
+    manifest: Manifest,
+    backend: str,
+) -> None:
+    """Validate the loaded manifest matches the canonical frozen authority.
+
+    Single source of truth for manifest identity (corrective R3 §5).
+    Called from ``_cmd_run`` AFTER ``_load_pilot_manifest`` /
+    ``_assert_scenario_baseline_feasible`` and BEFORE database
+    provisioning, seed, runner, golden comparison, report
+    composition, and managed-output write. Any drift fails closed
+    with ``code='MANIFEST_IDENTITY_MISMATCH'``.
+
+    Verified fields (all thirteen, fail-closed on any mismatch):
+
+    1. resolved canonical manifest path (no copy, no symlink alias)
+    2. ``suite_id``
+    3. scenario count (MUST equal ``1``)
+    4. ``scenario_id`` (``'baseline_feasible'``)
+    5. ``database_backend`` matches the requested backend
+    6. ``expected_outcome`` (``'SUCCEEDED'``)
+    7. ``expected_output.scenario_id``
+    8. ``expected_output.path``
+    9. ``expected_output.expected_outcome``
+    10. ``expected_output.commit_sha``
+    11. ``excluded_paths`` (MUST be empty)
+    12. ``fixtures`` (MUST be empty / omitted)
+    13. ``comparison_policy`` (MUST be the V1 default — empty leaves)
+
+    The resolved manifest path is compared after ``realpath`` so
+    symlink alias / same-content copy at another path is rejected
+    (the absolute path MUST equal the canonical
+    ``FROZEN_MANIFEST_PATHS_BY_BACKEND[backend]`` relative to the
+    repository root).
+    """
+    expected_relative = FROZEN_MANIFEST_PATHS_BY_BACKEND.get(backend)
+    if expected_relative is None:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"unsupported backend for manifest identity validation: {backend!r}; "
+                f"expected one of {sorted(FROZEN_MANIFEST_PATHS_BY_BACKEND)!r}."
+            ),
+        )
+    expected_suite_id = FROZEN_MANIFEST_SUITE_IDS_BY_BACKEND[backend]
+
+    # The runtime file lives at
+    # ``<repo_root>/backend/tests/pilot/run_multilingual_report_pilot.py``
+    # so the repo root is 4 levels up from the file
+    # (``tests.pilot.run_multilingual_report_pilot``).
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    expected_absolute = (repo_root / expected_relative).resolve()
+    actual_absolute = manifest_path.resolve()
+    if actual_absolute != expected_absolute:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest path identity drift: resolved={str(actual_absolute)!r} "
+                f"expected={str(expected_absolute)!r} (backend={backend!r})."
+            ),
+        )
+
+    if manifest.suite_id != expected_suite_id:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest suite_id drift: got {manifest.suite_id!r} "
+                f"expected {expected_suite_id!r} for backend={backend!r}."
+            ),
+        )
+
+    if len(manifest.scenarios) != 1:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest scenario count MUST be exactly 1 for the frozen pilot; "
+                f"got {len(manifest.scenarios)} for backend={backend!r}."
+            ),
+        )
+    scenario = manifest.scenarios[0]
+
+    if scenario.scenario_id != FROZEN_SCENARIO_ID:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest scenario_id drift: got {scenario.scenario_id!r} "
+                f"expected {FROZEN_SCENARIO_ID!r}."
+            ),
+        )
+    if scenario.database_backend.value != backend:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest database_backend drift: got {scenario.database_backend.value!r} "
+                f"expected {backend!r}."
+            ),
+        )
+    if scenario.expected_outcome.value != FROZEN_EXPECTED_OUTCOME:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest expected_outcome drift: got {scenario.expected_outcome.value!r} "
+                f"expected {FROZEN_EXPECTED_OUTCOME!r}."
+            ),
+        )
+
+    expected_output = scenario.expected_output
+    if expected_output is None:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message="manifest expected_output MUST be present for SUCCEEDED scenario.",
+        )
+    if expected_output.scenario_id != FROZEN_SCENARIO_ID:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest expected_output.scenario_id drift: got "
+                f"{expected_output.scenario_id!r} expected {FROZEN_SCENARIO_ID!r}."
+            ),
+        )
+    if expected_output.path != FROZEN_EXPECTED_OUTPUT_PATH:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest expected_output.path drift: got {expected_output.path!r} "
+                f"expected {FROZEN_EXPECTED_OUTPUT_PATH!r}."
+            ),
+        )
+    if expected_output.expected_outcome.value != FROZEN_EXPECTED_OUTCOME:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest expected_output.expected_outcome drift: got "
+                f"{expected_output.expected_outcome.value!r} "
+                f"expected {FROZEN_EXPECTED_OUTCOME!r}."
+            ),
+        )
+    if expected_output.commit_sha != FROZEN_EXPECTED_OUTPUT_COMMIT_SHA:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest expected_output.commit_sha drift: got "
+                f"{expected_output.commit_sha!r} "
+                f"expected {FROZEN_EXPECTED_OUTPUT_COMMIT_SHA!r}."
+            ),
+        )
+
+    if len(manifest.excluded_paths) != 0:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest excluded_paths MUST be empty for the frozen pilot; "
+                f"got {list(manifest.excluded_paths)!r}."
+            ),
+        )
+
+    if len(scenario.fixtures) != 0:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest scenario.fixtures MUST be empty / omitted for the "
+                f"frozen pilot; got {list(scenario.fixtures)!r}."
+            ),
+        )
+
+    if len(scenario.comparison_policy.leaves) != 0:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"manifest scenario.comparison_policy MUST be the V1 default "
+                f"(empty leaves) for the frozen pilot; got "
+                f"{list(scenario.comparison_policy.leaves)!r}."
+            ),
+        )
+
+
 def _load_manifest_golden(
     *,
     scenario: ScenarioDeclaration,
@@ -833,19 +1038,20 @@ def _verify_manifest_golden_binding(
 
 @dataclass
 class _PilotReportResources:
-    """Resource bundle returned by :func:`_compose_report_services`.
+    """Resource bundle returned by :func:`_compose_report_services_context`.
 
     Carries the wired triplet + the two underlying SQLAlchemy
     ``Session`` objects (the ``shared_session`` used by
     ``SQLReportRepository`` + ``ReportRenderUnitOfWork`` and the
-    anonymous ``scheme_session`` used by ``SchemeRepository``) so the
-    caller can explicitly close them in a ``finally`` block.
+    anonymous ``scheme_session`` used by ``SchemeRepository``).
 
-    The lifetime contract is **caller-owned** — the caller MUST
-    invoke :meth:`close` (or close both session fields directly)
-    before returning, on BOTH success and failure paths.
-    Composition code no longer relies on Python interpreter
-    shutdown / SQLAlchemy pool reset to release the connections.
+    The lifetime contract is **owned by the context manager**:
+    :func:`_compose_report_services_context` is the single
+    resource owner and uses ``contextlib.ExitStack`` to register
+    cleanup at construction time. The bundle is a passive
+    carrier — it has NO close method, so the caller cannot
+    accidentally double-close or skip a close path. Closing is
+    exclusively the context manager's responsibility.
     """
 
     report_service: ReportService
@@ -855,26 +1061,6 @@ class _PilotReportResources:
     project_service: DatabaseProjectService
     shared_session: Session
     scheme_session: Session
-    _closed: bool = False
-
-    def close(self) -> None:
-        """Close the two composition-owned ``Session`` objects exactly once.
-
-        Idempotent — second call is a no-op. Errors during close are
-        swallowed (the connection pool will be disposed by the
-        caller's ``engine.dispose()``); the brief §5 ordered
-        release is preserved (report / UoW → scheme session →
-        engine).
-        """
-        if self._closed:
-            return
-        self._closed = True
-        for session_attr in ("shared_session", "scheme_session"):
-            sess = getattr(self, session_attr)
-            try:  # noqa: SIM105 - pool will release on engine.dispose
-                sess.close()
-            except Exception:  # noqa: BLE001
-                pass
 
 
 @contextmanager
@@ -883,50 +1069,85 @@ def _compose_report_services_context(
     engine: Engine,
     output_root: Path,
 ) -> Iterator[_PilotReportResources]:
-    """Build the typed report-services bundle; release on exit (brief §4).
+    """Build the typed report-services bundle; release on exit (R3 §7).
 
-    Lifecycle owner. Resources registered in `state` dict on
-    creation so partial-construction failures can release what
-    was obtained. Release order: scheme -> shared -> engine.
+    The unique resource owner for the per-run lifecycle. The
+    function uses ``contextlib.ExitStack`` to register cleanup
+    callbacks at construction time so partial-construction
+    failures release every already-obtained resource in the
+    correct LIFO order (``scheme_session`` → ``shared_session``
+    → ``engine.dispose()`` — engine LAST).
+
+    Cleanup failure rules (R3 §7.4):
+
+    * ``PRIMARY_ONLY`` → the original primary exception propagates
+      with no wrapping.
+    * ``ONE_CLEANUP_ONLY`` → the original cleanup exception
+      propagates (the caller's normal ``finally`` or outer
+      ``except`` handles it).
+    * ``MULTIPLE_CLEANUP_ONLY`` →
+      :class:`ExceptionGroup("cleanup errors during composition", [...])`.
+    * ``PRIMARY_PLUS_CLEANUP`` →
+      :class:`ExceptionGroup` with
+      ``[primary, *cleanup]``
+      (primary first, cleanup errors after).
+
+    Forbidden shapes (R3 §7 strict):
+
+    * ``except Exception: pass`` (silent swallow) is forbidden
+      anywhere on the cleanup path.
+    * Replacing original ``KeyboardInterrupt`` /
+      ``SystemExit`` / ``GeneratorExit`` is forbidden; the
+      cleanup path does NOT catch these classes, so they
+      propagate with their original type / instance / code
+      intact.
     """
-    state: dict[str, object] = {
-        "shared_session": None,
-        "scheme_session": None,
-        "resources": None,
-    }
-    primary_exc: BaseException | None = None
     cleanup_errors: list[BaseException] = []
-    base_exception_note: str | None = None
 
-    def _do_cleanup() -> None:
-        nonlocal base_exception_note
-        scheme_session = state["scheme_session"]
-        shared_session = state["shared_session"]
-        if scheme_session is not None:
-            try:
-                scheme_session.close()
-            except BaseException as cleanup_exc:
-                cleanup_errors.append(cleanup_exc)
-        if shared_session is not None:
-            try:
-                shared_session.close()
-            except BaseException as cleanup_exc:
-                cleanup_errors.append(cleanup_exc)
+    def _safe_close_session(
+        session: Session | None, *, label: str
+    ) -> None:
+        """Close a SQLAlchemy session; surface the failure on cleanup_errors.
+
+        Idempotent at the OS connection level (SQLAlchemy skips
+        already-closed sessions). The brief §7 forbids silent
+        swallow, so any exception is appended to
+        ``cleanup_errors`` for the caller / outer handler to
+        surface.
+        """
+        if session is None:
+            return
+        try:
+            session.close()
+        except BaseException as exc:  # noqa: BLE001 - explicit per brief
+            cleanup_errors.append(exc)
+
+    def _safe_dispose_engine() -> None:
+        """Dispose the engine; surface the failure on cleanup_errors."""
         try:
             engine.dispose()
-        except BaseException as cleanup_exc:
-            cleanup_errors.append(cleanup_exc)
-        if base_exception_note is None and cleanup_errors:
-            base_exception_note = (
-                f"partial cleanup during resource release; "
-                f"cleanup_errors={[type(e).__name__ for e in cleanup_errors]!r}"
-            )
+        except BaseException as exc:  # noqa: BLE001 - explicit per brief
+            cleanup_errors.append(exc)
 
+    primary_exc: BaseException | None = None
     try:
-        try:
+        with ExitStack() as stack:
+            # Build the typed bundle. Every resource is registered
+            # for cleanup IMMEDIATELY after creation; subsequent
+            # constructor failures trigger the already-registered
+            # cleanup in LIFO order via ``stack.__exit__``.
+            #
+            # LIFO registration order (first registered = last
+            # executed) maps to the brief §7.3 order:
+            #   engine.dispose (registered first → runs last)
+            #   shared_session.close (registered second → runs middle)
+            #   scheme_session.close (registered last → runs first)
             session_factory = _build_session_factory(engine)
-            state["shared_session"] = session_factory()
-            shared_session = state["shared_session"]
+            stack.callback(_safe_dispose_engine)
+
+            shared_session = session_factory()
+            stack.callback(_safe_close_session, shared_session, label="shared_session.close")
+
             report_repo = SQLReportRepository(shared_session)
             artifact_storage = ReportArtifactStorage(base_dir=str(output_root))
             report_uow = ReportRenderUnitOfWork(
@@ -944,8 +1165,10 @@ def _compose_report_services_context(
             calculation_service = _PilotCalculationQueryAdapter(
                 session_factory=session_factory,
             )
-            state["scheme_session"] = session_factory()
-            scheme_session = state["scheme_session"]
+
+            scheme_session = session_factory()
+            stack.callback(_safe_close_session, scheme_session, label="scheme_session.close")
+
             scheme_repo = SchemeRepository(scheme_session)
             scheme_query = _PilotSchemeQueryAdapter(
                 inner=SchemeQueryService(repository=scheme_repo),
@@ -957,7 +1180,8 @@ def _compose_report_services_context(
             )
             assembler = ReportAssembler(data_provider=data_provider)
             report_service = ReportService(repository=report_repo, assembler=assembler)
-            state["resources"] = _PilotReportResources(
+
+            resources = _PilotReportResources(
                 report_service=report_service,
                 render_service=render_service,
                 template_repository=report_repo,
@@ -966,33 +1190,37 @@ def _compose_report_services_context(
                 shared_session=shared_session,
                 scheme_session=scheme_session,
             )
-        except BaseException:
-            raise
-        yield state["resources"]
-        _do_cleanup()
+
+            yield resources
+
+            # Success path: ExitStack.__exit__ will run all
+            # registered cleanup callbacks. Any cleanup error
+            # is collected into ``cleanup_errors`` (via the
+            # ``_safe_close_session`` / ``_safe_dispose_engine``
+            # wrappers) and surfaced below.
     except BaseException as primary_caught:
+        # ``SystemExit`` / ``KeyboardInterrupt`` / ``GeneratorExit``
+        # fall through this handler with their original type /
+        # instance / code intact (we do NOT catch-and-replace).
+        # ExitStack has already released the owned resources in
+        # the correct LIFO order; if the yield body raised before
+        # some resources were constructed, the registered
+        # callbacks released what was obtained.
         primary_exc = primary_caught
-        if isinstance(primary_exc, (SystemExit, KeyboardInterrupt, GeneratorExit)):
-            _do_cleanup()
-            if base_exception_note is not None:
-                with suppress(Exception):
-                    primary_exc.add_note(base_exception_note)
-            raise primary_exc from None
-        _do_cleanup()
         if not cleanup_errors:
             raise primary_exc from None
         raise ExceptionGroup(
             "primary error plus cleanup errors during composition",
             [primary_exc, *cleanup_errors],
         ) from None
-    else:
-        if cleanup_errors:
-            if len(cleanup_errors) == 1:
-                raise cleanup_errors[0]
-            raise ExceptionGroup(
-                "cleanup errors during composition",
-                cleanup_errors,
-            )
+
+    if cleanup_errors:
+        if len(cleanup_errors) == 1:
+            raise cleanup_errors[0]
+        raise ExceptionGroup(
+            "cleanup errors during composition",
+            cleanup_errors,
+        )
 
 
 def _seed_report_templates(template_repo: SQLReportRepository) -> None:
@@ -1127,108 +1355,113 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # its own inputs, not echo its own output.
         _assert_scenario_baseline_feasible(scenario=scenario, backend_marker=args.backend)
 
+        # R3 §5: validate manifest identity (path / suite / scenario /
+        # backend / expected_outcome / expected_output triple /
+        # excluded_paths / fixtures / comparison_policy) BEFORE
+        # any database provisioning, seed, runner, golden
+        # comparison, report composition, or managed-output write.
+        # This is the single source of truth on manifest identity.
+        validate_frozen_manifest_identity(
+            manifest_path=bundle.manifest_path,
+            manifest=bundle.manifest,
+            backend=backend,
+        )
+
         if backend == DATABASE_BACKEND_SQLITE:
             engine = _provision_sqlite_database(database_url=args.database_url)
         else:
             engine = create_engine(args.database_url, future=True)
-        try:
-            session_factory = _build_session_factory(engine)
-            with session_factory() as seed_session:
-                seed_a1_all_prereqs(seed_session)
-                combined_source_hash = _expected_source_binding_sha(seed_session)
+        session_factory = _build_session_factory(engine)
+        with session_factory() as seed_session:
+            seed_a1_all_prereqs(seed_session)
+            combined_source_hash = _expected_source_binding_sha(seed_session)
 
-            outcome = run_scenario_via_markers(
-                session_factory,
-                source_binding_id=SOURCE_BINDING_ID,
-                weight_set_revision_id=WEIGHT_REVISION_ID,
-                correlation_marker=PILOT_BASELINE_CORRELATION_ID,
-                backend_marker=backend,
-            )
-            if outcome.outcome != "SUCCEEDED":
-                raise PilotCompositionError(
-                    code="BACKEND_RUNNER_FAILED",
-                    message=(
-                        f"backend runner returned outcome={outcome.outcome!r}; "
-                        "expected 'SUCCEEDED'."
-                    ),
-                )
-
-            scheme_run = outcome.scheme_run
-            project_id = scheme_run.project_id
-            project_version_id = scheme_run.project_version_id
-
-            # P1-1: manifest-golden binding MUST succeed before any
-            # of the four-render composition steps below (no
-            # ``_compose_report_services_context`` / no
-            # ``_seed_report_templates`` / no
-            # ``verify_multilingual_report_pilot`` on mismatch).
-            _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
-                scenario=scenario,
-                manifest_path=bundle.manifest_path,
-                session_factory=session_factory,
-                scheme_run_id=str(scheme_run.id),
+        outcome = run_scenario_via_markers(
+            session_factory,
+            source_binding_id=SOURCE_BINDING_ID,
+            weight_set_revision_id=WEIGHT_REVISION_ID,
+            correlation_marker=PILOT_BASELINE_CORRELATION_ID,
+            backend_marker=backend,
+        )
+        if outcome.outcome != "SUCCEEDED":
+            raise PilotCompositionError(
+                code="BACKEND_RUNNER_FAILED",
+                message=(
+                    f"backend runner returned outcome={outcome.outcome!r}; "
+                    "expected 'SUCCEEDED'."
+                ),
             )
 
-            with _compose_report_services_context(
-                engine=engine, output_root=output_root
-            ) as resources:
-                template_repo = resources.template_repository
-                _seed_report_templates(template_repo)
-                download_artifact = _build_download_artifact(
-                    render_service=resources.render_service
-                )
+        scheme_run = outcome.scheme_run
+        project_id = scheme_run.project_id
+        project_version_id = scheme_run.project_version_id
 
-                run_identity: dict[str, str] = {
-                    "database_backend": backend,
-                    "scenario_id": scenario.scenario_id,
-                    "correlation_id": PILOT_BASELINE_CORRELATION_ID,
-                    "source_binding_id": SOURCE_BINDING_ID,
-                    "weight_set_revision_id": WEIGHT_REVISION_ID,
-                    "combined_source_hash": combined_source_hash,
-                    "manifest_scenario_id": scenario.scenario_id,
-                    "manifest_expected_output_path": str(scenario.expected_output.path)
-                    if scenario.expected_output is not None
-                    and scenario.expected_output.path is not None
-                    else "",
-                    "manifest_expected_output_commit_sha": str(
-                        scenario.expected_output.commit_sha or ""
-                    )
-                    if scenario.expected_output is not None
-                    else "",
-                    "manifest_golden_comparison_result": "PASS",
-                }
-                summary = verify_multilingual_report_pilot(
-                    report_service=resources.report_service,
-                    render_service=resources.render_service,
-                    template_repository=resources.template_repository,
-                    project_id=project_id,
-                    project_version_id=project_version_id,
-                    source_commit_sha=commit_sha,
-                    source_manifest_sha=source_manifest_sha,
-                    output_root=output_root,
-                    repeat_index=args.repeat_index,
-                    run_identity=run_identity,
-                    download_artifact=download_artifact,
-                )
+        # P1-1: manifest-golden binding MUST succeed before any
+        # of the four-render composition steps below (no
+        # ``_compose_report_services_context`` / no
+        # ``_seed_report_templates`` / no
+        # ``verify_multilingual_report_pilot`` on mismatch).
+        _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
+            scenario=scenario,
+            manifest_path=bundle.manifest_path,
+            session_factory=session_factory,
+            scheme_run_id=str(scheme_run.id),
+        )
 
-                sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
-                return EXIT_OK
-            # Inner composition-context exit already ran the fixed
-            # release path (scheme -> shared -> engine.dispose()).
-            # The outer function-level exception routing below
-            # classifies any exception that escaped the context.
-        finally:
-            # Outer-level release: only ``engine.dispose()`` runs
-            # here on the way out. The composition context manager
-            # already released per-resource on success and on
-            # partial-construction failure; this branch is a
-            # belt-and-braces disposal for any case where the
-            # composition context did not fully enter (e.g. very
-            # early exception).
-            try:  # noqa: SIM105 - dispose best-effort
-                engine.dispose()
-            except Exception:  # noqa: BLE001
-                pass
+        with _compose_report_services_context(
+            engine=engine, output_root=output_root
+        ) as resources:
+            template_repo = resources.template_repository
+            _seed_report_templates(template_repo)
+            download_artifact = _build_download_artifact(
+                render_service=resources.render_service
+            )
+
+            run_identity: dict[str, str] = {
+                "database_backend": backend,
+                "scenario_id": scenario.scenario_id,
+                "correlation_id": PILOT_BASELINE_CORRELATION_ID,
+                "source_binding_id": SOURCE_BINDING_ID,
+                "weight_set_revision_id": WEIGHT_REVISION_ID,
+                "combined_source_hash": combined_source_hash,
+                "manifest_scenario_id": scenario.scenario_id,
+                "manifest_expected_output_path": str(scenario.expected_output.path)
+                if scenario.expected_output is not None
+                and scenario.expected_output.path is not None
+                else "",
+                "manifest_expected_output_commit_sha": str(
+                    scenario.expected_output.commit_sha or ""
+                )
+                if scenario.expected_output is not None
+                else "",
+                "manifest_golden_comparison_result": "PASS",
+            }
+            summary = verify_multilingual_report_pilot(
+                report_service=resources.report_service,
+                render_service=resources.render_service,
+                template_repository=resources.template_repository,
+                project_id=project_id,
+                project_version_id=project_version_id,
+                source_commit_sha=commit_sha,
+                source_manifest_sha=source_manifest_sha,
+                output_root=output_root,
+                repeat_index=args.repeat_index,
+                run_identity=run_identity,
+                download_artifact=download_artifact,
+            )
+
+            sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
+            return EXIT_OK
+        # R3 §7 strict: the composition context manager
+        # (``_compose_report_services_context``) is the UNIQUE
+        # resource owner. The engine is disposed at most once
+        # via the context manager's ExitStack on the way out
+        # (scheme -> shared -> engine, LIFO); no belt-and-
+        # braces second dispose happens here. Silently
+        # swallowing a second ``engine.dispose()`` error was a
+        # R3 §7 forbidden path and is removed. The outer
+        # function-level exception routing below classifies
+        # any exception that escaped the context.
     except PilotCompositionError as exc:
         sys.stderr.write(f"PILOT_COMPOSITION_ERROR code={exc.code}: {exc}\n")
         if exc.code in {"INPUT_ERROR", "MANIFEST_ERROR"}:
@@ -1406,7 +1639,7 @@ PILOT_1_4_PER_LOCALE_FORMAT_EQUALITY_FIELDS: tuple[tuple[str, str, str], ...] = 
 PILOT_1_4_CANONICAL_SECTION_INVARIANTS: tuple[str, ...] = ("canonical_section_key_set",)
 PILOT_1_4_CANONICAL_NUMERIC_VALUE_AND_UNIT_INVARIANTS: tuple[str, ...] = (
     "canonical_numeric_field_path_set",
-    "canonical_numeric_value_unit_triple_set",
+    "canonical_numeric_value_and_unit_set",
 )
 PILOT_1_4_CANONICAL_BUSINESS_FIELDS: tuple[str, ...] = (
     *PILOT_1_4_CANONICAL_SECTION_INVARIANTS,
@@ -1536,37 +1769,6 @@ def _canonical_numeric_field_path_set(
     return frozenset(paths)
 
 
-def _canonical_numeric_value_and_unit_set(
-    semantic_checks: dict[str, object],
-) -> frozenset[tuple[str, str]]:
-    """Return the set of ``(field_path, unit_code)`` tuples from observed artifact."""
-    observed = semantic_checks.get("observed_numeric_fields")
-    if observed is None:
-        raise PilotAcceptanceError(
-            code="RUN_SUMMARY_SCHEMA_DRIFT",
-            message=(
-                "semantic-checks.observed_numeric_fields MUST be present for "
-                "§4 #3 canonical numeric value+unit comparison (the helper "
-                "reads the OBSERVED side because the artifact's raw_value is "
-                "the on-disk numeric, not the expected golden)."
-            ),
-        )
-    if not isinstance(observed, list):
-        raise PilotAcceptanceError(
-            code="RUN_SUMMARY_SCHEMA_DRIFT",
-            message=(f"observed_numeric_fields MUST be a list; got {type(observed).__name__}."),
-        )
-    pairs: list[tuple[str, str]] = []
-    for entry in observed:
-        if not isinstance(entry, dict):
-            continue
-        field_path = entry.get("field_path")
-        unit_code = entry.get("unit_code")
-        if isinstance(field_path, str) and isinstance(unit_code, str):
-            pairs.append((field_path, unit_code))
-    return frozenset(pairs)
-
-
 def _normalize_canonical_numeric_value(raw_value: object) -> str:
     """Return the canonical decimal string for ``raw_value``.
 
@@ -1692,51 +1894,63 @@ def _normalize_observed_unit_code(
     return "<unitless>"
 
 
-def _canonical_numeric_value_unit_triple_set(
+def _canonical_numeric_value_and_unit_set(
     semantic_checks: dict[str, object],
 ) -> frozenset[tuple[str, str, str]]:
-    """Return the (field_path, normalized_value, unit_code) triples from observed artifact.
+    """Return the (field_path, normalized_value, unit_code) triples from canonical side.
 
-    Per brief §7.1 the invariant is a 3-tuple, not 2-tuple. Numeric
-    values are normalized via :func:`_normalize_canonical_numeric_value`;
-    unit codes via :func:`_normalize_observed_unit_code`. Both
-    helpers fail closed (``RUN_SUMMARY_SCHEMA_DRIFT``) on schema
-    drift.
+    The canonical numeric surface is the SOLE authority for the
+    ``canonical_numeric_value_and_unit_set`` fingerprint (brief §6 /
+    R3 §6). Sourced from ``semantic-checks.canonical_numeric_fields``
+    (NOT ``observed_numeric_fields``). The observed side is only an
+    artifact-observation audit; it is NOT the canonical raw numeric
+    authority for the fingerprint.
+
+    Each entry is normalized via
+    :func:`_normalize_canonical_numeric_value` (Decimal-strict
+    rules: bool / None / non-numeric / NaN / sNaN / +Infinity /
+    -Infinity rejected; float roundtrip forbidden; negative zero
+    normalized to zero) and :func:`_normalize_observed_unit_code`
+    (empty unit is normalized to ``<unitless>`` unless the field
+    is flagged in ``missing_units``).
+
+    Same path + different normalized value → ``RUN_SUMMARY_SCHEMA_DRIFT``.
+    Same path + different unit → ``RUN_SUMMARY_SCHEMA_DRIFT``.
+    Conflicting duplicate ``(field_path, value, unit)`` → ``RUN_SUMMARY_SCHEMA_DRIFT``.
+    The set is order-insensitive; the comparison layer relies on
+    this.
     """
-    observed = semantic_checks.get("observed_numeric_fields")
-    if observed is None:
+    canonical = semantic_checks.get("canonical_numeric_fields")
+    if canonical is None:
         raise PilotAcceptanceError(
             code="RUN_SUMMARY_SCHEMA_DRIFT",
             message=(
-                "semantic-checks.observed_numeric_fields MUST be present for "
-                "§4 #3 canonical numeric value+unit comparison (the helper "
-                "reads the OBSERVED side because the artifact's raw_value is "
-                "the on-disk numeric, not the expected golden)."
+                "semantic-checks.canonical_numeric_fields MUST be present for "
+                "R3 §6 canonical numeric value+unit comparison (the canonical "
+                "side is the SOLE authority; observed_numeric_fields is "
+                "audit-only and is not used as the raw numeric evidence)."
             ),
         )
-    if not isinstance(observed, list):
+    if not isinstance(canonical, list):
         raise PilotAcceptanceError(
             code="RUN_SUMMARY_SCHEMA_DRIFT",
-            message=(f"observed_numeric_fields MUST be a list; got {type(observed).__name__}."),
+            message=(
+                f"canonical_numeric_fields MUST be a list; got {type(canonical).__name__}."
+            ),
         )
     missing_units_list = semantic_checks.get("missing_units", [])
     if not isinstance(missing_units_list, list):
         missing_units_list = []
     triples: list[tuple[str, str, str]] = []
     seen: set[tuple[str, str, str]] = set()
-    # Track path → set of unit_codes seen so far. If a path
-    # re-appears with a different unit, fail closed (brief §9.3
-    # "conflicting duplicate path/unit"). Also track per-path
-    # normalized values so a re-appearance with a different value
-    # fails closed (brief §9.3 "conflicting duplicate path/value").
     path_to_units: dict[str, set[str]] = {}
     path_to_values: dict[str, set[str]] = {}
-    for entry_index, entry in enumerate(observed):
+    for entry_index, entry in enumerate(canonical):
         if not isinstance(entry, dict):
             raise PilotAcceptanceError(
                 code="RUN_SUMMARY_SCHEMA_DRIFT",
                 message=(
-                    f"observed_numeric_fields[{entry_index}] MUST be a dict; "
+                    f"canonical_numeric_fields[{entry_index}] MUST be a dict; "
                     f"got {type(entry).__name__}."
                 ),
             )
@@ -1744,20 +1958,36 @@ def _canonical_numeric_value_unit_triple_set(
         if field_path is None:
             raise PilotAcceptanceError(
                 code="RUN_SUMMARY_SCHEMA_DRIFT",
-                message=(f"observed_numeric_fields[{entry_index}].field_path is missing."),
+                message=(f"canonical_numeric_fields[{entry_index}].field_path is missing."),
             )
         if not isinstance(field_path, str):
             raise PilotAcceptanceError(
                 code="RUN_SUMMARY_SCHEMA_DRIFT",
                 message=(
-                    f"observed_numeric_fields[{entry_index}].field_path MUST be a string; "
+                    f"canonical_numeric_fields[{entry_index}].field_path MUST be a string; "
                     f"got {type(field_path).__name__}."
                 ),
             )
         if field_path == "":
             raise PilotAcceptanceError(
                 code="RUN_SUMMARY_SCHEMA_DRIFT",
-                message=(f"observed_numeric_fields[{entry_index}].field_path MUST be non-empty."),
+                message=(f"canonical_numeric_fields[{entry_index}].field_path MUST be non-empty."),
+            )
+        if "raw_value" not in entry:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"canonical_numeric_fields[{entry_index}].raw_value is missing for "
+                    f"field_path={field_path!r}."
+                ),
+            )
+        if "unit_code" not in entry:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"canonical_numeric_fields[{entry_index}].unit_code is missing for "
+                    f"field_path={field_path!r}."
+                ),
             )
         normalized_value = _normalize_canonical_numeric_value(entry.get("raw_value"))
         unit_code = _normalize_observed_unit_code(
@@ -1772,7 +2002,7 @@ def _canonical_numeric_value_unit_triple_set(
             raise PilotAcceptanceError(
                 code="RUN_SUMMARY_SCHEMA_DRIFT",
                 message=(
-                    f"observed_numeric_fields has conflicting value for "
+                    f"canonical_numeric_fields has conflicting value for "
                     f"field_path={field_path!r}: existing_values="
                     f"{sorted(existing_values)!r} new_value={normalized_value!r}."
                 ),
@@ -1784,7 +2014,7 @@ def _canonical_numeric_value_unit_triple_set(
             raise PilotAcceptanceError(
                 code="RUN_SUMMARY_SCHEMA_DRIFT",
                 message=(
-                    f"observed_numeric_fields has conflicting unit for "
+                    f"canonical_numeric_fields has conflicting unit for "
                     f"field_path={field_path!r}: existing_units="
                     f"{sorted(existing_units)!r} new_unit={unit_code!r}."
                 ),
@@ -1795,7 +2025,7 @@ def _canonical_numeric_value_unit_triple_set(
             raise PilotAcceptanceError(
                 code="RUN_SUMMARY_SCHEMA_DRIFT",
                 message=(
-                    f"observed_numeric_fields has conflicting duplicate "
+                    f"canonical_numeric_fields has conflicting duplicate "
                     f"(field_path, normalized_value, unit_code) triple at index "
                     f"{entry_index}: {triple!r}."
                 ),
@@ -1877,8 +2107,8 @@ def _build_run_fingerprint(
         if isinstance(sem, dict):
             per_pair["canonical_section_key_set"] = _canonical_section_key_set(sem)
             per_pair["canonical_numeric_field_path_set"] = _canonical_numeric_field_path_set(sem)
-            per_pair["canonical_numeric_value_unit_triple_set"] = (
-                _canonical_numeric_value_unit_triple_set(sem)
+            per_pair["canonical_numeric_value_and_unit_set"] = (
+                _canonical_numeric_value_and_unit_set(sem)
             )
 
         fingerprint[f"per_pair::{locale}::{fmt}"] = per_pair
