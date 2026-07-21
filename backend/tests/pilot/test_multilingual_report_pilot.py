@@ -151,12 +151,19 @@ def p1_4_pg_database_factory(p1_4_pg_admin_url: str) -> Generator[Callable[[str]
             conn.execute(text(f"CREATE DATABASE {db_name}"))
         base_url = os.environ.get("DATABASE_URL", "").rsplit("/", 1)[0]
         db_url = f"{base_url}/{db_name}"
+        # Register the DB *before* provisioning so alembic failures do
+        # not leak the freshly-created DB. Per brief §八 'DATABASE_
+        # REGISTERED_BEFORE_MIGRATION=YES'. The brief-mandated
+        # discipline: if alembic raises, the finally-block still sees
+        # this entry and drops it via ``DROP DATABASE ... WITH
+        # (FORCE)``; we never leave a half-provisioned test DB
+        # behind.
+        created.append(db_name)
         # Apply alembic upgrade head BEFORE returning. This is
         # the §4 #1 fixup: previous round created the DB but
         # didn't migrate, so ``seed_a1_all_prereqs`` failed with
         # ``relation "scheme_runs" does not exist``.
         rmp.provision_p1_4_pg_database(database_url=db_url)
-        created.append(db_name)
         return db_url
 
     primary_exc: BaseException | None = None
