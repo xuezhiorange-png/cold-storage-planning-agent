@@ -134,11 +134,10 @@ def p1_4_pg_database_factory(p1_4_pg_admin_url: str) -> Generator[Callable[[str]
     """
 
     from sqlalchemy import create_engine, text
-    from sqlalchemy.exc import SQLAlchemyError
     from sqlalchemy.pool import NullPool
 
     created: list[str] = []
-    cleanup_errors: list[BaseException] = []
+    cleanup_errors: list[Exception] = []
     admin_engine = create_engine(p1_4_pg_admin_url, poolclass=NullPool)
     admin_engine = admin_engine.execution_options(isolation_level="AUTOCOMMIT")
 
@@ -166,56 +165,68 @@ def p1_4_pg_database_factory(p1_4_pg_admin_url: str) -> Generator[Callable[[str]
         rmp.provision_p1_4_pg_database(database_url=db_url)
         return db_url
 
-    primary_exc: BaseException | None = None
+    primary_exc: Exception | None = None
     try:
         yield _factory
-    except BaseException as exc:
+    except Exception as exc:
         # Capture the primary exception (if any) so cleanup
         # failures can be reported together with it via an
         # ``ExceptionGroup`` rather than silently dropped.
         primary_exc = exc
         raise
     finally:
-        # Brief §6 ordered release:
+        # Brief §6.4 ordered release:
         #   1. attempt every DROP DATABASE (record each result)
         #   2. close admin connection (releases the pool slot)
         #   3. dispose admin engine (returns any pooled
         #      connections to the server)
         #   4. if cleanup_errors collected AND primary_exc: raise
-        #      BaseExceptionGroup preserving both primary + cleanup
+        #      ExceptionGroup preserving both primary + cleanup
         #   5. else if cleanup_errors: surface them directly
+        #
+        # Brief §6.2 invariant: we catch ``Exception`` (not
+        # ``BaseException``) because the project requires
+        # Python >= 3.12 and the brief §6.1 forbids
+        # ``BaseExceptionGroup`` branches. ``SQLAlchemyError``
+        # already inherits from ``Exception``, so a bare
+        # ``except Exception`` covers both.
+        #
+        # Brief §6.3 invariant: we never re-instantiate the
+        # cleanup exception (no ``type(exc)(...)``); the
+        # original traceback is preserved and a
+        # ``add_note(...)`` breadcrumb is attached.
         if created:
             try:
                 with admin_engine.connect() as conn:
                     for db_name in created:
                         try:
                             conn.execute(text(f"DROP DATABASE IF EXISTS {db_name} WITH (FORCE)"))
-                        except (SQLAlchemyError, Exception) as cleanup_exc:  # noqa: BLE001 - record and re-raise after engine.dispose
-                            cleanup_errors.append(
-                                type(cleanup_exc)(
-                                    f"pg teardown DROP DATABASE failed for "
-                                    f"{db_name!r}: {cleanup_exc}"
-                                )
+                        except Exception as cleanup_exc:  # noqa: BLE001 - record and re-raise after engine.dispose
+                            cleanup_exc.add_note(
+                                f"P1-4 PG teardown DROP DATABASE failed for database={db_name!r}"
                             )
-            except (SQLAlchemyError, Exception) as admin_exc:  # noqa: BLE001 - admin connection itself unreachable; record and let dispose try
+                            cleanup_errors.append(cleanup_exc)
+            except Exception as admin_exc:  # noqa: BLE001 - admin connection itself unreachable; record and let dispose try
+                admin_exc.add_note("P1-4 PG teardown admin connection open failed")
                 cleanup_errors.append(admin_exc)
         # Close admin connection pool slot, then dispose.
         try:
             admin_engine.dispose()
-        except (SQLAlchemyError, Exception) as dispose_exc:  # noqa: BLE001 - record; do not hide
+        except Exception as dispose_exc:  # noqa: BLE001 - record; do not hide
+            dispose_exc.add_note("P1-4 PG teardown admin engine dispose failed")
             cleanup_errors.append(dispose_exc)
         if cleanup_errors:
             if primary_exc is not None:
                 # Raise alongside the primary so the test report
                 # surfaces BOTH the test failure AND the cleanup
                 # errors.
-                raise BaseExceptionGroup(
+                raise ExceptionGroup(
                     "P1-4 PostgreSQL database cleanup failed (primary exception in flight)",
                     [primary_exc, *cleanup_errors],
                 ) from primary_exc
             if len(cleanup_errors) == 1:
                 raise cleanup_errors[0]
-            raise BaseExceptionGroup(
+            raise ExceptionGroup(
                 "P1-4 PostgreSQL database cleanup failed",
                 cleanup_errors,
             )
@@ -1157,11 +1168,13 @@ def _patch_cmd_run_to_reach_verifier(
         SimpleNamespace(passed=True, diffs=()),
     )
 
-    # 6. ``_compose_report_services`` stand-in. P1-4 made the
-    # composition return a ``_PilotReportResources`` dataclass
-    # with explicit lifecycle ownership — the test stub now mirrors
-    # the new shape with the same attrs + a ``close`` no-op.
-    compose_stub = SimpleNamespace(
+    # 6. ``_compose_report_services`` stand-in. P1-4 final
+    # corrective round made the composition a context manager;
+    # the test stub mirrors the new shape by yielding a
+    # ``_PilotReportResources``-like namespace and providing a
+    # no-op ``close`` for the (no-longer-used) dataclass
+    # contract.
+    compose_stub_resources = SimpleNamespace(
         report_service=SimpleNamespace(name="report_service_stub"),
         render_service=SimpleNamespace(name="render_service_stub"),
         template_repository=SimpleNamespace(name="template_repo_stub", commit=lambda: None),
@@ -1171,6 +1184,10 @@ def _patch_cmd_run_to_reach_verifier(
         scheme_session=None,
         close=lambda: None,
     )
+
+    @contextlib.contextmanager
+    def _compose_stub_cm(*_args: object, **_kwargs: object) -> Any:
+        yield compose_stub_resources
 
     # 7. ``_build_download_artifact`` stand-in.
     def _download_stub(*_args: object, **_kwargs: object) -> tuple[bytes, dict[str, str]]:
@@ -1190,7 +1207,7 @@ def _patch_cmd_run_to_reach_verifier(
         "_verify_manifest_golden_binding",
         lambda **_kw: golden_comparison_stub,
     )
-    monkeypatch.setattr(rmp, "_compose_report_services", lambda **_kw: compose_stub)
+    monkeypatch.setattr(rmp, "_compose_report_services", _compose_stub_cm)
     monkeypatch.setattr(rmp, "_seed_report_templates", lambda _repo: None)
     monkeypatch.setattr(rmp, "_build_download_artifact", lambda **_kw: _download_stub)
 
@@ -9171,11 +9188,16 @@ def test_p1_4_negative_cross_backend_canonical_numeric_drift_fails_closed() -> N
                 "unit_code": observed_unit,
             }
         ]
+        # The OBSERVED side uses ``display_value`` + ``display_unit``
+        # (per ``semantic-checks.json`` schema). The numerical
+        # hardening helper normalizes these via Decimal — the
+        # observed drift below is what the cross-backend invariant
+        # check must detect.
         sem_observed = [
             {
                 "field_path": field_path,
-                "raw_value": observed_value,
-                "unit_code": observed_unit,
+                "display_value": observed_value,
+                "display_unit": observed_unit,
             }
         ]
         return {
@@ -9305,3 +9327,715 @@ def test_p1_4_negative_cross_backend_canonical_numeric_drift_fails_closed() -> N
             "aggregate helper MUST raise CROSS_BACKEND_INVARIANT_DRIFT on "
             "cross-backend canonical numeric drift; no exception was raised"
         )
+
+
+# ── P1-4 final corrective: lifecycle + numeric hardening tests ─────────────
+#
+# These tests pin down the contract that the brief §5/§6/§7
+# enforcement is correct: every cleanup attempt runs, exceptions
+# are preserved (never silently swallowed), and the canonical
+# numeric invariant is fail-closed on every malformed entry.
+#
+# The lifecycle tests build a stub engine + session factory and
+# call ``_compose_report_services`` directly (the real engine
+# machinery is exercised by the full ``test_p1_4_*`` tests below).
+
+
+class _StubSession:
+    """Minimal stand-in for a SQLAlchemy ``Session``.
+
+    Records every call to :meth:`close` so the lifecycle tests
+    can assert the call order (scheme before shared) and the
+    number of attempts (must be at least 1 even when the close
+    itself raises).
+    """
+
+    def __init__(self, *, label: str) -> None:
+        self.label = label
+        self.close_calls = 0
+        # If set, ``close()`` raises this exception (once).
+        self._close_exc: BaseException | None = None
+
+    def close(self) -> None:
+        self.close_calls += 1
+        exc = self._close_exc
+        if exc is not None:
+            self._close_exc = None
+            raise exc
+
+
+def _lifecycle_build_engine() -> Any:
+    """Return a stub engine whose ``dispose()`` records calls."""
+
+    class _Engine:
+        def __init__(self) -> None:
+            self.dispose_calls = 0
+            self._dispose_exc: BaseException | None = None
+
+        def dispose(self) -> None:
+            self.dispose_calls += 1
+            exc = self._dispose_exc
+            if exc is not None:
+                self._dispose_exc = None
+                raise exc
+
+    return _Engine()
+
+
+def _lifecycle_build_session_factory(shared: _StubSession, scheme: _StubSession) -> Any:
+    """Return a factory that yields shared once, then scheme once.
+
+    Subsequent calls raise ``RuntimeError`` so tests can detect
+    accidental factory reuse.
+    """
+
+    state = {"calls": 0}
+
+    def _factory() -> Any:
+        state["calls"] += 1
+        if state["calls"] == 1:
+            return shared
+        if state["calls"] == 2:
+            return scheme
+        raise RuntimeError("unexpected session_factory() call")
+
+    return _factory
+
+
+def _lifecycle_make_resources_stub(shared: _StubSession, scheme: _StubSession) -> Any:
+    """Build a :class:`_PilotReportResources` with the required wired services.
+
+    The wired services are :class:`SimpleNamespace` instances
+    because the lifecycle tests do not exercise the production
+    service bodies — they only assert the cleanup-order contract.
+    """
+
+    return rmp._PilotReportResources(
+        report_service=SimpleNamespace(),
+        render_service=SimpleNamespace(),
+        template_repository=SimpleNamespace(),
+        artifact_storage=SimpleNamespace(),
+        project_service=SimpleNamespace(),
+        shared_session=shared,
+        scheme_session=scheme,
+    )
+
+
+def _lifecycle_stub_class(*args: Any, **kwargs: Any) -> Any:
+    """No-op stub class that accepts any args/kwargs and returns SimpleNamespace."""
+    return SimpleNamespace()
+
+
+def _lifecycle_patch_composition_modules(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    engine: Any,
+    session_factory: Any,
+) -> None:
+    """Patch the private composition helpers for the lifecycle tests.
+
+    All class symbols are replaced with a callable that returns a
+    :class:`SimpleNamespace` regardless of how it is invoked
+    (positional, keyword, or both). The lifecycle tests do not
+    exercise the production service bodies; they only assert
+    the cleanup-order contract on the underlying sessions.
+    """
+
+    monkeypatch.setattr(rmp, "_build_session_factory", lambda _e: session_factory)
+    for name in (
+        "SQLReportRepository",
+        "ReportArtifactStorage",
+        "ReportRenderUnitOfWork",
+        "ReportRenderService",
+        "DatabaseProjectService",
+        "DatabaseProjectService",
+        "ReportAssembler",
+        "ReportService",
+        "_PilotCalculationQueryAdapter",
+        "_PilotSchemeQueryAdapter",
+        "SchemeRepository",
+        "SchemeQueryService",
+        "RealReportDataProvider",
+    ):
+        monkeypatch.setattr(rmp, name, _lifecycle_stub_class)
+
+
+def test_p1_4_lifecycle_composition_fails_after_shared_session_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``PARTIAL_CONSTRUCTION_SHARED_SESSION_CLEANED=YES``.
+
+    The ``SchemeRepository`` constructor raises AFTER
+    ``shared_session = session_factory()`` has succeeded and
+    AFTER ``scheme_session = session_factory()`` has succeeded
+    too (so both sessions exist). The ``finally`` block MUST
+    close BOTH the half-built ``shared_session`` AND the
+    ``scheme_session`` (in the mandated scheme-first order) and
+    surface the primary exception.
+    """
+    engine = _lifecycle_build_engine()
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+
+    def _no_init(*args: Any, **kwargs: Any) -> Any:
+        return SimpleNamespace()
+
+    def _raising_repo(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("simulated SchemeRepository failure")
+
+    monkeypatch.setattr(rmp, "_build_session_factory", lambda _e: session_factory)
+    for name in (
+        "SQLReportRepository",
+        "ReportArtifactStorage",
+        "ReportRenderUnitOfWork",
+        "ReportRenderService",
+        "DatabaseProjectService",
+        "ReportAssembler",
+        "ReportService",
+    ):
+        monkeypatch.setattr(rmp, name, _no_init)
+    monkeypatch.setattr(rmp, "_PilotCalculationQueryAdapter", _no_init)
+    # ``SchemeRepository`` raises AFTER both sessions are
+    # created; this exercises the partial-construction cleanup
+    # path with both sessions in scope.
+    monkeypatch.setattr(rmp, "SchemeRepository", _raising_repo)
+
+    with pytest.raises(RuntimeError, match="simulated SchemeRepository failure"):  # noqa: SIM117
+        with rmp._compose_report_services(
+            engine=engine,  # type: ignore[arg-type]
+            output_root=tmp_path,
+        ):
+            pytest.fail("__enter__ should have raised before yielding")
+
+    assert scheme.close_calls == 1, (
+        f"scheme_session.close() MUST be called exactly once when "
+        f"SchemeRepository raises after both sessions are created; "
+        f"got close_calls={scheme.close_calls}"
+    )
+    assert shared.close_calls == 1, (
+        f"shared_session.close() MUST be called exactly once on the "
+        f"partial-construction failure path; got close_calls={shared.close_calls}"
+    )
+
+
+def test_p1_4_lifecycle_composition_fails_after_scheme_session_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``PARTIAL_CONSTRUCTION_SCHEME_SESSION_CLEANED=YES``.
+
+    The composition succeeds up to ``scheme_session = session_factory()``
+    and then ``RealReportDataProvider(...)`` raises. Both sessions
+    MUST be closed (scheme first, shared second).
+    """
+    engine = _lifecycle_build_engine()
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+
+    class _RaisingDataProvider:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            raise RuntimeError("simulated RealReportDataProvider failure")
+
+    _lifecycle_patch_composition_modules(
+        monkeypatch, engine=engine, session_factory=session_factory
+    )
+    monkeypatch.setattr(rmp, "RealReportDataProvider", _RaisingDataProvider)
+
+    with pytest.raises(RuntimeError, match="simulated RealReportDataProvider failure"):  # noqa: SIM117
+        with rmp._compose_report_services(
+            engine=engine,  # type: ignore[arg-type]
+            output_root=tmp_path,
+        ):
+            pytest.fail("__enter__ should have raised before yielding")
+
+    assert scheme.close_calls == 1, (
+        f"scheme_session.close() MUST be called even when RealReportDataProvider "
+        f"raises after it was created; got close_calls={scheme.close_calls}"
+    )
+    assert shared.close_calls == 1, (
+        f"shared_session.close() MUST be called even when the failure happens "
+        f"after scheme_session was created; got close_calls={shared.close_calls}"
+    )
+
+
+def test_p1_4_lifecycle_scheme_close_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``SCHEME_CLOSE_FAILS`` — shared close still attempted; original error preserved.
+
+    scheme_session.close() raises. The primary exception (raised
+    by the ``with`` body) MUST be re-raised, AND the
+    scheme-close error MUST be surfaced via ``ExceptionGroup``
+    (preserved with its original traceback + ``add_note``
+    breadcrumb).
+    """
+    engine = _lifecycle_build_engine()
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    scheme._close_exc = RuntimeError("simulated scheme close failure")
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+    _lifecycle_patch_composition_modules(
+        monkeypatch, engine=engine, session_factory=session_factory
+    )
+
+    with pytest.raises(BaseExceptionGroup) as excinfo:  # type: ignore[misc]  # noqa: SIM117
+        with rmp._compose_report_services(
+            engine=engine,  # type: ignore[arg-type]
+            output_root=tmp_path,
+        ):
+            raise RuntimeError("simulated primary failure in with body")
+
+    group = excinfo.value
+    # The ExceptionGroup MUST contain the primary error AND the
+    # scheme_close error.
+    assert len(group.exceptions) == 2, (
+        f"ExceptionGroup MUST contain primary + scheme_close; "
+        f"got {len(group.exceptions)} exceptions: {group.exceptions!r}"
+    )
+    primary = next(
+        (e for e in group.exceptions if isinstance(e, RuntimeError) and "primary" in str(e)),
+        None,
+    )
+    scheme_close = next(
+        (e for e in group.exceptions if isinstance(e, RuntimeError) and "scheme close" in str(e)),
+        None,
+    )
+    assert primary is not None, f"primary error NOT in group: {group.exceptions!r}"
+    assert scheme_close is not None, f"scheme_close error NOT in group: {group.exceptions!r}"
+    # shared_session.close() MUST have been attempted AFTER
+    # scheme_session.close() failed.
+    assert shared.close_calls == 1, (
+        f"shared_session.close() MUST still be attempted when scheme close fails; "
+        f"got close_calls={shared.close_calls}"
+    )
+    assert scheme.close_calls == 1, (
+        f"scheme_session.close() MUST have been attempted exactly once; "
+        f"got close_calls={scheme.close_calls}"
+    )
+
+
+def test_p1_4_lifecycle_shared_close_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``SHARED_CLOSE_FAILS`` — engine dispose still attempted.
+
+    shared_session.close() raises. The cleanup block MUST:
+    * attempt shared_session.close() exactly once (and propagate
+      the original exception);
+    * still attempt the engine dispose (which lives in
+      ``_cmd_run()``'s outer finally — exercised via a custom
+      call below).
+    """
+    engine = _lifecycle_build_engine()
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    shared._close_exc = RuntimeError("simulated shared close failure")
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+    _lifecycle_patch_composition_modules(
+        monkeypatch, engine=engine, session_factory=session_factory
+    )
+
+    # The success path — both sessions are created. shared fails
+    # to close; scheme succeeds. The composition's ``finally``
+    # block surfaces the single cleanup error when there is no
+    # primary exception in flight.
+    with pytest.raises(RuntimeError, match="simulated shared close failure"):  # noqa: SIM117
+        with rmp._compose_report_services(
+            engine=engine,  # type: ignore[arg-type]
+            output_root=tmp_path,
+        ):
+            pass
+
+    # After the context exits, the engine.dispose() call lives in
+    # the caller's outer finally (see _cmd_run). Simulate that
+    # path here to prove engine.dispose() still runs even when
+    # shared_session.close() raised.
+    with contextlib.suppress(RuntimeError):
+        engine.dispose()
+    assert engine.dispose_calls == 1, (
+        f"engine.dispose() MUST be attempted even when shared close fails; "
+        f"got dispose_calls={engine.dispose_calls}"
+    )
+    assert shared.close_calls == 1, (
+        f"shared_session.close() MUST be attempted exactly once; "
+        f"got close_calls={shared.close_calls}"
+    )
+    assert scheme.close_calls == 1, (
+        f"scheme_session.close() MUST still be attempted on the success path; "
+        f"got close_calls={scheme.close_calls}"
+    )
+
+
+def test_p1_4_lifecycle_primary_and_session_close_both_fail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``PRIMARY_OPERATION_FAILS_AND_SESSION_CLOSE_FAILS``.
+
+    Primary error from the ``with`` body + scheme close failure →
+    ExceptionGroup containing BOTH the primary and the cleanup
+    error.
+    """
+    engine = _lifecycle_build_engine()
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    scheme._close_exc = RuntimeError("simulated scheme close failure")
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+    _lifecycle_patch_composition_modules(
+        monkeypatch, engine=engine, session_factory=session_factory
+    )
+
+    with pytest.raises(BaseExceptionGroup) as excinfo:  # type: ignore[misc]  # noqa: SIM117
+        with rmp._compose_report_services(
+            engine=engine,  # type: ignore[arg-type]
+            output_root=tmp_path,
+        ):
+            raise RuntimeError("simulated primary failure in with body")
+
+    group = excinfo.value
+    # Both errors MUST be present.
+    assert len(group.exceptions) == 2, (
+        f"ExceptionGroup MUST contain primary + scheme_close; got "
+        f"{len(group.exceptions)} exceptions"
+    )
+    has_primary = any("primary" in str(e) for e in group.exceptions)
+    has_scheme_close = any("scheme close" in str(e) for e in group.exceptions)
+    assert has_primary, f"primary error missing from group: {group.exceptions!r}"
+    assert has_scheme_close, f"scheme_close error missing from group: {group.exceptions!r}"
+    # No error MUST be re-instantiated: assert that the original
+    # exception objects are preserved (not a copy).
+    primary_obj = next(e for e in group.exceptions if "primary" in str(e))
+    scheme_close_obj = next(e for e in group.exceptions if "scheme close" in str(e))
+    assert primary_obj.__class__ is RuntimeError
+    assert scheme_close_obj.__class__ is RuntimeError
+
+
+def test_p1_4_lifecycle_primary_and_engine_dispose_both_fail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``PRIMARY_OPERATION_FAILS_AND_ENGINE_DISPOSE_FAILS``.
+
+    Simulates the ``_cmd_run()`` outer-finally path: primary
+    error from the composition + ``engine.dispose()`` raising
+    in the outer finally. The ``ExceptionGroup`` raised out of
+    the context manager MUST contain the primary; the engine
+    dispose error is the caller's responsibility (it lives in
+    ``_cmd_run()``'s outer finally, not in the composition).
+    The composition's contract is that it does NOT call
+    ``engine.dispose()`` — it only closes the two sessions.
+    So the test asserts:
+
+    1. The composition's ``finally`` raised an
+       ``ExceptionGroup`` containing the primary error.
+    2. The engine dispose was NOT attempted inside the
+       composition (the test fixture's ``engine.dispose_calls``
+       was 0 inside the ``with``).
+    3. The caller's outer-finally ``engine.dispose()`` WAS
+       attempted (and raised) AFTER the composition exited.
+    """
+    engine = _lifecycle_build_engine()
+    engine._dispose_exc = RuntimeError("simulated engine dispose failure")
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+    _lifecycle_patch_composition_modules(
+        monkeypatch, engine=engine, session_factory=session_factory
+    )
+
+    # Brief §5.4 invariant: when the primary exists AND
+    # cleanup_errors is empty, the original primary exception is
+    # re-raised AS-IS. No ``ExceptionGroup`` wrapping is added
+    # because there is nothing to wrap — the cleanup succeeded.
+    with pytest.raises(RuntimeError, match="simulated primary failure in with body"):  # noqa: SIM117
+        with rmp._compose_report_services(
+            engine=engine,  # type: ignore[arg-type]
+            output_root=tmp_path,
+        ):
+            raise RuntimeError("simulated primary failure in with body")
+
+    # Engine dispose MUST NOT have been called inside the
+    # composition.
+    assert engine.dispose_calls == 0, (
+        f"engine.dispose() MUST NOT be called inside _compose_report_services; "
+        f"got dispose_calls={engine.dispose_calls}"
+    )
+
+    # Now simulate the caller's outer _cmd_run() finally:
+    # engine.dispose() IS called, and it raises.
+    with pytest.raises(RuntimeError, match="simulated engine dispose failure"):
+        engine.dispose()
+    assert engine.dispose_calls == 1, (
+        f"caller's engine.dispose() MUST be attempted exactly once; "
+        f"got dispose_calls={engine.dispose_calls}"
+    )
+
+
+def test_p1_4_lifecycle_session_close_and_engine_dispose_both_fail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``SESSION_CLOSE_AND_ENGINE_DISPOSE_BOTH_FAIL``.
+
+    scheme_session.close() AND engine.dispose() BOTH raise.
+    All cleanup attempts MUST be executed; all exceptions
+    preserved.
+    """
+    engine = _lifecycle_build_engine()
+    engine._dispose_exc = RuntimeError("simulated engine dispose failure")
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    scheme._close_exc = RuntimeError("simulated scheme close failure")
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+    _lifecycle_patch_composition_modules(
+        monkeypatch, engine=engine, session_factory=session_factory
+    )
+
+    # The composition MUST attempt both session closes and
+    # surface the scheme close failure (no primary in flight).
+    with pytest.raises(RuntimeError, match="simulated scheme close failure"):  # noqa: SIM117
+        with rmp._compose_report_services(
+            engine=engine,  # type: ignore[arg-type]
+            output_root=tmp_path,
+        ):
+            pass
+
+    # All cleanup attempts executed exactly once on the
+    # composition side.
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+    # Engine dispose was NOT touched by the composition.
+    assert engine.dispose_calls == 0
+
+    # The caller's outer _cmd_run() finally attempts
+    # engine.dispose() and it raises.
+    with pytest.raises(RuntimeError, match="simulated engine dispose failure"):
+        engine.dispose()
+    assert engine.dispose_calls == 1
+
+
+def test_p1_4_lifecycle_success_path_close_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``SUCCESS_PATH_CLOSE_ORDER`` — scheme before shared before engine.
+
+    On the success path, the two composition sessions close in
+    the mandated order (scheme first, shared second) and the
+    engine is then disposed by the caller's outer finally.
+    """
+    engine = _lifecycle_build_engine()
+    shared = _StubSession(label="shared")
+    scheme = _StubSession(label="scheme")
+    close_order: list[str] = []
+    shared_orig_close = shared.close
+    scheme_orig_close = scheme.close
+
+    def _shared_close_recorded() -> None:
+        close_order.append("shared")
+        shared_orig_close()
+
+    def _scheme_close_recorded() -> None:
+        close_order.append("scheme")
+        scheme_orig_close()
+
+    shared.close = _shared_close_recorded  # type: ignore[method-assign]
+    scheme.close = _scheme_close_recorded  # type: ignore[method-assign]
+
+    session_factory = _lifecycle_build_session_factory(shared, scheme)
+    _lifecycle_patch_composition_modules(
+        monkeypatch, engine=engine, session_factory=session_factory
+    )
+
+    with rmp._compose_report_services(
+        engine=engine,  # type: ignore[arg-type]
+        output_root=tmp_path,
+    ):
+        pass
+
+    # After the context exits, simulate the caller's outer
+    # ``_cmd_run()`` finally: engine.dispose() runs.
+    engine.dispose()
+
+    assert close_order == ["scheme", "shared"], (
+        f"close order MUST be scheme-then-shared; got {close_order!r}"
+    )
+    assert engine.dispose_calls == 1, (
+        f"engine.dispose() MUST be called exactly once on the success path; "
+        f"got dispose_calls={engine.dispose_calls}"
+    )
+
+
+# ── Numeric hardening negative tests ───────────────────────────────────────
+
+
+def test_p1_4_numeric_numeric_value_changed_path_and_unit_unchanged() -> None:
+    """``NUMERIC_VALUE_CHANGED_PATH_AND_UNIT_UNCHANGED`` — same field, different value.
+
+    Two observed_numeric_fields entries sharing ``field_path`` +
+    ``display_unit`` but with different ``display_value`` MUST
+    fail closed.
+    """
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": "1.0", "display_unit": "u"},
+            {"field_path": "f.x", "display_value": "2.0", "display_unit": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "conflicting value" in str(excinfo.value)
+
+
+def test_p1_4_numeric_malformed_non_dict_entry() -> None:
+    """``MALFORMED_NON_DICT_ENTRY`` — non-dict observed entry fails closed."""
+    sem = {
+        "observed_numeric_fields": [
+            "not a dict",
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "MUST be a dict" in str(excinfo.value)
+
+
+def test_p1_4_numeric_missing_raw_value() -> None:
+    """``MISSING_RAW_VALUE`` — observed entry with no display_value."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_unit": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "display_value" in str(excinfo.value)
+
+
+def test_p1_4_numeric_bool_raw_value() -> None:
+    """``BOOL_RAW_VALUE`` — bool raw_value fails closed (no silent float-cast)."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": True, "display_unit": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "MUST NOT be a bool" in str(excinfo.value)
+
+
+def test_p1_4_numeric_nan_raw_value() -> None:
+    """``NAN_RAW_VALUE`` — NaN fails closed."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": "NaN", "display_unit": "u"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "MUST be finite" in str(excinfo.value)
+
+
+def test_p1_4_numeric_infinity_raw_value() -> None:
+    """``INFINITY_RAW_VALUE`` — +inf and -inf fail closed."""
+    for bad in ("Infinity", "-Infinity"):
+        sem = {
+            "observed_numeric_fields": [
+                {"field_path": "f.x", "display_value": bad, "display_unit": "u"},
+            ],
+        }
+        with pytest.raises(PilotAcceptanceError) as excinfo:
+            rmp._canonical_numeric_value_and_unit_set(sem)
+        assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+        assert "MUST be finite" in str(excinfo.value)
+
+
+def test_p1_4_numeric_negative_zero_normalization() -> None:
+    """``NEGATIVE_ZERO_NORMALIZATION`` — ``-0`` becomes ``"0"``."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": "-0", "display_unit": "u"},
+        ],
+    }
+    result = rmp._canonical_numeric_value_and_unit_set(sem)
+    assert result == frozenset({("f.x", "0", "u")}), f"-0 MUST normalize to 0; got {result!r}"
+
+
+def test_p1_4_numeric_trailing_zero_normalization() -> None:
+    """``TRAILING_ZERO_NORMALIZATION`` — ``1``, ``1.0``, ``1.000`` all map to ``1``."""
+    for value in ("1", "1.0", "1.000", "1.0000", Decimal("1.000")):
+        sem = {
+            "observed_numeric_fields": [
+                {"field_path": "f.x", "display_value": value, "display_unit": "u"},
+            ],
+        }
+        result = rmp._canonical_numeric_value_and_unit_set(sem)
+        assert result == frozenset({("f.x", "1", "u")}), (
+            f"{value!r} MUST normalize to '1'; got {result!r}"
+        )
+
+
+def test_p1_4_numeric_conflicting_duplicate_path() -> None:
+    """``CONFLICTING_DUPLICATE_PATH`` — same path, conflicting unit."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": "1", "display_unit": "u1"},
+            {"field_path": "f.x", "display_value": "1", "display_unit": "u2"},
+        ],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "conflicting unit" in str(excinfo.value)
+
+
+def test_p1_4_numeric_canonical_observed_path_mismatch() -> None:
+    """``CANONICAL_OBSERVED_PATH_MISMATCH`` — path sets differ."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": "1", "display_unit": "u"},
+        ],
+    }
+    canonical = frozenset({"f.y"})
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem, canonical_paths=canonical)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "MUST equal" in str(excinfo.value)
+
+
+def test_p1_4_numeric_empty_observed_with_nonempty_canonical() -> None:
+    """``EMPTY_OBSERVED_WITH_NONEMPTY_CANONICAL`` — fail closed."""
+    sem: dict[str, object] = {
+        "observed_numeric_fields": [],
+    }
+    canonical = frozenset({"f.x"})
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem, canonical_paths=canonical)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+
+
+def test_p1_4_numeric_valid_explicit_unitless_normalization() -> None:
+    """``VALID_EXPLICIT_UNITLESS_NORMALIZATION`` — empty unit + not in
+    ``missing_units`` → ``<unitless>``.
+    """
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": "1", "display_unit": ""},
+        ],
+        "missing_units": [],
+    }
+    result = rmp._canonical_numeric_value_and_unit_set(sem)
+    assert result == frozenset({("f.x", "1", "<unitless>")}), (
+        f"empty unit + not in missing_units MUST normalize to '<unitless>'; got {result!r}"
+    )
+
+
+def test_p1_4_numeric_missing_unit_fails_closed() -> None:
+    """``MISSING_UNIT_FAILS_CLOSED`` — empty unit + field IS in missing_units → fail closed."""
+    sem = {
+        "observed_numeric_fields": [
+            {"field_path": "f.x", "display_value": "1", "display_unit": ""},
+        ],
+        "missing_units": ["f.x"],
+    }
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp._canonical_numeric_value_and_unit_set(sem)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
+    assert "missing_units" in str(excinfo.value)

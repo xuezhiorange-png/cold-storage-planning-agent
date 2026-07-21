@@ -36,8 +36,10 @@ import os
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -831,19 +833,18 @@ def _verify_manifest_golden_binding(
 
 @dataclass
 class _PilotReportResources:
-    """Resource bundle returned by :func:`_compose_report_services`.
+    """Resource bundle yielded by :func:`_compose_report_services`.
 
-    Carries the wired triplet + the two underlying SQLAlchemy
-    ``Session`` objects (the ``shared_session`` used by
-    ``SQLReportRepository`` + ``ReportRenderUnitOfWork`` and the
-    anonymous ``scheme_session`` used by ``SchemeRepository``) so the
-    caller can explicitly close them in a ``finally`` block.
+    Pure value object — the caller MUST NOT mutate the session
+    fields. Lifetime is owned by the
+    :func:`_compose_report_services` context manager, which
+    guarantees exception-safe construction AND ordered cleanup on
+    both success and failure paths.
 
-    The lifetime contract is **caller-owned** — the caller MUST
-    invoke :meth:`close` (or close both session fields directly)
-    before returning, on BOTH success and failure paths.
-    Composition code no longer relies on Python interpreter
-    shutdown / SQLAlchemy pool reset to release the connections.
+    The two underlying SQLAlchemy ``Session`` objects are exposed
+    only for the test-file's lifecycle tests (which patch
+    ``.close()`` to inject failure scenarios). Production callers
+    must NOT close them directly.
     """
 
     report_service: ReportService
@@ -853,46 +854,46 @@ class _PilotReportResources:
     project_service: DatabaseProjectService
     shared_session: Session
     scheme_session: Session
-    _closed: bool = False
-
-    def close(self) -> None:
-        """Close the two composition-owned ``Session`` objects exactly once.
-
-        Idempotent — second call is a no-op. Errors during close are
-        swallowed (the connection pool will be disposed by the
-        caller's ``engine.dispose()``); the brief §5 ordered
-        release is preserved (report / UoW → scheme session →
-        engine).
-        """
-        if self._closed:
-            return
-        self._closed = True
-        for session_attr in ("shared_session", "scheme_session"):
-            sess = getattr(self, session_attr)
-            try:  # noqa: SIM105 - pool will release on engine.dispose
-                sess.close()
-            except Exception:  # noqa: BLE001
-                pass
 
 
+@contextmanager
 def _compose_report_services(
     *,
     engine: Engine,
     output_root: Path,
-) -> _PilotReportResources:
+) -> Iterator[_PilotReportResources]:
     """Compose the production report / render / storage triplet.
 
-    Returns a :class:`_PilotReportResources` bundle; the caller owns
-    the bundle's lifecycle and MUST invoke
-    :meth:`_PilotReportResources.close` (or close both session
-    fields) in a ``finally`` block. This addresses the brief §5
-    resource-ownership gap: previously the composition opened
-    ``shared_session`` (report-side) + ``session_factory()``
-    (``SchemeRepository``) without returning either, relying on
-    Python interpreter shutdown / SQLAlchemy pool reset to release
-    the connections. On PostgreSQL this surfaced as pool-reset
-    ``psycopg2.OperationalError: SSL connection has been closed
-    unexpectedly`` during teardown.
+    Context manager — yields a :class:`_PilotReportResources`
+    bundle. The bundle's lifetime is fully owned by this
+    context manager; partial construction failure (e.g. ``shared_session``
+    created, then ``SchemeRepository`` raises) is recovered by
+    closing any sessions that were already opened, and ALL cleanup
+    exceptions are surfaced via an :class:`ExceptionGroup` together
+    with the primary exception (or alone, when no primary
+    exception is in flight).
+
+    Brief §5.1 invariants (verified end-to-end by the lifecycle
+    test block below):
+
+    * ``PARTIAL_CONSTRUCTION_SHARED_SESSION_CLEANED=YES`` — if
+      ``shared_session = session_factory()`` succeeds but a later
+      step fails, the ``finally`` block closes the half-built
+      ``shared_session`` AND any ``scheme_session`` that was
+      created.
+    * ``PARTIAL_CONSTRUCTION_SCHEME_SESSION_CLEANED=YES`` — same
+      for the ``scheme_session`` step.
+    * ``SUCCESS_PATH_SESSIONS_CLEANED=YES`` — on the success
+      path, both sessions are closed after the ``with`` block
+      exits.
+    * ``FAILURE_PATH_SESSIONS_CLEANED=YES`` — on any exception
+      path, both sessions are closed (the lifecycle test
+      ``PRIMARY_OPERATION_FAILS_AND_SESSION_CLOSE_FAILS``
+      proves this by patching ``.close()`` to raise).
+    * ``GLOBAL_SIDE_CHANNEL_USED=NO`` — no module-level mutable
+      state. The two sessions live in the local closure of the
+      context manager and are released deterministically on
+      context exit.
 
     Composition-only boundary adapters (read-only, no production
     refactor) bridge two pre-existing ``RealReportDataProvider``
@@ -915,44 +916,95 @@ def _compose_report_services(
       feasible candidate. Read-only: shallow-copies the run dict
       before mutation; every other field passes through untouched.
     """
-    session_factory = _build_session_factory(engine)
-    shared_session = session_factory()
-    report_repo = SQLReportRepository(shared_session)
-    artifact_storage = ReportArtifactStorage(base_dir=str(output_root))
-    report_uow = ReportRenderUnitOfWork(
-        shared_session,
-        report_repo=report_repo,
-        artifact_repo=report_repo,
-        session_factory=session_factory,
-    )
-    render_service = ReportRenderService(
-        uow=report_uow,
-        storage=artifact_storage,
-        template_repo=report_repo,
-    )
-    project_service = DatabaseProjectService(engine=engine)
-    calculation_service = _PilotCalculationQueryAdapter(session_factory=session_factory)
-    scheme_session = session_factory()
-    scheme_repo = SchemeRepository(scheme_session)
-    scheme_query = _PilotSchemeQueryAdapter(
-        inner=SchemeQueryService(repository=scheme_repo),
-    )
-    data_provider = RealReportDataProvider(
-        project_service=project_service,
-        calculation_service=calculation_service,
-        scheme_query=scheme_query,
-    )
-    assembler = ReportAssembler(data_provider=data_provider)
-    report_service = ReportService(repository=report_repo, assembler=assembler)
-    return _PilotReportResources(
-        report_service=report_service,
-        render_service=render_service,
-        template_repository=report_repo,
-        artifact_storage=artifact_storage,
-        project_service=project_service,
-        shared_session=shared_session,
-        scheme_session=scheme_session,
-    )
+    shared_session: Session | None = None
+    scheme_session: Session | None = None
+    primary_error: BaseException | None = None
+    try:
+        session_factory = _build_session_factory(engine)
+        shared_session = session_factory()
+        report_repo = SQLReportRepository(shared_session)
+        artifact_storage = ReportArtifactStorage(base_dir=str(output_root))
+        report_uow = ReportRenderUnitOfWork(
+            shared_session,
+            report_repo=report_repo,
+            artifact_repo=report_repo,
+            session_factory=session_factory,
+        )
+        render_service = ReportRenderService(
+            uow=report_uow,
+            storage=artifact_storage,
+            template_repo=report_repo,
+        )
+        project_service = DatabaseProjectService(engine=engine)
+        calculation_service = _PilotCalculationQueryAdapter(session_factory=session_factory)
+        scheme_session = session_factory()
+        scheme_repo = SchemeRepository(scheme_session)
+        scheme_query = _PilotSchemeQueryAdapter(
+            inner=SchemeQueryService(repository=scheme_repo),
+        )
+        data_provider = RealReportDataProvider(
+            project_service=project_service,
+            calculation_service=calculation_service,
+            scheme_query=scheme_query,
+        )
+        assembler = ReportAssembler(data_provider=data_provider)
+        report_service = ReportService(repository=report_repo, assembler=assembler)
+        resources = _PilotReportResources(
+            report_service=report_service,
+            render_service=render_service,
+            template_repository=report_repo,
+            artifact_storage=artifact_storage,
+            project_service=project_service,
+            shared_session=shared_session,
+            scheme_session=scheme_session,
+        )
+        try:
+            yield resources
+        except BaseException as exc:
+            primary_error = exc
+            raise
+    except BaseException as exc:
+        if primary_error is None:
+            primary_error = exc
+        # Re-raise the primary — cleanup happens in finally
+        raise
+    finally:
+        # Brief §5.2 ordered release (fixed):
+        #   1. scheme_session.close() FIRST (so the inner SchemeRepository
+        #      sees its connection released before the outer
+        #      ReportRenderUnitOfWork tries to flush)
+        #   2. shared_session.close() SECOND
+        #   3. (engine.dispose() lives in the caller's outer
+        #      _cmd_run() finally)
+        # Brief §5.3 invariant: NO silent exception swallowing.
+        # Every cleanup failure is preserved with its original
+        # traceback (via ``add_note`` to attach a resource-id
+        # breadcrumb, NOT via re-instantiation).
+        cleanup_errors: list[BaseException] = []
+        for session_label, sess in (
+            ("scheme_session", scheme_session),
+            ("shared_session", shared_session),
+        ):
+            if sess is None:
+                continue
+            try:
+                sess.close()
+            except BaseException as cleanup_exc:  # noqa: BLE001
+                cleanup_exc.add_note(f"P1-4 composition cleanup failure on {session_label}")
+                cleanup_errors.append(cleanup_exc)
+        # Brief §5.4 exception-surfacing discipline (Python >= 3.12).
+        if cleanup_errors:
+            if primary_error is not None:
+                raise ExceptionGroup(
+                    "P1-4 composition cleanup failed (primary exception in flight)",
+                    [primary_error, *cleanup_errors],
+                ) from primary_error
+            if len(cleanup_errors) == 1:
+                raise cleanup_errors[0]
+            raise ExceptionGroup(
+                "P1-4 composition cleanup failed",
+                cleanup_errors,
+            )
 
 
 # ── Template seeding ────────────────────────────────────────────────────────
@@ -1044,6 +1096,8 @@ def _expected_source_binding_sha(session: Session) -> str:
 
 def _cmd_run(args: argparse.Namespace) -> int:
     """Execute the ``run`` sub-command end-to-end."""
+    primary_error: BaseException | None = None
+    engine: Engine | None = None
     try:
         commit_sha = _validate_commit_sha(args.commit_sha)
         manifest_path = _require_absolute(Path(args.manifest), label="manifest")
@@ -1094,7 +1148,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
             engine = _provision_sqlite_database(database_url=args.database_url)
         else:
             engine = create_engine(args.database_url, future=True)
-        resources: _PilotReportResources | None = None
         try:
             session_factory = _build_session_factory(engine)
             with session_factory() as seed_session:
@@ -1141,66 +1194,59 @@ def _cmd_run(args: argparse.Namespace) -> int:
             # manifest identity; the manifest MUST NOT be re-read or
             # hand-parsed after ``_load_pilot_manifest`` returns).
 
-            resources = _compose_report_services(engine=engine, output_root=output_root)
-            template_repo = resources.template_repository
-            _seed_report_templates(template_repo)
-            download_artifact = _build_download_artifact(render_service=resources.render_service)
-
-            run_identity: dict[str, str] = {
-                "database_backend": backend,
-                "scenario_id": scenario.scenario_id,
-                "correlation_id": PILOT_BASELINE_CORRELATION_ID,
-                "source_binding_id": SOURCE_BINDING_ID,
-                "weight_set_revision_id": WEIGHT_REVISION_ID,
-                "combined_source_hash": combined_source_hash,
-                "manifest_scenario_id": scenario.scenario_id,
-                "manifest_expected_output_path": str(scenario.expected_output.path)
-                if scenario.expected_output is not None
-                and scenario.expected_output.path is not None
-                else "",
-                "manifest_expected_output_commit_sha": str(
-                    scenario.expected_output.commit_sha or ""
+            with _compose_report_services(engine=engine, output_root=output_root) as resources:
+                template_repo = resources.template_repository
+                _seed_report_templates(template_repo)
+                download_artifact = _build_download_artifact(
+                    render_service=resources.render_service
                 )
-                if scenario.expected_output is not None
-                else "",
-                "manifest_golden_comparison_result": "PASS",
-            }
-            summary = verify_multilingual_report_pilot(
-                report_service=resources.report_service,
-                render_service=resources.render_service,
-                template_repository=resources.template_repository,
-                project_id=project_id,
-                project_version_id=project_version_id,
-                source_commit_sha=commit_sha,
-                source_manifest_sha=source_manifest_sha,
-                output_root=output_root,
-                repeat_index=args.repeat_index,
-                run_identity=run_identity,
-                download_artifact=download_artifact,
-            )
 
-            sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
+                run_identity: dict[str, str] = {
+                    "database_backend": backend,
+                    "scenario_id": scenario.scenario_id,
+                    "correlation_id": PILOT_BASELINE_CORRELATION_ID,
+                    "source_binding_id": SOURCE_BINDING_ID,
+                    "weight_set_revision_id": WEIGHT_REVISION_ID,
+                    "combined_source_hash": combined_source_hash,
+                    "manifest_scenario_id": scenario.scenario_id,
+                    "manifest_expected_output_path": str(scenario.expected_output.path)
+                    if scenario.expected_output is not None
+                    and scenario.expected_output.path is not None
+                    else "",
+                    "manifest_expected_output_commit_sha": str(
+                        scenario.expected_output.commit_sha or ""
+                    )
+                    if scenario.expected_output is not None
+                    else "",
+                    "manifest_golden_comparison_result": "PASS",
+                }
+                summary = verify_multilingual_report_pilot(
+                    report_service=resources.report_service,
+                    render_service=resources.render_service,
+                    template_repository=resources.template_repository,
+                    project_id=project_id,
+                    project_version_id=project_version_id,
+                    source_commit_sha=commit_sha,
+                    source_manifest_sha=source_manifest_sha,
+                    output_root=output_root,
+                    repeat_index=args.repeat_index,
+                    run_identity=run_identity,
+                    download_artifact=download_artifact,
+                )
+
+                sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
+            # ``_compose_report_services`` context exit has already
+            # closed the two composition sessions (scheme first,
+            # shared second) and surfaced any cleanup errors via
+            # ``ExceptionGroup`` if either failed.
             return EXIT_OK
-        finally:
-            # Brief §5 ordered release:
-            #   1. verifier/render/report operations complete (verified above)
-            #   2. report/UoW-owned sessions close (via resources.close())
-            #   3. scheme session closes (via resources.close())
-            #   4. any remaining session factories release connections
-            #   5. engine.dispose() releases the pool
-            # Releasing here on BOTH success and failure paths means
-            # the engine's connections are explicitly returned to
-            # PostgreSQL before pytest's fixture attempts
-            # ``DROP DATABASE ... WITH (FORCE)`` (preventing the
-            # "SQL connection has been closed unexpectedly" pool-reset
-            # errors observed in the prior round).
-            if resources is not None:
-                resources.close()
-            try:  # noqa: SIM105 - dispose best-effort
-                engine.dispose()
-            except Exception:  # noqa: BLE001
-                pass
+        except BaseException as exc:
+            primary_error = exc
+            raise
     except PilotCompositionError as exc:
+        # Classify the composition error by its ``code`` so
+        # downstream automation can map it to the documented exit
+        # code without parsing the message.
         sys.stderr.write(f"PILOT_COMPOSITION_ERROR code={exc.code}: {exc}\n")
         if exc.code in {"INPUT_ERROR", "MANIFEST_ERROR"}:
             return EXIT_INPUT_ERROR
@@ -1225,6 +1271,26 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # debugging via the ``code=<typed-code>`` stderr prefix).
         sys.stderr.write(f"PILOT_VERIFICATION_ERROR code={exc.code}: {exc}\n")
         return EXIT_VERIFIER_ERROR
+    finally:
+        # Brief §5.5 engine-ownership discipline:
+        #   1. verifier / render / report operations finished
+        #   2. composition ``with`` block exited (sessions closed)
+        #   3. engine.dispose() releases the pool
+        # NO silent exception swallowing — any dispose failure is
+        # preserved with its original traceback (via ``add_note``,
+        # not re-instantiation) and surfaced together with the
+        # primary exception (or alone).
+        if engine is not None:
+            try:
+                engine.dispose()
+            except BaseException as dispose_exc:  # noqa: BLE001
+                dispose_exc.add_note("P1-4 _cmd_run engine.dispose() failure")
+                if primary_error is not None:
+                    raise ExceptionGroup(
+                        "P1-4 _cmd_run engine dispose failed (primary in flight)",
+                        [primary_error, dispose_exc],
+                    ) from primary_error
+                raise
 
 
 # ── Cleanup sub-command ─────────────────────────────────────────────────────
@@ -1476,10 +1542,95 @@ def _canonical_section_key_set(semantic_checks: dict[str, object]) -> frozenset[
     return frozenset(str(key) for key in section_keys)
 
 
+def _normalize_canonical_numeric_value(raw_value: object) -> str:
+    """Return the canonical decimal string for ``raw_value``.
+
+    Brief §7.2 rules:
+
+    * ``bool`` → fail closed (``RUN_SUMMARY_SCHEMA_DRIFT``).
+    * missing / ``None`` value → fail closed.
+    * non-numeric string → fail closed.
+    * ``NaN`` / ``+inf`` / ``-inf`` → fail closed.
+    * any numeric / numeric-string / ``Decimal``-like input →
+      ``Decimal(str(raw_value)).normalize()`` (trailing-zero
+      scale collapsed; ``-0`` normalized to ``"0"``).
+    * float roundtrip is **forbidden**; the function never calls
+      ``float()`` on the input.
+
+    The output is byte-stable across runs: ``1``, ``1.0``,
+    ``1.000``, and ``Decimal("1.000")`` all produce ``"1"``.
+    """
+    if isinstance(raw_value, bool):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[].raw_value MUST NOT be a bool; got {raw_value!r} (bool)."
+            ),
+        )
+    if raw_value is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "observed_numeric_fields[].raw_value is missing or null; "
+                "numeric fields require a numeric raw_value."
+            ),
+        )
+    if isinstance(raw_value, Decimal):
+        decimal_value = raw_value
+    elif isinstance(raw_value, (int,)):
+        # Avoid float roundtrip: int → Decimal directly.
+        decimal_value = Decimal(int(raw_value))
+    else:
+        # Strings / numeric strings / anything else → parse via
+        # ``Decimal(str(raw_value))``. ``float`` is forbidden.
+        try:
+            decimal_value = Decimal(str(raw_value))
+        except (InvalidOperation, ValueError) as exc:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    "observed_numeric_fields[].raw_value MUST be a numeric "
+                    f"string or Decimal; got {raw_value!r} ({type(raw_value).__name__}): {exc}"
+                ),
+            ) from exc
+    if not decimal_value.is_finite():
+        # ``is_finite()`` is False for NaN, sNaN, +inf, -inf.
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                "observed_numeric_fields[].raw_value MUST be finite; "
+                f"got {decimal_value!r} (non-finite)."
+            ),
+        )
+    # Normalize: -0 → 0, trailing-zero scale collapsed.
+    if decimal_value == 0:
+        return "0"
+    normalized = decimal_value.normalize()
+    # ``Decimal.normalize()`` for a negative zero returns ``-0``;
+    # the explicit equality check above collapsed that into ``0``
+    # already, but the ``is_zero()`` guard is defensive.
+    if normalized.is_zero():
+        return "0"
+    # ``Decimal.normalize()`` on a string like ``"1.000"`` returns
+    # ``Decimal("1E+3")`` for very large / very small inputs — the
+    # canonical form for an *integer-valued* decimal whose
+    # coefficient is not zero is just the integer string. We avoid
+    # scientific notation for stable cross-run output.
+    sign, digits, exponent = normalized.as_tuple()
+    if exponent >= 0:
+        return f"{int(normalized)}"
+    # Otherwise the canonical form is the raw normalized string.
+    return str(normalized)
+
+
 def _canonical_numeric_field_path_set(
     semantic_checks: dict[str, object],
 ) -> frozenset[str]:
-    """Return the set of canonical numeric field_paths from the artifact."""
+    """Return the set of canonical numeric field_paths from the artifact.
+
+    Brief §7.3 — fail closed on every malformed canonical entry:
+    non-dict, missing / empty / non-string ``field_path``.
+    """
     numeric_fields = semantic_checks.get("canonical_numeric_fields")
     if numeric_fields is None:
         raise PilotAcceptanceError(
@@ -1498,19 +1649,110 @@ def _canonical_numeric_field_path_set(
             ),
         )
     paths: list[str] = []
-    for entry in numeric_fields:
+    for index, entry in enumerate(numeric_fields):
         if not isinstance(entry, dict):
-            continue
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"canonical_numeric_fields[{index}] MUST be a dict; got {type(entry).__name__}."
+                ),
+            )
         field_path = entry.get("field_path")
-        if isinstance(field_path, str):
-            paths.append(field_path)
+        if field_path is None:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(f"canonical_numeric_fields[{index}].field_path is missing."),
+            )
+        if not isinstance(field_path, str):
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"canonical_numeric_fields[{index}].field_path MUST be a "
+                    f"string; got {type(field_path).__name__}."
+                ),
+            )
+        if field_path == "":
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(f"canonical_numeric_fields[{index}].field_path MUST NOT be empty."),
+            )
+        paths.append(field_path)
     return frozenset(paths)
+
+
+def _normalize_observed_unit_code(
+    *,
+    entry_index: int,
+    field_path: str,
+    unit_code_raw: object,
+    missing_units_list: list[object],
+) -> str:
+    """Apply the brief §7.4 unitless policy.
+
+    * non-empty string ``unit_code`` → preserve as-is.
+    * empty string AND ``field_path`` not flagged in
+      ``semantic-checks.missing_units`` → normalize to ``"<unitless>"``.
+    * empty string AND ``field_path`` IS flagged in ``missing_units``
+      → fail closed.
+    * missing ``unit_code`` (None) → fail closed.
+    """
+    if unit_code_raw is None:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[{entry_index}].unit_code is missing for "
+                f"field_path={field_path!r}."
+            ),
+        )
+    if not isinstance(unit_code_raw, str):
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[{entry_index}].unit_code MUST be a string; "
+                f"got {type(unit_code_raw).__name__} for field_path={field_path!r}."
+            ),
+        )
+    if unit_code_raw != "":
+        return unit_code_raw
+    # Empty string: must distinguish "legitimate unitless field" from
+    # "field reported as missing a unit by the canonical side".
+    if field_path in missing_units_list:
+        raise PilotAcceptanceError(
+            code="RUN_SUMMARY_SCHEMA_DRIFT",
+            message=(
+                f"observed_numeric_fields[{entry_index}].unit_code is empty for "
+                f"field_path={field_path!r}, but semantic-checks.missing_units "
+                "flags that path as missing a unit; cannot normalize to "
+                "'<unitless>'."
+            ),
+        )
+    return "<unitless>"
 
 
 def _canonical_numeric_value_and_unit_set(
     semantic_checks: dict[str, object],
-) -> frozenset[tuple[str, str]]:
-    """Return the set of ``(field_path, unit_code)`` tuples from observed artifact."""
+    *,
+    canonical_paths: frozenset[str] | None = None,
+) -> frozenset[tuple[str, str, str]]:
+    """Return the set of ``(field_path, value, unit)`` triples.
+
+    Brief §7.1, §7.2, §7.3, §7.4, §7.5 — every observed entry
+    must be a dict with a non-empty string ``field_path``, a
+    numeric ``raw_value`` (Decimal-normalized), and a string
+    ``unit_code`` (with the unitless policy applied).
+
+    The helper:
+
+    * fails closed on every malformed entry (no silent skip);
+    * raises ``RUN_SUMMARY_SCHEMA_DRIFT`` on duplicate
+      ``field_path`` with conflicting ``value`` or ``unit``;
+    * normalizes via :func:`_normalize_canonical_numeric_value`
+      and :func:`_normalize_observed_unit_code`;
+    * enforces canonical-observed path equality (every canonical
+      path must appear in the observed set and vice versa);
+    * returns ``frozenset[tuple[str, str, str]]`` — 3-tuple
+      ``(field_path, canonical_value, canonical_unit)``.
+    """
     observed = semantic_checks.get("observed_numeric_fields")
     if observed is None:
         raise PilotAcceptanceError(
@@ -1527,15 +1769,108 @@ def _canonical_numeric_value_and_unit_set(
             code="RUN_SUMMARY_SCHEMA_DRIFT",
             message=(f"observed_numeric_fields MUST be a list; got {type(observed).__name__}."),
         )
-    pairs: list[tuple[str, str]] = []
-    for entry in observed:
+    raw_missing_units = semantic_checks.get("missing_units")
+    missing_units_list: list[object] = []
+    if raw_missing_units is not None:
+        if not isinstance(raw_missing_units, list):
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"semantic-checks.missing_units MUST be a list; got "
+                    f"{type(raw_missing_units).__name__}."
+                ),
+            )
+        missing_units_list = list(raw_missing_units)
+    triples: list[tuple[str, str, str]] = []
+    seen_paths: dict[str, tuple[str, str]] = {}
+    for index, entry in enumerate(observed):
         if not isinstance(entry, dict):
-            continue
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields[{index}] MUST be a dict; got {type(entry).__name__}."
+                ),
+            )
         field_path = entry.get("field_path")
-        unit_code = entry.get("unit_code")
-        if isinstance(field_path, str) and isinstance(unit_code, str):
-            pairs.append((field_path, unit_code))
-    return frozenset(pairs)
+        if field_path is None:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(f"observed_numeric_fields[{index}].field_path is missing."),
+            )
+        if not isinstance(field_path, str):
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields[{index}].field_path MUST be a "
+                    f"string; got {type(field_path).__name__}."
+                ),
+            )
+        if field_path == "":
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(f"observed_numeric_fields[{index}].field_path MUST NOT be empty."),
+            )
+        raw_value = entry.get("display_value")
+        if "display_value" not in entry and raw_value is None:
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    f"observed_numeric_fields[{index}].display_value is missing for "
+                    f"field_path={field_path!r}."
+                ),
+            )
+        canonical_value = _normalize_canonical_numeric_value(raw_value)
+        unit_code_raw = entry.get("display_unit")
+        canonical_unit = _normalize_observed_unit_code(
+            entry_index=index,
+            field_path=field_path,
+            unit_code_raw=unit_code_raw,
+            missing_units_list=missing_units_list,
+        )
+        # Brief §7.3: duplicate field_path with conflicting value
+        # or unit MUST fail closed.
+        previous = seen_paths.get(field_path)
+        if previous is not None:
+            prev_value, prev_unit = previous
+            if prev_value != canonical_value:
+                raise PilotAcceptanceError(
+                    code="RUN_SUMMARY_SCHEMA_DRIFT",
+                    message=(
+                        f"observed_numeric_fields has duplicate field_path={field_path!r} "
+                        f"with conflicting value: {prev_value!r} vs {canonical_value!r}."
+                    ),
+                )
+            if prev_unit != canonical_unit:
+                raise PilotAcceptanceError(
+                    code="RUN_SUMMARY_SCHEMA_DRIFT",
+                    message=(
+                        f"observed_numeric_fields has duplicate field_path={field_path!r} "
+                        f"with conflicting unit: {prev_unit!r} vs {canonical_unit!r}."
+                    ),
+                )
+        seen_paths[field_path] = (canonical_value, canonical_unit)
+        triples.append((field_path, canonical_value, canonical_unit))
+    observed_path_set = frozenset(seen_paths.keys())
+    # Brief §7.5: empty-set policy.
+    if canonical_paths is not None:
+        if canonical_paths != observed_path_set:
+            extra_in_observed = sorted(observed_path_set - canonical_paths)
+            missing_from_observed = sorted(canonical_paths - observed_path_set)
+            raise PilotAcceptanceError(
+                code="RUN_SUMMARY_SCHEMA_DRIFT",
+                message=(
+                    "canonical_numeric_field_path_set MUST equal the set of "
+                    f"observed_numeric_fields[].field_path; "
+                    f"missing from observed={missing_from_observed!r}, "
+                    f"extra in observed={extra_in_observed!r}."
+                ),
+            )
+    elif not observed_path_set and not triples:
+        # Both canonical and observed empty → allowed when caller
+        # did not pass canonical_paths (the canonical side will
+        # be checked by the cross-run / cross-backend aggregator).
+        return frozenset()
+    return frozenset(triples)
 
 
 def _metadata_field_value(slot: ArtifactSlot, key: str) -> object:
@@ -1611,7 +1946,10 @@ def _build_run_fingerprint(
             per_pair["canonical_section_key_set"] = _canonical_section_key_set(sem)
             per_pair["canonical_numeric_field_path_set"] = _canonical_numeric_field_path_set(sem)
             per_pair["canonical_numeric_value_and_unit_set"] = (
-                _canonical_numeric_value_and_unit_set(sem)
+                _canonical_numeric_value_and_unit_set(
+                    sem,
+                    canonical_paths=per_pair["canonical_numeric_field_path_set"],
+                )
             )
 
         fingerprint[f"per_pair::{locale}::{fmt}"] = per_pair
