@@ -722,7 +722,15 @@ def _path_components_have_no_symlink(absolute_path: str) -> int:
     return symlink_count
 
 
-def _assert_raw_manifest_path_identity(*, raw_manifest_path: Path, backend: str) -> None:
+_CONTROL_FLOW_EXCEPTIONS = (SystemExit, KeyboardInterrupt, GeneratorExit)
+
+
+def _assert_raw_manifest_path_identity(
+    *,
+    raw_manifest_text: str,
+    raw_manifest_path: Path,
+    backend: str,
+) -> None:
     """Validate the RAW (pre-resolve) manifest path matches the canonical authority.
 
     The runner path exposes the operator-supplied ``--manifest`` string
@@ -732,6 +740,12 @@ def _assert_raw_manifest_path_identity(*, raw_manifest_path: Path, backend: str)
     absolute path of the raw input and an ``lstat`` symlink walk,
     so a symlink alias (file or parent-dir) is rejected with
     ``MANIFEST_IDENTITY_MISMATCH``.
+
+    The raw string is split on the OS separator (no
+    ``Path``-normalization that would silently collapse ``.`` /
+    ``..`` / double-separator aliases). Only after the lexical
+    authority matches do we walk the canonical authority string
+    with ``os.lstat`` to reject any symlinked component.
     """
     expected_relative = FROZEN_MANIFEST_PATHS_BY_BACKEND.get(backend)
     if expected_relative is None:
@@ -743,30 +757,67 @@ def _assert_raw_manifest_path_identity(*, raw_manifest_path: Path, backend: str)
             ),
         )
 
-    raw_lexical_abs = _lexical_absolute(raw_manifest_path)
-    # The runtime file lives at
-    # ``<repo-root>/backend/tests/pilot/run_multilingual_report_pilot.py``
-    # so the repo root is 4 levels up from this file
-    # (parents[3]).
-    repo_root_lexical_abs = _lexical_absolute(Path(__file__).resolve().parents[3])
-    expected_lexical_abs = os.path.join(repo_root_lexical_abs, expected_relative)
-
-    if raw_lexical_abs != expected_lexical_abs:
+    # ── raw string checks (no Path normalization) ─────────────────────
+    if not os.path.isabs(raw_manifest_text):
         raise PilotCompositionError(
             code="MANIFEST_IDENTITY_MISMATCH",
             message=(
-                f"raw manifest path identity drift: raw_lexical={raw_lexical_abs!r} "
-                f"expected_lexical={expected_lexical_abs!r} (backend={backend!r})."
+                f"raw manifest path must be absolute; got {raw_manifest_text!r} "
+                f"(backend={backend!r})."
+            ),
+        )
+    raw_parts = raw_manifest_text.split(os.sep)
+    if "." in raw_parts or ".." in raw_parts:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"raw manifest path contains '.' or '..' component: "
+                f"{raw_manifest_text!r} (backend={backend!r})."
+            ),
+        )
+    # Reject trailing separator alias (e.g. ``/foo/bar/``).
+    if raw_manifest_text != raw_manifest_text.rstrip(os.sep):
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"raw manifest path has trailing separator: {raw_manifest_text!r} "
+                f"(backend={backend!r})."
+            ),
+        )
+    # Reject double-separator alias only when it's not the leading ``//``
+    # (Posix allows ``//`` as the "implementation-defined" prefix; we
+    # allow only the canonical single ``/`` form).
+    if "//" in raw_manifest_text.lstrip(os.sep):
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"raw manifest path contains repeated separator: "
+                f"{raw_manifest_text!r} (backend={backend!r})."
             ),
         )
 
-    symlink_count = _path_components_have_no_symlink(raw_lexical_abs)
+    # The runtime file lives at
+    # ``<repo-root>/backend/tests/pilot/run_multilingual_report_pilot.py``
+    # so the repo root is 4 levels up from this file (parents[3]).
+    repo_root_lexical_abs = os.path.abspath(os.fspath(Path(__file__).resolve().parents[3]))
+    expected_lexical_abs = os.path.join(repo_root_lexical_abs, expected_relative)
+
+    if raw_manifest_text != expected_lexical_abs:
+        raise PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message=(
+                f"raw manifest path identity drift: raw={raw_manifest_text!r} "
+                f"expected={expected_lexical_abs!r} (backend={backend!r})."
+            ),
+        )
+
+    symlink_count = _path_components_have_no_symlink(expected_lexical_abs)
     if symlink_count > 0:
         raise PilotCompositionError(
             code="MANIFEST_IDENTITY_MISMATCH",
             message=(
                 f"raw manifest path traverses {symlink_count} symlinked "
-                f"component(s); rejected: raw_lexical={raw_lexical_abs!r} "
+                f"component(s); rejected: expected={expected_lexical_abs!r} "
                 f"(backend={backend!r})."
             ),
         )
@@ -1532,6 +1583,19 @@ def _cmd_run(args: argparse.Namespace) -> int:
     """Execute the ``run`` sub-command end-to-end."""
     try:
         commit_sha = _validate_commit_sha(args.commit_sha)
+        # ── R2 §4 strict: raw manifest identity MUST be validated
+        # BEFORE ``_require_absolute`` / ``_load_pilot_manifest`` /
+        # any database provisioning. The helper receives the raw
+        # ``args.manifest`` STR (not a ``Path`` that may have
+        # collapsed ``.`` / ``..`` / repeated-separator aliases)
+        # and walks the canonical-authority string with
+        # ``os.lstat`` to reject any symlinked component.
+        _assert_raw_manifest_path_identity(
+            raw_manifest_text=args.manifest,
+            raw_manifest_path=Path(args.manifest),
+            backend=args.backend,
+        )
+
         manifest_path = _require_absolute(Path(args.manifest), label="manifest")
         output_root = _require_absolute(Path(args.output_root), label="output-root")
         if output_root.exists() and any(output_root.iterdir()):
@@ -1565,19 +1629,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # the helper is idempotent with the legacy backend-mismatch
         # check above, but uses the stable ``MANIFEST_SCENARIO_MISMATCH``
         # code that downstream automation MUST classify by).
-        # P1-A: validate the RAW (pre-resolve) manifest path
-        # against the canonical authority (lexical absolute path
-        # + lstat symlink walk). This runs BEFORE engine
-        # creation so a symlink alias is rejected with
-        # ``MANIFEST_IDENTITY_MISMATCH`` without touching the
-        # database. The resolver-aware validator
-        # (:func:`validate_frozen_manifest_identity`) still runs
-        # for the load-and-validate the manifest content, but
-        # the raw-path identity check is the contract surface.
-        _assert_raw_manifest_path_identity(
-            raw_manifest_path=Path(args.manifest), backend=args.backend
-        )
-
         # P2-1 (P1-1 corrective round): the helper MUST be fed the
         # CLI ``--backend`` authority (``args.backend``), NOT the
         # scenario-derived ``scenario.database_backend.value``
@@ -1605,92 +1656,97 @@ def _cmd_run(args: argparse.Namespace) -> int:
             engine = _provision_sqlite_database(database_url=args.database_url)
         else:
             engine = create_engine(args.database_url, future=True)
-        session_factory = _build_session_factory(engine)
-        with session_factory() as seed_session:
-            seed_a1_all_prereqs(seed_session)
-            combined_source_hash = _expected_source_binding_sha(seed_session)
+        # ── R2 §3 strict: the engine lifecycle owner is the
+        # SINGLE owner. It must cover session factory construction,
+        # seed, source-binding lookup, runner, golden comparison,
+        # composition construction, template seed, verifier,
+        # stdout summary write, and the return path. Engine
+        # dispose runs LAST (composition ExitStack pops first,
+        # owner ExitStack pops engine). Composition context
+        # does NOT call ``engine.dispose()``.
+        with _pilot_run_resource_owner(engine=engine):
+            session_factory = _build_session_factory(engine)
+            with session_factory() as seed_session:
+                seed_a1_all_prereqs(seed_session)
+                combined_source_hash = _expected_source_binding_sha(seed_session)
 
-        outcome = run_scenario_via_markers(
-            session_factory,
-            source_binding_id=SOURCE_BINDING_ID,
-            weight_set_revision_id=WEIGHT_REVISION_ID,
-            correlation_marker=PILOT_BASELINE_CORRELATION_ID,
-            backend_marker=backend,
-        )
-        if outcome.outcome != "SUCCEEDED":
-            raise PilotCompositionError(
-                code="BACKEND_RUNNER_FAILED",
-                message=(
-                    f"backend runner returned outcome={outcome.outcome!r}; expected 'SUCCEEDED'."
-                ),
+            outcome = run_scenario_via_markers(
+                session_factory,
+                source_binding_id=SOURCE_BINDING_ID,
+                weight_set_revision_id=WEIGHT_REVISION_ID,
+                correlation_marker=PILOT_BASELINE_CORRELATION_ID,
+                backend_marker=backend,
             )
-
-        scheme_run = outcome.scheme_run
-        project_id = scheme_run.project_id
-        project_version_id = scheme_run.project_version_id
-
-        # P1-1: manifest-golden binding MUST succeed before any
-        # of the four-render composition steps below (no
-        # ``_compose_report_services_context`` / no
-        # ``_seed_report_templates`` / no
-        # ``verify_multilingual_report_pilot`` on mismatch).
-        _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
-            scenario=scenario,
-            manifest_path=bundle.manifest_path,
-            session_factory=session_factory,
-            scheme_run_id=str(scheme_run.id),
-        )
-
-        with _compose_report_services_context(engine=engine, output_root=output_root) as resources:
-            template_repo = resources.template_repository
-            _seed_report_templates(template_repo)
-            download_artifact = _build_download_artifact(render_service=resources.render_service)
-
-            run_identity: dict[str, str] = {
-                "database_backend": backend,
-                "scenario_id": scenario.scenario_id,
-                "correlation_id": PILOT_BASELINE_CORRELATION_ID,
-                "source_binding_id": SOURCE_BINDING_ID,
-                "weight_set_revision_id": WEIGHT_REVISION_ID,
-                "combined_source_hash": combined_source_hash,
-                "manifest_scenario_id": scenario.scenario_id,
-                "manifest_expected_output_path": str(scenario.expected_output.path)
-                if scenario.expected_output is not None
-                and scenario.expected_output.path is not None
-                else "",
-                "manifest_expected_output_commit_sha": str(
-                    scenario.expected_output.commit_sha or ""
+            if outcome.outcome != "SUCCEEDED":
+                raise PilotCompositionError(
+                    code="BACKEND_RUNNER_FAILED",
+                    message=(
+                        f"backend runner returned outcome={outcome.outcome!r}; "
+                        f"expected 'SUCCEEDED'."
+                    ),
                 )
-                if scenario.expected_output is not None
-                else "",
-                "manifest_golden_comparison_result": "PASS",
-            }
-            summary = verify_multilingual_report_pilot(
-                report_service=resources.report_service,
-                render_service=resources.render_service,
-                template_repository=resources.template_repository,
-                project_id=project_id,
-                project_version_id=project_version_id,
-                source_commit_sha=commit_sha,
-                source_manifest_sha=source_manifest_sha,
-                output_root=output_root,
-                repeat_index=args.repeat_index,
-                run_identity=run_identity,
-                download_artifact=download_artifact,
+
+            scheme_run = outcome.scheme_run
+            project_id = scheme_run.project_id
+            project_version_id = scheme_run.project_version_id
+
+            # P1-1: manifest-golden binding MUST succeed before any
+            # of the four-render composition steps below (no
+            # ``_compose_report_services_context`` / no
+            # ``_seed_report_templates`` / no
+            # ``verify_multilingual_report_pilot`` on mismatch).
+            _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
+                scenario=scenario,
+                manifest_path=bundle.manifest_path,
+                session_factory=session_factory,
+                scheme_run_id=str(scheme_run.id),
             )
 
-            sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
-            return EXIT_OK
-        # R3 §7 strict: the composition context manager
-        # (``_compose_report_services_context``) is the UNIQUE
-        # resource owner. The engine is disposed at most once
-        # via the context manager's ExitStack on the way out
-        # (scheme -> shared -> engine, LIFO); no belt-and-
-        # braces second dispose happens here. Silently
-        # swallowing a second ``engine.dispose()`` error was a
-        # R3 §7 forbidden path and is removed. The outer
-        # function-level exception routing below classifies
-        # any exception that escaped the context.
+            with _compose_report_services_context(
+                engine=engine, output_root=output_root
+            ) as resources:
+                template_repo = resources.template_repository
+                _seed_report_templates(template_repo)
+                render_svc = resources.render_service
+                download_artifact = _build_download_artifact(
+                    render_service=render_svc,
+                )
+
+                run_identity: dict[str, str] = {
+                    "database_backend": backend,
+                    "scenario_id": scenario.scenario_id,
+                    "correlation_id": PILOT_BASELINE_CORRELATION_ID,
+                    "source_binding_id": SOURCE_BINDING_ID,
+                    "weight_set_revision_id": WEIGHT_REVISION_ID,
+                    "combined_source_hash": combined_source_hash,
+                    "manifest_scenario_id": scenario.scenario_id,
+                    "manifest_expected_output_path": str(scenario.expected_output.path)
+                    if scenario.expected_output is not None
+                    and scenario.expected_output.path is not None
+                    else "",
+                    "manifest_expected_output_commit_sha": str(
+                        scenario.expected_output.commit_sha or ""
+                    )
+                    if scenario.expected_output is not None
+                    else "",
+                    "manifest_golden_comparison_result": "PASS",
+                }
+                summary = verify_multilingual_report_pilot(
+                    report_service=resources.report_service,
+                    render_service=resources.render_service,
+                    template_repository=resources.template_repository,
+                    project_id=project_id,
+                    project_version_id=project_version_id,
+                    source_commit_sha=commit_sha,
+                    source_manifest_sha=source_manifest_sha,
+                    output_root=output_root,
+                    repeat_index=args.repeat_index,
+                    run_identity=run_identity,
+                    download_artifact=download_artifact,
+                )
+
+                sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
+                return EXIT_OK
     except PilotCompositionError as exc:
         sys.stderr.write(f"PILOT_COMPOSITION_ERROR code={exc.code}: {exc}\n")
         if exc.code in {"INPUT_ERROR", "MANIFEST_ERROR"}:

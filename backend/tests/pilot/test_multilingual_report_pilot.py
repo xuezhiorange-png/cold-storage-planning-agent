@@ -11537,9 +11537,33 @@ def test_r3_lifecycle_second_close_is_noop() -> None:
 # SQLite + PostgreSQL paths and the ``.`` / ``..`` lexical normalizations.
 
 
-def _raw_path_identity_helper(manifest_path: Path, backend: str) -> None:
-    """Thin shim that calls the real helper."""
-    rmp._assert_raw_manifest_path_identity(raw_manifest_path=manifest_path, backend=backend)
+def _raw_path_identity_helper(
+    manifest_path: Path | str, backend: str, *, raw_text: str | None = None
+) -> None:
+    """Thin shim that calls the real helper.
+
+    The real helper takes BOTH the ``raw_manifest_text`` (operator
+    string, used for the lexical split checks) AND the
+    ``raw_manifest_path`` (used as a fallback anchor when the
+    helper needs to consult a filesystem object). Pass either
+    ``manifest_path`` (a ``Path``) or ``raw_text`` (a raw string,
+    kept verbatim so ``.`` / ``..`` alias tests cannot be
+    normalized-away by ``Path.__new__`` before the helper sees
+    it).
+    """
+    if raw_text is not None:
+        rmp._assert_raw_manifest_path_identity(
+            raw_manifest_text=raw_text,
+            raw_manifest_path=Path(raw_text),
+            backend=backend,
+        )
+        return
+    raw_text_default = str(manifest_path)
+    rmp._assert_raw_manifest_path_identity(
+        raw_manifest_text=raw_text_default,
+        raw_manifest_path=Path(raw_text_default),
+        backend=backend,
+    )
 
 
 def test_p1_a_manifest_raw_path_canonical_sqlite_succeeds() -> None:
@@ -11556,37 +11580,85 @@ def test_p1_a_manifest_raw_path_canonical_postgresql_succeeds() -> None:
     _raw_path_identity_helper(canonical, rmp.DATABASE_BACKEND_POSTGRESQL)
 
 
-def test_p1_a_manifest_raw_path_canonical_with_dot_normalization_succeeds(
-    tmp_path: Path,
-) -> None:
-    """§8.1: canonical lexical path with ``.`` normalization succeeds."""
-    # Build a sibling directory that contains a ``.`` segment pointing
-    # at the canonical file. Use the same repo root so the absolute
-    # lexical path resolves to the canonical manifest.
+def test_p1_a_manifest_raw_path_dot_alias_rejected(tmp_path: Path) -> None:
+    """R2 §4: ``.`` segment in raw manifest string is REJECTED.
+
+    The cd1 round's ``_lexical_absolute`` helper silently
+    normalized ``.`` via ``os.path.abspath`` before comparison,
+    which meant a symlink-free ``./`` alias was accepted. R2
+    forbids this: the raw string split ``.`` must be rejected
+    BEFORE any normalization.
+    """
+    # Build a string that, if naively ``os.path.abspath``'d,
+    # resolves to the canonical SQLite manifest — but the raw
+    # string contains an embedded ``.`` segment.
     canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
-    # Construct a path with an embedded ``.`` segment.
-    dotted = canonical.parent / "." / canonical.name
-    # MUST NOT raise.
-    _raw_path_identity_helper(dotted, rmp.DATABASE_BACKEND_SQLITE)
+    # Construct the dotted string WITHOUT ``Path`` (Path silently
+    # normalizes ``.`` away); use raw string concat instead.
+    dotted_str = str(canonical.parent) + os.sep + "." + os.sep + canonical.name
+    assert os.path.abspath(dotted_str) == str(
+        canonical
+    )  # naive normalize matches, so the rejection MUST happen in the raw string
+    assert "." in dotted_str.split(os.sep)  # sanity: the dotted segment survives the raw split
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(
+            Path(dotted_str), rmp.DATABASE_BACKEND_SQLITE, raw_text=dotted_str
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
 
 
-def test_p1_a_manifest_raw_path_canonical_with_safe_dotdot_normalization_succeeds(
-    tmp_path: Path,
-) -> None:
-    """§8.1: canonical lexical path with safe ``..`` normalization succeeds."""
-    # Build a path that goes ``<repo>/foo/../backend/tests/.../manifest.json``.
+def test_p1_a_manifest_raw_path_dotdot_alias_rejected(tmp_path: Path) -> None:
+    """R2 §4: ``..`` segment in raw manifest string is REJECTED."""
     canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
-    # ``<repo>/backend/tests`` resolves to the same as
-    # ``<repo>/backend/./tests`` which resolves to ``<repo>/backend/tests``.
-    # We use a ``..`` segment from ``<repo>/backend/evaluation`` to
-    # ``<repo>/backend/tests/evaluation/data``.
     parent = canonical.parent  # .../tests/evaluation/data
     up_one = parent.parent  # .../tests/evaluation
-    sibling = up_one / ".." / "evaluation" / "data" / canonical.name
-    # ``sibling`` should lexical-normalize to the same absolute path.
-    assert os.path.abspath(str(sibling)) == os.path.abspath(str(canonical))
-    # MUST NOT raise.
-    _raw_path_identity_helper(sibling, rmp.DATABASE_BACKEND_SQLITE)
+    # Construct via raw concat — ``Path`` normalizes ``..`` silently.
+    sibling_str = (
+        str(up_one)
+        + os.sep
+        + ".."
+        + os.sep
+        + "evaluation"
+        + os.sep
+        + "data"
+        + os.sep
+        + canonical.name
+    )
+    # naive ``os.path.abspath`` would normalize ``..`` away.
+    assert os.path.abspath(sibling_str) == str(canonical)
+    assert ".." in sibling_str.split(os.sep)  # sanity: the dotted segment survives the raw split
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(
+            Path(sibling_str), rmp.DATABASE_BACKEND_SQLITE, raw_text=sibling_str
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+
+
+def test_p1_a_manifest_raw_path_trailing_separator_rejected(tmp_path: Path) -> None:
+    """R2 §4: trailing separator alias is REJECTED.
+
+    The cd1 round's helper silently tolerated ``canonical + "/"``;
+    R2 forbids it because the trailing separator is a separate
+    lexical spelling.
+    """
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    trailing = str(canonical) + os.sep
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(Path(trailing), rmp.DATABASE_BACKEND_SQLITE, raw_text=trailing)
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
+
+
+def test_p1_a_manifest_raw_path_double_separator_rejected(tmp_path: Path) -> None:
+    """R2 §4: ``//`` repeated-separator alias is REJECTED."""
+    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    # Insert a double-separator before the final segment.
+    double_sep = str(canonical.parent) + os.sep + os.sep + canonical.name
+    assert "//" in double_sep
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(
+            Path(double_sep), rmp.DATABASE_BACKEND_SQLITE, raw_text=double_sep
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
 
 
 def test_p1_a_manifest_raw_path_file_symlink_alias_rejected(tmp_path: Path) -> None:
@@ -12274,95 +12346,319 @@ def test_p1_c_base_exception_group_used_when_required() -> None:
 # ── P1-C: Live-wiring gate: owner is entered before seed/runner/golden ────
 
 
-def test_p1_c_cmd_run_enters_owner_before_seed(tmp_path: Path, monkeypatch) -> None:
-    """CMD_RUN_ENTERS_OWNER_BEFORE_SEED=YES.
+def _stub_engine_with_calls() -> tuple[
+    rmp._LifecycleStubEngine, list[str], rmp._LifecycleStubEngine
+]:
+    """Return (engine, events, same-engine) for live-wiring tests.
 
-    The seed step (``_build_session_factory``) MUST run
-    INSIDE the ``_pilot_run_resource_owner`` context. The
-    simplest assertion: when the seed step fails, the
-    engine MUST have been disposed (i.e. the owner was
-    entered before the seed step and the engine was
-    registered for cleanup before the seed step).
+    The ``engine`` implements ``dispose_calls`` and ``dispose_event_record``;
+    the ``events`` list is appended in the order
+    ``scheme.close``, ``shared.close``, ``engine.dispose`` so that
+    live-wiring tests can assert the LIFO order.
     """
-    engine, _shared, _scheme = _p1_b_make_engine_with_stub_sessions()
-    seed_exc = RuntimeError("simulated seed failure")
-
-    def _failing_session_factory(_engine):
-        def _factory():
-            raise seed_exc
-
-        return _factory
-
-    monkeypatch.setattr(rmp, "_build_session_factory", _failing_session_factory)
-
-    with (
-        pytest.raises(RuntimeError, match="simulated seed failure"),
-        rmp._pilot_run_resource_owner(engine=engine),
-    ):  # noqa: E501, SIM117
-        session_factory = rmp._build_session_factory(engine)
-        with session_factory():  # noqa: SIM117
-            pass
-    # Engine was disposed by the owner on the way out
-    # (BECAUSE the owner was entered before the failing seed
-    # step and registered engine.dispose at __enter__ time).
-    assert engine.dispose_calls == 1
+    raise NotImplementedError("Stub engine factory is provided by the helper block further below.")
 
 
-def test_p1_c_cmd_run_enters_owner_before_runner(tmp_path: Path, monkeypatch) -> None:
-    """CMD_RUN_ENTERS_OWNER_BEFORE_RUNNER=YES.
+def test_p1_b_cmd_run_owner_success_disposes_once(tmp_path: Path, monkeypatch) -> None:
+    """R2 §6: real ``_cmd_run`` enters the owner, exact once on success.
 
-    The ``run_scenario_via_markers`` call (the "runner") MUST
-    run inside the owner context. When the runner raises,
-    the engine MUST have been disposed.
+    Replaces the cd1 test that entered the helper directly. This
+    test exercises the REAL ``_cmd_run`` entry-point with stubs
+    that simulate a successful run and asserts ``engine.dispose_calls
+    == 1`` after ``rmp._cmd_run(args)`` returns ``EXIT_OK``.
     """
-    engine = _LifecycleStubEngine()
-    runner_exc = RuntimeError("simulated runner failure")
-
-    def _failing_runner(*_args, **_kwargs):
-        raise runner_exc
-
-    monkeypatch.setattr(rmp, "run_scenario_via_markers", _failing_runner)
-
-    with (
-        pytest.raises(RuntimeError, match="simulated runner failure"),
-        rmp._pilot_run_resource_owner(engine=engine),
-    ):  # noqa: E501, SIM117
-        rmp.run_scenario_via_markers(  # noqa: F841
-            lambda: None,
-            source_binding_id="x",
-            weight_set_revision_id="y",
-            correlation_marker="z",
-            backend_marker="sqlite",
-        )
-    assert engine.dispose_calls == 1
+    (
+        stub_engine,
+        events,
+        real_engine,
+    ) = _build_real_cmd_run_stub_engine(monkeypatch)
+    args = _build_real_cmd_run_args(tmp_path, backend=rmp.DATABASE_BACKEND_SQLITE)
+    rc = rmp._cmd_run(args)
+    assert rc == rmp.EXIT_OK
+    assert real_engine.dispose_calls == 1
+    assert events == ["scheme.close", "shared.close", "engine.dispose"]
 
 
-def test_p1_c_cmd_run_enters_owner_before_golden(tmp_path: Path, monkeypatch) -> None:
-    """CMD_RUN_ENTERS_OWNER_BEFORE_GOLDEN=YES.
+def test_p1_b_cmd_run_owner_seed_failure_disposes_once(tmp_path: Path, monkeypatch) -> None:
+    """R2 §6: seed failure inside real ``_cmd_run`` still disposes once."""
+    (
+        _stub_engine,
+        _events,
+        real_engine,
+    ) = _build_real_cmd_run_stub_engine(
+        monkeypatch, fail_at="seed", fail_exc=RuntimeError("seed fail")
+    )
+    args = _build_real_cmd_run_args(tmp_path, backend=rmp.DATABASE_BACKEND_SQLITE)
+    with pytest.raises(RuntimeError, match="seed fail"):
+        rmp._cmd_run(args)
+    assert real_engine.dispose_calls == 1
 
-    The ``_verify_manifest_golden_binding`` call MUST run
-    inside the owner context. When it raises, the engine
-    MUST have been disposed.
+
+def test_p1_b_cmd_run_owner_source_binding_failure_disposes_once(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """R2 §6: source-binding lookup failure still disposes once."""
+    (
+        _stub_engine,
+        _events,
+        real_engine,
+    ) = _build_real_cmd_run_stub_engine(
+        monkeypatch,
+        fail_at="source_binding",
+        fail_exc=RuntimeError("source_binding fail"),
+    )
+    args = _build_real_cmd_run_args(tmp_path, backend=rmp.DATABASE_BACKEND_SQLITE)
+    with pytest.raises(RuntimeError, match="source_binding fail"):
+        rmp._cmd_run(args)
+    assert real_engine.dispose_calls == 1
+
+
+def test_p1_b_cmd_run_owner_runner_failure_disposes_once(tmp_path: Path, monkeypatch) -> None:
+    """R2 §6: backend runner failure still disposes once."""
+    (
+        _stub_engine,
+        _events,
+        real_engine,
+    ) = _build_real_cmd_run_stub_engine(
+        monkeypatch,
+        fail_at="runner",
+        fail_exc=RuntimeError("runner fail"),
+    )
+    args = _build_real_cmd_run_args(tmp_path, backend=rmp.DATABASE_BACKEND_SQLITE)
+    with pytest.raises(RuntimeError, match="runner fail"):
+        rmp._cmd_run(args)
+    assert real_engine.dispose_calls == 1
+
+
+def test_p1_b_cmd_run_owner_golden_failure_disposes_once(tmp_path: Path, monkeypatch) -> None:
+    """R2 §6: golden comparison failure still disposes once."""
+    (
+        _stub_engine,
+        _events,
+        real_engine,
+    ) = _build_real_cmd_run_stub_engine(
+        monkeypatch,
+        fail_at="golden",
+        fail_exc=RuntimeError("golden fail"),
+    )
+    args = _build_real_cmd_run_args(tmp_path, backend=rmp.DATABASE_BACKEND_SQLITE)
+    with pytest.raises(RuntimeError, match="golden fail"):
+        rmp._cmd_run(args)
+    assert real_engine.dispose_calls == 1
+
+
+def test_p1_b_cmd_run_owner_composition_failure_disposes_once(tmp_path: Path, monkeypatch) -> None:
+    """R2 §6: composition construction failure still disposes once, with order."""
+    (
+        _stub_engine,
+        events,
+        real_engine,
+    ) = _build_real_cmd_run_stub_engine(
+        monkeypatch,
+        fail_at="composition",
+        fail_exc=RuntimeError("composition fail"),
+    )
+    args = _build_real_cmd_run_args(tmp_path, backend=rmp.DATABASE_BACKEND_SQLITE)
+    with pytest.raises(RuntimeError, match="composition fail"):
+        rmp._cmd_run(args)
+    assert real_engine.dispose_calls == 1
+    assert events == ["scheme.close", "shared.close", "engine.dispose"]
+
+
+def test_p1_b_cmd_run_owner_verifier_failure_disposes_once(tmp_path: Path, monkeypatch) -> None:
+    """R2 §6: verifier failure still disposes once, with order."""
+    (
+        _stub_engine,
+        events,
+        real_engine,
+    ) = _build_real_cmd_run_stub_engine(
+        monkeypatch,
+        fail_at="verifier",
+        fail_exc=RuntimeError("verifier fail"),
+    )
+    args = _build_real_cmd_run_args(tmp_path, backend=rmp.DATABASE_BACKEND_SQLITE)
+    with pytest.raises(RuntimeError, match="verifier fail"):
+        rmp._cmd_run(args)
+    assert real_engine.dispose_calls == 1
+    assert events == ["scheme.close", "shared.close", "engine.dispose"]
+
+
+def _build_real_cmd_run_stub_engine(
+    monkeypatch, *, fail_at: str | None = None, fail_exc: BaseException | None = None
+):
+    """Build the live-wiring stub used by the 7 ``_cmd_run`` tests.
+
+    Returns a triple of ``(stub_engine, events, real_engine)``.
+    The ``stub_engine`` is a stub SQLAlchemy ``Engine`` carrying
+    ``dispose_calls``. ``events`` records the order in which
+    scheme / shared / engine cleanup callbacks fire. ``real_engine``
+    is an alias of the same object for clarity in assertions.
+
+    When ``fail_at`` is given, the named step raises ``fail_exc``
+    and the test asserts engine.dispose_calls == 1 after the
+    exception escapes ``_cmd_run``.
     """
-    engine = _LifecycleStubEngine()
-    golden_exc = RuntimeError("simulated golden binding failure")
+    import types
 
-    def _failing_golden(*_args, **_kwargs):
-        raise golden_exc
+    events: list[str] = []
 
-    monkeypatch.setattr(rmp, "_verify_manifest_golden_binding", _failing_golden)
+    class _StubEngine:
+        def __init__(self) -> None:
+            self.dispose_calls = 0
 
-    with (
-        pytest.raises(RuntimeError, match="simulated golden binding failure"),
-        rmp._pilot_run_resource_owner(engine=engine),
-    ):  # noqa: E501, SIM117
-        rmp._verify_manifest_golden_binding(  # noqa: F841
-            scenario=None,
-            manifest_path=None,
-            session_factory=lambda: None,
-            scheme_run_id="x",
-        )
-    assert engine.dispose_calls == 1
+        def dispose(self) -> None:
+            self.dispose_calls += 1
+            events.append("engine.dispose")
+
+    class _StubSession:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def __enter__(self) -> _StubSession:
+            return self
+
+        def __exit__(self, *_exc) -> None:
+            self.closed = True
+            return None
+
+        def close(self) -> None:
+            self.closed = True
+            events.append("shared.close")
+
+    class _StubSchemeSession:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+            events.append("scheme.close")
+
+    real_engine = _StubEngine()
+
+    def _stub_session_factory(_engine):
+        class _Factory:
+            def __call__(self) -> _StubSession:
+                return _StubSession()
+
+        return _Factory()
+
+    def _stub_compose_report_services_context(
+        *,
+        engine,
+        output_root,  # noqa: ARG001
+    ):
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            # The real composition owns scheme_session + shared_session
+            # and registers scheme.close first (so it pops LAST in LIFO),
+            # then shared.close. The engine dispose is owned by the
+            # OUTER owner, not by composition. The events list
+            # records the actual cleanup order observed on exit.
+            try:
+                yield types.SimpleNamespace(
+                    template_repository=object(),
+                    report_service=object(),
+                    render_service=types.SimpleNamespace(
+                        verify_download=lambda *a, **k: None,
+                        get_artifact_path=lambda *a, **k: None,
+                    ),
+                )
+            finally:
+                events.append("scheme.close")
+                events.append("shared.close")
+
+        return _ctx()
+
+    def _maybe_fail(stage: str) -> None:
+        if fail_at == stage and fail_exc is not None:
+            raise fail_exc
+
+    def _stub_seed_a1_all_prereqs(_session) -> None:
+        _maybe_fail("seed")
+
+    def _stub_expected_source_binding_sha(_session) -> str:
+        _maybe_fail("source_binding")
+        return "deadbeef" * 5
+
+    outcome_obj = types.SimpleNamespace(
+        outcome="SUCCEEDED",
+        scheme_run=types.SimpleNamespace(
+            id=object(),
+            project_id="p1",
+            project_version_id="v1",
+        ),
+    )
+
+    def _stub_run_scenario_via_markers(*_a, **_k):
+        _maybe_fail("runner")
+        return outcome_obj
+
+    def _stub_verify_manifest_golden_binding(**_kwargs):
+        _maybe_fail("golden")
+        return ("exp", "act", "ok")
+
+    def _stub_seed_report_templates(_repo) -> None:
+        if fail_at == "composition":
+            # ``_seed_report_templates`` is the FIRST step inside
+            # the composition's ``with`` block. The composition's
+            # ``finally`` block will emit the scheme/shared close
+            # events on the way out, so we only raise here.
+            raise fail_exc or RuntimeError()
+
+    def _stub_build_download_artifact(*, render_service):
+        return lambda *a, **k: (b"x", {})
+
+    def _stub_verify_multilingual_report_pilot(**_kwargs):
+        if fail_at == "verifier":
+            raise fail_exc or RuntimeError("verifier fail")
+        return {"ok": True}
+
+    monkeypatch.setattr(rmp, "_provision_sqlite_database", lambda **k: real_engine)
+    monkeypatch.setattr(rmp, "_build_session_factory", _stub_session_factory)
+    monkeypatch.setattr(rmp, "seed_a1_all_prereqs", _stub_seed_a1_all_prereqs)
+    monkeypatch.setattr(rmp, "_expected_source_binding_sha", _stub_expected_source_binding_sha)
+    monkeypatch.setattr(rmp, "run_scenario_via_markers", _stub_run_scenario_via_markers)
+    monkeypatch.setattr(
+        rmp, "_verify_manifest_golden_binding", _stub_verify_manifest_golden_binding
+    )
+    monkeypatch.setattr(
+        rmp, "_compose_report_services_context", _stub_compose_report_services_context
+    )
+    monkeypatch.setattr(rmp, "_seed_report_templates", _stub_seed_report_templates)
+    monkeypatch.setattr(rmp, "_build_download_artifact", _stub_build_download_artifact)
+    monkeypatch.setattr(
+        rmp,
+        "verify_multilingual_report_pilot",
+        _stub_verify_multilingual_report_pilot,
+    )
+
+    return real_engine, events, real_engine
+
+
+def _build_real_cmd_run_args(tmp_path: Path, *, backend: str):
+    """Build a minimal real ``argparse.Namespace`` for ``_cmd_run``.
+
+    Uses the canonical SQLite manifest path so the raw-path check
+    passes; the engine creation is replaced by a stub via
+    ``monkeypatch``. ``output_root`` is a fresh ``tmp_path`` so
+    the non-empty-output-root guard does not fire.
+    """
+    import argparse
+
+    canonical = rmp.FROZEN_MANIFEST_PATHS_BY_BACKEND[backend]
+    repo_root = Path(rmp.__file__).resolve().parents[3]
+    manifest_path = str((repo_root / canonical).resolve())
+
+    return argparse.Namespace(
+        commit_sha=("a" * 40),
+        manifest=manifest_path,
+        output_root=str(tmp_path / "out"),
+        backend=backend,
+        repeat_index=0,
+        database_url=f"sqlite:///{tmp_path}/pilot.sqlite3",
+    )
 
 
 # ── P1-C: Symlink alias acceptance path count gate (brief §8.4) ────────────
