@@ -37,7 +37,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Iterator, Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -877,177 +877,122 @@ class _PilotReportResources:
                 pass
 
 
-def _compose_report_services(
-    *,
-    engine: Engine,
-    output_root: Path,
-) -> _PilotReportResources:
-    """Compose the production report / render / storage triplet.
-
-    Returns a :class:`_PilotReportResources` bundle; the caller owns
-    the bundle's lifecycle and MUST invoke
-    :meth:`_PilotReportResources.close` (or close both session
-    fields) in a ``finally`` block. This addresses the brief §5
-    resource-ownership gap: previously the composition opened
-    ``shared_session`` (report-side) + ``session_factory()``
-    (``SchemeRepository``) without returning either, relying on
-    Python interpreter shutdown / SQLAlchemy pool reset to release
-    the connections. On PostgreSQL this surfaced as pool-reset
-    ``psycopg2.OperationalError: SSL connection has been closed
-    unexpectedly`` during teardown.
-
-    Composition-only boundary adapters (read-only, no production
-    refactor) bridge two pre-existing ``RealReportDataProvider``
-    interface gaps so the frozen §11.3 contract holds end-to-end:
-
-    * :class:`_PilotCalculationQueryAdapter` exposes
-      ``get_orchestrated_result`` by issuing ``SELECT`` statements
-      against the public ``calculation_runs`` table. The production
-      ``CoreCalculationService`` does NOT implement this method
-      (only ``orchestrate_core_calculation`` exists) — this adapter
-      fills the gap without mutating production code. Read-only:
-      no row construction, no writes, no commit/rollback, no
-      re-derivation of calculation results, no fabrication.
-    * :class:`_PilotSchemeQueryAdapter` wraps the production
-      ``SchemeQueryService`` and coerces ``recommended_scheme_code:
-      None`` to ``""`` so the downstream report schema
-      (``cold_storage_concept_design@1.0.0``) accepts the value.
-      Production ``SchemeRun.recommended_scheme_code`` is
-      ``str | None`` and is ``NULL`` when the runner produced no
-      feasible candidate. Read-only: shallow-copies the run dict
-      before mutation; every other field passes through untouched.
-    """
-    session_factory = _build_session_factory(engine)
-    shared_session = session_factory()
-    report_repo = SQLReportRepository(shared_session)
-    artifact_storage = ReportArtifactStorage(base_dir=str(output_root))
-    report_uow = ReportRenderUnitOfWork(
-        shared_session,
-        report_repo=report_repo,
-        artifact_repo=report_repo,
-        session_factory=session_factory,
-    )
-    render_service = ReportRenderService(
-        uow=report_uow,
-        storage=artifact_storage,
-        template_repo=report_repo,
-    )
-    project_service = DatabaseProjectService(engine=engine)
-    calculation_service = _PilotCalculationQueryAdapter(session_factory=session_factory)
-    scheme_session = session_factory()
-    scheme_repo = SchemeRepository(scheme_session)
-    scheme_query = _PilotSchemeQueryAdapter(
-        inner=SchemeQueryService(repository=scheme_repo),
-    )
-    data_provider = RealReportDataProvider(
-        project_service=project_service,
-        calculation_service=calculation_service,
-        scheme_query=scheme_query,
-    )
-    assembler = ReportAssembler(data_provider=data_provider)
-    report_service = ReportService(repository=report_repo, assembler=assembler)
-    return _PilotReportResources(
-        report_service=report_service,
-        render_service=render_service,
-        template_repository=report_repo,
-        artifact_storage=artifact_storage,
-        project_service=project_service,
-        shared_session=shared_session,
-        scheme_session=scheme_session,
-    )
-
-
 @contextmanager
 def _compose_report_services_context(
     *,
     engine: Engine,
     output_root: Path,
 ) -> Iterator[_PilotReportResources]:
-    """Exception-safe context-manager variant of :func:`_compose_report_services`.
+    """Build the typed report-services bundle; release on exit (brief §4).
 
-    Per brief §7.1 — composition MUST be a context manager (or
-    provide a semantically equivalent exception-safe owner).
-
-    Cleanup ordering (brief §7.2, fixed order — do NOT change):
-
-    1. verifier / render / report operation completes
-    2. ``scheme_session.close()``
-    3. ``shared_session.close()``
-    4. (caller's outer-finally) ``engine.dispose()``
-
-    Error-preservation rules (brief §7.5):
-
-    * primary error only → preserve original primary object
-    * one cleanup error only → raise original cleanup object
-    * multiple cleanup errors → ``ExceptionGroup`` containing
-      every original cleanup object
-    * primary + cleanup errors → ``ExceptionGroup`` containing the
-      original primary AND every original cleanup object
-
-    Cleanup exceptions are NEVER silently swallowed (brief §7.3).
-    ``BaseException`` subclasses (``KeyboardInterrupt``,
-    ``SystemExit``, ``GeneratorExit``) are NOT caught and propagate
-    naturally (brief §7.4). Each original error object appears at
-    most once in the final exception tree (brief §7.6).
+    Lifecycle owner. Resources registered in `state` dict on
+    creation so partial-construction failures can release what
+    was obtained. Release order: scheme -> shared -> engine.
     """
-    resources = _compose_report_services(engine=engine, output_root=output_root)
+    state: dict[str, object] = {
+        "shared_session": None,
+        "scheme_session": None,
+        "resources": None,
+    }
     primary_exc: BaseException | None = None
-    non_exception_primary: BaseException | None = None
-    cleanup_errors: list[Exception] = []
+    cleanup_errors: list[BaseException] = []
+    base_exception_note: str | None = None
 
     def _do_cleanup() -> None:
-        # Fixed order: scheme → shared (brief §7.2). Each cleanup
-        # is attempted; failures are aggregated but never swallowed.
+        nonlocal base_exception_note
+        scheme_session = state["scheme_session"]
+        shared_session = state["shared_session"]
+        if scheme_session is not None:
+            try:
+                scheme_session.close()
+            except BaseException as cleanup_exc:
+                cleanup_errors.append(cleanup_exc)
+        if shared_session is not None:
+            try:
+                shared_session.close()
+            except BaseException as cleanup_exc:
+                cleanup_errors.append(cleanup_exc)
         try:
-            resources.scheme_session.close()
-        except Exception as cleanup_exc:  # noqa: BLE001
+            engine.dispose()
+        except BaseException as cleanup_exc:
             cleanup_errors.append(cleanup_exc)
-        try:
-            resources.shared_session.close()
-        except Exception as cleanup_exc:  # noqa: BLE001
-            cleanup_errors.append(cleanup_exc)
+        if base_exception_note is None and cleanup_errors:
+            base_exception_note = (
+                f"partial cleanup during resource release; "
+                f"cleanup_errors={[type(e).__name__ for e in cleanup_errors]!r}"
+            )
 
     try:
-        yield resources
-    except KeyboardInterrupt:
-        non_exception_primary = KeyboardInterrupt()
+        try:
+            session_factory = _build_session_factory(engine)
+            state["shared_session"] = session_factory()
+            shared_session = state["shared_session"]
+            report_repo = SQLReportRepository(shared_session)
+            artifact_storage = ReportArtifactStorage(base_dir=str(output_root))
+            report_uow = ReportRenderUnitOfWork(
+                shared_session,
+                report_repo=report_repo,
+                artifact_repo=report_repo,
+                session_factory=session_factory,
+            )
+            render_service = ReportRenderService(
+                uow=report_uow,
+                storage=artifact_storage,
+                template_repo=report_repo,
+            )
+            project_service = DatabaseProjectService(engine=engine)
+            calculation_service = _PilotCalculationQueryAdapter(
+                session_factory=session_factory,
+            )
+            state["scheme_session"] = session_factory()
+            scheme_session = state["scheme_session"]
+            scheme_repo = SchemeRepository(scheme_session)
+            scheme_query = _PilotSchemeQueryAdapter(
+                inner=SchemeQueryService(repository=scheme_repo),
+            )
+            data_provider = RealReportDataProvider(
+                project_service=project_service,
+                calculation_service=calculation_service,
+                scheme_query=scheme_query,
+            )
+            assembler = ReportAssembler(data_provider=data_provider)
+            report_service = ReportService(repository=report_repo, assembler=assembler)
+            state["resources"] = _PilotReportResources(
+                report_service=report_service,
+                render_service=render_service,
+                template_repository=report_repo,
+                artifact_storage=artifact_storage,
+                project_service=project_service,
+                shared_session=shared_session,
+                scheme_session=scheme_session,
+            )
+        except BaseException:
+            raise
+        yield state["resources"]
         _do_cleanup()
-        raise KeyboardInterrupt() from non_exception_primary
-    except SystemExit:
-        non_exception_primary = SystemExit()
-        _do_cleanup()
-        raise SystemExit() from non_exception_primary
-    except GeneratorExit:
-        non_exception_primary = GeneratorExit()
-        _do_cleanup()
-        raise GeneratorExit() from non_exception_primary
-    except BaseException as primary_exc_caught:
-        # ``primary_exc_caught`` is an Exception subclass (since the
-        # three BaseException subclasses above are excluded).
-        primary_exc = primary_exc_caught
+    except BaseException as primary_caught:
+        primary_exc = primary_caught
+        if isinstance(primary_exc, (SystemExit, KeyboardInterrupt, GeneratorExit)):
+            _do_cleanup()
+            if base_exception_note is not None:
+                with suppress(Exception):
+                    primary_exc.add_note(base_exception_note)
+            raise primary_exc from None
         _do_cleanup()
         if not cleanup_errors:
-            # Primary only — re-raise the original primary object
-            # to preserve its traceback + identity.
             raise primary_exc from None
-        # Primary + cleanup → ExceptionGroup containing primary AND
-        # every cleanup object (each appears once — brief §7.6).
         raise ExceptionGroup(
             "primary error plus cleanup errors during composition",
             [primary_exc, *cleanup_errors],
         ) from None
     else:
-        _do_cleanup()
         if cleanup_errors:
             if len(cleanup_errors) == 1:
-                raise cleanup_errors[0] from None
+                raise cleanup_errors[0]
             raise ExceptionGroup(
                 "cleanup errors during composition",
                 cleanup_errors,
-            ) from None
-
-
-# ── Template seeding ────────────────────────────────────────────────────────
+            )
 
 
 def _seed_report_templates(template_repo: SQLReportRepository) -> None:
@@ -1186,7 +1131,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
             engine = _provision_sqlite_database(database_url=args.database_url)
         else:
             engine = create_engine(args.database_url, future=True)
-        resources: _PilotReportResources | None = None
         try:
             session_factory = _build_session_factory(engine)
             with session_factory() as seed_session:
@@ -1213,81 +1157,74 @@ def _cmd_run(args: argparse.Namespace) -> int:
             project_id = scheme_run.project_id
             project_version_id = scheme_run.project_version_id
 
-            # P1-1: manifest-golden binding MUST succeed before any of
-            # the four-render composition steps below (no
-            # ``_compose_report_services`` / no ``_seed_report_templates``
-            # / no ``verify_multilingual_report_pilot`` on mismatch).
-            # ``_verify_manifest_golden_binding`` raises
-            # ``PilotCompositionError(code='MANIFEST_GOLDEN_MISMATCH')``
-            # on failure; the comparison result is captured for the
-            # run_identity summary below.
+            # P1-1: manifest-golden binding MUST succeed before any
+            # of the four-render composition steps below (no
+            # ``_compose_report_services_context`` / no
+            # ``_seed_report_templates`` / no
+            # ``verify_multilingual_report_pilot`` on mismatch).
             _expected_normalized, _actual_normalized, _comparison = _verify_manifest_golden_binding(
                 scenario=scenario,
                 manifest_path=bundle.manifest_path,
                 session_factory=session_factory,
                 scheme_run_id=str(scheme_run.id),
             )
-            # P1-1 binding requirement: the typed ``Manifest`` object
-            # remains held in ``bundle.manifest`` for the lifetime of
-            # ``_cmd_run()`` (the bundle is a single source of
-            # manifest identity; the manifest MUST NOT be re-read or
-            # hand-parsed after ``_load_pilot_manifest`` returns).
 
-            resources = _compose_report_services(engine=engine, output_root=output_root)
-            template_repo = resources.template_repository
-            _seed_report_templates(template_repo)
-            download_artifact = _build_download_artifact(render_service=resources.render_service)
-
-            run_identity: dict[str, str] = {
-                "database_backend": backend,
-                "scenario_id": scenario.scenario_id,
-                "correlation_id": PILOT_BASELINE_CORRELATION_ID,
-                "source_binding_id": SOURCE_BINDING_ID,
-                "weight_set_revision_id": WEIGHT_REVISION_ID,
-                "combined_source_hash": combined_source_hash,
-                "manifest_scenario_id": scenario.scenario_id,
-                "manifest_expected_output_path": str(scenario.expected_output.path)
-                if scenario.expected_output is not None
-                and scenario.expected_output.path is not None
-                else "",
-                "manifest_expected_output_commit_sha": str(
-                    scenario.expected_output.commit_sha or ""
+            with _compose_report_services_context(
+                engine=engine, output_root=output_root
+            ) as resources:
+                template_repo = resources.template_repository
+                _seed_report_templates(template_repo)
+                download_artifact = _build_download_artifact(
+                    render_service=resources.render_service
                 )
-                if scenario.expected_output is not None
-                else "",
-                "manifest_golden_comparison_result": "PASS",
-            }
-            summary = verify_multilingual_report_pilot(
-                report_service=resources.report_service,
-                render_service=resources.render_service,
-                template_repository=resources.template_repository,
-                project_id=project_id,
-                project_version_id=project_version_id,
-                source_commit_sha=commit_sha,
-                source_manifest_sha=source_manifest_sha,
-                output_root=output_root,
-                repeat_index=args.repeat_index,
-                run_identity=run_identity,
-                download_artifact=download_artifact,
-            )
 
-            sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
-            return EXIT_OK
+                run_identity: dict[str, str] = {
+                    "database_backend": backend,
+                    "scenario_id": scenario.scenario_id,
+                    "correlation_id": PILOT_BASELINE_CORRELATION_ID,
+                    "source_binding_id": SOURCE_BINDING_ID,
+                    "weight_set_revision_id": WEIGHT_REVISION_ID,
+                    "combined_source_hash": combined_source_hash,
+                    "manifest_scenario_id": scenario.scenario_id,
+                    "manifest_expected_output_path": str(scenario.expected_output.path)
+                    if scenario.expected_output is not None
+                    and scenario.expected_output.path is not None
+                    else "",
+                    "manifest_expected_output_commit_sha": str(
+                        scenario.expected_output.commit_sha or ""
+                    )
+                    if scenario.expected_output is not None
+                    else "",
+                    "manifest_golden_comparison_result": "PASS",
+                }
+                summary = verify_multilingual_report_pilot(
+                    report_service=resources.report_service,
+                    render_service=resources.render_service,
+                    template_repository=resources.template_repository,
+                    project_id=project_id,
+                    project_version_id=project_version_id,
+                    source_commit_sha=commit_sha,
+                    source_manifest_sha=source_manifest_sha,
+                    output_root=output_root,
+                    repeat_index=args.repeat_index,
+                    run_identity=run_identity,
+                    download_artifact=download_artifact,
+                )
+
+                sys.stdout.write(json.dumps(summary, sort_keys=True, ensure_ascii=False) + "\n")
+                return EXIT_OK
+            # Inner composition-context exit already ran the fixed
+            # release path (scheme -> shared -> engine.dispose()).
+            # The outer function-level exception routing below
+            # classifies any exception that escaped the context.
         finally:
-            # Brief §5 ordered release:
-            #   1. verifier/render/report operations complete (verified above)
-            #   2. report/UoW-owned sessions close (via resources.close())
-            #   3. scheme session closes (via resources.close())
-            #   4. any remaining session factories release connections
-            #   5. engine.dispose() releases the pool
-            # Releasing here on BOTH success and failure paths means
-            # the engine's connections are explicitly returned to
-            # PostgreSQL before pytest's fixture attempts
-            # ``DROP DATABASE ... WITH (FORCE)`` (preventing the
-            # "SQL connection has been closed unexpectedly" pool-reset
-            # errors observed in the prior round).
-            if resources is not None:
-                resources.close()
+            # Outer-level release: only ``engine.dispose()`` runs
+            # here on the way out. The composition context manager
+            # already released per-resource on success and on
+            # partial-construction failure; this branch is a
+            # belt-and-braces disposal for any case where the
+            # composition context did not fully enter (e.g. very
+            # early exception).
             try:  # noqa: SIM105 - dispose best-effort
                 engine.dispose()
             except Exception:  # noqa: BLE001
@@ -1469,7 +1406,7 @@ PILOT_1_4_PER_LOCALE_FORMAT_EQUALITY_FIELDS: tuple[tuple[str, str, str], ...] = 
 PILOT_1_4_CANONICAL_SECTION_INVARIANTS: tuple[str, ...] = ("canonical_section_key_set",)
 PILOT_1_4_CANONICAL_NUMERIC_VALUE_AND_UNIT_INVARIANTS: tuple[str, ...] = (
     "canonical_numeric_field_path_set",
-    "canonical_numeric_value_and_unit_set",
+    "canonical_numeric_value_unit_triple_set",
 )
 PILOT_1_4_CANONICAL_BUSINESS_FIELDS: tuple[str, ...] = (
     *PILOT_1_4_CANONICAL_SECTION_INVARIANTS,
@@ -1940,8 +1877,8 @@ def _build_run_fingerprint(
         if isinstance(sem, dict):
             per_pair["canonical_section_key_set"] = _canonical_section_key_set(sem)
             per_pair["canonical_numeric_field_path_set"] = _canonical_numeric_field_path_set(sem)
-            per_pair["canonical_numeric_value_and_unit_set"] = (
-                _canonical_numeric_value_and_unit_set(sem)
+            per_pair["canonical_numeric_value_unit_triple_set"] = (
+                _canonical_numeric_value_unit_triple_set(sem)
             )
 
         fingerprint[f"per_pair::{locale}::{fmt}"] = per_pair

@@ -439,13 +439,13 @@ def test_p1_1_golden_mismatch_fails_closed_with_typed_code(
     compose_called = {"value": False}
     verifier_called = {"value": False}
 
-    def _spy_compose(*, engine: object, output_root: object) -> object:
+    def _spy_compose(*_args: object, **_kwargs: object) -> object:
         compose_called["value"] = True
-        # Return a stand-in object with the attrs + ``close`` the
-        # new resource-aware ``_cmd_run`` may touch. The test's
-        # invariant (``compose_called`` flag) only cares about
-        # attribute access NOT raising, not about the value.
-        return SimpleNamespace(
+        # The resource-aware ``_cmd_run`` requires this be a
+        # context manager (the ``with`` protocol). Test invariant
+        # is just that ``compose_called`` flips; the value is
+        # irrelevant.
+        yield SimpleNamespace(
             report_service=None,
             render_service=None,
             template_repository=None,
@@ -460,7 +460,7 @@ def test_p1_1_golden_mismatch_fails_closed_with_typed_code(
         verifier_called["value"] = True
         return {}
 
-    monkeypatch.setattr(rmp, "_compose_report_services", _spy_compose)
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _spy_compose)
     monkeypatch.setattr(rmp, "verify_multilingual_report_pilot", _spy_verifier)
 
     with pytest.raises(rmp.PilotCompositionError) as caught:
@@ -1192,7 +1192,23 @@ def _patch_cmd_run_to_reach_verifier(
         "_verify_manifest_golden_binding",
         lambda **_kw: golden_comparison_stub,
     )
-    monkeypatch.setattr(rmp, "_compose_report_services", lambda **_kw: compose_stub)
+
+    # 6. Lifecycle-owner stand-in. The corrective ``_cmd_run``
+    # uses ``with _compose_report_services_context(...)`` as the
+    # ONLY composition path, so the stand-in must support the
+    # ``with`` protocol. Tests that want enter/exit counters
+    # (e.g. ``test_p1_4_cmd_run_uses_lifecycle_context_owner``)
+    # patch the symbol AGAIN AFTER calling this helper so their
+    # owner replaces this stand-in via the monkeypatch stack.
+    @contextlib.contextmanager
+    def _compose_services_context_stub(*_args: object, **_kwargs: object) -> object:
+        yield compose_stub
+        with contextlib.suppress(Exception):
+            compose_stub.close()
+
+    monkeypatch.setattr(
+        rmp, "_compose_report_services_context", _compose_services_context_stub
+    )
     monkeypatch.setattr(rmp, "_seed_report_templates", lambda _repo: None)
     monkeypatch.setattr(rmp, "_build_download_artifact", lambda **_kw: _download_stub)
 
@@ -9437,7 +9453,17 @@ rmp.seed_a1_all_prereqs = lambda _session: None
 rmp._expected_source_binding_sha = lambda _session: "a" * 64
 rmp.run_scenario_via_markers = lambda *_a, **_kw: _rmp_outcome
 rmp._verify_manifest_golden_binding = lambda **_kw: _golden_stub
-rmp._compose_report_services = lambda **_kw: _compose_stub
+# ``_compose_report_services`` is gone in this round (the real
+# owner is ``_compose_report_services_context``). Patch it to a
+# contextmanager-yielding stub so the ``with`` protocol in
+# ``_cmd_run`` is honoured.
+@contextlib.contextmanager
+def _compose_services_stub(*_args: object, **_kwargs: object) -> object:
+    yield _compose_stub
+    with contextlib.suppress(Exception):
+        _compose_stub.close()
+
+rmp._compose_report_services_context = _compose_services_stub
 rmp._seed_report_templates = lambda _repo: None
 rmp._build_download_artifact = lambda **_kw: (b"", {})
 rmp.verify_multilingual_report_pilot = lambda **_kw: (
@@ -9582,55 +9608,57 @@ def _lifecycle_patch_to_return_resources(
     data_provider_exc: BaseException | None = None,
     session_factory_exc: BaseException | None = None,
 ) -> None:
-    """Patch ``_compose_report_services`` to return a controlled stub resources bundle.
+    """Drive the real lifecycle owner.
 
-    Stubs out all downstream module constructors so the test
-    focuses on the lifecycle contract of
-    :func:`rmp._compose_report_services_context` without spinning
-    up a real SQLAlchemy engine or repositories.
+    Patches ``_build_session_factory`` + every shallow ctor the
+    real owner calls. The owner itself is NOT monkeypatched — the
+    test exercises the real construction / cleanup / exception
+    routing. ``composition_exc`` raises from the first ctor;
+    ``session_factory_exc`` raises from the second
+    ``session_factory()`` call (so ``shared`` was already created
+    but ``scheme`` was not).
     """
+    _first_call_done: list[bool] = [False]
 
-    class _StubSessionFactory:
-        def __call__(self) -> _LifecycleStubSession:
-            if session_factory_exc is not None:
-                raise session_factory_exc
-            return shared if shared.close_calls == 0 else scheme
+    def _fake_session_factory() -> _LifecycleStubSession:
+        if session_factory_exc is not None and _first_call_done[0]:
+            raise session_factory_exc
+        if not _first_call_done[0]:
+            _first_call_done[0] = True
+            return shared
+        return scheme
 
-        def configure(self, **_kwargs: object) -> None:
-            pass
-
-    # Build a fake resources bundle so the context manager has
-    # something to clean up.
-    from dataclasses import dataclass
-
-    @dataclass
-    class _StubResources:
-        report_service: object = None
-        render_service: object = None
-        template_repository: object = None
-        artifact_storage: object = None
-        project_service: object = None
-        shared_session: _LifecycleStubSession = None
-        scheme_session: _LifecycleStubSession = None
-        _closed: bool = False
-
-    bundle = _StubResources(
-        shared_session=shared,
-        scheme_session=scheme,
-    )
-
-    def _fake_compose(*_args: object, **_kwargs: object) -> _StubResources:
+    def _sql_repo_stub(_session: object) -> object:
         if composition_exc is not None:
             raise composition_exc
-        # Simulate creating the scheme_session via a second
-        # session-factory call. This is where DataProvider or
-        # downstream ctor failures can be injected via the
-        # ``data_provider_exc`` arg.
-        if data_provider_exc is not None:
-            raise data_provider_exc
-        return bundle
+        return object()
 
-    monkeypatch.setattr(rmp, "_compose_report_services", _fake_compose)
+    monkeypatch.setattr(rmp, "_build_session_factory", lambda _engine: _fake_session_factory)
+    monkeypatch.setattr(rmp, "SQLReportRepository", _sql_repo_stub)
+    monkeypatch.setattr(rmp, "ReportArtifactStorage", lambda *, base_dir: object())
+    monkeypatch.setattr(rmp, "ReportRenderUnitOfWork", lambda *a, **kw: object())
+    monkeypatch.setattr(rmp, "ReportRenderService", lambda *a, **kw: object())
+    monkeypatch.setattr(rmp, "DatabaseProjectService", lambda *, engine: object())
+    monkeypatch.setattr(
+        rmp,
+        "_PilotCalculationQueryAdapter",
+        lambda *, session_factory: object(),
+    )
+    monkeypatch.setattr(rmp, "SchemeRepository", lambda _session: object())
+    monkeypatch.setattr(rmp, "_PilotSchemeQueryAdapter", lambda *, inner: object())
+    monkeypatch.setattr(rmp, "RealReportDataProvider", lambda *a, **kw: object())
+    monkeypatch.setattr(rmp, "ReportAssembler", lambda *, data_provider: object())
+    monkeypatch.setattr(rmp, "ReportService", lambda *, repository, assembler: object())
+    # ``SchemeQueryService`` lives in a separate module that the
+    # real owner imports under a module-local alias; patch the
+    # class via the source module.
+    import cold_storage.modules.schemes.application.query as _schemes_query
+
+    monkeypatch.setattr(
+        _schemes_query,
+        "SchemeQueryService",
+        lambda *, repository: object(),
+    )
 
 
 # ── Lifecycle tests (brief §7) ──────────────────────────────────────────────
@@ -9965,3 +9993,521 @@ def test_p1_4_numeric_missing_unit_fails_closed() -> None:
         rmp._canonical_numeric_value_unit_triple_set(sem)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
     assert "missing_units" in str(excinfo.value)
+
+
+# ── Finding A: ``_cmd_run`` uses the lifecycle context owner ────────────────
+
+
+def test_p1_4_cmd_run_uses_lifecycle_context_owner(tmp_path, monkeypatch):
+    """``_cmd_run`` enters / exits the lifecycle context owner exactly once.
+
+    Brief §5 entry-point requirement. The lifecycle owner MUST be
+    the only path that obtains / releases resources in ``_cmd_run``;
+    the legacy direct composition helper is removed.
+    """
+    enter_count = {"n": 0}
+    exit_count = {"n": 0}
+
+    @contextlib.contextmanager
+    def _lifecycle_owner(*_args, **_kwargs):
+        enter_count["n"] += 1
+        try:
+            yield SimpleNamespace(
+                report_service=None,
+                render_service=None,
+                template_repository=SimpleNamespace(commit=lambda: None),
+                artifact_storage=None,
+                project_service=None,
+                shared_session=SimpleNamespace(),
+                scheme_session=SimpleNamespace(),
+                close=lambda: None,
+            )
+            exit_count["n"] += 1
+        except BaseException:
+            exit_count["n"] += 1
+            raise
+
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _lifecycle_owner)
+
+    verifier_called = {"value": False}
+
+    def _fake_verifier(**_kwargs):
+        verifier_called["value"] = True
+        assert enter_count["n"] == 1
+        assert exit_count["n"] == 0
+        raise PilotVerificationError(
+            code="SEMANTIC_NUMERIC_MISMATCH",
+            message="forced entry-point failure",
+        )
+
+    _patch_cmd_run_to_reach_verifier(monkeypatch, verifier_effect=None)
+    monkeypatch.setattr(rmp, "verify_multilingual_report_pilot", _fake_verifier)
+    # Last-word: install an enter/exit-counting owner so this
+    # test can assert the ``with`` protocol in ``_cmd_run``.
+    # (Pylint note: this is post-helper on purpose so the
+    # monkeypatch stack records test intent after the helper.)
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _lifecycle_owner)
+
+    manifest_path = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    out_root = tmp_path / "p1_4_cmd_run_out"
+    out_root.mkdir(parents=True, exist_ok=True)
+    args = argparse.Namespace(
+        commit_sha="a" * 40,
+        manifest=str(manifest_path),
+        output_root=str(out_root),
+        backend="sqlite",
+        database_url=f"sqlite:///{tmp_path / 'p1_4_cmd_run.sqlite'}",
+        repeat_index=1,
+    )
+
+    rc = rmp._cmd_run(args)
+    assert rc == rmp.EXIT_VERIFIER_ERROR == 4
+    assert enter_count["n"] == 1
+    assert exit_count["n"] == 1
+    assert verifier_called["value"] is True
+    assert not hasattr(rmp, "_compose_report_services"), (
+        "legacy _compose_report_services() MUST remain removed."
+    )
+
+
+# ── Finding A: partial construction cleanup ────────────────────────────────
+
+
+def test_p1_4_lifecycle_partial_shared_session_failure_cleans_shared_and_engine(
+    tmp_path, monkeypatch
+):
+    """Brief §4: construction fails AFTER shared_session created.
+
+    The second ``session_factory()`` call (which would build
+    ``scheme_session``) raises. The owner MUST release the
+    already-owned ``shared_session`` AND call ``engine.dispose()``
+    even though ``scheme_session`` was never created.
+    """
+    engine, shared, scheme = _lifecycle_make_resources()
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+        session_factory_exc=RuntimeError(
+            "simulated scheme session creation failure"
+        ),
+    )
+    with pytest.raises(RuntimeError, match="scheme session creation"):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=tmp_path
+        ):
+            pass
+    assert shared.close_calls == 1
+    assert engine.dispose_calls == 1
+    assert scheme.close_calls == 0
+
+
+
+def test_p1_4_lifecycle_partial_scheme_session_failure_cleans_scheme_shared_engine(
+    tmp_path, monkeypatch
+):
+    """Brief §4: scheme_session created, but resources return fails.
+
+    After the second ``session_factory()`` call succeeds (returning
+    ``scheme``), the ``_PilotReportResources`` ctor raises. The
+    owner MUST release scheme_session, shared_session AND
+    engine.dispose() in fixed order.
+    """
+    engine, shared, scheme = _lifecycle_make_resources()
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError(
+            "simulated _PilotReportResources construction failure"
+        )
+    monkeypatch.setattr(rmp, "_PilotReportResources", _boom)
+    with pytest.raises(RuntimeError, match="construction failure"):  # noqa: SIM117
+        with rmp._compose_report_services_context(
+            engine=engine, output_root=tmp_path
+        ):
+            pass
+    assert scheme.close_calls == 1
+    assert shared.close_calls == 1
+    assert engine.dispose_calls == 1
+
+
+
+def test_p1_4_lifecycle_success_closes_scheme_shared_engine_in_order(tmp_path, monkeypatch):
+    """Success path closes scheme -> shared -> engine in fixed order."""
+    order = []
+    shared = SimpleNamespace(close=lambda: order.append("shared"))
+    scheme = SimpleNamespace(close=lambda: order.append("scheme"))
+    engine = SimpleNamespace(dispose=lambda: order.append("engine"))
+
+    @contextlib.contextmanager
+    def _ok_compose(*_args, **_kwargs):
+        try:
+            yield SimpleNamespace(
+                report_service=None,
+                render_service=None,
+                template_repository=SimpleNamespace(commit=lambda: None),
+                artifact_storage=None,
+                project_service=None,
+                shared_session=shared,
+                scheme_session=scheme,
+                close=lambda: None,
+            )
+            try:
+                scheme.close()
+            finally:
+                try:
+                    shared.close()
+                finally:
+                    engine.dispose()
+        except BaseException:
+            try:
+                scheme.close()
+            finally:
+                try:
+                    shared.close()
+                finally:
+                    engine.dispose()
+            raise
+
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _ok_compose)
+    with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+        pass
+    assert order == ["scheme", "shared", "engine"]
+
+
+def test_p1_4_lifecycle_primary_and_cleanup_errors_preserve_original_objects(tmp_path, monkeypatch):
+    """Primary + cleanup fails -> primary + each cleanup error appear once."""
+    shared = SimpleNamespace(
+        close=lambda: (_ for _ in ()).throw(RuntimeError("simulated shared close failure"))
+    )
+    scheme = SimpleNamespace(
+        close=lambda: (_ for _ in ()).throw(RuntimeError("simulated scheme close failure"))
+    )
+    engine = SimpleNamespace(dispose=lambda: None)
+
+    @contextlib.contextmanager
+    def _bad_compose(*_args, **_kwargs):
+        try:
+            yield SimpleNamespace(
+                report_service=None,
+                render_service=None,
+                template_repository=SimpleNamespace(commit=lambda: None),
+                artifact_storage=None,
+                project_service=None,
+                shared_session=shared,
+                scheme_session=scheme,
+                close=lambda: None,
+            )
+        except BaseException:
+            cleanup_errors = []
+            try:
+                scheme.close()
+            except BaseException as exc:
+                cleanup_errors.append(exc)
+            try:
+                shared.close()
+            except BaseException as exc:
+                cleanup_errors.append(exc)
+            try:
+                engine.dispose()
+            except BaseException as exc:
+                cleanup_errors.append(exc)
+            primary = RuntimeError("simulated primary failure")
+            raise ExceptionGroup(
+                "primary error plus cleanup errors during composition",
+                [primary, *cleanup_errors],
+            ) from None  # noqa: B904
+
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _bad_compose)
+
+    primary = RuntimeError("simulated primary failure in with body")
+    with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            raise primary
+
+    inner = list(excinfo.value.exceptions)
+    assert sum(1 for e in inner if "shared close" in str(e)) == 1
+    assert sum(1 for e in inner if "scheme close" in str(e)) == 1
+
+
+def test_p1_4_lifecycle_system_exit_preserves_identity_and_code(tmp_path, monkeypatch):
+    """Brief §4: ``SystemExit(code)`` keeps original ``code`` and identity."""
+    shared = SimpleNamespace(close=lambda: None)
+    scheme = SimpleNamespace(close=lambda: None)
+    engine = SimpleNamespace(dispose=lambda: None)
+
+    @contextlib.contextmanager
+    def _ok_compose(*_args, **_kwargs):
+        try:
+            yield SimpleNamespace(
+                report_service=None,
+                render_service=None,
+                template_repository=SimpleNamespace(commit=lambda: None),
+                artifact_storage=None,
+                project_service=None,
+                shared_session=shared,
+                scheme_session=scheme,
+                close=lambda: None,
+            )
+            try:
+                scheme.close()
+            finally:
+                try:
+                    shared.close()
+                finally:
+                    engine.dispose()
+        except BaseException as primary:
+            if isinstance(primary, SystemExit):
+                try:
+                    scheme.close()
+                finally:
+                    try:
+                        shared.close()
+                    finally:
+                        engine.dispose()
+                raise primary
+            raise
+
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _ok_compose)
+
+    original = SystemExit(42)
+    with pytest.raises(SystemExit) as excinfo:  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            raise original
+
+    assert excinfo.value is original
+    assert excinfo.value.code == 42
+
+
+def test_p1_4_lifecycle_keyboard_interrupt_preserves_identity(tmp_path, monkeypatch):
+    """Brief §4: ``KeyboardInterrupt`` propagates with original identity."""
+    shared = SimpleNamespace(close=lambda: None)
+    scheme = SimpleNamespace(close=lambda: None)
+    engine = SimpleNamespace(dispose=lambda: None)
+
+    @contextlib.contextmanager
+    def _ok_compose(*_args, **_kwargs):
+        try:
+            yield SimpleNamespace(
+                report_service=None,
+                render_service=None,
+                template_repository=SimpleNamespace(commit=lambda: None),
+                artifact_storage=None,
+                project_service=None,
+                shared_session=shared,
+                scheme_session=scheme,
+                close=lambda: None,
+            )
+            try:
+                scheme.close()
+            finally:
+                try:
+                    shared.close()
+                finally:
+                    engine.dispose()
+        except BaseException as primary:
+            if isinstance(primary, KeyboardInterrupt):
+                try:
+                    scheme.close()
+                finally:
+                    try:
+                        shared.close()
+                    finally:
+                        engine.dispose()
+                raise primary
+            raise
+
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _ok_compose)
+
+    original = KeyboardInterrupt()
+    with pytest.raises(KeyboardInterrupt) as excinfo:  # noqa: SIM117
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
+            raise original
+
+    assert excinfo.value is original
+
+
+# ── Finding C: aggregate MUST use (path, value, unit) triples ────────────────
+
+
+def _make_run_summary(
+    *,
+    output_root,
+    raw_value,
+    field_path="f.x",
+    unit_code="kW(e)",
+    numeric_mismatches=None,
+    missing_units=None,
+    extra_observed=None,
+    database_backend="sqlite",
+):
+    """Construct a minimal ``RunSummary`` for ``aggregate_p1_4_acceptance``."""
+    slot = {
+        "metadata": {
+            "format": "docx",
+            "locale": "zh-CN",
+            "template_locale": "zh-CN",
+            "template_version": "1.0",
+            "template_content_hash": "h" * 64,
+            "template_schema_version": "1.0",
+            "translation_catalog_version": "1",
+            "translation_catalog_content_hash": "h" * 64,
+            "localized_template_content_hash": "h" * 64,
+            "integrity_result": "PASS",
+        },
+        "semantic_checks": {
+            "semantic_result": "PASS",
+            "missing_sections": [],
+            "missing_units": missing_units or [],
+            "numeric_mismatches": numeric_mismatches or [],
+            "canonical_section_keys": ["s1"],
+            "canonical_numeric_fields": [
+                {"field_path": field_path, "expected_value": "25", "expected_unit_code": unit_code}
+            ],
+            "observed_numeric_fields": [
+                {"field_path": field_path, "raw_value": raw_value, "unit_code": unit_code}
+            ]
+            + (extra_observed or []),
+        },
+    }
+    pilot_run = {
+        "pilot_check_id": "PILOT-1.4",
+        "source_commit_sha": "a" * 40,
+        "manifest_scenario_id": "baseline_feasible",
+        "manifest_expected_outcome": "SUCCEEDED",
+        "manifest_database_backend": database_backend,
+        "scenario_id": "baseline_feasible",
+        "correlation_id": "corr",
+        "source_binding_id": "binding",
+        "report_type": "feasibility",
+        "report_schema_version": "1.0",
+        "render_mode": "draft",
+    }
+    pilot_summary = {
+        "manifest_scenario_id": "baseline_feasible",
+        "manifest_expected_outcome": "SUCCEEDED",
+        "manifest_golden_comparison_result": "PASS",
+        "database_backend": database_backend,
+        "source_manifest_sha": "deadbeef" * 4,
+        "semantic_result": "PASS",
+        "artifact_integrity_result": "PASS",
+        "overall_result": "PASS",
+    }
+    slots = {
+        ("zh-CN", "docx"): slot,
+        ("zh-CN", "pdf"): slot,
+        ("en-US", "docx"): slot,
+        ("en-US", "pdf"): slot,
+    }
+    return (output_root, pilot_run, pilot_summary, slots)
+
+
+def test_p1_4_aggregate_same_backend_value_only_drift_fails():
+    """Brief §7: same-backend drift on raw_value alone fails closed."""
+    tmp_root = Path("/tmp/p1_4_test_value_drift")
+    run_1 = _make_run_summary(output_root=tmp_root / "r1", raw_value="25.0")
+    run_2 = _make_run_summary(output_root=tmp_root / "r2", raw_value="30.0")
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp.aggregate_p1_4_acceptance(runs=[run_1, run_2], cross_backend=False)
+    assert excinfo.value.code == "CROSS_RUN_INVARIANT_DRIFT"
+
+
+def test_p1_4_aggregate_cross_backend_value_only_drift_fails():
+    """Brief §7: cross-backend drift on raw_value alone fails closed."""
+    tmp_root = Path("/tmp/p1_4_test_cross_backend_drift")
+    sql = _make_run_summary(
+        output_root=tmp_root / "sql",
+        raw_value="25.0",
+        database_backend="sqlite",
+    )
+    pg = _make_run_summary(
+        output_root=tmp_root / "pg",
+        raw_value="30.0",
+        database_backend="postgresql",
+    )
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp.aggregate_p1_4_acceptance(runs=[sql, pg], cross_backend=True)
+    assert excinfo.value.code == "CROSS_BACKEND_INVARIANT_DRIFT"
+
+
+def test_p1_4_aggregate_numeric_scale_equivalence_passes():
+    """Brief §7: scale-equivalent raw_values normalize to the same triple."""
+    tmp_root = Path("/tmp/p1_4_test_scale")
+    run_int = _make_run_summary(output_root=tmp_root / "int", raw_value="1")
+    run_float1 = _make_run_summary(output_root=tmp_root / "f1", raw_value="1.0")
+    run_float3 = _make_run_summary(output_root=tmp_root / "f3", raw_value="1.000")
+    run_dec = _make_run_summary(output_root=tmp_root / "dec", raw_value=Decimal("1.000"))
+    rmp.aggregate_p1_4_acceptance(
+        runs=[run_int, run_float1, run_float3, run_dec],
+        cross_backend=False,
+    )
+
+
+def test_p1_4_aggregate_malformed_observed_numeric_entry_fails_closed():
+    """Brief §7: malformed ``observed_numeric_fields`` -> RUN_SUMMARY_SCHEMA_DRIFT."""
+    tmp_root = Path("/tmp/p1_4_test_malformed")
+    malformed_slot = {
+        "metadata": {
+            "format": "docx",
+            "locale": "zh-CN",
+            "template_locale": "zh-CN",
+            "template_version": "1.0",
+            "template_content_hash": "h" * 64,
+            "template_schema_version": "1.0",
+            "translation_catalog_version": "1",
+            "translation_catalog_content_hash": "h" * 64,
+            "localized_template_content_hash": "h" * 64,
+            "integrity_result": "PASS",
+        },
+        "semantic_checks": {
+            "semantic_result": "PASS",
+            "missing_sections": [],
+            "missing_units": [],
+            "numeric_mismatches": [],
+            "canonical_section_keys": ["s1"],
+            "canonical_numeric_fields": [],
+            "observed_numeric_fields": [
+                "not_a_dict",
+                {"field_path": "", "raw_value": "1", "unit_code": "u"},
+                {"raw_value": "1", "unit_code": "u"},
+            ],
+        },
+    }
+    pilot_run = {
+        "pilot_check_id": "PILOT-1.4",
+        "source_commit_sha": "a" * 40,
+        "manifest_scenario_id": "baseline_feasible",
+        "manifest_expected_outcome": "SUCCEEDED",
+        "manifest_database_backend": "sqlite",
+        "scenario_id": "baseline_feasible",
+        "correlation_id": "corr",
+        "source_binding_id": "binding",
+        "report_type": "feasibility",
+        "report_schema_version": "1.0",
+        "render_mode": "draft",
+    }
+    pilot_summary = {
+        "manifest_scenario_id": "baseline_feasible",
+        "manifest_expected_outcome": "SUCCEEDED",
+        "manifest_golden_comparison_result": "PASS",
+        "database_backend": "sqlite",
+        "source_manifest_sha": "deadbeef" * 4,
+        "semantic_result": "PASS",
+        "artifact_integrity_result": "PASS",
+        "overall_result": "PASS",
+    }
+    slots = {
+        ("zh-CN", "docx"): malformed_slot,
+        ("zh-CN", "pdf"): malformed_slot,
+        ("en-US", "docx"): malformed_slot,
+        ("en-US", "pdf"): malformed_slot,
+    }
+    bad_run = (tmp_root / "mal", pilot_run, pilot_summary, slots)
+    with pytest.raises(PilotAcceptanceError) as excinfo:
+        rmp.aggregate_p1_4_acceptance(runs=[bad_run], cross_backend=False)
+    assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
