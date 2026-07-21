@@ -1214,9 +1214,7 @@ def _patch_cmd_run_to_reach_verifier(
         with contextlib.suppress(Exception):
             compose_stub.close()
 
-    monkeypatch.setattr(
-        rmp, "_compose_report_services_context", _compose_services_context_stub
-    )
+    monkeypatch.setattr(rmp, "_compose_report_services_context", _compose_services_context_stub)
     monkeypatch.setattr(rmp, "_seed_report_templates", lambda _repo: None)
     monkeypatch.setattr(rmp, "_build_download_artifact", lambda **_kw: _download_stub)
 
@@ -10097,19 +10095,14 @@ def test_p1_4_lifecycle_partial_shared_session_failure_cleans_shared_and_engine(
         engine=engine,
         shared=shared,
         scheme=scheme,
-        session_factory_exc=RuntimeError(
-            "simulated scheme session creation failure"
-        ),
+        session_factory_exc=RuntimeError("simulated scheme session creation failure"),
     )
     with pytest.raises(RuntimeError, match="scheme session creation"):  # noqa: SIM117
-        with rmp._compose_report_services_context(
-            engine=engine, output_root=tmp_path
-        ):
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
             pass
     assert shared.close_calls == 1
     assert engine.dispose_calls == 1
     assert scheme.close_calls == 0
-
 
 
 def test_p1_4_lifecycle_partial_scheme_session_failure_cleans_scheme_shared_engine(
@@ -10129,20 +10122,17 @@ def test_p1_4_lifecycle_partial_scheme_session_failure_cleans_scheme_shared_engi
         shared=shared,
         scheme=scheme,
     )
+
     def _boom(*_args, **_kwargs):
-        raise RuntimeError(
-            "simulated _PilotReportResources construction failure"
-        )
+        raise RuntimeError("simulated _PilotReportResources construction failure")
+
     monkeypatch.setattr(rmp, "_PilotReportResources", _boom)
     with pytest.raises(RuntimeError, match="construction failure"):  # noqa: SIM117
-        with rmp._compose_report_services_context(
-            engine=engine, output_root=tmp_path
-        ):
+        with rmp._compose_report_services_context(engine=engine, output_root=tmp_path):
             pass
     assert scheme.close_calls == 1
     assert shared.close_calls == 1
     assert engine.dispose_calls == 1
-
 
 
 def test_p1_4_lifecycle_success_closes_scheme_shared_engine_in_order(tmp_path, monkeypatch):
@@ -10520,6 +10510,7 @@ def test_p1_4_aggregate_malformed_observed_numeric_entry_fails_closed():
         rmp.aggregate_p1_4_acceptance(runs=[bad_run], cross_backend=False)
     assert excinfo.value.code == "RUN_SUMMARY_SCHEMA_DRIFT"
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # R3 corrective tests (corrective §5 / §6 / §7 / §10 strict)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -10630,9 +10621,7 @@ def test_r3_manifest_identity_wrong_suite_id_fails_closed() -> None:
 def test_r3_manifest_identity_wrong_scenario_count_fails_closed() -> None:
     """§5 vector 4: extra scenario → MANIFEST_IDENTITY_MISMATCH."""
     bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
-    extra = bundle.manifest.scenarios[0].model_copy(
-        update={"scenario_id": "second_scenario"}
-    )
+    extra = bundle.manifest.scenarios[0].model_copy(update={"scenario_id": "second_scenario"})
     tampered = bundle.manifest.model_copy(
         update={"scenarios": (bundle.manifest.scenarios[0], extra)}
     )
@@ -10694,9 +10683,7 @@ def test_r3_manifest_identity_wrong_backend_fails_closed() -> None:
 def test_r3_manifest_identity_wrong_expected_outcome_fails_closed() -> None:
     """§5 vector 7: expected_outcome != 'SUCCEEDED' → drift."""
     bundle = rmp._load_pilot_manifest(manifest_path=_SQLITE_MANIFEST)
-    tampered = _clone_manifest(
-        bundle.manifest, expected_outcome=ExpectedOutcome.BLOCKED
-    )
+    tampered = _clone_manifest(bundle.manifest, expected_outcome=ExpectedOutcome.BLOCKED)
     with pytest.raises(rmp.PilotCompositionError) as excinfo:
         rmp.validate_frozen_manifest_identity(
             manifest_path=bundle.manifest_path,
@@ -10826,9 +10813,7 @@ def test_r3_manifest_identity_comparison_policy_drift_fails_closed() -> None:
     assert "comparison_policy MUST be the V1 default" in str(excinfo.value)
 
 
-def test_r3_manifest_validator_runs_before_database_provision(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_r3_manifest_validator_runs_before_database_provision(tmp_path: Path, monkeypatch) -> None:
     """§10.1: manifest drift fails BEFORE engine provisioning.
 
     Drives :func:`_cmd_run` with a manifest whose identity does
@@ -10851,14 +10836,15 @@ def test_r3_manifest_validator_runs_before_database_provision(
     expected_dir.mkdir(parents=True, exist_ok=True)
     golden = (
         tmp_path.parent.parent.parent
-        / "tests" / "evaluation" / "data" / "expected"
+        / "tests"
+        / "evaluation"
+        / "data"
+        / "expected"
         / "baseline_feasible.v1.json"
     ).resolve()
     if not golden.exists():
         golden = _SQLITE_MANIFEST.parent / "expected" / "baseline_feasible.v1.json"
-    (expected_dir / "baseline_feasible.v1.json").write_bytes(
-        golden.read_bytes()
-    )
+    (expected_dir / "baseline_feasible.v1.json").write_bytes(golden.read_bytes())
     wrong_path.write_text(_SQLITE_MANIFEST.read_text(encoding="utf-8"))
     output_root = tmp_path / "out"
     output_root.mkdir(parents=True, exist_ok=True)
@@ -11087,12 +11073,24 @@ def test_r3_numeric_pure_value_drift_cross_run_fails_closed() -> None:
             "semantic_checks": sem,
         }
 
-    metas_run1 = {pair: _meta(value="1") for pair in (
-        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
-    )}
-    metas_run2 = {pair: _meta(value="2") for pair in (
-        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
-    )}
+    metas_run1 = {
+        pair: _meta(value="1")
+        for pair in (
+            ("zh-CN", "docx"),
+            ("zh-CN", "pdf"),
+            ("en-US", "docx"),
+            ("en-US", "pdf"),
+        )
+    }
+    metas_run2 = {
+        pair: _meta(value="2")
+        for pair in (
+            ("zh-CN", "docx"),
+            ("zh-CN", "pdf"),
+            ("en-US", "docx"),
+            ("en-US", "pdf"),
+        )
+    }
     summary2 = dict(base, repeat_index=2)
     runs = [
         (Path("/tmp/run1"), base, base, metas_run1),
@@ -11141,15 +11139,20 @@ def test_r3_numeric_pure_value_drift_cross_backend_fails_closed() -> None:
         }
         return {
             "metadata": {
-                "report_id": "r1", "report_revision_id": "rev1",
-                "revision_number": 1, "artifact_id": "a1",
-                "file_name": "f.pdf", "file_size_bytes": 1024,
+                "report_id": "r1",
+                "report_revision_id": "rev1",
+                "revision_number": 1,
+                "artifact_id": "a1",
+                "file_name": "f.pdf",
+                "file_size_bytes": 1024,
                 "file_sha256": "a" * 64,
                 "generated_at": "2026-07-19T00:00:00+00:00",
                 "storage_key": "k",
                 "mime_type": "application/pdf",
-                "format": "pdf", "locale": "en-US",
-                "template_locale": "en-US", "render_mode": "draft",
+                "format": "pdf",
+                "locale": "en-US",
+                "template_locale": "en-US",
+                "render_mode": "draft",
                 "template_version": "1.0",
                 "template_content_hash": "b" * 64,
                 "template_schema_version": "1.0",
@@ -11164,15 +11167,28 @@ def test_r3_numeric_pure_value_drift_cross_backend_fails_closed() -> None:
             "semantic_checks": sem,
         }
 
-    sqlite_metas = {pair: _meta(value="1") for pair in (
-        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
-    )}
-    pg_metas = {pair: _meta(value="2") for pair in (
-        ("zh-CN", "docx"), ("zh-CN", "pdf"), ("en-US", "docx"), ("en-US", "pdf"),
-    )}
+    sqlite_metas = {
+        pair: _meta(value="1")
+        for pair in (
+            ("zh-CN", "docx"),
+            ("zh-CN", "pdf"),
+            ("en-US", "docx"),
+            ("en-US", "pdf"),
+        )
+    }
+    pg_metas = {
+        pair: _meta(value="2")
+        for pair in (
+            ("zh-CN", "docx"),
+            ("zh-CN", "pdf"),
+            ("en-US", "docx"),
+            ("en-US", "pdf"),
+        )
+    }
     sqlite_summary = dict(base)
-    pg_summary = dict(base, database_backend="postgresql",
-                      source_manifest_sha="f" * 64, repeat_index=2)
+    pg_summary = dict(
+        base, database_backend="postgresql", source_manifest_sha="f" * 64, repeat_index=2
+    )
     runs = [
         (Path("/tmp/sqlite"), base, sqlite_summary, sqlite_metas),
         (Path("/tmp/pg"), base, pg_summary, pg_metas),
@@ -11197,7 +11213,9 @@ def test_r3_lifecycle_engine_dispose_live_call_count_is_one() -> None:
     engine, shared, scheme = _lifecycle_make_resources()
     _lifecycle_patch_to_return_resources(
         monkeypatch=pytest.MonkeyPatch(),  # not used; replaced below
-        engine=engine, shared=shared, scheme=scheme,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
     )
 
     # Drive the real owner.
@@ -11206,10 +11224,13 @@ def test_r3_lifecycle_engine_dispose_live_call_count_is_one() -> None:
     with _pytest.MonkeyPatch.context() as mp:
         _lifecycle_patch_to_return_resources(
             monkeypatch=mp,
-            engine=engine, shared=shared, scheme=scheme,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
         )
         with rmp._compose_report_services_context(
-            engine=engine, output_root=Path("/tmp/r3-lifecycle-out"),
+            engine=engine,
+            output_root=Path("/tmp/r3-lifecycle-out"),
         ) as resources:
             # While the bundle is in scope, the engine has NOT
             # been disposed yet (LIFO via ExitStack on exit).
@@ -11241,9 +11262,7 @@ def test_r3_lifecycle_silent_engine_dispose_swallow_count_is_zero() -> None:
     for line_no, line in enumerate(src.splitlines(), 1):
         stripped = line.lstrip()
         if "engine.dispose" in stripped and "pass" in stripped:
-            pytest.fail(
-                f"silent-swallow on engine.dispose() at line {line_no}: {line!r}"
-            )
+            pytest.fail(f"silent-swallow on engine.dispose() at line {line_no}: {line!r}")
 
 
 def test_r3_lifecycle_silent_session_close_swallow_count_is_zero() -> None:
@@ -11258,9 +11277,7 @@ def test_r3_lifecycle_silent_session_close_swallow_count_is_zero() -> None:
     for line_no, line in enumerate(src.splitlines(), 1):
         stripped = line.lstrip()
         if "session.close" in stripped and "pass" in stripped:
-            pytest.fail(
-                f"silent-swallow on session.close() at line {line_no}: {line!r}"
-            )
+            pytest.fail(f"silent-swallow on session.close() at line {line_no}: {line!r}")
 
 
 def test_r3_lifecycle_pilot_report_resources_has_no_close_method() -> None:
@@ -11295,18 +11312,13 @@ def test_r3_lifecycle_cmd_run_uses_context_owner_static() -> None:
         src = src[first_close:]
     # Strip line comments: a line that begins with ``#`` (after
     # stripping leading whitespace) is a comment, not a call.
-    non_comment_lines = [
-        line
-        for line in src.splitlines()
-        if not line.lstrip().startswith("#")
-    ]
+    non_comment_lines = [line for line in src.splitlines() if not line.lstrip().startswith("#")]
     non_comment_src = "\n".join(non_comment_lines)
     # The R3 owner-of-all cleanup: the context manager is the
     # sole resource handler. ``_cmd_run`` MUST NOT call
     # ``engine.dispose()`` directly.
     assert "engine.dispose" not in non_comment_src, (
-        "_cmd_run MUST NOT call engine.dispose() directly; "
-        "the context manager is the unique owner"
+        "_cmd_run MUST NOT call engine.dispose() directly; the context manager is the unique owner"
     )
 
 
@@ -11327,12 +11339,15 @@ def test_r3_lifecycle_primary_plus_cleanup_preserves_objects() -> None:
     with pytest.MonkeyPatch.context() as mp:
         _lifecycle_patch_to_return_resources(
             monkeypatch=mp,
-            engine=engine, shared=shared, scheme=scheme,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
         )
 
         with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117 - nested with required for context-manager exception injection
             with rmp._compose_report_services_context(
-                engine=engine, output_root=Path("/tmp/r3-primary-plus"),
+                engine=engine,
+                output_root=Path("/tmp/r3-primary-plus"),
             ):
                 raise primary
 
@@ -11341,9 +11356,7 @@ def test_r3_lifecycle_primary_plus_cleanup_preserves_objects() -> None:
     # per brief §7.4. The exceptions themselves are the
     # original objects (identity preserved).
     exceptions = list(excinfo.value.exceptions)
-    assert exceptions[0] is primary, (
-        f"ExceptionGroup MUST list primary first; got {exceptions!r}"
-    )
+    assert exceptions[0] is primary, f"ExceptionGroup MUST list primary first; got {exceptions!r}"
     cleanup_set = {repr(e) for e in exceptions[1:]}
     assert "RuntimeError('cleanup-scheme')" in cleanup_set
     assert "RuntimeError('cleanup-shared')" in cleanup_set
@@ -11358,11 +11371,17 @@ def test_r3_lifecycle_primary_only_preserves_object() -> None:
     with pytest.MonkeyPatch.context() as mp:
         _lifecycle_patch_to_return_resources(
             monkeypatch=mp,
-            engine=engine, shared=shared, scheme=scheme,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
         )
 
-        with pytest.raises(ValueError) as excinfo, rmp._compose_report_services_context(
-            engine=engine, output_root=Path("/tmp/r3-primary-only"),
+        with (
+            pytest.raises(ValueError) as excinfo,
+            rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/r3-primary-only"),
+            ),
         ):
             raise primary
 
@@ -11388,11 +11407,17 @@ def test_r3_lifecycle_cleanup_only_surfaces_single_error() -> None:
     with pytest.MonkeyPatch.context() as mp:
         _lifecycle_patch_to_return_resources(
             monkeypatch=mp,
-            engine=engine, shared=shared, scheme=scheme,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
         )
 
-        with pytest.raises(RuntimeError) as excinfo, rmp._compose_report_services_context(
-            engine=engine, output_root=Path("/tmp/r3-cleanup-only"),
+        with (
+            pytest.raises(RuntimeError) as excinfo,
+            rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/r3-cleanup-only"),
+            ),
         ):
             pass  # body exits normally; cleanup fails
 
@@ -11415,11 +11440,17 @@ def test_r3_lifecycle_system_exit_preserves_identity() -> None:
     with pytest.MonkeyPatch.context() as mp:
         _lifecycle_patch_to_return_resources(
             monkeypatch=mp,
-            engine=engine, shared=shared, scheme=scheme,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
         )
 
-        with pytest.raises(SystemExit) as excinfo, rmp._compose_report_services_context(
-            engine=engine, output_root=Path("/tmp/r3-systemexit"),
+        with (
+            pytest.raises(SystemExit) as excinfo,
+            rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/r3-systemexit"),
+            ),
         ):
             raise primary
 
@@ -11440,12 +11471,15 @@ def test_r3_lifecycle_keyboard_interrupt_preserves_identity() -> None:
     with pytest.MonkeyPatch.context() as mp:
         _lifecycle_patch_to_return_resources(
             monkeypatch=mp,
-            engine=engine, shared=shared, scheme=scheme,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
         )
 
         with pytest.raises(KeyboardInterrupt) as excinfo:  # noqa: SIM117 - nested with required for context-manager exception injection
             with rmp._compose_report_services_context(
-                engine=engine, output_root=Path("/tmp/r3-kbint"),
+                engine=engine,
+                output_root=Path("/tmp/r3-kbint"),
             ):
                 raise primary
 

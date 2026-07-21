@@ -1104,9 +1104,7 @@ def _compose_report_services_context(
     """
     cleanup_errors: list[BaseException] = []
 
-    def _safe_close_session(
-        session: Session | None, *, label: str
-    ) -> None:
+    def _safe_close_session(session: Session | None, *, label: str) -> None:
         """Close a SQLAlchemy session; surface the failure on cleanup_errors.
 
         Idempotent at the OS connection level (SQLAlchemy skips
@@ -1387,8 +1385,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             raise PilotCompositionError(
                 code="BACKEND_RUNNER_FAILED",
                 message=(
-                    f"backend runner returned outcome={outcome.outcome!r}; "
-                    "expected 'SUCCEEDED'."
+                    f"backend runner returned outcome={outcome.outcome!r}; expected 'SUCCEEDED'."
                 ),
             )
 
@@ -1408,14 +1405,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
             scheme_run_id=str(scheme_run.id),
         )
 
-        with _compose_report_services_context(
-            engine=engine, output_root=output_root
-        ) as resources:
+        with _compose_report_services_context(engine=engine, output_root=output_root) as resources:
             template_repo = resources.template_repository
             _seed_report_templates(template_repo)
-            download_artifact = _build_download_artifact(
-                render_service=resources.render_service
-            )
+            download_artifact = _build_download_artifact(render_service=resources.render_service)
 
             run_identity: dict[str, str] = {
                 "database_backend": backend,
@@ -1934,9 +1927,7 @@ def _canonical_numeric_value_and_unit_set(
     if not isinstance(canonical, list):
         raise PilotAcceptanceError(
             code="RUN_SUMMARY_SCHEMA_DRIFT",
-            message=(
-                f"canonical_numeric_fields MUST be a list; got {type(canonical).__name__}."
-            ),
+            message=(f"canonical_numeric_fields MUST be a list; got {type(canonical).__name__}."),
         )
     missing_units_list = semantic_checks.get("missing_units", [])
     if not isinstance(missing_units_list, list):
