@@ -11338,17 +11338,22 @@ def test_r3_lifecycle_cmd_run_uses_context_owner_static() -> None:
 
 
 def test_r3_lifecycle_primary_plus_cleanup_preserves_objects() -> None:
-    """§7.4: PRIMARY_PLUS_CLEANUP → ExceptionGroup(primary, *cleanup).
+    """R3 §6: PRIMARY_GROUP_NESTING_PRESERVED.
 
     When the yield body raises a primary exception AND the
-    cleanup also raises, the function MUST surface an
-    :class:`ExceptionGroup` with the primary listed first and
-    every cleanup error after — preserving object identity.
+    cleanup also raises, the inner composition context builds a
+    :class:`BaseExceptionGroup` with the primary listed first and
+    session-cleanup errors after — preserving object identity
+    AND nesting. The outer ``_pilot_run_resource_owner`` then
+    receives that group AS the primary; the engine cleanup
+    error becomes a SIBLING of the inner group, NOT a member
+    of it. Brief §6: ``outer_group.exceptions[0] is inner_group``,
+    ``outer_group.exceptions[1] is engine_cleanup_error``.
 
     Per P1-B refactor: the engine is owned by the outer
-    ``_pilot_run_resource_owner``; the composition context
-    owns session close. The test wraps both contexts so the
-    full BaseException matrix is exercised.
+    ``_pilot_run_resource_owner``; the composition context owns
+    session close. The test wraps both contexts so the full
+    BaseException matrix is exercised.
     """
     engine, shared, scheme = _lifecycle_make_resources()
     scheme.install_close_exc(RuntimeError("cleanup-scheme"))
@@ -11366,22 +11371,46 @@ def test_r3_lifecycle_primary_plus_cleanup_preserves_objects() -> None:
 
         with pytest.raises(BaseExceptionGroup) as excinfo:  # noqa: SIM117 - nested with required for context-manager exception injection
             with rmp._pilot_run_resource_owner(engine=engine):
-                with rmp._compose_report_services_context(
+                with rmp._compose_report_services_context(  # noqa: SIM117 - nested with required for the inner composition context
                     engine=engine,
                     output_root=Path("/tmp/r3-primary-plus"),
                 ):
                     raise primary
 
-    # The BaseExceptionGroup MUST contain the primary + the
-    # 3 cleanup errors (in some order). Primary is listed
-    # FIRST per brief §7.4. The exceptions themselves are the
-    # original objects (identity preserved).
+    # Brief §6: outer group preserves inner group as its FIRST
+    # member, engine cleanup as SECOND member. The original
+    # ValueError primary is reachable by transitivity — the
+    # INNER group has the primary at position 0 and the
+    # session-cleanup errors at positions 1 and 2.
     exceptions = list(excinfo.value.exceptions)
-    assert exceptions[0] is primary, f"ExceptionGroup MUST list primary first; got {exceptions!r}"
-    cleanup_set = {repr(e) for e in exceptions[1:]}
-    assert "RuntimeError('cleanup-scheme')" in cleanup_set
-    assert "RuntimeError('cleanup-shared')" in cleanup_set
-    assert "RuntimeError('cleanup-engine')" in cleanup_set
+    assert len(exceptions) == 2, (
+        f"outer group must have exactly 2 members (inner group + engine cleanup); "
+        f"got {len(exceptions)}: {exceptions!r}"
+    )
+    inner_group, engine_cleanup_exc = exceptions
+    assert isinstance(inner_group, BaseExceptionGroup), (
+        f"exceptions[0] must be the inner composition group; got {inner_group!r}"
+    )
+    # Original ValueError primary at position 0 of the inner group.
+    inner_members = list(inner_group.exceptions)
+    assert inner_members[0] is primary, (
+        f"inner group MUST list primary first; got {inner_members!r}"
+    )
+    # Session cleanup errors as siblings of primary inside inner group.
+    inner_cleanup_reprs = {repr(e) for e in inner_members[1:]}
+    assert "RuntimeError('cleanup-scheme')" in inner_cleanup_reprs
+    assert "RuntimeError('cleanup-shared')" in inner_cleanup_reprs
+    # Engine cleanup is a sibling of the inner group, NOT a
+    # member of it. Identity preserved.
+    assert engine_cleanup_exc is engine._dispose_exc, (
+        f"engine cleanup is the original injected RuntimeError; got {engine_cleanup_exc!r}"
+    )
+    # The flatten logic that R2 had is gone: the inner group
+    # object identity is preserved (it is the original
+    # composition-built group, not a synthetic re-wrapping).
+    assert engine._dispose_exc is not None
+    # dispose_calls == 1 (engine was disposed exactly once).
+    assert engine.dispose_calls == 1
 
 
 def test_r3_lifecycle_primary_only_preserves_object() -> None:
@@ -11542,26 +11571,20 @@ def _raw_path_identity_helper(
 ) -> None:
     """Thin shim that calls the real helper.
 
-    The real helper takes BOTH the ``raw_manifest_text`` (operator
-    string, used for the lexical split checks) AND the
-    ``raw_manifest_path`` (used as a fallback anchor when the
-    helper needs to consult a filesystem object). Pass either
-    ``manifest_path`` (a ``Path``) or ``raw_text`` (a raw string,
-    kept verbatim so ``.`` / ``..`` alias tests cannot be
-    normalized-away by ``Path.__new__`` before the helper sees
-    it).
+    Pass either ``manifest_path`` (a ``Path``) or ``raw_text``
+    (a raw string, kept verbatim so ``.`` / ``..`` alias tests
+    cannot be normalized-away by ``Path.__new__`` before the
+    helper sees it).
     """
     if raw_text is not None:
         rmp._assert_raw_manifest_path_identity(
             raw_manifest_text=raw_text,
-            raw_manifest_path=Path(raw_text),
             backend=backend,
         )
         return
     raw_text_default = str(manifest_path)
     rmp._assert_raw_manifest_path_identity(
         raw_manifest_text=raw_text_default,
-        raw_manifest_path=Path(raw_text_default),
         backend=backend,
     )
 
@@ -11699,33 +11722,61 @@ def test_p1_a_manifest_raw_path_same_content_copy_rejected(tmp_path: Path) -> No
 
 def test_p1_a_manifest_raw_path_canonical_file_being_symlink_rejected(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """§8.1: the canonical file itself being a symlink is rejected.
+    """R3 §10: the canonical file itself being a symlink is rejected.
 
-    The original canonical file is replaced (in the test sandbox)
-    by a symlink with the same lexical absolute path. The
-    identity gate MUST reject the file as soon as the file's
-    own ``lstat`` shows a symlink component.
+    The previous round's version of this test mutated the real
+    tracked manifest at ``backend/tests/evaluation/data/
+    task011-pilot-sqlite.v1.json`` via in-tree ``unlink`` +
+    ``os.symlink`` and relied on a ``finally`` block to rename a
+    backup back. On sub-process death, parallel runner kill, or
+    pytest collection abort, the ``finally`` block never runs
+    and the tracked file disappears permanently — which is the
+    canonical T1-A in CI ``FileNotFoundError: [Errno 2] No such
+    file or directory: 'backend/tests/evaluation/data/
+    task011-pilot-sqlite.v1.json'``.
+
+    This R3 version builds a complete temporary authority tree
+    under ``tmp_path``, replaces the canonical manifest WITHIN
+    that tmp tree with a symlink, and points the helper at the
+    tmp authority via ``monkeypatch.setattr`` on the module's
+    ``__file__`` so ``Path(__file__).resolve().parents[3]``
+    resolves to the tmp authority root. The real tracked manifest
+    is read once for byte content but NEVER unlinked, renamed,
+    or symlinked.
     """
-    canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
-    # Create a real target inside tmp_path
-    real_target = tmp_path / "real-sqlite.v1.json"
+    # 1. Read the real canonical manifest content (read-only) and
+    #    lay it out under a tmp authority root that mirrors the
+    #    canonical repo structure: <tmp>/backend/tests/evaluation/data/.
+    real_canonical = (DATA_DIR / "task011-pilot-sqlite.v1.json").resolve()
+    tmp_authority = tmp_path
+    eval_data = tmp_authority / "backend" / "tests" / "evaluation" / "data"
+    eval_data.mkdir(parents=True)
+    canonical = eval_data / "task011-pilot-sqlite.v1.json"
+    canonical.write_bytes(real_canonical.read_bytes())
+    # 2. Build the symlink target inside the tmp authority.
+    real_target = tmp_authority / "real-sqlite.v1.json"
     real_target.write_bytes(canonical.read_bytes())
-    # Replace canonical with a symlink → real_target
-    # Save the original so we can restore at the end.
-    backup = tmp_path / "canonical.bak.json"
-    backup.write_bytes(canonical.read_bytes())
-    try:
-        canonical.unlink()
-        os.symlink(str(real_target), str(canonical))
-        with pytest.raises(rmp.PilotCompositionError) as excinfo:
-            _raw_path_identity_helper(canonical, rmp.DATABASE_BACKEND_SQLITE)
-        assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
-    finally:
-        # Restore: remove the symlink, restore the original file
-        if canonical.is_symlink() or canonical.exists():
-            canonical.unlink()
-        backup.rename(canonical)
+    # 3. Replace the canonical manifest in the tmp authority tree
+    #    with a symlink to the real target.
+    canonical.unlink()
+    os.symlink(str(real_target), str(canonical))
+    # 4. Drive the helper against the tmp authority. The helper
+    #    builds ``expected_path`` from
+    #    ``Path(__file__).resolve().parents[3]`` — we monkeypatch
+    #    ``rmp.__file__`` to a sentinel inside the tmp tree so
+    #    that resolution lands on the tmp authority root.
+    sentinel_module = tmp_authority / "_rmp_proxy.py"
+    sentinel_module.write_text("# tmp proxy for __file__ anchor\n")
+    monkeypatch.setattr(rmp, "__file__", str(sentinel_module))
+    with pytest.raises(rmp.PilotCompositionError) as excinfo:
+        _raw_path_identity_helper(
+            canonical,
+            rmp.DATABASE_BACKEND_SQLITE,
+            raw_text=str(canonical),
+        )
+    assert excinfo.value.code == "MANIFEST_IDENTITY_MISMATCH"
 
 
 def test_p1_a_manifest_raw_path_wrong_backend_rejected() -> None:
@@ -12203,7 +12254,17 @@ def test_p1_c_baseexception_matrix_generator_exit_primary_only(monkeypatch) -> N
 def test_p1_c_baseexception_matrix_keyboard_interrupt_plus_runtime_cleanup(
     monkeypatch,
 ) -> None:
-    """§8.3: KeyboardInterrupt primary + RuntimeError cleanup → BaseExceptionGroup."""
+    """R3 §5/§8: KeyboardInterrupt primary + RuntimeError cleanup.
+
+    Per R3 brief §5.1: ``KeyboardInterrupt`` is a control-flow
+    ``BaseException`` (not a subclass of ``Exception``). The
+    composition helper ``_compose_report_services_context``
+    MUST preserve the original primary object — identity,
+    type, traceback — and append cleanup diagnostics via
+    ``add_note``. It MUST NOT wrap the primary in
+    ``ExceptionGroup`` (TypeError) or ``BaseExceptionGroup``
+    (which would change the visible error type to a group).
+    """
     engine = _LifecycleStubEngine()
     shared = _LifecycleStubSession(label="shared")
     scheme = _LifecycleStubSession(label="scheme")
@@ -12211,49 +12272,75 @@ def test_p1_c_baseexception_matrix_keyboard_interrupt_plus_runtime_cleanup(
     cleanup_exc = RuntimeError("cleanup-runtime")
     scheme.install_close_exc(cleanup_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
-    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
-        with rmp._compose_report_services_context(
+    with (
+        pytest.raises(KeyboardInterrupt) as excinfo,
+        rmp._pilot_run_resource_owner(engine=engine),
+        rmp._compose_report_services_context(
             engine=engine, output_root=Path("/tmp/p1c-kbd-plus-runtime")
-        ):
-            raise primary
-    # The composition context MUST use BaseExceptionGroup
-    # because KeyboardInterrupt is a non-Exception
-    # BaseException.
-    assert isinstance(excinfo.value, BaseExceptionGroup)
-    members = list(excinfo.value.exceptions)
-    assert primary in members
-    assert cleanup_exc in members
+        ),
+    ):  # noqa: SIM117
+        raise primary
+    # Original KeyboardInterrupt identity preserved — NOT a
+    # group, NOT a wrapped TypeError, NOT a new exception.
+    assert excinfo.value is primary
+    assert type(excinfo.value) is KeyboardInterrupt
+    assert not isinstance(excinfo.value, BaseExceptionGroup)
+    # Cleanup diagnostics attached via ``add_note``.
+    notes = list(getattr(excinfo.value, "__notes__", ()))
+    assert any("cleanup failure" in note for note in notes), (
+        f"expected a 'cleanup failure' note on primary; got notes={notes!r}"
+    )
+    assert any("RuntimeError" in note for note in notes), (
+        f"expected RuntimeError mentioned in note; got notes={notes!r}"
+    )
 
 
 def test_p1_c_baseexception_matrix_system_exit_plus_runtime_cleanup(
     monkeypatch,
 ) -> None:
-    """§8.3: SystemExit primary + RuntimeError cleanup → BaseExceptionGroup."""
+    """R3 §5/§8: SystemExit(42) primary + RuntimeError cleanup.
+
+    ``SystemExit.code`` MUST be preserved exactly; the cleanup
+    diagnostic MUST be added as a ``__note__`` on the original
+    ``SystemExit`` instance — NOT as an exception group
+    member, NOT as a wrapped new object.
+    """
     engine = _LifecycleStubEngine()
     shared = _LifecycleStubSession(label="shared")
     scheme = _LifecycleStubSession(label="scheme")
-    primary = SystemExit(7)
+    primary = SystemExit(42)
     cleanup_exc = RuntimeError("cleanup-runtime")
     scheme.install_close_exc(cleanup_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
-    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
-        with rmp._compose_report_services_context(
+    with (
+        pytest.raises(SystemExit) as excinfo,
+        rmp._pilot_run_resource_owner(engine=engine),
+        rmp._compose_report_services_context(
             engine=engine, output_root=Path("/tmp/p1c-sysexit-plus-runtime")
-        ):
-            raise primary
-    assert isinstance(excinfo.value, BaseExceptionGroup)
-    members = list(excinfo.value.exceptions)
-    # Original SystemExit identity preserved with .code intact.
-    assert any(e is primary and getattr(e, "code", None) == 7 for e in members), (
-        f"SystemExit(7) must appear with .code == 7; got {excinfo.value!r}"
+        ),
+    ):  # noqa: SIM117
+        raise primary
+    assert excinfo.value is primary
+    assert excinfo.value.code == 42
+    assert type(excinfo.value) is SystemExit
+    assert not isinstance(excinfo.value, BaseExceptionGroup)
+    notes = list(getattr(excinfo.value, "__notes__", ()))
+    assert any("cleanup failure" in note for note in notes), (
+        f"expected 'cleanup failure' note on SystemExit primary; got {notes!r}"
     )
-    assert cleanup_exc in members
+    assert any("RuntimeError" in note for note in notes)
 
 
 def test_p1_c_baseexception_matrix_generator_exit_plus_runtime_cleanup(
     monkeypatch,
 ) -> None:
-    """§8.3: GeneratorExit primary + RuntimeError cleanup → BaseExceptionGroup."""
+    """R3 §5/§8: GeneratorExit primary + RuntimeError cleanup.
+
+    ``GeneratorExit`` is a control-flow ``BaseException`` (PEP
+    342). The composition helper preserves the original
+    primary instance and appends the cleanup diagnostic via
+    ``add_note`` — it does not wrap into any group.
+    """
     engine = _LifecycleStubEngine()
     shared = _LifecycleStubSession(label="shared")
     scheme = _LifecycleStubSession(label="scheme")
@@ -12261,21 +12348,35 @@ def test_p1_c_baseexception_matrix_generator_exit_plus_runtime_cleanup(
     cleanup_exc = RuntimeError("cleanup-runtime")
     scheme.install_close_exc(cleanup_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
-    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
-        with rmp._compose_report_services_context(
+    with (
+        pytest.raises(GeneratorExit) as excinfo,
+        rmp._pilot_run_resource_owner(engine=engine),
+        rmp._compose_report_services_context(
             engine=engine, output_root=Path("/tmp/p1c-genexit-plus-runtime")
-        ):
-            raise primary
-    assert isinstance(excinfo.value, BaseExceptionGroup)
-    members = list(excinfo.value.exceptions)
-    assert primary in members
-    assert cleanup_exc in members
+        ),
+    ):  # noqa: SIM117
+        raise primary
+    assert excinfo.value is primary
+    assert type(excinfo.value) is GeneratorExit
+    assert not isinstance(excinfo.value, BaseExceptionGroup)
+    notes = list(getattr(excinfo.value, "__notes__", ()))
+    assert any("cleanup failure" in note for note in notes), (
+        f"expected 'cleanup failure' note; got {notes!r}"
+    )
 
 
 def test_p1_c_baseexception_matrix_runtime_primary_plus_keyboard_cleanup(
     monkeypatch,
 ) -> None:
-    """§8.3: RuntimeError primary + KeyboardInterrupt cleanup → BaseExceptionGroup."""
+    """R3 §7: RuntimeError primary + KeyboardInterrupt cleanup → BaseExceptionGroup.
+
+    This is the matrix case where the primary IS an
+    ``Exception`` (so the wrapper is allowed). The cleanup
+    is a non-``Exception`` ``BaseException`` so the group
+    class escalates to ``BaseExceptionGroup``. This test
+    is preserved verbatim from the R2 round because it is
+    correct.
+    """
     engine = _LifecycleStubEngine()
     shared = _LifecycleStubSession(label="shared")
     scheme = _LifecycleStubSession(label="scheme")
@@ -12283,11 +12384,14 @@ def test_p1_c_baseexception_matrix_runtime_primary_plus_keyboard_cleanup(
     cleanup_exc = KeyboardInterrupt()
     scheme.install_close_exc(cleanup_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
-    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
-        with rmp._compose_report_services_context(
+    with (
+        pytest.raises(BaseExceptionGroup) as excinfo,
+        rmp._pilot_run_resource_owner(engine=engine),
+        rmp._compose_report_services_context(
             engine=engine, output_root=Path("/tmp/p1c-runtime-plus-kbd")
-        ):
-            raise primary
+        ),
+    ):  # noqa: SIM117
+        raise primary
     # Composition context catches both primary + KeyboardInterrupt
     # cleanup. KeyboardInterrupt is a non-Exception BaseException,
     # so the group class is BaseExceptionGroup.
@@ -12310,7 +12414,7 @@ def test_p1_c_baseexception_matrix_multiple_cleanups_including_systemexit(
     shared.install_close_exc(shared_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
     with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
-        with rmp._compose_report_services_context(
+        with rmp._compose_report_services_context(  # noqa: SIM117 - nested with required for the inner composition context
             engine=engine,
             output_root=Path("/tmp/p1c-multi-cleanup-sysexit"),
         ):

@@ -728,7 +728,6 @@ _CONTROL_FLOW_EXCEPTIONS = (SystemExit, KeyboardInterrupt, GeneratorExit)
 def _assert_raw_manifest_path_identity(
     *,
     raw_manifest_text: str,
-    raw_manifest_path: Path,
     backend: str,
 ) -> None:
     """Validate the RAW (pre-resolve) manifest path matches the canonical authority.
@@ -1276,18 +1275,6 @@ def _compose_report_services_context(
         except BaseException as exc:  # noqa: BLE001 - explicit per brief
             cleanup_errors.append(exc)
 
-    def _safe_dispose_engine() -> None:
-        """No-op stub: engine dispose is owned by the outer resource owner.
-
-        The engine's lifetime is owned by the outer
-        :func:`_pilot_run_resource_owner` (P1-B); this context
-        does NOT call ``engine.dispose()``. The function is
-        retained as a documentation marker to make the ownership
-        boundary explicit in the code (search for
-        ``_safe_dispose_engine`` to find the owner that actually
-        disposes the engine).
-        """
-
     primary_exc: BaseException | None = None
     try:
         with ExitStack() as stack:
@@ -1302,8 +1289,7 @@ def _compose_report_services_context(
             #   scheme_session.close (registered second → runs first)
             #
             # The engine is NOT registered here: the outer
-            # ``_pilot_run_resource_owner`` owns the engine
-            # (see ``_safe_dispose_engine`` doc-stub above).
+            # ``_pilot_run_resource_owner`` owns the engine.
             session_factory = _build_session_factory(engine)
 
             shared_session = session_factory()
@@ -1357,16 +1343,27 @@ def _compose_report_services_context(
             # Success path: ExitStack.__exit__ will run all
             # registered cleanup callbacks. Any cleanup error
             # is collected into ``cleanup_errors`` (via the
-            # ``_safe_close_session`` / ``_safe_dispose_engine``
-            # wrappers) and surfaced below.
+            # ``_safe_close_session`` wrappers) and surfaced below.
     except BaseException as primary_caught:
-        # ``SystemExit`` / ``KeyboardInterrupt`` / ``GeneratorExit``
-        # fall through this handler with their original type /
-        # instance / code intact (we do NOT catch-and-replace).
-        # ExitStack has already released the owned resources in
-        # the correct LIFO order; if the yield body raised before
-        # some resources were constructed, the registered
-        # callbacks released what was obtained.
+        # R3 §5.1: ``SystemExit`` / ``KeyboardInterrupt`` /
+        # ``GeneratorExit`` are control-flow exceptions. They
+        # MUST keep their original object identity, original
+        # traceback, and (for ``SystemExit``) the ``.code``
+        # attribute. They MUST NEVER be wrapped into
+        # ``ExceptionGroup`` or ``BaseExceptionGroup`` because
+        # those containers raise ``TypeError`` if you try to
+        # put a non-``Exception`` member inside.
+        # Each cleanup error is appended to the original
+        # primary via ``add_note`` (a permissive, well-defined
+        # channel on ``BaseException``); on exit we bare
+        # ``raise`` so the same primary object escapes — at
+        # most with diagnostic notes attached.
+        if isinstance(primary_caught, _CONTROL_FLOW_EXCEPTIONS):
+            for cleanup_exc in cleanup_errors:
+                primary_caught.add_note(
+                    f"cleanup failure: {type(cleanup_exc).__name__}: {cleanup_exc}"
+                )
+            raise
         primary_exc = primary_caught
         if not cleanup_errors:
             raise primary_exc from None
@@ -1473,29 +1470,34 @@ def _pilot_run_resource_owner(*, engine: Engine) -> Iterator[None]:
             stack.callback(_safe_dispose_engine)
             yield
     except BaseException as primary_caught:
-        # ``SystemExit`` / ``KeyboardInterrupt`` /
-        # ``GeneratorExit`` are NOT swallowed: their original
-        # type / instance / ``.code`` is preserved. The cleanup
-        # callbacks registered with the ExitStack have already
-        # run by the time we get here.
+        # R3 §5.2: control-flow primary (``SystemExit`` /
+        # ``KeyboardInterrupt`` / ``GeneratorExit``) is bare
+        # raised with cleanup failures attached via
+        # ``add_note`` so the original object identity,
+        # traceback, and ``SystemExit.code`` are preserved
+        # — it never enters ``_build_exception_group``.
+        if isinstance(primary_caught, _CONTROL_FLOW_EXCEPTIONS):
+            for cleanup_exc in cleanup_errors:
+                primary_caught.add_note(
+                    f"cleanup failure: {type(cleanup_exc).__name__}: {cleanup_exc}"
+                )
+            raise
         primary_exc = primary_caught
     if primary_exc is None and not cleanup_errors:
         return
-    # If the primary is itself a group (e.g. the composition
-    # context already aggregated its cleanup errors), flatten
-    # it so the engine cleanup error appears as a SIBLING of
-    # the original primary, not nested inside a sub-group.
-    # This keeps the top-level error surface a flat list of
-    # (primary, *cleanup) members where the original primary
-    # is the FIRST entry — per brief §7.4. Nested groups are
-    # intentionally NOT preserved at the owner boundary;
-    # the composition context already has the full grouped
-    # record in its ``primary_exc`` chain.
-    if isinstance(primary_exc, BaseExceptionGroup):
-        flat_primary_members: list[BaseException] = list(primary_exc.exceptions)
-    else:
-        flat_primary_members = [primary_exc] if primary_exc is not None else []
-    members: list[BaseException] = [*flat_primary_members, *cleanup_errors]
+    # R3 §6: when the inner composition context has already
+    # produced an ``ExceptionGroup``/``BaseExceptionGroup``
+    # primary, we MUST NOT flatten that group — the outer
+    # owner treats it as the FIRST member (``members[0]``)
+    # and any engine cleanup errors become siblings, not
+    # members of the inner group. Original group object
+    # identity is preserved, and the resulting outer group
+    # is the same ``ExceptionGroup`` class chosen by the
+    # composition helper for the same membership shape.
+    members: list[BaseException] = []
+    if primary_exc is not None:
+        members.append(primary_exc)
+    members.extend(cleanup_errors)
     if not members:
         return
     if len(members) == 1:
@@ -1592,7 +1594,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # ``os.lstat`` to reject any symlinked component.
         _assert_raw_manifest_path_identity(
             raw_manifest_text=args.manifest,
-            raw_manifest_path=Path(args.manifest),
             backend=args.backend,
         )
 
