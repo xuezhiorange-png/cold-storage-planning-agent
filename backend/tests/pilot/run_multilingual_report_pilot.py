@@ -692,34 +692,34 @@ def _lexical_absolute(path: Path) -> str:
     return os.path.abspath(str(path))
 
 
-def _path_components_have_no_symlink(absolute_path: str) -> int:
-    """Return the number of symlinked path components.
-
-    Walks the lexical path components via ``os.lstat`` and counts
-    the number of components that are symlinks. The ``/`` root
-    itself is ``os.lstat``-checked for completeness but does not
-    contribute to the count. An absolute path with zero symlink
-    components is the canonical-identity-friendly case.
-    """
-    symlink_count = 0
-    head, _tail = os.path.split(absolute_path)
-    while head and head != os.sep and head != "/":
+def _assert_no_symlink_components(
+    absolute_path: str,
+    *,
+    backend: str,
+) -> None:
+    """lstat every lexical authority component and fail closed on any error."""
+    current = Path(absolute_path).anchor
+    for component in Path(absolute_path).parts:
+        if component == current or component == os.sep:
+            continue
+        current = os.path.join(current, component)
         try:
-            st = os.lstat(head)
-        except OSError:
-            return symlink_count
+            st = os.lstat(current)
+        except OSError as exc:
+            raise PilotCompositionError(
+                code="MANIFEST_IDENTITY_MISMATCH",
+                message=(
+                    f"could not lstat manifest identity component {current!r} "
+                    f"(backend={backend!r}): {exc}"
+                ),
+            ) from exc
         if stat.S_ISLNK(st.st_mode):
-            symlink_count += 1
-        if head == os.path.dirname(head):
-            break
-        head = os.path.dirname(head)
-    try:
-        st = os.lstat(absolute_path)
-        if stat.S_ISLNK(st.st_mode):
-            symlink_count += 1
-    except OSError:
-        pass
-    return symlink_count
+            raise PilotCompositionError(
+                code="MANIFEST_IDENTITY_MISMATCH",
+                message=(
+                    f"manifest identity component is a symlink: {current!r} (backend={backend!r})"
+                ),
+            )
 
 
 _CONTROL_FLOW_EXCEPTIONS = (SystemExit, KeyboardInterrupt, GeneratorExit)
@@ -810,16 +810,10 @@ def _assert_raw_manifest_path_identity(
             ),
         )
 
-    symlink_count = _path_components_have_no_symlink(expected_lexical_abs)
-    if symlink_count > 0:
-        raise PilotCompositionError(
-            code="MANIFEST_IDENTITY_MISMATCH",
-            message=(
-                f"raw manifest path traverses {symlink_count} symlinked "
-                f"component(s); rejected: expected={expected_lexical_abs!r} "
-                f"(backend={backend!r})."
-            ),
-        )
+    _assert_no_symlink_components(
+        absolute_path=expected_lexical_abs,
+        backend=backend,
+    )
 
 
 def _assert_scenario_baseline_feasible(
@@ -1345,25 +1339,13 @@ def _compose_report_services_context(
             # is collected into ``cleanup_errors`` (via the
             # ``_safe_close_session`` wrappers) and surfaced below.
     except BaseException as primary_caught:
-        # R3 §5.1: ``SystemExit`` / ``KeyboardInterrupt`` /
-        # ``GeneratorExit`` are control-flow exceptions. They
-        # MUST keep their original object identity, original
-        # traceback, and (for ``SystemExit``) the ``.code``
-        # attribute. They MUST NEVER be wrapped into
-        # ``ExceptionGroup`` or ``BaseExceptionGroup`` because
-        # those containers raise ``TypeError`` if you try to
-        # put a non-``Exception`` member inside.
-        # Each cleanup error is appended to the original
-        # primary via ``add_note`` (a permissive, well-defined
-        # channel on ``BaseException``); on exit we bare
-        # ``raise`` so the same primary object escapes — at
-        # most with diagnostic notes attached.
         if isinstance(primary_caught, _CONTROL_FLOW_EXCEPTIONS):
-            for cleanup_exc in cleanup_errors:
-                primary_caught.add_note(
-                    f"cleanup failure: {type(cleanup_exc).__name__}: {cleanup_exc}"
-                )
-            raise
+            if not cleanup_errors:
+                raise
+            raise _build_exception_group(
+                label="primary control-flow error plus cleanup errors during composition",
+                members=[primary_caught, *cleanup_errors],
+            ) from primary_caught
         primary_exc = primary_caught
         if not cleanup_errors:
             raise primary_exc from None
@@ -1470,19 +1452,17 @@ def _pilot_run_resource_owner(*, engine: Engine) -> Iterator[None]:
             stack.callback(_safe_dispose_engine)
             yield
     except BaseException as primary_caught:
-        # R3 §5.2: control-flow primary (``SystemExit`` /
-        # ``KeyboardInterrupt`` / ``GeneratorExit``) is bare
-        # raised with cleanup failures attached via
-        # ``add_note`` so the original object identity,
-        # traceback, and ``SystemExit.code`` are preserved
-        # — it never enters ``_build_exception_group``.
         if isinstance(primary_caught, _CONTROL_FLOW_EXCEPTIONS):
-            for cleanup_exc in cleanup_errors:
-                primary_caught.add_note(
-                    f"cleanup failure: {type(cleanup_exc).__name__}: {cleanup_exc}"
-                )
-            raise
-        primary_exc = primary_caught
+            if not cleanup_errors:
+                raise
+            primary_exc = primary_caught
+        else:
+            primary_exc = primary_caught
+        if primary_exc is not None and cleanup_errors:
+            raise _build_exception_group(
+                label="primary control-flow error plus cleanup errors during pilot run",
+                members=[primary_exc, *cleanup_errors],
+            ) from primary_exc
     if primary_exc is None and not cleanup_errors:
         return
     # R3 §6: when the inner composition context has already

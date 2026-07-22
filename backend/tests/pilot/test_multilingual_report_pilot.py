@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 from collections.abc import Callable, Generator
@@ -12254,17 +12255,7 @@ def test_p1_c_baseexception_matrix_generator_exit_primary_only(monkeypatch) -> N
 def test_p1_c_baseexception_matrix_keyboard_interrupt_plus_runtime_cleanup(
     monkeypatch,
 ) -> None:
-    """R3 §5/§8: KeyboardInterrupt primary + RuntimeError cleanup.
-
-    Per R3 brief §5.1: ``KeyboardInterrupt`` is a control-flow
-    ``BaseException`` (not a subclass of ``Exception``). The
-    composition helper ``_compose_report_services_context``
-    MUST preserve the original primary object — identity,
-    type, traceback — and append cleanup diagnostics via
-    ``add_note``. It MUST NOT wrap the primary in
-    ``ExceptionGroup`` (TypeError) or ``BaseExceptionGroup``
-    (which would change the visible error type to a group).
-    """
+    """Control-flow primaries and cleanup failures are BaseExceptionGroup members."""
     engine = _LifecycleStubEngine()
     shared = _LifecycleStubSession(label="shared")
     scheme = _LifecycleStubSession(label="scheme")
@@ -12272,39 +12263,19 @@ def test_p1_c_baseexception_matrix_keyboard_interrupt_plus_runtime_cleanup(
     cleanup_exc = RuntimeError("cleanup-runtime")
     scheme.install_close_exc(cleanup_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
-    with (
-        pytest.raises(KeyboardInterrupt) as excinfo,
-        rmp._pilot_run_resource_owner(engine=engine),
-        rmp._compose_report_services_context(
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
             engine=engine, output_root=Path("/tmp/p1c-kbd-plus-runtime")
-        ),
-    ):  # noqa: SIM117
-        raise primary
-    # Original KeyboardInterrupt identity preserved — NOT a
-    # group, NOT a wrapped TypeError, NOT a new exception.
-    assert excinfo.value is primary
-    assert type(excinfo.value) is KeyboardInterrupt
-    assert not isinstance(excinfo.value, BaseExceptionGroup)
-    # Cleanup diagnostics attached via ``add_note``.
-    notes = list(getattr(excinfo.value, "__notes__", ()))
-    assert any("cleanup failure" in note for note in notes), (
-        f"expected a 'cleanup failure' note on primary; got notes={notes!r}"
-    )
-    assert any("RuntimeError" in note for note in notes), (
-        f"expected RuntimeError mentioned in note; got notes={notes!r}"
-    )
+        ):
+            raise primary
+    assert excinfo.value.exceptions[0] is primary
+    assert excinfo.value.exceptions[1] is cleanup_exc
 
 
 def test_p1_c_baseexception_matrix_system_exit_plus_runtime_cleanup(
     monkeypatch,
 ) -> None:
-    """R3 §5/§8: SystemExit(42) primary + RuntimeError cleanup.
-
-    ``SystemExit.code`` MUST be preserved exactly; the cleanup
-    diagnostic MUST be added as a ``__note__`` on the original
-    ``SystemExit`` instance — NOT as an exception group
-    member, NOT as a wrapped new object.
-    """
+    """SystemExit primary + cleanup retains both original objects in the group."""
     engine = _LifecycleStubEngine()
     shared = _LifecycleStubSession(label="shared")
     scheme = _LifecycleStubSession(label="scheme")
@@ -12312,35 +12283,20 @@ def test_p1_c_baseexception_matrix_system_exit_plus_runtime_cleanup(
     cleanup_exc = RuntimeError("cleanup-runtime")
     scheme.install_close_exc(cleanup_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
-    with (
-        pytest.raises(SystemExit) as excinfo,
-        rmp._pilot_run_resource_owner(engine=engine),
-        rmp._compose_report_services_context(
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
             engine=engine, output_root=Path("/tmp/p1c-sysexit-plus-runtime")
-        ),
-    ):  # noqa: SIM117
-        raise primary
-    assert excinfo.value is primary
-    assert excinfo.value.code == 42
-    assert type(excinfo.value) is SystemExit
-    assert not isinstance(excinfo.value, BaseExceptionGroup)
-    notes = list(getattr(excinfo.value, "__notes__", ()))
-    assert any("cleanup failure" in note for note in notes), (
-        f"expected 'cleanup failure' note on SystemExit primary; got {notes!r}"
-    )
-    assert any("RuntimeError" in note for note in notes)
+        ):
+            raise primary
+    assert excinfo.value.exceptions[0] is primary
+    assert excinfo.value.exceptions[1] is cleanup_exc
+    assert primary.code == 42
 
 
 def test_p1_c_baseexception_matrix_generator_exit_plus_runtime_cleanup(
     monkeypatch,
 ) -> None:
-    """R3 §5/§8: GeneratorExit primary + RuntimeError cleanup.
-
-    ``GeneratorExit`` is a control-flow ``BaseException`` (PEP
-    342). The composition helper preserves the original
-    primary instance and appends the cleanup diagnostic via
-    ``add_note`` — it does not wrap into any group.
-    """
+    """GeneratorExit primary + cleanup retains both original objects in the group."""
     engine = _LifecycleStubEngine()
     shared = _LifecycleStubSession(label="shared")
     scheme = _LifecycleStubSession(label="scheme")
@@ -12348,21 +12304,13 @@ def test_p1_c_baseexception_matrix_generator_exit_plus_runtime_cleanup(
     cleanup_exc = RuntimeError("cleanup-runtime")
     scheme.install_close_exc(cleanup_exc)
     _lifecycle_patch_to_return_resources(monkeypatch, engine=engine, shared=shared, scheme=scheme)
-    with (
-        pytest.raises(GeneratorExit) as excinfo,
-        rmp._pilot_run_resource_owner(engine=engine),
-        rmp._compose_report_services_context(
+    with pytest.raises(BaseExceptionGroup) as excinfo, rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+        with rmp._compose_report_services_context(
             engine=engine, output_root=Path("/tmp/p1c-genexit-plus-runtime")
-        ),
-    ):  # noqa: SIM117
-        raise primary
-    assert excinfo.value is primary
-    assert type(excinfo.value) is GeneratorExit
-    assert not isinstance(excinfo.value, BaseExceptionGroup)
-    notes = list(getattr(excinfo.value, "__notes__", ()))
-    assert any("cleanup failure" in note for note in notes), (
-        f"expected 'cleanup failure' note; got {notes!r}"
-    )
+        ):
+            raise primary
+    assert excinfo.value.exceptions[0] is primary
+    assert excinfo.value.exceptions[1] is cleanup_exc
 
 
 def test_p1_c_baseexception_matrix_runtime_primary_plus_keyboard_cleanup(
@@ -12800,3 +12748,294 @@ def test_p1_c_symlink_alias_acceptance_path_count_is_zero() -> None:
     )
     assert ".realpath" not in helper_src
     assert "samefile" not in helper_src
+
+
+# ── Post-merge corrective R1: fail-closed identity + cleanup evidence ────────
+
+
+@pytest.mark.parametrize(
+    "error_factory",
+    [
+        FileNotFoundError,
+        FileNotFoundError,
+        PermissionError,
+        PermissionError,
+        NotADirectoryError,
+        OSError,
+        lambda: FileNotFoundError(2, "broken symlink target"),
+        lambda: OSError(13, "manifest component permission denied"),
+        lambda: OSError(40, "parent component unavailable"),
+    ],
+    ids=[
+        "parent-file-not-found",
+        "manifest-file-not-found",
+        "parent-permission",
+        "manifest-permission",
+        "not-a-directory",
+        "generic-os-error",
+        "broken-symlink",
+        "manifest-generic-os-error",
+        "parent-generic-os-error",
+    ],
+)
+def test_post_merge_r1_lstat_oserror_vectors_fail_closed_with_exact_cause(
+    monkeypatch: pytest.MonkeyPatch,
+    error_factory: Callable[[], OSError] | type[OSError],
+) -> None:
+    """Every lstat failure is typed and retains the injected OS error."""
+    injected = error_factory() if callable(error_factory) else error_factory()
+
+    def _raise(_path: str) -> object:
+        raise injected
+
+    monkeypatch.setattr(rmp.os, "lstat", _raise)
+    with pytest.raises(rmp.PilotCompositionError) as caught:
+        rmp._assert_no_symlink_components(
+            str(_SQLITE_MANIFEST),
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert caught.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert caught.value.__cause__ is injected
+
+
+@pytest.mark.parametrize("component", ["manifest", "parent-directory"])
+def test_post_merge_r1_file_and_parent_symlinks_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    component: str,
+) -> None:
+    """Both canonical file and canonical parent symlinks are rejected."""
+    real_lstat = rmp.os.lstat
+    manifest = str(_SQLITE_MANIFEST)
+    symlink_path = manifest if component == "manifest" else str(_SQLITE_MANIFEST.parent)
+
+    def _lstat(path: str) -> object:
+        if path == symlink_path:
+            return type("_Stat", (), {"st_mode": stat.S_IFLNK})()
+        return real_lstat(path)
+
+    monkeypatch.setattr(rmp.os, "lstat", _lstat)
+    with pytest.raises(rmp.PilotCompositionError) as caught:
+        rmp._assert_no_symlink_components(
+            manifest,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert caught.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert caught.value.__cause__ is None
+
+
+@pytest.mark.parametrize(
+    "injected",
+    [FileNotFoundError(2, "parent missing"), PermissionError(13, "manifest denied")],
+    ids=["parent-file-not-found", "manifest-permission"],
+)
+def test_post_merge_r1_cmd_run_raw_gate_precedes_output_and_provisioning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    injected: OSError,
+) -> None:
+    """Real _cmd_run stops before output mkdir, manifest load, and DB provision."""
+    output_root = tmp_path / "must-not-exist"
+    calls = {"manifest": 0, "database": 0}
+
+    def _fail_closed(*, raw_manifest_text: str, backend: str) -> None:
+        raise rmp.PilotCompositionError(
+            code="MANIFEST_IDENTITY_MISMATCH",
+            message="injected raw identity failure",
+        ) from injected
+
+    monkeypatch.setattr(rmp, "_assert_raw_manifest_path_identity", _fail_closed)
+    monkeypatch.setattr(
+        rmp,
+        "_load_pilot_manifest",
+        lambda **_kwargs: calls.__setitem__("manifest", calls["manifest"] + 1),
+    )
+    monkeypatch.setattr(
+        rmp,
+        "_provision_sqlite_database",
+        lambda **_kwargs: calls.__setitem__("database", calls["database"] + 1),
+    )
+    args = argparse.Namespace(
+        manifest=str(_SQLITE_MANIFEST),
+        output_root=str(output_root),
+        commit_sha="a" * 40,
+        backend="sqlite",
+        database_url=f"sqlite:///{tmp_path / 'must-not-exist.sqlite'}",
+        repeat_index=1,
+    )
+    assert rmp._cmd_run(args) == rmp.EXIT_INFRA_ERROR
+    assert output_root.exists() is False
+    assert calls == {"manifest": 0, "database": 0}
+
+
+_POST_MERGE_CONTROL_PRIMARIES = [
+    pytest.param(SystemExit(42), id="system-exit"),
+    pytest.param(KeyboardInterrupt(), id="keyboard-interrupt"),
+    pytest.param(GeneratorExit(), id="generator-exit"),
+]
+
+
+@pytest.mark.parametrize("primary", _POST_MERGE_CONTROL_PRIMARIES)
+@pytest.mark.parametrize("context_kind", ["composition", "owner"])
+def test_post_merge_r1_control_flow_primary_only_preserves_identity(
+    monkeypatch: pytest.MonkeyPatch,
+    primary: BaseException,
+    context_kind: str,
+) -> None:
+    """Both live paths re-raise each control-flow primary object unchanged."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    if context_kind == "composition":
+        with (
+            pytest.raises(type(primary)) as caught,
+            rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/post-merge-r1-primary-only"),
+            ),
+        ):
+            raise primary
+    else:
+        with (
+            pytest.raises(type(primary)) as caught,
+            rmp._pilot_run_resource_owner(engine=engine),
+        ):
+            raise primary
+    assert caught.value is primary
+    if isinstance(primary, SystemExit):
+        assert caught.value.code == primary.code
+
+
+@pytest.mark.parametrize("primary", _POST_MERGE_CONTROL_PRIMARIES)
+@pytest.mark.parametrize("context_kind", ["composition", "owner"])
+def test_post_merge_r1_control_flow_one_cleanup_preserves_objects(
+    monkeypatch: pytest.MonkeyPatch,
+    primary: BaseException,
+    context_kind: str,
+) -> None:
+    """A control-flow primary plus one cleanup is a BaseExceptionGroup."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    cleanup = RuntimeError("post-merge-r1-cleanup-one")
+    if context_kind == "composition":
+        scheme.install_close_exc(cleanup)
+        _lifecycle_patch_to_return_resources(
+            monkeypatch,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
+        )
+        with (
+            pytest.raises(BaseExceptionGroup) as caught,
+            rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/post-merge-r1-one"),
+            ),
+        ):
+            raise primary
+    else:
+        engine.install_dispose_exc(cleanup)
+        _lifecycle_patch_to_return_resources(
+            monkeypatch,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
+        )
+        with (
+            pytest.raises(BaseExceptionGroup) as caught,
+            rmp._pilot_run_resource_owner(engine=engine),
+        ):
+            raise primary
+    assert caught.value.exceptions == (primary, cleanup)
+    if isinstance(primary, SystemExit):
+        assert primary.code == 42
+
+
+@pytest.mark.parametrize("primary", _POST_MERGE_CONTROL_PRIMARIES)
+@pytest.mark.parametrize("context_kind", ["composition", "owner"])
+def test_post_merge_r1_control_flow_multiple_cleanup_order_preserved(
+    monkeypatch: pytest.MonkeyPatch,
+    primary: BaseException,
+    context_kind: str,
+) -> None:
+    """Multiple cleanup objects retain deterministic order and identity."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    first = RuntimeError("post-merge-r1-cleanup-first")
+    second = RuntimeError("post-merge-r1-cleanup-second")
+    scheme.install_close_exc(first)
+    shared.install_close_exc(second)
+    if context_kind == "composition":
+        _lifecycle_patch_to_return_resources(
+            monkeypatch,
+            engine=engine,
+            shared=shared,
+            scheme=scheme,
+        )
+        with (
+            pytest.raises(BaseExceptionGroup) as caught,
+            rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/post-merge-r1-multiple"),
+            ),
+        ):
+            raise primary
+        assert caught.value.exceptions == (primary, first, second)
+        return
+
+    engine_cleanup = RuntimeError("post-merge-r1-cleanup-engine")
+    engine.install_dispose_exc(engine_cleanup)
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    with pytest.raises(BaseExceptionGroup) as caught:  # noqa: SIM117
+        with rmp._pilot_run_resource_owner(engine=engine):  # noqa: SIM117
+            with rmp._compose_report_services_context(
+                engine=engine,
+                output_root=Path("/tmp/post-merge-r1-nested"),
+            ):
+                raise primary
+    inner, observed_engine_cleanup = caught.value.exceptions
+    assert isinstance(inner, BaseExceptionGroup)
+    assert inner.exceptions == (primary, first, second)
+    assert observed_engine_cleanup is engine_cleanup
+
+
+@pytest.mark.parametrize(
+    "primary",
+    [
+        pytest.param(
+            ExceptionGroup("post-merge-inner-exception", [ValueError("inner")]),
+            id="exception-group",
+        ),
+        pytest.param(
+            BaseExceptionGroup("post-merge-inner-base", [KeyboardInterrupt()]),
+            id="base-exception-group",
+        ),
+    ],
+)
+def test_post_merge_r1_existing_primary_group_is_not_flattened(
+    monkeypatch: pytest.MonkeyPatch,
+    primary: BaseExceptionGroup,
+) -> None:
+    """Existing primary group remains the exact outer group member zero."""
+    engine, shared, scheme = _lifecycle_make_resources()
+    cleanup = RuntimeError("post-merge-r1-engine-cleanup")
+    engine.install_dispose_exc(cleanup)
+    _lifecycle_patch_to_return_resources(
+        monkeypatch,
+        engine=engine,
+        shared=shared,
+        scheme=scheme,
+    )
+    with (
+        pytest.raises(BaseExceptionGroup) as caught,
+        rmp._pilot_run_resource_owner(engine=engine),
+    ):
+        raise primary
+    assert caught.value.exceptions[0] is primary
+    assert caught.value.exceptions[1] is cleanup
