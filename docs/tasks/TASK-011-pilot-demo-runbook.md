@@ -114,9 +114,14 @@ content from a prior run.
 
 ### 3.5 Frontend
 
-- **Node.js** — version matching `frontend/package.json` engines
-  (modern Vite / Vue 3 toolchain).
-- **npm** or **pnpm** — for `npm install` / `pnpm install`.
+- **Node.js** — required by the current Vue 3 / Vite frontend toolchain.
+  `frontend/package.json` does not declare an `engines` range, so this
+  runbook does not introduce a new exact Node.js version contract.
+  Use the Node.js version supported by the repository's current CI and
+  development environment.
+- **npm** — use the repository-owned `frontend/package-lock.json`.
+  Install dependencies with `npm ci`; this runbook does not define a
+  pnpm installation path.
 - Browser for manual exercise: Chrome / Firefox / Safari latest stable.
 
 ### 3.6 Network and ports
@@ -489,7 +494,7 @@ uv run uvicorn cold_storage.app:app --reload --host 0.0.0.0 --port 8000
 
 # Terminal 2 — frontend
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -514,30 +519,32 @@ on `/workbench/reports`.
    integrity headers in `Content-Disposition`, `X-Content-SHA256`,
    `X-Source-Content-Hash`, etc.
 
-### 11.3 Pilot integrity fields: backend-only
+### 11.3 Frontend API contract visibility
 
-The frontend surfaces `file_name`, `file_size_bytes`, `file_sha256`,
-`revision_number`, `generated_at`, `locale`, `template_locale`,
-`translation_catalog_version`,
-`translation_catalog_content_hash`, and
-`localized_template_content_hash` in the artifact list and detail
-panels (see `frontend/src/api/contracts/reports.ts`).
+The frontend API contracts expose different integrity fields at
+different stages. The exact source-of-truth is
+`frontend/src/api/contracts/reports.ts`:
 
-The following fields are **NOT** rendered on the frontend — they
-appear only in the backend's `pilot-summary.json` /
-`pilot-run.json` / per-artifact metadata:
+- `ArtifactListItemContract` exposes artifact_id, status, format,
+  file_name, file_size_bytes, revision_number, generated_at,
+  locale, template_locale, translation_catalog_version,
+  translation_catalog_content_hash, and
+  localized_template_content_hash. It does not contain `file_sha256`.
+- `ArtifactDetailResponse` extends `ArtifactListItemContract` and
+  additionally exposes `file_sha256` and `template_version`.
+- `ArtifactDownload` (the download client result, populated from
+  verified response metadata) exposes `blob`, `artifactId`,
+  `fileName`, `contentSha256` (note the camelCase name — this is
+  **not** `file_sha256`), `sourceContentHash`, `templateVersion`,
+  `locale`, `templateLocale`, `translationCatalogVersion`,
+  `translationCatalogContentHash`, and
+  `localizedTemplateContentHash`.
 
-- `pilot_check_id`
-- `source_commit_sha`
-- `manifest_scenario_id`
-- `manifest_expected_outcome`
-- `manifest_golden_comparison_result`
-- `canonical_section_key_set` / `canonical_numeric_field_path_set` /
-  `canonical_numeric_value_and_unit_set` (semantic-checks JSON).
-- `overall_result`
-
-Operators who need these fields MUST inspect the backend output root
-directly.
+Contract availability does **NOT** by itself prove that every value
+is visibly rendered by the current Vue components. Operators who
+need an integrity value not explicitly displayed by the UI must
+consult the API response or the backend pilot evidence (see
+§7 and §11.4).
 
 ### 11.4 Known frontend limitation
 
