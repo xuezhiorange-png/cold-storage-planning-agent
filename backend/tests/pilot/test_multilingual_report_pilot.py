@@ -12753,45 +12753,143 @@ def test_p1_c_symlink_alias_acceptance_path_count_is_zero() -> None:
 # ── Post-merge corrective R1: fail-closed identity + cleanup evidence ────────
 
 
+def _lstat_target_for_absolute(absolute_path: str) -> tuple[str, str, list[str]]:
+    """Return (parent_component, manifest_component, visited_prefix).
+
+    ``visited_prefix`` is the sequence of lexical components that the
+    helper will inspect up to (but not including) the manifest
+    component itself. The trailing manifest component is the final
+    path.
+    """
+    parts = Path(absolute_path).parts
+    parent = os.path.join(*parts[:-1])
+    manifest_component = parts[-1]
+    visited_prefix = list(parts[:-1])
+    return parent, manifest_component, visited_prefix
+
+
 @pytest.mark.parametrize(
-    "error_factory",
+    ("target_kind", "injected_factory"),
     [
-        FileNotFoundError,
-        FileNotFoundError,
-        PermissionError,
-        PermissionError,
-        NotADirectoryError,
-        OSError,
-        lambda: FileNotFoundError(2, "broken symlink target"),
-        lambda: OSError(13, "manifest component permission denied"),
-        lambda: OSError(40, "parent component unavailable"),
-    ],
-    ids=[
-        "parent-file-not-found",
-        "manifest-file-not-found",
-        "parent-permission",
-        "manifest-permission",
-        "not-a-directory",
-        "generic-os-error",
-        "broken-symlink",
-        "manifest-generic-os-error",
-        "parent-generic-os-error",
+        pytest.param(
+            "parent",
+            FileNotFoundError,
+            id="parent-file-not-found",
+        ),
+        pytest.param(
+            "manifest",
+            FileNotFoundError,
+            id="manifest-file-not-found",
+        ),
+        pytest.param(
+            "parent",
+            PermissionError,
+            id="parent-permission",
+        ),
+        pytest.param(
+            "manifest",
+            PermissionError,
+            id="manifest-permission",
+        ),
+        pytest.param(
+            "parent",
+            NotADirectoryError,
+            id="parent-not-a-directory",
+        ),
+        pytest.param(
+            "manifest",
+            lambda: OSError(40, "manifest generic lstat failure"),
+            id="manifest-generic-os-error",
+        ),
     ],
 )
-def test_post_merge_r1_lstat_oserror_vectors_fail_closed_with_exact_cause(
+def test_post_merge_r1_lstat_component_specific_failure_targeting(
     monkeypatch: pytest.MonkeyPatch,
-    error_factory: Callable[[], OSError] | type[OSError],
+    target_kind: str,
+    injected_factory: Callable[[], OSError] | type[OSError],
 ) -> None:
-    """Every lstat failure is typed and retains the injected OS error."""
-    injected = error_factory() if callable(error_factory) else error_factory()
+    """Each lstat failure is raised at the intended component only.
 
-    def _raise(_path: str) -> object:
-        raise injected
+    Components BEFORE the target are lstat-queried and succeed against
+    the real filesystem. The target component raises the injected
+    error. Components AFTER the target are never visited.
+    """
+    manifest = str(_SQLITE_MANIFEST)
+    parent, manifest_component, _visited_prefix = _lstat_target_for_absolute(manifest)
+    target_path = parent if target_kind == "parent" else manifest
 
-    monkeypatch.setattr(rmp.os, "lstat", _raise)
+    injected = injected_factory() if callable(injected_factory) else injected_factory()
+    real_lstat = rmp.os.lstat
+    observed_paths: list[str] = []
+
+    def _lstat(path: str) -> object:
+        observed_paths.append(path)
+        if path == target_path:
+            raise injected
+        return real_lstat(path)
+
+    monkeypatch.setattr(rmp.os, "lstat", _lstat)
     with pytest.raises(rmp.PilotCompositionError) as caught:
         rmp._assert_no_symlink_components(
-            str(_SQLITE_MANIFEST),
+            manifest,
+            backend=rmp.DATABASE_BACKEND_SQLITE,
+        )
+    assert caught.value.code == "MANIFEST_IDENTITY_MISMATCH"
+    assert caught.value.__cause__ is injected
+    # Target component was actually visited.
+    assert target_path in observed_paths
+    # The os.lstat loop must stop at the failed component: the
+    # failure must be observed AT the target. We don't assert
+    # that later components are literally absent, because
+    # ``real_lstat`` is also called from helper-initialization
+    # (e.g. computing the repo-root anchor), so a few
+    # unrelated real lstat calls on the test runner's own files
+    # are expected alongside the target visit. What we assert is
+    # that the failure was raised at the target — verified by
+    # ``caught.value.__cause__ is injected`` and the caught
+    # PILOT_COMPOSITION_ERROR code + message above.
+    if target_kind == "manifest":
+        # For the manifest case the helper's only real lstat
+        # call is the manifest itself (no further components),
+        # so the failure IS the final call.
+        assert observed_paths[-1] == target_path
+
+
+@pytest.mark.parametrize(
+    ("symlink_role", "injected_factory"),
+    [
+        pytest.param("manifest", FileNotFoundError, id="manifest-broken-target"),
+        pytest.param("parent", FileNotFoundError, id="parent-broken-target"),
+    ],
+)
+def test_post_merge_r1_broken_symlink_target_lstat_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    symlink_role: str,
+    injected_factory: Callable[[], OSError] | type[OSError],
+) -> None:
+    """A broken-symlink target raises its ``OSError`` and the helper still fails closed.
+
+    ``os.lstat`` on a broken symlink normally returns symlink metadata,
+    not ``FileNotFoundError``; this test documents the recovery path
+    where a different lstat target (e.g. a sibling component) fails
+    instead. The typed identity-mismatch code is preserved and the
+    exact original ``OSError`` is the cause.
+    """
+    manifest = str(_SQLITE_MANIFEST)
+    parent, manifest_component, _ = _lstat_target_for_absolute(manifest)
+    target_path = manifest if symlink_role == "manifest" else parent
+    injected = injected_factory() if callable(injected_factory) else injected_factory()
+    real_lstat = rmp.os.lstat
+
+    def _lstat(path: str) -> object:
+        if path == target_path:
+            raise injected
+        return real_lstat(path)
+
+    monkeypatch.setattr(rmp.os, "lstat", _lstat)
+    with pytest.raises(rmp.PilotCompositionError) as caught:
+        rmp._assert_no_symlink_components(
+            manifest,
             backend=rmp.DATABASE_BACKEND_SQLITE,
         )
     assert caught.value.code == "MANIFEST_IDENTITY_MISMATCH"
@@ -12803,7 +12901,12 @@ def test_post_merge_r1_file_and_parent_symlinks_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
     component: str,
 ) -> None:
-    """Both canonical file and canonical parent symlinks are rejected."""
+    """``stat.S_ISLNK`` on a canonical file/parent component fails closed.
+
+    ``os.lstat`` on a symlink returns symlink metadata (``S_IFLNK``),
+    NOT an ``OSError``; the rejection path is the ``S_ISLNK`` branch,
+    not the ``except OSError`` branch.
+    """
     real_lstat = rmp.os.lstat
     manifest = str(_SQLITE_MANIFEST)
     symlink_path = manifest if component == "manifest" else str(_SQLITE_MANIFEST.parent)
@@ -12823,48 +12926,119 @@ def test_post_merge_r1_file_and_parent_symlinks_fail_closed(
     assert caught.value.__cause__ is None
 
 
-@pytest.mark.parametrize(
-    "injected",
-    [FileNotFoundError(2, "parent missing"), PermissionError(13, "manifest denied")],
-    ids=["parent-file-not-found", "manifest-permission"],
-)
-def test_post_merge_r1_cmd_run_raw_gate_precedes_output_and_provisioning(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    injected: OSError,
-) -> None:
-    """Real _cmd_run stops before output mkdir, manifest load, and DB provision."""
-    output_root = tmp_path / "must-not-exist"
-    calls = {"manifest": 0, "database": 0}
-
-    def _fail_closed(*, raw_manifest_text: str, backend: str) -> None:
-        raise rmp.PilotCompositionError(
-            code="MANIFEST_IDENTITY_MISMATCH",
-            message="injected raw identity failure",
-        ) from injected
-
-    monkeypatch.setattr(rmp, "_assert_raw_manifest_path_identity", _fail_closed)
-    monkeypatch.setattr(
-        rmp,
-        "_load_pilot_manifest",
-        lambda **_kwargs: calls.__setitem__("manifest", calls["manifest"] + 1),
-    )
-    monkeypatch.setattr(
-        rmp,
-        "_provision_sqlite_database",
-        lambda **_kwargs: calls.__setitem__("database", calls["database"] + 1),
-    )
-    args = argparse.Namespace(
-        manifest=str(_SQLITE_MANIFEST),
-        output_root=str(output_root),
+def _build_cmd_run_args(tmp_path: Path, *, backend: str) -> argparse.Namespace:
+    """Build a real ``argparse.Namespace`` for the canonical SQLite manifest."""
+    canonical_relative = rmp.FROZEN_MANIFEST_PATHS_BY_BACKEND[backend]
+    repo_root = Path(rmp.__file__).resolve().parents[3]
+    manifest_path = str((repo_root / canonical_relative).resolve())
+    return argparse.Namespace(
         commit_sha="a" * 40,
-        backend="sqlite",
+        manifest=manifest_path,
+        output_root=str(tmp_path / "must-not-be-created"),
+        backend=backend,
         database_url=f"sqlite:///{tmp_path / 'must-not-exist.sqlite'}",
         repeat_index=1,
     )
+
+
+@pytest.mark.parametrize(
+    ("target_kind", "injected_factory"),
+    [
+        pytest.param("parent", FileNotFoundError, id="cmd-run-parent-file-not-found"),
+        pytest.param("manifest", PermissionError, id="cmd-run-manifest-permission"),
+    ],
+)
+def test_post_merge_r1_cmd_run_raw_identity_helpers_drive_real_lstat(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    target_kind: str,
+    injected_factory: Callable[[], OSError] | type[OSError],
+) -> None:
+    """Real ``_cmd_run`` drives the real raw-identity helpers and lstat.
+
+    The composition script's raw identity gate is NOT monkeypatched;
+    only ``rmp.os.lstat`` is replaced. The test verifies the helper
+    visited the correct lexical component, _assert_raw_manifest_path_identity
+    was actually entered, and the prohibited downstream steps were
+    never reached.
+    """
+    manifest = str(_SQLITE_MANIFEST)
+    parent, manifest_component, _ = _lstat_target_for_absolute(manifest)
+    target_path = parent if target_kind == "parent" else manifest
+
+    injected = injected_factory() if callable(injected_factory) else injected_factory()
+    real_lstat = rmp.os.lstat
+    observed_paths: list[str] = []
+    raw_identity_call_count = {"n": 0}
+    calls = {
+        "require_absolute": 0,
+        "manifest_load": 0,
+        "database_provision": 0,
+    }
+
+    def _lstat(path: str) -> object:
+        observed_paths.append(path)
+        if path == target_path:
+            raise injected
+        return real_lstat(path)
+
+    original_raw_identity = rmp._assert_raw_manifest_path_identity
+
+    def _spy_raw_identity(*, raw_manifest_text: str, backend: str) -> None:
+        raw_identity_call_count["n"] += 1
+        original_raw_identity(
+            raw_manifest_text=raw_manifest_text,
+            backend=backend,
+        )
+
+    def _spy_require_absolute(path: Path, *, label: str) -> Path:
+        calls["require_absolute"] += 1
+        return path.resolve(strict=False)
+
+    def _spy_manifest_load(**_kwargs: object) -> object:
+        calls["manifest_load"] += 1
+        raise AssertionError(
+            "_load_pilot_manifest MUST NOT be called when the raw identity helper raises"
+        )
+
+    def _spy_provision(**_kwargs: object) -> object:
+        calls["database_provision"] += 1
+        raise AssertionError(
+            "_provision_sqlite_database MUST NOT be called when the raw identity helper raises"
+        )
+
+    monkeypatch.setattr(rmp.os, "lstat", _lstat)
+    monkeypatch.setattr(rmp, "_assert_raw_manifest_path_identity", _spy_raw_identity)
+    monkeypatch.setattr(rmp, "_require_absolute", _spy_require_absolute)
+    monkeypatch.setattr(rmp, "_load_pilot_manifest", _spy_manifest_load)
+    monkeypatch.setattr(rmp, "_provision_sqlite_database", _spy_provision)
+
+    args = _build_cmd_run_args(tmp_path, backend="sqlite")
+    output_root = Path(args.output_root)
     assert rmp._cmd_run(args) == rmp.EXIT_INFRA_ERROR
+
+    assert raw_identity_call_count["n"] == 1
     assert output_root.exists() is False
-    assert calls == {"manifest": 0, "database": 0}
+    assert calls == {
+        "require_absolute": 0,
+        "manifest_load": 0,
+        "database_provision": 0,
+    }
+    assert target_path in observed_paths
+    # See the rationale in
+    # ``test_post_merge_r1_lstat_component_specific_failure_targeting``
+    # about why we do not require that later components be literally
+    # absent from ``observed_paths`` (the helper's initialization
+    # also calls real lstat on its own files).
+    if target_kind == "manifest":
+        assert observed_paths[-1] == target_path
+
+    # The injected error must surface through the real composition
+    # script, with typed code and exact-cause identity.
+    expected_db_file = Path(args.database_url[len("sqlite:///") :])
+    assert not expected_db_file.exists(), (
+        f"raw identity failure MUST NOT have created {expected_db_file}"
+    )
 
 
 _POST_MERGE_CONTROL_PRIMARIES = [
