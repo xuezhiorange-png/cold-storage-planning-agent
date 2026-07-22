@@ -73,6 +73,7 @@ _MESSAGES: dict[str, str] = {
     "field.daily_inbound_mass_kg": "日入库质量",
     "field.storage_capacity_kg": "存储容量",
     "field.total_area_m2": "总面积",
+    "field.condenser_heat_rejection": "冷凝器排热量",
     # ── Provenance fields ──
     "field.content_hash": "内容哈希",
     "field.canonical_hash": "规范哈希",
@@ -241,6 +242,7 @@ _MESSAGES: dict[str, str] = {
     # ── Units (display labels, not values) ──
     "unit.kw_r": "kW(r)",
     "unit.kw_e": "kW(e)",
+    "unit.kw_th": "kW(th)",
     "unit.kwh": "kWh",
     "unit.m2": "m²",
     "unit.cny": "元",

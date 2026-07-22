@@ -1,0 +1,4171 @@
+"""Multilingual report pilot verifier for the frozen TASK-011 Slice 1 contract."""
+
+from __future__ import annotations
+
+import hashlib
+import io
+import re
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+
+import fitz
+from docx import Document
+from docx.oxml.ns import qn as _docx_qn
+
+from cold_storage.evaluation.artifact_io import (
+    assert_no_managed_artifacts,
+    atomic_write_bytes,
+    atomic_write_json,
+)
+from cold_storage.evaluation.errors import EvaluationRunnerError
+from cold_storage.modules.reports.application.canonical_render_model_builder import (
+    build_canonical_render_model,
+)
+from cold_storage.modules.reports.application.render_model_localizer import (
+    localize_render_model,
+)
+from cold_storage.modules.reports.domain.enums import (
+    ArtifactStatus,
+    ExportFormat,
+    ReportLocale,
+    ReportType,
+)
+from cold_storage.modules.reports.domain.render_model import (
+    CanonicalRenderMetric,
+    CanonicalRenderTableCell,
+    CanonicalReportRenderModel,
+)
+from cold_storage.modules.reports.localization.catalog import (
+    compute_catalog_content_hash,
+    get_catalog,
+)
+
+PILOT_RESULT_SCHEMA_VERSION = "task11-pilot-report.v1"
+PILOT_CHECK_ID = "multilingual_report_same_revision"
+_SHA256_LENGTH = 64
+_RENDER_MATRIX: tuple[tuple[ReportLocale, ExportFormat], ...] = (
+    (ReportLocale.ZH_CN, ExportFormat.DOCX),
+    (ReportLocale.ZH_CN, ExportFormat.PDF),
+    (ReportLocale.EN_US, ExportFormat.DOCX),
+    (ReportLocale.EN_US, ExportFormat.PDF),
+)
+DownloadArtifact = Callable[[str, str, str], tuple[bytes, Mapping[str, str]]]
+
+
+class PilotVerificationError(EvaluationRunnerError):
+    """Typed fail-closed error for a pilot acceptance mismatch."""
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        details: Mapping[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message, details=dict(details or {}))
+        self.code = code
+
+
+def _fail(code: str, message: str, **details: Any) -> None:
+    raise PilotVerificationError(code, message, details=details)
+
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _is_sha256(value: object) -> bool:
+    if not isinstance(value, str) or len(value) != _SHA256_LENGTH:
+        return False
+    return all(char in "0123456789abcdef" for char in value)
+
+
+# ---------------------------------------------------------------------------
+# P1-3: Structured artifact observation + field-bound verification
+# ---------------------------------------------------------------------------
+#
+# The P1-3 fix removes the previous global substring search
+# (metric.display_value in extracted_text) and replaces it with:
+#
+#   DOWNLOADED_ARTIFACT
+#   → STRUCTURED_OBSERVATION  (_observe_docx / _observe_pdf)
+#   → SECTION/FIELD/ROW_BINDING  (_find_metric_binding / _find_number_binding
+#                                 / _find_table_cell_binding)
+#   → OBSERVED_VALUE_AND_UNIT    (_ObservedNumericField)
+#   → EXPECTED_LOCALIZED_VALUE_AND_UNIT_COMPARISON  (whitespace fold only)
+#   → FAIL_CLOSED   (8 typed codes, no false PASS)
+#
+# The numeric comparison NEVER operates on a flattened global string. It
+# only operates on the structured observation scoped to the target
+# section/field/row/column, and the observed value/unit come from the
+# downloaded artifact bytes, NOT from the localized expected model.
+
+
+_BINDING_KIND_METRIC = "metric"
+_BINDING_KIND_NUMBER = "number"
+_BINDING_KIND_TABLE_CELL = "table_cell"
+
+_BINDING_KINDS: tuple[str, ...] = (
+    _BINDING_KIND_METRIC,
+    _BINDING_KIND_NUMBER,
+    _BINDING_KIND_TABLE_CELL,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _ObservedNumericField:
+    """Real artifact observation for a single canonical numeric field.
+
+    The fields are populated from the downloaded artifact (DOCX/PDF
+    bytes), NOT from the localized expected model. The
+    ``binding_kind`` and ``section_key`` describe the structural
+    position the observation was taken from.
+    """
+
+    field_path: str
+    section_key: str
+    binding_kind: str  # "metric" | "number" | "table_cell"
+    display_value: str
+    display_unit: str
+    row_index: int | None = None
+    column_index: int | None = None
+    page_number: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _BindingResult:
+    """Outcome of a field-level binding lookup.
+
+    Semantics:
+    - On success: ``observed`` is set (artifact-derived), ``failure_code`` is None,
+      ``candidates`` contains exactly the same single observation (audit trail).
+    - On MISSING: ``observed`` is None, ``failure_code`` is a typed code,
+      ``candidates`` is empty.
+    - On AMBIGUOUS: ``observed`` is None, ``failure_code`` is a typed code,
+      ``candidates`` contains the artifact-derived candidate observations
+      (the audit consumer can see what WAS in the document, so the failure
+      is not silent).
+    """
+
+    observed: _ObservedNumericField | None
+    failure_code: str | None
+    candidates: tuple[_ObservedNumericField, ...] = ()
+
+
+def _fold_whitespace(text: str) -> str:
+    """Collapse runs of internal whitespace to a single space, strip ends.
+
+    Permitted per the P1-3 contract:
+        - remove leading/trailing whitespace
+        - collapse pure-typographic runs of whitespace
+    NOT permitted:
+        - rewriting decimal/thousands separators
+        - fuzzy numeric tolerance
+        - dropping sign or unit
+    """
+
+    return " ".join(text.split())
+
+
+def _strings_equal_folded(a: str, b: str) -> bool:
+    """Compare two strings after whitespace folding only."""
+
+    return _fold_whitespace(a) == _fold_whitespace(b)
+
+
+# ── DOCX observation ──────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class _DocxBlock:
+    kind: str  # "paragraph" | "table"
+    text: str
+    paragraph_index: int | None
+    table_index: int | None
+    cells: tuple[tuple[str, ...], ...] | None  # only for tables
+    heading_text: str | None  # for paragraphs that are headings
+    heading_level: int | None  # 1..6 for heading paragraphs
+
+
+@dataclass(frozen=True, slots=True)
+class _DocxObservation:
+    body_blocks: tuple[_DocxBlock, ...]
+    # section_key -> (start_block_idx_inclusive, end_block_idx_exclusive)
+    section_scopes: dict[str, tuple[int, int]]
+
+
+def _observe_docx(data: bytes) -> _DocxObservation:
+    """Walk a downloaded DOCX in body-order to produce structured blocks.
+
+    The walk visits ``w:body`` children in original XML order. A
+    ``w:p`` (paragraph) is recorded with its text + heading style
+    detection; a ``w:tbl`` (table) is recorded as a 2-D cell grid.
+    ``w:sectPr`` (the trailing section properties) is ignored.
+
+    Section scope is determined by Heading 1 paragraphs: a Heading 1
+    starts a new section, and the section extends until the next
+    Heading 1 or end-of-document.
+    """
+    document = Document(io.BytesIO(data))
+    body = document.element.body
+
+    # First pass: identify Heading 1 paragraphs in body-order to build
+    # section boundaries. We use the localized title text the renderer
+    # would emit (Heading 1, ``w:pStyle w:val="Heading 1"``).
+    blocks: list[_DocxBlock] = []
+    para_counter = 0
+    table_counter = 0
+    for child in body:
+        tag = child.tag.split("}", 1)[-1] if "}" in child.tag else child.tag
+        if tag == "p":
+            p_elem = child
+            # Detect pStyle
+            heading_text: str | None = None
+            heading_level: int | None = None
+            pPr = p_elem.find(_docx_qn("w:pPr"))
+            if pPr is not None:
+                pStyle = pPr.find(_docx_qn("w:pStyle"))
+                if pStyle is not None:
+                    style_val = pStyle.get(_docx_qn("w:val"), "")
+                    if style_val.startswith("Heading"):
+                        # Accept ``Heading1``, ``Heading 1``, ``Heading 1.0``,
+                        # ``heading1`` (case-insensitive). The numeric
+                        # suffix may or may not be separated by a space.
+                        suffix = style_val[len("Heading") :].strip()
+                        try:
+                            heading_level = int(suffix.split(".")[0])
+                        except (ValueError, IndexError):
+                            heading_level = None
+                        # Pull all text from this paragraph.
+                        text = "".join(t.text or "" for t in p_elem.iter(_docx_qn("w:t")))
+                        heading_text = text
+            # Normal paragraph text (always)
+            text = "".join(t.text or "" for t in p_elem.iter(_docx_qn("w:t")))
+            blocks.append(
+                _DocxBlock(
+                    kind="paragraph",
+                    text=text,
+                    paragraph_index=para_counter,
+                    table_index=None,
+                    cells=None,
+                    heading_text=heading_text,
+                    heading_level=heading_level,
+                )
+            )
+            para_counter += 1
+        elif tag == "tbl":
+            tbl_elem = child
+            rows: list[tuple[str, ...]] = []
+            for tr in tbl_elem.findall(_docx_qn("w:tr")):
+                cells: list[str] = []
+                for tc in tr.findall(_docx_qn("w:tc")):
+                    cell_text = "".join(t.text or "" for t in tc.iter(_docx_qn("w:t")))
+                    cells.append(cell_text)
+                rows.append(tuple(cells))
+            # Combined text of the table (one row per line).
+            combined = "\n".join("|".join(row) for row in rows)
+            blocks.append(
+                _DocxBlock(
+                    kind="table",
+                    text=combined,
+                    paragraph_index=None,
+                    table_index=table_counter,
+                    cells=tuple(rows),
+                    heading_text=None,
+                    heading_level=None,
+                )
+            )
+            table_counter += 1
+        elif tag == "sectPr":
+            # Trailing sectPr — skip.
+            continue
+        # Other elements (e.g. sdt) are ignored for binding purposes.
+
+    # Second pass: build section scopes from Heading 1 paragraphs.
+    # We don't have a heading→section_key map at this layer; the
+    # caller (P1-3 _semantic_checks) supplies the heading→section_key
+    # map from the localized model. We expose heading_text on each
+    # paragraph and let the caller resolve.
+    heading_indices: list[int] = []
+    for idx, block in enumerate(blocks):
+        if block.kind == "paragraph" and block.heading_level == 1 and block.heading_text:
+            heading_indices.append(idx)
+    section_scopes: dict[str, tuple[int, int]] = {}
+    return _DocxObservation(
+        body_blocks=tuple(blocks),
+        section_scopes=section_scopes,
+    )
+
+
+# ── PDF observation ───────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfLine:
+    page_number: int
+    block_index: int
+    line_index: int
+    text: str
+    bbox: tuple[float, float, float, float]
+    # Maximum font size of any span in this line (used for heading
+    # detection in ``_resolve_pdf_section_scopes``).
+    max_font_size: float = 10.0
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTableGrid:
+    """A 2-D grid reconstructed from PDF text lines (rows clustered by y).
+
+    For real-renderer PDF tables, the renderer draws each cell as a
+    separate text line positioned at a specific (x, y). This is a
+    best-effort reconstruction: lines with overlapping y-coordinates
+    form a row; within a row, lines are sorted by x to get column
+    order. The unit row is identified as the row whose leftmost cell
+    text matches one of the canonical unit codes.
+    """
+
+    page_number: int
+    rows: tuple[tuple[_PdfLine, ...], ...]
+    # unit_row_idx: index of the row that contains the unit labels.
+    unit_row_idx: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfSectionTable:
+    """A table reconstructed from a single section's coordinate scope.
+
+    Per the P1-3 corrective contract, PDF tables are section-local,
+    not page-global. Each table belongs to one section; multiple
+    tables on the same page are distinguished by their y-band ranges
+    (top-to-bottom in document order). The table is row-aware and
+    page-aware: each row carries the page number and the y-bands
+    so that ``_find_table_cell_binding`` can map (row_index,
+    column_index) to a specific PDF line.
+    """
+
+    section_key: str
+    page_number: int
+    # A table is a sequence of "visual rows". Each visual row is a
+    # tuple of PDF lines that share the same y-band (within the
+    # section's y tolerance). A visual row may have 0..N cells
+    # (an empty unit cell produces NO PDF line and is therefore
+    # absent from the row tuple). Cell identity is by x-band,
+    # aligned against the header row's x centers.
+    rows: tuple[tuple[_PdfLine, ...], ...]
+    # Bounding box of the table on the page (used for table identity).
+    bbox: tuple[float, float, float, float]
+    # The first row's column centers, used to map a unit/data line
+    # to its column index.
+    column_centers: tuple[float, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfObservation:
+    all_lines: tuple[_PdfLine, ...]
+    # Per Corrective 4, tables are no longer stored on the page-global
+    # observation. They are reconstructed on demand per section using
+    # the section's coordinate scope (see ``_build_section_local_tables``).
+    section_scopes: dict[str, tuple[int, int]]
+    # ── Corrective 2 ──
+    # Text spans with explicit (page, bbox, text) triples. Each
+    # span is a single text-run emitted by the renderer; a wrapped
+    # header / wrapped data cell becomes 2+ spans that share the
+    # same column bbox.
+    text_spans: tuple[_PdfTextSpan, ...] = ()
+    # ── Corrective 2 ──
+    # Vector drawing segments (horizontal + vertical lines) emitted
+    # by the renderer. Used to reconstruct row/column grid geometry
+    # for real-renderer PDF tables.
+    grid_segments: tuple[_PdfGridSegment, ...] = ()
+    # ── P1-3 fifth corrective (Finding 3) ──
+    # Real per-page page rectangles captured from PyMuPDF
+    # ``page.rect`` at observation time. Authority for continuation
+    # predicate page-bottom / page-top region classification.
+    # Maps ``page_number`` (1-indexed) -> ``(x0, y0, x1, y1)``.
+    # Empty dict = no real page rects (e.g. synthetic PDF / unit
+    # test stubs); continuation helpers will fall back to FAIL.
+    page_rects: dict[int, tuple[float, float, float, float]] = field(default_factory=dict)
+
+
+# ── Corrective 2 ────────────────────────────────────────────────────────
+# Grid-geometry primitives for real-renderer PDF tables.
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTextSpan:
+    page_number: int
+    text: str
+    bbox: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfGridSegment:
+    page_number: int
+    orientation: str  # "horizontal" | "vertical"
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTextCell:
+    """A typed physical cell: row × column bbox with merged wrapped spans.
+
+    Per B2 §6.1+6.4 the no-grid PDF fallback path classifies every
+    ``_PdfLine`` into exactly one cell of the physical reconstruction
+    based on header-derived column x-intervals. Multiple wrapped
+    ``_PdfLine``s in the same physical cell are merged into a single
+    cell whose ``text`` is the fold-whitespace-normalized join of the
+    child spans sorted by (y, x).
+    """
+
+    row_index: int
+    column_index: int
+    bbox: tuple[float, float, float, float]
+    lines: tuple[_PdfLine, ...]
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTextRow:
+    """A typed physical row: index + bbox + ordered cells.
+
+    Per B2 §6.5 the unit-row full-structure predicate operates on
+    the rebuilt ``_PdfTextRow`` objects (NOT on raw ``_PdfLine``
+    lists) so that the cell count and every non-leftmost cell
+    membership is determined by the same physical-cell boundaries
+    that drive the value lookup.
+    """
+
+    row_index: int
+    bbox: tuple[float, float, float, float]
+    cells: tuple[_PdfTextCell, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTextTableReconstruction:
+    """Typed return value of the physical-cell reconstruction helper.
+
+    Per B2 §6.6:
+      * ``failure_code=None`` and ``rows`` non-empty → success.
+      * ``failure_code`` set → typed failure (one of:
+        - LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY
+        - INVALID_COLUMN_INTERVALS
+        - MISSING_TARGET_PHYSICAL_CELL
+        - ROW_INDEX_OUT_OF_RANGE
+      * On failure the caller MUST surface the exact failure_code;
+        silently returning ``cell_value=""`` with status BOUND is
+        FORBIDDEN.
+    """
+
+    rows: tuple[_PdfTextRow, ...]
+    failure_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfLogicalCell:
+    page_number: int
+    row_index: int
+    column_index: int
+    bbox: tuple[float, float, float, float]
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfLogicalRow:
+    page_number: int
+    cells: tuple[_PdfLogicalCell, ...]
+    row_kind: str  # "header" | "unit" | "data" | "unknown"
+
+
+# ── Corrective 4 ────────────────────────────────────────────────────────
+# Table segment + logical table (cross-page continuation).
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfTableSegment:
+    section_key: str
+    page_number: int
+    header: _PdfLogicalRow
+    unit_row: _PdfLogicalRow | None
+    data_rows: tuple[_PdfLogicalRow, ...]
+    bbox: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfLogicalTable:
+    section_key: str
+    segments: tuple[_PdfTableSegment, ...]
+    data_rows: tuple[_PdfLogicalRow, ...]  # flat across all segments
+    header: _PdfLogicalRow  # the first segment's header (canonical)
+
+
+# ── P1-3 consolidated (seventh) corrective (B1 §4.2 + §5.5) ─────────────
+# A coherent GRID REGION is a same-page, intersecting H × V grid
+# that overlaps the section's coordinate scope. Per B1 §5.4 all
+# the following are required (reject otherwise):
+#   SAME_PAGE=YES
+#   DISTINCT_HORIZONTAL_BOUNDARIES >= _GRID_REGION_MIN_BOUNDARIES
+#   DISTINCT_VERTICAL_BOUNDARIES   >= _GRID_REGION_MIN_BOUNDARIES
+#   EACH_SELECTED_H INTERSECTS >= 2 SELECTED_V (and vice versa)
+#   REGION HAS POSITIVE width AND height
+#   REGION OVERLAPS CURRENT SECTION TEXT (real 2D overlap)
+#   REGION'S H AND V BELONG TO THE CURRENT SECTION'S COVERED PAGES
+# The X-coordinate of a vertical segment is its mid-x; the Y-
+# coordinate of a horizontal segment is its mid-y. Two segments
+# intersect iff (mid-x of vertical) ∈ [x0, x1] of horizontal AND
+# (mid-y of horizontal) ∈ [y0, y1] of vertical (with tolerance).
+
+
+# ── P1-3 consolidated (seventh) corrective (B1 §4.2 + B2 §5.1) ──
+# A coherent grid region must have at least this many distinct
+# horizontal AND vertical boundaries that intersect each other.
+_GRID_REGION_MIN_BOUNDARIES = 2
+# Fraction of page height that must be inside the top/bottom margin
+# zones for a line to qualify as "true page decoration" (page
+# header / footer / page number). Anything in the central 80% of
+# the page body is content, even if its text repeats across pages.
+_PAGE_DECORATION_MARGIN_FRACTION = 0.10
+
+
+_Y_TOLERANCE = 2.0  # pixels for clustering lines into rows
+_GRID_Y_TOLERANCE = 1.5  # grid line clustering (sub-pixel)
+_GRID_X_TOLERANCE = 1.5
+
+
+@dataclass(frozen=True, slots=True)
+class _PdfGridRegion:
+    page_number: int
+    bbox: tuple[float, float, float, float]
+    horizontal_boundaries: tuple[float, ...]
+    vertical_boundaries: tuple[float, ...]
+
+
+def _horizontal_vertical_grid_intersect(
+    horizontal: _PdfGridSegment,
+    vertical: _PdfGridSegment,
+    *,
+    tolerance: float = _GRID_X_TOLERANCE,
+) -> bool:
+    """True iff an H segment and a V segment cross (with renderer jitter).
+
+    Per B1 §5.3 a coherent intersection requires SAME PAGE, then:
+      vertical.mid_x ∈ horizontal.[x0, x1]  (within tolerance)
+      horizontal.mid_y ∈ vertical.[y0, y1]   (within tolerance)
+    """
+    if horizontal.page_number != vertical.page_number:
+        return False
+    if horizontal.orientation != "horizontal":
+        return False
+    if vertical.orientation != "vertical":
+        return False
+    h_mid_y = (horizontal.y0 + horizontal.y1) / 2
+    v_mid_x = (vertical.x0 + vertical.x1) / 2
+    h_x0 = min(horizontal.x0, horizontal.x1) - tolerance
+    h_x1 = max(horizontal.x0, horizontal.x1) + tolerance
+    v_y0 = min(vertical.y0, vertical.y1) - tolerance
+    v_y1 = max(vertical.y0, vertical.y1) + tolerance
+    if not (h_x0 <= v_mid_x <= h_x1):
+        return False
+    return v_y0 <= h_mid_y <= v_y1
+
+
+def _bbox_has_positive_2d_overlap(
+    left: tuple[float, float, float, float],
+    right: tuple[float, float, float, float],
+    *,
+    min_overlap: float = 0.5,
+) -> bool:
+    """True iff two bboxes have STRICTLY POSITIVE 2D overlap (x AND y).
+
+    Per P1-3 consolidated (seventh) corrective §4.1 + §4.2:
+      * X_POSITIVE_OVERLAP_REQUIRED=YES
+      * Y_POSITIVE_OVERLAP_REQUIRED=YES
+      * EDGE_TOUCH_ONLY → NOT overlap (the diff must exceed ``min_overlap``)
+
+    Used for line-bbox vs segment-bbox overlap (B1 §4.3) and for
+    horizontal/vertical grid intersection (B1 §5.3).
+    """
+    x_overlap = min(left[2], right[2]) - max(left[0], right[0])
+    y_overlap = min(left[3], right[3]) - max(left[1], right[1])
+    return x_overlap > min_overlap and y_overlap > min_overlap
+
+
+def _bbox_has_any_overlap(
+    left: tuple[float, float, float, float],
+    right: tuple[float, float, float, float],
+) -> bool:
+    """Less strict overlap check — any positive intersection in x AND y.
+
+    Used for CROSS-PAGE segment / region membership (where the
+    bbox may be smaller than the table extent), where a strict
+    "must exceed min_overlap" check would falsely reject positive
+    intersections at sub-pixel scale.
+    """
+    return min(left[2], right[2]) > max(left[0], right[0]) and min(left[3], right[3]) > max(
+        left[1], right[1]
+    )
+
+
+def _cluster_lines_into_rows(
+    lines: tuple[_PdfLine, ...], *, y_tolerance: float = _Y_TOLERANCE
+) -> tuple[tuple[_PdfLine, ...], ...]:
+    """Group PDF lines into rows by y-coordinate, sorted top-to-bottom."""
+
+    if not lines:
+        return ()
+    sorted_lines = sorted(lines, key=lambda ln: (ln.bbox[1], ln.bbox[0]))
+    rows: list[list[_PdfLine]] = []
+    current_row: list[_PdfLine] = [sorted_lines[0]]
+    for line in sorted_lines[1:]:
+        if abs(line.bbox[1] - current_row[0].bbox[1]) <= y_tolerance:
+            current_row.append(line)
+        else:
+            rows.append(current_row)
+            current_row = [line]
+    rows.append(current_row)
+    # Sort each row by x (left-to-right).
+    return tuple(tuple(sorted(row, key=lambda ln: ln.bbox[0])) for row in rows)
+
+
+def _observe_pdf(data: bytes) -> _PdfObservation:
+    """Walk a downloaded PDF to produce structured lines (per-line spatial layout).
+
+    Uses ``page.get_text("dict")`` to extract blocks → lines → spans
+    while preserving the spatial layout. Each line is recorded with
+    its page number, block index, line index, text, and bounding box.
+
+    Per Corrective 2, the observation also collects:
+
+      * ``text_spans`` — individual text spans (page, bbox, text) so
+        wrapped headers / wrapped data cells are visible as 2+ spans
+        sharing the same column bbox.
+      * ``grid_segments`` — vector drawing segments (horizontal +
+        vertical lines) emitted by the real ``PdfRenderer``. These
+        drive the structural grid-geometry reconstruction in
+        ``_build_section_local_tables``.
+
+    Per Corrective 4, table extraction is NOT performed here. Tables
+    are reconstructed on demand per section from the section's
+    coordinate scope (see ``_build_section_local_tables``). The old
+    page-global heuristic that merged all multi-row clusters on a
+    page into a single table is gone.
+    """
+
+    all_lines: list[_PdfLine] = []
+    text_spans: list[_PdfTextSpan] = []
+    grid_segments: list[_PdfGridSegment] = []
+    # Real PyMuPDF page rects per page (P1-3 fifth corrective
+    # Finding 3). Captured BEFORE text / drawing extraction so any
+    # page is observable even when text is empty.
+    page_rects: dict[int, tuple[float, float, float, float]] = {}
+    with fitz.open(stream=data, filetype="pdf") as document:
+        for page_index, page in enumerate(document):
+            page_number = page_index + 1
+            # Capture real page rect (P1-3 fifth corrective).
+            page_rect = page.rect
+            page_rects[page_number] = (
+                float(page_rect.x0),
+                float(page_rect.y0),
+                float(page_rect.x1),
+                float(page_rect.y1),
+            )
+            d = page.get_text("dict")
+            for block_index, block in enumerate(d.get("blocks", [])):
+                if block.get("type") == 1:
+                    # Image block — skip text extraction.
+                    continue
+                for line_index, line in enumerate(block.get("lines", [])):
+                    line_text = "".join(span.get("text", "") for span in line.get("spans", []))
+                    line_bbox_tuple = line.get("bbox", (0.0, 0.0, 0.0, 0.0))
+                    line_max_font_size = max(
+                        (float(span.get("size", 0.0)) for span in line.get("spans", [])),
+                        default=10.0,
+                    )
+                    if line_text:
+                        all_lines.append(
+                            _PdfLine(
+                                page_number=page_number,
+                                block_index=block_index,
+                                line_index=line_index,
+                                text=line_text,
+                                bbox=(
+                                    float(line_bbox_tuple[0]),
+                                    float(line_bbox_tuple[1]),
+                                    float(line_bbox_tuple[2]),
+                                    float(line_bbox_tuple[3]),
+                                ),
+                                max_font_size=line_max_font_size,
+                            )
+                        )
+                    for span in line.get("spans", []):
+                        span_text = span.get("text", "")
+                        if not span_text:
+                            continue
+                        span_bbox = span.get("bbox", (0.0, 0.0, 0.0, 0.0))
+                        text_spans.append(
+                            _PdfTextSpan(
+                                page_number=page_number,
+                                text=span_text,
+                                bbox=(
+                                    float(span_bbox[0]),
+                                    float(span_bbox[1]),
+                                    float(span_bbox[2]),
+                                    float(span_bbox[3]),
+                                ),
+                            )
+                        )
+            # ── Corrective 2: collect vector drawings ──
+            try:
+                drawings = page.get_drawings()
+            except Exception:  # pragma: no cover -- defensive
+                drawings = []
+            for drawing in drawings:
+                for item in drawing.get("items", []):
+                    item_type = item[0]
+                    if item_type == "l":  # line
+                        p0, p1 = item[1], item[2]
+                        x0 = float(p0.x)
+                        y0 = float(p0.y)
+                        x1 = float(p1.x)
+                        y1 = float(p1.y)
+                    elif item_type == "re":  # rectangle → 4 edges
+                        rect = item[1]
+                        x0 = float(rect.x0)
+                        y0 = float(rect.y0)
+                        x1 = float(rect.x1)
+                        y1 = float(rect.y1)
+                        # Emit the 4 edges as line segments.
+                        for ex0, ey0, ex1, ey1 in (
+                            (x0, y0, x1, y0),  # top
+                            (x0, y1, x1, y1),  # bottom
+                            (x0, y0, x0, y1),  # left
+                            (x1, y0, x1, y1),  # right
+                        ):
+                            if abs(ex0 - ex1) < _GRID_X_TOLERANCE:
+                                orientation = "vertical"
+                            elif abs(ey0 - ey1) < _GRID_Y_TOLERANCE:
+                                orientation = "horizontal"
+                            else:
+                                # Diagonal line — ignore.
+                                continue
+                            grid_segments.append(
+                                _PdfGridSegment(
+                                    page_number=page_number,
+                                    orientation=orientation,
+                                    x0=ex0,
+                                    y0=ey0,
+                                    x1=ex1,
+                                    y1=ey1,
+                                )
+                            )
+                        continue
+                    else:
+                        # Curve / other — ignore for grid geometry.
+                        continue
+                    if abs(x0 - x1) < _GRID_X_TOLERANCE:
+                        orientation = "vertical"
+                    elif abs(y0 - y1) < _GRID_Y_TOLERANCE:
+                        orientation = "horizontal"
+                    else:
+                        continue
+                    grid_segments.append(
+                        _PdfGridSegment(
+                            page_number=page_number,
+                            orientation=orientation,
+                            x0=x0,
+                            y0=y0,
+                            x1=x1,
+                            y1=y1,
+                        )
+                    )
+
+    return _PdfObservation(
+        all_lines=tuple(all_lines),
+        section_scopes={},
+        text_spans=tuple(text_spans),
+        grid_segments=tuple(grid_segments),
+        page_rects=page_rects,
+    )
+
+
+def _build_section_local_tables(
+    *,
+    pdf_observation: _PdfObservation,
+    section_scopes: Mapping[str, tuple[int, int]],
+    section_table_headers: Mapping[str, tuple[str, ...]],
+) -> tuple[_PdfSectionTable, ...]:
+    """Reconstruct tables for each section from the section's coordinate scope.
+
+    Per Corrective 3+4, tables are recognized by **structural
+    identity**: the section-local header row is the one whose
+    text matches the localized table headers (folded-exact match
+    on column count + per-cell match). A section MAY contain
+    multiple structurally identical tables (e.g. a comparison
+    table repeated in the same section); in that case the
+    cell-binding MUST fail-closed as
+    ``AMBIGUOUS_FIELD_BINDING`` (see Corrective 4). This
+    reconstruction therefore emits ONE ``_PdfSectionTable`` per
+    matching header row, so the cell-binding can detect
+    multi-table ambiguity and not silently pick the first.
+
+    The reconstruction algorithm:
+
+      1. For each section, walk the section's lines in
+         (page_number, y, x) order, and group consecutive lines
+         (within ``_Y_TOLERANCE`` on y) into y-bands.
+      2. For each y-band with ``len(band) == len(expected_headers)``,
+         folded-exact compare the band's text to
+         ``expected_headers``. On match, mark the band as a
+         HEADER row.
+      3. All lines between one header row and the next
+         (within the section) form ONE table's body. The table
+         bbox is the union of header + body line bboxes.
+      4. Body lines are clustered by (page, y) into visual rows.
+
+    If no header row is found, no table is emitted for the
+    section. If multiple header rows are found, multiple
+    ``_PdfSectionTable`` records are emitted (and the
+    cell-binding will return ``AMBIGUOUS_FIELD_BINDING``).
+    """
+
+    if not section_scopes:
+        return ()
+    tables: list[_PdfSectionTable] = []
+    for section_key, (start, end) in section_scopes.items():
+        expected_headers = section_table_headers.get(section_key, ())
+        if not expected_headers:
+            continue
+        section_lines = pdf_observation.all_lines[start:end]
+        if not section_lines:
+            continue
+        # Group section lines into y-bands (rows), page-aware.
+        sorted_section = sorted(
+            section_lines, key=lambda ln: (ln.page_number, ln.bbox[1], ln.bbox[0])
+        )
+        bands: list[list[_PdfLine]] = []
+        current_band: list[_PdfLine] = [sorted_section[0]]
+        for ln in sorted_section[1:]:
+            if (
+                ln.page_number == current_band[0].page_number
+                and abs(ln.bbox[1] - current_band[0].bbox[1]) <= _Y_TOLERANCE
+            ):
+                current_band.append(ln)
+            else:
+                bands.append(sorted(current_band, key=lambda x: x.bbox[0]))
+                current_band = [ln]
+        bands.append(sorted(current_band, key=lambda x: x.bbox[0]))
+        # Find all band indices that match expected_headers.
+        header_band_indices: list[int] = []
+        for i, band in enumerate(bands):
+            if len(band) != len(expected_headers):
+                continue
+            folded = tuple(_fold_whitespace(ln.text) for ln in band)
+            if folded == tuple(_fold_whitespace(h) for h in expected_headers):
+                header_band_indices.append(i)
+        if not header_band_indices:
+            continue
+        # For each header band, build a _PdfSectionTable with
+        # body = bands in (header_idx, next_header_idx).
+        # Per Corrective 4: a band on a NEW page is the start of
+        # a NEW physical table segment (a repeated header is a
+        # continuation, but a body band on a new page without an
+        # intervening header is a new table).
+        for table_idx, header_band_i in enumerate(header_band_indices):
+            body_bands = bands[header_band_i + 1 :]
+            # Truncate at next header band first.
+            if table_idx + 1 < len(header_band_indices):
+                next_header_i = header_band_indices[table_idx + 1]
+                body_bands = bands[header_band_i + 1 : next_header_i]
+            # Per Corrective 4: also truncate when a band starts
+            # on a different page than the header (a body band on
+            # a new page without an intervening header band is a
+            # new table's header).
+            header_page = bands[header_band_i][0].page_number
+            filtered_body_bands: list[list[_PdfLine]] = []
+            for body_band in body_bands:
+                if body_band[0].page_number != header_page:
+                    break
+                filtered_body_bands.append(body_band)
+            body_bands = filtered_body_bands
+            header_band = bands[header_band_i]
+            all_lines_for_table: list[_PdfLine] = list(header_band)
+            for body_band in body_bands:
+                all_lines_for_table.extend(body_band)
+            x0 = min(ln.bbox[0] for ln in all_lines_for_table)
+            y0 = min(ln.bbox[1] for ln in all_lines_for_table)
+            x1 = max(ln.bbox[2] for ln in all_lines_for_table)
+            y1 = max(ln.bbox[3] for ln in all_lines_for_table)
+            column_centers = tuple((ln.bbox[0] + ln.bbox[2]) / 2 for ln in header_band)
+            # The table's rows = (header_band, *body_bands).
+            rows: list[tuple[_PdfLine, ...]] = [tuple(header_band)]
+            rows.extend(tuple(b) for b in body_bands)
+            tables.append(
+                _PdfSectionTable(
+                    section_key=section_key,
+                    page_number=header_band[0].page_number,
+                    rows=tuple(rows),
+                    bbox=(x0, y0, x1, y1),
+                    column_centers=column_centers,
+                )
+            )
+    return tuple(tables)
+
+
+# ── Corrective 2/3/4/5: grid-geometry logical table reconstruction ────────
+
+
+def _cluster_grid_segments_by_coord(
+    segments: tuple[_PdfGridSegment, ...],
+    *,
+    axis: str,
+    tolerance: float,
+) -> list[float]:
+    """Cluster colinear grid segments by their perpendicular axis.
+
+    Returns the list of cluster centers (floats), sorted in
+    ascending order. Used to derive row boundaries (from
+    horizontal lines) and column boundaries (from vertical lines).
+    """
+
+    if axis == "x":
+        coords = sorted(s.x0 for s in segments if abs(s.x0 - s.x1) < 1e-3)
+    else:
+        coords = sorted(s.y0 for s in segments if abs(s.y0 - s.y1) < 1e-3)
+    if not coords:
+        return []
+    clusters: list[list[float]] = [[coords[0]]]
+    for c in coords[1:]:
+        if abs(c - clusters[-1][-1]) <= tolerance:
+            clusters[-1].append(c)
+        else:
+            clusters.append([c])
+    return [sum(cluster) / len(cluster) for cluster in clusters]
+
+
+def _row_bbox(row: _PdfLogicalRow) -> tuple[float, float, float, float]:
+    """Return the (x0, y0, x1, y1) bbox spanning all cells of a row."""
+    cells = row.cells
+    if not cells:
+        return (0.0, 0.0, 0.0, 0.0)
+    x0 = min(c.bbox[0] for c in cells)
+    y0 = min(c.bbox[1] for c in cells)
+    x1 = max(c.bbox[2] for c in cells)
+    y1 = max(c.bbox[3] for c in cells)
+    return (x0, y0, x1, y1)
+
+
+def _row_column_xs(row: _PdfLogicalRow) -> tuple[float, ...]:
+    """Sorted cell x-centers of a row (used for column-band check)."""
+    return tuple(sorted((c.bbox[0] + c.bbox[2]) / 2 for c in row.cells))
+
+
+def _body_line_band_for(
+    line: _PdfLine,
+    column_centers: tuple[float, ...],
+    half_band: float | None = None,
+) -> int | None:
+    """Best-fit column band index for a body line, or None if no column
+    center fits within the band (used by text-only structural check).
+    """
+    if not column_centers:
+        return None
+    line_center = (line.bbox[0] + line.bbox[2]) / 2
+    sorted_centers = sorted(column_centers)
+    if half_band is None:
+        if len(sorted_centers) < 2:
+            half_band = 100.0
+        else:
+            half_band = max(
+                (sorted_centers[i + 1] - sorted_centers[i]) / 2
+                for i in range(len(sorted_centers) - 1)
+            )
+    # Use a tolerant half-band so x-jitter from the renderer doesn't
+    # cause a band mismatch when columns are clearly the same.
+    band = half_band
+    best_idx = -1
+    best_dist = float("inf")
+    for i, c in enumerate(sorted_centers):
+        d = abs(line_center - c)
+        if d <= band and d < best_dist:
+            best_dist = d
+            best_idx = i
+    return best_idx if best_idx >= 0 else None
+
+
+def _section_has_usable_grid_geometry(
+    *,
+    pdf_observation: _PdfObservation,
+    section_line_range: tuple[int, int],
+) -> bool:
+    """Return True iff current section has ≥1 same-page H and ≥1 V grid segs.
+
+    Per P1-3 consolidated (seventh) corrective B1 §5.4 — STRICT,
+    PAGE-LOCAL signal. A grid region is acceptable iff:
+
+      * Same page for both H AND V segments (no cross-page H+V)
+      * At least 2 distinct horizontal + 2 distinct vertical boundaries
+      * Positive width + positive height region on the same page
+      * Real 2D overlap with section text on that page
+
+    Returns True iff at least one such coherent region exists.
+    Returns False for sections where H and V come from DIFFERENT
+    pages (cross-page assembly is rejected per the brief).
+    """
+    regions = _section_usable_grid_regions(
+        pdf_observation=pdf_observation,
+        section_line_range=section_line_range,
+    )
+    return bool(regions)
+
+
+def _section_usable_grid_regions(
+    *,
+    pdf_observation: _PdfObservation,
+    section_line_range: tuple[int, int],
+) -> tuple[_PdfGridRegion, ...]:
+    """Return coherent grid regions in the section (B1 §5.2 + §5.4).
+
+    A ``_PdfGridRegion`` is a same-page H × V grid that:
+
+      * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct horizontals
+        on the same page
+      * has ≥ _GRID_REGION_MIN_BOUNDARIES distinct verticals on
+        the same page
+      * each SELECTED horizontal intersects ≥2 SELECTED verticals
+        AND each SELECTED vertical intersects ≥2 SELECTED
+        horizontals (fixed-point coherence pruning using
+        ``_horizontal_vertical_grid_intersect``)
+      * positive width AND positive height region on the same page
+      * real 2D overlap with section text on that page
+
+    Page-local (B1 §5.2): each coherent region is on a SINGLE
+    page. Cross-page H+V assembly is REJECTED. "Same-page H
+    disjoint from same-page V" is REJECTED. "1 H + ≥2 V" or
+    "≥2 H + 1 V" are REJECTED (each selected H must cross ≥2
+    selected V, which implies ≥2 H AND ≥2 V).
+
+    The intersection per pair is determined by
+    ``_horizontal_vertical_grid_intersect`` (mid_x_of_V ∈
+    horizontal span AND mid_y_of_H ∈ vertical span, with
+    tolerance).
+    """
+    start, end = section_line_range
+    section_lines = pdf_observation.all_lines[start:end]
+    if not section_lines:
+        return ()
+    section_page_numbers = tuple(sorted({ln.page_number for ln in section_lines}))
+    if not section_page_numbers:
+        return ()
+
+    # Per-page grid grouping (B1 §5.2): no cross-page accumulation.
+    h_per_page: dict[int, list[_PdfGridSegment]] = {}
+    v_per_page: dict[int, list[_PdfGridSegment]] = {}
+    for g in pdf_observation.grid_segments:
+        if g.page_number not in section_page_numbers:
+            continue
+        if g.orientation == "horizontal":
+            h_per_page.setdefault(g.page_number, []).append(g)
+        elif g.orientation == "vertical":
+            v_per_page.setdefault(g.page_number, []).append(g)
+
+    out: list[_PdfGridRegion] = []
+    for page in section_page_numbers:
+        h_segs = tuple(h_per_page.get(page, ()))
+        v_segs = tuple(v_per_page.get(page, ()))
+        # Fixed-point coherence pruning (B1 §5.2): iteratively
+        # remove H segments that do not cross ≥2 V, and V segments
+        # that do not cross ≥2 of the surviving H.
+        selected_h = list(h_segs)
+        selected_v = list(v_segs)
+        while True:
+            next_h = [
+                h
+                for h in selected_h
+                if sum(1 for v in selected_v if _horizontal_vertical_grid_intersect(h, v))
+                >= _GRID_REGION_MIN_BOUNDARIES
+            ]
+            next_v = [
+                v
+                for v in selected_v
+                if sum(1 for h in next_h if _horizontal_vertical_grid_intersect(h, v))
+                >= _GRID_REGION_MIN_BOUNDARIES
+            ]
+            if next_h == selected_h and next_v == selected_v:
+                break
+            selected_h = next_h
+            selected_v = next_v
+        if len(selected_h) < _GRID_REGION_MIN_BOUNDARIES:
+            continue
+        if len(selected_v) < _GRID_REGION_MIN_BOUNDARIES:
+            continue
+        h_ys_set = {(h.y0 + h.y1) / 2 for h in selected_h}
+        h_ys_set |= {h.y0 for h in selected_h} | {h.y1 for h in selected_h}
+        v_xs_set = {(v.x0 + v.x1) / 2 for v in selected_v}
+        v_xs_set |= {v.x0 for v in selected_v} | {v.x1 for v in selected_v}
+        h_ys = sorted(h_ys_set)
+        v_xs = sorted(v_xs_set)
+        if len(h_ys) < _GRID_REGION_MIN_BOUNDARIES or len(v_xs) < _GRID_REGION_MIN_BOUNDARIES:
+            continue
+        region_bbox = (min(v_xs), min(h_ys), max(v_xs), max(h_ys))
+        if region_bbox[2] - region_bbox[0] <= 0:
+            continue
+        if region_bbox[3] - region_bbox[1] <= 0:
+            continue
+        # REGION_OVERLAPS_CURRENT_SECTION_TEXT_ON_SAME_PAGE (B1
+        # §5.3): the section text must overlap this region in
+        # BOTH X AND Y (not y-band only). Use the existing
+        # ``_bbox_has_any_overlap`` for parity with the prior
+        # candidate-region predicate.
+        any_overlap = any(
+            _bbox_has_any_overlap(ln.bbox, region_bbox)
+            for ln in section_lines
+            if ln.page_number == page
+        )
+        if not any_overlap:
+            continue
+        out.append(
+            _PdfGridRegion(
+                page_number=page,
+                bbox=region_bbox,
+                horizontal_boundaries=tuple(h_ys),
+                vertical_boundaries=tuple(v_xs),
+            )
+        )
+    return tuple(out)
+
+
+def _pdf_page_height_authority(
+    *,
+    pdf_observation: _PdfObservation,
+    page_number: int,
+) -> tuple[float, float, float] | None:
+    """Return authoritative page geometry for the given page.
+
+    Per P1-3 fifth corrective (Finding 3), continuation predicates
+    MUST use real PyMuPDF ``page.rect`` for page height / top / bottom
+    authority, not the observed-text bbox extrema (which falsely
+    suggest a table reaches page bottom when it is actually the only
+    content on the page).
+
+    Returns:
+      ``(page_y_top, page_y_bottom, page_height)`` where the heights
+      come directly from ``page.rect``. Returns ``None`` when no real
+      page rect is recorded for that page (e.g. synthetic stubs).
+    """
+    rect = pdf_observation.page_rects.get(page_number)
+    if rect is None:
+        return None
+    _x0, y0, _x1, y1 = rect
+    height = max(y1 - y0, 1.0)
+    return (y0, y1, height)
+
+
+def _pdf_page_y_range(
+    pdf_observation: _PdfObservation,
+    page_number: int,
+) -> tuple[float, float] | None:
+    """Return (min_y, max_y) observed on the given page from artifact coords."""
+    ys: list[float] = []
+    for line in pdf_observation.all_lines:
+        if line.page_number != page_number:
+            continue
+        ys.append(line.bbox[1])
+        ys.append(line.bbox[3])
+    if not ys:
+        return None
+    return (min(ys), max(ys))
+
+
+def _pdf_segment_line_ids(
+    *,
+    segment: _PdfTableSegment,
+    lines: tuple[_PdfLine, ...],
+) -> frozenset[tuple[int, int, int]]:
+    """Return the line identities that belong to ``segment`` per the artifact.
+
+    A line is whitelisted iff ALL three predicates hold:
+
+      * SAME_PAGE_REQUIRED: ``line.page_number == segment.page_number``
+      * SEGMENT_BBOX_X_AND_Y_OVERLAP_REQUIRED: ``line.bbox`` and
+        ``segment.bbox`` share STRICTLY POSITIVE 2D overlap (X AND Y)
+        per ``_bbox_has_positive_2d_overlap`` (edge-touch only is
+        rejected with a 0.5pt minimum).
+      * ROW_BBOX_X_AND_Y_OVERLAP_REQUIRED: ``line.bbox`` and any
+        of ``segment.header.bbox``, ``segment.unit_row.bbox`` (if
+        present), or ``segment.data_rows[i].bbox`` share STRICTLY
+        POSITIVE 2D overlap.
+
+    HORIZONTAL_OUTSIDE_LINE_REJECTED: lines whose bbox lies to
+    the left, right, above, or below ALL of the segment's row
+    bboxes (even though they live on the same page) are NOT in
+    the whitelist — for example a body/title text line that
+    sits above the repeated header on a continuation page.
+
+    The caller passes ALL section-scope lines plus extra same-
+    page lines (continuation candidates) — the SAME_PAGE gate
+    is the canonical filter. Edge-touch (overlap ≤ 0.5pt) on
+    X or Y is rejected.
+
+    Returned tuple of ``(page_number, block_index, line_index)``
+    matches ``_PdfLine`` identity.
+    """
+    if not lines:
+        return frozenset()
+    row_bboxes: list[tuple[float, float, float, float]] = []
+    if segment.header.cells:
+        row_bboxes.append(_row_bbox(segment.header))
+    if segment.unit_row is not None and segment.unit_row.cells:
+        row_bboxes.append(_row_bbox(segment.unit_row))
+    for data_row in segment.data_rows:
+        if data_row.cells:
+            row_bboxes.append(_row_bbox(data_row))
+    if not row_bboxes:
+        return frozenset()
+    out: set[tuple[int, int, int]] = set()
+    for ln in lines:
+        if ln.page_number != segment.page_number:
+            continue
+        if not _bbox_has_positive_2d_overlap(ln.bbox, segment.bbox):
+            continue
+        if not any(_bbox_has_positive_2d_overlap(ln.bbox, row_bbox) for row_bbox in row_bboxes):
+            continue
+        out.add((ln.page_number, ln.block_index, ln.line_index))
+    return frozenset(out)
+
+
+def _recurring_page_header_texts(
+    *,
+    pdf_observation: _PdfObservation,
+    section_line_range: tuple[int, int] | None = None,
+    min_pages: int = 2,
+    upper_fraction: float = 0.30,
+) -> set[str]:
+    """Return the set of texts that recur as page-headers across ≥``min_pages``.
+
+    A text qualifies as a recurring page header iff:
+
+      * its folded form appears on at least ``min_pages`` distinct
+        page numbers (real cross-page repetition, not within-page
+        row/column repetition)
+      * in at least one of those pages the line lives in the
+        upper ``upper_fraction`` of the page (default 30%) of the
+        real ``page.rect``
+
+    Pure-recurrence inside the body zone (e.g. a table header that
+    repeats across pages) is NOT a page header and is excluded
+    because recurring-text-only is rejected per B1 §4.3. We only
+    accept "recurring AND in upper-zone" as a page header.
+
+    When ``section_line_range`` is provided, the cross-page
+    recurrence check is restricted to the section's line range;
+    page-header detection otherwise spans the entire
+    ``pdf_observation.all_lines``.
+
+    Returns an empty set when ``page_rects`` is empty.
+    """
+    if not pdf_observation.page_rects:
+        return set()
+    if section_line_range is not None:
+        range_start, range_end = section_line_range
+        lines = pdf_observation.all_lines[range_start:range_end]
+    else:
+        lines = pdf_observation.all_lines
+    if not lines:
+        return set()
+    text_to_pages: dict[str, set[int]] = {}
+    for ln in lines:
+        text = _fold_whitespace(ln.text)
+        if not text:
+            continue
+        rect = pdf_observation.page_rects.get(ln.page_number)
+        if rect is None:
+            continue
+        _x0, y0, _x1, y1 = rect
+        page_height = max(y1 - y0, 1.0)
+        upper_limit = y0 + upper_fraction * page_height
+        # Upper-zone check on this line.
+        line_top = ln.bbox[1]
+        line_bottom = ln.bbox[3]
+        if line_bottom <= upper_limit or line_top <= upper_limit:
+            text_to_pages.setdefault(text, set()).add(ln.page_number)
+    return {text for text, pages in text_to_pages.items() if len(pages) >= min_pages}
+
+
+def _is_true_pdf_page_decoration(
+    *,
+    line: _PdfLine,
+    pdf_observation: _PdfObservation,
+    recurring_page_header_texts: set[str] | None = None,
+) -> bool:
+    """True iff line lives in a real page-marginal zone (top/bottom ≤ 10%)
+    OR is a recurring page header (same text in upper 30% on ≥2 pages).
+
+    Per B1 §4.3 page decoration is decided by SPATIAL position
+    (within the top 10% or bottom 10% of the real ``page.rect``)
+    AND/OR by cross-page upper-zone header recurrence. Recurring
+    repeated HEADER text that lives strictly in the body zone
+    (middle 80% of the page) is NOT decoration.
+
+    Decoration categories that can be ignored:
+
+      * Page-number-style tokens (regex) — always ignored.
+      * Lines inside top-margin zone (line.bottom ≤ page_top + 0.10 * h).
+      * Lines inside bottom-margin zone (line.top ≥ page_top + 0.90 * h).
+      * Watermark / decorative shapes (very tall bbox).
+      * Cross-page recurring page header (same text in upper 30%
+        of ≥2 pages). The brief §4.3 forbids "unconditionally"
+        treating same-text recurrence as decoration; we only
+        combine recurrence with upper-zone spatial position.
+
+    Returns True ONLY when ``page_rects`` is known for this page.
+    When unknown (synthetic stub) the caller treats the line as
+    NOT decoration (fail-closed: would surface the line as a real
+    marker).
+    """
+    text = _fold_whitespace(line.text)
+    if not text:
+        return True
+    # Page-number style tokens.
+    if re.fullmatch(r"[\s—\-]*\d+[\s—\-/]*", text):
+        return True
+    # Watermark / decorative shapes (very tall bbox).
+    if line.bbox[3] - line.bbox[1] > 30.0:
+        return True
+    # Cross-page upper-zone recurring page header. Per B1 §4.3 we
+    # only ignore when the recurring text lives in the upper 30%
+    # of ≥2 pages — purely body-zone recurrence is content.
+    if recurring_page_header_texts is not None and text in recurring_page_header_texts:
+        return True
+    rect = pdf_observation.page_rects.get(line.page_number)
+    if rect is None:
+        return False  # unknown page geometry → fail-closed: NOT decoration
+    _x0, y0, _x1, y1 = rect
+    page_height = max(y1 - y0, 1.0)
+    top_zone_limit = y0 + _PAGE_DECORATION_MARGIN_FRACTION * page_height
+    bottom_zone_limit = y0 + (1.0 - _PAGE_DECORATION_MARGIN_FRACTION) * page_height
+    # line.bbox uses same coords as page.rect (PyMuPDF); y grows up.
+    line_top = line.bbox[1]
+    line_bottom = line.bbox[3]
+    if line_bottom <= top_zone_limit:
+        return True
+    return line_top >= bottom_zone_limit
+
+
+def _has_intervening_marker(
+    pdf_observation: _PdfObservation,
+    *,
+    prev_page: int,
+    prev_bot_y: float,
+    curr_page: int,
+    curr_top_y: float,
+    section_line_range: tuple[int, int],
+    curr_segment_line_ids: frozenset[tuple[int, int, int]] = frozenset(),
+) -> bool:
+    """True if a substantive intervening marker sits between segments.
+
+    Per P1-3 consolidated (seventh) corrective B1 §4.3 marker
+    discipline (replaces the prior recurring-text heuristic):
+
+      A. Previous page trailing region
+         (prev_bot_y, page_bottom) — any non-decoration,
+         non-segment text block between the previous segment
+         and the page bottom breaks continuation.
+
+      B. Current page leading region
+         (page_top, curr_top_y) — any non-decoration,
+         non-segment text block between page top and the
+         current segment's header breaks continuation.
+
+    For each line, the classification is EXPLICIT and exactly one
+    of the following (B1 §4.4):
+      * EMPTY_OR_TRIVIAL → IGNORE
+      * CURRENT_SEGMENT_LINE (line_id ∈ curr_segment_line_ids) → IGNORE
+      * TRUE_PAGE_DECORATION (margin-zone + token regex) → IGNORE
+      * LINE_INSIDE_CURRENT_SECTION (line_id ∈
+        section_line_id_set) BUT NOT SEGMENT  → INTERVENING MARKER
+      * LINE_OUTSIDE_CURRENT_SECTION AND not page-margin-zone →
+        INTERVENING MARKER (section boundary)
+
+    Per B1 §6.3 recurring text is NOT decoration by default —
+    only true margin-zone lines count as decoration. Repeated
+    body-text lines (e.g. table header on multiple pages) are
+    NOT decoration.
+    """
+    # Per B1 §4.3: ``section_line_range`` MUST be honored. A line
+    # counts as "current section" iff it sits inside
+    # ``pdf_observation.all_lines[start:end]``. Lines outside this
+    # range are NOT eligible for the "current section" treatment
+    # — they fall through to the section-boundary / intervening-
+    # marker branch (UNLESS they live in a true page-margin zone,
+    # which IS decoration).
+    range_start, range_end = section_line_range
+    section_line_id_set: set[tuple[int, int, int]] = set()
+    for ln in pdf_observation.all_lines[range_start:range_end]:
+        section_line_id_set.add((ln.page_number, ln.block_index, ln.line_index))
+    # Cross-page upper-zone recurring page-headers (B1 §4.3 explicit).
+    # Page-header detection spans the full ``pdf_observation.all_lines``
+    # (NOT restricted to ``section_line_range``) — a page header is a
+    # page header regardless of which section's scope it sits in.
+    recurring_headers = _recurring_page_header_texts(
+        pdf_observation=pdf_observation,
+    )
+
+    def _classify(line: _PdfLine) -> str:
+        line_id = (
+            line.page_number,
+            line.block_index,
+            line.line_index,
+        )
+        if line_id in curr_segment_line_ids:
+            return "CURRENT_SEGMENT"
+        # TRUE_PAGE_DECORATION: empty / page-number-style / watermark /
+        # margin-zone / cross-page upper-zone page header (B1 §4.3).
+        if not _fold_whitespace(line.text):
+            return "EMPTY"
+        if _is_true_pdf_page_decoration(
+            line=line,
+            pdf_observation=pdf_observation,
+            recurring_page_header_texts=recurring_headers,
+        ):
+            return "DECORATION"
+        if line_id in section_line_id_set:
+            return "SECTION_BUT_NOT_SEGMENT"
+        return "OUTSIDE_SECTION"
+
+    # A. Previous page trailing region.
+    for line in pdf_observation.all_lines:
+        if line.page_number != prev_page:
+            continue
+        if line.bbox[3] <= prev_bot_y + 2.0:
+            continue
+        text = _fold_whitespace(line.text)
+        if not text or len(text) < 2:
+            continue
+        if _is_renderer_unit_token(text):
+            continue
+        cls = _classify(line)
+        if cls in ("CURRENT_SEGMENT", "DECORATION", "EMPTY"):
+            continue
+        return True
+    # B. Current page leading region.
+    for line in pdf_observation.all_lines:
+        if line.page_number != curr_page:
+            continue
+        if line.bbox[1] >= curr_top_y - 2.0:
+            continue
+        text = _fold_whitespace(line.text)
+        if not text or len(text) < 2:
+            continue
+        if _is_renderer_unit_token(text):
+            continue
+        cls = _classify(line)
+        if cls in ("CURRENT_SEGMENT", "DECORATION", "EMPTY"):
+            continue
+        return True
+    return False
+
+
+def _is_pdf_table_continuation(
+    *,
+    previous: _PdfTableSegment,
+    current: _PdfTableSegment,
+    pdf_observation: _PdfObservation | None,
+    section_line_range: tuple[int, int],
+    curr_segment_line_ids: frozenset[tuple[int, int, int]] = frozenset(),
+) -> bool:
+    """Strict continuation predicate for cross-page PDF tables.
+
+    Per P1-3 fifth corrective (Finding 3), ALL of these structural
+    predicates MUST hold (else return False):
+
+      SAME_SECTION_SCOPE=YES
+      SAME_HEADER_TEXT=YES (folded-exact)
+      SAME_COLUMN_COUNT=YES
+      SAME_COLUMN_X_BANDS=YES (within tolerance)
+      CURRENT_PAGE = PREVIOUS_PAGE + 1 (immediately adjacent)
+      PREVIOUS_SEGMENT_NEAR_REAL_PAGE_BOTTOM=YES
+        (relative to real page.rect bottom)
+      CURRENT_HEADER_NEAR_REAL_PAGE_TOP=YES
+        (relative to real page.rect top)
+      NO_PREVIOUS_PAGE_TRAILING_MARKER=YES
+      NO_CURRENT_PAGE_LEADING_MARKER=YES
+      NO_INTERVENING_SECTION_HEADING=YES
+
+    page-bottom / page-top region MUST be derived from real
+    ``page.rect`` (PyMuPDF), NOT observed-text bbox extrema.
+    """
+    if previous.section_key != current.section_key:
+        return False
+    if pdf_observation is None:
+        return False
+    # CURRENT_PAGE = PREVIOUS_PAGE + 1.
+    if previous.page_number + 1 != current.page_number:
+        return False
+    # SAME_HEADER_TEXT.
+    prev_header_cells = previous.header.cells
+    curr_header_cells = current.header.cells
+    if not prev_header_cells or not curr_header_cells:
+        return False
+    if len(prev_header_cells) != len(curr_header_cells):
+        return False
+    if tuple(_fold_whitespace(c.text) for c in prev_header_cells) != tuple(
+        _fold_whitespace(c.text) for c in curr_header_cells
+    ):
+        return False
+    # SAME_COLUMN_X_BANDS (within tolerance).
+    prev_col_xs = _row_column_xs(previous.header)
+    curr_col_xs = _row_column_xs(current.header)
+    if len(prev_col_xs) != len(curr_col_xs):
+        return False
+    max_x_drift = max(abs(a - b) for a, b in zip(prev_col_xs, curr_col_xs, strict=False))
+    if max_x_drift > _GRID_X_TOLERANCE * 4:
+        return False
+    # Real page rect authority for page-bottom / page-top region.
+    prev_geom = _pdf_page_height_authority(
+        pdf_observation=pdf_observation, page_number=previous.page_number
+    )
+    curr_geom = _pdf_page_height_authority(
+        pdf_observation=pdf_observation, page_number=current.page_number
+    )
+    if prev_geom is None or curr_geom is None:
+        # Without real page rect, we cannot establish authority
+        # for the page-bottom / page-top region. Fail-closed: do
+        # not merge into a logical table.
+        return False
+    prev_page_top, prev_page_bot, prev_page_h = prev_geom
+    curr_page_top, curr_page_bot, curr_page_h = curr_geom
+    # The previous segment's last data row must lie within the
+    # bottom 25 % of the previous page (real page rect
+    # authority). 25 % is permissive enough to accommodate the
+    # renderer's bottom-margin + page-footer text on tight pages
+    # without falsely accepting mid-page continuations.
+    if not previous.data_rows:
+        return False
+    prev_row_bot_y = _row_bbox(previous.data_rows[-1])[3]
+    prev_row_in_bottom_region = (prev_row_bot_y - prev_page_top) >= 0.75 * prev_page_h
+    # The current segment's header must lie within the top 40 %
+    # of the current page (real page rect authority). 40 % is
+    # permissive enough to accommodate the renderer's
+    # top-margin + page-header + page-title text on tight pages.
+    # The current-page bidirectional intervening check (see
+    # below) eliminates risk of false-merging independent tables
+    # that happen to share the same header.
+    curr_header_top_y = _row_bbox(current.header)[1]
+    curr_header_in_top_region = (curr_header_top_y - curr_page_top) <= 0.40 * curr_page_h
+    if not (prev_row_in_bottom_region and curr_header_in_top_region):
+        return False
+    # NO_PREVIOUS_PAGE_TRAILING_MARKER + NO_CURRENT_PAGE_LEADING_MARKER
+    # using real page rect (page_bottom / page_top).
+    if _has_intervening_marker(
+        pdf_observation,
+        prev_page=previous.page_number,
+        prev_bot_y=prev_row_bot_y,
+        curr_page=current.page_number,
+        curr_top_y=curr_header_top_y,
+        section_line_range=section_line_range,
+        curr_segment_line_ids=curr_segment_line_ids,
+    ):
+        return False
+    # NO_INTERVENING_SECTION_HEADING: previous segment's page
+    # number must be inside the canonical section's page span.
+    # This is enforced by the section_scope computation in
+    # ``_build_logical_tables_for_section``, but defensively
+    # re-check that previous.page_number is in the union of all
+    # section_lines.page_number values from this section.
+    section_page_set = {
+        ln.page_number
+        for ln in pdf_observation.all_lines[section_line_range[0] : section_line_range[1]]
+    }
+    if previous.page_number not in section_page_set:
+        return False
+    return current.page_number in section_page_set
+
+
+def _build_logical_tables_for_section(
+    *,
+    pdf_observation: _PdfObservation,
+    section_key: str,
+    section_line_range: tuple[int, int],
+    expected_headers: tuple[str, ...],
+) -> tuple[_PdfLogicalTable, ...]:
+    """Build ``_PdfLogicalTable``s for one section from grid geometry.
+
+    Per Correctives 2/3/4/5, the table's row/column structure is
+    derived from the renderer's vector drawing segments:
+
+      * horizontal grid lines → row boundaries
+      * vertical grid lines → column boundaries
+      * text spans whose bbox intersects a (row, column) cell →
+        that cell's text
+
+    A ``_PdfLogicalRow`` is constructed per (row, column) cell. The
+    header row is the first row whose cells' folded text matches
+    ``expected_headers`` (column count + per-cell text match).
+
+    The unit row (when present) is the row immediately after the
+    header whose cells are structurally a unit row:
+      * row is an independent grid row
+      * each non-empty cell is a renderer unit token (e.g.
+        ``(kW(e))``, ``(CNY)``, ``m²``, ``个``, ``-``, or empty)
+
+    Per Corrective 4, cross-page continuation is detected when
+    a later segment in the same section starts with the same
+    localized headers on a later page, the previous segment's
+    last row was on the page-bottom continuation region, and the
+    two segments have no intervening canonical-section heading.
+    Such continuations are merged into ONE ``_PdfLogicalTable``
+    with data_rows flat across all segments.
+    """
+
+    if not expected_headers:
+        return ()
+    start, end = section_line_range
+    section_lines = pdf_observation.all_lines[start:end]
+    if not section_lines:
+        return ()
+    # ── P1-3 fifth corrective (Finding 1) ──
+    # Compute the FULL section page span — every page on which any
+    # section line appears. This was previously broken by
+    # ``section_lines[:1]`` (only the section-heading page entered
+    # the candidate span pool, so multi-page continuation was
+    # impossible to discover).
+    section_page_numbers: tuple[int, ...] = tuple(sorted({ln.page_number for ln in section_lines}))
+    # Identify the (page, y_top, y_bottom) of every grid row by
+    # scanning horizontal grid lines that lie within the section's
+    # line y-range PER PAGE (page-aware boundaries, not a single
+    # collapsed global cluster). Per P1-3 fifth corrective (Finding
+    # 1), grid coordinates from different pages MUST NOT be
+    # clustered into a single fake row / column.
+    h_grid_per_page: dict[int, list[_PdfGridSegment]] = {}
+    v_grid_per_page: dict[int, list[_PdfGridSegment]] = {}
+    for g in pdf_observation.grid_segments:
+        if g.page_number not in section_page_numbers:
+            continue
+        # Section y-range per page (used to keep grid lines that
+        # overlap the section's content on that page).
+        page_lines = [ln for ln in section_lines if ln.page_number == g.page_number]
+        if not page_lines:
+            continue
+        page_line_y0 = min(ln.bbox[1] for ln in page_lines)
+        page_line_y1 = max(ln.bbox[3] for ln in page_lines)
+        line_y0 = page_line_y0
+        line_y1 = page_line_y1
+        if g.orientation == "horizontal" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0:
+            h_grid_per_page.setdefault(g.page_number, []).append(g)
+        elif g.orientation == "vertical" and line_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= line_y1 + 50.0:
+            v_grid_per_page.setdefault(g.page_number, []).append(g)
+    if not h_grid_per_page or not v_grid_per_page:
+        # No grid geometry available — fall back to text-only path.
+        return ()
+    # SECTION_PAGES covers every page that has at least one
+    # horizontal AND one vertical grid line — i.e. a real grid.
+    grid_pages: tuple[int, ...] = tuple(sorted(set(h_grid_per_page) & set(v_grid_per_page)))
+    if not grid_pages:
+        return ()
+    segments: list[_PdfTableSegment] = []
+    # Filter candidate spans: every section page + structurally in
+    # the section's coordinate scope (i.e. not before the heading
+    # on the first page or after the next section heading).
+    section_spans = [s for s in pdf_observation.text_spans if s.page_number in section_page_numbers]
+    pages: dict[int, list[_PdfTextSpan]] = {}
+    for span in section_spans:
+        pages.setdefault(span.page_number, []).append(span)
+
+    # Identify candidate header rows per page, using that PAGE's
+    # grid boundaries (not a shared global boundary). Spans are
+    # also filtered to those STRUCTURALLY inside the page-local
+    # table bbox (between first/last row boundary AND within
+    # first/last column boundary). This excludes page-header /
+    # page-footer text that is OUTSIDE the table body.
+    header_rows_by_page: dict[int, list[int]] = {}
+    for page_number in grid_pages:
+        page_h = h_grid_per_page.get(page_number, [])
+        page_v = v_grid_per_page.get(page_number, [])
+        if not page_h or not page_v:
+            continue
+        # Find the page-specific y-range for grid filtering.
+        page_lines = [ln for ln in section_lines if ln.page_number == page_number]
+        if not page_lines:
+            continue
+        page_y0 = min(ln.bbox[1] for ln in page_lines)
+        page_y1 = max(ln.bbox[3] for ln in page_lines)
+        # Per-page row/column boundary clustering.
+        page_h_filtered = [
+            g for g in page_h if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        page_v_filtered = [
+            g for g in page_v if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        if not page_h_filtered or not page_v_filtered:
+            continue
+        page_row_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_h_filtered), axis="y", tolerance=_GRID_Y_TOLERANCE
+        )
+        page_column_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_v_filtered), axis="x", tolerance=_GRID_X_TOLERANCE
+        )
+        if len(page_row_boundaries) < 2 or len(page_column_boundaries) < len(expected_headers) + 1:
+            continue
+        # Filter page-local spans to those STRUCTURALLY inside
+        # the table bbox: bbox[1] >= first row boundary AND
+        # bbox[3] <= last row boundary AND bbox[0]/bbox[2]
+        # within first/last column boundaries. This excludes
+        # page-header / page-footer text that sits outside the
+        # table body on the page.
+        page_table_x0 = page_column_boundaries[0]
+        page_table_x1 = page_column_boundaries[-1]
+        page_table_y_top = page_row_boundaries[0]
+        page_table_y_bot = page_row_boundaries[-1]
+        page_spans = [
+            s
+            for s in pages.get(page_number, [])
+            if s.bbox[3] >= page_table_y_top - 0.5
+            and s.bbox[1] <= page_table_y_bot + 0.5
+            and s.bbox[0] >= page_table_x0 - 0.5
+            and s.bbox[2] <= page_table_x1 + 0.5
+        ]
+        for row_idx in range(len(page_row_boundaries) - 1):
+            y_top = page_row_boundaries[row_idx]
+            y_bot = page_row_boundaries[row_idx + 1]
+            row_cells = _collect_row_cells(
+                page_spans,
+                row_y_top=y_top,
+                row_y_bot=y_bot,
+                column_boundaries=page_column_boundaries,
+                page_number=page_number,
+                row_index=row_idx,
+            )
+            if not row_cells or len(row_cells) != len(expected_headers):
+                continue
+            folded = tuple(_fold_whitespace(c.text) for c in row_cells)
+            if folded == tuple(_fold_whitespace(h) for h in expected_headers):
+                header_rows_by_page.setdefault(page_number, []).append(row_idx)
+
+    if not header_rows_by_page:
+        return ()
+    # Build segments: each header row defines one segment, with
+    # per-page boundaries (NOT a single shared boundary).
+    for page_number in sorted(header_rows_by_page):
+        page_h = h_grid_per_page.get(page_number, [])
+        page_v = v_grid_per_page.get(page_number, [])
+        page_lines = [ln for ln in section_lines if ln.page_number == page_number]
+        if not page_lines:
+            continue
+        page_y0 = min(ln.bbox[1] for ln in page_lines)
+        page_y1 = max(ln.bbox[3] for ln in page_lines)
+        page_h_filtered = [
+            g for g in page_h if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        page_v_filtered = [
+            g for g in page_v if page_y0 - 50.0 <= (g.y0 + g.y1) / 2 <= page_y1 + 50.0
+        ]
+        if not page_h_filtered or not page_v_filtered:
+            continue
+        page_row_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_h_filtered), axis="y", tolerance=_GRID_Y_TOLERANCE
+        )
+        page_column_boundaries = _cluster_grid_segments_by_coord(
+            tuple(page_v_filtered), axis="x", tolerance=_GRID_X_TOLERANCE
+        )
+        # Filter spans to those inside the page-local table bbox.
+        page_table_x0 = page_column_boundaries[0]
+        page_table_x1 = page_column_boundaries[-1]
+        page_table_y_top = page_row_boundaries[0]
+        page_table_y_bot = page_row_boundaries[-1]
+        page_spans = [
+            s
+            for s in pages.get(page_number, [])
+            if s.bbox[3] >= page_table_y_top - 0.5
+            and s.bbox[1] <= page_table_y_bot + 0.5
+            and s.bbox[0] >= page_table_x0 - 0.5
+            and s.bbox[2] <= page_table_x1 + 0.5
+        ]
+        for header_idx in header_rows_by_page[page_number]:
+            seg = _build_segment_for_header(
+                page_spans=page_spans,
+                header_row_idx=header_idx,
+                row_boundaries=page_row_boundaries,
+                column_boundaries=page_column_boundaries,
+                page_number=page_number,
+                section_key=section_key,
+            )
+            if seg is not None:
+                segments.append(seg)
+    if not segments:
+        return ()
+    # Sort segments by (page_number, header_idx) so continuation
+    # is detected in document order.
+    segments.sort(
+        key=lambda s: (
+            s.page_number,
+            min(c.bbox[1] for c in s.header.cells) if s.header.cells else 0.0,
+        )
+    )
+    # Cross-page continuation predicate (P1-3.2 + P1-3 fifth
+    # corrective Findings 1/3). Merge sequential segments with
+    # identical headers, ascending page numbers, AND all the
+    # structural evidence (page-bottom / page-top relative to real
+    # page.rect + same column bands + no intervening section head-
+    # ing + bidirectional intervening marker check) into a single
+    # logical table.
+    logical_tables: list[_PdfLogicalTable] = []
+    current: list[_PdfTableSegment] = [segments[0]]
+    for seg in segments[1:]:
+        prev = current[-1]
+        # Per P1-3 sixth corrective §4.1: compute the EXACT line
+        # identity set for the candidate NEW segment (structural
+        # overlap with its header / unit_row / data_rows bboxes),
+        # NOT a wholesale "all section lines on this page" set.
+        # This is the precise whitelist for the current-page
+        # intervening-marker check: substantive body / heading /
+        # separator text that sits between the page top and the
+        # candidate segment's header is NOT whitelisted and will
+        # correctly block continuation as an intervening marker.
+        # Per P1-3 completion follow-up B1-A: pass ALL pdf observation
+        # lines (same-page gate filters inside the helper). Using
+        # only ``section_lines`` would fail continuation when the
+        # section scope is narrower than the artifact's full line
+        # span (e.g. multi-page cases where page 2 onwards is past
+        # the section's heading-line range).
+        new_seg_ids = _pdf_segment_line_ids(
+            segment=seg,
+            lines=pdf_observation.all_lines,
+        )
+        if _is_pdf_table_continuation(
+            previous=prev,
+            current=seg,
+            pdf_observation=pdf_observation,
+            section_line_range=section_line_range,
+            curr_segment_line_ids=new_seg_ids,
+        ):
+            current.append(seg)
+            continue
+        logical_tables.append(
+            _PdfLogicalTable(
+                section_key=section_key,
+                segments=tuple(current),
+                data_rows=tuple(row for seg in current for row in seg.data_rows),
+                header=current[0].header,
+            )
+        )
+        current = [seg]
+    if current:
+        logical_tables.append(
+            _PdfLogicalTable(
+                section_key=section_key,
+                segments=tuple(current),
+                data_rows=tuple(row for seg in current for row in seg.data_rows),
+                header=current[0].header,
+            )
+        )
+    return tuple(logical_tables)
+
+
+def _collect_row_cells(
+    spans: list[_PdfTextSpan],
+    *,
+    row_y_top: float,
+    row_y_bot: float,
+    column_boundaries: list[float],
+    page_number: int,
+    row_index: int,
+) -> tuple[_PdfLogicalCell, ...]:
+    """Collect text spans inside a single grid row into logical cells.
+
+    Each span is assigned to a column based on the column
+    boundary whose center is closest to the span's bbox center.
+    Multiple spans in the same column are concatenated into one
+    logical cell (wrapped text → one logical cell). Spans with
+    empty text are ignored.
+
+    Per P1-3 fifth corrective (Finding 1), spans whose bbox is
+    abnormally tall are treated as decorative watermarks /
+    background shapes (PyMuPDF includes the watermark bbox even
+    when its text is a single short word). Such spans are
+    excluded from cell content.
+    """
+    if len(column_boundaries) < 2:
+        return ()
+    centers = [
+        (column_boundaries[i] + column_boundaries[i + 1]) / 2
+        for i in range(len(column_boundaries) - 1)
+    ]
+    cells_by_col: dict[int, list[_PdfTextSpan]] = {}
+    for span in spans:
+        cy = (span.bbox[1] + span.bbox[3]) / 2
+        if not (row_y_top - 1.0 <= cy <= row_y_bot + 1.0):
+            continue
+        bbox_height = span.bbox[3] - span.bbox[1]
+        # Watermark / decorative spans: bbox-height > 30pt
+        # indicates a non-text element. Skip them so they do not
+        # poison cell content.
+        if bbox_height > 30.0:
+            continue
+        cx = (span.bbox[0] + span.bbox[2]) / 2
+        col_idx = min(
+            range(len(centers)),
+            key=lambda j: abs(centers[j] - cx),
+        )
+        cells_by_col.setdefault(col_idx, []).append(span)
+    cells: list[_PdfLogicalCell] = []
+    for col_idx in range(len(centers)):
+        col_spans = sorted(
+            cells_by_col.get(col_idx, []),
+            key=lambda s: (s.bbox[1], s.bbox[0]),
+        )
+        if not col_spans:
+            cells.append(
+                _PdfLogicalCell(
+                    page_number=page_number,
+                    row_index=row_index,
+                    column_index=col_idx,
+                    bbox=(0.0, 0.0, 0.0, 0.0),
+                    text="",
+                )
+            )
+            continue
+        text = "".join(s.text for s in col_spans)
+        bbox = (
+            min(s.bbox[0] for s in col_spans),
+            min(s.bbox[1] for s in col_spans),
+            max(s.bbox[2] for s in col_spans),
+            max(s.bbox[3] for s in col_spans),
+        )
+        cells.append(
+            _PdfLogicalCell(
+                page_number=page_number,
+                row_index=row_index,
+                column_index=col_idx,
+                bbox=bbox,
+                text=text,
+            )
+        )
+    return tuple(cells)
+
+
+# Generic unit-token patterns: per Corrective 3, the unit-row
+# parser MUST support parenthesized tokens (including tokens with
+# nested parens like ``(kW(e))`` and ``(kW(r))``), bare tokens,
+# ``m²`` / ``个``, the literal ``-``, and the empty string.
+
+# Match an outer paren wrapping, allowing ONE level of nesting
+# inside (so ``(kW(e))`` is matched as a single token). This
+# mirrors the renderer's paren-wrapping for unit tokens.
+_UNIT_TOKEN_PAREN_RE = re.compile(r"^\([^()]*(?:\([^()]*\)[^()]*)*\)$")
+
+
+def _is_renderer_unit_token(text: str) -> bool:
+    """Heuristic: does this cell text look like a renderer unit token?
+
+    Accepts:
+      * parenthesized tokens: (kW(e)), (CNY), (-), ()
+      * bare tokens: kW(e), CNY, m², 个, -
+      * the empty string (allowed empty unit cell)
+    Rejects pure data-row text (numbers / letters that are not
+    known unit forms).
+    """
+    folded = _fold_whitespace(text)
+    if folded == "":
+        return True
+    if _UNIT_TOKEN_PAREN_RE.match(folded):
+        return True
+    if folded == "-":
+        return True
+    # Known short tokens used by the renderer / localization.
+    known_short = {"m²", "个", "kW(e)", "kW(r)", "CNY", "USD"}
+    return folded in known_short
+
+
+def _build_segment_for_header(
+    *,
+    page_spans: list[_PdfTextSpan],
+    header_row_idx: int,
+    row_boundaries: list[float],
+    column_boundaries: list[float],
+    page_number: int,
+    section_key: str,
+) -> _PdfTableSegment | None:
+    """Build a single ``_PdfTableSegment`` starting at ``header_row_idx``."""
+
+    if header_row_idx >= len(row_boundaries) - 1:
+        return None
+    header_y_top = row_boundaries[header_row_idx]
+    header_y_bot = row_boundaries[header_row_idx + 1]
+    header_cells = _collect_row_cells(
+        page_spans,
+        row_y_top=header_y_top,
+        row_y_bot=header_y_bot,
+        column_boundaries=column_boundaries,
+        page_number=page_number,
+        row_index=header_row_idx,
+    )
+    if not header_cells:
+        return None
+    header = _PdfLogicalRow(
+        page_number=page_number,
+        cells=header_cells,
+        row_kind="header",
+    )
+    # Unit row: the row immediately after the header, if its
+    # cells structurally look like a unit row. Per Corrective 3
+    # the unit-row detection is STRUCTURAL, NOT based on row
+    # count alone. We detect by checking each non-empty cell's
+    # text matches the renderer unit-token grammar.
+    unit_row: _PdfLogicalRow | None = None
+    data_rows: list[_PdfLogicalRow] = []
+    body_idx = header_row_idx + 1
+    # Default for the case where ``body_idx`` is out of range
+    # (very tight page with no room for body rows).
+    data_start_idx = body_idx
+    if body_idx < len(row_boundaries) - 1:
+        body_y_top = row_boundaries[body_idx]
+        body_y_bot = row_boundaries[body_idx + 1]
+        body_cells = _collect_row_cells(
+            page_spans,
+            row_y_top=body_y_top,
+            row_y_bot=body_y_bot,
+            column_boundaries=column_boundaries,
+            page_number=page_number,
+            row_index=body_idx,
+        )
+        non_empty_cells = [c for c in body_cells if _fold_whitespace(c.text)]
+        if non_empty_cells and all(_is_renderer_unit_token(c.text) for c in non_empty_cells):
+            unit_row = _PdfLogicalRow(
+                page_number=page_number,
+                cells=body_cells,
+                row_kind="unit",
+            )
+            data_start_idx = body_idx + 1
+        else:
+            data_start_idx = body_idx
+        # Data rows: all subsequent rows until end of section.
+        for idx in range(data_start_idx, len(row_boundaries) - 1):
+            y_top = row_boundaries[idx]
+            y_bot = row_boundaries[idx + 1]
+            cells = _collect_row_cells(
+                page_spans,
+                row_y_top=y_top,
+                row_y_bot=y_bot,
+                column_boundaries=column_boundaries,
+                page_number=page_number,
+                row_index=idx,
+            )
+            data_rows.append(
+                _PdfLogicalRow(
+                    page_number=page_number,
+                    cells=cells,
+                    row_kind="data",
+                )
+            )
+    x0 = column_boundaries[0]
+    y0 = row_boundaries[header_row_idx]
+    x1 = column_boundaries[-1]
+    y1 = (
+        row_boundaries[data_start_idx]
+        if data_start_idx < len(row_boundaries)
+        else row_boundaries[-1]
+    )
+    return _PdfTableSegment(
+        section_key=section_key,
+        page_number=page_number,
+        header=header,
+        unit_row=unit_row,
+        data_rows=tuple(data_rows),
+        bbox=(x0, y0, x1, y1),
+    )
+
+
+# ── Section-scope resolution ──────────────────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class _SectionScope:
+    section_key: str
+    heading_text: str
+
+
+def _build_section_scopes(
+    *,
+    localized_sections: tuple[Any, ...],
+) -> tuple[_SectionScope, ...]:
+    """Build (section_key, localized_heading_text) tuples in document order."""
+
+    return tuple(
+        _SectionScope(section_key=section.section_key, heading_text=section.title)
+        for section in localized_sections
+    )
+
+
+def _resolve_docx_section_scopes(
+    *,
+    observation: _DocxObservation,
+    section_scopes: tuple[_SectionScope, ...],
+) -> dict[str, tuple[int, int]]:
+    """Map each section_key to (start_block_idx, end_block_idx) in DOCX order.
+
+    A section's heading paragraph MUST match the localized section
+    title exactly (after whitespace folding). If a section's heading
+    cannot be found, the section is omitted from the scope map (the
+    caller MUST treat the field as MISSING_FIELD_BINDING).
+    """
+
+    heading_to_key: dict[str, str] = {
+        _fold_whitespace(s.heading_text): s.section_key for s in section_scopes
+    }
+    used: set[str] = set()
+    resolved: dict[str, tuple[int, int]] = {}
+    blocks = observation.body_blocks
+    # Find the first block of each section (by heading match).
+    starts: list[tuple[int, str]] = []  # (block_idx, section_key)
+    for idx, block in enumerate(blocks):
+        if block.kind == "paragraph" and block.heading_level == 1 and block.heading_text:
+            folded = _fold_whitespace(block.heading_text)
+            if folded in heading_to_key:
+                section_key = heading_to_key[folded]
+                if section_key not in used:
+                    starts.append((idx, section_key))
+                    used.add(section_key)
+    for i, (start_idx, section_key) in enumerate(starts):
+        end_idx = starts[i + 1][0] if i + 1 < len(starts) else len(blocks)
+        resolved[section_key] = (start_idx, end_idx)
+    return resolved
+
+
+def _resolve_pdf_section_scopes(
+    *,
+    observation: _PdfObservation,
+    section_scopes: tuple[_SectionScope, ...],
+) -> dict[str, tuple[int, int]]:
+    """Map each section_key to (start_line_idx, end_line_idx) in PDF order.
+
+    Uses the y-coordinate of the heading line: a heading is a line
+    whose text matches the localized section title (whitespace-folded)
+    and whose y-coordinate is above a small threshold (i.e. it is a
+    section divider, not a body line).
+    """
+
+    heading_to_key: dict[str, str] = {
+        _fold_whitespace(s.heading_text): s.section_key for s in section_scopes
+    }
+    used: set[str] = set()
+    starts: list[tuple[int, str]] = []
+    for idx, line in enumerate(observation.all_lines):
+        folded = _fold_whitespace(line.text)
+        if folded in heading_to_key:
+            section_key = heading_to_key[folded]
+            if section_key not in used:
+                starts.append((idx, section_key))
+                used.add(section_key)
+        # A line whose font is significantly larger than the
+        # default body size is a visual heading, even if its text
+        # does not match a canonical section heading. We use it
+        # to terminate the previous section's range at this
+        # heading's position (e.g. when the artifact contains a
+        # second table in a section that is NOT in the canonical
+        # model — the verifier must not extend the canonical
+        # section's scope across that second heading).
+        elif line.max_font_size >= 13.0 and folded:
+            # A visually-large line is treated as a section seam
+            # ONLY when it sits OUTSIDE a coherent table grid on its
+            # page. Real renderer artifacts repeat the table header
+            # on each continuation page; those repeated headers are
+            # typographically large (matched against `repeat_header`),
+            # but they are an integral part of the table grid, NOT a
+            # new section heading. Suppress the seam when the line is
+            # inside a usable grid region so the section scope spans
+            # the full multi-page table rather than truncating at the
+            # first repeated header.
+            line_is_inside_coherent_grid = bool(
+                _section_usable_grid_regions(
+                    pdf_observation=observation,
+                    section_line_range=(idx, idx + 1),
+                )
+            )
+            if line_is_inside_coherent_grid:
+                continue
+            # Otherwise the line is a true unmodeled heading seam;
+            # truncate the previous section's range here.
+            for i in range(len(starts) - 1, -1, -1):
+                if starts[i][0] < idx:
+                    starts.insert(i + 1, (idx, "__SEAM__"))
+                    break
+    resolved: dict[str, tuple[int, int]] = {}
+    last_end = len(observation.all_lines)
+    for start_idx, section_key in reversed(starts):
+        if section_key == "__SEAM__":
+            last_end = start_idx
+            continue
+        resolved[section_key] = (start_idx, last_end)
+        last_end = start_idx
+    return resolved
+
+
+# ── Field-level binding (structured) ──────────────────────────────────────
+
+
+def _split_metric_paragraph(text: str) -> tuple[str, str, str] | None:
+    """Parse a renderer-emitted metric line.
+
+    The real DocxRenderer / PdfRenderer emits metrics as
+    ``"{label}: {display_value} {display_unit}"`` (whitespace-folded).
+    Returns (label, value, unit) or None if the line does not match
+    the expected pattern.
+    """
+
+    folded = _fold_whitespace(text)
+    if ":" not in folded:
+        return None
+    label_part, rest_part = folded.split(":", 1)
+    label = label_part.strip()
+    rest = rest_part.strip()
+    if not label or not rest:
+        return None
+    # The value and unit are whitespace-separated tokens at the end.
+    # The value can contain digits + . + , and an optional sign; the
+    # unit is the last token.
+    tokens = rest.split(" ")
+    if len(tokens) < 1:
+        return None
+    unit = tokens[-1]
+    value = " ".join(tokens[:-1]).strip()
+    if not value:
+        return None
+    return (label, value, unit)
+
+
+def _split_number_paragraph(text: str) -> tuple[str, str] | None:
+    """Parse a renderer-emitted number line.
+
+    The real renderer emits a number line as either:
+      - ``"{display_value} {display_unit}"`` (value + unit), or
+      - ``"{display_value}"`` (value only, no unit).
+
+    Returns (value, unit) where ``unit`` is empty string when the
+    number has no unit. Returns None if the line is empty or the
+    value token is not a recognizable number.
+
+    The value MUST be a recognizable number (digits with optional
+    decimal point, comma thousands separator, and sign). This
+    prevents plain prose like "Heading 1" from being mistakenly
+    classified as a number record.
+    """
+
+    folded = _fold_whitespace(text)
+    if not folded:
+        return None
+    tokens = folded.split(" ")
+    if not tokens:
+        return None
+    # The value MUST be the first token and MUST be a recognizable
+    # number. The unit (if any) is the remaining tokens joined.
+    value_token = tokens[0]
+    if not _looks_like_number(value_token):
+        return None
+    unit = " ".join(tokens[1:]).strip()
+    return (value_token, unit)
+
+
+def _looks_like_number(token: str) -> bool:
+    """Heuristic: does this token look like a number?
+
+    Accepts integers, decimals, signed values, and thousands-separated
+    values like "1,000" or "1,000.5". The renderer uses
+    ``format_decimal`` which emits thousands separators in en-US.
+    Returns False for plain prose like "Heading" or "总".
+    """
+
+    if not token:
+        return False
+    # Strip leading sign and thousands separators; require at least one digit.
+    stripped = token.lstrip("+-")
+    if not stripped:
+        return False
+    digits = stripped.replace(",", "").replace(".", "")
+    return digits.isdigit() and any(ch.isdigit() for ch in stripped)
+
+
+def _find_metric_binding(
+    *,
+    docx_observation: _DocxObservation | None,
+    pdf_observation: _PdfObservation | None,
+    section_key: str,
+    section_scopes: Mapping[str, tuple[int, int]],
+    expected_label: str,
+    expected_value: str,
+    expected_unit: str,
+) -> _BindingResult:
+    """Find the unique paragraph in the target section that binds the metric.
+
+    The metric binding is based on the localized label, not on the
+    expected value/unit. The expected value/unit are passed only for
+    downstream comparison, NOT for candidate filtering. This prevents
+    the "search artifact for expected value" pattern.
+
+    Returns ``_BindingResult(observed, None, ())`` on success.
+    Returns ``_BindingResult(None, "MISSING_FIELD_BINDING", ())`` when
+    no candidate paragraph was found.
+    Returns ``_BindingResult(None, "AMBIGUOUS_FIELD_BINDING", candidates)``
+    when more than one candidate was found; the artifact-derived
+    candidates are exposed for audit.
+    Returns ``_BindingResult(None, "MISSING_SECTION", ())`` when the
+    section's heading is not in the artifact.
+    """
+
+    if docx_observation is not None:
+        if section_key not in section_scopes:
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+        start, end = section_scopes[section_key]
+        expected_label_folded = _fold_whitespace(expected_label)
+        candidates: list[_ObservedNumericField] = []
+        for idx in range(start, end):
+            block = docx_observation.body_blocks[idx]
+            if block.kind != "paragraph":
+                continue
+            # Heading paragraphs are skipped.
+            if block.heading_level is not None:
+                continue
+            parsed = _split_metric_paragraph(block.text)
+            if parsed is None:
+                continue
+            label, value, unit = parsed
+            if _fold_whitespace(label) != expected_label_folded:
+                continue
+            candidates.append(
+                _ObservedNumericField(
+                    field_path="",  # populated by caller
+                    section_key=section_key,
+                    binding_kind=_BINDING_KIND_METRIC,
+                    display_value=value,
+                    display_unit=unit,
+                    row_index=None,
+                    column_index=None,
+                )
+            )
+        if len(candidates) == 0:
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
+        if len(candidates) > 1:
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=tuple(candidates),
+            )
+        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
+
+    if pdf_observation is not None:
+        if section_key not in section_scopes:
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+        start, end = section_scopes[section_key]
+        expected_label_folded = _fold_whitespace(expected_label)
+        candidates = []
+        for idx in range(start, end):
+            line = pdf_observation.all_lines[idx]
+            parsed = _split_metric_paragraph(line.text)
+            if parsed is None:
+                continue
+            label, value, unit = parsed
+            if _fold_whitespace(label) != expected_label_folded:
+                continue
+            candidates.append(
+                _ObservedNumericField(
+                    field_path="",
+                    section_key=section_key,
+                    binding_kind=_BINDING_KIND_METRIC,
+                    display_value=value,
+                    display_unit=unit,
+                    row_index=None,
+                    column_index=None,
+                    page_number=line.page_number,
+                )
+            )
+        if len(candidates) == 0:
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
+        if len(candidates) > 1:
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=tuple(candidates),
+            )
+        return _BindingResult(observed=candidates[0], failure_code=None, candidates=())
+
+    return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+
+
+def _find_number_binding(
+    *,
+    docx_observation: _DocxObservation | None,
+    pdf_observation: _PdfObservation | None,
+    section_key: str,
+    section_scopes: Mapping[str, tuple[int, int]],
+) -> _BindingResult:
+    """Find the number record in the target section by structural position.
+
+    Per Corrective 5, the binding follows the renderer number
+    contract: ``section heading → first non-empty, non-heading
+    content record``. The helper walks the section's blocks/lines
+    in document order, skips headings and empty records, and
+    BINDS the FIRST record that parses as a number paragraph.
+
+    Subsequent records (e.g. body prose that happens to contain a
+    number) are NOT collected as candidates. This ensures that
+    later-numbered body text does not cause false-fail (the
+    earlier P1-3 round incorrectly returned
+    ``AMBIGUOUS_FIELD_BINDING`` when the section had 2+ number-
+    parseable lines).
+
+    AMBIGUOUS_FIELD_BINDING is reserved for structural ambiguity
+    (e.g. a section whose first parseable record is followed by a
+    second structurally identical candidate) and is NOT raised
+    here. The first record is always taken.
+
+    Returns ``_BindingResult(observed, None, ())`` on success.
+    Returns ``_BindingResult(None, "MISSING_FIELD_BINDING", ())``
+    when the first non-empty, non-heading record cannot be
+    parsed as a number. Returns ``_BindingResult(None,
+    "MISSING_SECTION", ())`` when the section's heading is not
+    in the artifact.
+    """
+
+    if docx_observation is not None:
+        if section_key not in section_scopes:
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+        start, end = section_scopes[section_key]
+        for idx in range(start, end):
+            block = docx_observation.body_blocks[idx]
+            if block.kind != "paragraph":
+                continue
+            if block.heading_level is not None:
+                continue
+            text = _fold_whitespace(block.text)
+            if not text:
+                continue
+            parsed = _split_number_paragraph(text)
+            if parsed is None:
+                # First non-empty, non-heading record is not a
+                # number — fail closed.
+                return _BindingResult(
+                    observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+                )
+            value, unit = parsed
+            return _BindingResult(
+                observed=_ObservedNumericField(
+                    field_path="",
+                    section_key=section_key,
+                    binding_kind=_BINDING_KIND_NUMBER,
+                    display_value=value,
+                    display_unit=unit,
+                    row_index=None,
+                    column_index=None,
+                ),
+                failure_code=None,
+                candidates=(),
+            )
+        # No non-empty, non-heading record at all.
+        return _BindingResult(observed=None, failure_code="MISSING_FIELD_BINDING", candidates=())
+
+    if pdf_observation is not None:
+        if section_key not in section_scopes:
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+        start, end = section_scopes[section_key]
+        for idx in range(start, end):
+            line = pdf_observation.all_lines[idx]
+            # Skip visual headings: in PDF, the section heading
+            # appears as a line with a larger font size.
+            if line.max_font_size >= 13.0:
+                continue
+            text = _fold_whitespace(line.text)
+            if not text:
+                continue
+            parsed = _split_number_paragraph(text)
+            if parsed is None:
+                return _BindingResult(
+                    observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+                )
+            value, unit = parsed
+            return _BindingResult(
+                observed=_ObservedNumericField(
+                    field_path="",
+                    section_key=section_key,
+                    binding_kind=_BINDING_KIND_NUMBER,
+                    display_value=value,
+                    display_unit=unit,
+                    row_index=None,
+                    column_index=None,
+                    page_number=line.page_number,
+                ),
+                failure_code=None,
+                candidates=(),
+            )
+        return _BindingResult(observed=None, failure_code="MISSING_FIELD_BINDING", candidates=())
+
+    return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+
+
+def _strip_renderer_unit_wrapper(token: str) -> str:
+    """Strip the renderer's single-layer outer parentheses used to render units.
+
+    The real DOCX/PDF renderer wraps unit labels in a single pair of
+    parentheses (e.g. ``"(kW(e))"``) so that parens are visible in the
+    emitted text. The verifier strips exactly ONE outer pair of
+    parentheses from the *rendered* unit token so it can be compared
+    against the localized expected unit (which is the bare token
+    ``"kW(e)"``). No inner parentheses, brackets, or aliases are
+    rewritten; no fuzzy equivalence is applied.
+    """
+    folded = _fold_whitespace(token)
+    if folded.startswith("(") and folded.endswith(")") and len(folded) >= 2:
+        return folded[1:-1].strip()
+    return folded
+
+
+def _find_docx_table_candidate(
+    *,
+    section_blocks: tuple[_DocxBlock, ...],
+    start: int,
+    end: int,
+    expected_headers: tuple[str, ...],
+) -> tuple[_DocxBlock, ...]:
+    """Return the DOCX table blocks within the section that match the
+    localized ``expected_headers`` (folded-exact). 0 or 1+ candidates.
+    """
+
+    candidates: list[_DocxBlock] = []
+    for idx in range(start, end):
+        block = section_blocks[idx]
+        if block.kind != "table" or block.cells is None:
+            continue
+        header_row = block.cells[0]
+        if len(header_row) != len(expected_headers):
+            continue
+        folded_actual = tuple(_fold_whitespace(c) for c in header_row)
+        if folded_actual == tuple(_fold_whitespace(h) for h in expected_headers):
+            candidates.append(block)
+    return tuple(candidates)
+
+
+def _classify_pdf_row_kind(
+    *,
+    row_lines: tuple[_PdfLine, ...],
+    column_centers: tuple[float, ...],
+) -> str:
+    """Return row kind: 'unit' | 'data' based on full structural predicate.
+
+    Per P1-3 consolidated (seventh) corrective B2 section 5.3:
+    a row is a unit row iff ALL of the following hold:
+
+      * CELL_COUNT_MATCHES_COLUMN_COUNT=YES (a cell exists for
+        each column, possibly empty)
+      * AT_LEAST_ONE_NON_LEFTMOST_UNIT_TOKEN=YES
+      * FOR_EVERY_NON_LEFTMOST_POPULATED_CELL:
+        IS_RENDERER_UNIT_TOKEN=YES
+      * NO_NUMERIC_DATA_CELL_IN_UNIT_ROW=YES
+      * NO_PROSE_DATA_CELL_IN_UNIT_ROW=YES
+
+    The leftmost cell may be empty or a localized label.
+    Wrong unit (e.g. 'kW(r)') is still recognized as a unit row
+    (the comparison step will surface UNIT_MISMATCH).
+    """
+    if not row_lines or not column_centers:
+        return "data"
+    bands: list[tuple[int, str]] = []
+    for ln in row_lines:
+        folded = _fold_whitespace(ln.text)
+        if not folded:
+            continue
+        band = _body_line_band_for(ln, column_centers)
+        if band is None:
+            continue
+        bands.append((band, folded))
+    if not bands:
+        return "data"
+    expected_columns = len(column_centers)
+    non_empty_bands = sorted({b for b, _ in bands})
+    # Cell count matches.
+    if len(non_empty_bands) > expected_columns:
+        return "data"
+    non_leftmost = [(b, t) for b, t in bands if b > 0]
+    if not non_leftmost:
+        return "data"
+    # At least one non-leftmost cell must be a unit token.
+    if not any(_is_renderer_unit_token(t) for _, t in non_leftmost):
+        return "data"
+    # Every non-leftmost populated cell must be a unit token.
+    for _, t in non_leftmost:
+        if not _is_renderer_unit_token(t):
+            return "data"
+    # No numeric or prose data cell allowed in a unit row.
+    for _, t in non_leftmost:
+        if _looks_like_number(t):
+            return "data"
+        if len(t) > 24:
+            return "data"
+    return "unit"
+
+
+def _header_x_intervals_from_columns(
+    *,
+    column_centers: tuple[float, ...],
+    table_bbox: tuple[float, float, float, float],
+) -> tuple[tuple[float, float], ...] | None:
+    """Return column x-intervals derived from the table bbox + centers.
+
+    Per B2 §6.2, each column's x interval is:
+
+      * First column: ``[table_bbox.x0, midpoint_to_next_center]``
+      * Middle columns: ``[midpoint_to_prev, midpoint_to_next]``
+      * Last column: ``[midpoint_to_prev, table_bbox.x1]``
+
+    Returns ``None`` when ``column_centers`` is empty or the
+    table_bbox has degenerate width. When counts mismatch
+    (e.g. only 1 center but table has 2 columns expected),
+    returns ``None`` and the caller SHOULD surface
+    ``INVALID_COLUMN_INTERVALS``.
+    """
+    if not column_centers:
+        return None
+    if len(column_centers) < 1:
+        return None
+    table_x0, _table_y0, table_x1, _table_y1 = table_bbox
+    if table_x1 <= table_x0:
+        return None
+    sorted_centers = sorted(column_centers)
+    n = len(sorted_centers)
+    intervals: list[tuple[float, float]] = []
+    for i in range(n):
+        left = table_x0 if i == 0 else (sorted_centers[i - 1] + sorted_centers[i]) / 2
+        right = table_x1 if i == n - 1 else (sorted_centers[i] + sorted_centers[i + 1]) / 2
+        intervals.append((left, right))
+    return tuple(intervals)
+
+
+def _classify_pdf_text_line_to_columns(
+    *,
+    line: _PdfLine,
+    column_intervals: tuple[tuple[float, float], ...],
+    table_bbox: tuple[float, float, float, float],
+) -> list[int]:
+    """Return the column indices whose x-interval positively overlaps ``line``.
+
+    Per B2 §6.3:
+
+      * 0 candidates AND line is inside table bbox → MISSING column
+        attribution → caller surfaces TABLE_STRUCTURE_MISMATCH.
+      * 0 candidates AND line is outside table bbox → line ignored.
+      * 1 candidate → line belongs to that column.
+      * 2+ candidates → line crosses multiple columns → caller
+        surfaces AMBIGUOUS_FIELD_BINDING (unless a strict-max
+        overlap picks a unique winner).
+
+    The function uses STRICT 2D overlap (X positive) per the
+    brief — not nearest-center distance.
+    """
+    if not column_intervals:
+        return []
+    table_x0, _, table_x1, _ = table_bbox
+    line_x0, _, line_x1, _ = line.bbox
+    if line_x1 < table_x0 or line_x0 > table_x1:
+        return []
+    candidates: list[int] = []
+    for col_idx, (x0, x1) in enumerate(column_intervals):
+        # Positive x overlap (strict, not inclusive).
+        if min(line_x1, x1) - max(line_x0, x0) > 0.0:
+            candidates.append(col_idx)
+    return candidates
+
+
+def _reconstruct_pdf_text_cells(
+    *,
+    table_bbox: tuple[float, float, float, float],
+    column_centers: tuple[float, ...],
+    body_rows: tuple[tuple[_PdfLine, ...], ...],
+    target_row_index: int,
+    target_column_index: int,
+) -> _PdfTextTableReconstruction:
+    """Rebuild physical ``_PdfTextRow``s + ``_PdfTextCell``s from raw lines.
+
+    Per B2 §6.1–§6.4 the no-grid PDF fallback MUST classify every
+    line into exactly one physical cell via header-derived column
+    intervals (NOT nearest-line distance). Wrapped lines in the
+    same (row, column) are merged into a single logical cell.
+
+    Returns a typed ``_PdfTextTableReconstruction`` whose
+    ``failure_code`` is one of:
+
+      * ``None`` on success (rows tuple non-empty).
+      * ``"INVALID_COLUMN_INTERVALS"`` when the table bbox or
+        column centers are degenerate / empty.
+      * ``"LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY"`` when
+        ambiguity cannot be resolved.
+      * ``"MISSING_TARGET_PHYSICAL_CELL"`` when no candidate cell
+        exists for ``(target_row_index, target_column_index)``.
+      * ``"ROW_INDEX_OUT_OF_RANGE"`` when ``target_row_index``
+        is out of bounds.
+
+    Callers MUST NOT silently coerce a failure to BOUND with an
+    empty ``cell_value``.
+    """
+    intervals = _header_x_intervals_from_columns(
+        column_centers=column_centers,
+        table_bbox=table_bbox,
+    )
+    if intervals is None:
+        return _PdfTextTableReconstruction(
+            rows=(),
+            failure_code="INVALID_COLUMN_INTERVALS",
+        )
+    rows: list[_PdfTextRow] = []
+    for row_idx, body_row in enumerate(body_rows):
+        # Group lines by column.
+        col_to_lines: dict[int, list[_PdfLine]] = {}
+        for ln in body_row:
+            candidates = _classify_pdf_text_line_to_columns(
+                line=ln,
+                column_intervals=intervals,
+                table_bbox=table_bbox,
+            )
+            if not candidates:
+                # Line outside table bbox — ignored.
+                if _bbox_has_any_overlap(ln.bbox, table_bbox):
+                    return _PdfTextTableReconstruction(
+                        rows=(),
+                        failure_code="LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY",
+                    )
+                continue
+            if len(candidates) > 1:
+                # Strict-max overlap picks a unique winner.
+                ln_x0, _, ln_x1, _ = ln.bbox
+                widths = []
+                for ci in candidates:
+                    ci_x0, ci_x1 = intervals[ci]
+                    widths.append((ci, min(ln_x1, ci_x1) - max(ln_x0, ci_x0)))
+                max_w = max(w for _, w in widths)
+                winners = [ci for ci, w in widths if w == max_w]
+                if len(winners) > 1:
+                    return _PdfTextTableReconstruction(
+                        rows=(),
+                        failure_code="LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY",
+                    )
+                chosen = winners[0]
+            else:
+                chosen = candidates[0]
+            col_to_lines.setdefault(chosen, []).append(ln)
+        cells: list[_PdfTextCell] = []
+        for col_idx in range(len(intervals)):
+            col_lines = col_to_lines.get(col_idx, ())
+            if not col_lines:
+                # Empty cell placeholder — preserved so cell_index
+                # matches the column layout.
+                cells.append(
+                    _PdfTextCell(
+                        row_index=row_idx,
+                        column_index=col_idx,
+                        bbox=(0.0, 0.0, 0.0, 0.0),
+                        lines=(),
+                        text="",
+                    )
+                )
+                continue
+            sorted_lines = tuple(
+                sorted(
+                    col_lines,
+                    key=lambda ln: (ln.bbox[1], ln.bbox[0], ln.block_index, ln.line_index),
+                )
+            )
+            bbox = (
+                min(ln.bbox[0] for ln in sorted_lines),
+                min(ln.bbox[1] for ln in sorted_lines),
+                max(ln.bbox[2] for ln in sorted_lines),
+                max(ln.bbox[3] for ln in sorted_lines),
+            )
+            text = _fold_whitespace("".join(ln.text for ln in sorted_lines))
+            cells.append(
+                _PdfTextCell(
+                    row_index=row_idx,
+                    column_index=col_idx,
+                    bbox=bbox,
+                    lines=sorted_lines,
+                    text=text,
+                )
+            )
+        if not cells:
+            continue
+        nonempty_cell_bboxes = [c.bbox for c in cells if c.bbox != (0.0, 0.0, 0.0, 0.0)]
+        if nonempty_cell_bboxes:
+            row_bbox = (
+                min(b[0] for b in nonempty_cell_bboxes),
+                min(b[1] for b in nonempty_cell_bboxes),
+                max(b[2] for b in nonempty_cell_bboxes),
+                max(b[3] for b in nonempty_cell_bboxes),
+            )
+        else:
+            row_bbox = table_bbox
+        rows.append(
+            _PdfTextRow(
+                row_index=row_idx,
+                bbox=row_bbox,
+                cells=tuple(cells),
+            )
+        )
+    if target_row_index < 0 or target_row_index >= len(rows):
+        return _PdfTextTableReconstruction(
+            rows=tuple(rows),
+            failure_code="ROW_INDEX_OUT_OF_RANGE",
+        )
+    target_row = rows[target_row_index]
+    if target_column_index < 0 or target_column_index >= len(target_row.cells):
+        return _PdfTextTableReconstruction(
+            rows=tuple(rows),
+            failure_code="MISSING_TARGET_PHYSICAL_CELL",
+        )
+    return _PdfTextTableReconstruction(
+        rows=tuple(rows),
+        failure_code=None,
+    )
+
+
+def _find_table_cell_binding_via_logical_table(
+    *,
+    pdf_logical_tables: tuple[_PdfLogicalTable, ...],
+    section_key: str,
+    table_section_key: str,
+    row_index: int,
+    column_index: int,
+    expected_unit_codes: tuple[str, ...],
+    expected_headers: tuple[str, ...],
+    template_unit_row_enabled: bool,
+) -> _BindingResult:
+    """Resolve (row, column) using _PdfLogicalTable structural identity.
+
+    Per P1-3 fifth corrective (Finding 5): when grid geometry is
+    available for this section, this path is the STRICT FAIL-CLOSED
+    authority for the binding. No text-only fallback is permitted.
+    Strategy:
+
+      1. Filter logical tables by section_key (== table_section_key).
+      2. Match each candidate by header folded-exact match.
+      3. 0 matches -> MISSING_FIELD_BINDING (fail-closed; do
+         NOT fall back to text heuristic).
+      4. >=2 matches -> AMBIGUOUS_FIELD_BINDING.
+      5. Use the unique logical_table.data_rows[row_index] as the data
+         row. The unit row, if present, is the _PdfLogicalRow with
+         ``row_kind == 'unit'`` in the FIRST segment (since each
+         segment carries its own unit row). If no logical_table
+         unit_row exists or row_kind != 'unit', observed_unit = ''.
+    """
+    if section_key != table_section_key:
+        return _BindingResult(observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=())
+    candidates = [
+        t
+        for t in pdf_logical_tables
+        if t.section_key == section_key
+        and tuple(_fold_whitespace(c.text) for c in t.header.cells)
+        == tuple(_fold_whitespace(h) for h in expected_headers)
+    ]
+    if not candidates:
+        # FAIL-CLOSED per P1-3 sixth corrective Finding 5: when
+        # grid geometry exists for this section but the canonical
+        # headers do NOT match any logical table's headers (zero
+        # header match), the binding MUST return
+        # ``TABLE_STRUCTURE_MISMATCH`` — NOT
+        # ``MISSING_FIELD_BINDING`` (which implies a §7 / §8
+        # artifact absence) and NEVER fall back to text-only
+        # heuristic. The caller MUST NOT route this code to the
+        # ``_PdfSectionTable`` path.
+        return _BindingResult(
+            observed=None,
+            failure_code="TABLE_STRUCTURE_MISMATCH",
+            candidates=(),
+        )
+    if len(candidates) > 1:
+        return _BindingResult(
+            observed=None,
+            failure_code="AMBIGUOUS_FIELD_BINDING",
+            candidates=(),
+        )
+    target = candidates[0]
+    if row_index < 0 or row_index >= len(target.data_rows):
+        return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
+    data_row = target.data_rows[row_index]
+    cells = data_row.cells
+    if column_index < 0 or column_index >= len(cells):
+        return _BindingResult(observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=())
+    cell = cells[column_index]
+    cell_value = cell.text
+    observed_unit = ""
+    if target.segments:
+        unit_row = target.segments[0].unit_row
+        if (
+            unit_row is not None
+            and unit_row.row_kind == "unit"
+            and column_index < len(unit_row.cells)
+        ):
+            observed_unit = _strip_renderer_unit_wrapper(unit_row.cells[column_index].text)
+    return _BindingResult(
+        observed=_ObservedNumericField(
+            field_path="",
+            section_key=section_key,
+            binding_kind=_BINDING_KIND_TABLE_CELL,
+            display_value=cell_value,
+            display_unit=observed_unit,
+            row_index=row_index,
+            column_index=column_index,
+        ),
+        failure_code=None,
+        candidates=(),
+    )
+
+
+def _find_table_cell_binding(
+    *,
+    docx_observation: _DocxObservation | None,
+    docx_resolved_scopes: Mapping[str, tuple[int, int]],
+    pdf_section_tables: tuple[_PdfSectionTable, ...],
+    pdf_logical_tables: tuple[_PdfLogicalTable, ...] = (),
+    section_key: str,
+    table_section_key: str,
+    row_index: int,
+    column_index: int,
+    expected_unit_codes: tuple[str, ...],
+    expected_headers: tuple[str, ...],
+    template_unit_row_enabled: bool,
+    num_data_rows: int = 1,
+    pdf_grid_available_sections: frozenset[str] = frozenset(),
+) -> _BindingResult:
+    """Find the (row, column) cell in the table located in the target section.
+
+    Per Corrective 1+2+3+4, the binding:
+
+      - Selects the table by structural identity (localized headers
+        folded-exact match against the artifact's header row), NOT
+        by the first table or by expected numeric value.
+      - Determines unit-row presence with renderer parity:
+        ``template_unit_row_enabled and any(expected_unit_codes)``.
+      - Reads the OBSERVED unit from the artifact's unit row (after
+        stripping the renderer's single-layer outer paren wrapper).
+        The unit is NOT copied from the localized expected unit.
+      - When multiple table candidates match the localized headers,
+        the binding returns ``AMBIGUOUS_FIELD_BINDING`` (fail-closed).
+
+    Per P1-3 sixth corrective (Finding 5) — INDEPENDENT section-
+    level grid authority:
+
+      - The ``pdf_grid_available_sections`` frozenset is the
+        CALLER-COMPUTED set of section keys for which the PDF
+        artifact has usable horizontal + vertical grid
+        geometry. This is INDEPENDENT of whether
+        ``_build_logical_tables_for_section`` returned any
+        ``_PdfLogicalTable`` for the section.
+      - When ``section_key in pdf_grid_available_sections``,
+        the LOGICAL-TABLE binding path is the STRICT, EXCLUSIVE,
+        FAIL-CLOSED authority. The text-only
+        ``_PdfSectionTable`` fallback is FORBIDDEN for grid-
+        available sections — even if logical-table reconstruction
+        returned zero tables (header mismatch), the binding MUST
+        return ``TABLE_STRUCTURE_MISMATCH`` (or
+        ``MISSING_FIELD_BINDING``) and NOT silently fall through
+        to the text heuristic.
+      - When ``section_key NOT in pdf_grid_available_sections``,
+        the text-only ``_PdfSectionTable`` fallback IS allowed
+        (PDF without grid geometry).
+      - DOCX is always text-only (no grid geometry).
+    """
+
+    # P1-3 sixth corrective (Finding 5): INDEPENDENT grid authority.
+    # When the section is in ``pdf_grid_available_sections``,
+    # treat the LOGICAL-TABLE path as STRICT + EXCLUSIVE + FAIL-
+    # CLOSED. Do NOT proxy this off ``pdf_logical_tables`` being
+    # non-empty — even when logical-table reconstruction failed
+    # (e.g. expected headers didn't match any candidate), the
+    # binding MUST NOT silently fall through to the text-only
+    # ``_PdfSectionTable`` path. The logical-table helper
+    # itself returns ``MISSING_FIELD_BINDING`` (or
+    # ``TABLE_STRUCTURE_MISMATCH`` per §5.4) which we forward
+    # directly.
+    if section_key in pdf_grid_available_sections:
+        if section_key != table_section_key:
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        return _find_table_cell_binding_via_logical_table(
+            pdf_logical_tables=pdf_logical_tables,
+            section_key=section_key,
+            table_section_key=table_section_key,
+            row_index=row_index,
+            column_index=column_index,
+            expected_unit_codes=expected_unit_codes,
+            expected_headers=expected_headers,
+            template_unit_row_enabled=template_unit_row_enabled,
+        )
+    # NO grid geometry for this section — DOCX path then text-only
+    # PDF ``_PdfSectionTable`` reconstruction as last resort.
+    if docx_observation is not None:
+        if section_key != table_section_key:
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        if section_key not in docx_resolved_scopes:
+            return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+        start, end = docx_resolved_scopes[section_key]
+        candidate_tables = _find_docx_table_candidate(
+            section_blocks=docx_observation.body_blocks,
+            start=start,
+            end=end,
+            expected_headers=expected_headers,
+        )
+        if not candidate_tables:
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
+        if len(candidate_tables) > 1:
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=(),
+            )
+        cells = candidate_tables[0].cells
+        assert cells is not None
+        # Renderer parity: the unit row is present in the
+        # artifact when the template enables it AND the
+        # canonical has at least one non-empty expected unit
+        # AND the artifact has an extra row (i.e. ``len(cells)
+        # > 1 + num_data_rows``). The data row offset follows
+        # the canonical's expected structure:
+        #   - unit row expected AND present → data at
+        #     cells[2 + row_index]
+        #   - unit row not expected → data at
+        #     cells[1 + row_index]
+        #   - unit row expected BUT artifact missing the unit
+        #     row → TABLE_ROW_MISMATCH (canonical structure
+        #     wins)
+        # For the symmetric comparison (Corrective 1), if the
+        # canonical has no expected unit BUT the artifact has
+        # an extra row, the extra row is still read as a unit
+        # row and compared (fail-closed on unexpected unit).
+        has_unit_row_expected = template_unit_row_enabled and any(expected_unit_codes)
+        artifact_has_extra_row = len(cells) > 1 + num_data_rows
+        if has_unit_row_expected:
+            # Unit row is expected. The data row index is
+            # based on the canonical's expectation.
+            data_row_idx = 1 + 1 + row_index
+            unit_row_present = artifact_has_extra_row
+        elif artifact_has_extra_row:
+            # No expected unit, but artifact has an extra row
+            # (synthetic case or renderer bug). Read the extra
+            # row as the unit row (Corrective 1).
+            data_row_idx = 1 + 1 + row_index
+            unit_row_present = True
+        else:
+            # No unit row in the artifact.
+            data_row_idx = 1 + row_index
+            unit_row_present = False
+        if data_row_idx < 0 or data_row_idx >= len(cells):
+            return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
+        if column_index < 0 or column_index >= len(cells[data_row_idx]):
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        cell_value = cells[data_row_idx][column_index]
+        # Read the observed unit from the artifact's unit row.
+        if unit_row_present and len(cells) > 1:
+            raw_unit_token = cells[1][column_index] if column_index < len(cells[1]) else ""
+            observed_unit = _strip_renderer_unit_wrapper(raw_unit_token)
+        else:
+            observed_unit = ""
+        return _BindingResult(
+            observed=_ObservedNumericField(
+                field_path="",
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_TABLE_CELL,
+                display_value=cell_value,
+                display_unit=observed_unit,
+                row_index=row_index,
+                column_index=column_index,
+            ),
+            failure_code=None,
+            candidates=(),
+        )
+
+    if pdf_section_tables is not None:
+        if section_key != table_section_key:
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        # The PDF section-local table's first row is the HEADER
+        # row (anchored by ``_build_section_local_tables``).
+        # Subsequent rows are body rows. Use column_centers to
+        # map a body-line's x to its column index.
+        section_tables = tuple(tbl for tbl in pdf_section_tables if tbl.section_key == section_key)
+        if not section_tables:
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
+        # Each section-local table's first row is the header.
+        # The header row text must match expected_headers
+        # (folded-exact). 0 → MISSING; 1 → bind; >1 → AMBIGUOUS.
+        matched: list[_PdfSectionTable] = []
+        for tbl in section_tables:
+            if not tbl.rows:
+                continue
+            header_row = tbl.rows[0]
+            if len(header_row) != len(expected_headers):
+                continue
+            folded_row = tuple(_fold_whitespace(ln.text) for ln in header_row)
+            if folded_row == tuple(_fold_whitespace(h) for h in expected_headers):
+                matched.append(tbl)
+        if not matched:
+            return _BindingResult(
+                observed=None, failure_code="MISSING_FIELD_BINDING", candidates=()
+            )
+        if len(matched) > 1:
+            return _BindingResult(
+                observed=None,
+                failure_code="AMBIGUOUS_FIELD_BINDING",
+                candidates=(),
+            )
+        target_table = matched[0]
+        # Renderer parity: unit row visible iff template enables it
+        # AND any localized expected unit is non-empty.
+        has_unit_row_expected = template_unit_row_enabled and any(expected_unit_codes)
+        # Body rows start at index 1 (after the header). The
+        # ``expected`` unit row, if present, is body row 0;
+        # data rows start at body row 1.
+        body_rows = target_table.rows[1:]
+        if not body_rows:
+            return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
+        # Per Corrective 3, the unit row MAY be physically absent
+        # from the artifact (e.g. when the unit row is empty in
+        # the renderer and emits no spans). The unit row's
+        # presence in the artifact is detected by row count: if
+        # body has 2+ rows and we expect a unit row, the first
+        # body row is the unit row. If body has 1 row, the unit
+        # row is empty / absent.
+        cell_value = ""
+        observed_unit = ""
+        # P1-3 fourth corrective: unit-row presence is determined
+        # STRUCTURALLY. A body row is the unit row iff at least one
+        # of its non-empty cells, located in a non-leftmost column
+        # band, is a renderer unit token. The leftmost band is
+        # treated as a label column and NOT required to be a unit
+        # token (it may contain short scheme-name text in some
+        # renderers, or a label like \"单位\" in others).
+        # The ``has_unit_row_expected`` flag ONLY affects the post-
+        # bind unit comparison; it MUST NOT influence row 0's
+        # structural classification.
+        body0 = body_rows[0]
+        body0_non_empty = [ln for ln in body0 if _fold_whitespace(ln.text)]
+        # column band of each non-empty line
+        body0_band_to_text: list[tuple[int, str]] = []
+        for ln in body0_non_empty:
+            band = _body_line_band_for(ln, target_table.column_centers)
+            if band is None:
+                continue
+            body0_band_to_text.append((band, ln.text))
+        body0_is_unit_structurally = (
+            _classify_pdf_row_kind(
+                row_lines=tuple(body0), column_centers=target_table.column_centers
+            )
+            == "unit"
+        )
+        # Per B2 §5.3 — compute the data-row index AFTER classifying
+        # the unit row, but BEFORE running the physical-cell
+        # reconstruction (which returns rows on the data-row
+        # offset).
+        if body0_is_unit_structurally:
+            unit_row_idx: int | None = 0
+            data_row_idx = 1 + row_index
+        else:
+            unit_row_idx = None
+            data_row_idx = 0 + row_index
+        if data_row_idx < 0 or data_row_idx >= len(body_rows):
+            return _BindingResult(observed=None, failure_code="TABLE_ROW_MISMATCH", candidates=())
+        # Per B2 §5.1-§5.4: replace the prior nearest-line-distance
+        # heuristic with header-derived column x-intervals + strict-
+        # overlap line classification + wrapped-line merge
+        # (_reconstruct_pdf_text_cells). The typed return value
+        # carries an explicit failure code so callers can fail
+        # closed (AMBIGUOUS_FIELD_BINDING, TABLE_ROW_MISMATCH,
+        # TABLE_STRUCTURE_MISMATCH) instead of silently returning
+        # BOUND with empty cell_value.
+        if not target_table.column_centers:
+            return _BindingResult(
+                observed=None, failure_code="TABLE_COLUMN_MISMATCH", candidates=()
+            )
+        reconstruction = _reconstruct_pdf_text_cells(
+            table_bbox=target_table.bbox,
+            column_centers=target_table.column_centers,
+            body_rows=body_rows,
+            target_row_index=data_row_idx,
+            target_column_index=column_index,
+        )
+        if reconstruction.failure_code is not None:
+            # Per B2 §6.6 typed failure mapping:
+            #   LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY
+            #     → AMBIGUOUS_FIELD_BINDING
+            #   INVALID_COLUMN_INTERVALS, MISSING_TARGET_PHYSICAL_CELL
+            #     → TABLE_STRUCTURE_MISMATCH
+            #   ROW_INDEX_OUT_OF_RANGE → TABLE_ROW_MISMATCH
+            raw_code = reconstruction.failure_code
+            if raw_code == "LINE_CROSSES_MULTIPLE_COLUMNS_AMBIGUOUSLY":
+                mapped = "AMBIGUOUS_FIELD_BINDING"
+            elif raw_code == "ROW_INDEX_OUT_OF_RANGE":
+                mapped = "TABLE_ROW_MISMATCH"
+            else:
+                mapped = "TABLE_STRUCTURE_MISMATCH"
+            return _BindingResult(
+                observed=None,
+                failure_code=mapped,
+                candidates=(),
+            )
+        rows = reconstruction.rows
+        # The data row lives at ``data_row_idx`` in the body_rows
+        # tuple, and rows have their own indices starting at 0 for
+        # the first body row. So ``rows[data_row_idx]`` is the
+        # target row.
+        target_row = rows[data_row_idx]
+        if unit_row_idx is not None and unit_row_idx < len(rows):
+            unit_row_cells = rows[unit_row_idx].cells
+            if 0 <= column_index < len(unit_row_cells):
+                observed_unit = _strip_renderer_unit_wrapper(unit_row_cells[column_index].text)
+        return _BindingResult(
+            observed=_ObservedNumericField(
+                field_path="",
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_TABLE_CELL,
+                display_value=target_row.cells[column_index].text,
+                display_unit=observed_unit,
+                row_index=row_index,
+                column_index=column_index,
+                page_number=target_table.page_number,
+            ),
+            failure_code=None,
+            candidates=(),
+        )
+
+    return _BindingResult(observed=None, failure_code="MISSING_SECTION", candidates=())
+
+
+def _compare_field(
+    *,
+    observed: _ObservedNumericField,
+    expected_value: str,
+    expected_unit: str,
+) -> str | None:
+    """Compare an observed field against the localized expected.
+
+    Returns a failure code (one of ``"VALUE_MISMATCH"``,
+    ``"UNIT_MISSING"``, ``"UNIT_MISMATCH"``) or None on success.
+
+    Per Corrective 1's unit-integrity rule, unit comparison is
+    strictly symmetric:
+
+      - ``expected==""`` and ``observed==""`` → unit OK
+      - ``expected==""`` and ``observed!=""`` → ``UNIT_MISMATCH``
+        (the artifact emitted a unit the canonical did not expect)
+      - ``expected!=""`` and ``observed==""`` → ``UNIT_MISSING``
+        (the canonical expects a unit, the artifact has none)
+      - ``expected!=""`` and ``observed!=expected`` →
+        ``UNIT_MISMATCH`` (folded-whitespace only)
+      - units match → continue to value comparison.
+
+    Whitespace folding is the ONLY allowed transformation. No
+    fuzzy numeric tolerance, no unit aliasing, no parenthesized
+    alias equivalence.
+    """
+
+    expected_u_folded = _fold_whitespace(expected_unit)
+    observed_u_folded = _fold_whitespace(observed.display_unit)
+    if expected_u_folded or observed_u_folded:
+        if expected_u_folded and not observed_u_folded:
+            return "UNIT_MISSING"
+        if observed_u_folded and not expected_u_folded:
+            return "UNIT_MISMATCH"
+        if observed_u_folded != expected_u_folded:
+            return "UNIT_MISMATCH"
+    # Value comparison (whitespace-folded).
+    if not _strings_equal_folded(observed.display_value, expected_value):
+        return "VALUE_MISMATCH"
+    return None
+
+
+def _extract_text(fmt: ExportFormat, data: bytes) -> str:  # noqa: ARG001
+    """Retained for backward compatibility with P1-1/P1-2 contracts.
+
+    The P1-3 round replaces the global-text verifier with a
+    structured observation + binding layer. This function is kept
+    for any test/utility that still needs a flattened text view
+    (e.g. heading-presence checks, or legacy helpers). Numeric
+    semantic verification MUST go through ``_semantic_checks`` and
+    the structured binding functions, not through this helper.
+    """
+
+    if fmt is ExportFormat.DOCX:
+        document = Document(io.BytesIO(data))
+        parts: list[str] = [paragraph.text for paragraph in document.paragraphs if paragraph.text]
+        for table in document.tables:
+            for row in table.rows:
+                parts.extend(cell.text for cell in row.cells if cell.text)
+        return "\n".join(parts)
+    if fmt is ExportFormat.PDF:
+        with fitz.open(stream=data, filetype="pdf") as document:
+            return "\n".join(page.get_text("text") for page in document)
+    _fail("UNSUPPORTED_FORMAT", f"Unsupported report format: {fmt.value}")
+    raise AssertionError("unreachable")
+
+
+def _canonical_metrics(
+    model: CanonicalReportRenderModel,
+) -> tuple[CanonicalRenderMetric | CanonicalRenderTableCell, ...]:
+    values: list[CanonicalRenderMetric | CanonicalRenderTableCell] = []
+    for section in model.sections:
+        if section.number is not None:
+            values.append(section.number)
+        values.extend(section.metrics)
+        if section.table is not None:
+            for row in section.table.rows:
+                values.extend(
+                    cell
+                    for cell in row
+                    if isinstance(cell.raw_value, int) or hasattr(cell.raw_value, "as_tuple")
+                )
+    return tuple(values)
+
+
+def _managed_paths() -> tuple[Path, ...]:
+    paths: list[Path] = [Path("pilot-run.json"), Path("pilot-summary.json")]
+    for locale, fmt in _RENDER_MATRIX:
+        base = Path("artifacts") / locale.value / fmt.value
+        paths.extend(
+            (
+                base / f"report.{fmt.value}",
+                base / "artifact-metadata.json",
+                base / "semantic-checks.json",
+            )
+        )
+    return tuple(paths)
+
+
+def _verify_artifact_binding(
+    *,
+    artifact: Any,
+    report_id: str,
+    revision: Any,
+    locale: ReportLocale,
+    fmt: ExportFormat,
+    template: Any,
+) -> None:
+    if artifact.status is not ArtifactStatus.COMPLETED:
+        _fail(
+            "ARTIFACT_NOT_COMPLETED",
+            "Rendered artifact is not completed.",
+            artifact_id=artifact.id,
+            status=artifact.status.value,
+        )
+    if (
+        artifact.report_id != report_id
+        or artifact.report_revision_id != revision.id
+        or artifact.revision_number != revision.revision_number
+    ):
+        _fail(
+            "REPORT_REVISION_MISMATCH",
+            "Artifact does not bind to the one pilot report revision.",
+            artifact_id=artifact.id,
+        )
+    if artifact.format is not fmt:
+        _fail("ARTIFACT_METADATA_MISMATCH", "Artifact format mismatch.")
+    if artifact.locale is not locale:
+        _fail("LOCALE_BINDING_MISMATCH", "Artifact locale mismatch.")
+    if artifact.template_locale is not locale:
+        _fail("TEMPLATE_LOCALE_MISMATCH", "Template locale mismatch.")
+    if artifact.source_content_hash != revision.content_hash:
+        _fail("SOURCE_CONTENT_HASH_MISMATCH", "Artifact source hash mismatch.")
+    manifest = artifact.render_manifest_json
+    if manifest.get("render_mode") != "draft":
+        _fail("UNSUPPORTED_RENDER_MODE", "Pilot artifact is not a draft render.")
+    if manifest.get("template_content_hash") != template.template_content_hash:
+        _fail("TEMPLATE_PROVENANCE_MISMATCH", "Template content hash mismatch.")
+    catalog = get_catalog(locale)
+    catalog_hash = compute_catalog_content_hash(locale)
+    if not artifact.translation_catalog_version:
+        _fail(
+            "TRANSLATION_CATALOG_IDENTITY_MISSING",
+            "Translation catalog version is empty.",
+        )
+    if (
+        artifact.translation_catalog_version != catalog.version
+        or artifact.translation_catalog_content_hash != catalog_hash
+    ):
+        _fail(
+            "TRANSLATION_CATALOG_IDENTITY_MISMATCH",
+            "Translation catalog identity mismatch.",
+        )
+    if not _is_sha256(artifact.localized_template_content_hash):
+        _fail(
+            "LOCALIZED_TEMPLATE_HASH_MISSING",
+            "Localized template content hash is missing or malformed.",
+        )
+
+
+def _lookup_template_table_unit_row(
+    *,
+    template_manifest_json: dict[str, Any] | None,
+    table_key: str | None,
+) -> bool:
+    """Return the template's canonical ``tables[table_key].unit_row`` bool.
+
+    The production authority is the canonical ``TemplateManifest``:
+
+        TemplateManifest.from_manifest_json(template_manifest_json)
+        .tables[table_key].unit_row
+
+    This helper MUST NOT maintain a second manifest schema parser.
+    It delegates to the production ``TemplateManifest`` and reads
+    ``unit_row`` from ``manifest.tables[table_key]``. If the bool
+    cannot be resolved (unknown ``table_key``, missing field,
+    schema mismatch), the renderer default (``True``) is used.
+
+    ``table_key`` is the canonical table identity (NOT the
+    section_key). The call chain is responsible for propagating the
+    canonical table_key from the localized section.table.canonical
+    down to this helper.
+    """
+
+    if not isinstance(template_manifest_json, dict):
+        return True
+    if not table_key:
+        return True
+    try:
+        from cold_storage.modules.reports.domain.render_model import (
+            TemplateManifest as _TemplateManifest,
+        )
+
+        manifest = _TemplateManifest.from_manifest_json(template_manifest_json)
+    except Exception:  # pragma: no cover -- defensive: schema mismatch
+        return True
+    config = manifest.tables.get(table_key)
+    if config is None:
+        return True
+    return bool(config.unit_row)
+
+
+# ── Heading-scope-based required-section authority ────────────────────────
+
+
+def _build_missing_sections_from_scopes(
+    *,
+    localized_sections: tuple[Any, ...],
+    resolved_scopes: Mapping[str, tuple[int, int]],
+) -> list[str]:
+    """Build the ``missing_sections`` list from structural section scopes.
+
+    Per Corrective 6, the required-section authority is the
+    section-scope map (whether the localized heading was found in
+    the artifact as a structural section divider), NOT a
+    flattened-text substring check. A section is ``missing`` if
+    its ``section_key`` is absent from ``resolved_scopes``. The
+    returned list contains the localized titles for the missing
+    sections (so the schema-level field still carries the
+    human-readable heading text).
+    """
+
+    missing_titles: list[str] = []
+    for section in localized_sections:
+        if section.section_key not in resolved_scopes:
+            missing_titles.append(section.title)
+    return missing_titles
+
+
+def _build_observed_localized_headings(
+    *,
+    localized_sections: tuple[Any, ...],
+    resolved_scopes: Mapping[str, tuple[int, int]],
+) -> list[str]:
+    """Build the ``observed_localized_headings`` list from structural scopes.
+
+    Per Corrective 6, this list now reflects which localized
+    headings were structurally located as section dividers (i.e.
+    whose ``section_key`` is in ``resolved_scopes``). The
+    flattened-text substring heuristic is no longer used to
+    determine section presence.
+    """
+
+    return [
+        section.title for section in localized_sections if section.section_key in resolved_scopes
+    ]
+
+
+def _semantic_checks(
+    *,
+    canonical_model: CanonicalReportRenderModel,
+    template: Any,
+    locale: ReportLocale,
+    fmt: ExportFormat,
+    artifact_bytes: bytes,
+) -> dict[str, Any]:
+    """Run structured, field-bound semantic verification on a downloaded artifact.
+
+    The P1-3 fix replaces the previous global substring search
+    (metric.display_value in extracted_text) with a structured
+    observation + binding layer. The function:
+
+      1. Localizes the canonical model via ``localize_render_model``.
+      2. Observes the downloaded artifact (DOCX/PDF bytes) into
+         structured blocks/lines + section scopes.
+      3. For each canonical numeric field (metric, number, table
+         cell), finds the unique structural binding at the
+         section/field/row/column position.
+      4. Compares the observed value/unit against the localized
+         expected value/unit (whitespace-folded only).
+      5. Records any mismatch in ``numeric_mismatches`` (value/unit
+         error), ``missing_units`` (unit absent/mismatched), and
+         sets ``semantic_result`` to ``FAIL`` on any failure.
+
+    The function NEVER falls back to global substring search. The
+    observed value/unit come from the downloaded artifact bytes,
+    not from the localized model. On binding failure, the
+    ``display_value`` and ``display_unit`` fields are empty
+    strings (NOT copied from the expected/canonical model) so the
+    audit consumer can see the failure is real.
+    """
+
+    template_manifest_json = template.manifest_json if hasattr(template, "manifest_json") else None
+
+    localized = localize_render_model(
+        canonical_model,
+        locale=locale,
+        template_manifest_json=template_manifest_json,
+        format=fmt.value,
+    )
+
+    # Per Corrective 6, the required-section authority is the
+    # structural section-scope map (resolved_scopes), NOT a
+    # flattened-text substring check. The flattened_text is
+    # computed only for legacy diagnostic consumers; the
+    # section-presence gate is now strictly scope-based.
+    _ = _extract_text(fmt, artifact_bytes)
+
+    # Section scopes from the localized model.
+    section_scopes_spec = _build_section_scopes(localized_sections=localized.sections)
+
+    # Structured observation.
+    docx_observation: _DocxObservation | None = None
+    pdf_observation: _PdfObservation | None = None
+    pdf_section_tables: tuple[_PdfSectionTable, ...] = ()
+    pdf_logical_tables: tuple[_PdfLogicalTable, ...] = ()
+    pdf_grid_available_sections: frozenset[str] = frozenset()
+    if fmt is ExportFormat.DOCX:
+        docx_observation = _observe_docx(artifact_bytes)
+        resolved_scopes = _resolve_docx_section_scopes(
+            observation=docx_observation, section_scopes=section_scopes_spec
+        )
+    elif fmt is ExportFormat.PDF:
+        pdf_observation = _observe_pdf(artifact_bytes)
+        resolved_scopes = _resolve_pdf_section_scopes(
+            observation=pdf_observation, section_scopes=section_scopes_spec
+        )
+        # Per Corrective 3+4, tables are reconstructed per section
+        # using the localized table headers (structural identity),
+        # not page-global y-cluster heuristics. The header map is
+        # section_key -> (expected_header_text_by_column).
+        section_table_headers: dict[str, tuple[str, ...]] = {
+            section.section_key: section.table.headers
+            for section in localized.sections
+            if section.table is not None
+        }
+        pdf_section_tables = _build_section_local_tables(
+            pdf_observation=pdf_observation,
+            section_scopes=resolved_scopes,
+            section_table_headers=section_table_headers,
+        )
+        # Per Correctives 2/3/4/5, ALSO build grid-geometry-based
+        # ``_PdfLogicalTable``s when the artifact has vector drawing
+        # segments (real renderer output). When grid geometry is
+        # available, this path produces cross-page-merged logical
+        # tables (Corrective 4) and structural unit-row detection
+        # (Corrective 3) and wrapped-cell folding (Corrective 5).
+        # The grid-based logical tables are STORED for diagnostic
+        # purposes; the cell-binding still uses
+        # ``pdf_section_tables`` as the primary path for
+        # backward-compat with synthetic PDFs that have no grid
+        # lines. When grid geometry IS available, the verifier's
+        # cell-binding path finds the unique header match by
+        # structural identity — see ``_find_table_cell_binding``.
+        if pdf_observation.grid_segments:
+            for section_key, scope_range in resolved_scopes.items():
+                expected = section_table_headers.get(section_key, ())
+                if not expected:
+                    continue
+                tables = _build_logical_tables_for_section(
+                    pdf_observation=pdf_observation,
+                    section_key=section_key,
+                    section_line_range=scope_range,
+                    expected_headers=expected,
+                )
+                pdf_logical_tables = pdf_logical_tables + tables
+        # Per P1-3 sixth corrective Finding 5: compute the
+        # INDEPENDENT section-level grid authority. This
+        # ``frozenset`` is INDEPENDENT of whether
+        # ``pdf_logical_tables`` is non-empty — i.e. a section
+        # can have grid geometry but reconstruction can still
+        # fail (header mismatch). The
+        # ``pdf_grid_available_sections`` set tells the binding
+        # layer whether the section has real grid geometry,
+        # which is the FAIL-CLOSED authority for whether
+        # text-only fallback is allowed.
+        pdf_grid_available_sections = frozenset(
+            section_key
+            for section_key, scope_range in resolved_scopes.items()
+            if section_table_headers.get(section_key)
+            and _section_has_usable_grid_geometry(
+                pdf_observation=pdf_observation,
+                section_line_range=scope_range,
+            )
+        )
+        # Per P1-3 sixth corrective (Finding 6, Finding 5): we keep
+        # using the ORIGINAL immutable ``_PdfObservation`` returned
+        # by ``_observe_pdf`` (which carries ``page_rects``); no
+        # second-wrapper reconstruction needed. The list of
+        # ``pdf_logical_tables`` is passed into the binding call
+        # via the ``pdf_grid_available_sections`` + tuple args.
+    else:
+        _fail("UNSUPPORTED_FORMAT", f"Unsupported report format: {fmt.value}")
+        raise AssertionError("unreachable")
+
+    canonical_fields: list[dict[str, str]] = []
+    observed_fields: list[dict[str, Any]] = []
+    missing_units: list[str] = []
+    numeric_mismatches: list[str] = []
+
+    def _record_failure(
+        *,
+        field_path: str,
+        section_key: str,
+        binding_kind: str,
+        failure_code: str,
+        candidates: tuple[_ObservedNumericField, ...],
+        row_index: int | None,
+        column_index: int | None,
+    ) -> None:
+        """Append a binding-failure observed record with NO expected copy.
+
+        Per Corrective 1, on binding failure the observed record's
+        ``display_value`` and ``display_unit`` MUST be empty strings
+        (not copied from the expected/canonical model). For
+        AMBIGUOUS, the artifact-derived candidate observations are
+        exposed for audit (so the failure is not silent).
+        """
+        record: dict[str, Any] = {
+            "field_path": field_path,
+            "section_key": section_key,
+            "binding_kind": binding_kind,
+            "display_value": "",
+            "display_unit": "",
+            "row_index": row_index,
+            "column_index": column_index,
+            "page_number": None,
+            "binding_status": failure_code,
+        }
+        if candidates:
+            record["candidate_count"] = len(candidates)
+            record["candidate_values"] = [c.display_value for c in candidates]
+            record["candidate_units"] = [c.display_unit for c in candidates]
+            record["candidate_locations"] = [
+                {
+                    "row_index": c.row_index,
+                    "column_index": c.column_index,
+                    "page_number": c.page_number,
+                }
+                for c in candidates
+            ]
+        observed_fields.append(record)
+        if failure_code in ("UNIT_MISSING", "UNIT_MISMATCH"):
+            missing_units.append(field_path)
+        else:
+            numeric_mismatches.append(field_path)
+
+    def _record_bound(
+        *,
+        field_path: str,
+        observed: _ObservedNumericField,
+    ) -> None:
+        """Append a successfully-bound observed record with artifact value/unit."""
+
+        observed_fields.append(
+            {
+                "field_path": field_path,
+                "section_key": observed.section_key,
+                "binding_kind": observed.binding_kind,
+                "display_value": observed.display_value,
+                "display_unit": observed.display_unit,
+                "row_index": observed.row_index,
+                "column_index": observed.column_index,
+                "page_number": observed.page_number,
+                "binding_status": "BOUND",
+            }
+        )
+
+    def _inspect_metric(
+        metric: Any,
+        *,
+        section_key: str,
+        binding_label: str,
+    ) -> None:
+        canonical_fields.append(
+            {
+                "field_path": metric.canonical.field_path,
+                "raw_value": str(metric.canonical.raw_value),
+                "unit_code": metric.canonical.unit_code,
+            }
+        )
+        result = _find_metric_binding(
+            docx_observation=docx_observation,
+            pdf_observation=pdf_observation,
+            section_key=section_key,
+            section_scopes=resolved_scopes,
+            expected_label=binding_label,
+            expected_value=metric.display_value,
+            expected_unit=metric.display_unit,
+        )
+        if result.failure_code is not None:
+            _record_failure(
+                field_path=metric.canonical.field_path,
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_METRIC,
+                failure_code=result.failure_code,
+                candidates=result.candidates,
+                row_index=None,
+                column_index=None,
+            )
+            return
+        if result.observed is None:  # pragma: no cover
+            numeric_mismatches.append(metric.canonical.field_path)
+            return
+        _record_bound(field_path=metric.canonical.field_path, observed=result.observed)
+        cmp = _compare_field(
+            observed=result.observed,
+            expected_value=metric.display_value,
+            expected_unit=metric.display_unit,
+        )
+        if cmp == "UNIT_MISSING" or cmp == "UNIT_MISMATCH":
+            missing_units.append(metric.canonical.field_path)
+        elif cmp is not None:
+            numeric_mismatches.append(metric.canonical.field_path)
+
+    def _inspect_number(
+        number_metric: Any,
+        *,
+        section_key: str,
+    ) -> None:
+        canonical_fields.append(
+            {
+                "field_path": number_metric.canonical.field_path,
+                "raw_value": str(number_metric.canonical.raw_value),
+                "unit_code": number_metric.canonical.unit_code,
+            }
+        )
+        # Corrective 2: number binding is by structural position; the
+        # expected value/unit are passed in only for the comparison
+        # step, NOT for candidate filtering. The helper no longer
+        # accepts expected_value/expected_unit parameters.
+        result = _find_number_binding(
+            docx_observation=docx_observation,
+            pdf_observation=pdf_observation,
+            section_key=section_key,
+            section_scopes=resolved_scopes,
+        )
+        if result.failure_code is not None:
+            _record_failure(
+                field_path=number_metric.canonical.field_path,
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_NUMBER,
+                failure_code=result.failure_code,
+                candidates=result.candidates,
+                row_index=None,
+                column_index=None,
+            )
+            return
+        if result.observed is None:  # pragma: no cover
+            numeric_mismatches.append(number_metric.canonical.field_path)
+            return
+        _record_bound(field_path=number_metric.canonical.field_path, observed=result.observed)
+        cmp = _compare_field(
+            observed=result.observed,
+            expected_value=number_metric.display_value,
+            expected_unit=number_metric.display_unit,
+        )
+        if cmp == "UNIT_MISSING" or cmp == "UNIT_MISMATCH":
+            missing_units.append(number_metric.canonical.field_path)
+        elif cmp is not None:
+            numeric_mismatches.append(number_metric.canonical.field_path)
+
+    def _inspect_table_cell(
+        cell: CanonicalRenderTableCell,
+        localized_cell: Any,
+        *,
+        section_key: str,
+        table_section_key: str,
+        row_index: int,
+        column_index: int,
+        expected_unit_codes: tuple[str, ...],
+        expected_headers: tuple[str, ...],
+        template_unit_row_enabled: bool,
+        num_data_rows: int = 1,
+    ) -> None:
+        canonical_fields.append(
+            {
+                "field_path": cell.field_path,
+                "raw_value": str(cell.raw_value),
+                "unit_code": cell.unit_code,
+            }
+        )
+        result = _find_table_cell_binding(
+            docx_observation=docx_observation,
+            docx_resolved_scopes=resolved_scopes,
+            pdf_section_tables=pdf_section_tables,
+            pdf_logical_tables=pdf_logical_tables,
+            section_key=section_key,
+            table_section_key=table_section_key,
+            row_index=row_index,
+            column_index=column_index,
+            expected_unit_codes=expected_unit_codes,
+            expected_headers=expected_headers,
+            template_unit_row_enabled=template_unit_row_enabled,
+            num_data_rows=num_data_rows,
+            pdf_grid_available_sections=pdf_grid_available_sections,
+        )
+        if result.failure_code is not None:
+            _record_failure(
+                field_path=cell.field_path,
+                section_key=section_key,
+                binding_kind=_BINDING_KIND_TABLE_CELL,
+                failure_code=result.failure_code,
+                candidates=result.candidates,
+                row_index=row_index,
+                column_index=column_index,
+            )
+            return
+        if result.observed is None:  # pragma: no cover
+            numeric_mismatches.append(cell.field_path)
+            return
+        _record_bound(field_path=cell.field_path, observed=result.observed)
+        # Per Corrective 3's "expected authority" rule: the expected
+        # value/unit come from the LOCALIZED render model directly
+        # (``localized_cell.display_value`` /
+        # ``localized_table.unit_row[column_index]``), NOT from a
+        # second ``format_decimal(cell.raw_value, locale)`` reformat.
+        # No table expected reformatting is performed in this module.
+        expected_dv = localized_cell.display_value
+        expected_du = (
+            expected_unit_codes[column_index] if column_index < len(expected_unit_codes) else ""
+        )
+        cmp = _compare_field(
+            observed=result.observed,
+            expected_value=expected_dv,
+            expected_unit=expected_du,
+        )
+        if cmp == "UNIT_MISSING" or cmp == "UNIT_MISMATCH":
+            missing_units.append(cell.field_path)
+        elif cmp is not None:
+            numeric_mismatches.append(cell.field_path)
+
+    for section in localized.sections:
+        for metric in section.metrics:
+            _inspect_metric(metric, section_key=section.section_key, binding_label=metric.label)
+        if section.number is not None:
+            _inspect_number(section.number, section_key=section.section_key)
+        if section.table is not None:
+            # The expected unit_codes come from the localized
+            # table's unit_row (already formatted by
+            # ``localize_render_model``). No reformatting here.
+            localized_unit_codes: tuple[str, ...] = section.table.unit_row
+            localized_headers: tuple[str, ...] = section.table.headers
+            # Renderer parity: look up the template's
+            # ``table.unit_row`` bool for this section's canonical
+            # table. The production authority is
+            # ``TemplateManifest.from_manifest_json(template_manifest_json)
+            # .tables[table_key].unit_row``. The canonical
+            # table_key comes from the localized
+            # ``section.table.canonical.table_key`` (NOT from
+            # ``section_key``). The default is ``True`` (matches
+            # the renderer's default).
+            _table_key: str | None = None
+            if section.table.canonical is not None:
+                _table_key = section.table.canonical.table_key or None
+            template_unit_row_enabled = _lookup_template_table_unit_row(
+                template_manifest_json=template_manifest_json,
+                table_key=_table_key,
+            )
+            for row_idx, row in enumerate(section.table.rows):
+                for col_idx, cell in enumerate(row):
+                    raw = cell.canonical.raw_value
+                    if isinstance(raw, (int, Decimal)) or hasattr(raw, "as_tuple"):
+                        _inspect_table_cell(
+                            cell.canonical,
+                            cell,
+                            section_key=section.section_key,
+                            table_section_key=section.section_key,
+                            row_index=row_idx,
+                            column_index=col_idx,
+                            expected_unit_codes=localized_unit_codes,
+                            expected_headers=localized_headers,
+                            template_unit_row_enabled=template_unit_row_enabled,
+                            num_data_rows=len(section.table.rows),
+                        )
+
+    sections_ok = not _build_missing_sections_from_scopes(
+        localized_sections=localized.sections, resolved_scopes=resolved_scopes
+    )
+    units_ok = not missing_units
+    mismatches_ok = not numeric_mismatches
+    result = "PASS" if sections_ok and units_ok and mismatches_ok else "FAIL"
+    return {
+        "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+        "locale": locale.value,
+        "format": fmt.value,
+        "canonical_section_keys": [section.section_key for section in canonical_model.sections],
+        "required_heading_keys": [
+            f"section.{section.section_key}" for section in canonical_model.sections
+        ],
+        "observed_localized_headings": _build_observed_localized_headings(
+            localized_sections=localized.sections, resolved_scopes=resolved_scopes
+        ),
+        "canonical_numeric_fields": canonical_fields,
+        "observed_numeric_fields": observed_fields,
+        "missing_sections": _build_missing_sections_from_scopes(
+            localized_sections=localized.sections, resolved_scopes=resolved_scopes
+        ),
+        "missing_units": sorted(set(missing_units)),
+        "numeric_mismatches": sorted(set(numeric_mismatches)),
+        "semantic_result": result,
+    }
+
+
+def verify_multilingual_report_pilot(
+    *,
+    report_service: Any,
+    render_service: Any,
+    template_repository: Any,
+    project_id: str,
+    project_version_id: str,
+    source_commit_sha: str,
+    source_manifest_sha: str,
+    output_root: Path,
+    repeat_index: int,
+    run_identity: Mapping[str, Any],
+    download_artifact: DownloadArtifact,
+    actor: str = "task011-pilot",
+) -> dict[str, Any]:
+    """Run and verify the frozen four-render pilot from one report revision."""
+    if not output_root.is_absolute():
+        _fail("UNSAFE_OUTPUT_ROOT", "Pilot output root must be absolute.")
+    if repeat_index not in (1, 2):
+        _fail("INFRASTRUCTURE_ERROR", "repeat_index must be 1 or 2.")
+    if not _is_sha256(source_manifest_sha):
+        _fail("SOURCE_BINDING_MISMATCH", "Manifest SHA-256 is malformed.")
+    assert_no_managed_artifacts(root=output_root, managed_paths=_managed_paths())
+
+    report = report_service.create_report(
+        project_id=project_id,
+        project_version_id=project_version_id,
+        report_type=ReportType.COLD_STORAGE_CONCEPT_DESIGN,
+        actor=actor,
+    )
+    revision = report_service.generate_revision(report.id, actor)
+    if revision.report_id != report.id:
+        _fail("REPORT_REVISION_MISMATCH", "Generated revision report ID mismatch.")
+
+    canonical_model = build_canonical_render_model(
+        content=revision.content_json,
+        report_id=report.id,
+        revision_number=revision.revision_number,
+        content_hash=revision.content_hash,
+        generated_by=revision.generated_by,
+        generated_at=revision.generated_at.isoformat(),
+        template_code="cold_storage_concept_design",
+        template_version="1.0.0",
+        approval_snapshot=None,
+    )
+    section_keys = [section.section_key for section in canonical_model.sections]
+    metrics = _canonical_metrics(canonical_model)
+
+    started_at = datetime.now(UTC).isoformat()
+    pilot_run = {
+        "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+        "pilot_check_id": PILOT_CHECK_ID,
+        "source_commit_sha": source_commit_sha,
+        "source_manifest_sha": source_manifest_sha,
+        **dict(run_identity),
+        "repeat_index": repeat_index,
+        "project_id": project_id,
+        "project_version_id": project_version_id,
+        "report_id": report.id,
+        "report_revision_id": revision.id,
+        "revision_number": revision.revision_number,
+        "report_revision_content_hash": revision.content_hash,
+        "report_type": report.report_type.value,
+        "report_schema_version": revision.schema_version,
+        "started_at": started_at,
+    }
+    atomic_write_json(path=output_root / "pilot-run.json", data=pilot_run)
+
+    artifact_rows: list[dict[str, Any]] = []
+    semantic_results: list[str] = []
+    for locale, fmt in _RENDER_MATRIX:
+        artifact = render_service.render(
+            report_id=report.id,
+            revision_number=revision.revision_number,
+            format=fmt.value,
+            template_version=None,
+            mode="draft",
+            actor=actor,
+            locale=locale,
+        )
+        template = template_repository.get_template(artifact.template_id)
+        if template is None:
+            _fail(
+                "TEMPLATE_PROVENANCE_MISMATCH",
+                "Persisted template for artifact is missing.",
+                template_id=artifact.template_id,
+            )
+        _verify_artifact_binding(
+            artifact=artifact,
+            report_id=report.id,
+            revision=revision,
+            locale=locale,
+            fmt=fmt,
+            template=template,
+        )
+        downloaded, download_headers = download_artifact(report.id, artifact.id, actor)
+        downloaded_hash = _sha256(downloaded)
+        if downloaded_hash != artifact.file_sha256 or len(downloaded) != artifact.file_size_bytes:
+            _fail(
+                "DOWNLOAD_INTEGRITY_MISMATCH",
+                "Downloaded artifact bytes do not match persisted metadata.",
+                artifact_id=artifact.id,
+            )
+        expected_headers = {
+            "X-Content-SHA256": downloaded_hash,
+            "X-Source-Content-Hash": revision.content_hash,
+            "X-Report-Locale": locale.value,
+            "X-Template-Locale": locale.value,
+            "X-Translation-Catalog-Version": artifact.translation_catalog_version,
+            "X-Translation-Catalog-Content-Hash": artifact.translation_catalog_content_hash,
+            "X-Localized-Template-Content-Hash": artifact.localized_template_content_hash,
+        }
+        if any(download_headers.get(key) != value for key, value in expected_headers.items()):
+            _fail(
+                "DOWNLOAD_INTEGRITY_MISMATCH",
+                "Download response header binding mismatch.",
+                artifact_id=artifact.id,
+            )
+
+        checks = _semantic_checks(
+            canonical_model=canonical_model,
+            template=template,
+            locale=locale,
+            fmt=fmt,
+            artifact_bytes=downloaded,
+        )
+        if checks["semantic_result"] != "PASS":
+            _fail(
+                "NUMERIC_SEMANTIC_MISMATCH",
+                "Downloaded report failed section or numeric semantic verification.",
+                locale=locale.value,
+                format=fmt.value,
+                checks=checks,
+            )
+        semantic_results.append(str(checks["semantic_result"]))
+
+        artifact_dir = output_root / "artifacts" / locale.value / fmt.value
+        metadata = {
+            "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+            "artifact_id": artifact.id,
+            "report_id": artifact.report_id,
+            "report_revision_id": artifact.report_revision_id,
+            "revision_number": artifact.revision_number,
+            "format": artifact.format.value,
+            "locale": artifact.locale.value,
+            "template_locale": artifact.template_locale.value,
+            "render_mode": artifact.render_manifest_json.get("render_mode"),
+            "template_version": artifact.template_version,
+            "template_content_hash": template.template_content_hash,
+            "template_schema_version": template.schema_version,
+            "source_content_hash": artifact.source_content_hash,
+            "translation_catalog_version": artifact.translation_catalog_version,
+            "translation_catalog_content_hash": artifact.translation_catalog_content_hash,
+            "localized_template_content_hash": artifact.localized_template_content_hash,
+            "artifact_status": artifact.status.value,
+            "file_name": artifact.file_name,
+            "file_size_bytes": artifact.file_size_bytes,
+            "file_sha256": artifact.file_sha256,
+            "download_headers": dict(download_headers),
+            "integrity_result": "PASS",
+        }
+        atomic_write_bytes(path=artifact_dir / f"report.{fmt.value}", data=downloaded)
+        atomic_write_json(path=artifact_dir / "artifact-metadata.json", data=metadata)
+        atomic_write_json(path=artifact_dir / "semantic-checks.json", data=checks)
+        artifact_rows.append(metadata)
+
+    identities = {
+        (
+            item["report_id"],
+            item["report_revision_id"],
+            item["revision_number"],
+            item["source_content_hash"],
+        )
+        for item in artifact_rows
+    }
+    if len(identities) != 1:
+        _fail("REPORT_REVISION_MISMATCH", "Four renders do not share one revision.")
+    if any(item["source_content_hash"] != revision.content_hash for item in artifact_rows):
+        _fail("SOURCE_BINDING_MISMATCH", "Four renders do not share source content.")
+    if not section_keys or not metrics:
+        _fail(
+            "REQUIRED_SECTION_MISSING",
+            "Canonical report has no sections or numeric fields to verify.",
+        )
+
+    managed_hashes = {
+        str(path.relative_to(output_root)): _sha256(path.read_bytes())
+        for path in sorted(output_root.rglob("*"))
+        if path.is_file() and path.name != "pilot-summary.json"
+    }
+    summary = {
+        "schema_version": PILOT_RESULT_SCHEMA_VERSION,
+        "pilot_check_id": PILOT_CHECK_ID,
+        "source_commit_sha": source_commit_sha,
+        "source_manifest_sha": source_manifest_sha,
+        **dict(run_identity),
+        "repeat_index": repeat_index,
+        "started_at": started_at,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "render_matrix": [
+            {"locale": locale.value, "format": fmt.value, "mode": "draft"}
+            for locale, fmt in _RENDER_MATRIX
+        ],
+        "source_binding_result": "PASS",
+        "artifact_integrity_result": "PASS",
+        "semantic_result": (
+            "PASS" if all(result == "PASS" for result in semantic_results) else "FAIL"
+        ),
+        "overall_result": "PASS",
+        "managed_file_sha256": managed_hashes,
+    }
+    atomic_write_json(path=output_root / "pilot-summary.json", data=summary)
+    return summary
+
+
+__all__ = [
+    "PILOT_CHECK_ID",
+    "PILOT_RESULT_SCHEMA_VERSION",
+    "PilotVerificationError",
+    "verify_multilingual_report_pilot",
+]

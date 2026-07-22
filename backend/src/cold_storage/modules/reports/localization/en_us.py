@@ -73,6 +73,7 @@ _MESSAGES: dict[str, str] = {
     "field.daily_inbound_mass_kg": "Daily Inbound Mass",
     "field.storage_capacity_kg": "Storage Capacity",
     "field.total_area_m2": "Total Area",
+    "field.condenser_heat_rejection": "Condenser Heat Rejection",
     # ── Provenance fields ──
     "field.content_hash": "Content Hash",
     "field.canonical_hash": "Canonical Hash",
@@ -241,6 +242,7 @@ _MESSAGES: dict[str, str] = {
     # ── Units (display labels, not values) ──
     "unit.kw_r": "kW(r)",
     "unit.kw_e": "kW(e)",
+    "unit.kw_th": "kW(th)",
     "unit.kwh": "kWh",
     "unit.m2": "m²",
     "unit.cny": "CNY",

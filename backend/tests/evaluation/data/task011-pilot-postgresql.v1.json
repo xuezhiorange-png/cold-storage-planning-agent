@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "task011-pilot-multilingual-postgresql",
+  "scenarios": [
+    {
+      "scenario_id": "baseline_feasible",
+      "database_backend": "postgresql",
+      "expected_outcome": "SUCCEEDED",
+      "expected_output": {
+        "scenario_id": "baseline_feasible",
+        "path": "expected/baseline_feasible.v1.json",
+        "expected_outcome": "SUCCEEDED",
+        "commit_sha": "f274db66fe4bb2de206d12c2d561d1b3549ab6c0"
+      }
+    }
+  ],
+  "excluded_paths": []
+}

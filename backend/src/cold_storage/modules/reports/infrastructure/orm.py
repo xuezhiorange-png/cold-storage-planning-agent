@@ -238,7 +238,14 @@ class ReportExportArtifactRecord(Base):
         sa.String(256), nullable=False, server_default=sa.text("''")
     )
     file_name: Mapped[str] = mapped_column(sa.String(256), nullable=False)
-    mime_type: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    mime_type: Mapped[str] = mapped_column(
+        sa.String(255), nullable=False
+    )  # PR67 P1-4: widened from VARCHAR(64) to VARCHAR(255) to persist the
+    # standard DOCX MIME (``application/vnd.openxmlformats-officedocument
+    # .wordprocessingml.document``, 71 chars) without truncation. The
+    # authoritative widening lives in migration 0039; both must change
+    # together (ORM + Alembic) per the project's "database schema
+    # changes must go through Alembic" rule in AGENTS.md.
     file_size_bytes: Mapped[int] = mapped_column(
         sa.Integer, nullable=False, server_default=sa.text("0")
     )

@@ -6722,3 +6722,212 @@ class TestRealAssemblerBilingualE2E:
                 or "bogus" in error_details
                 or "Additional properties" in error_details
             ), f"Expected SchemaValidationError about unknown, got: {error_msg} / {error_details}"
+
+
+# ===========================================================================
+# Task-011C condenser-heat-rejection localization (TASK-011 Slice 1)
+# ===========================================================================
+
+
+class TestCondenserHeatRejectionLocalization:
+    """Focused tests for the new ``field.condenser_heat_rejection`` and
+    ``unit.kw_th`` translation entries added to close the schema ↔ catalog
+    gap exposed by the strict v0→v1 report projection.
+
+    These tests do NOT add fallbacks, do NOT swallow
+    :class:`MissingTranslationError`, and do NOT touch any of the
+    production projection / schema / canonical-builder / localizer
+    code.  They only assert that the two new catalog entries are
+    present and that the downstream
+    ``localize_render_model`` path is now able to localize a
+    ``condenser_heat_rejection`` measured-value end-to-end in both
+    supported locales.
+    """
+
+    # ── 1. zh-CN field label ──────────────────────────────────────
+    def test_field_condenser_heat_rejection_zh_cn(self) -> None:
+        """zh-CN returns the Chinese label."""
+        assert translate(ReportLocale.ZH_CN, "field.condenser_heat_rejection") == "冷凝器排热量"
+
+    # ── 2. en-US field label ──────────────────────────────────────
+    def test_field_condenser_heat_rejection_en_us(self) -> None:
+        """en-US returns the English label."""
+        assert (
+            translate(ReportLocale.EN_US, "field.condenser_heat_rejection")
+            == "Condenser Heat Rejection"
+        )
+
+    # ── 3. zh-CN unit label ───────────────────────────────────────
+    def test_format_unit_label_kw_th_zh_cn(self) -> None:
+        """``format_unit_label("kW(th)", zh-CN)`` returns ``"kW(th)"``."""
+        assert format_unit_label("kW(th)", ReportLocale.ZH_CN) == "kW(th)"
+
+    # ── 4. en-US unit label ───────────────────────────────────────
+    def test_format_unit_label_kw_th_en_us(self) -> None:
+        """``format_unit_label("kW(th)", en-US)`` returns ``"kW(th)"``."""
+        assert format_unit_label("kW(th)", ReportLocale.EN_US) == "kW(th)"
+
+    # ── 5. end-to-end localization of a canonical metric ──────────
+    def test_canonical_metric_with_condenser_heat_rejection_localizes(
+        self, session_factory
+    ) -> None:
+        """A canonical metric carrying a condenser_heat_rejection
+        measured-value MUST localize in both locales without raising
+        MissingTranslationError.
+
+        The end-to-end path exercised here is:
+            build canonical → localize_render_model
+        for an ``equipment_selection`` section containing a single
+        ``condenser_heat_rejection`` measured-value.
+        """
+        from cold_storage.modules.reports.domain.render_model import (
+            CanonicalRenderMetadata,
+            CanonicalRenderMetric,
+            CanonicalRenderSection,
+            CanonicalReportRenderModel,
+            RenderManifest,
+        )
+
+        metric = CanonicalRenderMetric(
+            field_path="equipment_selection.condenser_heat_rejection",
+            field_key="field.condenser_heat_rejection",
+            raw_value=Decimal("30.0"),
+            unit_code="kW(th)",
+            source_id="run-equip-001",
+            source_tool="equipment",
+            source_tool_version="1.0.0",
+            source_content_hash="",
+        )
+        section = CanonicalRenderSection(
+            section_key="equipment_selection",
+            title="equipment_selection",
+            level=2,
+            content_type_code="metrics",
+            metrics=(metric,),
+        )
+        metadata = CanonicalRenderMetadata(
+            report_id="r-1",
+            report_type="cold_storage_concept_design",
+            schema_version="cold_storage_concept_design@1.0.0",
+            revision_number=1,
+            content_hash="x" * 64,
+            content_hash_short="x" * 8,
+            generated_at="2026-01-01T00:00:00Z",
+            generated_by="test",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+        )
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="cold_storage_concept_design@1.0.0",
+            source_content_hash="x" * 64,
+            sections=["equipment_selection"],
+            format="docx",
+        )
+        canonical = CanonicalReportRenderModel(
+            metadata=metadata,
+            sections=(section,),
+            manifest=manifest,
+        )
+        for locale in (ReportLocale.ZH_CN, ReportLocale.EN_US):
+            # localize_render_model should NOT raise.
+            localized = localize_render_model(canonical, locale=locale)
+            # Find the localized metric that originated from
+            # condenser_heat_rejection.
+            matching = [
+                m
+                for sec in localized.sections
+                for m in sec.metrics
+                if m.canonical.field_key == "field.condenser_heat_rejection"
+            ]
+            assert len(matching) == 1, (
+                f"expected exactly one condenser_heat_rejection metric "
+                f"after localizing to {locale.value}, got {len(matching)}"
+            )
+
+    # ── 6. localized metric preserves raw value, unit, and label ─
+    def test_localized_condenser_metric_preserves_value_and_label(self, session_factory) -> None:
+        """After localization, the canonical metric retains its
+        numeric raw value, ``display_unit == "kW(th)"``, and the
+        correct label for the requested locale.
+        """
+        from cold_storage.modules.reports.domain.render_model import (
+            CanonicalRenderMetadata,
+            CanonicalRenderMetric,
+            CanonicalRenderSection,
+            CanonicalReportRenderModel,
+            RenderManifest,
+        )
+
+        raw_value = Decimal("30.0")
+        metric = CanonicalRenderMetric(
+            field_path="equipment_selection.condenser_heat_rejection",
+            field_key="field.condenser_heat_rejection",
+            raw_value=raw_value,
+            unit_code="kW(th)",
+            source_id="run-equip-001",
+            source_tool="equipment",
+            source_tool_version="1.0.0",
+            source_content_hash="",
+        )
+        section = CanonicalRenderSection(
+            section_key="equipment_selection",
+            title="equipment_selection",
+            level=2,
+            content_type_code="metrics",
+            metrics=(metric,),
+        )
+        metadata = CanonicalRenderMetadata(
+            report_id="r-1",
+            report_type="cold_storage_concept_design",
+            schema_version="cold_storage_concept_design@1.0.0",
+            revision_number=1,
+            content_hash="x" * 64,
+            content_hash_short="x" * 8,
+            generated_at="2026-01-01T00:00:00Z",
+            generated_by="test",
+            template_version="1.0.0",
+            template_code="cold_storage_concept_design",
+        )
+        manifest = RenderManifest(
+            template_code="cold_storage_concept_design",
+            template_version="1.0.0",
+            schema_version="cold_storage_concept_design@1.0.0",
+            source_content_hash="x" * 64,
+            sections=["equipment_selection"],
+            format="docx",
+        )
+        canonical = CanonicalReportRenderModel(
+            metadata=metadata,
+            sections=(section,),
+            manifest=manifest,
+        )
+
+        for locale, expected_label in (
+            (ReportLocale.ZH_CN, "冷凝器排热量"),
+            (ReportLocale.EN_US, "Condenser Heat Rejection"),
+        ):
+            localized = localize_render_model(canonical, locale=locale)
+            local_sections = [
+                s for s in localized.sections if s.section_key == "equipment_selection"
+            ]
+            [local_section] = local_sections
+            [local_metric] = local_section.metrics
+            # raw value survives the round-trip (canonical is the
+            # source of truth for the numeric value; the localizer
+            # keeps the underlying canonical metric intact).
+            assert local_metric.canonical.raw_value == raw_value
+            # display unit is the schema-stabilised kW(th) token.
+            assert local_metric.display_unit == "kW(th)"
+            # label is the catalog-translated string for this locale.
+            assert local_metric.label == expected_label
+
+    # ── 7. unknown keys still fail closed ──────────────────────────
+    def test_unknown_translation_key_still_fails_closed(self) -> None:
+        """The new entries MUST NOT introduce a fallback for unknown
+        keys.  A bogus key still raises MissingTranslationError.
+        """
+        with pytest.raises(MissingTranslationError) as exc_info:
+            translate(ReportLocale.ZH_CN, "field.this_key_does_not_exist_xyz")
+        assert exc_info.value.key == "field.this_key_does_not_exist_xyz"
