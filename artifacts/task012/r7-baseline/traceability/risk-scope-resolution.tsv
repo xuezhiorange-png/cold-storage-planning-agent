@@ -1,0 +1,2 @@
+risk_id	authoritative_slice_mapping	included_in_slice1	decision_id	charles_binding_correction	source_file	source_file_sha256	source_line	resolution	frozen_text_conflict
+R-026	Slice 2	NO	D-013	D013-C04	authority/evidence/cross-reference-validation/risk-to-slice.tsv	a022a83d4e3b31e823947759aa1703be0e174f9cb14c2df4c4c70fe39445e9e6	27	EXCLUDED_FROM_SLICE1_USING_RISK_TO_SLICE_AUTHORITY	NO
