@@ -1,0 +1,15 @@
+relative_path	path_exists_in_frozen_source	source_file_sha256	proposed_new	expected_slice1_change
+backend/src/cold_storage/bootstrap/settings.py	YES	2ef474a9d758b911f6e5bcad43308c0c2856b7057636de1ca0522141e2c97ff2	NO	MODIFY
+backend/src/cold_storage/bootstrap/environment_model.py	NO	NOT_APPLICABLE	YES	CREATE
+backend/src/cold_storage/bootstrap/startup_readiness.py	YES	1b1ea75f4db69b2867952b6d9bf392cdce5bdce3debd004f8944bd8c303b7960	NO	MODIFY
+backend/src/cold_storage/bootstrap/app.py	YES	482e74a672f388a031f37f350ef691af810c28266e5994e427d454c3f4bfe066	NO	MODIFY
+backend/src/cold_storage/bootstrap/coefficient_service_factory.py	NO	NOT_APPLICABLE	YES	CREATE
+backend/src/cold_storage/bootstrap/agent_capability_gate.py	NO	NOT_APPLICABLE	YES	CREATE
+backend/src/cold_storage/bootstrap/dependencies.py	YES	ef1d43cfee4e5b424b64c90a11b2cb3a04b7d7d2c188927445a8a3ce65a8db46	NO	MODIFY
+backend/src/cold_storage/bootstrap/production_composition.py	YES	cea2708a8ce7dc27d5defa441e998bcb0d97e0f0426d59c3d8698fa937d188e2	NO	MODIFY
+backend/src/cold_storage/modules/coefficients/api/routes.py	YES	6a70629396c2e490385382ab8fac6d133df99e9efd73cd3103412a912160bf49	NO	MODIFY
+backend/src/cold_storage/modules/coefficients/infrastructure/database.py	YES	e84b931315c58b0c33458de9862f13e224494b9f936e1449f7b7ba8836438ff1	NO	MODIFY
+backend/tests/test_environment_model.py	NO	NOT_APPLICABLE	YES	CREATE
+backend/tests/test_production_composition.py	NO	NOT_APPLICABLE	YES	CREATE
+backend/tests/test_agent_capability_gate.py	NO	NOT_APPLICABLE	YES	CREATE
+backend/tests/test_coefficient_routes.py	NO	NOT_APPLICABLE	YES	CREATE
