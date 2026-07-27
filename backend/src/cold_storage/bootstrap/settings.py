@@ -28,8 +28,8 @@ from cold_storage.bootstrap.resource_identity import validate_declared_resource_
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="", extra="ignore", case_sensitive=True)
 
-    environment_id: str = Field(
-        default="local", validation_alias="COLD_STORAGE_ENVIRONMENT_ID"
+    environment_id: EnvironmentId = Field(
+        default=EnvironmentId.LOCAL, validation_alias="COLD_STORAGE_ENVIRONMENT_ID"
     )
     database_environment_id: str | None = Field(
         default=None, validation_alias="COLD_STORAGE_DATABASE_ENVIRONMENT_ID"
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     @property
     def app_env(self) -> str:
         """Compatibility read-only property; canonical key is ENVIRONMENT_ID."""
-        return self.environment_id
+        return self.environment_id.value
 
     @property
     def resolution_report(self) -> ConfigurationResolutionReport | None:
@@ -90,9 +90,13 @@ class Settings(BaseSettings):
         if not isinstance(data, dict):
             return data
         source = dict(data)
-        if "app_env" in source and not any(str(k).startswith(CANONICAL_PREFIX) for k in source):
+        if "app_env" in source and not any(
+            str(k).startswith(CANONICAL_PREFIX) for k in source
+        ):
             source = {"COLD_STORAGE_ENVIRONMENT_ID": source["app_env"]}
-        if not any(str(k).startswith(CANONICAL_PREFIX) for k in source) and not any(k in source for k in LEGACY_KEYS):
+        if not any(str(k).startswith(CANONICAL_PREFIX) for k in source) and not any(
+            k in source for k in LEGACY_KEYS
+        ):
             source.update(
                 {
                     k: v
@@ -175,11 +179,11 @@ class Settings(BaseSettings):
             self.storage_dir = allowed_defaults(AppMode(self.environment_id)).get(
                 "STORAGE_DIR"
             )
-        if self.environment_id in ("staging", "production"):
+        if self.environment_id in (EnvironmentId.STAGING, EnvironmentId.PRODUCTION):
             self._validate_storage_path()
             self._validate_postgresql()
         if (
-            self.environment_id == "test"
+            self.environment_id is EnvironmentId.TEST
             and self.sqlite_path == "./cold_storage_dev.db"
         ):
             raise ConfigurationError("test SQLite path must be injected")
@@ -193,7 +197,7 @@ class Settings(BaseSettings):
             raise ConfigurationError("strict storage path must be outside repository")
         forbidden = (
             {"local", "test", "production"}
-            if self.environment_id == "staging"
+            if self.environment_id is EnvironmentId.STAGING
             else {"local", "test", "staging"}
         )
         if forbidden.intersection(path.parts):

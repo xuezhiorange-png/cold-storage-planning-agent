@@ -58,7 +58,10 @@ class EnvironmentId(StrEnum):
     PRODUCTION = "production"
 
 
-LEGACY_ENVIRONMENT_MAP: dict[str, EnvironmentId] = {"development": EnvironmentId.LOCAL, **{x.value: x for x in EnvironmentId}}
+LEGACY_ENVIRONMENT_MAP: dict[str, EnvironmentId] = {
+    "development": EnvironmentId.LOCAL,
+    **{x.value: x for x in EnvironmentId},
+}
 
 
 class ConfigurationError(ValueError):
