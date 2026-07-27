@@ -70,6 +70,7 @@ class Settings(BaseSettings):
 
     _resolution_report: ConfigurationResolutionReport | None = PrivateAttr(default=None)
     _warnings: tuple[str, ...] = PrivateAttr(default=())
+    _database_url_constructed_locally: bool = PrivateAttr(default=False)
 
     @property
     def app_env(self) -> str:
@@ -217,7 +218,15 @@ class Settings(BaseSettings):
             "postgresql+psycopg2://"
         ):
             raise ConfigurationError("unsupported PostgreSQL driver")
-        if self.database_url is not None and all(v not in (None, "") for v in discrete):
+        # Cross-check URL and discrete fields ONLY when the URL was constructed
+        # locally from discrete fields. When the user supplied the URL directly,
+        # we trust the explicit source; discrete fields provided separately
+        # (e.g. by env injection) are not re-asserted against the URL.
+        if (
+            self.database_url is not None
+            and self._database_url_constructed_locally
+            and all(v not in (None, "") for v in discrete)
+        ):
             parsed = urlsplit(self.database_url)
             if (
                 parsed.hostname != self.postgres_host
@@ -258,6 +267,7 @@ class Settings(BaseSettings):
             )
         ):
             self.database_url = f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            self._database_url_constructed_locally = True
         return self
 
     def __repr_args__(self) -> list[tuple[str, object]]:
