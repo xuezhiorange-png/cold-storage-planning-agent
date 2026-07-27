@@ -129,7 +129,11 @@ class Settings(BaseSettings):
         for key, value in normalized.items():
             if key in CANONICAL_KEYS:
                 values[key] = str(value)
-        if any(
+        # Discrete PostgreSQL fields override DATABASE_URL only when they were
+        # explicitly provided in the same input layer. Env-injected partial
+        # discrete fields (e.g. POSTGRES_PASSWORD alone) must NOT cause the
+        # URL to be dropped — the URL is the user's authoritative source.
+        discrete_keys_present = any(
             key in normalized
             for key in (
                 "POSTGRES_HOST",
@@ -138,8 +142,9 @@ class Settings(BaseSettings):
                 "POSTGRES_USER",
                 "POSTGRES_PASSWORD",
             )
-        ):
-            values.pop("DATABASE_URL", None)
+        )
+        url_present = "DATABASE_URL" in normalized
+        if discrete_keys_present and not url_present:
             values["DATABASE_BACKEND"] = "postgresql"
         defaults = allowed_defaults(AppMode(env_id.value))
         for key, value in defaults.items():
@@ -212,7 +217,12 @@ class Settings(BaseSettings):
             self.postgres_user,
             self.postgres_password,
         ]
-        if self.database_url is None and not all(v not in (None, "") for v in discrete):
+        # URL takes precedence: if DATABASE_URL is provided, discrete fields
+        # are optional and never block configuration. Discrete fields are
+        # only consulted when the URL was constructed locally from them.
+        if self.database_url is None and any(
+            v not in (None, "") for v in discrete
+        ) and not all(v not in (None, "") for v in discrete):
             raise ConfigurationError("incomplete PostgreSQL configuration")
         if self.database_url is not None and not self.database_url.startswith(
             "postgresql+psycopg2://"
