@@ -216,5 +216,13 @@ def validate_declared_identities(values: Mapping[str, str], environment_id: Envi
         actual = values.get(key)
         if actual is None and environment_id in (EnvironmentId.STAGING, EnvironmentId.PRODUCTION):
             raise ConfigurationError("required declared resource identity is missing")
-        if actual is not None and normalize_environment(actual) is not environment_id:
-            raise ConfigurationError("declared resource identity does not match environment")
+        if actual is None:
+            continue
+        # Opaque identifier: an attempt to use a canonical environment name
+        # here is a cross-boundary violation; any other opaque label is OK.
+        try:
+            parsed = normalize_environment(actual)
+        except ConfigurationError:
+            continue
+        if parsed is not environment_id:
+            raise ConfigurationError("declared resource identity mismatch")
