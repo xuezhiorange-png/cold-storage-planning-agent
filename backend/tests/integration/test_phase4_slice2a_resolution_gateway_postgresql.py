@@ -19,7 +19,11 @@ Tests (parity with SQLite):
 
 1. ``test_pg_app_env_production_fails_closed_when_all_stages_missing_approved``
 2. ``test_pg_app_env_production_passes_when_all_stages_have_approved``
-3. ``test_pg_app_env_development_skips_readiness_check``
+3. ``test_pg_legacy_development_maps_to_local_and_skips_readiness_check``
+   — the legacy ``development`` alias is normalised to ``local``;
+     ``development`` is **not** a canonical environment and is
+     **not** a member of ``AppMode`` (no legacy dev enum entry
+     is restored).
 4. ``test_pg_strict_resolver_rejects_demo_in_production_use_case``
 5. ``test_pg_strict_resolver_rejects_ambiguous_latest_in_production_use_case``
 6. ``test_pg_production_use_case_without_resolver_keeps_legacy_p3_behavior``
@@ -27,11 +31,23 @@ Tests (parity with SQLite):
 Note: ``test_app_env_test_skips_readiness_check`` is not mirrored:
 its assertion is identical for every backend; the SQLite case
 already exercises the path.
+
+Slice 1 four-environment contract note
+---------------------------------------
+
+The production Settings below use the canonical
+``COLD_STORAGE_*`` keys and a ``postgresql+psycopg2`` driver URL
+(per the Slice 1 driver contract).  The legacy
+legacy ``APP_ENV=development`` input path continues to map onto
+``LOCAL`` for backwards compatibility; no ``development``
+canonical environment and no legacy ``AppMode`` development
+enum entry is restored.
 """
 
 from __future__ import annotations
 
 import datetime as _dt
+import os
 from pathlib import Path
 from typing import Any
 
@@ -188,9 +204,36 @@ def _add_revision_to_existing_definition(
     return revision_id
 
 
-def _make_settings(app_env: str) -> Settings:
-    """Construct Settings with the requested ``app_env`` value only."""
-    return Settings.model_validate({"app_env": app_env})
+def _make_settings(environment_id: str) -> Settings:
+    """Construct strict Settings for the requested environment.
+
+    The production path uses the canonical four-environment
+    contract with a ``postgresql+psycopg2`` driver URL sourced
+    from the CI-provided ``DATABASE_URL`` environment variable
+    (the password is held in-memory and never logged).  The
+    ``local`` path uses the canonical ``COLD_STORAGE_*`` keys
+    for the local default.  No real secret is read or echoed.
+    """
+    if environment_id == "production":
+        database_url = os.environ["DATABASE_URL"]
+        return Settings.model_validate(
+            {
+                "COLD_STORAGE_ENVIRONMENT_ID": "production",
+                "COLD_STORAGE_DATABASE_ENVIRONMENT_ID": "production",
+                "COLD_STORAGE_SECRET_ENVIRONMENT_ID": "production",
+                "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID": "production",
+                "COLD_STORAGE_CONFIG_SCHEMA_VERSION": "1",
+                "COLD_STORAGE_APP_DEBUG": "false",
+                "COLD_STORAGE_APP_HOST": "127.0.0.1",
+                "COLD_STORAGE_APP_PORT": "8000",
+                "COLD_STORAGE_DATABASE_BACKEND": "postgresql",
+                "COLD_STORAGE_DATABASE_URL": database_url,
+                "COLD_STORAGE_STORAGE_DIR": ("/var/lib/cold-storage/production/artifacts"),
+            }
+        )
+    if environment_id == "local":
+        return Settings.model_validate({"COLD_STORAGE_ENVIRONMENT_ID": "local"})
+    raise AssertionError(f"unsupported test environment: {environment_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -311,18 +354,24 @@ def test_pg_app_env_production_passes_when_all_stages_have_approved(
 
 
 # ---------------------------------------------------------------------------
-# Test 3 — development mode skips the readiness check on PG
+# Test 3 — legacy ``development`` normalises to ``local`` and skips readiness
 # ---------------------------------------------------------------------------
 
 
-def test_pg_app_env_development_skips_readiness_check(pg_engine: Engine) -> None:
-    """PG parity: development mode runs demo-only seed without raising."""
+def test_pg_legacy_development_maps_to_local_and_skips_readiness_check(
+    pg_engine: Engine,
+) -> None:
+    """PG parity: legacy ``APP_ENV=development`` normalises to ``local`` and
+    readiness is skipped.  ``development`` is a backwards-compatibility
+    alias, **not** a canonical environment.
+    """
     _fresh_pg_engine(pg_engine).dispose()
     Base.metadata.create_all(pg_engine)
-    settings = _make_settings("development")
+    settings = Settings.model_validate({"APP_ENV": "development"})
 
     outcome = run_startup_readiness_or_raise(settings=settings, engine=pg_engine)
-    assert outcome.mode is AppMode.DEVELOPMENT
+    assert settings.environment_id.value == "local"
+    assert outcome.mode is AppMode.LOCAL
     assert outcome.executed is False
     assert outcome.result is None
 

@@ -14,8 +14,10 @@ Tests
 2. ``test_app_env_production_passes_when_all_stages_have_approved``
    — production mode + every required stage has exactly one
    approved non-demo row with a valid citation → readiness passes.
-3. ``test_app_env_development_skips_readiness_check``
-   — development mode + only demo rows → readiness skipped.
+3. ``test_legacy_development_maps_to_local_and_skips_readiness_check``
+   — legacy ``development`` input is normalised to ``local`` and
+   the readiness check is skipped (the development branch is now
+   a compatibility alias, not a canonical mode).
 4. ``test_app_env_test_skips_readiness_check``
    — test mode + only demo rows → readiness skipped.
 5. ``test_strict_resolver_rejects_demo_in_production_use_case``
@@ -39,6 +41,25 @@ payload_hash recompute / power-authority / archive / scheme
 assertions here — these belong to deferred Slices. The tests in
 this file stay narrowly scoped to the resolution gateway and
 the use case injection point.
+
+Slice 1 four-environment contract note
+---------------------------------------
+
+The settings constructors below use the canonical
+``COLD_STORAGE_*`` keys.  Production tests build a complete
+strict Settings (matching the production PASS demo case in
+``test_demo_matrix``); the readiness function still receives the
+in-memory SQLite engine explicitly so the test continues to
+exercise the resolution gateway, not a real Postgres connection.
+
+The legacy ``development`` input path is exercised by passing
+``{"APP_ENV": "development"}`` — that key is the legacy alias
+that the bootstrap environment model collapses onto ``LOCAL``.
+The production Settings uses the canonical
+``COLD_STORAGE_DATABASE_URL=postgresql+psycopg2://test:test@...``
+URL only to validate the strict Settings construction contract;
+the readiness call itself ignores that URL and uses the SQLite
+``engine`` fixture.
 """
 
 from __future__ import annotations
@@ -106,27 +127,57 @@ def engine() -> Engine:
     eng.dispose()
 
 
+def _strict_production_settings() -> Settings:
+    """Build a complete strict production Settings for readiness tests.
+
+    The URL is the same postgresql+psycopg2 placeholder used by the
+    Slice 1 production demo PASS case; it is never connected to —
+    the readiness function receives the SQLite ``engine`` fixture
+    explicitly.
+    """
+    return Settings.model_validate(
+        {
+            "COLD_STORAGE_ENVIRONMENT_ID": "production",
+            "COLD_STORAGE_DATABASE_ENVIRONMENT_ID": "production",
+            "COLD_STORAGE_SECRET_ENVIRONMENT_ID": "production",
+            "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID": "production",
+            "COLD_STORAGE_CONFIG_SCHEMA_VERSION": "1",
+            "COLD_STORAGE_APP_DEBUG": "false",
+            "COLD_STORAGE_APP_HOST": "127.0.0.1",
+            "COLD_STORAGE_APP_PORT": "8000",
+            "COLD_STORAGE_DATABASE_BACKEND": "postgresql",
+            "COLD_STORAGE_DATABASE_URL": ("postgresql+psycopg2://test:test@localhost:5432/test"),
+            "COLD_STORAGE_STORAGE_DIR": ("/var/lib/cold-storage/production/artifacts"),
+        }
+    )
+
+
+def _test_settings() -> Settings:
+    """Build an isolated test Settings object."""
+    return Settings.model_validate(
+        {
+            "COLD_STORAGE_ENVIRONMENT_ID": "test",
+            "COLD_STORAGE_SQLITE_PATH": ":memory:",
+            "COLD_STORAGE_STORAGE_DIR": "./artifacts/test",
+        }
+    )
+
+
 @pytest.fixture()
 def settings_factory():
-    """Build a Settings instance with the requested ``app_env`` value.
+    """Build a Settings instance with the requested environment.
 
-    Pydantic-settings would read the real ``.env`` file otherwise;
-    here we construct Settings directly. ``app_env`` is the only
-    field we change. ``Settings.model_config`` lets us bypass env
-    reads by overriding the constructor — pydantic-settings 2.x
-    honours a plain ``__init__(app_env=...)`` call when the
-    environment variable does not exist (it doesn't for
-    ``app_env``).
+    The legacy ``APP_ENV`` path normalises ``development`` onto
+    ``local``; everything else is passed through to canonical
+    ``COLD_STORAGE_ENVIRONMENT_ID``.
     """
 
-    def _make(app_env: str) -> Settings:
-        # Construct via object.__new__ + model_validate to bypass
-        # pydantic-settings environment reading entirely.  Slice
-        # 2A treats ``app_env`` as the production-mode truth
-        # source; the only way a test can route through
-        # ``AppMode.PRODUCTION`` / ``DEVELOPMENT`` / ``TEST`` is to
-        # provide that value in-process.
-        return Settings.model_validate({"app_env": app_env})
+    def _make(environment_value: str) -> Settings:
+        if environment_value in {"local", "test", "staging", "production"}:
+            return Settings.model_validate({"COLD_STORAGE_ENVIRONMENT_ID": environment_value})
+        # Legacy compatibility aliases (e.g. ``development``) flow
+        # through the legacy ``APP_ENV`` key.
+        return Settings.model_validate({"APP_ENV": environment_value})
 
     return _make
 
@@ -248,8 +299,14 @@ def _seed_full_production_set(engine: Engine) -> None:
 
 
 def _make_settings(app_env: str) -> Settings:
-    """Construct Settings with the requested ``app_env`` value only."""
-    return Settings.model_validate({"app_env": app_env})
+    """Construct Settings with the requested legacy ``APP_ENV`` value.
+
+    Retained for the strict-resolver tests below that want to
+    route through canonical production.
+    """
+    if app_env in {"local", "test", "staging", "production"}:
+        return Settings.model_validate({"COLD_STORAGE_ENVIRONMENT_ID": app_env})
+    return Settings.model_validate({"APP_ENV": app_env})
 
 
 # ---------------------------------------------------------------------------
@@ -342,11 +399,11 @@ class _NullIdentityRepository(OrchestrationIdentityRepository):
 
 
 def test_app_env_production_fails_closed_when_all_stages_missing_approved(
-    engine: Engine, settings_factory
+    engine: Engine,
 ) -> None:
     """Production startup aborts before any committed approved row exists."""
     # No rows seeded at all.
-    settings = settings_factory("production")
+    settings = _strict_production_settings()
     with pytest.raises(StartupReadinessError) as excinfo:
         run_startup_readiness_or_raise(settings=settings, engine=engine)
 
@@ -366,11 +423,11 @@ def test_app_env_production_fails_closed_when_all_stages_missing_approved(
 
 
 def test_app_env_production_passes_when_all_stages_have_approved(
-    engine: Engine, settings_factory
+    engine: Engine,
 ) -> None:
     """Production startup succeeds once every stage has an approved row."""
     _seed_full_production_set(engine)
-    settings = settings_factory("production")
+    settings = _strict_production_settings()
 
     outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
 
@@ -385,16 +442,20 @@ def test_app_env_production_passes_when_all_stages_have_approved(
 
 
 # ---------------------------------------------------------------------------
-# Test 3 — development mode skips the readiness check (demo flow)
+# Test 3 — legacy ``development`` normalises to ``local`` and skips readiness
 # ---------------------------------------------------------------------------
 
 
-def test_app_env_development_skips_readiness_check(engine: Engine, settings_factory) -> None:
-    """Development mode runs the same demo-only fixture without raising."""
-    settings = settings_factory("development")
+def test_legacy_development_maps_to_local_and_skips_readiness_check(
+    engine: Engine,
+) -> None:
+    """Legacy ``APP_ENV=development`` is normalised to ``local`` and readiness
+    is skipped (development is a compatibility alias, not a canonical mode).
+    """
+    settings = Settings.model_validate({"APP_ENV": "development"})
 
     # Seed only demo rows — under strict-ready production mode
-    # this would fail; under development mode it must pass.
+    # this would fail; under local mode it must pass.
     for category in {"zone", "cooling_load", "equipment", "power", "investment"}:
         _seed_revision(
             engine,
@@ -406,7 +467,8 @@ def test_app_env_development_skips_readiness_check(engine: Engine, settings_fact
         )
 
     outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
-    assert outcome.mode is AppMode.DEVELOPMENT
+    assert settings.environment_id.value == "local"
+    assert outcome.mode is AppMode.LOCAL
     assert outcome.executed is False
     assert outcome.result is None
 
@@ -416,9 +478,9 @@ def test_app_env_development_skips_readiness_check(engine: Engine, settings_fact
 # ---------------------------------------------------------------------------
 
 
-def test_app_env_test_skips_readiness_check(engine: Engine, settings_factory) -> None:
-    """Test mode mirrors development semantics for readiness."""
-    settings = settings_factory("test")
+def test_app_env_test_skips_readiness_check(engine: Engine) -> None:
+    """Test mode runs without raising."""
+    settings = _test_settings()
     outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
     assert outcome.mode is AppMode.TEST
     assert outcome.executed is False

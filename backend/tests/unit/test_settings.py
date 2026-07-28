@@ -1,128 +1,179 @@
-"""Tests for cold_storage.bootstrap.settings configuration."""
+"""Tests for the Slice 1 four-environment secure settings contract."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
+from cold_storage.bootstrap.environment_model import (
+    ConfigurationError,
+    EnvironmentId,
+    resolve_configuration,
+)
 from cold_storage.bootstrap.settings import Settings
 
 
 @pytest.fixture(autouse=True)
-def _clear_db_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure tests start with clean database env vars."""
-    monkeypatch.delenv("DATABASE_BACKEND", raising=False)
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.delenv("SQLITE_PATH", raising=False)
-    monkeypatch.delenv("POSTGRES_HOST", raising=False)
-    monkeypatch.delenv("POSTGRES_PORT", raising=False)
-    monkeypatch.delenv("POSTGRES_DB", raising=False)
-    monkeypatch.delenv("POSTGRES_USER", raising=False)
-    monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+def clear_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in list(os.environ):
+        if key.startswith("COLD_STORAGE_") or key in {
+            "APP_ENV",
+            "APP_DEBUG",
+            "APP_HOST",
+            "APP_PORT",
+            "DATABASE_BACKEND",
+            "DATABASE_URL",
+            "SQLITE_PATH",
+            "POSTGRES_HOST",
+            "POSTGRES_PORT",
+            "POSTGRES_DB",
+            "POSTGRES_USER",
+            "POSTGRES_PASSWORD",
+            "REDIS_URL",
+            "STORAGE_DIR",
+            "OPENAI_API_KEY",
+        }:
+            monkeypatch.delenv(key, raising=False)
 
 
-class TestDefaultSQLiteConfig:
-    """Default configuration should produce a SQLite database URL."""
+def strict_env(mode: str = "production") -> dict[str, str]:
+    return {
+        "COLD_STORAGE_ENVIRONMENT_ID": mode,
+        "COLD_STORAGE_CONFIG_SCHEMA_VERSION": "1",
+        "COLD_STORAGE_APP_DEBUG": "false",
+        "COLD_STORAGE_APP_HOST": "127.0.0.1",
+        "COLD_STORAGE_APP_PORT": "8000",
+        "COLD_STORAGE_DATABASE_BACKEND": "postgresql",
+        "COLD_STORAGE_DATABASE_URL": "postgresql+psycopg2://u:p@db:5432/cold_storage",
+        "COLD_STORAGE_DATABASE_ENVIRONMENT_ID": mode,
+        "COLD_STORAGE_SECRET_ENVIRONMENT_ID": mode,
+        "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID": mode,
+        "COLD_STORAGE_STORAGE_DIR": f"/var/lib/cold-storage/{mode}/artifacts",
+    }
 
-    def test_database_backend_defaults_to_sqlite(self):
+
+def test_four_canonical_environment_modes() -> None:
+    assert [x.value for x in EnvironmentId] == ["local", "test", "staging", "production"]
+    assert Settings().environment_id is EnvironmentId.LOCAL
+    assert Settings().app_env == "local"
+
+
+def test_legacy_development_maps_to_local() -> None:
+    env_id, _, report = resolve_configuration({"APP_ENV": "development"})
+    assert env_id is EnvironmentId.LOCAL
+    assert "DEPRECATED_LEGACY_CONFIG_KEY" in report.warning_codes
+
+
+def test_canonical_legacy_conflict_fails_closed() -> None:
+    with pytest.raises((ConfigurationError, ValidationError)):
+        Settings.model_validate({"COLD_STORAGE_ENVIRONMENT_ID": "test", "APP_ENV": "production"})
+
+
+@pytest.mark.parametrize("mode", ["staging", "production"])
+def test_strict_modes_require_canonical_environment_and_reject_legacy(mode: str) -> None:
+    values = strict_env(mode)
+    values["APP_DEBUG"] = "false"
+    with pytest.raises((ConfigurationError, ValidationError)):
+        Settings.model_validate({**values, "APP_ENV": mode})
+
+
+def test_unknown_prefixed_key_policy() -> None:
+    with pytest.raises((ConfigurationError, ValidationError)):
+        Settings.model_validate({**strict_env(), "COLD_STORAGE_TYPO": "x"})
+    _, _, report = resolve_configuration({"COLD_STORAGE_TYPO": "x"})
+    assert "UNKNOWN_COLD_STORAGE_KEY" in report.warning_codes
+
+
+def test_discrete_postgresql_uses_psycopg2_and_redacts_password() -> None:
+    settings = Settings.model_validate(
+        {
+            "COLD_STORAGE_ENVIRONMENT_ID": "local",
+            "COLD_STORAGE_DATABASE_BACKEND": "postgresql",
+            "COLD_STORAGE_POSTGRES_HOST": "db",
+            "COLD_STORAGE_POSTGRES_PORT": 5432,
+            "COLD_STORAGE_POSTGRES_DB": "cold_storage",
+            "COLD_STORAGE_POSTGRES_USER": "user",
+            "COLD_STORAGE_POSTGRES_PASSWORD": "secret-password",
+        }
+    )
+    assert settings.database_url.startswith("postgresql+psycopg2://")
+    assert "secret-password" not in repr(settings)
+
+
+def test_env_example_uses_canonical_names_and_safe_driver() -> None:
+    content = (Path(__file__).resolve().parents[3] / ".env.example").read_text()
+    assert "COLD_STORAGE_ENVIRONMENT_ID=local" in content
+    assert "postgresql+psycopg2" in content
+    assert "postgresql+asyncpg" not in content
+    assert "password@" not in content
+
+
+def test_explicit_database_backend_wins_over_inherited_postgres_env() -> None:
+    """Regression: an explicit ``DATABASE_BACKEND=sqlite`` must survive an
+    environment that has a complete set of ``POSTGRES_*`` variables inherited
+    from a parent process (this is the real failure mode that hit
+    ``tests/evaluation/test_postgresql_acceptance.py::
+    test_baseline_golden_consumed_by_production_path`` under CI's
+    ``backend-postgresql`` job: the ``a1_engine`` fixture set
+    ``DATABASE_BACKEND=sqlite`` + ``SQLITE_PATH=<temp>`` in a subprocess that
+    inherited ``POSTGRES_*`` from the job's service container, and the old
+    discrete-key heuristic silently flipped the backend to ``postgresql``).
+    """
+
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        for inherited_key, inherited_value in (
+            ("POSTGRES_HOST", "db.example"),
+            ("POSTGRES_PORT", "5432"),
+            ("POSTGRES_DB", "inherited_db"),
+            ("POSTGRES_USER", "inherited_user"),
+            ("POSTGRES_PASSWORD", "inherited_password"),
+        ):
+            monkeypatch.setenv(inherited_key, inherited_value)
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        # The autouse ``clear_env`` fixture guarantees no canonical
+        # ``COLD_STORAGE_*`` aliases are present; the explicit SQLite
+        # configuration therefore has to be supplied via the legacy keys
+        # to mimic the alembic subprocess path that triggered the bug.
+        monkeypatch.setenv("DATABASE_BACKEND", "sqlite")
+        monkeypatch.setenv("SQLITE_PATH", "/tmp/explicit-test.db")
         settings = Settings()
-        assert settings.database_backend == "sqlite"
+    finally:
+        monkeypatch.undo()
 
-    def test_default_sqlite_url_built_from_path(self):
+    assert settings.database_backend == "sqlite"
+    assert settings.sqlite_path == "/tmp/explicit-test.db"
+    assert settings.database_url == "sqlite:////tmp/explicit-test.db"
+
+
+def test_inherited_postgres_fields_infer_postgresql_when_backend_unset() -> None:
+    """Counterpart to the regression above: when the caller does NOT pick a
+    database backend and the environment provides a complete discrete
+    ``POSTGRES_*`` set, the backend is inferred as ``postgresql`` and the
+    ``postgresql+psycopg2`` driver is used. This guarantees the previous
+    behavior (the one the old heuristic protected) is preserved outside the
+    buggy edge case."""
+
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        for inherited_key, inherited_value in (
+            ("POSTGRES_HOST", "db.example"),
+            ("POSTGRES_PORT", "5432"),
+            ("POSTGRES_DB", "inherited_db"),
+            ("POSTGRES_USER", "inherited_user"),
+            ("POSTGRES_PASSWORD", "inherited_password"),
+        ):
+            monkeypatch.setenv(inherited_key, inherited_value)
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("DATABASE_BACKEND", raising=False)
+        monkeypatch.delenv("SQLITE_PATH", raising=False)
         settings = Settings()
-        assert settings.sqlite_path in settings.database_url
-        assert settings.database_url.startswith("sqlite:///")
+    finally:
+        monkeypatch.undo()
 
-    def test_default_app_port(self):
-        settings = Settings()
-        assert settings.app_port == 8000
-
-    def test_default_app_host(self):
-        settings = Settings()
-        assert settings.app_host == "0.0.0.0"
-
-
-class TestExplicitSQLiteConfig:
-    """Explicit SQLite configuration via env-like overrides."""
-
-    def test_custom_sqlite_path(self):
-        settings = Settings(sqlite_path="/tmp/my.db")
-        assert settings.database_url == "sqlite:////tmp/my.db"
-
-    def test_explicit_database_url_not_overwritten(self):
-        settings = Settings(database_url="sqlite:///custom.db")
-        assert settings.database_url == "sqlite:///custom.db"
-
-
-class TestPostgreSQLConfig:
-    """PostgreSQL URL construction from individual fields."""
-
-    def test_postgres_url_built_from_fields(self):
-        settings = Settings(
-            database_backend="postgresql",
-            postgres_host="db.example.com",
-            postgres_port=5433,
-            postgres_db="mydb",
-            postgres_user="admin",
-            postgres_password="secret",
-        )
-        assert "db.example.com:5433/mydb" in settings.database_url
-        assert settings.database_url.startswith("postgresql+asyncpg://")
-
-    def test_postgres_password_in_url(self):
-        settings = Settings(
-            database_backend="postgresql",
-            postgres_password="hunter2",
-        )
-        assert "hunter2" in settings.database_url
-
-
-class TestBackendValidation:
-    """database_backend must be sqlite or postgresql."""
-
-    def test_valid_backends(self):
-        s1 = Settings(database_backend="sqlite")
-        assert s1.database_backend == "sqlite"
-        s2 = Settings(database_backend="postgresql")
-        assert s2.database_backend == "postgresql"
-
-    def test_invalid_backend_rejected(self):
-        with pytest.raises((ValueError, AttributeError)):
-            Settings(database_backend="mysql")  # type: ignore[arg-type]
-
-
-class TestSensitiveFieldMasking:
-    """Sensitive fields should not leak in repr output."""
-
-    def test_password_not_in_repr(self):
-        settings = Settings(postgres_password="hunter2")
-        r = repr(settings)
-        assert "hunter2" not in r
-
-    def test_redis_url_in_repr(self):
-        settings = Settings()
-        r = repr(settings)
-        # Redis URL is not a sensitive field, port is visible
-        assert "6379" in r
-
-
-class TestEnvExampleConsistency:
-    ".env.example keys must match Settings field names."
-
-    def test_env_example_matches_settings(self):
-        env_path = Path(__file__).resolve().parents[3] / ".env.example"
-        if not env_path.exists():
-            pytest.skip(".env.example not found")
-        content = env_path.read_text()
-        settings_fields = set(Settings.model_fields.keys())
-        # Check that each non-commented env line key is a Settings field
-        for line in content.strip().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            key = line.split("=")[0].strip()
-            # Strip any prefix like export
-            if key.startswith("export "):
-                key = key[7:]
-            assert key.lower() in settings_fields, f".env.example has key '{key}' not in Settings"
+    assert settings.database_backend == "postgresql"
+    assert settings.database_url is not None
+    assert settings.database_url.startswith("postgresql+psycopg2://")
