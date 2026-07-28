@@ -12,6 +12,18 @@ jobs:
       - name: Docker Compose config (root)
         run: docker compose config
       - name: Docker Compose config (production)
+        # TASK-012 Slice 2 CI-only fixtures: these four environment
+        # values exist purely to satisfy the production Compose's
+        # :?required interpolation. They are NOT real production
+        # credentials (POSTGRES_PASSWORD is an explicit placeholder
+        # that no operator or runtime would accept), they are NOT
+        # referenced by anything outside the ``docker compose config``
+        # step in this job, and they are never written to disk.
+        env:
+          COLD_STORAGE_BUILD_COMMIT_SHA: ${{ github.sha }}
+          COLD_STORAGE_BUILD_VERSION: ci-${{ github.run_number }}
+          COLD_STORAGE_DEPLOYMENT_ID: ci-compose-config
+          POSTGRES_PASSWORD: ci-only-placeholder
         run: docker compose -f docker-compose.production.yml config
 
   backend-sqlite:

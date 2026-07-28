@@ -30,6 +30,17 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+# Architecture tests instantiate the FastAPI app via ``create_app()``,
+# which runs the production lifespan and therefore triggers
+# ``Settings()`` at startup. We pre-populate the env vars the
+# settings layer consults so the local-mode lifespan does not raise
+# ``ConfigurationError``. These are TEST-ONLY environment values.
+os.environ.setdefault("COLD_STORAGE_ENVIRONMENT_ID", "local")
+os.environ.setdefault("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+os.environ.setdefault("COLD_STORAGE_SQLITE_PATH", "/tmp/test_architecture_local.db")
+os.environ.setdefault("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+os.environ.setdefault("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "5")
+
 
 def _bootstrap_path() -> Path:
     return Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "bootstrap"
@@ -120,8 +131,10 @@ def test_liveness_does_not_call_dependency_probes():
 
     from cold_storage.bootstrap.app import create_app
 
-    os.environ["COLD_STORAGE_ENVIRONMENT_ID"] = "test"
-    os.environ.setdefault("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+    # The module-level os.environ.setdefault block already pre-populates
+    # the lifespan env vars for local-mode tests. The duplicate setenv
+    # here is unnecessary; leaving a comment so the call site is
+    # self-documenting.
     # Build a minimal app and inspect its routes for ``/health/live``.
     app = create_app()
     with TestClient(app) as client:

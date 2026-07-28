@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,7 +19,23 @@ from cold_storage.bootstrap.runtime_readiness import (
 
 
 @pytest.fixture()
-def live_client(monkeypatch):
+def sqlite_env(monkeypatch, tmp_path: Path) -> None:
+    """Configure the test environment to a stable TEST-mode SQLite path.
+
+    The existing settings layer refuses to load when
+    ``COLD_STORAGE_ENVIRONMENT_ID=test`` and the default
+    ``./cold_storage_dev.db`` is used, so any test that exercises
+    the FastAPI lifespan (and therefore ``Settings()``) must
+    pre-populate ``COLD_STORAGE_SQLITE_PATH`` with a non-default
+    value pointing at a pytest-managed ``tmp_path``. The probe
+    timeouts are aligned to the documented ``LOCAL_TEST_*`` values
+    so the readiness authority's per-probe budget matches what the
+    rest of the test suite assumes.
+    """
+    sqlite_path = tmp_path / "test_health_endpoints.db"
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+    monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", str(sqlite_path))
     monkeypatch.setenv(
         "COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS",
         str(LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS),
@@ -27,6 +44,10 @@ def live_client(monkeypatch):
         "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
         str(LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS),
     )
+
+
+@pytest.fixture()
+def live_client(monkeypatch, sqlite_env):
     # Pre-set a READY state so /health/ready returns 200 quickly. The
     # cooperative dependency system keeps the existing convention for
     # local/test fixtures.
@@ -51,7 +72,7 @@ def test_health_ready_returns_200_when_ready(live_client):
     assert body["status"] == "ready"
 
 
-def test_health_ready_returns_503_when_draining():
+def test_health_ready_returns_503_when_draining(sqlite_env):
     from cold_storage.bootstrap.runtime_readiness import ReadinessState, set_readiness_state
 
     reset_readiness_state()
@@ -82,7 +103,7 @@ def test_health_live_does_not_touch_database(monkeypatch, live_client):
     called = {"count": 0}
     original_get_engine = deps.get_engine
 
-    def _spy_get_engine():
+    def _spy_get_engine() -> object:
         called["count"] += 1
         return original_get_engine()
 

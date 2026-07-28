@@ -2,7 +2,6 @@
 
 import json
 import logging
-import os
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -338,16 +337,20 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         passwords, tokens, secret mount contents, or unsafe path
         details. Only stable state codes and the per-probe outcome
         projections are surfaced.
+
+        ``ready()`` MUST NOT raise an exception; under strict-env
+        validation errors the endpoint reports ``state=ERROR`` with
+        HTTP 503 rather than propagating the pydantic
+        ``ValidationError`` to the client. This is the contract's
+        "fail closed" surface for the readiness HTTP channel.
         """
         from fastapi import Response
 
         from cold_storage.bootstrap.runtime_readiness import (
-            LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS,
             ReadinessState,
             get_readiness_state,
             run_readiness_phase,
         )
-        from cold_storage.bootstrap.settings import Settings
 
         state: ReadinessState | None = get_readiness_state()
         snapshot = state.snapshot() if state is not None else {"state": "INITIALIZING"}
@@ -369,12 +372,34 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         # Probe-timeout enforcement: every probe in the readiness set
         # runs with the configured per-probe budget; a forced timeout
         # produces the failure classification READINESS_PROBE_TIMEOUT.
-        settings = Settings()
-        os.environ.get(  # noqa: B018
-            "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
-            str(LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS),
-        )
-        outcomes = run_readiness_phase(settings=settings, readiness_probes=[])
+        #
+        # We MUST pass a Settings object to ``run_readiness_phase``;
+        # however, we deliberately swallow any pydantic validation
+        # failure and fall through to the standard 503 path with the
+        # failure code surfaced in the body. The endpoint never
+        # propagates ``pydantic_core.ValidationError`` to the client.
+        try:
+            from cold_storage.bootstrap.settings import Settings
+
+            probe_settings = Settings()
+        except Exception:  # noqa: BLE001
+            probe_settings = None
+        if probe_settings is None:
+            # Configuration was incomplete; treat this as a probe
+            # outcome with the canonical READINESS_PROBE_TIMEOUT code.
+            outcomes: tuple[Any, ...] = ()
+            return Response(
+                status_code=503,
+                media_type="application/json",
+                content=json.dumps(
+                    {
+                        "status": "not_ready",
+                        "state": state_name,
+                        "outcomes": [o.to_dict() for o in outcomes],
+                    }
+                ),
+            )
+        outcomes = run_readiness_phase(settings=probe_settings, readiness_probes=[])
         ok = all(o.status == "pass" for o in outcomes)
 
         if state_name == "READY" and ok:

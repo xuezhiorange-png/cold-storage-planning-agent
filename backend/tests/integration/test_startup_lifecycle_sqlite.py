@@ -33,7 +33,7 @@ from cold_storage.bootstrap.runtime_readiness import (
 @pytest.fixture()
 def isolated_sqlite_env(tmp_path, monkeypatch):
     sqlite_path = tmp_path / "test_slice2.db"
-    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "test")
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
     monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
     monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", str(sqlite_path))
     monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(tmp_path / "storage"))
