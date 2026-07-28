@@ -202,10 +202,104 @@ For staging and production:
 Local and test may use explicit test identities or a documented non-production
 fallback, but they may never claim production readiness.
 
+#### D-S2-02.a — In-image immutable build-identity authority
+
+The authoritative source of build identity is **a deterministic file baked
+into the backend image at build time**. There is no "build arguments OR
+immutable metadata" author choice: the file IS the authority, and any build
+argument or label that disagrees with the file MUST fail startup.
+
+At image build time the build pipeline must write:
+
+```text
+BUILD_IDENTITY_PATH=/opt/cold-storage/build-identity.json
+BUILD_IDENTITY_SCHEMA_VERSION=1
+BUILD_IDENTITY_OWNER=root
+BUILD_IDENTITY_MODE=0444
+```
+
+The file content MUST be deterministic UTF-8 JSON with exactly these keys,
+in this order, and no others:
+
+```json
+{
+  "schema_version": 1,
+  "commit_sha": "<40-character lowercase git sha>",
+  "version": "<non-empty build version>"
+}
+```
+
+The build inputs that populate this file are:
+
+```text
+COLD_STORAGE_BUILD_COMMIT_SHA
+COLD_STORAGE_BUILD_VERSION
+```
+
+These inputs are build-time immutable identity. They MUST NOT be re-derived
+from the working tree, Git CLI, or `git describe` at runtime.
+
+`COLD_STORAGE_DEPLOYMENT_ID` is **deployment-time runtime identity** and
+MUST NOT be written into `/opt/cold-storage/build-identity.json`.
+
+#### D-S2-02.b — Strict-runtime comparison rules
+
+In `staging` and `production`, startup MUST:
+
+1. read the fixed path `/opt/cold-storage/build-identity.json`;
+2. validate the file exists, is valid JSON, the field set is exactly the
+   three keys above, and `schema_version` equals `1`;
+3. verify that the file's `commit_sha` is a 40-character lowercase
+   hexadecimal SHA;
+4. verify that the file's `version` is non-empty and conforms to the safe
+   character contract;
+5. compare the runtime `COLD_STORAGE_BUILD_COMMIT_SHA` to the file's
+   `commit_sha` byte-for-byte and fail closed on any difference;
+6. compare the runtime `COLD_STORAGE_BUILD_VERSION` to the file's
+   `version` byte-for-byte and fail closed on any difference;
+7. treat `COLD_STORAGE_DEPLOYMENT_ID` as identifying the deployment
+   instance only — it MUST NOT override, replace, or back-derive the
+   build identity.
+
+The following stable failure codes MUST be used. All emitted messages MUST
+pass through the existing redaction authority or a strictly narrower safe
+projection; raw file content and raw exception text MUST NOT be returned.
+
+```text
+BUILD_IDENTITY_FILE_MISSING
+BUILD_IDENTITY_FILE_MALFORMED
+BUILD_IDENTITY_SCHEMA_UNSUPPORTED
+BUILD_IDENTITY_COMMIT_INVALID
+BUILD_IDENTITY_VERSION_INVALID
+BUILD_COMMIT_MISMATCH
+BUILD_VERSION_MISMATCH
+DEPLOYMENT_ID_INVALID
+```
+
+#### D-S2-02.c — Required anti-tampering evidence
+
+The implementation MUST demonstrate:
+
+- startup fails when the runtime `COLD_STORAGE_BUILD_COMMIT_SHA` env var is
+  overridden to a value that disagrees with the file;
+- startup fails when the runtime `COLD_STORAGE_BUILD_VERSION` env var is
+  overridden to a value that disagrees with the file;
+- mutating only `COLD_STORAGE_DEPLOYMENT_ID` does NOT change the build
+  identity reported by the runtime;
+- a missing, malformed, or tampered `/opt/cold-storage/build-identity.json`
+  file causes startup to fail closed;
+- health responses and logs do NOT leak the full file contents;
+- the in-container application user cannot modify the root-owned
+  mode-`0444` build-identity file;
+- the runtime-reported SHA is sourced from the in-image authority file and
+  matches the exact expected implementation Head.
+
 ```text
 STRICT_BUILD_IDENTITY_REQUIRED=YES
 RUNTIME_GIT_DISCOVERY_AS_AUTHORITY=NO
 BUILD_IDENTITY_SECRET=NO
+BUILD_IDENTITY_IN_IMAGE_AUTHORITY=YES
+BUILD_IDENTITY_FILE_PATH=/opt/cold-storage/build-identity.json
 ```
 
 ### D-S2-03 — Startup, liveness, and readiness semantics
@@ -225,6 +319,70 @@ Readiness is dynamic and dependency-aware. It must return:
 The response body must contain stable check codes and status values only. It
 must not contain raw exception text, SQL, DSNs, passwords, tokens, secret mount
 contents, or unsafe filesystem details.
+
+#### D-S2-03.a — Mandatory probe-timeout configuration keys
+
+The following canonical configuration keys are **frozen** as the single
+mechanism for bounding startup and readiness probe execution. There is no
+implementation-defined alternative for "how long a probe may take".
+
+```text
+COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS
+COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS
+```
+
+#### D-S2-03.b — Numeric contract
+
+```text
+STARTUP_PROBE_TIMEOUT_MIN_SECONDS=1
+STARTUP_PROBE_TIMEOUT_MAX_SECONDS=120
+READINESS_PROBE_TIMEOUT_MIN_SECONDS=1
+READINESS_PROBE_TIMEOUT_MAX_SECONDS=30
+```
+
+- staging and production MUST explicitly provide both values;
+- local/test MAY use the documented non-production defaults
+  `LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS=30` and
+  `LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS=5`;
+- values MUST be finite positive integers; zero, negative, non-integer,
+  NaN, Infinity, or out-of-range values are configuration errors and MUST
+  cause startup to fail closed.
+
+#### D-S2-03.c — Per-probe timeout budget
+
+```text
+PROBE_TIMEOUT_BUDGET_TYPE=PER_PROBE
+STARTUP_PROBE_TIMEOUT_SCOPE=EACH_MANDATORY_STARTUP_PROBE
+READINESS_PROBE_TIMEOUT_SCOPE=EACH_MANDATORY_DYNAMIC_PROBE
+```
+
+- every mandatory probe has an independent timeout upper bound;
+- earlier probes that complete quickly MUST NOT lend their remaining time
+  to later probes;
+- the maximum theoretical wall-clock duration of a complete
+  startup/readiness evaluation is therefore exactly
+  `MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT`;
+- implementations MUST use a dependency-native timeout or another
+  cancellable, bounded mechanism; implementing timeout by spawning
+  unbounded background threads or tasks is FORBIDDEN.
+
+#### D-S2-03.d — Timeout outcome contract
+
+```text
+STARTUP_TIMEOUT_RESULT=PROCESS_STARTUP_FAIL_CLOSED
+READINESS_TIMEOUT_HTTP_STATUS=503
+LIVENESS_DURING_READINESS_TIMEOUT=200
+RAW_TIMEOUT_EXCEPTION_EXPOSED=false
+```
+
+- on startup probe timeout, startup MUST fail closed with the stable
+  failure code `STARTUP_PROBE_TIMEOUT`;
+- on readiness probe timeout, readiness MUST return HTTP 503 with the
+  stable failure code `READINESS_PROBE_TIMEOUT`;
+- liveness MUST continue to return HTTP 200 even while readiness reports
+  503 due to probe timeout;
+- timeout results MUST carry a safe `check_code` only; raw exception
+  text, DSNs, SQL, secrets, tokens, and unsafe paths MUST NOT be exposed.
 
 ```text
 STARTUP_SEMANTICS=PRE_SERVICE_FAIL_CLOSED
@@ -251,6 +409,15 @@ Redis is not a mandatory readiness dependency in this Slice because the current
 application runtime does not establish Redis as a required production service.
 It must not be added merely because the local Compose file contains Redis.
 
+#### D-S2-04.a — Per-probe timeout application
+
+Each of the mandatory readiness gates above MUST be executed under the
+per-probe timeout budget specified in D-S2-03.c. A timeout on any one
+gate MUST yield the readiness HTTP 503 response with the stable failure
+code `READINESS_PROBE_TIMEOUT` (D-S2-03.d), and MUST NOT extend the
+overall readiness evaluation beyond
+`MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT`.
+
 ```text
 REDIS_MANDATORY_READINESS_DEPENDENCY=NO
 DEPENDENCY_INVENTION_ALLOWED=NO
@@ -272,19 +439,85 @@ STAGING_USES_LOCAL_OR_TEST_SKIP=NO
 ### D-S2-06 — Production capability admission
 
 Strict-environment startup must identify production capabilities wired to fake
-or in-memory implementations.
+or in-memory implementations. The admission outcome is **frozen** for each
+capability: there is no second author choice between "hide the route" and
+"reject the whole process" — both interpretations produce the same observable
+contract.
 
-At minimum, the implementation must address:
+The implementation must address, at minimum:
 
 - `FakeAgentModelGateway`;
 - process-local/in-memory `CoefficientService` HTTP route wiring.
 
-For each capability, the implementation must choose one of these two outcomes
-and test it explicitly:
+#### D-S2-06.a — `FakeAgentModelGateway`
 
-1. the capability is not registered/exposed in staging and production; or
-2. strict startup rejects the process because the capability is not production
-   admissible.
+In `staging` and `production`:
+
+- the `FakeAgentModelGateway` class must NOT be instantiated;
+- any HTTP route or surface that depends on the fake gateway must NOT be
+  registered;
+- the model-backed HTTP surface on the planning-agent must report
+  `PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE=NOT_REGISTERED`;
+- a request to that surface must yield a normal route-not-found result
+  (`EXPECTED_HTTP_RESULT=404`), not an internal capability-state exposure;
+- the un-registered capability must NOT be disguised as a readiness failure;
+- `local` and `test` behavior must remain unchanged;
+- this Slice must NOT implement a real model provider.
+
+```text
+FAKE_AGENT_GATEWAY_STRICT_MODE_OUTCOME=CAPABILITY_NOT_REGISTERED
+FAKE_AGENT_GATEWAY_STRICT_MODE_INSTANTIATION=FORBIDDEN
+PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE=NOT_REGISTERED
+EXPECTED_HTTP_RESULT=404
+```
+
+#### D-S2-06.b — In-memory `CoefficientService` HTTP wiring
+
+In `staging` and `production`:
+
+- a process-in-memory `CoefficientService()` instance must NOT be instantiated
+  as an HTTP route backend;
+- any coefficient HTTP route that depends on that in-memory instance must NOT
+  be registered;
+- the coefficient HTTP surface must report
+  `COEFFICIENT_HTTP_ROUTE_STRICT_MODE=NOT_REGISTERED`;
+- a request to that surface must yield a normal route-not-found result
+  (`EXPECTED_HTTP_RESULT=404`);
+- `local` and `test` behavior must remain unchanged;
+- this Slice must NOT redesign coefficient persistence or implement a
+  replacement service.
+
+```text
+IN_MEMORY_COEFFICIENT_HTTP_STRICT_MODE_OUTCOME=ROUTES_NOT_REGISTERED
+IN_MEMORY_COEFFICIENT_SERVICE_STRICT_MODE_INSTANTIATION=FORBIDDEN
+COEFFICIENT_HTTP_ROUTE_STRICT_MODE=NOT_REGISTERED
+EXPECTED_HTTP_RESULT=404
+```
+
+#### D-S2-06.c — Defensive strict-mode admission assertion
+
+In addition to the per-capability outcomes above, strict-mode startup MUST
+execute a defensive assertion that **zero** unsafe strict-capability wirings
+remain reachable:
+
+- the startup gate must enumerate every known fake/in-memory strict-mode
+  capability and confirm that each one is un-instantiated, un-wired, or
+  un-registered;
+- the expected count of reachable unsafe strict capabilities is exactly zero
+  (`STRICT_UNSAFE_CAPABILITY_COUNT_REQUIRED=0`);
+- if any unsafe strict capability is reachable, startup MUST fail closed with
+  the stable failure code `UNSAFE_STRICT_CAPABILITY_WIRING` and must NOT
+  silently continue, log-and-pass, or degrade to a soft warning;
+- this defensive assertion is independent of D-S2-06.a and D-S2-06.b: even if
+  those outcomes are correctly applied, a future regression that
+  accidentally re-introduces a fake/in-memory strict capability (for example
+  via a refactor that re-wires the route table) MUST still be caught by
+  startup.
+
+```text
+STRICT_UNSAFE_CAPABILITY_COUNT_REQUIRED=0
+STRICT_UNSAFE_CAPABILITY_FAILURE_CODE=UNSAFE_STRICT_CAPABILITY_WIRING
+```
 
 The implementation may not add a real model provider, redesign coefficient
 persistence, or silently leave unsafe strict-mode wiring active.
@@ -328,8 +561,12 @@ The backend image must:
 - use the repository-owned production entrypoint;
 - not bake secrets, `.env` files, local databases, test outputs, or report
   artifacts into the image;
-- carry build identity through explicit build arguments or immutable image
-  metadata and validate the corresponding runtime identity.
+- write `/opt/cold-storage/build-identity.json` at build time with
+  `owner=root`, `mode=0444`, and the deterministic JSON contract specified
+  in D-S2-02.a; the file is the in-image authoritative build identity and
+  runtime identity is validated against it (see D-S2-02.b and
+  D-S2-02.c); this contract does NOT permit a "build arguments OR
+  immutable metadata" author choice.
 
 ```text
 BACKEND_IMAGE_RUNS_AS_ROOT=NO
@@ -393,10 +630,10 @@ Those require a separate contract.
 FRONTEND_RUNTIME_TOPOLOGY=DEFERRED
 BACKEND_ONLY_CONTAINER_FOUNDATION=YES
 ```
-
 ### D-S2-12 — Evidence and failure classification
 
 Startup and readiness failures must expose stable machine-readable classes.
+
 At minimum, distinguish:
 
 - configuration identity failure;
@@ -406,7 +643,10 @@ At minimum, distinguish:
 - artifact storage failure;
 - coefficient readiness failure;
 - production capability admission failure;
-- lifecycle/draining state.
+- lifecycle/draining state;
+- in-image build-identity file failure (missing, malformed, unsupported
+  schema, invalid commit, invalid version, runtime mismatch);
+- probe-timeout failure on a mandatory startup or readiness probe.
 
 Logs and endpoint responses must use the existing redaction authority or a
 strictly narrower safe projection. Raw exception interpolation is forbidden.
@@ -416,6 +656,28 @@ STABLE_FAILURE_CODES_REQUIRED=YES
 RAW_EXCEPTION_TEXT_IN_HEALTH_RESPONSE=NO
 RAW_SECRET_OR_DSN_IN_EVIDENCE=NO
 ```
+
+#### D-S2-12.a — Frozen stable failure codes
+
+The following failure codes are **frozen** by this contract. Every
+implementation that claims to satisfy this Slice MUST emit exactly these
+codes (and only these, plus Slice 1 codes) for the listed conditions.
+Adding a code is a contract change requiring a new amendment round;
+renaming a code is forbidden.
+
+| Condition | Failure code |
+|---|---|
+| `/opt/cold-storage/build-identity.json` missing | `BUILD_IDENTITY_FILE_MISSING` |
+| `/opt/cold-storage/build-identity.json` unreadable or unparseable | `BUILD_IDENTITY_FILE_MALFORMED` |
+| `schema_version` not equal to `1` | `BUILD_IDENTITY_SCHEMA_UNSUPPORTED` |
+| file `commit_sha` not a 40-char lowercase hex SHA | `BUILD_IDENTITY_COMMIT_INVALID` |
+| file `version` empty or violates safe-character contract | `BUILD_IDENTITY_VERSION_INVALID` |
+| runtime `COLD_STORAGE_BUILD_COMMIT_SHA` differs from file | `BUILD_COMMIT_MISMATCH` |
+| runtime `COLD_STORAGE_BUILD_VERSION` differs from file | `BUILD_VERSION_MISMATCH` |
+| `COLD_STORAGE_DEPLOYMENT_ID` empty/malformed when required | `DEPLOYMENT_ID_INVALID` |
+| startup probe exceeded per-probe timeout | `STARTUP_PROBE_TIMEOUT` |
+| readiness probe exceeded per-probe timeout | `READINESS_PROBE_TIMEOUT` |
+| any unsafe strict capability reachable at startup | `UNSAFE_STRICT_CAPABILITY_WIRING` |
 
 ## 7. Exact future implementation path allowlist
 
@@ -546,7 +808,11 @@ Required tests:
 - local/test non-production behavior;
 - failed startup cleanup and idempotent retry;
 - readiness draining transition;
-- capability admission decisions for fake/in-memory wiring.
+- capability admission decisions for fake/in-memory wiring;
+- for each illegal probe-timeout value (zero, negative, non-integer, NaN,
+  Infinity, out-of-range), the configuration is rejected;
+- forced probe timeout maps to the stable failure code
+  `STARTUP_PROBE_TIMEOUT` or `READINESS_PROBE_TIMEOUT`.
 
 ### 9.2 SQLite acceptance
 
@@ -580,7 +846,12 @@ Required evidence:
 - readiness returns 503 after mandatory dependency failure;
 - liveness remains process-only;
 - shutdown draining changes readiness before engine disposal;
-- no DSN, password, token, secret, or unsafe path appears in evidence.
+- no DSN, password, token, secret, or unsafe path appears in evidence;
+- when a mandatory database probe is forced to exceed its per-probe
+  timeout, readiness returns HTTP 503 with stable failure code
+  `READINESS_PROBE_TIMEOUT`;
+- while readiness reports 503 due to probe timeout, liveness continues to
+  return HTTP 200.
 
 ### 9.4 Container and Compose acceptance
 
@@ -601,7 +872,24 @@ Required evidence:
 - runtime-reported build SHA equals the exact expected implementation Head;
 - artifact volume persists across application container replacement;
 - cleanup removes test containers without deleting an operator-owned external
-  production resource.
+  production resource;
+- when a mandatory probe is forced to exceed its per-probe timeout, the
+  probe completes within the bounded budget and `/health/ready` returns
+  HTTP 503 with the stable failure code `READINESS_PROBE_TIMEOUT` (or
+  startup fails closed with `STARTUP_PROBE_TIMEOUT`);
+- after a forced probe timeout and a subsequent shutdown/retry cycle,
+  no timeout worker, thread, connection, or singleton state is left
+  behind;
+- timeout evidence is redacted (no raw exception, DSN, secret, or unsafe
+  path);
+- the in-container application user cannot modify the root-owned
+  mode-`0444` `/opt/cold-storage/build-identity.json` file;
+- overriding `COLD_STORAGE_BUILD_COMMIT_SHA` at runtime to disagree with
+  the file causes startup to fail with `BUILD_COMMIT_MISMATCH`;
+- overriding `COLD_STORAGE_BUILD_VERSION` at runtime to disagree with the
+  file causes startup to fail with `BUILD_VERSION_MISMATCH`;
+- mutating only `COLD_STORAGE_DEPLOYMENT_ID` does not change the reported
+  build identity.
 
 ### 9.5 Static and architecture acceptance
 
@@ -625,7 +913,15 @@ Architecture tests must enforce:
 - readiness owns dependency probes through the canonical runtime authority;
 - strict environments cannot silently admit fake/in-memory production wiring;
 - raw exception text is not returned by health endpoints;
-- no second configuration or redaction authority is introduced.
+- no second configuration or redaction authority is introduced;
+- the defensive strict-mode capability admission assertion
+  (`STRICT_UNSAFE_CAPABILITY_COUNT_REQUIRED=0`) runs at startup and fails
+  closed with `UNSAFE_STRICT_CAPABILITY_WIRING` if violated;
+- the `/opt/cold-storage/build-identity.json` authority is the single
+  source of truth for build commit and version at runtime — no
+  re-derivation from the working tree or Git CLI;
+- probe timeouts are bounded per probe and do not rely on unbounded
+  background threads or tasks.
 
 ## 10. CI ownership
 
@@ -651,7 +947,10 @@ Owns:
 - exact Alembic-head verification;
 - PostgreSQL readiness behavior;
 - coefficient readiness integration;
-- strict artifact and capability admission checks.
+- strict artifact and capability admission checks;
+- in-image build-identity authority and runtime mismatch tests;
+- forced readiness-probe timeout → HTTP 503 + stable failure code
+  `READINESS_PROBE_TIMEOUT`, with liveness remaining 200.
 
 ### `compose-config`
 
@@ -663,8 +962,12 @@ Owns:
 - non-root image assertion;
 - migration plus application container smoke;
 - live/ready endpoint smoke;
-- exact build identity assertion;
-- secret and artifact persistence assertions appropriate to the CI environment.
+- exact build identity assertion (SHA from `/opt/cold-storage/build-identity.json`
+  equals the exact expected implementation Head);
+- in-container application user cannot modify the root-owned `0444`
+  build-identity file;
+- secret and artifact persistence assertions appropriate to the CI environment;
+- forced startup/readiness probe timeout smoke (bounded completion + 503).
 
 ### `frontend`
 
@@ -702,6 +1005,15 @@ It must also record exact-head results for:
 - backend image build;
 - container migration/application smoke;
 - liveness/readiness smoke;
+- `/opt/cold-storage/build-identity.json` authority and anti-tampering
+  smoke (commit-mismatch, version-mismatch, missing-file, malformed-file,
+  unprivileged-write-rejected, runtime-SHA-equals-implementation-Head);
+- forced startup-probe timeout smoke (`STARTUP_PROBE_TIMEOUT`);
+- forced readiness-probe timeout smoke
+  (`READINESS_PROBE_TIMEOUT` + HTTP 503 + liveness 200 + no leftover
+  workers/threads/connections/singletons);
+- defensive strict-capability admission assertion smoke
+  (`STRICT_UNSAFE_CAPABILITY_COUNT_REQUIRED=0`);
 - Ruff;
 - format check;
 - mypy;
@@ -780,4 +1092,19 @@ TASK012_SLICE2_CI_OWNERSHIP_FROZEN=YES
 TASK012_SLICE2_IMPLEMENTATION_AUTHORIZED=NO
 TASK012_PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
 STOPPED_AWAITING_CHARLES_CONTRACT_REVIEW=YES
+FROZEN_DESIGN_DECISION_COUNT=12
+P1_001_RESOLVED=YES
+P1_002_RESOLVED=YES
+P1_003_RESOLVED=YES
+FUTURE_MAXIMUM_CHANGED_PATH_COUNT=20
+FUTURE_CREATE_PATH_COUNT=12
+FUTURE_MODIFY_PATH_COUNT=8
+FUTURE_DELETE_PATH_COUNT=0
+IMPLEMENTATION_AUTHORIZED=NO
+READY_AUTHORIZED=NO
+MERGE_AUTHORIZED=NO
+PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
+NO_STEP_IMPLIES_THE_NEXT=YES
+DOCUMENT_STATUS=FROZEN_CANDIDATE_ON_BRANCH
+BINDING_CONTRACT_ON_MAIN=NO
 ```
