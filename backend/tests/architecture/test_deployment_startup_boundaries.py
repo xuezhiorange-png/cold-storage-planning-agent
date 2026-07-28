@@ -27,21 +27,23 @@ section 9.5 and D-S2-06:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 
 # Architecture tests instantiate the FastAPI app via ``create_app()``,
 # which runs the production lifespan and therefore triggers
-# ``Settings()`` at startup. We pre-populate the env vars the
-# settings layer consults so the local-mode lifespan does not raise
-# ``ConfigurationError``. These are TEST-ONLY environment values.
+# ``Settings()`` at startup. The settings layer's defaults
+# (``local`` env id, ``sqlite`` backend, ``./cold_storage_dev.db``
+# sqlite path) are already correct for the architecture test surface,
+# so we do NOT pre-populate any environment variable at module level.
+# Per-test fixtures add whatever a particular test needs through
+# ``monkeypatch``.
 #
-# IMPORTANT: we deliberately do NOT seed ANY ``COLD_STORAGE_*`` keys
-# at module level here. The settings layer's pydantic-settings
-# integration treats the presence of any canonical ``COLD_STORAGE_*``
-# key as a signal to drop all non-canonical (legacy ``DATABASE_URL``
-# / ``DATABASE_BACKEND`` / ``APP_DEBUG``) keys. The existing
+# We deliberately do NOT seed any ``COLD_STORAGE_*`` keys at module
+# level here. The settings layer's pydantic-settings integration
+# treats the presence of any canonical ``COLD_STORAGE_*`` key as a
+# signal to drop all non-canonical (legacy ``DATABASE_URL`` /
+# ``DATABASE_BACKEND`` / ``APP_DEBUG``) keys. The existing
 # postgresql ``a2_pg_database`` fixture in
 # ``tests/evaluation/_seed_helpers.py`` sets the *legacy* keys when
 # invoking its ``alembic upgrade head`` subprocess, and that fixture
@@ -51,13 +53,14 @@ from pathlib import Path
 # ``a2_pg_database`` to create an empty sqlite file (the
 # ``database_backend`` defaults to ``sqlite`` once the legacy
 # ``DATABASE_BACKEND`` is dropped), which then explodes the first
-# postgresql-marked test with ``relation "projects" does not exist``.
-#
-# The settings layer's defaults (``local`` env id, ``sqlite`` backend,
-# ``./cold_storage_dev.db`` sqlite path) are already correct for the
-# architecture test surface, so we do not pre-populate anything at
-# module level. Per-test fixtures add whatever a particular test
-# needs through ``monkeypatch``.
+# postgresql-marked test with ``relation "projects" does not exist``,
+# or — for sqlite-marked tests with their own per-test
+# ``SQLITE_PATH`` — causes the upstream ``alembic upgrade head`` to
+# migrate the wrong database and explode with
+# ``no such table: alembic_version`` /
+# ``no such table: projects``. Per-test fixtures must therefore
+# always go through ``monkeypatch`` and never through
+# ``os.environ`` directly.
 def _bootstrap_path() -> Path:
     return Path(__file__).resolve().parents[2] / "src" / "cold_storage" / "bootstrap"
 
@@ -142,15 +145,20 @@ def test_runtime_bootstrap_does_not_use_alembic():
                 assert "alembic" not in mod, f"{path.name} has 'from {mod} import ...' at runtime"
 
 
-def test_liveness_does_not_call_dependency_probes():
+def test_liveness_does_not_call_dependency_probes(monkeypatch):
     from fastapi.testclient import TestClient
 
     from cold_storage.bootstrap.app import create_app
 
-    # The module-level os.environ.setdefault block already pre-populates
-    # the lifespan env vars for local-mode tests. The duplicate setenv
-    # here is unnecessary; leaving a comment so the call site is
-    # self-documenting.
+    # The settings layer's pydantic-settings integration accepts the
+    # canonical ``COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS`` value
+    # directly without any per-test setup, but we still go through
+    # ``monkeypatch`` so the canonical key never leaks into the
+    # process-wide environment (see the module-level comment).
+    monkeypatch.setenv(
+        "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
+        "5",
+    )
     # Build a minimal app and inspect its routes for ``/health/live``.
     app = create_app()
     with TestClient(app) as client:
@@ -173,7 +181,7 @@ def test_liveness_does_not_call_dependency_probes():
         assert called["count"] == 0, "liveness must not consult the engine (no DB probe)"
 
 
-def test_readiness_uses_canonical_runtime_authority():
+def test_readiness_uses_canonical_runtime_authority(monkeypatch):
     from fastapi.testclient import TestClient
 
     from cold_storage.bootstrap.app import create_app
@@ -184,7 +192,7 @@ def test_readiness_uses_canonical_runtime_authority():
         set_readiness_state,
     )
 
-    os.environ.setdefault(
+    monkeypatch.setenv(
         "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
         str(LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS),
     )
