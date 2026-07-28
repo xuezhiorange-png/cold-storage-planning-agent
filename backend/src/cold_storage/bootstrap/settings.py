@@ -91,9 +91,7 @@ class Settings(BaseSettings):
         if not isinstance(data, dict):
             return data
         source = dict(data)
-        if "app_env" in source and not any(
-            str(k).startswith(CANONICAL_PREFIX) for k in source
-        ):
+        if "app_env" in source and not any(str(k).startswith(CANONICAL_PREFIX) for k in source):
             source = {"COLD_STORAGE_ENVIRONMENT_ID": source["app_env"]}
         if not any(str(k).startswith(CANONICAL_PREFIX) for k in source) and not any(
             k in source for k in LEGACY_KEYS
@@ -133,6 +131,15 @@ class Settings(BaseSettings):
         # explicitly provided in the same input layer. Env-injected partial
         # discrete fields (e.g. POSTGRES_PASSWORD alone) must NOT cause the
         # URL to be dropped — the URL is the user's authoritative source.
+        #
+        # Precedence contract (must hold in all environments):
+        #   explicit COLD_STORAGE_DATABASE_BACKEND
+        #   > explicit legacy DATABASE_BACKEND
+        #   > inference from DATABASE_URL or POSTGRES_*
+        #   > code default
+        # Inherited/injected POSTGRES_* MUST NOT silently flip a caller that
+        # explicitly chose sqlite. Discrete PostgreSQL fields are only used to
+        # infer the backend when the caller did not pick one.
         discrete_keys_present = any(
             key in normalized
             for key in (
@@ -144,7 +151,7 @@ class Settings(BaseSettings):
             )
         )
         url_present = "DATABASE_URL" in normalized
-        if discrete_keys_present and not url_present:
+        if discrete_keys_present and not url_present and "DATABASE_BACKEND" not in normalized:
             values["DATABASE_BACKEND"] = "postgresql"
         defaults = allowed_defaults(AppMode(env_id.value))
         for key, value in defaults.items():
@@ -182,9 +189,7 @@ class Settings(BaseSettings):
         if not 1 <= self.app_port <= 65535:
             raise ConfigurationError("application port outside allowed range")
         if self.storage_dir is None:
-            self.storage_dir = allowed_defaults(AppMode(self.environment_id)).get(
-                "STORAGE_DIR"
-            )
+            self.storage_dir = allowed_defaults(AppMode(self.environment_id)).get("STORAGE_DIR")
         if self.environment_id in (EnvironmentId.STAGING, EnvironmentId.PRODUCTION):
             self._validate_storage_path()
             self._validate_postgresql()
@@ -220,9 +225,11 @@ class Settings(BaseSettings):
         # URL takes precedence: if DATABASE_URL is provided, discrete fields
         # are optional and never block configuration. Discrete fields are
         # only consulted when the URL was constructed locally from them.
-        if self.database_url is None and any(
-            v not in (None, "") for v in discrete
-        ) and not all(v not in (None, "") for v in discrete):
+        if (
+            self.database_url is None
+            and any(v not in (None, "") for v in discrete)
+            and not all(v not in (None, "") for v in discrete)
+        ):
             raise ConfigurationError("incomplete PostgreSQL configuration")
         if self.database_url is not None and not self.database_url.startswith(
             "postgresql+psycopg2://"
@@ -251,22 +258,24 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _build_database_url(self) -> Settings:
-        if (
-            self.database_url is None
-            and self.database_backend == "sqlite"
-            and not any(
-                v not in (None, "")
-                for v in (
-                    self.postgres_host,
-                    self.postgres_port,
-                    self.postgres_db,
-                    self.postgres_user,
-                    self.postgres_password,
-                )
-            )
-        ):
+        # URL construction respects the same precedence contract as
+        # ``_canonicalize_sources``: an explicit backend choice wins over
+        # inherited discrete PostgreSQL fields. When the caller picked
+        # sqlite (and provided a SQLITE_PATH), we always build the
+        # sqlite URL regardless of any stray POSTGRES_* values inherited
+        # from the surrounding environment. Conversely, when the caller
+        # did NOT pick a backend, a complete discrete PostgreSQL field
+        # set is sufficient evidence to construct the psycopg2 URL.
+        if self.database_url is not None:
+            return self
+        if self.database_backend == "sqlite":
             self.database_url = f"sqlite:///{self.sqlite_path}"
-        elif self.database_url is None and all(
+            return self
+        # backend is "postgresql" here (inferred or explicit). Construct
+        # the URL from discrete fields when they are all populated; if
+        # any are missing, the URL stays None and the strict-env validator
+        # will fail-closed in staging/production as documented.
+        if all(
             v not in (None, "")
             for v in (
                 self.postgres_host,
