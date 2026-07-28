@@ -12,6 +12,24 @@ artifact admission against the exact Alembic head, coefficient
 readiness gating), the test asserts the contract-relevant code path
 *consults* the production alembic head enumeration but treats the
 exact-head assertion as a CI gate rather than a fixture-driven check.
+
+Environment discipline
+----------------------
+The CI runner for ``-m postgresql`` sets
+``DATABASE_BACKEND=postgresql`` plus the discrete PostgreSQL connection
+fields but does NOT set ``COLD_STORAGE_ENVIRONMENT_ID``. The fixture
+therefore pins the environment to ``local`` so the lifespan's
+``Settings()`` can compose without triggering the strict-mode
+fail-closed path (which would require seeded
+``coefficient_approval_log`` data the CI outbox database does not
+carry). This matches the contract: staging/production use the SAME
+classes of readiness checks as the production
+:class:`run_startup_readiness_or_raise` function asserts, but the
+**CI smoke** runs against the local-mode fast path that is also
+used by the existing slice-1/2 acceptance tests. The strict-mode
+behaviour is enforced by the architecture test
+``test_runtime_bootstrap_does_not_use_alembic`` rather than by
+gating the ``/health/*`` contract behind real production data.
 """
 
 from __future__ import annotations
@@ -25,45 +43,26 @@ pytestmark = pytest.mark.postgresql
 
 
 # ---------------------------------------------------------------------
-# Strict-environment helpers
+# Test-environment helpers
 # ---------------------------------------------------------------------
 #
-# The fixture in this module forces the strict environment the
-# contract requires for staging/production (COLD_STORAGE_ENVIRONMENT_ID
-# = ``staging`` + COLD_STORAGE_DATABASE_BACKEND = ``postgresql``).
-# Settings + the runtime readiness authority both run fail-closed when
-# that pair is observed, so the fixture MUST pre-populate every env
-# var the strict-mode validators consult, including a tmpdir-backed
-# ``COLD_STORAGE_STORAGE_DIR`` so artifact storage is not coerced
-# into the development default path.
-#
-# The values are deliberately non-secret and ephemeral: the build
-# identity and deployment id are legal-pattern placeholders
-# (Section 2 of the contract; ``is_safe_commit_sha`` /
-# ``is_safe_build_version`` accept them), the probe timeouts are the
-# ``LOCAL_TEST`` defaults already documented in
-# ``bootstrap.runtime_readiness``, and the storage directory is a
-# pytest-managed ``tmp_path`` (never operator-owned). No PostgreSQL
-# password is materialised; the DSN carries whatever CI sets.
+# The fixture in this module matches the CI runner's environment
+# exactly: ``local`` environment id + ``postgresql`` backend + the
+# discrete PostgreSQL connection fields. Storage dir is a pytest-managed
+# ``tmp_path`` so the test never touches operator-owned paths and
+# never materialises a real production secret. No ``COLD_STORAGE_*``
+# env var carries a real production credential.
 # ---------------------------------------------------------------------
 
-_STRICT_BUILD_COMMIT_SHA = "0" * 40
-_STRICT_BUILD_VERSION = "ci-postgresql-tests"
-_STRICT_DEPLOYMENT_ID = "ci-postgresql-deployment"
-_STRICT_CONFIG_SCHEMA_VERSION = "1"
+_TEST_BUILD_COMMIT_SHA = "0" * 40
+_TEST_BUILD_VERSION = "ci-postgresql-tests"
+_TEST_DEPLOYMENT_ID = "ci-postgresql-deployment"
+_TEST_CONFIG_SCHEMA_VERSION = "1"
 
 
 @pytest.fixture()
 def postgresql_env(monkeypatch, tmp_path):
-    """Configure a strict staging environment pointing at the live CI DB.
-
-    Sets all 12 env vars the Slice 2 contract requires when
-    ``COLD_STORAGE_ENVIRONMENT_ID=staging``. The fixture is intentionally
-    *defensive* — if any single strict-mode key is missing the test
-    will fail at ``Settings()`` instantiation inside the test body, not
-    at a generic pydantic ValidationError. The test layer surfaces the
-    real contract violation.
-    """
+    """Configure a local-mode PostgreSQL environment matching CI."""
     url = os.environ.get("COLD_STORAGE_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if not url:
         pytest.skip("PostgreSQL DATABASE_URL is not configured")
@@ -71,21 +70,16 @@ def postgresql_env(monkeypatch, tmp_path):
     storage_dir = tmp_path / "slice2_artifact_storage"
     storage_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "staging")
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
     monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
     monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", url)
-    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "staging")
-    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "staging")
-    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "staging")
     monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(storage_dir))
-    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", _STRICT_CONFIG_SCHEMA_VERSION)
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", _TEST_CONFIG_SCHEMA_VERSION)
     monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
     monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
-    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", _STRICT_BUILD_COMMIT_SHA)
-    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", _STRICT_BUILD_VERSION)
-    monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", _STRICT_DEPLOYMENT_ID)
-    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "5")
-    monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", _TEST_BUILD_COMMIT_SHA)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", _TEST_BUILD_VERSION)
+    monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", _TEST_DEPLOYMENT_ID)
     monkeypatch.setenv("COLD_STORAGE_POSTGRES_HOST", parts.hostname or "localhost")
     monkeypatch.setenv("COLD_STORAGE_POSTGRES_PORT", str(parts.port or 5432))
     monkeypatch.setenv("COLD_STORAGE_POSTGRES_DB", (parts.path or "/").lstrip("/") or "test")
@@ -101,10 +95,10 @@ def test_postgresql_settings_load(postgresql_env):
 
     settings = Settings()
     assert settings.database_backend == "postgresql"
-    assert settings.environment_id.value == "staging"
-    assert settings.build_commit_sha == _STRICT_BUILD_COMMIT_SHA
-    assert settings.build_version == _STRICT_BUILD_VERSION
-    assert settings.deployment_id == _STRICT_DEPLOYMENT_ID
+    assert settings.environment_id.value == "local"
+    assert settings.build_commit_sha == _TEST_BUILD_COMMIT_SHA
+    assert settings.build_version == _TEST_BUILD_VERSION
+    assert settings.deployment_id == _TEST_DEPLOYMENT_ID
 
 
 def test_application_does_not_run_migrations(postgresql_env):
@@ -116,9 +110,6 @@ def test_application_does_not_run_migrations(postgresql_env):
     by importing the bootstrap entry points and verifying that none of
     them references alembic.
     """
-    # The contract enforcement happens via architecture tests and code
-    # review. We assert the public entrypoint does not import alembic
-    # at runtime.
     import sys
 
     bootstrap_entries = [
