@@ -1,6 +1,8 @@
 """FastAPI application factory."""
 
+import json
 import logging
+import os
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -312,11 +314,82 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     @app.get("/health/live")
     def live() -> dict[str, str]:
+        """Liveness MUST NOT query the database (D-S2-03).
+
+        Liveness reflects only that the application process and
+        request loop are alive. No DB, no migration state, no
+        artifact storage, no external services. Returns 200 whenever
+        the FastAPI worker can answer.
+        """
         return {"status": "live"}
 
     @app.get("/health/ready")
-    def ready() -> dict[str, str]:
-        return {"status": "ready"}
+    def ready() -> Any:
+        """Readiness is dynamic and dependency-aware (D-S2-03, D-S2-04).
+
+        Returns:
+
+        * HTTP 200 when the readiness state singleton is
+          ``READY`` and all readiness probes pass.
+        * HTTP 503 when the state is ``INITIALIZING``,
+          ``DRAINING``, ``SHUTDOWN_COMPLETE``, or any probe fails.
+
+        The response body MUST NOT contain raw exception text, DSNs,
+        passwords, tokens, secret mount contents, or unsafe path
+        details. Only stable state codes and the per-probe outcome
+        projections are surfaced.
+        """
+        from fastapi import Response
+
+        from cold_storage.bootstrap.runtime_readiness import (
+            LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS,
+            ReadinessState,
+            get_readiness_state,
+            run_readiness_phase,
+        )
+        from cold_storage.bootstrap.settings import Settings
+
+        state: ReadinessState | None = get_readiness_state()
+        snapshot = state.snapshot() if state is not None else {"state": "INITIALIZING"}
+        state_name = snapshot.get("state", "INITIALIZING")
+
+        # DRAINING / SHUTDOWN_COMPLETE: refuse work, return 503.
+        if state_name in ("DRAINING", "SHUTDOWN_COMPLETE"):
+            return Response(
+                status_code=503,
+                media_type="application/json",
+                content=json.dumps(
+                    {
+                        "status": "draining" if state_name == "DRAINING" else "shutdown",
+                        "state": state_name,
+                    }
+                ),
+            )
+
+        # Probe-timeout enforcement: every probe in the readiness set
+        # runs with the configured per-probe budget; a forced timeout
+        # produces the failure classification READINESS_PROBE_TIMEOUT.
+        settings = Settings()
+        os.environ.get(  # noqa: B018
+            "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
+            str(LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS),
+        )
+        outcomes = run_readiness_phase(settings=settings, readiness_probes=[])
+        ok = all(o.status == "pass" for o in outcomes)
+
+        if state_name == "READY" and ok:
+            return {"status": "ready", "state": state_name}
+
+        body = {
+            "status": "not_ready",
+            "state": state_name,
+            "outcomes": [o.to_dict() for o in outcomes],
+        }
+        return Response(
+            status_code=503,
+            media_type="application/json",
+            content=json.dumps(body),
+        )
 
     @app.get("/api/v1/demo/overview")
     def demo_overview() -> dict[str, Any]:

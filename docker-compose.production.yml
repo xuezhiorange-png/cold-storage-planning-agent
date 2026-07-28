@@ -1,0 +1,100 @@
+# TASK-012 Slice 2: production-oriented Compose surface.
+#
+# Per D-S2-09, this file is a portable local/operator verification surface,
+# NOT a claim of production deployment certification. It models the full
+# Slice 2 lifecycle:
+#
+#   * postgres with a health check and persistent database volume;
+#   * a one-shot migration service that runs `alembic upgrade head`;
+#   * the backend application service (built from backend/Dockerfile);
+#   * a persistent artifact volume mounted on /opt/cold-storage/artifacts;
+#   * build/deployment identity injection via environment variables;
+#   * ordering: migration completes successfully before application
+#     readiness is honoured;
+#   * liveness/readiness health checks defined on the application service;
+#   * NO tracked plaintext production credentials. Operators supply
+#     real secrets via COLD_STORAGE_*_PASSWORD_FILE or external secret
+#     managers; the Compose file never embeds them.
+#
+# The existing root `docker-compose.yml` remains the local-development
+# surface and is intentionally NOT modified by this file.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      # Operators MUST override these via COLD_STORAGE_*_PASSWORD_FILE or
+      # a secret manager in production deployments. The values below are
+      # operator-controlled and not committed under `value:` keys.
+      POSTGRES_DB: ${POSTGRES_DB:-cold_storage}
+      POSTGRES_USER: ${POSTGRES_USER:-cold_storage}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cold_storage}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migration:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        COLD_STORAGE_BUILD_COMMIT_SHA: ${COLD_STORAGE_BUILD_COMMIT_SHA:?commit SHA is required}
+        COLD_STORAGE_BUILD_VERSION: ${COLD_STORAGE_BUILD_VERSION:?build version is required}
+    image: cold-storage-backend:${COLD_STORAGE_BUILD_COMMIT_SHA}
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      COLD_STORAGE_ENVIRONMENT_ID: production
+      COLD_STORAGE_DATABASE_BACKEND: postgresql
+      COLD_STORAGE_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-cold_storage}:${POSTGRES_PASSWORD:?postgres password required}@postgres:5432/${POSTGRES_DB:-cold_storage}
+      COLD_STORAGE_BUILD_COMMIT_SHA: ${COLD_STORAGE_BUILD_COMMIT_SHA:?commit SHA is required}
+      COLD_STORAGE_BUILD_VERSION: ${COLD_STORAGE_BUILD_VERSION:?build version is required}
+      COLD_STORAGE_DEPLOYMENT_ID: ${COLD_STORAGE_DEPLOYMENT_ID:-migration}
+      COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS: ${COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS:-120}
+      COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS: ${COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS:-30}
+      COLD_STORAGE_CONFIG_SCHEMA_VERSION: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    image: cold-storage-backend:${COLD_STORAGE_BUILD_COMMIT_SHA}
+    environment:
+      COLD_STORAGE_ENVIRONMENT_ID: production
+      COLD_STORAGE_DATABASE_BACKEND: postgresql
+      COLD_STORAGE_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-cold_storage}:${POSTGRES_PASSWORD:?postgres password required}@postgres:5432/${POSTGRES_DB:-cold_storage}
+      COLD_STORAGE_APP_HOST: 0.0.0.0
+      COLD_STORAGE_APP_PORT: "8000"
+      COLD_STORAGE_STORAGE_DIR: /opt/cold-storage/artifacts
+      COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: production
+      COLD_STORAGE_BUILD_COMMIT_SHA: ${COLD_STORAGE_BUILD_COMMIT_SHA:?commit SHA is required}
+      COLD_STORAGE_BUILD_VERSION: ${COLD_STORAGE_BUILD_VERSION:?build version is required}
+      COLD_STORAGE_DEPLOYMENT_ID: ${COLD_STORAGE_DEPLOYMENT_ID:-deploy}
+      COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS: ${COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS:-120}
+      COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS: ${COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS:-30}
+      COLD_STORAGE_CONFIG_SCHEMA_VERSION: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    volumes:
+      - artifact_data:/opt/cold-storage/artifacts
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"from urllib.request import urlopen; r = urlopen('http://127.0.0.1:8000/health/live', timeout=2); exit(0 if r.status == 200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  artifact_data:

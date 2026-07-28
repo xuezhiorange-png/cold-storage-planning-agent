@@ -9,8 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Docker Compose config
+      - name: Docker Compose config (root)
         run: docker compose config
+      - name: Docker Compose config (production)
+        run: docker compose -f docker-compose.production.yml config
 
   backend-sqlite:
     runs-on: ubuntu-latest

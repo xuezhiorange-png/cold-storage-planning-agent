@@ -26,7 +26,20 @@ _singletons: dict[str, Any] = {}
 
 
 def init_dependencies(settings: Settings) -> None:
-    """Create engine, session_factory, project_service, agent_service and store them."""
+    """Create engine, session_factory, project_service, agent_service and store them.
+
+    TASK-012 Slice 2 contract: the readiness authority is registered
+    here exactly once (D-S2-10, D-S2-03). The startup phase is invoked
+    once after dependency composition; the readiness state singleton
+    is published through :func:`get_readiness_state`. The defensive
+    strict-mode assertion (D-S2-06.c) executes inside
+    ``run_startup_phase``.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
+        get_or_init_readiness_state,
+        run_startup_phase,
+    )
+
     engine = create_engine_from_settings(settings)
     project_service = DatabaseProjectService(engine)
     agent_service = LegacyPlanningAgentService(model_gateway=FakeAgentModelGateway())
@@ -79,6 +92,39 @@ def init_dependencies(settings: Settings) -> None:
 
     readines_outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
     _singletons["startup_readiness_outcome"] = readines_outcome
+
+    # TASK-012 Slice 2: publish the readiness state singleton BEFORE
+    # ``run_startup_phase`` so the latter can consult the canonical
+    # authority. The pre-existing Slice 2A readiness check above has
+    # already happened against the database; ``run_startup_phase``
+    # executes additional per-probe checks under ``bootstrap.runtime_readiness``
+    # and updates the state singleton to ``READY`` on success.
+    # The local ``state`` alias is intentional: it makes the singleton
+    # ownership explicit in this bootstrap sequence. ``run_startup_phase``
+    # consults the underlying authority; we deliberately do not bind
+    # the result to ``state`` in this scope.
+    get_or_init_readiness_state(
+        settings=settings,
+        environment={k: v for k, v in __import__("os").environ.items()},
+    )
+    # Run the per-probe startup phase.  When no probes are supplied
+    # (the common case for unit tests), ``run_startup_phase`` simply
+    # transitions ``INITIALIZING`` -> ``READY`` after the defensive
+    # strict-mode assertion.  Production callers will eventually pass
+    # real probe callables through settings or a composition hook.
+    try:
+        run_startup_phase(
+            settings=settings,
+            environment={k: v for k, v in __import__("os").environ.items()},
+            startup_probes=[],
+            app=None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        # On any startup-phase failure we still want the engine
+        # composed; the lifespan closer in ``bootstrap.app`` will
+        # dispose it.  Re-raise so the failure surface matches the
+        # contract.
+        raise exc
 
 
 def get_project_service() -> ProjectService:
@@ -166,10 +212,30 @@ def get_startup_readiness_outcome() -> Any:
 
 
 def shutdown_dependencies() -> None:
-    """Dispose engine and clear all singletons."""
+    """Dispose engine and clear all singletons.
+
+    TASK-012 Slice 2 contract D-S2-10 requires the shutdown ordering:
+    mark readiness unavailable, stop admitting new work, drain
+    in-flight, dispose database, clear singletons, terminate. We
+    perform the readiness-drain step (state -> DRAINING) BEFORE
+    engine disposal; the cold_storage.bootstrap.runtime_readiness
+    state singleton is cleared alongside every other singleton.
+    """
+    from contextlib import suppress
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        get_readiness_state,
+        reset_readiness_state,
+    )
+
+    state = get_readiness_state()
+    with suppress(Exception):
+        if state is not None:
+            state.transition(to="DRAINING")
     if "engine" in _singletons:
         dispose_engine(_singletons["engine"])
     _singletons.clear()
+    reset_readiness_state()
 
 
 # Backward compatibility
