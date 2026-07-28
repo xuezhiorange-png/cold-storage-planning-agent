@@ -302,6 +302,66 @@ BUILD_IDENTITY_IN_IMAGE_AUTHORITY=YES
 BUILD_IDENTITY_FILE_PATH=/opt/cold-storage/build-identity.json
 ```
 
+#### D-S2-02.d — Build version character contract
+
+The build version that appears in `/opt/cold-storage/build-identity.json`
+and the runtime value `COLD_STORAGE_BUILD_VERSION` MUST both conform to a
+single, frozen character contract. There is no second implementation
+choice between a "lenient" and a "strict" interpretation of this contract.
+
+```text
+BUILD_VERSION_PATTERN=^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$
+BUILD_VERSION_MIN_LENGTH=1
+BUILD_VERSION_MAX_LENGTH=64
+BUILD_VERSION_NORMALIZATION=NONE
+BUILD_VERSION_ENCODING=ASCII
+```
+
+Contract semantics:
+
+1. The first character MUST be an ASCII letter (`A-Z` or `a-z`) or an ASCII
+   digit (`0-9`).
+2. Every subsequent character (up to 63 additional bytes) MUST be one of:
+   - an ASCII letter;
+   - an ASCII digit;
+   - `.` (period);
+   - `_` (underscore);
+   - `+` (plus);
+   - `-` (hyphen/minus).
+3. The total length MUST be between 1 and 64 ASCII bytes inclusive. The
+   value is measured in raw bytes after UTF-8/Unicode decoding; non-ASCII
+   bytes are forbidden and cause rejection.
+4. There is NO trimming, NO case conversion, NO Unicode normalization
+   (NFC/NFKC/NFD/NFKD), and NO other implicit mutation. The value the
+   build pipeline wrote into the file is compared as-is.
+5. Validation order:
+   - the in-image `version` field in
+     `/opt/cold-storage/build-identity.json` is validated against the rule
+     above;
+   - the runtime `COLD_STORAGE_BUILD_VERSION` is validated against the
+     same rule;
+   - only after both values pass the same rule are they compared to each
+     other byte-for-byte (D-S2-02.b step 6).
+6. The following inputs MUST all fail closed with the stable failure code
+   `BUILD_IDENTITY_VERSION_INVALID`:
+   - the empty string;
+   - any leading punctuation (e.g. `.1.0`, `_v1`, `-v1`, `+v1`);
+   - any embedded or trailing whitespace;
+   - `/` or `\` (forward or backslash);
+   - any non-ASCII byte (Unicode of any kind);
+   - any control character (including `\n`, `\t`, `\r`, NUL, etc.);
+   - any value longer than 64 bytes.
+
+```text
+BUILD_VERSION_ASCII_ONLY=YES
+BUILD_VERSION_SLASH_FORBIDDEN=YES
+BUILD_VERSION_WHITESPACE_FORBIDDEN=YES
+BUILD_VERSION_NON_ASCII_FORBIDDEN=YES
+BUILD_VERSION_CONTROL_CHAR_FORBIDDEN=YES
+BUILD_VERSION_LEADING_PUNCTUATION_FORBIDDEN=YES
+BUILD_VERSION_NORMALIZATION_FORBIDDEN=YES
+```
+
 ### D-S2-03 — Startup, liveness, and readiness semantics
 
 Startup is a pre-service lifecycle gate executed before the process is allowed
@@ -354,14 +414,34 @@ READINESS_PROBE_TIMEOUT_MAX_SECONDS=30
 PROBE_TIMEOUT_BUDGET_TYPE=PER_PROBE
 STARTUP_PROBE_TIMEOUT_SCOPE=EACH_MANDATORY_STARTUP_PROBE
 READINESS_PROBE_TIMEOUT_SCOPE=EACH_MANDATORY_DYNAMIC_PROBE
+PROBE_EXECUTION_MODEL=IMPLEMENTATION_DEFINED_BOUNDED
+AGGREGATE_PROBE_TIMEOUT_FORMULA=
+MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT
+AGGREGATE_PROBE_TIMEOUT_FORMULA_SEMANTICS=CONSERVATIVE_UPPER_BOUND
+AGGREGATE_TIMEOUT_EQUALITY_REQUIRED=***
 ```
 
 - every mandatory probe has an independent timeout upper bound;
 - earlier probes that complete quickly MUST NOT lend their remaining time
   to later probes;
-- the maximum theoretical wall-clock duration of a complete
-  startup/readiness evaluation is therefore exactly
-  `MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT`;
+- this contract does NOT mandate that all probes run strictly serially.
+  An implementation MAY execute probes serially, in parallel, or under a
+  bounded mixed model, provided that:
+  - every probe has an independent timeout;
+  - the total execution does not produce unbounded workers, threads,
+    tasks, connections, or singleton state;
+  - every timeout maps to the correct stable failure code;
+  - bounded completion is observed within the conservative upper bound
+    below;
+- the conservative aggregate upper bound on a complete startup/readiness
+  evaluation is
+  `MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT`.
+  This product is a **conservative upper bound**, NOT a required exact
+  duration. Serial execution may approach this bound; parallel or
+  partially-parallel execution may complete faster. Acceptance asserts
+  bounded completion, observation below the contract upper bound, and
+  correct failure classification; acceptance does NOT assert equality
+  with the product;
 - implementations MUST use a dependency-native timeout or another
   cancellable, bounded mechanism; implementing timeout by spawning
   unbounded background threads or tasks is FORBIDDEN.
@@ -414,9 +494,11 @@ It must not be added merely because the local Compose file contains Redis.
 Each of the mandatory readiness gates above MUST be executed under the
 per-probe timeout budget specified in D-S2-03.c. A timeout on any one
 gate MUST yield the readiness HTTP 503 response with the stable failure
-code `READINESS_PROBE_TIMEOUT` (D-S2-03.d), and MUST NOT extend the
-overall readiness evaluation beyond
-`MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT`.
+code `READINESS_PROBE_TIMEOUT` (D-S2-03.d). The overall readiness
+evaluation MUST NOT exceed the conservative upper bound
+`MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT` defined in
+D-S2-03.c; the implementation MUST NOT assert equality with that
+product.
 
 ```text
 REDIS_MANDATORY_READINESS_DEPENDENCY=NO
@@ -439,15 +521,36 @@ STAGING_USES_LOCAL_OR_TEST_SKIP=NO
 ### D-S2-06 — Production capability admission
 
 Strict-environment startup must identify production capabilities wired to fake
-or in-memory implementations. The admission outcome is **frozen** for each
-capability: there is no second author choice between "hide the route" and
-"reject the whole process" — both interpretations produce the same observable
-contract.
-
-The implementation must address, at minimum:
+or in-memory implementations. The implementation must address, at minimum:
 
 - `FakeAgentModelGateway`;
 - process-local/in-memory `CoefficientService` HTTP route wiring.
+
+This section distinguishes **two** outcomes that must not be conflated:
+
+- the canonical strict-mode contract behavior for each capability
+  (D-S2-06.a and D-S2-06.b) — the capability is un-instantiated and its
+  HTTP routes are un-registered, the process starts normally, and the
+  relevant HTTP request returns a normal `404`;
+- the defensive invariant behavior (D-S2-06.c) — invoked only when a
+  capability that should be un-instantiated is actually reachable at
+  startup; the process MUST fail closed with the stable failure code
+  `UNSAFE_STRICT_CAPABILITY_WIRING`.
+
+The canonical outcome is NOT a synonym for the defensive outcome, and
+the defensive outcome is NOT an alternate implementation of the
+canonical outcome. An implementation MUST satisfy both: produce the
+canonical outcome for every named capability AND keep the defensive
+invariant satisfied.
+
+```text
+CANONICAL_STRICT_CAPABILITY_OUTCOME=ROUTES_NOT_REGISTERED
+CANONICAL_STRICT_CAPABILITY_HTTP_RESULT=404
+DEFENSIVE_INVARIANT_VIOLATION_OUTCOME=STARTUP_FAIL_CLOSED
+DEFENSIVE_INVARIANT_FAILURE_CODE=UNSAFE_STRICT_CAPABILITY_WIRING
+P1_001_WORDING_CORRECTED=YES
+CANONICAL_AND_DEFENSIVE_OUTCOMES_DISTINGUISHED=YES
+```
 
 #### D-S2-06.a — `FakeAgentModelGateway`
 
@@ -657,13 +760,16 @@ RAW_EXCEPTION_TEXT_IN_HEALTH_RESPONSE=NO
 RAW_SECRET_OR_DSN_IN_EVIDENCE=NO
 ```
 
-#### D-S2-12.a — Frozen stable failure codes
+#### D-S2-12.a — Frozen stable failure codes (scope-limited to this contract)
 
-The following failure codes are **frozen** by this contract. Every
-implementation that claims to satisfy this Slice MUST emit exactly these
-codes (and only these, plus Slice 1 codes) for the listed conditions.
-Adding a code is a contract change requiring a new amendment round;
-renaming a code is forbidden.
+The table below freezes a **scope-limited** set of failure codes. This
+sub-section deliberately does NOT claim to enumerate every Slice 2 failure
+code, and does NOT claim that "if a failure is not in this table, an
+implementation may invent a new code for it".
+
+```text
+D_S2_12A_SCOPE=NEW_CODES_EXPLICITLY_INTRODUCED_BY_SLICE2_CONTRACT
+D_S2_12A_EXHAUSTIVE_FOR_ALL_SLICE2_FAILURES=***
 
 | Condition | Failure code |
 |---|---|
@@ -678,6 +784,37 @@ renaming a code is forbidden.
 | startup probe exceeded per-probe timeout | `STARTUP_PROBE_TIMEOUT` |
 | readiness probe exceeded per-probe timeout | `READINESS_PROBE_TIMEOUT` |
 | any unsafe strict capability reachable at startup | `UNSAFE_STRICT_CAPABILITY_WIRING` |
+
+This scope-limited table is governed by the following explicit contract
+clauses:
+
+1. The table freezes **only** the failure codes that this Slice 2 contract
+   itself explicitly introduces. These are the new codes for:
+   - build identity (file, schema, commit, version);
+   - deployment ID;
+   - startup/readiness probe timeouts;
+   - unsafe strict capability wiring.
+2. The table is **not** the complete catalog of all Slice 2 failure codes.
+   Adding a code to the table, removing one, or redefining the scope of the
+   table is a contract amendment requiring a new authorization round.
+3. A failure category that is not listed in this table MUST NOT be merged
+   into any arbitrary existing code and MUST NOT be freely named by the
+   implementation.
+4. Other failure categories — including configuration identity, database
+   connectivity, schema head, artifact storage, coefficient readiness, and
+   lifecycle/draining state — MUST continue to use their pre-existing
+   stable classification authority (e.g. Slice 1 codes or other contract
+   provisions that already cover them). If an implementation discovers
+   that no pre-existing stable code covers a category it must report, the
+   implementation MUST stop and request a contract amendment; it MUST
+   NOT invent a new code on its own authority.
+5. Renaming any code listed in the table is forbidden; reusing a listed
+   code for a different condition is forbidden.
+
+```text
+FAILURE_CODE_TABLE_EXHAUSTIVE=NO
+UNDEFINED_FAILURE_CODE_CREATION_BY_IMPLEMENTER=FORBIDDEN
+```
 
 ## 7. Exact future implementation path allowlist
 
@@ -812,7 +949,26 @@ Required tests:
 - for each illegal probe-timeout value (zero, negative, non-integer, NaN,
   Infinity, out-of-range), the configuration is rejected;
 - forced probe timeout maps to the stable failure code
-  `STARTUP_PROBE_TIMEOUT` or `READINESS_PROBE_TIMEOUT`.
+  `STARTUP_PROBE_TIMEOUT` or `READINESS_PROBE_TIMEOUT`;
+- forced probe-timeout execution completes within the conservative upper
+  bound `MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT` and does
+  NOT assert equality with the product;
+- build version character contract (D-S2-02.d):
+  - `BUILD_VERSION_VALID_MIN_BOUNDARY_TEST=REQUIRED` — a 1-character
+    value matching the pattern passes;
+  - `BUILD_VERSION_VALID_MAX_BOUNDARY_TEST=REQUIRED` — a 64-character
+    value matching the pattern passes;
+  - `BUILD_VERSION_WHITESPACE_REJECTION_TEST=REQUIRED` — embedded or
+    trailing whitespace is rejected with `BUILD_IDENTITY_VERSION_INVALID`;
+  - `BUILD_VERSION_SLASH_REJECTION_TEST=REQUIRED` — `/` or `\` is rejected
+    with `BUILD_IDENTITY_VERSION_INVALID`;
+  - `BUILD_VERSION_UNICODE_REJECTION_TEST=REQUIRED` — any non-ASCII byte
+    is rejected with `BUILD_IDENTITY_VERSION_INVALID`;
+  - `BUILD_VERSION_LEADING_PUNCTUATION_REJECTION_TEST=REQUIRED` — leading
+    `.`, `_`, `+`, or `-` is rejected with
+    `BUILD_IDENTITY_VERSION_INVALID`;
+  - `BUILD_VERSION_OVERLENGTH_REJECTION_TEST=REQUIRED` — any value over
+    64 bytes is rejected with `BUILD_IDENTITY_VERSION_INVALID`.
 
 ### 9.2 SQLite acceptance
 
@@ -851,7 +1007,11 @@ Required evidence:
   timeout, readiness returns HTTP 503 with stable failure code
   `READINESS_PROBE_TIMEOUT`;
 - while readiness reports 503 due to probe timeout, liveness continues to
-  return HTTP 200.
+  return HTTP 200;
+- the overall readiness evaluation completes within the conservative
+  upper bound defined in D-S2-03.c; equality with the product is NOT
+  asserted; bounded completion, classification correctness, and absence
+  of unbounded resources are asserted.
 
 ### 9.4 Container and Compose acceptance
 
@@ -874,9 +1034,11 @@ Required evidence:
 - cleanup removes test containers without deleting an operator-owned external
   production resource;
 - when a mandatory probe is forced to exceed its per-probe timeout, the
-  probe completes within the bounded budget and `/health/ready` returns
-  HTTP 503 with the stable failure code `READINESS_PROBE_TIMEOUT` (or
-  startup fails closed with `STARTUP_PROBE_TIMEOUT`);
+  probe completes within the conservative upper bound defined in
+  D-S2-03.c and `/health/ready` returns HTTP 503 with the stable failure
+  code `READINESS_PROBE_TIMEOUT` (or startup fails closed with
+  `STARTUP_PROBE_TIMEOUT`); equality with the product
+  `MANDATORY_PROBE_COUNT × CONFIGURED_PER_PROBE_TIMEOUT` is NOT asserted;
 - after a forced probe timeout and a subsequent shutdown/retry cycle,
   no timeout worker, thread, connection, or singleton state is left
   behind;
@@ -886,10 +1048,15 @@ Required evidence:
   mode-`0444` `/opt/cold-storage/build-identity.json` file;
 - overriding `COLD_STORAGE_BUILD_COMMIT_SHA` at runtime to disagree with
   the file causes startup to fail with `BUILD_COMMIT_MISMATCH`;
-- overriding `COLD_STORAGE_BUILD_VERSION` at runtime to disagree with the
-  file causes startup to fail with `BUILD_VERSION_MISMATCH`;
+- overriding `COLD_STORAGE_BUILD_VERSION` at runtime to disagree with
+  the file causes startup to fail with `BUILD_VERSION_MISMATCH`;
 - mutating only `COLD_STORAGE_DEPLOYMENT_ID` does not change the reported
-  build identity.
+  build identity;
+- the image contains a `/opt/cold-storage/build-identity.json` whose
+  `version` field satisfies D-S2-02.d; supplying an image with a
+  whitespace-bearing, slash-bearing, non-ASCII, leading-punctuation, or
+  over-length `version` causes startup to fail with
+  `BUILD_IDENTITY_VERSION_INVALID`.
 
 ### 9.5 Static and architecture acceptance
 
@@ -921,7 +1088,16 @@ Architecture tests must enforce:
   source of truth for build commit and version at runtime — no
   re-derivation from the working tree or Git CLI;
 - probe timeouts are bounded per probe and do not rely on unbounded
-  background threads or tasks.
+  background threads or tasks;
+- the probe aggregate upper bound `MANDATORY_PROBE_COUNT ×
+  CONFIGURED_PER_PROBE_TIMEOUT` is enforced as a **conservative upper
+  bound**; tests assert completion within the bound and correct failure
+  classification, never equality with the product;
+- the build version character contract (D-S2-02.d) is enforced for both
+  the in-image `version` and the runtime `COLD_STORAGE_BUILD_VERSION`;
+  whitespace, slash, non-ASCII, leading-punctuation, control-character,
+  empty, and over-length values are rejected with
+  `BUILD_IDENTITY_VERSION_INVALID`.
 
 ## 10. CI ownership
 
@@ -1014,6 +1190,14 @@ It must also record exact-head results for:
   workers/threads/connections/singletons);
 - defensive strict-capability admission assertion smoke
   (`STRICT_UNSAFE_CAPABILITY_COUNT_REQUIRED=0`);
+- probe aggregate upper bound smoke — confirms forced probe timeout
+  completes within the conservative upper bound defined in D-S2-03.c and
+  records that equality with the product is NOT asserted;
+- build version character contract (D-S2-02.d) smoke — covers both the
+  in-image `version` and runtime `COLD_STORAGE_BUILD_VERSION` for the
+  valid 1-byte and 64-byte boundaries, plus whitespace, slash, non-ASCII,
+  leading-punctuation, control-character, empty, and over-length
+  rejection paths;
 - Ruff;
 - format check;
 - mypy;
@@ -1096,15 +1280,27 @@ FROZEN_DESIGN_DECISION_COUNT=12
 P1_001_RESOLVED=YES
 P1_002_RESOLVED=YES
 P1_003_RESOLVED=YES
+P1_001_WORDING_CORRECTED=YES
+P1_004_RESOLVED=YES
+P1_005_RESOLVED=YES
+P1_006_RESOLVED=YES
+BUILD_VERSION_CONTRACT_FROZEN=YES
+FAILURE_CODE_TABLE_EXHAUSTIVE=NO
+UNDEFINED_FAILURE_CODE_CREATION_BY_IMPLEMENTER=FORBIDDEN
+PROBE_AGGREGATE_TIMEOUT_IS_UPPER_BOUND=YES
+PROBE_TIMEOUT_EQUALITY_ASSERTION_REQUIRED=***
+CANONICAL_AND_DEFENSIVE_OUTCOMES_DISTINGUISHED=YES
 FUTURE_MAXIMUM_CHANGED_PATH_COUNT=20
 FUTURE_CREATE_PATH_COUNT=12
 FUTURE_MODIFY_PATH_COUNT=8
 FUTURE_DELETE_PATH_COUNT=0
-IMPLEMENTATION_AUTHORIZED=NO
-READY_AUTHORIZED=NO
-MERGE_AUTHORIZED=NO
-PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
+IMPLEMENTATION_AUTHORIZED=***
+READY_AUTHORIZED=***
+MERGE_AUTHORIZED=***
+PRODUCTION_DEPLOYMENT_AUTHORIZED=***
 NO_STEP_IMPLIES_THE_NEXT=YES
 DOCUMENT_STATUS=FROZEN_CANDIDATE_ON_BRANCH
 BINDING_CONTRACT_ON_MAIN=NO
+TASK012_SLICE2_CONTRACT_FIXUP_R2_COMPLETE=YES
+STOPPED_AWAITING_NEW_EXACT_HEAD_CI_AND_REVIEW=YES
 ```
