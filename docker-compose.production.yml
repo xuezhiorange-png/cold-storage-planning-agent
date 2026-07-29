@@ -68,7 +68,15 @@ services:
     # image's ENTRYPOINT) that runs the alembic CLI directly. The
     # backend service continues to inherit the image's ENTRYPOINT
     # and exits through the production lifespan.
-    entrypoint: ["alembic"]
+    # F-PR76-MIGRATION-PYTHON-MODULE: invoke alembic as a
+    # Python module (``python -m alembic``) instead of relying on
+    # the console-script shim at ``/opt/cold-storage/.venv/bin/alembic``.
+    # Console scripts copied from a build venv into the runtime
+    # image may be absent on some images, producing
+    # ``exec ... alembic: no such file or directory`` (exit 255).
+    # The module form is independent of any shebang or binary
+    # path and is equivalent in functionality.
+    entrypoint: ["python", "-m", "alembic"]
     command: ["upgrade", "head"]
     environment:
       COLD_STORAGE_ENVIRONMENT_ID: production

@@ -146,6 +146,18 @@ jobs:
             exit 1
           fi
 
+          # F-PR76-MIGRATION-PYTHON-MODULE: preflight confirms the
+          # image contains an importable alembic module BEFORE we
+          # spend time spinning up the real migration run.  The
+          # module form is independent of any
+          # ``/opt/cold-storage/.venv/bin/alembic`` shim, which has
+          # previously failed with
+          # ``exec ... alembic: no such file or directory`` (exit 255).
+          docker run --rm \
+            --entrypoint python \
+            "${IMAGE_TAG}" \
+            -m alembic --version
+
           docker run --rm \
             --name "mig-${STAMP}" \
             --network "cs-${STAMP}" \
@@ -161,9 +173,9 @@ jobs:
             -e "COLD_STORAGE_DATABASE_ENVIRONMENT_ID=ci-strict" \
             -e "COLD_STORAGE_SECRET_ENVIRONMENT_ID=ci-strict" \
             -e "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID=ci-strict" \
-            --entrypoint alembic \
+            --entrypoint python \
             "${IMAGE_TAG}" \
-            upgrade head
+            -m alembic upgrade head
 
           docker run --rm --detach \
             --name "backend-${STAMP}" \
