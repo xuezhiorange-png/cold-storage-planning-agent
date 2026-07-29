@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 _singletons: dict[str, Any] = {}
 
 
-def init_dependencies(settings: Settings) -> None:
+def init_dependencies(settings: Settings, *, app: Any = None) -> None:
     """Create engine, session_factory, project_service, agent_service and store them.
 
     TASK-012 Slice 2 contract: the readiness authority is registered
@@ -34,11 +34,27 @@ def init_dependencies(settings: Settings) -> None:
     is published through :func:`get_readiness_state`. The defensive
     strict-mode assertion (D-S2-06.c) executes inside
     ``run_startup_phase``.
+
+    ``app`` is the live FastAPI instance used by the strict-mode
+    capability audit (D-S2-06.c). Production callers MUST pass the
+    real ``app`` so the audit can inspect ``app.routes`` for any
+    registered capability that should not be reachable in staging /
+    production. Unit tests that exercise ``init_dependencies``
+    without a FastAPI app can pass ``app=None``; the audit then
+    raises :class:`UnsafeStrictCapabilityWiring` as part of the
+    fail-closed contract (it is NOT a silent success).
     """
     from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
+        canonical_settings,
         get_or_init_readiness_state,
+        mandatory_startup_probes,
         run_startup_phase,
+        set_canonical_settings,
     )
+
+    # Publish the canonical Settings authority exactly once so the
+    # readiness endpoint and probes never construct a second one.
+    set_canonical_settings(settings)
 
     engine = create_engine_from_settings(settings)
     project_service = DatabaseProjectService(engine)
@@ -107,17 +123,16 @@ def init_dependencies(settings: Settings) -> None:
         settings=settings,
         environment={k: v for k, v in __import__("os").environ.items()},
     )
-    # Run the per-probe startup phase.  When no probes are supplied
-    # (the common case for unit tests), ``run_startup_phase`` simply
-    # transitions ``INITIALIZING`` -> ``READY`` after the defensive
-    # strict-mode assertion.  Production callers will eventually pass
-    # real probe callables through settings or a composition hook.
+    # Run the per-probe startup phase using the canonical D-S2-04
+    # eight-probe tuple. The audit then inspects the live FastAPI app
+    # via ``app=app`` so a regression that re-introduces a fake-agent
+    # route or a process-local coefficient route is caught fail-closed.
     try:
         run_startup_phase(
             settings=settings,
             environment={k: v for k, v in __import__("os").environ.items()},
-            startup_probes=[],
-            app=None,
+            startup_probes=mandatory_startup_probes(),
+            app=app,
         )
     except Exception as exc:  # noqa: BLE001
         # On any startup-phase failure we still want the engine
@@ -125,6 +140,7 @@ def init_dependencies(settings: Settings) -> None:
         # dispose it.  Re-raise so the failure surface matches the
         # contract.
         raise exc
+    _ = canonical_settings  # explicit non-use; documented behavior.
 
 
 def get_project_service() -> ProjectService:

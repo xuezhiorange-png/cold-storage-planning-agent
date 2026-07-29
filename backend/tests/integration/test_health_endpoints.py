@@ -76,9 +76,13 @@ def test_health_ready_returns_503_when_draining(sqlite_env):
     from cold_storage.bootstrap.runtime_readiness import ReadinessState, set_readiness_state
 
     reset_readiness_state()
-    set_readiness_state(ReadinessState(state="DRAINING"))
+    set_readiness_state(ReadinessState(state="READY"))
     app = create_app()
     with TestClient(app) as client:
+        # Flip to DRAINING AFTER lifespan so the /health/ready endpoint
+        # exercises the contract's "DRAINING -> 503" branch without
+        # colliding with the mandatory 8-probe startup phase.
+        set_readiness_state(ReadinessState(state="DRAINING"))
         resp = client.get("/health/ready")
         assert resp.status_code == 503
         body = resp.json()

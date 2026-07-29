@@ -150,6 +150,8 @@ def test_run_probe_with_timeout_handles_exception():
 
 
 def test_run_startup_phase_transitions_to_ready_when_all_pass(monkeypatch):
+    from fastapi import FastAPI
+
     monkeypatch.setenv(
         "COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS",
         str(LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS),
@@ -159,11 +161,16 @@ def test_run_startup_phase_transitions_to_ready_when_all_pass(monkeypatch):
     def _ok(timeout_seconds: int) -> ProbeOutcome:
         return ProbeOutcome(name="ok", status="pass")
 
+    # Per brief §6 requirement 6: ``app=None`` is NOT a silent success.
+    # Pass a real (clean) FastAPI app so the audit executes against
+    # an empty reachable subset and the startup phase transitions to
+    # READY as documented.
+    clean_app = FastAPI()
     outcomes = run_startup_phase(
         settings=_StubSettings("test"),
         environment=dict(os.environ),
         startup_probes=[_ok, _ok],
-        app=None,
+        app=clean_app,
     )
     assert all(o.status == "pass" for o in outcomes)
     state = __import__(
@@ -221,5 +228,22 @@ def test_default_strict_capabilities_are_registered():
 
 
 def test_assert_no_unsafe_strict_capabilities_passes_when_none_reachable():
-    # No app supplied -> reachable is empty -> no failure.
-    assert_no_unsafe_strict_capabilities(app=None)
+    from fastapi import FastAPI
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+    )
+
+    # Real (clean) FastAPI app: reachable subset is empty.
+    assert_no_unsafe_strict_capabilities(app=FastAPI())
+
+    # Per brief §6 requirement 6: app=None is NOT a silent success.
+    try:
+        assert_no_unsafe_strict_capabilities(app=None)
+    except UnsafeStrictCapabilityWiring:
+        pass  # expected
+    else:
+        raise AssertionError(
+            "app=None must NOT be interpreted as audit success; "
+            "expected UnsafeStrictCapabilityWiring"
+        )

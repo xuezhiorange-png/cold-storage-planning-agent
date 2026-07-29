@@ -72,9 +72,13 @@ def test_readiness_reflects_state_machine(isolated_sqlite_env):
 
 def test_readiness_returns_503_when_draining(isolated_sqlite_env):
     reset_readiness_state()
-    set_readiness_state(ReadinessState(state="DRAINING"))
+    set_readiness_state(ReadinessState(state="READY"))
     app = create_app()
     with TestClient(app) as client:
+        # Flip to DRAINING AFTER lifespan so the /health/ready endpoint
+        # exercises the contract's "DRAINING -> 503" branch without
+        # colliding with the mandatory 8-probe startup phase.
+        set_readiness_state(ReadinessState(state="DRAINING"))
         resp = client.get("/health/ready")
         assert resp.status_code == 503
         body = resp.json()
@@ -135,9 +139,13 @@ def test_strict_environment_plus_sqlite_fails_closed(isolated_sqlite_env, monkey
 
 def test_health_output_contains_no_secret_or_unsafe_text(isolated_sqlite_env):
     reset_readiness_state()
-    set_readiness_state(ReadinessState(state="DRAINING"))
+    set_readiness_state(ReadinessState(state="READY"))
     app = create_app()
     with TestClient(app) as client:
+        # Flip to DRAINING AFTER lifespan so the /health/ready endpoint
+        # exercises the contract's "DRAINING -> 503" branch without
+        # colliding with the mandatory 8-probe startup phase.
+        set_readiness_state(ReadinessState(state="DRAINING"))
         resp = client.get("/health/ready")
         body = resp.json()
         s = json.dumps(body)

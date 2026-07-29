@@ -126,9 +126,32 @@ def test_runtime_bootstrap_does_not_use_alembic():
         _DocstringStripper().visit(tree)
         stripped = ast.unparse(tree)
         stripped = re.sub(r"#[^\n]*\n", "\n", stripped)
-        assert "alembic" not in stripped, (
-            f"{path.name} must not reference 'alembic' in executable code"
-        )
+        # Allow ``alembic_version`` (the SQL table the runtime reads to
+        # compare the recorded head against the packaged head) but
+        # forbid any import / dynamic use of alembic itself. The
+        # schema probe only reads the table to verify head match; it
+        # does NOT import or invoke alembic.
+        if "alembic_version" in stripped:
+            for forbidden in (
+                "from alembic",
+                "import alembic",
+                "alembic.command",
+                "alembic.config",
+                "alembic.runtime",
+                "alembic upgrade",
+                "alembic downgrade",
+                "alembic stamp",
+                "alembic revision",
+                "alembic.script",
+            ):
+                assert forbidden not in stripped, (
+                    f"{path.name} must not invoke '{forbidden.split()[-1]}'; "
+                    "reading the alembic_version SQL table for head comparison is allowed"
+                )
+        else:
+            assert "alembic" not in stripped, (
+                f"{path.name} must not reference 'alembic' in executable code"
+            )
 
     # Belt-and-braces: AST-level import check.
     for path in bootstrap.glob("*.py"):
@@ -226,7 +249,16 @@ def test_strict_mode_registered_capabilities_count_is_two():
 
 
 def test_raw_exception_text_not_returned_by_health_endpoints():
-    """Health endpoints MUST NOT include raw exception text or tracebacks."""
+    """Health endpoints MUST NOT include raw exception text or tracebacks.
+
+    The lifespan now runs the mandatory 8-probe startup phase (D-S2-04)
+    which fails closed when the state is DRAINING / SHUTDOWN_COMPLETE
+    during bootstrap. We therefore build the app, enter the test
+    client (which triggers the lifespan with state=READY), then flip
+    state to DRAINING, and only THEN probe /health/ready (which
+    short-circuits to 503 before invoking the readiness probes, per
+    the contract).
+    """
     from fastapi.testclient import TestClient
 
     from cold_storage.bootstrap.app import create_app
@@ -237,9 +269,12 @@ def test_raw_exception_text_not_returned_by_health_endpoints():
     )
 
     reset_readiness_state()
-    set_readiness_state(ReadinessState(state="DRAINING"))
+    set_readiness_state(ReadinessState(state="READY"))
     app = create_app()
     with TestClient(app) as client:
+        # Flip to DRAINING AFTER lifespan so the /health/ready
+        # endpoint exercises the contract's "DRAINING -> 503" branch.
+        set_readiness_state(ReadinessState(state="DRAINING"))
         resp = client.get("/health/ready")
         body = resp.json()
         body_str = repr(body).lower()
@@ -273,14 +308,37 @@ def test_defensive_strict_capability_assertion_passes_by_default():
     This corresponds to the canonical outcome (D-S2-06.a, D-S2-06.b):
     both known strict-mode unsafe wirings are un-registered in
     staging/production. We explicitly call the defensive assertion to
-    ensure it executes and does not raise.
+    ensure it executes and does not raise on a real (clean) app.
+
+    Per brief §6 requirement 6, ``app=None`` is NOT a silent success
+    — invoking the assertion without a FastAPI app raises. We
+    therefore build a clean FastAPI instance and verify the assertion
+    passes against it.
     """
+    from fastapi import FastAPI
+
     from cold_storage.bootstrap.runtime_readiness import (
         assert_no_unsafe_strict_capabilities,
     )
 
-    # No app supplied -> reachable is the empty set.
-    assert_no_unsafe_strict_capabilities(app=None)
+    # Real (clean) FastAPI app: reachable subset is empty.
+    clean_app = FastAPI()
+    assert_no_unsafe_strict_capabilities(app=clean_app)
+
+    # Per brief §6 requirement 6: app=None is NOT a silent success.
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+    )
+
+    try:
+        assert_no_unsafe_strict_capabilities(app=None)
+    except UnsafeStrictCapabilityWiring:
+        pass  # expected
+    else:
+        raise AssertionError(
+            "app=None must NOT be interpreted as audit success; "
+            "expected UnsafeStrictCapabilityWiring"
+        )
 
 
 def test_build_identity_module_does_not_invoke_git_cli():
@@ -365,9 +423,12 @@ def test_health_redaction_does_not_leak_password_or_dsn():
     )
 
     reset_readiness_state()
-    set_readiness_state(ReadinessState(state="DRAINING"))
+    set_readiness_state(ReadinessState(state="READY"))
     app = create_app()
     with TestClient(app) as client:
+        # Flip to DRAINING AFTER lifespan so the /health/ready
+        # endpoint exercises the contract's "DRAINING -> 503" branch.
+        set_readiness_state(ReadinessState(state="DRAINING"))
         # Force a forced expose-style probe outcome via DRAINING, then
         # assert the body has no secret / DSN.
         resp = client.get("/health/ready")

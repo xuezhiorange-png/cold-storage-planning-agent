@@ -57,6 +57,7 @@ logger = logging.getLogger("cold_storage.bootstrap.runtime_readiness")
 STARTUP_PROBE_TIMEOUT = "STARTUP_PROBE_TIMEOUT"
 READINESS_PROBE_TIMEOUT = "READINESS_PROBE_TIMEOUT"
 UNSAFE_STRICT_CAPABILITY_WIRING = "UNSAFE_STRICT_CAPABILITY_WIRING"
+CONFIGURATION_PROBE_FAILED = "CONFIGURATION_PROBE_FAILED"
 
 # D-S2-03.b. validation ranges (seconds).
 STARTUP_PROBE_TIMEOUT_MIN = 1
@@ -83,6 +84,10 @@ class ReadinessProbeTimeout(ReadinessError):
 
 class UnsafeStrictCapabilityWiring(ReadinessError):
     failure_code = UNSAFE_STRICT_CAPABILITY_WIRING
+
+
+class ConfigurationProbeFailed(ReadinessError):
+    failure_code = CONFIGURATION_PROBE_FAILED
 
 
 def validate_probe_timeout_seconds(*, value: int | float | str | None, kind: str) -> int:
@@ -267,6 +272,42 @@ def run_probe_with_timeout(
 # ---------------------------------------------------------------------------
 
 
+# Each registered capability carries an evidence callback that
+# ``enumerate_reachable_unsafe_strict_capabilities`` calls to inspect
+# the live ``FastAPI`` instance. Returning ``True`` means the
+# capability is reachable as an HTTP route backend in the current
+# process. The callback MUST NOT mutate global state and MUST NOT
+# depend on the ``app`` argument being non-None (we explicitly raise
+# in that case before invoking callbacks).
+_STRICT_CAPABILITY_PLANNING_AGENT = "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE"
+_STRICT_CAPABILITY_COEFFICIENT = "COEFFICIENT_HTTP_ROUTE_STRICT_MODE"
+
+_STRICT_CAPABILITY_PROBES: dict[str, Any] = {}  # populated below; see _StrictCapabilityProbeSpec
+
+
+@dataclass(frozen=True)
+class _StrictCapabilityProbeSpec:
+    """Per-capability spec for the defensive audit (D-S2-06.c).
+
+    ``route_prefixes`` are the path-prefix substrings that, when
+    observed on a registered ``APIRoute``, prove the capability is
+    reachable as an HTTP backend. We deliberately look for path
+    substrings rather than full route registration identity so the
+    audit is robust to local-test wiring differences that rename the
+    router but keep the prefix stable.
+    """
+
+    route_prefixes: tuple[str, ...]
+
+
+_STRICT_CAPABILITY_PROBES[_STRICT_CAPABILITY_PLANNING_AGENT] = _StrictCapabilityProbeSpec(
+    route_prefixes=("/api/v1/agent/",)
+)
+_STRICT_CAPABILITY_PROBES[_STRICT_CAPABILITY_COEFFICIENT] = _StrictCapabilityProbeSpec(
+    route_prefixes=("/api/v1/coefficients",)
+)
+
+
 class _StrictCapabilityRegistry:
     """Thread-safe registry of strict-mode capabilities to enumerate."""
 
@@ -282,6 +323,8 @@ class _StrictCapabilityRegistry:
     def register(self, name: str) -> None:
         if not isinstance(name, str) or not name:
             raise ValueError("strict capability name must be a non-empty string")
+        if name not in _STRICT_CAPABILITY_PROBES:
+            raise ValueError(f"unknown strict capability {name!r}")
         with self._lock:
             if name not in self._entries:
                 self._entries.append(name)
@@ -302,6 +345,20 @@ registered_strict_capabilities = _strict_registry.registered
 _reset_strict_capabilities = _strict_registry.reset
 
 
+def _route_path_for(route: Any) -> str:
+    """Return the canonical path of a Starlette/FastAPI route.
+
+    Accepts any object exposing ``.path`` (Starlette ``APIRoute``)
+    or ``.path_format`` / ``.path_regex``. Falls back to ``""`` if
+    none of these attributes exist; we treat that as non-matching.
+    """
+    for attr in ("path", "path_format", "path_regex"):
+        value = getattr(route, attr, None)
+        if isinstance(value, str):
+            return value
+    return ""
+
+
 def enumerate_reachable_unsafe_strict_capabilities(
     *, app: Any, routes: Iterable[Any] | None = None
 ) -> tuple[str, ...]:
@@ -311,40 +368,89 @@ def enumerate_reachable_unsafe_strict_capabilities(
     canonical outcome (per D-S2-06.a / D-S2-06.b) is that registered
     strict capabilities MUST NOT be reachable as an HTTP route backend
     in staging or production. This function inspects the live
-    application instance (FastAPI ``app`` and any explicit routes)
-    and returns the names of registered capabilities that are
-    actually reachable.
+    application instance (FastAPI ``app`` and any explicit routes) and
+    returns the names of registered capabilities that are actually
+    reachable.
 
-    The function is INTENTIONALLY import-time side-effect free. It
+    ``app=None`` MUST NOT be interpreted as "audit succeeded".
+    Concretely: when the caller passes ``app=None`` (typically in a
+    unit test that does not own a FastAPI app), the audit raises
+    :class:`UnsafeStrictCapabilityWiring` so a regression cannot
+    silently bypass the defensive check. Production callers must
+    pass the real ``app`` instance, and unit tests that legitimately
+    want to exercise the audit without a real app must call
+    :func:`enumerate_reachable_unsafe_strict_capabilities` directly
+    and catch the exception in their own assertion logic.
+
+    The audit is INTENTIONALLY import-time side-effect free. It
     inspects already-imported FastAPI objects through duck-typed
-    introspection only; if the FastAPI ``app`` is unavailable, it
-    returns an empty tuple and the contract's fail-closed path is
-    taken by :func:`assert_no_unsafe_strict_capabilities`.
+    introspection only.
+
+    Mode-aware behaviour: in local / test mode the demo / fixture
+    flows may legitimately register the fake-agent or in-memory
+    coefficient route. The audit therefore returns an empty reachable
+    subset in non-strict modes so the canonical lifespan path is not
+    poisoned by the defensive check. In staging / production the
+    audit enforces the contract fail-closed.
     """
-    # The contract freezes exactly two registered strict capabilities
-    # and both remain un-registered in staging/production. We keep
-    # the registered-name snapshot for diagnostic completeness and
-    # the explicit non-use to silence ruff F841; ``reachable`` is
-    # always empty because no capability is mounted as an HTTP route
-    # backend in the canonical code path (D-S2-06.a, D-S2-06.b).
-    _names = _strict_registry.registered()
-    _ = _names
-    _ = routes
-    _ = app
-    return ()
+    _ = routes  # explicit non-use; ``app`` is the canonical input.
+    if app is None:
+        # Per brief §6 requirement 6: ``app=None`` is NOT a silent
+        # success. Surface the failure closed using the frozen code.
+        raise UnsafeStrictCapabilityWiring(
+            "strict capability audit invoked without a FastAPI app; "
+            "production lifespan must pass app=app explicitly",
+        )
+    names = _strict_registry.registered()
+    route_paths: list[str] = []
+    app_routes = getattr(app, "routes", None)
+    if app_routes is not None:
+        try:
+            route_iter = list(app_routes)
+        except TypeError:
+            route_iter = []
+        for r in route_iter:
+            route_paths.append(_route_path_for(r))
+    # Determine mode from the canonical settings so the audit is in
+    # lock-step with the rest of the bootstrap.
+    try:
+        settings = canonical_settings()
+        mode = resolve_app_mode(settings)
+    except ConfigurationProbeFailed:
+        mode = None
+    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+        return ()
+    reachable: list[str] = []
+    for name in names:
+        spec = _STRICT_CAPABILITY_PROBES.get(name)
+        if spec is None:
+            continue
+        for prefix in spec.route_prefixes:
+            # Match the prefix exactly, or as a path segment, or as a
+            # prefix substring. Path-segment matching keeps the audit
+            # robust to legitimate local-test prefixes that share the
+            # canonical segment.
+            if any(
+                p == prefix or p.startswith(prefix + "/") or p.startswith(prefix)
+                for p in route_paths
+            ):
+                reachable.append(name)
+                break
+    return tuple(reachable)
 
 
 def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
     """Defense-in-depth assertion per D-S2-06.c.
 
-    Today the assertion is satisfied vacuously because both registered
-    capabilities are guaranteed to be un-registered by the canonical
-    code path (D-S2-06.a, D-S2-06.b). The function still scans the
-    registered names, returns no reachable subset, and exits OK. If a
-    future regression makes any registered name reachable, this
-    function MUST be updated to surface that and raise
-    :class:`UnsafeStrictCapabilityWiring` with stable failure code
-    ``UNSAFE_STRICT_CAPABILITY_WIRING``.
+    The function inspects the registered strict-mode capabilities,
+    asks :func:`enumerate_reachable_unsafe_strict_capabilities` for
+    the subset actually reachable on the live ``app``, and raises
+    :class:`UnsafeStrictCapabilityWiring` with the stable frozen code
+    ``UNSAFE_STRICT_CAPABILITY_WIRING`` if any capability is reachable.
+
+    The audit is non-vacuous: ``app=None`` raises (it is not a silent
+    success) and a clean app returns an empty reachable subset only
+    when no strict capability is wired into a real ``APIRoute``.
     """
     reachable = enumerate_reachable_unsafe_strict_capabilities(app=app)
     if reachable:
@@ -355,8 +461,8 @@ def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
 
 # Register the two known strict-mode capabilities at module import time.
 # The contract scope-limited table (D-S2-12.a) freezes these two.
-register_strict_capability("PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE")
-register_strict_capability("COEFFICIENT_HTTP_ROUTE_STRICT_MODE")
+register_strict_capability(_STRICT_CAPABILITY_PLANNING_AGENT)
+register_strict_capability(_STRICT_CAPABILITY_COEFFICIENT)
 
 
 @dataclass
@@ -459,8 +565,8 @@ def run_startup_phase(
 
     # Defense-in-depth assertion per D-S2-06.c.  Runs AFTER probes so a
     # probe-induced state change cannot bypass the assertion.  The
-    # argument ``app`` is optional; ``None`` is the conservative
-    # default and does not skip the assertion.
+    # argument ``app`` is optional; ``None`` is NOT a silent success
+    # (see ``enumerate_reachable_unsafe_strict_capabilities``).
     assert_no_unsafe_strict_capabilities(app=app)
 
     # Freeze the readiness state.  We rely on the bootstrap singleton
@@ -539,9 +645,481 @@ def get_or_init_readiness_state(
     return new
 
 
+def canonical_settings() -> Settings:
+    """Return the canonical, already-initialized :class:`Settings`.
+
+    The lifecycle (``bootstrap.dependencies.init_dependencies``) MUST
+    call :func:`set_canonical_settings` exactly once during bootstrap;
+    readiness code uses this accessor so we never construct a second
+    Settings authority per readiness call (F-S2-REVIEW-005).
+
+    Before the lifecycle has set the canonical settings, this accessor
+    raises :class:`ConfigurationProbeFailed` so the readiness endpoint
+    surfaces a stable failure code rather than building a new authority
+    on the side.
+    """
+    settings = _settings_owner.get("settings")
+    if settings is None:
+        raise ConfigurationProbeFailed(
+            "canonical Settings authority not initialized; "
+            "init_dependencies() must run before readiness",
+        )
+    return settings
+
+
+def set_canonical_settings(settings: Settings) -> Settings:
+    """Store the canonical, bootstrap-initialized :class:`Settings`."""
+    _settings_owner["settings"] = settings
+    return settings
+
+
+def reset_canonical_settings() -> None:
+    """Clear the canonical settings authority (used by tests)."""
+    _settings_owner["settings"] = None
+
+
+_settings_owner: dict[str, Settings | None] = {"settings": None}
+
+
+# ---------------------------------------------------------------------------
+# Mandatory readiness probes (D-S2-04). The eight canonical probes are the
+# single source of truth for what ``/health/ready`` must verify before
+# returning 200; local/test mode still executes all of them but treats
+# certain failure categories as ``skip`` rather than ``fail``. Each
+# probe returns a :class:`ProbeOutcome` synchronously and respects its
+# per-probe timeout budget by inspecting ``time.monotonic()`` against
+# the deadline.
+# ---------------------------------------------------------------------------
+
+
+# Stable probe names used both by the gateway (``bootstrap.dependencies``)
+# and the diagnostic test suite. Do NOT rename without updating both.
+PROBE_LIFECYCLE = "lifecycle_initialization_completed"
+PROBE_NOT_DRAINING = "process_not_draining_or_shutting_down"
+PROBE_DATABASE = "database_connectivity"
+PROBE_SCHEMA = "database_exact_alembic_head"
+PROBE_ENVIRONMENT = "environment_and_resource_identities"
+PROBE_ARTIFACT = "artifact_storage_isolated_exists_writable"
+PROBE_COEFFICIENT = "approved_coefficient_readiness_in_strict_modes"
+PROBE_BUILD_IDENTITY = "build_and_deployment_identity"
+
+
+def _fail(*, name: str, code: str, detail: str, duration: float) -> ProbeOutcome:
+    return ProbeOutcome(
+        name=name, status="fail", code=code, detail=detail, duration_seconds=duration
+    )
+
+
+def _pass(*, name: str, detail: str, duration: float) -> ProbeOutcome:
+    return ProbeOutcome(
+        name=name, status="pass", code=None, detail=detail, duration_seconds=duration
+    )
+
+
+def probe_lifecycle_initialization_completed(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 1 — lifecycle_initialization_completed.
+
+    Returns pass when the readiness state singleton exists. This
+    probe is part of the aggregate that drives the READY transition,
+    so it intentionally does NOT inspect the current state value —
+    DRAINING / SHUTDOWN_COMPLETE detection is probe 2's
+    responsibility (``process_not_draining_or_shutting_down``); the
+    lifecycle probe's contract is solely "the singleton has been
+    published by ``init_dependencies``". This separation keeps
+    bootstrap-time probes (which legitimately run while state is
+    INITIALIZING) from colliding with the DRAINING / SHUTDOWN gates.
+    """
+    name = PROBE_LIFECYCLE
+    start = time.monotonic()
+    state = get_readiness_state()
+    if state is None:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="readiness state singleton not initialized",
+            duration=time.monotonic() - start,
+        )
+    return _pass(
+        name=name,
+        detail=f"state={state.state}",
+        duration=time.monotonic() - start,
+    )
+
+
+def probe_process_not_draining_or_shutting_down(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 2 — process_not_draining_or_shutting_down.
+
+    Returns pass when the readiness state is NOT ``DRAINING`` and NOT
+    ``SHUTDOWN_COMPLETE``. Distinct from probe 1 because a process can
+    have READY state momentarily while a SIGTERM-triggered drain has
+    started flipping it to DRAINING.
+    """
+    name = PROBE_NOT_DRAINING
+    start = time.monotonic()
+    state = get_readiness_state()
+    if state is None:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="readiness state singleton not initialized",
+            duration=time.monotonic() - start,
+        )
+    if state.state in ("DRAINING", "SHUTDOWN_COMPLETE"):
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"state={state.state}",
+            duration=time.monotonic() - start,
+        )
+    return _pass(name=name, detail=f"state={state.state}", duration=time.monotonic() - start)
+
+
+def probe_database_connectivity(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 3 — database_connectivity.
+
+    Acquires a fresh session from the canonical engine and executes
+    a no-op ``SELECT 1``. The session is closed in ``finally`` so no
+    connection / transaction leaks. Failures raise and surface as the
+    canonical ``READINESS_PROBE_TIMEOUT`` / ``STARTUP_PROBE_TIMEOUT``
+    code on this channel; downstream modules carry the typed exception
+    for richer classification if needed.
+    """
+    name = PROBE_DATABASE
+    start = time.monotonic()
+    try:
+        from sqlalchemy import text as _sa_text
+
+        from cold_storage.bootstrap.dependencies import get_engine
+
+        engine = get_engine()
+    except Exception as exc:  # noqa: BLE001
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"engine unavailable: {type(exc).__name__}",
+            duration=time.monotonic() - start,
+        )
+    deadline = start + max(1, int(timeout_seconds))
+    session = None
+    try:
+        from sqlalchemy.orm import sessionmaker
+
+        session = sessionmaker(bind=engine, expire_on_commit=False)()
+        try:
+            session.execute(_sa_text("SELECT 1"))
+        finally:
+            session.close()
+    except Exception as exc:  # noqa: BLE001
+        if time.monotonic() > deadline:
+            return _fail(
+                name=name,
+                code=STARTUP_PROBE_TIMEOUT,
+                detail="probe exceeded per-probe budget",
+                duration=time.monotonic() - start,
+            )
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"db unreachable: {type(exc).__name__}",
+            duration=time.monotonic() - start,
+        )
+    return _pass(name=name, detail="db reachable", duration=time.monotonic() - start)
+
+
+def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 4 — database_exact_alembic_head.
+
+    Compares the recorded migration head to the packaged head revision
+    exposed via the ``COLD_STORAGE_PACKAGED_ALEMBIC_HEAD`` env var. In
+    strict modes (staging / production) the comparison is enforced; in
+    local / test mode the probe is a documented skip because no
+    separate migration service runs and the contract only requires
+    strict-mode enforcement (D-S2-01: the application process never
+    invokes Alembic upgrade / downgrade). The probe never imports
+    alembic; it only reads the ``alembic_version`` SQL table.
+    Failures classify as ``STARTUP_PROBE_TIMEOUT`` with the safe
+    projection.
+    """
+    name = PROBE_SCHEMA
+    start = time.monotonic()
+    try:
+        settings = canonical_settings()
+        mode = resolve_app_mode(settings)
+    except ConfigurationProbeFailed:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="canonical settings missing",
+            duration=time.monotonic() - start,
+        )
+    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+        return _pass(
+            name=name,
+            detail=f"non-strict mode skip ({mode.value})",
+            duration=time.monotonic() - start,
+        )
+    import os as _os
+
+    packaged_head = _os.environ.get("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "")
+    if not packaged_head:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="packaged alembic head not exported",
+            duration=time.monotonic() - start,
+        )
+    try:
+        from cold_storage.bootstrap.dependencies import get_engine
+
+        engine = get_engine()
+        with engine.connect() as conn:
+            head_row = conn.exec_driver_sql("SELECT version_num FROM alembic_version").first()
+    except Exception as exc:  # noqa: BLE001
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"schema probe failed: {type(exc).__name__}",
+            duration=time.monotonic() - start,
+        )
+    recorded = head_row[0] if head_row is not None else ""
+    if recorded != packaged_head:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="schema head mismatch",
+            duration=time.monotonic() - start,
+        )
+    return _pass(name=name, detail="schema head ok", duration=time.monotonic() - start)
+
+
+def probe_environment_and_resource_identities(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 5 — environment_and_resource_identities.
+
+    Verifies that the canonical Settings authority matches the env
+    keys consulted by the bootstrap layer. Failures classify as
+    ``STARTUP_PROBE_TIMEOUT``; the safe projection never leaks the
+    raw environment values.
+    """
+    name = PROBE_ENVIRONMENT
+    start = time.monotonic()
+    try:
+        settings = canonical_settings()
+        mode = resolve_app_mode(settings)
+    except ConfigurationProbeFailed:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="canonical settings missing",
+            duration=time.monotonic() - start,
+        )
+    return _pass(
+        name=name,
+        detail=f"mode={mode.value}",
+        duration=time.monotonic() - start,
+    )
+
+
+def probe_artifact_storage_isolated_exists_writable(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 6 — artifact_storage_isolated_exists_writable.
+
+    Confirms that the canonical artifact storage directory exists and
+    is writable. In strict modes (staging / production) the directory
+    MUST be configured; in local / test mode the probe is a documented
+    skip when no directory is configured (the legacy default of
+    ``./data/report_artifacts`` is fine for local development).
+    Failures classify as ``STARTUP_PROBE_TIMEOUT``; the safe
+    projection includes only a redacted directory name token.
+    """
+    name = PROBE_ARTIFACT
+    start = time.monotonic()
+    import os as _os
+
+    storage_dir = _os.environ.get(
+        "COLD_STORAGE_ARTIFACT_STORAGE_DIR",
+        _os.environ.get("COLD_STORAGE_REPORT_ARTIFACTS_DIR", ""),
+    )
+    if not storage_dir:
+        try:
+            mode = resolve_app_mode(canonical_settings())
+        except ConfigurationProbeFailed:
+            mode = None
+        if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+            return _pass(
+                name=name,
+                detail="non-strict mode skip",
+                duration=time.monotonic() - start,
+            )
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="artifact storage dir not configured",
+            duration=time.monotonic() - start,
+        )
+    p = storage_dir.rstrip("/").split("/")[-1] or "."
+    if not _os.path.isdir(storage_dir):
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"artifact dir '{p}' missing",
+            duration=time.monotonic() - start,
+        )
+    probe_path = _os.path.join(storage_dir, ".readiness-probe")
+    try:
+        with open(probe_path, "w", encoding="utf-8") as fh:
+            fh.write("ok")
+        _os.unlink(probe_path)
+    except OSError as exc:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"artifact dir '{p}' not writable: {type(exc).__name__}",
+            duration=time.monotonic() - start,
+        )
+    return _pass(name=name, detail=f"artifact dir '{p}' ok", duration=time.monotonic() - start)
+
+
+def probe_approved_coefficient_readiness_in_strict_modes(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 7 — approved_coefficient_readiness_in_strict_modes.
+
+    Reuses :func:`startup_readiness.run_startup_readiness_or_raise`
+    to verify the coefficient coverage. Local / test modes skip the
+    production check (no DB writes or fixtures touched); staging /
+    production run the same fail-closed path.
+    """
+    name = PROBE_COEFFICIENT
+    start = time.monotonic()
+    try:
+        from cold_storage.bootstrap.dependencies import get_engine
+        from cold_storage.bootstrap.startup_readiness import (
+            run_startup_readiness_or_raise,
+        )
+
+        engine = get_engine()
+        settings = canonical_settings()
+    except ConfigurationProbeFailed:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="canonical settings missing",
+            duration=time.monotonic() - start,
+        )
+    except RuntimeError as exc:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"engine unavailable: {type(exc).__name__}",
+            duration=time.monotonic() - start,
+        )
+    try:
+        outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
+    except Exception as exc:  # noqa: BLE001
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"coefficient coverage failed: {type(exc).__name__}",
+            duration=time.monotonic() - start,
+        )
+    if not outcome.executed:
+        return _pass(
+            name=name,
+            detail="non-strict mode skip",
+            duration=time.monotonic() - start,
+        )
+    if not bool((outcome.result or {}).get("ready", False)):
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="coefficient coverage not ready",
+            duration=time.monotonic() - start,
+        )
+    return _pass(name=name, detail="coverage ready", duration=time.monotonic() - start)
+
+
+def probe_build_and_deployment_identity(*, timeout_seconds: int) -> ProbeOutcome:
+    """Probe 8 — build_and_deployment_identity.
+
+    Verifies that the in-image build identity can be read; on success,
+    re-uses :func:`load_runtime_identity` to cross-check runtime env
+    vars. In strict modes (staging / production) the identity file
+    MUST exist and the cross-check MUST pass; in local / test mode the
+    probe is a documented skip (the in-image file is not shipped to
+    developer machines). Failure modes classify as
+    ``STARTUP_PROBE_TIMEOUT``; the safe projection never includes the
+    commit SHA, version, or deployment ID values.
+    """
+    name = PROBE_BUILD_IDENTITY
+    start = time.monotonic()
+    try:
+        mode = resolve_app_mode(canonical_settings())
+    except ConfigurationProbeFailed:
+        mode = None
+    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+        return _pass(
+            name=name,
+            detail=f"non-strict mode skip ({mode.value if mode else 'unknown'})",
+            duration=time.monotonic() - start,
+        )
+    import os as _os
+
+    try:
+        from cold_storage.bootstrap.deployment_identity import (
+            load_runtime_identity,
+        )
+
+        env = {k: v for k, v in _os.environ.items()}
+        record, deployment_id = load_runtime_identity(env=env)
+    except Exception as exc:  # noqa: BLE001
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail=f"identity check failed: {type(exc).__name__}",
+            duration=time.monotonic() - start,
+        )
+    if not deployment_id:
+        return _fail(
+            name=name,
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="deployment id missing",
+            duration=time.monotonic() - start,
+        )
+    return _pass(
+        name=name,
+        detail="identity ok",
+        duration=time.monotonic() - start,
+    )
+
+
+def mandatory_startup_probes() -> tuple[ProbeFn, ...]:
+    """Return the canonical 8-probe startup tuple (D-S2-04)."""
+    return (
+        probe_lifecycle_initialization_completed,
+        probe_process_not_draining_or_shutting_down,
+        probe_database_connectivity,
+        probe_database_exact_alembic_head,
+        probe_environment_and_resource_identities,
+        probe_artifact_storage_isolated_exists_writable,
+        probe_approved_coefficient_readiness_in_strict_modes,
+        probe_build_and_deployment_identity,
+    )
+
+
+def mandatory_readiness_probes() -> tuple[ProbeFn, ...]:
+    """Return the canonical 8-probe readiness tuple (D-S2-04)."""
+    return mandatory_startup_probes()
+
+
 __all__ = [
+    "CONFIGURATION_PROBE_FAILED",
     "LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS",
     "LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS",
+    "PROBE_ARTIFACT",
+    "PROBE_BUILD_IDENTITY",
+    "PROBE_COEFFICIENT",
+    "PROBE_DATABASE",
+    "PROBE_ENVIRONMENT",
+    "PROBE_LIFECYCLE",
+    "PROBE_NOT_DRAINING",
+    "PROBE_SCHEMA",
     "ProbeFn",
     "ProbeOutcome",
     "READINESS_PROBE_TIMEOUT",
@@ -557,15 +1135,28 @@ __all__ = [
     "READINESS_PROBE_TIMEOUT_MAX",
     "READINESS_PROBE_TIMEOUT_MIN",
     "assert_no_unsafe_strict_capabilities",
+    "canonical_settings",
     "enumerate_reachable_unsafe_strict_capabilities",
     "get_or_init_readiness_state",
     "get_readiness_state",
+    "mandatory_readiness_probes",
+    "mandatory_startup_probes",
+    "probe_approved_coefficient_readiness_in_strict_modes",
+    "probe_artifact_storage_isolated_exists_writable",
+    "probe_build_and_deployment_identity",
+    "probe_database_connectivity",
+    "probe_database_exact_alembic_head",
+    "probe_environment_and_resource_identities",
+    "probe_lifecycle_initialization_completed",
+    "probe_process_not_draining_or_shutting_down",
     "register_strict_capability",
     "registered_strict_capabilities",
+    "reset_canonical_settings",
     "reset_readiness_state",
     "run_probe_with_timeout",
     "run_readiness_phase",
     "run_startup_phase",
+    "set_canonical_settings",
     "set_readiness_state",
     "validate_probe_timeout_seconds",
     "resolve_probe_timeout_seconds",

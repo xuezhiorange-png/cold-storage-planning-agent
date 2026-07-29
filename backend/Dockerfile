@@ -44,23 +44,61 @@ COPY backend/alembic /build/backend/alembic
 COPY backend/alembic.ini /build/backend/alembic.ini
 
 # Build-time identity is rendered into the immutable authority file. We use
-# ARG defaults that the CI provides explicitly so the file is exact and
-# reproducible.
-ARG COLD_STORAGE_BUILD_COMMIT_SHA=unknown0000000000000000000000000000000000000
-ARG COLD_STORAGE_BUILD_VERSION=v0.0.0
+# ARG without defaults so CI MUST pass explicit values; the builder stage
+# fails closed if either identity key is empty or malformed, never silently
+# writing a placeholder into the in-image authority (D-S2-02 + F-S2-REVIEW-007).
+ARG COLD_STORAGE_BUILD_COMMIT_SHA
+ARG COLD_STORAGE_BUILD_VERSION
 
-# Bake the build-identity file. The builder stage uses a tiny Python one-liner
-# that produces deterministic UTF-8 JSON with the exact frozen key set in the
-# exact frozen order (D-S2-02.a).
+# Validate the build identity BEFORE writing it. Fail closed at build time
+# rather than carrying an "unknown..." placeholder into the image. CI/Compose
+# config may use placeholders for syntax checks, but those images are NOT
+# deployable because the placeholder trigger here is a hard build failure.
 RUN python - <<'PY'
-import json, os, pathlib, sys
+import json, os, pathlib, re, sys
+
+_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_VER_RE = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
+
+commit_sha = os.environ.get("COLD_STORAGE_BUILD_COMMIT_SHA", "")
+version = os.environ.get("COLD_STORAGE_BUILD_VERSION", "")
+
+if not commit_sha:
+    sys.stderr.write(
+        "build error: COLD_STORAGE_BUILD_COMMIT_SHA is empty; "
+        "DOCKER BUILD IDENTITY MUST BE PASSED EXPLICITLY (F-S2-REVIEW-007)\n"
+    )
+    sys.exit(1)
+if not _SHA_RE.match(commit_sha):
+    sys.stderr.write(
+        f"build error: COLD_STORAGE_BUILD_COMMIT_SHA={commit_sha!r} "
+        "is not a 40-char lowercase hex SHA\n"
+    )
+    sys.exit(1)
+
+if not version:
+    sys.stderr.write(
+        "build error: COLD_STORAGE_BUILD_VERSION is empty; "
+        "DOCKER BUILD IDENTITY MUST BE PASSED EXPLICITLY (F-S2-REVIEW-007)\n"
+    )
+    sys.exit(1)
+if not _VER_RE.match(version):
+    sys.stderr.write(
+        f"build error: COLD_STORAGE_BUILD_VERSION={version!r} "
+        "does not match the contract semver pattern\n"
+    )
+    sys.exit(1)
+
 out = pathlib.Path("/build/backend/build-identity.json")
 data = {
     "schema_version": 1,
-    "commit_sha": os.environ.get("COLD_STORAGE_BUILD_COMMIT_SHA", "unknown0000000000000000000000000000000000000"),
-    "version": os.environ.get("COLD_STORAGE_BUILD_VERSION", "v0.0.0"),
+    "commit_sha": commit_sha,
+    "version": version,
 }
-out.write_text(json.dumps(data, separators=(", ", ": "), ensure_ascii=False) + "\n", encoding="utf-8")
+out.write_text(
+    json.dumps(data, separators=(", ", ": "), ensure_ascii=False) + "\n",
+    encoding="utf-8",
+)
 sys.exit(0)
 PY
 ENV COLD_STORAGE_BUILD_COMMIT_SHA=${COLD_STORAGE_BUILD_COMMIT_SHA}

@@ -20,6 +20,7 @@ from cold_storage.bootstrap.dependencies import (
     shutdown_dependencies,
 )
 from cold_storage.bootstrap.logging import configure_logging
+from cold_storage.bootstrap.mode import AppMode, resolve_app_mode
 from cold_storage.bootstrap.settings import get_settings
 from cold_storage.modules.calculations.application.service import (
     CoreCalculationService,
@@ -48,7 +49,6 @@ from cold_storage.modules.planning_agent.application.agent_service import Legacy
 from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
 from cold_storage.modules.planning_agent.application.service import PlanningAgentService
 from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
-from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
@@ -91,9 +91,18 @@ def _get_planning_agent_service(
     Fix #2: per-request Session, not singleton.
     Fix #7: transaction boundary via _get_db_session commit/rollback.
     Fix #1+#2: Wire real tool adapters into the orchestrator.
+
+    D-S2-06.a: the fake-agent gateway is only imported and instantiated
+    in local / test modes. In strict modes (staging / production) the
+    planning-agent router is unmounted so this dependency is never
+    invoked; the lazy import is also gated so a strict-mode import
+    path cannot accidentally instantiate ``FakeAgentModelGateway``.
     """
     from cold_storage.modules.knowledge.application.service import (
         KnowledgeService as _KnowledgeService,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.fake_gateways import (
+        FakeAgentModelGateway,
     )
     from cold_storage.modules.planning_agent.infrastructure.tool_adapters.knowledge_adapter import (
         KnowledgeSearchAdapter,
@@ -262,7 +271,10 @@ class AgentMessageRequest(BaseModel):
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
-    init_dependencies(get_settings())
+    # Pass the live FastAPI app so the strict-mode capability audit
+    # (D-S2-06.c) can inspect ``app.routes`` for any registered fake-
+    # agent or process-local coefficient capability.
+    init_dependencies(get_settings(), app=app)
     try:
         yield
     finally:
@@ -279,9 +291,18 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     calculator = CalculationService()
     zone_planner = ColdRoomZonePlanner()
     investment_estimator = InvestmentEstimator()
-    coefficient_service = CoefficientService()
     core_calculation_service = CoreCalculationService()
-    register_coefficient_routes(app, coefficient_service)
+
+    # D-S2-06.b: in-memory coefficient service as HTTP backend is only
+    # safe in local / test modes. Staging / production must use the
+    # strict-approved resolver path only; the process-local service
+    # and its HTTP routes are NOT mounted, so any incoming request
+    # receives FastAPI's standard 404.
+    initial_mode = resolve_app_mode(get_settings())
+    if initial_mode in (AppMode.LOCAL, AppMode.TEST):
+        coefficient_service = CoefficientService()
+        register_coefficient_routes(app, coefficient_service)
+    # else: coefficient routes deliberately not mounted in strict modes
 
     # Scheme routes
     def _scheme_service_factory() -> SchemeService:
@@ -343,14 +364,44 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         HTTP 503 rather than propagating the pydantic
         ``ValidationError`` to the client. This is the contract's
         "fail closed" surface for the readiness HTTP channel.
+
+        F-S2-REVIEW-004 / F-S2-REVIEW-005: the endpoint consumes the
+        canonical ``Settings`` authority via ``canonical_settings()``
+        and runs the canonical 8-probe readiness tuple. We never build
+        a second Settings authority here, and the endpoint never
+        builds a new ``Settings()``; configuration failures surface
+        as the stable ``CONFIGURATION_PROBE_FAILED`` code.
         """
         from fastapi import Response
 
         from cold_storage.bootstrap.runtime_readiness import (
+            ConfigurationProbeFailed,
             ReadinessState,
+            canonical_settings,
             get_readiness_state,
+            mandatory_readiness_probes,
             run_readiness_phase,
         )
+
+        # Reuse the canonical Settings authority. Configuration
+        # failures (no canonical authority yet, pydantic ValidationError)
+        # are caught here so the endpoint always surfaces a stable
+        # failure code rather than building a second Settings on the side.
+        try:
+            probe_settings = canonical_settings()
+            configuration_failed: tuple[str, str] | None = None
+        except ConfigurationProbeFailed as exc:
+            probe_settings = None
+            configuration_failed = (
+                ConfigurationProbeFailed.failure_code,
+                str(exc),
+            )
+        except Exception as exc:  # noqa: BLE001
+            probe_settings = None
+            configuration_failed = (
+                ConfigurationProbeFailed.failure_code,
+                type(exc).__name__,
+            )
 
         state: ReadinessState | None = get_readiness_state()
         snapshot = state.snapshot() if state is not None else {"state": "INITIALIZING"}
@@ -369,25 +420,12 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 ),
             )
 
-        # Probe-timeout enforcement: every probe in the readiness set
-        # runs with the configured per-probe budget; a forced timeout
-        # produces the failure classification READINESS_PROBE_TIMEOUT.
-        #
-        # We MUST pass a Settings object to ``run_readiness_phase``;
-        # however, we deliberately swallow any pydantic validation
-        # failure and fall through to the standard 503 path with the
-        # failure code surfaced in the body. The endpoint never
-        # propagates ``pydantic_core.ValidationError`` to the client.
-        try:
-            from cold_storage.bootstrap.settings import Settings
-
-            probe_settings = Settings()
-        except Exception:  # noqa: BLE001
-            probe_settings = None
         if probe_settings is None:
-            # Configuration was incomplete; treat this as a probe
-            # outcome with the canonical READINESS_PROBE_TIMEOUT code.
-            outcomes: tuple[Any, ...] = ()
+            # Configuration was incomplete; surface the stable code.
+            safe_code, safe_detail = configuration_failed or (
+                ConfigurationProbeFailed.failure_code,
+                "settings unavailable",
+            )
             return Response(
                 status_code=503,
                 media_type="application/json",
@@ -395,19 +433,31 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                     {
                         "status": "not_ready",
                         "state": state_name,
-                        "outcomes": [o.to_dict() for o in outcomes],
+                        "check_code": safe_code,
+                        "detail": safe_detail,
                     }
                 ),
             )
-        outcomes = run_readiness_phase(settings=probe_settings, readiness_probes=[])
+
+        outcomes = run_readiness_phase(
+            settings=probe_settings,
+            readiness_probes=mandatory_readiness_probes(),
+        )
         ok = all(o.status == "pass" for o in outcomes)
 
         if state_name == "READY" and ok:
             return {"status": "ready", "state": state_name}
 
+        # Build a safe projection: status, state, check_code (frozen
+        # code if any), and the per-probe outcome dicts that already
+        # pass through the redaction authority. We never echo raw
+        # exception text, DSN, or full path here.
+        failed_codes = sorted({o.code for o in outcomes if o.code})
+        primary_code = failed_codes[0] if failed_codes else "READINESS_PROBE_TIMEOUT"
         body = {
             "status": "not_ready",
             "state": state_name,
+            "check_code": primary_code,
             "outcomes": [o.to_dict() for o in outcomes],
         }
         return Response(
@@ -798,7 +848,13 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         create_agent_router as _create_agent_router,
     )
 
-    app.include_router(_create_agent_router(_get_planning_agent_service))
+    # D-S2-06.a: the planning-agent router is backed by
+    # ``FakeAgentModelGateway``. In strict modes (staging / production)
+    # neither the gateway nor the router is mounted, so any incoming
+    # request to ``/api/v1/agent/...`` receives FastAPI's standard 404
+    # (no internal-state response).
+    if initial_mode in (AppMode.LOCAL, AppMode.TEST):
+        app.include_router(_create_agent_router(_get_planning_agent_service))
 
     # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------
