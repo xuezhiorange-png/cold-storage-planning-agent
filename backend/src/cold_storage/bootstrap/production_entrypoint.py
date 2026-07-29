@@ -53,10 +53,33 @@ def _resolve_required_env(keys: tuple[str, ...]) -> dict[str, str]:
 
 
 def run_entrypoint() -> int:
-    """Production entry point. Returns the uvicorn process exit code."""
-    # 1. Identity cross-check (delegates to bootstrap.deployment_identity).
+    """Production entry point. Returns the uvicorn process exit code.
+
+    CONTRACT (F-PR76-BLOCKER-01 + D-S2-08):
+
+    * Build/deployment identity cross-check runs BEFORE uvicorn is
+      constructed, so an unauthenticated container never binds its
+      port. Identity failures surface as the frozen
+      ``BUILD_IDENTITY_*`` codes via :mod:`deployment_identity`.
+    * Probe-timeout configuration is validated BEFORE uvicorn is
+      constructed, so a malformed timeout never reaches a running
+      worker.
+    * The defensive strict-capability audit (D-S2-06.c) is delegated
+      to the FastAPI lifespan in :func:`bootstrap.app._lifespan`,
+      which runs it against the live composed ``app`` AFTER routes
+      have been mounted but BEFORE the server accepts traffic. The
+      audit therefore inspects a real route table and fails closed
+      per the existing frozen ``UNSAFE_STRICT_CAPABILITY_WIRING``
+      contract without us passing a fabricated ``app=None`` to the
+      audit before the app exists.
+    * There is exactly ONE FastAPI app instance. The factory in
+      :func:`bootstrap.app.create_app` is invoked once via the
+      uvicorn factory hook; the lifespan audit and uvicorn's
+      worker share the same instance.
+    """
     from contextlib import suppress
 
+    # 1. Identity cross-check (delegates to bootstrap.deployment_identity).
     from cold_storage.bootstrap.deployment_identity import load_runtime_identity  # noqa: PLC0415
 
     env = {k: v for k, v in os.environ.items()}
@@ -112,16 +135,22 @@ def run_entrypoint() -> int:
                 logger.error("probe timeout invalid: kind=%s value=%s error=%s", raw_kind, raw, exc)
                 return 16
 
-    # 3. Defensive strict-capability enumeration.
-    from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
-        assert_no_unsafe_strict_capabilities,
-    )
-
-    assert_no_unsafe_strict_capabilities(app=None)
+    # 3. The defensive strict-capability audit is NO LONGER invoked
+    #    here with ``app=None`` (F-PR76-BLOCKER-01). It runs inside the
+    #    FastAPI lifespan, against the composed ``app``, BEFORE the
+    #    server starts accepting traffic. This keeps the fail-closed
+    #    ``UNSAFE_STRICT_CAPABILITY_WIRING`` contract intact while
+    #    removing the pre-app positive audit that previously blocked
+    #    every production startup with ``app=None`` because the audit
+    #    intentionally raises in strict mode when ``app is None``.
 
     # 4. Hand off to uvicorn. We import uvicorn lazily so the previous
     # safety checks have all passed before the WSGI factory is
-    # constructed.
+    # constructed. Uvicorn's ``factory=True`` invokes
+    # ``create_app()`` once and shares the resulting app instance with
+    # its lifespan handler, so the audit run inside the lifespan and
+    # the request-handling loop both observe the same composed
+    # application.
     import uvicorn  # noqa: PLC0415
 
     host = os.environ.get("COLD_STORAGE_APP_HOST", "0.0.0.0")

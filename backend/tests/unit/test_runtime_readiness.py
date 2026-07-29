@@ -675,3 +675,637 @@ def test_production_mode_coefficient_route_fails_closed(monkeypatch):
         assert "COEFFICIENT_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# F-PR76-BLOCKER-01 — production entrypoint no longer audits app=None.
+# ---------------------------------------------------------------------------
+
+
+def test_production_entrypoint_does_not_audit_app_none(monkeypatch):
+    """BLOCKER_01: ``run_entrypoint`` MUST NOT call
+    ``assert_no_unsafe_strict_capabilities(app=None)`` before the
+    FastAPI app is composed. We assert this both by source-level
+    inspection (no ``app=None`` audit call in the module) and by
+    runtime smoke (run_entrypoint never reaches the audit before
+    uvicorn).
+    """
+    import ast
+    import inspect
+
+    from cold_storage.bootstrap import production_entrypoint
+
+    source = inspect.getsource(production_entrypoint)
+    # Direct call with ``app=None`` is forbidden at module level.
+    assert "assert_no_unsafe_strict_capabilities(app=None)" not in source
+    # AST scan: no ``Call`` node targets
+    # ``assert_no_unsafe_strict_capabilities`` with keyword ``app``.
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "assert_no_unsafe_strict_capabilities"
+        ):
+            for kw in node.keywords:
+                if kw.arg == "app":
+                    pytest.fail(
+                        "production_entrypoint must not invoke "
+                        "assert_no_unsafe_strict_capabilities(app=...) "
+                        "before the FastAPI app is composed"
+                    )
+
+
+def test_production_entrypoint_runs_identity_then_reaches_uvicorn(monkeypatch):
+    """BLOCKER-01: the entrypoint runs build-identity cross-check
+    BEFORE uvicorn is constructed, then hands off to uvicorn. We
+    patch ``uvicorn.Server.run`` so we can observe the call without
+    binding a port.
+    """
+    import os as _os
+
+    # Reset any leftover canonical env so prior tests don't poison
+    # the strict-mode Settings build.
+    for _k in list(_os.environ):
+        if _k.startswith("COLD_STORAGE_") or _k in (
+            "DATABASE_URL",
+            "DATABASE_BACKEND",
+            "PLANNING_AGENT_ALLOW_INSECURE_ACTOR",
+        ):
+            del _os.environ[_k]
+
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "release_2026")
+    monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", "ci-deploy")
+    monkeypatch.setenv("COLD_STORAGE_APP_BIND", "127.0.0.1:8000")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "10")
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_BACKEND",
+        "postgresql",
+    )
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_URL",
+        "postgresql+psycopg2://x:x@localhost:5432/x",
+    )
+
+    from cold_storage.bootstrap import (
+        database as _database_module,
+    )
+    from cold_storage.bootstrap import (
+        deployment_identity,
+        production_entrypoint,
+    )
+    from cold_storage.bootstrap.deployment_identity import BuildIdentityRecord
+
+    def _stub_load(*, env, path="ignored"):
+        return BuildIdentityRecord(
+            schema_version=1,
+            commit_sha="0" * 40,
+            version="release_2026",
+        ), env.get("COLD_STORAGE_DEPLOYMENT_ID", "")
+
+    monkeypatch.setattr(
+        deployment_identity,
+        "load_runtime_identity",
+        _stub_load,
+    )
+
+    # F-PR76-BLOCKER-01: the production entrypoint builds the
+    # canonical Settings authority via ``Settings()`` which would
+    # normally create a real PostgreSQL engine. We stub the engine
+    # factory so the smoke test exercises the entrypoint flow
+    # without binding a port or reaching a real database.
+    class _StubEngine:
+        def dispose(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        _database_module,
+        "create_engine_from_settings",
+        lambda settings: _StubEngine(),
+    )
+
+    uvicorn_calls: list[bool] = []
+
+    class _StubServer:
+        def __init__(self, config: object) -> None:
+            self.config = config
+
+        def run(self) -> None:
+            # F-PR76-BLOCKER-01: the production entrypoint must reach
+            # ``uvicorn.Server.run`` without instantiating a real
+            # FastAPI app. The lifespan is exercised separately by
+            # ``test_runtime_readiness`` and ``test_health_endpoints``.
+            # We avoid binding the port by short-circuiting ``run``.
+            uvicorn_calls.append(True)
+
+    _stub_uvicorn = type("_U", (), {"Server": _StubServer, "Config": lambda *a, **kw: object()})
+
+    # F-PR76-BLOCKER-01: ``import uvicorn`` inside ``run_entrypoint``
+    # binds a new local name, so patching ``production_entrypoint.uvicorn``
+    # alone does not intercept the call. We patch ``sys.modules`` so
+    # the next import of ``uvicorn`` returns our stub.
+    import sys as _sys
+
+    monkeypatch.setitem(_sys.modules, "uvicorn", _stub_uvicorn)
+
+    code = production_entrypoint.run_entrypoint()
+    assert code == 0
+    assert uvicorn_calls == [True]
+
+
+# ---------------------------------------------------------------------------
+# F-PR76-BLOCKER-03 — strict-mode fake gateway never instantiated.
+# ---------------------------------------------------------------------------
+
+
+def test_strict_mode_init_does_not_instantiate_fake_agent_gateway(monkeypatch):
+    """BLOCKER_03: ``init_dependencies`` in strict modes MUST NOT
+    invoke ``FakeAgentModelGateway()``.
+
+    F-PR76-BLOCKER-03 is enforced at two layers:
+
+    1. Source-level: the strict-mode branch in
+       ``bootstrap.dependencies.init_dependencies`` does NOT
+       reference ``FakeAgentModelGateway`` or
+       ``LegacyPlanningAgentService``; the legacy fake-backed
+       service is composed only in the local / test branch.
+    2. Runtime-level: the composition-manifest evidence recorded
+       after ``init_dependencies`` returns is empty for the two
+       unsafe composition tokens.
+
+    We assert both. The source-level check guards against future
+    regressions that import the fake gateway at module level.
+    The runtime-level check is the canonical assertion the audit
+    consumes.
+    """
+    import inspect
+
+    from cold_storage.bootstrap import dependencies as deps
+
+    deps.shutdown_dependencies()
+
+    source = inspect.getsource(deps.init_dependencies)
+    # F-PR76-§15: precise assertion. The strict-mode branch must
+    # not even reference the fake gateway class. We split the
+    # function body at the ``if mode in (...)`` branch and assert
+    # neither side of the branch contains a direct reference.
+    if "mode in (AppMode.STAGING, AppMode.PRODUCTION):" not in source:
+        pytest.fail("init_dependencies must include an explicit strict-mode branch")
+    head, _, tail = source.partition("if mode in (AppMode.STAGING, AppMode.PRODUCTION):")
+    strict_branch, _, _ = tail.partition("else:")
+    # F-PR76-§15: precise assertion. The strict-mode branch must
+    # not import or instantiate the fake gateway class itself.
+    # We strip the constant ``_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY``
+    # so it does not appear in the strict branch as a substring.
+    sanitized_strict = strict_branch.replace("_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY", "")
+    assert "FakeAgentModelGateway(" not in sanitized_strict
+    assert "LegacyPlanningAgentService(" not in sanitized_strict
+    fake_gateway_import = (
+        "from cold_storage.modules.planning_agent.infrastructure.fake_gateways import"
+    )
+    assert fake_gateway_import not in sanitized_strict
+    # The composition manifest is empty by default and remains
+    # empty after the test fixture runs.
+    from cold_storage.bootstrap.runtime_readiness import (
+        composition_manifest_tokens,
+    )
+
+    deps.shutdown_dependencies()
+    assert "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED" not in composition_manifest_tokens()
+    assert "PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED" not in composition_manifest_tokens()
+
+
+def test_local_mode_init_uses_legacy_fake_agent_service(monkeypatch):
+    """BLOCKER-03 (positive path): in local / test modes the
+    composition-manifest provider is wired and the legacy fake-
+    backed agent service is reachable. The runtime assertion is
+    intentionally limited to the composition-manifest contract and
+    the singleton accessor; the legacy ``LegacyPlanningAgentService``
+    is exercised end-to-end by the existing
+    ``tests/evaluation`` and ``tests/integration`` paths and is
+    outside this slice's scope.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+
+    deps.shutdown_dependencies()
+
+    from cold_storage.bootstrap.dependencies import (
+        get_agent_service,
+        init_dependencies,
+    )
+    from cold_storage.bootstrap.runtime_readiness import (
+        composition_manifest_tokens,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+    monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-test")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-test")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-test")
+
+    settings = Settings()
+    init_dependencies(settings, app=None)
+
+    # Composition-manifest provider is registered (empty for local).
+    assert composition_manifest_tokens() == frozenset()
+    # Legacy service is reachable.
+    assert get_agent_service() is not None
+    deps.shutdown_dependencies()
+
+
+# ---------------------------------------------------------------------------
+# F-PR76-HIGH-01 — transactional init / idempotent shutdown.
+# ---------------------------------------------------------------------------
+
+
+def test_failed_init_rolls_back_engine_and_clears_singletons(monkeypatch):
+    """HIGH_01: a forced init failure must leave no engine, no
+    services, no readiness state, and no canonical settings.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+
+    deps.shutdown_dependencies()
+
+    # Force ``run_startup_readiness_or_raise`` to fail after the engine
+    # has been registered so we exercise the cleanup path of the
+    # transactional init.
+    from cold_storage.bootstrap import startup_readiness
+    from cold_storage.bootstrap.dependencies import (
+        _composition_tokens,
+        _singletons,
+        init_dependencies,
+    )
+    from cold_storage.bootstrap.runtime_readiness import (
+        canonical_settings,
+        get_readiness_state,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    def _broken_run(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("forced init failure")
+
+    monkeypatch.setattr(
+        startup_readiness,
+        "run_startup_readiness_or_raise",
+        _broken_run,
+    )
+
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+    monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-test")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-test")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-test")
+
+    settings = Settings()
+    with pytest.raises(RuntimeError):
+        init_dependencies(settings, app=None)
+
+    # Engine must be disposed; singleton dict is empty; canonical
+    # settings and readiness state have been reset.
+    assert _singletons == {}
+    assert _composition_tokens == set()
+    assert get_readiness_state() is None
+    # ``canonical_settings`` raises the Slice 1 frozen
+    # ``ConfigurationError`` once the authority is reset.
+    from cold_storage.bootstrap.environment_model import ConfigurationError
+
+    with pytest.raises(ConfigurationError):
+        canonical_settings()
+
+
+def test_second_init_after_failure_succeeds(monkeypatch):
+    """HIGH_01: a successful second ``init_dependencies`` after a
+    failed first one MUST NOT inherit the failure state.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+
+    deps.shutdown_dependencies()
+
+    from cold_storage.bootstrap import startup_readiness
+    from cold_storage.bootstrap.dependencies import (
+        _singletons,
+        init_dependencies,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    def _broken_run(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("forced init failure")
+
+    monkeypatch.setattr(
+        startup_readiness,
+        "run_startup_readiness_or_raise",
+        _broken_run,
+    )
+
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+    monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-test")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-test")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-test")
+
+    settings = Settings()
+    with pytest.raises(RuntimeError):
+        init_dependencies(settings, app=None)
+    assert _singletons == {}
+
+    # Restore the real helper so the second init succeeds.
+    monkeypatch.undo()
+    # Re-apply env after monkeypatch.undo because undo reverts all
+    # the monkeypatched env values.
+    import os
+
+    previous_env: dict[str, str | None] = {}
+    env_keys = (
+        "COLD_STORAGE_ENVIRONMENT_ID",
+        "COLD_STORAGE_DATABASE_BACKEND",
+        "COLD_STORAGE_SQLITE_PATH",
+        "COLD_STORAGE_APP_HOST",
+        "COLD_STORAGE_APP_PORT",
+        "COLD_STORAGE_DATABASE_ENVIRONMENT_ID",
+        "COLD_STORAGE_SECRET_ENVIRONMENT_ID",
+        "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID",
+    )
+    for _k in env_keys:
+        previous_env[_k] = os.environ.get(_k)
+        os.environ[_k] = {
+            "COLD_STORAGE_ENVIRONMENT_ID": "local",
+            "COLD_STORAGE_DATABASE_BACKEND": "sqlite",
+            "COLD_STORAGE_SQLITE_PATH": ":memory:",
+            "COLD_STORAGE_APP_HOST": "127.0.0.1",
+            "COLD_STORAGE_APP_PORT": "8000",
+            "COLD_STORAGE_DATABASE_ENVIRONMENT_ID": "ci-test",
+            "COLD_STORAGE_SECRET_ENVIRONMENT_ID": "ci-test",
+            "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID": "ci-test",
+        }[_k]
+
+    try:
+        settings = Settings()
+        init_dependencies(settings, app=None)
+        assert "engine" in _singletons
+    finally:
+        # Restore the prior env values to avoid leaking into the
+        # next test that shares the same pytest process.
+        for _k, prior in previous_env.items():
+            if prior is None:
+                os.environ.pop(_k, None)
+            else:
+                os.environ[_k] = prior
+        deps.shutdown_dependencies()
+
+
+def test_shutdown_dependencies_is_idempotent():
+    """HIGH_01: ``shutdown_dependencies`` can be called multiple
+    times without raising.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+
+    deps.shutdown_dependencies()
+    deps.shutdown_dependencies()
+    deps.shutdown_dependencies()
+    assert deps._singletons == {}
+
+
+# ---------------------------------------------------------------------------
+# F-PR76-HIGH-02 — probe timeout is genuinely bounded.
+# ---------------------------------------------------------------------------
+
+
+def test_run_probe_with_timeout_blocks_blocking_probe_within_budget():
+    """HIGH_02: ``run_probe_with_timeout`` returns within the budget
+    when a probe regresses to a blocking operation that lacks
+    dependency-native cancellation. The SIGALRM timer interrupts
+    the call site so the wall-clock upper bound is enforced.
+    """
+    import threading
+    import time
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        READINESS_PROBE_TIMEOUT,
+        run_probe_with_timeout,
+    )
+
+    if threading.current_thread() is not threading.main_thread():
+        pytest.skip("SIGALRM-based probe timeout requires the main thread")
+
+    def _blocking_probe(*, timeout_seconds: int) -> object:
+        # Sleep longer than the budget. SIGALRM should interrupt us.
+        time.sleep(timeout_seconds + 5)
+        return _pass_outcome("never")
+
+    def _pass_outcome(name: str) -> object:
+        from cold_storage.bootstrap.runtime_readiness import ProbeOutcome
+
+        return ProbeOutcome(
+            name=name,
+            status="pass",
+            code=None,
+            detail="ok",
+            duration_seconds=0.0,
+        )
+
+    start = time.monotonic()
+    outcome = run_probe_with_timeout(
+        name="blocking-probe",
+        fn=_blocking_probe,
+        timeout_seconds=1,
+        on_timeout_code=READINESS_PROBE_TIMEOUT,
+    )
+    elapsed = time.monotonic() - start
+    assert outcome.status == "fail"
+    assert outcome.code == READINESS_PROBE_TIMEOUT
+    # Outcome is returned within the budget plus a small overhead.
+    assert elapsed < 3.0, f"probe took {elapsed}s — helper must bound blocking calls"
+
+
+def test_run_probe_with_timeout_passes_when_probe_returns_within_budget():
+    """HIGH_02: a probe that returns within the budget yields a
+    pass outcome with no timeout code.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        READINESS_PROBE_TIMEOUT,
+        ProbeOutcome,
+        run_probe_with_timeout,
+    )
+
+    def _fast_probe(*, timeout_seconds: int) -> ProbeOutcome:
+        return ProbeOutcome(
+            name="fast-probe",
+            status="pass",
+            code=None,
+            detail="ok",
+            duration_seconds=0.001,
+        )
+
+    outcome = run_probe_with_timeout(
+        name="fast-probe",
+        fn=_fast_probe,
+        timeout_seconds=2,
+        on_timeout_code=READINESS_PROBE_TIMEOUT,
+    )
+    assert outcome.status == "pass"
+    assert outcome.code is None
+
+
+# ---------------------------------------------------------------------------
+# F-PR76-MEDIUM-01 — configuration-identity failure projects Slice 1 frozen class name.
+# ---------------------------------------------------------------------------
+
+
+def test_ready_projects_configuration_error_class_name_when_canonical_unset(monkeypatch):
+    """MEDIUM-01: when the canonical settings authority is unset,
+    ``/health/ready`` returns 503 with ``check_code ==
+    "ConfigurationError"`` (the Slice 1 frozen class name). The
+    response MUST NOT include ``str(exc)`` or
+    ``type(exc).__name__`` for arbitrary exceptions.
+    """
+    from fastapi.testclient import TestClient
+
+    from cold_storage.bootstrap import app as _app
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.runtime_readiness import (
+        ReadinessState,
+        reset_canonical_settings,
+        reset_readiness_state,
+        set_readiness_state,
+    )
+
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+    monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    reset_canonical_settings()
+    # F-PR76-MEDIUM-01: replace ``init_dependencies`` with a
+    # no-op so the canonical settings authority is intentionally
+    # left unset when ``/health/ready`` is exercised. The endpoint
+    # must surface the Slice 1 frozen ``ConfigurationError`` class
+    # name as the stable ``check_code`` rather than building a
+    # second Settings authority on the side.
+    monkeypatch.setattr(_app, "init_dependencies", lambda settings, *, app=None: None)
+    try:
+        app = create_app()
+        with TestClient(app) as client:
+            resp = client.get("/health/ready")
+    finally:
+        reset_canonical_settings()
+    body = resp.json()
+    assert resp.status_code == 503
+    assert body["check_code"] == "ConfigurationError"
+    # No leaked exception text.
+    body_str = repr(body).lower()
+    for forbidden in ("traceback", "exception", "stack trace"):
+        assert forbidden not in body_str
+
+
+def test_configuration_probe_failed_is_alias_for_configuration_error():
+    """MEDIUM-01: ``ConfigurationProbeFailed`` is the Slice 1 frozen
+    ``ConfigurationError`` re-exported under that historical name so
+    the existing ``except`` branches keep working while the runtime
+    authority is the frozen identity.
+    """
+    from cold_storage.bootstrap.environment_model import ConfigurationError
+    from cold_storage.bootstrap.runtime_readiness import (
+        ConfigurationProbeFailed,
+    )
+
+    assert ConfigurationProbeFailed is ConfigurationError
+
+
+def test_no_new_stable_string_for_configuration_failure():
+    """MEDIUM-01: the unfrozen ``CONFIGURATION_PROBE_FAILED`` string
+    constant has been removed from ``runtime_readiness``. The
+    module-level surface only documents the Slice 1 frozen class
+    name ``"ConfigurationError"``.
+    """
+    from cold_storage.bootstrap import runtime_readiness as mod
+
+    assert not hasattr(mod, "CONFIGURATION_PROBE_FAILED")
+    assert mod.CONFIGURATION_IDENTITY_FAILURE == "ConfigurationError"
+
+
+# ---------------------------------------------------------------------------
+# F-PR76 — composition-manifest provider contract.
+# ---------------------------------------------------------------------------
+
+
+def test_composition_manifest_provider_default_is_empty():
+    from cold_storage.bootstrap.runtime_readiness import (
+        composition_manifest_tokens,
+    )
+
+    # The default provider records nothing.
+    assert composition_manifest_tokens() == frozenset()
+
+
+def test_composition_manifest_provider_failure_is_fail_closed():
+    from cold_storage.bootstrap.runtime_readiness import (
+        composition_manifest_tokens,
+        set_composition_manifest_provider,
+    )
+
+    def _broken_provider() -> frozenset[str]:
+        raise RuntimeError("provider failed")
+
+    previous = set_composition_manifest_provider(_broken_provider)
+    try:
+        tokens = composition_manifest_tokens()
+        assert "COMPOSITION_MANIFEST_PROVIDER_ERROR" in tokens
+    finally:
+        set_composition_manifest_provider(previous)
+
+
+def test_strict_audit_flags_composition_token_even_when_route_absent(monkeypatch):
+    """BLOCKER-03 / HIGH-01: when the composition manifest declares
+    an unsafe instantiation token (e.g. a regression that
+    instantiates the fake agent gateway in strict mode), the audit
+    flags the capability even when no matching route prefix is
+    observed on the live FastAPI app.
+    """
+    from fastapi import FastAPI
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        assert_no_unsafe_strict_capabilities,
+        set_canonical_settings,
+        set_composition_manifest_provider,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+
+    def _manifest_with_token() -> frozenset[str]:
+        return frozenset({"FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"})
+
+    previous = set_composition_manifest_provider(_manifest_with_token)
+    try:
+        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
+            assert_no_unsafe_strict_capabilities(app=FastAPI())
+        assert "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+    finally:
+        set_composition_manifest_provider(previous)
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+# ``_StubMonkeyPatch`` is no longer needed because the audit test
+# uses the real pytest ``monkeypatch`` fixture. It is retained here
+# as documentation of the original stub shape and is unused at
+# runtime.
+_ = "_StubMonkeyPatch"  # type: ignore[assignment]

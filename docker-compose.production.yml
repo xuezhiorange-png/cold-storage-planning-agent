@@ -23,11 +23,23 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      # Operators MUST override these via COLD_STORAGE_*_PASSWORD_FILE or
-      # a secret manager in production deployments. The values below are
-      # operator-controlled and not committed under `value:` keys.
+      # F-PR76-BLOCKER-04: POSTGRES_PASSWORD is REQUIRED for the
+      # official PostgreSQL image to initialize an empty data
+      # directory; without it the container refuses to start and the
+      # persistent volume remains uninitialized. CI / Compose smoke
+      # supply a clearly-flagged CI-only value via the operator-
+      # controlled ${POSTGRES_PASSWORD:?...} interpolation. Real
+      # production deployments MUST source this value from a secret
+      # manager; this Compose file never embeds a real password.
+      #
+      # We MUST NOT use POSTGRES_HOST_AUTH_METHOD=trust: that would
+      # silently disable authentication and make the production
+      # credential meaningless. All DSN interpolation below uses the
+      # same :?required interpolation so postgres, migration, and
+      # backend agree on a single source of truth.
       POSTGRES_DB: ${POSTGRES_DB:-cold_storage}
       POSTGRES_USER: ${POSTGRES_USER:-cold_storage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?postgres password required}
     ports:
       - "5432:5432"
     volumes:
@@ -46,7 +58,18 @@ services:
         COLD_STORAGE_BUILD_COMMIT_SHA: ${COLD_STORAGE_BUILD_COMMIT_SHA:?commit SHA is required}
         COLD_STORAGE_BUILD_VERSION: ${COLD_STORAGE_BUILD_VERSION:?build version is required}
     image: cold-storage-backend:${COLD_STORAGE_BUILD_COMMIT_SHA}
-    command: ["alembic", "upgrade", "head"]
+    # F-PR76-BLOCKER-02: ``command`` alone does NOT override the
+    # image ENTRYPOINT. The image bakes
+    # ``ENTRYPOINT ["python", "-m",
+    # "cold_storage.bootstrap.production_entrypoint"]`` so the
+    # backend service always runs through the production lifespan.
+    # The migration service therefore declares its own explicit
+    # ``entrypoint`` (Compose ``entrypoint`` does override the
+    # image's ENTRYPOINT) that runs the alembic CLI directly. The
+    # backend service continues to inherit the image's ENTRYPOINT
+    # and exits through the production lifespan.
+    entrypoint: ["alembic"]
+    command: ["upgrade", "head"]
     environment:
       COLD_STORAGE_ENVIRONMENT_ID: production
       COLD_STORAGE_DATABASE_BACKEND: postgresql
@@ -64,6 +87,11 @@ services:
 
   backend:
     image: cold-storage-backend:${COLD_STORAGE_BUILD_COMMIT_SHA}
+    # The backend service deliberately does NOT declare an
+    # ``entrypoint`` here so the image's
+    # ``production_entrypoint`` runs unchanged. This is the single
+    # source of truth for backend startup; CI must verify the
+    # backend image actually binds its port via that entrypoint.
     environment:
       COLD_STORAGE_ENVIRONMENT_ID: production
       COLD_STORAGE_DATABASE_BACKEND: postgresql
@@ -87,12 +115,24 @@ services:
       - artifact_data:/opt/cold-storage/artifacts
     ports:
       - "8000:8000"
+    # F-PR76-HIGH-05: service-level healthcheck MUST represent
+    # readiness, not liveness. Migration ordering, mandatory
+    # startup/readiness gates, and the strict-approved admission
+    # check all gate container health through ``/health/ready``.
+    # ``/health/live`` is exercised separately by CI smoke so a
+    # forced readiness failure still returns 200 from liveness
+    # while container health flips to unhealthy.
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"from urllib.request import urlopen; r = urlopen('http://127.0.0.1:8000/health/live', timeout=2); exit(0 if r.status == 200 else 1)\""]
-      interval: 30s
+      test:
+        - "CMD-SHELL"
+        - >-
+          python -c "from urllib.request import urlopen;
+          r = urlopen('http://127.0.0.1:8000/health/ready', timeout=2);
+          exit(0 if r.status == 200 else 1)"
+      interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
 volumes:

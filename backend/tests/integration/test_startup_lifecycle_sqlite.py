@@ -120,6 +120,8 @@ def test_strict_environment_plus_sqlite_fails_closed(isolated_sqlite_env, monkey
     """
     from pydantic import ValidationError
 
+    from cold_storage.bootstrap.environment_model import ConfigurationError
+
     monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
     monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
     monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
@@ -127,11 +129,12 @@ def test_strict_environment_plus_sqlite_fails_closed(isolated_sqlite_env, monkey
     monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", str(isolated_sqlite_env / "test.db"))
     from cold_storage.bootstrap.settings import Settings
 
-    # The Slice 1 settings validator raises ``ConfigurationError``
-    # which pydantic wraps in ``ValidationError`` when surfaced
-    # through the model validator. Both shapes are contract-compliant;
-    # the contract mandates fail-closed, not the exception class.
-    with pytest.raises((ValidationError, Exception)) as exc_info:
+    # F-PR76-§15: surface the contract-compliant exception classes
+    # only. The Slice 1 frozen configuration identity is
+    # :class:`ConfigurationError`; the pydantic layer wraps it in
+    # ``ValidationError``. Either is acceptable for the fail-closed
+    # contract; ``Exception`` is intentionally NOT in this tuple.
+    with pytest.raises((ConfigurationError, ValidationError)) as exc_info:
         Settings()
     msg = str(exc_info.value).lower()
     assert "sqlite" in msg or "postgresql" in msg

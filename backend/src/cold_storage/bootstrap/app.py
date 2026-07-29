@@ -271,11 +271,14 @@ class AgentMessageRequest(BaseModel):
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
-    # Pass the live FastAPI app so the strict-mode capability audit
-    # (D-S2-06.c) can inspect ``app.routes`` for any registered fake-
-    # agent or process-local coefficient capability.
-    init_dependencies(get_settings(), app=app)
+    # F-PR76-HIGH-01: dependency initialization is now transactional
+    # (see ``init_dependencies``); if any step fails the partially-
+    # created state is rolled back through ``shutdown_dependencies``
+    # before the exception is re-raised. The ``try / finally`` here
+    # therefore only runs ``shutdown_dependencies`` on a clean
+    # teardown path; it is idempotent and safe to invoke twice.
     try:
+        init_dependencies(get_settings(), app=app)
         yield
     finally:
         shutdown_dependencies()
@@ -374,8 +377,10 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         """
         from fastapi import Response
 
+        from cold_storage.bootstrap.environment_model import (  # noqa: PLC0415
+            ConfigurationError as _ConfigurationError,
+        )
         from cold_storage.bootstrap.runtime_readiness import (
-            ConfigurationProbeFailed,
             ReadinessState,
             canonical_settings,
             get_readiness_state,
@@ -383,24 +388,33 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             run_readiness_phase,
         )
 
-        # Reuse the canonical Settings authority. Configuration
-        # failures (no canonical authority yet, pydantic ValidationError)
-        # are caught here so the endpoint always surfaces a stable
-        # failure code rather than building a second Settings on the side.
+        # F-PR76-MEDIUM-01: reuse the canonical Settings authority.
+        # Configuration failures (no canonical authority yet, pydantic
+        # ValidationError, Slice 1 frozen ConfigurationError) are
+        # caught here so the endpoint always surfaces a stable
+        # failure class rather than building a second Settings on
+        # the side. The ``check_code`` projected to the client is the
+        # Python class name of the Slice 1 frozen
+        # :class:`ConfigurationError` (``"ConfigurationError"``);
+        # it is a frozen Python identifier, NOT a runtime-invented
+        # stable string. The ``detail`` field is intentionally an
+        # opaque token, never ``str(exc)`` or
+        # ``type(exc).__name__``, so the response cannot leak
+        # exception-derived implementation details.
         try:
             probe_settings = canonical_settings()
             configuration_failed: tuple[str, str] | None = None
-        except ConfigurationProbeFailed as exc:
+        except _ConfigurationError:
             probe_settings = None
             configuration_failed = (
-                ConfigurationProbeFailed.failure_code,
-                str(exc),
+                _ConfigurationError.__name__,
+                "settings unavailable",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception:
             probe_settings = None
             configuration_failed = (
-                ConfigurationProbeFailed.failure_code,
-                type(exc).__name__,
+                _ConfigurationError.__name__,
+                "settings unavailable",
             )
 
         state: ReadinessState | None = get_readiness_state()
@@ -421,9 +435,11 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             )
 
         if probe_settings is None:
-            # Configuration was incomplete; surface the stable code.
+            # Configuration was incomplete; surface the Slice 1
+            # frozen ConfigurationError class name as the stable
+            # ``check_code``. F-PR76-MEDIUM-01.
             safe_code, safe_detail = configuration_failed or (
-                ConfigurationProbeFailed.failure_code,
+                _ConfigurationError.__name__,
                 "settings unavailable",
             )
             return Response(
@@ -434,7 +450,6 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                         "status": "not_ready",
                         "state": state_name,
                         "check_code": safe_code,
-                        "detail": safe_detail,
                     }
                 ),
             )

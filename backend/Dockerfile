@@ -50,15 +50,31 @@ COPY backend/alembic.ini /build/backend/alembic.ini
 ARG COLD_STORAGE_BUILD_COMMIT_SHA
 ARG COLD_STORAGE_BUILD_VERSION
 
-# Validate the build identity BEFORE writing it. Fail closed at build time
-# rather than carrying an "unknown..." placeholder into the image. CI/Compose
-# config may use placeholders for syntax checks, but those images are NOT
-# deployable because the placeholder trigger here is a hard build failure.
+# F-PR76-HIGH-04: the build-version regex MUST match the frozen
+# Slice 2 contract D-S2-02.d exactly. It is byte-equivalent to
+# ``bootstrap.deployment_identity._BUILD_VERSION_PATTERN`` so the
+# Dockerfile and the runtime authority agree on a single source of
+# truth. Any character class or length divergence from the runtime
+# pattern is a contract violation.
+#
+# Contract surface (D-S2-02.d):
+#   * pattern: ^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$
+#   * ASCII_ONLY=true
+#   * MIN_BYTES=1, MAX_BYTES=64
+#   * NORMALIZATION=NONE  (no trim, no lower-case, no separator swap)
+#
+# The runtime authority implements the exact same pattern via
+# :func:`bootstrap.deployment_identity.is_safe_build_version`. CI
+# tests assert equivalence by importing the runtime validator and
+# running it against every positive / negative example the
+# contract freezes.
 RUN python - <<'PY'
 import json, os, pathlib, re, sys
 
+# F-PR76-HIGH-04: keep the Dockerfile regex identical to the frozen
+# runtime contract. Any drift breaks the build-version authority.
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-_VER_RE = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
+_VER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+\-]{0,63}$")
 
 commit_sha = os.environ.get("COLD_STORAGE_BUILD_COMMIT_SHA", "")
 version = os.environ.get("COLD_STORAGE_BUILD_VERSION", "")
@@ -82,10 +98,26 @@ if not version:
         "DOCKER BUILD IDENTITY MUST BE PASSED EXPLICITLY (F-S2-REVIEW-007)\n"
     )
     sys.exit(1)
+# Strict contract validation: ASCII-only, 1..64 bytes, no
+# normalisation, leading character is ASCII alphanumeric.
+try:
+    raw_version = version.encode("ascii", errors="strict")
+except UnicodeEncodeError:
+    sys.stderr.write(
+        f"build error: COLD_STORAGE_BUILD_VERSION={version!r} "
+        "contains non-ASCII bytes (F-PR76-HIGH-04)\n"
+    )
+    sys.exit(1)
 if not _VER_RE.match(version):
     sys.stderr.write(
         f"build error: COLD_STORAGE_BUILD_VERSION={version!r} "
-        "does not match the contract semver pattern\n"
+        "does not match the frozen D-S2-02.d ASCII pattern\n"
+    )
+    sys.exit(1)
+if raw_version[0:1] in (b".", b"_", b"+", b"-"):
+    sys.stderr.write(
+        f"build error: COLD_STORAGE_BUILD_VERSION={version!r} "
+        "has a forbidden leading punctuation byte\n"
     )
     sys.exit(1)
 

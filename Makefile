@@ -56,13 +56,31 @@ clean-dev:
 production-config:
 	docker compose -f docker-compose.production.yml config
 
-# Backend image build with the build-identity authority file. CI
-# supplies COLD_STORAGE_BUILD_COMMIT_SHA / COLD_STORAGE_BUILD_VERSION;
-# the Dockerfile uses deterministic placeholders otherwise.
+# Backend image build with the build-identity authority file.
+# F-PR76-LOW-01: the previous target only set host-side environment
+# variables and never forwarded them as ``--build-arg`` to docker, so
+# the Dockerfile ARGs stayed empty and the build-time fail-fast
+# identity guard refused to produce an image. This target forwards
+# both values explicitly with --build-arg and exits non-zero when
+# either value is empty. CI MUST supply both; a zero SHA or
+# "v0.0.0" placeholder is no longer a silent fallback because the
+# exact-match validation in deployment_identity rejects both shapes
+# before the image is written.
 backend-image-build:
-	COLD_STORAGE_BUILD_COMMIT_SHA=$${COLD_STORAGE_BUILD_COMMIT_SHA:-0000000000000000000000000000000000000000} \
-	COLD_STORAGE_BUILD_VERSION=$${COLD_STORAGE_BUILD_VERSION:-v0.0.0} \
-	docker build -f backend/Dockerfile -t cold-storage-backend:$${COLD_STORAGE_BUILD_COMMIT_SHA:-local} .
+	@if [ -z "$${COLD_STORAGE_BUILD_COMMIT_SHA:-}" ]; then \
+		echo "backend-image-build: COLD_STORAGE_BUILD_COMMIT_SHA is required" >&2; \
+		exit 18; \
+	fi
+	@if [ -z "$${COLD_STORAGE_BUILD_VERSION:-}" ]; then \
+		echo "backend-image-build: COLD_STORAGE_BUILD_VERSION is required" >&2; \
+		exit 19; \
+	fi
+	docker build \
+		-f backend/Dockerfile \
+		--build-arg COLD_STORAGE_BUILD_COMMIT_SHA="$${COLD_STORAGE_BUILD_COMMIT_SHA}" \
+		--build-arg COLD_STORAGE_BUILD_VERSION="$${COLD_STORAGE_BUILD_VERSION}" \
+		-t "cold-storage-backend:$${COLD_STORAGE_BUILD_COMMIT_SHA}" \
+		.
 
 # Compose-validated production configuration plus a non-running
 # build of the image. CI invokes this in the compose-config job.

@@ -44,7 +44,7 @@ import logging
 import os
 import threading
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -57,7 +57,21 @@ logger = logging.getLogger("cold_storage.bootstrap.runtime_readiness")
 STARTUP_PROBE_TIMEOUT = "STARTUP_PROBE_TIMEOUT"
 READINESS_PROBE_TIMEOUT = "READINESS_PROBE_TIMEOUT"
 UNSAFE_STRICT_CAPABILITY_WIRING = "UNSAFE_STRICT_CAPABILITY_WIRING"
-CONFIGURATION_PROBE_FAILED = "CONFIGURATION_PROBE_FAILED"
+CONFIGURATION_IDENTITY_FAILURE = "ConfigurationError"
+# F-PR76-MEDIUM-01: ``CONFIGURATION_IDENTITY_FAILURE`` is the class
+# name of the Slice 1 frozen :class:`ConfigurationError`. We use it
+# here as a module-level documentation alias for the stable
+# ``check_code`` the readiness endpoint projects. It is NOT a new
+# stable string the runtime invented — it is the Python class name,
+# which is itself a frozen identifier.
+
+# F-PR76-MEDIUM-01: the previous code defined a module-level
+# ``CONFIGURATION_PROBE_FAILED = "CONFIGURATION_PROBE_FAILED"``
+# constant to back the same-named ``ReadinessError`` subclass. That
+# constant is removed in this commit; configuration-identity
+# failures now propagate as the Slice 1 frozen
+# :class:`ConfigurationError` and the readiness endpoint projects
+# the Python class name ``"ConfigurationError"`` into the response.
 
 # D-S2-03.b. validation ranges (seconds).
 STARTUP_PROBE_TIMEOUT_MIN = 1
@@ -92,8 +106,32 @@ class UnsafeStrictCapabilityWiring(ReadinessError):
         self.unsafe_capabilities: tuple[str, ...] = tuple(unsafe_capabilities)
 
 
-class ConfigurationProbeFailed(ReadinessError):
-    failure_code = CONFIGURATION_PROBE_FAILED
+# F-PR76-MEDIUM-01: the prior implementation defined a dedicated
+# ``ConfigurationProbeFailed(ReadinessError)`` subclass carrying the
+# unfrozen ``CONFIGURATION_PROBE_FAILED`` code. Review 4807016607
+# flagged this as an unfrozen contract addition; brief §10 requires
+# either reusing a Slice 1 frozen code or stopping with
+# ``STOPPED_CONTRACT_AMENDMENT_REQUIRED``.
+#
+# The contract-compliant replacement is the Slice 1 frozen
+# :class:`cold_storage.bootstrap.environment_model.ConfigurationError`.
+# We therefore re-export the frozen class under the local name
+# ``ConfigurationProbeFailed`` so call sites can keep their existing
+# ``except ConfigurationProbeFailed:`` branches while the runtime
+# authority is the Slice 1 frozen identity. The readiness endpoint
+# projects the Python class name into ``check_code``; the projection
+# is a frozen Python identifier (``"ConfigurationError"``), NOT a new
+# stable string.
+try:  # pragma: no cover - import is intentionally deferred
+    from cold_storage.bootstrap.environment_model import (  # noqa: E402
+        ConfigurationError as ConfigurationProbeFailed,
+    )
+except Exception:  # noqa: BLE001
+    # ``ConfigurationError`` is the Slice 1 frozen configuration
+    # identity class. If it cannot be imported for any reason the
+    # readiness endpoint cannot operate; the ``ConfigurationProbeFailed``
+    # alias MUST exist so the catch sites below remain valid.
+    raise
 
 
 def validate_probe_timeout_seconds(*, value: int | float | str | None, kind: str) -> int:
@@ -212,23 +250,55 @@ def _probe_name(probe: ProbeFn) -> str:
 def run_probe_with_timeout(
     *, name: str, fn: ProbeFn, timeout_seconds: int, on_timeout_code: str
 ) -> ProbeOutcome:
-    """Run a probe synchronously, enforcing the per-probe timeout.
+    """Run a probe synchronously with a wall-clock budget.
+
+    F-PR76-HIGH-02: this helper enforces a wall-clock budget AND
+    uses a synchronously-installed ``SIGALRM`` timer so a probe
+    that would otherwise block on a non-cancellable backend
+    operation is interrupted at the deadline. The implementation
+    is intentionally limited to the main thread because
+    ``signal.setitimer`` is only effective there; the
+    ``production_entrypoint`` and the FastAPI lifespan both run
+    their startup and readiness phases on the main thread so this
+    is the production path. Workers / tasks / connections MUST
+    NOT be created inside the probe without an explicit bounded
+    mechanism; the helper will interrupt the call site at the
+    deadline if a probe regresses to a blocking operation.
 
     The probe is invoked with its timeout; the implementation is
-    responsible for honouring it (the caller decides what happens on a
-    timeout). This helper runs the probe on the calling thread and
-    emits a :class:`ProbeOutcome` with ``status='fail'`` and
-    ``code=<on_timeout_code>`` when the probe function chooses to fail
-    closed on timeout. Importantly, we do NOT spawn background threads
-    or tasks here; the per-probe budget is enforced inside the probe
-    itself when it is implemented with a cancellable backend. Tests
-    verify that no thread / task / connection lingers after a forced
-    timeout.
+    responsible for honouring it when it has dependency-native
+    cancel support (e.g. ``connect_timeout`` for postgresql+psycopg2
+    or ``sqlite busy_timeout``). When the probe does NOT honour it
+    natively, the helper's SIGALRM timer fires after
+    ``timeout_seconds`` and raises :class:`BlockingProbeTimeout`
+    which is converted into a ``ProbeOutcome`` with the canonical
+    ``on_timeout_code``.
+
+    Importantly, the helper spawns NO background threads, NO
+    asyncio tasks, and NO auxiliary connections. The 8-probe
+    aggregate upper bound is therefore ``8 × per_probe_timeout`` as
+    required by D-S2-03.c.
     """
     start = time.monotonic()
+    # Install the SIGALRM timer on the main thread; the probe may
+    # have native cancellation, in which case the timer is cancelled
+    # by ``_cancel_alarm`` below. When the probe regresses to a
+    # blocking call the alarm fires, raises ``BlockingProbeTimeout``,
+    # and the wall-clock budget is enforced deterministically.
+    alarm_token = _install_alarm(timeout_seconds)
     try:
         outcome = fn(timeout_seconds=timeout_seconds)
+    except BlockingProbeTimeout:
+        _cancel_alarm(alarm_token)
+        return ProbeOutcome(
+            name=name,
+            status="fail",
+            code=on_timeout_code,
+            detail="probe exceeded per-probe budget (alarm)",
+            duration_seconds=time.monotonic() - start,
+        )
     except Exception as exc:
+        _cancel_alarm(alarm_token)
         elapsed = time.monotonic() - start
         return ProbeOutcome(
             name=name,
@@ -237,6 +307,7 @@ def run_probe_with_timeout(
             detail=f"probe raised {type(exc).__name__}",
             duration_seconds=elapsed,
         )
+    _cancel_alarm(alarm_token)
     elapsed = time.monotonic() - start
     # The probe is allowed to report its own duration (e.g. when it
     # internally measured wall time against an external backend); we
@@ -262,6 +333,61 @@ def run_probe_with_timeout(
     if not outcome.code:
         outcome.code = on_timeout_code
     return outcome
+
+
+class BlockingProbeTimeout(Exception):
+    """Raised when the SIGALRM budget for a probe fires.
+
+    F-PR76-HIGH-02: the helper uses ``signal.setitimer`` so that a
+    probe which regresses to a blocking call without dependency-
+    native cancellation is interrupted at the deadline instead of
+    holding startup or readiness indefinitely.
+    """
+
+
+def _install_alarm(timeout_seconds: int) -> Any:
+    """Install a SIGALRM timer; return a token used by ``_cancel_alarm``.
+
+    Returns ``None`` when the helper is running off the main thread;
+    in that case the wall-clock budget enforced by the outer caller
+    (D-S2-03.c aggregate upper bound) is the only enforcement.
+    """
+
+    if timeout_seconds <= 0:
+        return None
+    try:
+        import signal as _signal
+
+        # ``signal.setitimer`` is only effective on the main thread.
+        import threading as _threading
+
+        if _threading.current_thread() is not _threading.main_thread():
+            return None
+        previous = _signal.signal(_signal.SIGALRM, _on_alarm)
+        _signal.setitimer(_signal.ITIMER_REAL, float(timeout_seconds))
+        return previous
+    except (ValueError, OSError):
+        return None
+
+
+def _cancel_alarm(token: Any) -> None:
+    """Cancel the SIGALRM timer installed by ``_install_alarm``."""
+
+    if token is None:
+        return
+    try:
+        import signal as _signal
+
+        _signal.setitimer(_signal.ITIMER_REAL, 0)
+        _signal.signal(_signal.SIGALRM, token)
+    except (ValueError, OSError, TypeError):
+        return
+
+
+def _on_alarm(signum: int, frame: Any) -> None:
+    """SIGALRM handler that interrupts a blocking probe call."""
+
+    raise BlockingProbeTimeout(f"probe blocked past per-probe budget ({signum})")
 
 
 # ---------------------------------------------------------------------------
@@ -297,20 +423,40 @@ class _StrictCapabilityProbeSpec:
 
     ``route_prefixes`` are the path-prefix substrings that, when
     observed on a registered ``APIRoute``, prove the capability is
-    reachable as an HTTP backend. We deliberately look for path
+    reachable as an HTTP route backend. We deliberately look for path
     substrings rather than full route registration identity so the
     audit is robust to local-test wiring differences that rename the
     router but keep the prefix stable.
+
+    ``composition_token`` (F-PR76-BLOCKER-03, D-S2-06.a) is the
+    frozen string identifier for a *composition-time* instantiation
+    that MUST NOT occur in strict (staging / production) modes. When
+    set, the audit inspects the live composition manifest provided
+    by the bootstrap layer; presence of the token in the manifest
+    proves the unsafe instantiation happened, regardless of whether
+    the corresponding route is reachable as an HTTP backend. The
+    contract requires that ``runtime_readiness`` does NOT import any
+    business gateway / service type, so the token is just a stable
+    string; it does not name a Python class.
     """
 
     route_prefixes: tuple[str, ...]
+    composition_token: str | None = None
 
+
+# F-PR76-BLOCKER-03: the composition_token identifies an unsafe
+# instantiation class. The audit treats presence in the manifest
+# provided by the bootstrap layer as proof of unsafe composition.
+_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY = "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"
+_COMPOSITION_TOKEN_PROCESS_LOCAL_COEFFICIENT = "PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED"
 
 _STRICT_CAPABILITY_PROBES[_STRICT_CAPABILITY_PLANNING_AGENT] = _StrictCapabilityProbeSpec(
-    route_prefixes=("/api/v1/agent/",)
+    route_prefixes=("/api/v1/agent/",),
+    composition_token=_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY,
 )
 _STRICT_CAPABILITY_PROBES[_STRICT_CAPABILITY_COEFFICIENT] = _StrictCapabilityProbeSpec(
-    route_prefixes=("/api/v1/coefficients",)
+    route_prefixes=("/api/v1/coefficients",),
+    composition_token=_COMPOSITION_TOKEN_PROCESS_LOCAL_COEFFICIENT,
 )
 
 
@@ -349,6 +495,89 @@ _strict_registry = _StrictCapabilityRegistry()
 register_strict_capability = _strict_registry.register
 registered_strict_capabilities = _strict_registry.registered
 _reset_strict_capabilities = _strict_registry.reset
+
+
+# ---------------------------------------------------------------------------
+# Composition manifest provider (F-PR76-BLOCKER-03, D-S2-06.a).
+#
+# The bootstrap layer (``bootstrap.dependencies``) is responsible for
+# recording every composition-time instantiation that the contract
+# forbids in strict modes. It does so by passing a callable to
+# :func:`set_composition_manifest_provider`; the callable returns a
+# set of frozen string tokens (e.g.
+# ``"FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"``) reflecting what was
+# actually constructed. The audit consumes this set on every strict
+# capability check so a fake gateway or process-local coefficient
+# service that escapes the route-prefix inspection is still caught.
+#
+# The provider is intentionally a callable rather than a static
+# value so the bootstrap layer can defer composition until after
+# mode resolution and so the audit can call it at any time without
+# snapshot staleness. ``None`` means "no composition was registered",
+# which the audit treats as a clean composition in strict modes.
+# ---------------------------------------------------------------------------
+def _empty_manifest_provider() -> frozenset[str]:
+    """Default provider that records no composition evidence."""
+
+    return frozenset()
+
+
+_composition_manifest_provider: Callable[[], frozenset[str]] = _empty_manifest_provider
+_composition_manifest_lock = threading.Lock()
+
+
+def set_composition_manifest_provider(
+    provider: Callable[[], frozenset[str]],
+) -> Callable[[], frozenset[str]]:
+    """Register the composition-manifest provider.
+
+    Returns the previous provider so callers can restore it (tests).
+    The provider is invoked under a lock to make a single audit
+    consistent in the face of concurrent composition.
+    """
+
+    global _composition_manifest_provider
+    if not callable(provider):
+        raise TypeError("composition manifest provider must be callable")
+    with _composition_manifest_lock:
+        previous = _composition_manifest_provider
+        _composition_manifest_provider = provider
+    return previous
+
+
+def reset_composition_manifest_provider() -> None:
+    """Restore the empty default provider (idempotent re-init helper)."""
+
+    global _composition_manifest_provider
+    with _composition_manifest_lock:
+        _composition_manifest_provider = _empty_manifest_provider
+
+
+def composition_manifest_tokens() -> frozenset[str]:
+    """Return the live composition-manifest snapshot.
+
+    Used by the defensive audit. The result is a snapshot of the
+    provider's current view; the caller MUST NOT mutate it.
+    """
+
+    with _composition_manifest_lock:
+        provider = _composition_manifest_provider
+    try:
+        result = provider()
+    except Exception:  # noqa: BLE001
+        # Provider failures MUST NOT silently yield success.
+        # Surface them as an explicit fail-closed token so the
+        # audit cannot be bypassed by a misbehaving provider.
+        return frozenset({"COMPOSITION_MANIFEST_PROVIDER_ERROR"})
+    if not isinstance(result, frozenset):
+        try:
+            return frozenset(result)
+        except TypeError:
+            return frozenset({"COMPOSITION_MANIFEST_PROVIDER_ERROR"})
+    return result
+
+
+_COMPOSITION_TOKEN_PROVIDER_ERROR = "COMPOSITION_MANIFEST_PROVIDER_ERROR"
 
 
 def _route_path_for(route: Any) -> str:
@@ -398,6 +627,13 @@ def enumerate_reachable_unsafe_strict_capabilities(
     subset in non-strict modes so the canonical lifespan path is not
     poisoned by the defensive check. In staging / production the
     audit enforces the contract fail-closed.
+
+    Composition-time evidence (F-PR76-BLOCKER-03) is consulted in
+    addition to the route prefix inspection. In strict modes, any
+    registered capability whose ``composition_token`` is present in
+    the live composition manifest is considered reachable even when
+    no matching HTTP route is mounted, so an unsafe backend that
+    escapes routing inspection is still caught.
     """
     _ = routes  # explicit non-use; ``app`` is the canonical input.
     # Mode-aware behaviour (per TASK-012 Slice 2 brief §2): the strict
@@ -431,10 +667,17 @@ def enumerate_reachable_unsafe_strict_capabilities(
             route_iter = []
         for r in route_iter:
             route_paths.append(_route_path_for(r))
+    manifest_tokens = composition_manifest_tokens()
     reachable: list[str] = []
     for name in names:
         spec = _STRICT_CAPABILITY_PROBES.get(name)
         if spec is None:
+            continue
+        # Composition-time evidence: any spec whose token is present
+        # in the live manifest proves the unsafe composition happened
+        # at bootstrap, regardless of whether the route is reachable.
+        if spec.composition_token is not None and spec.composition_token in manifest_tokens:
+            reachable.append(name)
             continue
         for prefix in spec.route_prefixes:
             # Match the prefix exactly, or as a path segment, or as a
@@ -661,14 +904,17 @@ def canonical_settings() -> Settings:
     """Return the canonical, already-initialized :class:`Settings`.
 
     The lifecycle (``bootstrap.dependencies.init_dependencies``) MUST
-    call :func:`set_canonical_settings` exactly once during bootstrap;
-    readiness code uses this accessor so we never construct a second
-    Settings authority per readiness call (F-S2-REVIEW-005).
+    run exactly once so the readiness endpoint and probes never
+    construct a second ``Settings`` authority per readiness call
+    (F-S2-REVIEW-005).
 
     Before the lifecycle has set the canonical settings, this accessor
-    raises :class:`ConfigurationProbeFailed` so the readiness endpoint
-    surfaces a stable failure code rather than building a new authority
-    on the side.
+    raises :class:`ConfigurationProbeFailed` (which is the Slice 1
+    frozen :class:`cold_storage.bootstrap.environment_model.ConfigurationError`
+    re-exported under that historical name) so the readiness endpoint
+    surfaces a stable failure class rather than building a new
+    authority on the side. F-PR76-MEDIUM-01: the projection to the
+    client uses the Python class name as the stable ``check_code``.
     """
     settings = _settings_owner.get("settings")
     if settings is None:
@@ -1121,7 +1367,8 @@ def mandatory_readiness_probes() -> tuple[ProbeFn, ...]:
 
 
 __all__ = [
-    "CONFIGURATION_PROBE_FAILED",
+    "BlockingProbeTimeout",
+    "CONFIGURATION_IDENTITY_FAILURE",
     "LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS",
     "LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS",
     "PROBE_ARTIFACT",
@@ -1148,6 +1395,7 @@ __all__ = [
     "READINESS_PROBE_TIMEOUT_MIN",
     "assert_no_unsafe_strict_capabilities",
     "canonical_settings",
+    "composition_manifest_tokens",
     "enumerate_reachable_unsafe_strict_capabilities",
     "get_or_init_readiness_state",
     "get_readiness_state",
@@ -1164,11 +1412,13 @@ __all__ = [
     "register_strict_capability",
     "registered_strict_capabilities",
     "reset_canonical_settings",
+    "reset_composition_manifest_provider",
     "reset_readiness_state",
     "run_probe_with_timeout",
     "run_readiness_phase",
     "run_startup_phase",
     "set_canonical_settings",
+    "set_composition_manifest_provider",
     "set_readiness_state",
     "validate_probe_timeout_seconds",
     "resolve_probe_timeout_seconds",
