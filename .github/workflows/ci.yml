@@ -177,27 +177,44 @@ jobs:
             "${IMAGE_TAG}" \
             -m alembic upgrade head
 
-          docker run --rm --detach \
-            --name "backend-${STAMP}" \
-            --network "cs-${STAMP}" \
-            -p "8000:8000" \
-            -e "COLD_STORAGE_ENVIRONMENT_ID=production" \
-            -e "COLD_STORAGE_DATABASE_BACKEND=postgresql" \
-            -e "COLD_STORAGE_DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-cold_storage}:${POSTGRES_PASSWORD}@pg-${STAMP}:5432/${POSTGRES_DB:-cold_storage}" \
-            -e "COLD_STORAGE_APP_HOST=0.0.0.0" \
-            -e "COLD_STORAGE_APP_PORT=8000" \
-            -e "COLD_STORAGE_STORAGE_DIR=/opt/cold-storage/artifacts" \
-            -e "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID=production" \
-            -e "COLD_STORAGE_BUILD_COMMIT_SHA=${SHA}" \
-            -e "COLD_STORAGE_BUILD_VERSION=${COLD_STORAGE_BUILD_VERSION}" \
-            -e "COLD_STORAGE_DEPLOYMENT_ID=ci-backend" \
-            -e "COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS=30" \
-            -e "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS=10" \
-            -e "COLD_STORAGE_CONFIG_SCHEMA_VERSION=1" \
-            -e "COLD_STORAGE_DATABASE_ENVIRONMENT_ID=ci-strict" \
-            -e "COLD_STORAGE_SECRET_ENVIRONMENT_ID=ci-strict" \
-            -e "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID=ci-strict" \
-            "${IMAGE_TAG}"
+          # F-PR76-BACKEND-EXIT-DIAGNOSTIC: launch backend WITHOUT
+          # ``--rm`` so a crashed/exited backend container remains
+          # inspectable.  ``--rm`` only auto-removes the container
+          # on graceful exit; on any other path (OOM, crash, abort)
+          # Docker would still remove the container, destroying the
+          # diagnostic surface (``docker logs`` returns nothing for
+          # an absent container).  The ``cleanup`` trap already
+          # force-removes ``backend-${STAMP}`` on EXIT, so omitting
+          # ``--rm`` does not leak the container.
+          backend_container_id="$(
+            docker run --detach \
+              --name "backend-${STAMP}" \
+              --network "cs-${STAMP}" \
+              -p "8000:8000" \
+              -e "COLD_STORAGE_ENVIRONMENT_ID=production" \
+              -e "COLD_STORAGE_DATABASE_BACKEND=postgresql" \
+              -e "COLD_STORAGE_DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-cold_storage}:${POSTGRES_PASSWORD}@pg-${STAMP}:5432/${POSTGRES_DB:-cold_storage}" \
+              -e "COLD_STORAGE_APP_HOST=0.0.0.0" \
+              -e "COLD_STORAGE_APP_PORT=8000" \
+              -e "COLD_STORAGE_STORAGE_DIR=/opt/cold-storage/artifacts" \
+              -e "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID=production" \
+              -e "COLD_STORAGE_BUILD_COMMIT_SHA=${SHA}" \
+              -e "COLD_STORAGE_BUILD_VERSION=${COLD_STORAGE_BUILD_VERSION}" \
+              -e "COLD_STORAGE_DEPLOYMENT_ID=ci-backend" \
+              -e "COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS=30" \
+              -e "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS=10" \
+              -e "COLD_STORAGE_CONFIG_SCHEMA_VERSION=1" \
+              -e "COLD_STORAGE_DATABASE_ENVIRONMENT_ID=ci-strict" \
+              -e "COLD_STORAGE_SECRET_ENVIRONMENT_ID=ci-strict" \
+              -e "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID=ci-strict" \
+              "${IMAGE_TAG}"
+          )"
+          echo "backend_container_id=${backend_container_id}"
+          # Immediately verify the container exists; if the
+          # backend image failed to start at all, Docker returns
+          # a non-zero exit and the inspect below fails fast with
+          # a clear message instead of silently looping for 120s.
+          docker inspect "backend-${STAMP}" >/dev/null
 
           # F-PR76-NARROW-CONTAINER-CI: the urllib probe MUST
           # handle HTTPError (non-2xx) AND must NOT collapse
@@ -238,8 +255,45 @@ jobs:
             docker exec "backend-${STAMP}" python /tmp/cs_probe.py "$url" > "$out" 2> "$err"
           }
 
-          # Wait for /health/ready to return 200
+          # F-PR76-BACKEND-EXIT-DIAGNOSTIC: poll the backend
+          # container's runtime status BEFORE each readiness probe.
+          # If the container has already exited or died, we dump
+          # exit code + OOMKilled + state Error + docker logs
+          # immediately, instead of waiting 120s to discover the
+          # process is gone.
           for i in $(seq 1 120); do
+            container_status="$(
+              docker inspect \
+                -f '{{.State.Status}}' \
+                "backend-${STAMP}" 2>/dev/null || echo "missing"
+            )"
+            if [ "$container_status" = "exited" ] || \
+               [ "$container_status" = "dead" ]; then
+              exit_code="$(
+                docker inspect \
+                  -f '{{.State.ExitCode}}' \
+                  "backend-${STAMP}" 2>/dev/null || echo "unknown"
+              )"
+              oom_killed="$(
+                docker inspect \
+                  -f '{{.State.OOMKilled}}' \
+                  "backend-${STAMP}" 2>/dev/null || echo "unknown"
+              )"
+              error_text="$(
+                docker inspect \
+                  -f '{{.State.Error}}' \
+                  "backend-${STAMP}" 2>/dev/null || echo "unknown"
+              )"
+              echo "backend_container_status=${container_status}" >&2
+              echo "backend_exit_code=${exit_code}" >&2
+              echo "backend_oom_killed=${oom_killed}" >&2
+              echo "backend_state_error=${error_text}" >&2
+              docker logs \
+                --timestamps \
+                "backend-${STAMP}" \
+                >&2 || true
+              exit 1
+            fi
             if cs_probe "http://127.0.0.1:8000/health/ready" /tmp/ready_probe.out /tmp/ready_probe.err; then
               code=$(head -n 1 /tmp/ready_probe.out)
               if [ "$code" = "200" ]; then
@@ -252,9 +306,22 @@ jobs:
             sleep 1
           done
           if [ "$code" != "200" ]; then
-            echo "backend /health/ready did not return 200; last probe code=$code" >&2
+            echo "backend /health/ready did not return 200 within 120s; last probe code=${code}" >&2
             cat /tmp/ready_probe.err >&2 || true
-            docker logs "backend-${STAMP}" >&2 || true
+            # F-PR76-BACKEND-EXIT-DIAGNOSTIC: even when the
+            # container is still "running" but readiness never
+            # flipped to 200, dump the container's runtime state
+            # (status + health check status) and the full log
+            # tail so the next investigator does not have to
+            # re-run locally to find why readiness never landed.
+            docker inspect \
+              -f 'status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+              "backend-${STAMP}" \
+              >&2 || true
+            docker logs \
+              --timestamps \
+              "backend-${STAMP}" \
+              >&2 || true
             exit 1
           fi
 
