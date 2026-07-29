@@ -241,66 +241,203 @@ def test_assert_no_unsafe_strict_capabilities_passes_when_none_reachable():
 # ---------------------------------------------------------------------------
 
 
-def _strict_settings(env_id: str):
+def _strict_settings(env_id: str, monkeypatch: pytest.MonkeyPatch):
     """Build a strict-environment Settings instance for unit tests.
 
-    The Settings class reads ``COLD_STORAGE_ENVIRONMENT_ID``,
-    ``COLD_STORAGE_APP_HOST`` and ``COLD_STORAGE_APP_PORT`` from the
-    process environment (Pydantic v2 BaseSettings validation_alias).
-    We therefore set the env vars explicitly before construction so
-    the matrix stays hermetic and does not depend on the host's
-    existing environment.
+    The Settings class reads canonical keys from the process
+    environment (Pydantic v2 BaseSettings validation_alias).
+    We inject each canonical key through ``monkeypatch.setenv``
+    so the matrix stays hermetic and does not depend on the
+    host's existing environment.
+
+    Crucially, pytest's ``MonkeyPatch`` undoes every
+    ``setenv`` call (and removes keys it inserted) when the
+    requesting test teardown runs — this is the durable
+    mechanism that prevents ``COLD_STORAGE_CONFIG_SCHEMA_VERSION``
+    (and any future canonical key) from leaking into sibling
+    tests such as the weight-revision concurrent-approval test,
+    which had previously failed with
+    ``no such table: scheme_weight_sets`` because the residue
+    altered the Settings input layer seen by Alembic.
 
     Per the contract (D-S2-01 / D-S2-09) staging and production
     environments do NOT receive code-level defaults; explicit
     application binding (``APP_HOST`` + ``APP_PORT``) is mandatory.
     Test mode similarly requires an explicit SQLite path.
     """
-    import os
-
     from cold_storage.bootstrap.settings import Settings
 
-    prev = {
-        "COLD_STORAGE_ENVIRONMENT_ID": os.environ.get("COLD_STORAGE_ENVIRONMENT_ID"),
-        "COLD_STORAGE_APP_HOST": os.environ.get("COLD_STORAGE_APP_HOST"),
-        "COLD_STORAGE_APP_PORT": os.environ.get("COLD_STORAGE_APP_PORT"),
-        "COLD_STORAGE_SQLITE_PATH": os.environ.get("COLD_STORAGE_SQLITE_PATH"),
-        "COLD_STORAGE_DATABASE_BACKEND": os.environ.get("COLD_STORAGE_DATABASE_BACKEND"),
-        "COLD_STORAGE_DATABASE_URL": os.environ.get("COLD_STORAGE_DATABASE_URL"),
-        "COLD_STORAGE_BUILD_COMMIT_SHA": os.environ.get("COLD_STORAGE_BUILD_COMMIT_SHA"),
-        "COLD_STORAGE_BUILD_VERSION": os.environ.get("COLD_STORAGE_BUILD_VERSION"),
-        "COLD_STORAGE_DATABASE_ENVIRONMENT_ID": os.environ.get(
-            "COLD_STORAGE_DATABASE_ENVIRONMENT_ID"
-        ),
-        "COLD_STORAGE_SECRET_ENVIRONMENT_ID": os.environ.get("COLD_STORAGE_SECRET_ENVIRONMENT_ID"),
-        "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID": os.environ.get(
-            "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID"
-        ),
-    }
-    os.environ["COLD_STORAGE_ENVIRONMENT_ID"] = env_id
-    os.environ.setdefault("COLD_STORAGE_APP_HOST", "127.0.0.1")
-    os.environ.setdefault("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", env_id)
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
     if env_id == "test":
-        os.environ["COLD_STORAGE_SQLITE_PATH"] = ":memory:"
+        monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
     if env_id in ("staging", "production"):
-        os.environ["COLD_STORAGE_DATABASE_BACKEND"] = "postgresql"
-        os.environ["COLD_STORAGE_DATABASE_URL"] = (
-            "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test"
+        monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+        monkeypatch.setenv(
+            "COLD_STORAGE_DATABASE_URL",
+            "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test",
         )
-        os.environ["COLD_STORAGE_BUILD_COMMIT_SHA"] = "0" * 40
-        os.environ["COLD_STORAGE_BUILD_VERSION"] = "v0.0.0-ci"
-        os.environ["COLD_STORAGE_CONFIG_SCHEMA_VERSION"] = "1"
-        os.environ["COLD_STORAGE_DATABASE_ENVIRONMENT_ID"] = "ci-strict"
-        os.environ["COLD_STORAGE_SECRET_ENVIRONMENT_ID"] = "ci-strict"
-        os.environ["COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID"] = "ci-strict"
-    try:
-        return Settings()  # type: ignore[call-arg]
-    finally:
-        for key, prior in prev.items():
-            if prior is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = prior
+        monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+        monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+        monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+        monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-strict")
+        monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-strict")
+        monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-strict")
+    return Settings()  # type: ignore[call-arg]
+
+
+# Canonical env keys injected by ``_strict_settings``. The leak-detection
+# regression test below walks this list to prove that no key is left
+# behind in ``os.environ`` after the requesting test teardown.
+_STRICT_SETTINGS_CANONICAL_KEYS = frozenset(
+    {
+        "COLD_STORAGE_ENVIRONMENT_ID",
+        "COLD_STORAGE_APP_HOST",
+        "COLD_STORAGE_APP_PORT",
+        "COLD_STORAGE_SQLITE_PATH",
+        "COLD_STORAGE_DATABASE_BACKEND",
+        "COLD_STORAGE_DATABASE_URL",
+        "COLD_STORAGE_BUILD_COMMIT_SHA",
+        "COLD_STORAGE_BUILD_VERSION",
+        "COLD_STORAGE_CONFIG_SCHEMA_VERSION",
+        "COLD_STORAGE_DATABASE_ENVIRONMENT_ID",
+        "COLD_STORAGE_SECRET_ENVIRONMENT_ID",
+        "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID",
+    }
+)
+
+
+def test_strict_settings_does_not_leak_canonical_keys():
+    """Regression for CI failure: ``no such table: scheme_weight_sets``.
+
+    The previous helper maintained a hand-rolled ``prev`` dict that
+    forgot ``COLD_STORAGE_CONFIG_SCHEMA_VERSION``. After that test
+    tore down, the residue lingered into the weight-revision
+    concurrent-approval test, mutated the Settings input layer
+    seen by Alembic, and pointed the upgrade runner at the wrong
+    SQLite database. Asserting only on ``CONFIG_SCHEMA_VERSION``
+    would silently regress the next time someone adds a new
+    canonical key — so this test walks
+    ``_STRICT_SETTINGS_CANONICAL_KEYS`` and proves every key the
+    helper touches is fully restored (popped if previously unset,
+    restored otherwise) once the monkeypatch context exits and
+    pytest's teardown reaches the next sibling test.
+
+    Implementation note: the helper takes a ``pytest.MonkeyPatch``
+    fixture owned by the calling test. Inside that test teardown
+    pytest calls ``monkeypatch.undo()``, which removes every key
+    the helper ``setenv``-ed (and restores the value if the key
+    was previously set). To exercise the same teardown path
+    outside a real test fixture we use ``MonkeyPatch.context()``,
+    which yields a temporary ``MonkeyPatch`` whose ``undo`` runs
+    on context-manager exit.
+    """
+    import os
+
+    from pytest import MonkeyPatch
+
+    # Make sure no canonical key is set going in. MonkeyPatch.delenv
+    # raises if the key is missing — wrap in ``not exists`` first.
+    with MonkeyPatch.context() as cleanup_monkeypatch:
+        for _key in _STRICT_SETTINGS_CANONICAL_KEYS:
+            if _key in os.environ:
+                cleanup_monkeypatch.delenv(_key, raising=False)
+
+        snapshot_before = {key: os.environ.get(key) for key in _STRICT_SETTINGS_CANONICAL_KEYS}
+
+        # Run the helper inside a NEW monkeypatch context so its
+        # teardown is observable: when ``with`` exits, every key it
+        # touched is popped (or restored) exactly as pytest would
+        # have done when the requesting test reaches its teardown.
+        with MonkeyPatch.context() as helper_monkeypatch:
+            _strict_settings("production", helper_monkeypatch)
+            snapshot_inside = {key: os.environ.get(key) for key in _STRICT_SETTINGS_CANONICAL_KEYS}
+
+        snapshot_after = {key: os.environ.get(key) for key in _STRICT_SETTINGS_CANONICAL_KEYS}
+
+    # Invariant 1: while the helper is alive, the canonical keys that
+    # the ``production`` branch unconditionally injects must be set.
+    # ``COLD_STORAGE_SQLITE_PATH`` is intentionally absent here — it is
+    # only written for ``env_id == 'test'`` — so we constrain
+    # invariant 1 to the strict-mode unconditional set. This proves
+    # the helper is still wired up correctly (the leak is in the
+    # *teardown*, not in a missing *setup* call).
+    _STRICT_BRANCH_UNCONDITIONAL_KEYS = frozenset(
+        {
+            "COLD_STORAGE_ENVIRONMENT_ID",
+            "COLD_STORAGE_APP_HOST",
+            "COLD_STORAGE_APP_PORT",
+            "COLD_STORAGE_DATABASE_BACKEND",
+            "COLD_STORAGE_DATABASE_URL",
+            "COLD_STORAGE_BUILD_COMMIT_SHA",
+            "COLD_STORAGE_BUILD_VERSION",
+            "COLD_STORAGE_CONFIG_SCHEMA_VERSION",
+            "COLD_STORAGE_DATABASE_ENVIRONMENT_ID",
+            "COLD_STORAGE_SECRET_ENVIRONMENT_ID",
+            "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID",
+        }
+    )
+    for key in _STRICT_BRANCH_UNCONDITIONAL_KEYS:
+        assert snapshot_inside[key] is not None, (
+            f"canonical key {key!r} was NOT injected during "
+            f"_strict_settings('production', ...); invariant broken"
+        )
+
+    # Invariant 2: every key the helper touched during ``_strict_settings``
+    # must be indistinguishable from the state before the test ran.
+    # This is the user-visible invariant: helper-induced residue cannot
+    # survive past the test's monkeypatch teardown.
+    for key in _STRICT_SETTINGS_CANONICAL_KEYS:
+        assert snapshot_after[key] == snapshot_before[key], (
+            f"canonical key {key!r} leaked: "
+            f"before={snapshot_before[key]!r} after={snapshot_after[key]!r}"
+        )
+    # Specifically pin the historic failure mode so future readers
+    # can grep for it and confirm the regression is anchored.
+    assert "COLD_STORAGE_CONFIG_SCHEMA_VERSION" in _STRICT_SETTINGS_CANONICAL_KEYS
+    assert os.environ.get("COLD_STORAGE_CONFIG_SCHEMA_VERSION") is None
+
+
+def test_strict_settings_canonical_keys_cover_known_injections():
+    """Prove the canonical-key allowlist covers every key the helper writes.
+
+    Reading the helper body and the allowlist in isolation cannot
+    catch the drift pattern: a developer adds
+    ``monkeypatch.setenv("NEW_KEY", ...)`` to ``_strict_settings``
+    without adding it to ``_STRICT_SETTINGS_CANONICAL_KEYS``. This
+    test imports the source, walks every ``monkeypatch.setenv``
+    call inside ``_strict_settings``, and asserts the allowlist
+    includes each distinct key. It is the structural gate, not a
+    string scan.
+    """
+    import ast
+    import inspect
+
+    source = inspect.getsource(_strict_settings)
+    tree = ast.parse(source)
+
+    injected_keys: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        # Match ``monkeypatch.setenv("KEY", ...)`` — the value
+        # argument is ignored; only the key string matters for the
+        # leak invariant.
+        if not isinstance(func, ast.Attribute) or func.attr != "setenv":
+            continue
+        if not node.args or not isinstance(node.args[0], ast.Constant):
+            continue
+        if not isinstance(node.args[0].value, str):
+            continue
+        injected_keys.add(node.args[0].value)
+
+    missing = injected_keys - _STRICT_SETTINGS_CANONICAL_KEYS
+    assert not missing, (
+        "_strict_settings writes canonical keys not covered by "
+        f"_STRICT_SETTINGS_CANONICAL_KEYS: {sorted(missing)}"
+    )
 
 
 def _strict_fastapi_app():
@@ -350,7 +487,7 @@ def _strict_fastapi_app_with_coefficient_route():
     return app
 
 
-def test_local_mode_app_none_passes_audit():
+def test_local_mode_app_none_passes_audit(monkeypatch):
     """local + app=None → audit short-circuits with empty reachable set.
 
     Per TASK-012 Slice 2 brief §2: in local mode the audit must NOT
@@ -364,7 +501,7 @@ def test_local_mode_app_none_passes_audit():
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("local"))
+    set_canonical_settings(_strict_settings("local", monkeypatch))
     try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(app=None)
         assert reachable == ()
@@ -372,14 +509,14 @@ def test_local_mode_app_none_passes_audit():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_test_mode_app_none_passes_audit():
+def test_test_mode_app_none_passes_audit(monkeypatch):
     """test + app=None → audit short-circuits with empty reachable set."""
     from cold_storage.bootstrap.runtime_readiness import (
         enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("test"))
+    set_canonical_settings(_strict_settings("test", monkeypatch))
     try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(app=None)
         assert reachable == ()
@@ -387,7 +524,7 @@ def test_test_mode_app_none_passes_audit():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_staging_mode_app_none_fails_closed():
+def test_staging_mode_app_none_fails_closed(monkeypatch):
     """staging + app=None → audit MUST raise UnsafeStrictCapabilityWiring.
 
     Per TASK-012 Slice 2 brief §2: in strict environments ``app=None``
@@ -401,7 +538,7 @@ def test_staging_mode_app_none_fails_closed():
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("staging"))
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
     try:
         with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
             enumerate_reachable_unsafe_strict_capabilities(app=None)
@@ -411,7 +548,7 @@ def test_staging_mode_app_none_fails_closed():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_production_mode_app_none_fails_closed():
+def test_production_mode_app_none_fails_closed(monkeypatch):
     """production + app=None → audit MUST raise UnsafeStrictCapabilityWiring."""
     from cold_storage.bootstrap.runtime_readiness import (
         UnsafeStrictCapabilityWiring,
@@ -419,7 +556,7 @@ def test_production_mode_app_none_fails_closed():
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("production"))
+    set_canonical_settings(_strict_settings("production", monkeypatch))
     try:
         with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
             enumerate_reachable_unsafe_strict_capabilities(app=None)
@@ -428,14 +565,14 @@ def test_production_mode_app_none_fails_closed():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_staging_mode_clean_app_passes_audit():
+def test_staging_mode_clean_app_passes_audit(monkeypatch):
     """staging + clean FastAPI app → audit returns empty reachable set."""
     from cold_storage.bootstrap.runtime_readiness import (
         enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("staging"))
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
     try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(app=_strict_fastapi_app())
         assert reachable == ()
@@ -443,14 +580,14 @@ def test_staging_mode_clean_app_passes_audit():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_production_mode_clean_app_passes_audit():
+def test_production_mode_clean_app_passes_audit(monkeypatch):
     """production + clean FastAPI app → audit returns empty reachable set."""
     from cold_storage.bootstrap.runtime_readiness import (
         enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("production"))
+    set_canonical_settings(_strict_settings("production", monkeypatch))
     try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(app=_strict_fastapi_app())
         assert reachable == ()
@@ -458,7 +595,7 @@ def test_production_mode_clean_app_passes_audit():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_staging_mode_planning_agent_route_fails_closed():
+def test_staging_mode_planning_agent_route_fails_closed(monkeypatch):
     """staging + fake-agent route registered → UNSAFE_STRICT_CAPABILITY_WIRING.
 
     We call :func:`assert_no_unsafe_strict_capabilities` (the public
@@ -472,7 +609,7 @@ def test_staging_mode_planning_agent_route_fails_closed():
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("staging"))
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
     try:
         with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
             assert_no_unsafe_strict_capabilities(
@@ -484,7 +621,7 @@ def test_staging_mode_planning_agent_route_fails_closed():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_production_mode_planning_agent_route_fails_closed():
+def test_production_mode_planning_agent_route_fails_closed(monkeypatch):
     """production + fake-agent route registered → UNSAFE_STRICT_CAPABILITY_WIRING."""
     from cold_storage.bootstrap.runtime_readiness import (
         UnsafeStrictCapabilityWiring,
@@ -492,7 +629,7 @@ def test_production_mode_planning_agent_route_fails_closed():
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("production"))
+    set_canonical_settings(_strict_settings("production", monkeypatch))
     try:
         with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
             assert_no_unsafe_strict_capabilities(
@@ -504,7 +641,7 @@ def test_production_mode_planning_agent_route_fails_closed():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_staging_mode_coefficient_route_fails_closed():
+def test_staging_mode_coefficient_route_fails_closed(monkeypatch):
     """staging + in-memory coefficient route → UNSAFE_STRICT_CAPABILITY_WIRING."""
     from cold_storage.bootstrap.runtime_readiness import (
         UnsafeStrictCapabilityWiring,
@@ -512,7 +649,7 @@ def test_staging_mode_coefficient_route_fails_closed():
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("staging"))
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
     try:
         with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
             assert_no_unsafe_strict_capabilities(app=_strict_fastapi_app_with_coefficient_route())
@@ -522,7 +659,7 @@ def test_staging_mode_coefficient_route_fails_closed():
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_production_mode_coefficient_route_fails_closed():
+def test_production_mode_coefficient_route_fails_closed(monkeypatch):
     """production + in-memory coefficient route → UNSAFE_STRICT_CAPABILITY_WIRING."""
     from cold_storage.bootstrap.runtime_readiness import (
         UnsafeStrictCapabilityWiring,
@@ -530,7 +667,7 @@ def test_production_mode_coefficient_route_fails_closed():
         set_canonical_settings,
     )
 
-    set_canonical_settings(_strict_settings("production"))
+    set_canonical_settings(_strict_settings("production", monkeypatch))
     try:
         with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
             assert_no_unsafe_strict_capabilities(app=_strict_fastapi_app_with_coefficient_route())
