@@ -44,8 +44,27 @@ jobs:
             -t cold-storage-backend:ci-smoke \
             -f backend/Dockerfile \
             .
-          docker run --rm cold-storage-backend:ci-smoke \
-            stat -c '%a %U:%G %n' /opt/cold-storage/build-identity.json
+          # F-PR76-NARROW-CONTAINER-CI: override the production
+          # image's ENTRYPOINT with the stat binary so the probe
+          # does not accidentally invoke production_entrypoint.
+          identity_stat="$(
+            docker run --rm \
+              --entrypoint stat \
+              cold-storage-backend:ci-smoke \
+              -c '%a %U:%G %n' \
+              /opt/cold-storage/build-identity.json
+          )"
+          echo "identity_stat=$identity_stat"
+          file_mode="$(printf '%s\n' "$identity_stat" | awk '{print $1}')"
+          file_owner="$(printf '%s\n' "$identity_stat" | awk '{print $2}')"
+          if [ "$file_mode" != "444" ]; then
+            echo "identity file mode is not 0444: $file_mode" >&2
+            exit 1
+          fi
+          if [ "$file_owner" != "root:root" ]; then
+            echo "identity file owner is not root:root: $file_owner" >&2
+            exit 1
+          fi
       - name: PostgreSQL empty-volume initialization + migration + backend readiness smoke
         # F-PR76-HIGH-03: deterministic container lifecycle smoke.
         # 1. Start PostgreSQL from an empty volume (forces
@@ -72,13 +91,30 @@ jobs:
           docker network create "cs-${STAMP}" >/dev/null
           docker volume create "pg-data-${STAMP}" >/dev/null
 
+          # F-PR76-NARROW-CONTAINER-CI: cleanup MUST pre-emptively
+          # remove every hand-launched container by name, then
+          # run compose down for any compose-managed services, then
+          # drop the volume and network.  The hand-launched
+          # containers use ``--rm --detach`` which only auto-removes
+          # them on a graceful exit; an early failure leaves them
+          # running.  ``docker rm -f`` is idempotent and safe even
+          # when the container never started.
           cleanup() {
+            docker rm -f \
+              "backend-${STAMP}" \
+              "mig-${STAMP}" \
+              "pg-${STAMP}" \
+              >/dev/null 2>&1 || true
             docker compose \
               -f docker-compose.production.yml \
               -p "ci-${STAMP}" \
               down --volumes --remove-orphans || true
-            docker volume rm "pg-data-${STAMP}" >/dev/null 2>&1 || true
-            docker network rm "cs-${STAMP}" >/dev/null 2>&1 || true
+            docker volume rm \
+              "pg-data-${STAMP}" \
+              >/dev/null 2>&1 || true
+            docker network rm \
+              "cs-${STAMP}" \
+              >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
@@ -151,43 +187,93 @@ jobs:
             -e "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID=ci-strict" \
             "${IMAGE_TAG}"
 
+          # F-PR76-NARROW-CONTAINER-CI: the urllib probe MUST
+          # handle HTTPError (non-2xx) AND must NOT collapse
+          # connection failures into a synthetic "503".  The
+          # probe is implemented as a single bash helper that
+          # writes the helper Python script to the container
+          # via docker exec once, then invokes it for each URL.
+          cat > /tmp/cs_probe.py <<'PYEOF'
+          import sys
+          from urllib.error import HTTPError, URLError
+          from urllib.request import urlopen
+          try:
+              response = urlopen(sys.argv[1], timeout=2)
+              status = response.status
+              body = response.read().decode("utf-8", errors="replace")
+          except HTTPError as exc:
+              status = exc.code
+              try:
+                  body = exc.read().decode("utf-8", errors="replace")
+              except Exception:
+                  body = ""
+          except URLError:
+              sys.stderr.write("URLError\n")
+              sys.exit(2)
+          except Exception as exc:
+              sys.stderr.write("INTERNAL_ERROR:" + type(exc).__name__ + "\n")
+              sys.exit(2)
+          sys.stdout.write(str(status) + "\n")
+          sys.stdout.write(body + "\n")
+          PYEOF
+          # Use docker cp + python invocation pattern: copy script
+          # into the container via exec, then read back.  The
+          # script is small enough to inline via base64 + exec.
+          cs_probe_b64="$(base64 -w0 /tmp/cs_probe.py)"
+          docker exec "backend-${STAMP}" bash -c "echo ${cs_probe_b64} | base64 -d > /tmp/cs_probe.py && chmod +x /tmp/cs_probe.py"
+          cs_probe() {
+            local url="$1"; local out="$2"; local err="$3"
+            docker exec "backend-${STAMP}" python /tmp/cs_probe.py "$url" > "$out" 2> "$err"
+          }
+
           # Wait for /health/ready to return 200
           for i in $(seq 1 120); do
-            code=$(docker exec "backend-${STAMP}" python -c "from urllib.request import urlopen; print(urlopen('http://127.0.0.1:8000/health/ready', timeout=2).status)" 2>/dev/null || echo "000")
-            if [ "$code" = "200" ]; then
-              echo "ready after ${i}s"
-              break
+            if cs_probe "http://127.0.0.1:8000/health/ready" /tmp/ready_probe.out /tmp/ready_probe.err; then
+              code=$(head -n 1 /tmp/ready_probe.out)
+              if [ "$code" = "200" ]; then
+                echo "ready after ${i}s"
+                break
+              fi
+            else
+              code=""
             fi
             sleep 1
           done
           if [ "$code" != "200" ]; then
-            echo "backend /health/ready did not return 200: $code" >&2
+            echo "backend /health/ready did not return 200; last probe code=$code" >&2
+            cat /tmp/ready_probe.err >&2 || true
             docker logs "backend-${STAMP}" >&2 || true
             exit 1
           fi
 
           # Liveness remains 200
-          live=$(docker exec "backend-${STAMP}" python -c "from urllib.request import urlopen; print(urlopen('http://127.0.0.1:8000/health/live', timeout=2).status)" 2>/dev/null || echo "000")
+          if ! cs_probe "http://127.0.0.1:8000/health/live" /tmp/live_probe.out /tmp/live_probe.err; then
+            echo "liveness probe errored" >&2
+            cat /tmp/live_probe.err >&2 || true
+            exit 1
+          fi
+          live=$(head -n 1 /tmp/live_probe.out)
           if [ "$live" != "200" ]; then
             echo "backend /health/live did not return 200: $live" >&2
+            cat /tmp/live_probe.err >&2 || true
             exit 1
           fi
 
           # Identity file mode 0444, owner root, application user
           # cannot write to it.
           file_mode=$(docker exec "backend-${STAMP}" stat -c '%a' /opt/cold-storage/build-identity.json)
-          file_owner=$(docker exec "backend-${STAMP}" stat -c '%U' /opt/cold-storage/build-identity.json)
+          file_owner=$(docker exec "backend-${STAMP}" stat -c '%U:%G' /opt/cold-storage/build-identity.json)
           write_test=$(docker exec -u 1001 "backend-${STAMP}" sh -c 'echo x > /opt/cold-storage/build-identity.json' 2>&1 || echo "denied")
           if [ "$file_mode" != "444" ]; then
             echo "identity file mode is not 0444: $file_mode" >&2
             exit 1
           fi
-          if [ "$file_owner" != "root" ]; then
-            echo "identity file owner is not root: $file_owner" >&2
+          if [ "$file_owner" != "root:root" ]; then
+            echo "identity file owner is not root:root: $file_owner" >&2
             exit 1
           fi
           if echo "$write_test" | grep -qi 'denied\|read-only\|cannot'; then
-            echo "application user cannot write identity file (expected)" 
+            echo "application user cannot write identity file (expected)"
           else
             echo "application user unexpectedly wrote identity file: $write_test" >&2
             exit 1
@@ -201,16 +287,40 @@ jobs:
           fi
 
           # Stop PostgreSQL to force dependency failure; readiness
-          # must flip to 503 while liveness remains 200.
+          # MUST flip to a real HTTP 503 (NOT a connection failure).
+          # Connection-level errors here are explicitly NOT
+          # acceptable; only an unambiguous 503 from the server
+          # closes this gate.
           docker stop "pg-${STAMP}" >/dev/null
           sleep 2
-          live_after=$(docker exec "backend-${STAMP}" python -c "from urllib.request import urlopen; print(urlopen('http://127.0.0.1:8000/health/live', timeout=2).status)" 2>/dev/null || echo "000")
-          if [ "$live_after" != "200" ]; then
-            echo "liveness must remain 200 during forced readiness failure; got $live_after" >&2
+          set +e
+          cs_probe "http://127.0.0.1:8000/health/live" /tmp/live_after.out /tmp/live_after.err
+          live_probe_exit=$?
+          set -e
+          if [ "$live_probe_exit" != "0" ]; then
+            echo "liveness probe errored during forced readiness failure (exit $live_probe_exit)" >&2
+            cat /tmp/live_after.err >&2 || true
             exit 1
           fi
-          # /health/ready should now return 503 (or fail to connect; both are valid fail-closed signals).
-          ready_after=$(docker exec "backend-${STAMP}" python -c "from urllib.request import urlopen; print(urlopen('http://127.0.0.1:8000/health/ready', timeout=2).status)" 2>/dev/null || echo "000")
+          live_after=$(head -n 1 /tmp/live_after.out)
+          if [ "$live_after" != "200" ]; then
+            echo "liveness must remain 200 during forced readiness failure; got $live_after" >&2
+            cat /tmp/live_after.err >&2 || true
+            exit 1
+          fi
+          set +e
+          cs_probe "http://127.0.0.1:8000/health/ready" /tmp/ready_after.out /tmp/ready_after.err
+          ready_probe_exit=$?
+          set -e
+          if [ "$ready_probe_exit" != "0" ]; then
+            echo "readiness probe itself errored (exit $ready_probe_exit); contract requires a real HTTP 503, not a connection failure" >&2
+            cat /tmp/ready_after.err >&2 || true
+            exit 1
+          fi
+          ready_after=$(head -n 1 /tmp/ready_after.out)
+          ready_after_body=$(tail -n +2 /tmp/ready_after.out)
+          echo "ready_after=$ready_after"
+          echo "ready_after_body=$ready_after_body"
           if [ "$ready_after" != "503" ]; then
             echo "readiness must return 503 during forced failure; got $ready_after" >&2
             exit 1
@@ -218,11 +328,10 @@ jobs:
 
           # Verify response body contains NO raw exception / DSN /
           # password / secret.
-          ready_body=$(docker exec "backend-${STAMP}" python -c "from urllib.request import urlopen; print(urlopen('http://127.0.0.1:8000/health/ready', timeout=2).read().decode('utf-8', errors='replace'))" 2>/dev/null || echo "")
           for forbidden in "password" "secret" "DSN" "Traceback" "exception" "://"; do
-            if echo "$ready_body" | grep -qi "$forbidden"; then
+            if echo "$ready_after_body" | grep -qi "$forbidden"; then
               echo "readiness response leaked forbidden token: $forbidden" >&2
-              echo "body: $ready_body" >&2
+              echo "body: $ready_after_body" >&2
               exit 1
             fi
           done
