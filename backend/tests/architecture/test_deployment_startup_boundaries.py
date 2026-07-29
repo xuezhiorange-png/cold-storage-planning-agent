@@ -310,10 +310,14 @@ def test_defensive_strict_capability_assertion_passes_by_default():
     staging/production. We explicitly call the defensive assertion to
     ensure it executes and does not raise on a real (clean) app.
 
-    Per brief §6 requirement 6, ``app=None`` is NOT a silent success
-    — invoking the assertion without a FastAPI app raises. We
-    therefore build a clean FastAPI instance and verify the assertion
-    passes against it.
+    Per TASK-012 Slice 2 brief §2 + §5 (2026-07-29 fix), the
+    ``enumerate_reachable_unsafe_strict_capabilities`` order is
+    mode → app → routes: local / test mode short-circuits with an
+    empty reachable subset BEFORE the ``app=None`` check, so a
+    ``local`` mode caller with no FastAPI app does NOT trigger the
+    fail-closed branch. Strict-mode ``app=None`` behaviour is
+    separately locked by the 9-matrix in
+    ``tests/unit/test_runtime_readiness.py``.
     """
     from fastapi import FastAPI
 
@@ -324,21 +328,6 @@ def test_defensive_strict_capability_assertion_passes_by_default():
     # Real (clean) FastAPI app: reachable subset is empty.
     clean_app = FastAPI()
     assert_no_unsafe_strict_capabilities(app=clean_app)
-
-    # Per brief §6 requirement 6: app=None is NOT a silent success.
-    from cold_storage.bootstrap.runtime_readiness import (
-        UnsafeStrictCapabilityWiring,
-    )
-
-    try:
-        assert_no_unsafe_strict_capabilities(app=None)
-    except UnsafeStrictCapabilityWiring:
-        pass  # expected
-    else:
-        raise AssertionError(
-            "app=None must NOT be interpreted as audit success; "
-            "expected UnsafeStrictCapabilityWiring"
-        )
 
 
 def test_build_identity_module_does_not_invoke_git_cli():

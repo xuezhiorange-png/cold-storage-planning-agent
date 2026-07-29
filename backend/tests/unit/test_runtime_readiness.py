@@ -230,20 +230,311 @@ def test_default_strict_capabilities_are_registered():
 def test_assert_no_unsafe_strict_capabilities_passes_when_none_reachable():
     from fastapi import FastAPI
 
-    from cold_storage.bootstrap.runtime_readiness import (
-        UnsafeStrictCapabilityWiring,
-    )
-
     # Real (clean) FastAPI app: reachable subset is empty.
     assert_no_unsafe_strict_capabilities(app=FastAPI())
 
-    # Per brief §6 requirement 6: app=None is NOT a silent success.
-    try:
-        assert_no_unsafe_strict_capabilities(app=None)
-    except UnsafeStrictCapabilityWiring:
-        pass  # expected
-    else:
-        raise AssertionError(
-            "app=None must NOT be interpreted as audit success; "
-            "expected UnsafeStrictCapabilityWiring"
+
+# ---------------------------------------------------------------------------
+# Strict-capability enumeration — mode x app-presence matrix (D-S2-06.c,
+# TASK-012 Slice 2 brief §5). The matrix is required to lock the new
+# "mode resolution BEFORE app=None check" contract.
+# ---------------------------------------------------------------------------
+
+
+def _strict_settings(env_id: str):
+    """Build a strict-environment Settings instance for unit tests.
+
+    The Settings class reads ``COLD_STORAGE_ENVIRONMENT_ID``,
+    ``COLD_STORAGE_APP_HOST`` and ``COLD_STORAGE_APP_PORT`` from the
+    process environment (Pydantic v2 BaseSettings validation_alias).
+    We therefore set the env vars explicitly before construction so
+    the matrix stays hermetic and does not depend on the host's
+    existing environment.
+
+    Per the contract (D-S2-01 / D-S2-09) staging and production
+    environments do NOT receive code-level defaults; explicit
+    application binding (``APP_HOST`` + ``APP_PORT``) is mandatory.
+    Test mode similarly requires an explicit SQLite path.
+    """
+    import os
+
+    from cold_storage.bootstrap.settings import Settings
+
+    prev = {
+        "COLD_STORAGE_ENVIRONMENT_ID": os.environ.get("COLD_STORAGE_ENVIRONMENT_ID"),
+        "COLD_STORAGE_APP_HOST": os.environ.get("COLD_STORAGE_APP_HOST"),
+        "COLD_STORAGE_APP_PORT": os.environ.get("COLD_STORAGE_APP_PORT"),
+        "COLD_STORAGE_SQLITE_PATH": os.environ.get("COLD_STORAGE_SQLITE_PATH"),
+        "COLD_STORAGE_DATABASE_BACKEND": os.environ.get("COLD_STORAGE_DATABASE_BACKEND"),
+        "COLD_STORAGE_DATABASE_URL": os.environ.get("COLD_STORAGE_DATABASE_URL"),
+        "COLD_STORAGE_BUILD_COMMIT_SHA": os.environ.get("COLD_STORAGE_BUILD_COMMIT_SHA"),
+        "COLD_STORAGE_BUILD_VERSION": os.environ.get("COLD_STORAGE_BUILD_VERSION"),
+        "COLD_STORAGE_DATABASE_ENVIRONMENT_ID": os.environ.get(
+            "COLD_STORAGE_DATABASE_ENVIRONMENT_ID"
+        ),
+        "COLD_STORAGE_SECRET_ENVIRONMENT_ID": os.environ.get("COLD_STORAGE_SECRET_ENVIRONMENT_ID"),
+        "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID": os.environ.get(
+            "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID"
+        ),
+    }
+    os.environ["COLD_STORAGE_ENVIRONMENT_ID"] = env_id
+    os.environ.setdefault("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    os.environ.setdefault("COLD_STORAGE_APP_PORT", "8000")
+    if env_id == "test":
+        os.environ["COLD_STORAGE_SQLITE_PATH"] = ":memory:"
+    if env_id in ("staging", "production"):
+        os.environ["COLD_STORAGE_DATABASE_BACKEND"] = "postgresql"
+        os.environ["COLD_STORAGE_DATABASE_URL"] = (
+            "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test"
         )
+        os.environ["COLD_STORAGE_BUILD_COMMIT_SHA"] = "0" * 40
+        os.environ["COLD_STORAGE_BUILD_VERSION"] = "v0.0.0-ci"
+        os.environ["COLD_STORAGE_CONFIG_SCHEMA_VERSION"] = "1"
+        os.environ["COLD_STORAGE_DATABASE_ENVIRONMENT_ID"] = "ci-strict"
+        os.environ["COLD_STORAGE_SECRET_ENVIRONMENT_ID"] = "ci-strict"
+        os.environ["COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID"] = "ci-strict"
+    try:
+        return Settings()  # type: ignore[call-arg]
+    finally:
+        for key, prior in prev.items():
+            if prior is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = prior
+
+
+def _strict_fastapi_app():
+    """Build a clean FastAPI app for strict-mode audit tests."""
+    from fastapi import FastAPI
+
+    return FastAPI()
+
+
+def _strict_fastapi_app_with_planning_agent_route():
+    """Build a FastAPI app with the fake-agent HTTP route registered.
+
+    The audit (D-S2-06.c) walks ``app.routes`` and looks for the
+    canonical planning-agent path prefix ``/api/v1/agent/`` on each
+    ``APIRoute`` instance. The route is registered directly on the
+    FastAPI app (not via an included ``APIRouter``) so the audit's
+    reachability check fires deterministically.
+    """
+    from fastapi import FastAPI
+
+    app = FastAPI()
+
+    @app.post("/api/v1/agent/run")
+    def _run_agent():  # pragma: no cover - never invoked
+        return {"ok": True}
+
+    return app
+
+
+def _strict_fastapi_app_with_coefficient_route():
+    """Build a FastAPI app with the in-memory coefficient HTTP route.
+
+    The audit (D-S2-06.c) walks ``app.routes`` and looks for the
+    canonical coefficient path prefix ``/api/v1/coefficients`` on
+    each ``APIRoute`` instance. The route is registered directly on
+    the FastAPI app so the audit's reachability check fires
+    deterministically.
+    """
+    from fastapi import FastAPI
+
+    app = FastAPI()
+
+    @app.post("/api/v1/coefficients/lookup")
+    def _lookup():  # pragma: no cover - never invoked
+        return {"ok": True}
+
+    return app
+
+
+def test_local_mode_app_none_passes_audit():
+    """local + app=None → audit short-circuits with empty reachable set.
+
+    Per TASK-012 Slice 2 brief §2: in local mode the audit must NOT
+    raise even when the caller has not supplied a FastAPI app, because
+    the demo / fixture flows legitimately register the fake-agent or
+    in-memory coefficient routes and would otherwise poison every
+    bootstrap-isolated test.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("local"))
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(app=None)
+        assert reachable == ()
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_test_mode_app_none_passes_audit():
+    """test + app=None → audit short-circuits with empty reachable set."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("test"))
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(app=None)
+        assert reachable == ()
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_app_none_fails_closed():
+    """staging + app=None → audit MUST raise UnsafeStrictCapabilityWiring.
+
+    Per TASK-012 Slice 2 brief §2: in strict environments ``app=None``
+    is still NOT a silent success; production lifespan must always
+    pass ``app=app`` explicitly. The frozen code is
+    ``UNSAFE_STRICT_CAPABILITY_WIRING``.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging"))
+    try:
+        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
+            enumerate_reachable_unsafe_strict_capabilities(app=None)
+        # Stable code, not a free-form RuntimeError / Exception.
+        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_app_none_fails_closed():
+    """production + app=None → audit MUST raise UnsafeStrictCapabilityWiring."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production"))
+    try:
+        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
+            enumerate_reachable_unsafe_strict_capabilities(app=None)
+        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_clean_app_passes_audit():
+    """staging + clean FastAPI app → audit returns empty reachable set."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging"))
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(app=_strict_fastapi_app())
+        assert reachable == ()
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_clean_app_passes_audit():
+    """production + clean FastAPI app → audit returns empty reachable set."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production"))
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(app=_strict_fastapi_app())
+        assert reachable == ()
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_planning_agent_route_fails_closed():
+    """staging + fake-agent route registered → UNSAFE_STRICT_CAPABILITY_WIRING.
+
+    We call :func:`assert_no_unsafe_strict_capabilities` (the public
+    assertion wrapper) rather than the lower-level enumerator because
+    the enumerator intentionally returns the reachable tuple so callers
+    can branch on it; only the assertion wrapper raises.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        assert_no_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging"))
+    try:
+        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
+            assert_no_unsafe_strict_capabilities(
+                app=_strict_fastapi_app_with_planning_agent_route()
+            )
+        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
+        assert "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_planning_agent_route_fails_closed():
+    """production + fake-agent route registered → UNSAFE_STRICT_CAPABILITY_WIRING."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        assert_no_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production"))
+    try:
+        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
+            assert_no_unsafe_strict_capabilities(
+                app=_strict_fastapi_app_with_planning_agent_route()
+            )
+        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
+        assert "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_coefficient_route_fails_closed():
+    """staging + in-memory coefficient route → UNSAFE_STRICT_CAPABILITY_WIRING."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        assert_no_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging"))
+    try:
+        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
+            assert_no_unsafe_strict_capabilities(app=_strict_fastapi_app_with_coefficient_route())
+        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
+        assert "COEFFICIENT_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_coefficient_route_fails_closed():
+    """production + in-memory coefficient route → UNSAFE_STRICT_CAPABILITY_WIRING."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        UnsafeStrictCapabilityWiring,
+        assert_no_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production"))
+    try:
+        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
+            assert_no_unsafe_strict_capabilities(app=_strict_fastapi_app_with_coefficient_route())
+        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
+        assert "COEFFICIENT_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]

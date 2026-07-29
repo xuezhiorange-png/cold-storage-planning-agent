@@ -83,7 +83,13 @@ class ReadinessProbeTimeout(ReadinessError):
 
 
 class UnsafeStrictCapabilityWiring(ReadinessError):
+    """Fail-closed assertion for unsafe strict-capability reachability (D-S2-06.c)."""
+
     failure_code = UNSAFE_STRICT_CAPABILITY_WIRING
+
+    def __init__(self, message: str, *, unsafe_capabilities: tuple[str, ...] = ()) -> None:
+        super().__init__(message)
+        self.unsafe_capabilities: tuple[str, ...] = tuple(unsafe_capabilities)
 
 
 class ConfigurationProbeFailed(ReadinessError):
@@ -394,12 +400,26 @@ def enumerate_reachable_unsafe_strict_capabilities(
     audit enforces the contract fail-closed.
     """
     _ = routes  # explicit non-use; ``app`` is the canonical input.
+    # Mode-aware behaviour (per TASK-012 Slice 2 brief §2): the strict
+    # capability audit is ONLY meaningful in strict environments. In
+    # local / test mode the demo / fixture flows legitimately register
+    # the fake-agent or in-memory coefficient routes, so the audit MUST
+    # short-circuit and return an empty reachable subset BEFORE we ask
+    # whether ``app`` is present. In staging / production, ``app=None``
+    # is still NOT a silent success and the audit MUST fail closed so
+    # production lifespan always pass ``app=app`` explicitly.
+    try:
+        settings = canonical_settings()
+        mode = resolve_app_mode(settings)
+    except ConfigurationProbeFailed:
+        mode = None
+    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+        return ()
     if app is None:
-        # Per brief §6 requirement 6: ``app=None`` is NOT a silent
-        # success. Surface the failure closed using the frozen code.
         raise UnsafeStrictCapabilityWiring(
             "strict capability audit invoked without a FastAPI app; "
             "production lifespan must pass app=app explicitly",
+            unsafe_capabilities=(),
         )
     names = _strict_registry.registered()
     route_paths: list[str] = []
@@ -411,15 +431,6 @@ def enumerate_reachable_unsafe_strict_capabilities(
             route_iter = []
         for r in route_iter:
             route_paths.append(_route_path_for(r))
-    # Determine mode from the canonical settings so the audit is in
-    # lock-step with the rest of the bootstrap.
-    try:
-        settings = canonical_settings()
-        mode = resolve_app_mode(settings)
-    except ConfigurationProbeFailed:
-        mode = None
-    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
-        return ()
     reachable: list[str] = []
     for name in names:
         spec = _STRICT_CAPABILITY_PROBES.get(name)
@@ -455,7 +466,8 @@ def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
     reachable = enumerate_reachable_unsafe_strict_capabilities(app=app)
     if reachable:
         raise UnsafeStrictCapabilityWiring(
-            f"unsafe strict capabilities reachable: {sorted(reachable)!r}"
+            f"unsafe strict capabilities reachable: {sorted(reachable)!r}",
+            unsafe_capabilities=tuple(sorted(reachable)),
         )
 
 
