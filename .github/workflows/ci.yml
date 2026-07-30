@@ -177,6 +177,123 @@ jobs:
             "${IMAGE_TAG}" \
             -m alembic upgrade head
 
+          # F-PR76-STRICT-COEFFICIENT-FIXTURE: provision a one-shot
+          # approved-coefficient fixture against the freshly migrated
+          # PostgreSQL volume.  Backend production mode runs a
+          # fail-closed startup readiness check that requires one
+          # APPROVED revision per canonical stage:
+          #   zone, cooling_load, equipment, power, investment
+          # The migration baseline only stamps the schema; it does
+          # not seed any approved revisions.  Without this fixture
+          # the backend exits with StartupReadinessError (missing=5).
+          #
+          # The fixture uses the production approval service so the
+          # role_check + citation_validation + approval_state_transition
+          # + approval_log + audit_log code paths are all exercised.
+          # ``actor`` and ``reviewer`` are distinct (see
+          # DuplicatePendingApprovalError guard in
+          # CoefficientApprovalService._check_duplicate_pending);
+          # ``coefficient.ci`` opens the review, ``coefficient.reviewer``
+          # approves.
+          #
+          # The fixture container is ephemeral; it is destroyed when
+          # ``docker run --rm`` returns.  No fixture state touches the
+          # migration baseline, the operator runtime, or production
+          # default seeds.
+          cat > /tmp/cs_coefficient_fixture.py <<'CS_FIXTURE_PY'
+          import os
+          import sys
+          from decimal import Decimal
+
+          from sqlalchemy import create_engine
+
+          from cold_storage.bootstrap.production_composition import (
+              compose_production_coefficient_approval_service,
+          )
+          from cold_storage.bootstrap.startup_readiness import get_required_stages
+          from cold_storage.modules.coefficients.application.approval_service import (
+              ApprovalRequest,
+          )
+          from cold_storage.modules.coefficients.infrastructure.database import (
+              DatabaseCoefficientService,
+          )
+
+          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"])
+          service = DatabaseCoefficientService(engine)
+          approval = compose_production_coefficient_approval_service(
+              engine=engine,
+              mutation_service=service,
+          )
+          required_stages = get_required_stages()
+          try:
+              for stage_name, _calculation_type in required_stages:
+                  citation_stage = stage_name.upper().replace("_", "-")
+                  citation = f"INTERNAL:REF-CI-{citation_stage}"
+                  definition = service.create_definition(
+                      code=f"ci.readiness.{stage_name}",
+                      name=f"CI readiness fixture: {stage_name}",
+                      description="CI-only strict startup readiness fixture",
+                      category=stage_name,
+                      canonical_unit="ratio",
+                      value_type="decimal",
+                      scope_type="global",
+                  )
+                  revision = service.create_revision(
+                      definition_id=definition.id,
+                      value_decimal=Decimal("1"),
+                      unit="ratio",
+                      source_type="standard",
+                      source_title="CI strict readiness fixture",
+                      source_reference=citation,
+                      valid_to=None,
+                      created_by="ci",
+                  )
+                  service.mark_revision_reviewed(
+                      definition.id,
+                      revision.id,
+                      reviewer="coefficient.ci",
+                  )
+                  approval.approve(
+                      ApprovalRequest(
+                          definition_id=definition.id,
+                          revision_id=revision.id,
+                          actor="coefficient.reviewer",
+                          reviewer="coefficient.reviewer",
+                          correlation_id=f"ci-readiness-{stage_name}",
+                          source_citation=citation,
+                      )
+                  )
+              result = approval.validate_startup_readiness(
+                  stage_names=required_stages,
+              )
+              required_count = len(required_stages)
+              missing_count = len(result.get("missing", []))
+              stale_count = len(result.get("stale", []))
+              demoted_count = len(result.get("demoted", []))
+              citation_count = len(result.get("citation", []))
+              approved_count = required_count - missing_count
+              ready = bool(result.get("ready", False))
+              print(f"CI_REQUIRED_STAGE_COUNT={required_count}")
+              print(f"CI_APPROVED_STAGE_COUNT={approved_count}")
+              print(f"CI_MISSING_STAGE_COUNT={missing_count}")
+              print(f"CI_STALE_STAGE_COUNT={stale_count}")
+              print(f"CI_DEMOTED_STAGE_COUNT={demoted_count}")
+              print(f"CI_CITATION_FAILURE_COUNT={citation_count}")
+              print(f"CI_STARTUP_READINESS_READY={str(ready).lower()}")
+              if not ready or missing_count != 0 or stale_count != 0 or demoted_count != 0 or citation_count != 0:
+                  print("CI_APPROVED_COEFFICIENT_FIXTURE=FAIL", file=sys.stderr)
+                  sys.exit(1)
+              print("CI_APPROVED_COEFFICIENT_FIXTURE=PASS")
+          finally:
+              engine.dispose()
+          CS_FIXTURE_PY
+          docker run --rm \
+            --network "cs-${STAMP}" \
+            --mount type=bind,source=/tmp/cs_coefficient_fixture.py,target=/tmp/cs_coefficient_fixture.py,readonly \
+            -e "COLD_STORAGE_DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-cold_storage}:${POSTGRES_PASSWORD}@pg-${STAMP}:5432/${POSTGRES_DB:-cold_storage}" \
+            --entrypoint python \
+            "${IMAGE_TAG}" /tmp/cs_coefficient_fixture.py
+
           # F-PR76-BACKEND-EXIT-DIAGNOSTIC: launch backend WITHOUT
           # ``--rm`` so a crashed/exited backend container remains
           # inspectable.  ``--rm`` only auto-removes the container
