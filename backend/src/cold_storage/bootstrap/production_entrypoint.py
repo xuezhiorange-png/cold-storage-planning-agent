@@ -195,8 +195,43 @@ def run_entrypoint() -> int:
 
     _install_signal_handlers()
 
-    # Use uvicorn's ``run()`` which returns the exit code.
+    # Use uvicorn's ``run()`` which blocks until shutdown.
+    #
+    # F-PR76-STARTUP-EXIT-CODE: ``server.run()`` does NOT return a
+    # process exit code that mirrors whether the lifespan/startup
+    # sequence succeeded.  When the FastAPI lifespan raises (e.g.
+    # ``StartupReadinessError`` from the strict coefficient
+    # readiness check), uvicorn logs "Application startup failed.
+    # Exiting." and the process exits 0 by default.  That breaks
+    # CI: the container looks healthy, but readiness never
+    # landed.
+    #
+    # ``server.started`` is the canonical boolean flag flipped
+    # by ``uvicorn.Server`` after the server has finished its
+    # startup sequence and bound the listening socket.  It stays
+    # False on startup failure and remains True after a graceful
+    # SIGTERM/SIGINT shutdown, which is exactly the signal we
+    # need to distinguish:
+    #
+    #   * ``not server.started``  -> process should exit non-zero
+    #     (lifespan/startup failure, OOM during startup, etc.)
+    #   * ``server.started``      -> server reached the steady
+    #     state; if we are here ``run()`` returned because of a
+    #     graceful shutdown signal, so the process exits 0.
+    #
+    # We deliberately do NOT inspect ``server.should_exit`` here
+    # because it is also set by ``Signal handler`` callbacks
+    # during normal graceful shutdown, which would mask the
+    # failure-vs-success distinction.
     server.run()
+    if not server.started:
+        logger.error(
+            "application server failed before startup completed "
+            "(uvicorn started=False); the lifespan or its gate "
+            "(e.g. StartupReadinessError) raised and uvicorn "
+            "aborted before binding the listening socket"
+        )
+        return 1
     return 0
 
 

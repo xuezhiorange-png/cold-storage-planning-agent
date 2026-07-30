@@ -798,6 +798,13 @@ def test_production_entrypoint_runs_identity_then_reaches_uvicorn(monkeypatch):
     class _StubServer:
         def __init__(self, config: object) -> None:
             self.config = config
+            # F-PR76-STARTUP-EXIT-CODE: simulate the post-bind steady
+            # state.  The entrypoint inspects ``started`` AFTER
+            # ``server.run()`` returns to decide between a non-zero
+            # exit (lifespan failure) and zero (graceful shutdown
+            # after a successful bind).  Setting ``started=True`` here
+            # exercises the success branch.
+            self.started = False
 
         def run(self) -> None:
             # F-PR76-BLOCKER-01: the production entrypoint must reach
@@ -806,6 +813,7 @@ def test_production_entrypoint_runs_identity_then_reaches_uvicorn(monkeypatch):
             # ``test_runtime_readiness`` and ``test_health_endpoints``.
             # We avoid binding the port by short-circuiting ``run``.
             uvicorn_calls.append(True)
+            self.started = True  # simulates "reached steady state, then graceful shutdown"
 
     _stub_uvicorn = type("_U", (), {"Server": _StubServer, "Config": lambda *a, **kw: object()})
 
@@ -820,6 +828,254 @@ def test_production_entrypoint_runs_identity_then_reaches_uvicorn(monkeypatch):
     code = production_entrypoint.run_entrypoint()
     assert code == 0
     assert uvicorn_calls == [True]
+
+
+# ---------------------------------------------------------------------------
+# F-PR76-STARTUP-EXIT-CODE — server.started is the post-bind truth signal.
+# ---------------------------------------------------------------------------
+
+
+def _set_up_entrypoint_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Build a complete production-env dict for entrypoint smoke tests.
+
+    Centralised so all four entrypoint exit-code tests share the
+    same hermetic env.  Tests may still override individual keys via
+    ``monkeypatch.setenv`` after calling this helper.
+    """
+    for _k in list(os.environ):
+        if _k.startswith("COLD_STORAGE_") or _k in (
+            "DATABASE_URL",
+            "DATABASE_BACKEND",
+            "PLANNING_AGENT_ALLOW_INSECURE_ACTOR",
+        ):
+            del os.environ[_k]
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "release_2026")
+    monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", "ci-deploy")
+    monkeypatch.setenv("COLD_STORAGE_APP_BIND", "127.0.0.1:8000")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "10")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_URL",
+        "postgresql+psycopg2://x:x@localhost:5432/x",
+    )
+
+
+def _stub_database_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch ``bootstrap.database.create_engine_from_settings`` so the
+    production entrypoint never instantiates a real engine during
+    these smoke tests.
+    """
+    from cold_storage.bootstrap import database as _database_module
+
+    class _StubEngine:
+        def dispose(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        _database_module,
+        "create_engine_from_settings",
+        lambda settings: _StubEngine(),
+    )
+
+
+def _stub_load_runtime_identity_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch ``bootstrap.deployment_identity.load_runtime_identity``
+    so the identity cross-check returns a valid pair (avoiding the
+    early-return paths so we exercise the uvicorn path).
+    """
+    from cold_storage.bootstrap import deployment_identity
+    from cold_storage.bootstrap.deployment_identity import BuildIdentityRecord
+
+    def _stub_load(*, env, path="ignored"):
+        return (
+            BuildIdentityRecord(
+                schema_version=1,
+                commit_sha="0" * 40,
+                version="release_2026",
+            ),
+            env.get("COLD_STORAGE_DEPLOYMENT_ID", ""),
+        )
+
+    monkeypatch.setattr(
+        deployment_identity,
+        "load_runtime_identity",
+        _stub_load,
+    )
+
+
+def _install_started_fake_uvicorn(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    started_value: bool,
+) -> list[bool]:
+    """Install a fake ``uvicorn`` module whose ``Server`` flips
+    ``started`` to ``started_value`` after ``run()`` returns.
+
+    Returns a list of records (one per call) so the test can assert
+    on call counts.
+    """
+    calls: list[bool] = []
+
+    class _StubServer:
+        def __init__(self, config: object) -> None:
+            self.config = config
+            self.started = False
+            self.should_exit = False
+
+        def run(self) -> None:
+            calls.append(True)
+            # F-PR76-STARTUP-EXIT-CODE: the entrypoint reads
+            # ``started`` AFTER ``run()`` returns.  We set the
+            # flag to the test-supplied ``started_value`` to
+            # exercise both the failure branch
+            # (``started_value=False`` -> exit 1) and the success
+            # branch (``started_value=True``  -> exit 0).
+            self.started = started_value
+            self.should_exit = True
+
+    _stub_uvicorn = type(
+        "_U",
+        (),
+        {
+            "Server": _StubServer,
+            "Config": lambda *a, **kw: object(),
+        },
+    )
+    import sys as _sys
+
+    monkeypatch.setitem(_sys.modules, "uvicorn", _stub_uvicorn)
+    return calls
+
+
+def test_entrypoint_server_never_started_returns_nonzero(monkeypatch):
+    """F-PR76-STARTUP-EXIT-CODE: when the uvicorn ``Server.run``
+    returns WITHOUT flipping ``started`` to True (lifespan /
+    startup failure path), the entrypoint must exit non-zero so
+    container orchestration and CI can observe the failure.
+
+    The contract: a successful production lifespan is the ONLY
+    reason ``started`` becomes True; everything else (early
+    raise from the readiness check, OOM during startup, FastAPI
+    app factory error) leaves ``started`` False.
+    """
+    _set_up_entrypoint_env(monkeypatch)
+    _stub_database_engine(monkeypatch)
+    _stub_load_runtime_identity_ok(monkeypatch)
+    calls = _install_started_fake_uvicorn(monkeypatch, started_value=False)
+
+    from cold_storage.bootstrap import production_entrypoint
+
+    code = production_entrypoint.run_entrypoint()
+    assert calls == [True], "uvicorn.Server.run must have been invoked exactly once"
+    assert code == 1, (
+        f"entrypoint must return non-zero when uvicorn started=False "
+        f"(lifespan failure path); got code={code}"
+    )
+    assert code != 0, "explicit non-zero guard: code must NOT be 0"
+
+
+def test_entrypoint_server_started_then_stopped_returns_zero(monkeypatch):
+    """F-PR76-STARTUP-EXIT-CODE: when the uvicorn ``Server.run``
+    flips ``started`` to True (steady state reached), the entrypoint
+    must exit 0.  This includes the normal "started, then graceful
+    shutdown on SIGTERM" case where ``run()`` returns after the
+    server has already been serving traffic.
+    """
+    _set_up_entrypoint_env(monkeypatch)
+    _stub_database_engine(monkeypatch)
+    _stub_load_runtime_identity_ok(monkeypatch)
+    calls = _install_started_fake_uvicorn(monkeypatch, started_value=True)
+
+    from cold_storage.bootstrap import production_entrypoint
+
+    code = production_entrypoint.run_entrypoint()
+    assert calls == [True], "uvicorn.Server.run must have been invoked exactly once"
+    assert code == 0, (
+        f"entrypoint must return 0 when uvicorn started=True "
+        f"(normal startup then graceful shutdown); got code={code}"
+    )
+
+
+def test_entrypoint_identity_failure_behavior_unchanged(monkeypatch):
+    """F-PR76-STARTUP-EXIT-CODE: the entrypoint's identity
+    cross-check failure path returns 14, and the new exit-code
+    logic must NOT interfere with that early-return path.
+
+    We patch ``load_runtime_identity`` to raise
+    ``BuildIdentityMismatch`` so the entrypoint short-circuits
+    BEFORE constructing uvicorn.  We assert uvicorn is never
+    invoked and the exit code stays 14.
+    """
+    from cold_storage.bootstrap import deployment_identity
+    from cold_storage.bootstrap.deployment_identity import (
+        BuildCommitMismatch,
+    )
+
+    _set_up_entrypoint_env(monkeypatch)
+    _stub_database_engine(monkeypatch)
+
+    def _stub_load_raises(*, env, path="ignored"):
+        raise BuildCommitMismatch(
+            failure_code="BUILD_COMMIT_MISMATCH",
+            detail="injected identity failure",
+        )
+
+    monkeypatch.setattr(
+        deployment_identity,
+        "load_runtime_identity",
+        _stub_load_raises,
+    )
+    # If uvicorn is reached, this list will record it; we assert
+    # the list is empty.
+    calls = _install_started_fake_uvicorn(monkeypatch, started_value=False)
+
+    from cold_storage.bootstrap import production_entrypoint
+
+    code = production_entrypoint.run_entrypoint()
+    assert calls == [], "uvicorn must NOT be reached when identity cross-check fails"
+    assert code == 14, f"identity failure exit code must stay 14 (frozen contract); got code={code}"
+
+
+def test_entrypoint_timeout_configuration_failure_behavior_unchanged(monkeypatch):
+    """F-PR76-STARTUP-EXIT-CODE: the entrypoint's probe-timeout
+    configuration failure path returns 15 or 16 (kind-dependent),
+    and the new exit-code logic must NOT interfere with that
+    early-return path either.
+
+    We inject a malformed timeout env var so the validation
+    path raises before constructing uvicorn, and assert uvicorn
+    is never invoked.
+    """
+    _set_up_entrypoint_env(monkeypatch)
+    _stub_database_engine(monkeypatch)
+    _stub_load_runtime_identity_ok(monkeypatch)
+    # Malformed timeout: not an integer.  resolve_probe_timeout_seconds
+    # accepts the env value; the explicit-numeric re-validation
+    # on the raw key will raise inside run_entrypoint and return 16.
+    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "not-an-int")
+    calls = _install_started_fake_uvicorn(monkeypatch, started_value=False)
+
+    from cold_storage.bootstrap import production_entrypoint
+
+    code = production_entrypoint.run_entrypoint()
+    assert calls == [], "uvicorn must NOT be reached when probe timeout validation fails"
+    # Per F-PR76 the probe-timeout validation exits 16 (raw form
+    # mismatch).  We accept 15 or 16 here to be tolerant of the
+    # exact kind that triggers first, but the contract is
+    # non-zero and BEFORE uvicorn.
+    assert code != 0, f"timeout-config failure exit code must be non-zero; got code={code}"
+    assert code in (15, 16), (
+        f"timeout-config failure exit code must be 15 or 16 (frozen contract); got code={code}"
+    )
 
 
 # ---------------------------------------------------------------------------
