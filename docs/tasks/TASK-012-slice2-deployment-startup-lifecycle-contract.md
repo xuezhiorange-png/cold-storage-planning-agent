@@ -1226,8 +1226,8 @@ Required evidence:
   mode-`0444` `/opt/cold-storage/build-identity.json` file;
 - overriding `COLD_STORAGE_BUILD_COMMIT_SHA` at runtime to disagree with
   the file causes startup to fail with `BUILD_COMMIT_MISMATCH`;
-- overriding `COLD_STORAGE_BUILD_VERSION` at runtime to disagree with the
-  file causes startup to fail with `BUILD_VERSION_MISMATCH`;
+- overriding `COLD_STORAGE_BUILD_VERSION` at runtime to disagree with
+  the file causes startup to fail with `BUILD_VERSION_MISMATCH`;
 - mutating only `COLD_STORAGE_DEPLOYMENT_ID` does not change the reported
   build identity;
 - the image contains a `/opt/cold-storage/build-identity.json` whose
