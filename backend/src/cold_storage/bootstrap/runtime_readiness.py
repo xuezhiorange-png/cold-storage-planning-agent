@@ -49,6 +49,7 @@ is set by ``COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS`` /
 
 from __future__ import annotations
 
+import ast
 import logging
 import os
 import threading
@@ -976,23 +977,23 @@ def run_startup_phase(
             # timeout outcome (``code == STARTUP_PROBE_TIMEOUT``) is
             # wrapped as :class:`StartupProbeTimeout`. A non-timeout
             # failure code (e.g. ``DATABASE_SCHEMA_HEAD_INVALID``)
-            # MUST be wrapped as the fail-closed non-timeout
-            # :class:`StartupNonTimeoutProbeFailure`. The application
-            # still fails closed and exits; the exception type
-            # discriminates timeout from non-timeout startup failures
-            # for log consumers and operations. The exception message
-            # carries the safe failure code but never the raw probe
-            # detail, head value, DSN, or SQL.
+            # MUST be wrapped as :class:`StartupProbeFailure` —
+            # NEVER nested inside
+            # :class:`StartupNonTimeoutProbeFailure`, which is
+            # reserved for un-classified ``Exception`` escapes from
+            # ``run_probe_with_timeout``. The three startup-failure
+            # channels are mutually exclusive:
+            #
+            #   real timeout outcome  → StartupProbeTimeout
+            #   classified fail outcome → StartupProbeFailure
+            #   un-classified exception  → StartupNonTimeoutProbeFailure
             if outcome.code == STARTUP_PROBE_TIMEOUT:
                 raise StartupProbeTimeout(
                     f"startup probe {outcome.name!r} did not pass: code={outcome.code}"
                 )
-            raise StartupNonTimeoutProbeFailure(
+            raise StartupProbeFailure(
                 probe_name=outcome.name,
-                original_exception=StartupProbeFailure(
-                    probe_name=outcome.name,
-                    failure_code=str(outcome.code) if outcome.code is not None else "",
-                ),
+                failure_code=str(outcome.code) if outcome.code is not None else "",
             )
 
     # Defense-in-depth assertion per D-S2-06.c.  Runs AFTER probes so a
@@ -1261,6 +1262,24 @@ def probe_database_connectivity(*, timeout_seconds: int) -> ProbeOutcome:
     return _pass(name=name, detail="db reachable", duration=time.monotonic() - start)
 
 
+class _PackagedGraphUnreadable(Exception):
+    """Internal: a packaged Alembic graph could not be read.
+
+    Maps at the loader boundary to the frozen internal reason
+    ``PACKAGED_HEAD_UNREADABLE``. This is a private control-flow
+    exception; it MUST NOT escape ``_load_packaged_alembic_head``.
+    """
+
+
+class _PackagedGraphMalformed(Exception):
+    """Internal: a packaged Alembic graph was structurally invalid.
+
+    Maps at the loader boundary to the frozen internal reason
+    ``PACKAGED_HEAD_MALFORMED``. This is a private control-flow
+    exception; it MUST NOT escape ``_load_packaged_alembic_head``.
+    """
+
+
 def _load_packaged_alembic_head() -> tuple[str | None, str | None]:
     """Load the unique packaged Alembic head from the deployed artifact graph.
 
@@ -1288,16 +1307,27 @@ def _load_packaged_alembic_head() -> tuple[str | None, str | None]:
       the root is ``/opt/cold-storage/``.
     - The loader MUST NOT execute ``env.py``, MUST NOT connect to the
       database, MUST NOT invoke ``alembic upgrade`` / ``downgrade`` /
-      ``heads`` CLI / ``current``, and MUST NOT spawn subprocesses.
-      Per the architecture contract
+      ``heads`` CLI / ``current``, MUST NOT spawn subprocesses, and
+      MUST NOT import or execute any migration module. Per the
+      architecture contract
       (``test_runtime_bootstrap_does_not_use_alembic``) the runtime
       bootstrap layer MUST NOT import or invoke the alembic Python
       library; the loader therefore parses the packaged revision
-      files directly from the ``alembic/versions/`` directory.
+      files directly with the standard library ``ast`` module.
     - The legacy ``COLD_STORAGE_PACKAGED_ALEMBIC_HEAD`` env var is
       intentionally ignored: the deployment artifact is the only
       authoritative source. A malicious or malformed env value cannot
       override the graph.
+    - Migration files use **annotated** assignments (PEP 526) of the
+      form ``revision: str = "..."`` and ``down_revision: str |
+      Sequence[str] | None = ...``. The loader uses
+      :func:`ast.parse` on the file text and inspects only the
+      **module top level** for ``Assign`` / ``AnnAssign`` targets
+      named ``revision`` or ``down_revision``. Function bodies, class
+      bodies, and conditional branches are intentionally ignored.
+    - All revision-id values are validated against the frozen
+      :func:`_is_alembic_revision` shape validator before being
+      committed to the graph.
     """
     module_path = Path(__file__).resolve()
     # ``parents[3]`` walks up from
@@ -1342,10 +1372,16 @@ def _load_packaged_alembic_head() -> tuple[str | None, str | None]:
     if not versions_dir.is_dir():
         return (None, "PACKAGED_HEAD_MISSING")
 
-    # Read each revision file and collect the ``revision = '...'``
-    # identifier together with the ``down_revision = '...'`` lineage.
+    # Parse each revision file with ``ast``. Internal control-flow
+    # exceptions (``_PackagedGraphUnreadable`` / ``_PackagedGraphMalformed``)
+    # are caught here at the boundary and converted to the frozen
+    # internal reason set.
     try:
-        heads, parents = _parse_alembic_revisions(versions_dir)
+        heads, _parents = _parse_alembic_revisions(versions_dir)
+    except _PackagedGraphUnreadable:
+        return (None, "PACKAGED_HEAD_UNREADABLE")
+    except _PackagedGraphMalformed:
+        return (None, "PACKAGED_HEAD_MALFORMED")
     except OSError:
         return (None, "PACKAGED_HEAD_UNREADABLE")
 
@@ -1357,13 +1393,7 @@ def _load_packaged_alembic_head() -> tuple[str | None, str | None]:
         return (None, "PACKAGED_HEAD_MULTIPLE")
 
     unique_head = heads[0]
-    if not isinstance(unique_head, str):
-        return (None, "PACKAGED_HEAD_MALFORMED")
     stripped = unique_head.strip()
-    if not stripped:
-        return (None, "PACKAGED_HEAD_ZERO")
-    if "," in stripped:
-        return (None, "PACKAGED_HEAD_MULTIPLE")
     # The unique Head MUST satisfy the project's existing
     # revision-id validation rule (the brief mandates reusing the
     # frozen shape validator as a private pure function). The rule
@@ -1380,7 +1410,14 @@ def _load_packaged_alembic_head() -> tuple[str | None, str | None]:
 def _parse_alembic_revisions(
     versions_dir: Path,
 ) -> tuple[tuple[str, ...], dict[str, tuple[str | None, ...]]]:
-    """Parse the packaged Alembic revision graph without importing alembic.
+    """Parse the packaged Alembic revision graph with the stdlib ``ast``.
+
+    Each migration file is read as text and parsed by
+    :func:`ast.parse`; the loader then inspects only the module-level
+    ``Assign`` / ``AnnAssign`` statements whose target is a simple
+    name (``revision`` or ``down_revision``). No migration module is
+    imported; no module-level side effects execute; ``env.py`` is not
+    loaded.
 
     Returns
     -------
@@ -1390,92 +1427,183 @@ def _parse_alembic_revisions(
         branch). ``parents`` maps each revision id to the tuple of
         down_revision ids declared in its file (an empty tuple for
         root revisions).
+
+    Raises
+    ------
+    _PackagedGraphUnreadable
+        I/O failure, syntax error, missing ``revision`` name, or
+        dynamic ``down_revision`` value (function call / name
+        resolution / attribute access).
+    _PackagedGraphMalformed
+        ``revision`` is not a non-empty string, ``revision`` is
+        malformed by the shape validator, ``down_revision`` contains
+        a non-string element, a duplicated revision id is detected,
+        or a parent reference points to a non-existent node.
     """
     heads: list[str] = []
     parents: dict[str, tuple[str | None, ...]] = {}
     consumed: set[str] = set()
+    if not versions_dir.is_dir():
+        raise _PackagedGraphUnreadable("versions dir not present")
     for revision_file in sorted(versions_dir.glob("*.py")):
+        # ``__init__.py`` is intentionally ignored; the loader
+        # only walks real migration files.
+        if revision_file.name == "__init__.py":
+            continue
         try:
             text = revision_file.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        revision_id = _extract_string_assignment(text, "revision")
+        except OSError as exc:
+            raise _PackagedGraphUnreadable(
+                f"failed to read migration file: {type(exc).__name__}"
+            ) from exc
+        try:
+            tree = ast.parse(text, filename="<redacted migration filename>")
+        except SyntaxError as exc:
+            raise _PackagedGraphUnreadable(
+                f"syntax error in migration file: {type(exc).__name__}"
+            ) from exc
+
+        revision_id = _module_top_level_revision(tree)
         if revision_id is None:
-            continue
-        parents[revision_id] = _extract_down_revisions(text)
-        consumed.update(p for p in parents[revision_id] if p is not None)
+            raise _PackagedGraphUnreadable("missing module-level revision name")
+        if revision_id in parents:
+            raise _PackagedGraphMalformed("duplicate revision identifier in graph")
+        if not isinstance(revision_id, str) or not revision_id.strip():
+            raise _PackagedGraphMalformed("revision is not a non-empty string")
+        if not _is_alembic_revision(revision_id):
+            raise _PackagedGraphMalformed("revision does not satisfy shape validator")
+
+        down_revs = _module_top_level_down_revision(tree)
+        parents[revision_id] = down_revs
+        consumed.update(p for p in down_revs if p is not None)
+
+    # Validate parent references: every parent must point to a known
+    # node. Fail-closed — a dangling parent means the graph is
+    # structurally invalid and the loader MUST NOT silently ignore
+    # it.
+    for parent_ids in parents.values():
+        for parent_id in parent_ids:
+            if parent_id is None:
+                continue
+            if parent_id not in parents:
+                raise _PackagedGraphMalformed("down_revision references unknown revision")
+
     for rid in parents:
         if rid not in consumed:
             heads.append(rid)
     return tuple(heads), parents
 
 
-def _extract_string_assignment(source: str, name: str) -> str | None:
-    """Extract a single-quoted string assigned to ``name = ...``.
+def _module_top_level_revision(tree: ast.Module) -> str | None:
+    """Return the module-level ``revision`` string for a parsed migration.
 
-    Supports both ``name = 'value'`` and ``name = "value"`` literal
-    forms. Returns ``None`` if the assignment is absent or its
-    value cannot be parsed.
+    Accepts both ``Assign`` (``revision = "..."``) and ``AnnAssign``
+    (``revision: str = "..."``) targets whose value is a single
+    non-empty string literal. Returns ``None`` if no such target is
+    present at the module top level.
     """
-    needle = f"{name} ="
-    idx = source.find(needle)
-    if idx == -1:
-        return None
-    rest = source[idx + len(needle) :].lstrip()
-    if not rest:
-        return None
-    quote = rest[0]
-    if quote not in ("'", '"'):
-        return None
-    end = rest.find(quote, 1)
-    if end == -1:
-        return None
-    return rest[1:end]
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "revision"
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            return node.value.value
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "revision"
+            and node.value is not None
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            return node.value.value
+    return None
 
 
-def _extract_down_revisions(source: str) -> tuple[str | None, ...]:
-    """Extract the down_revision identifiers declared in a revision file.
+def _module_top_level_down_revision(
+    tree: ast.Module,
+) -> tuple[str | None, ...]:
+    """Return the module-level ``down_revision`` for a parsed migration.
 
-    Supports both single-string (``down_revision = 'id'``) and
-    tuple-of-strings (``down_revision = ('a', 'b')``) forms, plus
-    ``None`` for root revisions.
+    Accepts ``None``, a single string literal, or a tuple / list of
+    string literals. Dynamic expressions (function calls, attribute
+    access, name resolution) raise :class:`_PackagedGraphUnreadable`.
+    Strings that violate :func:`_is_alembic_revision` or are empty
+    raise :class:`_PackagedGraphMalformed`.
     """
-    needle = "down_revision ="
-    idx = source.find(needle)
-    if idx == -1:
-        return ()
-    rest = source[idx + len(needle) :].lstrip()
-    if rest.startswith("None"):
-        return (None,)
-    if rest.startswith("("):
-        # Tuple form: walk and collect quoted strings.
-        end = rest.find(")")
-        if end == -1:
-            return ()
-        body = rest[1:end]
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            tgt = node.targets[0]
+            if isinstance(tgt, ast.Name) and tgt.id == "down_revision":
+                return _evaluate_static_down_revision_value(node.value)
+        elif isinstance(node, ast.AnnAssign):
+            if (
+                isinstance(node.target, ast.Name)
+                and node.target.id == "down_revision"
+                and node.value is not None
+            ):
+                return _evaluate_static_down_revision_value(node.value)
+    # No module-level ``down_revision`` declaration found. This is a
+    # graph-level structural error — fail closed.
+    raise _PackagedGraphUnreadable("missing module-level down_revision")
+
+
+def _evaluate_static_down_revision_value(
+    node: ast.AST,
+) -> tuple[str | None, ...]:
+    """Reduce a static AST node to a tuple of string ids.
+
+    Allowed node shapes (per the V0.2 Slice 2 contract):
+
+    - ``Constant(value=None)`` → ``(None,)``
+    - ``Constant(value="...")`` → ``("...",)``
+    - ``Tuple`` / ``List`` of string-typed ``Constant`` elements
+    - ``BinOp`` with left/right ``Constant`` strings (rare merged
+      form, e.g. ``"a" + "b"``) is intentionally rejected as
+      ``_PackagedGraphUnreadable`` because it permits dynamic
+      construction.
+
+    Anything else (calls, names, attribute access, ``BinOp``, etc.)
+    raises :class:`_PackagedGraphUnreadable`.
+    """
+    if isinstance(node, ast.Constant):
+        value = node.value
+        if value is None:
+            return (None,)
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                raise _PackagedGraphMalformed("down_revision contains empty string")
+            if not _is_alembic_revision(stripped):
+                raise _PackagedGraphMalformed("down_revision does not satisfy shape validator")
+            return (stripped,)
+        raise _PackagedGraphMalformed(
+            f"down_revision is non-string constant: {type(value).__name__}"
+        )
+    if isinstance(node, (ast.Tuple, ast.List)):
         ids: list[str | None] = []
-        cursor = 0
-        while cursor < len(body):
-            ch = body[cursor]
-            if ch in (" ", ",", "\t", "\n"):
-                cursor += 1
-                continue
-            if ch in ("'", '"'):
-                close = body.find(ch, cursor + 1)
-                if close == -1:
-                    return ()
-                ids.append(body[cursor + 1 : close])
-                cursor = close + 1
+        for elt in node.elts:
+            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                stripped = elt.value.strip()
+                if not stripped:
+                    raise _PackagedGraphMalformed("down_revision tuple contains empty string")
+                if not _is_alembic_revision(stripped):
+                    raise _PackagedGraphMalformed("down_revision tuple contains malformed id")
+                ids.append(stripped)
+            elif isinstance(elt, ast.Constant) and elt.value is None:
+                ids.append(None)
             else:
-                cursor += 1
-        return tuple(ids) if ids else (None,)
-    # Single-quoted string.
-    if rest and rest[0] in ("'", '"'):
-        end = rest.find(rest[0], 1)
-        if end == -1:
-            return ()
-        return (rest[1:end],)
-    return ()
+                raise _PackagedGraphUnreadable(
+                    f"down_revision has dynamic element: {type(elt).__name__}"
+                )
+        if not ids:
+            return (None,)
+        return tuple(ids)
+    raise _PackagedGraphUnreadable(f"down_revision is dynamic expression: {type(node).__name__}")
 
 
 def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:

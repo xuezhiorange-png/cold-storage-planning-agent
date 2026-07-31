@@ -16,6 +16,7 @@ from cold_storage.bootstrap.runtime_readiness import (
     ProbeOutcome,
     ReadinessError,
     StartupNonTimeoutProbeFailure,
+    StartupProbeFailure,
     StartupProbeTimeout,
     assert_no_unsafe_strict_capabilities,
     registered_strict_capabilities,
@@ -203,16 +204,18 @@ def test_run_startup_phase_aborts_on_first_failure(monkeypatch):
     # V0.2 Slice 2 amendment (D-S2-12.a.v0.2): the first probe
     # returns ``SOMETHING`` (a non-timeout failure code). Per the
     # amendment, non-timeout failures MUST be wrapped as
-    # :class:`StartupNonTimeoutProbeFailure`, NOT
-    # :class:`StartupProbeTimeout`. The timeout exception type is
-    # reserved for genuine timeout events.
-    with pytest.raises(StartupNonTimeoutProbeFailure) as exc_info:
+    # :class:`StartupProbeFailure`, NOT
+    # :class:`StartupProbeTimeout` and NOT nested inside
+    # :class:`StartupNonTimeoutProbeFailure`. The timeout exception
+    # type is reserved for genuine timeout events.
+    with pytest.raises(StartupProbeFailure) as exc_info:
         run_startup_phase(
             settings=_StubSettings("test"),
             environment=dict(os.environ),
             startup_probes=[_ok, _bad],
         )
     assert not isinstance(exc_info.value, StartupProbeTimeout)
+    assert not isinstance(exc_info.value, StartupNonTimeoutProbeFailure)
     assert exc_info.value.failure_code == "SOMETHING"
 
 
@@ -2342,11 +2345,22 @@ def test_run_startup_phase_timeout_outcome_wraps_as_startup_probe_timeout(
 def test_run_startup_phase_non_timeout_outcome_wraps_as_non_timeout_failure(
     monkeypatch,
 ):
-    """A non-timeout outcome MUST be wrapped as ``StartupNonTimeoutProbeFailure``."""
+    """A non-timeout outcome MUST be wrapped as ``StartupProbeFailure``.
+
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): the three startup
+    failure channels are mutually exclusive. A classified non-timeout
+    ProbeOutcome (e.g. ``code=DATABASE_SCHEMA_HEAD_INVALID``) MUST be
+    wrapped as :class:`StartupProbeFailure`. It MUST NOT be wrapped
+    as :class:`StartupProbeTimeout` (which is reserved for genuine
+    timeout events) and MUST NOT be nested inside
+    :class:`StartupNonTimeoutProbeFailure` (which is reserved for
+    un-classified ``Exception`` escapes from
+    ``run_probe_with_timeout``).
+    """
     from cold_storage.bootstrap.runtime_readiness import (
         DATABASE_SCHEMA_HEAD_INVALID,
         ProbeOutcome,
-        StartupNonTimeoutProbeFailure,
+        StartupProbeFailure,
         StartupProbeTimeout,
         run_startup_phase,
         set_canonical_settings,
@@ -2364,13 +2378,15 @@ def test_run_startup_phase_non_timeout_outcome_wraps_as_non_timeout_failure(
             detail="schema-head non-timeout failure",
         )
 
-    with pytest.raises(StartupNonTimeoutProbeFailure) as excinfo:
+    with pytest.raises(StartupProbeFailure) as excinfo:
         run_startup_phase(
             settings=Settings(),
             environment={},
             startup_probes=(_dshic_probe,),
         )
+    assert isinstance(excinfo.value, StartupProbeFailure)
     assert not isinstance(excinfo.value, StartupProbeTimeout)
+    assert not isinstance(excinfo.value, StartupNonTimeoutProbeFailure)
     assert excinfo.value.probe_name == "fake-dshic"
     assert excinfo.value.failure_code == DATABASE_SCHEMA_HEAD_INVALID
 
@@ -2411,3 +2427,561 @@ def test_run_probe_with_timeout_safe_detail_does_not_leak_exception_text():
     assert "SELECT" not in out.detail.upper()
     assert "Traceback" not in out.detail
     assert "FATAL" not in out.detail
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: AST-based packaged graph parser.
+# ---------------------------------------------------------------------------
+
+
+def _make_versions_dir(tmp_path, name="versions"):
+    versions_dir = tmp_path / name
+    versions_dir.mkdir(exist_ok=True)
+    return versions_dir
+
+
+def _write_migration(path, body):
+    path.write_text(body, encoding="utf-8")
+
+
+def test_ast_parser_assign_form_revision(tmp_path):
+    """``revision = "abc"`` (Assign) is supported."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_legacy.py",
+        "revision = 'abc123def456'\ndown_revision = None\n",
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("abc123def456",)
+    assert parents == {"abc123def456": (None,)}
+
+
+def test_ast_parser_annassign_form_revision(tmp_path):
+    """``revision: str = "abc"`` (AnnAssign) is supported."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0002_ann.py",
+        "revision: str = 'abc123def456'\ndown_revision: str | None = None\n",
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("abc123def456",)
+    assert parents == {"abc123def456": (None,)}
+
+
+def test_ast_parser_assign_form_down_revision(tmp_path):
+    """``down_revision = "parent"`` (Assign) is supported."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_root.py",
+        "revision = 'aaa111aaa111'\ndown_revision = None\n",
+    )
+    _write_migration(
+        versions_dir / "0002_child.py",
+        "revision = 'bbb222bbb222'\ndown_revision = 'aaa111aaa111'\n",
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("bbb222bbb222",)
+    assert parents == {
+        "aaa111aaa111": (None,),
+        "bbb222bbb222": ("aaa111aaa111",),
+    }
+
+
+def test_ast_parser_annassign_form_down_revision(tmp_path):
+    """``down_revision: str | None = "parent"`` (AnnAssign) is supported."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_root.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0002_child.py",
+        "revision: str = 'bbb222bbb222'\ndown_revision: str | None = 'aaa111aaa111'\n",
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("bbb222bbb222",)
+
+
+def test_ast_parser_none_parent(tmp_path):
+    """``down_revision = None`` is supported and treated as a root."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_root.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("aaa111aaa111",)
+    assert parents == {"aaa111aaa111": (None,)}
+
+
+def test_ast_parser_tuple_parents(tmp_path):
+    """``down_revision = ("a", "b")`` (Tuple) is supported for merges."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_a.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0001_b.py",
+        "revision: str = 'bbb222bbb222'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0002_merge.py",
+        "revision: str = 'ccc333ccc333'\n"
+        'down_revision: Sequence[str] = ("aaa111aaa111", "bbb222bbb222")\n',
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("ccc333ccc333",)
+    assert parents["ccc333ccc333"] == ("aaa111aaa111", "bbb222bbb222")
+
+
+def test_ast_parser_list_parents(tmp_path):
+    """``down_revision = ["a", "b"]`` (List) is supported for merges."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_a.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0001_b.py",
+        "revision: str = 'bbb222bbb222'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0002_merge.py",
+        "revision: str = 'ddd444ddd444'\n"
+        'down_revision: list[str] = ["aaa111aaa111", "bbb222bbb222"]\n',
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("ddd444ddd444",)
+    assert parents["ddd444ddd444"] == ("aaa111aaa111", "bbb222bbb222")
+
+
+def test_ast_parser_real_repository_unique_head():
+    """The real ``backend/alembic/versions/`` graph MUST have a unique head."""
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        _load_packaged_alembic_head,
+    )
+
+    head, reason = _load_packaged_alembic_head()
+    assert reason is None, (
+        f"real graph classified as {reason}; AST parser MUST handle annotated assignments"
+    )
+    assert head == "0039_widen_report_export_artifact_mime_type"
+
+
+def test_ast_parser_init_file_is_ignored(tmp_path):
+    """``__init__.py`` MUST be ignored by the loader."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "__init__.py",
+        "# NOT a migration\nrevision = 'should_be_ignored'\ndown_revision = None\n",
+    )
+    _write_migration(
+        versions_dir / "0001_real.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert "should_be_ignored" not in parents
+    assert heads == ("aaa111aaa111",)
+
+
+def test_ast_parser_syntax_error_classifies_unreadable(tmp_path):
+    """A migration file with a SyntaxError classifies as PACKAGED_HEAD_UNREADABLE."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _PackagedGraphUnreadable,
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_bad.py",
+        "revision: str = 'aaa111aaa111'\n"
+        "down_revision: str | None = None\n"
+        "def broken(:\n",  # SyntaxError
+    )
+    with pytest.raises(_PackagedGraphUnreadable):
+        _parse_alembic_revisions(versions_dir)
+    # The loader catches ``_PackagedGraphUnreadable`` and maps it to
+    # ``PACKAGED_HEAD_UNREADABLE``. We verify that boundary mapping
+    # indirectly: the parser raising Unreadable is the precondition
+    # for the loader boundary to project the frozen reason.
+
+
+def test_ast_parser_unreadable_file_classifies_unreadable(tmp_path, monkeypatch):
+    """An unreadable migration file classifies as PACKAGED_HEAD_UNREADABLE."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _PackagedGraphUnreadable,
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    rev_file = versions_dir / "0001_unreadable.py"
+    rev_file.write_text(
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+        encoding="utf-8",
+    )
+    # Make the file unreadable by replacing read_text with a raising function.
+    import pathlib as _pl
+
+    real_read_text = _pl.Path.read_text
+
+    def _failing_read_text(self, *args, **kwargs):
+        if str(self).endswith("0001_unreadable.py"):
+            raise OSError("simulated permission error")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(_pl.Path, "read_text", _failing_read_text)
+    with pytest.raises(_PackagedGraphUnreadable):
+        _parse_alembic_revisions(versions_dir)
+
+
+def test_ast_parser_missing_revision_classifies_unreadable(tmp_path):
+    """A migration file without a top-level ``revision`` classifies as PACKAGED_HEAD_UNREADABLE."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _PackagedGraphUnreadable,
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_no_revision.py",
+        "# no top-level revision here\ndown_revision = None\n",
+    )
+    with pytest.raises(_PackagedGraphUnreadable):
+        _parse_alembic_revisions(versions_dir)
+
+
+def test_ast_parser_dynamic_down_revision_classifies_unreadable(tmp_path):
+    """A dynamic ``down_revision`` (function call) classifies as PACKAGED_HEAD_UNREADABLE."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _PackagedGraphUnreadable,
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_root.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0002_dynamic.py",
+        "import builtins\n"
+        "revision: str = 'bbb222bbb222'\n"
+        "down_revision: str = builtins.str('aaa111aaa111')\n",  # dynamic
+    )
+    with pytest.raises(_PackagedGraphUnreadable):
+        _parse_alembic_revisions(versions_dir)
+
+
+def test_ast_parser_malformed_revision_classifies_malformed(tmp_path):
+    """A revision that violates the shape validator classifies as PACKAGED_HEAD_MALFORMED."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _PackagedGraphMalformed,
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_bad.py",
+        "revision: str = 'no-digits-or-allowed-shape!!!'\ndown_revision: str | None = None\n",
+    )
+    with pytest.raises(_PackagedGraphMalformed):
+        _parse_alembic_revisions(versions_dir)
+
+
+def test_ast_parser_duplicate_revision_classifies_malformed(tmp_path):
+    """Duplicate revision ids classify as PACKAGED_HEAD_MALFORMED."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _PackagedGraphMalformed,
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_a.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0001_b.py",
+        "revision: str = 'aaa111aaa111'\n"  # duplicate
+        "down_revision: str | None = None\n",
+    )
+    with pytest.raises(_PackagedGraphMalformed):
+        _parse_alembic_revisions(versions_dir)
+
+
+def test_ast_parser_zero_heads_classifies_zero():
+    """An empty graph returns the frozen ``PACKAGED_HEAD_ZERO`` reason."""
+    # Real-graph case: there is always a head in this repo. We use a
+    # loader-level classification by monkeypatching the parser to
+    # return empty heads and asserting the loader boundary maps to
+    # PACKAGED_HEAD_ZERO.
+    import cold_storage.bootstrap.runtime_readiness as rr
+    from cold_storage.bootstrap.runtime_readiness import (
+        _load_packaged_alembic_head,
+    )
+
+    real_parser = rr._parse_alembic_revisions
+    rr._parse_alembic_revisions = lambda _d: ((), {})
+    try:
+        head, reason = _load_packaged_alembic_head()
+    finally:
+        rr._parse_alembic_revisions = real_parser
+    assert head is None
+    assert reason == "PACKAGED_HEAD_ZERO"
+
+
+def test_ast_parser_multiple_heads_classifies_multiple(tmp_path):
+    """Multiple heads produce ``PACKAGED_HEAD_MULTIPLE``."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_a.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    _write_migration(
+        versions_dir / "0001_b.py",
+        "revision: str = 'bbb222bbb222'\ndown_revision: str | None = None\n",
+    )
+    heads, _parents = _parse_alembic_revisions(versions_dir)
+    assert len(heads) >= 2
+
+
+def test_ast_parser_env_var_does_not_influence_result(monkeypatch, tmp_path):
+    """``COLD_STORAGE_PACKAGED_ALEMBIC_HEAD`` MUST NOT influence the AST parser."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_real.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+    monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "ffffffffffff")
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("aaa111aaa111",)
+    assert "ffffffffffff" not in parents
+
+
+def test_ast_parser_top_level_side_effects_do_not_execute(tmp_path, monkeypatch):
+    """Top-level side effects in migration files MUST NOT execute during parsing.
+
+    The loader only invokes ``ast.parse`` on file text; it does NOT
+    ``exec`` / ``import`` / ``runpy``. A module with a side-effectful
+    top-level statement (e.g. a function call) MUST NOT cause that
+    statement to run.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    sentinel_path = tmp_path / "SIDE_EFFECT_RAN.txt"
+    versions_dir = _make_versions_dir(tmp_path)
+    _write_migration(
+        versions_dir / "0001_effect.py",
+        "revision: str = 'aaa111aaa111'\n"
+        "down_revision: str | None = None\n"
+        # Side effect: write a sentinel file. If the parser executed
+        # the module, the sentinel would exist after parsing.
+        f"open({str(sentinel_path)!r}, 'w').write('ran')\n",
+    )
+    _parse_alembic_revisions(versions_dir)
+    assert not sentinel_path.exists()
+
+
+def test_ast_parser_env_py_does_not_execute(tmp_path, monkeypatch):
+    """``env.py`` MUST NOT execute during packaged-head loading."""
+    import cold_storage.bootstrap.runtime_readiness as rr
+    from cold_storage.bootstrap.runtime_readiness import (
+        _load_packaged_alembic_head,
+    )
+
+    # Build a fake deployment root layout in tmp_path.
+    fake_root = tmp_path / "backend"
+    fake_bootstrap_dir = fake_root / "src" / "cold_storage" / "bootstrap"
+    fake_bootstrap_dir.mkdir(parents=True)
+    fake_module = fake_bootstrap_dir / "runtime_readiness.py"
+    fake_module.write_text("# fake\n")
+    # Real alembic.ini in the fake root pointing at script_location.
+    script_dir = fake_root / "alembic"
+    versions_dir = script_dir / "versions"
+    versions_dir.mkdir(parents=True)
+    (fake_root / "alembic.ini").write_text(
+        f"[alembic]\nscript_location = {script_dir}\n",
+        encoding="utf-8",
+    )
+    # env.py that raises if executed.
+    (script_dir / "env.py").write_text(
+        "raise RuntimeError('env.py MUST NOT be executed by the loader')\n",
+        encoding="utf-8",
+    )
+    _write_migration(
+        versions_dir / "0001_real.py",
+        "revision: str = 'aaa111aaa111'\ndown_revision: str | None = None\n",
+    )
+
+    # Redirect the loader's module path to the fake module.
+    real_file = rr.__file__
+    try:
+        rr.__dict__["__file__"] = str(fake_module.resolve())
+        head, reason = _load_packaged_alembic_head()
+    finally:
+        rr.__dict__["__file__"] = real_file
+    assert reason is None
+    assert head == "aaa111aaa111"
+
+
+def test_ast_parser_no_database_connection(tmp_path, monkeypatch):
+    """The packaged-head loader MUST NOT connect to any database."""
+    # We assert this by intercepting any attempt to import or
+    # construct a database engine; the parser only touches ``ast``.
+
+    # Track engine creation attempts.
+    created = []
+
+    class _TrackingEngine:
+        def __init__(self, *args, **kwargs):
+            created.append("created")
+
+    from cold_storage.bootstrap import dependencies as deps
+
+    monkeypatch.setattr(deps, "get_engine", lambda: _TrackingEngine())
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        _load_packaged_alembic_head,
+    )
+
+    head, reason = _load_packaged_alembic_head()
+    assert reason is None
+    assert head == "0039_widen_report_export_artifact_mime_type"
+    assert created == []
+
+
+def test_ast_parser_no_subprocess(tmp_path, monkeypatch):
+    """The packaged-head loader MUST NOT spawn subprocesses."""
+    import subprocess as _subprocess
+
+    spawned: list[list[str]] = []
+    real_run = _subprocess.run
+
+    def _tracking_run(*args, **kwargs):
+        spawned.append(list(args[0]) if args else [])
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr(_subprocess, "run", _tracking_run)
+    from cold_storage.bootstrap.runtime_readiness import (
+        _load_packaged_alembic_head,
+    )
+
+    head, reason = _load_packaged_alembic_head()
+    assert reason is None
+    assert head == "0039_widen_report_export_artifact_mime_type"
+    assert spawned == []
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: exception-channel mutual exclusion regression.
+# ---------------------------------------------------------------------------
+
+
+def test_run_probe_with_timeout_preserves_classified_outcome():
+    """A probe returning a classified failure ProbeOutcome MUST have its code preserved."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        ProbeOutcome,
+        run_probe_with_timeout,
+    )
+
+    def _classified_probe(*, timeout_seconds):  # noqa: ARG001
+        return ProbeOutcome(
+            name="schema-head",
+            status="fail",
+            code=DATABASE_SCHEMA_HEAD_INVALID,
+            detail="schema-head non-timeout failure",
+        )
+
+    out = run_probe_with_timeout(
+        name="schema-head",
+        fn=_classified_probe,
+        timeout_seconds=5,
+        on_timeout_code="STARTUP_PROBE_TIMEOUT",
+        on_non_timeout_code=DATABASE_SCHEMA_HEAD_INVALID,
+    )
+    assert out.status == "fail"
+    assert out.code == DATABASE_SCHEMA_HEAD_INVALID
+
+
+def test_classified_failure_not_double_wrapped_in_non_timeout_failure(
+    monkeypatch,
+):
+    """``run_startup_phase`` MUST NOT double-wrap a classified failure."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        ProbeOutcome,
+        StartupNonTimeoutProbeFailure,
+        StartupProbeFailure,
+        StartupProbeTimeout,
+        run_startup_phase,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    settings = _strict_settings("local", monkeypatch)
+    set_canonical_settings(settings)
+
+    def _dshic_probe(*, timeout_seconds):  # noqa: ARG001
+        return ProbeOutcome(
+            name="fake-dshic",
+            status="fail",
+            code=DATABASE_SCHEMA_HEAD_INVALID,
+            detail="",
+        )
+
+    with pytest.raises(StartupProbeFailure) as excinfo:
+        run_startup_phase(
+            settings=Settings(),
+            environment={},
+            startup_probes=(_dshic_probe,),
+        )
+    # CRITICAL regression: the StartupProbeFailure MUST NOT be
+    # nested inside a StartupNonTimeoutProbeFailure.original_exception.
+    assert not isinstance(excinfo.value, StartupNonTimeoutProbeFailure)
+    assert excinfo.value.failure_code == DATABASE_SCHEMA_HEAD_INVALID
+    assert not isinstance(excinfo.value, StartupProbeTimeout)
