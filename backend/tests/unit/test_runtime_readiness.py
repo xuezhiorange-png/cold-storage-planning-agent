@@ -1193,8 +1193,15 @@ def test_local_mode_init_uses_legacy_fake_agent_service(monkeypatch):
     settings = Settings()
     init_dependencies(settings, app=None)
 
-    # Composition-manifest provider is registered (empty for local).
-    assert composition_manifest_tokens() == frozenset()
+    # Composition-manifest provider is registered. In local / test
+    # mode the legacy fake-backed agent service is genuinely
+    # constructed (via ``FakeAgentModelGateway()``), so the
+    # composition-manifest evidence set MUST contain the
+    # ``FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED`` token. The token is
+    # intentionally NOT a defect in local / test mode — the audit
+    # short-circuits to an empty reachable subset in non-strict
+    # modes (see ``enumerate_reachable_unsafe_strict_capabilities``).
+    assert "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED" in composition_manifest_tokens()
     # Legacy service is reachable.
     assert get_agent_service() is not None
     deps.shutdown_dependencies()
@@ -4024,3 +4031,188 @@ def test_probe_artifact_storage_does_not_mutate_canonical_settings(
     assert outcome.status == "pass"
     assert settings.storage_dir == original_storage_dir
     assert settings.environment_id == original_env_id
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: regression guard for F-PR76-BLOCKER-03
+# composition-manifest evidence in strict mode.
+#
+# Background: a previous version of ``bootstrap.dependencies.init_dependencies``
+# recorded the ``FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED`` token twice in the
+# strict-mode (staging / production) branch even though the strict-mode
+# placeholder path does NOT instantiate ``FakeAgentModelGateway``. The token
+# in the live composition manifest made the strict capability audit
+# (D-S2-06.c) raise ``UnsafeStrictCapabilityWiring`` against the empty
+# production placeholder, blocking real production startup.
+#
+# The earlier ``test_strict_mode_init_does_not_instantiate_fake_agent_gateway``
+# test only inspected (a) the source code text and (b) the empty default
+# manifest. It did NOT exercise the live init path, so the regression was
+# not caught. The new test below actually invokes ``init_dependencies`` in
+# strict mode and asserts the live composition-manifest state BEFORE any
+# shutdown / reset / teardown could mask the regression.
+# ---------------------------------------------------------------------------
+
+
+def test_strict_mode_init_live_composition_manifest_has_no_fake_token(
+    monkeypatch,
+):
+    """F-PR76-BLOCKER-03 live regression guard.
+
+    Step-by-step:
+
+    1. Configure production canonical Settings with hermetic env vars.
+    2. Stub the heavier bootstrap helpers so we do not need a real
+       DB engine, project service, production scheme service,
+       production coefficient resolver, startup-readiness gateway,
+       or full probe pipeline. The minimum needed to reach the
+       strict-mode composition branch is just an engine sentinel.
+    3. Track ``FakeAgentModelGateway`` instantiation with a sentinel
+       guard so any accidental construction raises an explicit
+       AssertionError.
+    4. Build a real clean FastAPI app.
+    5. Call ``init_dependencies(settings, app=app)`` directly.
+    6. BEFORE any shutdown / reset, assert the live composition
+       manifest is free of the fake-gateway token AND the app has no
+       planning-agent HTTP routes mounted.
+    7. Call ``assert_no_unsafe_strict_capabilities(app=app)`` and
+       confirm it returns normally (does not raise).
+    8. Idempotent cleanup in ``finally``.
+    """
+    from fastapi import FastAPI
+
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.runtime_readiness import (
+        assert_no_unsafe_strict_capabilities,
+        composition_manifest_tokens,
+        reset_canonical_settings,
+        reset_composition_manifest_provider,
+        reset_readiness_state,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    # Step 1: hermetic strict-mode environment.
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_URL",
+        "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test",
+    )
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-strict")
+
+    settings = Settings()  # type: ignore[call-arg]
+
+    # Step 2: stub the heavier bootstrap helpers so we exercise the
+    # strict-mode composition branch WITHOUT needing a real DB.
+    engine = object()
+    monkeypatch.setattr(
+        deps,
+        "create_engine_from_settings",
+        lambda s: engine,
+    )
+    monkeypatch.setattr(
+        deps,
+        "DatabaseProjectService",
+        lambda _engine: object(),
+    )
+
+    # Patch the production composition root modules that init_dependencies
+    # imports lazily. We patch them on their source modules so the
+    # lazy ``from ... import`` inside init_dependencies picks up the
+    # stubbed callables.
+    from cold_storage.bootstrap import production_composition as prod_comp
+    from cold_storage.bootstrap import startup_readiness as startup_read
+
+    monkeypatch.setattr(
+        prod_comp,
+        "compose_production_scheme_service",
+        lambda *a, **kw: object(),
+    )
+    monkeypatch.setattr(
+        prod_comp,
+        "compose_production_coefficient_resolver",
+        lambda *a, **kw: object(),
+    )
+
+    # Stub the startup-readiness gateway so we do not exercise the
+    # database. The strict-mode composition branch runs AFTER this
+    # gateway, so stubbing it is safe for this regression guard.
+    class _StubReadinessOutcome:
+        def __init__(self):
+            self.report = type("R", (), {})()
+
+    monkeypatch.setattr(
+        startup_read,
+        "run_startup_readiness_or_raise",
+        lambda *a, **kw: _StubReadinessOutcome(),
+    )
+
+    # Stub the per-probe startup phase so the audit path runs but no
+    # real probe executes (the regression we are guarding against
+    # happens in bootstrap, before any probe runs).
+    from cold_storage.bootstrap import runtime_readiness as rr
+
+    monkeypatch.setattr(rr, "run_startup_phase", lambda *a, **kw: None)
+
+    # Step 3: sentinel guard on ``FakeAgentModelGateway`` instantiation.
+    from cold_storage.modules.planning_agent.infrastructure import (
+        fake_gateways,
+    )
+
+    real_init = fake_gateways.FakeAgentModelGateway.__init__
+
+    def _forbid_instantiation(self, *args, **kwargs):
+        raise AssertionError(
+            "FakeAgentModelGateway must not be instantiated in strict mode",
+        )
+
+    fake_gateways.FakeAgentModelGateway.__init__ = _forbid_instantiation
+    try:
+        # Step 4 + 5: build a clean FastAPI app and call the live
+        # ``init_dependencies`` strict-mode path.
+        app = FastAPI()
+        deps.init_dependencies(settings, app=app)
+
+        # Step 6: BEFORE any shutdown / reset, assert the live
+        # composition-manifest is clean. This is the regression
+        # guard. The previous buggy code recorded the token twice in
+        # the strict-mode branch, polluting the live manifest.
+        tokens = composition_manifest_tokens()
+        assert "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED" not in tokens, (
+            f"strict-mode init leaked fake-gateway token into manifest: {sorted(tokens)}"
+        )
+
+        # Step 7: confirm no planning-agent route is mounted in the
+        # live FastAPI app.
+        route_paths = []
+        for r in app.routes:
+            path = getattr(r, "path", None)
+            if isinstance(path, str):
+                route_paths.append(path)
+        assert not any(p.startswith("/api/v1/agent/") for p in route_paths), (
+            f"strict-mode app has planning-agent routes: {route_paths}"
+        )
+
+        # Step 8: confirm the strict capability audit passes on the
+        # live app. This is the canonical assertion consumed by
+        # production lifespan.
+        assert_no_unsafe_strict_capabilities(app=app)
+    finally:
+        # Idempotent cleanup. We deliberately do NOT use the
+        # ``deps.shutdown_dependencies`` shortcut as part of the
+        # assertions; we only use it here to leave a clean global
+        # state for the next test.
+        try:
+            deps.shutdown_dependencies()
+        finally:
+            reset_canonical_settings()
+            reset_composition_manifest_provider()
+            reset_readiness_state()
+            fake_gateways.FakeAgentModelGateway.__init__ = real_init

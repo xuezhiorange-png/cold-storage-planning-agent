@@ -132,14 +132,15 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
     # legacy fake-backed agent service. Strict modes register a
     # placeholder so the agent_service singleton exists without
     # ever invoking ``FakeAgentModelGateway()``.
+    #
+    # The composition token ``FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED``
+    # is ONLY emitted from the *real* fake-gateway construction path
+    # in the local / test branch below. The strict-mode placeholder
+    # path MUST NOT record this token, otherwise the strict
+    # capability audit (D-S2-06.c) would flag the live production
+    # manifest even though no fake gateway was ever instantiated.
     if mode in (AppMode.STAGING, AppMode.PRODUCTION):
-        _record_composition_token(_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY)
         agent_service: Any = _StrictModeAgentService()
-        _record_composition_token(_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY)
-        # NOTE: the token is *registered* so a regression that DOES
-        # instantiate the fake gateway still flips the token in the
-        # manifest and the audit catches it. The placeholder
-        # constructor below MUST NOT instantiate ``FakeAgentModelGateway``.
     else:
         from cold_storage.modules.planning_agent.application.agent_service import (  # noqa: PLC0415
             LegacyPlanningAgentService,
@@ -148,6 +149,11 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
             FakeAgentModelGateway,
         )
 
+        # Composition-time evidence for the strict capability audit
+        # (D-S2-06.c / F-PR76-BLOCKER-03). This token is ONLY emitted
+        # on the actual local / test fake-gateway construction path;
+        # the strict-mode placeholder branch above MUST NOT record it.
+        _record_composition_token(_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY)
         agent_service = LegacyPlanningAgentService(
             model_gateway=FakeAgentModelGateway(),
         )

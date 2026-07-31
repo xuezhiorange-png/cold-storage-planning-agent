@@ -125,7 +125,10 @@ def test_health_live_does_not_touch_database(monkeypatch, live_client):
 # ---------------------------------------------------------------------------
 
 
-def test_health_ready_projects_schema_head_invalid_when_mismatch(monkeypatch):
+def test_health_ready_projects_schema_head_invalid_when_mismatch(
+    monkeypatch,
+    tmp_path,
+):
     """A schema-head mismatch surfaces as 503 with ``check_code=DATABASE_SCHEMA_HEAD_INVALID``."""
     from cold_storage.bootstrap.app import create_app
     from cold_storage.bootstrap.runtime_readiness import (
@@ -157,6 +160,15 @@ def test_health_ready_projects_schema_head_invalid_when_mismatch(monkeypatch):
     monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "abc123def456")
     monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+    # Provide a real, writable canonical artifact storage directory so
+    # the strict-mode artifact probe passes. The probe reads
+    # ``Settings.storage_dir`` (env ``COLD_STORAGE_STORAGE_DIR``); the
+    # ad-hoc env keys ``COLD_STORAGE_ARTIFACT_STORAGE_DIR`` and
+    # ``COLD_STORAGE_REPORT_ARTIFACTS_DIR`` are intentionally NOT set
+    # because they are no longer recognized authority.
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(artifact_dir))
 
     # Stub out init_dependencies so the FastAPI lifespan doesn't
     # attempt to connect to a real PostgreSQL. The probe still runs
@@ -220,7 +232,10 @@ def test_health_ready_projects_schema_head_invalid_when_mismatch(monkeypatch):
     reset_canonical_settings()
 
 
-def test_health_ready_projects_schema_head_invalid_when_packaged_missing(monkeypatch):
+def test_health_ready_projects_schema_head_invalid_when_packaged_missing(
+    monkeypatch,
+    tmp_path,
+):
     """A missing packaged head MUST project as DATABASE_SCHEMA_HEAD_INVALID (not timeout)."""
     from cold_storage.bootstrap.app import create_app
     from cold_storage.bootstrap.runtime_readiness import (
@@ -251,6 +266,15 @@ def test_health_ready_projects_schema_head_invalid_when_packaged_missing(monkeyp
     monkeypatch.delenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", raising=False)
     monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+    # Provide a real, writable canonical artifact storage directory so
+    # the strict-mode artifact probe passes. The probe reads
+    # ``Settings.storage_dir`` (env ``COLD_STORAGE_STORAGE_DIR``); the
+    # ad-hoc env keys ``COLD_STORAGE_ARTIFACT_STORAGE_DIR`` and
+    # ``COLD_STORAGE_REPORT_ARTIFACTS_DIR`` are intentionally NOT set
+    # because they are no longer recognized authority.
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(artifact_dir))
 
     # Stub init_dependencies to avoid touching a real PostgreSQL.
     from cold_storage.bootstrap import app as bootstrap_app

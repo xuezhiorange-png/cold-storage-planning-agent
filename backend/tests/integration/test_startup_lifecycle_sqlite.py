@@ -188,6 +188,7 @@ def test_sqlite_schema_probe_skip_in_local_mode(isolated_sqlite_env):
 def test_sqlite_health_endpoint_returns_503_when_schema_head_invalid(
     monkeypatch,
     isolated_sqlite_env,
+    tmp_path,
 ):
     """The /health/ready endpoint surfaces DATABASE_SCHEMA_HEAD_INVALID in production mode."""
     from cold_storage.bootstrap.app import create_app
@@ -222,6 +223,15 @@ def test_sqlite_health_endpoint_returns_503_when_schema_head_invalid(
     monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "abc123def456")
     monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+    # Provide a real, writable canonical artifact storage directory so
+    # the strict-mode artifact probe passes. The probe reads
+    # ``Settings.storage_dir`` (env ``COLD_STORAGE_STORAGE_DIR``); the
+    # ad-hoc env keys ``COLD_STORAGE_ARTIFACT_STORAGE_DIR`` and
+    # ``COLD_STORAGE_REPORT_ARTIFACTS_DIR`` are intentionally NOT set
+    # because they are no longer recognized authority.
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(artifact_dir))
 
     # Stub init_dependencies; install a fake engine whose alembic_version
     # row reports a mismatched head so the schema probe classifies as
