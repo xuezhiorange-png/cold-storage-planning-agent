@@ -783,6 +783,7 @@ D_S2_12A_EXHAUSTIVE_FOR_ALL_SLICE2_FAILURES=NO
 | `COLD_STORAGE_DEPLOYMENT_ID` empty/malformed when required | `DEPLOYMENT_ID_INVALID` |
 | startup probe exceeded per-probe timeout | `STARTUP_PROBE_TIMEOUT` |
 | readiness probe exceeded per-probe timeout | `READINESS_PROBE_TIMEOUT` |
+| exact schema-head verification failed, no timeout | `DATABASE_SCHEMA_HEAD_INVALID` |
 | any unsafe strict capability reachable at startup | `UNSAFE_STRICT_CAPABILITY_WIRING` |
 
 This scope-limited table is governed by the following explicit contract
@@ -814,6 +815,183 @@ clauses:
 ```text
 FAILURE_CODE_TABLE_EXHAUSTIVE=NO
 UNDEFINED_FAILURE_CODE_CREATION_BY_IMPLEMENTER=FORBIDDEN
+```
+
+#### D-S2-12.a.v0.2 — Narrow schema-head classification amendment (V0.2 amendment)
+
+This amendment is a **scope-limited** extension of D-S2-12.a. It freezes
+exactly one additional stable failure code — `DATABASE_SCHEMA_HEAD_INVALID`
+— for the exact schema-head mandatory probe defined in D-S2-01 and
+implemented by the `database_exact_alembic_head` probe. It does NOT
+introduce any other new code, does NOT redesign Slice 2, and does NOT
+relax any clause in this contract.
+
+Frozen failure code:
+
+```text
+NEW_STABLE_FAILURE_CODE=DATABASE_SCHEMA_HEAD_INVALID
+NEW_STABLE_FAILURE_CODE_COUNT=1
+```
+
+The code is the **only** public failure code introduced by this
+amendment. It applies **only** to the exact schema-head mandatory probe
+in strict production (staging or production) runtime, and **only** when
+the failure is not a measured per-probe timeout.
+
+Internal closed-set of non-timeout reasons (NOT public stable codes):
+
+```text
+PACKAGED_HEAD_MISSING
+PACKAGED_HEAD_UNREADABLE
+PACKAGED_HEAD_MALFORMED
+PACKAGED_HEAD_ZERO
+PACKAGED_HEAD_MULTIPLE
+DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION
+DATABASE_HEAD_ZERO
+DATABASE_HEAD_MULTIPLE
+DATABASE_HEAD_MALFORMED
+DATABASE_HEAD_MISMATCH
+UNKNOWN_SCHEMA_IDENTITY
+```
+
+Every internal reason above MUST project to the public code
+`DATABASE_SCHEMA_HEAD_INVALID`. The internal reasons MUST NOT be
+introduced as new public stable codes.
+
+Mandatory timeout-vs-non-timeout projection:
+
+```text
+ACTUAL_STARTUP_TIMEOUT              -> STARTUP_PROBE_TIMEOUT
+ACTUAL_READINESS_TIMEOUT            -> READINESS_PROBE_TIMEOUT
+NON_TIMEOUT_SCHEMA_HEAD_FAILURE     -> DATABASE_SCHEMA_HEAD_INVALID
+```
+
+Forbidden projections:
+
+```text
+GENERIC_EXCEPTION_TO_TIMEOUT        = false
+ANY_NON_PASS_TO_TIMEOUT             = false
+SCHEMA_HEAD_MISMATCH_TO_TIMEOUT     = false
+```
+
+`STARTUP_PROBE_TIMEOUT` and `READINESS_PROBE_TIMEOUT` are produced
+**only** when a `BlockingProbeTimeout` (or its concrete equivalents)
+actually raised, or when a dependency-native timeout is actually
+reported, or when the measured execution exceeded the configured budget.
+A non-timeout schema-head failure MUST NOT be projected to a timeout
+code. A category that has no existing stable classification authority
+MUST stop and request a contract amendment; it MUST NOT borrow a
+timeout code.
+
+Exact-head verification behavior (unmodified from D-S2-01):
+
+```text
+APPLICATION_VERIFIES_EXACT_SCHEMA_HEAD    = YES
+MULTIPLE_HEADS_FAIL_CLOSED                = YES
+APPLICATION_RUNS_MIGRATIONS               = NO
+```
+
+The expected repository-supported Alembic Head is deployment-artifact
+identity and must not be supplied as a freely mutable runtime override.
+
+`DATABASE_SCHEMA_HEAD_INVALID` MUST NOT be used for any of:
+
+```text
+DATABASE_CONNECTION_FAILURE
+DATABASE_CONNECTION_TIMEOUT
+STARTUP_PROBE_TIMEOUT
+READINESS_PROBE_TIMEOUT
+BUILD_IDENTITY_FAILURE
+DEPLOYMENT_ID_FAILURE
+COEFFICIENT_READINESS_FAILURE
+ARTIFACT_STORAGE_FAILURE
+STRICT_CAPABILITY_FAILURE
+LIFECYCLE_OR_DRAINING_FAILURE
+MIGRATION_PROCESS_FAILURE
+```
+
+Acceptance obligations added by this amendment:
+
+```text
+PACKAGED_HEAD_MISSING                       -> DATABASE_SCHEMA_HEAD_INVALID
+PACKAGED_HEAD_UNREADABLE                    -> DATABASE_SCHEMA_HEAD_INVALID
+PACKAGED_HEAD_MALFORMED                     -> DATABASE_SCHEMA_HEAD_INVALID
+PACKAGED_HEAD_ZERO                          -> DATABASE_SCHEMA_HEAD_INVALID
+PACKAGED_HEAD_MULTIPLE                      -> DATABASE_SCHEMA_HEAD_INVALID
+DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION   -> DATABASE_SCHEMA_HEAD_INVALID
+DATABASE_HEAD_ZERO                          -> DATABASE_SCHEMA_HEAD_INVALID
+DATABASE_HEAD_MULTIPLE                      -> DATABASE_SCHEMA_HEAD_INVALID
+DATABASE_HEAD_MALFORMED                     -> DATABASE_SCHEMA_HEAD_INVALID
+DATABASE_HEAD_MISMATCH                      -> DATABASE_SCHEMA_HEAD_INVALID
+UNKNOWN_SCHEMA_IDENTITY                     -> DATABASE_SCHEMA_HEAD_INVALID
+DATABASE_HEAD_EXACT_MATCH                   -> PASS
+ACTUAL_STARTUP_TIMEOUT                      -> STARTUP_PROBE_TIMEOUT
+ACTUAL_READINESS_TIMEOUT                    -> READINESS_PROBE_TIMEOUT
+```
+
+No new acceptance matrix entries are added for database connection,
+artifact storage, coefficient, draining, or observability.
+
+Safe projection — health response MAY expose only:
+
+```text
+{
+  "status": "not_ready",
+  "state": "<safe lifecycle state>",
+  "check_code": "DATABASE_SCHEMA_HEAD_INVALID"
+}
+```
+
+Safe projection MUST NOT expose:
+
+```text
+raw exception text
+database URL or DSN
+password
+secret
+SQL statement
+full filesystem path
+database Head value
+packaged Head value
+Alembic row contents
+```
+
+Logs MAY record:
+
+```text
+probe=database_exact_alembic_head
+check_code=DATABASE_SCHEMA_HEAD_INVALID
+```
+
+Logs MUST NOT record the raw database Head value or the raw packaged
+Head value.
+
+Governance boundary for this amendment:
+
+```text
+THIS_AMENDMENT_IS_V0_2_SLICE2_ONLY                   = YES
+THIS_AMENDMENT_AUTHORIZES_PR76_IMPLEMENTATION        = NO
+DRAFT_PR_CREATION_CREATES_AUTHORITY                  = NO
+READY_CREATES_IMPLEMENTATION_AUTHORITY               = NO
+AMENDMENT_MERGE_REQUIRED                             = YES
+POST_MERGE_MAIN_IDENTITY_REQUIRED                    = YES
+FRESH_PR76_IMPLEMENTATION_AUTHORIZATION_REQUIRED     = YES
+PR76_REMAINS_DRAFT                                   = YES
+PR76_MUTATION_AUTHORIZED                             = NO
+NO_STEP_IMPLIES_THE_NEXT                             = YES
+```
+
+Clauses that this amendment does NOT modify:
+
+```text
+- D-S2-01 (migration ownership, exact schema-head verification)
+- D-S2-12.a table rows other than the single inserted row above
+- D-S2-03 (probe budgets)
+- D-S2-06 (strict capability admission)
+- D-S2-08 (production entrypoint)
+- D-S2-10 (draining lifecycle)
+- Section 7 (path allowlist)
+- Section 8 (semantic mutation limits)
 ```
 
 ## 7. Exact future implementation path allowlist
