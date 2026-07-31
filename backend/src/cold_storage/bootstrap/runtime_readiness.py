@@ -74,6 +74,15 @@ UNSAFE_STRICT_CAPABILITY_WIRING = "UNSAFE_STRICT_CAPABILITY_WIRING"
 # MUST NOT be introduced as separate public stable codes; they all
 # project to this one identifier.
 DATABASE_SCHEMA_HEAD_INVALID = "DATABASE_SCHEMA_HEAD_INVALID"
+# D-S2-12.a.v0.2 amendment (artifact-storage-classification-amendment,
+# PR #78 merged into main as binding contract): single public stable
+# code for every non-timeout failure of the mandatory artifact-storage
+# probe. Internal reasons (ARTIFACT_STORAGE_PATH_NOT_CONFIGURED /
+# ARTIFACT_STORAGE_DIRECTORY_MISSING / ARTIFACT_STORAGE_DIRECTORY_NOT_WRITABLE
+# / ARTIFACT_STORAGE_PROBE_IO_FAILURE) MUST NOT be introduced as
+# separate public stable codes; they all project to this one
+# identifier.
+ARTIFACT_STORAGE_UNAVAILABLE = "ARTIFACT_STORAGE_UNAVAILABLE"
 
 
 # Internal closed set of non-timeout reasons that project to
@@ -94,6 +103,17 @@ _INTERNAL_SCHEMA_HEAD_REASONS = (
 )
 
 
+# Internal closed set of non-timeout reasons that project to
+# ``ARTIFACT_STORAGE_UNAVAILABLE``. NOT public stable codes. The count
+# is frozen at 4 (see artifact-storage-classification-amendment).
+_INTERNAL_ARTIFACT_STORAGE_REASONS = (
+    "ARTIFACT_STORAGE_PATH_NOT_CONFIGURED",
+    "ARTIFACT_STORAGE_DIRECTORY_MISSING",
+    "ARTIFACT_STORAGE_DIRECTORY_NOT_WRITABLE",
+    "ARTIFACT_STORAGE_PROBE_IO_FAILURE",
+)
+
+
 def _schema_head_invalid(*, name: str, internal_reason: str, duration: float) -> ProbeOutcome:
     """Return a ``ProbeOutcome`` projected to ``DATABASE_SCHEMA_HEAD_INVALID``.
 
@@ -111,6 +131,39 @@ def _schema_head_invalid(*, name: str, internal_reason: str, duration: float) ->
         status="fail",
         code=DATABASE_SCHEMA_HEAD_INVALID,
         detail=f"schema-head non-timeout failure ({internal_reason})",
+        duration_seconds=duration,
+    )
+
+
+def _artifact_storage_unavailable(
+    *,
+    name: str,
+    internal_reason: str,
+    duration: float,
+) -> ProbeOutcome:
+    """Return a ``ProbeOutcome`` projected to ``ARTIFACT_STORAGE_UNAVAILABLE``.
+
+    The ``internal_reason`` MUST be one of the 4 frozen internal
+    strings in ``_INTERNAL_ARTIFACT_STORAGE_REASONS``; any other
+    reason must raise :class:`RuntimeError` so the probe fail-closed
+    rather than silently emitting a public stable code that was not
+    authorized by the artifact-storage-classification-amendment
+    contract. The safe projection never includes the full absolute
+    storage path, host mount path, container volume source, raw
+    ``OSError`` text, errno, filesystem user/group, file mode
+    details, the probe file name, secrets, DSN, or traceback
+    fragments.
+    """
+    if internal_reason not in _INTERNAL_ARTIFACT_STORAGE_REASONS:
+        raise RuntimeError(
+            "unknown artifact-storage internal reason; "
+            "refusing to project to ARTIFACT_STORAGE_UNAVAILABLE"
+        )
+    return ProbeOutcome(
+        name=name,
+        status="fail",
+        code=ARTIFACT_STORAGE_UNAVAILABLE,
+        detail=f"artifact-storage non-timeout failure ({internal_reason})",
         duration_seconds=duration,
     )
 
@@ -1764,55 +1817,146 @@ def probe_artifact_storage_isolated_exists_writable(*, timeout_seconds: int) -> 
     MUST be configured; in local / test mode the probe is a documented
     skip when no directory is configured (the legacy default of
     ``./data/report_artifacts`` is fine for local development).
-    Failures classify as ``STARTUP_PROBE_TIMEOUT``; the safe
-    projection includes only a redacted directory name token.
+
+    D-S2-12.a.v0.2 amendment (artifact-storage-classification-amendment):
+    the canonical storage authority is **only**
+    ``Settings.storage_dir``. The legacy ad-hoc env keys
+    ``COLD_STORAGE_ARTIFACT_STORAGE_DIR`` and
+    ``COLD_STORAGE_REPORT_ARTIFACTS_DIR`` are forbidden authority
+    and MUST NOT influence this probe. Every deterministic
+    filesystem failure (path absent, directory missing, directory
+    not writable, probe-file I/O failure) projects to the public
+    stable code ``ARTIFACT_STORAGE_UNAVAILABLE`` and NEVER to a
+    timeout code. A genuine elapsed-budget timeout continues to
+    project to ``STARTUP_PROBE_TIMEOUT`` (raised by the
+    ``run_probe_with_timeout`` wrapper, not by this body). Settings
+    construction failures (e.g. ``ConfigurationError`` from
+    :func:`canonical_settings`) are NOT reclassified as
+    ``ARTIFACT_STORAGE_UNAVAILABLE``; they propagate through the
+    existing configuration-identity classification authority.
     """
     name = PROBE_ARTIFACT
     start = time.monotonic()
+    import contextlib as _contextlib
     import os as _os
+    import tempfile as _tempfile
 
-    storage_dir = _os.environ.get(
-        "COLD_STORAGE_ARTIFACT_STORAGE_DIR",
-        _os.environ.get("COLD_STORAGE_REPORT_ARTIFACTS_DIR", ""),
-    )
+    # 1. Resolve canonical Settings. Construction failures MUST NOT
+    #    be reclassified as ``ARTIFACT_STORAGE_UNAVAILABLE``;
+    #    :func:`canonical_settings` raises the existing
+    #    ``ConfigurationProbeFailed`` which the runner treats as a
+    #    configuration-identity failure.
+    settings = canonical_settings()
+    mode = resolve_app_mode(settings)
+
+    storage_dir_raw = settings.storage_dir
+    storage_dir = storage_dir_raw.strip() if isinstance(storage_dir_raw, str) else ""
+
+    # 2. Defensive path-absence check (covers a canonical Settings
+    #    object whose ``storage_dir`` was never populated). The
+    #    frozen internal reason is ``ARTIFACT_STORAGE_PATH_NOT_CONFIGURED``.
     if not storage_dir:
-        try:
-            mode = resolve_app_mode(canonical_settings())
-        except ConfigurationProbeFailed:
-            mode = None
         if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
             return _pass(
                 name=name,
                 detail="non-strict mode skip",
                 duration=time.monotonic() - start,
             )
-        return _fail(
+        return _artifact_storage_unavailable(
             name=name,
-            code=STARTUP_PROBE_TIMEOUT,
-            detail="artifact storage dir not configured",
+            internal_reason="ARTIFACT_STORAGE_PATH_NOT_CONFIGURED",
             duration=time.monotonic() - start,
         )
-    p = storage_dir.rstrip("/").split("/")[-1] or "."
-    if not _os.path.isdir(storage_dir):
-        return _fail(
+
+    # 3. Existence check. We use ``Path.is_dir()`` on the resolved
+    #    canonical storage_dir — we do NOT create the directory and
+    #    do NOT follow ad-hoc env authority.
+    storage_path = Path(storage_dir)
+    if not storage_path.is_dir():
+        if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+            # local / test: treat absent default directory as a
+            # documented skip so existing dev workflows still work.
+            return _pass(
+                name=name,
+                detail="non-strict mode skip",
+                duration=time.monotonic() - start,
+            )
+        return _artifact_storage_unavailable(
             name=name,
-            code=STARTUP_PROBE_TIMEOUT,
-            detail=f"artifact dir '{p}' missing",
+            internal_reason="ARTIFACT_STORAGE_DIRECTORY_MISSING",
             duration=time.monotonic() - start,
         )
-    probe_path = _os.path.join(storage_dir, ".readiness-probe")
+
+    # 4. Bounded, removable probe artifact in strict modes only.
+    #    local / test modes already returned PASS above; below we
+    #    only run for staging / production. We use
+    #    :func:`tempfile.NamedTemporaryFile` with ``delete=False``
+    #    so we control the unlink lifecycle ourselves and can map
+    #    cleanup failures to the same frozen code.
+    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+        return _pass(
+            name=name,
+            detail="non-strict mode skip",
+            duration=time.monotonic() - start,
+        )
+
     try:
-        with open(probe_path, "w", encoding="utf-8") as fh:
-            fh.write("ok")
-        _os.unlink(probe_path)
-    except OSError as exc:
-        return _fail(
+        # ``dir=`` pins the probe file inside the canonical
+        # storage_dir. ``prefix=`` and ``suffix=`` give us a unique,
+        # bounded-name file we can identify safely (the full name
+        # is intentionally not projected into the public detail).
+        # We deliberately do NOT call chmod, chown, mount, mkdir,
+        # or any business-artifact write operation.
+        fd, probe_path_str = _tempfile.mkstemp(
+            prefix="artifact-storage-readiness-probe.",
+            suffix=".tmp",
+            dir=str(storage_path),
+        )
+        try:
+            with _os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write("ok")
+                fh.flush()
+                with _contextlib.suppress(OSError):
+                    # ``fsync`` failure on some filesystems (e.g.
+                    # tmpfs) is not a writability failure; the
+                    # write+close already succeeded.
+                    _os.fsync(fh.fileno())
+        except OSError:
+            # fdopen / write / flush failure — try cleanup then
+            # report probe I/O failure. We never expose the
+            # OSError text, errno, or probe file name.
+            with _contextlib.suppress(OSError):
+                _os.unlink(probe_path_str)
+            return _artifact_storage_unavailable(
+                name=name,
+                internal_reason="ARTIFACT_STORAGE_PROBE_IO_FAILURE",
+                duration=time.monotonic() - start,
+            )
+        # 5. Cleanup. If unlink fails we MUST fail closed (per
+        #    contract §7.7) — a leftover probe file is not the
+        #    end of the world, but the contract demands fail-closed.
+        try:
+            _os.unlink(probe_path_str)
+        except OSError:
+            return _artifact_storage_unavailable(
+                name=name,
+                internal_reason="ARTIFACT_STORAGE_PROBE_IO_FAILURE",
+                duration=time.monotonic() - start,
+            )
+    except OSError:
+        # mkstemp or any other low-level failure during probe
+        # artifact creation. Same frozen code; never a timeout.
+        return _artifact_storage_unavailable(
             name=name,
-            code=STARTUP_PROBE_TIMEOUT,
-            detail=f"artifact dir '{p}' not writable: {type(exc).__name__}",
+            internal_reason="ARTIFACT_STORAGE_PROBE_IO_FAILURE",
             duration=time.monotonic() - start,
         )
-    return _pass(name=name, detail=f"artifact dir '{p}' ok", duration=time.monotonic() - start)
+
+    return _pass(
+        name=name,
+        detail="artifact-storage available and writable",
+        duration=time.monotonic() - start,
+    )
 
 
 def probe_approved_coefficient_readiness_in_strict_modes(*, timeout_seconds: int) -> ProbeOutcome:

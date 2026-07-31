@@ -2985,3 +2985,1042 @@ def test_classified_failure_not_double_wrapped_in_non_timeout_failure(
     assert not isinstance(excinfo.value, StartupNonTimeoutProbeFailure)
     assert excinfo.value.failure_code == DATABASE_SCHEMA_HEAD_INVALID
     assert not isinstance(excinfo.value, StartupProbeTimeout)
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: artifact-storage-classification.
+#   - Public stable code: ARTIFACT_STORAGE_UNAVAILABLE
+#   - Internal reasons (NOT public codes):
+#       ARTIFACT_STORAGE_PATH_NOT_CONFIGURED
+#       ARTIFACT_STORAGE_DIRECTORY_MISSING
+#       ARTIFACT_STORAGE_DIRECTORY_NOT_WRITABLE
+#       ARTIFACT_STORAGE_PROBE_IO_FAILURE
+#   - Canonical authority: Settings.storage_dir (env COLD_STORAGE_STORAGE_DIR)
+#   - Forbidden authority: COLD_STORAGE_ARTIFACT_STORAGE_DIR,
+#     COLD_STORAGE_REPORT_ARTIFACTS_DIR
+# ---------------------------------------------------------------------------
+
+
+def _install_strict_canonical_settings(env_id, monkeypatch, tmp_path):
+    """Build a strict Settings with an isolated canonical storage_dir.
+
+    Per the artifact-storage-classification-amendment contract,
+    ``Settings.storage_dir`` is the canonical authority. We inject
+    it via ``COLD_STORAGE_STORAGE_DIR`` (Pydantic validation_alias)
+    and force a writable directory in ``tmp_path``.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    storage_dir = tmp_path / f"storage-{env_id}"
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", env_id)
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    if env_id == "test":
+        monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+    if env_id in ("staging", "production"):
+        monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+        monkeypatch.setenv(
+            "COLD_STORAGE_DATABASE_URL",
+            "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test",
+        )
+        monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+        monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+        monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+        monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-strict")
+        monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-strict")
+        monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(storage_dir))
+    settings = Settings()  # type: ignore[call-arg]
+    set_canonical_settings(settings)
+    return settings, storage_dir
+
+
+# --- (1) public stable code value is frozen ---------------------------
+
+
+def test_artifact_storage_unavailable_public_code_value_is_frozen():
+    """The public stable code MUST be exactly "ARTIFACT_STORAGE_UNAVAILABLE"."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        ARTIFACT_STORAGE_UNAVAILABLE,
+    )
+
+    assert ARTIFACT_STORAGE_UNAVAILABLE == "ARTIFACT_STORAGE_UNAVAILABLE"
+
+
+# --- (2-3) internal reasons project to the public code ----------------
+
+
+def test_artifact_storage_internal_reasons_projected_to_public_code():
+    """All four internal reasons MUST project to ARTIFACT_STORAGE_UNAVAILABLE."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _artifact_storage_unavailable,
+    )
+
+    for reason in (
+        "ARTIFACT_STORAGE_PATH_NOT_CONFIGURED",
+        "ARTIFACT_STORAGE_DIRECTORY_MISSING",
+        "ARTIFACT_STORAGE_DIRECTORY_NOT_WRITABLE",
+        "ARTIFACT_STORAGE_PROBE_IO_FAILURE",
+    ):
+        outcome = _artifact_storage_unavailable(
+            name="artifact_storage_isolated_exists_writable",
+            internal_reason=reason,
+            duration=0.0,
+        )
+        assert outcome.status == "fail"
+        assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+        assert reason not in (outcome.code or "")
+        assert outcome.detail == (f"artifact-storage non-timeout failure ({reason})")
+
+
+def test_artifact_storage_internal_reason_unknown_raises_runtime_error():
+    """An unknown internal reason MUST NOT silently emit a public code."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _artifact_storage_unavailable,
+    )
+
+    with pytest.raises(RuntimeError):
+        _artifact_storage_unavailable(
+            name="artifact_storage_isolated_exists_writable",
+            internal_reason="NOT_A_REAL_REASON",
+            duration=0.0,
+        )
+
+
+# --- (4-5) production / staging pass when canonical dir is writable --
+
+
+def test_probe_artifact_storage_passes_in_production_when_canonical_dir_writable(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert outcome.code is None
+    assert outcome.name == "artifact_storage_isolated_exists_writable"
+
+
+def test_probe_artifact_storage_passes_in_staging_when_canonical_dir_writable(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, _ = _install_strict_canonical_settings(
+        "staging",
+        monkeypatch,
+        tmp_path,
+    )
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert outcome.code is None
+
+
+# --- (6) only canonical env key is required ---------------------------
+
+
+def test_probe_artifact_storage_passes_with_only_canonical_env_key(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert "COLD_STORAGE_ARTIFACT_STORAGE_DIR" not in (outcome.detail or "")
+
+
+# --- (7-8) ad-hoc env keys do NOT override canonical ------------------
+
+
+def test_probe_artifact_storage_ignores_adhoc_artifact_storage_dir(
+    monkeypatch,
+    tmp_path,
+):
+    """COLD_STORAGE_ARTIFACT_STORAGE_DIR MUST NOT override canonical path."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    settings, canonical = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    # Set the ad-hoc env var to a non-existent path that, if read,
+    # would cause the probe to fail. The probe MUST ignore it.
+    monkeypatch.setenv(
+        "COLD_STORAGE_ARTIFACT_STORAGE_DIR",
+        "/nonexistent/path/that/must/be/ignored",
+    )
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert outcome.code is None
+    # Public detail MUST NOT contain the ad-hoc path.
+    assert "/nonexistent/path" not in (outcome.detail or "")
+
+
+def test_probe_artifact_storage_ignores_adhoc_report_artifacts_dir(
+    monkeypatch,
+    tmp_path,
+):
+    """COLD_STORAGE_REPORT_ARTIFACTS_DIR MUST NOT override canonical path."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    settings, canonical = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    monkeypatch.setenv(
+        "COLD_STORAGE_REPORT_ARTIFACTS_DIR",
+        "/another/nonexistent/path/that/must/be/ignored",
+    )
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert outcome.code is None
+    assert "/another/nonexistent/path" not in (outcome.detail or "")
+
+
+# --- (9) canonical path missing in strict mode → artifact unavailable -
+
+
+def test_probe_artifact_storage_path_not_configured_in_production(
+    monkeypatch,
+    tmp_path,
+):
+    """Strict canonical path missing → ARTIFACT_STORAGE_UNAVAILABLE.
+
+    We build a strict Settings object whose ``storage_dir`` is the
+    empty string (Pydantic accepts the alias as empty input); this
+    bypasses the code-default fallback so the probe sees a
+    defensive path-absence state.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings = Settings(  # type: ignore[call-arg]
+        COLD_STORAGE_ENVIRONMENT_ID="production",
+        COLD_STORAGE_APP_HOST="127.0.0.1",
+        COLD_STORAGE_APP_PORT="8000",
+        COLD_STORAGE_DATABASE_BACKEND="postgresql",
+        COLD_STORAGE_DATABASE_URL=("postgresql+psycopg2://u:p@localhost:5432/db"),
+        COLD_STORAGE_BUILD_COMMIT_SHA="0" * 40,
+        COLD_STORAGE_BUILD_VERSION="v0.0.0-ci",
+        COLD_STORAGE_CONFIG_SCHEMA_VERSION="1",
+        COLD_STORAGE_DATABASE_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_SECRET_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID="ci-strict",
+    )
+    # Force ``storage_dir`` to the empty string post-validation so the
+    # probe sees a defensive path-absence state (Settings would
+    # otherwise apply a code-level default for production).
+    object.__setattr__(settings, "storage_dir", "")
+    set_canonical_settings(settings)
+    assert settings.storage_dir == ""
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert outcome.code != "STARTUP_PROBE_TIMEOUT"
+    assert outcome.code != "READINESS_PROBE_TIMEOUT"
+    assert "ARTIFACT_STORAGE_PATH_NOT_CONFIGURED" in (outcome.detail or "")
+    reset_canonical_settings()
+
+
+# --- (10) directory absent → artifact unavailable ---------------------
+
+
+def test_probe_artifact_storage_directory_missing_in_production(
+    monkeypatch,
+    tmp_path,
+):
+    """Strict directory absent → ARTIFACT_STORAGE_UNAVAILABLE."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    missing = tmp_path / "does-not-exist"
+    settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    # Repoint storage_dir to a non-existent path.
+    from cold_storage.bootstrap.runtime_readiness import (
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    settings = Settings(  # type: ignore[call-arg]
+        COLD_STORAGE_ENVIRONMENT_ID="production",
+        COLD_STORAGE_APP_HOST="127.0.0.1",
+        COLD_STORAGE_APP_PORT="8000",
+        COLD_STORAGE_DATABASE_BACKEND="postgresql",
+        COLD_STORAGE_DATABASE_URL=("postgresql+psycopg2://u:p@localhost:5432/db"),
+        COLD_STORAGE_BUILD_COMMIT_SHA="0" * 40,
+        COLD_STORAGE_BUILD_VERSION="v0.0.0-ci",
+        COLD_STORAGE_CONFIG_SCHEMA_VERSION="1",
+        COLD_STORAGE_DATABASE_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_SECRET_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_STORAGE_DIR=str(missing),
+    )
+    set_canonical_settings(settings)
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert outcome.code != "STARTUP_PROBE_TIMEOUT"
+    assert outcome.code != "READINESS_PROBE_TIMEOUT"
+    assert "ARTIFACT_STORAGE_DIRECTORY_MISSING" in (outcome.detail or "")
+    assert str(missing) not in (outcome.detail or "")
+    reset_canonical_settings()
+
+
+# --- (11) directory not writable → artifact unavailable ---------------
+
+
+def test_probe_artifact_storage_directory_not_writable_in_production(
+    monkeypatch,
+    tmp_path,
+):
+    """Strict directory not writable → ARTIFACT_STORAGE_UNAVAILABLE.
+
+    We monkeypatch the bounded probe so mkstemp fails with EACCES,
+    guaranteeing a deterministic, root-safe "not writable" verdict.
+    """
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, canonical = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+
+    real_mkstemp = _tempfile.mkstemp
+
+    def _failing_mkstemp(*args, **kwargs):
+        raise PermissionError("simulated EACCES on mkstemp")
+
+    monkeypatch.setattr(_tempfile, "mkstemp", _failing_mkstemp)
+    try:
+        outcome = probe_artifact_storage_isolated_exists_writable(
+            timeout_seconds=10,
+        )
+    finally:
+        monkeypatch.setattr(_tempfile, "mkstemp", real_mkstemp)
+
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert outcome.code != "STARTUP_PROBE_TIMEOUT"
+    assert outcome.code != "READINESS_PROBE_TIMEOUT"
+    assert "ARTIFACT_STORAGE_PROBE_IO_FAILURE" in (outcome.detail or "")
+    # Public detail MUST NOT include raw exception text or path.
+    assert "simulated EACCES" not in (outcome.detail or "")
+    assert str(canonical) not in (outcome.detail or "")
+
+
+# --- (12) probe-file create failure → artifact unavailable -------------
+
+
+def test_probe_artifact_storage_probe_create_failure_classifies_io_failure(
+    monkeypatch,
+    tmp_path,
+):
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    monkeypatch.setattr(
+        _tempfile,
+        "mkstemp",
+        lambda *a, **kw: (_ for _ in ()).throw(OSError("ENOSPC simulated")),
+    )
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert "ARTIFACT_STORAGE_PROBE_IO_FAILURE" in (outcome.detail or "")
+    assert "ENOSPC simulated" not in (outcome.detail or "")
+
+
+# --- (13) probe-file write/flush/close failure → artifact unavailable -
+
+
+def test_probe_artifact_storage_probe_write_failure_classifies_io_failure(
+    monkeypatch,
+    tmp_path,
+):
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+
+    class _BrokenFile:
+        def write(self, *_args, **_kwargs):
+            raise OSError("EROFS simulated")
+
+        def flush(self):
+            raise OSError("EROFS simulated")
+
+        def fileno(self):
+            raise OSError("not a real fd")
+
+        def close(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def _mkstemp_returns_broken(*_args, **_kwargs):
+        return 42, "/tmp/broken.tmp"
+
+    monkeypatch.setattr(_tempfile, "mkstemp", _mkstemp_returns_broken)
+    monkeypatch.setattr(os, "fdopen", lambda *_a, **_kw: _BrokenFile())
+    monkeypatch.setattr(os, "unlink", lambda *_a, **_kw: None)
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert "ARTIFACT_STORAGE_PROBE_IO_FAILURE" in (outcome.detail or "")
+    assert "EROFS simulated" not in (outcome.detail or "")
+    assert "/tmp/broken.tmp" not in (outcome.detail or "")
+
+
+# --- (14) probe-file delete failure → artifact unavailable ------------
+
+
+def test_probe_artifact_storage_probe_delete_failure_classifies_io_failure(
+    monkeypatch,
+    tmp_path,
+):
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+
+    # mkstemp succeeds, fdopen works, write/flush/close work, but
+    # the cleanup unlink fails. We must still fail closed.
+    class _GoodFile:
+        def write(self, *_args, **_kwargs):
+            return None
+
+        def flush(self):
+            return None
+
+        def fileno(self):
+            return 42
+
+        def close(self):
+            return None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def _mkstemp_returns_ok(*_args, **_kwargs):
+        return 42, "/tmp/good.tmp"
+
+    monkeypatch.setattr(_tempfile, "mkstemp", _mkstemp_returns_ok)
+    monkeypatch.setattr(os, "fdopen", lambda *_a, **_kw: _GoodFile())
+
+    unlink_calls = []
+
+    def _failing_unlink(path, *args, **kwargs):
+        unlink_calls.append(path)
+        raise OSError("EPERM simulated on unlink")
+
+    monkeypatch.setattr(os, "unlink", _failing_unlink)
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert "ARTIFACT_STORAGE_PROBE_IO_FAILURE" in (outcome.detail or "")
+    assert "EPERM simulated" not in (outcome.detail or "")
+    assert "/tmp/good.tmp" not in (outcome.detail or "")
+
+
+# --- (15) deterministic failures never return timeout codes -----------
+
+
+def test_probe_artifact_storage_deterministic_failures_never_timeout(
+    monkeypatch,
+    tmp_path,
+):
+    """For every deterministic artifact-storage failure mode, the
+    outcome MUST NOT be a startup/readiness timeout code."""
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        ARTIFACT_STORAGE_UNAVAILABLE,
+        probe_artifact_storage_isolated_exists_writable,
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+
+    cases = []
+
+    # Case 1: path not configured (force storage_dir to empty
+    # post-validation, bypassing the production code default).
+    monkeypatch.delenv("COLD_STORAGE_STORAGE_DIR", raising=False)
+    s = Settings(  # type: ignore[call-arg]
+        COLD_STORAGE_ENVIRONMENT_ID="production",
+        COLD_STORAGE_APP_HOST="127.0.0.1",
+        COLD_STORAGE_APP_PORT="8000",
+        COLD_STORAGE_DATABASE_BACKEND="postgresql",
+        COLD_STORAGE_DATABASE_URL=("postgresql+psycopg2://u:p@localhost:5432/db"),
+        COLD_STORAGE_BUILD_COMMIT_SHA="0" * 40,
+        COLD_STORAGE_BUILD_VERSION="v0.0.0-ci",
+        COLD_STORAGE_CONFIG_SCHEMA_VERSION="1",
+        COLD_STORAGE_DATABASE_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_SECRET_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID="ci-strict",
+    )
+    object.__setattr__(s, "storage_dir", "")
+    cases.append(("path_not_configured", s, None))
+
+    # Case 2: directory missing
+    missing = tmp_path / "absent"
+    s = Settings(  # type: ignore[call-arg]
+        COLD_STORAGE_ENVIRONMENT_ID="production",
+        COLD_STORAGE_APP_HOST="127.0.0.1",
+        COLD_STORAGE_APP_PORT="8000",
+        COLD_STORAGE_DATABASE_BACKEND="postgresql",
+        COLD_STORAGE_DATABASE_URL=("postgresql+psycopg2://u:p@localhost:5432/db"),
+        COLD_STORAGE_BUILD_COMMIT_SHA="0" * 40,
+        COLD_STORAGE_BUILD_VERSION="v0.0.0-ci",
+        COLD_STORAGE_CONFIG_SCHEMA_VERSION="1",
+        COLD_STORAGE_DATABASE_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_SECRET_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_STORAGE_DIR=str(missing),
+    )
+    cases.append(("directory_missing", s, None))
+
+    # Case 3: probe IO failure (mkstemp raises)
+    s, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    cases.append(("probe_io_failure", s, _tempfile))
+
+    for label, settings, tmp_mod in cases:
+        set_canonical_settings(settings)
+        if tmp_mod is not None:
+            monkeypatch.setattr(
+                tmp_mod,
+                "mkstemp",
+                lambda *a, **kw: (_ for _ in ()).throw(OSError("simulated")),
+            )
+        outcome = probe_artifact_storage_isolated_exists_writable(
+            timeout_seconds=10,
+        )
+        assert outcome.status == "fail", f"case={label} expected fail"
+        assert outcome.code == ARTIFACT_STORAGE_UNAVAILABLE, f"case={label} code={outcome.code}"
+        assert outcome.code != "STARTUP_PROBE_TIMEOUT"
+        assert outcome.code != "READINESS_PROBE_TIMEOUT"
+    reset_canonical_settings()
+
+
+# --- (16-18) safe public projection -------------------------------
+
+
+def test_probe_artifact_storage_detail_does_not_expose_full_path(
+    monkeypatch,
+    tmp_path,
+):
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+
+    secret_path = tmp_path / "very-deep-secret-storage-location-12345"
+    s = Settings(  # type: ignore[call-arg]
+        COLD_STORAGE_ENVIRONMENT_ID="production",
+        COLD_STORAGE_APP_HOST="127.0.0.1",
+        COLD_STORAGE_APP_PORT="8000",
+        COLD_STORAGE_DATABASE_BACKEND="postgresql",
+        COLD_STORAGE_DATABASE_URL="postgresql+psycopg2://u:p@localhost:5432/db",
+        COLD_STORAGE_BUILD_COMMIT_SHA="0" * 40,
+        COLD_STORAGE_BUILD_VERSION="v0.0.0-ci",
+        COLD_STORAGE_CONFIG_SCHEMA_VERSION="1",
+        COLD_STORAGE_DATABASE_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_SECRET_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_STORAGE_DIR=str(secret_path),
+    )
+    set_canonical_settings(s)
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert str(secret_path) not in (outcome.detail or "")
+    assert str(secret_path).split("/")[-1] not in (outcome.detail or "")
+    reset_canonical_settings()
+
+
+def test_probe_artifact_storage_detail_does_not_expose_oserror_text(
+    monkeypatch,
+    tmp_path,
+):
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    _settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    monkeypatch.setattr(
+        _tempfile,
+        "mkstemp",
+        lambda *a, **kw: (_ for _ in ()).throw(
+            OSError(13, "Permission denied on /var/lib/secret-storage")
+        ),
+    )
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert "Permission denied" not in (outcome.detail or "")
+    assert "/var/lib/secret-storage" not in (outcome.detail or "")
+    assert "[Errno 13]" not in (outcome.detail or "")
+
+
+def test_probe_artifact_storage_detail_does_not_expose_probe_file_name(
+    monkeypatch,
+    tmp_path,
+):
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    _settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    # Make cleanup fail so the probe file name would be tempting to
+    # include in the failure detail. The probe MUST NOT include it.
+    secret_name = "secret-probe-marker-XYZ.tmp"
+
+    def _mkstemp_with_secret_name(*_args, **_kwargs):
+        return 42, str(tmp_path / secret_name)
+
+    class _GoodFile:
+        def write(self, *_a, **_k):
+            return None
+
+        def flush(self):
+            return None
+
+        def fileno(self):
+            return 42
+
+        def close(self):
+            return None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(_tempfile, "mkstemp", _mkstemp_with_secret_name)
+    monkeypatch.setattr(os, "fdopen", lambda *_a, **_k: _GoodFile())
+    monkeypatch.setattr(
+        os,
+        "unlink",
+        lambda *a, **k: (_ for _ in ()).throw(OSError("cleanup fail")),
+    )
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert secret_name not in (outcome.detail or "")
+
+
+# --- (19-20) local / test mode skip semantics -----------------------
+
+
+def test_probe_artifact_storage_local_mode_skip_when_path_missing(
+    monkeypatch,
+    tmp_path,
+):
+    """local mode with no storage_dir configured → PASS (skip)."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    from cold_storage.bootstrap.settings import Settings
+
+    settings = Settings()  # type: ignore[call-arg]
+    from cold_storage.bootstrap.runtime_readiness import (
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(settings)
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert outcome.code is None
+    reset_canonical_settings()
+
+
+def test_probe_artifact_storage_test_mode_skip_when_path_missing(
+    monkeypatch,
+):
+    """test mode with no storage_dir configured → PASS (skip)."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.delenv("COLD_STORAGE_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "test")
+    monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+    settings = Settings()  # type: ignore[call-arg]
+    set_canonical_settings(settings)
+
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert outcome.code is None
+    reset_canonical_settings()
+
+
+# --- (21) probe does not create missing directory -------------------
+
+
+def test_probe_artifact_storage_does_not_create_missing_directory(
+    monkeypatch,
+    tmp_path,
+):
+    """Strict mode with absent canonical dir MUST NOT auto-create it."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    absent_dir = tmp_path / "absent-strict"
+    settings = Settings(  # type: ignore[call-arg]
+        COLD_STORAGE_ENVIRONMENT_ID="production",
+        COLD_STORAGE_APP_HOST="127.0.0.1",
+        COLD_STORAGE_APP_PORT="8000",
+        COLD_STORAGE_DATABASE_BACKEND="postgresql",
+        COLD_STORAGE_DATABASE_URL="postgresql+psycopg2://u:p@localhost:5432/db",
+        COLD_STORAGE_BUILD_COMMIT_SHA="0" * 40,
+        COLD_STORAGE_BUILD_VERSION="v0.0.0-ci",
+        COLD_STORAGE_CONFIG_SCHEMA_VERSION="1",
+        COLD_STORAGE_DATABASE_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_SECRET_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_STORAGE_DIR=str(absent_dir),
+    )
+    set_canonical_settings(settings)
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert not absent_dir.exists()
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    reset_canonical_settings()
+
+
+# --- (22) probe does not chmod / chown ------------------------------
+
+
+def test_probe_artifact_storage_does_not_chmod_or_chown(monkeypatch, tmp_path):
+    """The probe MUST NOT call ``os.chmod`` or ``os.chown``."""
+    import os as _real_os
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    _settings, _canonical = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+
+    chmod_calls = []
+    chown_calls = []
+
+    def _spy_chmod(*args, **kwargs):
+        chmod_calls.append((args, kwargs))
+
+    def _spy_chown(*args, **kwargs):
+        chown_calls.append((args, kwargs))
+
+    monkeypatch.setattr(_real_os, "chmod", _spy_chmod, raising=False)
+    monkeypatch.setattr(_real_os, "chown", _spy_chown, raising=False)
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert chmod_calls == []
+    assert chown_calls == []
+
+
+# --- (23) Settings construction failure NOT reclassified ------------
+
+
+def test_probe_artifact_storage_settings_construction_failure_not_reclassified(
+    monkeypatch,
+):
+    """If ``canonical_settings()`` raises, the probe MUST propagate the
+    existing configuration classification, NOT reclassify as
+    ``ARTIFACT_STORAGE_UNAVAILABLE``."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+        reset_canonical_settings,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    reset_canonical_settings()
+
+    with pytest.raises(Exception) as excinfo:
+        probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    # The propagated exception MUST NOT be a probe outcome code of
+    # ARTIFACT_STORAGE_UNAVAILABLE; the construction failure must
+    # surface as the existing ConfigurationProbeFailed chain.
+    msg = str(excinfo.value)
+    assert "ARTIFACT_STORAGE_UNAVAILABLE" not in msg
+
+
+# --- (24) BlockingProbeTimeout still maps to STARTUP_PROBE_TIMEOUT ---
+
+
+def test_real_blocking_probe_timeout_still_maps_to_startup_probe_timeout():
+    """A genuine BlockingProbeTimeout still uses the timeout code.
+
+    This is a regression: the artifact-storage amendment MUST NOT
+    have side-effected ``run_probe_with_timeout`` semantics.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        STARTUP_PROBE_TIMEOUT,
+        BlockingProbeTimeout,
+        run_probe_with_timeout,
+    )
+
+    def _slow_probe(*, timeout_seconds):
+        raise BlockingProbeTimeout()
+
+    out = run_probe_with_timeout(
+        name="slow",
+        fn=_slow_probe,
+        timeout_seconds=1,
+        on_timeout_code=STARTUP_PROBE_TIMEOUT,
+    )
+    assert out.status == "fail"
+    assert out.code == STARTUP_PROBE_TIMEOUT
+
+
+# --- (25) unclassified non-timeout exception is NOT reclassified -----
+
+
+def test_probe_artifact_storage_does_not_silently_catch_unexpected_exceptions(
+    monkeypatch,
+    tmp_path,
+):
+    """Non-OSError exceptions in the probe body MUST surface through
+    the existing un-classified non-timeout failure channel
+    (``run_probe_with_timeout`` → ``StartupNonTimeoutProbeFailure``);
+    they MUST NOT be silently coerced into
+    ``ARTIFACT_STORAGE_UNAVAILABLE``."""
+    import tempfile as _tempfile
+
+    from cold_storage.bootstrap.runtime_readiness import (
+        StartupNonTimeoutProbeFailure,
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    _settings, _canonical = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+
+    def _surprising_mkstemp(*_a, **_k):
+        raise RuntimeError("unexpected programming error")
+
+    monkeypatch.setattr(_tempfile, "mkstemp", _surprising_mkstemp)
+    # The probe body treats only OSError as the deterministic
+    # artifact-storage failure class. A non-OSError must propagate
+    # out of the body to the un-classified non-timeout failure
+    # channel — NOT be projected to ARTIFACT_STORAGE_UNAVAILABLE.
+    with pytest.raises((RuntimeError, StartupNonTimeoutProbeFailure)):
+        probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+
+
+# --- regression: ad-hoc env keys absent from public detail ----------
+
+
+def test_probe_artifact_storage_adhoc_env_keys_absent_from_detail(
+    monkeypatch,
+    tmp_path,
+):
+    """The public detail MUST NOT mention the ad-hoc env key names."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+        reset_canonical_settings,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    missing = tmp_path / "missing-detail"
+    settings = Settings(  # type: ignore[call-arg]
+        COLD_STORAGE_ENVIRONMENT_ID="production",
+        COLD_STORAGE_APP_HOST="127.0.0.1",
+        COLD_STORAGE_APP_PORT="8000",
+        COLD_STORAGE_DATABASE_BACKEND="postgresql",
+        COLD_STORAGE_DATABASE_URL="postgresql+psycopg2://u:p@localhost:5432/db",
+        COLD_STORAGE_BUILD_COMMIT_SHA="0" * 40,
+        COLD_STORAGE_BUILD_VERSION="v0.0.0-ci",
+        COLD_STORAGE_CONFIG_SCHEMA_VERSION="1",
+        COLD_STORAGE_DATABASE_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_SECRET_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID="ci-strict",
+        COLD_STORAGE_STORAGE_DIR=str(missing),
+    )
+    set_canonical_settings(settings)
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "fail"
+    assert outcome.code == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert "COLD_STORAGE_ARTIFACT_STORAGE_DIR" not in (outcome.detail or "")
+    assert "COLD_STORAGE_REPORT_ARTIFACTS_DIR" not in (outcome.detail or "")
+    reset_canonical_settings()
+
+
+# --- regression: probe does not modify the canonical Settings object -
+
+
+def test_probe_artifact_storage_does_not_mutate_canonical_settings(
+    monkeypatch,
+    tmp_path,
+):
+    """The probe MUST NOT mutate the canonical Settings object."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_artifact_storage_isolated_exists_writable,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_REPORT_ARTIFACTS_DIR", raising=False)
+    settings, _ = _install_strict_canonical_settings(
+        "production",
+        monkeypatch,
+        tmp_path,
+    )
+    original_storage_dir = settings.storage_dir
+    original_env_id = settings.environment_id
+    outcome = probe_artifact_storage_isolated_exists_writable(timeout_seconds=10)
+    assert outcome.status == "pass"
+    assert settings.storage_dir == original_storage_dir
+    assert settings.environment_id == original_env_id
