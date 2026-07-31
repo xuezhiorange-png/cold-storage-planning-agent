@@ -147,3 +147,84 @@ def test_health_endpoint_redacts_dsn(postgresql_env):
         body_str = str(resp.json())
         assert postgresql_env not in body_str, "health response leaked DATABASE_URL"
         assert "password=" not in body_str.lower()
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: DATABASE_SCHEMA_HEAD_INVALID surface in PostgreSQL.
+# ---------------------------------------------------------------------------
+
+
+def test_postgresql_schema_head_invalid_classifies_to_dshic(postgresql_env, monkeypatch):
+    """A schema-head mismatch in PostgreSQL mode projects as DATABASE_SCHEMA_HEAD_INVALID."""
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        ReadinessState,
+        reset_canonical_settings,
+        reset_readiness_state,
+        set_canonical_settings,
+        set_readiness_state,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+    # Set a non-matching packaged head so the schema probe classifies
+    # as DATABASE_HEAD_MISMATCH -> DATABASE_SCHEMA_HEAD_INVALID.
+    monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "abc123def456")
+
+    # Stub init_dependencies; install a fake engine that returns a
+    # known-mismatched alembic_version row.
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import dependencies as deps
+
+    def _noop_init(settings, app=None):  # noqa: ARG001
+        return None
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)
+    monkeypatch.setattr(deps, "init_dependencies", _noop_init)
+
+    class _FakeResult:
+        def __init__(self, v):
+            self.v = v
+
+        def first(self):
+            return self.v
+
+    class _FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def exec_driver_sql(self, sql):
+            return _FakeResult(("0123456789ab",))
+
+    class _FakeEngine:
+        def connect(self):
+            return _FakeConn()
+
+    fake_engine = _FakeEngine()
+    monkeypatch.setattr(deps, "get_engine", lambda: fake_engine)
+
+    set_canonical_settings(Settings())
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as client:
+        resp = client.get("/health/ready")
+        # The endpoint must surface the new stable code (or the legacy
+        # SchemaProbeClass is reachable).
+        body = resp.json()
+        codes = [body.get("check_code")] + [o.get("code") for o in body.get("outcomes", [])]
+        assert DATABASE_SCHEMA_HEAD_INVALID in codes
+        # Connection-class codes MUST NOT be misused for schema failure.
+        assert not any(c == "DATABASE_CONNECTION_FAILURE" for c in codes)
+
+    reset_readiness_state()
+    reset_canonical_settings()

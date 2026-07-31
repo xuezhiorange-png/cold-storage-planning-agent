@@ -186,3 +186,98 @@ The four top-level jobs remain the owning authority:
 No top-level job may push an image, perform a deployment, or create a
 release. Any smoke command above MUST be deterministic and exit the
 process on failure with the stable failure code.
+
+## 8. Schema-head classification (V0.2 Slice 2 amendment, D-S2-12.a.v0.2)
+
+The exact schema-head verification probe (probe 4 of the mandatory
+readiness tuple) classifies every non-timeout failure as the single
+public stable code `DATABASE_SCHEMA_HEAD_INVALID`. The probe runs in
+strict modes (staging / production) only; local / test mode skips it.
+
+### 8.1 When this code is produced
+
+The code `DATABASE_SCHEMA_HEAD_INVALID` is produced **only** when the
+exact schema-head verification probe runs to completion and reports a
+non-timeout failure. The internal closed set of non-timeout reasons
+is frozen at exactly 11 entries:
+
+| Internal reason                          | Trigger                                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `PACKAGED_HEAD_MISSING`                  | `COLD_STORAGE_PACKAGED_ALEMBIC_HEAD` env var is unset or whitespace-only.           |
+| `PACKAGED_HEAD_UNREADABLE`               | (Reserved — currently a degenerate case of `PACKAGED_HEAD_MALFORMED`.)              |
+| `PACKAGED_HEAD_MALFORMED`                | Packaged head is not a 12-char lowercase hex Alembic revision.                     |
+| `PACKAGED_HEAD_ZERO`                     | Packaged head is the empty string after trimming.                                  |
+| `PACKAGED_HEAD_MULTIPLE`                 | Packaged head contains `,` (multi-revision values are forbidden).                  |
+| `DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION` | The `SELECT version_num FROM alembic_version` query raised an exception.       |
+| `DATABASE_HEAD_ZERO`                     | The query returned no rows.                                                        |
+| `DATABASE_HEAD_MULTIPLE`                 | (Reserved — same treatment as malformed; row cardinality collapse.)                 |
+| `DATABASE_HEAD_MALFORMED`                | Recorded head is not a 12-char lowercase hex Alembic revision.                     |
+| `DATABASE_HEAD_MISMATCH`                 | Packaged and recorded heads differ.                                                |
+| `UNKNOWN_SCHEMA_IDENTITY`                | Canonical Settings authority is not initialized (configuration bootstrap missing).   |
+
+These reasons MUST NOT be introduced as additional public stable
+codes; they all project to the single public code
+`DATABASE_SCHEMA_HEAD_INVALID`. The internal reason string is
+preserved in the safe detail envelope for log consumption.
+
+### 8.2 When this code is NOT produced
+
+`DATABASE_SCHEMA_HEAD_INVALID` MUST NOT be used for any of:
+
+- Connection-class failures (use the existing `DATABASE_CONNECTION_*` codes).
+- Identity / capability / lifecycle / migration / artifact failures
+  (those have their own stable codes).
+- Genuine timeout events (those map to `STARTUP_PROBE_TIMEOUT` /
+  `READINESS_PROBE_TIMEOUT`).
+
+### 8.3 Operator triage
+
+When the readiness endpoint returns 503 with
+`check_code=DATABASE_SCHEMA_HEAD_INVALID`:
+
+1. Compare the running image's `COLD_STORAGE_PACKAGED_ALEMBIC_HEAD`
+   against the `version_num` recorded in the `alembic_version` table.
+   Do NOT log the actual values to the public health endpoint or to
+   any operator-visible log line that may be retained — the safe
+   projection only records `probe=database_exact_alembic_head` and
+   `check_code=DATABASE_SCHEMA_HEAD_INVALID`.
+2. If the packaged head is missing or malformed, rebuild the image so
+   `COLD_STORAGE_PACKAGED_ALEMBIC_HEAD` is set explicitly at build
+   time. The application process NEVER runs migrations (D-S2-01); the
+   migration service is the only legitimate writer to the
+   `alembic_version` table.
+3. If the recorded head is stale, run the dedicated migration service
+   to advance the schema; do NOT relax the runtime probe.
+4. If the recorded head is malformed, treat the database as corrupt:
+   restore from a known-good backup or rebuild the database from
+   scratch via the migration service.
+
+### 8.4 Log envelope
+
+Logs MAY record:
+
+```
+probe=database_exact_alembic_head
+check_code=DATABASE_SCHEMA_HEAD_INVALID
+```
+
+Logs MUST NOT record the raw packaged head value or the raw recorded
+head value. Logs MUST NOT record the underlying exception text or the
+underlying database URL.
+
+### 8.5 Public health response envelope
+
+The `/health/ready` response, when the probe fails, MAY expose only:
+
+```json
+{
+  "status": "not_ready",
+  "state": "<safe lifecycle state>",
+  "check_code": "DATABASE_SCHEMA_HEAD_INVALID"
+}
+```
+
+The response MUST NOT expose the raw exception text, database URL,
+DSN, password, secret, SQL, full filesystem path, packaged Head value,
+recorded Head value, or Alembic row contents. The application process
+MUST NOT execute migrations on behalf of the operator.

@@ -22,11 +22,20 @@ Failure codes emitted by this module
 * ``STARTUP_PROBE_TIMEOUT``
 * ``READINESS_PROBE_TIMEOUT``
 * ``UNSAFE_STRICT_CAPABILITY_WIRING``
+* ``DATABASE_SCHEMA_HEAD_INVALID``
 
 All other lifecycle failure codes remain the responsibility of their
 originating modules (e.g. ``StartUpReadinessError`` for coefficient
 coverage, ``deployment_identity`` for build-identity failures). This
 module does NOT introduce new failure-code categories.
+
+Contract amendment V0.2 Slice 2 (D-S2-12.a.v0.2) freezes exactly one
+additional stable failure code (``DATABASE_SCHEMA_HEAD_INVALID``) that
+covers every non-timeout schema-head verification failure of the
+``database_exact_alembic_head`` mandatory probe. The internal closed
+set of reasons that all project to that single code is enumerated in
+``_SCHEMA_HEAD_INTERNAL_REASONS`` and is NOT permitted to surface as
+new public stable codes.
 
 Module-level invariant
 ======================
@@ -57,6 +66,53 @@ logger = logging.getLogger("cold_storage.bootstrap.runtime_readiness")
 STARTUP_PROBE_TIMEOUT = "STARTUP_PROBE_TIMEOUT"
 READINESS_PROBE_TIMEOUT = "READINESS_PROBE_TIMEOUT"
 UNSAFE_STRICT_CAPABILITY_WIRING = "UNSAFE_STRICT_CAPABILITY_WIRING"
+# D-S2-12.a.v0.2 amendment: single public stable code for every
+# non-timeout failure of the exact schema-head verification probe.
+# Internal reasons (PACKAGED_HEAD_*, DATABASE_HEAD_*, UNKNOWN_SCHEMA_IDENTITY)
+# MUST NOT be introduced as separate public stable codes; they all
+# project to this one identifier.
+DATABASE_SCHEMA_HEAD_INVALID = "DATABASE_SCHEMA_HEAD_INVALID"
+
+
+# Internal closed set of non-timeout reasons that project to
+# ``DATABASE_SCHEMA_HEAD_INVALID``. NOT public stable codes. The count
+# is frozen at 11 (see contract amendment).
+_INTERNAL_SCHEMA_HEAD_REASONS = (
+    "PACKAGED_HEAD_MISSING",
+    "PACKAGED_HEAD_UNREADABLE",
+    "PACKAGED_HEAD_MALFORMED",
+    "PACKAGED_HEAD_ZERO",
+    "PACKAGED_HEAD_MULTIPLE",
+    "DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION",
+    "DATABASE_HEAD_ZERO",
+    "DATABASE_HEAD_MULTIPLE",
+    "DATABASE_HEAD_MALFORMED",
+    "DATABASE_HEAD_MISMATCH",
+    "UNKNOWN_SCHEMA_IDENTITY",
+)
+
+
+def _schema_head_invalid(*, name: str, internal_reason: str, duration: float) -> ProbeOutcome:
+    """Return a ``ProbeOutcome`` projected to ``DATABASE_SCHEMA_HEAD_INVALID``.
+
+    The ``internal_reason`` MUST be one of the 11 frozen internal
+    strings above; any other reason must be coerced to
+    ``UNKNOWN_SCHEMA_IDENTITY`` so no public stable code other than
+    ``DATABASE_SCHEMA_HEAD_INVALID`` is ever emitted for the schema
+    probe. The safe projection never includes the raw exception text,
+    packaged Head value, database Head value, DSN, or SQL.
+    """
+    if internal_reason not in _INTERNAL_SCHEMA_HEAD_REASONS:
+        internal_reason = "UNKNOWN_SCHEMA_IDENTITY"
+    return ProbeOutcome(
+        name=name,
+        status="fail",
+        code=DATABASE_SCHEMA_HEAD_INVALID,
+        detail=f"schema-head non-timeout failure ({internal_reason})",
+        duration_seconds=duration,
+    )
+
+
 CONFIGURATION_IDENTITY_FAILURE = "ConfigurationError"
 # F-PR76-MEDIUM-01: ``CONFIGURATION_IDENTITY_FAILURE`` is the class
 # name of the Slice 1 frozen :class:`ConfigurationError`. We use it
@@ -248,7 +304,12 @@ def _probe_name(probe: ProbeFn) -> str:
 
 
 def run_probe_with_timeout(
-    *, name: str, fn: ProbeFn, timeout_seconds: int, on_timeout_code: str
+    *,
+    name: str,
+    fn: ProbeFn,
+    timeout_seconds: int,
+    on_timeout_code: str,
+    on_non_timeout_code: str | None = None,
 ) -> ProbeOutcome:
     """Run a probe synchronously with a wall-clock budget.
 
@@ -274,6 +335,16 @@ def run_probe_with_timeout(
     which is converted into a ``ProbeOutcome`` with the canonical
     ``on_timeout_code``.
 
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): callers that have a
+    distinct non-timeout failure code (e.g. ``DATABASE_SCHEMA_HEAD_INVALID``
+    for the schema-head probe) MUST pass ``on_non_timeout_code`` so
+    that an unexpected ``Exception`` inside the probe is projected to
+    that stable code instead of being mis-projected to
+    ``on_timeout_code``. Without ``on_non_timeout_code``, the legacy
+    behaviour is preserved (any ``Exception`` falls back to
+    ``on_timeout_code``); the schema probe explicitly opts in via
+    the ``DATABASE_SCHEMA_HEAD_INVALID`` mapping.
+
     Importantly, the helper spawns NO background threads, NO
     asyncio tasks, and NO auxiliary connections. The 8-probe
     aggregate upper bound is therefore ``8 × per_probe_timeout`` as
@@ -297,14 +368,21 @@ def run_probe_with_timeout(
             detail="probe exceeded per-probe budget (alarm)",
             duration_seconds=time.monotonic() - start,
         )
-    except Exception as exc:
+    except Exception:
         _cancel_alarm(alarm_token)
         elapsed = time.monotonic() - start
+        # D-S2-12.a.v0.2: a non-timeout ``Exception`` MUST NOT be
+        # silently mis-projected to a timeout code. Callers that have
+        # a distinct stable code for non-timeout failures must pass
+        # ``on_non_timeout_code``; otherwise we fall back to the legacy
+        # ``on_timeout_code`` mapping for backwards compatibility with
+        # callers that have NOT yet been amended.
+        code = on_non_timeout_code if on_non_timeout_code is not None else on_timeout_code
         return ProbeOutcome(
             name=name,
             status="fail",
-            code=on_timeout_code,
-            detail=f"probe raised {type(exc).__name__}",
+            code=code,
+            detail="probe raised non-timeout exception",
             duration_seconds=elapsed,
         )
     _cancel_alarm(alarm_token)
@@ -330,6 +408,14 @@ def run_probe_with_timeout(
         # with ``elapsed == timeout_seconds`` (D-S2-03.c + P1-006).
         outcome.code = None
         return outcome
+    # Non-passing outcome from the probe itself (status == "fail").
+    # V0.2 Slice 2 amendment: a schema probe that already set its own
+    # stable ``code`` (e.g. ``DATABASE_SCHEMA_HEAD_INVALID``) MUST keep
+    # that code. Only fill in ``on_timeout_code`` when the probe did
+    # not set any code at all — that path is reserved for the legacy
+    # behaviour where a probe returned ``fail`` without classifying
+    # the cause. We MUST NOT override a probe-supplied
+    # ``DATABASE_SCHEMA_HEAD_INVALID`` with ``STARTUP_PROBE_TIMEOUT``.
     if not outcome.code:
         outcome.code = on_timeout_code
     return outcome
@@ -1095,8 +1181,19 @@ def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
     strict-mode enforcement (D-S2-01: the application process never
     invokes Alembic upgrade / downgrade). The probe never imports
     alembic; it only reads the ``alembic_version`` SQL table.
-    Failures classify as ``STARTUP_PROBE_TIMEOUT`` with the safe
-    projection.
+
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): every non-timeout
+    schema-head failure MUST project to the single public stable code
+    ``DATABASE_SCHEMA_HEAD_INVALID``. The internal reason from the
+    closed set below is preserved in the safe ``detail`` field for
+    log consumption but MUST NOT be used as a public stable code.
+    Only genuine timeout events project to ``STARTUP_PROBE_TIMEOUT``
+    (or ``READINESS_PROBE_TIMEOUT`` on the readiness channel); a
+    schema mismatch, missing packaged head, malformed / zero / multiple
+    head, or unknown schema identity MUST NEVER be mis-projected to a
+    timeout code. The safe projection never includes the raw
+    exception text, packaged Head value, database Head value, DSN,
+    or SQL.
     """
     name = PROBE_SCHEMA
     start = time.monotonic()
@@ -1104,10 +1201,9 @@ def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
         settings = canonical_settings()
         mode = resolve_app_mode(settings)
     except ConfigurationProbeFailed:
-        return _fail(
+        return _schema_head_invalid(
             name=name,
-            code=STARTUP_PROBE_TIMEOUT,
-            detail="canonical settings missing",
+            internal_reason="UNKNOWN_SCHEMA_IDENTITY",
             duration=time.monotonic() - start,
         )
     if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
@@ -1118,12 +1214,27 @@ def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
         )
     import os as _os
 
-    packaged_head = _os.environ.get("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "")
+    packaged_head_raw = _os.environ.get("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "")
+    packaged_head = packaged_head_raw.strip()
     if not packaged_head:
-        return _fail(
+        return _schema_head_invalid(
             name=name,
-            code=STARTUP_PROBE_TIMEOUT,
-            detail="packaged alembic head not exported",
+            internal_reason="PACKAGED_HEAD_MISSING",
+            duration=time.monotonic() - start,
+        )
+    # Multiple packaged heads (comma-separated revision list) is a
+    # fail-closed condition: a deployment artifact identity must be a
+    # single revision; multi-revision values are treated as malformed.
+    if "," in packaged_head:
+        return _schema_head_invalid(
+            name=name,
+            internal_reason="PACKAGED_HEAD_MULTIPLE",
+            duration=time.monotonic() - start,
+        )
+    if not _is_alembic_revision(packaged_head):
+        return _schema_head_invalid(
+            name=name,
+            internal_reason="PACKAGED_HEAD_MALFORMED",
             duration=time.monotonic() - start,
         )
     try:
@@ -1132,22 +1243,59 @@ def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
         engine = get_engine()
         with engine.connect() as conn:
             head_row = conn.exec_driver_sql("SELECT version_num FROM alembic_version").first()
-    except Exception as exc:  # noqa: BLE001
-        return _fail(
+    except Exception:
+        # The probe reached a connection-level failure AFTER the
+        # packaged head was validated. Per D-S2-12.a.v0.2 this is a
+        # non-timeout schema identity failure and MUST NOT be
+        # projected to a timeout code; we also MUST NOT surface the
+        # raw exception text. The internal reason is preserved in the
+        # safe detail envelope.
+        return _schema_head_invalid(
             name=name,
-            code=STARTUP_PROBE_TIMEOUT,
-            detail=f"schema probe failed: {type(exc).__name__}",
+            internal_reason="DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION",
             duration=time.monotonic() - start,
         )
-    recorded = head_row[0] if head_row is not None else ""
-    if recorded != packaged_head:
-        return _fail(
+    if head_row is None:
+        return _schema_head_invalid(
             name=name,
-            code=STARTUP_PROBE_TIMEOUT,
-            detail="schema head mismatch",
+            internal_reason="DATABASE_HEAD_ZERO",
+            duration=time.monotonic() - start,
+        )
+    recorded_raw = head_row[0]
+    if not isinstance(recorded_raw, str) or not recorded_raw.strip():
+        return _schema_head_invalid(
+            name=name,
+            internal_reason="DATABASE_HEAD_MALFORMED",
+            duration=time.monotonic() - start,
+        )
+    recorded = recorded_raw.strip()
+    if not _is_alembic_revision(recorded):
+        return _schema_head_invalid(
+            name=name,
+            internal_reason="DATABASE_HEAD_MALFORMED",
+            duration=time.monotonic() - start,
+        )
+    if recorded != packaged_head:
+        return _schema_head_invalid(
+            name=name,
+            internal_reason="DATABASE_HEAD_MISMATCH",
             duration=time.monotonic() - start,
         )
     return _pass(name=name, detail="schema head ok", duration=time.monotonic() - start)
+
+
+def _is_alembic_revision(value: str) -> bool:
+    """Return True iff ``value`` is a well-formed single Alembic revision.
+
+    The contract freezes the safe redaction envelope for the
+    schema-head probe: a revision MUST be a 12-char lowercase hex
+    string (Alembic's canonical form). Anything else is treated as
+    malformed and classified via ``DATABASE_SCHEMA_HEAD_INVALID`` /
+    ``PACKAGED_HEAD_MALFORMED`` without surfacing the value.
+    """
+    if not isinstance(value, str):
+        return False
+    return len(value) == 12 and all(c in "0123456789abcdef" for c in value)
 
 
 def probe_environment_and_resource_identities(*, timeout_seconds: int) -> ProbeOutcome:
@@ -1367,6 +1515,7 @@ def mandatory_readiness_probes() -> tuple[ProbeFn, ...]:
 
 
 __all__ = [
+    "DATABASE_SCHEMA_HEAD_INVALID",
     "BlockingProbeTimeout",
     "CONFIGURATION_IDENTITY_FAILURE",
     "LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS",

@@ -1565,3 +1565,542 @@ def test_strict_audit_flags_composition_token_even_when_route_absent(monkeypatch
 # as documentation of the original stub shape and is unused at
 # runtime.
 _ = "_StubMonkeyPatch"  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: DATABASE_SCHEMA_HEAD_INVALID classification
+# (D-S2-12.a.v0.2).
+#
+# The contract freezes exactly one new public stable code for every
+# non-timeout failure of the ``database_exact_alembic_head`` mandatory
+# probe. Eleven internal reasons are defined as a closed set and MUST
+# all project to ``DATABASE_SCHEMA_HEAD_INVALID``. Timeout codes are
+# reserved for genuine timeout events. No generic ``Exception`` from
+# the probe may be mis-projected to a timeout code.
+# ---------------------------------------------------------------------------
+
+
+_SCHEMA_HEAD_INVALID_INTERNAL_REASONS: tuple[str, ...] = (
+    "PACKAGED_HEAD_MISSING",
+    "PACKAGED_HEAD_UNREADABLE",
+    "PACKAGED_HEAD_MALFORMED",
+    "PACKAGED_HEAD_ZERO",
+    "PACKAGED_HEAD_MULTIPLE",
+    "DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION",
+    "DATABASE_HEAD_ZERO",
+    "DATABASE_HEAD_MULTIPLE",
+    "DATABASE_HEAD_MALFORMED",
+    "DATABASE_HEAD_MISMATCH",
+    "UNKNOWN_SCHEMA_IDENTITY",
+)
+
+
+def test_schema_head_internal_reason_count_is_eleven():
+    """The contract amendment freezes the internal reason count at 11.
+
+    Parametrizing at the test layer protects against silent additions
+    or removals to the closed set. The assertion here is on the
+    constant exposed by the module — not on the test tuple — so the
+    contract assertion remains authoritative.
+    """
+    import cold_storage.bootstrap.runtime_readiness as rr
+
+    expected = _SCHEMA_HEAD_INVALID_INTERNAL_REASONS
+    # Constant naming deliberately NOT exported (private internal closed
+    # set); we inspect via a sentinel that mirrors the production tuple.
+    assert expected == rr._INTERNAL_SCHEMA_HEAD_REASONS
+    assert len(rr._INTERNAL_SCHEMA_HEAD_REASONS) == 11
+
+
+@pytest.mark.parametrize("internal_reason", _SCHEMA_HEAD_INVALID_INTERNAL_REASONS)
+def test_schema_head_internal_reason_is_recognized(internal_reason: str):
+    """Every frozen internal reason must be in the 11-element closed set."""
+    import cold_storage.bootstrap.runtime_readiness as rr
+
+    assert internal_reason in rr._INTERNAL_SCHEMA_HEAD_REASONS
+    assert len(internal_reason) > 0
+
+
+def test_schema_head_invalid_constant_is_public_and_stable():
+    """The single new public stable code must equal its frozen value."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+    )
+
+    assert DATABASE_SCHEMA_HEAD_INVALID == "DATABASE_SCHEMA_HEAD_INVALID"
+
+
+def test_schema_head_helper_coerces_unknown_reason_to_unknown_identity():
+    """An unknown internal reason MUST coerce to UNKNOWN_SCHEMA_IDENTITY."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        PROBE_SCHEMA,
+        _schema_head_invalid,
+    )
+
+    outcome = _schema_head_invalid(
+        name=PROBE_SCHEMA,
+        internal_reason="DEFINITELY_NOT_A_REAL_REASON",
+        duration=0.01,
+    )
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert outcome.status == "fail"
+    assert "UNKNOWN_SCHEMA_IDENTITY" in outcome.detail
+    # The raw reason string MUST NOT be exposed.
+    assert "DEFINITELY_NOT_A_REAL_REASON" not in outcome.detail
+
+
+def test_schema_head_helper_accepts_all_frozen_reasons():
+    """Every frozen reason, when passed to the helper, projects safely."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        _schema_head_invalid,
+    )
+
+    for reason in _SCHEMA_HEAD_INVALID_INTERNAL_REASONS:
+        outcome = _schema_head_invalid(
+            name="database_exact_alembic_head",
+            internal_reason=reason,
+            duration=0.0,
+        )
+        assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+        assert outcome.status == "fail"
+        assert reason in outcome.detail
+
+
+# ---- run_probe_with_timeout: on_non_timeout_code parameter -----------------
+
+
+def _exception_probe(timeout_seconds: int) -> ProbeOutcome:  # noqa: ARG001
+    raise RuntimeError("schema probe exploded unexpectedly")
+
+
+def test_run_probe_with_timeout_on_non_timeout_code_uses_non_timeout_code():
+    """When the probe raises an Exception, ``on_non_timeout_code`` wins.
+
+    Without ``on_non_timeout_code`` the helper falls back to
+    ``on_timeout_code`` (legacy behaviour); with it, an unexpected
+    ``Exception`` MUST project to that stable code instead of being
+    mis-classified as a timeout.
+    """
+    out = run_probe_with_timeout(
+        name="schema-head-probe",
+        fn=_exception_probe,
+        timeout_seconds=5,
+        on_timeout_code="STARTUP_PROBE_TIMEOUT",
+        on_non_timeout_code="DATABASE_SCHEMA_HEAD_INVALID",
+    )
+    assert out.status == "fail"
+    assert out.code == "DATABASE_SCHEMA_HEAD_INVALID"
+    assert out.code != "STARTUP_PROBE_TIMEOUT"
+
+
+def test_run_probe_with_timeout_without_on_non_timeout_code_legacy_fallback():
+    """Legacy callers that do NOT pass ``on_non_timeout_code`` keep timeout code."""
+    out = run_probe_with_timeout(
+        name="legacy-probe",
+        fn=_exception_probe,
+        timeout_seconds=5,
+        on_timeout_code="STARTUP_PROBE_TIMEOUT",
+    )
+    assert out.status == "fail"
+    assert out.code == "STARTUP_PROBE_TIMEOUT"
+
+
+def test_run_probe_with_timeout_preserves_probe_supplied_fail_code():
+    """A probe that returns a fail outcome with its own stable code MUST keep it.
+
+    The schema probe sets ``DATABASE_SCHEMA_HEAD_INVALID`` on its own
+    non-timeout failures. The wrapper MUST NOT override that code with
+    ``on_timeout_code`` — only fill in when no code was provided.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+    )
+
+    def _explicit_fail(timeout_seconds: int) -> ProbeOutcome:  # noqa: ARG001
+        return ProbeOutcome(
+            name="schema-probe",
+            status="fail",
+            code=DATABASE_SCHEMA_HEAD_INVALID,
+            detail="packaged head missing",
+        )
+
+    out = run_probe_with_timeout(
+        name="schema-probe",
+        fn=_explicit_fail,
+        timeout_seconds=5,
+        on_timeout_code="STARTUP_PROBE_TIMEOUT",
+    )
+    assert out.status == "fail"
+    assert out.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert out.code != "STARTUP_PROBE_TIMEOUT"
+
+
+def test_run_probe_with_timeout_still_emits_timeout_on_alarm():
+    """The wall-clock SIGALRM budget MUST still surface as timeout code."""
+
+    def _blocking(timeout_seconds: int) -> ProbeOutcome:  # noqa: ARG001
+        # Sleep for longer than the budget; the SIGALRM handler in
+        # _on_alarm raises BlockingProbeTimeout which is converted to
+        # the timeout code by the wrapper.
+        import time as _t
+
+        _t.sleep(timeout_seconds + 1)
+        return ProbeOutcome(name="blocking", status="pass")
+
+    out = run_probe_with_timeout(
+        name="blocking",
+        fn=_blocking,
+        timeout_seconds=1,
+        on_timeout_code="STARTUP_PROBE_TIMEOUT",
+        on_non_timeout_code="DATABASE_SCHEMA_HEAD_INVALID",
+    )
+    # The alarm fires either as BlockingProbeTimeout (which yields
+    # on_timeout_code) or the probe ran past its budget and the wrapper
+    # reclassified it. Either way, the code MUST NOT be the
+    # non-timeout code; it MUST be the timeout code.
+    assert out.status == "fail"
+    assert out.code == "STARTUP_PROBE_TIMEOUT"
+
+
+# ---- probe_database_exact_alembic_head: per-reason classification -----------
+
+
+class _FakeEngine:
+    """Minimal SQLAlchemy ``Engine`` double that returns a preset row."""
+
+    def __init__(self, row_value=None, raise_on_connect: Exception | None = None):
+        self._row_value = row_value
+        self._raise_on_connect = raise_on_connect
+
+    def connect(self):  # pragma: no cover - trivial passthrough
+        return _FakeConnection(self._row_value, self._raise_on_connect)
+
+
+class _FakeConnection:
+    def __init__(self, row_value, raise_on_connect):
+        self._row_value = row_value
+        self._raise_on_connect = raise_on_connect
+
+    def __enter__(self):
+        if self._raise_on_connect is not None:
+            raise self._raise_on_connect
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def exec_driver_sql(self, _sql: str):
+        if self._row_value is None:
+            return _FakeRowResult(None)
+        return _FakeRowResult(self._row_value)
+
+
+class _FakeRowResult:
+    def __init__(self, value):
+        self._value = value
+
+    def first(self):
+        return self._value
+
+
+def _install_fake_engine(monkeypatch, *, row_value=None, raise_on_connect=None):
+    """Install a fake ``get_engine`` so the probe never touches a real DB."""
+    import cold_storage.bootstrap.dependencies as deps
+
+    monkeypatch.setattr(
+        deps,
+        "get_engine",
+        lambda: _FakeEngine(row_value=row_value, raise_on_connect=raise_on_connect),
+    )
+
+
+def _install_packaged_head(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", raising=False)
+    else:
+        monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", value)
+
+
+_VALID_REVISION = "abc123def456"
+
+
+def test_schema_head_probe_exact_match_returns_pass(monkeypatch):
+    """Exact Head match returns PASS with code is None."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        PROBE_SCHEMA,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    settings = _strict_settings("production", monkeypatch)
+    set_canonical_settings(settings)
+    _install_fake_engine(monkeypatch, row_value=(_VALID_REVISION,))
+    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "pass"
+    assert outcome.code is None
+    assert outcome.name == PROBE_SCHEMA
+    # Belt-and-braces: pass MUST NOT leak the new fail code.
+    assert outcome.code != DATABASE_SCHEMA_HEAD_INVALID
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_packaged_missing_classifies_as_schema_invalid(monkeypatch):
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch)
+    _install_packaged_head(monkeypatch, None)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "PACKAGED_HEAD_MISSING" in outcome.detail
+    # CRITICAL: MUST NOT be projected to a timeout code.
+    assert "TIMEOUT" not in outcome.code
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_packaged_malformed_classifies_as_schema_invalid(monkeypatch):
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch, row_value=(_VALID_REVISION,))
+    _install_packaged_head(monkeypatch, "not-a-revision!")
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "PACKAGED_HEAD_MALFORMED" in outcome.detail
+    assert "TIMEOUT" not in outcome.code
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_packaged_multiple_classifies_as_schema_invalid(monkeypatch):
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch, row_value=(_VALID_REVISION,))
+    _install_packaged_head(monkeypatch, f"{_VALID_REVISION},{_VALID_REVISION}")
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "PACKAGED_HEAD_MULTIPLE" in outcome.detail
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_database_head_zero_classifies_as_schema_invalid(monkeypatch):
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch, row_value=None)
+    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "DATABASE_HEAD_ZERO" in outcome.detail
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_database_head_malformed_classifies_as_schema_invalid(monkeypatch):
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch, row_value=("garbage-value",))
+    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "DATABASE_HEAD_MALFORMED" in outcome.detail
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_database_head_mismatch_classifies_as_schema_invalid(monkeypatch):
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch, row_value=("0123456789ab",))
+    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "DATABASE_HEAD_MISMATCH" in outcome.detail
+    # Mismatch MUST NOT be projected to a timeout code.
+    assert "TIMEOUT" not in outcome.code
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_database_unreadable_after_connection_classifies(monkeypatch):
+    """Connection-time exception MUST project to DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch, raise_on_connect=RuntimeError("boom"))
+    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION" in outcome.detail
+    # Raw exception text MUST NOT leak.
+    assert "boom" not in outcome.detail
+    assert "RuntimeError" not in outcome.detail
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_unknown_schema_identity_when_settings_missing(monkeypatch):
+    """When canonical settings are not initialized, the probe classifies
+    the unknown schema identity as DATABASE_SCHEMA_HEAD_INVALID with
+    UNKNOWN_SCHEMA_IDENTITY internal reason."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        reset_canonical_settings,
+    )
+
+    reset_canonical_settings()
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "UNKNOWN_SCHEMA_IDENTITY" in outcome.detail
+
+
+def test_schema_head_probe_non_strict_mode_returns_pass_without_packaged_head(monkeypatch):
+    """Local / test mode skips the probe; missing packaged head is fine."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    settings = _strict_settings("local", monkeypatch)
+    set_canonical_settings(settings)
+    _install_packaged_head(monkeypatch, None)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "pass"
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("internal_reason", _SCHEMA_HEAD_INVALID_INTERNAL_REASONS)
+def test_schema_head_safe_projection_never_leaks_head_values(monkeypatch, internal_reason):
+    """No detail projection leaks the raw Head value, DSN, or SQL fragment."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _schema_head_invalid,
+    )
+
+    outcome = _schema_head_invalid(
+        name="database_exact_alembic_head",
+        internal_reason=internal_reason,
+        duration=0.001,
+    )
+    s = str(outcome.detail)
+    # Head value shapes must never appear in the detail.
+    assert _VALID_REVISION not in s
+    assert "0123456789ab" not in s
+    # Connection / SQL leakage must never appear.
+    assert "DSN" not in s
+    assert "password" not in s
+    assert "SELECT" not in s.upper() or internal_reason in s
+
+
+def test_schema_head_probe_packaged_head_empty_string_classifies_as_missing(monkeypatch):
+    """Empty-string packaged head MUST classify as PACKAGED_HEAD_MISSING."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch)
+    _install_packaged_head(monkeypatch, "")
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "PACKAGED_HEAD_MISSING" in outcome.detail
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_packaged_head_whitespace_only_classifies_as_missing(monkeypatch):
+    """Whitespace-only packaged head MUST classify as PACKAGED_HEAD_MISSING."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_fake_engine(monkeypatch)
+    _install_packaged_head(monkeypatch, "   ")
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "PACKAGED_HEAD_MISSING" in outcome.detail
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_schema_head_probe_database_head_multiple_via_two_rows_classifies(monkeypatch):
+    """Multiple-element column payload is treated as malformed.
+
+    The probe reads ``head_row[0]`` from the SQLAlchemy result. A
+    non-string payload (e.g. a 2-tuple from a corrupted migration
+    table) is treated as malformed by the
+    ``_is_alembic_revision`` shape check; the probe classifies it
+    as ``DATABASE_HEAD_MALFORMED`` without surfacing the value.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    _install_packaged_head(monkeypatch, _VALID_REVISION)
+
+    # Wrap a 2-tuple as the recorded payload. ``head_row[0]`` returns
+    # the first element of the tuple, which is itself a tuple — the
+    # probe's ``_is_alembic_revision`` shape check then classifies
+    # this as malformed (non-string value).
+    class _MultiColConnection(_FakeConnection):
+        def exec_driver_sql(self, _sql):
+            return _FakeRowResult((("nested", "tuple"), _VALID_REVISION))
+
+    class _MultiColEngine(_FakeEngine):
+        def connect(self):  # noqa: D401
+            return _MultiColConnection(None, None)
+
+    import cold_storage.bootstrap.dependencies as deps
+
+    monkeypatch.setattr(deps, "get_engine", lambda: _MultiColEngine())
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "fail"
+    assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
+    assert "MALFORMED" in outcome.detail
+    set_canonical_settings(None)  # type: ignore[arg-type]

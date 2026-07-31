@@ -163,3 +163,117 @@ def test_health_output_contains_no_secret_or_unsafe_text(isolated_sqlite_env):
             assert forbidden.lower() not in s.lower(), (
                 f"health response leaked {forbidden!r}: {body}"
             )
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: schema-head classification surface in SQLite mode.
+# ---------------------------------------------------------------------------
+
+
+def test_sqlite_schema_probe_skip_in_local_mode(isolated_sqlite_env):
+    """Local SQLite mode MUST skip the schema probe (no packaged head needed)."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        probe_database_exact_alembic_head,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    settings = Settings()
+    set_canonical_settings(settings)
+    outcome = probe_database_exact_alembic_head(timeout_seconds=5)
+    assert outcome.status == "pass"
+    set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_sqlite_health_endpoint_returns_503_when_schema_head_invalid(
+    monkeypatch,
+    isolated_sqlite_env,
+):
+    """The /health/ready endpoint surfaces DATABASE_SCHEMA_HEAD_INVALID in production mode."""
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        ReadinessState,
+        reset_canonical_settings,
+        reset_readiness_state,
+        set_canonical_settings,
+        set_readiness_state,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    # Override env to strict mode (production + postgresql-style) so
+    # the schema probe is exercised, but the test still runs on the
+    # sqlite fixture without needing real postgres.
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_URL",
+        "postgresql+psycopg2://x:y@localhost:5432/test",
+    )
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci")
+    monkeypatch.delenv("COLD_STORAGE_SQLITE_PATH", raising=False)
+    monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "abc123def456")
+    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+
+    # Stub init_dependencies; install a fake engine whose alembic_version
+    # row reports a mismatched head so the schema probe classifies as
+    # DATABASE_HEAD_MISMATCH -> DATABASE_SCHEMA_HEAD_INVALID.
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import dependencies as deps
+
+    def _noop_init(settings, app=None):  # noqa: ARG001
+        return None
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)
+    monkeypatch.setattr(deps, "init_dependencies", _noop_init)
+
+    class _FakeResult:
+        def __init__(self, v):
+            self.v = v
+
+        def first(self):
+            return self.v
+
+    class _FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def exec_driver_sql(self, sql):
+            return _FakeResult(("0123456789ab",))
+
+    class _FakeEngine:
+        def connect(self):
+            return _FakeConn()
+
+    fake_engine = _FakeEngine()
+    monkeypatch.setattr(deps, "get_engine", lambda: fake_engine)
+
+    set_canonical_settings(Settings())
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.get("/health/ready")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["check_code"] == DATABASE_SCHEMA_HEAD_INVALID
+        body_str = json.dumps(body)
+        # The detail envelope MUST NOT leak Head values, DSN, SQL.
+        assert "abc123def456" not in body_str
+        assert "0123456789ab" not in body_str
+        assert "Traceback" not in body_str
+
+    reset_readiness_state()
+    reset_canonical_settings()
