@@ -914,12 +914,16 @@ Acceptance obligations added by this amendment:
 
 ```text
 PACKAGED_HEAD_MISSING                       -> DATABASE_SCHEMA_HEAD_INVALID
+PACKAGED_HEAD_UNREADABLE                    -> DATABASE_SCHEMA_HEAD_INVALID
 PACKAGED_HEAD_MALFORMED                     -> DATABASE_SCHEMA_HEAD_INVALID
+PACKAGED_HEAD_ZERO                          -> DATABASE_SCHEMA_HEAD_INVALID
 PACKAGED_HEAD_MULTIPLE                      -> DATABASE_SCHEMA_HEAD_INVALID
+DATABASE_HEAD_UNREADABLE_AFTER_CONNECTION   -> DATABASE_SCHEMA_HEAD_INVALID
 DATABASE_HEAD_ZERO                          -> DATABASE_SCHEMA_HEAD_INVALID
 DATABASE_HEAD_MULTIPLE                      -> DATABASE_SCHEMA_HEAD_INVALID
 DATABASE_HEAD_MALFORMED                     -> DATABASE_SCHEMA_HEAD_INVALID
 DATABASE_HEAD_MISMATCH                      -> DATABASE_SCHEMA_HEAD_INVALID
+UNKNOWN_SCHEMA_IDENTITY                     -> DATABASE_SCHEMA_HEAD_INVALID
 DATABASE_HEAD_EXACT_MATCH                   -> PASS
 ACTUAL_STARTUP_TIMEOUT                      -> STARTUP_PROBE_TIMEOUT
 ACTUAL_READINESS_TIMEOUT                    -> READINESS_PROBE_TIMEOUT
@@ -1222,8 +1226,8 @@ Required evidence:
   mode-`0444` `/opt/cold-storage/build-identity.json` file;
 - overriding `COLD_STORAGE_BUILD_COMMIT_SHA` at runtime to disagree with
   the file causes startup to fail with `BUILD_COMMIT_MISMATCH`;
-- overriding `COLD_STORAGE_BUILD_VERSION` at runtime to disagree with
-  the file causes startup to fail with `BUILD_VERSION_MISMATCH`;
+- overriding `COLD_STORAGE_BUILD_VERSION` at runtime to disagree with the
+  file causes startup to fail with `BUILD_VERSION_MISMATCH`;
 - mutating only `COLD_STORAGE_DEPLOYMENT_ID` does not change the reported
   build identity;
 - the image contains a `/opt/cold-storage/build-identity.json` whose
