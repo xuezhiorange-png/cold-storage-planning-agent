@@ -154,8 +154,26 @@ def test_health_endpoint_redacts_dsn(postgresql_env):
 # ---------------------------------------------------------------------------
 
 
-def test_postgresql_schema_head_invalid_classifies_to_dshic(postgresql_env, monkeypatch):
-    """A schema-head mismatch in PostgreSQL mode projects as DATABASE_SCHEMA_HEAD_INVALID."""
+def test_postgresql_schema_head_invalid_classifies_to_dshic(monkeypatch):
+    """A schema-head mismatch in PostgreSQL mode projects as DATABASE_SCHEMA_HEAD_INVALID.
+
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): this test MUST reach the
+    schema-head probe (probe 4) and verify it classifies as
+    ``DATABASE_SCHEMA_HEAD_INVALID``. The probe was previously
+    short-circuited on a missing or incomplete strict-mode fixture.
+    The fixture now provides the full set of canonical strict-mode
+    identity keys that ``Settings()`` validates in production /
+    staging modes — without weakening the production validation,
+    without lowering the resource-identity consistency requirement,
+    and without changing the production Settings implementation.
+    """
+    # Default DSN when the test runs without a real PostgreSQL
+    # instance. The fake engine never opens a real connection; this
+    # string is only used to satisfy the strict-mode ``Settings()``
+    # validator.
+    postgresql_env = (
+        "postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test"
+    )
     from cold_storage.bootstrap.app import create_app
     from cold_storage.bootstrap.runtime_readiness import (
         DATABASE_SCHEMA_HEAD_INVALID,
@@ -167,15 +185,45 @@ def test_postgresql_schema_head_invalid_classifies_to_dshic(postgresql_env, monk
     )
     from cold_storage.bootstrap.settings import Settings
 
+    # ----- Strict-mode canonical identity (D-S2-01 / D-S2-09) -----
+    # The full set of canonical strict-mode keys validated by
+    # ``Settings()``. Values mirror the production Compose / CI
+    # defaults documented in
+    # docs/runbooks/TASK-012-slice2-deployment-startup.md §4.2.
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
     monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_URL",
+        postgresql_env,
+    )
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+    monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", "deploy-fixture-test")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-strict")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-strict")
     monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
-    # Set a non-matching packaged head so the schema probe classifies
-    # as DATABASE_HEAD_MISMATCH -> DATABASE_SCHEMA_HEAD_INVALID.
-    monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "abc123def456")
+    # No ``COLD_STORAGE_PACKAGED_ALEMBIC_HEAD`` env var — the loader
+    # is graph-driven, so this env var is now ignored.
+    monkeypatch.delenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", raising=False)
+    # Configure an artifact storage dir to satisfy probe 6 in
+    # strict mode. The dir need not exist; the probe's failure
+    # envelope is what we verify, and the schema-head probe is
+    # independent of the artifact-storage probe.
+    import tempfile
 
-    # Stub init_dependencies; install a fake engine that returns a
-    # known-mismatched alembic_version row.
+    _tmp_storage = tempfile.mkdtemp(prefix="cold-storage-test-")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_STORAGE_DIR", _tmp_storage)
+
+    # ----- Stub the engine and the lifespan -----
+    # ``init_dependencies`` is bypassed (it would attempt to connect
+    # to the real PostgreSQL URL); the probe still runs because
+    # ``get_engine`` returns our fake.
+    import cold_storage.bootstrap.runtime_readiness as rr
     from cold_storage.bootstrap import app as bootstrap_app
     from cold_storage.bootstrap import dependencies as deps
 
@@ -199,7 +247,9 @@ def test_postgresql_schema_head_invalid_classifies_to_dshic(postgresql_env, monk
         def __exit__(self, *a):
             return False
 
-        def exec_driver_sql(self, sql):
+        def exec_driver_sql(self, sql):  # noqa: ARG002
+            # Recorded head intentionally differs from the graph
+            # head so the probe classifies as DATABASE_HEAD_MISMATCH.
             return _FakeResult(("0123456789ab",))
 
     class _FakeEngine:
@@ -208,6 +258,13 @@ def test_postgresql_schema_head_invalid_classifies_to_dshic(postgresql_env, monk
 
     fake_engine = _FakeEngine()
     monkeypatch.setattr(deps, "get_engine", lambda: fake_engine)
+
+    # The graph loader is monkeypatched to return a known valid head
+    # that does NOT match the recorded alembic_version row.
+    def _fake_graph_loader():
+        return ("abc123def456", None)
+
+    monkeypatch.setattr(rr, "_load_packaged_alembic_head", _fake_graph_loader)
 
     set_canonical_settings(Settings())
 
@@ -218,13 +275,34 @@ def test_postgresql_schema_head_invalid_classifies_to_dshic(postgresql_env, monk
 
     with TestClient(app) as client:
         resp = client.get("/health/ready")
-        # The endpoint must surface the new stable code (or the legacy
-        # SchemaProbeClass is reachable).
         body = resp.json()
         codes = [body.get("check_code")] + [o.get("code") for o in body.get("outcomes", [])]
+        # The probe MUST have classified the schema-head mismatch
+        # as the stable code DATABASE_SCHEMA_HEAD_INVALID.
         assert DATABASE_SCHEMA_HEAD_INVALID in codes
-        # Connection-class codes MUST NOT be misused for schema failure.
-        assert not any(c == "DATABASE_CONNECTION_FAILURE" for c in codes)
+        # Locate the schema-head probe outcome specifically and
+        # assert its code is DSHIC, NOT a timeout code. Other
+        # probes in the readiness tuple (e.g. lifecycle, build
+        # identity) may legitimately surface STARTUP_PROBE_TIMEOUT
+        # under this fixture; the schema-head probe is the
+        # V0.2 amendment's focus.
+        schema_outcomes = [
+            o for o in body.get("outcomes", []) if o.get("name") == "database_exact_alembic_head"
+        ]
+        assert schema_outcomes, "schema-head probe MUST have run"
+        schema_outcome = schema_outcomes[0]
+        assert schema_outcome.get("code") == DATABASE_SCHEMA_HEAD_INVALID
+        assert schema_outcome.get("code") != "STARTUP_PROBE_TIMEOUT"
+        assert schema_outcome.get("code") != "READINESS_PROBE_TIMEOUT"
+        # The detail envelope MUST NOT leak the raw Head value or
+        # the DSN. This guards against regression in the public
+        # health response surface.
+        body_str = str(body)
+        assert "abc123def456" not in body_str
+        assert "0123456789ab" not in body_str
+        assert postgresql_env not in body_str
+        assert "password" not in body_str.lower()
+        assert "Traceback" not in body_str
 
     reset_readiness_state()
     reset_canonical_settings()

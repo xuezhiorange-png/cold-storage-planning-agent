@@ -55,6 +55,7 @@ import threading
 import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 from cold_storage.bootstrap.mode import AppMode, is_production_mode, resolve_app_mode
@@ -157,9 +158,57 @@ class UnsafeStrictCapabilityWiring(ReadinessError):
 
     failure_code = UNSAFE_STRICT_CAPABILITY_WIRING
 
-    def __init__(self, message: str, *, unsafe_capabilities: tuple[str, ...] = ()) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        unsafe_capabilities: tuple[str, ...] = (),
+    ) -> None:
         super().__init__(message)
         self.unsafe_capabilities: tuple[str, ...] = tuple(unsafe_capabilities)
+
+
+class StartupNonTimeoutProbeFailure(ReadinessError):
+    """Internal: a non-timeout ``Exception`` escaped a probe body.
+
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): the legacy fallback that
+    mapped arbitrary non-timeout exceptions to a timeout code has been
+    removed. Callers that have not (yet) declared a distinct
+    ``on_non_timeout_code`` MUST observe a fail-closed non-timeout
+    failure rather than a silent ``STARTUP_PROBE_TIMEOUT`` /
+    ``READINESS_PROBE_TIMEOUT`` mis-projection. The exception carries
+    only the safe probe name and the original exception; the message
+    is redacted to avoid leaking the raw exception text into logs
+    surfaced by the public health envelope.
+    """
+
+    def __init__(
+        self,
+        *,
+        probe_name: str,
+        original_exception: BaseException,
+    ) -> None:
+        self.probe_name = probe_name
+        self.original_exception = original_exception
+        self.failure_code = getattr(original_exception, "failure_code", None)
+        super().__init__(
+            f"startup probe {probe_name!r} raised non-timeout exception "
+            f"({type(original_exception).__name__}); see logs for details"
+        )
+
+
+class StartupProbeFailure(ReadinessError):
+    """Internal: a startup probe reported a non-timeout failure code.
+
+    Carries only the safe probe name and the stable failure code
+    string. The message MUST NOT embed the raw probe detail, head
+    value, DSN, SQL, or any other secret / environment value.
+    """
+
+    def __init__(self, *, probe_name: str, failure_code: str) -> None:
+        self.probe_name = probe_name
+        self.failure_code = failure_code
+        super().__init__(f"startup probe {probe_name!r} reported failure code={failure_code!r}")
 
 
 # F-PR76-MEDIUM-01: the prior implementation defined a dedicated
@@ -340,10 +389,16 @@ def run_probe_with_timeout(
     for the schema-head probe) MUST pass ``on_non_timeout_code`` so
     that an unexpected ``Exception`` inside the probe is projected to
     that stable code instead of being mis-projected to
-    ``on_timeout_code``. Without ``on_non_timeout_code``, the legacy
-    behaviour is preserved (any ``Exception`` falls back to
-    ``on_timeout_code``); the schema probe explicitly opts in via
-    the ``DATABASE_SCHEMA_HEAD_INVALID`` mapping.
+    ``on_timeout_code``. When ``on_non_timeout_code`` is ``None`` a
+    non-timeout ``Exception`` is treated as a fail-closed non-timeout
+    failure: the alarm is cancelled and a fresh internal
+    :class:`StartupNonTimeoutProbeFailure` exception is raised carrying
+    the probe name and the original exception. Callers that have NOT
+    yet been amended to pass ``on_non_timeout_code`` will therefore
+    observe a non-timeout failure rather than a silent
+    ``STARTUP_PROBE_TIMEOUT`` / ``READINESS_PROBE_TIMEOUT`` mis-projection.
+    This eliminates the legacy fallback path that previously mapped
+    any exception to a timeout code.
 
     Importantly, the helper spawns NO background threads, NO
     asyncio tasks, and NO auxiliary connections. The 8-probe
@@ -368,23 +423,31 @@ def run_probe_with_timeout(
             detail="probe exceeded per-probe budget (alarm)",
             duration_seconds=time.monotonic() - start,
         )
-    except Exception:
+    except Exception as _exc:
         _cancel_alarm(alarm_token)
         elapsed = time.monotonic() - start
         # D-S2-12.a.v0.2: a non-timeout ``Exception`` MUST NOT be
         # silently mis-projected to a timeout code. Callers that have
         # a distinct stable code for non-timeout failures must pass
-        # ``on_non_timeout_code``; otherwise we fall back to the legacy
-        # ``on_timeout_code`` mapping for backwards compatibility with
-        # callers that have NOT yet been amended.
-        code = on_non_timeout_code if on_non_timeout_code is not None else on_timeout_code
-        return ProbeOutcome(
-            name=name,
-            status="fail",
-            code=code,
-            detail="probe raised non-timeout exception",
-            duration_seconds=elapsed,
-        )
+        # ``on_non_timeout_code``; if they do, we project to that
+        # stable code. Otherwise the helper fails closed: the alarm is
+        # cancelled and a ``StartupNonTimeoutProbeFailure`` is raised
+        # carrying the safe probe name and the original exception,
+        # without leaking the exception text. This deliberately
+        # eliminates the legacy fallback that mapped arbitrary
+        # exceptions to the timeout code.
+        if on_non_timeout_code is not None:
+            return ProbeOutcome(
+                name=name,
+                status="fail",
+                code=on_non_timeout_code,
+                detail="probe raised non-timeout exception",
+                duration_seconds=elapsed,
+            )
+        raise StartupNonTimeoutProbeFailure(
+            probe_name=name,
+            original_exception=_exc,
+        ) from _exc
     _cancel_alarm(alarm_token)
     elapsed = time.monotonic() - start
     # The probe is allowed to report its own duration (e.g. when it
@@ -892,16 +955,44 @@ def run_startup_phase(
     timeout = resolve_probe_timeout_seconds(settings=settings, kind="startup")
     outcomes: list[ProbeOutcome] = []
     for probe in startup_probes:
+        # V0.2 Slice 2 amendment (D-S2-12.a.v0.2): probe bodies that
+        # declare a distinct non-timeout stable code MUST pass
+        # ``on_non_timeout_code`` so an unexpected ``Exception`` is
+        # not mis-projected to ``STARTUP_PROBE_TIMEOUT``. The schema
+        # probe opts in via ``DATABASE_SCHEMA_HEAD_INVALID``.
+        on_non_timeout = (
+            DATABASE_SCHEMA_HEAD_INVALID if _probe_name(probe) == PROBE_SCHEMA else None
+        )
         outcome = run_probe_with_timeout(
             name=_probe_name(probe),
             fn=probe,
             timeout_seconds=timeout,
             on_timeout_code=STARTUP_PROBE_TIMEOUT,
+            on_non_timeout_code=on_non_timeout,
         )
         outcomes.append(outcome)
         if outcome.status != "pass":
-            raise StartupProbeTimeout(
-                f"startup probe {outcome.name!r} did not pass: code={outcome.code}"
+            # V0.2 Slice 2 amendment (D-S2-12.a.v0.2): only a true
+            # timeout outcome (``code == STARTUP_PROBE_TIMEOUT``) is
+            # wrapped as :class:`StartupProbeTimeout`. A non-timeout
+            # failure code (e.g. ``DATABASE_SCHEMA_HEAD_INVALID``)
+            # MUST be wrapped as the fail-closed non-timeout
+            # :class:`StartupNonTimeoutProbeFailure`. The application
+            # still fails closed and exits; the exception type
+            # discriminates timeout from non-timeout startup failures
+            # for log consumers and operations. The exception message
+            # carries the safe failure code but never the raw probe
+            # detail, head value, DSN, or SQL.
+            if outcome.code == STARTUP_PROBE_TIMEOUT:
+                raise StartupProbeTimeout(
+                    f"startup probe {outcome.name!r} did not pass: code={outcome.code}"
+                )
+            raise StartupNonTimeoutProbeFailure(
+                probe_name=outcome.name,
+                original_exception=StartupProbeFailure(
+                    probe_name=outcome.name,
+                    failure_code=str(outcome.code) if outcome.code is not None else "",
+                ),
             )
 
     # Defense-in-depth assertion per D-S2-06.c.  Runs AFTER probes so a
@@ -1170,6 +1261,223 @@ def probe_database_connectivity(*, timeout_seconds: int) -> ProbeOutcome:
     return _pass(name=name, detail="db reachable", duration=time.monotonic() - start)
 
 
+def _load_packaged_alembic_head() -> tuple[str | None, str | None]:
+    """Load the unique packaged Alembic head from the deployed artifact graph.
+
+    Returns
+    -------
+    (head, None)
+        ``head`` is the unique Alembic revision id from the packaged
+        script directory.
+    (None, internal_reason)
+        ``internal_reason`` is one of the frozen closed set:
+        ``PACKAGED_HEAD_MISSING``, ``PACKAGED_HEAD_UNREADABLE``,
+        ``PACKAGED_HEAD_MALFORMED``, ``PACKAGED_HEAD_ZERO``,
+        ``PACKAGED_HEAD_MULTIPLE``. The public stable code is
+        ``DATABASE_SCHEMA_HEAD_INVALID`` (projected at the probe
+        boundary); the internal reason is preserved for log
+        consumption.
+
+    Implementation notes
+    --------------------
+    - The Alembic deployment root is derived deterministically from
+      this module's own path (``parents[3]``). For
+      ``backend/src/cold_storage/bootstrap/runtime_readiness.py`` the
+      root is ``backend/``; for the container path
+      ``/opt/cold-storage/src/cold_storage/bootstrap/runtime_readiness.py``
+      the root is ``/opt/cold-storage/``.
+    - The loader MUST NOT execute ``env.py``, MUST NOT connect to the
+      database, MUST NOT invoke ``alembic upgrade`` / ``downgrade`` /
+      ``heads`` CLI / ``current``, and MUST NOT spawn subprocesses.
+      Per the architecture contract
+      (``test_runtime_bootstrap_does_not_use_alembic``) the runtime
+      bootstrap layer MUST NOT import or invoke the alembic Python
+      library; the loader therefore parses the packaged revision
+      files directly from the ``alembic/versions/`` directory.
+    - The legacy ``COLD_STORAGE_PACKAGED_ALEMBIC_HEAD`` env var is
+      intentionally ignored: the deployment artifact is the only
+      authoritative source. A malicious or malformed env value cannot
+      override the graph.
+    """
+    module_path = Path(__file__).resolve()
+    # ``parents[3]`` walks up from
+    # ``backend/src/cold_storage/bootstrap/runtime_readiness.py`` to
+    # ``backend/``. The container layout
+    # ``/opt/cold-storage/src/cold_storage/bootstrap/runtime_readiness.py``
+    # yields ``/opt/cold-storage/``.
+    deployment_root = module_path.parents[3]
+    alembic_ini_path = deployment_root / "alembic.ini"
+    if not alembic_ini_path.is_file():
+        return (None, "PACKAGED_HEAD_MISSING")
+
+    # Resolve the ``script_location`` from ``alembic.ini`` without
+    # importing alembic. The script location is documented to be a
+    # single key with no comments in our deployed configurations.
+    try:
+        ini_text = alembic_ini_path.read_text(encoding="utf-8")
+    except OSError:
+        return (None, "PACKAGED_HEAD_UNREADABLE")
+    script_location: str | None = None
+    for raw_line in ini_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            # New section header (e.g. ``[alembic]``); stop after
+            # the first non-alembic section.
+            if line.lower() != "[alembic]" and script_location is not None:
+                break
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            if key.strip().lower() == "script_location":
+                script_location = value.strip()
+                break
+    if not script_location:
+        return (None, "PACKAGED_HEAD_MISSING")
+    script_path = Path(script_location)
+    if not script_path.is_absolute():
+        script_path = (deployment_root / script_location).resolve()
+    versions_dir = script_path / "versions"
+    if not versions_dir.is_dir():
+        return (None, "PACKAGED_HEAD_MISSING")
+
+    # Read each revision file and collect the ``revision = '...'``
+    # identifier together with the ``down_revision = '...'`` lineage.
+    try:
+        heads, parents = _parse_alembic_revisions(versions_dir)
+    except OSError:
+        return (None, "PACKAGED_HEAD_UNREADABLE")
+
+    # Compute heads: a revision whose id never appears as someone
+    # else's down_revision.
+    if not heads:
+        return (None, "PACKAGED_HEAD_ZERO")
+    if len(heads) > 1:
+        return (None, "PACKAGED_HEAD_MULTIPLE")
+
+    unique_head = heads[0]
+    if not isinstance(unique_head, str):
+        return (None, "PACKAGED_HEAD_MALFORMED")
+    stripped = unique_head.strip()
+    if not stripped:
+        return (None, "PACKAGED_HEAD_ZERO")
+    if "," in stripped:
+        return (None, "PACKAGED_HEAD_MULTIPLE")
+    # The unique Head MUST satisfy the project's existing
+    # revision-id validation rule (the brief mandates reusing the
+    # frozen shape validator as a private pure function). The rule
+    # permits the alphanumeric Alembic rev_id shape used by this
+    # project's revisions (e.g.
+    # ``0039_widen_report_export_artifact_mime_type``) rather than
+    # the 12-char lowercase hex shape the legacy env-var path
+    # enforced.
+    if not _is_alembic_revision(stripped):
+        return (None, "PACKAGED_HEAD_MALFORMED")
+    return (stripped, None)
+
+
+def _parse_alembic_revisions(
+    versions_dir: Path,
+) -> tuple[tuple[str, ...], dict[str, tuple[str | None, ...]]]:
+    """Parse the packaged Alembic revision graph without importing alembic.
+
+    Returns
+    -------
+    (heads, parents)
+        ``heads`` is the tuple of revision ids that have no
+        down_revision consumers (i.e. the current top of each
+        branch). ``parents`` maps each revision id to the tuple of
+        down_revision ids declared in its file (an empty tuple for
+        root revisions).
+    """
+    heads: list[str] = []
+    parents: dict[str, tuple[str | None, ...]] = {}
+    consumed: set[str] = set()
+    for revision_file in sorted(versions_dir.glob("*.py")):
+        try:
+            text = revision_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        revision_id = _extract_string_assignment(text, "revision")
+        if revision_id is None:
+            continue
+        parents[revision_id] = _extract_down_revisions(text)
+        consumed.update(p for p in parents[revision_id] if p is not None)
+    for rid in parents:
+        if rid not in consumed:
+            heads.append(rid)
+    return tuple(heads), parents
+
+
+def _extract_string_assignment(source: str, name: str) -> str | None:
+    """Extract a single-quoted string assigned to ``name = ...``.
+
+    Supports both ``name = 'value'`` and ``name = "value"`` literal
+    forms. Returns ``None`` if the assignment is absent or its
+    value cannot be parsed.
+    """
+    needle = f"{name} ="
+    idx = source.find(needle)
+    if idx == -1:
+        return None
+    rest = source[idx + len(needle) :].lstrip()
+    if not rest:
+        return None
+    quote = rest[0]
+    if quote not in ("'", '"'):
+        return None
+    end = rest.find(quote, 1)
+    if end == -1:
+        return None
+    return rest[1:end]
+
+
+def _extract_down_revisions(source: str) -> tuple[str | None, ...]:
+    """Extract the down_revision identifiers declared in a revision file.
+
+    Supports both single-string (``down_revision = 'id'``) and
+    tuple-of-strings (``down_revision = ('a', 'b')``) forms, plus
+    ``None`` for root revisions.
+    """
+    needle = "down_revision ="
+    idx = source.find(needle)
+    if idx == -1:
+        return ()
+    rest = source[idx + len(needle) :].lstrip()
+    if rest.startswith("None"):
+        return (None,)
+    if rest.startswith("("):
+        # Tuple form: walk and collect quoted strings.
+        end = rest.find(")")
+        if end == -1:
+            return ()
+        body = rest[1:end]
+        ids: list[str | None] = []
+        cursor = 0
+        while cursor < len(body):
+            ch = body[cursor]
+            if ch in (" ", ",", "\t", "\n"):
+                cursor += 1
+                continue
+            if ch in ("'", '"'):
+                close = body.find(ch, cursor + 1)
+                if close == -1:
+                    return ()
+                ids.append(body[cursor + 1 : close])
+                cursor = close + 1
+            else:
+                cursor += 1
+        return tuple(ids) if ids else (None,)
+    # Single-quoted string.
+    if rest and rest[0] in ("'", '"'):
+        end = rest.find(rest[0], 1)
+        if end == -1:
+            return ()
+        return (rest[1:end],)
+    return ()
+
+
 def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
     """Probe 4 — database_exact_alembic_head.
 
@@ -1212,29 +1520,12 @@ def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
             detail=f"non-strict mode skip ({mode.value})",
             duration=time.monotonic() - start,
         )
-    import os as _os
 
-    packaged_head_raw = _os.environ.get("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "")
-    packaged_head = packaged_head_raw.strip()
-    if not packaged_head:
+    packaged_head, packaged_internal_reason = _load_packaged_alembic_head()
+    if packaged_head is None:
         return _schema_head_invalid(
             name=name,
-            internal_reason="PACKAGED_HEAD_MISSING",
-            duration=time.monotonic() - start,
-        )
-    # Multiple packaged heads (comma-separated revision list) is a
-    # fail-closed condition: a deployment artifact identity must be a
-    # single revision; multi-revision values are treated as malformed.
-    if "," in packaged_head:
-        return _schema_head_invalid(
-            name=name,
-            internal_reason="PACKAGED_HEAD_MULTIPLE",
-            duration=time.monotonic() - start,
-        )
-    if not _is_alembic_revision(packaged_head):
-        return _schema_head_invalid(
-            name=name,
-            internal_reason="PACKAGED_HEAD_MALFORMED",
+            internal_reason=packaged_internal_reason or "PACKAGED_HEAD_MISSING",
             duration=time.monotonic() - start,
         )
     try:
@@ -1287,15 +1578,27 @@ def probe_database_exact_alembic_head(*, timeout_seconds: int) -> ProbeOutcome:
 def _is_alembic_revision(value: str) -> bool:
     """Return True iff ``value`` is a well-formed single Alembic revision.
 
-    The contract freezes the safe redaction envelope for the
-    schema-head probe: a revision MUST be a 12-char lowercase hex
-    string (Alembic's canonical form). Anything else is treated as
-    malformed and classified via ``DATABASE_SCHEMA_HEAD_INVALID`` /
-    ``PACKAGED_HEAD_MALFORMED`` without surfacing the value.
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): the project's existing
+    migration revisions are alphanumeric (e.g.
+    ``0039_widen_report_export_artifact_mime_type``) rather than the
+    12-char lowercase hex shape Alembic produces for short hashes.
+    The production database migration that widens
+    ``alembic_version.version_num`` to ``VARCHAR(64)`` (V0.2) confirms
+    the deployed revisions are free-form. The valid envelope is
+    therefore: any non-empty string consisting of digits, lowercase
+    letters, and underscores — the canonical Alembic ``rev_id``
+    format. This deliberately forbids whitespace, commas (which would
+    indicate multi-revision values), and other punctuation that
+    would be unsafe to surface as a stable identity.
     """
     if not isinstance(value, str):
         return False
-    return len(value) == 12 and all(c in "0123456789abcdef" for c in value)
+    stripped = value.strip()
+    if not stripped:
+        return False
+    if "," in stripped:
+        return False
+    return all(c in "0123456789abcdefghijklmnopqrstuvwxyz_-" for c in stripped)
 
 
 def probe_environment_and_resource_identities(*, timeout_seconds: int) -> ProbeOutcome:
@@ -1537,7 +1840,9 @@ __all__ = [
     "STARTUP_PROBE_TIMEOUT",
     "STARTUP_PROBE_TIMEOUT_MAX",
     "STARTUP_PROBE_TIMEOUT_MIN",
+    "StartupProbeFailure",
     "StartupProbeTimeout",
+    "StartupNonTimeoutProbeFailure",
     "UNSAFE_STRICT_CAPABILITY_WIRING",
     "UnsafeStrictCapabilityWiring",
     "READINESS_PROBE_TIMEOUT_MAX",

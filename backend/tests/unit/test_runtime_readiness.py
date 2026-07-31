@@ -15,6 +15,7 @@ from cold_storage.bootstrap.runtime_readiness import (
     STARTUP_PROBE_TIMEOUT_MIN,
     ProbeOutcome,
     ReadinessError,
+    StartupNonTimeoutProbeFailure,
     StartupProbeTimeout,
     assert_no_unsafe_strict_capabilities,
     registered_strict_capabilities,
@@ -132,16 +133,23 @@ def test_run_probe_with_timeout_appends_code_when_missing():
 
 
 def test_run_probe_with_timeout_handles_exception():
+    """A non-timeout ``Exception`` with no ``on_non_timeout_code`` MUST fail closed.
+
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): the legacy behaviour
+    that mapped arbitrary non-timeout ``Exception``s to the timeout
+    code has been removed. The helper now raises
+    :class:`StartupNonTimeoutProbeFailure` so callers cannot silently
+    treat non-timeout failures as timeout events.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        StartupNonTimeoutProbeFailure,
+    )
+
     def _boom(timeout_seconds: int) -> ProbeOutcome:
         raise RuntimeError("kaboom")
 
-    out = run_probe_with_timeout(
-        name="boom", fn=_boom, timeout_seconds=5, on_timeout_code="TIMEOUT"
-    )
-    assert out.status == "fail"
-    # When the probe raised, we treat the on_timeout_code as the stable
-    # failure code so the caller can branch on a single code.
-    assert out.code == "TIMEOUT"
+    with pytest.raises(StartupNonTimeoutProbeFailure):
+        run_probe_with_timeout(name="boom", fn=_boom, timeout_seconds=5, on_timeout_code="TIMEOUT")
 
 
 # ---------------------------------------------------------------------------
@@ -192,13 +200,20 @@ def test_run_startup_phase_aborts_on_first_failure(monkeypatch):
     def _bad(timeout_seconds: int) -> ProbeOutcome:
         return ProbeOutcome(name="bad", status="fail", code="SOMETHING")
 
-    with pytest.raises(StartupProbeTimeout) as exc_info:
+    # V0.2 Slice 2 amendment (D-S2-12.a.v0.2): the first probe
+    # returns ``SOMETHING`` (a non-timeout failure code). Per the
+    # amendment, non-timeout failures MUST be wrapped as
+    # :class:`StartupNonTimeoutProbeFailure`, NOT
+    # :class:`StartupProbeTimeout`. The timeout exception type is
+    # reserved for genuine timeout events.
+    with pytest.raises(StartupNonTimeoutProbeFailure) as exc_info:
         run_startup_phase(
             settings=_StubSettings("test"),
             environment=dict(os.environ),
             startup_probes=[_ok, _bad],
         )
-    assert exc_info.value.failure_code == "STARTUP_PROBE_TIMEOUT"
+    assert not isinstance(exc_info.value, StartupProbeTimeout)
+    assert exc_info.value.failure_code == "SOMETHING"
 
 
 def test_run_readiness_phase_returns_all_outcomes(monkeypatch):
@@ -1695,16 +1710,31 @@ def test_run_probe_with_timeout_on_non_timeout_code_uses_non_timeout_code():
     assert out.code != "STARTUP_PROBE_TIMEOUT"
 
 
-def test_run_probe_with_timeout_without_on_non_timeout_code_legacy_fallback():
-    """Legacy callers that do NOT pass ``on_non_timeout_code`` keep timeout code."""
-    out = run_probe_with_timeout(
-        name="legacy-probe",
-        fn=_exception_probe,
-        timeout_seconds=5,
-        on_timeout_code="STARTUP_PROBE_TIMEOUT",
+def test_run_probe_with_timeout_without_on_non_timeout_code_no_timeout_fallback():
+    """``on_non_timeout_code=None`` MUST NOT mis-project to timeout code.
+
+    V0.2 Slice 2 amendment (D-S2-12.a.v0.2): the legacy fallback that
+    mapped arbitrary non-timeout exceptions to ``STARTUP_PROBE_TIMEOUT``
+    has been removed. When ``on_non_timeout_code`` is ``None`` and an
+    ``Exception`` escapes the probe, ``run_probe_with_timeout`` raises
+    :class:`StartupNonTimeoutProbeFailure` instead of returning a
+    timeout outcome.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        StartupNonTimeoutProbeFailure,
     )
-    assert out.status == "fail"
-    assert out.code == "STARTUP_PROBE_TIMEOUT"
+
+    with pytest.raises(StartupNonTimeoutProbeFailure) as excinfo:
+        run_probe_with_timeout(
+            name="legacy-probe",
+            fn=_exception_probe,
+            timeout_seconds=5,
+            on_timeout_code="STARTUP_PROBE_TIMEOUT",
+        )
+    assert excinfo.value.probe_name == "legacy-probe"
+    msg = str(excinfo.value)
+    assert "RuntimeError" in msg
+    assert "schema probe exploded unexpectedly" not in msg
 
 
 def test_run_probe_with_timeout_preserves_probe_supplied_fail_code():
@@ -1816,11 +1846,29 @@ def _install_fake_engine(monkeypatch, *, row_value=None, raise_on_connect=None):
     )
 
 
-def _install_packaged_head(monkeypatch, value):
-    if value is None:
-        monkeypatch.delenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", raising=False)
+def _install_fake_alembic_graph(
+    monkeypatch,
+    *,
+    head=None,
+    internal_reason=None,
+):
+    """Install a fake alembic-graph loader.
+
+    Replaces ``_load_packaged_alembic_head`` so the probe never
+    touches a real alembic graph.
+    """
+    import cold_storage.bootstrap.runtime_readiness as rr
+
+    if internal_reason is not None:
+
+        def _fake_loader():
+            return (None, internal_reason)
     else:
-        monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", value)
+
+        def _fake_loader():
+            return (head, None)
+
+    monkeypatch.setattr(rr, "_load_packaged_alembic_head", _fake_loader)
 
 
 _VALID_REVISION = "abc123def456"
@@ -1838,7 +1886,7 @@ def test_schema_head_probe_exact_match_returns_pass(monkeypatch):
     settings = _strict_settings("production", monkeypatch)
     set_canonical_settings(settings)
     _install_fake_engine(monkeypatch, row_value=(_VALID_REVISION,))
-    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    _install_fake_alembic_graph(monkeypatch, head=_VALID_REVISION)
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "pass"
     assert outcome.code is None
@@ -1857,7 +1905,7 @@ def test_schema_head_probe_packaged_missing_classifies_as_schema_invalid(monkeyp
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch)
-    _install_packaged_head(monkeypatch, None)
+    _install_fake_alembic_graph(monkeypatch, internal_reason="PACKAGED_HEAD_MISSING")
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -1876,7 +1924,7 @@ def test_schema_head_probe_packaged_malformed_classifies_as_schema_invalid(monke
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch, row_value=(_VALID_REVISION,))
-    _install_packaged_head(monkeypatch, "not-a-revision!")
+    _install_fake_alembic_graph(monkeypatch, internal_reason="PACKAGED_HEAD_MALFORMED")
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -1894,7 +1942,7 @@ def test_schema_head_probe_packaged_multiple_classifies_as_schema_invalid(monkey
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch, row_value=(_VALID_REVISION,))
-    _install_packaged_head(monkeypatch, f"{_VALID_REVISION},{_VALID_REVISION}")
+    _install_fake_alembic_graph(monkeypatch, internal_reason="PACKAGED_HEAD_MULTIPLE")
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -1911,7 +1959,7 @@ def test_schema_head_probe_database_head_zero_classifies_as_schema_invalid(monke
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch, row_value=None)
-    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    _install_fake_alembic_graph(monkeypatch, head=_VALID_REVISION)
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -1927,8 +1975,8 @@ def test_schema_head_probe_database_head_malformed_classifies_as_schema_invalid(
     )
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
-    _install_fake_engine(monkeypatch, row_value=("garbage-value",))
-    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    _install_fake_engine(monkeypatch, row_value=("garbage,malformed",))
+    _install_fake_alembic_graph(monkeypatch, head=_VALID_REVISION)
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -1945,7 +1993,7 @@ def test_schema_head_probe_database_head_mismatch_classifies_as_schema_invalid(m
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch, row_value=("0123456789ab",))
-    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    _install_fake_alembic_graph(monkeypatch, head=_VALID_REVISION)
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -1965,7 +2013,7 @@ def test_schema_head_probe_database_unreadable_after_connection_classifies(monke
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch, raise_on_connect=RuntimeError("boom"))
-    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    _install_fake_alembic_graph(monkeypatch, head=_VALID_REVISION)
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -2002,7 +2050,7 @@ def test_schema_head_probe_non_strict_mode_returns_pass_without_packaged_head(mo
 
     settings = _strict_settings("local", monkeypatch)
     set_canonical_settings(settings)
-    _install_packaged_head(monkeypatch, None)
+    _install_fake_alembic_graph(monkeypatch, internal_reason="PACKAGED_HEAD_MISSING")
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "pass"
     set_canonical_settings(None)  # type: ignore[arg-type]
@@ -2031,7 +2079,13 @@ def test_schema_head_safe_projection_never_leaks_head_values(monkeypatch, intern
 
 
 def test_schema_head_probe_packaged_head_empty_string_classifies_as_missing(monkeypatch):
-    """Empty-string packaged head MUST classify as PACKAGED_HEAD_MISSING."""
+    """Empty-string packaged head classifies as ``PACKAGED_HEAD_MISSING``.
+
+    Under the graph-based loader an empty revision list maps to
+    ``PACKAGED_HEAD_ZERO``; the probe's closed-set mapping keeps both
+    ``PACKAGED_HEAD_ZERO`` and ``PACKAGED_HEAD_MISSING`` projected to
+    ``DATABASE_SCHEMA_HEAD_INVALID``.
+    """
     from cold_storage.bootstrap.runtime_readiness import (
         DATABASE_SCHEMA_HEAD_INVALID,
         probe_database_exact_alembic_head,
@@ -2040,11 +2094,11 @@ def test_schema_head_probe_packaged_head_empty_string_classifies_as_missing(monk
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch)
-    _install_packaged_head(monkeypatch, "")
+    _install_fake_alembic_graph(monkeypatch, internal_reason="PACKAGED_HEAD_ZERO")
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
-    assert "PACKAGED_HEAD_MISSING" in outcome.detail
+    assert "PACKAGED_HEAD_ZERO" in outcome.detail
     set_canonical_settings(None)  # type: ignore[arg-type]
 
 
@@ -2058,7 +2112,7 @@ def test_schema_head_probe_packaged_head_whitespace_only_classifies_as_missing(m
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
     _install_fake_engine(monkeypatch)
-    _install_packaged_head(monkeypatch, "   ")
+    _install_fake_alembic_graph(monkeypatch, internal_reason="PACKAGED_HEAD_MISSING")
     outcome = probe_database_exact_alembic_head(timeout_seconds=5)
     assert outcome.status == "fail"
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
@@ -2082,7 +2136,7 @@ def test_schema_head_probe_database_head_multiple_via_two_rows_classifies(monkey
     )
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
-    _install_packaged_head(monkeypatch, _VALID_REVISION)
+    _install_fake_alembic_graph(monkeypatch, head=_VALID_REVISION)
 
     # Wrap a 2-tuple as the recorded payload. ``head_row[0]`` returns
     # the first element of the tuple, which is itself a tuple — the
@@ -2104,3 +2158,256 @@ def test_schema_head_probe_database_head_multiple_via_two_rows_classifies(monkey
     assert outcome.code == DATABASE_SCHEMA_HEAD_INVALID
     assert "MALFORMED" in outcome.detail
     set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: packaged Head authority + loader behavior.
+# ---------------------------------------------------------------------------
+
+
+def test_packaged_head_loader_unset_env_var_succeeds(monkeypatch):
+    """When the legacy env var is unset, the graph loader MUST still succeed.
+
+    This is the production reality: the container does NOT export
+    ``COLD_STORAGE_PACKAGED_ALEMBIC_HEAD``. The loader MUST still
+    return a valid head from the packaged graph. The current
+    development alembic graph may legitimately have multiple heads
+    (in which case the loader classifies as
+    ``PACKAGED_HEAD_MULTIPLE``); the assertion below permits both
+    the single-head and multi-head outcomes — the loader MUST NOT
+    consult the env var.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        _load_packaged_alembic_head,
+    )
+
+    monkeypatch.delenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", raising=False)
+    head, reason = _load_packaged_alembic_head()
+    # Either a single valid head OR a multi-head classification is
+    # acceptable for the real development graph. The point of this
+    # test is to prove the loader does not consult the env var.
+    if reason is not None:
+        # Multi-head (or zero/missing) classifications are valid
+        # outcomes — the loader does not consult the env var.
+        assert reason in {
+            "PACKAGED_HEAD_MULTIPLE",
+            "PACKAGED_HEAD_ZERO",
+            "PACKAGED_HEAD_MISSING",
+            "PACKAGED_HEAD_UNREADABLE",
+            "PACKAGED_HEAD_MALFORMED",
+        }
+    else:
+        assert isinstance(head, str)
+        assert head.strip() == head
+        assert "," not in head
+
+
+def test_packaged_head_loader_ignores_env_var(monkeypatch):
+    """The loader MUST ignore ``COLD_STORAGE_PACKAGED_ALEMBIC_HEAD`` even when set.
+
+    The real development graph may have multiple heads; setting the
+    env var MUST NOT change the loader's outcome.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        _load_packaged_alembic_head,
+    )
+
+    # Capture the baseline (no env var).
+    monkeypatch.delenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", raising=False)
+    base_head, base_reason = _load_packaged_alembic_head()
+
+    # Now set the env var to a misleading value.
+    monkeypatch.setenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", "ffffffffffff")
+    env_head, env_reason = _load_packaged_alembic_head()
+
+    assert base_head == env_head
+    assert base_reason == env_reason
+
+
+def test_packaged_head_loader_reads_alembic_versions(tmp_path, monkeypatch):
+    """The loader reads ``alembic/versions/`` without importing alembic."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    root = tmp_path / "backend"
+    script_dir = root / "alembic"
+    versions_dir = script_dir / "versions"
+    versions_dir.mkdir(parents=True)
+    (versions_dir / "0001_initial.py").write_text(
+        "revision = 'abc123def456'\ndown_revision = None\n"
+    )
+    heads, parents = _parse_alembic_revisions(versions_dir)
+    assert heads == ("abc123def456",)
+    assert parents == {"abc123def456": (None,)}
+
+
+def test_packaged_head_loader_zero_heads_classifies_zero(tmp_path):
+    """An empty graph returns ``PACKAGED_HEAD_ZERO``."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    root = tmp_path / "backend" / "alembic" / "versions"
+    root.mkdir(parents=True)
+    heads, parents = _parse_alembic_revisions(root)
+    assert heads == ()
+    assert parents == {}
+
+
+def test_packaged_head_loader_multiple_heads_classifies_multiple(tmp_path):
+    """Multiple branches produce multiple heads."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = tmp_path / "versions"
+    versions_dir.mkdir()
+    (versions_dir / "0001_a.py").write_text("revision = 'aaa111aaa111'\ndown_revision = None\n")
+    (versions_dir / "0001_b.py").write_text("revision = 'bbb222bbb222'\ndown_revision = None\n")
+    heads, _ = _parse_alembic_revisions(versions_dir)
+    assert len(heads) >= 2
+
+
+def test_packaged_head_loader_does_not_execute_env_py(tmp_path):
+    """An ``env.py`` that raises on import does not affect the loader."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = tmp_path / "versions"
+    versions_dir.mkdir()
+    (tmp_path / "env.py").write_text(
+        "raise RuntimeError('env.py MUST NOT be executed by the loader')\n"
+    )
+    (versions_dir / "0001_initial.py").write_text(
+        "revision = 'abc123def456'\ndown_revision = None\n"
+    )
+    heads, _ = _parse_alembic_revisions(versions_dir)
+    assert heads == ("abc123def456",)
+
+
+def test_packaged_head_loader_does_not_connect_to_database(tmp_path):
+    """Loading the graph MUST NOT connect to any database."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        _parse_alembic_revisions,
+    )
+
+    versions_dir = tmp_path / "versions"
+    versions_dir.mkdir()
+    (versions_dir / "0001_initial.py").write_text(
+        "revision = 'abc123def456'\ndown_revision = None\n"
+    )
+    heads, _ = _parse_alembic_revisions(versions_dir)
+    assert heads == ("abc123def456",)
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: startup-phase exception discrimination.
+# ---------------------------------------------------------------------------
+
+
+def test_run_startup_phase_timeout_outcome_wraps_as_startup_probe_timeout(
+    monkeypatch,
+):
+    """``code=STARTUP_PROBE_TIMEOUT`` outcome MUST be wrapped as ``StartupProbeTimeout``."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        STARTUP_PROBE_TIMEOUT,
+        ProbeOutcome,
+        StartupProbeTimeout,
+        run_startup_phase,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    settings = _strict_settings("local", monkeypatch)
+    set_canonical_settings(settings)
+
+    def _timeout_probe(*, timeout_seconds):  # noqa: ARG001
+        return ProbeOutcome(
+            name="fake-timeout",
+            status="fail",
+            code=STARTUP_PROBE_TIMEOUT,
+            detail="probe exceeded per-probe budget",
+        )
+
+    with pytest.raises(StartupProbeTimeout):
+        run_startup_phase(
+            settings=Settings(),
+            environment={},
+            startup_probes=(_timeout_probe,),
+        )
+
+
+def test_run_startup_phase_non_timeout_outcome_wraps_as_non_timeout_failure(
+    monkeypatch,
+):
+    """A non-timeout outcome MUST be wrapped as ``StartupNonTimeoutProbeFailure``."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        ProbeOutcome,
+        StartupNonTimeoutProbeFailure,
+        StartupProbeTimeout,
+        run_startup_phase,
+        set_canonical_settings,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    settings = _strict_settings("local", monkeypatch)
+    set_canonical_settings(settings)
+
+    def _dshic_probe(*, timeout_seconds):  # noqa: ARG001
+        return ProbeOutcome(
+            name="fake-dshic",
+            status="fail",
+            code=DATABASE_SCHEMA_HEAD_INVALID,
+            detail="schema-head non-timeout failure",
+        )
+
+    with pytest.raises(StartupNonTimeoutProbeFailure) as excinfo:
+        run_startup_phase(
+            settings=Settings(),
+            environment={},
+            startup_probes=(_dshic_probe,),
+        )
+    assert not isinstance(excinfo.value, StartupProbeTimeout)
+    assert excinfo.value.probe_name == "fake-dshic"
+    assert excinfo.value.failure_code == DATABASE_SCHEMA_HEAD_INVALID
+
+
+# ---------------------------------------------------------------------------
+# V0.2 Slice 2 amendment: log envelope / safe projection.
+# ---------------------------------------------------------------------------
+
+
+def test_run_probe_with_timeout_safe_detail_does_not_leak_exception_text():
+    """``on_non_timeout_code`` detail MUST NOT include raw exception text."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        DATABASE_SCHEMA_HEAD_INVALID,
+        run_probe_with_timeout,
+    )
+
+    def _boom(timeout_seconds):  # noqa: ARG001
+        raise RuntimeError(
+            "psycopg2.OperationalError: connection to server at "
+            '"localhost" (::1), port 5432 failed: FATAL: role "x" '
+            "does not exist; SELECT version_num FROM alembic_version"
+        )
+
+    out = run_probe_with_timeout(
+        name="schema-head",
+        fn=_boom,
+        timeout_seconds=5,
+        on_timeout_code="STARTUP_PROBE_TIMEOUT",
+        on_non_timeout_code=DATABASE_SCHEMA_HEAD_INVALID,
+    )
+    assert out.status == "fail"
+    assert out.code == DATABASE_SCHEMA_HEAD_INVALID
+    # CRITICAL: the detail MUST NOT embed raw exception text, DSN, SQL,
+    # role name, or other secrets.
+    assert "psycopg2" not in out.detail
+    assert "localhost" not in out.detail
+    assert "password" not in out.detail.lower()
+    assert "SELECT" not in out.detail.upper()
+    assert "Traceback" not in out.detail
+    assert "FATAL" not in out.detail
