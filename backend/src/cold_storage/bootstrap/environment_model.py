@@ -30,6 +30,13 @@ CANONICAL_KEYS = (
     "POSTGRES_PASSWORD",
     "CONFIG_FILE",
     "SECRET_MOUNT_DIR",
+    # TASK-012 Slice 2: build / deployment identity env vars.
+    "BUILD_COMMIT_SHA",
+    "BUILD_VERSION",
+    "DEPLOYMENT_ID",
+    # TASK-012 Slice 2: probe-timeout configuration keys.
+    "STARTUP_PROBE_TIMEOUT_SECONDS",
+    "READINESS_PROBE_TIMEOUT_SECONDS",
 )
 LEGACY_KEYS = (
     "APP_ENV",

@@ -1,5 +1,6 @@
 """FastAPI application factory."""
 
+import json
 import logging
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
@@ -19,6 +20,7 @@ from cold_storage.bootstrap.dependencies import (
     shutdown_dependencies,
 )
 from cold_storage.bootstrap.logging import configure_logging
+from cold_storage.bootstrap.mode import AppMode, resolve_app_mode
 from cold_storage.bootstrap.settings import get_settings
 from cold_storage.modules.calculations.application.service import (
     CoreCalculationService,
@@ -47,7 +49,6 @@ from cold_storage.modules.planning_agent.application.agent_service import Legacy
 from cold_storage.modules.planning_agent.application.orchestrator import AgentOrchestrator
 from cold_storage.modules.planning_agent.application.service import PlanningAgentService
 from cold_storage.modules.planning_agent.application.tool_registry import build_default_registry
-from cold_storage.modules.planning_agent.infrastructure.fake_gateways import FakeAgentModelGateway
 from cold_storage.modules.planning_agent.infrastructure.repository import AgentRepository
 from cold_storage.modules.projects.application.service import ProjectService
 from cold_storage.modules.projects.domain.models import (
@@ -90,9 +91,18 @@ def _get_planning_agent_service(
     Fix #2: per-request Session, not singleton.
     Fix #7: transaction boundary via _get_db_session commit/rollback.
     Fix #1+#2: Wire real tool adapters into the orchestrator.
+
+    D-S2-06.a: the fake-agent gateway is only imported and instantiated
+    in local / test modes. In strict modes (staging / production) the
+    planning-agent router is unmounted so this dependency is never
+    invoked; the lazy import is also gated so a strict-mode import
+    path cannot accidentally instantiate ``FakeAgentModelGateway``.
     """
     from cold_storage.modules.knowledge.application.service import (
         KnowledgeService as _KnowledgeService,
+    )
+    from cold_storage.modules.planning_agent.infrastructure.fake_gateways import (
+        FakeAgentModelGateway,
     )
     from cold_storage.modules.planning_agent.infrastructure.tool_adapters.knowledge_adapter import (
         KnowledgeSearchAdapter,
@@ -261,8 +271,14 @@ class AgentMessageRequest(BaseModel):
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
-    init_dependencies(get_settings())
+    # F-PR76-HIGH-01: dependency initialization is now transactional
+    # (see ``init_dependencies``); if any step fails the partially-
+    # created state is rolled back through ``shutdown_dependencies``
+    # before the exception is re-raised. The ``try / finally`` here
+    # therefore only runs ``shutdown_dependencies`` on a clean
+    # teardown path; it is idempotent and safe to invoke twice.
     try:
+        init_dependencies(get_settings(), app=app)
         yield
     finally:
         shutdown_dependencies()
@@ -278,9 +294,18 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     calculator = CalculationService()
     zone_planner = ColdRoomZonePlanner()
     investment_estimator = InvestmentEstimator()
-    coefficient_service = CoefficientService()
     core_calculation_service = CoreCalculationService()
-    register_coefficient_routes(app, coefficient_service)
+
+    # D-S2-06.b: in-memory coefficient service as HTTP backend is only
+    # safe in local / test modes. Staging / production must use the
+    # strict-approved resolver path only; the process-local service
+    # and its HTTP routes are NOT mounted, so any incoming request
+    # receives FastAPI's standard 404.
+    initial_mode = resolve_app_mode(get_settings())
+    if initial_mode in (AppMode.LOCAL, AppMode.TEST):
+        coefficient_service = CoefficientService()
+        register_coefficient_routes(app, coefficient_service)
+    # else: coefficient routes deliberately not mounted in strict modes
 
     # Scheme routes
     def _scheme_service_factory() -> SchemeService:
@@ -312,11 +337,149 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     @app.get("/health/live")
     def live() -> dict[str, str]:
+        """Liveness MUST NOT query the database (D-S2-03).
+
+        Liveness reflects only that the application process and
+        request loop are alive. No DB, no migration state, no
+        artifact storage, no external services. Returns 200 whenever
+        the FastAPI worker can answer.
+        """
         return {"status": "live"}
 
     @app.get("/health/ready")
-    def ready() -> dict[str, str]:
-        return {"status": "ready"}
+    def ready() -> Any:
+        """Readiness is dynamic and dependency-aware (D-S2-03, D-S2-04).
+
+        Returns:
+
+        * HTTP 200 when the readiness state singleton is
+          ``READY`` and all readiness probes pass.
+        * HTTP 503 when the state is ``INITIALIZING``,
+          ``DRAINING``, ``SHUTDOWN_COMPLETE``, or any probe fails.
+
+        The response body MUST NOT contain raw exception text, DSNs,
+        passwords, tokens, secret mount contents, or unsafe path
+        details. Only stable state codes and the per-probe outcome
+        projections are surfaced.
+
+        ``ready()`` MUST NOT raise an exception; under strict-env
+        validation errors the endpoint reports ``state=ERROR`` with
+        HTTP 503 rather than propagating the pydantic
+        ``ValidationError`` to the client. This is the contract's
+        "fail closed" surface for the readiness HTTP channel.
+
+        F-S2-REVIEW-004 / F-S2-REVIEW-005: the endpoint consumes the
+        canonical ``Settings`` authority via ``canonical_settings()``
+        and runs the canonical 8-probe readiness tuple. We never build
+        a second Settings authority here, and the endpoint never
+        builds a new ``Settings()``; configuration failures surface
+        as the stable ``CONFIGURATION_PROBE_FAILED`` code.
+        """
+        from fastapi import Response
+
+        from cold_storage.bootstrap.environment_model import (  # noqa: PLC0415
+            ConfigurationError as _ConfigurationError,
+        )
+        from cold_storage.bootstrap.runtime_readiness import (
+            ReadinessState,
+            canonical_settings,
+            get_readiness_state,
+            mandatory_readiness_probes,
+            run_readiness_phase,
+        )
+
+        # F-PR76-MEDIUM-01: reuse the canonical Settings authority.
+        # Configuration failures (no canonical authority yet, pydantic
+        # ValidationError, Slice 1 frozen ConfigurationError) are
+        # caught here so the endpoint always surfaces a stable
+        # failure class rather than building a second Settings on
+        # the side. The ``check_code`` projected to the client is the
+        # Python class name of the Slice 1 frozen
+        # :class:`ConfigurationError` (``"ConfigurationError"``);
+        # it is a frozen Python identifier, NOT a runtime-invented
+        # stable string. The ``detail`` field is intentionally an
+        # opaque token, never ``str(exc)`` or
+        # ``type(exc).__name__``, so the response cannot leak
+        # exception-derived implementation details.
+        try:
+            probe_settings = canonical_settings()
+            configuration_failed: tuple[str, str] | None = None
+        except _ConfigurationError:
+            probe_settings = None
+            configuration_failed = (
+                _ConfigurationError.__name__,
+                "settings unavailable",
+            )
+        except Exception:
+            probe_settings = None
+            configuration_failed = (
+                _ConfigurationError.__name__,
+                "settings unavailable",
+            )
+
+        state: ReadinessState | None = get_readiness_state()
+        snapshot = state.snapshot() if state is not None else {"state": "INITIALIZING"}
+        state_name = snapshot.get("state", "INITIALIZING")
+
+        # DRAINING / SHUTDOWN_COMPLETE: refuse work, return 503.
+        if state_name in ("DRAINING", "SHUTDOWN_COMPLETE"):
+            return Response(
+                status_code=503,
+                media_type="application/json",
+                content=json.dumps(
+                    {
+                        "status": "draining" if state_name == "DRAINING" else "shutdown",
+                        "state": state_name,
+                    }
+                ),
+            )
+
+        if probe_settings is None:
+            # Configuration was incomplete; surface the Slice 1
+            # frozen ConfigurationError class name as the stable
+            # ``check_code``. F-PR76-MEDIUM-01.
+            safe_code, safe_detail = configuration_failed or (
+                _ConfigurationError.__name__,
+                "settings unavailable",
+            )
+            return Response(
+                status_code=503,
+                media_type="application/json",
+                content=json.dumps(
+                    {
+                        "status": "not_ready",
+                        "state": state_name,
+                        "check_code": safe_code,
+                    }
+                ),
+            )
+
+        outcomes = run_readiness_phase(
+            settings=probe_settings,
+            readiness_probes=mandatory_readiness_probes(),
+        )
+        ok = all(o.status == "pass" for o in outcomes)
+
+        if state_name == "READY" and ok:
+            return {"status": "ready", "state": state_name}
+
+        # Build a safe projection: status, state, check_code (frozen
+        # code if any), and the per-probe outcome dicts that already
+        # pass through the redaction authority. We never echo raw
+        # exception text, DSN, or full path here.
+        failed_codes = sorted({o.code for o in outcomes if o.code})
+        primary_code = failed_codes[0] if failed_codes else "READINESS_PROBE_TIMEOUT"
+        body = {
+            "status": "not_ready",
+            "state": state_name,
+            "check_code": primary_code,
+            "outcomes": [o.to_dict() for o in outcomes],
+        }
+        return Response(
+            status_code=503,
+            media_type="application/json",
+            content=json.dumps(body),
+        )
 
     @app.get("/api/v1/demo/overview")
     def demo_overview() -> dict[str, Any]:
@@ -700,7 +863,13 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         create_agent_router as _create_agent_router,
     )
 
-    app.include_router(_create_agent_router(_get_planning_agent_service))
+    # D-S2-06.a: the planning-agent router is backed by
+    # ``FakeAgentModelGateway``. In strict modes (staging / production)
+    # neither the gateway nor the router is mounted, so any incoming
+    # request to ``/api/v1/agent/...`` receives FastAPI's standard 404
+    # (no internal-state response).
+    if initial_mode in (AppMode.LOCAL, AppMode.TEST):
+        app.include_router(_create_agent_router(_get_planning_agent_service))
 
     # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------

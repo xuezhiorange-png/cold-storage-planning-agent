@@ -67,6 +67,26 @@ class Settings(BaseSettings):
     secret_mount_dir: str | None = Field(
         default=None, validation_alias="COLD_STORAGE_SECRET_MOUNT_DIR"
     )
+    # TASK-012 Slice 2: build / deployment identity env vars.
+    # These are surfaced through Settings for diagnostics; the canonical
+    # authority at runtime is the in-image file under
+    # ``/opt/cold-storage/build-identity.json``. See
+    # ``bootstrap.deployment_identity`` and contract section D-S2-02.
+    build_commit_sha: str | None = Field(
+        default=None, validation_alias="COLD_STORAGE_BUILD_COMMIT_SHA"
+    )
+    build_version: str | None = Field(default=None, validation_alias="COLD_STORAGE_BUILD_VERSION")
+    deployment_id: str | None = Field(default=None, validation_alias="COLD_STORAGE_DEPLOYMENT_ID")
+    # TASK-012 Slice 2: probe-timeout configuration keys.
+    # Numeric validation is owned by ``bootstrap.runtime_readiness``;
+    # settings carries strings here to keep the existing settings
+    # model backwards compatible.
+    startup_probe_timeout_seconds: str | None = Field(
+        default=None, validation_alias="COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS"
+    )
+    readiness_probe_timeout_seconds: str | None = Field(
+        default=None, validation_alias="COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS"
+    )
 
     _resolution_report: ConfigurationResolutionReport | None = PrivateAttr(default=None)
     _warnings: tuple[str, ...] = PrivateAttr(default=())

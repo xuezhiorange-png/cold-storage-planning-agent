@@ -45,7 +45,6 @@ from typing import TYPE_CHECKING, Any
 
 from cold_storage.bootstrap.mode import (
     AppMode,
-    is_production_mode,
     resolve_app_mode,
 )
 from cold_storage.bootstrap.settings import Settings
@@ -153,7 +152,7 @@ def run_startup_readiness_or_raise(
 ) -> ReadinessCheckOutcome:
     """Conditional fail-closed startup readiness check.
 
-    Behaviour matrix:
+    Behaviour matrix (TASK-012 Slice 2, D-S2-05):
 
     =================  ==========================================
     Mode              Effect
@@ -167,6 +166,11 @@ def run_startup_readiness_or_raise(
                       :class:`StartupReadinessError` with the full
                       inventory so operators can remediate in one
                       cycle.
+    ``STAGING``       Same fail-closed path as production (per
+                      D-S2-05 "staging and production use the
+                      same classes of startup and readiness
+                      checks"). Staging must not fall through a
+                      local/test skip path.
     ``DEVELOPMENT``   Skipped; returns ``ReadinessCheckOutcome``
                       with ``executed=False``.
     ``TEST``          Same as ``DEVELOPMENT`` — skipped.
@@ -185,9 +189,16 @@ def run_startup_readiness_or_raise(
     ``isinstance(exc, StartupReadinessError)`` without parsing
     message text.
     """
-    mode = resolve_app_mode(settings)
-    if not is_production_mode(mode):
-        return ReadinessCheckOutcome(mode=mode, executed=False, result=None)
+    # Per D-S2-05, staging now uses the same fail-closed classes as
+    # production. We key on ``settings.environment_id`` (which is
+    # the ``EnvironmentId`` StrEnum canonical to Slice 1) rather than
+    # ``settings.app_env`` (a ``Literal`` without the staging value)
+    # so staging is correctly classified as production-equivalent.
+    from cold_storage.bootstrap.environment_model import EnvironmentId
+
+    env_id = settings.environment_id
+    if env_id not in (EnvironmentId.STAGING, EnvironmentId.PRODUCTION):
+        return ReadinessCheckOutcome(mode=resolve_app_mode(settings), executed=False, result=None)
 
     approval_service = _build_approval_service(engine)
     result = approval_service.validate_startup_readiness(
@@ -196,7 +207,7 @@ def run_startup_readiness_or_raise(
 
     ready = bool(result.get("ready", False))
     if ready:
-        return ReadinessCheckOutcome(mode=mode, executed=True, result=result)
+        return ReadinessCheckOutcome(mode=resolve_app_mode(settings), executed=True, result=result)
 
     buckets: dict[str, list[dict[str, str]]] = {
         "missing": list(result.get("missing", [])),

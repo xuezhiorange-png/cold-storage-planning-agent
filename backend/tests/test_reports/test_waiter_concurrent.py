@@ -609,17 +609,18 @@ class TestDefaultWaiterFastAPIConvergence:
         from fastapi.testclient import TestClient
 
         app, storage, report, revision = app_and_storage
-        return TestClient(app), report, revision
+        # Deterministic teardown via context manager; the test app is a
+        # plain FastAPI() with no lifespan, so entering TestClient does not
+        # trigger startup/shutdown that would interfere with the test.
+        with TestClient(app) as client:
+            yield client, report, revision
 
     def test_default_waiter_two_fastapi_requests_converge(
         self,
         test_client,
     ) -> None:
         """Two concurrent POST requests with same params converge to same artifact_id."""
-        from fastapi.testclient import TestClient
-
         client, report, revision = test_client
-        app = client.app
 
         url = f"/api/v1/reports/{report.id}/revisions/{revision.revision_number}/render"
 
@@ -638,9 +639,13 @@ class TestDefaultWaiterFastAPIConvergence:
 
         def _do_request(idx: int) -> None:
             try:
-                tc = TestClient(app)
                 barrier.wait()
-                resp = tc.post(url, json=body)
+                # Reuse the single fixture-provided TestClient. Creating a
+                # separate TestClient per thread targets the same FastAPI
+                # app with two distinct anyio portals, which produces an
+                # intermittent routing-level HTTP 404 (root cause class:
+                # MULTIPLE_CONCURRENT_TESTCLIENT_PORTALS_TARGETING_ONE_FASTAPI_APP).
+                resp = client.post(url, json=body)
                 with lock:
                     responses[idx] = resp.status_code
                     response_bodies[idx] = resp.json()
