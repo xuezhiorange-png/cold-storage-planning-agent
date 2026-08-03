@@ -291,6 +291,56 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 def create_app(project_service: ProjectService | None = None) -> FastAPI:
     configure_logging()
     app = FastAPI(title="Cold Storage Planning Agent V1", lifespan=_lifespan)
+
+    # --- Observability middleware (must be first to capture all requests) ---
+    from cold_storage.bootstrap.middleware.correlation_id import (  # noqa: PLC0415
+        CorrelationIdMiddleware,
+    )
+    from cold_storage.bootstrap.middleware.structured_logging import (  # noqa: PLC0415
+        StructuredLoggingMiddleware,
+    )
+
+    app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(StructuredLoggingMiddleware)
+
+    # --- Metrics endpoint ---
+    from cold_storage.bootstrap.metrics.endpoint import (  # noqa: PLC0415
+        create_metrics_endpoint,
+    )
+    from cold_storage.bootstrap.metrics.registry import (  # noqa: PLC0415
+        get_metrics,
+    )
+
+    # Register default route templates for bounded cardinality
+    _metrics = get_metrics()
+    _default_routes = [
+        "/api/v1/projects/{project_id}",
+        "/api/v1/projects/{project_id}/versions/{version_number}",
+        "/api/v1/projects/{project_id}/inputs/{version_number}",
+        "/api/v1/projects/{project_id}/calculate/{version_number}",
+        "/api/v1/planning/run",
+        "/api/v1/agent/sessions",
+        "/api/v1/agent/sessions/{session_id}",
+        "/health/live",
+        "/health/ready",
+        "/api/v1/demo/overview",
+    ]
+    for route in _default_routes:
+        _metrics.register_route_template(route)
+
+    # Register dependencies
+    for dep in [
+        "database",
+        "redis",
+        "artifact_storage",
+        "outbox_dispatcher",
+        "audit_log_writer",
+        "health_endpoint",
+    ]:
+        _metrics.register_dependency(dep)
+
+    app.add_api_route("/metrics", create_metrics_endpoint(_metrics))
+
     calculator = CalculationService()
     zone_planner = ColdRoomZonePlanner()
     investment_estimator = InvestmentEstimator()
