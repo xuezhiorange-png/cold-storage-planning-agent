@@ -146,19 +146,18 @@ class StructuredLoggingMiddleware:
                     "capability_tags": sorted(CAPABILITY_TAGS),
                 },
             )
-            # Record HTTP metrics for failed requests
-            if self._metrics is not None:
+            # Record HTTP metrics for failed requests (F015: /metrics skips first)
+            if self._metrics is not None and path != "/metrics":
                 route = scope.get("route")
                 route_template = getattr(route, "path", None) if route else None
                 if route_template is not None and route_template in self._metrics._routes:
-                    if path != "/metrics":
-                        self._metrics.record_http_request(
-                            method=method,
-                            path=route_template,
-                            status=str(status_code),
-                            duration_seconds=duration_ms / 1000.0,
-                        )
-                elif route_template is not None:
+                    self._metrics.record_http_request(
+                        method=method,
+                        path=route_template,
+                        status=str(status_code),
+                        duration_seconds=duration_ms / 1000.0,
+                    )
+                else:
                     self._metrics.HIGH_CARDINALITY_LABEL_REJECTED.labels(
                         metric_name="http_requests_total",
                     ).inc()
@@ -180,19 +179,18 @@ class StructuredLoggingMiddleware:
                 "capability_tags": sorted(CAPABILITY_TAGS),
             },
         )
-        # Record HTTP metrics for completed requests
-        if self._metrics is not None:
+        # Record HTTP metrics for completed requests (F015: /metrics skips first)
+        if self._metrics is not None and path != "/metrics":
             route = scope.get("route")
             route_template = getattr(route, "path", None) if route else None
             if route_template is not None and route_template in self._metrics._routes:
-                if path != "/metrics":
-                    self._metrics.record_http_request(
-                        method=method,
-                        path=route_template,
-                        status=str(status_code),
-                        duration_seconds=duration_ms / 1000.0,
-                    )
-            elif route_template is not None:
+                self._metrics.record_http_request(
+                    method=method,
+                    path=route_template,
+                    status=str(status_code),
+                    duration_seconds=duration_ms / 1000.0,
+                )
+            else:
                 self._metrics.HIGH_CARDINALITY_LABEL_REJECTED.labels(
                     metric_name="http_requests_total",
                 ).inc()

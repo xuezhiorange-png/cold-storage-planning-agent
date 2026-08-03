@@ -102,10 +102,17 @@ def _redact_log_value(value: object) -> object:
         if isinstance(value, Mapping):
             result: dict[object, object] = {}
             for k, v in value.items():
+                # F016: redact the key itself
+                safe_key = _redact_log_value(k)
+                if not isinstance(safe_key, str):
+                    try:
+                        safe_key = redact_for_logging(str(safe_key), emit_point=EmitPoint.LOG)
+                    except Exception:  # noqa: BLE001
+                        safe_key = "<REDACTION_FAILED>"
                 if is_sensitive_key(k):
-                    result[k] = "***" if v not in (None, "") else v
+                    result[safe_key] = "***" if v not in (None, "") else v
                 else:
-                    result[k] = _redact_log_value(v)
+                    result[safe_key] = _redact_log_value(v)
             return result
         if isinstance(value, list):
             return [_redact_log_value(item) for item in value]

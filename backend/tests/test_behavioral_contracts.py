@@ -211,12 +211,15 @@ class TestB01HttpCounterIncrement:
         )
 
     @pytest.mark.anyio
-    async def test_metrics_endpoint_not_self_recorded(self) -> None:
-        """Requests to the /metrics endpoint itself must NOT appear in
-        http_requests_total (self-scrape must not pollute counters)."""
+    async def test_metrics_endpoint_neither_records_nor_rejects_when_unregistered(
+        self,
+    ) -> None:
+        """Requests to /metrics must NOT record http_requests_total and must NOT
+        increment HIGH_CARDINALITY_LABEL_REJECTED, even when /metrics is not
+        registered as a route template.  The /metrics path is unconditionally
+        excluded before any route-template lookup or rejection counter."""
         metrics = _fresh_metrics()
-        metrics.register_route_template("/health/live")
-        metrics.register_route_template("/metrics")
+        # Intentionally do NOT register /metrics as a route template.
 
         app = _make_app()
 
@@ -226,20 +229,70 @@ class TestB01HttpCounterIncrement:
 
         middleware = StructuredLoggingMiddleware(app, metrics=metrics)  # type: ignore[call-arg]
 
+        before_http = _counter_value(metrics, "http_requests_total")
+        before_reject = _counter_value(
+            metrics,
+            "HIGH_CARDINALITY_LABEL_REJECTED",
+            labels={"metric_name": "http_requests_total"},
+        )
+
         transport = httpx.ASGITransport(app=middleware)
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.get("/metrics")
         assert resp.status_code == 200
 
-        # The /metrics request itself must NOT be counted
+        after_http = _counter_value(metrics, "http_requests_total")
+        after_reject = _counter_value(
+            metrics,
+            "HIGH_CARDINALITY_LABEL_REJECTED",
+            labels={"metric_name": "http_requests_total"},
+        )
+        assert after_http == before_http, (
+            f"/metrics self-request incremented http_requests_total: "
+            f"before={before_http}, after={after_http}"
+        )
+        assert after_reject == before_reject, (
+            f"/metrics self-request incremented HIGH_CARDINALITY_LABEL_REJECTED: "
+            f"before={before_reject}, after={after_reject}"
+        )
+
+    @pytest.mark.anyio
+    async def test_unresolved_route_rejects_with_counter(self) -> None:
+        """A request to an unregistered route template must NOT record
+        http_requests_total but MUST increment
+        HIGH_CARDINALITY_LABEL_REJECTED{metric_name="http_requests_total"}."""
+        metrics = _fresh_metrics()
+        # Only register /health/live, NOT /nonexistent
+        metrics.register_route_template("/health/live")
+
+        app = _make_app()
+        middleware = StructuredLoggingMiddleware(app, metrics=metrics)  # type: ignore[call-arg]
+
+        before_reject = _counter_value(
+            metrics,
+            "HIGH_CARDINALITY_LABEL_REJECTED",
+            labels={"metric_name": "http_requests_total"},
+        )
+
+        transport = httpx.ASGITransport(app=middleware)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            resp = await client.get("/nonexistent")
+        assert resp.status_code == 404
+
+        after_reject = _counter_value(
+            metrics,
+            "HIGH_CARDINALITY_LABEL_REJECTED",
+            labels={"metric_name": "http_requests_total"},
+        )
+        assert after_reject == before_reject + 1, (
+            f"HIGH_CARDINALITY_LABEL_REJECTED not incremented for unregistered route: "
+            f"before={before_reject}, after={after_reject}"
+        )
+
+        # Raw path must NOT appear in exposition
         exposition = _exposition(metrics)
-        metrics_lines = [
-            line
-            for line in exposition.splitlines()
-            if "http_requests_total" in line and 'path="/metrics"' in line
-        ]
-        assert len(metrics_lines) == 0, (
-            f"/metrics self-request leaked into http_requests_total: {metrics_lines}"
+        assert "/nonexistent" not in exposition, (
+            "Raw path /nonexistent leaked into Prometheus exposition"
         )
 
     @pytest.mark.anyio
@@ -612,3 +665,80 @@ class TestB03RecursiveExtraRedaction:
         )
         assert "alice-secret" not in output, "Secret in list-of-dicts was not redacted"
         assert "bob-api-key-12345" not in output, "API key in list-of-dicts was not redacted"
+
+
+# ===========================================================================
+# TEST GROUP 4 – Mapping Key Redaction (F016)
+# ===========================================================================
+
+
+class TestF016MappingKeyRedaction:
+    """Mapping KEYS containing sensitive content must be redacted, not just
+    values.  A key like ``authorization=Bearer KEY_SECRET`` must have both
+    the key redacted AND the value replaced."""
+
+    @staticmethod
+    def _capture_log(
+        message: str,
+        extra: dict[str, Any] | None = None,
+        level: int = logging.INFO,
+    ) -> str:
+        stream = io.StringIO()
+        handler = logging.StreamHandler(stream)
+        handler.setFormatter(_JSONFormatter())
+        logger_name = f"test.f016.{id(extra)}"
+        test_logger = logging.getLogger(logger_name)
+        test_logger.setLevel(logging.DEBUG)
+        test_logger.addHandler(handler)
+        try:
+            test_logger.log(level, message, extra=extra or {})
+        finally:
+            test_logger.removeHandler(handler)
+        return stream.getvalue()
+
+    def test_mapping_key_with_secret_redacted(self) -> None:
+        """A Mapping key containing 'authorization=Bearer KEY_SECRET'
+        must have the secret in the KEY redacted."""
+        output = self._capture_log(
+            "event",
+            extra={
+                "payload": {
+                    "authorization=Bearer KEY_SECRET": "ordinary-value",
+                },
+            },
+        )
+        assert "KEY_SECRET" not in output, f"Secret in Mapping key was not redacted: {output!r}"
+
+    def test_mapping_key_with_token_redacted(self) -> None:
+        """A Mapping key containing 'token=KEY_TOKEN' must be redacted."""
+        output = self._capture_log(
+            "event",
+            extra={
+                "payload": {
+                    "token=KEY_TOKEN": "ordinary-value",
+                },
+            },
+        )
+        assert "KEY_TOKEN" not in output, f"Token in Mapping key was not redacted: {output!r}"
+
+    def test_mapping_key_object_str_raises_fail_closed(self) -> None:
+        """A Mapping key whose __str__ raises must produce
+        <REDACTION_FAILED> and the formatter must not raise."""
+
+        class BrokenKey:
+            def __str__(self) -> str:
+                raise ValueError("cannot stringify key")
+
+        output = self._capture_log(
+            "event",
+            extra={
+                "payload": {
+                    BrokenKey(): "some-value",
+                },
+            },
+        )
+        assert "<REDACTION_FAILED>" in output or "REDACTION_FAILED" in output, (
+            f"Broken Mapping key did not produce REDACTION_FAILED: {output!r}"
+        )
+        # The formatter must not have raised — we got output.
+        assert len(output) > 0, "Formatter produced no output (likely raised)"
