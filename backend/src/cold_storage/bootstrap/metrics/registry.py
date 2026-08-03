@@ -114,7 +114,7 @@ class ObservableMetrics:
         self.http_requests_total = Counter(
             "http_requests_total",
             "Total HTTP requests.",
-            ["method", "route_template", "status"],
+            ["method", "path", "status"],
             registry=self._registry,
         )
 
@@ -122,7 +122,7 @@ class ObservableMetrics:
         self.http_request_duration_seconds = Histogram(
             "http_request_duration_seconds",
             "HTTP request latency in seconds.",
-            ["method", "route_template", "status"],
+            ["method", "path", "status"],
             buckets=_HISTOGRAM_BUCKETS,
             registry=self._registry,
         )
@@ -155,7 +155,7 @@ class ObservableMetrics:
         self.outbox_delivery_attempts_total = Counter(
             "outbox_delivery_attempts_total",
             "Total outbox delivery attempts.",
-            ["queue"],
+            ["queue", "attempt"],
             registry=self._registry,
         )
 
@@ -163,7 +163,7 @@ class ObservableMetrics:
         self.outbox_delivery_failures_total = Counter(
             "outbox_delivery_failures_total",
             "Total outbox delivery failures.",
-            ["queue"],
+            ["queue", "class"],
             registry=self._registry,
         )
 
@@ -187,7 +187,7 @@ class ObservableMetrics:
         self.configuration_validation_failures_total = Counter(
             "configuration_validation_failures_total",
             "Configuration validation failures.",
-            ["key"],
+            ["class"],
             registry=self._registry,
         )
 
@@ -195,6 +195,7 @@ class ObservableMetrics:
         self.REDACTION_BYPASS_DETECTED = Counter(
             "REDACTION_BYPASS_DETECTED",
             "Attempts to bypass configuration redaction.",
+            ["secret_type", "emit_point"],
             registry=self._registry,
         )
 
@@ -202,7 +203,7 @@ class ObservableMetrics:
         self.HIGH_CARDINALITY_LABEL_REJECTED = Counter(
             "HIGH_CARDINALITY_LABEL_REJECTED",
             "Attempts to record metrics with unregistered label values.",
-            ["metric_family", "reason"],
+            ["metric_name"],
             registry=self._registry,
         )
 
@@ -251,8 +252,7 @@ class ObservableMetrics:
             return
         if len(self._routes) >= _MAX_ROUTES:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="http_requests_total",
-                reason="route_cap_exceeded",
+                metric_name="http_requests_total",
             ).inc()
             raise ValueError(f"Route cap ({_MAX_ROUTES}) reached. Cannot register route: {key!r}")
         self._routes.add(key)
@@ -268,8 +268,7 @@ class ObservableMetrics:
             return
         if len(self._dependencies) >= _MAX_DEPENDENCIES:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="dependency_up",
-                reason="dependency_cap_exceeded",
+                metric_name="dependency_up",
             ).inc()
             raise ValueError(
                 f"Dependency cap ({_MAX_DEPENDENCIES}) reached. Cannot register dependency: {key!r}"
@@ -287,8 +286,7 @@ class ObservableMetrics:
             return
         if len(self._queues) >= _MAX_QUEUES:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="outbox_backlog_total",
-                reason="queue_cap_exceeded",
+                metric_name="outbox_backlog_total",
             ).inc()
             raise ValueError(f"Queue cap ({_MAX_QUEUES}) reached. Cannot register queue: {key!r}")
         self._queues.add(key)
@@ -304,8 +302,7 @@ class ObservableMetrics:
             return
         if len(self._capabilities) >= _MAX_CAPABILITIES:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="agent_capability_status",
-                reason="capability_cap_exceeded",
+                metric_name="agent_capability_status",
             ).inc()
             raise ValueError(
                 f"Capability cap ({_MAX_CAPABILITIES}) reached. Cannot register capability: {key!r}"
@@ -326,47 +323,44 @@ class ObservableMetrics:
     def record_http_request(
         self,
         method: str,
-        route_template: str,
+        path: str,
         status: str,
         duration_seconds: float,
     ) -> None:
         """Record an HTTP request.
 
         *method* must be one of GET/POST/PUT/PATCH/DELETE.
-        *route_template* must have been registered via register_route_template.
+        *path* must have been registered via register_route_template.
         *status* must be an allowed HTTP status code string.
         """
         method = method.upper()
         if method not in _ALLOWED_METHODS:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="http_requests_total",
-                reason=f"invalid_method:{method}",
+                metric_name="http_requests_total",
             ).inc()
             logger.warning("Rejected HTTP request metric: invalid method %r", method)
             return
 
-        if route_template not in self._routes:
+        if path not in self._routes:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="http_requests_total",
-                reason=f"unregistered_route:{route_template}",
+                metric_name="http_requests_total",
             ).inc()
             logger.warning(
                 "Rejected HTTP request metric: unregistered route %r",
-                route_template,
+                path,
             )
             return
 
         if status not in _ALLOWED_STATUSES:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="http_requests_total",
-                reason=f"invalid_status:{status}",
+                metric_name="http_requests_total",
             ).inc()
             logger.warning("Rejected HTTP request metric: invalid status %r", status)
             return
 
         labels = {
             "method": method,
-            "route_template": route_template,
+            "path": path,
             "status": status,
         }
         self.http_requests_total.labels(**labels).inc()
@@ -381,8 +375,7 @@ class ObservableMetrics:
         """
         if dependency not in self._dependencies:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="dependency_up",
-                reason=f"unregistered_dependency:{dependency}",
+                metric_name="dependency_up",
             ).inc()
             logger.warning(
                 "Rejected dependency health metric: unregistered dependency %r",
@@ -398,8 +391,7 @@ class ObservableMetrics:
         """Set the outbox backlog gauge for *queue*."""
         if queue not in self._queues:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="outbox_backlog_total",
-                reason=f"unregistered_queue:{queue}",
+                metric_name="outbox_backlog_total",
             ).inc()
             return
         self.outbox_backlog_total.labels(queue=queue).set(max(0, count))
@@ -408,38 +400,34 @@ class ObservableMetrics:
         """Set the outbox lag gauge for *queue*."""
         if queue not in self._queues:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="outbox_lag_seconds",
-                reason=f"unregistered_queue:{queue}",
+                metric_name="outbox_lag_seconds",
             ).inc()
             return
         self.outbox_lag_seconds.labels(queue=queue).set(max(0.0, lag_seconds))
 
-    def record_outbox_delivery_attempt(self, queue: str) -> None:
-        """Increment delivery attempts counter for *queue*."""
+    def record_outbox_delivery_attempt(self, queue: str, attempt_number: int) -> None:
+        """Increment delivery attempts counter for *queue* and *attempt_number*."""
         if queue not in self._queues:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="outbox_delivery_attempts_total",
-                reason=f"unregistered_queue:{queue}",
+                metric_name="outbox_delivery_attempts_total",
             ).inc()
             return
-        self.outbox_delivery_attempts_total.labels(queue=queue).inc()
+        self.outbox_delivery_attempts_total.labels(queue=queue, attempt=str(attempt_number)).inc()
 
-    def record_outbox_delivery_failure(self, queue: str) -> None:
-        """Increment delivery failures counter for *queue*."""
+    def record_outbox_delivery_failure(self, queue: str, failure_class: str) -> None:
+        """Increment delivery failures counter for *queue* and *failure_class*."""
         if queue not in self._queues:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="outbox_delivery_failures_total",
-                reason=f"unregistered_queue:{queue}",
+                metric_name="outbox_delivery_failures_total",
             ).inc()
             return
-        self.outbox_delivery_failures_total.labels(queue=queue).inc()
+        self.outbox_delivery_failures_total.labels(queue=queue, **{"class": failure_class}).inc()
 
     def record_outbox_poison_message(self, queue: str) -> None:
         """Increment poison messages counter for *queue*."""
         if queue not in self._queues:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="outbox_poison_messages_total",
-                reason=f"unregistered_queue:{queue}",
+                metric_name="outbox_poison_messages_total",
             ).inc()
             return
         self.outbox_poison_messages_total.labels(queue=queue).inc()
@@ -448,21 +436,20 @@ class ObservableMetrics:
         """Increment retry exhaustion counter for *queue*."""
         if queue not in self._queues:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="outbox_retry_exhaustion_total",
-                reason=f"unregistered_queue:{queue}",
+                metric_name="outbox_retry_exhaustion_total",
             ).inc()
             return
         self.outbox_retry_exhaustion_total.labels(queue=queue).inc()
 
     # --- Configuration ----------------------------------------------------
 
-    def record_configuration_validation_failure(self, key: str) -> None:
-        """Increment configuration validation failures for *key*."""
-        self.configuration_validation_failures_total.labels(key=key).inc()
+    def record_configuration_validation_failure(self, failure_class: str) -> None:
+        """Increment configuration validation failures for *failure_class*."""
+        self.configuration_validation_failures_total.labels(**{"class": failure_class}).inc()
 
-    def record_redaction_bypass_detected(self) -> None:
+    def record_redaction_bypass_detected(self, secret_type: str, emit_point: str) -> None:
         """Increment the redaction-bypass counter."""
-        self.REDACTION_BYPASS_DETECTED.inc()
+        self.REDACTION_BYPASS_DETECTED.labels(secret_type=secret_type, emit_point=emit_point).inc()
 
     # --- Audit ------------------------------------------------------------
 
@@ -483,8 +470,7 @@ class ObservableMetrics:
         """
         if capability not in self._capabilities:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
-                metric_family="agent_capability_status",
-                reason=f"unregistered_capability:{capability}",
+                metric_name="agent_capability_status",
             ).inc()
             return
         self.agent_capability_status.labels(capability=capability).set(1 if is_available else 0)

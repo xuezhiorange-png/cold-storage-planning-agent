@@ -9,15 +9,13 @@ downstream log aggregation and metric correlation.
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 from typing import Any
 
-from cold_storage.bootstrap.configuration_redactor import redact_text
+from cold_storage.bootstrap.configuration_redactor import EmitPoint, redact_for_logging
 from cold_storage.bootstrap.logging import (
-    get_correlation_id,
-    get_request_id,
+    _capability_tags,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,24 +66,14 @@ def _log_record(
     event: str,
     extra: dict[str, Any],
 ) -> None:
-    """Emit a structured JSON log record.
+    """Emit a structured log record.
 
-    The record includes ``capability_tags`` so that log aggregators can
-    filter on it, plus the current ``correlation_id`` and ``request_id``.
+    Fields are passed via ``extra=`` so the ``_JSONFormatter``
+    can merge them into the log line.
     """
-    payload: dict[str, Any] = {
-        "event": event,
-        "capability_tags": sorted(CAPABILITY_TAGS),
-        "correlation_id": get_correlation_id(),
-        "request_id": get_request_id(),
-    }
+    payload: dict[str, Any] = {"event": event}
     payload.update(extra)
-
-    logger.log(
-        level,
-        json.dumps(payload, default=str, ensure_ascii=False),
-        extra={"structured": True},
-    )
+    logger.log(level, event, extra=payload)
 
 
 class StructuredLoggingMiddleware:
@@ -122,9 +110,10 @@ class StructuredLoggingMiddleware:
             event="request_started",
             extra={
                 "method": method,
-                "path": redact_text(path),
+                "path": redact_for_logging(path, emit_point=EmitPoint.LOG),
                 "client_ip": client_ip,
                 "scheme": scope.get("scheme", "http"),
+                "capability_tags": sorted(CAPABILITY_TAGS),
             },
         )
 
@@ -137,22 +126,28 @@ class StructuredLoggingMiddleware:
                 status_code = message.get("status", 500)
             await send(message)
 
+        token_tags = _capability_tags.set(sorted(CAPABILITY_TAGS))
         try:
             await self.app(scope, receive, send_wrapper)
-        except Exception:
+        except Exception as exc:
             duration_ms = round((time.monotonic() - start_time) * 1000, 2)
             _log_record(
                 level=logging.ERROR,
                 event="request_failed",
                 extra={
                     "method": method,
-                    "path": redact_text(path),
+                    "path": redact_for_logging(path, emit_point=EmitPoint.LOG),
                     "client_ip": client_ip,
                     "status_code": status_code,
                     "duration_ms": duration_ms,
+                    "exception_type": type(exc).__name__,
+                    "exception_message": redact_for_logging(str(exc), emit_point=EmitPoint.LOG),
+                    "capability_tags": sorted(CAPABILITY_TAGS),
                 },
             )
             raise
+        finally:
+            _capability_tags.reset(token_tags)
 
         duration_ms = round((time.monotonic() - start_time) * 1000, 2)
         log_level = logging.WARNING if status_code >= 400 else logging.INFO
@@ -161,9 +156,10 @@ class StructuredLoggingMiddleware:
             event="request_completed",
             extra={
                 "method": method,
-                "path": redact_text(path),
+                "path": redact_for_logging(path, emit_point=EmitPoint.LOG),
                 "client_ip": client_ip,
                 "status_code": status_code,
                 "duration_ms": duration_ms,
+                "capability_tags": sorted(CAPABILITY_TAGS),
             },
         )

@@ -21,9 +21,11 @@ import uuid
 from typing import Any
 
 from cold_storage.bootstrap.logging import (
+    _capability_tags,
     _correlation_id,
     _request_id,
 )
+from cold_storage.bootstrap.middleware.structured_logging import CAPABILITY_TAGS
 
 logger = logging.getLogger(__name__)
 
@@ -76,12 +78,14 @@ class CorrelationIdMiddleware:
 
         token_corr = _correlation_id.set(req_id)
         token_req = _request_id.set(req_id)
+        token_tags = _capability_tags.set(sorted(CAPABILITY_TAGS))
 
         try:
             await self._handle_request(scope, receive, send, req_id)
         finally:
             _correlation_id.reset(token_corr)
             _request_id.reset(token_req)
+            _capability_tags.reset(token_tags)
 
     # -- Internals -----------------------------------------------------------
 

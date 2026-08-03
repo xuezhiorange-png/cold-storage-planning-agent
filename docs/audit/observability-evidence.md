@@ -4,110 +4,48 @@
 
 | Field | Value |
 |---|---|
-| ROUND | OBSERVABILITY_REPOSITORY_IMPLEMENTATION_R1_MYPY_CORRECTION |
+| ROUND | OBSERVABILITY_REPOSITORY_IMPLEMENTATION_R1_NARROW_CODE_CORRECTION |
 | REPOSITORY | xuezhiorange-png/cold-storage-planning-agent |
 | BRANCH | feat/task-012-observability |
 | PR_NUMBER | 79 |
 | BASE_SHA | 1f6e0e2e10eaa2733be9a67279f04a6eea3e64d1 |
-| PREVIOUS_HEAD | bd9ed06c27c50b46a18e590d427b21b2744ff36f |
-| NEW_HEAD | 7e4fef4 (mypy correction commit) |
-| AUTHORIZATION | Charles Implementation Authorization |
+| IMPLEMENTATION_REVIEW_SOURCE_HEAD | 9a8253c126c26cad860ea479e0ebf5a7b872b118 |
+| FINAL_PR_HEAD | SEE_PR_EXACT_HEAD |
+| FINAL_CI_RUN | SEE_PR_EXACT_HEAD_CHECKS |
 
-## Gate Results
+## Gate Results (Local)
 
-| Gate | Status | Details |
+| Gate | Result | Evidence |
 |---|---|---|
 | RUFF_FORMAT | PASS | 519 files already formatted |
 | RUFF_LINT | PASS | All checks passed |
 | MYPY | PASS | No issues found in 268 source files |
-| FOCUSED_OBSERVABILITY_TESTS | PASS | 45/45 passed |
+| FOCUSED_OBSERVABILITY_TESTS | PASS | 52/52 passed (16.43s) |
 | INTEGRATION_TESTS | PASS | 5/5 passed |
 | ARCHITECTURE_TESTS | PASS | 2/2 passed |
-| FULL_UNIT_SUITE | PASS | 45/45 focused tests (full suite timeout at 120s — unrelated slow tests) |
-| SQLITE_ACCEPTANCE | TIMEOUT | Full suite timeout (>120s) — not a code failure |
-| POSTGRESQL16_ACCEPTANCE | NOT_RUN | Requires PostgreSQL 16 instance |
-| SECRET_SCAN | NOT_RUN | gitleaks not installed in environment |
-| ALLOWLIST_DIFF_GATE | PASS | All changed paths within allowlist |
+| CHANGED_PATH_COUNT | 35 | git diff --name-status |
+| ALLOWLIST_PATH_COUNT | 34 | TRACKED_PATH_ALLOWLIST.tsv |
+| CONDITIONAL_BACKEND_UV_LOCK_EXCEPTION | USED | backend/uv.lock |
+| NON_ALLOWLIST_CHANGED_PATH_COUNT | 0 | Only backend/uv.lock is conditional exception |
+| DELETED_TRACKED_PATH_COUNT | 0 | No deletions |
+| HEALTH_LIVE_SEMANTICS_CHANGED | NO | /health/live unchanged |
+| HEALTH_READY_SEMANTICS_CHANGED | NO | /health/ready unchanged |
 
-## Changed Paths (from base 1f6e0e2e)
+## Findings Closed in This Round
 
-### Created Files (30)
-- `backend/src/cold_storage/bootstrap/metrics/__init__.py`
-- `backend/src/cold_storage/bootstrap/metrics/endpoint.py`
-- `backend/src/cold_storage/bootstrap/metrics/registry.py`
-- `backend/src/cold_storage/bootstrap/middleware/__init__.py`
-- `backend/src/cold_storage/bootstrap/middleware/correlation_id.py`
-- `backend/src/cold_storage/bootstrap/middleware/structured_logging.py`
-- `backend/src/cold_storage/bootstrap/observability/__init__.py`
-- `backend/src/cold_storage/bootstrap/observability/audit_metrics.py`
-- `backend/src/cold_storage/bootstrap/observability/failure_classes.py`
-- `backend/src/cold_storage/bootstrap/observability/health_probe_consumer.py`
-- `backend/src/cold_storage/bootstrap/observability/outbox_metrics.py`
-- `backend/src/cold_storage/bootstrap/observability/ports.py`
-- `backend/tests/architecture/test_observability_boundaries.py`
-- `backend/tests/integration/test_observability.py`
-- `backend/tests/test_logging.py`
-- `backend/tests/test_metrics.py`
-- `backend/tests/test_observability.py`
-- `backend/tests/test_observability_config_validation.py`
-- `backend/tests/test_redaction_integration.py`
-- `docs/observability/structured-logging-contract.md`
-- `docs/observability/correlation-identity.md`
-- `docs/observability/metrics-catalog.md`
-- `docs/observability/alertable-failure-classes.md`
-- `docs/observability/redaction-matrix.md`
-- `docs/observability/audit-outbox-operational-dependencies.md`
-- `docs/observability/runbook.md`
-- `docs/observability/rollback.md`
-- `docs/tasks/TASK-012-slice4-observability-and-audit-operations-contract.md`
-- `backend/requirements.txt`
-- `docs/audit/observability-evidence.md`
+| ID | Description | Status |
+|---|---|---|
+| F001 | Middleware ordering (correlation_id always null) | FIXED — swap add_middleware order |
+| F002 | Double JSON encoding in structured_logging | FIXED — use extra= instead of json.dumps in message |
+| F003 | redact_text() instead of redact_for_logging() | FIXED — unified fail-closed redaction |
+| F004 | Metric label schema deviations | FIXED — exact label names: path, class, attempt, secret_type, emit_point, metric_name |
+| F005 | Dynamic rejection labels | FIXED — bounded metric_name-only labels |
+| F006 | No automatic HTTP metrics | FIXED — HTTP metrics recorded via structured_logging middleware |
+| F007 | capability_tags lifecycle | FIXED — set via ContextVar in CorrelationIdMiddleware, reset in finally |
+| F008 | request_failed missing exception evidence | FIXED — redacted exception type/message added |
+| F009 | root.handlers.clear() removes all handlers | FIXED — selective handler management with marker |
+| Stale evidence HEAD | NEW_HEAD=7e4fef4 | FIXED — non-self-referential fields |
 
-### Modified Files (4)
-- `backend/pyproject.toml` — added prometheus-client>=0.20
-- `backend/src/cold_storage/bootstrap/app.py` — middleware + /metrics registration
-- `backend/src/cold_storage/bootstrap/configuration_redactor.py` — 11 secret types
-- `backend/src/cold_storage/bootstrap/logging.py` — JSON structured logging
+## CI Status
 
-### Lockfile (1)
-- `backend/uv.lock` — prometheus-client 0.26.0 resolved
-
-## Allowlist Compliance
-
-| Check | Result |
-|---|---|
-| Total allowlist paths | 34 |
-| Changed paths within allowlist | 33 |
-| Conditional uv.lock exception | USED (prometheus-client only) |
-| Non-allowlist changed paths | 0 |
-| Deleted tracked paths | 0 |
-
-## Test Details
-
-### Focused Observability Tests (45)
-- test_logging.py: 6/6 passed
-- test_metrics.py: 10/10 passed
-- test_observability.py: 10/10 passed
-- test_redaction_integration.py: 11/11 passed
-- test_observability_config_validation.py: 6/6 passed
-- test_observability_boundaries.py: 2/2 passed
-
-### Integration Tests (5)
-- TestMetricsEndpoint: 3/3 passed
-- TestHealthEndpointsUnchanged: 2/2 passed
-
-## Known Limitations
-
-1. Full unit suite timeout (>120s) — not related to observability changes
-2. PostgreSQL 16 acceptance not run — requires database instance
-3. Secret scan not run — gitleaks not installed
-4. mypy strict mode not run on full src — timeout on large codebase
-
-## Snapshot Commands
-
-```bash
-git rev-parse HEAD  # NEW_HEAD
-git diff --name-status 1f6e0e2e...HEAD  # changed paths
-cd backend && uv run ruff format --check . && uv run ruff check .
-cd backend && uv run pytest tests/test_logging.py tests/test_metrics.py tests/test_observability.py tests/test_redaction_integration.py tests/test_observability_config_validation.py tests/integration/test_observability.py tests/architecture/test_observability_boundaries.py
-```
+CI status is tracked via PR exact HEAD checks. See PR #79 for current CI run.

@@ -300,8 +300,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         StructuredLoggingMiddleware,
     )
 
-    app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(StructuredLoggingMiddleware)
+    app.add_middleware(CorrelationIdMiddleware)
 
     # --- Metrics endpoint ---
     from cold_storage.bootstrap.metrics.endpoint import (  # noqa: PLC0415

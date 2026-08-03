@@ -23,7 +23,11 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
 
-from cold_storage.bootstrap.configuration_redactor import redact_text
+from cold_storage.bootstrap.configuration_redactor import (
+    EmitPoint,
+    redact_exception_for_logging,
+    redact_for_logging,
+)
 
 # ---------------------------------------------------------------------------
 # Context variables – per-request / per-correlation identity
@@ -96,19 +100,51 @@ class _JSONFormatter(logging.Formatter):
             "correlation_id": get_correlation_id(),
             "request_id": get_request_id(),
             "capability_tags": get_capability_tags(),
-            "message": redact_text(record.getMessage()),
+            "message": redact_for_logging(record.getMessage(), emit_point=EmitPoint.LOG),
         }
 
         # Append exception info if present (redacted).
         if record.exc_info and record.exc_info[1] is not None:
             try:
-                log_record["exception"] = redact_text(self.formatException(record.exc_info))
+                log_record["exception"] = redact_exception_for_logging(record.exc_info[1])
             except Exception:  # noqa: BLE001
                 log_record["exception"] = "<unavailable>"
 
         # Include any extra fields attached to the record via **kwargs.
         for key in ("filename", "lineno", "funcName", "module"):
             log_record[key] = getattr(record, key, None)
+
+        # Include extra fields passed via logger.log(..., extra={...}).
+        for key, value in record.__dict__.items():
+            if key.startswith("_") or key in (
+                "name",
+                "msg",
+                "args",
+                "created",
+                "relativeCreated",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "msecs",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "thread",
+                "threadName",
+                "process",
+                "processName",
+                "taskName",
+                "message",
+                "asctime",
+            ):
+                continue
+            if key in log_record:
+                continue
+            log_record[key] = value
 
         return json.dumps(log_record, ensure_ascii=False, default=str)
 
@@ -142,10 +178,12 @@ def configure_logging() -> None:
     root.setLevel(logging.INFO)
 
     # Remove any existing handlers so we don't get duplicate output.
-    root.handlers.clear()
+    # Only remove handlers that have our marker attribute.
+    root.handlers[:] = [h for h in root.handlers if not getattr(h, _MARKER, False)]
 
     handler = logging.StreamHandler()
     handler.setFormatter(_JSONFormatter())
+    setattr(handler, _MARKER, True)
     root.addHandler(handler)
 
     _LOGGING_CONFIGURED = True
