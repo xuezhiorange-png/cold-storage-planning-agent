@@ -19,8 +19,8 @@ class AuditMetricsRecorder:
 
     def record_chain_integrity(self, status: int) -> None:
         if self._metrics is not None and hasattr(self._metrics, "record_audit_chain_integrity"):
-            self._metrics.record_audit_chain_integrity(status)  # type: ignore[union-attr]
+            self._metrics.record_audit_chain_integrity(status)
 
     def record_write_duration(self, seconds: float) -> None:
         if self._metrics is not None and hasattr(self._metrics, "record_audit_write_duration"):
-            self._metrics.record_audit_write_duration(seconds)  # type: ignore[union-attr]
+            self._metrics.record_audit_write_duration(seconds)

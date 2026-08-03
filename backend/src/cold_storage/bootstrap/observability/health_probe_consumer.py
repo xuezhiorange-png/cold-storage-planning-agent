@@ -34,7 +34,7 @@ class HealthProbeConsumer:
         Sets dependency_up{dependency=<name>} to 1 (healthy) or 0 (unhealthy).
         """
         if self._metrics is not None and hasattr(self._metrics, "record_dependency_health"):
-            self._metrics.record_dependency_health(dependency, healthy)  # type: ignore[union-attr]
+            self._metrics.record_dependency_health(dependency, healthy)
 
     def on_probe_timeout(self, dependency: str) -> None:
         """Handle probe timeout: set dependency_up=0, log WARNING."""
