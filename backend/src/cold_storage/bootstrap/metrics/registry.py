@@ -36,6 +36,11 @@ from prometheus_client import (
     Histogram,
 )
 
+from cold_storage.bootstrap.configuration_redactor import EmitPoint, SecretType
+from cold_storage.bootstrap.observability.failure_classes import (
+    ALERTABLE_FAILURE_CLASSES,
+)
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -412,6 +417,15 @@ class ObservableMetrics:
                 metric_name="outbox_delivery_attempts_total",
             ).inc()
             return
+        if not (1 <= attempt_number <= 5):
+            self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
+                metric_name="outbox_delivery_attempts_total",
+            ).inc()
+            logger.warning(
+                "Rejected outbox delivery attempt: attempt_number=%r out of bounds",
+                attempt_number,
+            )
+            return
         self.outbox_delivery_attempts_total.labels(queue=queue, attempt=str(attempt_number)).inc()
 
     def record_outbox_delivery_failure(self, queue: str, failure_class: str) -> None:
@@ -420,6 +434,16 @@ class ObservableMetrics:
             self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
                 metric_name="outbox_delivery_failures_total",
             ).inc()
+            return
+        if failure_class not in ALERTABLE_FAILURE_CLASSES:
+            self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
+                metric_name="outbox_delivery_failures_total",
+            ).inc()
+            logger.warning(
+                "Rejected outbox delivery failure:"
+                " failure_class=%r not in ALERTABLE_FAILURE_CLASSES",
+                failure_class,
+            )
             return
         self.outbox_delivery_failures_total.labels(queue=queue, **{"class": failure_class}).inc()
 
@@ -445,10 +469,40 @@ class ObservableMetrics:
 
     def record_configuration_validation_failure(self, failure_class: str) -> None:
         """Increment configuration validation failures for *failure_class*."""
+        if failure_class not in ALERTABLE_FAILURE_CLASSES:
+            self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
+                metric_name="configuration_validation_failures_total",
+            ).inc()
+            logger.warning(
+                "Rejected config validation failure:"
+                " failure_class=%r not in ALERTABLE_FAILURE_CLASSES",
+                failure_class,
+            )
+            return
         self.configuration_validation_failures_total.labels(**{"class": failure_class}).inc()
 
     def record_redaction_bypass_detected(self, secret_type: str, emit_point: str) -> None:
         """Increment the redaction-bypass counter."""
+        secret_type_values = {e.value for e in SecretType}
+        emit_point_values = {e.value for e in EmitPoint}
+        if secret_type not in secret_type_values:
+            self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
+                metric_name="REDACTION_BYPASS_DETECTED",
+            ).inc()
+            logger.warning(
+                "Rejected redaction bypass: secret_type=%r not a valid SecretType value",
+                secret_type,
+            )
+            return
+        if emit_point not in emit_point_values:
+            self.HIGH_CARDINALITY_LABEL_REJECTED.labels(
+                metric_name="REDACTION_BYPASS_DETECTED",
+            ).inc()
+            logger.warning(
+                "Rejected redaction bypass: emit_point=%r not a valid EmitPoint value",
+                emit_point,
+            )
+            return
         self.REDACTION_BYPASS_DETECTED.labels(secret_type=secret_type, emit_point=emit_point).inc()
 
     # --- Audit ------------------------------------------------------------

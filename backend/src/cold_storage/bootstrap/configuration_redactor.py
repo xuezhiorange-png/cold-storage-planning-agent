@@ -93,7 +93,7 @@ _TOKEN_KV_PATTERN = re.compile(
 
 # API key patterns
 _API_KEY_PATTERN = re.compile(
-    r"(?i)(api[_-]?key|apikey)\s*[=:]\s*\S+",
+    r"(?i)(api[_-]?key|apikey)\s*[=:]?\s*\S+",
 )
 
 # Cookie header values

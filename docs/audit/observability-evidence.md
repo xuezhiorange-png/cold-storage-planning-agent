@@ -4,47 +4,68 @@
 
 | Field | Value |
 |---|---|
-| ROUND | OBSERVABILITY_REPOSITORY_IMPLEMENTATION_R1_NARROW_CODE_CORRECTION |
+| ROUND | OBSERVABILITY_FINAL_BEHAVIORAL_CORRECTION |
 | REPOSITORY | xuezhiorange-png/cold-storage-planning-agent |
 | BRANCH | feat/task-012-observability |
 | PR_NUMBER | 79 |
 | BASE_SHA | 1f6e0e2e10eaa2733be9a67279f04a6eea3e64d1 |
-| IMPLEMENTATION_REVIEW_SOURCE_HEAD | 9a8253c126c26cad860ea479e0ebf5a7b872b118 |
+| PREVIOUS_HEAD | 6bd3603a719c6321d5b989036aa5ffbaa840cb6e |
 | FINAL_PR_HEAD | SEE_PR_EXACT_HEAD |
 | FINAL_CI_RUN | SEE_PR_EXACT_HEAD_CHECKS |
 
-## Gate Results (Local)
+## Pre-Implementation Failing Tests
+
+| Test Name | Failure Reason |
+|---|---|
+| test_http_requests_total_incremented | StructuredLoggingMiddleware does not call metrics.record_http_request() |
+| test_histogram_count_incremented | No HTTP metrics recording |
+| test_404_raw_path_not_in_exposition | No route template extraction from scope |
+| test_metrics_endpoint_not_self_recorded | No metrics exclusion logic |
+| test_exception_route_records_500 | No exception path metrics recording |
+| test_outbox_delivery_attempt_rejects_high_attempt_number | No attempt range validation |
+| test_outbox_delivery_failure_rejects_unregistered_class | No failure_class enum validation |
+| test_config_validation_failure_rejects_arbitrary_class | No failure_class enum validation |
+| test_redaction_bypass_rejects_arbitrary_secret_type | No SecretType validation |
+| test_redaction_bypass_rejects_arbitrary_emit_point | No EmitPoint validation |
+| test_nested_dict_authorization_redacted | Extra fields not recursively redacted |
+| test_nested_dict_token_redacted | Extra fields not recursively redacted |
+| test_deeply_nested_password_redacted | Extra fields not recursively redacted |
+| test_object_str_with_secret_redacted | Arbitrary objects not redacted |
+| test_object_str_raises_shows_redaction_failed | No fail-closed for arbitrary objects |
+| test_list_of_dicts_with_secrets_redacted | Lists not recursively redacted |
+
+## Post-Implementation Gate Results
 
 | Gate | Result | Evidence |
 |---|---|---|
-| RUFF_FORMAT | PASS | 519 files already formatted |
+| RUFF_FORMAT | PASS | 520 files already formatted |
 | RUFF_LINT | PASS | All checks passed |
 | MYPY | PASS | No issues found in 268 source files |
-| FOCUSED_OBSERVABILITY_TESTS | PASS | 52/52 passed (16.43s) |
-| INTEGRATION_TESTS | PASS | 5/5 passed |
-| ARCHITECTURE_TESTS | PASS | 2/2 passed |
+| FOCUSED_TESTS | PASS | 72/72 passed (17.31s) |
+| B01_HTTP_COUNTER_INCREMENT_TEST | PASS | test_http_requests_total_incremented |
+| B01_HTTP_HISTOGRAM_INCREMENT_TEST | PASS | test_histogram_count_incremented |
+| B01_HTTP_404_RAW_PATH_ABSENT_TEST | PASS | test_404_raw_path_not_in_exposition |
+| B01_METRICS_SELF_RECORDING_TEST | PASS | test_metrics_endpoint_not_self_recorded |
+| B01_HTTP_EXCEPTION_500_TEST | PASS | test_exception_route_records_500 |
+| B02_ATTEMPT_LABEL_BOUND_TEST | PASS | test_outbox_delivery_attempt_rejects_high_attempt_number |
+| B02_FAILURE_CLASS_BOUND_TEST | PASS | test_outbox_delivery_failure_rejects_unregistered_class |
+| B02_CONFIGURATION_CLASS_BOUND_TEST | PASS | test_config_validation_failure_rejects_arbitrary_class |
+| B02_SECRET_TYPE_BOUND_TEST | PASS | test_redaction_bypass_rejects_arbitrary_secret_type |
+| B02_EMIT_POINT_BOUND_TEST | PASS | test_redaction_bypass_rejects_arbitrary_emit_point |
+| B03_NESTED_EXTRA_REDACTION_TEST | PASS | test_nested_dict_authorization_redacted + 3 more |
+| B03_OBJECT_REDACTION_TEST | PASS | test_object_str_with_secret_redacted |
+| B03_REDACTION_FAILURE_FAIL_CLOSED_TEST | PASS | test_object_str_raises_shows_redaction_failed |
 | CHANGED_PATH_COUNT | 35 | git diff --name-status |
-| ALLOWLIST_PATH_COUNT | 34 | TRACKED_PATH_ALLOWLIST.tsv |
-| CONDITIONAL_BACKEND_UV_LOCK_EXCEPTION | USED | backend/uv.lock |
 | NON_ALLOWLIST_CHANGED_PATH_COUNT | 0 | Only backend/uv.lock is conditional exception |
 | DELETED_TRACKED_PATH_COUNT | 0 | No deletions |
-| HEALTH_LIVE_SEMANTICS_CHANGED | NO | /health/live unchanged |
-| HEALTH_READY_SEMANTICS_CHANGED | NO | /health/ready unchanged |
 
-## Findings Closed in This Round
+## Fixes Applied
 
-| ID | Description | Status |
-|---|---|---|
-| F001 | Middleware ordering (correlation_id always null) | FIXED — swap add_middleware order |
-| F002 | Double JSON encoding in structured_logging | FIXED — use extra= instead of json.dumps in message |
-| F003 | redact_text() instead of redact_for_logging() | FIXED — unified fail-closed redaction |
-| F004 | Metric label schema deviations | FIXED — exact label names: path, class, attempt, secret_type, emit_point, metric_name |
-| F005 | Dynamic rejection labels | FIXED — bounded metric_name-only labels |
-| F006 | No automatic HTTP metrics | FIXED — HTTP metrics recorded via structured_logging middleware |
-| F007 | capability_tags lifecycle | FIXED — set via ContextVar in CorrelationIdMiddleware, reset in finally |
-| F008 | request_failed missing exception evidence | FIXED — redacted exception type/message added |
-| F009 | root.handlers.clear() removes all handlers | FIXED — selective handler management with marker |
-| Stale evidence HEAD | NEW_HEAD=7e4fef4 | FIXED — non-self-referential fields |
+| Issue | Fix |
+|---|---|
+| B01: HTTP metrics not written | Inject ObservableMetrics into StructuredLoggingMiddleware, record after each request via scope.get('route').path, skip /metrics |
+| B02: Dynamic label values | Add validation in record_outbox_delivery_attempt (1-5), record_outbox_delivery_failure (ALERTABLE_FAILURE_CLASSES), record_configuration_validation_failure (ALERTABLE_FAILURE_CLASSES), record_redaction_bypass_detected (SecretType/EmitPoint enums) |
+| B03: Extra fields not redacted | Add _redact_log_value() recursive function in logging.py, apply to all extra fields in _JSONFormatter.format() |
 
 ## CI Status
 

@@ -293,22 +293,18 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     app = FastAPI(title="Cold Storage Planning Agent V1", lifespan=_lifespan)
 
     # --- Observability middleware (must be first to capture all requests) ---
-    from cold_storage.bootstrap.middleware.correlation_id import (  # noqa: PLC0415
-        CorrelationIdMiddleware,
-    )
-    from cold_storage.bootstrap.middleware.structured_logging import (  # noqa: PLC0415
-        StructuredLoggingMiddleware,
-    )
-
-    app.add_middleware(StructuredLoggingMiddleware)
-    app.add_middleware(CorrelationIdMiddleware)
-
     # --- Metrics endpoint ---
     from cold_storage.bootstrap.metrics.endpoint import (  # noqa: PLC0415
         create_metrics_endpoint,
     )
     from cold_storage.bootstrap.metrics.registry import (  # noqa: PLC0415
         get_metrics,
+    )
+    from cold_storage.bootstrap.middleware.correlation_id import (  # noqa: PLC0415
+        CorrelationIdMiddleware,
+    )
+    from cold_storage.bootstrap.middleware.structured_logging import (  # noqa: PLC0415
+        StructuredLoggingMiddleware,
     )
 
     # Register default route templates for bounded cardinality
@@ -340,6 +336,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         _metrics.register_dependency(dep)
 
     app.add_api_route("/metrics", create_metrics_endpoint(_metrics))
+    # Observability middleware – added after _metrics so we can inject it.
+    app.add_middleware(StructuredLoggingMiddleware, metrics=_metrics)
+    app.add_middleware(CorrelationIdMiddleware)
 
     calculator = CalculationService()
     zone_planner = ColdRoomZonePlanner()

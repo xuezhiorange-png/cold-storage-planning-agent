@@ -19,12 +19,14 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Mapping
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
 
 from cold_storage.bootstrap.configuration_redactor import (
     EmitPoint,
+    is_sensitive_key,
     redact_exception_for_logging,
     redact_for_logging,
 )
@@ -82,6 +84,41 @@ def new_request_id() -> str:
 # ---------------------------------------------------------------------------
 # JSON formatter
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Recursive redaction for extra log fields
+# ---------------------------------------------------------------------------
+def _redact_log_value(value: object) -> object:
+    """Recursively redact sensitive values in log extra fields.
+
+    Handles str, dict/Mapping, list/tuple/set, primitives, and arbitrary
+    objects.  Fail-closed: any exception during redaction returns
+    ``<REDACTION_FAILED>``.
+    """
+    try:
+        if isinstance(value, str):
+            return redact_for_logging(value, emit_point=EmitPoint.LOG)
+        if isinstance(value, Mapping):
+            result: dict[object, object] = {}
+            for k, v in value.items():
+                if is_sensitive_key(k):
+                    result[k] = "***" if v not in (None, "") else v
+                else:
+                    result[k] = _redact_log_value(v)
+            return result
+        if isinstance(value, list):
+            return [_redact_log_value(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(_redact_log_value(item) for item in value)
+        if isinstance(value, set):
+            return {_redact_log_value(item) for item in value}
+        if isinstance(value, (int, float, bool)) or value is None:
+            return value
+        # Arbitrary object — stringify then redact
+        return redact_for_logging(str(value), emit_point=EmitPoint.LOG)
+    except Exception:  # noqa: BLE001
+        return "<REDACTION_FAILED>"
 
 
 class _JSONFormatter(logging.Formatter):
@@ -144,7 +181,7 @@ class _JSONFormatter(logging.Formatter):
                 continue
             if key in log_record:
                 continue
-            log_record[key] = value
+            log_record[key] = _redact_log_value(value)
 
         return json.dumps(log_record, ensure_ascii=False, default=str)
 
