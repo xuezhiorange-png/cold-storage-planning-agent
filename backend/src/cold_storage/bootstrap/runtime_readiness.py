@@ -882,6 +882,25 @@ def enumerate_reachable_unsafe_strict_capabilities(
         if spec.composition_token is not None and spec.composition_token in manifest_tokens:
             reachable.append(name)
             continue
+        # D-S4-06: Binding identity check. If the app has a strict
+        # capability binding manifest, verify the capability is bound
+        # with the correct identity. Missing or wrong identity means
+        # the capability is considered reachable (unsafe).
+        bindings = getattr(getattr(app, "state", None), "strict_capability_bindings", None)
+        if bindings is not None and isinstance(bindings, tuple):
+            binding_identity = None
+            for b_name, b_identity in bindings:
+                if b_name == name:
+                    binding_identity = b_identity
+                    break
+            _ALLOWED_IDENTITIES = {
+                "coefficient_http": "database_backed",
+                "model_backed_agent": "disabled",
+            }
+            expected = _ALLOWED_IDENTITIES.get(name)
+            if binding_identity is None or binding_identity != expected:
+                reachable.append(name)
+                continue
         for prefix in spec.route_prefixes:
             # Match the prefix exactly, or as a path segment, or as a
             # prefix substring. Path-segment matching keeps the audit
