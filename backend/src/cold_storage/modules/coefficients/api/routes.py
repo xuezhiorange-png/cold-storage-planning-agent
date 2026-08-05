@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, Request
+from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from cold_storage.modules.coefficients.application.service import CoefficientService
@@ -23,6 +26,12 @@ from cold_storage.modules.coefficients.domain.models import (
 )
 
 router = APIRouter(prefix="/api/v1/coefficients", tags=["coefficients"])
+
+CoefficientServiceProvider = Callable[[], CoefficientService]
+
+
+class ProductionDependenciesNotInitializedError(RuntimeError):
+    """Raised when a delayed production provider has not been published."""
 
 
 # ---------------------------------------------------------------------------
@@ -143,11 +152,51 @@ def _coefficient_set_to_dict(s: CoefficientSet) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientService) -> None:
-    """Register coefficient routes on the FastAPI app.
+def _as_provider(
+    service_or_provider: CoefficientService | CoefficientServiceProvider,
+) -> CoefficientServiceProvider:
+    if isinstance(service_or_provider, CoefficientService):
+        return lambda: service_or_provider
+    return service_or_provider
 
-    This function is called from the app factory to inject the service dependency.
+
+def register_coefficient_routes(
+    app: FastAPI,
+    coefficient_service_provider: CoefficientService | CoefficientServiceProvider,
+) -> None:
+    """Register coefficient routes with a delayed per-request provider.
+
+    Local/test callers may still pass a concrete process-local service. Strict
+    callers pass ``get_production_coefficient_service`` so route registration
+    never resolves dependencies before the application lifespan initializes.
     """
+
+    provider = _as_provider(coefficient_service_provider)
+
+    @app.exception_handler(ProductionDependenciesNotInitializedError)
+    async def _production_dependencies_not_initialized(
+        _request: Request,
+        _exc: ProductionDependenciesNotInitializedError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": {
+                    "code": "PRODUCTION_DEPENDENCIES_NOT_INITIALIZED",
+                    "message": "Production dependencies are not initialized.",
+                    "details": {"retryable": True},
+                }
+            },
+        )
+
+    def resolve_service() -> CoefficientService:
+        try:
+            service = provider()
+        except RuntimeError as exc:
+            raise ProductionDependenciesNotInitializedError from exc
+        if not isinstance(service, CoefficientService):
+            raise ProductionDependenciesNotInitializedError
+        return service
 
     @app.get("/api/v1/coefficients")
     def list_coefficients(
@@ -155,12 +204,14 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
         is_active: bool | None = None,
     ) -> list[dict[str, Any]]:
         """List coefficient definitions with optional filters."""
+        coefficient_service = resolve_service()
         definitions = coefficient_service.list_definitions(category=category, is_active=is_active)
         return [_definition_to_dict(d) for d in definitions]
 
     @app.post("/api/v1/coefficients")
     def create_coefficient(request: CoefficientDefinitionCreateRequest) -> dict[str, Any]:
         """Create a new coefficient definition."""
+        coefficient_service = resolve_service()
         try:
             definition = coefficient_service.create_definition(
                 code=request.code,
@@ -179,6 +230,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
     @app.get("/api/v1/coefficients/{definition_id}")
     def get_coefficient(definition_id: str) -> dict[str, Any]:
         """Get a coefficient definition by ID."""
+        coefficient_service = resolve_service()
         try:
             definition = coefficient_service.get_definition(definition_id)
             return _definition_to_dict(definition)
@@ -188,6 +240,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
     @app.get("/api/v1/coefficients/{definition_id}/revisions")
     def list_revisions(definition_id: str) -> list[dict[str, Any]]:
         """List all revisions for a coefficient definition."""
+        coefficient_service = resolve_service()
         try:
             revisions = coefficient_service.list_revisions(definition_id)
             return [_revision_to_dict(r) for r in revisions]
@@ -199,6 +252,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
         definition_id: str, request: CoefficientRevisionCreateRequest
     ) -> dict[str, Any]:
         """Create a new revision for a coefficient definition."""
+        coefficient_service = resolve_service()
         try:
             value_decimal = Decimal(request.value_decimal) if request.value_decimal else None
             revision = coefficient_service.create_revision(
@@ -226,6 +280,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
     @app.get("/api/v1/coefficients/{definition_id}/revisions/{revision_id}")
     def get_revision(definition_id: str, revision_id: str) -> dict[str, Any]:
         """Get a specific revision."""
+        coefficient_service = resolve_service()
         try:
             revision = coefficient_service.get_revision(definition_id, revision_id)
             return _revision_to_dict(revision)
@@ -235,6 +290,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
     @app.post("/api/v1/coefficients/{definition_id}/revisions/{revision_id}/review")
     def review_revision(definition_id: str, revision_id: str) -> dict[str, Any]:
         """Mark a revision as reviewed."""
+        coefficient_service = resolve_service()
         try:
             revision = coefficient_service.mark_revision_reviewed(
                 definition_id, revision_id, reviewer="api"
@@ -248,6 +304,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
     @app.post("/api/v1/coefficients/{definition_id}/revisions/{revision_id}/approve")
     def approve_revision(definition_id: str, revision_id: str) -> dict[str, Any]:
         """Approve a reviewed revision."""
+        coefficient_service = resolve_service()
         try:
             revision = coefficient_service.approve_revision(
                 definition_id, revision_id, approver="api"
@@ -261,6 +318,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
     @app.post("/api/v1/coefficients/{definition_id}/revisions/{revision_id}/withdraw")
     def withdraw_revision(definition_id: str, revision_id: str) -> dict[str, Any]:
         """Withdraw an approved revision."""
+        coefficient_service = resolve_service()
         try:
             revision = coefficient_service.withdraw_revision(
                 definition_id, revision_id, actor="api"
@@ -274,6 +332,7 @@ def register_coefficient_routes(app: FastAPI, coefficient_service: CoefficientSe
     @app.post("/api/v1/coefficients/resolve")
     def resolve_coefficients(request: CoefficientResolveRequest) -> dict[str, Any]:
         """Resolve coefficient set for calculations."""
+        coefficient_service = resolve_service()
         coefficient_set = coefficient_service.resolve_coefficient_set(
             codes=request.codes,
             product_type=request.product_type,
