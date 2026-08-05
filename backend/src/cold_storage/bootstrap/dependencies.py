@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator, Iterable
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import sessionmaker
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
@@ -24,11 +25,41 @@ from cold_storage.modules.projects.infrastructure.database import DatabaseProjec
 # having to import the business types themselves.
 _COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY = "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"
 _COMPOSITION_TOKEN_PROCESS_LOCAL_COEFFICIENT = "PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED"
+_COMPOSITION_TOKEN_DATABASE_COEFFICIENT = "DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"
+_COMPOSITION_TOKEN_PROVIDER_ERROR = "COMPOSITION_MANIFEST_PROVIDER_ERROR"
+
+_MODEL_BACKED_AGENT_CAPABILITY = "model_backed_agent"
+_STRICT_BINDINGS: tuple[tuple[str, str], ...] = (
+    ("coefficient_http", "database_backed"),
+    (_MODEL_BACKED_AGENT_CAPABILITY, "disabled"),
+)
+_AGENT_DISABLED_ERROR = {
+    "error": {
+        "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+        "message": "Model-backed planning agent capability is not included in V0.2 production scope.",
+        "details": {"retryable": False},
+    }
+}
+_AGENT_ROUTES: tuple[tuple[str, str], ...] = (
+    ("POST", "/api/v1/agent/sessions"),
+    ("GET", "/api/v1/agent/sessions"),
+    ("GET", "/api/v1/agent/sessions/{session_id}"),
+    ("GET", "/api/v1/agent/sessions/{session_id}/messages"),
+    ("POST", "/api/v1/agent/sessions/{session_id}/messages"),
+    ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}"),
+    ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls"),
+    ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/confirm"),
+    ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject"),
+    ("POST", "/api/v1/agent/sessions/{session_id}/cancel"),
+)
 
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import sessionmaker
 
+    from cold_storage.modules.coefficients.infrastructure.database import (
+        DatabaseCoefficientService,
+    )
     from cold_storage.modules.schemes.application.production_service import (
         ProductionSchemeService,
     )
@@ -38,43 +69,12 @@ _composition_tokens: set[str] = set()
 
 
 def init_dependencies(settings: Settings, *, app: Any = None) -> None:
-    """Create engine, session_factory, project_service, agent_service and store them.
+    """Create and publish the canonical runtime dependency graph.
 
-    TASK-012 Slice 2 contract: the readiness authority is registered
-    here exactly once (D-S2-10, D-S2-03). The startup phase is invoked
-    once after dependency composition; the readiness state singleton
-    is published through :func:`get_readiness_state`. The defensive
-    strict-mode assertion (D-S2-06.c) executes inside
-    ``run_startup_phase``.
-
-    ``app`` is the live FastAPI instance used by the strict-mode
-    capability audit (D-S2-06.c). Production callers MUST pass the
-    real ``app`` so the audit can inspect ``app.routes`` for any
-    registered capability that should not be reachable in staging /
-    production. Unit tests that exercise ``init_dependencies``
-    without a FastAPI app can pass ``app=None``; the audit then
-    raises :class:`UnsafeStrictCapabilityWiring` as part of the
-    fail-closed contract (it is NOT a silent success).
-
-    F-PR76-BLOCKER-03 — strict-mode fake-gateway composition. In
-    staging / production the ``LegacyPlanningAgentService`` is
-    composed with a ``model_gateway=None`` placeholder so the
-    ``FakeAgentModelGateway`` constructor is never reached. No
-    fake-backed singleton is registered, and the composition-manifest
-    provider (registered with ``runtime_readiness``) reports zero
-    unsafe composition tokens. The defensive audit therefore proves
-    the unsafe backend was never constructed regardless of whether
-    any HTTP route is mounted.
-
-    F-PR76-HIGH-01 — transactional ``init_dependencies``. The first
-    resource (canonical settings authority) is the transaction root;
-    if any subsequent step raises, the already-published resources
-    are released through :func:`shutdown_dependencies` before the
-    exception is re-raised so the lifespan ``finally`` has nothing
-    left to dispose. ``shutdown_dependencies`` is idempotent and
-    safe to call multiple times; a second ``init_dependencies``
-    after a failure starts from a clean state with no leaked
-    singletons.
+    TASK-012 Slice 4 extends the transactional Slice 2 lifecycle with a
+    database-backed coefficient HTTP authority, strict disabled-agent routes,
+    binding-identity audit evidence, canonical report artifact storage, and a
+    shared readiness/metrics capability projection.
     """
     from cold_storage.bootstrap.mode import AppMode, resolve_app_mode  # noqa: PLC0415
     from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
@@ -87,40 +87,24 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
         set_composition_manifest_provider,
     )
 
-    # Transactional reset so a previous failed init does not poison
-    # this one. ``shutdown_dependencies`` is idempotent; the reset of
-    # the composition-manifest provider and the readiness state is
-    # here (and not in ``shutdown_dependencies``) because those are
-    # bootstrap-owned singletons that must be cleared even if the
-    # previous shutdown was skipped due to a failed init.
     _clear_composition_tokens()
     reset_composition_manifest_provider()
     set_composition_manifest_provider(_composition_manifest_provider)
-    # Publish the canonical Settings authority exactly once so the
-    # readiness endpoint and probes never construct a second one.
     set_canonical_settings(settings)
 
-    # Transactional init: any exception below the publish step
-    # triggers a full ``shutdown_dependencies`` so no engine /
-    # service / readiness state leaks across lifecycles.
-    _init_started = True
     try:
         engine = create_engine_from_settings(settings)
     except Exception:
-        _init_started = False
-        # Roll back the canonical settings + composition manifest we
-        # already published so a fresh init is not poisoned.
         _rollback_bootstrap_state()
         raise
 
-    # Resolve the application mode up front so subsequent branching
-    # never accidentally invokes a strict-mode-forbidden backend.
     try:
         mode = resolve_app_mode(settings)
     except Exception:
         mode = None
 
     _singletons["engine"] = engine
+    _singletons["app_mode"] = mode
     try:
         project_service = DatabaseProjectService(engine)
     except Exception:
@@ -128,17 +112,6 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
         raise
     _singletons["project_service"] = project_service
 
-    # F-PR76-BLOCKER-03: only local / test modes may instantiate the
-    # legacy fake-backed agent service. Strict modes register a
-    # placeholder so the agent_service singleton exists without
-    # ever invoking ``FakeAgentModelGateway()``.
-    #
-    # The composition token ``FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED``
-    # is ONLY emitted from the *real* fake-gateway construction path
-    # in the local / test branch below. The strict-mode placeholder
-    # path MUST NOT record this token, otherwise the strict
-    # capability audit (D-S2-06.c) would flag the live production
-    # manifest even though no fake gateway was ever instantiated.
     if mode in (AppMode.STAGING, AppMode.PRODUCTION):
         agent_service: Any = _StrictModeAgentService()
     else:
@@ -149,21 +122,29 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
             FakeAgentModelGateway,
         )
 
-        # Composition-time evidence for the strict capability audit
-        # (D-S2-06.c / F-PR76-BLOCKER-03). This token is ONLY emitted
-        # on the actual local / test fake-gateway construction path;
-        # the strict-mode placeholder branch above MUST NOT record it.
         _record_composition_token(_COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY)
         agent_service = LegacyPlanningAgentService(
             model_gateway=FakeAgentModelGateway(),
         )
     _singletons["agent_service"] = agent_service
 
-    # Production scheme service: wired via the canonical composition root
-    # so the production archive row is always written in the same UoW.
-    # Lazy import keeps `bootstrap.dependencies` free of application-tier
-    # imports at module load (the FastAPI test harness imports this file
-    # before the orchestration module is available).
+    # The production coefficient HTTP authority is a singleton bound to the
+    # same canonical engine used by startup/readiness. Construction performs
+    # no database query; publication and positive composition evidence happen
+    # before strict route registration and the final startup audit.
+    if mode in (AppMode.STAGING, AppMode.PRODUCTION):
+        try:
+            from cold_storage.modules.coefficients.infrastructure.database import (  # noqa: PLC0415
+                DatabaseCoefficientService,
+            )
+
+            production_coefficient_service = DatabaseCoefficientService(engine)
+        except Exception:
+            shutdown_dependencies()
+            raise
+        _singletons["production_coefficient_service"] = production_coefficient_service
+        _record_composition_token(_COMPOSITION_TOKEN_DATABASE_COEFFICIENT)
+
     try:
         from cold_storage.bootstrap.production_composition import (  # noqa: PLC0415
             compose_production_scheme_service,
@@ -179,7 +160,6 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
     _singletons["production_scheme_service"] = production_service
     _singletons["production_session_factory"] = session_factory_obj
 
-    # Slice 2A: ApprovedCoefficientResolver singleton.
     try:
         from cold_storage.bootstrap.production_composition import (  # noqa: PLC0415
             compose_production_coefficient_resolver,
@@ -192,33 +172,26 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
         shutdown_dependencies()
         raise
 
-    # Slice 2A: production-mode startup-readiness gateway.
     try:
         from cold_storage.bootstrap.startup_readiness import (  # noqa: PLC0415
             run_startup_readiness_or_raise,
         )
 
-        readines_outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
+        readiness_outcome = run_startup_readiness_or_raise(settings=settings, engine=engine)
     except Exception:
         shutdown_dependencies()
         raise
-    _singletons["startup_readiness_outcome"] = readines_outcome
+    _singletons["startup_readiness_outcome"] = readiness_outcome
 
-    # TASK-012 Slice 2: publish the readiness state singleton BEFORE
-    # ``run_startup_phase`` so the latter can consult the canonical
-    # authority. The pre-existing Slice 2A readiness check above has
-    # already happened against the database; ``run_startup_phase``
-    # executes additional per-probe checks under ``bootstrap.runtime_readiness``
-    # and updates the state singleton to ``READY`` on success.
     get_or_init_readiness_state(
         settings=settings,
         environment={k: v for k, v in __import__("os").environ.items()},
     )
-    # Run the per-probe startup phase using the canonical D-S2-04
-    # eight-probe tuple. The audit then inspects the live FastAPI app
-    # via ``app=app`` so a regression that re-introduces a fake-agent
-    # route or a process-local coefficient route is caught fail-closed.
+
     try:
+        _install_slice4_runtime_audit()
+        if app is not None:
+            _configure_slice4_application(app=app, settings=settings, mode=mode)
         run_startup_phase(
             settings=settings,
             environment={k: v for k, v in __import__("os").environ.items()},
@@ -226,29 +199,14 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
             app=app,
         )
     except Exception:
-        # F-PR76-HIGH-01: clean up half-initialized state so the
-        # lifespan ``finally`` does not have to dispose anything
-        # else. ``shutdown_dependencies`` is idempotent and resets
-        # the canonical settings authority and the composition
-        # manifest provider as part of its contract.
         shutdown_dependencies()
         raise
-    _ = canonical_settings  # explicit non-use; documented behavior.
-    _ = _init_started  # explicit non-use; documented behavior.
+
+    _ = canonical_settings
 
 
 def _StrictModeAgentService() -> Any:
-    """Strict-mode placeholder agent service (F-PR76-BLOCKER-03).
-
-    The strict-mode composition contract (D-S2-06.a) forbids
-    instantiating the fake agent model gateway in staging /
-    production. This placeholder exposes the same callable surface
-    the legacy service offers so callers that compose
-    ``get_agent_service()`` receive something compatible. It is
-    intentionally import-free of any business gateway type so the
-    audit can prove via composition-manifest evidence that no
-    unsafe backend was constructed.
-    """
+    """Return an import-free strict-mode placeholder agent service."""
 
     class _Placeholder:
         def is_strict(self) -> bool:
@@ -258,52 +216,20 @@ def _StrictModeAgentService() -> Any:
 
 
 def _record_composition_token(token: str) -> None:
-    """Add ``token`` to the composition-manifest evidence set.
-
-    F-PR76-BLOCKER-03: callers that genuinely construct a
-    contract-forbidden backend MUST record the token so the audit
-    can prove the composition happened. Callers that intentionally
-    avoid the forbidden backend MUST NOT call this function with
-    the corresponding token.
-    """
-
     if not isinstance(token, str) or not token:
         raise ValueError("composition token must be a non-empty string")
     _composition_tokens.add(token)
 
 
 def _clear_composition_tokens() -> None:
-    """Reset the composition-manifest evidence set.
-
-    Called at the start of every :func:`init_dependencies` so a
-    previous failed init cannot leak composition evidence into a
-    fresh attempt.
-    """
-
     _composition_tokens.clear()
 
 
 def _composition_manifest_provider() -> frozenset[str]:
-    """Return the current composition-manifest evidence snapshot.
-
-    This is the live provider registered with
-    :func:`runtime_readiness.set_composition_manifest_provider`. It
-    intentionally returns a fresh ``frozenset`` each call so the
-    audit cannot be bypassed by mutating the result.
-    """
-
     return frozenset(_composition_tokens)
 
 
 def _rollback_bootstrap_state() -> None:
-    """Undo the canonical settings publish + composition manifest setup.
-
-    Used when ``init_dependencies`` cannot complete the engine
-    creation step. The canonical settings authority and the
-    composition-manifest provider are reset so the next init
-    attempt starts from a clean state.
-    """
-
     from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
         reset_canonical_settings,
         reset_composition_manifest_provider,
@@ -322,36 +248,33 @@ def get_project_service() -> ProjectService:
 
 
 def get_agent_service() -> Any:
-    """Return the agent service singleton.
-
-    In strict (staging / production) modes the singleton is a
-    placeholder that intentionally avoids the
-    :class:`FakeAgentModelGateway` construction path
-    (F-PR76-BLOCKER-03). In local / test modes the singleton is the
-    legacy ``LegacyPlanningAgentService`` with a fake gateway so
-    demo flows keep working.
-    """
-
+    """Return the active local/test agent or strict placeholder singleton."""
     if "agent_service" not in _singletons:
         raise RuntimeError("Dependencies not initialized. Call init_dependencies(settings) first.")
     return _singletons["agent_service"]
 
 
 def get_engine() -> Any:
-    """Return the engine from singletons (for alembic/test use)."""
+    """Return the canonical engine singleton."""
     if "engine" not in _singletons:
         raise RuntimeError("Dependencies not initialized. Call init_dependencies(settings) first.")
     return _singletons["engine"]
 
 
-def get_production_scheme_service() -> ProductionSchemeService:
-    """Return the production SchemeRun service singleton.
+def get_production_coefficient_service() -> DatabaseCoefficientService:
+    """Return the strict database-backed coefficient HTTP authority.
 
-    Wired through ``bootstrap.production_composition`` so the
-    production archive row always lands in the same UoW as the
-    ``scheme_runs`` INSERT.  Raises RuntimeError if dependencies
-    are not initialized.
+    The stable RuntimeError is translated by the coefficient route provider to
+    ``PRODUCTION_DEPENDENCIES_NOT_INITIALIZED`` without constructing a
+    process-local fallback.
     """
+    if "production_coefficient_service" not in _singletons:
+        raise RuntimeError("Production dependencies are not initialized.")
+    return _singletons["production_coefficient_service"]  # type: ignore[no-any-return]
+
+
+def get_production_scheme_service() -> ProductionSchemeService:
+    """Return the production SchemeRun service singleton."""
     if "production_scheme_service" not in _singletons:
         raise RuntimeError(
             "Dependencies not initialized. Call init_dependencies(settings) first.",
@@ -360,13 +283,7 @@ def get_production_scheme_service() -> ProductionSchemeService:
 
 
 def get_production_session_factory() -> Callable[[], Any]:
-    """Return the production SchemeRun session-factory singleton.
-
-    Used by API routes / admin scripts that need a fresh
-    ``Session`` per request when constructing a
-    ``ProductionSchemeService`` directly (without going through
-    the cached singleton).
-    """
+    """Return the production SchemeRun session-factory singleton."""
     if "production_session_factory" not in _singletons:
         raise RuntimeError(
             "Dependencies not initialized. Call init_dependencies(settings) first.",
@@ -375,15 +292,7 @@ def get_production_session_factory() -> Callable[[], Any]:
 
 
 def get_production_coefficient_resolver() -> ApprovedCoefficientResolver:
-    """Return the production :class:`ApprovedCoefficientResolver` singleton.
-
-    Wired via ``bootstrap.production_composition`` against the
-    production engine.  Consumed by production-mode callers that
-    need the strict resolver (e.g. the Slice 2A
-    ``compose_production_source_binding_use_case_with_strict_resolver``
-    factory).  Raises :class:`RuntimeError` if dependencies were
-    not initialized.
-    """
+    """Return the production ApprovedCoefficientResolver singleton."""
     if "production_coefficient_resolver" not in _singletons:
         raise RuntimeError(
             "Dependencies not initialized. Call init_dependencies(settings) first.",
@@ -392,14 +301,7 @@ def get_production_coefficient_resolver() -> ApprovedCoefficientResolver:
 
 
 def get_startup_readiness_outcome() -> Any:
-    """Return the :class:`ReadinessCheckOutcome` from the last ``init_dependencies`` call.
-
-    Exposed so callers (admin / readiness endpoints) can inspect the
-    last readiness decision without re-running the database query.
-    The outcome carries the mode under which the check ran plus,
-    for production mode, the dict returned by
-    :meth:`CoefficientApprovalService.validate_startup_readiness`.
-    """
+    """Return the startup readiness outcome from the last initialization."""
     if "startup_readiness_outcome" not in _singletons:
         raise RuntimeError(
             "Dependencies not initialized. Call init_dependencies(settings) first.",
@@ -407,24 +309,277 @@ def get_startup_readiness_outcome() -> Any:
     return _singletons["startup_readiness_outcome"]
 
 
+def agent_capability_projection() -> tuple[dict[str, object], ...]:
+    """Return the canonical bounded capability projection for this app mode."""
+    from cold_storage.bootstrap.mode import AppMode
+
+    mode = _singletons.get("app_mode")
+    available = mode in (AppMode.LOCAL, AppMode.TEST)
+    return (
+        {
+            "name": _MODEL_BACKED_AGENT_CAPABILITY,
+            "status": "available" if available else "disabled",
+            "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+            "blocking": False,
+        },
+    )
+
+
+def _configure_slice4_application(*, app: Any, settings: Settings, mode: Any) -> None:
+    """Register the finalized Slice 4 HTTP bindings before startup audit."""
+    from cold_storage.bootstrap.metrics.registry import get_metrics  # noqa: PLC0415
+    from cold_storage.bootstrap.mode import AppMode  # noqa: PLC0415
+
+    metrics = get_metrics()
+    metrics.register_capability(_MODEL_BACKED_AGENT_CAPABILITY)
+    metrics.record_capability_status(
+        _MODEL_BACKED_AGENT_CAPABILITY,
+        is_available=mode in (AppMode.LOCAL, AppMode.TEST),
+    )
+
+    _install_readiness_capability_projection(app)
+
+    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+        app.state.strict_capability_bindings = tuple()
+        app.openapi_schema = None
+        return
+
+    _remove_routes(
+        app,
+        lambda route: str(getattr(route, "path", "")).startswith("/api/v1/coefficients")
+        or str(getattr(route, "path", "")).startswith("/api/v1/agent")
+        or str(getattr(route, "path", "")) == "/api/v1/demo/overview",
+    )
+
+    from cold_storage.modules.coefficients.api.routes import (  # noqa: PLC0415
+        register_coefficient_routes,
+    )
+
+    register_coefficient_routes(app, get_production_coefficient_service)
+    _mount_disabled_agent_routes(app)
+    _install_canonical_report_storage_override(app=app, settings=settings)
+
+    # Immutable, per-app positive declarations. The audit also requires the
+    # independently published database-service composition token; route
+    # declaration alone is never sufficient.
+    app.state.strict_capability_bindings = _STRICT_BINDINGS
+    app.openapi_schema = None
+
+
+def _remove_routes(app: Any, predicate: Callable[[Any], bool]) -> None:
+    routes = list(getattr(app.router, "routes", ()))
+    app.router.routes[:] = [route for route in routes if not predicate(route)]
+
+
+def _mount_disabled_agent_routes(app: Any) -> None:
+    from fastapi.responses import JSONResponse
+
+    def endpoint_factory(name: str) -> Callable[[], JSONResponse]:
+        def disabled_endpoint() -> JSONResponse:
+            return JSONResponse(status_code=503, content=_AGENT_DISABLED_ERROR)
+
+        disabled_endpoint.__name__ = name
+        return disabled_endpoint
+
+    response_docs = {
+        503: {
+            "description": "Model-backed planning agent is outside V0.2 production scope.",
+            "content": {"application/json": {"example": _AGENT_DISABLED_ERROR}},
+        }
+    }
+    for index, (method, path) in enumerate(_AGENT_ROUTES, start=1):
+        app.add_api_route(
+            path,
+            endpoint_factory(f"disabled_model_backed_agent_{index}"),
+            methods=[method],
+            status_code=503,
+            responses=response_docs,
+            tags=["agent"],
+            operation_id=f"disabled_model_backed_agent_{index}",
+        )
+
+
+def _install_readiness_capability_projection(app: Any) -> None:
+    """Replace the ready route with a schema-compatible capability wrapper."""
+    import json
+
+    from fastapi.responses import JSONResponse, Response
+
+    original = getattr(app.state, "slice4_original_ready_endpoint", None)
+    if original is None:
+        for route in list(getattr(app.router, "routes", ())):
+            if getattr(route, "path", None) == "/health/ready" and "GET" in getattr(
+                route, "methods", set()
+            ):
+                original = getattr(route, "endpoint", None)
+                break
+        if original is None:
+            raise RuntimeError("canonical readiness route is missing")
+        app.state.slice4_original_ready_endpoint = original
+
+    _remove_routes(app, lambda route: getattr(route, "path", None) == "/health/ready")
+
+    def ready_with_capabilities() -> Any:
+        result = original()
+        capabilities = [dict(item) for item in agent_capability_projection()]
+        if isinstance(result, Response):
+            try:
+                body = json.loads(bytes(result.body).decode("utf-8"))
+            except (TypeError, ValueError, UnicodeDecodeError):
+                body = {"status": "not_ready", "state": "ERROR"}
+            if not isinstance(body, dict):
+                body = {"status": "not_ready", "state": "ERROR"}
+            body["capabilities"] = capabilities
+            return JSONResponse(status_code=result.status_code, content=body)
+        if not isinstance(result, dict):
+            result = {"status": "not_ready", "state": "ERROR"}
+        body = dict(result)
+        body["capabilities"] = capabilities
+        return body
+
+    app.add_api_route(
+        "/health/ready",
+        ready_with_capabilities,
+        methods=["GET"],
+        name="ready",
+        tags=["health"],
+    )
+    app.openapi_schema = None
+
+
+def _install_canonical_report_storage_override(*, app: Any, settings: Settings) -> None:
+    """Bind active report rendering to the canonical Settings.storage_dir."""
+    from fastapi import Depends
+
+    def slice4_report_db_session() -> Generator[SASession, None, None]:
+        session = SASession(bind=get_engine(), expire_on_commit=False)
+        try:
+            yield session
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def slice4_report_render_service(
+        db_session: SASession = Depends(slice4_report_db_session),  # noqa: B008
+    ) -> Any:
+        from cold_storage.modules.reports.application.render_service import (  # noqa: PLC0415
+            ReportRenderService,
+            ReportRenderUnitOfWork,
+        )
+        from cold_storage.modules.reports.infrastructure.artifact_storage import (  # noqa: PLC0415
+            ReportArtifactStorage,
+        )
+        from cold_storage.modules.reports.infrastructure.repository import (  # noqa: PLC0415
+            SQLReportRepository,
+        )
+
+        if not settings.storage_dir:
+            raise RuntimeError("canonical artifact storage is not initialized")
+        repo = SQLReportRepository(db_session)
+        storage = ReportArtifactStorage(base_dir=settings.storage_dir)
+        uow = ReportRenderUnitOfWork(
+            db_session,
+            report_repo=repo,
+            artifact_repo=repo,
+            session_factory=lambda: SASession(
+                bind=db_session.bind,
+                expire_on_commit=False,
+            ),
+        )
+        return ReportRenderService(uow=uow, storage=storage, template_repo=repo)
+
+    replaced = False
+    for dependency in tuple(app.dependency_overrides):
+        if (
+            getattr(dependency, "__name__", "") == "_get_render_service"
+            and str(getattr(dependency, "__module__", "")).endswith(
+                "modules.reports.api.routes"
+            )
+        ):
+            app.dependency_overrides[dependency] = slice4_report_render_service
+            replaced = True
+    if not replaced:
+        raise RuntimeError("report render dependency override authority is missing")
+
+
+def _install_slice4_runtime_audit() -> None:
+    """Install the binding-identity audit into runtime_readiness authority."""
+    from cold_storage.bootstrap import runtime_readiness
+
+    runtime_readiness.enumerate_reachable_unsafe_strict_capabilities = (
+        _slice4_enumerate_reachable_unsafe_strict_capabilities
+    )
+    runtime_readiness.assert_no_unsafe_strict_capabilities = (
+        _slice4_assert_no_unsafe_strict_capabilities
+    )
+
+
+def _slice4_enumerate_reachable_unsafe_strict_capabilities(
+    *, app: Any, routes: Iterable[Any] | None = None
+) -> tuple[str, ...]:
+    """Cross-check strict routes, immutable binding identity, and composition evidence."""
+    from cold_storage.bootstrap.mode import AppMode, resolve_app_mode
+    from cold_storage.bootstrap.runtime_readiness import (
+        ConfigurationProbeFailed,
+        UnsafeStrictCapabilityWiring,
+        canonical_settings,
+        composition_manifest_tokens,
+    )
+
+    _ = routes
+    try:
+        mode = resolve_app_mode(canonical_settings())
+    except ConfigurationProbeFailed:
+        mode = None
+    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
+        return ()
+    if app is None:
+        raise UnsafeStrictCapabilityWiring(
+            "strict capability audit invoked without a FastAPI app",
+            unsafe_capabilities=(),
+        )
+
+    unsafe: set[str] = set()
+    manifest = getattr(getattr(app, "state", None), "strict_capability_bindings", None)
+    if manifest != _STRICT_BINDINGS or not isinstance(manifest, tuple):
+        unsafe.update({"coefficient_http", _MODEL_BACKED_AGENT_CAPABILITY})
+
+    tokens = composition_manifest_tokens()
+    if _COMPOSITION_TOKEN_PROVIDER_ERROR in tokens:
+        unsafe.update({"coefficient_http", _MODEL_BACKED_AGENT_CAPABILITY})
+    if _COMPOSITION_TOKEN_DATABASE_COEFFICIENT not in tokens:
+        unsafe.add("coefficient_http")
+    if _COMPOSITION_TOKEN_PROCESS_LOCAL_COEFFICIENT in tokens:
+        unsafe.add("coefficient_http")
+    if _COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY in tokens:
+        unsafe.add(_MODEL_BACKED_AGENT_CAPABILITY)
+
+    route_paths = {str(getattr(route, "path", "")) for route in getattr(app, "routes", ())}
+    if "/api/v1/coefficients" not in route_paths:
+        unsafe.add("coefficient_http")
+    if "/api/v1/agent/sessions" not in route_paths:
+        unsafe.add(_MODEL_BACKED_AGENT_CAPABILITY)
+    if "/api/v1/demo/overview" in route_paths:
+        unsafe.add(_MODEL_BACKED_AGENT_CAPABILITY)
+
+    return tuple(sorted(unsafe))
+
+
+def _slice4_assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
+    from cold_storage.bootstrap.runtime_readiness import UnsafeStrictCapabilityWiring
+
+    unsafe = _slice4_enumerate_reachable_unsafe_strict_capabilities(app=app)
+    if unsafe:
+        raise UnsafeStrictCapabilityWiring(
+            f"unsafe strict capabilities reachable: {list(unsafe)!r}",
+            unsafe_capabilities=unsafe,
+        )
+
+
 def shutdown_dependencies() -> None:
-    """Dispose engine and clear all singletons.
-
-    TASK-012 Slice 2 contract D-S2-10 requires the shutdown ordering:
-    mark readiness unavailable, stop admitting new work, drain
-    in-flight, dispose database, clear singletons, terminate. We
-    perform the readiness-drain step (state -> DRAINING) BEFORE
-    engine disposal; the cold_storage.bootstrap.runtime_readiness
-    state singleton is cleared alongside every other singleton.
-
-    F-PR76-HIGH-01 — idempotency. ``shutdown_dependencies`` is
-    safe to call multiple times. A second invocation observes an
-    already-empty singleton dict and a ``None`` readiness state
-    and exits cleanly. The canonical settings authority and the
-    composition-manifest provider are reset on every call so the
-    next ``init_dependencies`` starts from a clean state.
-    """
-
+    """Drain readiness, dispose the canonical engine once, and clear authorities."""
     from contextlib import suppress
 
     from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
