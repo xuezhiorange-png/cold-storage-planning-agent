@@ -1004,10 +1004,10 @@ def enumerate_reachable_unsafe_strict_capabilities(
     reachable: list[str] = []
     for _diag_name, spec in _STRICT_AUDIT_SPECS.items():
         # Check composition evidence using the single snapshot
+        evidence_errors: tuple[str, ...] = ()
         if "COMPOSITION_MANIFEST_PROVIDER_ERROR" in manifest_snapshot:
             evidence_errors = ("COMPOSITION_MANIFEST_PROVIDER_ERROR",)
         else:
-            evidence_errors = ()
             for token in spec.forbidden_composition_tokens:
                 if token in manifest_snapshot:
                     evidence_errors = (f"FORBIDDEN_TOKEN:{token}",)
