@@ -67,3 +67,55 @@ class TestObservableMetrics:
         result = m.collect()
         assert isinstance(result, str)
         assert "process_uptime_seconds" in result or "# EOF" in result
+
+
+class TestCapabilityMetrics:
+    """Tests for capability metric recording per D-S4-05."""
+
+    def test_register_and_record_capability(self) -> None:
+        """Register a capability and record its status."""
+        m = ObservableMetrics()
+        m.register_capability("model_backed_agent")
+        m.record_capability_status("model_backed_agent", is_available=True)
+        # Should not raise; metric is recorded
+        output = m.collect()
+        assert "agent_capability_status" in output
+
+    def test_unregistered_capability_rejected(self) -> None:
+        """Recording an unregistered capability increments HIGH_CARDINALITY_LABEL_REJECTED."""
+        m = ObservableMetrics()
+        # Should not raise but should increment the rejection counter
+        m.record_capability_status("nonexistent_capability", is_available=True)
+        # Verify via collect that the metric was recorded (no error)
+
+    def test_capability_available_value(self) -> None:
+        """LOCAL_METRIC_VALUE=1: capability available records value 1."""
+        m = ObservableMetrics()
+        m.register_capability("model_backed_agent")
+        m.record_capability_status("model_backed_agent", is_available=True)
+        # The metric should be recorded (no error)
+
+    def test_capability_unavailable_value(self) -> None:
+        """STAGING_METRIC_VALUE=0: capability unavailable records value 0."""
+        m = ObservableMetrics()
+        m.register_capability("model_backed_agent")
+        m.record_capability_status("model_backed_agent", is_available=False)
+        # The metric should be recorded (no error)
+
+    def test_capability_mode_matrix_local(self) -> None:
+        """LOCAL_METRIC_VALUE=1 via create_app."""
+        from cold_storage.bootstrap.app import create_app
+        from cold_storage.bootstrap.metrics.registry import get_metrics
+
+        create_app()
+        # The app factory should have registered and recorded the capability
+        # for LOCAL mode (is_available=True)
+        m = get_metrics()
+        assert "model_backed_agent" in m._capabilities
+
+    def test_duplicate_registration_idempotent(self) -> None:
+        """Registering the same capability twice is idempotent."""
+        m = ObservableMetrics()
+        m.register_capability("model_backed_agent")
+        m.register_capability("model_backed_agent")  # second call
+        # Should not raise

@@ -633,12 +633,11 @@ def test_production_mode_clean_app_passes_audit(monkeypatch):
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_staging_mode_planning_agent_route_fails_closed(monkeypatch):
-    """staging + agent route with disabled binding → ALLOWED.
+def test_staging_mode_disabled_agent_route_allowed(monkeypatch):
+    """STRICT_DISABLED_AGENT_ROUTE_ALLOWED: disabled agent routes are allowed.
 
-    D-S4-06: Agent routes with binding "disabled" are now allowed in
-    strict modes. The audit only flags capabilities with wrong/missing
-    binding identity or forbidden composition evidence.
+    D-S4-06: Agent routes with binding "disabled" in the frozen endpoint
+    matrix are allowed in strict modes.
     """
     from cold_storage.bootstrap.runtime_readiness import (
         enumerate_reachable_unsafe_strict_capabilities,
@@ -652,49 +651,20 @@ def test_staging_mode_planning_agent_route_fails_closed(monkeypatch):
         lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
     )
     try:
-        # Agent route with disabled binding is ALLOWED
+        # Clean app with correct binding → ALLOWED
         reachable = enumerate_reachable_unsafe_strict_capabilities(
-            app=_strict_fastapi_app_with_planning_agent_route(),
+            app=_strict_fastapi_app(),
         )
         assert reachable == ()
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_production_mode_planning_agent_route_fails_closed(monkeypatch):
-    """production + agent route with disabled binding → ALLOWED.
+def test_staging_mode_extra_agent_route_rejected(monkeypatch):
+    """STRICT_ACTIVE_AGENT_ROUTE_REJECTED: extra agent route must fail closed.
 
-    D-S4-06: Agent routes with binding "disabled" are now allowed in
-    strict modes. The audit only flags capabilities with wrong/missing
-    binding identity or forbidden composition evidence.
-    """
-    from cold_storage.bootstrap.runtime_readiness import (
-        enumerate_reachable_unsafe_strict_capabilities,
-        set_canonical_settings,
-    )
-
-    set_canonical_settings(_strict_settings("production", monkeypatch))
-    # D-S4-06: Mock composition tokens to include required positive evidence
-    monkeypatch.setattr(
-        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
-        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
-    )
-    try:
-        # Agent route with disabled binding is ALLOWED
-        reachable = enumerate_reachable_unsafe_strict_capabilities(
-            app=_strict_fastapi_app_with_planning_agent_route(),
-        )
-        assert reachable == ()
-    finally:
-        set_canonical_settings(None)  # type: ignore[arg-type]
-
-
-def test_staging_mode_coefficient_route_fails_closed(monkeypatch):
-    """staging + coefficient route with database_backed binding → ALLOWED.
-
-    D-S4-06: Coefficient routes with binding "database_backed" are now
-    allowed in strict modes. The audit only flags capabilities with
-    wrong/missing binding identity or forbidden composition evidence.
+    D-S4-06: Any agent route not in the frozen endpoint matrix must be
+    rejected, even with correct binding identity.
     """
     from cold_storage.bootstrap.runtime_readiness import (
         enumerate_reachable_unsafe_strict_capabilities,
@@ -702,13 +672,99 @@ def test_staging_mode_coefficient_route_fails_closed(monkeypatch):
     )
 
     set_canonical_settings(_strict_settings("staging", monkeypatch))
-    # D-S4-06: Mock composition tokens to include required positive evidence
     monkeypatch.setattr(
         "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
         lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
     )
     try:
-        # Coefficient route with database_backed binding is ALLOWED
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_planning_agent_route(),
+        )
+        assert reachable == ("model_backed_agent",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_fake_agent_route_rejected(monkeypatch):
+    """STRICT_FAKE_AGENT_ROUTE_REJECTED: fake agent route must fail closed."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
+        # App with fake agent route (not in frozen matrix)
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        app.state.strict_capability_bindings = (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "disabled"),
+        )
+
+        @app.post("/api/v1/agent/fake-run")
+        def _fake_agent():  # pragma: no cover
+            return {"fake": True}
+
+        reachable = enumerate_reachable_unsafe_strict_capabilities(app=app)
+        assert reachable == ("model_backed_agent",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_unknown_agent_route_rejected(monkeypatch):
+    """STRICT_UNKNOWN_AGENT_ROUTE_REJECTED: unknown agent route must fail closed."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        app.state.strict_capability_bindings = (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "disabled"),
+        )
+
+        @app.get("/api/v1/agent/unknown-endpoint")
+        def _unknown():  # pragma: no cover
+            return {"unknown": True}
+
+        reachable = enumerate_reachable_unsafe_strict_capabilities(app=app)
+        assert reachable == ("model_backed_agent",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_coefficient_route_allowed(monkeypatch):
+    """STRICT_DELAYED_DATABASE_COEFFICIENT_ROUTE_ALLOWED: database-backed coefficient allowed.
+
+    D-S4-06: Coefficient routes with binding "database_backed" and
+    correct composition evidence are allowed in strict modes.
+    """
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(
             app=_strict_fastapi_app_with_coefficient_route(),
         )
@@ -717,30 +773,223 @@ def test_staging_mode_coefficient_route_fails_closed(monkeypatch):
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
-def test_production_mode_coefficient_route_fails_closed(monkeypatch):
-    """production + coefficient route with database_backed binding → ALLOWED.
+def test_staging_mode_concrete_coefficient_service_rejected(monkeypatch):
+    """STRICT_CONCRETE_DATABASE_SERVICE_ROUTE_REJECTED: concrete service route must fail closed."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
 
-    D-S4-06: Coefficient routes with binding "database_backed" are now
-    allowed in strict modes. The audit only flags capabilities with
-    wrong/missing binding identity or forbidden composition evidence.
-    """
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    # Process-local composition token present → forbidden
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset(
+            {
+                "DATABASE_COEFFICIENT_SERVICE_INSTANTIATED",
+                "PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED",
+            }
+        ),
+    )
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_coefficient_route(),
+        )
+        assert reachable == ("coefficient_http",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_process_local_coefficient_rejected(monkeypatch):
+    """STRICT_PROCESS_LOCAL_COEFFICIENT_ROUTE_REJECTED: process-local must fail closed."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    # Only process-local token, no database token → forbidden + missing positive
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_coefficient_route(),
+        )
+        assert reachable == ("coefficient_http",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_staging_mode_unknown_coefficient_provider_rejected(monkeypatch):
+    """STRICT_UNKNOWN_COEFFICIENT_PROVIDER_REJECTED: missing DB token must fail closed."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    # Empty composition tokens → missing required positive DB token
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset(),
+    )
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_coefficient_route(),
+        )
+        assert reachable == ("coefficient_http",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_route_self_attestation_cannot_bypass(monkeypatch):
+    """ROUTE_SELF_ATTESTATION_CANNOT_BYPASS: writing app.state.strict_capability_bindings
+    from the route module does not bypass the audit."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        # Route module self-attests safe bindings
+        app.state.strict_capability_bindings = (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "disabled"),
+        )
+
+        # But registers an extra agent route
+        @app.post("/api/v1/agent/self-attested")
+        def _self_attested():  # pragma: no cover
+            return {"ok": True}
+
+        # Self-attestation does NOT bypass the frozen endpoint check
+        reachable = enumerate_reachable_unsafe_strict_capabilities(app=app)
+        assert reachable == ("model_backed_agent",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_composition_snapshot_read_count(monkeypatch):
+    """COMPOSITION_SNAPSHOT_READ_COUNT=1: audit reads composition manifest exactly once."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("staging", monkeypatch))
+    call_count = {"n": 0}
+    original_tokens = frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"})
+
+    def _counting_provider():
+        call_count["n"] += 1
+        return original_tokens
+
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        _counting_provider,
+    )
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app(),
+        )
+        assert reachable == ()
+        assert call_count["n"] == 1, (
+            f"composition manifest should be read exactly once, got {call_count['n']}"
+        )
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_disabled_agent_route_allowed(monkeypatch):
+    """STRICT_DISABLED_AGENT_ROUTE_ALLOWED (production): disabled agent routes are allowed."""
     from cold_storage.bootstrap.runtime_readiness import (
         enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
-    # D-S4-06: Mock composition tokens to include required positive evidence
     monkeypatch.setattr(
         "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
         lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
     )
     try:
-        # Coefficient route with database_backed binding is ALLOWED
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app(),
+        )
+        assert reachable == ()
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_extra_agent_route_rejected(monkeypatch):
+    """STRICT_ACTIVE_AGENT_ROUTE_REJECTED (production): extra agent route must fail closed."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_planning_agent_route(),
+        )
+        assert reachable == ("model_backed_agent",)
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_coefficient_route_allowed(monkeypatch):
+    """STRICT_DELAYED_DATABASE_COEFFICIENT_ROUTE_ALLOWED (production)."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(
             app=_strict_fastapi_app_with_coefficient_route(),
         )
         assert reachable == ()
+    finally:
+        set_canonical_settings(None)  # type: ignore[arg-type]
+
+
+def test_production_mode_process_local_coefficient_rejected(monkeypatch):
+    """STRICT_PROCESS_LOCAL_COEFFICIENT_ROUTE_REJECTED (production)."""
+    from cold_storage.bootstrap.runtime_readiness import (
+        enumerate_reachable_unsafe_strict_capabilities,
+        set_canonical_settings,
+    )
+
+    set_canonical_settings(_strict_settings("production", monkeypatch))
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
+    try:
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_coefficient_route(),
+        )
+        assert reachable == ("coefficient_http",)
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
 

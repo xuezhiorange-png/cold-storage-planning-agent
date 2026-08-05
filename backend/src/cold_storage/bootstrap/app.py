@@ -354,6 +354,12 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     # use a process-local service; staging/production use a delayed
     # provider that resolves the database-backed service per-request.
     initial_mode = resolve_app_mode(get_settings())
+
+    # D-S4-04: Create immutable capability projection bound to this app.
+    from cold_storage.bootstrap.dependencies import create_capability_projection
+
+    app._capability_projection = create_capability_projection(initial_mode)  # type: ignore[attr-defined]
+
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         coefficient_service = CoefficientService()
         register_coefficient_routes(app, coefficient_service)
@@ -429,8 +435,14 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             run_readiness_phase,
         )
 
-        # D-S4-04: Safe capability projection.
+        # D-S4-04: Safe capability projection bound to app instance.
         def _capability_projection() -> list[dict[str, object]]:
+            # Prefer the app-bound immutable projection (D-S4-04).
+            bound = getattr(app, "_capability_projection", None)
+            if bound is not None:
+                return [dict(c) for c in bound]
+            # Fallback to singleton-based projection for tests that
+            # create apps without the full factory.
             from cold_storage.bootstrap.dependencies import agent_capability_projection
 
             return [dict(c) for c in agent_capability_projection()]
@@ -514,6 +526,14 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             media_type="application/json",
             content=json.dumps(body),
         )
+
+    # D-S4-05: Register capability metric. Record status based on
+    # the resolved app mode, not deferred to init_dependencies.
+    _metrics.register_capability("model_backed_agent")
+    _metrics.record_capability_status(
+        "model_backed_agent",
+        is_available=initial_mode in (AppMode.LOCAL, AppMode.TEST),
+    )
 
     # D-S4-05: Demo routes are local/test only. Staging/production
     # must not mount these routes to avoid FakeAgentModelGateway construction.
@@ -1136,9 +1156,12 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     def _get_report_render_service(
         db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
     ) -> ReportRenderService:
+        from cold_storage.bootstrap.runtime_readiness import canonical_settings
+
         repo = SQLReportRepository(db_session)
-        # D-S4-11: Use canonical Settings.storage_dir, not hardcoded path.
-        _settings = get_settings()
+        # D-S4-11: Use canonical Settings.storage_dir from the bootstrap
+        # singleton, not a fresh Settings() construction.
+        _settings = canonical_settings()
         _storage_dir = _settings.storage_dir
         if not _storage_dir:
             raise RuntimeError("storage_dir not configured; cannot render reports")

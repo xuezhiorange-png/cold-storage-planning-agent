@@ -923,6 +923,22 @@ _STRICT_AUDIT_SPECS: dict[str, _StrictAuditSpec] = {
     ),
 }
 
+# Frozen agent endpoint matrix (D-S4-06). The app factory registers
+# exactly these disabled routes in strict modes. Any additional
+# "/api/v1/agent/**" route must fail closed.
+_FROZEN_AGENT_ENDPOINT_PATHS: frozenset[str] = frozenset(
+    {
+        "/api/v1/agent/sessions",
+        "/api/v1/agent/sessions/{session_id}",
+        "/api/v1/agent/sessions/{session_id}/messages",
+        "/api/v1/agent/sessions/{session_id}/turns/{turn_id}",
+        "/api/v1/agent/sessions/{session_id}/tool-calls",
+        "/api/v1/agent/sessions/{session_id}/cancel",
+        "/api/v1/agent/tool-calls/{tool_call_id}/confirm",
+        "/api/v1/agent/tool-calls/{tool_call_id}/reject",
+    }
+)
+
 
 def enumerate_reachable_unsafe_strict_capabilities(
     *, app: Any, routes: Iterable[Any] | None = None
@@ -961,19 +977,35 @@ def enumerate_reachable_unsafe_strict_capabilities(
             unsafe_capabilities=(),
         )
 
-    # 2. Validate composition evidence for each spec
+    # 2. Read composition manifest snapshot exactly once (D-S4-06).
+    # The audit MUST NOT call the provider per capability — a single
+    # snapshot ensures consistency across all specs.
+    manifest_snapshot = composition_manifest_tokens()
+
+    # 3. Validate composition evidence for each spec
     reachable: list[str] = []
     for _diag_name, spec in _STRICT_AUDIT_SPECS.items():
-        # Check composition evidence
-        evidence_errors = _validate_composition_evidence(
-            forbidden_tokens=spec.forbidden_composition_tokens,
-            required_positive_token=spec.required_positive_composition_token,
-        )
+        # Check composition evidence using the single snapshot
+        if "COMPOSITION_MANIFEST_PROVIDER_ERROR" in manifest_snapshot:
+            evidence_errors = ("COMPOSITION_MANIFEST_PROVIDER_ERROR",)
+        else:
+            evidence_errors = ()
+            for token in spec.forbidden_composition_tokens:
+                if token in manifest_snapshot:
+                    evidence_errors = (f"FORBIDDEN_TOKEN:{token}",)
+                    break
+            if (
+                not evidence_errors
+                and spec.required_positive_composition_token
+                and spec.required_positive_composition_token not in manifest_snapshot
+            ):
+                evidence_errors = ("MISSING_POSITIVE_DB_TOKEN",)
+
         if evidence_errors:
             reachable.append(spec.canonical_capability_name)
             continue
 
-        # 3. Check route prefix as HTTP surface evidence
+        # 4. Check route prefix as HTTP surface evidence
         route_paths: list[str] = []
         app_routes = getattr(app, "routes", None)
         if app_routes is not None:
@@ -991,9 +1023,27 @@ def enumerate_reachable_unsafe_strict_capabilities(
         )
 
         if has_route:
-            # Route exists but binding identity or evidence failed
-            # (already caught above), so this is unreachable here
-            pass
+            # Agent routes must match frozen endpoint matrix exactly.
+            # Any extra "/api/v1/agent/**" route must fail closed.
+            if spec.canonical_capability_name == "model_backed_agent":
+                agent_paths = [p for p in route_paths if p.startswith("/api/v1/agent/")]
+                extra = set(agent_paths) - _FROZEN_AGENT_ENDPOINT_PATHS
+                if extra:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+            # Coefficient routes with process-local service are rejected.
+            # A route prefix match with a concrete CoefficientService
+            # (not a delayed provider) proves an unsafe wiring.
+            if spec.canonical_capability_name == "coefficient_http":
+                # The binding identity and composition evidence already
+                # verified database_backed above. Additional check:
+                # any route with "/api/v1/coefficients" prefix must NOT
+                # be backed by a concrete/in-memory service. The
+                # composition evidence token
+                # PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED would
+                # already have triggered forbidden_token check above,
+                # so reaching here means the provider is correct.
+                pass  # composition evidence already validated
 
     return tuple(reachable)
 

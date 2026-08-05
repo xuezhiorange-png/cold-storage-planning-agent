@@ -300,6 +300,26 @@ def agent_capability_projection() -> tuple[dict[str, object], ...]:
     )
 
 
+def create_capability_projection(app_mode: Any) -> tuple[dict[str, object], ...]:
+    """Create an immutable capability projection bound to the given app mode.
+
+    D-S4-04: The projection is created once during app factory and bound
+    to the FastAPI app instance, ensuring readiness, metrics, and strict
+    audit all use the same canonical capability name and resolved app mode.
+    """
+    from cold_storage.bootstrap.mode import AppMode
+
+    available = app_mode in (AppMode.LOCAL, AppMode.TEST)
+    return (
+        {
+            "name": _MODEL_BACKED_AGENT_CAPABILITY,
+            "status": "available" if available else "disabled",
+            "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+            "blocking": False,
+        },
+    )
+
+
 def shutdown_dependencies() -> None:
     """Drain readiness, dispose the canonical engine once, and clear authorities."""
     from contextlib import suppress
