@@ -287,3 +287,265 @@ def test_sqlite_health_endpoint_returns_503_when_schema_head_invalid(
 
     reset_readiness_state()
     reset_canonical_settings()
+
+
+# ===========================================================================
+# V0.2 Slice 4: lifecycle integrity tests — failed-init rollback,
+# shutdown clearance, idempotent shutdown, engine-dispose accounting,
+# and reinit isolation.
+# ===========================================================================
+
+
+class _InitFailureSentinel(Exception):
+    """Controlled exception raised inside ``init_dependencies`` to test rollback."""
+
+
+def test_failed_init_production_coefficient_singleton_count_zero(
+    isolated_sqlite_env,
+    monkeypatch,
+):
+    """After a failed init, ``production_coefficient_service`` must NOT exist."""
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    reset_readiness_state()
+
+    # Patch DatabaseProjectService.__init__ to force a failure after engine
+    # creation but before singletons are fully populated.
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_init(self, engine, *a, **kw):  # noqa: ARG001
+        raise _InitFailureSentinel("simulated project service failure")
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_init)
+    try:
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_local_settings(tmp_path=isolated_sqlite_env))
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+
+    assert "production_coefficient_service" not in _singletons
+
+
+def test_failed_init_database_token_count_zero(isolated_sqlite_env, monkeypatch):
+    """After a failed init, composition tokens must be empty."""
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _composition_tokens
+
+    reset_readiness_state()
+
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_init(self, engine, *a, **kw):  # noqa: ARG001
+        raise _InitFailureSentinel("simulated project service failure")
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_init)
+    try:
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_local_settings(tmp_path=isolated_sqlite_env))
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+
+    assert len(_composition_tokens) == 0
+
+
+def test_failed_init_engine_count_zero(isolated_sqlite_env, monkeypatch):
+    """After a failed init, ``engine`` must NOT exist in singletons."""
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    reset_readiness_state()
+
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_init(self, engine, *a, **kw):  # noqa: ARG001
+        raise _InitFailureSentinel("simulated project service failure")
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_init)
+    try:
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_local_settings(tmp_path=isolated_sqlite_env))
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+
+    assert "engine" not in _singletons
+
+
+def test_reinit_after_failed_init_creates_new_service(isolated_sqlite_env, monkeypatch):
+    """After a failed init, a subsequent init must succeed and create a fresh service."""
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    reset_readiness_state()
+
+    call_count = 0
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_first_then_succeed(self, engine, *a, **kw):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise _InitFailureSentinel("simulated project service failure")
+        # Delegate to real init on the second call.
+        return original_init(self, engine, *a, **kw)
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_first_then_succeed)
+    try:
+        # First call fails.
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_local_settings(tmp_path=isolated_sqlite_env))
+
+        # Singletons should be clean after the failure.
+        assert "project_service" not in _singletons
+
+        # Second call succeeds and creates a new service.
+        init_dependencies(_make_local_settings(tmp_path=isolated_sqlite_env))
+        assert "project_service" in _singletons
+        assert call_count == 2
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+        shutdown_dependencies()
+
+
+def test_shutdown_clears_production_coefficient_singleton(isolated_sqlite_env):
+    """Shutdown must remove ``production_coefficient_service`` from singletons."""
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass  # lifespan triggers init_dependencies
+
+    # In local mode, production_coefficient_service is never set, so
+    # verify the key is absent (cleared by shutdown).
+    assert "production_coefficient_service" not in _singletons
+
+
+def test_shutdown_clears_database_token(isolated_sqlite_env):
+    """Shutdown must clear composition tokens."""
+    from cold_storage.bootstrap.dependencies import _composition_tokens
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    assert len(_composition_tokens) == 0
+
+
+def test_post_shutdown_provider_returns_stable_error(isolated_sqlite_env):
+    """After shutdown, ``get_production_coefficient_service`` raises RuntimeError."""
+    from cold_storage.bootstrap.dependencies import get_production_coefficient_service
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    with pytest.raises(RuntimeError, match="not initialized"):
+        get_production_coefficient_service()
+
+
+def test_second_shutdown_is_idempotent(isolated_sqlite_env):
+    """Calling shutdown_dependencies() twice must not raise."""
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    # First shutdown is already called by TestClient.__exit__.
+    # Second shutdown must be a no-op.
+    shutdown_dependencies()
+    shutdown_dependencies()  # must not raise
+
+
+def test_engine_dispose_call_count(isolated_sqlite_env, monkeypatch):
+    """Engine.dispose() must be called exactly once during shutdown."""
+    from cold_storage.bootstrap import dependencies as deps
+
+    dispose_calls = 0
+    original_dispose = deps.dispose_engine
+
+    def _tracking_dispose(engine):
+        nonlocal dispose_calls
+        dispose_calls += 1
+        return original_dispose(engine)
+
+    monkeypatch.setattr(deps, "dispose_engine", _tracking_dispose)
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    # The TestClient __exit__ calls shutdown_dependencies which disposes
+    # the engine exactly once.
+    assert dispose_calls == 1
+
+
+def test_old_service_not_reused(isolated_sqlite_env):
+    """After shutdown + reinit, a NEW project service must be created."""
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    old_service = None
+    new_service = None
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        # Capture the service BEFORE __exit__ triggers shutdown.
+        old_service = _singletons.get("project_service")
+
+    # After the context manager exits, singletons are cleared.
+    assert "project_service" not in _singletons
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app2 = create_app()
+    with TestClient(app2):
+        # Capture inside context before __exit__ clears singletons.
+        new_service = _singletons.get("project_service")
+
+    # Both services were captured; they must be distinct objects.
+    assert new_service is not None
+    assert old_service is not None
+    assert new_service is not old_service
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def init_dependencies(settings):
+    """Thin wrapper to call ``cold_storage.bootstrap.dependencies.init_dependencies``."""
+    from cold_storage.bootstrap.dependencies import init_dependencies as _init
+
+    _init(settings)
+
+
+def _make_local_settings(tmp_path):
+    """Return a minimal ``Settings`` suitable for local SQLite init."""
+    import os
+
+    from cold_storage.bootstrap.settings import Settings
+
+    os.environ.setdefault("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    os.environ.setdefault("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+    os.environ.setdefault("COLD_STORAGE_SQLITE_PATH", str(tmp_path / "lifecycle.db"))
+    os.environ.setdefault("COLD_STORAGE_STORAGE_DIR", str(tmp_path / "storage"))
+    os.environ.setdefault(
+        "COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS",
+        str(LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS),
+    )
+    os.environ.setdefault(
+        "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
+        str(LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS),
+    )
+    return Settings()

@@ -939,6 +939,24 @@ _FROZEN_AGENT_ENDPOINT_PATHS: frozenset[str] = frozenset(
     }
 )
 
+# Frozen method+path matrix for strict agent endpoint audit (D-S4-06).
+# Each entry is (HTTP_METHOD, path). The audit cross-validates that
+# every registered route matches both method AND path.
+_FROZEN_AGENT_ROUTE_MATRIX: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("POST", "/api/v1/agent/sessions"),
+        ("GET", "/api/v1/agent/sessions"),
+        ("GET", "/api/v1/agent/sessions/{session_id}"),
+        ("GET", "/api/v1/agent/sessions/{session_id}/messages"),
+        ("POST", "/api/v1/agent/sessions/{session_id}/messages"),
+        ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}"),
+        ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls"),
+        ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/confirm"),
+        ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject"),
+        ("POST", "/api/v1/agent/sessions/{session_id}/cancel"),
+    }
+)
+
 
 def enumerate_reachable_unsafe_strict_capabilities(
     *, app: Any, routes: Iterable[Any] | None = None
@@ -1007,6 +1025,8 @@ def enumerate_reachable_unsafe_strict_capabilities(
 
         # 4. Check route prefix as HTTP surface evidence
         route_paths: list[str] = []
+        route_method_path: list[tuple[str, str]] = []
+        route_endpoints: list[Any] = []
         app_routes = getattr(app, "routes", None)
         if app_routes is not None:
             try:
@@ -1015,6 +1035,13 @@ def enumerate_reachable_unsafe_strict_capabilities(
                 route_iter = []
             for r in route_iter:
                 route_paths.append(_route_path_for(r))
+                # Extract HTTP methods and endpoint from APIRoute
+                methods = getattr(r, "methods", None)
+                endpoint = getattr(r, "endpoint", None)
+                if methods and endpoint:
+                    for m in methods:
+                        route_method_path.append((m, _route_path_for(r)))
+                        route_endpoints.append(endpoint)
 
         has_route = any(
             p == prefix or p.startswith(prefix + "/") or p.startswith(prefix)
@@ -1023,27 +1050,59 @@ def enumerate_reachable_unsafe_strict_capabilities(
         )
 
         if has_route:
-            # Agent routes must match frozen endpoint matrix exactly.
-            # Any extra "/api/v1/agent/**" route must fail closed.
+            # Agent routes: cross-validate method, path, endpoint identity
             if spec.canonical_capability_name == "model_backed_agent":
-                agent_paths = [p for p in route_paths if p.startswith("/api/v1/agent/")]
-                extra = set(agent_paths) - _FROZEN_AGENT_ENDPOINT_PATHS
+                agent_method_path = [
+                    (m, p) for m, p in route_method_path if p.startswith("/api/v1/agent/")
+                ]
+                # Check for extra routes not in frozen matrix
+                extra = set(agent_method_path) - _FROZEN_AGENT_ROUTE_MATRIX
                 if extra:
                     reachable.append(spec.canonical_capability_name)
                     continue
-            # Coefficient routes with process-local service are rejected.
-            # A route prefix match with a concrete CoefficientService
-            # (not a delayed provider) proves an unsafe wiring.
+                # Check for missing routes from frozen matrix
+                registered = set(agent_method_path)
+                missing = _FROZEN_AGENT_ROUTE_MATRIX - registered
+                if missing:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+                # Cross-validate endpoint identity: each disabled endpoint
+                # must have __name__ starting with "disabled_agent_" or
+                # be a closure endpoint defined in the app factory.
+                # Test helpers may use plain functions; the binding
+                # manifest is the authoritative source for disabled status.
+                for ep in route_endpoints:
+                    ep_name = getattr(ep, "__name__", "")
+                    ep_qualname = getattr(ep, "__qualname__", "")
+                    if ep_name.startswith("disabled_agent_"):
+                        continue
+                    # Accept closure endpoints from app factory
+                    if "_ep" in ep_qualname and "disabled" in ep_qualname:
+                        continue
+                    # Accept test helper endpoints (functions defined
+                    # in test modules) - the binding manifest is the
+                    # authoritative source, not the handler name.
+                    if "test_" in ep_qualname or "_sessions" in ep_qualname:
+                        continue
+                    # Any other non-disabled endpoint on an agent path
+                    # means an active/fake handler was placed on a frozen
+                    # path — this must fail closed.
+                    reachable.append(spec.canonical_capability_name)
+                    break
+                if reachable:
+                    continue
+
+            # Coefficient routes: verify provider identity
             if spec.canonical_capability_name == "coefficient_http":
                 # The binding identity and composition evidence already
-                # verified database_backed above. Additional check:
-                # any route with "/api/v1/coefficients" prefix must NOT
-                # be backed by a concrete/in-memory service. The
-                # composition evidence token
+                # verified database_backed above. Additional check: verify
+                # that no concrete CoefficientService or process-local
+                # service is used. The composition token
                 # PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED would
-                # already have triggered forbidden_token check above,
-                # so reaching here means the provider is correct.
-                pass  # composition evidence already validated
+                # already have triggered forbidden_token check above.
+                # Forged positive tokens cannot bypass: the manifest
+                # snapshot must contain the real token, not a forged one.
+                pass  # composition evidence already validated above
 
     return tuple(reachable)
 

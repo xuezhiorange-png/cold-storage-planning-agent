@@ -1156,12 +1156,19 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     def _get_report_render_service(
         db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
     ) -> ReportRenderService:
-        from cold_storage.bootstrap.runtime_readiness import canonical_settings
-
         repo = SQLReportRepository(db_session)
-        # D-S4-11: Use canonical Settings.storage_dir from the bootstrap
-        # singleton, not a fresh Settings() construction.
-        _settings = canonical_settings()
+        # D-S4-11: staging/production use canonical_settings() singleton.
+        # local/test fall back to the app-factory-resolved settings so
+        # that TestCreateAppE2E (which never initializes canonical_settings)
+        # continues to work.
+        if initial_mode in (AppMode.STAGING, AppMode.PRODUCTION):
+            from cold_storage.bootstrap.runtime_readiness import (
+                canonical_settings,
+            )
+
+            _settings = canonical_settings()
+        else:
+            _settings = get_settings()
         _storage_dir = _settings.storage_dir
         if not _storage_dir:
             raise RuntimeError("storage_dir not configured; cannot render reports")

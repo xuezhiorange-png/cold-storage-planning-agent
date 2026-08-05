@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from cold_storage.bootstrap.metrics.registry import ObservableMetrics, get_metrics
@@ -69,6 +71,15 @@ class TestObservableMetrics:
         assert "process_uptime_seconds" in result or "# EOF" in result
 
 
+def _parse_capability_value(exposition: str, capability: str) -> float | None:
+    """Parse Prometheus exposition and return the agent_capability_status value."""
+    pattern = rf'agent_capability_status{{capability="{capability}"}}\s+([\d.]+)'
+    m = re.search(pattern, exposition)
+    if m:
+        return float(m.group(1))
+    return None
+
+
 class TestCapabilityMetrics:
     """Tests for capability metric recording per D-S4-05."""
 
@@ -77,41 +88,43 @@ class TestCapabilityMetrics:
         m = ObservableMetrics()
         m.register_capability("model_backed_agent")
         m.record_capability_status("model_backed_agent", is_available=True)
-        # Should not raise; metric is recorded
         output = m.collect()
-        assert "agent_capability_status" in output
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0
 
     def test_unregistered_capability_rejected(self) -> None:
-        """Recording an unregistered capability increments HIGH_CARDINALITY_LABEL_REJECTED."""
+        """Recording an unregistered capability is silently ignored."""
         m = ObservableMetrics()
-        # Should not raise but should increment the rejection counter
         m.record_capability_status("nonexistent_capability", is_available=True)
-        # Verify via collect that the metric was recorded (no error)
+        # Should not raise; metric is simply not recorded
 
     def test_capability_available_value(self) -> None:
-        """LOCAL_METRIC_VALUE=1: capability available records value 1."""
+        """LOCAL_METRIC_VALUE=1: capability available records value 1.0."""
         m = ObservableMetrics()
         m.register_capability("model_backed_agent")
         m.record_capability_status("model_backed_agent", is_available=True)
-        # The metric should be recorded (no error)
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0
 
     def test_capability_unavailable_value(self) -> None:
-        """STAGING_METRIC_VALUE=0: capability unavailable records value 0."""
+        """STAGING_METRIC_VALUE=0: capability unavailable records value 0.0."""
         m = ObservableMetrics()
         m.register_capability("model_backed_agent")
         m.record_capability_status("model_backed_agent", is_available=False)
-        # The metric should be recorded (no error)
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 0.0
 
     def test_capability_mode_matrix_local(self) -> None:
         """LOCAL_METRIC_VALUE=1 via create_app."""
         from cold_storage.bootstrap.app import create_app
-        from cold_storage.bootstrap.metrics.registry import get_metrics
 
         create_app()
-        # The app factory should have registered and recorded the capability
-        # for LOCAL mode (is_available=True)
         m = get_metrics()
-        assert "model_backed_agent" in m._capabilities
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0, f"LOCAL mode should record 1.0, got {val}"
 
     def test_duplicate_registration_idempotent(self) -> None:
         """Registering the same capability twice is idempotent."""
@@ -119,3 +132,33 @@ class TestCapabilityMetrics:
         m.register_capability("model_backed_agent")
         m.register_capability("model_backed_agent")  # second call
         # Should not raise
+
+    def test_local_then_production_final_value(self) -> None:
+        """LOCAL_THEN_PRODUCTION_FINAL_VALUE=0: second write overwrites."""
+        m = ObservableMetrics()
+        m.register_capability("model_backed_agent")
+        m.record_capability_status("model_backed_agent", is_available=True)
+        m.record_capability_status("model_backed_agent", is_available=False)
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 0.0
+
+    def test_production_then_local_final_value(self) -> None:
+        """PRODUCTION_THEN_LOCAL_FINAL_VALUE=1: second write overwrites."""
+        m = ObservableMetrics()
+        m.register_capability("model_backed_agent")
+        m.record_capability_status("model_backed_agent", is_available=False)
+        m.record_capability_status("model_backed_agent", is_available=True)
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0
+
+    def test_repeated_same_mode_idempotent(self) -> None:
+        """REPEATED_SAME_MODE_IDEMPOTENT: same value written twice = same value."""
+        m = ObservableMetrics()
+        m.register_capability("model_backed_agent")
+        m.record_capability_status("model_backed_agent", is_available=True)
+        m.record_capability_status("model_backed_agent", is_available=True)
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0

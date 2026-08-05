@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import sessionmaker
@@ -284,39 +285,55 @@ def get_startup_readiness_outcome() -> Any:
     return _singletons["startup_readiness_outcome"]
 
 
-def agent_capability_projection() -> tuple[dict[str, object], ...]:
-    """Return the canonical bounded capability projection for this app mode."""
+def agent_capability_projection() -> tuple[MappingProxyType[str, object], ...]:
+    """Return the canonical bounded capability projection for this app mode.
+
+    D-S4-04: Each entry is a :class:`types.MappingProxyType` to prevent
+    callers from mutating the shared singleton projection.  The tuple
+    itself is already immutable.
+    """
+    from types import MappingProxyType
+
     from cold_storage.bootstrap.mode import AppMode
 
     mode = _singletons.get("app_mode")
     available = mode in (AppMode.LOCAL, AppMode.TEST)
     return (
-        {
-            "name": _MODEL_BACKED_AGENT_CAPABILITY,
-            "status": "available" if available else "disabled",
-            "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-            "blocking": False,
-        },
+        MappingProxyType(
+            {
+                "name": _MODEL_BACKED_AGENT_CAPABILITY,
+                "status": "available" if available else "disabled",
+                "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+                "blocking": False,
+            }
+        ),
     )
 
 
-def create_capability_projection(app_mode: Any) -> tuple[dict[str, object], ...]:
+def create_capability_projection(app_mode: Any) -> tuple[MappingProxyType[str, object], ...]:
     """Create an immutable capability projection bound to the given app mode.
 
     D-S4-04: The projection is created once during app factory and bound
     to the FastAPI app instance, ensuring readiness, metrics, and strict
     audit all use the same canonical capability name and resolved app mode.
+
+    Each entry is a :class:`types.MappingProxyType` so callers cannot
+    mutate the app-bound projection after creation.
     """
+    from types import MappingProxyType
+
     from cold_storage.bootstrap.mode import AppMode
 
     available = app_mode in (AppMode.LOCAL, AppMode.TEST)
     return (
-        {
-            "name": _MODEL_BACKED_AGENT_CAPABILITY,
-            "status": "available" if available else "disabled",
-            "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-            "blocking": False,
-        },
+        MappingProxyType(
+            {
+                "name": _MODEL_BACKED_AGENT_CAPABILITY,
+                "status": "available" if available else "disabled",
+                "code": None if available else "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+                "blocking": False,
+            }
+        ),
     )
 
 

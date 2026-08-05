@@ -447,3 +447,237 @@ class TestStrictAgentSpyProvesNoConstruction:
         finally:
             FakeAgentModelGateway.__init__ = original_init  # type: ignore[method-assign]
         assert call_count == 0, f"FakeAgentModelGateway.__init__ called {call_count} times"
+
+
+# ---------------------------------------------------------------------------
+# D-S4-02-S5: Strict-mode zero-construction spy tests.
+# Proves that disabled endpoints do NOT construct FakeAgentModelGateway,
+# PlanningAgentService, invoke _get_planning_agent_service, _get_db_session,
+# or ReportArtifactStorage.  Spies are installed BEFORE create_app() and
+# TestClient startup so the entire request lifecycle is instrumented.
+# ---------------------------------------------------------------------------
+
+# Call counters shared across spy fixtures and test assertions.
+_fake_gateway_init_count: int = 0
+_planning_agent_service_init_count: int = 0
+_get_planning_agent_service_count: int = 0
+_get_db_session_count: int = 0
+_report_artifact_storage_init_count: int = 0
+
+
+@pytest.fixture()
+def strict_app_with_spies(tmp_path, monkeypatch):
+    """Create a strict-mode app with spies installed BEFORE create_app().
+
+    Every spy is a monkeypatch-wrapped __init__ (or function) that increments
+    a module-level counter.  The counters are verified in the test body.
+    """
+    global _fake_gateway_init_count  # noqa: PLW0603
+    global _planning_agent_service_init_count  # noqa: PLW0603
+    global _get_planning_agent_service_count  # noqa: PLW0603
+    global _get_db_session_count  # noqa: PLW0603
+    global _report_artifact_storage_init_count  # noqa: PLW0603
+
+    _fake_gateway_init_count = 0
+    _planning_agent_service_init_count = 0
+    _get_planning_agent_service_count = 0
+    _get_db_session_count = 0
+    _report_artifact_storage_init_count = 0
+
+    # --- environment setup (identical to strict_app) ---
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.runtime_readiness import (
+        ReadinessState,
+        reset_readiness_state,
+        set_readiness_state,
+    )
+
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_URL",
+        "postgresql+psycopg2://x:y@localhost:5432/test",
+    )
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(artifact_dir))
+    monkeypatch.setenv(
+        "COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS",
+        str(LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS),
+    )
+    monkeypatch.setenv(
+        "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
+        str(LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS),
+    )
+
+    # Stub init_dependencies to avoid PostgreSQL connection
+    def _noop_init(settings, app=None):  # noqa: ARG001
+        return None
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)
+    monkeypatch.setattr(deps, "init_dependencies", _noop_init)
+
+    # --- SPY INSTALLATION: before create_app() ---
+
+    # Spy 1: FakeAgentModelGateway.__init__
+    _orig_fg_init = FakeAgentModelGateway.__init__
+
+    def _spy_fg_init(self, *args, **kwargs):
+        global _fake_gateway_init_count  # noqa: PLW0603
+        _fake_gateway_init_count += 1
+        _orig_fg_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(FakeAgentModelGateway, "__init__", _spy_fg_init)
+
+    # Spy 2: PlanningAgentService.__init__
+    _orig_pas_init = PlanningAgentService.__init__
+
+    def _spy_pas_init(self, *args, **kwargs):
+        global _planning_agent_service_init_count  # noqa: PLW0603
+        _planning_agent_service_init_count += 1
+        _orig_pas_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(PlanningAgentService, "__init__", _spy_pas_init)
+
+    # Spy 3 & 4: _get_planning_agent_service and _get_db_session (app module)
+    from cold_storage.bootstrap import app as _app_module
+
+    _orig_get_planning = _app_module._get_planning_agent_service
+
+    def _spy_get_planning(*args, **kwargs):
+        global _get_planning_agent_service_count  # noqa: PLW0603
+        _get_planning_agent_service_count += 1
+        return _orig_get_planning(*args, **kwargs)
+
+    monkeypatch.setattr(_app_module, "_get_planning_agent_service", _spy_get_planning)
+
+    _orig_get_db = _app_module._get_db_session
+
+    def _spy_get_db(*args, **kwargs):
+        global _get_db_session_count  # noqa: PLW0603
+        _get_db_session_count += 1
+        return _orig_get_db(*args, **kwargs)
+
+    monkeypatch.setattr(_app_module, "_get_db_session", _spy_get_db)
+
+    # Spy 5: ReportArtifactStorage.__init__
+    from cold_storage.modules.reports.infrastructure.artifact_storage import (
+        ReportArtifactStorage as _RAS,
+    )
+
+    _orig_ras_init = _RAS.__init__
+
+    def _spy_ras_init(self, *args, **kwargs):
+        global _report_artifact_storage_init_count  # noqa: PLW0603
+        _report_artifact_storage_init_count += 1
+        _orig_ras_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(_RAS, "__init__", _spy_ras_init)
+
+    # --- create_app() AFTER spies installed ---
+    from cold_storage.bootstrap.app import create_app
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    return app
+
+
+@pytest.fixture()
+def strict_client_with_spies(strict_app_with_spies):
+    with TestClient(strict_app_with_spies, headers={"X-Actor": "test-user"}) as c:
+        yield c
+
+
+class TestStrictAgentZeroConstructionProvedBySpies:
+    """Spy证明：spies installed BEFORE create_app() prove zero construction.
+
+    All five spy targets must have call count == 0 after every disabled
+    endpoint request.  The spies are installed via monkeypatch before
+    create_app() and TestClient startup, so the entire request lifecycle
+    is instrumented.
+    """
+
+    def test_zero_construction_on_post_sessions(self, strict_client_with_spies):
+        """POST /api/v1/agent/sessions → 503, zero construction."""
+        resp = strict_client_with_spies.post("/api/v1/agent/sessions", json={"title": "Spy-Zero"})
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE"
+        assert _fake_gateway_init_count == 0, (
+            f"FakeAgentModelGateway.__init__ called {_fake_gateway_init_count} times"
+        )
+        assert _planning_agent_service_init_count == 0, (
+            f"PlanningAgentService.__init__ called {_planning_agent_service_init_count} times"
+        )
+        assert _get_planning_agent_service_count == 0, (
+            f"_get_planning_agent_service called {_get_planning_agent_service_count} times"
+        )
+        assert _get_db_session_count == 0, f"_get_db_session called {_get_db_session_count} times"
+        assert _report_artifact_storage_init_count == 0, (
+            f"ReportArtifactStorage.__init__ called {_report_artifact_storage_init_count} times"
+        )
+
+    def test_zero_construction_on_get_sessions(self, strict_client_with_spies):
+        """GET /api/v1/agent/sessions → 503, zero construction."""
+        resp = strict_client_with_spies.get("/api/v1/agent/sessions")
+        assert resp.status_code == 503
+        assert _fake_gateway_init_count == 0
+        assert _planning_agent_service_init_count == 0
+        assert _get_planning_agent_service_count == 0
+        assert _get_db_session_count == 0
+        assert _report_artifact_storage_init_count == 0
+
+    def test_zero_construction_on_post_messages(self, strict_client_with_spies):
+        """POST /api/v1/agent/sessions/{id}/messages → 503, zero construction."""
+        resp = strict_client_with_spies.post(
+            "/api/v1/agent/sessions/some-id/messages",
+            json={"content": "hello"},
+        )
+        assert resp.status_code == 503
+        assert _fake_gateway_init_count == 0
+        assert _planning_agent_service_init_count == 0
+        assert _get_planning_agent_service_count == 0
+        assert _get_db_session_count == 0
+        assert _report_artifact_storage_init_count == 0
+
+    def test_zero_construction_on_all_frozen_routes(self, strict_client_with_spies):
+        """All 10 frozen routes → 503, zero construction after exhaustive hit."""
+        for method, path in _FROZEN_AGENT_ROUTES:
+            path_param = (
+                path.replace("{session_id}", "sid")
+                .replace("{turn_id}", "tid")
+                .replace("{tool_call_id}", "tcid")
+            )
+            if method == "POST" and "cancel" in path:
+                strict_client_with_spies.post(path_param)
+            elif method == "POST" and "reject" in path:
+                strict_client_with_spies.post(path_param, json={})
+            elif method == "POST" and "confirm" in path:
+                strict_client_with_spies.post(path_param, json={"confirmation_token": "x"})
+            elif method == "POST":
+                strict_client_with_spies.post(path_param, json={"title": "T", "content": "C"})
+            elif method == "GET":
+                strict_client_with_spies.get(path_param)
+
+        assert _fake_gateway_init_count == 0, (
+            f"FakeAgentModelGateway.__init__ called {_fake_gateway_init_count} times"
+        )
+        assert _planning_agent_service_init_count == 0, (
+            f"PlanningAgentService.__init__ called {_planning_agent_service_init_count} times"
+        )
+        assert _get_planning_agent_service_count == 0, (
+            f"_get_planning_agent_service called {_get_planning_agent_service_count} times"
+        )
+        assert _get_db_session_count == 0, f"_get_db_session called {_get_db_session_count} times"
+        assert _report_artifact_storage_init_count == 0, (
+            f"ReportArtifactStorage.__init__ called {_report_artifact_storage_init_count} times"
+        )
