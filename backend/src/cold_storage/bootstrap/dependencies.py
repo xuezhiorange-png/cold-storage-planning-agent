@@ -47,13 +47,21 @@ _singletons: dict[str, Any] = {}
 _composition_tokens: set[str] = set()
 
 
-def init_dependencies(settings: Settings, *, app: Any = None) -> None:
+def init_dependencies(
+    settings: Settings,
+    *,
+    app: Any = None,
+    strict_runtime_authority: Any | None = None,
+) -> None:
     """Create and publish the canonical runtime dependency graph.
 
     TASK-012 Slice 4 extends the transactional Slice 2 lifecycle with a
     database-backed coefficient HTTP authority, strict disabled-agent routes,
     binding-identity audit evidence, canonical report artifact storage, and a
     shared readiness/metrics capability projection.
+
+    R7: Accepts strict_runtime_authority explicitly and passes it through
+    to run_startup_phase → assert_no_unsafe_strict_capabilities.
     """
     from cold_storage.bootstrap.mode import AppMode, resolve_app_mode  # noqa: PLC0415
     from cold_storage.bootstrap.runtime_readiness import (  # noqa: PLC0415
@@ -173,6 +181,7 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
             environment={k: v for k, v in __import__("os").environ.items()},
             startup_probes=mandatory_startup_probes(),
             app=app,
+            strict_runtime_authority=strict_runtime_authority,
         )
     except Exception:
         shutdown_dependencies()

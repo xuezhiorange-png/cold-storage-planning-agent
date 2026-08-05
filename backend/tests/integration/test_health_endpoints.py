@@ -176,7 +176,7 @@ def test_health_ready_projects_schema_head_invalid_when_mismatch(
     from cold_storage.bootstrap import app as bootstrap_app
     from cold_storage.bootstrap import dependencies as deps
 
-    def _noop_init(settings, app=None):  # noqa: ARG001
+    def _noop_init(settings, app=None, strict_runtime_authority=None):  # noqa: ARG001
         return None
 
     # The lifespan captures ``init_dependencies`` by direct reference
@@ -280,7 +280,7 @@ def test_health_ready_projects_schema_head_invalid_when_packaged_missing(
     from cold_storage.bootstrap import app as bootstrap_app
     from cold_storage.bootstrap import dependencies as deps
 
-    def _noop_init(settings, app=None):  # noqa: ARG001
+    def _noop_init(settings, app=None, strict_runtime_authority=None):  # noqa: ARG001
         return None
 
     monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)
@@ -323,7 +323,7 @@ def test_health_ready_still_emits_timeout_code_on_real_readiness_timeout(monkeyp
     from cold_storage.bootstrap import app as bootstrap_app
     from cold_storage.bootstrap import dependencies as deps
 
-    def _noop_init(settings, app=None):  # noqa: ARG001
+    def _noop_init(settings, app=None, strict_runtime_authority=None):  # noqa: ARG001
         return None
 
     monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)

@@ -244,7 +244,7 @@ def test_sqlite_health_endpoint_returns_503_when_schema_head_invalid(
     from cold_storage.bootstrap import app as bootstrap_app
     from cold_storage.bootstrap import dependencies as deps
 
-    def _noop_init(settings, app=None):  # noqa: ARG001
+    def _noop_init(settings, app=None, strict_runtime_authority=None):  # noqa: ARG001
         return None
 
     monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)

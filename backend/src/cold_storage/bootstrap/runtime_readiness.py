@@ -978,11 +978,16 @@ def enumerate_reachable_unsafe_strict_capabilities(
     """
     _ = routes  # explicit non-use; ``app`` is the canonical input.
 
-    # R6: Resolve the authority.  Prefer the frozen composition-root
-    # authority; fall back to app.state for backward compatibility.
-    _auth = authority
-    if _auth is None and app is not None:
+    # R7: Resolve the authority.
+    # Priority: explicit authority parameter > app.state fallback.
+    # When authority is explicitly provided (from lifespan closure),
+    # use it directly — do NOT fall back to app.state.
+    if authority is not None:
+        _auth = authority
+    elif app is not None:
         _auth = getattr(app.state, "_strict_runtime_authority", None)
+    else:
+        _auth = None
 
     # Mode-aware: only audit in staging/production
     try:
@@ -1170,7 +1175,11 @@ def enumerate_reachable_unsafe_strict_capabilities(
     return tuple(reachable)
 
 
-def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
+def assert_no_unsafe_strict_capabilities(
+    *,
+    app: Any = None,
+    authority: Any | None = None,
+) -> None:
     """Defense-in-depth assertion per D-S2-06.c.
 
     The function inspects the registered strict-mode capabilities,
@@ -1182,8 +1191,11 @@ def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
     The audit is non-vacuous: ``app=None`` raises (it is not a silent
     success) and a clean app returns an empty reachable subset only
     when no strict capability is wired into a real ``APIRoute``.
+
+    R7: Accepts explicit authority parameter. When provided, the audit
+    reads from this frozen object instead of from app.state.
     """
-    reachable = enumerate_reachable_unsafe_strict_capabilities(app=app)
+    reachable = enumerate_reachable_unsafe_strict_capabilities(app=app, authority=authority)
     if reachable:
         raise UnsafeStrictCapabilityWiring(
             f"unsafe strict capabilities reachable: {sorted(reachable)!r}",
@@ -1271,6 +1283,7 @@ def run_startup_phase(
     environment: Mapping[str, str],
     startup_probes: Iterable[ProbeFn],
     app: Any = None,
+    strict_runtime_authority: Any | None = None,
 ) -> tuple[ProbeOutcome, ...]:
     """Run the startup phase exactly once.
 
@@ -1278,6 +1291,9 @@ def run_startup_phase(
     the configured per-probe timeout. Any non-passing outcome aborts
     startup immediately. After all probes pass, the readiness state
     transitions to ``READY``.
+
+    R7: Accepts strict_runtime_authority explicitly and passes it to
+    assert_no_unsafe_strict_capabilities.
     """
     mode = resolve_app_mode(settings)
     timeout = resolve_probe_timeout_seconds(settings=settings, kind="startup")
@@ -1327,7 +1343,9 @@ def run_startup_phase(
     # probe-induced state change cannot bypass the assertion.  The
     # argument ``app`` is optional; ``None`` is NOT a silent success
     # (see ``enumerate_reachable_unsafe_strict_capabilities``).
-    assert_no_unsafe_strict_capabilities(app=app)
+    #
+    # R7: Pass the explicit authority from the lifespan closure.
+    assert_no_unsafe_strict_capabilities(app=app, authority=strict_runtime_authority)
 
     # Freeze the readiness state.  We rely on the bootstrap singleton
     # owner (``bootstrap.dependencies``) to publish this through the

@@ -1817,7 +1817,11 @@ def test_ready_projects_configuration_error_class_name_when_canonical_unset(monk
     # must surface the Slice 1 frozen ``ConfigurationError`` class
     # name as the stable ``check_code`` rather than building a
     # second Settings authority on the side.
-    monkeypatch.setattr(_app, "init_dependencies", lambda settings, *, app=None: None)
+    monkeypatch.setattr(
+        _app,
+        "init_dependencies",
+        lambda settings, *, app=None, strict_runtime_authority=None: None,
+    )
     try:
         app = create_app()
         with TestClient(app) as client:

@@ -340,27 +340,49 @@ class AgentMessageRequest(BaseModel):
 
 
 # --------------------------------------------------------------------------- Lifespan
+# --------------------------------------------------------------------------- Lifespan
 # ---------------------------------------------------------------------------
 
+# R7: Per-app strict authority captured by the lifespan closure.
+# The authority is set by create_app() after all routes are registered.
+# The lifespan reads from this variable, NOT from app.state.
+_strict_authority_ref: StrictRuntimeAuthority | None = None
 
-@asynccontextmanager
-async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
-    # F-PR76-HIGH-01: dependency initialization is now transactional
-    # (see ``init_dependencies``); if any step fails the partially-
-    # created state is rolled back through ``shutdown_dependencies``
-    # before the exception is re-raised.  The ``try / finally`` here
-    # therefore only runs ``shutdown_dependencies`` on a clean
-    # teardown path; it is idempotent and safe to invoke twice.
-    #
-    # R6: The per-app strict authority is captured here via closure.
-    # The audit reads from this frozen object, never from writable
-    # app.state.
-    _auth: StrictRuntimeAuthority | None = getattr(app.state, "_strict_runtime_authority", None)
-    try:
-        init_dependencies(get_settings(), app=app)
-        yield
-    finally:
-        shutdown_dependencies()
+
+def _make_lifespan() -> Any:
+    """Create a per-app lifespan closure that captures the strict authority.
+
+    R7: The authority is a frozen dataclass built by create_app() after
+    all routes are registered. The lifespan passes it to init_dependencies,
+    which threads it through run_startup_phase → assert_no_unsafe_strict_capabilities
+    → enumerate_reachable_unsafe_strict_capabilities.
+
+    The authority is NEVER read from app.state for security decisions.
+    app.state retains a diagnostic copy only.
+
+    The authority is read from the module-level _strict_authority_ref
+    at lifespan start time (not at creation time), because FastAPI
+    requires the lifespan at app creation but the authority is built
+    after all routes are registered.
+    """
+
+    @asynccontextmanager
+    async def _lifespan_inner(app: FastAPI):  # type: ignore[no-untyped-def]
+        # R7: Read the authority from the module-level reference,
+        # which create_app() sets after building it.
+        auth = _strict_authority_ref
+        if auth is None:
+            raise RuntimeError(
+                "strict runtime authority not initialized — "
+                "create_app() must set the authority before lifespan starts"
+            )
+        try:
+            init_dependencies(get_settings(), app=app, strict_runtime_authority=auth)
+            yield
+        finally:
+            shutdown_dependencies()
+
+    return _lifespan_inner
 
 
 # --------------------------------------------------------------------------- App factory
@@ -369,7 +391,7 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app(project_service: ProjectService | None = None) -> FastAPI:
     configure_logging()
-    app = FastAPI(title="Cold Storage Planning Agent V1", lifespan=_lifespan)
+    app = FastAPI(title="Cold Storage Planning Agent V1", lifespan=_make_lifespan())
 
     # --- Observability middleware (must be first to capture all requests) ---
     # --- Metrics endpoint ---
@@ -1098,6 +1120,11 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         ),
     )
     app.state._strict_runtime_authority = _strict_authority  # noqa: SLF001
+
+    # R7: Set the module-level reference so the lifespan can read it.
+    # This is the ONLY place the authority is set for the lifespan.
+    global _strict_authority_ref  # noqa: PLW0603
+    _strict_authority_ref = _strict_authority
 
     # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------

@@ -275,7 +275,7 @@ def strict_app(tmp_path, monkeypatch):
     )
 
     # Stub init_dependencies to avoid PostgreSQL connection
-    def _noop_init(settings, app=None):  # noqa: ARG001
+    def _noop_init(settings, app=None, strict_runtime_authority=None):  # noqa: ARG001
         return None
 
     monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)
@@ -520,7 +520,7 @@ def strict_app_with_spies(tmp_path, monkeypatch):
     )
 
     # Stub init_dependencies to avoid PostgreSQL connection
-    def _noop_init(settings, app=None):  # noqa: ARG001
+    def _noop_init(settings, app=None, strict_runtime_authority=None):  # noqa: ARG001
         return None
 
     monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)
