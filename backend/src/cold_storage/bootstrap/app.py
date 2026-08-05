@@ -362,13 +362,17 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         coefficient_service = CoefficientService()
-        register_coefficient_routes(app, coefficient_service)
+        coeff_evidence = register_coefficient_routes(app, coefficient_service)
     else:
         from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
             get_production_coefficient_service,
         )
 
-        register_coefficient_routes(app, get_production_coefficient_service)
+        coeff_evidence = register_coefficient_routes(app, get_production_coefficient_service)
+
+    # D-S4-06: Store coefficient route evidence for strict audit.
+    # The audit verifies provider object identity and endpoint registration.
+    app.state.coefficient_route_evidence = coeff_evidence
 
     # Scheme routes
     def _scheme_service_factory() -> SchemeService:
@@ -957,15 +961,25 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             _ep.__name__ = name
             return _ep
 
+        _frozen_agent_endpoints: list[tuple[str, str, Any]] = []
+
         for _idx, (_method, _path) in enumerate(_AGENT_ROUTES, start=1):
+            _ep = _disabled_agent_endpoint(f"disabled_agent_{_idx}")
             app.add_api_route(
                 _path,
-                _disabled_agent_endpoint(f"disabled_agent_{_idx}"),
+                _ep,
                 methods=[_method],
                 status_code=503,
                 tags=["agent"],
                 operation_id=f"disabled_model_backed_agent_{_idx}",
             )
+            _frozen_agent_endpoints.append((_method, _path, _ep))
+
+        # D-S4-06: Frozen disabled endpoint authority. The audit
+        # compares actual APIRoute method/path/endpoint against
+        # these exact objects. This is the single source of truth
+        # for which agent endpoints are disabled.
+        app.state.frozen_agent_endpoint_authority = tuple(_frozen_agent_endpoints)
 
     # D-S4-06: Immutable binding manifest. Registered after route wiring,
     # before lifespan startup. The strict audit checks this manifest.

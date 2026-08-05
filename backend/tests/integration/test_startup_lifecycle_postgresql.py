@@ -39,7 +39,24 @@ from urllib.parse import urlsplit
 
 import pytest
 
+from cold_storage.bootstrap.dependencies import (
+    shutdown_dependencies,
+)
+from cold_storage.bootstrap.runtime_readiness import (
+    LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS,
+    LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS,
+    ReadinessState,
+    reset_readiness_state,
+    set_readiness_state,
+)
+
 pytestmark = pytest.mark.postgresql
+
+# Skip all tests in this module when PostgreSQL is not available.
+_requires_pg = pytest.mark.skipif(
+    not (os.environ.get("DATABASE_URL") or os.environ.get("COLD_STORAGE_DATABASE_URL")),
+    reason="PostgreSQL DATABASE_URL is not configured",
+)
 
 
 # ---------------------------------------------------------------------
@@ -306,3 +323,349 @@ def test_postgresql_schema_head_invalid_classifies_to_dshic(monkeypatch):
 
     reset_readiness_state()
     reset_canonical_settings()
+
+
+# ===========================================================================
+# V0.2 Slice 4: PostgreSQL lifecycle integrity tests — failed-init rollback,
+# shutdown clearance, idempotent shutdown, engine-dispose accounting,
+# and reinit isolation.
+# ===========================================================================
+
+
+class _InitFailureSentinel(Exception):
+    """Controlled exception raised inside ``init_dependencies`` to test rollback."""
+
+
+def _make_pg_settings(tmp_path, database_url):
+    """Return a minimal ``Settings`` suitable for local PostgreSQL init."""
+    from cold_storage.bootstrap.settings import Settings
+
+    os.environ["COLD_STORAGE_ENVIRONMENT_ID"] = "local"
+    os.environ["COLD_STORAGE_DATABASE_BACKEND"] = "postgresql"
+    os.environ["COLD_STORAGE_DATABASE_URL"] = database_url
+    os.environ["COLD_STORAGE_STORAGE_DIR"] = str(tmp_path / "storage")
+    os.environ["COLD_STORAGE_CONFIG_SCHEMA_VERSION"] = _TEST_CONFIG_SCHEMA_VERSION
+    os.environ["COLD_STORAGE_APP_HOST"] = "127.0.0.1"
+    os.environ["COLD_STORAGE_APP_PORT"] = "8000"
+    os.environ["COLD_STORAGE_BUILD_COMMIT_SHA"] = _TEST_BUILD_COMMIT_SHA
+    os.environ["COLD_STORAGE_BUILD_VERSION"] = _TEST_BUILD_VERSION
+    os.environ["COLD_STORAGE_DEPLOYMENT_ID"] = _TEST_DEPLOYMENT_ID
+    os.environ["COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS"] = str(
+        LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS,
+    )
+    os.environ["COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS"] = str(
+        LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS,
+    )
+    return Settings()
+
+
+def _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path):
+    """Create an isolated PostgreSQL database and configure the environment.
+
+    Returns the database URL. Caller must call ``shutdown_dependencies()``
+    in teardown.
+    """
+    db_url = pg_database_factory(prefix="pg_lifecycle")
+    parts = urlsplit(db_url)
+
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", db_url)
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(tmp_path / "storage"))
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", _TEST_CONFIG_SCHEMA_VERSION)
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", _TEST_BUILD_COMMIT_SHA)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", _TEST_BUILD_VERSION)
+    monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", _TEST_DEPLOYMENT_ID)
+    monkeypatch.setenv("COLD_STORAGE_POSTGRES_HOST", parts.hostname or "localhost")
+    monkeypatch.setenv("COLD_STORAGE_POSTGRES_PORT", str(parts.port or 5432))
+    monkeypatch.setenv("COLD_STORAGE_POSTGRES_DB", (parts.path or "/").lstrip("/") or "test")
+    if parts.username is not None:
+        monkeypatch.setenv("COLD_STORAGE_POSTGRES_USER", parts.username)
+    if parts.password is not None:
+        monkeypatch.setenv("COLD_STORAGE_POSTGRES_PASSWORD", parts.password)
+    monkeypatch.setenv(
+        "COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS",
+        str(LOCAL_TEST_STARTUP_PROBE_TIMEOUT_SECONDS),
+    )
+    monkeypatch.setenv(
+        "COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS",
+        str(LOCAL_TEST_READINESS_PROBE_TIMEOUT_SECONDS),
+    )
+    return db_url
+
+
+@_requires_pg
+def test_pg_failed_init_production_coefficient_singleton_count_zero(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """FAILED_INIT_PRODUCTION_COEFFICIENT_SINGLETON_COUNT=0.
+
+    After a failed init, ``production_coefficient_service`` must NOT exist.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _singletons, init_dependencies
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_init(self, engine, *a, **kw):  # noqa: ARG001
+        raise _InitFailureSentinel("simulated project service failure")
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_init)
+    try:
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_pg_settings(tmp_path, os.environ["COLD_STORAGE_DATABASE_URL"]))
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+
+    assert "production_coefficient_service" not in _singletons
+
+
+@_requires_pg
+def test_pg_failed_init_database_token_count_zero(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """FAILED_INIT_DATABASE_COMPOSITION_TOKEN_COUNT=0.
+
+    After a failed init, composition tokens must be empty.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _composition_tokens, init_dependencies
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_init(self, engine, *a, **kw):  # noqa: ARG001
+        raise _InitFailureSentinel("simulated project service failure")
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_init)
+    try:
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_pg_settings(tmp_path, os.environ["COLD_STORAGE_DATABASE_URL"]))
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+
+    assert len(_composition_tokens) == 0
+
+
+@_requires_pg
+def test_pg_failed_init_engine_count_zero(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """FAILED_INIT_ENGINE_COUNT=0.
+
+    After a failed init, ``engine`` must NOT exist in singletons.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _singletons, init_dependencies
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_init(self, engine, *a, **kw):  # noqa: ARG001
+        raise _InitFailureSentinel("simulated project service failure")
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_init)
+    try:
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_pg_settings(tmp_path, os.environ["COLD_STORAGE_DATABASE_URL"]))
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+
+    assert "engine" not in _singletons
+
+
+@_requires_pg
+def test_pg_reinit_after_failure_creates_new_coefficient_service(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """REINIT_AFTER_FAILURE_CREATES_NEW_COEFFICIENT_SERVICE.
+
+    After a failed init, a subsequent init must succeed and create a fresh
+    service.
+    """
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.dependencies import _singletons, init_dependencies
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+
+    call_count = 0
+    original_init = deps.DatabaseProjectService.__init__
+
+    def _fail_first_then_succeed(self, engine, *a, **kw):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise _InitFailureSentinel("simulated project service failure")
+        return original_init(self, engine, *a, **kw)
+
+    monkeypatch.setattr(deps.DatabaseProjectService, "__init__", _fail_first_then_succeed)
+    try:
+        with pytest.raises(_InitFailureSentinel):
+            init_dependencies(_make_pg_settings(tmp_path, os.environ["COLD_STORAGE_DATABASE_URL"]))
+
+        assert "project_service" not in _singletons
+
+        init_dependencies(_make_pg_settings(tmp_path, os.environ["COLD_STORAGE_DATABASE_URL"]))
+        assert "project_service" in _singletons
+        assert call_count == 2
+    finally:
+        monkeypatch.setattr(deps.DatabaseProjectService, "__init__", original_init)
+        shutdown_dependencies()
+
+
+@_requires_pg
+def test_pg_shutdown_clears_production_coefficient_singleton(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """SHUTDOWN_CLEARS_PRODUCTION_COEFFICIENT_SINGLETON.
+
+    Shutdown must remove ``production_coefficient_service`` from singletons.
+    """
+    from fastapi.testclient import TestClient
+
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.dependencies import _singletons
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    assert "production_coefficient_service" not in _singletons
+
+
+@_requires_pg
+def test_pg_shutdown_clears_database_token(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """SHUTDOWN_CLEARS_DATABASE_TOKEN.
+
+    Shutdown must clear composition tokens.
+    """
+    from fastapi.testclient import TestClient
+
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.dependencies import _composition_tokens
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    assert len(_composition_tokens) == 0
+
+
+@_requires_pg
+def test_pg_post_shutdown_provider_returns_stable_503(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """POST_SHUTDOWN_PROVIDER_RETURNS_STABLE_503.
+
+    After shutdown, ``get_production_coefficient_service`` raises RuntimeError
+    (stable 503 response from the route provider).
+    """
+    from fastapi.testclient import TestClient
+
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.dependencies import get_production_coefficient_service
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    with pytest.raises(RuntimeError, match="not initialized"):
+        get_production_coefficient_service()
+
+
+@_requires_pg
+def test_pg_engine_dispose_call_count(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """ENGINE_DISPOSE_CALL_COUNT=1.
+
+    Engine.dispose() must be called exactly once during shutdown.
+    """
+    from fastapi.testclient import TestClient
+
+    from cold_storage.bootstrap import dependencies as deps
+    from cold_storage.bootstrap.app import create_app
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+
+    dispose_calls = 0
+    original_dispose = deps.dispose_engine
+
+    def _tracking_dispose(engine):
+        nonlocal dispose_calls
+        dispose_calls += 1
+        return original_dispose(engine)
+
+    monkeypatch.setattr(deps, "dispose_engine", _tracking_dispose)
+
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    assert dispose_calls == 1
+
+
+@_requires_pg
+def test_pg_second_shutdown_idempotent(
+    pg_database_factory,
+    monkeypatch,
+    tmp_path,
+):
+    """SECOND_SHUTDOWN_IDEMPOTENT.
+
+    Calling shutdown_dependencies() twice must not raise.
+    """
+    from fastapi.testclient import TestClient
+
+    from cold_storage.bootstrap.app import create_app
+
+    _pg_lifecycle_env(pg_database_factory, monkeypatch, tmp_path)
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+    app = create_app()
+    with TestClient(app):
+        pass
+
+    # First shutdown already called by TestClient.__exit__.
+    # Second shutdown must be a no-op.
+    shutdown_dependencies()
+    shutdown_dependencies()  # must not raise

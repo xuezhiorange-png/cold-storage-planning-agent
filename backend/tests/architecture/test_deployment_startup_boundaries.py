@@ -426,3 +426,180 @@ def test_health_redaction_does_not_leak_password_or_dsn():
         body_str = repr(body).lower()
         for forbidden in ("password=", "secret=", "dsn=", "://"):
             assert forbidden not in body_str, f"health response leaked {forbidden!r}"
+
+
+def test_full_production_create_app_strict_audit(monkeypatch, tmp_path):
+    """Full production create_app() strict audit — D-S4-02 / D-S4-06.
+
+    Uses the REAL ``create_app()`` (not a simplified test FastAPI app) to
+    prove that in staging mode:
+
+    1.  All frozen agent routes return 503 with the canonical disabled
+        error code ``AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE``.
+    2.  Non-agent endpoints do NOT trigger agent audit failures.
+    3.  ``enumerate_reachable_unsafe_strict_capabilities`` returns an
+        empty tuple for the real production app — proving the frozen
+        agent endpoint matrix, binding manifest, and composition
+        evidence are all consistent.
+    """
+    from fastapi.testclient import TestClient
+
+    from cold_storage.bootstrap.app import create_app
+    from cold_storage.bootstrap.runtime_readiness import (
+        ReadinessState,
+        enumerate_reachable_unsafe_strict_capabilities,
+        reset_canonical_settings,
+        reset_readiness_state,
+        set_canonical_settings,
+        set_readiness_state,
+    )
+    from cold_storage.bootstrap.settings import Settings
+
+    # --- 1. Set up staging environment via monkeypatch --------------------
+    # We follow the established pattern from test_health_endpoints.py and
+    # test_demo_matrix.py: monkeypatch all canonical keys, then stub
+    # ``init_dependencies`` so the lifespan does not touch a real database.
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "staging")
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv(
+        "COLD_STORAGE_DATABASE_URL",
+        "postgresql+psycopg2://x:y@localhost:5432/test",
+    )
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.0.0-ci")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci")
+    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+    monkeypatch.delenv("COLD_STORAGE_SQLITE_PATH", raising=False)
+    monkeypatch.delenv("COLD_STORAGE_PACKAGED_ALEMBIC_HEAD", raising=False)
+    # Provide a real, writable artifact storage directory so the strict-mode
+    # artifact probe does not fail.
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(artifact_dir))
+
+    # --- 2. Stub init_dependencies ---------------------------------------
+    # The lifespan captures ``init_dependencies`` by direct reference; the
+    # patch must target both the ``bootstrap.app`` and ``dependencies``
+    # module bindings (see test_health_endpoints.py for rationale).
+    from cold_storage.bootstrap import app as bootstrap_app
+    from cold_storage.bootstrap import dependencies as deps
+
+    def _noop_init(settings, app=None):  # noqa: ARG001
+        return None
+
+    monkeypatch.setattr(bootstrap_app, "init_dependencies", _noop_init)
+    monkeypatch.setattr(deps, "init_dependencies", _noop_init)
+
+    # --- 3. Seed canonical settings and readiness state --------------------
+    # The canonical settings must be set BEFORE create_app() so that the
+    # factory resolves AppMode.STAGING and mounts the frozen agent routes.
+    set_canonical_settings(Settings())
+    reset_readiness_state()
+    set_readiness_state(ReadinessState(state="READY"))
+
+    # Record composition evidence tokens that would normally be set by
+    # init_dependencies(). The strict audit checks these tokens to verify
+    # that production coefficient service is wired correctly.
+    deps._record_composition_token("DATABASE_COEFFICIENT_SERVICE_INSTANTIATED")
+
+    # The composition manifest provider must also be set so the audit
+    # can read the tokens we recorded above. init_dependencies() normally
+    # calls set_composition_manifest_provider(), but we stubbed it.
+    from cold_storage.bootstrap.runtime_readiness import (
+        set_composition_manifest_provider,
+    )
+
+    set_composition_manifest_provider(deps._composition_manifest_provider)
+
+    try:
+        # --- 4. Create the real app and enter TestClient -------------------
+        app = create_app()
+        with TestClient(app) as client:
+            # --- 5. All frozen agent routes MUST return 503 ---------------
+            # The frozen agent endpoint matrix (D-S4-02) is the single
+            # source of truth; we hit every method+path combination and
+            # verify the canonical disabled error code.
+            _AGENT_DISABLED_CODE = "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE"
+            _frozen_agent_routes: list[tuple[str, str]] = [
+                ("POST", "/api/v1/agent/sessions"),
+                ("GET", "/api/v1/agent/sessions"),
+                ("GET", "/api/v1/agent/sessions/s1"),
+                ("GET", "/api/v1/agent/sessions/s1/messages"),
+                ("POST", "/api/v1/agent/sessions/s1/messages"),
+                ("GET", "/api/v1/agent/sessions/s1/turns/t1"),
+                ("GET", "/api/v1/agent/sessions/s1/tool-calls"),
+                ("POST", "/api/v1/agent/tool-calls/tc1/confirm"),
+                ("POST", "/api/v1/agent/tool-calls/tc1/reject"),
+                ("POST", "/api/v1/agent/sessions/s1/cancel"),
+            ]
+            for method, path in _frozen_agent_routes:
+                resp = client.post(path, json={}) if method == "POST" else client.get(path)
+                assert resp.status_code == 503, (
+                    f"{method} {path} must return 503 in staging mode, got {resp.status_code}"
+                )
+                body = resp.json()
+                assert body["error"]["code"] == _AGENT_DISABLED_CODE, (
+                    f"{method} {path} must return canonical disabled error code"
+                )
+
+            # --- 6. Non-agent endpoints must NOT trigger agent audit -------
+            # Hitting these endpoints must succeed (200) or at least not
+            # return a 503 caused by agent audit failures. The health
+            # endpoints are always available; the coefficients endpoint
+            # returns 503 with a non-agent error code (PRODUCTION_DEPENDENCIES
+            # _NOT_INITIALIZED) because we stubbed init_dependencies.
+            live_resp = client.get("/health/live")
+            assert live_resp.status_code == 200, "/health/live must return 200"
+
+            ready_resp = client.get("/health/ready")
+            assert ready_resp.status_code in (200, 503), (
+                "/health/ready must not crash from agent audit"
+            )
+            if ready_resp.status_code == 503:
+                ready_body = ready_resp.json()
+                # The 503 response may or may not have an "error" key
+                # depending on the readiness state. If it does, it must
+                # not be the agent disabled error.
+                if "error" in ready_body:
+                    assert ready_body["error"]["code"] != _AGENT_DISABLED_CODE, (
+                        "/health/ready must not return agent disabled error"
+                    )
+                # projection (which is expected). The readiness failure
+                # must come from probe failures, not agent audit.
+                check_code = ready_body.get("check_code", "")
+                assert check_code != _AGENT_DISABLED_CODE, (
+                    "/health/ready must not fail with agent disabled check_code"
+                )
+
+            # Coefficient endpoint: returns 503 because dependencies are
+            # stubbed, but the error must be the coefficient-specific one,
+            # not an agent audit failure.
+            coeff_resp = client.get("/api/v1/coefficients")
+            assert coeff_resp.status_code == 503, (
+                "/api/v1/coefficients must return 503 (deps not initialized)"
+            )
+            coeff_body = coeff_resp.json()
+            assert coeff_body["error"]["code"] != _AGENT_DISABLED_CODE, (
+                "/api/v1/coefficients must not trigger agent disabled error"
+            )
+
+            # --- 7. enumerate_reachable_unsafe_strict_capabilities must ---
+            # return empty tuple for the real production app.
+            reachable = enumerate_reachable_unsafe_strict_capabilities(
+                app=app,
+            )
+            assert reachable == (), (
+                f"real production app must have no reachable unsafe strict "
+                f"capabilities, got {reachable!r}"
+            )
+
+    finally:
+        # --- 8. Clean up canonical state ----------------------------------
+        reset_readiness_state()
+        reset_canonical_settings()

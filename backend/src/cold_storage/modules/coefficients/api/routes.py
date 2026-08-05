@@ -162,14 +162,17 @@ def _as_provider(
 def register_coefficient_routes(
     app: FastAPI,
     coefficient_service_provider: CoefficientService | CoefficientServiceProvider,
-) -> None:
+) -> dict[str, Any]:
     """Register coefficient routes with a delayed per-request provider.
+
+    Returns frozen registration evidence containing the provider object
+    and registered endpoint objects. The strict audit uses this evidence
+    to verify provider object identity.
 
     Local/test callers may still pass a concrete process-local service. Strict
     callers pass ``get_production_coefficient_service`` so route registration
     never resolves dependencies before the application lifespan initializes.
     """
-
     provider = _as_provider(coefficient_service_provider)
 
     @app.exception_handler(ProductionDependenciesNotInitializedError)
@@ -339,3 +342,22 @@ def register_coefficient_routes(
             process_type=request.process_type,
         )
         return _coefficient_set_to_dict(coefficient_set)
+
+    # Collect registered endpoint objects for frozen evidence.
+    _registered_endpoints: list[tuple[str, str, Any]] = []
+    for _r in app.routes:
+        _r_path = getattr(_r, "path", "")
+        if not _r_path.startswith("/api/v1/coefficients"):
+            continue
+        _r_methods = getattr(_r, "methods", None)
+        _r_endpoint = getattr(_r, "endpoint", None)
+        if _r_methods and _r_endpoint:
+            for _m in _r_methods:
+                _registered_endpoints.append((_m, _r_path, _r_endpoint))
+
+    # Return frozen registration evidence. The strict audit verifies
+    # that the provider object and registered endpoints match.
+    return {
+        "provider": provider,
+        "endpoints": tuple(_registered_endpoints),
+    }

@@ -6,6 +6,7 @@ with a real SQLite database.
 
 from __future__ import annotations
 
+import os
 from decimal import Decimal
 
 import pytest
@@ -511,3 +512,140 @@ class TestHttpRouteProviderRegistration:
 
         # Cleanup
         deps._singletons.clear()  # type: ignore[attr-defined]
+
+
+# ===========================================================================
+# 5. PostgreSQL persistence recreation tests
+# ===========================================================================
+#
+# Proves that coefficient data persists across DatabaseCoefficientService
+# destruction and recreation on a real PostgreSQL engine.  Each "service" is a
+# fresh DatabaseCoefficientService instance bound to the same underlying engine.
+# Destroying a service (letting it go out of scope) does NOT destroy data
+# because the data lives in the database, not in process memory.
+#
+# These tests require a real PostgreSQL database.  When PostgreSQL is not
+# available they are skipped via ``pytest.mark.skipif``.
+
+_requires_pg = pytest.mark.skipif(
+    not (os.environ.get("DATABASE_URL") or os.environ.get("COLD_STORAGE_DATABASE_URL")),
+    reason="PostgreSQL DATABASE_URL is not configured",
+)
+
+
+@_requires_pg
+class TestPostgreSQLCoefficientPersistenceRecreation:
+    """Coefficient data survives 3 service generations on real PostgreSQL.
+
+    Uses the ``pg_database_factory`` fixture from conftest to create an
+    isolated PostgreSQL database with Alembic head schema applied.
+    """
+
+    def test_full_persistence_lifecycle_on_postgresql(self, pg_database) -> None:
+        """Full lifecycle on real PostgreSQL engine.
+
+        Steps: CREATE_DEFINITION, CREATE_REVISION, SUBMIT_REVIEW, MARK_REVIEWED,
+        APPROVE, DISPOSE_OR_RELEASE_SERVICE_1, CREATE_SERVICE_2_ON_SAME_POSTGRES_DATABASE,
+        READ_APPROVED, RESOLVE_APPROVED, WITHDRAW, DISPOSE_OR_RELEASE_SERVICE_2,
+        CREATE_SERVICE_3_ON_SAME_POSTGRES_DATABASE, READ_WITHDRAWN,
+        VERIFY_WITHDRAWN_NOT_RESOLVED.
+        """
+        from sqlalchemy import create_engine
+        from sqlalchemy.pool import NullPool
+
+        from cold_storage.modules.coefficients.infrastructure.database import (
+            DatabaseCoefficientService,
+        )
+
+        # Create a real PostgreSQL engine (not sqlite://)
+        pg_engine = create_engine(pg_database, poolclass=NullPool)
+        try:
+            assert pg_engine.dialect.name == "postgresql", (
+                f"Expected postgresql dialect, got {pg_engine.dialect.name}"
+            )
+
+            # --- Service 1: CREATE_DEFINITION, CREATE_REVISION, ---
+            svc1 = DatabaseCoefficientService(pg_engine)
+
+            # CREATE_DEFINITION
+            definition = svc1.create_definition(
+                code="pg_persistence.test_coeff",
+                name="PG Persistence Test Coefficient",
+                description="Tests persistence across service recreation on PostgreSQL",
+                category="test",
+                canonical_unit="ratio",
+            )
+            assert definition.code == "pg_persistence.test_coeff"
+
+            # CREATE_REVISION
+            revision = svc1.create_revision(
+                definition_id=definition.id,
+                value_decimal=Decimal("2.718"),
+            )
+            assert revision.status == "draft"
+            assert revision.value_decimal == Decimal("2.718")
+            revision_id = revision.id
+            definition_id = definition.id
+
+            # SUBMIT_REVIEW
+            revision = svc1.submit_revision_for_review(definition.id, revision.id)
+            assert revision.status == "unverified"
+
+            # MARK_REVIEWED
+            revision = svc1.mark_revision_reviewed(
+                definition.id,
+                revision.id,
+                reviewer="pg-test-reviewer",
+            )
+            assert revision.status == "reviewed"
+
+            # APPROVE
+            revision = svc1.approve_revision(
+                definition.id,
+                revision.id,
+                approver="pg-test-approver",
+            )
+            assert revision.status == "approved"
+
+            # DISPOSE_OR_RELEASE_SERVICE_1
+            del svc1
+
+            # --- Service 2: CREATE_SERVICE_2_ON_SAME_POSTGRES_DATABASE ---
+            svc2 = DatabaseCoefficientService(pg_engine)
+
+            # READ_APPROVED
+            fetched = svc2.get_revision(definition_id, revision_id)
+            assert fetched.status == "approved"
+            assert fetched.value_decimal == Decimal("2.718")
+            assert fetched.reviewed_by == "pg-test-reviewer"
+            assert fetched.approved_by == "pg-test-approver"
+
+            # RESOLVE_APPROVED
+            coeff_set = svc2.resolve_coefficient_set()
+            assert "pg_persistence.test_coeff" in coeff_set.items
+            resolved = coeff_set.items["pg_persistence.test_coeff"]
+            assert resolved.value == Decimal("2.718")
+            assert resolved.status == "approved"
+
+            # WITHDRAW
+            fetched = svc2.withdraw_revision(definition_id, revision_id)
+            assert fetched.status == "withdrawn"
+
+            # DISPOSE_OR_RELEASE_SERVICE_2
+            del svc2
+
+            # --- Service 3: CREATE_SERVICE_3_ON_SAME_POSTGRES_DATABASE ---
+            svc3 = DatabaseCoefficientService(pg_engine)
+
+            # READ_WITHDRAWN
+            withdrawn = svc3.get_revision(definition_id, revision_id)
+            assert withdrawn.status == "withdrawn"
+            assert withdrawn.value_decimal == Decimal("2.718")
+
+            # VERIFY_WITHDRAWN_NOT_RESOLVED
+            coeff_set = svc3.resolve_coefficient_set()
+            assert "pg_persistence.test_coeff" not in coeff_set.items, (
+                "Withdrawn coefficient must not appear in resolved set"
+            )
+        finally:
+            pg_engine.dispose()

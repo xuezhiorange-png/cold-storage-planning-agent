@@ -1025,8 +1025,6 @@ def enumerate_reachable_unsafe_strict_capabilities(
 
         # 4. Check route prefix as HTTP surface evidence
         route_paths: list[str] = []
-        route_method_path: list[tuple[str, str]] = []
-        route_endpoints: list[Any] = []
         app_routes = getattr(app, "routes", None)
         if app_routes is not None:
             try:
@@ -1035,13 +1033,6 @@ def enumerate_reachable_unsafe_strict_capabilities(
                 route_iter = []
             for r in route_iter:
                 route_paths.append(_route_path_for(r))
-                # Extract HTTP methods and endpoint from APIRoute
-                methods = getattr(r, "methods", None)
-                endpoint = getattr(r, "endpoint", None)
-                if methods and endpoint:
-                    for m in methods:
-                        route_method_path.append((m, _route_path_for(r)))
-                        route_endpoints.append(endpoint)
 
         has_route = any(
             p == prefix or p.startswith(prefix + "/") or p.startswith(prefix)
@@ -1050,59 +1041,92 @@ def enumerate_reachable_unsafe_strict_capabilities(
         )
 
         if has_route:
-            # Agent routes: cross-validate method, path, endpoint identity
+            # Agent routes: cross-validate against frozen endpoint authority
             if spec.canonical_capability_name == "model_backed_agent":
-                agent_method_path = [
-                    (m, p) for m, p in route_method_path if p.startswith("/api/v1/agent/")
-                ]
-                # Check for extra routes not in frozen matrix
-                extra = set(agent_method_path) - _FROZEN_AGENT_ROUTE_MATRIX
+                # Get the frozen authority from the app instance.
+                # This is the single source of truth for disabled endpoints.
+                frozen_authority = getattr(app.state, "frozen_agent_endpoint_authority", None)
+                if frozen_authority is None:
+                    # No frozen authority means agent endpoints were not
+                    # registered by the app factory — fail closed.
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Build 1:1 mapping of actual (method, path, endpoint)
+                # from registered APIRoute objects, only for agent paths.
+                actual_agent_routes: list[tuple[str, str, Any]] = []
+                for r in route_iter:
+                    r_path = _route_path_for(r)
+                    if not r_path.startswith("/api/v1/agent/"):
+                        continue
+                    methods = getattr(r, "methods", None)
+                    endpoint = getattr(r, "endpoint", None)
+                    if methods and endpoint:
+                        for m in methods:
+                            actual_agent_routes.append((m, r_path, endpoint))
+
+                # Compare frozen authority against actual routes using
+                # object identity (is), not string matching.
+                frozen_set = set((m, p, id(ep)) for m, p, ep in frozen_authority)
+                actual_set = set((m, p, id(ep)) for m, p, ep in actual_agent_routes)
+
+                # Extra routes on agent paths not in frozen authority
+                extra = actual_set - frozen_set
                 if extra:
                     reachable.append(spec.canonical_capability_name)
                     continue
-                # Check for missing routes from frozen matrix
-                registered = set(agent_method_path)
-                missing = _FROZEN_AGENT_ROUTE_MATRIX - registered
+
+                # Missing routes from frozen authority
+                missing = frozen_set - actual_set
                 if missing:
                     reachable.append(spec.canonical_capability_name)
                     continue
-                # Cross-validate endpoint identity: each disabled endpoint
-                # must have __name__ starting with "disabled_agent_" or
-                # be a closure endpoint defined in the app factory.
-                # Test helpers may use plain functions; the binding
-                # manifest is the authoritative source for disabled status.
-                for ep in route_endpoints:
-                    ep_name = getattr(ep, "__name__", "")
-                    ep_qualname = getattr(ep, "__qualname__", "")
-                    if ep_name.startswith("disabled_agent_"):
-                        continue
-                    # Accept closure endpoints from app factory
-                    if "_ep" in ep_qualname and "disabled" in ep_qualname:
-                        continue
-                    # Accept test helper endpoints (functions defined
-                    # in test modules) - the binding manifest is the
-                    # authoritative source, not the handler name.
-                    if "test_" in ep_qualname or "_sessions" in ep_qualname:
-                        continue
-                    # Any other non-disabled endpoint on an agent path
-                    # means an active/fake handler was placed on a frozen
-                    # path — this must fail closed.
-                    reachable.append(spec.canonical_capability_name)
-                    break
+
+                # Verify each actual endpoint object identity matches
+                # the frozen authority endpoint object (not just id).
+                # This catches replaced endpoint objects.
+                for m, p, ep in actual_agent_routes:
+                    found = False
+                    for fm, fp, fep in frozen_authority:
+                        if m == fm and p == fp and ep is fep:
+                            found = True
+                            break
+                    if not found:
+                        reachable.append(spec.canonical_capability_name)
+                        break
                 if reachable:
                     continue
 
-            # Coefficient routes: verify provider identity
+            # Coefficient routes: verify provider object identity
             if spec.canonical_capability_name == "coefficient_http":
                 # The binding identity and composition evidence already
-                # verified database_backed above. Additional check: verify
-                # that no concrete CoefficientService or process-local
-                # service is used. The composition token
-                # PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED would
-                # already have triggered forbidden_token check above.
-                # Forged positive tokens cannot bypass: the manifest
-                # snapshot must contain the real token, not a forged one.
-                pass  # composition evidence already validated above
+                # verified database_backed above. The coefficient route
+                # registration must return frozen evidence with the
+                # exact provider object. This is checked by the
+                # register_coefficient_routes return value stored on
+                # app.state.coefficient_route_evidence.
+                coeff_evidence = getattr(app.state, "coefficient_route_evidence", None)
+                if coeff_evidence is None:
+                    # No coefficient route evidence means routes were
+                    # not registered by the app factory — fail closed.
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+                # The evidence must contain the actual registered
+                # endpoints. Verify they match what's on the app.
+                registered_eps = coeff_evidence.get("endpoints", ())
+                for m, p, ep in registered_eps:
+                    # Verify this endpoint is actually registered
+                    found_route = False
+                    for r in route_iter:
+                        r_path = _route_path_for(r)
+                        r_methods = getattr(r, "methods", None)
+                        r_endpoint = getattr(r, "endpoint", None)
+                        if r_path == p and r_methods and m in r_methods and r_endpoint is ep:
+                            found_route = True
+                            break
+                    if not found_route:
+                        reachable.append(spec.canonical_capability_name)
+                        break
 
     return tuple(reachable)
 

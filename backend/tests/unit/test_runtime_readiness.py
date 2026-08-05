@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import pytest
 
@@ -470,6 +471,8 @@ def _strict_fastapi_app():
         ("coefficient_http", "database_backed"),
         ("model_backed_agent", "disabled"),
     )
+    app.state.frozen_agent_endpoint_authority = ()
+    app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
     return app
 
 
@@ -491,6 +494,8 @@ def _strict_fastapi_app_with_planning_agent_route():
     def _run_agent():  # pragma: no cover - never invoked
         return {"ok": True}
 
+    app.state.frozen_agent_endpoint_authority = ()
+    app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
     return app
 
 
@@ -512,6 +517,8 @@ def _strict_fastapi_app_with_coefficient_route():
     def _lookup():  # pragma: no cover - never invoked
         return {"ok": True}
 
+    app.state.frozen_agent_endpoint_authority = ()
+    app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
     return app
 
 
@@ -4551,46 +4558,88 @@ def _strict_fastapi_app_with_all_frozen_agent_routes():
         ("model_backed_agent", "disabled"),
     )
 
+    _frozen: list[tuple[str, str, Any]] = []
+
     @app.get("/api/v1/agent/sessions")
     def disabled_agent_get_sessions():  # pragma: no cover
         return {"ok": True}
+
+    _frozen.append(("GET", "/api/v1/agent/sessions", disabled_agent_get_sessions))
 
     @app.post("/api/v1/agent/sessions")
     def disabled_agent_post_sessions():  # pragma: no cover
         return {"ok": True}
 
+    _frozen.append(("POST", "/api/v1/agent/sessions", disabled_agent_post_sessions))
+
     @app.get("/api/v1/agent/sessions/{session_id}")
     def disabled_agent_get_session():  # pragma: no cover
         return {"ok": True}
+
+    _frozen.append(("GET", "/api/v1/agent/sessions/{session_id}", disabled_agent_get_session))
 
     @app.post("/api/v1/agent/sessions/{session_id}/cancel")
     def disabled_agent_cancel_session():  # pragma: no cover
         return {"ok": True}
 
+    _frozen.append(
+        ("POST", "/api/v1/agent/sessions/{session_id}/cancel", disabled_agent_cancel_session)
+    )
+
     @app.get("/api/v1/agent/sessions/{session_id}/messages")
     def disabled_agent_get_messages():  # pragma: no cover
         return {"ok": True}
+
+    _frozen.append(
+        ("GET", "/api/v1/agent/sessions/{session_id}/messages", disabled_agent_get_messages)
+    )
 
     @app.post("/api/v1/agent/sessions/{session_id}/messages")
     def disabled_agent_post_messages():  # pragma: no cover
         return {"ok": True}
 
+    _frozen.append(
+        ("POST", "/api/v1/agent/sessions/{session_id}/messages", disabled_agent_post_messages)
+    )
+
     @app.get("/api/v1/agent/sessions/{session_id}/tool-calls")
     def disabled_agent_get_tool_calls():  # pragma: no cover
         return {"ok": True}
+
+    _frozen.append(
+        ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls", disabled_agent_get_tool_calls)
+    )
 
     @app.get("/api/v1/agent/sessions/{session_id}/turns/{turn_id}")
     def disabled_agent_get_turns():  # pragma: no cover
         return {"ok": True}
 
+    _frozen.append(
+        ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}", disabled_agent_get_turns)
+    )
+
     @app.post("/api/v1/agent/tool-calls/{tool_call_id}/confirm")
     def disabled_agent_confirm_tool_call():  # pragma: no cover
         return {"ok": True}
+
+    _frozen.append(
+        (
+            "POST",
+            "/api/v1/agent/tool-calls/{tool_call_id}/confirm",
+            disabled_agent_confirm_tool_call,
+        )
+    )
 
     @app.post("/api/v1/agent/tool-calls/{tool_call_id}/reject")
     def disabled_agent_reject_tool_call():  # pragma: no cover
         return {"ok": True}
 
+    _frozen.append(
+        ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject", disabled_agent_reject_tool_call)
+    )
+
+    app.state.frozen_agent_endpoint_authority = tuple(_frozen)
+    app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
     return app
 
 
@@ -4613,6 +4662,10 @@ def _strict_fastapi_app_with_exact_frozen_agent_route():
     def disabled_agent_post_sessions():  # pragma: no cover
         return {"ok": True}
 
+    app.state.frozen_agent_endpoint_authority = (
+        ("POST", "/api/v1/agent/sessions", disabled_agent_post_sessions),
+    )
+    app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
     return app
 
 
@@ -4632,6 +4685,10 @@ def _strict_fastapi_app_with_wrong_method_agent_route():
     def _healthz():  # pragma: no cover - never invoked
         return {"ok": True}
 
+    # This helper has a wrong method (GET instead of POST) on a frozen path.
+    # The frozen authority should NOT include this route.
+    app.state.frozen_agent_endpoint_authority = ()
+    app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
     return app
 
 
