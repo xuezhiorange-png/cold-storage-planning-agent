@@ -151,7 +151,9 @@ def _get_planning_agent_service(
 
     # P0-7: Create report render service for tool adapters
     _reports_repo = _SQLReportRepository(db_session)
-    _reports_storage = _ReportArtifactStorage(base_dir=get_settings().storage_dir or "data/report_artifacts")
+    _reports_storage = _ReportArtifactStorage(
+        base_dir=get_settings().storage_dir or "data/report_artifacts"
+    )
     _reports_uow = _ReportRenderUnitOfWork(
         db_session,
         report_repo=_reports_repo,
@@ -492,7 +494,11 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         ok = all(o.status == "pass" for o in outcomes)
 
         if state_name == "READY" and ok:
-            return {"status": "ready", "state": state_name, "capabilities": _capability_projection()}
+            return {
+                "status": "ready",
+                "state": state_name,
+                "capabilities": _capability_projection(),
+            }
 
         failed_codes = sorted({o.code for o in outcomes if o.code})
         primary_code = failed_codes[0] if failed_codes else "READINESS_PROBE_TIMEOUT"
@@ -897,9 +903,6 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     # D-S4-02: Agent routes. Local/test mount the active router.
     # Staging/production mount a disabled router returning stable 503.
-    from cold_storage.modules.planning_agent.api.routes import (  # noqa: PLC0415
-        create_agent_router as _create_agent_router,
-    )
 
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         app.include_router(_create_agent_router(_get_planning_agent_service))
@@ -910,7 +913,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         _AGENT_DISABLED_ERROR = {
             "error": {
                 "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-                "message": "Model-backed planning agent capability is not included in V0.2 production scope.",
+                "message": "Model-backed agent not in V0.2 production scope.",
                 "details": {"retryable": False},
             }
         }

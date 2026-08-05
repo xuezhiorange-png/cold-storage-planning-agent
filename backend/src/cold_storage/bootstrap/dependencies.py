@@ -31,7 +31,6 @@ _MODEL_BACKED_AGENT_CAPABILITY = "model_backed_agent"
 _STRICT_BINDINGS: tuple[tuple[str, str], ...] = (
     ("coefficient_http", "database_backed"),
     (_MODEL_BACKED_AGENT_CAPABILITY, "disabled"),
-
 )
 if TYPE_CHECKING:
     from sqlalchemy.orm import sessionmaker

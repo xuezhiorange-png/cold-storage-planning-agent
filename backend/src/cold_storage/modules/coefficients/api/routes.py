@@ -6,8 +6,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, Request
-from fastapi import HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 

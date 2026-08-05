@@ -783,8 +783,6 @@ def composition_manifest_tokens() -> frozenset[str]:
 _COMPOSITION_TOKEN_PROVIDER_ERROR = "COMPOSITION_MANIFEST_PROVIDER_ERROR"
 
 
-
-
 def _route_path_for(route: Any) -> str:
     """Return the canonical path of a Starlette/FastAPI route.
 
@@ -798,6 +796,7 @@ def _route_path_for(route: Any) -> str:
             return value
     return ""
 
+
 def _validate_strict_binding_manifest(
     *,
     app: Any,
@@ -807,7 +806,6 @@ def _validate_strict_binding_manifest(
 
     Returns a tuple of error codes. Empty tuple means valid.
     """
-    errors: list[str] = []
 
     bindings = getattr(getattr(app, "state", None), "strict_capability_bindings", None)
 
@@ -868,7 +866,6 @@ def _validate_composition_evidence(
     Returns a tuple of error codes. Empty tuple means valid.
     """
 
-
     manifest_tokens = composition_manifest_tokens()  # same module
 
     # COMPOSITION_MANIFEST_PROVIDER_ERROR
@@ -892,6 +889,7 @@ _STRICT_EXPECTED_MANIFEST: tuple[tuple[str, str], ...] = (
     ("coefficient_http", "database_backed"),
     ("model_backed_agent", "disabled"),
 )
+
 
 # Audit spec: maps diagnostic name -> canonical capability + evidence requirements
 @dataclass(frozen=True)
@@ -965,7 +963,7 @@ def enumerate_reachable_unsafe_strict_capabilities(
 
     # 2. Validate composition evidence for each spec
     reachable: list[str] = []
-    for diag_name, spec in _STRICT_AUDIT_SPECS.items():
+    for _diag_name, spec in _STRICT_AUDIT_SPECS.items():
         # Check composition evidence
         evidence_errors = _validate_composition_evidence(
             forbidden_tokens=spec.forbidden_composition_tokens,
@@ -998,8 +996,6 @@ def enumerate_reachable_unsafe_strict_capabilities(
             pass
 
     return tuple(reachable)
-
-
 
 
 def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
