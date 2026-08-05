@@ -463,8 +463,11 @@ def _strict_fastapi_app():
     """Build a clean FastAPI app for strict-mode audit tests.
 
     D-S4-06: Includes the strict binding manifest required by the audit.
+    R6: Also sets _strict_runtime_authority on app.state.
     """
     from fastapi import FastAPI
+
+    from cold_storage.bootstrap.app import StrictRuntimeAuthority
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.strict_capability_bindings = (
@@ -473,6 +476,8 @@ def _strict_fastapi_app():
     )
     app.state.frozen_agent_endpoint_authority = ()
     app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
+    # R6: Set the composition-root authority (empty — no routes registered).
+    app.state._strict_runtime_authority = StrictRuntimeAuthority()  # noqa: SLF001
     return app
 
 
@@ -481,8 +486,11 @@ def _strict_fastapi_app_with_planning_agent_route():
 
     D-S4-06: Includes the strict binding manifest. The audit checks
     route prefix + binding identity + composition evidence.
+    R6: Also sets _strict_runtime_authority on app.state.
     """
     from fastapi import FastAPI
+
+    from cold_storage.bootstrap.app import StrictRuntimeAuthority
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.strict_capability_bindings = (
@@ -496,6 +504,8 @@ def _strict_fastapi_app_with_planning_agent_route():
 
     app.state.frozen_agent_endpoint_authority = ()
     app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
+    # R6: No agent routes in frozen authority — audit should reject.
+    app.state._strict_runtime_authority = StrictRuntimeAuthority()  # noqa: SLF001
     return app
 
 
@@ -504,8 +514,14 @@ def _strict_fastapi_app_with_coefficient_route():
 
     D-S4-06: Includes the strict binding manifest. The audit checks
     route prefix + binding identity + composition evidence.
+    R6: Also sets _strict_runtime_authority on app.state.
     """
     from fastapi import FastAPI
+
+    from cold_storage.bootstrap.app import (
+        CoefficientRouteAuthority,
+        StrictRuntimeAuthority,
+    )
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.strict_capability_bindings = (
@@ -519,6 +535,20 @@ def _strict_fastapi_app_with_coefficient_route():
 
     app.state.frozen_agent_endpoint_authority = ()
     app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
+
+    # R6: Set the composition-root authority.
+    from cold_storage.bootstrap.dependencies import get_production_coefficient_service
+
+    app.state._strict_runtime_authority = StrictRuntimeAuthority(  # noqa: SLF001
+        agent_routes=(),
+        coefficient_routes=(
+            CoefficientRouteAuthority(
+                method="POST", path="/api/v1/coefficients/lookup", endpoint=_lookup
+            ),
+        ),
+        coefficient_provider=get_production_coefficient_service,
+        capability_mode="enabled",
+    )
     return app
 
 
@@ -4640,6 +4670,17 @@ def _strict_fastapi_app_with_all_frozen_agent_routes():
 
     app.state.frozen_agent_endpoint_authority = tuple(_frozen)
     app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
+    # R6: Set the composition-root authority with the actual endpoint objects.
+    from cold_storage.bootstrap.app import AgentRouteAuthority, StrictRuntimeAuthority
+
+    app.state._strict_runtime_authority = StrictRuntimeAuthority(  # noqa: SLF001
+        agent_routes=tuple(
+            AgentRouteAuthority(method=m, path=p, endpoint=ep) for m, p, ep in _frozen
+        ),
+        coefficient_routes=(),
+        coefficient_provider=None,
+        capability_mode="enabled",
+    )
     return app
 
 
@@ -4649,8 +4690,11 @@ def _strict_fastapi_app_with_exact_frozen_agent_route():
     Registers POST /api/v1/agent/sessions with disabled_agent_ naming,
     which is in the frozen endpoint matrix. The binding manifest declares
     model_backed_agent as "disabled". The audit should ALLOW this route.
+    R6: Also sets _strict_runtime_authority on app.state.
     """
     from fastapi import FastAPI
+
+    from cold_storage.bootstrap.app import AgentRouteAuthority, StrictRuntimeAuthority
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.strict_capability_bindings = (
@@ -4666,14 +4710,30 @@ def _strict_fastapi_app_with_exact_frozen_agent_route():
         ("POST", "/api/v1/agent/sessions", disabled_agent_post_sessions),
     )
     app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
+    # R6: Set the composition-root authority.
+    app.state._strict_runtime_authority = StrictRuntimeAuthority(  # noqa: SLF001
+        agent_routes=(
+            AgentRouteAuthority(
+                method="POST",
+                path="/api/v1/agent/sessions",
+                endpoint=disabled_agent_post_sessions,
+            ),
+        ),
+        coefficient_routes=(),
+        coefficient_provider=None,
+        capability_mode="enabled",
+    )
     return app
 
 
 def _strict_fastapi_app_with_wrong_method_agent_route():
     """Build a FastAPI app with a GET route on an agent path not in
     the frozen endpoint matrix.
+    R6: Also sets _strict_runtime_authority on app.state.
     """
     from fastapi import FastAPI
+
+    from cold_storage.bootstrap.app import StrictRuntimeAuthority
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.strict_capability_bindings = (
@@ -4689,6 +4749,8 @@ def _strict_fastapi_app_with_wrong_method_agent_route():
     # The frozen authority should NOT include this route.
     app.state.frozen_agent_endpoint_authority = ()
     app.state.coefficient_route_evidence = {"provider": None, "endpoints": ()}
+    # R6: No agent routes in frozen authority — audit should reject.
+    app.state._strict_runtime_authority = StrictRuntimeAuthority()  # noqa: SLF001
     return app
 
 

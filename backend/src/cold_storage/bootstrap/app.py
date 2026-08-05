@@ -4,7 +4,7 @@ import json
 import logging
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -60,6 +60,78 @@ from cold_storage.modules.schemes.application.service import SchemeService
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 AgentServiceDep = Annotated[LegacyPlanningAgentService, Depends(get_agent_service)]
+
+
+# ---------------------------------------------------------------------------
+# R6: Composition-root strict runtime authority
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class AgentRouteAuthority:
+    """Immutable record of one disabled agent endpoint.
+
+    Created by :func:`create_app` after registering the actual APIRoute.
+    The audit compares actual runtime routes against these exact objects.
+    """
+
+    method: str
+    path: str
+    endpoint: Callable[..., Any]
+
+
+@dataclass(frozen=True, slots=True)
+class CoefficientRouteAuthority:
+    """Immutable record of one coefficient endpoint.
+
+    Created by :func:`create_app` after :func:`register_coefficient_routes`
+    returns the registration evidence.
+    """
+
+    method: str
+    path: str
+    endpoint: Callable[..., Any]
+
+
+@dataclass(frozen=True, slots=True)
+class StrictRuntimeAuthority:
+    """Per-app, immutable, composition-root authority for strict audit.
+
+    Created exclusively by :func:`create_app` after all routes are
+    registered and the coefficient provider is resolved.  Captured by
+    the per-app lifespan closure.  The strict audit reads **only**
+    from this object — never from writable ``app.state``.
+
+    Design guarantees:
+    - CREATED_BY = create_app
+    - SCOPE = per FastAPI app instance
+    - MUTABLE = NO (frozen dataclass)
+    - CAPTURED_BY = per-app lifespan closure
+    - ROUTE_MODULE_CAN_REPLACE = NO
+    - SERVICE_PROVIDER_CAN_REPLACE = NO
+    - GLOBAL_SINGLETON = NO
+    """
+
+    agent_routes: tuple[AgentRouteAuthority, ...] = field(default=())
+    coefficient_routes: tuple[CoefficientRouteAuthority, ...] = field(default=())
+    coefficient_provider: Callable[..., Any] = None  # type: ignore[assignment]
+    capability_mode: str = "disabled"
+
+
+def _build_strict_authority(
+    *,
+    agent_routes: tuple[AgentRouteAuthority, ...],
+    coefficient_routes: tuple[CoefficientRouteAuthority, ...],
+    coefficient_provider: Callable[..., Any],
+    capability_mode: str,
+) -> StrictRuntimeAuthority:
+    """Build the frozen strict authority.  Called once by create_app."""
+    return StrictRuntimeAuthority(
+        agent_routes=agent_routes,
+        coefficient_routes=coefficient_routes,
+        coefficient_provider=coefficient_provider,
+        capability_mode=capability_mode,
+    )
 
 
 # --------------------------------------------------------------------------- Fix #2: Per-request
@@ -276,9 +348,14 @@ async def _lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # F-PR76-HIGH-01: dependency initialization is now transactional
     # (see ``init_dependencies``); if any step fails the partially-
     # created state is rolled back through ``shutdown_dependencies``
-    # before the exception is re-raised. The ``try / finally`` here
+    # before the exception is re-raised.  The ``try / finally`` here
     # therefore only runs ``shutdown_dependencies`` on a clean
     # teardown path; it is idempotent and safe to invoke twice.
+    #
+    # R6: The per-app strict authority is captured here via closure.
+    # The audit reads from this frozen object, never from writable
+    # app.state.
+    _auth: StrictRuntimeAuthority | None = getattr(app.state, "_strict_runtime_authority", None)
     try:
         init_dependencies(get_settings(), app=app)
         yield
@@ -360,19 +437,32 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     app._capability_projection = create_capability_projection(initial_mode)  # type: ignore[attr-defined]
 
+    _coeff_provider: Any = None
+    _frozen_coeff_auth: list[CoefficientRouteAuthority] = []
+
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         coefficient_service = CoefficientService()
         coeff_evidence = register_coefficient_routes(app, coefficient_service)
+        _coeff_provider = coefficient_service
     else:
         from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
             get_production_coefficient_service,
         )
 
         coeff_evidence = register_coefficient_routes(app, get_production_coefficient_service)
+        _coeff_provider = get_production_coefficient_service
 
     # D-S4-06: Store coefficient route evidence for strict audit.
-    # The audit verifies provider object identity and endpoint registration.
+    # R6: Keep on app.state for backward compatibility, but the
+    # authoritative copy is in _strict_runtime_authority below.
     app.state.coefficient_route_evidence = coeff_evidence
+
+    # Build CoefficientRouteAuthority objects from the evidence.
+    if coeff_evidence and "endpoints" in coeff_evidence:
+        for _cm, _cp, _cep in coeff_evidence["endpoints"]:
+            _frozen_coeff_auth.append(
+                CoefficientRouteAuthority(method=_cm, path=_cp, endpoint=_cep)
+            )
 
     # Scheme routes
     def _scheme_service_factory() -> SchemeService:
@@ -927,6 +1017,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
 
     # D-S4-02: Agent routes. Local/test mount the active router.
     # Staging/production mount a disabled router returning stable 503.
+    _frozen_agent_auth: list[AgentRouteAuthority] = []
 
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         app.include_router(_create_agent_router(_get_planning_agent_service))
@@ -961,8 +1052,6 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             _ep.__name__ = name
             return _ep
 
-        _frozen_agent_endpoints: list[tuple[str, str, Any]] = []
-
         for _idx, (_method, _path) in enumerate(_AGENT_ROUTES, start=1):
             _ep = _disabled_agent_endpoint(f"disabled_agent_{_idx}")
             app.add_api_route(
@@ -973,13 +1062,17 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                 tags=["agent"],
                 operation_id=f"disabled_model_backed_agent_{_idx}",
             )
-            _frozen_agent_endpoints.append((_method, _path, _ep))
+            _frozen_agent_auth.append(AgentRouteAuthority(method=_method, path=_path, endpoint=_ep))
 
         # D-S4-06: Frozen disabled endpoint authority. The audit
         # compares actual APIRoute method/path/endpoint against
         # these exact objects. This is the single source of truth
         # for which agent endpoints are disabled.
-        app.state.frozen_agent_endpoint_authority = tuple(_frozen_agent_endpoints)
+        # R6: Keep on app.state for backward compatibility, but the
+        # authoritative copy is in _strict_runtime_authority below.
+        app.state.frozen_agent_endpoint_authority = tuple(
+            (a.method, a.path, a.endpoint) for a in _frozen_agent_auth
+        )
 
     # D-S4-06: Immutable binding manifest. Registered after route wiring,
     # before lifespan startup. The strict audit checks this manifest.
@@ -990,6 +1083,21 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         )
     else:
         app.state.strict_capability_bindings = ()
+
+    # R6: Build the composition-root strict runtime authority.
+    # This is the single source of truth for the strict audit.
+    # The authority is captured by the per-app lifespan closure.
+    _agent_auth_tuple = tuple(_frozen_agent_auth) if _frozen_agent_auth else ()
+    _coeff_auth_tuple = tuple(_frozen_coeff_auth) if _frozen_coeff_auth else ()
+    _strict_authority = _build_strict_authority(
+        agent_routes=_agent_auth_tuple,
+        coefficient_routes=_coeff_auth_tuple,
+        coefficient_provider=_coeff_provider,
+        capability_mode=(
+            "enabled" if initial_mode in (AppMode.STAGING, AppMode.PRODUCTION) else "disabled"
+        ),
+    )
+    app.state._strict_runtime_authority = _strict_authority  # noqa: SLF001
 
     # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------

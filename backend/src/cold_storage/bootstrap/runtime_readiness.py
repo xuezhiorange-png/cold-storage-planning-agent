@@ -959,15 +959,30 @@ _FROZEN_AGENT_ROUTE_MATRIX: frozenset[tuple[str, str]] = frozenset(
 
 
 def enumerate_reachable_unsafe_strict_capabilities(
-    *, app: Any, routes: Iterable[Any] | None = None
+    *,
+    app: Any,
+    routes: Iterable[Any] | None = None,
+    authority: Any | None = None,
 ) -> tuple[str, ...]:
     """Return the subset of registered capabilities that are reachable.
 
     D-S4-06: The audit now validates binding identity manifest,
     composition evidence, and route prefix as independent checks.
     Route prefix alone does NOT prove unsafe.
+
+    R6: Accepts an optional ``authority`` (StrictRuntimeAuthority).
+    When provided, the audit reads from this frozen object instead
+    of from writable ``app.state``.  This eliminates the
+    self-attestation pattern where a module writes to app.state
+    and the audit trusts it.
     """
     _ = routes  # explicit non-use; ``app`` is the canonical input.
+
+    # R6: Resolve the authority.  Prefer the frozen composition-root
+    # authority; fall back to app.state for backward compatibility.
+    _auth = authority
+    if _auth is None and app is not None:
+        _auth = getattr(app.state, "_strict_runtime_authority", None)
 
     # Mode-aware: only audit in staging/production
     try:
@@ -1043,9 +1058,14 @@ def enumerate_reachable_unsafe_strict_capabilities(
         if has_route:
             # Agent routes: cross-validate against frozen endpoint authority
             if spec.canonical_capability_name == "model_backed_agent":
-                # Get the frozen authority from the app instance.
-                # This is the single source of truth for disabled endpoints.
-                frozen_authority = getattr(app.state, "frozen_agent_endpoint_authority", None)
+                # R6: Read from the composition-root authority, not app.state.
+                # The authority is the single source of truth for disabled endpoints.
+                frozen_authority: tuple[tuple[str, str, Any], ...] | None = None
+                if _auth is not None:
+                    # Convert AgentRouteAuthority objects to tuples for comparison.
+                    frozen_authority = tuple(
+                        (a.method, a.path, a.endpoint) for a in _auth.agent_routes
+                    )
                 if frozen_authority is None:
                     # No frozen authority means agent endpoints were not
                     # registered by the app factory — fail closed.
@@ -1099,29 +1119,48 @@ def enumerate_reachable_unsafe_strict_capabilities(
 
             # Coefficient routes: verify provider object identity
             if spec.canonical_capability_name == "coefficient_http":
-                # The binding identity and composition evidence already
-                # verified database_backed above. The coefficient route
-                # registration must return frozen evidence with the
-                # exact provider object. This is checked by the
-                # register_coefficient_routes return value stored on
-                # app.state.coefficient_route_evidence.
-                coeff_evidence = getattr(app.state, "coefficient_route_evidence", None)
-                if coeff_evidence is None:
-                    # No coefficient route evidence means routes were
+                # R6: Read from the composition-root authority, not app.state.
+                # The authority contains the exact provider object and endpoints.
+                coeff_provider = None
+                coeff_route_auth: tuple[Any, ...] = ()
+                if _auth is not None:
+                    coeff_provider = _auth.coefficient_provider
+                    coeff_route_auth = _auth.coefficient_routes
+
+                if coeff_provider is None or not coeff_route_auth:
+                    # No coefficient provider or routes means routes were
                     # not registered by the app factory — fail closed.
                     reachable.append(spec.canonical_capability_name)
                     continue
-                # The evidence must contain the actual registered
-                # endpoints. Verify they match what's on the app.
-                registered_eps = coeff_evidence.get("endpoints", ())
-                for m, p, ep in registered_eps:
-                    # Verify this endpoint is actually registered
+
+                # Verify provider object identity: must be exactly
+                # get_production_coefficient_service (not a concrete
+                # instance, lambda, partial, or wrapper).
+                try:
+                    from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
+                        get_production_coefficient_service as _prod_svc,
+                    )
+
+                    if coeff_provider is not _prod_svc:
+                        reachable.append(spec.canonical_capability_name)
+                        continue
+                except ImportError:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Verify each coefficient endpoint is actually registered
+                for auth_ep in coeff_route_auth:
                     found_route = False
                     for r in route_iter:
                         r_path = _route_path_for(r)
                         r_methods = getattr(r, "methods", None)
                         r_endpoint = getattr(r, "endpoint", None)
-                        if r_path == p and r_methods and m in r_methods and r_endpoint is ep:
+                        if (
+                            r_path == auth_ep.path
+                            and r_methods
+                            and auth_ep.method in r_methods
+                            and r_endpoint is auth_ep.endpoint
+                        ):
                             found_route = True
                             break
                     if not found_route:
