@@ -151,7 +151,7 @@ def _get_planning_agent_service(
 
     # P0-7: Create report render service for tool adapters
     _reports_repo = _SQLReportRepository(db_session)
-    _reports_storage = _ReportArtifactStorage(base_dir="data/report_artifacts")
+    _reports_storage = _ReportArtifactStorage(base_dir=get_settings().storage_dir or "data/report_artifacts")
     _reports_uow = _ReportRenderUnitOfWork(
         db_session,
         report_repo=_reports_repo,
@@ -1136,7 +1136,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         repo = SQLReportRepository(db_session)
         # D-S4-11: Use canonical Settings.storage_dir, not hardcoded path.
         _settings = get_settings()
-        _storage_dir = _settings.storage_dir or "data/report_artifacts"
+        _storage_dir = _settings.storage_dir
+        if not _storage_dir:
+            raise RuntimeError("storage_dir not configured; cannot render reports")
         artifact_storage = ReportArtifactStorage(base_dir=_storage_dir)
         uow = ReportRenderUnitOfWork(
             db_session,
