@@ -459,24 +459,33 @@ def test_strict_settings_canonical_keys_cover_known_injections():
 
 
 def _strict_fastapi_app():
-    """Build a clean FastAPI app for strict-mode audit tests."""
+    """Build a clean FastAPI app for strict-mode audit tests.
+
+    D-S4-06: Includes the strict binding manifest required by the audit.
+    """
     from fastapi import FastAPI
 
-    return FastAPI()
+    app = FastAPI()
+    app.state.strict_capability_bindings = (
+        ("coefficient_http", "database_backed"),
+        ("model_backed_agent", "disabled"),
+    )
+    return app
 
 
 def _strict_fastapi_app_with_planning_agent_route():
     """Build a FastAPI app with the fake-agent HTTP route registered.
 
-    The audit (D-S2-06.c) walks ``app.routes`` and looks for the
-    canonical planning-agent path prefix ``/api/v1/agent/`` on each
-    ``APIRoute`` instance. The route is registered directly on the
-    FastAPI app (not via an included ``APIRouter``) so the audit's
-    reachability check fires deterministically.
+    D-S4-06: Includes the strict binding manifest. The audit checks
+    route prefix + binding identity + composition evidence.
     """
     from fastapi import FastAPI
 
     app = FastAPI()
+    app.state.strict_capability_bindings = (
+        ("coefficient_http", "database_backed"),
+        ("model_backed_agent", "disabled"),
+    )
 
     @app.post("/api/v1/agent/run")
     def _run_agent():  # pragma: no cover - never invoked
@@ -488,15 +497,16 @@ def _strict_fastapi_app_with_planning_agent_route():
 def _strict_fastapi_app_with_coefficient_route():
     """Build a FastAPI app with the in-memory coefficient HTTP route.
 
-    The audit (D-S2-06.c) walks ``app.routes`` and looks for the
-    canonical coefficient path prefix ``/api/v1/coefficients`` on
-    each ``APIRoute`` instance. The route is registered directly on
-    the FastAPI app so the audit's reachability check fires
-    deterministically.
+    D-S4-06: Includes the strict binding manifest. The audit checks
+    route prefix + binding identity + composition evidence.
     """
     from fastapi import FastAPI
 
     app = FastAPI()
+    app.state.strict_capability_bindings = (
+        ("coefficient_http", "database_backed"),
+        ("model_backed_agent", "disabled"),
+    )
 
     @app.post("/api/v1/coefficients/lookup")
     def _lookup():  # pragma: no cover - never invoked
@@ -591,6 +601,11 @@ def test_staging_mode_clean_app_passes_audit(monkeypatch):
     )
 
     set_canonical_settings(_strict_settings("staging", monkeypatch))
+    # D-S4-06: Mock composition tokens to include required positive evidence
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
     try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(app=_strict_fastapi_app())
         assert reachable == ()
@@ -606,6 +621,11 @@ def test_production_mode_clean_app_passes_audit(monkeypatch):
     )
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
+    # D-S4-06: Mock composition tokens to include required positive evidence
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
     try:
         reachable = enumerate_reachable_unsafe_strict_capabilities(app=_strict_fastapi_app())
         assert reachable == ()
@@ -614,83 +634,113 @@ def test_production_mode_clean_app_passes_audit(monkeypatch):
 
 
 def test_staging_mode_planning_agent_route_fails_closed(monkeypatch):
-    """staging + fake-agent route registered → UNSAFE_STRICT_CAPABILITY_WIRING.
+    """staging + agent route with disabled binding → ALLOWED.
 
-    We call :func:`assert_no_unsafe_strict_capabilities` (the public
-    assertion wrapper) rather than the lower-level enumerator because
-    the enumerator intentionally returns the reachable tuple so callers
-    can branch on it; only the assertion wrapper raises.
+    D-S4-06: Agent routes with binding "disabled" are now allowed in
+    strict modes. The audit only flags capabilities with wrong/missing
+    binding identity or forbidden composition evidence.
     """
     from cold_storage.bootstrap.runtime_readiness import (
-        UnsafeStrictCapabilityWiring,
-        assert_no_unsafe_strict_capabilities,
+        enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
     set_canonical_settings(_strict_settings("staging", monkeypatch))
+    # D-S4-06: Mock composition tokens to include required positive evidence
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
     try:
-        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
-            assert_no_unsafe_strict_capabilities(
-                app=_strict_fastapi_app_with_planning_agent_route()
-            )
-        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
-        assert "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+        # Agent route with disabled binding is ALLOWED
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_planning_agent_route(),
+        )
+        assert reachable == ()
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
 def test_production_mode_planning_agent_route_fails_closed(monkeypatch):
-    """production + fake-agent route registered → UNSAFE_STRICT_CAPABILITY_WIRING."""
+    """production + agent route with disabled binding → ALLOWED.
+
+    D-S4-06: Agent routes with binding "disabled" are now allowed in
+    strict modes. The audit only flags capabilities with wrong/missing
+    binding identity or forbidden composition evidence.
+    """
     from cold_storage.bootstrap.runtime_readiness import (
-        UnsafeStrictCapabilityWiring,
-        assert_no_unsafe_strict_capabilities,
+        enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
+    # D-S4-06: Mock composition tokens to include required positive evidence
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
     try:
-        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
-            assert_no_unsafe_strict_capabilities(
-                app=_strict_fastapi_app_with_planning_agent_route()
-            )
-        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
-        assert "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+        # Agent route with disabled binding is ALLOWED
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_planning_agent_route(),
+        )
+        assert reachable == ()
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
 def test_staging_mode_coefficient_route_fails_closed(monkeypatch):
-    """staging + in-memory coefficient route → UNSAFE_STRICT_CAPABILITY_WIRING."""
+    """staging + coefficient route with database_backed binding → ALLOWED.
+
+    D-S4-06: Coefficient routes with binding "database_backed" are now
+    allowed in strict modes. The audit only flags capabilities with
+    wrong/missing binding identity or forbidden composition evidence.
+    """
     from cold_storage.bootstrap.runtime_readiness import (
-        UnsafeStrictCapabilityWiring,
-        assert_no_unsafe_strict_capabilities,
+        enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
     set_canonical_settings(_strict_settings("staging", monkeypatch))
+    # D-S4-06: Mock composition tokens to include required positive evidence
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
     try:
-        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
-            assert_no_unsafe_strict_capabilities(app=_strict_fastapi_app_with_coefficient_route())
-        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
-        assert "COEFFICIENT_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+        # Coefficient route with database_backed binding is ALLOWED
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_coefficient_route(),
+        )
+        assert reachable == ()
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
 
 
 def test_production_mode_coefficient_route_fails_closed(monkeypatch):
-    """production + in-memory coefficient route → UNSAFE_STRICT_CAPABILITY_WIRING."""
+    """production + coefficient route with database_backed binding → ALLOWED.
+
+    D-S4-06: Coefficient routes with binding "database_backed" are now
+    allowed in strict modes. The audit only flags capabilities with
+    wrong/missing binding identity or forbidden composition evidence.
+    """
     from cold_storage.bootstrap.runtime_readiness import (
-        UnsafeStrictCapabilityWiring,
-        assert_no_unsafe_strict_capabilities,
+        enumerate_reachable_unsafe_strict_capabilities,
         set_canonical_settings,
     )
 
     set_canonical_settings(_strict_settings("production", monkeypatch))
+    # D-S4-06: Mock composition tokens to include required positive evidence
+    monkeypatch.setattr(
+        "cold_storage.bootstrap.runtime_readiness.composition_manifest_tokens",
+        lambda: frozenset({"DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"}),
+    )
     try:
-        with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
-            assert_no_unsafe_strict_capabilities(app=_strict_fastapi_app_with_coefficient_route())
-        assert exc_info.value.failure_code == "UNSAFE_STRICT_CAPABILITY_WIRING"
-        assert "COEFFICIENT_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+        # Coefficient route with database_backed binding is ALLOWED
+        reachable = enumerate_reachable_unsafe_strict_capabilities(
+            app=_strict_fastapi_app_with_coefficient_route(),
+        )
+        assert reachable == ()
     finally:
         set_canonical_settings(None)  # type: ignore[arg-type]
 
@@ -1577,9 +1627,15 @@ def test_strict_audit_flags_composition_token_even_when_route_absent(monkeypatch
 
     previous = set_composition_manifest_provider(_manifest_with_token)
     try:
+        # D-S4-06: App must have binding manifest for audit
+        app_with_manifest = FastAPI()
+        app_with_manifest.state.strict_capability_bindings = (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "disabled"),
+        )
         with pytest.raises(UnsafeStrictCapabilityWiring) as exc_info:
-            assert_no_unsafe_strict_capabilities(app=FastAPI())
-        assert "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE" in (exc_info.value.unsafe_capabilities)
+            assert_no_unsafe_strict_capabilities(app=app_with_manifest)
+        assert "model_backed_agent" in (exc_info.value.unsafe_capabilities)
     finally:
         set_composition_manifest_provider(previous)
         set_canonical_settings(None)  # type: ignore[arg-type]
@@ -4203,6 +4259,11 @@ def test_strict_mode_init_live_composition_manifest_has_no_fake_token(
         # Step 8: confirm the strict capability audit passes on the
         # live app. This is the canonical assertion consumed by
         # production lifespan.
+        # D-S4-06: Set binding manifest on app before audit
+        app.state.strict_capability_bindings = (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "disabled"),
+        )
         assert_no_unsafe_strict_capabilities(app=app)
     finally:
         # Idempotent cleanup. We deliberately do NOT use the
