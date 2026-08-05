@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import sessionmaker
 
 from cold_storage.bootstrap.database import create_engine_from_settings, dispose_engine
@@ -32,28 +31,8 @@ _MODEL_BACKED_AGENT_CAPABILITY = "model_backed_agent"
 _STRICT_BINDINGS: tuple[tuple[str, str], ...] = (
     ("coefficient_http", "database_backed"),
     (_MODEL_BACKED_AGENT_CAPABILITY, "disabled"),
-)
-_AGENT_DISABLED_ERROR = {
-    "error": {
-        "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-        "message": "Model-backed planning agent capability is not included in V0.2 production scope.",
-        "details": {"retryable": False},
-    }
-}
-_AGENT_ROUTES: tuple[tuple[str, str], ...] = (
-    ("POST", "/api/v1/agent/sessions"),
-    ("GET", "/api/v1/agent/sessions"),
-    ("GET", "/api/v1/agent/sessions/{session_id}"),
-    ("GET", "/api/v1/agent/sessions/{session_id}/messages"),
-    ("POST", "/api/v1/agent/sessions/{session_id}/messages"),
-    ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}"),
-    ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls"),
-    ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/confirm"),
-    ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject"),
-    ("POST", "/api/v1/agent/sessions/{session_id}/cancel"),
-)
 
-
+)
 if TYPE_CHECKING:
     from sqlalchemy.orm import sessionmaker
 
@@ -189,9 +168,6 @@ def init_dependencies(settings: Settings, *, app: Any = None) -> None:
     )
 
     try:
-        _install_slice4_runtime_audit()
-        if app is not None:
-            _configure_slice4_application(app=app, settings=settings, mode=mode)
         run_startup_phase(
             settings=settings,
             environment={k: v for k, v in __import__("os").environ.items()},
@@ -323,259 +299,6 @@ def agent_capability_projection() -> tuple[dict[str, object], ...]:
             "blocking": False,
         },
     )
-
-
-def _configure_slice4_application(*, app: Any, settings: Settings, mode: Any) -> None:
-    """Register the finalized Slice 4 HTTP bindings before startup audit."""
-    from cold_storage.bootstrap.metrics.registry import get_metrics  # noqa: PLC0415
-    from cold_storage.bootstrap.mode import AppMode  # noqa: PLC0415
-
-    metrics = get_metrics()
-    metrics.register_capability(_MODEL_BACKED_AGENT_CAPABILITY)
-    metrics.record_capability_status(
-        _MODEL_BACKED_AGENT_CAPABILITY,
-        is_available=mode in (AppMode.LOCAL, AppMode.TEST),
-    )
-
-    _install_readiness_capability_projection(app)
-
-    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
-        app.state.strict_capability_bindings = tuple()
-        app.openapi_schema = None
-        return
-
-    _remove_routes(
-        app,
-        lambda route: str(getattr(route, "path", "")).startswith("/api/v1/coefficients")
-        or str(getattr(route, "path", "")).startswith("/api/v1/agent")
-        or str(getattr(route, "path", "")) == "/api/v1/demo/overview",
-    )
-
-    from cold_storage.modules.coefficients.api.routes import (  # noqa: PLC0415
-        register_coefficient_routes,
-    )
-
-    register_coefficient_routes(app, get_production_coefficient_service)
-    _mount_disabled_agent_routes(app)
-    _install_canonical_report_storage_override(app=app, settings=settings)
-
-    # Immutable, per-app positive declarations. The audit also requires the
-    # independently published database-service composition token; route
-    # declaration alone is never sufficient.
-    app.state.strict_capability_bindings = _STRICT_BINDINGS
-    app.openapi_schema = None
-
-
-def _remove_routes(app: Any, predicate: Callable[[Any], bool]) -> None:
-    routes = list(getattr(app.router, "routes", ()))
-    app.router.routes[:] = [route for route in routes if not predicate(route)]
-
-
-def _mount_disabled_agent_routes(app: Any) -> None:
-    from fastapi.responses import JSONResponse
-
-    def endpoint_factory(name: str) -> Callable[[], JSONResponse]:
-        def disabled_endpoint() -> JSONResponse:
-            return JSONResponse(status_code=503, content=_AGENT_DISABLED_ERROR)
-
-        disabled_endpoint.__name__ = name
-        return disabled_endpoint
-
-    response_docs = {
-        503: {
-            "description": "Model-backed planning agent is outside V0.2 production scope.",
-            "content": {"application/json": {"example": _AGENT_DISABLED_ERROR}},
-        }
-    }
-    for index, (method, path) in enumerate(_AGENT_ROUTES, start=1):
-        app.add_api_route(
-            path,
-            endpoint_factory(f"disabled_model_backed_agent_{index}"),
-            methods=[method],
-            status_code=503,
-            responses=response_docs,
-            tags=["agent"],
-            operation_id=f"disabled_model_backed_agent_{index}",
-        )
-
-
-def _install_readiness_capability_projection(app: Any) -> None:
-    """Replace the ready route with a schema-compatible capability wrapper."""
-    import json
-
-    from fastapi.responses import JSONResponse, Response
-
-    original = getattr(app.state, "slice4_original_ready_endpoint", None)
-    if original is None:
-        for route in list(getattr(app.router, "routes", ())):
-            if getattr(route, "path", None) == "/health/ready" and "GET" in getattr(
-                route, "methods", set()
-            ):
-                original = getattr(route, "endpoint", None)
-                break
-        if original is None:
-            raise RuntimeError("canonical readiness route is missing")
-        app.state.slice4_original_ready_endpoint = original
-
-    _remove_routes(app, lambda route: getattr(route, "path", None) == "/health/ready")
-
-    def ready_with_capabilities() -> Any:
-        result = original()
-        capabilities = [dict(item) for item in agent_capability_projection()]
-        if isinstance(result, Response):
-            try:
-                body = json.loads(bytes(result.body).decode("utf-8"))
-            except (TypeError, ValueError, UnicodeDecodeError):
-                body = {"status": "not_ready", "state": "ERROR"}
-            if not isinstance(body, dict):
-                body = {"status": "not_ready", "state": "ERROR"}
-            body["capabilities"] = capabilities
-            return JSONResponse(status_code=result.status_code, content=body)
-        if not isinstance(result, dict):
-            result = {"status": "not_ready", "state": "ERROR"}
-        body = dict(result)
-        body["capabilities"] = capabilities
-        return body
-
-    app.add_api_route(
-        "/health/ready",
-        ready_with_capabilities,
-        methods=["GET"],
-        name="ready",
-        tags=["health"],
-    )
-    app.openapi_schema = None
-
-
-def _install_canonical_report_storage_override(*, app: Any, settings: Settings) -> None:
-    """Bind active report rendering to the canonical Settings.storage_dir."""
-    from fastapi import Depends
-
-    def slice4_report_db_session() -> Generator[SASession, None, None]:
-        session = SASession(bind=get_engine(), expire_on_commit=False)
-        try:
-            yield session
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-    def slice4_report_render_service(
-        db_session: SASession = Depends(slice4_report_db_session),  # noqa: B008
-    ) -> Any:
-        from cold_storage.modules.reports.application.render_service import (  # noqa: PLC0415
-            ReportRenderService,
-            ReportRenderUnitOfWork,
-        )
-        from cold_storage.modules.reports.infrastructure.artifact_storage import (  # noqa: PLC0415
-            ReportArtifactStorage,
-        )
-        from cold_storage.modules.reports.infrastructure.repository import (  # noqa: PLC0415
-            SQLReportRepository,
-        )
-
-        if not settings.storage_dir:
-            raise RuntimeError("canonical artifact storage is not initialized")
-        repo = SQLReportRepository(db_session)
-        storage = ReportArtifactStorage(base_dir=settings.storage_dir)
-        uow = ReportRenderUnitOfWork(
-            db_session,
-            report_repo=repo,
-            artifact_repo=repo,
-            session_factory=lambda: SASession(
-                bind=db_session.bind,
-                expire_on_commit=False,
-            ),
-        )
-        return ReportRenderService(uow=uow, storage=storage, template_repo=repo)
-
-    replaced = False
-    for dependency in tuple(app.dependency_overrides):
-        if (
-            getattr(dependency, "__name__", "") == "_get_render_service"
-            and str(getattr(dependency, "__module__", "")).endswith(
-                "modules.reports.api.routes"
-            )
-        ):
-            app.dependency_overrides[dependency] = slice4_report_render_service
-            replaced = True
-    if not replaced:
-        raise RuntimeError("report render dependency override authority is missing")
-
-
-def _install_slice4_runtime_audit() -> None:
-    """Install the binding-identity audit into runtime_readiness authority."""
-    from cold_storage.bootstrap import runtime_readiness
-
-    runtime_readiness.enumerate_reachable_unsafe_strict_capabilities = (
-        _slice4_enumerate_reachable_unsafe_strict_capabilities
-    )
-    runtime_readiness.assert_no_unsafe_strict_capabilities = (
-        _slice4_assert_no_unsafe_strict_capabilities
-    )
-
-
-def _slice4_enumerate_reachable_unsafe_strict_capabilities(
-    *, app: Any, routes: Iterable[Any] | None = None
-) -> tuple[str, ...]:
-    """Cross-check strict routes, immutable binding identity, and composition evidence."""
-    from cold_storage.bootstrap.mode import AppMode, resolve_app_mode
-    from cold_storage.bootstrap.runtime_readiness import (
-        ConfigurationProbeFailed,
-        UnsafeStrictCapabilityWiring,
-        canonical_settings,
-        composition_manifest_tokens,
-    )
-
-    _ = routes
-    try:
-        mode = resolve_app_mode(canonical_settings())
-    except ConfigurationProbeFailed:
-        mode = None
-    if mode not in (AppMode.STAGING, AppMode.PRODUCTION):
-        return ()
-    if app is None:
-        raise UnsafeStrictCapabilityWiring(
-            "strict capability audit invoked without a FastAPI app",
-            unsafe_capabilities=(),
-        )
-
-    unsafe: set[str] = set()
-    manifest = getattr(getattr(app, "state", None), "strict_capability_bindings", None)
-    if manifest != _STRICT_BINDINGS or not isinstance(manifest, tuple):
-        unsafe.update({"coefficient_http", _MODEL_BACKED_AGENT_CAPABILITY})
-
-    tokens = composition_manifest_tokens()
-    if _COMPOSITION_TOKEN_PROVIDER_ERROR in tokens:
-        unsafe.update({"coefficient_http", _MODEL_BACKED_AGENT_CAPABILITY})
-    if _COMPOSITION_TOKEN_DATABASE_COEFFICIENT not in tokens:
-        unsafe.add("coefficient_http")
-    if _COMPOSITION_TOKEN_PROCESS_LOCAL_COEFFICIENT in tokens:
-        unsafe.add("coefficient_http")
-    if _COMPOSITION_TOKEN_FAKE_AGENT_GATEWAY in tokens:
-        unsafe.add(_MODEL_BACKED_AGENT_CAPABILITY)
-
-    route_paths = {str(getattr(route, "path", "")) for route in getattr(app, "routes", ())}
-    if "/api/v1/coefficients" not in route_paths:
-        unsafe.add("coefficient_http")
-    if "/api/v1/agent/sessions" not in route_paths:
-        unsafe.add(_MODEL_BACKED_AGENT_CAPABILITY)
-    if "/api/v1/demo/overview" in route_paths:
-        unsafe.add(_MODEL_BACKED_AGENT_CAPABILITY)
-
-    return tuple(sorted(unsafe))
-
-
-def _slice4_assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
-    from cold_storage.bootstrap.runtime_readiness import UnsafeStrictCapabilityWiring
-
-    unsafe = _slice4_enumerate_reachable_unsafe_strict_capabilities(app=app)
-    if unsafe:
-        raise UnsafeStrictCapabilityWiring(
-            f"unsafe strict capabilities reachable: {list(unsafe)!r}",
-            unsafe_capabilities=unsafe,
-        )
 
 
 def shutdown_dependencies() -> None:

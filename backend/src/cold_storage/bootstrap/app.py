@@ -335,6 +335,9 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     ]:
         _metrics.register_dependency(dep)
 
+    # D-S4-05: Register capability metric. Value set during init_dependencies.
+    _metrics.register_capability("model_backed_agent")
+
     app.add_api_route("/metrics", create_metrics_endpoint(_metrics))
     # Observability middleware – added after _metrics so we can inject it.
     app.add_middleware(StructuredLoggingMiddleware, metrics=_metrics)
@@ -345,16 +348,19 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     investment_estimator = InvestmentEstimator()
     core_calculation_service = CoreCalculationService()
 
-    # D-S2-06.b: in-memory coefficient service as HTTP backend is only
-    # safe in local / test modes. Staging / production must use the
-    # strict-approved resolver path only; the process-local service
-    # and its HTTP routes are NOT mounted, so any incoming request
-    # receives FastAPI's standard 404.
+    # D-S4-01: Coefficient routes are mounted in ALL modes. Local/test
+    # use a process-local service; staging/production use a delayed
+    # provider that resolves the database-backed service per-request.
     initial_mode = resolve_app_mode(get_settings())
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         coefficient_service = CoefficientService()
         register_coefficient_routes(app, coefficient_service)
-    # else: coefficient routes deliberately not mounted in strict modes
+    else:
+        from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
+            get_production_coefficient_service,
+        )
+
+        register_coefficient_routes(app, get_production_coefficient_service)
 
     # Scheme routes
     def _scheme_service_factory() -> SchemeService:
@@ -406,23 +412,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         * HTTP 503 when the state is ``INITIALIZING``,
           ``DRAINING``, ``SHUTDOWN_COMPLETE``, or any probe fails.
 
-        The response body MUST NOT contain raw exception text, DSNs,
-        passwords, tokens, secret mount contents, or unsafe path
-        details. Only stable state codes and the per-probe outcome
-        projections are surfaced.
-
-        ``ready()`` MUST NOT raise an exception; under strict-env
-        validation errors the endpoint reports ``state=ERROR`` with
-        HTTP 503 rather than propagating the pydantic
-        ``ValidationError`` to the client. This is the contract's
-        "fail closed" surface for the readiness HTTP channel.
-
-        F-S2-REVIEW-004 / F-S2-REVIEW-005: the endpoint consumes the
-        canonical ``Settings`` authority via ``canonical_settings()``
-        and runs the canonical 8-probe readiness tuple. We never build
-        a second Settings authority here, and the endpoint never
-        builds a new ``Settings()``; configuration failures surface
-        as the stable ``CONFIGURATION_PROBE_FAILED`` code.
+        D-S4-04: Response includes a safe capability projection.
         """
         from fastapi import Response
 
@@ -437,19 +427,12 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             run_readiness_phase,
         )
 
-        # F-PR76-MEDIUM-01: reuse the canonical Settings authority.
-        # Configuration failures (no canonical authority yet, pydantic
-        # ValidationError, Slice 1 frozen ConfigurationError) are
-        # caught here so the endpoint always surfaces a stable
-        # failure class rather than building a second Settings on
-        # the side. The ``check_code`` projected to the client is the
-        # Python class name of the Slice 1 frozen
-        # :class:`ConfigurationError` (``"ConfigurationError"``);
-        # it is a frozen Python identifier, NOT a runtime-invented
-        # stable string. The ``detail`` field is intentionally an
-        # opaque token, never ``str(exc)`` or
-        # ``type(exc).__name__``, so the response cannot leak
-        # exception-derived implementation details.
+        # D-S4-04: Safe capability projection.
+        def _capability_projection() -> list[dict[str, object]]:
+            from cold_storage.bootstrap.dependencies import agent_capability_projection
+
+            return [dict(c) for c in agent_capability_projection()]
+
         try:
             probe_settings = canonical_settings()
             configuration_failed: tuple[str, str] | None = None
@@ -479,14 +462,12 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                     {
                         "status": "draining" if state_name == "DRAINING" else "shutdown",
                         "state": state_name,
+                        "capabilities": _capability_projection(),
                     }
                 ),
             )
 
         if probe_settings is None:
-            # Configuration was incomplete; surface the Slice 1
-            # frozen ConfigurationError class name as the stable
-            # ``check_code``. F-PR76-MEDIUM-01.
             safe_code, safe_detail = configuration_failed or (
                 _ConfigurationError.__name__,
                 "settings unavailable",
@@ -499,6 +480,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
                         "status": "not_ready",
                         "state": state_name,
                         "check_code": safe_code,
+                        "capabilities": _capability_projection(),
                     }
                 ),
             )
@@ -510,12 +492,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         ok = all(o.status == "pass" for o in outcomes)
 
         if state_name == "READY" and ok:
-            return {"status": "ready", "state": state_name}
+            return {"status": "ready", "state": state_name, "capabilities": _capability_projection()}
 
-        # Build a safe projection: status, state, check_code (frozen
-        # code if any), and the per-probe outcome dicts that already
-        # pass through the redaction authority. We never echo raw
-        # exception text, DSN, or full path here.
         failed_codes = sorted({o.code for o in outcomes if o.code})
         primary_code = failed_codes[0] if failed_codes else "READINESS_PROBE_TIMEOUT"
         body = {
@@ -523,6 +501,7 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             "state": state_name,
             "check_code": primary_code,
             "outcomes": [o.to_dict() for o in outcomes],
+            "capabilities": _capability_projection(),
         }
         return Response(
             status_code=503,
@@ -530,29 +509,33 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
             content=json.dumps(body),
         )
 
-    @app.get("/api/v1/demo/overview")
-    def demo_overview() -> dict[str, Any]:
-        return build_demo_overview()
+    # D-S4-05: Demo routes are local/test only. Staging/production
+    # must not mount these routes to avoid FakeAgentModelGateway construction.
+    if initial_mode in (AppMode.LOCAL, AppMode.TEST):
 
-    @app.post("/api/v1/demo/planning-run")
-    def demo_planning_run(request: PlanningRunRequest) -> dict[str, Any]:
-        inputs = inputs_from_planning_request(request, demo_inputs())
-        zone_result = build_zone_plan_from_inputs(inputs, zone_planner)
-        total_area = round(
-            sum(zone_number(zone, "required_area_m2") for zone in zone_result.result["zones"]),
-            2,
-        )
-        power_configuration = build_power_configuration(
-            zone_result.result["zones"],
-            as_float(inputs["daily_inbound_mass_kg"]),
-            total_area,
-        )
-        investment_result = build_investment_from_zone_result(
-            zone_result,
-            investment_estimator,
-            as_float(power_configuration["total_installed_power_kw"]),
-        )
-        return planning_run_response(inputs, zone_result, investment_result)
+        @app.get("/api/v1/demo/overview")
+        def demo_overview() -> dict[str, Any]:
+            return build_demo_overview()
+
+        @app.post("/api/v1/demo/planning-run")
+        def demo_planning_run(request: PlanningRunRequest) -> dict[str, Any]:
+            inputs = inputs_from_planning_request(request, demo_inputs())
+            zone_result = build_zone_plan_from_inputs(inputs, zone_planner)
+            total_area = round(
+                sum(zone_number(zone, "required_area_m2") for zone in zone_result.result["zones"]),
+                2,
+            )
+            power_configuration = build_power_configuration(
+                zone_result.result["zones"],
+                as_float(inputs["daily_inbound_mass_kg"]),
+                total_area,
+            )
+            investment_result = build_investment_from_zone_result(
+                zone_result,
+                investment_estimator,
+                as_float(power_configuration["total_installed_power_kw"]),
+            )
+            return planning_run_response(inputs, zone_result, investment_result)
 
     @app.post("/api/v1/projects")
     def create_project(
@@ -912,13 +895,64 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         create_agent_router as _create_agent_router,
     )
 
-    # D-S2-06.a: the planning-agent router is backed by
-    # ``FakeAgentModelGateway``. In strict modes (staging / production)
-    # neither the gateway nor the router is mounted, so any incoming
-    # request to ``/api/v1/agent/...`` receives FastAPI's standard 404
-    # (no internal-state response).
+    # D-S4-02: Agent routes. Local/test mount the active router.
+    # Staging/production mount a disabled router returning stable 503.
+    from cold_storage.modules.planning_agent.api.routes import (  # noqa: PLC0415
+        create_agent_router as _create_agent_router,
+    )
+
     if initial_mode in (AppMode.LOCAL, AppMode.TEST):
         app.include_router(_create_agent_router(_get_planning_agent_service))
+    else:
+        # D-S4-02: Disabled agent routes in strict modes.
+        from fastapi.responses import JSONResponse as _JSONResponse  # noqa: PLC0415
+
+        _AGENT_DISABLED_ERROR = {
+            "error": {
+                "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+                "message": "Model-backed planning agent capability is not included in V0.2 production scope.",
+                "details": {"retryable": False},
+            }
+        }
+        _AGENT_ROUTES = (
+            ("POST", "/api/v1/agent/sessions"),
+            ("GET", "/api/v1/agent/sessions"),
+            ("GET", "/api/v1/agent/sessions/{session_id}"),
+            ("GET", "/api/v1/agent/sessions/{session_id}/messages"),
+            ("POST", "/api/v1/agent/sessions/{session_id}/messages"),
+            ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}"),
+            ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls"),
+            ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/confirm"),
+            ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject"),
+            ("POST", "/api/v1/agent/sessions/{session_id}/cancel"),
+        )
+
+        def _disabled_agent_endpoint(name: str) -> Callable[[], _JSONResponse]:
+            def _ep() -> _JSONResponse:
+                return _JSONResponse(status_code=503, content=_AGENT_DISABLED_ERROR)
+
+            _ep.__name__ = name
+            return _ep
+
+        for _idx, (_method, _path) in enumerate(_AGENT_ROUTES, start=1):
+            app.add_api_route(
+                _path,
+                _disabled_agent_endpoint(f"disabled_agent_{_idx}"),
+                methods=[_method],
+                status_code=503,
+                tags=["agent"],
+                operation_id=f"disabled_model_backed_agent_{_idx}",
+            )
+
+    # D-S4-06: Immutable binding manifest. Registered after route wiring,
+    # before lifespan startup. The strict audit checks this manifest.
+    if initial_mode in (AppMode.STAGING, AppMode.PRODUCTION):
+        app.state.strict_capability_bindings = (
+            ("coefficient_http", "database_backed"),
+            ("model_backed_agent", "disabled"),
+        )
+    else:
+        app.state.strict_capability_bindings = ()
 
     # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------
@@ -1100,7 +1134,10 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
         db_session: SASession = Depends(_get_reports_db_session),  # noqa: B008
     ) -> ReportRenderService:
         repo = SQLReportRepository(db_session)
-        artifact_storage = ReportArtifactStorage(base_dir="data/report_artifacts")
+        # D-S4-11: Use canonical Settings.storage_dir, not hardcoded path.
+        _settings = get_settings()
+        _storage_dir = _settings.storage_dir or "data/report_artifacts"
+        artifact_storage = ReportArtifactStorage(base_dir=_storage_dir)
         uow = ReportRenderUnitOfWork(
             db_session,
             report_repo=repo,
