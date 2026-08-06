@@ -797,56 +797,199 @@ def _route_path_for(route: Any) -> str:
     return ""
 
 
+def _validate_strict_binding_manifest(
+    *,
+    app: Any,
+    expected_manifest: tuple[tuple[str, str], ...],
+) -> tuple[str, ...]:
+    """Validate the binding identity manifest on app.state.
+
+    Returns a tuple of error codes. Empty tuple means valid.
+    """
+
+    bindings = getattr(getattr(app, "state", None), "strict_capability_bindings", None)
+
+    # MANIFEST_MISSING
+    if bindings is None:
+        return ("MANIFEST_MISSING",)
+
+    # MANIFEST_NOT_IMMUTABLE_TUPLE
+    if not isinstance(bindings, tuple):
+        return ("MANIFEST_NOT_IMMUTABLE_TUPLE",)
+
+    # Check each entry
+    seen: dict[str, str] = {}
+    capability_names: set[str] = set()
+
+    for entry in bindings:
+        # MALFORMED_ENTRY
+        if not isinstance(entry, tuple) or len(entry) != 2:
+            return ("MALFORMED_ENTRY",)
+        cap_name, identity = entry
+        if not isinstance(cap_name, str) or not isinstance(identity, str):
+            return ("MALFORMED_ENTRY",)
+
+        capability_names.add(cap_name)
+
+        # DUPLICATE_IDENTICAL_BINDING / DUPLICATE_CONFLICTING_BINDING
+        if cap_name in seen:
+            if seen[cap_name] == identity:
+                return ("DUPLICATE_IDENTICAL_BINDING",)
+            return ("DUPLICATE_CONFLICTING_BINDING",)
+        seen[cap_name] = identity
+
+    # Check against expected manifest
+    expected_dict = dict(expected_manifest)
+
+    # MISSING_REQUIRED_CAPABILITY
+    for exp_name in expected_dict:
+        if exp_name not in capability_names:
+            return ("MISSING_REQUIRED_CAPABILITY",)
+
+    # UNKNOWN_CAPABILITY / UNKNOWN_BINDING
+    for cap_name, identity in seen.items():
+        if cap_name not in expected_dict:
+            return ("UNKNOWN_CAPABILITY",)
+        if identity != expected_dict[cap_name]:
+            return ("UNKNOWN_BINDING",)
+
+    return ()
+
+
+def _validate_composition_evidence(
+    *,
+    forbidden_tokens: frozenset[str],
+    required_positive_token: str,
+) -> tuple[str, ...]:
+    """Validate composition evidence tokens.
+
+    Returns a tuple of error codes. Empty tuple means valid.
+    """
+
+    manifest_tokens = composition_manifest_tokens()  # same module
+
+    # COMPOSITION_MANIFEST_PROVIDER_ERROR
+    if "COMPOSITION_MANIFEST_PROVIDER_ERROR" in manifest_tokens:
+        return ("COMPOSITION_MANIFEST_PROVIDER_ERROR",)
+
+    # Check forbidden tokens
+    for token in forbidden_tokens:
+        if token in manifest_tokens:
+            return (f"FORBIDDEN_TOKEN:{token}",)
+
+    # MISSING_POSITIVE_DB_TOKEN
+    if required_positive_token and required_positive_token not in manifest_tokens:
+        return ("MISSING_POSITIVE_DB_TOKEN",)
+
+    return ()
+
+
+# Expected strict binding manifest (frozen by contract)
+_STRICT_EXPECTED_MANIFEST: tuple[tuple[str, str], ...] = (
+    ("coefficient_http", "database_backed"),
+    ("model_backed_agent", "disabled"),
+)
+
+
+# Audit spec: maps diagnostic name -> canonical capability + evidence requirements
+@dataclass(frozen=True)
+class _StrictAuditSpec:
+    """Per-capability audit specification for D-S4-06."""
+
+    diagnostic_name: str
+    canonical_capability_name: str
+    allowed_binding_identity: str
+    forbidden_composition_tokens: frozenset[str]
+    required_positive_composition_token: str
+    route_prefixes: tuple[str, ...]
+
+
+_STRICT_AUDIT_SPECS: dict[str, _StrictAuditSpec] = {
+    "PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE": _StrictAuditSpec(
+        diagnostic_name="PLANNING_AGENT_MODEL_HTTP_ROUTE_STRICT_MODE",
+        canonical_capability_name="model_backed_agent",
+        allowed_binding_identity="disabled",
+        forbidden_composition_tokens=frozenset({"FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"}),
+        required_positive_composition_token="",
+        route_prefixes=("/api/v1/agent/",),
+    ),
+    "COEFFICIENT_HTTP_ROUTE_STRICT_MODE": _StrictAuditSpec(
+        diagnostic_name="COEFFICIENT_HTTP_ROUTE_STRICT_MODE",
+        canonical_capability_name="coefficient_http",
+        allowed_binding_identity="database_backed",
+        forbidden_composition_tokens=frozenset({"PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED"}),
+        required_positive_composition_token="DATABASE_COEFFICIENT_SERVICE_INSTANTIATED",
+        route_prefixes=("/api/v1/coefficients",),
+    ),
+}
+
+# Frozen agent endpoint matrix (D-S4-06). The app factory registers
+# exactly these disabled routes in strict modes. Any additional
+# "/api/v1/agent/**" route must fail closed.
+_FROZEN_AGENT_ENDPOINT_PATHS: frozenset[str] = frozenset(
+    {
+        "/api/v1/agent/sessions",
+        "/api/v1/agent/sessions/{session_id}",
+        "/api/v1/agent/sessions/{session_id}/messages",
+        "/api/v1/agent/sessions/{session_id}/turns/{turn_id}",
+        "/api/v1/agent/sessions/{session_id}/tool-calls",
+        "/api/v1/agent/sessions/{session_id}/cancel",
+        "/api/v1/agent/tool-calls/{tool_call_id}/confirm",
+        "/api/v1/agent/tool-calls/{tool_call_id}/reject",
+    }
+)
+
+# Frozen method+path matrix for strict agent endpoint audit (D-S4-06).
+# Each entry is (HTTP_METHOD, path). The audit cross-validates that
+# every registered route matches both method AND path.
+_FROZEN_AGENT_ROUTE_MATRIX: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("POST", "/api/v1/agent/sessions"),
+        ("GET", "/api/v1/agent/sessions"),
+        ("GET", "/api/v1/agent/sessions/{session_id}"),
+        ("GET", "/api/v1/agent/sessions/{session_id}/messages"),
+        ("POST", "/api/v1/agent/sessions/{session_id}/messages"),
+        ("GET", "/api/v1/agent/sessions/{session_id}/turns/{turn_id}"),
+        ("GET", "/api/v1/agent/sessions/{session_id}/tool-calls"),
+        ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/confirm"),
+        ("POST", "/api/v1/agent/tool-calls/{tool_call_id}/reject"),
+        ("POST", "/api/v1/agent/sessions/{session_id}/cancel"),
+    }
+)
+
+
 def enumerate_reachable_unsafe_strict_capabilities(
-    *, app: Any, routes: Iterable[Any] | None = None
+    *,
+    app: Any,
+    routes: Iterable[Any] | None = None,
+    authority: Any | None = None,
 ) -> tuple[str, ...]:
     """Return the subset of registered capabilities that are reachable.
 
-    This is the defense-in-depth assertion required by D-S2-06.c. The
-    canonical outcome (per D-S2-06.a / D-S2-06.b) is that registered
-    strict capabilities MUST NOT be reachable as an HTTP route backend
-    in staging or production. This function inspects the live
-    application instance (FastAPI ``app`` and any explicit routes) and
-    returns the names of registered capabilities that are actually
-    reachable.
+    D-S4-06: The audit now validates binding identity manifest,
+    composition evidence, and route prefix as independent checks.
+    Route prefix alone does NOT prove unsafe.
 
-    ``app=None`` MUST NOT be interpreted as "audit succeeded".
-    Concretely: when the caller passes ``app=None`` (typically in a
-    unit test that does not own a FastAPI app), the audit raises
-    :class:`UnsafeStrictCapabilityWiring` so a regression cannot
-    silently bypass the defensive check. Production callers must
-    pass the real ``app`` instance, and unit tests that legitimately
-    want to exercise the audit without a real app must call
-    :func:`enumerate_reachable_unsafe_strict_capabilities` directly
-    and catch the exception in their own assertion logic.
-
-    The audit is INTENTIONALLY import-time side-effect free. It
-    inspects already-imported FastAPI objects through duck-typed
-    introspection only.
-
-    Mode-aware behaviour: in local / test mode the demo / fixture
-    flows may legitimately register the fake-agent or in-memory
-    coefficient route. The audit therefore returns an empty reachable
-    subset in non-strict modes so the canonical lifespan path is not
-    poisoned by the defensive check. In staging / production the
-    audit enforces the contract fail-closed.
-
-    Composition-time evidence (F-PR76-BLOCKER-03) is consulted in
-    addition to the route prefix inspection. In strict modes, any
-    registered capability whose ``composition_token`` is present in
-    the live composition manifest is considered reachable even when
-    no matching HTTP route is mounted, so an unsafe backend that
-    escapes routing inspection is still caught.
+    R6: Accepts an optional ``authority`` (StrictRuntimeAuthority).
+    When provided, the audit reads from this frozen object instead
+    of from writable ``app.state``.  This eliminates the
+    self-attestation pattern where a module writes to app.state
+    and the audit trusts it.
     """
     _ = routes  # explicit non-use; ``app`` is the canonical input.
-    # Mode-aware behaviour (per TASK-012 Slice 2 brief §2): the strict
-    # capability audit is ONLY meaningful in strict environments. In
-    # local / test mode the demo / fixture flows legitimately register
-    # the fake-agent or in-memory coefficient routes, so the audit MUST
-    # short-circuit and return an empty reachable subset BEFORE we ask
-    # whether ``app`` is present. In staging / production, ``app=None``
-    # is still NOT a silent success and the audit MUST fail closed so
-    # production lifespan always pass ``app=app`` explicitly.
+
+    # R7: Resolve the authority.
+    # Priority: explicit authority parameter > app.state fallback.
+    # When authority is explicitly provided (from lifespan closure),
+    # use it directly — do NOT fall back to app.state.
+    if authority is not None:
+        _auth = authority
+    elif app is not None:
+        _auth = getattr(app.state, "_strict_runtime_authority", None)
+    else:
+        _auth = None
+
+    # Mode-aware: only audit in staging/production
     try:
         settings = canonical_settings()
         mode = resolve_app_mode(settings)
@@ -860,43 +1003,211 @@ def enumerate_reachable_unsafe_strict_capabilities(
             "production lifespan must pass app=app explicitly",
             unsafe_capabilities=(),
         )
-    names = _strict_registry.registered()
-    route_paths: list[str] = []
-    app_routes = getattr(app, "routes", None)
-    if app_routes is not None:
-        try:
-            route_iter = list(app_routes)
-        except TypeError:
-            route_iter = []
-        for r in route_iter:
-            route_paths.append(_route_path_for(r))
-    manifest_tokens = composition_manifest_tokens()
+
+    # 1. Validate binding identity manifest
+    manifest_errors = _validate_strict_binding_manifest(
+        app=app,
+        expected_manifest=_STRICT_EXPECTED_MANIFEST,
+    )
+    if manifest_errors:
+        raise UnsafeStrictCapabilityWiring(
+            f"strict binding manifest validation failed: {manifest_errors!r}",
+            unsafe_capabilities=(),
+        )
+
+    # 2. Read composition manifest snapshot exactly once (D-S4-06).
+    # The audit MUST NOT call the provider per capability — a single
+    # snapshot ensures consistency across all specs.
+    manifest_snapshot = composition_manifest_tokens()
+
+    # 3. Validate composition evidence for each spec
     reachable: list[str] = []
-    for name in names:
-        spec = _STRICT_CAPABILITY_PROBES.get(name)
-        if spec is None:
-            continue
-        # Composition-time evidence: any spec whose token is present
-        # in the live manifest proves the unsafe composition happened
-        # at bootstrap, regardless of whether the route is reachable.
-        if spec.composition_token is not None and spec.composition_token in manifest_tokens:
-            reachable.append(name)
-            continue
-        for prefix in spec.route_prefixes:
-            # Match the prefix exactly, or as a path segment, or as a
-            # prefix substring. Path-segment matching keeps the audit
-            # robust to legitimate local-test prefixes that share the
-            # canonical segment.
-            if any(
-                p == prefix or p.startswith(prefix + "/") or p.startswith(prefix)
-                for p in route_paths
+    for _diag_name, spec in _STRICT_AUDIT_SPECS.items():
+        # Check composition evidence using the single snapshot
+        evidence_errors: tuple[str, ...] = ()
+        if "COMPOSITION_MANIFEST_PROVIDER_ERROR" in manifest_snapshot:
+            evidence_errors = ("COMPOSITION_MANIFEST_PROVIDER_ERROR",)
+        else:
+            for token in spec.forbidden_composition_tokens:
+                if token in manifest_snapshot:
+                    evidence_errors = (f"FORBIDDEN_TOKEN:{token}",)
+                    break
+            if (
+                not evidence_errors
+                and spec.required_positive_composition_token
+                and spec.required_positive_composition_token not in manifest_snapshot
             ):
-                reachable.append(name)
-                break
+                evidence_errors = ("MISSING_POSITIVE_DB_TOKEN",)
+
+        if evidence_errors:
+            reachable.append(spec.canonical_capability_name)
+            continue
+
+        # 4. Check route prefix as HTTP surface evidence
+        route_paths: list[str] = []
+        app_routes = getattr(app, "routes", None)
+        if app_routes is not None:
+            try:
+                route_iter = list(app_routes)
+            except TypeError:
+                route_iter = []
+            for r in route_iter:
+                route_paths.append(_route_path_for(r))
+
+        has_route = any(
+            p == prefix or p.startswith(prefix + "/") or p.startswith(prefix)
+            for prefix in spec.route_prefixes
+            for p in route_paths
+        )
+
+        if has_route:
+            # Agent routes: cross-validate against frozen endpoint authority
+            if spec.canonical_capability_name == "model_backed_agent":
+                # R6: Read from the composition-root authority, not app.state.
+                # The authority is the single source of truth for disabled endpoints.
+                frozen_authority: tuple[tuple[str, str, Any], ...] | None = None
+                if _auth is not None:
+                    # Convert AgentRouteAuthority objects to tuples for comparison.
+                    frozen_authority = tuple(
+                        (a.method, a.path, a.endpoint) for a in _auth.agent_routes
+                    )
+                if frozen_authority is None:
+                    # No frozen authority means agent endpoints were not
+                    # registered by the app factory — fail closed.
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Build 1:1 mapping of actual (method, path, endpoint)
+                # from registered APIRoute objects, only for agent paths.
+                actual_agent_routes: list[tuple[str, str, Any]] = []
+                for r in route_iter:
+                    r_path = _route_path_for(r)
+                    if not r_path.startswith("/api/v1/agent/"):
+                        continue
+                    methods = getattr(r, "methods", None)
+                    endpoint = getattr(r, "endpoint", None)
+                    if methods and endpoint:
+                        for m in methods:
+                            actual_agent_routes.append((m, r_path, endpoint))
+
+                # Compare frozen authority against actual routes using
+                # object identity (is), not string matching.
+                frozen_set = set((m, p, id(ep)) for m, p, ep in frozen_authority)
+                actual_set = set((m, p, id(ep)) for m, p, ep in actual_agent_routes)
+
+                # R8: Verify both authority and actual match the canonical
+                # frozen matrix. This catches the case where both authority
+                # and actual routes are wrong but match each other.
+                authority_method_path_set = frozenset((m, p) for m, p, _ep in frozen_authority)
+                actual_method_path_set = frozenset((m, p) for m, p, _ep in actual_agent_routes)
+                if authority_method_path_set != _FROZEN_AGENT_ROUTE_MATRIX:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+                if actual_method_path_set != _FROZEN_AGENT_ROUTE_MATRIX:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Extra routes on agent paths not in frozen authority
+                extra = actual_set - frozen_set
+                if extra:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Missing routes from frozen authority
+                missing = frozen_set - actual_set
+                if missing:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Verify each actual endpoint object identity matches
+                # the frozen authority endpoint object (not just id).
+                # This catches replaced endpoint objects.
+                for m, p, ep in actual_agent_routes:
+                    found = False
+                    for fm, fp, fep in frozen_authority:
+                        if m == fm and p == fp and ep is fep:
+                            found = True
+                            break
+                    if not found:
+                        reachable.append(spec.canonical_capability_name)
+                        break
+                if reachable:
+                    continue
+
+            # Coefficient routes: verify provider object identity
+            if spec.canonical_capability_name == "coefficient_http":
+                # R6: Read from the composition-root authority, not app.state.
+                # The authority contains the exact provider object and endpoints.
+                coeff_provider = None
+                coeff_route_auth: tuple[Any, ...] = ()
+                if _auth is not None:
+                    coeff_provider = _auth.coefficient_provider
+                    coeff_route_auth = _auth.coefficient_routes
+
+                if coeff_provider is None or not coeff_route_auth:
+                    # No coefficient provider or routes means routes were
+                    # not registered by the app factory — fail closed.
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Verify provider object identity: must be exactly
+                # get_production_coefficient_service (not a concrete
+                # instance, lambda, partial, or wrapper).
+                try:
+                    from cold_storage.bootstrap.dependencies import (  # noqa: PLC0415
+                        get_production_coefficient_service as _prod_svc,
+                    )
+
+                    if coeff_provider is not _prod_svc:
+                        reachable.append(spec.canonical_capability_name)
+                        continue
+                except ImportError:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Verify each coefficient endpoint is actually registered
+                # R8: Build actual coefficient route set and verify
+                # bidirectional equality (actual == authority exactly).
+                actual_coeff_routes: list[tuple[str, str, Any]] = []
+                for r in route_iter:
+                    r_path = _route_path_for(r)
+                    if not r_path.startswith("/api/v1/coefficients"):
+                        continue
+                    r_methods = getattr(r, "methods", None)
+                    r_endpoint = getattr(r, "endpoint", None)
+                    if r_methods and r_endpoint:
+                        for m in r_methods:
+                            actual_coeff_routes.append((m, r_path, r_endpoint))
+
+                # Build sets of (method, path, id(endpoint)) for comparison
+                auth_coeff_set = set((a.method, a.path, id(a.endpoint)) for a in coeff_route_auth)
+                actual_coeff_set = set((m, p, id(ep)) for m, p, ep in actual_coeff_routes)
+
+                # Bidirectional equality: actual must equal authority exactly
+                if auth_coeff_set != actual_coeff_set:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Verify each actual endpoint object identity matches
+                # the authority endpoint (not just id).
+                for m, p, ep in actual_coeff_routes:
+                    found = False
+                    for a in coeff_route_auth:
+                        if m == a.method and p == a.path and ep is a.endpoint:
+                            found = True
+                            break
+                    if not found:
+                        reachable.append(spec.canonical_capability_name)
+                        break
+
     return tuple(reachable)
 
 
-def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
+def assert_no_unsafe_strict_capabilities(
+    *,
+    app: Any = None,
+    authority: Any | None = None,
+) -> None:
     """Defense-in-depth assertion per D-S2-06.c.
 
     The function inspects the registered strict-mode capabilities,
@@ -908,8 +1219,11 @@ def assert_no_unsafe_strict_capabilities(*, app: Any = None) -> None:
     The audit is non-vacuous: ``app=None`` raises (it is not a silent
     success) and a clean app returns an empty reachable subset only
     when no strict capability is wired into a real ``APIRoute``.
+
+    R7: Accepts explicit authority parameter. When provided, the audit
+    reads from this frozen object instead of from app.state.
     """
-    reachable = enumerate_reachable_unsafe_strict_capabilities(app=app)
+    reachable = enumerate_reachable_unsafe_strict_capabilities(app=app, authority=authority)
     if reachable:
         raise UnsafeStrictCapabilityWiring(
             f"unsafe strict capabilities reachable: {sorted(reachable)!r}",
@@ -997,6 +1311,7 @@ def run_startup_phase(
     environment: Mapping[str, str],
     startup_probes: Iterable[ProbeFn],
     app: Any = None,
+    strict_runtime_authority: Any | None = None,
 ) -> tuple[ProbeOutcome, ...]:
     """Run the startup phase exactly once.
 
@@ -1004,6 +1319,9 @@ def run_startup_phase(
     the configured per-probe timeout. Any non-passing outcome aborts
     startup immediately. After all probes pass, the readiness state
     transitions to ``READY``.
+
+    R7: Accepts strict_runtime_authority explicitly and passes it to
+    assert_no_unsafe_strict_capabilities.
     """
     mode = resolve_app_mode(settings)
     timeout = resolve_probe_timeout_seconds(settings=settings, kind="startup")
@@ -1053,7 +1371,9 @@ def run_startup_phase(
     # probe-induced state change cannot bypass the assertion.  The
     # argument ``app`` is optional; ``None`` is NOT a silent success
     # (see ``enumerate_reachable_unsafe_strict_capabilities``).
-    assert_no_unsafe_strict_capabilities(app=app)
+    #
+    # R7: Pass the explicit authority from the lifespan closure.
+    assert_no_unsafe_strict_capabilities(app=app, authority=strict_runtime_authority)
 
     # Freeze the readiness state.  We rely on the bootstrap singleton
     # owner (``bootstrap.dependencies``) to publish this through the
