@@ -1,6 +1,6 @@
 UV_CACHE_DIR ?= .uv-cache
 
-.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build
+.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -88,3 +88,48 @@ verify-slice2:
 	@echo 'verify-slice2 starting'
 	@$(MAKE) --no-print-directory production-config
 	@echo 'verify-slice2 ok'
+
+# --- TASK-012 Slice 2 R1: release-candidate evidence verification ---
+
+# Lint the release evidence module.
+release-evidence-lint:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff check src/cold_storage/release/ && uv run ruff format --check src/cold_storage/release/
+
+# Typecheck the release evidence module.
+release-evidence-typecheck:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run mypy src/cold_storage/release/ --strict --ignore-missing-imports
+
+# Run all release evidence tests (unit + integration + architecture).
+release-evidence-test:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
+		tests/unit/test_canonical_serialization.py \
+		tests/unit/test_reproducible_build_evidence.py \
+		tests/unit/test_final_image_digest.py \
+		tests/unit/test_artifact_manifest.py \
+		tests/unit/test_provenance_statement.py \
+		tests/unit/test_promotion_record.py \
+		tests/unit/test_negative_scenarios.py \
+		tests/integration/test_release_candidate_evidence.py \
+		tests/architecture/test_release_evidence_boundaries.py \
+		-q
+
+# Full release evidence verification gate.
+verify-release-evidence: release-evidence-lint release-evidence-typecheck release-evidence-test
+	@echo 'verify-release-evidence ok'
+
+# Verify that base images in Dockerfile and Compose files are pinned by digest.
+verify-base-image-digests:
+	@echo 'checking base image digest pinning...'
+	@if ! grep -q '@sha256:' backend/Dockerfile; then \
+		echo 'FAIL: backend/Dockerfile does not pin base images by digest' >&2; \
+		exit 1; \
+	fi
+	@if ! grep -q '@sha256:' docker-compose.yml; then \
+		echo 'FAIL: docker-compose.yml does not pin images by digest' >&2; \
+		exit 1; \
+	fi
+	@if ! grep -q '@sha256:' docker-compose.production.yml; then \
+		echo 'FAIL: docker-compose.production.yml does not pin images by digest' >&2; \
+		exit 1; \
+	fi
+	@echo 'verify-base-image-digests ok'

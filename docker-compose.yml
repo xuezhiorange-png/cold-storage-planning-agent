@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    # TASK-012 Slice 2 R1 §6.2.7: digest-pinned base image.
+    # Digest from Docker Hub RepoDigest for pgvector/pgvector:0.7.2-pg16.
+    image: pgvector/pgvector:0.7.2-pg16@sha256:95732f8f93a33bcd427b8e0e8f9d8ceedb5256a6fe5f2b58a4cd78e943c7e30e
     environment:
       POSTGRES_DB: cold_storage
       POSTGRES_USER: cold_storage
@@ -10,7 +12,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
   redis:
-    image: redis:7-alpine
+    # TASK-012 Slice 2 R1 §6.2.7: digest-pinned base image.
+    # Digest from Docker Hub RepoDigest for redis:7-alpine (7.4.7).
+    image: redis:7-alpine@sha256:66f2428ae138e8af9dce81c4531db952a250b6b28e4d73bd7b4397a7d7481b79
     ports:
       - "6379:6379"
 volumes:

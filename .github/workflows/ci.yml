@@ -38,9 +38,12 @@ jobs:
           POSTGRES_PASSWORD: ci-only-not-a-real-secret
         run: |
           set -euo pipefail
+          # TASK-012 Slice 2 R1 §6.2.11: SOURCE_DATE_EPOCH from commit timestamp.
+          SOURCE_DATE_EPOCH=$(git show -s --format=%ct "${{ github.event.pull_request.head.sha || github.sha }}")
           docker build \
             --build-arg COLD_STORAGE_BUILD_COMMIT_SHA="${COLD_STORAGE_BUILD_COMMIT_SHA}" \
             --build-arg COLD_STORAGE_BUILD_VERSION="${COLD_STORAGE_BUILD_VERSION}" \
+            --build-arg SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH}" \
             -t cold-storage-backend:ci-smoke \
             -f backend/Dockerfile \
             .
@@ -656,3 +659,42 @@ jobs:
         run: cd frontend && npm ci
       - name: Frontend quality
         run: cd frontend && npm run lint && npm run typecheck && npm run test && npm run build
+
+  # TASK-012 Slice 2 R1: release-candidate build and provenance evidence.
+  # This job runs the full evidence verification suite: canonical
+  # serialization, reproducible build evidence, final image digest,
+  # artifact manifest, provenance statement, promotion record, and
+  # all 20 negative scenario tests.  It does NOT push to any registry,
+  # create tags, or perform deployments.
+  release-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Release evidence lint
+        run: cd backend && uv run ruff check src/cold_storage/release/ && uv run ruff format --check src/cold_storage/release/
+      - name: Release evidence typecheck
+        run: cd backend && uv run mypy src/cold_storage/release/ --strict --ignore-missing-imports
+      - name: Release evidence unit tests
+        run: |
+          cd backend && PYTHONPATH=src uv run pytest \
+            tests/unit/test_canonical_serialization.py \
+            tests/unit/test_reproducible_build_evidence.py \
+            tests/unit/test_final_image_digest.py \
+            tests/unit/test_artifact_manifest.py \
+            tests/unit/test_provenance_statement.py \
+            tests/unit/test_promotion_record.py \
+            tests/unit/test_negative_scenarios.py \
+            -q
+      - name: Release evidence integration tests
+        run: |
+          cd backend && PYTHONPATH=src uv run pytest \
+            tests/integration/test_release_candidate_evidence.py \
+            -q
+      - name: Release evidence architecture tests
+        run: |
+          cd backend && PYTHONPATH=src uv run pytest \
+            tests/architecture/test_release_evidence_boundaries.py \
+            -q
