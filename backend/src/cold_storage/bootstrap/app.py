@@ -340,41 +340,39 @@ class AgentMessageRequest(BaseModel):
 
 
 # --------------------------------------------------------------------------- Lifespan
-# --------------------------------------------------------------------------- Lifespan
 # ---------------------------------------------------------------------------
 
-# R7: Per-app strict authority captured by the lifespan closure.
-# The authority is set by create_app() after all routes are registered.
-# The lifespan reads from this variable, NOT from app.state.
-_strict_authority_ref: StrictRuntimeAuthority | None = None
+# R8: Per-app strict authority captured by the lifespan closure.
+# Each create_app() call creates its own _authority_box list.
+# The lifespan closure captures the box reference, not the value.
+# The box is filled AFTER all routes are registered.
+# This guarantees per-app isolation: multiple create_app() calls
+# produce independent authority references.
+_authority_box: list[StrictRuntimeAuthority | None] = [None]
 
 
-def _make_lifespan() -> Any:
-    """Create a per-app lifespan closure that captures the strict authority.
+def _make_lifespan(
+    authority_box: list[StrictRuntimeAuthority | None],
+) -> Any:
+    """Create a per-app lifespan closure that captures the authority box.
 
-    R7: The authority is a frozen dataclass built by create_app() after
-    all routes are registered. The lifespan passes it to init_dependencies,
-    which threads it through run_startup_phase → assert_no_unsafe_strict_capabilities
-    → enumerate_reachable_unsafe_strict_capabilities.
+    R8: The authority_box is a one-element mutable list created per
+    create_app() call. The lifespan reads authority_box[0] at startup
+    time (not at creation time), which is set after all routes are
+    registered. This guarantees per-app isolation.
 
     The authority is NEVER read from app.state for security decisions.
     app.state retains a diagnostic copy only.
-
-    The authority is read from the module-level _strict_authority_ref
-    at lifespan start time (not at creation time), because FastAPI
-    requires the lifespan at app creation but the authority is built
-    after all routes are registered.
     """
 
     @asynccontextmanager
     async def _lifespan_inner(app: FastAPI):  # type: ignore[no-untyped-def]
-        # R7: Read the authority from the module-level reference,
-        # which create_app() sets after building it.
-        auth = _strict_authority_ref
+        # R8: Read the authority from the per-app box, NOT from app.state.
+        auth = authority_box[0]
         if auth is None:
             raise RuntimeError(
                 "strict runtime authority not initialized — "
-                "create_app() must set the authority before lifespan starts"
+                "create_app() must fill the authority box before lifespan starts"
             )
         try:
             init_dependencies(get_settings(), app=app, strict_runtime_authority=auth)
@@ -391,7 +389,13 @@ def _make_lifespan() -> Any:
 
 def create_app(project_service: ProjectService | None = None) -> FastAPI:
     configure_logging()
-    app = FastAPI(title="Cold Storage Planning Agent V1", lifespan=_make_lifespan())
+    # R8: Create a per-app authority box. The lifespan closure captures
+    # this specific list instance, guaranteeing per-app isolation.
+    _app_authority_box: list[StrictRuntimeAuthority | None] = [None]
+    app = FastAPI(
+        title="Cold Storage Planning Agent V1",
+        lifespan=_make_lifespan(_app_authority_box),
+    )
 
     # --- Observability middleware (must be first to capture all requests) ---
     # --- Metrics endpoint ---
@@ -436,7 +440,8 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     ]:
         _metrics.register_dependency(dep)
 
-    # D-S4-05: Register capability metric. Value set during init_dependencies.
+    # D-S4-05: Register capability metric. Recorded below after
+    # initial_mode is resolved (see lines 650-656).
     _metrics.register_capability("model_backed_agent")
 
     app.add_api_route("/metrics", create_metrics_endpoint(_metrics))
@@ -1121,10 +1126,11 @@ def create_app(project_service: ProjectService | None = None) -> FastAPI:
     )
     app.state._strict_runtime_authority = _strict_authority  # noqa: SLF001
 
-    # R7: Set the module-level reference so the lifespan can read it.
+    # R8: Fill the per-app authority box so the lifespan can read it.
     # This is the ONLY place the authority is set for the lifespan.
-    global _strict_authority_ref  # noqa: PLW0603
-    _strict_authority_ref = _strict_authority
+    # Each create_app() call has its own _app_authority_box, guaranteeing
+    # per-app isolation.
+    _app_authority_box[0] = _strict_authority
 
     # ----------------------------------------------------------------------- Core Calculation En
     # -----------------------------------------------------------------------

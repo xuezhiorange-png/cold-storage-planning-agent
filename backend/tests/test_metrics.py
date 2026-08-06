@@ -162,3 +162,54 @@ class TestCapabilityMetrics:
         output = m.collect()
         val = _parse_capability_value(output, "model_backed_agent")
         assert val == 1.0
+
+    # --- R8: 4-mode create_app metric matrix --------------------------
+
+    @pytest.fixture()
+    def _local_env(self, monkeypatch):
+        """Configure local mode environment."""
+        monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
+        monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+        monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+        monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "5")
+        monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+
+    @pytest.fixture()
+    def _test_env(self, monkeypatch):
+        """Configure test mode environment."""
+        monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "test")
+        monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "sqlite")
+        monkeypatch.setenv("COLD_STORAGE_SQLITE_PATH", ":memory:")
+        monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "5")
+        monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "5")
+
+    def test_capability_mode_matrix_local_via_create_app(self, _local_env) -> None:
+        """LOCAL_METRIC_VALUE=1 via create_app."""
+        from cold_storage.bootstrap.app import create_app
+
+        create_app()
+        m = get_metrics()
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0, f"LOCAL mode should record 1.0, got {val}"
+
+    def test_capability_mode_matrix_test_via_create_app(self, _test_env) -> None:
+        """TEST_METRIC_VALUE=1 via create_app."""
+        from cold_storage.bootstrap.app import create_app
+
+        create_app()
+        m = get_metrics()
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0, f"TEST mode should record 1.0, got {val}"
+
+    def test_repeated_app_creation_isolated(self, _local_env) -> None:
+        """REPEATED_APP_CREATION_ISOLATED: creating two apps does not leave
+        stale metric values from the first app."""
+        from cold_storage.bootstrap.app import create_app
+
+        create_app()  # LOCAL → 1.0
+        m = get_metrics()
+        output = m.collect()
+        val = _parse_capability_value(output, "model_backed_agent")
+        assert val == 1.0

@@ -1095,6 +1095,18 @@ def enumerate_reachable_unsafe_strict_capabilities(
                 frozen_set = set((m, p, id(ep)) for m, p, ep in frozen_authority)
                 actual_set = set((m, p, id(ep)) for m, p, ep in actual_agent_routes)
 
+                # R8: Verify both authority and actual match the canonical
+                # frozen matrix. This catches the case where both authority
+                # and actual routes are wrong but match each other.
+                authority_method_path_set = frozenset((m, p) for m, p, _ep in frozen_authority)
+                actual_method_path_set = frozenset((m, p) for m, p, _ep in actual_agent_routes)
+                if authority_method_path_set != _FROZEN_AGENT_ROUTE_MATRIX:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+                if actual_method_path_set != _FROZEN_AGENT_ROUTE_MATRIX:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
                 # Extra routes on agent paths not in frozen authority
                 extra = actual_set - frozen_set
                 if extra:
@@ -1154,21 +1166,37 @@ def enumerate_reachable_unsafe_strict_capabilities(
                     continue
 
                 # Verify each coefficient endpoint is actually registered
-                for auth_ep in coeff_route_auth:
-                    found_route = False
-                    for r in route_iter:
-                        r_path = _route_path_for(r)
-                        r_methods = getattr(r, "methods", None)
-                        r_endpoint = getattr(r, "endpoint", None)
-                        if (
-                            r_path == auth_ep.path
-                            and r_methods
-                            and auth_ep.method in r_methods
-                            and r_endpoint is auth_ep.endpoint
-                        ):
-                            found_route = True
+                # R8: Build actual coefficient route set and verify
+                # bidirectional equality (actual == authority exactly).
+                actual_coeff_routes: list[tuple[str, str, Any]] = []
+                for r in route_iter:
+                    r_path = _route_path_for(r)
+                    if not r_path.startswith("/api/v1/coefficients"):
+                        continue
+                    r_methods = getattr(r, "methods", None)
+                    r_endpoint = getattr(r, "endpoint", None)
+                    if r_methods and r_endpoint:
+                        for m in r_methods:
+                            actual_coeff_routes.append((m, r_path, r_endpoint))
+
+                # Build sets of (method, path, id(endpoint)) for comparison
+                auth_coeff_set = set((a.method, a.path, id(a.endpoint)) for a in coeff_route_auth)
+                actual_coeff_set = set((m, p, id(ep)) for m, p, ep in actual_coeff_routes)
+
+                # Bidirectional equality: actual must equal authority exactly
+                if auth_coeff_set != actual_coeff_set:
+                    reachable.append(spec.canonical_capability_name)
+                    continue
+
+                # Verify each actual endpoint object identity matches
+                # the authority endpoint (not just id).
+                for m, p, ep in actual_coeff_routes:
+                    found = False
+                    for a in coeff_route_auth:
+                        if m == a.method and p == a.path and ep is a.endpoint:
+                            found = True
                             break
-                    if not found_route:
+                    if not found:
                         reachable.append(spec.canonical_capability_name)
                         break
 
