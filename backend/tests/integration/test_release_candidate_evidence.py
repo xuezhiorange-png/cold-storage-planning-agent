@@ -12,6 +12,7 @@ from collections import OrderedDict
 import pytest
 
 from cold_storage.release.canonical_serialization import ReleaseEvidenceError
+from cold_storage.release.digest_verifier import compute_build_input_manifest_digest
 from cold_storage.release.evidence_collector import (
     BuildInputs,
     BuildRunRecord,
@@ -59,7 +60,29 @@ def _inputs() -> BuildInputs:
     )
 
 
-def _run(digest: str = IMAGE) -> BuildRunRecord:
+def _declared_manifest_digest(inputs: BuildInputs) -> str:
+    """Compute the canonical build-input manifest digest for *inputs*.
+
+    Test helper: in production each build run carries its own independently
+    declared digest as part of its evidence.  Tests use this helper to
+    produce a *correct* declared digest for the normal/passing case so the
+    collector's integrity verifier accepts it.  Negative tests override
+    the declared digest to a tampered value via ``declared_manifest_digest``.
+    """
+    return compute_build_input_manifest_digest(inputs.to_input_manifest())
+
+
+def _run(
+    digest: str = IMAGE,
+    inputs: BuildInputs | None = None,
+    declared_manifest_digest: str | None = None,
+) -> BuildRunRecord:
+    used_inputs = inputs if inputs is not None else _inputs()
+    declared = (
+        declared_manifest_digest
+        if declared_manifest_digest is not None
+        else _declared_manifest_digest(used_inputs)
+    )
     return BuildRunRecord(
         build_run_id="run-1",
         build_run_attempt=1,
@@ -73,6 +96,7 @@ def _run(digest: str = IMAGE) -> BuildRunRecord:
         base_image_tag="python:3.12-slim",
         base_image_digest=BASE,
         lockfile_digest=LOCK,
+        build_input_manifest_digest=declared,
     )
 
 
@@ -418,8 +442,10 @@ class TestB3PerRunBuildInputCapture:
         Build A and B have the same final_image_digest, same source_commit_sha,
         same base image, same lockfile, same build args, same platform —
         but Build A source_date_epoch=100 and Build B source_date_epoch=200.
-        The collector must FAIL because the observed build-input manifests
-        differ, proving the builds are not actually reproducible.
+        Each build's declared manifest digest matches its own observed inputs
+        (Layer 1 passes), but the two observed manifests differ, so the
+        collector must FAIL at the manifest-comparison step (Layer 2),
+        proving the builds are not actually reproducible.
         """
         inputs_a = _inputs_custom(source_date_epoch=100)
         inputs_b = _inputs_custom(source_date_epoch=200)
@@ -427,8 +453,8 @@ class TestB3PerRunBuildInputCapture:
             collect_release_candidate_evidence(
                 build_a_inputs=inputs_a,
                 build_b_inputs=inputs_b,
-                build_a=_run(),
-                build_b=_run(),
+                build_a=_run(inputs=inputs_a),
+                build_b=_run(inputs=inputs_b),
                 artifacts=_artifacts(),
                 test_result_reference="https://github.com/test/run/1",
                 verification_result_reference="https://github.com/test/run/2",
@@ -461,8 +487,8 @@ class TestB3PerRunBuildInputCapture:
             collect_release_candidate_evidence(
                 build_a_inputs=inputs_a,
                 build_b_inputs=inputs_b,
-                build_a=_run(),
-                build_b=_run(),
+                build_a=_run(inputs=inputs_a),
+                build_b=_run(inputs=inputs_b),
                 artifacts=_artifacts(),
                 test_result_reference="https://github.com/test/run/1",
                 verification_result_reference="https://github.com/test/run/2",
@@ -473,22 +499,23 @@ class TestB3PerRunBuildInputCapture:
             "RC_FINAL_IMAGE_DIGEST_MISMATCH",
         )
 
-    def test_build_a_manifest_declared_digest_tampered_fails(self) -> None:
-        """Build A declared manifest digest tampered → collector FAIL.
+    def test_build_a_manifest_declared_digest_matching_passes(self) -> None:
+        """Build A declared manifest digest matches observed manifest → PASS.
 
-        The collector's internal verify_reproducible_build call includes
-        verify_build_input_manifest which recomputes the canonical digest
-        from the build inputs and rejects drift.  Since _build_run_to_record
-        computes the correct digest, this test verifies the positive case:
-        same inputs → PASS.  The standalone tamper test is covered by
-        test_declared_manifest_digest_drift_fails in the unit tests.
+        Renamed from ``test_build_a_manifest_declared_digest_tampered_fails``
+        (R2): that test name claimed a tamper/fail but actually exercised the
+        positive case with no ``pytest.raises``.  The true tamper negatives
+        are now covered by ``test_collector_rejects_build_a_tampered_declared_manifest_digest``
+        and ``test_collector_rejects_build_b_tampered_declared_manifest_digest``
+        below, which route a BAD declared digest through the full public
+        ``collect_release_candidate_evidence`` entry point.
         """
         inputs_a = _inputs_custom(source_date_epoch=100)
         bundle = collect_release_candidate_evidence(
             build_a_inputs=inputs_a,
             build_b_inputs=inputs_a,
-            build_a=_run(),
-            build_b=_run(),
+            build_a=_run(inputs=inputs_a),
+            build_b=_run(inputs=inputs_a),
             artifacts=_artifacts(),
             test_result_reference="https://github.com/test/run/1",
             verification_result_reference="https://github.com/test/run/2",
@@ -496,16 +523,61 @@ class TestB3PerRunBuildInputCapture:
         )
         assert bundle.authoritative_image_digest == IMAGE
 
+    def test_collector_rejects_build_a_tampered_declared_manifest_digest(self) -> None:
+        """Build A declared digest = BAD, Build A observed manifest = GOOD → FAIL.
+
+        R3 hard gate (Case A): Build A's declared ``build_input_manifest_digest``
+        is tampered to a wrong value while its observed input manifest is
+        canonical-good.  Build B is completely normal.  The public collector
+        ``collect_release_candidate_evidence`` must FAIL because the declared
+        digest does not match the recomputed canonical digest of Build A's
+        observed inputs (Layer 1 violation).
+        """
+        inputs = _inputs()
+        with pytest.raises(ReleaseEvidenceError) as exc:
+            collect_release_candidate_evidence(
+                build_a_inputs=inputs,
+                build_b_inputs=inputs,
+                build_a=_run(inputs=inputs, declared_manifest_digest="sha256:" + "0" * 64),
+                build_b=_run(inputs=inputs),
+                artifacts=_artifacts(),
+                test_result_reference="https://github.com/test/run/1",
+                verification_result_reference="https://github.com/test/run/2",
+                attestation=ATT,
+            )
+        assert exc.value.failure_code == RC_FINAL_IMAGE_DIGEST_MISMATCH
+
+    def test_collector_rejects_build_b_tampered_declared_manifest_digest(self) -> None:
+        """Build B declared digest = BAD, Build B observed manifest = GOOD → FAIL.
+
+        R3 hard gate (Case B): symmetric to Case A — Build B's declared
+        ``build_input_manifest_digest`` is tampered while Build A is normal.
+        The public collector must FAIL (Layer 1 violation on Build B).
+        """
+        inputs = _inputs()
+        with pytest.raises(ReleaseEvidenceError) as exc:
+            collect_release_candidate_evidence(
+                build_a_inputs=inputs,
+                build_b_inputs=inputs,
+                build_a=_run(inputs=inputs),
+                build_b=_run(inputs=inputs, declared_manifest_digest="sha256:" + "0" * 64),
+                artifacts=_artifacts(),
+                test_result_reference="https://github.com/test/run/1",
+                verification_result_reference="https://github.com/test/run/2",
+                attestation=ATT,
+            )
+        assert exc.value.failure_code == RC_FINAL_IMAGE_DIGEST_MISMATCH
+
     def test_expected_inputs_mismatch_fails(self) -> None:
-        """Expected inputs differ from observed → collector FAIL."""
+        """Expected inputs differ from observed → collector FAIL (Layer 3)."""
         expected = _inputs_custom(source_date_epoch=999)
         observed = _inputs_custom(source_date_epoch=100)
         with pytest.raises(ReleaseEvidenceError) as exc:
             collect_release_candidate_evidence(
                 build_a_inputs=observed,
                 build_b_inputs=observed,
-                build_a=_run(),
-                build_b=_run(),
+                build_a=_run(inputs=observed),
+                build_b=_run(inputs=observed),
                 artifacts=_artifacts(),
                 test_result_reference="https://github.com/test/run/1",
                 verification_result_reference="https://github.com/test/run/2",
@@ -523,7 +595,15 @@ def _run_custom(
     digest: str = IMAGE,
     local_oci: str | None = None,
     registry: str | None = None,
+    inputs: BuildInputs | None = None,
+    declared_manifest_digest: str | None = None,
 ) -> BuildRunRecord:
+    used_inputs = inputs if inputs is not None else _inputs()
+    declared = (
+        declared_manifest_digest
+        if declared_manifest_digest is not None
+        else _declared_manifest_digest(used_inputs)
+    )
     return BuildRunRecord(
         build_run_id="run-1",
         build_run_attempt=1,
@@ -537,6 +617,7 @@ def _run_custom(
         base_image_tag="python:3.12-slim",
         base_image_digest=BASE,
         lockfile_digest=LOCK,
+        build_input_manifest_digest=declared,
     )
 
 

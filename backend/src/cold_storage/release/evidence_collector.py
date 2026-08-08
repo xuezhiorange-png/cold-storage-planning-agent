@@ -14,6 +14,17 @@ build-input manifest.  The collector no longer shares a single
 ``BuildInputs`` across both builds — each run's manifest is independently
 canonicalized, digested, and integrity-verified before comparison.
 
+B3 (Correction R3): The per-build ``build_input_manifest_digest`` is now
+an *independently declared* field carried by each ``BuildRunRecord`` — it
+is the digest the build run's own evidence declares, **not** a value the
+collector computes and then verifies against itself (which was a circular
+proof).  ``_build_run_to_record`` copies the run's declared digest into
+the record verbatim; the existing ``verify_build_input_manifest`` then
+recomputes the canonical digest of the run's *observed* inputs and
+rejects any drift between declared and recomputed.  This establishes the
+real trust relationship: declared digest (from per-build evidence) ↔
+recomputed canonical digest (of the observed input manifest).
+
 B4 (Correction R2): The authoritative RC digest is established through a
 single continuous binding chain — Build A recorded ↔ Build A actual OCI ↔
 Build B recorded ↔ Build B actual OCI ↔ authoritative RC ↔ registry (if
@@ -112,6 +123,11 @@ class BuildRunRecord:
     base_image_tag: str
     base_image_digest: str
     lockfile_digest: str
+    # B3 (R3): independently declared build-input manifest digest carried by
+    # this run's own evidence.  The collector does NOT compute this — it is
+    # an external declaration that verify_build_input_manifest checks
+    # against the recomputed canonical digest of the observed inputs.
+    build_input_manifest_digest: str = ""
     reproducible_build_result: str = "PASS"
 
 
@@ -132,14 +148,18 @@ class EvidenceBundle:
 def _build_run_to_record(run: BuildRunRecord, inputs: BuildInputs) -> OrderedDict[str, Any]:
     """Build a per-run evidence record from the run's own build inputs.
 
-    B3: Each build run now carries its own independent ``BuildInputs``.
+    B3 (R2): Each build run now carries its own independent ``BuildInputs``.
     The manifest is generated from *this run's* inputs, canonicalized,
     and digested independently — not shared with the other build.
-    """
-    from cold_storage.release.digest_verifier import compute_build_input_manifest_digest
 
+    B3 (R3): The ``build_input_manifest_digest`` placed into the record is
+    the run's *independently declared* digest (``run.build_input_manifest_digest``),
+    **not** a digest computed here by the collector.  Computing it here and
+    then verifying it would be a circular proof.  The downstream
+    ``verify_build_input_manifest`` recomputes the canonical digest from
+    the observed inputs and rejects any drift from this declared value.
+    """
     manifest = inputs.to_input_manifest()
-    manifest_digest = compute_build_input_manifest_digest(manifest)
     record: OrderedDict[str, Any] = OrderedDict()
     # Include all build input manifest fields so that
     # verify_build_input_manifest can recompute and verify integrity.
@@ -149,7 +169,7 @@ def _build_run_to_record(run: BuildRunRecord, inputs: BuildInputs) -> OrderedDic
     record["base_image_digest"] = run.base_image_digest
     record["lockfile_digest"] = run.lockfile_digest
     record["final_image_digest"] = run.final_image_digest
-    record["build_input_manifest_digest"] = manifest_digest
+    record["build_input_manifest_digest"] = run.build_input_manifest_digest
     return record
 
 
