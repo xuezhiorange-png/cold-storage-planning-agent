@@ -120,18 +120,18 @@ def _build_run_to_record(run: BuildRunRecord, inputs: BuildInputs) -> OrderedDic
     from cold_storage.release.digest_verifier import compute_build_input_manifest_digest
 
     manifest = inputs.to_input_manifest()
-    return OrderedDict(
-        [
-            ("source_commit_sha", inputs.source_commit_sha),
-            ("base_image_tag", run.base_image_tag),
-            ("base_image_digest", run.base_image_digest),
-            ("lockfile_digest", run.lockfile_digest),
-            ("build_args", inputs.build_args),
-            ("build_platform", inputs.build_platform),
-            ("final_image_digest", run.final_image_digest),
-            ("build_input_manifest_digest", compute_build_input_manifest_digest(manifest)),
-        ]
-    )
+    manifest_digest = compute_build_input_manifest_digest(manifest)
+    record: OrderedDict[str, Any] = OrderedDict()
+    # Include all build input manifest fields so that
+    # verify_build_input_manifest can recompute and verify integrity.
+    for key, value in manifest.items():
+        record[key] = value
+    record["base_image_tag"] = run.base_image_tag
+    record["base_image_digest"] = run.base_image_digest
+    record["lockfile_digest"] = run.lockfile_digest
+    record["final_image_digest"] = run.final_image_digest
+    record["build_input_manifest_digest"] = manifest_digest
+    return record
 
 
 def collect_release_candidate_evidence(

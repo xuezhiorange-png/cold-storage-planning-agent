@@ -150,6 +150,7 @@ PROMOTION_RECORD_FIELD_ORDER: tuple[str, ...] = (
     "provenance_digest",
     "deployment_definition_digest",
     "environment_config_digest",
+    "rebuild_performed",
     "promoted_by",
     "approved_by",
     "promotion_timestamp",

@@ -48,11 +48,14 @@ ENV_CONFIG_DIGEST = "sha256:" + "e" * 64
 BASE_DIGEST = "sha256:" + "f" * 64
 LOCKFILE_DIGEST = "sha256:" + "1" * 64
 
-VALID_ATTESTATION = {
-    "mechanism": "github_oidc",
-    "binding": "eyJhbGciOiJIUzI1NiJ9.payload.signature",
-    "issuer": "https://token.actions.githubusercontent.com",
-}
+
+def _valid_attestation() -> dict[str, str]:
+    """Return a fresh copy of the valid attestation fixture."""
+    return {
+        "mechanism": "github_oidc",
+        "binding": "eyJhbGciOiJIUzI1NiJ9.payload.signature",
+        "issuer": "https://token.actions.githubusercontent.com",
+    }
 
 
 @dataclass
@@ -72,7 +75,9 @@ class NegativeScenario:
 
 
 def _valid_build_record(*, commit: str = EXPECTED_SOURCE_COMMIT_SHA) -> OrderedDict[str, Any]:
-    return OrderedDict(
+    from cold_storage.release.digest_verifier import compute_build_input_manifest_digest
+
+    rec = OrderedDict(
         [
             ("source_commit_sha", commit),
             ("base_image_tag", "python:3.12-slim"),
@@ -84,9 +89,11 @@ def _valid_build_record(*, commit: str = EXPECTED_SOURCE_COMMIT_SHA) -> OrderedD
             ),
             ("build_platform", "ubuntu-latest"),
             ("final_image_digest", IMAGE_DIGEST),
-            ("build_input_manifest_digest", "sha256:" + "0" * 64),
+            ("build_input_manifest_digest", ""),
         ]
     )
+    rec["build_input_manifest_digest"] = compute_build_input_manifest_digest(rec)
+    return rec
 
 
 def _valid_manifest_fields() -> OrderedDict[str, Any]:
@@ -139,7 +146,7 @@ def _valid_provenance_fields() -> OrderedDict[str, Any]:
             ("build_finished_at", "2026-08-06T12:05:00Z"),
             ("reproducible_build_result", "PASS"),
             ("provenance_digest", PROVENANCE_DIGEST),
-            ("attestation", dict(VALID_ATTESTATION)),
+            ("attestation", _valid_attestation()),
         ]
     )
 
@@ -156,6 +163,7 @@ def _valid_promotion_record() -> OrderedDict[str, Any]:
             ("provenance_digest", PROVENANCE_DIGEST),
             ("deployment_definition_digest", "sha256:" + "20" * 32),
             ("environment_config_digest", ENV_CONFIG_DIGEST),
+            ("rebuild_performed", False),
             ("promoted_by", "ci-bot"),
             ("approved_by", "release-manager"),
             ("promotion_timestamp", "2026-08-06T13:00:00Z"),

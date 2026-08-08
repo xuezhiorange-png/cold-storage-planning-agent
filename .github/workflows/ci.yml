@@ -673,6 +673,8 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - name: Backend install
         run: cd backend && uv sync
+      - name: Install CJK font
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
       - name: Release evidence lint
         run: cd backend && uv run ruff check src/cold_storage/release/ && uv run ruff format --check src/cold_storage/release/
       - name: Release evidence typecheck

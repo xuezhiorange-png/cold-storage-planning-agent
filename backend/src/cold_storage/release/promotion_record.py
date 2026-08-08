@@ -58,8 +58,25 @@ REQUIRED_PROMOTION_FIELDS = (
     "verification_result",
 )
 
+# Fields that are allowed but not strictly required.
+# rebuild_performed is optional: when omitted it defaults to False
+# (no rebuild).  When present and True, the promotion is rejected.
+OPTIONAL_PROMOTION_FIELDS = frozenset({"rebuild_performed"})
+
 
 def _ordered(fields: Mapping[str, Any]) -> OrderedDict[str, Any]:
+    """Return a new ordered dict in the frozen schema field order.
+
+    Unknown keys are rejected (fail-closed) to prevent silent field
+    dropping during canonicalization.
+    """
+    known = set(PROMOTION_RECORD_FIELD_ORDER)
+    for key in fields:
+        if key not in known:
+            raise PromotionError(
+                failure_code=RC_PROMOTION_RECORD_UNVERIFIABLE,
+                detail=f"unknown promotion field rejected (fail-closed): {key!r}",
+            )
     out: OrderedDict[str, Any] = OrderedDict()
     for key in PROMOTION_RECORD_FIELD_ORDER:
         if key in fields:

@@ -42,26 +42,28 @@ def _build(
     digest: str = IMAGE,
     args: dict | None = None,
 ) -> OrderedDict:
-    return OrderedDict(
+    build_args = (
+        args
+        if args is not None
+        else {
+            "COLD_STORAGE_BUILD_COMMIT_SHA": commit,
+            "COLD_STORAGE_BUILD_VERSION": "v0.2.0",
+        }
+    )
+    rec = OrderedDict(
         [
             ("source_commit_sha", commit),
             ("base_image_tag", "python:3.12-slim"),
             ("base_image_digest", base),
             ("lockfile_digest", lock),
-            (
-                "build_args",
-                args
-                if args is not None
-                else {
-                    "COLD_STORAGE_BUILD_COMMIT_SHA": commit,
-                    "COLD_STORAGE_BUILD_VERSION": "v0.2.0",
-                },
-            ),
+            ("build_args", build_args),
             ("build_platform", "ubuntu-latest"),
             ("final_image_digest", digest),
-            ("build_input_manifest_digest", "sha256:" + "0" * 64),
+            ("build_input_manifest_digest", ""),
         ]
     )
+    rec["build_input_manifest_digest"] = compute_build_input_manifest_digest(rec)
+    return rec
 
 
 def test_reproducible_build_pass_returns_authoritative_digest() -> None:

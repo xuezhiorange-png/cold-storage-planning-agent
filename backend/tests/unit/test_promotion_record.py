@@ -41,6 +41,7 @@ def _record() -> OrderedDict:
             ("provenance_digest", PROV),
             ("deployment_definition_digest", "sha256:" + "20" * 32),
             ("environment_config_digest", ENV),
+            ("rebuild_performed", False),
             ("promoted_by", "ci-bot"),
             ("approved_by", "release-manager"),
             ("promotion_timestamp", "2026-08-06T13:00:00Z"),

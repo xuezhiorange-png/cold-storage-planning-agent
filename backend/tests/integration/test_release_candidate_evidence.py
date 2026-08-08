@@ -143,6 +143,7 @@ def test_synthetic_promotion_evidence_against_bundle() -> None:
             ("provenance_digest", bundle.provenance_digest),
             ("deployment_definition_digest", "sha256:" + "20" * 32),
             ("environment_config_digest", "sha256:" + "e" * 64),
+            ("rebuild_performed", False),
             ("promoted_by", "ci-bot"),
             ("approved_by", "release-manager"),
             ("promotion_timestamp", "2026-08-06T13:00:00Z"),

@@ -121,6 +121,11 @@ def verify_reproducible_build(
 
     Raises :class:`ReproducibleBuildError` with the matching ``RC_*`` code
     on the first violated condition, in the order frozen by the contract.
+
+    The build input manifests of Build A and Build B are explicitly
+    compared as part of the reproducibility verdict — not just the
+    declared digest strings, but the recomputed canonical digests from
+    the actual build inputs.
     """
     # 1. same source commit
     if build_a.get("source_commit_sha") != build_b.get("source_commit_sha"):
@@ -179,6 +184,31 @@ def verify_reproducible_build(
         raise ReproducibleBuildError(
             failure_code=RC_BUILD_ARG_MISMATCH,
             detail="build platform is not ubuntu-latest",
+        )
+
+    # 8. build input manifest comparison — Build A vs Build B
+    # The build input manifest captures all deterministic build inputs
+    # (Dockerfile, Compose, workflow, locksets, base-image digests,
+    # build args, platform, source commit, SOURCE_DATE_EPOCH).  Two
+    # builds claiming the same image digest MUST have identical build
+    # input manifests.  We recompute the canonical digests from the
+    # build inputs (not just comparing declared strings) so that a
+    # mismatch in any deterministic input is detected.
+    manifest_digest_a = build_a.get("build_input_manifest_digest")
+    manifest_digest_b = build_b.get("build_input_manifest_digest")
+    if not _present(manifest_digest_a) or not _present(manifest_digest_b):
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISSING,
+            detail="build_input_manifest_digest missing from one or both builds",
+        )
+    # Recompute from actual build inputs to verify declared digest integrity
+    verify_build_input_manifest(build_a)
+    verify_build_input_manifest(build_b)
+    # The two builds' input manifest digests must match
+    if manifest_digest_a != manifest_digest_b:
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="build A and B have different build input manifest digests",
         )
 
     return str(digest_a)
@@ -242,6 +272,147 @@ def is_mutable_tag(reference: str) -> bool:
     return True
 
 
+def verify_declared_actual_digest_binding(
+    *,
+    declared_digest: str,
+    actual_local_oci_digest: str,
+    build_record: Mapping[str, Any],
+) -> None:
+    """Verify that a declared digest matches the actual local OCI digest.
+
+    This establishes the machine-verifiable binding between the digest
+    recorded in evidence and the actual OCI image manifest digest
+    produced by the build.  The ``build_record`` must contain
+    ``final_image_digest`` (the build's declared output) and
+    ``build_input_manifest_digest`` for input integrity.
+
+    Raises :class:`ReproducibleBuildError` with
+    ``RC_FINAL_IMAGE_DIGEST_MISMATCH`` when the declared digest does
+    not match the actual local OCI digest.
+    """
+    if not _present(declared_digest):
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISSING,
+            detail="declared digest is missing",
+        )
+    if not _present(actual_local_oci_digest):
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISSING,
+            detail="actual local OCI digest is missing",
+        )
+    if declared_digest != actual_local_oci_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="declared digest does not match actual local OCI digest",
+        )
+    # The build record's final_image_digest must also match
+    recorded = build_record.get("final_image_digest")
+    if _present(recorded) and recorded != actual_local_oci_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="build record final_image_digest does not match actual local OCI digest",
+        )
+
+
+def verify_digest_binding_chain(
+    *,
+    build_a_actual_digest: str,
+    build_a_recorded_digest: str,
+    build_b_actual_digest: str,
+    build_b_recorded_digest: str,
+    authoritative_rc_digest: str,
+) -> None:
+    """Verify the full digest binding chain across two builds and the RC.
+
+    Establishes the machine-verifiable relationship:
+    Build A actual local OCI digest ↔ Build A recorded digest ↔
+    Build B actual local OCI digest ↔ Build B recorded digest ↔
+    authoritative RC digest.
+
+    Any mismatch in the chain raises :class:`ReproducibleBuildError`
+    with ``RC_FINAL_IMAGE_DIGEST_MISMATCH``.
+    """
+    digests = [
+        ("build_a_actual", build_a_actual_digest),
+        ("build_a_recorded", build_a_recorded_digest),
+        ("build_b_actual", build_b_actual_digest),
+        ("build_b_recorded", build_b_recorded_digest),
+        ("authoritative_rc", authoritative_rc_digest),
+    ]
+    for label, value in digests:
+        if not _present(value):
+            raise ReproducibleBuildError(
+                failure_code=RC_FINAL_IMAGE_DIGEST_MISSING,
+                detail=f"{label} digest is missing",
+            )
+    if build_a_actual_digest != build_a_recorded_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="Build A actual digest does not match Build A recorded digest",
+        )
+    if build_b_actual_digest != build_b_recorded_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="Build B actual digest does not match Build B recorded digest",
+        )
+    if build_a_actual_digest != build_b_actual_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="Build A and Build B actual digests differ",
+        )
+    if authoritative_rc_digest != build_a_actual_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="authoritative RC digest does not match Build A actual digest",
+        )
+
+
+def verify_provenance_subject_digest_binding(
+    *,
+    provenance_subject_digest: str,
+    actual_image_digest: str,
+) -> None:
+    """Verify that the provenance subject digest matches the actual image digest.
+
+    Raises :class:`ReproducibleBuildError` with
+    ``RC_FINAL_IMAGE_DIGEST_MISMATCH`` when the provenance subject
+    digest does not match the actual image digest.
+    """
+    if not _present(provenance_subject_digest):
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISSING,
+            detail="provenance subject digest is missing",
+        )
+    if provenance_subject_digest != actual_image_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="provenance subject digest does not match actual image digest",
+        )
+
+
+def verify_promotion_digest_binding(
+    *,
+    promotion_digest: str,
+    authoritative_rc_digest: str,
+) -> None:
+    """Verify that the promotion digest matches the authoritative RC digest.
+
+    Raises :class:`ReproducibleBuildError` with
+    ``RC_FINAL_IMAGE_DIGEST_MISMATCH`` when the promotion digest does
+    not match the authoritative RC digest.
+    """
+    if not _present(promotion_digest):
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISSING,
+            detail="promotion digest is missing",
+        )
+    if promotion_digest != authoritative_rc_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail="promotion digest does not match authoritative RC digest",
+        )
+
+
 __all__ = [
     "BUILD_INPUT_MANIFEST_FIELD_ORDER",
     "ReproducibleBuildError",
@@ -250,6 +421,10 @@ __all__ = [
     "compute_build_input_manifest_digest",
     "is_mutable_tag",
     "verify_build_input_manifest",
+    "verify_declared_actual_digest_binding",
+    "verify_digest_binding_chain",
+    "verify_provenance_subject_digest_binding",
+    "verify_promotion_digest_binding",
     "verify_registry_digest",
     "verify_reproducible_build",
 ]
