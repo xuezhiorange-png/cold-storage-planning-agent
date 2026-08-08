@@ -8,7 +8,15 @@ jobs:
   compose-config:
     runs-on: ubuntu-latest
     steps:
+      # TASK-012 V0.2 Slice 2 PR82 CI Correction R1: fetch-depth: 0 so
+      # that the PR head commit object is available for git show /
+      # SOURCE_DATE_EPOCH even though PR-event checkout checks out the
+      # synthetic merge ref.  The other jobs do not reference a
+      # non-checkout commit object, so they keep the default shallow
+      # checkout.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Docker Compose config (root)
         run: docker compose config
       - name: Docker Compose config (production)
@@ -38,8 +46,14 @@ jobs:
           POSTGRES_PASSWORD: ci-only-not-a-real-secret
         run: |
           set -euo pipefail
-          # TASK-012 Slice 2 R1 §6.2.11: SOURCE_DATE_EPOCH from commit timestamp.
-          SOURCE_DATE_EPOCH=$(git show -s --format=%ct "${{ github.event.pull_request.head.sha || github.sha }}")
+          # TASK-012 V0.2 Slice 2 PR82 CI Correction R1: fail-closed
+          # source commit validation.  SOURCE_COMMIT_SHA must resolve
+          # to a real commit object before we derive SOURCE_DATE_EPOCH.
+          # No fallback to HEAD, merge commit timestamp, or wall clock.
+          SOURCE_COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          git cat-file -e "${SOURCE_COMMIT_SHA}^{commit}"
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${SOURCE_COMMIT_SHA}")"
+          test -n "${SOURCE_DATE_EPOCH}"
           docker build \
             --build-arg COLD_STORAGE_BUILD_COMMIT_SHA="${COLD_STORAGE_BUILD_COMMIT_SHA}" \
             --build-arg COLD_STORAGE_BUILD_VERSION="${COLD_STORAGE_BUILD_VERSION}" \
