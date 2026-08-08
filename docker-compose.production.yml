@@ -21,7 +21,9 @@
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    # TASK-012 Slice 2 R1 §6.2.7: digest-pinned base image.
+    # Digest from Docker Hub RepoDigest for pgvector/pgvector:0.7.2-pg16.
+    image: pgvector/pgvector:0.7.2-pg16@sha256:95732f8f93a33bcd427b8e0e8f9d8ceedb5256a6fe5f2b58a4cd78e943c7e30e
     environment:
       # F-PR76-BLOCKER-04: POSTGRES_PASSWORD is REQUIRED for the
       # official PostgreSQL image to initialize an empty data
@@ -57,6 +59,7 @@ services:
       args:
         COLD_STORAGE_BUILD_COMMIT_SHA: ${COLD_STORAGE_BUILD_COMMIT_SHA:?commit SHA is required}
         COLD_STORAGE_BUILD_VERSION: ${COLD_STORAGE_BUILD_VERSION:?build version is required}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
     image: cold-storage-backend:${COLD_STORAGE_BUILD_COMMIT_SHA}
     # F-PR76-BLOCKER-02: ``command`` alone does NOT override the
     # image ENTRYPOINT. The image bakes

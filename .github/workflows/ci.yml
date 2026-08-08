@@ -8,7 +8,15 @@ jobs:
   compose-config:
     runs-on: ubuntu-latest
     steps:
+      # TASK-012 V0.2 Slice 2 PR82 CI Correction R1: fetch-depth: 0 so
+      # that the PR head commit object is available for git show /
+      # SOURCE_DATE_EPOCH even though PR-event checkout checks out the
+      # synthetic merge ref.  The other jobs do not reference a
+      # non-checkout commit object, so they keep the default shallow
+      # checkout.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Docker Compose config (root)
         run: docker compose config
       - name: Docker Compose config (production)
@@ -38,9 +46,18 @@ jobs:
           POSTGRES_PASSWORD: ci-only-not-a-real-secret
         run: |
           set -euo pipefail
+          # TASK-012 V0.2 Slice 2 PR82 CI Correction R1: fail-closed
+          # source commit validation.  SOURCE_COMMIT_SHA must resolve
+          # to a real commit object before we derive SOURCE_DATE_EPOCH.
+          # No fallback to HEAD, merge commit timestamp, or wall clock.
+          SOURCE_COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          git cat-file -e "${SOURCE_COMMIT_SHA}^{commit}"
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${SOURCE_COMMIT_SHA}")"
+          test -n "${SOURCE_DATE_EPOCH}"
           docker build \
             --build-arg COLD_STORAGE_BUILD_COMMIT_SHA="${COLD_STORAGE_BUILD_COMMIT_SHA}" \
             --build-arg COLD_STORAGE_BUILD_VERSION="${COLD_STORAGE_BUILD_VERSION}" \
+            --build-arg SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH}" \
             -t cold-storage-backend:ci-smoke \
             -f backend/Dockerfile \
             .
@@ -656,3 +673,45 @@ jobs:
         run: cd frontend && npm ci
       - name: Frontend quality
         run: cd frontend && npm run lint && npm run typecheck && npm run test && npm run build
+
+  # TASK-012 Slice 2 R1: release-candidate build and provenance evidence.
+  # This job runs the full evidence verification suite: canonical
+  # serialization, reproducible build evidence, final image digest,
+  # artifact manifest, provenance statement, promotion record, and
+  # all 20 negative scenario tests.  It does NOT push to any registry,
+  # create tags, or perform deployments.
+  release-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Install CJK font
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+      - name: Release evidence lint
+        run: cd backend && uv run ruff check src/cold_storage/release/ && uv run ruff format --check src/cold_storage/release/
+      - name: Release evidence typecheck
+        run: cd backend && uv run mypy src/cold_storage/release/ --strict --ignore-missing-imports
+      - name: Release evidence unit tests
+        run: |
+          cd backend && PYTHONPATH=src uv run pytest \
+            tests/unit/test_canonical_serialization.py \
+            tests/unit/test_reproducible_build_evidence.py \
+            tests/unit/test_final_image_digest.py \
+            tests/unit/test_artifact_manifest.py \
+            tests/unit/test_provenance_statement.py \
+            tests/unit/test_promotion_record.py \
+            tests/unit/test_negative_scenarios.py \
+            tests/unit/test_regression_b2_b3_b4.py \
+            -q
+      - name: Release evidence integration tests
+        run: |
+          cd backend && PYTHONPATH=src uv run pytest \
+            tests/integration/test_release_candidate_evidence.py \
+            -q
+      - name: Release evidence architecture tests
+        run: |
+          cd backend && PYTHONPATH=src uv run pytest \
+            tests/architecture/test_release_evidence_boundaries.py \
+            -q

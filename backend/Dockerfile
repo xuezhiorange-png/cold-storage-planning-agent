@@ -18,7 +18,11 @@
 #   COLD_STORAGE_BUILD_VERSION     (must match the file baked at build time)
 #   COLD_STORAGE_DEPLOYMENT_ID     (deployment-instance identifier)
 
-FROM python:3.12-slim AS builder
+# TASK-012 Slice 2 R1: base image pinned by digest per contract §6.2.7.
+# Digest sourced from Docker Hub RepoDigest for python:3.12.13-slim-trixie
+# (linux/amd64, 2026-04-22).  Verify/update via:
+#   docker pull python:3.12-slim && docker inspect --format='{{index .RepoDigests 0}}' python:3.12-slim
+FROM python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -49,6 +53,11 @@ COPY backend/alembic.ini /build/backend/alembic.ini
 # writing a placeholder into the in-image authority (D-S2-02 + F-S2-REVIEW-007).
 ARG COLD_STORAGE_BUILD_COMMIT_SHA
 ARG COLD_STORAGE_BUILD_VERSION
+# TASK-012 Slice 2 R1 §6.2.11: fixed time source derived from the source
+# commit timestamp.  CI passes SOURCE_DATE_EPOCH=$(git show -s --format=%ct <sha>).
+# This ensures reproducible builds — no wall-clock or runner metadata leaks
+# into the image.
+ARG SOURCE_DATE_EPOCH
 
 # F-PR76-HIGH-04: the build-version regex MUST match the frozen
 # Slice 2 contract D-S2-02.d exactly. It is byte-equivalent to
@@ -135,12 +144,14 @@ sys.exit(0)
 PY
 ENV COLD_STORAGE_BUILD_COMMIT_SHA=${COLD_STORAGE_BUILD_COMMIT_SHA}
 ENV COLD_STORAGE_BUILD_VERSION=${COLD_STORAGE_BUILD_VERSION}
+ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
 
 # Run the actual install with --no-dev to keep the runtime slim.
 RUN uv sync --frozen --no-install-project --no-dev
 
 # --- final stage ---------------------------------------------------------------
-FROM python:3.12-slim AS runtime
+# TASK-012 Slice 2 R1: base image pinned by digest (same as builder stage).
+FROM python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
