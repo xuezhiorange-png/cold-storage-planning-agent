@@ -689,6 +689,7 @@ jobs:
             tests/unit/test_provenance_statement.py \
             tests/unit/test_promotion_record.py \
             tests/unit/test_negative_scenarios.py \
+            tests/unit/test_regression_b2_b3_b4.py \
             -q
       - name: Release evidence integration tests
         run: |

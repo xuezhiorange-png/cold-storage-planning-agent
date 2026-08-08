@@ -8,6 +8,17 @@ entry point and a :func:`verify_evidence_bundle` verifier.
 This round produces *code and synthetic verification* only.  Live
 evidence execution (real registry push, GitHub OIDC signing, environment
 approval) requires separate authorization.
+
+B3 (Correction R2): Build A and Build B each carry their own independent
+build-input manifest.  The collector no longer shares a single
+``BuildInputs`` across both builds — each run's manifest is independently
+canonicalized, digested, and integrity-verified before comparison.
+
+B4 (Correction R2): The authoritative RC digest is established through a
+single continuous binding chain — Build A recorded ↔ Build A actual OCI ↔
+Build B recorded ↔ Build B actual OCI ↔ authoritative RC ↔ registry (if
+present).  No variable overwrite is permitted after the chain is
+established.
 """
 
 from __future__ import annotations
@@ -26,7 +37,7 @@ from cold_storage.release.canonical_serialization import (
     reject_secret_values,
 )
 from cold_storage.release.digest_verifier import (
-    authoritative_image_digest,
+    ReproducibleBuildError,
     verify_reproducible_build,
 )
 from cold_storage.release.promotion_record import (
@@ -37,6 +48,8 @@ from cold_storage.release.provenance_schema import (
     EXPECTED_BUILD_PLATFORM,
     EXPECTED_SOURCE_REPOSITORY,
     PROVENANCE_SCHEMA_VERSION,
+    RC_FINAL_IMAGE_DIGEST_MISMATCH,
+    RC_REGISTRY_DIGEST_MISMATCH,
     RC_VERSION,
 )
 from cold_storage.release.provenance_statement import (
@@ -117,6 +130,12 @@ class EvidenceBundle:
 
 
 def _build_run_to_record(run: BuildRunRecord, inputs: BuildInputs) -> OrderedDict[str, Any]:
+    """Build a per-run evidence record from the run's own build inputs.
+
+    B3: Each build run now carries its own independent ``BuildInputs``.
+    The manifest is generated from *this run's* inputs, canonicalized,
+    and digested independently — not shared with the other build.
+    """
     from cold_storage.release.digest_verifier import compute_build_input_manifest_digest
 
     manifest = inputs.to_input_manifest()
@@ -134,17 +153,108 @@ def _build_run_to_record(run: BuildRunRecord, inputs: BuildInputs) -> OrderedDic
     return record
 
 
+def _verify_digest_binding_chain(
+    *,
+    build_a: BuildRunRecord,
+    build_b: BuildRunRecord,
+    reproducible_digest: str,
+) -> str:
+    """Verify the continuous declared↔actual digest binding chain (B4).
+
+    Establishes a single machine-verifiable chain:
+    Build A recorded final_image_digest ↔ Build A actual local OCI digest ↔
+    Build B recorded final_image_digest ↔ Build B actual local OCI digest ↔
+    authoritative RC digest ↔ registry digest (if present).
+
+    No variable is overwritten after the chain is established.  The
+    returned digest is the authoritative RC digest, derived solely from
+    the cross-checked chain.
+
+    Raises :class:`ReproducibleBuildError` on any mismatch.
+    """
+    # 1. Build A: recorded final_image_digest == actual local OCI digest
+    if build_a.final_image_digest != build_a.local_oci_manifest_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail=("Build A final_image_digest does not match its local OCI manifest digest"),
+        )
+
+    # 2. Build B: recorded final_image_digest == actual local OCI digest
+    if build_b.final_image_digest != build_b.local_oci_manifest_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail=("Build B final_image_digest does not match its local OCI manifest digest"),
+        )
+
+    # 3. Build A local OCI digest == Build B local OCI digest
+    if build_a.local_oci_manifest_digest != build_b.local_oci_manifest_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail=("Build A and Build B local OCI manifest digests differ"),
+        )
+
+    # 4. If Build A registry digest exists: must match local OCI digest
+    if (
+        build_a.registry_manifest_digest is not None
+        and build_a.registry_manifest_digest != ""
+        and build_a.registry_manifest_digest != build_a.local_oci_manifest_digest
+    ):
+        raise ReproducibleBuildError(
+            failure_code=RC_REGISTRY_DIGEST_MISMATCH,
+            detail=("Build A registry manifest digest differs from local OCI manifest digest"),
+        )
+
+    # 5. If Build B registry digest exists: must match local OCI digest
+    if (
+        build_b.registry_manifest_digest is not None
+        and build_b.registry_manifest_digest != ""
+        and build_b.registry_manifest_digest != build_b.local_oci_manifest_digest
+    ):
+        raise ReproducibleBuildError(
+            failure_code=RC_REGISTRY_DIGEST_MISMATCH,
+            detail=("Build B registry manifest digest differs from local OCI manifest digest"),
+        )
+
+    # 6. Authoritative RC digest = the cross-checked unique digest.
+    #    No second assignment — the chain has proven all digests are
+    #    identical, so the Build A local OCI digest IS the authoritative
+    #    digest.  We also cross-check against the reproducible build
+    #    verdict to ensure consistency.
+    authoritative_digest = build_a.local_oci_manifest_digest
+    if reproducible_digest != authoritative_digest:
+        raise ReproducibleBuildError(
+            failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+            detail=(
+                "reproducible build digest does not match the authoritative binding chain digest"
+            ),
+        )
+
+    return authoritative_digest
+
+
 def collect_release_candidate_evidence(
     *,
-    inputs: BuildInputs,
+    build_a_inputs: BuildInputs,
+    build_b_inputs: BuildInputs,
     build_a: BuildRunRecord,
     build_b: BuildRunRecord,
     artifacts: list[Mapping[str, Any]],
     test_result_reference: str,
     verification_result_reference: str,
     attestation: Mapping[str, Any],
+    expected_inputs: BuildInputs | None = None,
 ) -> EvidenceBundle:
     """Assemble and verify the full RC evidence bundle.
+
+    B3: ``build_a_inputs`` and ``build_b_inputs`` are separate, allowing
+    the collector to detect when Build A's observed inputs differ from
+    Build B's observed inputs.  If ``expected_inputs`` is provided, each
+    build's observed inputs are also verified against the expected/frozen
+    RC input definition.
+
+    B4: The authoritative RC digest is established through a single
+    continuous binding chain — no variable overwrite after the chain is
+    established.
 
     Raises the appropriate ``RC_*`` :class:`ReleaseEvidenceError`
     subclass on the first violation.  On success the returned bundle is
@@ -152,15 +262,44 @@ def collect_release_candidate_evidence(
     manifest digest, and the provenance digest all cross-reference
     correctly.
     """
-    # --- S2_GAP_01: reproducible build evidence ---
-    record_a = _build_run_to_record(build_a, inputs)
-    record_b = _build_run_to_record(build_b, inputs)
-    authoritative_digest = verify_reproducible_build(record_a, record_b)
+    # --- B3: per-run build input evidence ---
+    # Each build carries its own observed build-input manifest.  The
+    # records are built independently from each run's own inputs.
+    record_a = _build_run_to_record(build_a, build_a_inputs)
+    record_b = _build_run_to_record(build_b, build_b_inputs)
 
-    # --- S2_GAP_02: final image digest (authoritative) ---
-    authoritative_digest = authoritative_image_digest(
-        local_oci_manifest_digest=build_a.local_oci_manifest_digest,
-        registry_manifest_digest=build_a.registry_manifest_digest,
+    # --- B3: optional expected-inputs cross-check ---
+    # If a frozen/expected RC input definition is provided, verify that
+    # each build's observed inputs match it.  This prevents a build from
+    # silently using different inputs than expected while still producing
+    # the same digest.
+    if expected_inputs is not None:
+        manifest_a = build_a_inputs.to_input_manifest()
+        manifest_b = build_b_inputs.to_input_manifest()
+        manifest_expected = expected_inputs.to_input_manifest()
+        if manifest_a != manifest_expected:
+            raise ReproducibleBuildError(
+                failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+                detail="Build A observed inputs do not match expected inputs",
+            )
+        if manifest_b != manifest_expected:
+            raise ReproducibleBuildError(
+                failure_code=RC_FINAL_IMAGE_DIGEST_MISMATCH,
+                detail="Build B observed inputs do not match expected inputs",
+            )
+
+    # --- S2_GAP_01: reproducible build evidence ---
+    # verify_reproducible_build includes per-run manifest integrity
+    # verification (verify_build_input_manifest) and manifest comparison.
+    reproducible_digest = verify_reproducible_build(record_a, record_b)
+
+    # --- B4: continuous digest binding chain ---
+    # The authoritative RC digest is established through a single
+    # continuous chain.  No variable overwrite is permitted.
+    authoritative_digest = _verify_digest_binding_chain(
+        build_a=build_a,
+        build_b=build_b,
+        reproducible_digest=reproducible_digest,
     )
 
     # --- S2_GAP_03: artifact manifest ---
@@ -168,13 +307,13 @@ def collect_release_candidate_evidence(
         [
             ("schema_version", ARTIFACT_MANIFEST_SCHEMA_VERSION),
             ("rc_version", RC_VERSION),
-            ("source_commit_sha", inputs.source_commit_sha),
-            ("source_tree_sha", inputs.source_tree_sha),
-            ("dockerfile_digest", inputs.dockerfile_digest),
-            ("compose_file_digest", inputs.compose_file_digest),
-            ("workflow_definition_digest", inputs.workflow_definition_digest),
-            ("dependency_lockset_digest", inputs.dependency_lockset_digest),
-            ("migration_set_digest", inputs.migration_set_digest),
+            ("source_commit_sha", build_a_inputs.source_commit_sha),
+            ("source_tree_sha", build_a_inputs.source_tree_sha),
+            ("dockerfile_digest", build_a_inputs.dockerfile_digest),
+            ("compose_file_digest", build_a_inputs.compose_file_digest),
+            ("workflow_definition_digest", build_a_inputs.workflow_definition_digest),
+            ("dependency_lockset_digest", build_a_inputs.dependency_lockset_digest),
+            ("migration_set_digest", build_a_inputs.migration_set_digest),
             ("final_image_digest", authoritative_digest),
             ("sbom_digest", ""),
             ("provenance_digest", ""),  # filled after provenance digest known
@@ -197,18 +336,18 @@ def collect_release_candidate_evidence(
             ("subject_final_image_digest", authoritative_digest),
             ("subject_artifact_manifest_digest", ""),  # filled below
             ("source_repository", EXPECTED_SOURCE_REPOSITORY),
-            ("source_commit_sha", inputs.source_commit_sha),
-            ("source_tree_sha", inputs.source_tree_sha),
+            ("source_commit_sha", build_a_inputs.source_commit_sha),
+            ("source_tree_sha", build_a_inputs.source_tree_sha),
             ("build_workflow_identity", "ci"),
             ("build_workflow_ref", "refs/heads/main"),
             ("build_run_id", build_a.build_run_id),
             ("build_run_attempt", build_a.build_run_attempt),
             ("build_trigger", build_a.build_trigger),
             ("builder_identity", build_a.builder_identity),
-            ("build_platform", inputs.build_platform),
-            ("build_definition_digest", inputs.workflow_definition_digest),
-            ("dependency_lockset_digest", inputs.dependency_lockset_digest),
-            ("base_image_digest_set", sorted(inputs.base_image_digest_set)),
+            ("build_platform", build_a_inputs.build_platform),
+            ("build_definition_digest", build_a_inputs.workflow_definition_digest),
+            ("dependency_lockset_digest", build_a_inputs.dependency_lockset_digest),
+            ("base_image_digest_set", sorted(build_a_inputs.base_image_digest_set)),
             ("build_input_manifest_digest", record_a["build_input_manifest_digest"]),
             ("build_started_at", build_a.build_started_at),
             ("build_finished_at", build_a.build_finished_at),
@@ -247,7 +386,8 @@ def collect_release_candidate_evidence(
         provenance_digest=provenance_digest,
         reproducible_build_result=build_a.reproducible_build_result,
         raw={
-            "build_input_manifest": inputs.to_input_manifest(),
+            "build_a_input_manifest": build_a_inputs.to_input_manifest(),
+            "build_b_input_manifest": build_b_inputs.to_input_manifest(),
             "build_a_record": record_a,
             "build_b_record": record_b,
         },

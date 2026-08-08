@@ -84,6 +84,24 @@ def _ordered(fields: Mapping[str, Any]) -> OrderedDict[str, Any]:
     return out
 
 
+def _validate_closed_schema(record: Mapping[str, Any]) -> None:
+    """Reject unknown fields before any business logic (fail-closed).
+
+    Ensures that verify_promotion() — the direct verifier entry point —
+    applies the same closed-schema rejection that _ordered() applies
+    during serialize/load.  Without this, a caller passing a record
+    with an extra field (e.g. ``evil_extra_field``) directly to
+    verify_promotion() would bypass the unknown-field rejection.
+    """
+    known = set(PROMOTION_RECORD_FIELD_ORDER)
+    for key in record:
+        if key not in known:
+            raise PromotionError(
+                failure_code=RC_PROMOTION_RECORD_UNVERIFIABLE,
+                detail=f"unknown promotion field rejected (fail-closed): {key!r}",
+            )
+
+
 def compute_promotion_record_digest(record: Mapping[str, Any]) -> str:
     """Return ``sha256:<hex>`` of the canonical promotion record bytes."""
     return canonical_digest(_ordered(record))
@@ -130,6 +148,12 @@ def verify_promotion(
         detect cross-environment digest drift.  ``None`` is acceptable
         only for the first promotion (ci→staging).
     """
+    # --- closed-schema validation (fail-closed, B2) ---
+    # Reject unknown fields before any business logic.  This prevents
+    # callers from bypassing the serialize/load path's unknown-field
+    # rejection by calling verify_promotion() directly.
+    _validate_closed_schema(record)
+
     # --- structural completeness ---
     if record.get("schema_version") != PROMOTION_RECORD_SCHEMA_VERSION:
         raise PromotionError(
@@ -175,13 +199,28 @@ def verify_promotion(
             detail="promotion references a mutable tag instead of a digest",
         )
 
-    # --- no rebuild during promotion ---
-    rebuild_flag = record.get("rebuild_performed")
-    if rebuild_flag:
-        raise PromotionError(
-            failure_code=RC_PROMOTION_REBUILD,
-            detail="promotion stage rebuilt the image",
-        )
+    # --- no rebuild during promotion (strict boolean enforcement, B2) ---
+    # rebuild_performed is optional: when omitted it defaults to False
+    # (no rebuild).  When present, it MUST be a strict Python bool.
+    # Truthiness is NOT acceptable: 0, 1, "false", "true", "", [], {},
+    # None are all rejected as RC_PROMOTION_RECORD_UNVERIFIABLE.
+    # Note: Python bool is an int subclass, so we use type(value) is bool
+    # rather than isinstance(value, bool) which would also accept int.
+    if "rebuild_performed" in record:
+        rebuild_flag = record["rebuild_performed"]
+        if type(rebuild_flag) is not bool:
+            raise PromotionError(
+                failure_code=RC_PROMOTION_RECORD_UNVERIFIABLE,
+                detail=(
+                    "rebuild_performed must be a strict boolean, "
+                    f"got {type(rebuild_flag).__name__}: {rebuild_flag!r}"
+                ),
+            )
+        if rebuild_flag is True:
+            raise PromotionError(
+                failure_code=RC_PROMOTION_REBUILD,
+                detail="promotion stage rebuilt the image",
+            )
 
     # --- environment config digest recorded ---
     env_config = record.get("environment_config_digest")
