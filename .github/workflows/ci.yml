@@ -20,6 +20,36 @@ on:
         required: true
         type: boolean
         default: false
+      verify_live_evidence_artifact_transport:
+        description: Separately authorize exact GitHub Artifact transport verification
+        required: true
+        type: boolean
+        default: false
+      transport_artifact_id:
+        description: Exact GitHub Artifact ID from the upload-time handoff receipt
+        required: false
+        type: string
+        default: ""
+      transport_artifact_digest:
+        description: Upload-time GitHub Artifact digest from the handoff receipt
+        required: false
+        type: string
+        default: ""
+      transport_capture_run_id:
+        description: Capture workflow run ID from the upload-time handoff receipt
+        required: false
+        type: string
+        default: ""
+      transport_capture_run_attempt:
+        description: Capture workflow run attempt from the upload-time handoff receipt
+        required: false
+        type: string
+        default: ""
+      transport_capture_head_sha:
+        description: Capture workflow head SHA from the upload-time handoff receipt
+        required: false
+        type: string
+        default: ""
 
 jobs:
   compose-config:
@@ -745,12 +775,14 @@ jobs:
             tests/unit/test_negative_scenarios.py \
             tests/unit/test_regression_b2_b3_b4.py \
             tests/unit/test_live_evidence_runner.py \
+            tests/unit/test_artifact_transport.py \
             -q
       - name: Release evidence integration tests
         run: |
           cd backend && PYTHONPATH=src uv run pytest \
             tests/integration/test_release_candidate_evidence.py \
             tests/integration/test_live_evidence_runner.py \
+            tests/integration/test_artifact_transport.py \
             -q
       - name: Release evidence architecture tests
         run: |
@@ -764,12 +796,17 @@ jobs:
   # No registry, signing, or promotion is performed here. Artifact upload is
   # separately gated and remains off by default.
   live-evidence-capture:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.verify_live_evidence_artifact_transport != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       artifact_id: ${{ steps.upload_evidence.outputs.artifact-id }}
       artifact_digest: ${{ steps.upload_evidence.outputs.artifact-digest }}
       artifact_url: ${{ steps.upload_evidence.outputs.artifact-url }}
+      artifact_name: task012-live-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+      capture_run_id: ${{ github.run_id }}
+      capture_run_attempt: ${{ github.run_attempt }}
+      capture_head_sha: ${{ github.sha }}
+      capture_head_branch: ${{ github.ref_name }}
     permissions:
       contents: read
     steps:
@@ -834,6 +871,11 @@ jobs:
           ARTIFACT_ID: ${{ steps.upload_evidence.outputs.artifact-id }}
           ARTIFACT_DIGEST: ${{ steps.upload_evidence.outputs.artifact-digest }}
           ARTIFACT_URL: ${{ steps.upload_evidence.outputs.artifact-url }}
+          ARTIFACT_NAME: task012-live-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          CAPTURE_RUN_ID: ${{ github.run_id }}
+          CAPTURE_RUN_ATTEMPT: ${{ github.run_attempt }}
+          CAPTURE_HEAD_SHA: ${{ github.sha }}
+          CAPTURE_HEAD_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           {
@@ -841,4 +883,73 @@ jobs:
             echo "artifact-id: ${ARTIFACT_ID}"
             echo "artifact-digest: ${ARTIFACT_DIGEST}"
             echo "artifact-url: ${ARTIFACT_URL}"
+            echo "artifact-name: ${ARTIFACT_NAME}"
+            echo "capture-run-id: ${CAPTURE_RUN_ID}"
+            echo "capture-run-attempt: ${CAPTURE_RUN_ATTEMPT}"
+            echo "capture-head-sha: ${CAPTURE_HEAD_SHA}"
+            echo "capture-head-branch: ${CAPTURE_HEAD_BRANCH}"
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  # TASK-012 V0.2 Slice 2 R3: verify an already-uploaded capture package by
+  # exact Artifact ID. This job is intentionally a separate, mutually
+  # exclusive workflow-dispatch surface; it never builds, uploads, assembles,
+  # signs, pushes, promotes, or deploys.
+  live-evidence-artifact-transport-verify:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_live_evidence_artifact_transport == true && inputs.execute_live_evidence_capture != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Validate transport dispatch inputs
+        env:
+          VERIFY_TRANSPORT: ${{ inputs.verify_live_evidence_artifact_transport }}
+          EXECUTE_CAPTURE: ${{ inputs.execute_live_evidence_capture }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
+          ARTIFACT_ID: ${{ inputs.transport_artifact_id }}
+          ARTIFACT_DIGEST: ${{ inputs.transport_artifact_digest }}
+          CAPTURE_RUN_ID: ${{ inputs.transport_capture_run_id }}
+          CAPTURE_RUN_ATTEMPT: ${{ inputs.transport_capture_run_attempt }}
+          CAPTURE_HEAD_SHA: ${{ inputs.transport_capture_head_sha }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${VERIFY_TRANSPORT}" = "true"
+          test "${EXECUTE_CAPTURE}" != "true"
+          test "${EXPECTED_SOURCE_SHA}" = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+          test -n "${ARTIFACT_ID}"
+          test -n "${ARTIFACT_DIGEST}"
+          test -n "${CAPTURE_RUN_ID}"
+          test -n "${CAPTURE_RUN_ATTEMPT}"
+          test -n "${CAPTURE_HEAD_SHA}"
+      - name: Verify exact live evidence Artifact transport
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED: YES
+          REPOSITORY: ${{ github.repository }}
+          ARTIFACT_ID: ${{ inputs.transport_artifact_id }}
+          ARTIFACT_DIGEST: ${{ inputs.transport_artifact_digest }}
+          CAPTURE_RUN_ID: ${{ inputs.transport_capture_run_id }}
+          CAPTURE_RUN_ATTEMPT: ${{ inputs.transport_capture_run_attempt }}
+          CAPTURE_HEAD_SHA: ${{ inputs.transport_capture_head_sha }}
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-artifact-transport/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.release.artifact_transport \
+            verify-download \
+            --execute-download \
+            --repository "${REPOSITORY}" \
+            --artifact-id "${ARTIFACT_ID}" \
+            --expected-artifact-digest "${ARTIFACT_DIGEST}" \
+            --expected-capture-run-id "${CAPTURE_RUN_ID}" \
+            --expected-capture-run-attempt "${CAPTURE_RUN_ATTEMPT}" \
+            --expected-capture-head-sha "${CAPTURE_HEAD_SHA}" \
+            --output-dir "${OUTPUT_DIR}"

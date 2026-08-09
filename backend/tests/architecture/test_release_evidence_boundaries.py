@@ -334,3 +334,78 @@ def test_docker_target_platform_is_a_manifest_input_not_a_fake_build_arg() -> No
     assert '"docker_target_platform"' in collector
     assert '"docker_target_platform",' in verifier
     assert '"TARGET_PLATFORM"' not in runner
+
+
+def test_artifact_transport_is_an_external_observation_only_adapter() -> None:
+    transport = (RELEASE_DIR / "artifact_transport.py").read_text()
+    assert (RELEASE_DIR / "artifact_transport.py").is_file()
+    assert "urllib.request" in transport
+    assert "urlopen" in transport
+    assert "artifact_id" in transport
+    assert "sha256" in transport
+    assert "archive_endpoint_identity" in transport
+    assert "shell=True" not in transport
+    assert "docker build" not in transport
+    assert "docker push" not in transport
+    assert "cosign" not in transport
+    assert "oidc" not in transport.lower()
+    assert "deployment" not in transport.lower()
+    assert "collect_release_candidate_evidence" not in transport
+    assert "live_evidence_runner" not in transport
+    assert "_NoAutomaticRedirectHandler" in transport
+    assert "follow_redirects=False" in transport
+    assert "def _api_headers" in transport
+    assert "def _archive_headers" in transport
+    assert "self._headers()" not in transport
+    assert "/actions/runs/{run_id}" in transport
+    assert 'CANONICAL_WORKFLOW_NAME = "ci"' in transport
+    assert 'CANONICAL_WORKFLOW_PATH = ".github/workflows/ci.yml"' in transport
+    assert 'CANONICAL_WORKFLOW_EVENT = "workflow_dispatch"' in transport
+    assert "_read_capture_package_origin" in transport
+    assert "canonical_capture_origin_status" in transport
+
+
+def test_artifact_transport_binds_external_capture_origin() -> None:
+    transport = (RELEASE_DIR / "artifact_transport.py").read_text()
+    assert "/actions/runs/{run_id}" in transport
+    assert '("status", "completed")' in transport
+    assert '("conclusion", "success")' in transport
+    assert '("head_sha", expected_head_sha)' in transport
+    assert 'response.get("run_attempt")' in transport
+    assert '("event", CANONICAL_WORKFLOW_EVENT)' in transport
+    assert 'value.get("capture_workflow_run_id")' in transport
+    assert 'value.get("capture_workflow_run_attempt")' in transport
+    assert 'value.get("evidence_tool_head")' in transport
+    assert 'value.get("rc_source_sha")' in transport
+    assert 'value.get("rc_source_tree")' in transport
+
+
+def test_core_release_layers_do_not_import_artifact_transport() -> None:
+    for filename in ("digest_verifier.py", "evidence_collector.py", "provenance_statement.py"):
+        content = (RELEASE_DIR / filename).read_text()
+        assert "artifact_transport" not in content
+
+
+def test_artifact_transport_workflow_is_off_and_mutually_exclusive() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "verify_live_evidence_artifact_transport" in workflow
+    assert "transport_artifact_id" in workflow
+    assert "transport_artifact_digest" in workflow
+    assert "transport_capture_run_id" in workflow
+    assert "transport_capture_run_attempt" in workflow
+    assert "transport_capture_head_sha" in workflow
+    assert "live-evidence-artifact-transport-verify:" in workflow
+    assert "actions: read" in workflow
+    assert "id-token: write" not in workflow
+    assert "contents: write" not in workflow
+    assert "inputs.verify_live_evidence_artifact_transport != true" in workflow
+    assert "inputs.execute_live_evidence_capture != true" in workflow
+    assert "python -m cold_storage.release.artifact_transport" in workflow
+    assert "--execute-download" in workflow
+
+
+def test_artifact_transport_make_gate_is_network_free() -> None:
+    makefile = (PROJECT_ROOT / "Makefile").read_text()
+    assert "verify-artifact-transport" in makefile
+    assert "tests/unit/test_artifact_transport.py" in makefile
+    assert "tests/integration/test_artifact_transport.py" in makefile
