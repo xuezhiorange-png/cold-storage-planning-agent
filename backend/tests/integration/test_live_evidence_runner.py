@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -229,6 +231,68 @@ def test_v035_capability_probe_reaches_build_a_invocation(
     assert "type=oci,dest=" in build_calls[0]
     assert "--no-cache" in build_calls[0]
     assert "--platform linux/amd64" in build_calls[0]
+
+
+def _run_capture_from_backend_cwd(
+    *, tmp_path: Path, include_tooling_root: bool
+) -> subprocess.CompletedProcess[str]:
+    args = [
+        sys.executable,
+        "-m",
+        "cold_storage.release.live_evidence_runner",
+        "capture-local",
+        "--execute-builds",
+    ]
+    if include_tooling_root:
+        args.extend(["--tooling-root", ".."])
+    args.extend(
+        [
+            "--expected-source-sha",
+            EXPECTED_SOURCE_COMMIT_SHA,
+            "--output-dir",
+            str(tmp_path / "observation"),
+        ]
+    )
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(PROJECT_ROOT / "backend" / "src")
+    return subprocess.run(
+        args,
+        cwd=PROJECT_ROOT / "backend",
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_canonical_backend_cwd_with_explicit_tooling_root_passes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_mock_docker(monkeypatch, tmp_path)
+
+    result = _run_capture_from_backend_cwd(tmp_path=tmp_path, include_tooling_root=True)
+
+    assert result.returncode == 0, result.stderr
+    bundle_path = Path(result.stdout.strip())
+    assert bundle_path.is_file()
+    bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+    assert any(
+        artifact["relative_path"] == ".github/workflows/ci.yml" for artifact in bundle["artifacts"]
+    )
+
+
+def test_backend_cwd_without_explicit_tooling_root_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    log = _configure_mock_docker(monkeypatch, tmp_path)
+
+    result = _run_capture_from_backend_cwd(tmp_path=tmp_path, include_tooling_root=False)
+
+    expected_path = PROJECT_ROOT / "backend" / ".github" / "workflows" / "ci.yml"
+    assert result.returncode == 2
+    assert "FILE_OBSERVATION_FAILED" in result.stderr
+    assert str(expected_path) in result.stderr
+    assert not any("--output" in line for line in log.read_text(encoding="utf-8").splitlines())
 
 
 def test_build_b_must_produce_an_output(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -69,6 +69,33 @@ python -m cold_storage.release.live_evidence_runner capture-local \
   --output-dir "$RUNNER_TEMP/task012-live-evidence/$GITHUB_RUN_ID"
 ```
 
+### Canonical workflow tooling-root binding
+
+The canonical GitHub Actions capture step changes its working directory to
+`backend` so that `PYTHONPATH=src` resolves the backend package. Because the
+runner's default `--tooling-root=.` is intentionally unchanged, that workflow
+must explicitly bind the repository root:
+
+```bash
+cd backend
+PYTHONPATH=src uv run python -m cold_storage.release.live_evidence_runner \
+  capture-local \
+  --execute-builds \
+  --tooling-root .. \
+  --expected-source-sha "$EXPECTED_SOURCE_SHA" \
+  --output-dir "$OUTPUT_DIR"
+```
+
+This explicit parent binding makes `.github/workflows/ci.yml` resolve from the
+repository root and supplies the canonical `workflow_definition_digest` input.
+Running the same command from `backend` without `--tooling-root ..` must fail
+closed rather than discovering a repository root implicitly. Run
+`31321128386` demonstrated the failure mode: the unbound invocation looked for
+`backend/.github/workflows/ci.yml` before Build A. This correction is limited to
+the workflow-to-runner binding for TASK-012 V0.2 Slice 2; the PostgreSQL
+outbox timing race observed in that run is recorded as out of scope and is not
+modified here.
+
 `capture-local` requires both `--execute-builds` and the exact environment
 value `TASK012_BUILD_A_B_AUTHORIZED=YES`. This software guard is not a
 substitute for the separate human or workflow authorization required for a
