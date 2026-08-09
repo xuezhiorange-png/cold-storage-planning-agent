@@ -28,6 +28,7 @@ from cold_storage.release.provenance_schema import (
     RC_FINAL_IMAGE_DIGEST_MISMATCH,
     RC_PROMOTION_REBUILD,
     RC_PROMOTION_RECORD_UNVERIFIABLE,
+    RC_PROVENANCE_SUBJECT_MISMATCH,
     RC_REGISTRY_DIGEST_MISMATCH,
     RC_VERSION,
 )
@@ -116,6 +117,8 @@ def _artifacts() -> list[OrderedDict]:
 
 
 def test_collect_and_verify_evidence_bundle() -> None:
+    assert _inputs().source_commit_sha == "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+    assert _inputs().source_tree_sha == "b456e77f07a0cef801c57d2f089a318c35c145c4"
     bundle = collect_release_candidate_evidence(
         build_a_inputs=_inputs(),
         build_b_inputs=_inputs(),
@@ -135,6 +138,30 @@ def test_collect_and_verify_evidence_bundle() -> None:
     assert bundle.artifact_manifest["provenance_digest"] == bundle.provenance_digest
     # re-verify end-to-end
     verify_evidence_bundle(bundle)
+
+
+def test_collect_rejects_stale_source_via_public_path() -> None:
+    """The public collector must reject the superseded RC source tuple."""
+    stale_inputs = _inputs()
+    stale_inputs.source_commit_sha = "25a88f0b65fa7662310701563e306331034d6c34"
+    stale_inputs.source_tree_sha = "274e84af01bd895a30571423283838017aacd45f"
+    stale_inputs.build_args = {
+        **stale_inputs.build_args,
+        "COLD_STORAGE_BUILD_COMMIT_SHA": stale_inputs.source_commit_sha,
+    }
+
+    with pytest.raises(ReleaseEvidenceError) as exc:
+        collect_release_candidate_evidence(
+            build_a_inputs=stale_inputs,
+            build_b_inputs=stale_inputs,
+            build_a=_run(inputs=stale_inputs),
+            build_b=_run(inputs=stale_inputs),
+            artifacts=_artifacts(),
+            test_result_reference="https://github.com/test/run/1",
+            verification_result_reference="https://github.com/test/run/2",
+            attestation=ATT,
+        )
+    assert exc.value.failure_code == RC_PROVENANCE_SUBJECT_MISMATCH
 
 
 def test_collect_rejects_non_reproducible_build() -> None:

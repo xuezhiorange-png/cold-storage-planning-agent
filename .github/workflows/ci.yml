@@ -17,6 +17,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Resolve source-derived build timestamp
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          git cat-file -e "${SOURCE_COMMIT_SHA}^{commit}"
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${SOURCE_COMMIT_SHA}")"
+          test -n "${SOURCE_DATE_EPOCH}"
+          case "${SOURCE_DATE_EPOCH}" in
+            ''|*[!0-9]*)
+              echo "SOURCE_DATE_EPOCH must be a decimal integer" >&2
+              exit 1
+              ;;
+          esac
+          echo "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" >> "$GITHUB_ENV"
       - name: Docker Compose config (root)
         run: docker compose config
       - name: Docker Compose config (production)

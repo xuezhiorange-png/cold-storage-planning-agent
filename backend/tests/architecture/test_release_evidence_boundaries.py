@@ -11,6 +11,9 @@ Enforces that:
 
 from __future__ import annotations
 
+import os
+import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -20,6 +23,7 @@ from cold_storage.release.provenance_schema import ALL_ERROR_CODES
 
 BACKEND_SRC = Path(__file__).resolve().parents[2] / "src" / "cold_storage"
 RELEASE_DIR = BACKEND_SRC / "release"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 _FORBIDDEN_IMPORTS = ("fastapi", "sqlalchemy", "redis", "openai", "uvicorn", "psycopg2", "alembic")
 
@@ -83,3 +87,165 @@ def test_each_error_code_has_a_runnable_fixture(expected_code: str) -> None:
         f"expected exactly 1 fixture for {expected_code}, got {len(matching)}"
     )
     assert callable(matching[0].run)
+
+
+def test_rc_source_identity_is_immutable_release_data() -> None:
+    """RC source identity must not follow the evidence-tooling checkout HEAD."""
+    schema = (RELEASE_DIR / "provenance_schema.py").read_text()
+    assert 'EXPECTED_SOURCE_COMMIT_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"' in schema
+    assert 'EXPECTED_SOURCE_TREE_SHA = "b456e77f07a0cef801c57d2f089a318c35c145c4"' in schema
+    assert "EVIDENCE_TOOL_HEAD" in schema
+    assert "git rev-parse HEAD" not in schema
+
+
+def test_production_compose_requires_source_date_epoch() -> None:
+    compose = (PROJECT_ROOT / "docker-compose.production.yml").read_text()
+    assert "SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:?source date epoch is required}" in compose
+    assert "SOURCE_DATE_EPOCH:-0" not in compose
+    assert "SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}" not in compose
+
+
+def test_ci_source_timestamp_binding_preserves_event_source_semantics() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    source_selection = "${{ github.event.pull_request.head.sha || github.sha }}"
+    assert f'SOURCE_COMMIT_SHA="{source_selection}"' in workflow
+    assert 'git cat-file -e "${SOURCE_COMMIT_SHA}^{commit}"' in workflow
+    assert 'git show -s --format=%ct "${SOURCE_COMMIT_SHA}"' in workflow
+    assert 'echo "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" >> "$GITHUB_ENV"' in workflow
+    assert "date +%s" not in workflow
+    assert "git show -s --format=%ct HEAD" not in workflow
+
+
+def _backend_image_build_body() -> str:
+    makefile = (PROJECT_ROOT / "Makefile").read_text()
+    match = re.search(r"(?ms)^backend-image-build:\n(?P<body>.*?)(?=^\S|\Z)", makefile)
+    assert match is not None, "backend-image-build target must exist"
+    return match.group("body")
+
+
+def test_make_backend_image_build_binds_context_and_source_timestamp() -> None:
+    body = _backend_image_build_body()
+    makefile = (PROJECT_ROOT / "Makefile").read_text()
+    assert "RC_BUILD_CONTEXT ?= ." in makefile
+    assert "cat-file -e" in body
+    assert "rev-parse HEAD" in body
+    assert "status --porcelain" in body
+    assert "show -s --format=%ct" in body
+    assert "''|*[!0-9]*)" in body
+    assert "--build-arg SOURCE_DATE_EPOCH" in body
+    assert '-f "$${context}/backend/Dockerfile"' in body
+    assert '"$${context}"' in body
+    assert "date +%s" not in body
+    assert "format=%ct HEAD" not in body
+
+
+def _git_run(*args: str, cwd: Path) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _make_test_context(root: Path, *, second_commit: bool = False) -> tuple[Path, str, str | None]:
+    context = root / "rc-context"
+    (context / "backend").mkdir(parents=True)
+    (context / "backend" / "Dockerfile").write_text("FROM scratch\n")
+    (context / "payload.txt").write_text("one\n")
+    _git_run("init", "-q", cwd=context)
+    _git_run("config", "user.email", "test@example.invalid", cwd=context)
+    _git_run("config", "user.name", "test", cwd=context)
+    _git_run("add", ".", cwd=context)
+    _git_run("commit", "-qm", "initial", cwd=context)
+    source_commit = _git_run("rev-parse", "HEAD", cwd=context)
+    context_head = None
+    if second_commit:
+        (context / "payload.txt").write_text("two\n")
+        _git_run("add", ".", cwd=context)
+        _git_run("commit", "-qm", "second", cwd=context)
+        context_head = _git_run("rev-parse", "HEAD", cwd=context)
+    return context, source_commit, context_head
+
+
+def _run_backend_image_build(
+    context: Path,
+    source_commit: str,
+    mock_docker: Path,
+    *,
+    mock_docker_log: Path,
+    version: str = "v0.2.0",
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env.update(
+        {
+            "COLD_STORAGE_BUILD_COMMIT_SHA": source_commit,
+            "COLD_STORAGE_BUILD_VERSION": version,
+            "RC_BUILD_CONTEXT": str(context),
+            "PATH": f"{mock_docker.parent}{os.pathsep}{env['PATH']}",
+            "MOCK_DOCKER_LOG": str(mock_docker_log),
+        }
+    )
+    return subprocess.run(
+        ["make", "-C", str(PROJECT_ROOT), "backend-image-build"],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _mock_docker(path: Path) -> Path:
+    docker = path / "docker"
+    docker.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" > "$MOCK_DOCKER_LOG"\n')
+    docker.chmod(0o755)
+    return docker
+
+
+def test_make_backend_image_build_rejects_context_identity_mismatch(tmp_path: Path) -> None:
+    context, source_commit, context_head = _make_test_context(tmp_path, second_commit=True)
+    assert context_head is not None and context_head != source_commit
+    (tmp_path / "bin").mkdir()
+    mock_docker = _mock_docker(tmp_path / "bin")
+    log = tmp_path / "docker.log"
+    result = _run_backend_image_build(context, source_commit, mock_docker, mock_docker_log=log)
+    assert result.returncode != 0
+    assert "context HEAD" in result.stderr
+    assert not log.exists()
+
+
+def test_make_backend_image_build_rejects_dirty_context(tmp_path: Path) -> None:
+    context, source_commit, _ = _make_test_context(tmp_path)
+    (context / "dirty.txt").write_text("uncommitted\n")
+    (tmp_path / "bin").mkdir()
+    mock_docker = _mock_docker(tmp_path / "bin")
+    log = tmp_path / "docker.log"
+    result = _run_backend_image_build(context, source_commit, mock_docker, mock_docker_log=log)
+    assert result.returncode != 0
+    assert "dirty" in result.stderr
+    assert not log.exists()
+
+
+def test_make_backend_image_build_rejects_missing_source_commit(tmp_path: Path) -> None:
+    context, _, _ = _make_test_context(tmp_path)
+    (tmp_path / "bin").mkdir()
+    mock_docker = _mock_docker(tmp_path / "bin")
+    log = tmp_path / "docker.log"
+    result = _run_backend_image_build(context, "f" * 40, mock_docker, mock_docker_log=log)
+    assert result.returncode != 0
+    assert "source commit" in result.stderr
+    assert not log.exists()
+
+
+def test_make_backend_image_build_forwards_source_derived_timestamp(tmp_path: Path) -> None:
+    context, source_commit, _ = _make_test_context(tmp_path)
+    (tmp_path / "bin").mkdir()
+    mock_docker = _mock_docker(tmp_path / "bin")
+    log = tmp_path / "docker.log"
+    result = _run_backend_image_build(context, source_commit, mock_docker, mock_docker_log=log)
+    assert result.returncode == 0, result.stderr
+    invocation = log.read_text()
+    expected_epoch = _git_run("show", "-s", "--format=%ct", source_commit, cwd=context)
+    assert f"SOURCE_DATE_EPOCH={expected_epoch}" in invocation
+    assert f"COLD_STORAGE_BUILD_COMMIT_SHA={source_commit}" in invocation

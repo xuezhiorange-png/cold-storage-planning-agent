@@ -23,8 +23,13 @@ PROMOTION_RECORD_SCHEMA_VERSION = "cold-storage-release-candidate-promotion-reco
 
 RC_VERSION = "v0.2.0"
 EXPECTED_SOURCE_REPOSITORY = "xuezhiorange-png/cold-storage-planning-agent"
-EXPECTED_SOURCE_COMMIT_SHA = "25a88f0b65fa7662310701563e306331034d6c34"
-EXPECTED_SOURCE_TREE_SHA = "274e84af01bd895a30571423283838017aacd45f"
+# RC_SOURCE_IDENTITY_IS_RELEASE_INSTANCE_DATA. EVIDENCE_TOOL_HEAD is the
+# execution-tool identity, and the two identities are intentionally distinct.
+# Evidence tooling may be corrected in commits after the immutable RC source
+# candidate and must continue to verify this exact identity. Do not derive
+# either value from runtime HEAD or replace it with a correction commit.
+EXPECTED_SOURCE_COMMIT_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+EXPECTED_SOURCE_TREE_SHA = "b456e77f07a0cef801c57d2f089a318c35c145c4"
 
 EXPECTED_WORKFLOW_IDENTITY = "ci"
 # push-triggered RC must originate from main; PR-merge refs are NOT acceptable

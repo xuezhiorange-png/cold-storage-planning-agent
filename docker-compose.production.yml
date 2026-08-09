@@ -59,7 +59,7 @@ services:
       args:
         COLD_STORAGE_BUILD_COMMIT_SHA: ${COLD_STORAGE_BUILD_COMMIT_SHA:?commit SHA is required}
         COLD_STORAGE_BUILD_VERSION: ${COLD_STORAGE_BUILD_VERSION:?build version is required}
-        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:?source date epoch is required}
     image: cold-storage-backend:${COLD_STORAGE_BUILD_COMMIT_SHA}
     # F-PR76-BLOCKER-02: ``command`` alone does NOT override the
     # image ENTRYPOINT. The image bakes
