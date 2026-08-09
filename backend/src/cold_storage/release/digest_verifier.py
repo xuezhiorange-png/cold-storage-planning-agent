@@ -18,7 +18,7 @@ A *build record* is a plain dict with the keys:
 A *build input manifest* is an ordered dict whose canonical digest is
 ``build_input_manifest_digest``; it captures the frozen build inputs
 (Dockerfile, Compose, workflow, locksets, base-image digests, build
-args, platform, source commit, ``SOURCE_DATE_EPOCH``).
+args, OCI exporter policy, platform, source commit, ``SOURCE_DATE_EPOCH``).
 """
 
 from __future__ import annotations
@@ -56,6 +56,7 @@ BUILD_INPUT_MANIFEST_FIELD_ORDER: tuple[str, ...] = (
     "dependency_lockset_digest",
     "base_image_digest_set",
     "build_args",
+    "oci_exporter",
     "docker_target_platform",
     "build_platform",
     "build_target",
@@ -64,6 +65,61 @@ BUILD_INPUT_MANIFEST_FIELD_ORDER: tuple[str, ...] = (
 
 class ReproducibleBuildError(ReleaseEvidenceError):
     """Failure raised by reproducible-build / digest verification."""
+
+
+EXPECTED_OCI_EXPORTER_POLICY: dict[str, str] = {
+    "type": "oci",
+    "rewrite-timestamp": "true",
+}
+
+
+def normalize_oci_exporter_policy(value: Any) -> OrderedDict[str, str]:
+    """Return the canonical shape of the observed OCI exporter policy.
+
+    The policy is a build-input value, not a Dockerfile build argument.  A
+    false rewrite setting remains representable so its manifest digest can be
+    shown to differ, but it is rejected by the frozen-policy validator below.
+    """
+    if not isinstance(value, Mapping):
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="MISSING_OCI_EXPORTER_POLICY",
+        )
+    if set(value) != set(EXPECTED_OCI_EXPORTER_POLICY):
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="OCI_EXPORTER_POLICY_FIELDS_INVALID",
+        )
+    if not all(isinstance(key, str) and isinstance(item, str) for key, item in value.items()):
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="OCI_EXPORTER_POLICY_TYPES_INVALID",
+        )
+    output_type = value["type"]
+    rewrite_timestamp = value["rewrite-timestamp"]
+    if output_type != "oci" or rewrite_timestamp not in {"true", "false"}:
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="OCI_EXPORTER_POLICY_VALUES_INVALID",
+        )
+    return OrderedDict(
+        [
+            ("type", output_type),
+            ("rewrite-timestamp", rewrite_timestamp),
+        ]
+    )
+
+
+def validate_oci_exporter_policy(value: Any) -> OrderedDict[str, str]:
+    """Require the frozen OCI exporter policy for an executable build."""
+    normalized = normalize_oci_exporter_policy(value)
+    expected = OrderedDict(EXPECTED_OCI_EXPORTER_POLICY.items())
+    if normalized != expected:
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="FALSE_OCI_REWRITE_TIMESTAMP_OR_EXPORTER_POLICY_DRIFT",
+        )
+    return normalized
 
 
 def _present(value: Any) -> bool:
@@ -80,6 +136,7 @@ def _canonical_args(args: Any) -> str:
 
 def build_input_manifest(fields: Mapping[str, Any]) -> OrderedDict[str, Any]:
     """Return an ordered build-input-manifest dict in canonical field order."""
+    exporter_policy = normalize_oci_exporter_policy(fields.get("oci_exporter"))
     out: OrderedDict[str, Any] = OrderedDict()
     for key in BUILD_INPUT_MANIFEST_FIELD_ORDER:
         if key in fields:
@@ -88,6 +145,7 @@ def build_input_manifest(fields: Mapping[str, Any]) -> OrderedDict[str, Any]:
     base_set = out.get("base_image_digest_set")
     if isinstance(base_set, list):
         out["base_image_digest_set"] = sorted(base_set)
+    out["oci_exporter"] = exporter_policy
     return out
 
 
@@ -101,6 +159,7 @@ def verify_build_input_manifest(build_record: Mapping[str, Any]) -> None:
     Recomputes the canonical digest from the build inputs and rejects
     drift.  This closes the "undeclared dynamic input" gap.
     """
+    validate_oci_exporter_policy(build_record.get("oci_exporter"))
     declared = build_record.get("build_input_manifest_digest")
     if not _present(declared):
         raise ReproducibleBuildError(
@@ -161,6 +220,16 @@ def verify_reproducible_build(
             failure_code=RC_BUILD_ARG_MISMATCH,
             detail="build args differ between builds",
         )
+
+    # 4a. The exporter policy is a mandatory, digest-affecting producer input.
+    policy_a = normalize_oci_exporter_policy(build_a.get("oci_exporter"))
+    policy_b = normalize_oci_exporter_policy(build_b.get("oci_exporter"))
+    if policy_a != policy_b:
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="A_B_EXPORTER_POLICY_DRIFT",
+        )
+    validate_oci_exporter_policy(policy_a)
 
     # 5. final image digest present
     digest_a = build_a.get("final_image_digest")
@@ -434,11 +503,14 @@ def verify_promotion_digest_binding(
 
 __all__ = [
     "BUILD_INPUT_MANIFEST_FIELD_ORDER",
+    "EXPECTED_OCI_EXPORTER_POLICY",
     "ReproducibleBuildError",
     "authoritative_image_digest",
     "build_input_manifest",
     "compute_build_input_manifest_digest",
     "is_mutable_tag",
+    "normalize_oci_exporter_policy",
+    "validate_oci_exporter_policy",
     "verify_build_input_manifest",
     "verify_declared_actual_digest_binding",
     "verify_digest_binding_chain",

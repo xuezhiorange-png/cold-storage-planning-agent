@@ -49,6 +49,8 @@ from cold_storage.release.canonical_serialization import (
 )
 from cold_storage.release.digest_verifier import (
     ReproducibleBuildError,
+    normalize_oci_exporter_policy,
+    validate_oci_exporter_policy,
     verify_reproducible_build,
 )
 from cold_storage.release.promotion_record import (
@@ -89,6 +91,7 @@ class BuildInputs:
     migration_set_digest: str
     base_image_digest_set: list[str]
     build_args: dict[str, str]
+    oci_exporter: dict[str, str]
     docker_target_platform: str = EXPECTED_DOCKER_TARGET_PLATFORM
     build_platform: str = EXPECTED_BUILD_PLATFORM
     build_target: str = "runtime"
@@ -104,6 +107,7 @@ class BuildInputs:
                 ("dependency_lockset_digest", self.dependency_lockset_digest),
                 ("base_image_digest_set", sorted(self.base_image_digest_set)),
                 ("build_args", self.build_args),
+                ("oci_exporter", normalize_oci_exporter_policy(self.oci_exporter)),
                 ("docker_target_platform", self.docker_target_platform),
                 ("build_platform", self.build_platform),
                 ("build_target", self.build_target),
@@ -287,6 +291,7 @@ def collect_release_candidate_evidence(
     correctly.
     """
     for label, inputs in (("Build A", build_a_inputs), ("Build B", build_b_inputs)):
+        validate_oci_exporter_policy(inputs.oci_exporter)
         if inputs.docker_target_platform != EXPECTED_DOCKER_TARGET_PLATFORM:
             raise ReproducibleBuildError(
                 failure_code=RC_BUILD_ARG_MISMATCH,
