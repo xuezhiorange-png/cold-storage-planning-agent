@@ -3,6 +3,18 @@ name: ci
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      execute_live_evidence_capture:
+        description: Explicitly authorize the gated local Build A/B capture job
+        required: true
+        type: boolean
+        default: false
+      expected_rc_source_sha:
+        description: Frozen RC source commit assertion
+        required: true
+        type: string
+        default: 043731fea4e60feb6b929c524c4b68e87ed67bd7
 
 jobs:
   compose-config:
@@ -699,6 +711,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The runner integration tests resolve the immutable RC source
+          # object from the repository, so shallow history is insufficient.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v4
       - name: Backend install
         run: cd backend && uv sync
@@ -719,14 +735,57 @@ jobs:
             tests/unit/test_promotion_record.py \
             tests/unit/test_negative_scenarios.py \
             tests/unit/test_regression_b2_b3_b4.py \
+            tests/unit/test_live_evidence_runner.py \
             -q
       - name: Release evidence integration tests
         run: |
           cd backend && PYTHONPATH=src uv run pytest \
             tests/integration/test_release_candidate_evidence.py \
+            tests/integration/test_live_evidence_runner.py \
             -q
       - name: Release evidence architecture tests
         run: |
           cd backend && PYTHONPATH=src uv run pytest \
             tests/architecture/test_release_evidence_boundaries.py \
             -q
+
+  # TASK-012 V0.2 Slice 2 R2: this is a future execution surface only.
+  # The job is unavailable on push/pull_request and remains skipped unless a
+  # maintainer explicitly dispatches this workflow on main with both inputs.
+  # No registry, signing, promotion, or artifact upload is performed here.
+  live-evidence-capture:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Verify live capture dispatch gate
+        env:
+          EXPECTED_SOURCE_SHA: 043731fea4e60feb6b929c524c4b68e87ed67bd7
+          EXPECTED_SOURCE_TREE: b456e77f07a0cef801c57d2f089a318c35c145c4
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${{ inputs.execute_live_evidence_capture }}" = "true"
+          test "${{ inputs.expected_rc_source_sha }}" = "${EXPECTED_SOURCE_SHA}"
+          git cat-file -e "${EXPECTED_SOURCE_SHA}^{commit}"
+          test "$(git rev-parse "${EXPECTED_SOURCE_SHA}^{tree}")" = "${EXPECTED_SOURCE_TREE}"
+      - name: Capture local Build A/B evidence
+        env:
+          TASK012_BUILD_A_B_AUTHORIZED: YES
+          EXPECTED_SOURCE_SHA: 043731fea4e60feb6b929c524c4b68e87ed67bd7
+        run: |
+          set -euo pipefail
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.release.live_evidence_runner \
+            capture-local \
+            --execute-builds \
+            --expected-source-sha "${EXPECTED_SOURCE_SHA}" \
+            --output-dir "${RUNNER_TEMP}/task012-live-evidence/${GITHUB_RUN_ID}"

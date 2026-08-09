@@ -1,113 +1,214 @@
-# TASK-012 Slice 2 R1: Release Candidate Build and Provenance Evidence Runbook
+# TASK-012 V0.2 Slice 2: Release Candidate Evidence Runbook
 
-## Overview
+This runbook defines the release-candidate evidence contract and the
+non-production execution surface. It does not grant authorization to build,
+sign, push, promote, or deploy anything.
 
-This runbook documents the release-candidate build and provenance evidence
-system implemented in V0.2 Slice 2 R1. It covers the five P0 gaps
-(S2_GAP_01 through S2_GAP_05), the 20 negative scenario tests, and the
-quality gate targets.
+## Frozen identities
 
-## Five P0 Gaps
+The release candidate source is an immutable release-instance value:
 
-### S2_GAP_01: Reproducible Build Evidence
-
-Two independent builds from the same commit SHA must produce identical
-OCI image digests. The `digest_verifier.verify_reproducible_build`
-function compares build input manifests and final image digests.
-
-**Module**: `cold_storage.release.digest_verifier`
-
-### S2_GAP_02: Final Image Digest
-
-The authoritative image identity is `sha256:<64-hex>`, never a mutable
-tag. The `digest_verifier.authoritative_image_digest` function resolves
-the local OCI manifest digest and optionally the registry manifest digest.
-
-**Module**: `cold_storage.release.digest_verifier`
-
-### S2_GAP_03: Artifact Manifest and Digest
-
-A canonical JSON artifact manifest with deterministic key order, UTF-8
-encoding, duplicate key rejection, absolute path rejection, and secret
-value rejection. The digest is `sha256(canonical manifest bytes)`.
-
-**Module**: `cold_storage.release.artifact_manifest`
-
-### S2_GAP_04: Release-Candidate Provenance
-
-A machine-verifiable provenance statement binding the image digest and
-artifact manifest digest to a build identity. Protected by an attestation
-mechanism (GitHub OIDC, cosign, GPG, or write-once integrity).
-
-**Module**: `cold_storage.release.provenance_statement`
-
-### S2_GAP_05: Environment Promotion Provenance
-
-A promotion record schema and verifier enforcing `ci -> staging ->
-production` sequence, immutable digest references, no rebuild during
-promotion, and approver/promoter separation.
-
-**Module**: `cold_storage.release.promotion_record`
-
-## Negative Scenario Tests
-
-All 20 frozen negative scenarios (NR-01 through NR-20) are implemented as
-automated tests with explicit error code assertions:
-
-```
-NR-01  RC_SOURCE_COMMIT_MISMATCH
-NR-02  RC_BASE_IMAGE_DIGEST_MISMATCH
-NR-03  RC_LOCKFILE_DIGEST_MISMATCH
-NR-04  RC_BUILD_ARG_MISMATCH
-NR-05  RC_FINAL_IMAGE_DIGEST_MISMATCH
-NR-06  RC_FINAL_IMAGE_DIGEST_MISSING
-NR-07  RC_REGISTRY_DIGEST_MISMATCH
-NR-08  RC_ARTIFACT_MANIFEST_MISSING
-NR-09  RC_ARTIFACT_DUPLICATE_KEY
-NR-10  RC_ARTIFACT_DIGEST_MISMATCH
-NR-11  RC_PROVENANCE_UNSIGNED
-NR-12  RC_PROVENANCE_REPO_MISMATCH
-NR-13  RC_PROVENANCE_WORKFLOW_MISMATCH
-NR-14  RC_PROVENANCE_SUBJECT_MISMATCH
-NR-15  RC_PROMOTION_MUTABLE_TAG
-NR-16  RC_PROMOTION_REBUILD
-NR-17  RC_PROMOTION_DIGEST_DRIFT
-NR-18  RC_ENV_CONFIG_DIGEST_MISSING
-NR-19  RC_APPROVER_MISSING
-NR-20  RC_PROMOTION_RECORD_UNVERIFIABLE
+```text
+RC_SOURCE_SHA=043731fea4e60feb6b929c524c4b68e87ed67bd7
+RC_SOURCE_TREE_SHA=b456e77f07a0cef801c57d2f089a318c35c145c4
+RC_VERSION=v0.2.0
 ```
 
-## Makefile Targets
+The evidence-tooling checkout may be newer than that source. Its
+`EVIDENCE_TOOL_HEAD` and `EVIDENCE_TOOL_TREE` are recorded as execution-tool
+identity and must not replace the frozen RC source values.
 
-| Target | Description |
-|--------|-------------|
-| `release-evidence-lint` | Ruff lint + format check on release module |
-| `release-evidence-typecheck` | Mypy strict typecheck on release module |
-| `release-evidence-test` | All release evidence tests (127 tests) |
-| `verify-release-evidence` | Full gate: lint + typecheck + tests |
-| `verify-base-image-digests` | Verify Dockerfile and Compose use digest pinning |
+The authoritative verifier remains in:
 
-## CI
+- `cold_storage.release.digest_verifier`
+- `cold_storage.release.evidence_collector`
+- `cold_storage.release.provenance_statement`
 
-The `release-evidence` job in `.github/workflows/ci.yml` runs the full
-evidence verification suite on every push and pull request.
+The external-observation adapter is
+`cold_storage.release.live_evidence_runner`. Docker and Git subprocesses must
+stay in that adapter; the verifier and collector do not discover external
+state themselves.
 
-## Live Evidence Execution
+## Canonical Live Evidence Execution Surface
 
-This implementation provides code and synthetic verification only. Real
-registry push, GitHub OIDC signing, and environment promotion require
-separate authorization:
+The runner is executable with:
 
+```bash
+python -m cold_storage.release.live_evidence_runner capture-local \
+  --execute-builds \
+  --expected-source-sha 043731fea4e60feb6b929c524c4b68e87ed67bd7 \
+  --output-dir "$RUNNER_TEMP/task012-live-evidence/$GITHUB_RUN_ID"
 ```
-LIVE_EVIDENCE_EXECUTION_STATUS=REQUIRES_SEPARATE_AUTHORIZATION
+
+`capture-local` requires both `--execute-builds` and the exact environment
+value `TASK012_BUILD_A_B_AUTHORIZED=YES`. This software guard is not a
+substitute for the separate human or workflow authorization required for a
+real capture.
+
+The runner creates two fresh detached worktrees from `RC_SOURCE_SHA`. Before
+either build it verifies the commit, tree, tracked/untracked status, and
+ignored status. Any `!!` ignored artifact blocks the capture. A capture output
+directory must be outside the execution checkout, be empty or newly created,
+and is non-tracked by default.
+
+## Frozen RC Source vs Evidence Tooling
+
+Build contexts are the fresh RC worktrees, never the evidence-tooling checkout.
+The runner records both identities in `metadata.json` and in the observation
+bundle. A later correction commit therefore cannot be accidentally presented
+as the source used for the image.
+
+## Build A/B Independence
+
+Build A and Build B are separate `docker buildx build` invocations. Each uses:
+
+- a different fresh detached source worktree;
+- a different run ID, output path, metadata path, manifest path, and record;
+- `--no-cache`;
+- explicit `--platform linux/amd64`;
+- the frozen source commit and version;
+- `SOURCE_DATE_EPOCH` derived from `git show -s --format=%ct RC_SOURCE_SHA`.
+
+The runner observes A and B independently and compares their OCI manifest
+digests only after both observations complete. It never copies A's digest,
+image output, or record into B. A missing B output, output collision, run ID
+collision, or digest drift is a fail-closed error.
+
+## Actual OCI Manifest Digest Observation
+
+The build uses a local OCI exporter and does not require a registry. The runner
+requires an OCI layout, a schema-version-2 `index.json`, exactly one image
+manifest descriptor, and a supported image-manifest media type. It reads the
+referenced `blobs/sha256/<digest>` bytes and recomputes SHA-256 before accepting
+the descriptor digest.
+
+The Docker image/config ID is not an OCI manifest digest and is never accepted
+as `local_oci_manifest_digest`. Image indexes, manifest lists, attestation
+indexes, ambiguous descriptors, missing blobs, malformed digests, and digest
+tampering fail closed. The implementation is covered by synthetic tests; no
+real RC OCI digest is claimed by this repository change.
+
+## Local-only Capture Phase
+
+Capture produces a machine-readable, non-tracked observation package containing
+metadata, expected inputs, independent A/B observed inputs, input-manifest
+declarations, BuildRunRecords, Buildx metadata, OCI output, and checksums.
+
+The local phase does not push to a registry. `registry_manifest_digest` remains
+`None` until a separately authorized registry-binding phase. No `--push`,
+registry login, `cosign`, OIDC token request, or promotion command belongs in
+the capture command.
+
+## Attestation Assembly Phase
+
+The second phase is explicit:
+
+```bash
+python -m cold_storage.release.live_evidence_runner assemble \
+  --observation-bundle <non-tracked-observation-bundle.json> \
+  --attestation-file <explicit-attestation.json> \
+  --output-dir <new-non-tracked-output-dir>
 ```
+
+Missing attestation fails closed. The runner never creates a default
+`write_once_integrity`, `github_oidc`, GPG, cosign, or synthetic binding. Test
+fixtures may use an explicitly labeled `TEST_ONLY:SYNTHETIC_ONLY` attestation
+to verify adapter wiring; that is not live attestation evidence.
+
+`assemble` reconstructs `BuildInputs` and `BuildRunRecord` from the observed
+package and calls the existing `collect_release_candidate_evidence()` API.
+It does not copy collector or verifier logic. Independent input-manifest
+declarations are recomputed and checked before the collector is called.
+
+## Registry Optional Boundary
+
+The local digest chain can be verified without a registry:
+
+```text
+observed OCI digest A + observed OCI digest B
+  -> reproducible-build verifier
+  -> local authoritative digest
+  -> artifact manifest
+  -> explicit attestation-backed provenance
+```
+
+This does not establish registry-bound evidence. Registry push and registry
+digest observation require their own authorization and evidence phase.
+
+## Workflow Dispatch Governance Gate
+
+The gated `live-evidence-capture` job lives in the existing `ci` workflow so
+the frozen workflow identity remains `ci` and the allowed ref remains
+`refs/heads/main`. It is skipped for ordinary `push` and `pull_request` events.
+
+It can only be considered for a manual dispatch when all of the following are
+true:
+
+- `execute_live_evidence_capture` is explicitly `true`;
+- `expected_rc_source_sha` exactly equals the frozen RC source SHA;
+- the ref is `refs/heads/main`;
+- the checked-out source commit and tree match the frozen values.
+
+The input defaults to `false`. Adding this job does not execute it, upload
+artifacts, request OIDC, push a registry image, or promote an environment.
+
+## Non-tracked Evidence Outputs
+
+Capture and assembly outputs must be written under an operator-selected,
+non-tracked directory such as `$RUNNER_TEMP`. The runner rejects output inside
+the evidence-tooling checkout and rejects non-empty or colliding output paths.
+Only the runner-owned temporary source worktrees and temporary OCI extraction
+directories may be cleaned by the runner. It never runs `git clean`, `git
+reset`, or `git stash`, and it never recursively deletes an arbitrary user
+directory.
+
+## Required Separate Authorizations
+
+The following phases are intentionally separate:
+
+| Phase | Required authorization | Current status |
+|---|---|---|
+| Build A/B local capture | `BUILD_A_EXECUTION_AUTHORIZED=YES` and `BUILD_B_EXECUTION_AUTHORIZED=YES` | Not authorized in this correction |
+| GitHub Actions non-tracked artifact upload | `GITHUB_ACTIONS_ARTIFACT_UPLOAD_AUTHORIZED=YES` | Not authorized |
+| Attestation/signing | `OIDC_SIGNING_EXECUTION_AUTHORIZED=YES` or separately approved signing mechanism | Not authorized |
+| Registry binding | `REGISTRY_PUSH_AUTHORIZED=YES` | Not authorized |
+| Staging promotion | `STAGING_PROMOTION_AUTHORIZED=YES` | Not authorized |
+| Production promotion | `PRODUCTION_PROMOTION_AUTHORIZED=YES` | Not authorized |
+| Deployment | `PRODUCTION_DEPLOYMENT_AUTHORIZED=YES` | Not authorized |
+
+No phase may infer or inherit another phase's authorization. Correction R2
+implements the execution surface and synthetic/mock verification only. It does
+not execute a workflow dispatch, real Build A/B, artifact upload, signing,
+registry push, promotion, or deployment.
+
+## Verification
+
+The ordinary release-evidence CI job runs the runner unit, integration, and
+architecture tests in addition to the existing release evidence suite. The
+local runner tests use a mock Docker command and synthetic OCI layouts; they do
+not require or invoke Docker. The full CI environment installs the CJK font
+required by the existing release test fixture.
+
+Useful local commands are:
+
+```bash
+make verify-live-evidence-runner
+make verify-release-evidence
+make verify-base-image-digests
+```
+
+`LIVE_EVIDENCE_EXECUTION_STATUS=REQUIRES_SEPARATE_AUTHORIZATION` remains the
+correct status until an independent execution authorization is granted.
 
 ## Authorization Boundary
 
-```
+```text
 IMPLEMENTATION_AUTHORIZED=true
+REAL_BUILD_A_AUTHORIZED=false
+REAL_BUILD_B_AUTHORIZED=false
+REGISTRY_PUSH_AUTHORIZED=false
+OIDC_SIGNING_AUTHORIZED=false
 READY_AUTHORIZED=false
 MERGE_AUTHORIZED=false
 DEPLOYMENT_AUTHORIZED=false
-TAG_OR_RELEASE_AUTHORIZED=false
 ```
