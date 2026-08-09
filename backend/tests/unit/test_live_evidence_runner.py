@@ -100,12 +100,13 @@ def _completed(stdout: str = "", returncode: int = 0) -> subprocess.CompletedPro
     return subprocess.CompletedProcess(["docker"], returncode, stdout=stdout, stderr="")
 
 
+BUILDX_V035_HELP = "--output --metadata-file --platform --no-cache --provenance --sbom"
+
+
 def test_buildx_selected_docker_driver_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
         if argv[-2:] == ["build", "--help"]:
-            return _completed(
-                "--output --metadata-file --platform --no-cache --provenance --sbom oci"
-            )
+            return _completed(BUILDX_V035_HELP)
         return _completed("Name: default\nDriver: docker\nPlatforms: linux/amd64\n")
 
     monkeypatch.setattr(live_runner, "_run_command", fake_run)
@@ -119,9 +120,7 @@ def test_buildx_selected_driver_without_target_platform_is_rejected(
 ) -> None:
     def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
         if argv[-2:] == ["build", "--help"]:
-            return _completed(
-                "--output --metadata-file --platform --no-cache --provenance --sbom oci"
-            )
+            return _completed(BUILDX_V035_HELP)
         return _completed("Name: default\nDriver: docker-container\nPlatforms: linux/arm64\n")
 
     monkeypatch.setattr(live_runner, "_run_command", fake_run)
@@ -135,9 +134,7 @@ def test_buildx_selected_driver_and_target_platform_are_accepted(
 ) -> None:
     def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
         if argv[-2:] == ["build", "--help"]:
-            return _completed(
-                "--output --metadata-file --platform --no-cache --provenance --sbom oci"
-            )
+            return _completed(BUILDX_V035_HELP)
         return _completed(
             "Name: default\nDriver: docker-container\nPlatforms: linux/amd64, linux/arm64\n"
         )
@@ -151,13 +148,57 @@ def test_buildx_selected_driver_and_target_platform_are_accepted(
 def test_buildx_inspect_bootstrap_failure_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
         if argv[-2:] == ["build", "--help"]:
-            return _completed("--output --metadata-file --platform --no-cache oci")
+            return _completed(BUILDX_V035_HELP)
         return _completed("builder failed", returncode=1)
 
     monkeypatch.setattr(live_runner, "_run_command", fake_run)
     with pytest.raises(LiveEvidenceRunnerError) as exc:
         live_runner._buildx_capabilities()
     assert exc.value.code == "BUILDX_DRIVER_UNSUPPORTED"
+
+
+def test_buildx_v035_help_without_exporter_name_is_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        if argv[-2:] == ["build", "--help"]:
+            return _completed(BUILDX_V035_HELP)
+        return _completed(
+            "Name: builder\nDriver: docker-container\n"
+            "Platforms: linux/amd64, linux/amd64/v2, linux/386\n"
+        )
+
+    monkeypatch.setattr(live_runner, "_run_command", fake_run)
+    capabilities = live_runner._buildx_capabilities()
+
+    assert capabilities.selected_driver == "docker-container"
+    assert "linux/amd64" in capabilities.available_platforms
+    assert calls == [
+        ["docker", "buildx", "build", "--help"],
+        ["docker", "buildx", "inspect", "--bootstrap"],
+    ]
+
+
+@pytest.mark.parametrize(
+    "missing_flag", ["--output", "--metadata-file", "--platform", "--no-cache"]
+)
+def test_buildx_required_help_flag_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch, missing_flag: str
+) -> None:
+    help_text = " ".join(flag for flag in BUILDX_V035_HELP.split() if flag != missing_flag)
+
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if argv[-2:] == ["build", "--help"]:
+            return _completed(help_text)
+        return _completed("Name: builder\nDriver: docker-container\nPlatforms: linux/amd64\n")
+
+    monkeypatch.setattr(live_runner, "_run_command", fake_run)
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        live_runner._buildx_capabilities()
+    assert exc.value.code == "OCI_EXPORTER_UNSUPPORTED"
 
 
 def _git(cwd: Path, *args: str) -> str:

@@ -36,6 +36,28 @@ builder with `docker/setup-buildx-action@v4`, bootstraps it, and verifies that
 fails closed for the `docker` driver or an unavailable target platform. It does
 not create or silently select another builder.
 
+## Buildx OCI capability compatibility
+
+The runner does not infer exporter support from exporter names printed in
+`docker buildx build --help`. The required help contract is limited to the
+actual CLI options it must invoke: `--output`, `--metadata-file`, `--platform`,
+and `--no-cache`; `--provenance` and `--sbom` remain optional switches. The
+selected builder must still be `docker-container` and must expose
+`linux/amd64`.
+
+The actual execution request is the authority for the exporter:
+`--output type=oci,dest=<run-specific-path>`. If Buildx cannot honor that OCI
+output request, the real Build A invocation returns nonzero and the runner
+fails closed as `DOCKER_BUILD_FAILED`. It does not fall back to `--load`, a
+Docker exporter, `docker save`, a registry exporter, or an image ID.
+
+This correction is based on live run `31316655220`: the GitHub-hosted runner
+reported Docker Engine 28.0.4, Buildx v0.35.0, BuildKit v0.31.2,
+`docker-container`, `linux/amd64`, and an OCI exporter feature, but the runner
+incorrectly stopped before Build A with `OCI_EXPORTER_UNSUPPORTED` because the
+ordinary help text did not contain a standalone `oci` token. No Build A or
+Build B was executed in that run.
+
 ## Canonical Live Evidence Execution Surface
 
 The runner is executable with:

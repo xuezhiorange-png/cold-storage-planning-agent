@@ -389,7 +389,7 @@ def _buildx_capabilities() -> BuildxCapabilities:
     if result.returncode != 0:
         raise LiveEvidenceRunnerError("BUILDX_UNAVAILABLE", _command_detail(result))
     help_text = f"{result.stdout}\n{result.stderr}".lower()
-    for required in ("--output", "--metadata-file", "--platform", "--no-cache", "oci"):
+    for required in ("--output", "--metadata-file", "--platform", "--no-cache"):
         if required not in help_text:
             raise LiveEvidenceRunnerError(
                 "OCI_EXPORTER_UNSUPPORTED",
