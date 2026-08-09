@@ -198,25 +198,49 @@ PYTHONPATH=backend/src python -m cold_storage.release.artifact_transport \
 ```
 
 The token is read only from the environment and is never passed as a command
-argument or written to a receipt. The adapter first calls the exact REST
-metadata endpoint:
+argument or written to a receipt. The adapter makes four bounded requests. All
+GitHub API requests below use `Authorization: Bearer $GITHUB_TOKEN`:
 
 ```text
 GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}
+GET /repos/{owner}/{repo}/actions/runs/{capture_run_id}
 ```
 
 It requires the response ID, `expired=false`, digest, exact runtime artifact
-name, workflow run ID, run attempt when present, `head_sha`, and
-`head_branch=main` to match the upload-time receipt. It then calls the exact
-ID-based archive endpoint:
+name, and artifact workflow identity to match the upload-time receipt. The
+workflow run is fetched by its exact numeric ID; listing runs, selecting the
+latest run, or selecting by branch is not allowed. The authoritative workflow
+response must prove:
+
+```text
+name=ci
+path=.github/workflows/ci.yml
+event=workflow_dispatch
+head_branch=main
+head_sha=<upload-time capture head SHA>
+run_attempt=<upload-time capture attempt>
+status=completed
+conclusion=success
+```
+
+The artifact metadata and workflow response are cross-checked for run ID,
+head SHA, branch, and attempt. The exact ID-based archive endpoint is then
+requested:
 
 ```text
 GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip
 ```
 
-The adapter follows the server redirect but never accepts a user-provided
-archive URL as authority. It streams the archive response into a temporary
-runner-owned file and computes SHA-256 incrementally. The following three
+The ZIP API request is deliberately made without automatic redirect handling.
+It must return one observed `302` with an absolute HTTPS `Location`. The
+temporary archive URL is validated and requested exactly once with only
+minimal archive headers. It never receives `Authorization`, `Cookie`, or the
+GitHub API version header. A second redirect, API-origin redirect, relative
+URL, non-HTTPS URL, userinfo, or fragment fails closed. The archive URL is
+never supplied by the operator and is not a machine authority.
+
+The archive is streamed into a temporary runner-owned file and hashed
+incrementally. The following three
 values must normalize to the same `sha256:<64 lower-hex>` value:
 
 ```text
@@ -230,7 +254,7 @@ empty/partial download, or digest mismatch fails closed. A partial or failed
 download is never promoted to `verified-artifact.zip` and no verified receipt
 is written.
 
-### Safe extraction and handoff
+### Safe extraction and capture-origin handoff
 
 Only after all three transport digests match does the adapter validate every
 ZIP entry and extract to a new `extracted/` directory. It rejects absolute
@@ -239,10 +263,19 @@ files without using `extractall()`. The extracted root must contain
 `observation-bundle.json`, `metadata.json`, `expected-inputs.json`,
 `SHA256SUMS`, `SHA256SUMS.sha256`, `build-a/`, and `build-b/`.
 
+After safe extraction, the adapter checks `metadata.json` against the
+authoritative Workflow Run response and the frozen RC identity. It requires
+`task=TASK-012`, `version=V0.2`, `slice=2`, the exact capture run ID and
+attempt, `evidence_tool_head` equal to the observed workflow `head_sha`, and
+the frozen RC source/tree values. This is an origin binding check only; the
+adapter does not duplicate the internal checksum verifier or OCI verifier.
+
 The adapter writes `artifact-transport-receipt.json` containing the three
-matching digests, exact Artifact ID, capture identities, exact endpoint
-identity, verification time, and `transport_verification_status=PASS`. It
-does not call `assemble` and does not create attestation or provenance.
+matching digests, exact Artifact ID, the Workflow Run API fields, package
+origin fields, exact endpoint identity, verification time, and
+`transport_verification_status=PASS` plus
+`canonical_capture_origin_status=PASS`. It does not call `assemble` and does
+not create attestation or provenance.
 
 The next separately authorized handoff is:
 

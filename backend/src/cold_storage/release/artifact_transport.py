@@ -31,9 +31,9 @@ import zipfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from http.client import HTTPResponse
+from http.client import HTTPMessage, HTTPResponse
 from pathlib import Path, PurePosixPath
-from typing import Any, cast
+from typing import IO, Any, cast
 
 DEFAULT_API_BASE_URL = "https://api.github.com"
 GITHUB_API_VERSION = "2022-11-28"
@@ -41,6 +41,12 @@ TRANSPORT_RECEIPT_SCHEMA_VERSION = "cold-storage-artifact-transport-receipt-v1"
 VERIFIED_ARCHIVE_NAME = "verified-artifact.zip"
 EXTRACTED_DIRECTORY_NAME = "extracted"
 CHUNK_SIZE = 1024 * 1024
+MAX_ARCHIVE_REDIRECTS = 1
+EXPECTED_RC_SOURCE_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+EXPECTED_RC_SOURCE_TREE = "b456e77f07a0cef801c57d2f089a318c35c145c4"
+CANONICAL_WORKFLOW_NAME = "ci"
+CANONICAL_WORKFLOW_PATH = ".github/workflows/ci.yml"
+CANONICAL_WORKFLOW_EVENT = "workflow_dispatch"
 
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
@@ -72,6 +78,22 @@ class ArtifactMetadata:
     archive_endpoint_identity: str
 
 
+@dataclass(frozen=True)
+class WorkflowRunMetadata:
+    """Authoritative metadata for the exact capture workflow run."""
+
+    run_id: int
+    run_attempt: int
+    name: str
+    path: str
+    event: str
+    head_sha: str
+    head_branch: str
+    status: str
+    conclusion: str
+    workflow_id: int | None
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
@@ -90,11 +112,29 @@ def normalize_artifact_digest(value: str) -> str:
 
 
 def _parse_positive_decimal(value: str, *, field: str) -> str:
+    if not isinstance(value, str):
+        raise ArtifactTransportError(
+            "ARTIFACT_INPUT_INVALID", f"{field} must be a positive integer"
+        )
     if _POSITIVE_DECIMAL_RE.fullmatch(value) is None:
         raise ArtifactTransportError(
             "ARTIFACT_INPUT_INVALID", f"{field} must be a positive integer"
         )
     return value
+
+
+def _parse_json_positive_int(value: Any, *, field: str) -> int:
+    if type(value) is not int or value <= 0:
+        raise ArtifactTransportError(
+            "ARTIFACT_METADATA_INVALID", f"{field} must be a positive integer"
+        )
+    return value
+
+
+def _parse_package_decimal(value: Any, *, field: str) -> int:
+    if not isinstance(value, str):
+        raise ArtifactTransportError("CAPTURE_PACKAGE_ORIGIN_MISMATCH", f"{field} type mismatch")
+    return int(_parse_positive_decimal(value, field=field))
 
 
 def _parse_artifact_id(value: str) -> int:
@@ -109,7 +149,7 @@ def _validate_repository(repository: str) -> str:
 
 
 def _validate_head_sha(value: str) -> str:
-    if _SHA_RE.fullmatch(value) is None:
+    if not isinstance(value, str) or _SHA_RE.fullmatch(value) is None:
         raise ArtifactTransportError("ARTIFACT_INPUT_INVALID", "capture head SHA is invalid")
     return value
 
@@ -138,8 +178,76 @@ def _response_status(response: HTTPResponse) -> int:
     return int(response.getcode())
 
 
-def _open_url(request: urllib.request.Request) -> HTTPResponse:
-    return cast(HTTPResponse, urllib.request.urlopen(request, timeout=60))
+class _NoAutomaticRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Return redirect responses so callers can validate them explicitly."""
+
+    @staticmethod
+    def _return_response(
+        request: urllib.request.Request,
+        response: IO[bytes],
+        code: int,
+        message: str,
+        headers: HTTPMessage,
+    ) -> IO[bytes]:
+        del request, code, message
+        return response
+
+    def http_error_301(
+        self,
+        request: urllib.request.Request,
+        response: IO[bytes],
+        code: int,
+        message: str,
+        headers: HTTPMessage,
+    ) -> IO[bytes]:
+        return self._return_response(request, response, code, message, headers)
+
+    def http_error_302(
+        self,
+        request: urllib.request.Request,
+        response: IO[bytes],
+        code: int,
+        message: str,
+        headers: HTTPMessage,
+    ) -> IO[bytes]:
+        return self._return_response(request, response, code, message, headers)
+
+    def http_error_303(
+        self,
+        request: urllib.request.Request,
+        response: IO[bytes],
+        code: int,
+        message: str,
+        headers: HTTPMessage,
+    ) -> IO[bytes]:
+        return self._return_response(request, response, code, message, headers)
+
+    def http_error_307(
+        self,
+        request: urllib.request.Request,
+        response: IO[bytes],
+        code: int,
+        message: str,
+        headers: HTTPMessage,
+    ) -> IO[bytes]:
+        return self._return_response(request, response, code, message, headers)
+
+    def http_error_308(
+        self,
+        request: urllib.request.Request,
+        response: IO[bytes],
+        code: int,
+        message: str,
+        headers: HTTPMessage,
+    ) -> IO[bytes]:
+        return self._return_response(request, response, code, message, headers)
+
+
+def _open_url(request: urllib.request.Request, *, follow_redirects: bool = True) -> HTTPResponse:
+    if follow_redirects:
+        return cast(HTTPResponse, urllib.request.urlopen(request, timeout=60))
+    opener = urllib.request.build_opener(_NoAutomaticRedirectHandler())
+    return cast(HTTPResponse, opener.open(request, timeout=60))
 
 
 def _close_response(response: HTTPResponse) -> None:
@@ -200,7 +308,7 @@ class ArtifactTransportClient:
     def _archive_url(self, artifact_id: int) -> str:
         return f"{self._metadata_url(artifact_id)}/zip"
 
-    def _headers(self) -> dict[str, str]:
+    def _api_headers(self) -> dict[str, str]:
         return {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {self.token}",
@@ -208,10 +316,23 @@ class ArtifactTransportClient:
             "User-Agent": "cold-storage-artifact-transport/1",
         }
 
-    def _request(self, url: str) -> HTTPResponse:
-        request = urllib.request.Request(url, headers=self._headers(), method="GET")
+    @staticmethod
+    def _archive_headers() -> dict[str, str]:
+        return {
+            "Accept": "application/octet-stream",
+            "User-Agent": "cold-storage-artifact-transport/1",
+        }
+
+    def _request(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        follow_redirects: bool = True,
+    ) -> HTTPResponse:
+        request = urllib.request.Request(url, headers=dict(headers), method="GET")
         try:
-            response = _open_url(request)
+            response = _open_url(request, follow_redirects=follow_redirects)
         except urllib.error.HTTPError as exc:
             raise ArtifactTransportError("ARTIFACT_HTTP_ERROR", f"HTTP {exc.code}") from exc
         except (urllib.error.URLError, OSError) as exc:
@@ -223,7 +344,7 @@ class ArtifactTransportClient:
         return response
 
     def _get_json(self, url: str) -> dict[str, Any]:
-        response = self._request(url)
+        response = self._request(url, headers=self._api_headers())
         try:
             raw = response.read()
         except OSError as exc:
@@ -243,6 +364,9 @@ class ArtifactTransportClient:
         if not isinstance(value, dict):
             raise ArtifactTransportError("ARTIFACT_METADATA_INVALID", "metadata must be an object")
         return cast(dict[str, Any], value)
+
+    def _workflow_run_url(self, run_id: int) -> str:
+        return f"{self._base_url}/repos/{self.repository}/actions/runs/{run_id}"
 
     def fetch_verified_metadata(
         self,
@@ -285,7 +409,8 @@ class ArtifactTransportClient:
             raise ArtifactTransportError(
                 "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "workflow_run is missing"
             )
-        if workflow_run.get("id") != int(run_id):
+        workflow_run_id = _parse_json_positive_int(workflow_run.get("id"), field="workflow_run.id")
+        if workflow_run_id != int(run_id):
             raise ArtifactTransportError(
                 "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "workflow run ID mismatch"
             )
@@ -298,7 +423,10 @@ class ArtifactTransportClient:
                 "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "capture branch is not main"
             )
         metadata_attempt = workflow_run.get("run_attempt")
-        if metadata_attempt is not None and metadata_attempt != int(run_attempt):
+        if metadata_attempt is not None and (
+            _parse_json_positive_int(metadata_attempt, field="workflow_run.run_attempt")
+            != int(run_attempt)
+        ):
             raise ArtifactTransportError(
                 "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "capture run attempt mismatch"
             )
@@ -318,6 +446,94 @@ class ArtifactTransportClient:
             archive_endpoint_identity=f"GET {urllib.parse.urlsplit(archive_url).path}",
         )
 
+    def fetch_verified_workflow_run(
+        self,
+        *,
+        metadata: ArtifactMetadata,
+        expected_capture_run_id: str,
+        expected_capture_run_attempt: str,
+        expected_capture_head_sha: str,
+    ) -> WorkflowRunMetadata:
+        """Fetch and verify the exact canonical capture workflow run."""
+        expected_run_id = int(
+            _parse_positive_decimal(expected_capture_run_id, field="capture run ID")
+        )
+        expected_attempt = int(
+            _parse_positive_decimal(expected_capture_run_attempt, field="capture run attempt")
+        )
+        expected_head_sha = _validate_head_sha(expected_capture_head_sha)
+        authoritative_run_id = int(metadata.capture_run_id)
+        if authoritative_run_id != expected_run_id:
+            raise ArtifactTransportError(
+                "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "workflow run ID assertion mismatch"
+            )
+
+        response = self._get_json(self._workflow_run_url(authoritative_run_id))
+        run_id = _parse_json_positive_int(response.get("id"), field="workflow run id")
+        run_attempt = _parse_json_positive_int(
+            response.get("run_attempt"), field="workflow run attempt"
+        )
+        if run_id != expected_run_id:
+            raise ArtifactTransportError(
+                "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "workflow run ID mismatch"
+            )
+        if run_attempt != expected_attempt:
+            raise ArtifactTransportError(
+                "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "workflow run attempt mismatch"
+            )
+
+        required_text = (
+            ("name", CANONICAL_WORKFLOW_NAME),
+            ("path", CANONICAL_WORKFLOW_PATH),
+            ("event", CANONICAL_WORKFLOW_EVENT),
+            ("head_branch", "main"),
+            ("head_sha", expected_head_sha),
+            ("status", "completed"),
+            ("conclusion", "success"),
+        )
+        for field, expected in required_text:
+            if response.get(field) != expected:
+                raise ArtifactTransportError(
+                    "ARTIFACT_WORKFLOW_BINDING_MISMATCH",
+                    f"workflow run {field} mismatch",
+                )
+
+        if metadata.capture_run_id != str(run_id):
+            raise ArtifactTransportError(
+                "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "artifact workflow run ID mismatch"
+            )
+        if metadata.capture_head_sha != expected_head_sha:
+            raise ArtifactTransportError(
+                "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "artifact workflow head SHA mismatch"
+            )
+        if metadata.capture_head_branch != "main":
+            raise ArtifactTransportError(
+                "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "artifact workflow branch mismatch"
+            )
+        if metadata.capture_run_attempt != str(run_attempt):
+            raise ArtifactTransportError(
+                "ARTIFACT_WORKFLOW_BINDING_MISMATCH", "artifact workflow attempt mismatch"
+            )
+
+        workflow_id_value = response.get("workflow_id")
+        workflow_id = None
+        if workflow_id_value is not None:
+            workflow_id = _parse_json_positive_int(
+                workflow_id_value, field="workflow run workflow_id"
+            )
+        return WorkflowRunMetadata(
+            run_id=run_id,
+            run_attempt=run_attempt,
+            name=cast(str, response["name"]),
+            path=cast(str, response["path"]),
+            event=cast(str, response["event"]),
+            head_sha=cast(str, response["head_sha"]),
+            head_branch=cast(str, response["head_branch"]),
+            status=cast(str, response["status"]),
+            conclusion=cast(str, response["conclusion"]),
+            workflow_id=workflow_id,
+        )
+
     @staticmethod
     def _verify_archive_metadata_url(value: Any, expected: str) -> None:
         if not isinstance(value, str):
@@ -335,9 +551,90 @@ class ArtifactTransportClient:
                 "ARTIFACT_ARCHIVE_URL_MISMATCH", "archive URL identity mismatch"
             )
 
+    @staticmethod
+    def _response_header(response: HTTPResponse, name: str) -> str | None:
+        headers = getattr(response, "headers", None)
+        if headers is not None:
+            value = headers.get(name)
+            if isinstance(value, str):
+                return value
+        getter = getattr(response, "getheader", None)
+        if callable(getter):
+            value = getter(name)
+            if isinstance(value, str):
+                return value
+        return None
+
+    def _validate_archive_redirect(self, location: str | None) -> str:
+        if not isinstance(location, str) or not location:
+            raise ArtifactTransportError(
+                "ARTIFACT_REDIRECT_INVALID", "archive redirect Location is required"
+            )
+        parsed = urllib.parse.urlsplit(location)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.fragment
+        ):
+            raise ArtifactTransportError(
+                "ARTIFACT_REDIRECT_INVALID", "archive redirect must be an HTTPS URL"
+            )
+        if self.token in location:
+            raise ArtifactTransportError(
+                "ARTIFACT_REDIRECT_INVALID", "archive redirect must not contain credentials"
+            )
+        api_host = urllib.parse.urlsplit(self._base_url).hostname
+        if api_host is not None and parsed.hostname.lower() == api_host.lower():
+            raise ArtifactTransportError(
+                "ARTIFACT_REDIRECT_INVALID", "archive redirect cannot target the GitHub API"
+            )
+        return location
+
     def download_archive(self, *, artifact_id: int, destination: Path) -> str:
-        """Stream the exact ID endpoint to disk and return its SHA-256 digest."""
-        response = self._request(self._archive_url(artifact_id))
+        """Observe one API redirect, then stream the unsigned archive URL."""
+        archive_url = self._archive_url(artifact_id)
+        initial_request = urllib.request.Request(
+            archive_url, headers=self._api_headers(), method="GET"
+        )
+        try:
+            response = _open_url(initial_request, follow_redirects=False)
+        except urllib.error.HTTPError as exc:
+            raise ArtifactTransportError("ARTIFACT_HTTP_ERROR", f"HTTP {exc.code}") from exc
+        except (urllib.error.URLError, OSError) as exc:
+            raise ArtifactTransportError("ARTIFACT_HTTP_ERROR", type(exc).__name__) from exc
+        status = _response_status(response)
+        if status != 302:
+            _close_response(response)
+            raise ArtifactTransportError(
+                "ARTIFACT_REDIRECT_INVALID", "archive endpoint must return one redirect"
+            )
+        try:
+            location = self._validate_archive_redirect(self._response_header(response, "Location"))
+        finally:
+            _close_response(response)
+
+        archive_request = urllib.request.Request(
+            location, headers=self._archive_headers(), method="GET"
+        )
+        try:
+            response = _open_url(archive_request, follow_redirects=False)
+        except urllib.error.HTTPError as exc:
+            raise ArtifactTransportError("ARTIFACT_HTTP_ERROR", f"HTTP {exc.code}") from exc
+        except (urllib.error.URLError, OSError) as exc:
+            raise ArtifactTransportError("ARTIFACT_HTTP_ERROR", type(exc).__name__) from exc
+        status = _response_status(response)
+        if 300 <= status < 400:
+            _close_response(response)
+            raise ArtifactTransportError(
+                "ARTIFACT_REDIRECT_CHAIN_REJECTED",
+                f"archive redirect count exceeds {MAX_ARCHIVE_REDIRECTS}",
+            )
+        if status != 200:
+            _close_response(response)
+            raise ArtifactTransportError("ARTIFACT_HTTP_ERROR", f"HTTP {status}")
+
         digest = hashlib.sha256()
         total = 0
         try:
@@ -440,6 +737,56 @@ def _verify_capture_package_shape(root: Path) -> None:
             raise ArtifactTransportError("CAPTURE_PACKAGE_INCOMPLETE", relative)
 
 
+def _read_capture_package_origin(root: Path, workflow_run: WorkflowRunMetadata) -> dict[str, Any]:
+    """Bind package origin metadata to independently observed workflow data."""
+    path = root / "metadata.json"
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ArtifactTransportError(
+            "CAPTURE_PACKAGE_ORIGIN_MISMATCH", "capture metadata is invalid"
+        ) from exc
+    if not isinstance(value, dict):
+        raise ArtifactTransportError(
+            "CAPTURE_PACKAGE_ORIGIN_MISMATCH", "capture metadata must be an object"
+        )
+
+    if value.get("task") != "TASK-012":
+        raise ArtifactTransportError("CAPTURE_PACKAGE_ORIGIN_MISMATCH", "capture task mismatch")
+    if value.get("version") != "V0.2":
+        raise ArtifactTransportError("CAPTURE_PACKAGE_ORIGIN_MISMATCH", "capture version mismatch")
+    if type(value.get("slice")) is not int or value.get("slice") != 2:
+        raise ArtifactTransportError("CAPTURE_PACKAGE_ORIGIN_MISMATCH", "capture slice mismatch")
+    if (
+        _parse_package_decimal(
+            value.get("capture_workflow_run_id"), field="capture_workflow_run_id"
+        )
+        != workflow_run.run_id
+    ):
+        raise ArtifactTransportError(
+            "CAPTURE_PACKAGE_ORIGIN_MISMATCH", "capture workflow run ID mismatch"
+        )
+    if (
+        _parse_package_decimal(
+            value.get("capture_workflow_run_attempt"), field="capture_workflow_run_attempt"
+        )
+        != workflow_run.run_attempt
+    ):
+        raise ArtifactTransportError(
+            "CAPTURE_PACKAGE_ORIGIN_MISMATCH", "capture workflow run attempt mismatch"
+        )
+    if value.get("evidence_tool_head") != workflow_run.head_sha:
+        raise ArtifactTransportError(
+            "CAPTURE_PACKAGE_ORIGIN_MISMATCH", "evidence tooling head mismatch"
+        )
+    if value.get("rc_source_sha") != EXPECTED_RC_SOURCE_SHA:
+        raise ArtifactTransportError("CAPTURE_PACKAGE_ORIGIN_MISMATCH", "RC source SHA mismatch")
+    if value.get("rc_source_tree") != EXPECTED_RC_SOURCE_TREE:
+        raise ArtifactTransportError("CAPTURE_PACKAGE_ORIGIN_MISMATCH", "RC source tree mismatch")
+    return cast(dict[str, Any], value)
+
+
 def verify_download(
     *,
     repository: str,
@@ -477,6 +824,12 @@ def verify_download(
         expected_capture_run_attempt=expected_capture_run_attempt,
         expected_capture_head_sha=expected_capture_head_sha,
     )
+    workflow_run = client.fetch_verified_workflow_run(
+        metadata=metadata,
+        expected_capture_run_id=expected_capture_run_id,
+        expected_capture_run_attempt=expected_capture_run_attempt,
+        expected_capture_head_sha=expected_capture_head_sha,
+    )
 
     temporary_archive = output / f".artifact-download-{uuid.uuid4().hex}.part"
     temporary_extracted = output / f".extracted-{uuid.uuid4().hex}"
@@ -495,6 +848,7 @@ def verify_download(
             )
         _safe_extract_archive(temporary_archive, temporary_extracted)
         _verify_capture_package_shape(temporary_extracted)
+        package_origin = _read_capture_package_origin(temporary_extracted, workflow_run)
         os.replace(temporary_archive, verified_archive)
         promoted.append(verified_archive)
         os.replace(temporary_extracted, extracted)
@@ -511,11 +865,28 @@ def verify_download(
             "capture_workflow_run_attempt": metadata.capture_run_attempt,
             "capture_head_sha": metadata.capture_head_sha,
             "capture_head_branch": metadata.capture_head_branch,
+            "workflow_run_id": workflow_run.run_id,
+            "workflow_run_attempt": workflow_run.run_attempt,
+            "workflow_name": workflow_run.name,
+            "workflow_path": workflow_run.path,
+            "workflow_event": workflow_run.event,
+            "workflow_head_sha": workflow_run.head_sha,
+            "workflow_head_branch": workflow_run.head_branch,
+            "workflow_status": workflow_run.status,
+            "workflow_conclusion": workflow_run.conclusion,
             "metadata_url": metadata.metadata_url,
             "archive_endpoint_identity": metadata.archive_endpoint_identity,
+            "package_capture_workflow_run_id": package_origin["capture_workflow_run_id"],
+            "package_capture_workflow_run_attempt": package_origin["capture_workflow_run_attempt"],
+            "package_evidence_tool_head": package_origin["evidence_tool_head"],
+            "package_rc_source_sha": package_origin["rc_source_sha"],
+            "package_rc_source_tree": package_origin["rc_source_tree"],
+            "canonical_capture_origin_status": "PASS",
             "verified_at": _now(),
             "transport_verification_status": "PASS",
         }
+        if workflow_run.workflow_id is not None:
+            receipt["workflow_id"] = workflow_run.workflow_id
         _atomic_write_json(receipt_path, receipt)
         return receipt_path
     except Exception:
@@ -575,6 +946,7 @@ __all__ = [
     "ArtifactMetadata",
     "ArtifactTransportClient",
     "ArtifactTransportError",
+    "WorkflowRunMetadata",
     "TRANSPORT_RECEIPT_SCHEMA_VERSION",
     "main",
     "normalize_artifact_digest",

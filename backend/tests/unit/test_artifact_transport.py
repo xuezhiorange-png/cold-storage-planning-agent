@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import stat
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -24,13 +25,23 @@ RUN_ID = "700"
 RUN_ATTEMPT = "2"
 HEAD_SHA = "a" * 40
 API_BASE_URL = "https://api.github.test"
+STORAGE_URL = "https://artifact-storage.example/task012/signed-archive.zip?sig=synthetic"
+RC_SOURCE_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+RC_SOURCE_TREE = "b456e77f07a0cef801c57d2f089a318c35c145c4"
+SECRET_TOKEN = "TASK012-SUPER-SECRET-REDIRECT-TOKEN"
 
 
 class FakeResponse:
     def __init__(
-        self, payload: bytes, *, status: int = 200, fail_after_first_read: bool = False
+        self,
+        payload: bytes,
+        *,
+        status: int = 200,
+        headers: dict[str, str] | None = None,
+        fail_after_first_read: bool = False,
     ) -> None:
         self.status = status
+        self.headers = headers or {}
         self._stream = io.BytesIO(payload)
         self._fail_after_first_read = fail_after_first_read
         self._read_count = 0
@@ -45,6 +56,9 @@ class FakeResponse:
     def getcode(self) -> int:
         return self.status
 
+    def getheader(self, name: str, default: str | None = None) -> str | None:
+        return self.headers.get(name, default)
+
     def close(self) -> None:
         self.closed = True
 
@@ -54,10 +68,21 @@ def _zip_bytes(
     *,
     duplicate_entry: bool = False,
     symlink_entry: bool = False,
+    package_metadata: dict[str, Any] | None = None,
 ) -> bytes:
+    metadata = package_metadata or {
+        "task": "TASK-012",
+        "version": "V0.2",
+        "slice": 2,
+        "capture_workflow_run_id": RUN_ID,
+        "capture_workflow_run_attempt": RUN_ATTEMPT,
+        "evidence_tool_head": HEAD_SHA,
+        "rc_source_sha": RC_SOURCE_SHA,
+        "rc_source_tree": RC_SOURCE_TREE,
+    }
     entries = [
         ("observation-bundle.json", b"{}"),
-        ("metadata.json", b"{}"),
+        ("metadata.json", json.dumps(metadata, sort_keys=True).encode("utf-8")),
         ("expected-inputs.json", b"{}"),
         ("build-a/", b""),
         ("build-a/build-record.json", b"{}"),
@@ -113,27 +138,66 @@ def _install_http(
     *,
     archive: bytes,
     metadata: dict[str, Any] | None = None,
+    workflow: dict[str, Any] | None = None,
     metadata_status: int = 200,
-    archive_status: int = 200,
+    workflow_status: int = 200,
+    redirect_status: int = 302,
+    redirect_location: str | None = STORAGE_URL,
+    storage_status: int = 200,
+    second_redirect: bool = False,
     partial_download: bool = False,
-) -> list[str]:
-    calls: list[str] = []
+) -> list[urllib.request.Request]:
+    calls: list[urllib.request.Request] = []
     metadata_payload = json.dumps(_metadata(archive) if metadata is None else metadata).encode(
         "utf-8"
     )
+    workflow_payload = json.dumps(
+        {
+            "id": int(RUN_ID),
+            "run_attempt": int(RUN_ATTEMPT),
+            "name": "ci",
+            "path": ".github/workflows/ci.yml",
+            "event": "workflow_dispatch",
+            "head_sha": HEAD_SHA,
+            "head_branch": "main",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 987,
+        }
+        if workflow is None
+        else workflow
+    ).encode("utf-8")
 
-    def fake_urlopen(request: urllib.request.Request, timeout: int = 60) -> FakeResponse:
-        del timeout
-        calls.append(request.full_url)
-        if request.full_url.endswith("/zip"):
+    metadata_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ARTIFACT_ID}"
+    workflow_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{RUN_ID}"
+    archive_url = f"{metadata_url}/zip"
+
+    def fake_open(
+        request: urllib.request.Request,
+        timeout: int = 60,
+        *,
+        follow_redirects: bool = True,
+    ) -> FakeResponse:
+        del timeout, follow_redirects
+        calls.append(request)
+        if request.full_url == metadata_url:
+            return FakeResponse(metadata_payload, status=metadata_status)
+        if request.full_url == workflow_url:
+            return FakeResponse(workflow_payload, status=workflow_status)
+        if request.full_url == archive_url:
+            headers = {} if redirect_location is None else {"Location": redirect_location}
+            return FakeResponse(b"", status=redirect_status, headers=headers)
+        if request.full_url == STORAGE_URL:
+            if second_redirect:
+                return FakeResponse(b"", status=302, headers={"Location": STORAGE_URL})
             return FakeResponse(
                 archive,
-                status=archive_status,
+                status=storage_status,
                 fail_after_first_read=partial_download,
             )
-        return FakeResponse(metadata_payload, status=metadata_status)
+        raise urllib.error.URLError(f"unexpected synthetic URL: {request.full_url}")
 
-    monkeypatch.setattr(transport.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(transport, "_open_url", fake_open)
     return calls
 
 
@@ -148,14 +212,18 @@ def _verify(
     archive_status: int = 200,
     partial_download: bool = False,
     **kwargs: Any,
-) -> tuple[Path, list[str]]:
+) -> tuple[Path, list[urllib.request.Request]]:
     digest = expected_digest or f"sha256:{hashlib.sha256(archive).hexdigest()}"
     calls = _install_http(
         monkeypatch,
         archive=archive,
         metadata=metadata,
+        workflow=kwargs.pop("workflow", None),
         metadata_status=metadata_status,
-        archive_status=archive_status,
+        redirect_status=kwargs.pop("redirect_status", 302),
+        redirect_location=kwargs.pop("redirect_location", STORAGE_URL),
+        storage_status=kwargs.pop("storage_status", archive_status),
+        second_redirect=kwargs.pop("second_redirect", False),
         partial_download=partial_download,
     )
     receipt = verify_download(
@@ -168,7 +236,7 @@ def _verify(
         output_dir=tmp_path / "transport-output",
         execute_download=True,
         env={
-            "GITHUB_TOKEN": "test-token-that-must-not-be-written",
+            "GITHUB_TOKEN": SECRET_TOKEN,
             "TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED": "YES",
         },
         api_base_url=API_BASE_URL,
@@ -314,7 +382,7 @@ def test_download_digest_mismatch_and_partial_download_leave_no_verified_archive
             env={"GITHUB_TOKEN": "secret", "TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED": "YES"},
             api_base_url=API_BASE_URL,
         )
-    assert len(calls) == 2
+    assert len(calls) == 4
     assert not (tmp_path / "mismatch" / "verified-artifact.zip").exists()
 
     with pytest.raises(ArtifactTransportError, match="ARTIFACT_DOWNLOAD_FAILED"):
@@ -347,14 +415,183 @@ def test_happy_path_writes_receipt_and_uses_exact_id_endpoint(
     archive = _zip_bytes()
     receipt, calls = _verify(tmp_path, monkeypatch, archive=archive)
     output = receipt.parent
-    assert calls == [
+    assert [request.full_url for request in calls] == [
         f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ARTIFACT_ID}",
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{RUN_ID}",
         f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ARTIFACT_ID}/zip",
+        STORAGE_URL,
     ]
+    assert calls[0].get_header("Authorization") == f"Bearer {SECRET_TOKEN}"
+    assert calls[1].get_header("Authorization") == f"Bearer {SECRET_TOKEN}"
+    assert calls[2].get_header("Authorization") == f"Bearer {SECRET_TOKEN}"
+    assert calls[3].get_header("Authorization") is None
+    assert calls[3].get_header("Cookie") is None
+    assert calls[3].get_header("X-github-api-version") is None
     assert (output / "verified-artifact.zip").read_bytes() == archive
     assert (output / "extracted" / "observation-bundle.json").is_file()
     receipt_value = json.loads(receipt.read_text(encoding="utf-8"))
     assert receipt_value["transport_verification_status"] == "PASS"
     assert receipt_value["recorded_artifact_digest"] == receipt_value["metadata_artifact_digest"]
     assert receipt_value["metadata_artifact_digest"] == receipt_value["downloaded_archive_digest"]
+    assert receipt_value["workflow_name"] == "ci"
+    assert receipt_value["workflow_path"] == ".github/workflows/ci.yml"
+    assert receipt_value["workflow_event"] == "workflow_dispatch"
+    assert receipt_value["canonical_capture_origin_status"] == "PASS"
     assert "test-token-that-must-not-be-written" not in receipt.read_text(encoding="utf-8")
+    assert SECRET_TOKEN not in receipt.read_text(encoding="utf-8")
+
+
+def test_authenticated_artifact_zip_redirect_does_not_forward_github_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive = _zip_bytes()
+    receipt, calls = _verify(tmp_path, monkeypatch, archive=archive)
+    assert receipt.exists()
+    assert calls[2].full_url.endswith(f"/artifacts/{ARTIFACT_ID}/zip")
+    assert calls[2].get_header("Authorization") == f"Bearer {SECRET_TOKEN}"
+    assert calls[3].full_url == STORAGE_URL
+    assert calls[3].get_header("Authorization") is None
+    assert calls[3].get_header("Cookie") is None
+    assert calls[3].get_header("X-github-api-version") is None
+
+
+@pytest.mark.parametrize(
+    ("redirect_status", "redirect_location", "error"),
+    [
+        (302, None, "ARTIFACT_REDIRECT_INVALID"),
+        (302, "http://artifact-storage.example/archive", "ARTIFACT_REDIRECT_INVALID"),
+        (302, "/relative/archive", "ARTIFACT_REDIRECT_INVALID"),
+        (
+            302,
+            "https://user:password@artifact-storage.example/archive",
+            "ARTIFACT_REDIRECT_INVALID",
+        ),
+        (302, "https://artifact-storage.example/archive#fragment", "ARTIFACT_REDIRECT_INVALID"),
+        (301, STORAGE_URL, "ARTIFACT_REDIRECT_INVALID"),
+        (302, API_BASE_URL + "/repos/x/y/actions/artifacts/1234/zip", "ARTIFACT_REDIRECT_INVALID"),
+    ],
+)
+def test_redirect_validation_fail_closed_without_verified_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    redirect_status: int,
+    redirect_location: str | None,
+    error: str,
+) -> None:
+    archive = _zip_bytes()
+    with pytest.raises(ArtifactTransportError, match=error):
+        _verify(
+            tmp_path / "redirect",
+            monkeypatch,
+            archive=archive,
+            redirect_status=redirect_status,
+            redirect_location=redirect_location,
+        )
+    output = tmp_path / "redirect" / "transport-output"
+    assert not (output / "verified-artifact.zip").exists()
+    assert not (output / "artifact-transport-receipt.json").exists()
+
+
+def test_second_redirect_is_rejected_before_archive_promotion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(ArtifactTransportError, match="ARTIFACT_REDIRECT_CHAIN_REJECTED"):
+        _verify(tmp_path, monkeypatch, archive=_zip_bytes(), second_redirect=True)
+    assert not (tmp_path / "transport-output" / "verified-artifact.zip").exists()
+
+
+def test_redirect_failures_do_not_expose_token_in_error_text(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(ArtifactTransportError) as caught:
+        _verify(
+            tmp_path,
+            monkeypatch,
+            archive=_zip_bytes(),
+            redirect_location="http://artifact-storage.example/archive",
+        )
+    assert SECRET_TOKEN not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "workflow_override",
+    [
+        {"id": 701},
+        {"event": "pull_request"},
+        {"event": "push"},
+        {"head_branch": "feature"},
+        {"head_sha": "b" * 40},
+        {"run_attempt": 3},
+        {"path": ".github/workflows/other.yml"},
+        {"name": "other"},
+        {"status": "in_progress"},
+        {"conclusion": "failure"},
+    ],
+)
+def test_authoritative_workflow_run_bindings_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    workflow_override: dict[str, Any],
+) -> None:
+    with pytest.raises(ArtifactTransportError, match="ARTIFACT_WORKFLOW_BINDING_MISMATCH"):
+        _verify(
+            tmp_path / "workflow",
+            monkeypatch,
+            archive=_zip_bytes(),
+            workflow={
+                "id": int(RUN_ID),
+                "run_attempt": int(RUN_ATTEMPT),
+                "name": "ci",
+                "path": ".github/workflows/ci.yml",
+                "event": "workflow_dispatch",
+                "head_sha": HEAD_SHA,
+                "head_branch": "main",
+                "status": "completed",
+                "conclusion": "success",
+                "workflow_id": 987,
+                **workflow_override,
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "capture_workflow_run_id",
+        "capture_workflow_run_attempt",
+        "evidence_tool_head",
+        "rc_source_sha",
+        "rc_source_tree",
+        "task",
+        "version",
+        "slice",
+    ],
+)
+def test_package_origin_metadata_is_bound_before_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    package_metadata: dict[str, Any] = {
+        "task": "TASK-012",
+        "version": "V0.2",
+        "slice": 2,
+        "capture_workflow_run_id": RUN_ID,
+        "capture_workflow_run_attempt": RUN_ATTEMPT,
+        "evidence_tool_head": HEAD_SHA,
+        "rc_source_sha": RC_SOURCE_SHA,
+        "rc_source_tree": RC_SOURCE_TREE,
+    }
+    package_metadata[field] = {
+        "capture_workflow_run_id": "701",
+        "capture_workflow_run_attempt": "3",
+        "evidence_tool_head": "b" * 40,
+        "rc_source_sha": "c" * 40,
+        "rc_source_tree": "d" * 40,
+        "task": "OTHER",
+        "version": "V9",
+        "slice": 9,
+    }[field]
+    archive = _zip_bytes(package_metadata=package_metadata)
+    with pytest.raises(ArtifactTransportError, match="CAPTURE_PACKAGE_ORIGIN_MISMATCH"):
+        _verify(tmp_path / "package", monkeypatch, archive=archive)
+    output = tmp_path / "package" / "transport-output"
+    assert not (output / "artifact-transport-receipt.json").exists()
