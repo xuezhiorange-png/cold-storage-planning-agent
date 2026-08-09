@@ -249,3 +249,88 @@ def test_make_backend_image_build_forwards_source_derived_timestamp(tmp_path: Pa
     expected_epoch = _git_run("show", "-s", "--format=%ct", source_commit, cwd=context)
     assert f"SOURCE_DATE_EPOCH={expected_epoch}" in invocation
     assert f"COLD_STORAGE_BUILD_COMMIT_SHA={source_commit}" in invocation
+
+
+def test_live_runner_is_the_only_external_observation_adapter() -> None:
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    collector = (RELEASE_DIR / "evidence_collector.py").read_text()
+    verifier = (RELEASE_DIR / "digest_verifier.py").read_text()
+    provenance = (RELEASE_DIR / "provenance_statement.py").read_text()
+    assert "subprocess" in runner
+    assert "collect_release_candidate_evidence" in runner
+    assert "subprocess" not in collector
+    assert "subprocess" not in verifier
+    assert "subprocess" not in provenance
+    assert "shell=True" not in runner
+    assert "--push" not in runner
+    assert "cosign" not in runner
+    assert "id-token" not in runner
+
+
+def test_live_runner_enforces_frozen_source_and_oci_observation_contract() -> None:
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    assert "EXPECTED_SOURCE_COMMIT_SHA" in runner
+    assert "EXPECTED_SOURCE_TREE_SHA" in runner
+    assert '"worktree"' in runner
+    assert '"add"' in runner
+    assert '"--detach"' in runner
+    assert "--ignored" in runner
+    assert "--untracked-files=all" in runner
+    assert "EXPECTED_DOCKER_TARGET_PLATFORM" in runner
+    assert "--no-cache" in runner
+    assert "type=oci,dest=" in runner
+    assert "manifest_bytes_rehashed" in runner
+    assert "sha256:" in runner
+    assert "image_id_used" in runner
+    assert "local_oci_manifest_digest" in runner
+    assert '"inspect", "--bootstrap"' in runner
+    assert '"docker-container"' in runner
+    assert "EXPECTED_DOCKER_TARGET_PLATFORM" in runner
+    assert "docker_target_platform=inputs.docker_target_platform" in runner
+    assert "_verify_capture_checksums" in runner
+    assert "SHA256SUMS.sha256" in runner
+    assert "CHECKSUM_COVERAGE_MISMATCH" in runner
+
+
+def test_live_runner_cli_and_workflow_dispatch_surface_are_gated() -> None:
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert 'subparsers.add_parser("capture-local")' in runner
+    assert 'capture.add_argument("--execute-builds"' in runner
+    assert 'capture.add_argument("--output-dir", required=True)' in runner
+    assert '"TASK012_BUILD_A_B_AUTHORIZED"' in runner
+    assert 'subparsers.add_parser("assemble")' in runner
+    assert 'assemble.add_argument("--attestation-file", required=True)' in runner
+    assert "workflow_dispatch:" in workflow
+    assert "execute_live_evidence_capture" in workflow
+    assert "expected_rc_source_sha" in workflow
+    assert "upload_live_evidence_artifact" in workflow
+    assert "docker/setup-buildx-action@v4" in workflow
+    assert "driver: docker-container" in workflow
+    assert "steps.upload_evidence.outputs.artifact-id" in workflow
+    assert "steps.upload_evidence.outputs.artifact-digest" in workflow
+    assert "compression-level: 0" in workflow
+    assert "default: false" in workflow
+    assert "live-evidence-capture:" in workflow
+    assert "github.event_name == 'workflow_dispatch'" in workflow
+    assert "inputs.execute_live_evidence_capture == true" in workflow
+    assert "refs/heads/main" in workflow
+    assert "--execute-builds" in workflow
+
+
+def test_release_evidence_make_target_includes_runner_tests() -> None:
+    makefile = (PROJECT_ROOT / "Makefile").read_text()
+    assert "tests/unit/test_live_evidence_runner.py" in makefile
+    assert "tests/integration/test_live_evidence_runner.py" in makefile
+
+
+def test_docker_target_platform_is_a_manifest_input_not_a_fake_build_arg() -> None:
+    schema = (RELEASE_DIR / "provenance_schema.py").read_text()
+    collector = (RELEASE_DIR / "evidence_collector.py").read_text()
+    verifier = (RELEASE_DIR / "digest_verifier.py").read_text()
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    assert 'EXPECTED_DOCKER_TARGET_PLATFORM = "linux/amd64"' in schema
+    assert "docker_target_platform: str" in collector
+    assert '"docker_target_platform"' in collector
+    assert '"docker_target_platform",' in verifier
+    assert '"TARGET_PLATFORM"' not in runner

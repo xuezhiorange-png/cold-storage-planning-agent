@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests
+.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -128,7 +128,18 @@ release-evidence-test:
 		tests/unit/test_provenance_statement.py \
 		tests/unit/test_promotion_record.py \
 		tests/unit/test_negative_scenarios.py \
+		tests/unit/test_live_evidence_runner.py \
 		tests/integration/test_release_candidate_evidence.py \
+		tests/integration/test_live_evidence_runner.py \
+		tests/architecture/test_release_evidence_boundaries.py \
+		-q
+
+# Runner-only contract gate. This target uses mock/synthetic tests and never
+# invokes a real Docker build, registry push, signing command, or deployment.
+verify-live-evidence-runner:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
+		tests/unit/test_live_evidence_runner.py \
+		tests/integration/test_live_evidence_runner.py \
 		tests/architecture/test_release_evidence_boundaries.py \
 		-q
 

@@ -35,6 +35,7 @@ from cold_storage.release.canonical_serialization import (
 )
 from cold_storage.release.provenance_schema import (
     EXPECTED_BUILD_PLATFORM,
+    EXPECTED_DOCKER_TARGET_PLATFORM,
     RC_BASE_IMAGE_DIGEST_MISMATCH,
     RC_BUILD_ARG_MISMATCH,
     RC_FINAL_IMAGE_DIGEST_MISMATCH,
@@ -55,6 +56,7 @@ BUILD_INPUT_MANIFEST_FIELD_ORDER: tuple[str, ...] = (
     "dependency_lockset_digest",
     "base_image_digest_set",
     "build_args",
+    "docker_target_platform",
     "build_platform",
     "build_target",
 )
@@ -186,7 +188,24 @@ def verify_reproducible_build(
             detail="build platform is not ubuntu-latest",
         )
 
-    # 8. build input manifest comparison — Build A vs Build B
+    # 8. Docker target platform is a separate frozen image-output input.
+    docker_target_a = build_a.get("docker_target_platform")
+    docker_target_b = build_b.get("docker_target_platform")
+    if (
+        docker_target_a != EXPECTED_DOCKER_TARGET_PLATFORM
+        or docker_target_b != EXPECTED_DOCKER_TARGET_PLATFORM
+    ):
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="Docker target platform is not the frozen linux/amd64 value",
+        )
+    if docker_target_a != docker_target_b:
+        raise ReproducibleBuildError(
+            failure_code=RC_BUILD_ARG_MISMATCH,
+            detail="Docker target platform differs between builds",
+        )
+
+    # 9. build input manifest comparison — Build A vs Build B
     # The build input manifest captures all deterministic build inputs
     # (Dockerfile, Compose, workflow, locksets, base-image digests,
     # build args, platform, source commit, SOURCE_DATE_EPOCH).  Two

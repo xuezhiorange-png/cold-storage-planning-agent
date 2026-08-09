@@ -57,8 +57,10 @@ from cold_storage.release.promotion_record import (
 from cold_storage.release.provenance_schema import (
     ARTIFACT_MANIFEST_SCHEMA_VERSION,
     EXPECTED_BUILD_PLATFORM,
+    EXPECTED_DOCKER_TARGET_PLATFORM,
     EXPECTED_SOURCE_REPOSITORY,
     PROVENANCE_SCHEMA_VERSION,
+    RC_BUILD_ARG_MISMATCH,
     RC_FINAL_IMAGE_DIGEST_MISMATCH,
     RC_REGISTRY_DIGEST_MISMATCH,
     RC_VERSION,
@@ -87,6 +89,7 @@ class BuildInputs:
     migration_set_digest: str
     base_image_digest_set: list[str]
     build_args: dict[str, str]
+    docker_target_platform: str = EXPECTED_DOCKER_TARGET_PLATFORM
     build_platform: str = EXPECTED_BUILD_PLATFORM
     build_target: str = "runtime"
 
@@ -101,6 +104,7 @@ class BuildInputs:
                 ("dependency_lockset_digest", self.dependency_lockset_digest),
                 ("base_image_digest_set", sorted(self.base_image_digest_set)),
                 ("build_args", self.build_args),
+                ("docker_target_platform", self.docker_target_platform),
                 ("build_platform", self.build_platform),
                 ("build_target", self.build_target),
             ]
@@ -282,6 +286,17 @@ def collect_release_candidate_evidence(
     manifest digest, and the provenance digest all cross-reference
     correctly.
     """
+    for label, inputs in (("Build A", build_a_inputs), ("Build B", build_b_inputs)):
+        if inputs.docker_target_platform != EXPECTED_DOCKER_TARGET_PLATFORM:
+            raise ReproducibleBuildError(
+                failure_code=RC_BUILD_ARG_MISMATCH,
+                detail=(
+                    f"{label} docker target platform is "
+                    f"{inputs.docker_target_platform!r}, expected "
+                    f"{EXPECTED_DOCKER_TARGET_PLATFORM!r}"
+                ),
+            )
+
     # --- B3: per-run build input evidence ---
     # Each build carries its own observed build-input manifest.  The
     # records are built independently from each run's own inputs.

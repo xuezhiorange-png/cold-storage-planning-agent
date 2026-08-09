@@ -27,7 +27,9 @@ from cold_storage.release.promotion_record import (
     verify_promotion,
 )
 from cold_storage.release.provenance_schema import (
+    EXPECTED_DOCKER_TARGET_PLATFORM,
     PROMOTION_RECORD_SCHEMA_VERSION,
+    RC_BUILD_ARG_MISMATCH,
     RC_FINAL_IMAGE_DIGEST_MISMATCH,
     RC_FINAL_IMAGE_DIGEST_MISSING,
     RC_PROMOTION_REBUILD,
@@ -59,6 +61,7 @@ def _build_record(*, digest: str = IMAGE, commit: str = COMMIT) -> OrderedDict:
                     "COLD_STORAGE_BUILD_VERSION": "v0.2.0",
                 },
             ),
+            ("docker_target_platform", EXPECTED_DOCKER_TARGET_PLATFORM),
             ("build_platform", "ubuntu-latest"),
             ("final_image_digest", digest),
             ("build_input_manifest_digest", ""),
@@ -171,6 +174,26 @@ class TestB3BuildInputManifestComparison:
         a = _build_record()
         b = _build_record()
         assert verify_reproducible_build(a, b) == IMAGE
+
+    def test_docker_target_platform_drift_fails(self) -> None:
+        a = _build_record()
+        b = _build_record()
+        b["docker_target_platform"] = "linux/arm64"
+        b["build_input_manifest_digest"] = compute_build_input_manifest_digest(b)
+        with pytest.raises(ReleaseEvidenceError) as exc:
+            verify_reproducible_build(a, b)
+        assert exc.value.failure_code == RC_BUILD_ARG_MISMATCH
+
+    def test_non_frozen_docker_target_platform_fails_even_when_equal(self) -> None:
+        a = _build_record()
+        b = _build_record()
+        a["docker_target_platform"] = "linux/arm64"
+        b["docker_target_platform"] = "linux/arm64"
+        a["build_input_manifest_digest"] = compute_build_input_manifest_digest(a)
+        b["build_input_manifest_digest"] = compute_build_input_manifest_digest(b)
+        with pytest.raises(ReleaseEvidenceError) as exc:
+            verify_reproducible_build(a, b)
+        assert exc.value.failure_code == RC_BUILD_ARG_MISMATCH
 
     def test_different_manifest_digest_fails(self) -> None:
         """Same image digest but different build input manifests → FAIL."""

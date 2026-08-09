@@ -57,6 +57,7 @@ def _build(
             ("base_image_digest", base),
             ("lockfile_digest", lock),
             ("build_args", build_args),
+            ("docker_target_platform", "linux/amd64"),
             ("build_platform", "ubuntu-latest"),
             ("final_image_digest", digest),
             ("build_input_manifest_digest", ""),
@@ -69,8 +70,7 @@ def _build(
 def test_reproducible_build_pass_returns_authoritative_digest() -> None:
     a = _build()
     b = _build()
-    # build_input_manifest_digest is a placeholder; verify_reproducible_build
-    # does not re-check it, so equal builds pass.
+    # The declared manifest digest is recomputed and checked for both builds.
     assert verify_reproducible_build(a, b) == IMAGE
 
 
@@ -169,6 +169,7 @@ def test_build_input_manifest_is_deterministic() -> None:
             ("dependency_lockset_digest", LOCK),
             ("base_image_digest_set", ["sha256:z", "sha256:a"]),
             ("build_args", {"A": "1"}),
+            ("docker_target_platform", "linux/amd64"),
             ("build_platform", "ubuntu-latest"),
             ("build_target", "runtime"),
         ]
@@ -199,6 +200,7 @@ def test_build_input_manifest_digest_drift_rejected() -> None:
             ("dependency_lockset_digest", LOCK),
             ("base_image_digest_set", [BASE]),
             ("build_args", {"A": "1"}),
+            ("docker_target_platform", "linux/amd64"),
             ("build_platform", "ubuntu-latest"),
             ("build_target", "runtime"),
             ("build_input_manifest_digest", ""),

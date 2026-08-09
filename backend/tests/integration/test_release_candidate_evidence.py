@@ -21,10 +21,12 @@ from cold_storage.release.evidence_collector import (
     verify_promotion_against_bundle,
 )
 from cold_storage.release.provenance_schema import (
+    EXPECTED_DOCKER_TARGET_PLATFORM,
     EXPECTED_SOURCE_COMMIT_SHA,
     EXPECTED_SOURCE_REPOSITORY,
     EXPECTED_SOURCE_TREE_SHA,
     PROMOTION_RECORD_SCHEMA_VERSION,
+    RC_BUILD_ARG_MISMATCH,
     RC_FINAL_IMAGE_DIGEST_MISMATCH,
     RC_PROMOTION_REBUILD,
     RC_PROMOTION_RECORD_UNVERIFIABLE,
@@ -162,6 +164,29 @@ def test_collect_rejects_stale_source_via_public_path() -> None:
             attestation=ATT,
         )
     assert exc.value.failure_code == RC_PROVENANCE_SUBJECT_MISMATCH
+
+
+def test_collect_rejects_non_frozen_docker_target_platform_via_public_path() -> None:
+    bad_inputs = _inputs()
+    bad_inputs.docker_target_platform = "linux/arm64"
+    with pytest.raises(ReleaseEvidenceError) as exc:
+        collect_release_candidate_evidence(
+            build_a_inputs=_inputs(),
+            build_b_inputs=bad_inputs,
+            build_a=_run(),
+            build_b=_run(inputs=bad_inputs),
+            artifacts=_artifacts(),
+            test_result_reference="https://github.com/test/run/1",
+            verification_result_reference="https://github.com/test/run/2",
+            attestation=ATT,
+        )
+    assert exc.value.failure_code == RC_BUILD_ARG_MISMATCH
+
+
+def test_collect_positive_target_platform_is_distinct_from_build_platform() -> None:
+    inputs = _inputs()
+    assert inputs.docker_target_platform == EXPECTED_DOCKER_TARGET_PLATFORM
+    assert inputs.build_platform == "ubuntu-latest"
 
 
 def test_collect_rejects_non_reproducible_build() -> None:
