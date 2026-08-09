@@ -1,4 +1,5 @@
 UV_CACHE_DIR ?= .uv-cache
+RC_BUILD_CONTEXT ?= .
 
 .PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests
 
@@ -56,31 +57,49 @@ clean-dev:
 production-config:
 	docker compose -f docker-compose.production.yml config
 
-# Backend image build with the build-identity authority file.
-# F-PR76-LOW-01: the previous target only set host-side environment
-# variables and never forwarded them as ``--build-arg`` to docker, so
-# the Dockerfile ARGs stayed empty and the build-time fail-fast
-# identity guard refused to produce an image. This target forwards
-# both values explicitly with --build-arg and exits non-zero when
-# either value is empty. CI MUST supply both; a zero SHA or
-# "v0.0.0" placeholder is no longer a silent fallback because the
-# exact-match validation in deployment_identity rejects both shapes
-# before the image is written.
+# Backend image build with an explicitly selected RC source worktree.
+# The evidence-tooling checkout may be newer than the immutable RC source;
+# Docker context identity must therefore be checked before any build starts.
 backend-image-build:
-	@if [ -z "$${COLD_STORAGE_BUILD_COMMIT_SHA:-}" ]; then \
-		echo "backend-image-build: COLD_STORAGE_BUILD_COMMIT_SHA is required" >&2; \
-		exit 18; \
-	fi
-	@if [ -z "$${COLD_STORAGE_BUILD_VERSION:-}" ]; then \
-		echo "backend-image-build: COLD_STORAGE_BUILD_VERSION is required" >&2; \
-		exit 19; \
-	fi
-	docker build \
-		-f backend/Dockerfile \
-		--build-arg COLD_STORAGE_BUILD_COMMIT_SHA="$${COLD_STORAGE_BUILD_COMMIT_SHA}" \
-		--build-arg COLD_STORAGE_BUILD_VERSION="$${COLD_STORAGE_BUILD_VERSION}" \
-		-t "cold-storage-backend:$${COLD_STORAGE_BUILD_COMMIT_SHA}" \
-		.
+	@set -eu; \
+		context="$(RC_BUILD_CONTEXT)"; \
+		commit="$${COLD_STORAGE_BUILD_COMMIT_SHA:-}"; \
+		version="$${COLD_STORAGE_BUILD_VERSION:-}"; \
+		if [ -z "$${commit}" ]; then \
+			echo "backend-image-build: COLD_STORAGE_BUILD_COMMIT_SHA is required" >&2; \
+			exit 18; \
+		fi; \
+		if [ -z "$${version}" ]; then \
+			echo "backend-image-build: COLD_STORAGE_BUILD_VERSION is required" >&2; \
+			exit 19; \
+		fi; \
+		if ! git -C "$${context}" cat-file -e "$${commit}^{commit}"; then \
+			echo "backend-image-build: source commit does not exist: $${commit}" >&2; \
+			exit 20; \
+		fi; \
+		context_head="$$(git -C "$${context}" rev-parse HEAD)"; \
+		if [ "$${context_head}" != "$${commit}" ]; then \
+			echo "backend-image-build: context HEAD ($${context_head}) does not match source commit ($${commit})" >&2; \
+			exit 21; \
+		fi; \
+		if [ -n "$$(git -C "$${context}" status --porcelain)" ]; then \
+			echo "backend-image-build: RC build context is dirty: $${context}" >&2; \
+			exit 22; \
+		fi; \
+		source_date_epoch="$$(git -C "$${context}" show -s --format=%ct "$${commit}")"; \
+		case "$${source_date_epoch}" in \
+			''|*[!0-9]*) \
+				echo "backend-image-build: source timestamp is not a decimal integer" >&2; \
+				exit 23; \
+			;; \
+		esac; \
+		docker build \
+			-f "$${context}/backend/Dockerfile" \
+			--build-arg COLD_STORAGE_BUILD_COMMIT_SHA="$${commit}" \
+			--build-arg COLD_STORAGE_BUILD_VERSION="$${version}" \
+			--build-arg SOURCE_DATE_EPOCH="$${source_date_epoch}" \
+			-t "cold-storage-backend:$${commit}" \
+			"$${context}"
 
 # Compose-validated production configuration plus a non-running
 # build of the image. CI invokes this in the compose-config job.

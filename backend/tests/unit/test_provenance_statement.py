@@ -8,6 +8,8 @@ import pytest
 
 from cold_storage.release.canonical_serialization import ReleaseEvidenceError
 from cold_storage.release.provenance_schema import (
+    EXPECTED_SOURCE_COMMIT_SHA,
+    EXPECTED_SOURCE_TREE_SHA,
     PROVENANCE_SCHEMA_VERSION,
     RC_PROVENANCE_REPO_MISMATCH,
     RC_PROVENANCE_SUBJECT_MISMATCH,
@@ -24,6 +26,11 @@ from cold_storage.release.provenance_statement import (
 IMAGE = "sha256:" + "a" * 64
 IMAGE_B = "sha256:" + "b" * 64
 ARTIFACT = "sha256:" + "c" * 64
+RC_SOURCE_COMMIT_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+RC_SOURCE_TREE_SHA = "b456e77f07a0cef801c57d2f089a318c35c145c4"
+STALE_SOURCE_COMMIT_SHA = "25a88f0b65fa7662310701563e306331034d6c34"
+STALE_SOURCE_TREE_SHA = "274e84af01bd895a30571423283838017aacd45f"
+EVIDENCE_TOOL_HEAD_LIKE_SHA = "e06bb0ed26505033a54c773d7ab7766280b44db4"
 ATT = {
     "mechanism": "github_oidc",
     "binding": "eyJ.payload.sig",
@@ -38,8 +45,8 @@ def _fields() -> OrderedDict:
             ("subject_final_image_digest", IMAGE),
             ("subject_artifact_manifest_digest", ARTIFACT),
             ("source_repository", "xuezhiorange-png/cold-storage-planning-agent"),
-            ("source_commit_sha", "25a88f0b65fa7662310701563e306331034d6c34"),
-            ("source_tree_sha", "274e84af01bd895a30571423283838017aacd45f"),
+            ("source_commit_sha", EXPECTED_SOURCE_COMMIT_SHA),
+            ("source_tree_sha", EXPECTED_SOURCE_TREE_SHA),
             ("build_workflow_identity", "ci"),
             ("build_workflow_ref", "refs/heads/main"),
             ("build_run_id", "run-1"),
@@ -61,8 +68,37 @@ def _fields() -> OrderedDict:
 
 
 def test_verify_provenance_passes_for_valid_statement() -> None:
+    assert EXPECTED_SOURCE_COMMIT_SHA == RC_SOURCE_COMMIT_SHA
+    assert EXPECTED_SOURCE_TREE_SHA == RC_SOURCE_TREE_SHA
     prov = build_provenance(_fields())
     verify_provenance(prov, expected_image_digest=IMAGE, expected_artifact_manifest_digest=ARTIFACT)
+
+
+@pytest.mark.parametrize(
+    ("source_commit_sha", "source_tree_sha"),
+    [
+        (STALE_SOURCE_COMMIT_SHA, STALE_SOURCE_TREE_SHA),
+        (RC_SOURCE_COMMIT_SHA, "3" * 40),
+        (EVIDENCE_TOOL_HEAD_LIKE_SHA, RC_SOURCE_TREE_SHA),
+    ],
+    ids=["stale-source", "wrong-tree", "later-tooling-head"],
+)
+def test_provenance_rejects_non_rc_source_identity(
+    source_commit_sha: str,
+    source_tree_sha: str,
+) -> None:
+    """The verifier accepts only the immutable RC source tuple."""
+    fields = _fields()
+    fields["source_commit_sha"] = source_commit_sha
+    fields["source_tree_sha"] = source_tree_sha
+    prov = build_provenance(fields)
+    with pytest.raises(ReleaseEvidenceError) as exc:
+        verify_provenance(
+            prov,
+            expected_image_digest=IMAGE,
+            expected_artifact_manifest_digest=ARTIFACT,
+        )
+    assert exc.value.failure_code == RC_PROVENANCE_SUBJECT_MISMATCH
 
 
 def test_provenance_rejects_unsigned() -> None:
