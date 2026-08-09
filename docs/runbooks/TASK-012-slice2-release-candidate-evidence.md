@@ -29,6 +29,13 @@ The external-observation adapter is
 stay in that adapter; the verifier and collector do not discover external
 state themselves.
 
+The canonical future execution environment is the existing `ci` workflow on
+`ubuntu-latest`. Its gated job explicitly creates a `docker-container` Buildx
+builder with `docker/setup-buildx-action@v4`, bootstraps it, and verifies that
+`linux/amd64` is available. The runner repeats that selected-builder check and
+fails closed for the `docker` driver or an unavailable target platform. It does
+not create or silently select another builder.
+
 ## Canonical Live Evidence Execution Surface
 
 The runner is executable with:
@@ -65,9 +72,16 @@ Build A and Build B are separate `docker buildx build` invocations. Each uses:
 - a different fresh detached source worktree;
 - a different run ID, output path, metadata path, manifest path, and record;
 - `--no-cache`;
-- explicit `--platform linux/amd64`;
+- `BuildInputs.docker_target_platform=linux/amd64`, forwarded directly to
+  `docker buildx build --platform`;
 - the frozen source commit and version;
 - `SOURCE_DATE_EPOCH` derived from `git show -s --format=%ct RC_SOURCE_SHA`.
+
+`docker_target_platform` is a build-input-manifest field and is distinct from
+the execution environment field `build_platform=ubuntu-latest`. The three
+actual Dockerfile build arguments are the frozen source commit, release
+version, and source-derived timestamp; there is no fake `TARGET_PLATFORM`
+build argument.
 
 The runner observes A and B independently and compares their OCI manifest
 digests only after both observations complete. It never copies A's digest,
@@ -99,6 +113,13 @@ The local phase does not push to a registry. `registry_manifest_digest` remains
 registry login, `cosign`, OIDC token request, or promotion command belongs in
 the capture command.
 
+The capture package contains `SHA256SUMS` and its `SHA256SUMS.sha256` sidecar.
+Before reading `observation-bundle.json` or any business observation field,
+`assemble` verifies the sidecar, every checksum entry, regular-file and
+symlink constraints, path safety, and exact coverage of all payload files.
+An extra, missing, deleted, or modified payload fails closed before the
+collector is called.
+
 ## Attestation Assembly Phase
 
 The second phase is explicit:
@@ -119,6 +140,13 @@ to verify adapter wiring; that is not live attestation evidence.
 package and calls the existing `collect_release_candidate_evidence()` API.
 It does not copy collector or verifier logic. Independent input-manifest
 declarations are recomputed and checked before the collector is called.
+
+The later handoff sequence is: capture -> optional separately authorized
+GitHub Actions artifact upload -> retain the artifact ID, digest, and URL ->
+retrieve and validate transport integrity -> verify `SHA256SUMS` and its
+sidecar -> re-observe OCI outputs -> call the collector. The internal checksum
+manifest is an integrity check inside the package; it is not a replacement for
+the GitHub artifact transport digest.
 
 ## Registry Optional Boundary
 
@@ -145,17 +173,26 @@ It can only be considered for a manual dispatch when all of the following are
 true:
 
 - `execute_live_evidence_capture` is explicitly `true`;
+- `upload_live_evidence_artifact` is independently set to `true` only when
+  artifact transport is also authorized;
 - `expected_rc_source_sha` exactly equals the frozen RC source SHA;
 - the ref is `refs/heads/main`;
 - the checked-out source commit and tree match the frozen values.
 
-The input defaults to `false`. Adding this job does not execute it, upload
+Both boolean inputs default to `false`. The capture step writes an explicit
+non-tracked output directory to its step output. The upload step is separately
+gated, uses a unique run/attempt artifact name, does not overwrite an existing
+artifact, and exposes `artifact-id`, `artifact-digest`, and `artifact-url` in
+job outputs and the step summary. Adding this job does not execute it, upload
 artifacts, request OIDC, push a registry image, or promote an environment.
 
 ## Non-tracked Evidence Outputs
 
-Capture and assembly outputs must be written under an operator-selected,
-non-tracked directory such as `$RUNNER_TEMP`. The runner rejects output inside
+Capture output includes `metadata.json`, `expected-inputs.json`, independent
+`build-a/` and `build-b/` observations, OCI outputs, `observation-bundle.json`,
+`SHA256SUMS`, and `SHA256SUMS.sha256`. Capture and assembly outputs must be
+written under an operator-selected, non-tracked directory such as
+`$RUNNER_TEMP`. The runner rejects output inside
 the evidence-tooling checkout and rejects non-empty or colliding output paths.
 Only the runner-owned temporary source worktrees and temporary OCI extraction
 directories may be cleaned by the runner. It never runs `git clean`, `git
@@ -168,18 +205,21 @@ The following phases are intentionally separate:
 
 | Phase | Required authorization | Current status |
 |---|---|---|
-| Build A/B local capture | `BUILD_A_EXECUTION_AUTHORIZED=YES` and `BUILD_B_EXECUTION_AUTHORIZED=YES` | Not authorized in this correction |
-| GitHub Actions non-tracked artifact upload | `GITHUB_ACTIONS_ARTIFACT_UPLOAD_AUTHORIZED=YES` | Not authorized |
+| Build A local capture | `BUILD_A_EXECUTION_AUTHORIZED=YES` | Not authorized in this correction |
+| Build B local capture | `BUILD_B_EXECUTION_AUTHORIZED=YES` | Not authorized in this correction |
+| GitHub Actions non-tracked artifact upload | `GITHUB_ACTIONS_ARTIFACT_UPLOAD_AUTHORIZED=YES` plus `upload_live_evidence_artifact=true` | Not authorized |
 | Attestation/signing | `OIDC_SIGNING_EXECUTION_AUTHORIZED=YES` or separately approved signing mechanism | Not authorized |
 | Registry binding | `REGISTRY_PUSH_AUTHORIZED=YES` | Not authorized |
 | Staging promotion | `STAGING_PROMOTION_AUTHORIZED=YES` | Not authorized |
 | Production promotion | `PRODUCTION_PROMOTION_AUTHORIZED=YES` | Not authorized |
 | Deployment | `PRODUCTION_DEPLOYMENT_AUTHORIZED=YES` | Not authorized |
 
-No phase may infer or inherit another phase's authorization. Correction R2
-implements the execution surface and synthetic/mock verification only. It does
-not execute a workflow dispatch, real Build A/B, artifact upload, signing,
-registry push, promotion, or deployment.
+No phase may infer or inherit another phase's authorization. The software
+mapping keeps `execute_live_evidence_capture` and
+`upload_live_evidence_artifact` independent. Correction R2 implements the
+execution surface and synthetic/mock verification only. It does not execute a
+workflow dispatch, real Build A/B, artifact upload, signing, registry push,
+promotion, or deployment.
 
 ## Verification
 

@@ -16,6 +16,8 @@ from cold_storage.release.live_evidence_runner import (
     LiveEvidenceRunnerError,
     _ensure_distinct,
     _parser,
+    _verify_capture_checksums,
+    _write_checksums,
     buildx_build_command,
     extract_oci_manifest_digest,
     observe_oci_manifest,
@@ -92,6 +94,70 @@ def test_wrong_source_assertion_fails_closed() -> None:
     with pytest.raises(LiveEvidenceRunnerError) as exc:
         validate_expected_source("f" * 40)
     assert exc.value.code == "RC_SOURCE_ASSERTION_MISMATCH"
+
+
+def _completed(stdout: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(["docker"], returncode, stdout=stdout, stderr="")
+
+
+def test_buildx_selected_docker_driver_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if argv[-2:] == ["build", "--help"]:
+            return _completed(
+                "--output --metadata-file --platform --no-cache --provenance --sbom oci"
+            )
+        return _completed("Name: default\nDriver: docker\nPlatforms: linux/amd64\n")
+
+    monkeypatch.setattr(live_runner, "_run_command", fake_run)
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        live_runner._buildx_capabilities()
+    assert exc.value.code == "BUILDX_DRIVER_UNSUPPORTED"
+
+
+def test_buildx_selected_driver_without_target_platform_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if argv[-2:] == ["build", "--help"]:
+            return _completed(
+                "--output --metadata-file --platform --no-cache --provenance --sbom oci"
+            )
+        return _completed("Name: default\nDriver: docker-container\nPlatforms: linux/arm64\n")
+
+    monkeypatch.setattr(live_runner, "_run_command", fake_run)
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        live_runner._buildx_capabilities()
+    assert exc.value.code == "BUILDX_TARGET_PLATFORM_UNAVAILABLE"
+
+
+def test_buildx_selected_driver_and_target_platform_are_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if argv[-2:] == ["build", "--help"]:
+            return _completed(
+                "--output --metadata-file --platform --no-cache --provenance --sbom oci"
+            )
+        return _completed(
+            "Name: default\nDriver: docker-container\nPlatforms: linux/amd64, linux/arm64\n"
+        )
+
+    monkeypatch.setattr(live_runner, "_run_command", fake_run)
+    capabilities = live_runner._buildx_capabilities()
+    assert capabilities.selected_driver == "docker-container"
+    assert "linux/amd64" in capabilities.available_platforms
+
+
+def test_buildx_inspect_bootstrap_failure_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if argv[-2:] == ["build", "--help"]:
+            return _completed("--output --metadata-file --platform --no-cache oci")
+        return _completed("builder failed", returncode=1)
+
+    monkeypatch.setattr(live_runner, "_run_command", fake_run)
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        live_runner._buildx_capabilities()
+    assert exc.value.code == "BUILDX_DRIVER_UNSUPPORTED"
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -195,6 +261,7 @@ def test_build_command_has_independent_no_cache_oci_contract(tmp_path: Path) -> 
         metadata_path=tmp_path / "a.metadata.json",
         build_run_id="capture:A",
         source_date_epoch=1786252367,
+        docker_target_platform="linux/amd64",
         capabilities=BuildxCapabilities(True, True),
     )
     command_b = buildx_build_command(
@@ -203,6 +270,7 @@ def test_build_command_has_independent_no_cache_oci_contract(tmp_path: Path) -> 
         metadata_path=tmp_path / "b.metadata.json",
         build_run_id="capture:B",
         source_date_epoch=1786252367,
+        docker_target_platform="linux/amd64",
         capabilities=BuildxCapabilities(True, True),
     )
     assert command_a != command_b
@@ -214,6 +282,10 @@ def test_build_command_has_independent_no_cache_oci_contract(tmp_path: Path) -> 
     assert "--provenance=false" in command_a
     assert "--sbom=false" in command_a
     assert "--push" not in command_a
+    build_args = [
+        command_a[index + 1] for index, item in enumerate(command_a[:-1]) if item == "--build-arg"
+    ]
+    assert not any(item.startswith("TARGET_PLATFORM=") for item in build_args)
     tag = command_a[command_a.index("--tag") + 1]
     assert tag.count(":") == 1
     assert tag.endswith("capture-a")
@@ -248,3 +320,58 @@ def test_assemble_requires_explicit_attestation_file(tmp_path: Path) -> None:
             output_dir=tmp_path / "assembled",
         )
     assert exc.value.code == "ATTESTATION_MISSING"
+
+
+def _refresh_checksum_sidecar(root: Path) -> None:
+    manifest = root / "SHA256SUMS"
+    (root / "SHA256SUMS.sha256").write_text(
+        hashlib.sha256(manifest.read_bytes()).hexdigest() + "\n", encoding="ascii"
+    )
+
+
+def test_checksum_path_traversal_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "capture"
+    root.mkdir()
+    (root / "payload.json").write_text("{}", encoding="utf-8")
+    _write_checksums(root)
+    digest = hashlib.sha256((root / "payload.json").read_bytes()).hexdigest()
+    (root / "SHA256SUMS").write_text(f"{digest}  ../payload.json\n", encoding="ascii")
+    _refresh_checksum_sidecar(root)
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        _verify_capture_checksums(root)
+    assert exc.value.code == "CHECKSUM_ENTRY_INVALID"
+
+
+def test_checksum_duplicate_entry_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "capture"
+    root.mkdir()
+    (root / "payload.json").write_text("{}", encoding="utf-8")
+    _write_checksums(root)
+    line = (root / "SHA256SUMS").read_text(encoding="ascii")
+    (root / "SHA256SUMS").write_text(line + line, encoding="ascii")
+    _refresh_checksum_sidecar(root)
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        _verify_capture_checksums(root)
+    assert exc.value.code == "CHECKSUM_DUPLICATE_ENTRY"
+
+
+def test_checksum_exact_coverage_rejects_unlisted_file(tmp_path: Path) -> None:
+    root = tmp_path / "capture"
+    root.mkdir()
+    (root / "payload.json").write_text("{}", encoding="utf-8")
+    _write_checksums(root)
+    (root / "extra.bin").write_bytes(b"unexpected")
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        _verify_capture_checksums(root)
+    assert exc.value.code == "CHECKSUM_COVERAGE_MISMATCH"
+
+
+def test_checksum_symlink_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "capture"
+    root.mkdir()
+    (root / "payload.json").write_text("{}", encoding="utf-8")
+    _write_checksums(root)
+    (root / "payload-link").symlink_to(root / "payload.json")
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        _verify_capture_checksums(root)
+    assert exc.value.code == "CHECKSUM_SYMLINK_REJECTED"

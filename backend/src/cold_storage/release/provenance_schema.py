@@ -36,6 +36,9 @@ EXPECTED_WORKFLOW_IDENTITY = "ci"
 # for an RC.
 ALLOWED_WORKFLOW_REFS = frozenset({"refs/heads/main"})
 EXPECTED_BUILD_PLATFORM = "ubuntu-latest"
+# Docker target platform is a property of the image output, not of the
+# GitHub Actions execution environment represented by EXPECTED_BUILD_PLATFORM.
+EXPECTED_DOCKER_TARGET_PLATFORM = "linux/amd64"
 EXPECTED_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 
 #: Allowed promotion environment sequence edges.

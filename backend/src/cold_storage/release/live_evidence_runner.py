@@ -45,6 +45,7 @@ from cold_storage.release.evidence_collector import (
 )
 from cold_storage.release.provenance_schema import (
     EXPECTED_BUILD_PLATFORM,
+    EXPECTED_DOCKER_TARGET_PLATFORM,
     EXPECTED_SOURCE_COMMIT_SHA,
     EXPECTED_SOURCE_TREE_SHA,
     RC_VERSION,
@@ -52,7 +53,6 @@ from cold_storage.release.provenance_schema import (
 
 OBSERVATION_SCHEMA_VERSION = "cold-storage-live-evidence-observation-v1"
 EVIDENCE_BUNDLE_OUTPUT_SCHEMA_VERSION = "cold-storage-live-evidence-bundle-v1"
-TARGET_PLATFORM = "linux/amd64"
 RUNNER_MODULE = Path(__file__).resolve()
 
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -80,6 +80,8 @@ class BuildxCapabilities:
 
     supports_provenance_switch: bool
     supports_sbom_switch: bool
+    selected_driver: str = ""
+    available_platforms: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -349,6 +351,39 @@ class _OwnedWorktrees:
         self.temp_root = None
 
 
+def _selected_buildx_capabilities() -> tuple[str, frozenset[str]]:
+    result = _run_command(["docker", "buildx", "inspect", "--bootstrap"])
+    if result.returncode != 0:
+        raise LiveEvidenceRunnerError("BUILDX_DRIVER_UNSUPPORTED", _command_detail(result))
+    inspect_text = f"{result.stdout}\n{result.stderr}"
+    driver_match = re.search(r"(?im)^\s*Driver:\s*(\S+)\s*$", inspect_text)
+    if driver_match is None:
+        raise LiveEvidenceRunnerError(
+            "BUILDX_DRIVER_UNSUPPORTED", "buildx inspect did not report a selected driver"
+        )
+    driver = driver_match.group(1)
+    if driver != "docker-container":
+        raise LiveEvidenceRunnerError(
+            "BUILDX_DRIVER_UNSUPPORTED",
+            f"selected Buildx driver is {driver!r}, expected 'docker-container'",
+        )
+    platforms_match = re.search(r"(?im)^\s*Platforms:\s*(.+?)\s*$", inspect_text)
+    if platforms_match is None:
+        raise LiveEvidenceRunnerError(
+            "BUILDX_TARGET_PLATFORM_UNAVAILABLE",
+            "buildx inspect did not report available platforms",
+        )
+    platforms = frozenset(
+        token.strip().rstrip("*") for token in platforms_match.group(1).split(",") if token.strip()
+    )
+    if EXPECTED_DOCKER_TARGET_PLATFORM not in platforms:
+        raise LiveEvidenceRunnerError(
+            "BUILDX_TARGET_PLATFORM_UNAVAILABLE",
+            f"selected builder does not expose {EXPECTED_DOCKER_TARGET_PLATFORM}",
+        )
+    return driver, platforms
+
+
 def _buildx_capabilities() -> BuildxCapabilities:
     result = _run_command(["docker", "buildx", "build", "--help"])
     if result.returncode != 0:
@@ -360,9 +395,12 @@ def _buildx_capabilities() -> BuildxCapabilities:
                 "OCI_EXPORTER_UNSUPPORTED",
                 f"docker buildx help does not expose {required}",
             )
+    driver, platforms = _selected_buildx_capabilities()
     return BuildxCapabilities(
         supports_provenance_switch="--provenance" in help_text,
         supports_sbom_switch="--sbom" in help_text,
+        selected_driver=driver,
+        available_platforms=platforms,
     )
 
 
@@ -373,9 +411,15 @@ def buildx_build_command(
     metadata_path: Path,
     build_run_id: str,
     source_date_epoch: int,
+    docker_target_platform: str,
     capabilities: BuildxCapabilities,
 ) -> list[str]:
     """Build one independent no-cache OCI-export invocation."""
+    if docker_target_platform != EXPECTED_DOCKER_TARGET_PLATFORM:
+        raise LiveEvidenceRunnerError(
+            "RC_BUILD_ARG_MISMATCH",
+            f"unsupported Docker target platform: {docker_target_platform}",
+        )
     docker_tag = re.sub(r"[^a-z0-9_.-]+", "-", build_run_id.lower())
     args = [
         "docker",
@@ -383,15 +427,13 @@ def buildx_build_command(
         "build",
         "--no-cache",
         "--platform",
-        TARGET_PLATFORM,
+        docker_target_platform,
         "--build-arg",
         f"COLD_STORAGE_BUILD_COMMIT_SHA={EXPECTED_SOURCE_COMMIT_SHA}",
         "--build-arg",
         f"COLD_STORAGE_BUILD_VERSION={RC_VERSION}",
         "--build-arg",
         f"SOURCE_DATE_EPOCH={source_date_epoch}",
-        "--build-arg",
-        f"TARGET_PLATFORM={TARGET_PLATFORM}",
         "--output",
         f"type=oci,dest={output_path}",
         "--metadata-file",
@@ -449,7 +491,6 @@ def _collect_build_inputs(
         "COLD_STORAGE_BUILD_COMMIT_SHA": EXPECTED_SOURCE_COMMIT_SHA,
         "COLD_STORAGE_BUILD_VERSION": RC_VERSION,
         "SOURCE_DATE_EPOCH": source_date_text,
-        "TARGET_PLATFORM": TARGET_PLATFORM,
     }
     inputs = BuildInputs(
         source_commit_sha=EXPECTED_SOURCE_COMMIT_SHA,
@@ -462,6 +503,7 @@ def _collect_build_inputs(
         migration_set_digest=_directory_digest(migrations),
         base_image_digest_set=base_image_digest_set,
         build_args=build_args,
+        docker_target_platform=EXPECTED_DOCKER_TARGET_PLATFORM,
         build_platform=EXPECTED_BUILD_PLATFORM,
         build_target="runtime",
     )
@@ -498,6 +540,7 @@ def _observed_inputs_document(inputs: BuildInputs) -> OrderedDict[str, Any]:
             ("migration_set_digest", inputs.migration_set_digest),
             ("base_image_digest_set", sorted(inputs.base_image_digest_set)),
             ("build_args", inputs.build_args),
+            ("docker_target_platform", inputs.docker_target_platform),
             ("build_platform", inputs.build_platform),
             ("build_target", inputs.build_target),
         ]
@@ -549,6 +592,7 @@ def _build_inputs_from_document(value: Mapping[str, Any]) -> BuildInputs:
             migration_set_digest=cast(str, value["migration_set_digest"]),
             base_image_digest_set=list(base_set),
             build_args=dict(build_args),
+            docker_target_platform=cast(str, value["docker_target_platform"]),
             build_platform=cast(str, value["build_platform"]),
             build_target=cast(str, value["build_target"]),
         )
@@ -561,6 +605,10 @@ def _build_inputs_from_document(value: Mapping[str, Any]) -> BuildInputs:
     if inputs.source_tree_sha != EXPECTED_SOURCE_TREE_SHA:
         raise LiveEvidenceRunnerError(
             "OBSERVED_SOURCE_TREE_MISMATCH", "source tree is not frozen RC"
+        )
+    if inputs.docker_target_platform != EXPECTED_DOCKER_TARGET_PLATFORM:
+        raise LiveEvidenceRunnerError(
+            "RC_BUILD_ARG_MISMATCH", "Docker target platform is not the frozen value"
         )
     return inputs
 
@@ -629,6 +677,7 @@ def _build_run_observation(
         metadata_path=metadata_path,
         build_run_id=run_id,
         source_date_epoch=inputs.source_date_epoch,
+        docker_target_platform=inputs.docker_target_platform,
         capabilities=capabilities,
     )
     result = _run_command(command)
@@ -712,15 +761,107 @@ def _metadata_document(
     )
 
 
+_CHECKSUM_LINE_RE = re.compile(r"^([0-9a-f]{64})  (.+)$")
+_CHECKSUM_FILES = frozenset({"SHA256SUMS", "SHA256SUMS.sha256"})
+
+
+def _payload_files(root: Path) -> set[str]:
+    payload: set[str] = set()
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise LiveEvidenceRunnerError("CHECKSUM_SYMLINK_REJECTED", str(path))
+        relative_path = path.relative_to(root).as_posix()
+        if path.is_file() and relative_path not in _CHECKSUM_FILES:
+            payload.add(relative_path)
+    return payload
+
+
+def _verify_capture_checksums(bundle_root: Path) -> None:
+    """Verify the capture package before trusting any observation JSON."""
+    manifest_path = bundle_root / "SHA256SUMS"
+    sidecar_path = bundle_root / "SHA256SUMS.sha256"
+    for path, code in (
+        (manifest_path, "CHECKSUM_MANIFEST_MISSING"),
+        (sidecar_path, "CHECKSUM_SIDECAR_MISSING"),
+    ):
+        if not path.is_file() or path.is_symlink():
+            raise LiveEvidenceRunnerError(code, str(path))
+
+    sidecar = sidecar_path.read_bytes()
+    if (
+        sidecar != sidecar.removesuffix(b"\n") + b"\n"
+        or re.fullmatch(rb"[0-9a-f]{64}\n", sidecar) is None
+    ):
+        raise LiveEvidenceRunnerError("CHECKSUM_SIDECAR_INVALID", str(sidecar_path))
+    expected_sidecar = hashlib.sha256(manifest_path.read_bytes()).hexdigest().encode("ascii")
+    if sidecar != expected_sidecar + b"\n":
+        raise LiveEvidenceRunnerError("CHECKSUM_SIDECAR_MISMATCH", str(manifest_path))
+
+    try:
+        manifest_text = manifest_path.read_bytes().decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise LiveEvidenceRunnerError("CHECKSUM_MANIFEST_INVALID", str(manifest_path)) from exc
+    if not manifest_text.endswith("\n") or "\r" in manifest_text:
+        raise LiveEvidenceRunnerError("CHECKSUM_MANIFEST_INVALID", str(manifest_path))
+    lines = manifest_text[:-1].split("\n")
+    if not lines or any(not line for line in lines):
+        raise LiveEvidenceRunnerError("CHECKSUM_MANIFEST_INVALID", str(manifest_path))
+
+    listed: set[str] = set()
+    for line in lines:
+        match = _CHECKSUM_LINE_RE.fullmatch(line)
+        if match is None:
+            raise LiveEvidenceRunnerError("CHECKSUM_ENTRY_INVALID", line)
+        digest, relative_text = match.groups()
+        relative = PurePosixPath(relative_text)
+        if (
+            not relative_text
+            or "\\" in relative_text
+            or relative_text.startswith("/")
+            or re.match(r"^[A-Za-z]:", relative_text) is not None
+            or relative_text != relative.as_posix()
+            or ".." in relative.parts
+            or relative_text in _CHECKSUM_FILES
+        ):
+            raise LiveEvidenceRunnerError("CHECKSUM_ENTRY_INVALID", relative_text)
+        if relative_text in listed:
+            raise LiveEvidenceRunnerError("CHECKSUM_DUPLICATE_ENTRY", relative_text)
+        listed.add(relative_text)
+
+        candidate = bundle_root
+        for part in relative.parts:
+            candidate = candidate / part
+            if candidate.is_symlink():
+                raise LiveEvidenceRunnerError("CHECKSUM_SYMLINK_REJECTED", relative_text)
+        if not candidate.is_file() or candidate.is_symlink():
+            raise LiveEvidenceRunnerError("CHECKSUM_FILE_MISSING", relative_text)
+        if hashlib.sha256(candidate.read_bytes()).hexdigest() != digest:
+            raise LiveEvidenceRunnerError("CHECKSUM_DIGEST_MISMATCH", relative_text)
+
+    payload = _payload_files(bundle_root)
+    if listed != payload:
+        missing = sorted(listed - payload)
+        extra = sorted(payload - listed)
+        raise LiveEvidenceRunnerError(
+            "CHECKSUM_COVERAGE_MISMATCH",
+            f"missing={missing!r}, extra={extra!r}",
+        )
+
+
 def _write_checksums(output_dir: Path) -> None:
     checksum_lines: list[str] = []
     for path in sorted(output_dir.rglob("*")):
-        if not path.is_file() or path.name == "SHA256SUMS":
+        if path.is_symlink():
+            raise LiveEvidenceRunnerError("CHECKSUM_SYMLINK_REJECTED", str(path))
+        relative_path = path.relative_to(output_dir).as_posix()
+        if not path.is_file() or relative_path in _CHECKSUM_FILES:
             continue
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        relative_path = path.relative_to(output_dir).as_posix()
         checksum_lines.append(f"{digest}  {relative_path}")
-    (output_dir / "SHA256SUMS").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+    manifest_bytes = ("\n".join(checksum_lines) + "\n").encode("utf-8")
+    (output_dir / "SHA256SUMS").write_bytes(manifest_bytes)
+    sidecar = hashlib.sha256(manifest_bytes).hexdigest() + "\n"
+    (output_dir / "SHA256SUMS.sha256").write_text(sidecar, encoding="ascii")
 
 
 def capture_local(
@@ -990,6 +1131,7 @@ def assemble_evidence(
     if not attestation_path.is_file() or attestation_path.is_symlink():
         raise LiveEvidenceRunnerError("ATTESTATION_MISSING", str(attestation_path))
     bundle_path = Path(observation_bundle).expanduser().resolve()
+    _verify_capture_checksums(bundle_path.parent)
     bundle = _read_json_object(bundle_path, code="OBSERVATION_BUNDLE_MISSING")
     if bundle.get("schema_version") != OBSERVATION_SCHEMA_VERSION:
         raise LiveEvidenceRunnerError("OBSERVATION_BUNDLE_SCHEMA_INVALID", str(bundle_path))
@@ -1120,7 +1262,6 @@ __all__ = [
     "LiveEvidenceRunnerError",
     "OBSERVATION_SCHEMA_VERSION",
     "OCIManifestObservation",
-    "TARGET_PLATFORM",
     "assemble_evidence",
     "buildx_build_command",
     "capture_local",

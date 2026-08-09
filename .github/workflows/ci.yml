@@ -15,6 +15,11 @@ on:
         required: true
         type: string
         default: 043731fea4e60feb6b929c524c4b68e87ed67bd7
+      upload_live_evidence_artifact:
+        description: Separately authorize transport of the non-tracked capture package
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   compose-config:
@@ -756,10 +761,15 @@ jobs:
   # TASK-012 V0.2 Slice 2 R2: this is a future execution surface only.
   # The job is unavailable on push/pull_request and remains skipped unless a
   # maintainer explicitly dispatches this workflow on main with both inputs.
-  # No registry, signing, promotion, or artifact upload is performed here.
+  # No registry, signing, or promotion is performed here. Artifact upload is
+  # separately gated and remains off by default.
   live-evidence-capture:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    outputs:
+      artifact_id: ${{ steps.upload_evidence.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload_evidence.outputs.artifact-digest }}
+      artifact_url: ${{ steps.upload_evidence.outputs.artifact-url }}
     permissions:
       contents: read
     steps:
@@ -769,6 +779,18 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - name: Backend install
         run: cd backend && uv sync
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+      - name: Verify selected Docker Buildx builder
+        run: |
+          set -euo pipefail
+          test "${{ steps.buildx.outputs.driver }}" = "docker-container"
+          docker buildx inspect --bootstrap
+          docker buildx inspect --bootstrap \
+            | grep -Eq '(^|[[:space:],])linux/amd64(\*|[,[:space:]]|$)'
       - name: Verify live capture dispatch gate
         env:
           EXPECTED_SOURCE_SHA: 043731fea4e60feb6b929c524c4b68e87ed67bd7
@@ -782,14 +804,41 @@ jobs:
           git cat-file -e "${EXPECTED_SOURCE_SHA}^{commit}"
           test "$(git rev-parse "${EXPECTED_SOURCE_SHA}^{tree}")" = "${EXPECTED_SOURCE_TREE}"
       - name: Capture local Build A/B evidence
+        id: capture
         env:
           TASK012_BUILD_A_B_AUTHORIZED: YES
           EXPECTED_SOURCE_SHA: 043731fea4e60feb6b929c524c4b68e87ed67bd7
         run: |
           set -euo pipefail
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-live-evidence/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "output_dir=${OUTPUT_DIR}" >> "${GITHUB_OUTPUT}"
           cd backend
           PYTHONPATH=src uv run python -m cold_storage.release.live_evidence_runner \
             capture-local \
             --execute-builds \
             --expected-source-sha "${EXPECTED_SOURCE_SHA}" \
-            --output-dir "${RUNNER_TEMP}/task012-live-evidence/${GITHUB_RUN_ID}"
+            --output-dir "${OUTPUT_DIR}"
+      - name: Upload live evidence artifact
+        id: upload_evidence
+        if: ${{ inputs.upload_live_evidence_artifact == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-live-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.capture.outputs.output_dir }}
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+      - name: Record live evidence artifact metadata
+        if: ${{ inputs.upload_live_evidence_artifact == true }}
+        env:
+          ARTIFACT_ID: ${{ steps.upload_evidence.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_evidence.outputs.artifact-digest }}
+          ARTIFACT_URL: ${{ steps.upload_evidence.outputs.artifact-url }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Live Evidence Artifact Handoff"
+            echo "artifact-id: ${ARTIFACT_ID}"
+            echo "artifact-digest: ${ARTIFACT_DIGEST}"
+            echo "artifact-url: ${ARTIFACT_URL}"
+          } >> "${GITHUB_STEP_SUMMARY}"

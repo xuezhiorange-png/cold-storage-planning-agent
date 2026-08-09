@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import cold_storage.release.live_evidence_runner as live_runner
 from cold_storage.release.live_evidence_runner import (
     EXPECTED_SOURCE_COMMIT_SHA,
     LiveEvidenceRunnerError,
@@ -41,6 +42,13 @@ def _mock_docker_script(path: Path) -> None:
                 print(
                     "--output type=oci,dest=path --metadata-file --platform "
                     "--no-cache --provenance --sbom"
+                )
+                raise SystemExit(0)
+
+            if args[:2] == ["buildx", "inspect"]:
+                print(
+                    "Name: synthetic\\nDriver: docker-container\\n"
+                    "Platforms: linux/amd64, linux/arm64"
                 )
                 raise SystemExit(0)
 
@@ -230,7 +238,7 @@ def test_tampered_observed_declaration_is_rejected(
             output_dir=tmp_path / "assembled",
             tooling_root=PROJECT_ROOT,
         )
-    assert exc.value.code == "BUILD_INPUT_MANIFEST_DRIFT"
+    assert exc.value.code == "CHECKSUM_DIGEST_MISMATCH"
 
 
 def test_shared_output_path_is_rejected_during_assembly(
@@ -254,4 +262,118 @@ def test_shared_output_path_is_rejected_during_assembly(
             output_dir=tmp_path / "assembled",
             tooling_root=PROJECT_ROOT,
         )
-    assert exc.value.code == "BUILD_OUTPUT_PATH_COLLISION"
+    assert exc.value.code == "CHECKSUM_DIGEST_MISMATCH"
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "metadata.json",
+        "expected-inputs.json",
+        "build-a/observed-inputs.json",
+        "build-a/build-record.json",
+        "observation-bundle.json",
+    ],
+)
+def test_tampered_capture_payload_is_rejected_before_collector(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, relative_path: str
+) -> None:
+    _configure_mock_docker(monkeypatch, tmp_path)
+    bundle_path = capture_local(
+        output_dir=tmp_path / "observation",
+        tooling_root=PROJECT_ROOT,
+        execute_builds=True,
+    )
+    target = bundle_path.parent / relative_path
+    target.write_bytes(target.read_bytes() + b"tampered")
+    attestation = tmp_path / "attestation.json"
+    _write_test_attestation(attestation)
+
+    def collector_must_not_run(**_: object) -> None:
+        raise AssertionError("collector must not receive an unchecked package")
+
+    monkeypatch.setattr(live_runner, "collect_release_candidate_evidence", collector_must_not_run)
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        assemble_evidence(
+            observation_bundle=bundle_path,
+            attestation_file=attestation,
+            output_dir=tmp_path / "assembled",
+            tooling_root=PROJECT_ROOT,
+        )
+    assert exc.value.code == "CHECKSUM_DIGEST_MISMATCH"
+
+
+def test_checksum_sidecar_and_manifest_tampering_fail_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_mock_docker(monkeypatch, tmp_path)
+    bundle_path = capture_local(
+        output_dir=tmp_path / "observation",
+        tooling_root=PROJECT_ROOT,
+        execute_builds=True,
+    )
+    root = bundle_path.parent
+    _write_test_attestation(tmp_path / "attestation.json")
+    sidecar = root / "SHA256SUMS.sha256"
+    sidecar.write_text("0" * 64 + "\n", encoding="ascii")
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        assemble_evidence(
+            observation_bundle=bundle_path,
+            attestation_file=tmp_path / "attestation.json",
+            output_dir=tmp_path / "assembled",
+            tooling_root=PROJECT_ROOT,
+        )
+    assert exc.value.code == "CHECKSUM_SIDECAR_MISMATCH"
+
+    live_runner._write_checksums(root)
+    (root / "SHA256SUMS").write_bytes((root / "SHA256SUMS").read_bytes() + b"\n")
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        assemble_evidence(
+            observation_bundle=bundle_path,
+            attestation_file=tmp_path / "attestation.json",
+            output_dir=tmp_path / "assembled-again",
+            tooling_root=PROJECT_ROOT,
+        )
+    assert exc.value.code == "CHECKSUM_SIDECAR_MISMATCH"
+
+
+def test_missing_listed_capture_payload_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_mock_docker(monkeypatch, tmp_path)
+    bundle_path = capture_local(
+        output_dir=tmp_path / "observation",
+        tooling_root=PROJECT_ROOT,
+        execute_builds=True,
+    )
+    (bundle_path.parent / "metadata.json").unlink()
+    _write_test_attestation(tmp_path / "attestation.json")
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        assemble_evidence(
+            observation_bundle=bundle_path,
+            attestation_file=tmp_path / "attestation.json",
+            output_dir=tmp_path / "assembled",
+            tooling_root=PROJECT_ROOT,
+        )
+    assert exc.value.code == "CHECKSUM_FILE_MISSING"
+
+
+def test_unlisted_capture_payload_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_mock_docker(monkeypatch, tmp_path)
+    bundle_path = capture_local(
+        output_dir=tmp_path / "observation",
+        tooling_root=PROJECT_ROOT,
+        execute_builds=True,
+    )
+    (bundle_path.parent / "unexpected.txt").write_text("extra", encoding="utf-8")
+    _write_test_attestation(tmp_path / "attestation.json")
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        assemble_evidence(
+            observation_bundle=bundle_path,
+            attestation_file=tmp_path / "attestation.json",
+            output_dir=tmp_path / "assembled",
+            tooling_root=PROJECT_ROOT,
+        )
+    assert exc.value.code == "CHECKSUM_COVERAGE_MISMATCH"

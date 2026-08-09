@@ -276,13 +276,20 @@ def test_live_runner_enforces_frozen_source_and_oci_observation_contract() -> No
     assert '"--detach"' in runner
     assert "--ignored" in runner
     assert "--untracked-files=all" in runner
-    assert "linux/amd64" in runner
+    assert "EXPECTED_DOCKER_TARGET_PLATFORM" in runner
     assert "--no-cache" in runner
     assert "type=oci,dest=" in runner
     assert "manifest_bytes_rehashed" in runner
     assert "sha256:" in runner
     assert "image_id_used" in runner
     assert "local_oci_manifest_digest" in runner
+    assert '"inspect", "--bootstrap"' in runner
+    assert '"docker-container"' in runner
+    assert "EXPECTED_DOCKER_TARGET_PLATFORM" in runner
+    assert "docker_target_platform=inputs.docker_target_platform" in runner
+    assert "_verify_capture_checksums" in runner
+    assert "SHA256SUMS.sha256" in runner
+    assert "CHECKSUM_COVERAGE_MISMATCH" in runner
 
 
 def test_live_runner_cli_and_workflow_dispatch_surface_are_gated() -> None:
@@ -297,6 +304,12 @@ def test_live_runner_cli_and_workflow_dispatch_surface_are_gated() -> None:
     assert "workflow_dispatch:" in workflow
     assert "execute_live_evidence_capture" in workflow
     assert "expected_rc_source_sha" in workflow
+    assert "upload_live_evidence_artifact" in workflow
+    assert "docker/setup-buildx-action@v4" in workflow
+    assert "driver: docker-container" in workflow
+    assert "steps.upload_evidence.outputs.artifact-id" in workflow
+    assert "steps.upload_evidence.outputs.artifact-digest" in workflow
+    assert "compression-level: 0" in workflow
     assert "default: false" in workflow
     assert "live-evidence-capture:" in workflow
     assert "github.event_name == 'workflow_dispatch'" in workflow
@@ -309,3 +322,15 @@ def test_release_evidence_make_target_includes_runner_tests() -> None:
     makefile = (PROJECT_ROOT / "Makefile").read_text()
     assert "tests/unit/test_live_evidence_runner.py" in makefile
     assert "tests/integration/test_live_evidence_runner.py" in makefile
+
+
+def test_docker_target_platform_is_a_manifest_input_not_a_fake_build_arg() -> None:
+    schema = (RELEASE_DIR / "provenance_schema.py").read_text()
+    collector = (RELEASE_DIR / "evidence_collector.py").read_text()
+    verifier = (RELEASE_DIR / "digest_verifier.py").read_text()
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    assert 'EXPECTED_DOCKER_TARGET_PLATFORM = "linux/amd64"' in schema
+    assert "docker_target_platform: str" in collector
+    assert '"docker_target_platform"' in collector
+    assert '"docker_target_platform",' in verifier
+    assert '"TARGET_PLATFORM"' not in runner
