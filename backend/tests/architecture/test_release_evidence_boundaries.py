@@ -332,6 +332,19 @@ def test_live_runner_cli_and_workflow_dispatch_surface_are_gated() -> None:
     assert "--execute-builds" in workflow
 
 
+def test_capture_workflow_binds_repository_root_after_backend_cd() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    capture_job = workflow.split("live-evidence-capture:", 1)[1].split(
+        "live-evidence-artifact-transport-verify:", 1
+    )[0]
+    capture_step = capture_job.split("      - name: Capture local Build A/B evidence", 1)[1].split(
+        "      - name: Upload live evidence artifact", 1
+    )[0]
+
+    assert re.search(r"(?m)^\s+cd backend\s*$", capture_step)
+    assert re.search(r"(?m)^\s+--tooling-root\s+\.\.\s+\\\s*$", capture_step)
+
+
 def test_release_evidence_make_target_includes_runner_tests() -> None:
     makefile = (PROJECT_ROOT / "Makefile").read_text()
     assert "tests/unit/test_live_evidence_runner.py" in makefile
