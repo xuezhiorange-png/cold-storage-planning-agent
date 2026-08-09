@@ -352,10 +352,21 @@ class TestB02LabelBounds:
             "HIGH_CARDINALITY_LABEL_REJECTED was not incremented for attempt_number=999999"
         )
 
-        # The raw attempt value must NOT appear in exposition
+        # The rejected attempt value must NOT appear as a label of
+        # outbox_delivery_attempts_total in the exposition. A bare substring
+        # search over the whole exposition is not reliable: an unrelated
+        # floating-point metric value may happen to contain "999999",
+        # producing a false positive. Check metric identity + label identity
+        # + label value instead.
         exposition = _exposition(metrics)
-        assert "999999" not in exposition, (
-            "Raw attempt_number=999999 leaked into Prometheus exposition"
+        delivery_attempt_lines = [
+            line
+            for line in exposition.splitlines()
+            if line.startswith("outbox_delivery_attempts_total")
+        ]
+        assert not any('attempt="999999"' in line for line in delivery_attempt_lines), (
+            "Rejected attempt_number=999999 leaked into "
+            "outbox_delivery_attempts_total metric labels"
         )
 
     def test_outbox_delivery_attempt_valid_value_passes(self) -> None:
