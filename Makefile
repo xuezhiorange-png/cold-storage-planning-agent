@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner
+.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -129,8 +129,10 @@ release-evidence-test:
 		tests/unit/test_promotion_record.py \
 		tests/unit/test_negative_scenarios.py \
 		tests/unit/test_live_evidence_runner.py \
+		tests/unit/test_artifact_transport.py \
 		tests/integration/test_release_candidate_evidence.py \
 		tests/integration/test_live_evidence_runner.py \
+		tests/integration/test_artifact_transport.py \
 		tests/architecture/test_release_evidence_boundaries.py \
 		-q
 
@@ -140,6 +142,15 @@ verify-live-evidence-runner:
 	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
 		tests/unit/test_live_evidence_runner.py \
 		tests/integration/test_live_evidence_runner.py \
+		tests/architecture/test_release_evidence_boundaries.py \
+		-q
+
+# Artifact transport-only contract gate. This target uses mock HTTP and
+# synthetic ZIP packages; it never contacts GitHub or uploads/downloads data.
+verify-artifact-transport:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
+		tests/unit/test_artifact_transport.py \
+		tests/integration/test_artifact_transport.py \
 		tests/architecture/test_release_evidence_boundaries.py \
 		-q
 

@@ -141,12 +141,142 @@ package and calls the existing `collect_release_candidate_evidence()` API.
 It does not copy collector or verifier logic. Independent input-manifest
 declarations are recomputed and checked before the collector is called.
 
-The later handoff sequence is: capture -> optional separately authorized
-GitHub Actions artifact upload -> retain the artifact ID, digest, and URL ->
-retrieve and validate transport integrity -> verify `SHA256SUMS` and its
-sidecar -> re-observe OCI outputs -> call the collector. The internal checksum
-manifest is an integrity check inside the package; it is not a replacement for
-the GitHub artifact transport digest.
+## Artifact Transport Integrity
+
+The transport adapter is
+`cold_storage.release.artifact_transport`. It verifies a capture package after
+it has left the ephemeral capture runner. Transport verification is not
+assembly, attestation, OCI verification, registry binding, or promotion.
+
+### Upload-time handoff receipt
+
+The capture workflow uses `actions/upload-artifact@v4` with the runtime name:
+
+```text
+task012-live-evidence-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+```
+
+The upload step summary and job outputs record these runtime-derived values:
+
+```text
+artifact-id
+artifact-digest
+artifact-url
+artifact-name
+capture-run-id
+capture-run-attempt
+capture-head-sha
+capture-head-branch
+```
+
+The `artifact-id` and `artifact-digest` are the machine handoff identity. The
+URL is retained for human audit only and is never used as the download
+authority. The upload-time digest is external to the ZIP payload; putting it
+inside the same ZIP would create a recursive self-reference.
+
+### Exact transport verification procedure
+
+The later operator or gated workflow must select the exact numeric Artifact ID
+from the upload-time receipt. It must not list artifacts, search by name, or
+choose the newest result. The verifier requires both an explicit CLI flag and
+an independent environment authorization:
+
+```bash
+export GITHUB_TOKEN='provided-by-the-authorized-workflow-environment'
+export TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED=YES
+
+PYTHONPATH=backend/src python -m cold_storage.release.artifact_transport \
+  verify-download \
+  --execute-download \
+  --repository xuezhiorange-png/cold-storage-planning-agent \
+  --artifact-id '<artifact-id-from-receipt>' \
+  --expected-artifact-digest '<artifact-digest-from-receipt>' \
+  --expected-capture-run-id '<capture-run-id-from-receipt>' \
+  --expected-capture-run-attempt '<capture-run-attempt-from-receipt>' \
+  --expected-capture-head-sha '<capture-head-sha-from-receipt>' \
+  --output-dir '/absolute/non-tracked/transport-output'
+```
+
+The token is read only from the environment and is never passed as a command
+argument or written to a receipt. The adapter first calls the exact REST
+metadata endpoint:
+
+```text
+GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}
+```
+
+It requires the response ID, `expired=false`, digest, exact runtime artifact
+name, workflow run ID, run attempt when present, `head_sha`, and
+`head_branch=main` to match the upload-time receipt. It then calls the exact
+ID-based archive endpoint:
+
+```text
+GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip
+```
+
+The adapter follows the server redirect but never accepts a user-provided
+archive URL as authority. It streams the archive response into a temporary
+runner-owned file and computes SHA-256 incrementally. The following three
+values must normalize to the same `sha256:<64 lower-hex>` value:
+
+```text
+recorded upload-time artifact digest
+REST metadata digest
+SHA-256(downloaded archive bytes)
+```
+
+Any HTTP error, malformed metadata, expired artifact, identity mismatch,
+empty/partial download, or digest mismatch fails closed. A partial or failed
+download is never promoted to `verified-artifact.zip` and no verified receipt
+is written.
+
+### Safe extraction and handoff
+
+Only after all three transport digests match does the adapter validate every
+ZIP entry and extract to a new `extracted/` directory. It rejects absolute
+paths, `..`, backslash ambiguity, duplicate output paths, symlinks, and special
+files without using `extractall()`. The extracted root must contain
+`observation-bundle.json`, `metadata.json`, `expected-inputs.json`,
+`SHA256SUMS`, `SHA256SUMS.sha256`, `build-a/`, and `build-b/`.
+
+The adapter writes `artifact-transport-receipt.json` containing the three
+matching digests, exact Artifact ID, capture identities, exact endpoint
+identity, verification time, and `transport_verification_status=PASS`. It
+does not call `assemble` and does not create attestation or provenance.
+
+The next separately authorized handoff is:
+
+```text
+verified transport output
+  -> existing live_evidence_runner SHA256SUMS/SHA256SUMS.sha256 verifier
+  -> re-observe A/B OCI outputs
+  -> explicit attestation assembly
+  -> existing collector/verifier
+```
+
+The three integrity layers remain distinct:
+
+```text
+TRANSPORT:
+  recorded upload digest == REST metadata digest
+  == SHA256(downloaded archive bytes)
+
+INTERNAL PACKAGE:
+  SHA256SUMS.sha256 -> SHA256SUMS -> exact capture payload coverage
+
+OCI:
+  OCI descriptor digest == SHA256(manifest bytes)
+```
+
+Failure in any layer stops the chain. An internal `SHA256SUMS` file cannot
+substitute for the GitHub Artifact transport digest, and a transport receipt
+cannot substitute for OCI or provenance verification.
+
+The adapter uses the GitHub Actions Artifact REST contract documented at
+`https://docs.github.com/en/rest/actions/artifacts` and the
+`actions/upload-artifact` outputs documented at
+`https://github.com/actions/upload-artifact`. The future transport job needs
+only `contents: read` and `actions: read`.
 
 ## Registry Optional Boundary
 
@@ -175,16 +305,21 @@ true:
 - `execute_live_evidence_capture` is explicitly `true`;
 - `upload_live_evidence_artifact` is independently set to `true` only when
   artifact transport is also authorized;
+- `verify_live_evidence_artifact_transport` is explicitly `false`;
 - `expected_rc_source_sha` exactly equals the frozen RC source SHA;
 - the ref is `refs/heads/main`;
 - the checked-out source commit and tree match the frozen values.
 
-Both boolean inputs default to `false`. The capture step writes an explicit
-non-tracked output directory to its step output. The upload step is separately
-gated, uses a unique run/attempt artifact name, does not overwrite an existing
-artifact, and exposes `artifact-id`, `artifact-digest`, and `artifact-url` in
-job outputs and the step summary. Adding this job does not execute it, upload
-artifacts, request OIDC, push a registry image, or promote an environment.
+The separate `live-evidence-artifact-transport-verify` job requires
+`verify_live_evidence_artifact_transport=true`,
+`execute_live_evidence_capture=false`, the same frozen source assertion, and
+`refs/heads/main`. It receives the five transport receipt inputs: exact
+Artifact ID, upload digest, capture run ID, capture run attempt, and capture
+head SHA. Both jobs are skipped for ordinary `push` and `pull_request` events
+and are mutually exclusive for a manual dispatch. All boolean inputs default
+to `false`. Adding either job does not execute a workflow
+dispatch, build, upload, download, request OIDC, push a registry image, or
+promote an environment.
 
 ## Non-tracked Evidence Outputs
 
@@ -208,6 +343,7 @@ The following phases are intentionally separate:
 | Build A local capture | `BUILD_A_EXECUTION_AUTHORIZED=YES` | Not authorized in this correction |
 | Build B local capture | `BUILD_B_EXECUTION_AUTHORIZED=YES` | Not authorized in this correction |
 | GitHub Actions non-tracked artifact upload | `GITHUB_ACTIONS_ARTIFACT_UPLOAD_AUTHORIZED=YES` plus `upload_live_evidence_artifact=true` | Not authorized |
+| GitHub Actions artifact download/transport verification | `GITHUB_ACTIONS_ARTIFACT_DOWNLOAD_AUTHORIZED=YES` plus `verify_live_evidence_artifact_transport=true` | Not authorized |
 | Attestation/signing | `OIDC_SIGNING_EXECUTION_AUTHORIZED=YES` or separately approved signing mechanism | Not authorized |
 | Registry binding | `REGISTRY_PUSH_AUTHORIZED=YES` | Not authorized |
 | Staging promotion | `STAGING_PROMOTION_AUTHORIZED=YES` | Not authorized |
@@ -216,10 +352,12 @@ The following phases are intentionally separate:
 
 No phase may infer or inherit another phase's authorization. The software
 mapping keeps `execute_live_evidence_capture` and
-`upload_live_evidence_artifact` independent. Correction R2 implements the
-execution surface and synthetic/mock verification only. It does not execute a
-workflow dispatch, real Build A/B, artifact upload, signing, registry push,
-promotion, or deployment.
+`upload_live_evidence_artifact` independent. The transport mapping keeps
+`verify_live_evidence_artifact_transport` and
+`TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED` independent from capture and upload.
+Correction R3 implements the transport surface and synthetic/mock verification
+only. It does not execute a workflow dispatch, real Build A/B, artifact upload
+or download, signing, registry push, promotion, or deployment.
 
 ## Verification
 
@@ -233,6 +371,7 @@ Useful local commands are:
 
 ```bash
 make verify-live-evidence-runner
+make verify-artifact-transport
 make verify-release-evidence
 make verify-base-image-digests
 ```
