@@ -292,6 +292,20 @@ def test_live_runner_enforces_frozen_source_and_oci_observation_contract() -> No
     assert "CHECKSUM_COVERAGE_MISMATCH" in runner
 
 
+def test_buildx_help_probe_checks_cli_flags_not_exporter_names() -> None:
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    probe = runner.split("def _buildx_capabilities", 1)[1].split("def buildx_build_command", 1)[0]
+    required_flags = re.search(r"for required in \((.*?)\):", probe, re.DOTALL)
+    assert required_flags is not None
+    assert tuple(re.findall(r'"([^\"]+)"', required_flags.group(1))) == (
+        "--output",
+        "--metadata-file",
+        "--platform",
+        "--no-cache",
+    )
+    assert "type=oci,dest=" in runner
+
+
 def test_live_runner_cli_and_workflow_dispatch_surface_are_gated() -> None:
     runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
     workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()

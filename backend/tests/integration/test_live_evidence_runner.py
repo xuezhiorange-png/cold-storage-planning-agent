@@ -40,8 +40,8 @@ def _mock_docker_script(path: Path) -> None:
 
             if "--help" in args:
                 print(
-                    "--output type=oci,dest=path --metadata-file --platform "
-                    "--no-cache --provenance --sbom"
+                    "--output --metadata-file --platform --no-cache "
+                    "--provenance --sbom"
                 )
                 raise SystemExit(0)
 
@@ -58,6 +58,9 @@ def _mock_docker_script(path: Path) -> None:
             output_spec = value_after("--output")
             destination = Path(output_spec.split("dest=", 1)[1])
             metadata = Path(value_after("--metadata-file"))
+            if os.environ.get("MOCK_FAIL_BUILD_A") == "1" and "build-a" in destination.as_posix():
+                print("synthetic Build A failure", file=sys.stderr)
+                raise SystemExit(17)
             if os.environ.get("MOCK_SKIP_B") == "1" and "build-b" in destination.as_posix():
                 raise SystemExit(0)
 
@@ -203,6 +206,29 @@ def test_build_b_digest_drift_fails_closed(monkeypatch: pytest.MonkeyPatch, tmp_
             execute_builds=True,
         )
     assert exc.value.code == "BUILD_DIGEST_DRIFT"
+
+
+def test_v035_capability_probe_reaches_build_a_invocation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    log = _configure_mock_docker(monkeypatch, tmp_path)
+    monkeypatch.setenv("MOCK_FAIL_BUILD_A", "1")
+
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        capture_local(
+            output_dir=tmp_path / "observation",
+            tooling_root=PROJECT_ROOT,
+            execute_builds=True,
+        )
+
+    assert exc.value.code == "DOCKER_BUILD_FAILED"
+    build_calls = [
+        line for line in log.read_text(encoding="utf-8").splitlines() if "--output" in line
+    ]
+    assert len(build_calls) == 1
+    assert "type=oci,dest=" in build_calls[0]
+    assert "--no-cache" in build_calls[0]
+    assert "--platform linux/amd64" in build_calls[0]
 
 
 def test_build_b_must_produce_an_output(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
