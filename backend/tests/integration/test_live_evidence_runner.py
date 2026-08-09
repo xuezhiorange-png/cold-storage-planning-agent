@@ -58,7 +58,7 @@ def _mock_docker_script(path: Path) -> None:
                 return args[args.index(flag) + 1]
 
             output_spec = value_after("--output")
-            destination = Path(output_spec.split("dest=", 1)[1])
+            destination = Path(output_spec.split("dest=", 1)[1].split(",", 1)[0])
             metadata = Path(value_after("--metadata-file"))
             if os.environ.get("MOCK_FAIL_BUILD_A") == "1" and "build-a" in destination.as_posix():
                 print("synthetic Build A failure", file=sys.stderr)
@@ -169,6 +169,8 @@ def test_capture_and_assemble_happy_path_are_independent_and_local_only(
     assert all("--no-cache" in call for call in calls)
     assert all("--push" not in call for call in calls)
     assert all("linux/amd64" in call for call in calls)
+    assert all("type=oci,dest=" in call for call in calls)
+    assert all("rewrite-timestamp=true" in call for call in calls)
     assert all(PROJECT_ROOT.as_posix() not in call for call in calls)
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
     assert (
@@ -182,6 +184,10 @@ def test_capture_and_assemble_happy_path_are_independent_and_local_only(
     )
     assert bundle["build_a"]["build_record"]["registry_manifest_digest"] is None
     assert bundle["build_a"]["manifest_observation"]["image_id_used"] is False
+    assert bundle["build_a"]["observed_inputs"]["oci_exporter"] == {
+        "type": "oci",
+        "rewrite-timestamp": "true",
+    }
 
     attestation = tmp_path / "attestation.json"
     _write_test_attestation(attestation)
@@ -229,6 +235,7 @@ def test_v035_capability_probe_reaches_build_a_invocation(
     ]
     assert len(build_calls) == 1
     assert "type=oci,dest=" in build_calls[0]
+    assert "rewrite-timestamp=true" in build_calls[0]
     assert "--no-cache" in build_calls[0]
     assert "--platform linux/amd64" in build_calls[0]
 

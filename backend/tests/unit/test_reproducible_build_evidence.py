@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from collections import OrderedDict
+from pathlib import Path
 
 import pytest
 
@@ -32,6 +34,7 @@ IMAGE_B = "sha256:" + "b" * 64
 BASE = "sha256:" + "f" * 64
 LOCK = "sha256:" + "1" * 64
 COMMIT = "25a88f0b65fa7662310701563e306331034d6c34"
+OCI_EXPORTER = {"type": "oci", "rewrite-timestamp": "true"}
 
 
 def _build(
@@ -57,6 +60,7 @@ def _build(
             ("base_image_digest", base),
             ("lockfile_digest", lock),
             ("build_args", build_args),
+            ("oci_exporter", OCI_EXPORTER.copy()),
             ("docker_target_platform", "linux/amd64"),
             ("build_platform", "ubuntu-latest"),
             ("final_image_digest", digest),
@@ -169,6 +173,7 @@ def test_build_input_manifest_is_deterministic() -> None:
             ("dependency_lockset_digest", LOCK),
             ("base_image_digest_set", ["sha256:z", "sha256:a"]),
             ("build_args", {"A": "1"}),
+            ("oci_exporter", OCI_EXPORTER.copy()),
             ("docker_target_platform", "linux/amd64"),
             ("build_platform", "ubuntu-latest"),
             ("build_target", "runtime"),
@@ -200,6 +205,7 @@ def test_build_input_manifest_digest_drift_rejected() -> None:
             ("dependency_lockset_digest", LOCK),
             ("base_image_digest_set", [BASE]),
             ("build_args", {"A": "1"}),
+            ("oci_exporter", OCI_EXPORTER.copy()),
             ("docker_target_platform", "linux/amd64"),
             ("build_platform", "ubuntu-latest"),
             ("build_target", "runtime"),
@@ -212,3 +218,72 @@ def test_build_input_manifest_digest_drift_rejected() -> None:
     fields["source_date_epoch"] = 999
     with pytest.raises(ReproducibleBuildError):
         verify_build_input_manifest(fields)
+
+
+def test_oci_exporter_policy_changes_manifest_digest() -> None:
+    fields = OrderedDict(
+        [
+            ("source_commit_sha", COMMIT),
+            ("source_date_epoch", 123),
+            ("base_image_digest_set", [BASE]),
+            ("build_args", {"A": "1"}),
+            ("oci_exporter", OCI_EXPORTER.copy()),
+            ("docker_target_platform", "linux/amd64"),
+            ("build_platform", "ubuntu-latest"),
+            ("build_target", "runtime"),
+        ]
+    )
+    without_rewrite = OrderedDict(fields)
+    without_rewrite["oci_exporter"] = {
+        "type": "oci",
+        "rewrite-timestamp": "false",
+    }
+    assert compute_build_input_manifest_digest(fields) != compute_build_input_manifest_digest(
+        without_rewrite
+    )
+
+
+def test_checkout_mtime_drift_is_not_manifest_authority(tmp_path: Path) -> None:
+    source_a = tmp_path / "checkout-a" / "backend" / "src.txt"
+    source_b = tmp_path / "checkout-b" / "backend" / "src.txt"
+    source_a.parent.mkdir(parents=True)
+    source_b.parent.mkdir(parents=True)
+    source_a.write_text("same source bytes\n", encoding="utf-8")
+    source_b.write_text("same source bytes\n", encoding="utf-8")
+    os.utime(source_a, ns=(1_000_000_000, 1_000_000_000))
+    os.utime(source_b, ns=(2_000_000_000, 2_000_000_000))
+    assert source_a.stat().st_mtime_ns != source_b.stat().st_mtime_ns
+
+    fields = OrderedDict(
+        [
+            ("source_commit_sha", COMMIT),
+            ("source_date_epoch", 123),
+            ("base_image_digest_set", [BASE]),
+            ("build_args", {"A": "1"}),
+            ("oci_exporter", OCI_EXPORTER.copy()),
+            ("docker_target_platform", "linux/amd64"),
+            ("build_platform", "ubuntu-latest"),
+            ("build_target", "runtime"),
+        ]
+    )
+    assert compute_build_input_manifest_digest(fields) == compute_build_input_manifest_digest(
+        OrderedDict(fields)
+    )
+
+
+def test_missing_oci_exporter_policy_fails_closed() -> None:
+    record = _build()
+    del record["oci_exporter"]
+    with pytest.raises(ReproducibleBuildError) as exc:
+        verify_reproducible_build(record, _build())
+    assert exc.value.failure_code == RC_BUILD_ARG_MISMATCH
+
+
+def test_false_oci_rewrite_timestamp_fails_closed() -> None:
+    build_a = _build()
+    build_b = _build()
+    build_b["oci_exporter"] = {"type": "oci", "rewrite-timestamp": "false"}
+    build_b["build_input_manifest_digest"] = compute_build_input_manifest_digest(build_b)
+    with pytest.raises(ReproducibleBuildError) as exc:
+        verify_reproducible_build(build_a, build_b)
+    assert exc.value.failure_code == RC_BUILD_ARG_MISMATCH

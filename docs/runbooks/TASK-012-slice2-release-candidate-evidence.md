@@ -123,6 +123,10 @@ Build A and Build B are separate `docker buildx build` invocations. Each uses:
 - `--no-cache`;
 - `BuildInputs.docker_target_platform=linux/amd64`, forwarded directly to
   `docker buildx build --platform`;
+- `BuildInputs.oci_exporter={"type":"oci","rewrite-timestamp":"true"}`;
+  this is a mandatory, digest-affecting producer policy in each build-input
+  manifest, not a Dockerfile build argument. Missing policy, a false
+  `rewrite-timestamp`, or A/B policy drift fails closed;
 - the frozen source commit and version;
 - `SOURCE_DATE_EPOCH` derived from `git show -s --format=%ct RC_SOURCE_SHA`.
 
@@ -130,12 +134,23 @@ Build A and Build B are separate `docker buildx build` invocations. Each uses:
 the execution environment field `build_platform=ubuntu-latest`. The three
 actual Dockerfile build arguments are the frozen source commit, release
 version, and source-derived timestamp; there is no fake `TARGET_PLATFORM`
-build argument.
+build argument. The actual OCI request is
+`type=oci,dest=<run-specific-path>,rewrite-timestamp=true`, and the command is
+generated from the recorded `oci_exporter` policy.
 
 The runner observes A and B independently and compares their OCI manifest
 digests only after both observations complete. It never copies A's digest,
 image output, or record into B. A missing B output, output collision, run ID
-collision, or digest drift is a fail-closed error.
+collision, exporter-policy omission/drift, or digest drift is a fail-closed
+error. Different source checkout mtimes are not build-input authority; the
+source-derived epoch plus the OCI export timestamp rewrite policy is the
+reproducibility control for copied filesystem content.
+
+The failed live capture run `31325941104` reached independent Build A and
+Build B OCI manifest observations and then failed closed on
+`BUILD_DIGEST_DRIFT`. No artifact was uploaded. This correction addresses the
+producer-policy gap exposed by that run; it does not replace the observed OCI
+manifest digest authority or merge the two independent runs.
 
 ## Actual OCI Manifest Digest Observation
 

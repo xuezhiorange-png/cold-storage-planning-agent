@@ -278,7 +278,8 @@ def test_live_runner_enforces_frozen_source_and_oci_observation_contract() -> No
     assert "--untracked-files=all" in runner
     assert "EXPECTED_DOCKER_TARGET_PLATFORM" in runner
     assert "--no-cache" in runner
-    assert "type=oci,dest=" in runner
+    assert "exporter_policy['type']" in runner
+    assert "rewrite-timestamp={exporter_policy['rewrite-timestamp']}" in runner
     assert "manifest_bytes_rehashed" in runner
     assert "sha256:" in runner
     assert "image_id_used" in runner
@@ -303,7 +304,7 @@ def test_buildx_help_probe_checks_cli_flags_not_exporter_names() -> None:
         "--platform",
         "--no-cache",
     )
-    assert "type=oci,dest=" in runner
+    assert "exporter_policy['type']" in runner
 
 
 def test_live_runner_cli_and_workflow_dispatch_surface_are_gated() -> None:
@@ -361,6 +362,21 @@ def test_docker_target_platform_is_a_manifest_input_not_a_fake_build_arg() -> No
     assert '"docker_target_platform"' in collector
     assert '"docker_target_platform",' in verifier
     assert '"TARGET_PLATFORM"' not in runner
+
+
+def test_oci_exporter_policy_is_recorded_and_bound_to_command() -> None:
+    collector = (RELEASE_DIR / "evidence_collector.py").read_text()
+    verifier = (RELEASE_DIR / "digest_verifier.py").read_text()
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    assert "oci_exporter: dict[str, str]" in collector
+    assert '"oci_exporter",' in collector
+    assert '"oci_exporter",' in verifier
+    assert "EXPECTED_OCI_EXPORTER_POLICY" in verifier
+    assert "MISSING_OCI_EXPORTER_POLICY" in runner
+    assert "validate_oci_exporter_policy" in verifier
+    assert "oci_exporter=inputs.oci_exporter" in runner
+    assert "rewrite-timestamp={exporter_policy['rewrite-timestamp']}" in runner
+    assert "FALSE_OCI_REWRITE_TIMESTAMP_OR_EXPORTER_POLICY_DRIFT" in verifier
 
 
 def test_artifact_transport_is_an_external_observation_only_adapter() -> None:

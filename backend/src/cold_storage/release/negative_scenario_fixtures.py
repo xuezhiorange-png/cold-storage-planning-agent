@@ -87,6 +87,7 @@ def _valid_build_record(*, commit: str = EXPECTED_SOURCE_COMMIT_SHA) -> OrderedD
                 "build_args",
                 {"COLD_STORAGE_BUILD_COMMIT_SHA": commit, "COLD_STORAGE_BUILD_VERSION": "v0.2.0"},
             ),
+            ("oci_exporter", {"type": "oci", "rewrite-timestamp": "true"}),
             ("docker_target_platform", "linux/amd64"),
             ("build_platform", "ubuntu-latest"),
             ("final_image_digest", IMAGE_DIGEST),

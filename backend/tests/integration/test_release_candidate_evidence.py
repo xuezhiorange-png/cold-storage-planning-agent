@@ -60,6 +60,7 @@ def _inputs() -> BuildInputs:
             "COLD_STORAGE_BUILD_COMMIT_SHA": EXPECTED_SOURCE_COMMIT_SHA,
             "COLD_STORAGE_BUILD_VERSION": "v0.2.0",
         },
+        oci_exporter={"type": "oci", "rewrite-timestamp": "true"},
     )
 
 
@@ -260,6 +261,7 @@ def _inputs_custom(*, source_date_epoch: int = 1234567890) -> BuildInputs:
             "COLD_STORAGE_BUILD_COMMIT_SHA": COMMIT,
             "COLD_STORAGE_BUILD_VERSION": "v0.2.0",
         },
+        oci_exporter={"type": "oci", "rewrite-timestamp": "true"},
     )
 
 
@@ -534,6 +536,7 @@ class TestB3PerRunBuildInputCapture:
                 "COLD_STORAGE_BUILD_COMMIT_SHA": COMMIT,
                 "COLD_STORAGE_BUILD_VERSION": "v0.2.0",
             },
+            oci_exporter={"type": "oci", "rewrite-timestamp": "true"},
         )
         with pytest.raises(ReleaseEvidenceError) as exc:
             collect_release_candidate_evidence(

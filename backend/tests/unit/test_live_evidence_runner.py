@@ -25,6 +25,8 @@ from cold_storage.release.live_evidence_runner import (
     validate_expected_source,
 )
 
+OCI_EXPORTER_POLICY = {"type": "oci", "rewrite-timestamp": "true"}
+
 MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
 INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
 
@@ -303,6 +305,7 @@ def test_build_command_has_independent_no_cache_oci_contract(tmp_path: Path) -> 
         build_run_id="capture:A",
         source_date_epoch=1786252367,
         docker_target_platform="linux/amd64",
+        oci_exporter=OCI_EXPORTER_POLICY,
         capabilities=BuildxCapabilities(True, True),
     )
     command_b = buildx_build_command(
@@ -312,13 +315,16 @@ def test_build_command_has_independent_no_cache_oci_contract(tmp_path: Path) -> 
         build_run_id="capture:B",
         source_date_epoch=1786252367,
         docker_target_platform="linux/amd64",
+        oci_exporter=OCI_EXPORTER_POLICY,
         capabilities=BuildxCapabilities(True, True),
     )
     assert command_a != command_b
     assert "--no-cache" in command_a
     assert "--platform" in command_a
     assert "linux/amd64" in command_a
-    assert any(item.startswith("type=oci,dest=") for item in command_a)
+    output_spec = command_a[command_a.index("--output") + 1]
+    assert output_spec.startswith("type=oci,dest=")
+    assert output_spec.endswith(",rewrite-timestamp=true")
     assert "--metadata-file" in command_a
     assert "--provenance=false" in command_a
     assert "--sbom=false" in command_a
@@ -330,6 +336,36 @@ def test_build_command_has_independent_no_cache_oci_contract(tmp_path: Path) -> 
     tag = command_a[command_a.index("--tag") + 1]
     assert tag.count(":") == 1
     assert tag.endswith("capture-a")
+
+
+def test_build_command_binds_recorded_exporter_policy() -> None:
+    command = buildx_build_command(
+        context=Path("/tmp/rc-context"),
+        output_path=Path("/tmp/build-a/image.oci.tar"),
+        metadata_path=Path("/tmp/build-a/metadata.json"),
+        build_run_id="capture:A",
+        source_date_epoch=1786252367,
+        docker_target_platform="linux/amd64",
+        oci_exporter=OCI_EXPORTER_POLICY,
+        capabilities=BuildxCapabilities(True, True),
+    )
+    output_spec = command[command.index("--output") + 1]
+    assert output_spec == ("type=oci,dest=/tmp/build-a/image.oci.tar,rewrite-timestamp=true")
+
+
+def test_build_command_rejects_false_rewrite_policy() -> None:
+    with pytest.raises(LiveEvidenceRunnerError) as exc:
+        buildx_build_command(
+            context=Path("/tmp/rc-context"),
+            output_path=Path("/tmp/build-a/image.oci.tar"),
+            metadata_path=Path("/tmp/build-a/metadata.json"),
+            build_run_id="capture:A",
+            source_date_epoch=1786252367,
+            docker_target_platform="linux/amd64",
+            oci_exporter={"type": "oci", "rewrite-timestamp": "false"},
+            capabilities=BuildxCapabilities(True, True),
+        )
+    assert exc.value.code == "RC_BUILD_ARG_MISMATCH"
 
 
 def test_run_identity_and_output_path_collision_fails() -> None:

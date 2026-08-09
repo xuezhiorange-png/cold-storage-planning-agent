@@ -36,7 +36,13 @@ from cold_storage.release.canonical_serialization import (
     canonical_bytes,
     load_json_strict,
 )
-from cold_storage.release.digest_verifier import compute_build_input_manifest_digest
+from cold_storage.release.digest_verifier import (
+    EXPECTED_OCI_EXPORTER_POLICY,
+    ReproducibleBuildError,
+    compute_build_input_manifest_digest,
+    normalize_oci_exporter_policy,
+    validate_oci_exporter_policy,
+)
 from cold_storage.release.evidence_collector import (
     BuildInputs,
     BuildRunRecord,
@@ -118,6 +124,14 @@ def _sha256_file(path: Path) -> str:
     if not path.is_file() or path.is_symlink():
         raise LiveEvidenceRunnerError("FILE_OBSERVATION_FAILED", f"expected regular file: {path}")
     return _sha256_bytes(path.read_bytes())
+
+
+def _validated_oci_exporter_policy(value: Any) -> dict[str, str]:
+    """Adapt pure manifest-policy failures to the runner error boundary."""
+    try:
+        return dict(validate_oci_exporter_policy(value))
+    except ReproducibleBuildError as exc:
+        raise LiveEvidenceRunnerError(exc.failure_code, exc.detail) from exc
 
 
 def _directory_digest(path: Path) -> str:
@@ -412,6 +426,7 @@ def buildx_build_command(
     build_run_id: str,
     source_date_epoch: int,
     docker_target_platform: str,
+    oci_exporter: Mapping[str, str],
     capabilities: BuildxCapabilities,
 ) -> list[str]:
     """Build one independent no-cache OCI-export invocation."""
@@ -420,6 +435,7 @@ def buildx_build_command(
             "RC_BUILD_ARG_MISMATCH",
             f"unsupported Docker target platform: {docker_target_platform}",
         )
+    exporter_policy = _validated_oci_exporter_policy(oci_exporter)
     docker_tag = re.sub(r"[^a-z0-9_.-]+", "-", build_run_id.lower())
     args = [
         "docker",
@@ -435,7 +451,10 @@ def buildx_build_command(
         "--build-arg",
         f"SOURCE_DATE_EPOCH={source_date_epoch}",
         "--output",
-        f"type=oci,dest={output_path}",
+        (
+            f"type={exporter_policy['type']},dest={output_path},"
+            f"rewrite-timestamp={exporter_policy['rewrite-timestamp']}"
+        ),
         "--metadata-file",
         str(metadata_path),
         "--tag",
@@ -503,6 +522,7 @@ def _collect_build_inputs(
         migration_set_digest=_directory_digest(migrations),
         base_image_digest_set=base_image_digest_set,
         build_args=build_args,
+        oci_exporter=dict(EXPECTED_OCI_EXPORTER_POLICY),
         docker_target_platform=EXPECTED_DOCKER_TARGET_PLATFORM,
         build_platform=EXPECTED_BUILD_PLATFORM,
         build_target="runtime",
@@ -540,6 +560,7 @@ def _observed_inputs_document(inputs: BuildInputs) -> OrderedDict[str, Any]:
             ("migration_set_digest", inputs.migration_set_digest),
             ("base_image_digest_set", sorted(inputs.base_image_digest_set)),
             ("build_args", inputs.build_args),
+            ("oci_exporter", normalize_oci_exporter_policy(inputs.oci_exporter)),
             ("docker_target_platform", inputs.docker_target_platform),
             ("build_platform", inputs.build_platform),
             ("build_target", inputs.build_target),
@@ -575,6 +596,11 @@ def _build_inputs_from_document(value: Mapping[str, Any]) -> BuildInputs:
             raise TypeError("source_date_epoch must be an integer")
         base_set = value["base_image_digest_set"]
         build_args = value["build_args"]
+        if "oci_exporter" not in value:
+            raise LiveEvidenceRunnerError(
+                "MISSING_OCI_EXPORTER_POLICY", "observed build inputs omit oci_exporter"
+            )
+        oci_exporter = _validated_oci_exporter_policy(value["oci_exporter"])
         if not isinstance(base_set, list) or not all(isinstance(item, str) for item in base_set):
             raise TypeError("base_image_digest_set must be a string list")
         if not isinstance(build_args, Mapping) or not all(
@@ -592,6 +618,7 @@ def _build_inputs_from_document(value: Mapping[str, Any]) -> BuildInputs:
             migration_set_digest=cast(str, value["migration_set_digest"]),
             base_image_digest_set=list(base_set),
             build_args=dict(build_args),
+            oci_exporter=oci_exporter,
             docker_target_platform=cast(str, value["docker_target_platform"]),
             build_platform=cast(str, value["build_platform"]),
             build_target=cast(str, value["build_target"]),
@@ -678,6 +705,7 @@ def _build_run_observation(
         build_run_id=run_id,
         source_date_epoch=inputs.source_date_epoch,
         docker_target_platform=inputs.docker_target_platform,
+        oci_exporter=inputs.oci_exporter,
         capabilities=capabilities,
     )
     result = _run_command(command)

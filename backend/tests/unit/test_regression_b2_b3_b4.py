@@ -45,6 +45,7 @@ ENV = "sha256:" + "e" * 64
 BASE = "sha256:" + "f" * 64
 LOCK = "sha256:" + "1" * 64
 COMMIT = "25a88f0b65fa7662310701563e306331034d6c34"
+OCI_EXPORTER = {"type": "oci", "rewrite-timestamp": "true"}
 
 
 def _build_record(*, digest: str = IMAGE, commit: str = COMMIT) -> OrderedDict:
@@ -61,6 +62,7 @@ def _build_record(*, digest: str = IMAGE, commit: str = COMMIT) -> OrderedDict:
                     "COLD_STORAGE_BUILD_VERSION": "v0.2.0",
                 },
             ),
+            ("oci_exporter", OCI_EXPORTER.copy()),
             ("docker_target_platform", EXPECTED_DOCKER_TARGET_PLATFORM),
             ("build_platform", "ubuntu-latest"),
             ("final_image_digest", digest),
@@ -275,6 +277,23 @@ class TestB3BuildInputManifestComparison:
             "RC_BUILD_ARG_MISMATCH",
             "RC_FINAL_IMAGE_DIGEST_MISMATCH",
         )
+
+    def test_exporter_policy_drift_fails_closed(self) -> None:
+        a = _build_record()
+        b = _build_record()
+        b["oci_exporter"] = {"type": "oci", "rewrite-timestamp": "false"}
+        b["build_input_manifest_digest"] = compute_build_input_manifest_digest(b)
+        with pytest.raises(ReleaseEvidenceError) as exc:
+            verify_reproducible_build(a, b)
+        assert exc.value.failure_code == RC_BUILD_ARG_MISMATCH
+
+    def test_missing_exporter_policy_fails_closed(self) -> None:
+        a = _build_record()
+        b = _build_record()
+        del b["oci_exporter"]
+        with pytest.raises(ReleaseEvidenceError) as exc:
+            verify_reproducible_build(a, b)
+        assert exc.value.failure_code == RC_BUILD_ARG_MISMATCH
 
 
 # ---------------------------------------------------------------------------
