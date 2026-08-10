@@ -68,8 +68,11 @@ from cold_storage.release.provenance_schema import (
     RC_VERSION,
 )
 from cold_storage.release.provenance_statement import (
+    LIVE_ATTESTATION_SUBJECT_SCHEMA,
     ProvenanceError,
+    build_pre_attestation_provenance,
     build_provenance,
+    compute_live_attestation_subject_digest,
     compute_provenance_digest,
     verify_provenance,
 )
@@ -151,6 +154,29 @@ class EvidenceBundle:
     provenance_digest: str
     reproducible_build_result: str
     raw: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class PreparedReleaseEvidence:
+    """Evidence prepared before an attestation is created or consumed."""
+
+    rc_version: str
+    authoritative_image_digest: str
+    artifact_manifest: OrderedDict[str, Any]
+    artifact_manifest_digest: str
+    pre_attestation_provenance: OrderedDict[str, Any]
+    provenance_digest: str
+    attestation_subject: OrderedDict[str, Any]
+    attestation_subject_digest: str
+    reproducible_build_result: str
+    raw: dict[str, Any] = field(default_factory=dict)
+    build_a_inputs: BuildInputs | None = None
+    build_b_inputs: BuildInputs | None = None
+    build_a: BuildRunRecord | None = None
+    build_b: BuildRunRecord | None = None
+    artifacts: list[Mapping[str, Any]] = field(default_factory=list)
+    test_result_reference: str = ""
+    verification_result_reference: str = ""
 
 
 def _build_run_to_record(run: BuildRunRecord, inputs: BuildInputs) -> OrderedDict[str, Any]:
@@ -260,7 +286,7 @@ def _verify_digest_binding_chain(
     return authoritative_digest
 
 
-def collect_release_candidate_evidence(
+def prepare_pre_attestation_evidence(
     *,
     build_a_inputs: BuildInputs,
     build_b_inputs: BuildInputs,
@@ -269,10 +295,9 @@ def collect_release_candidate_evidence(
     artifacts: list[Mapping[str, Any]],
     test_result_reference: str,
     verification_result_reference: str,
-    attestation: Mapping[str, Any],
     expected_inputs: BuildInputs | None = None,
-) -> EvidenceBundle:
-    """Assemble and verify the full RC evidence bundle.
+) -> PreparedReleaseEvidence:
+    """Prepare the authoritative P/M evidence before attestation exists.
 
     B3: ``build_a_inputs`` and ``build_b_inputs`` are separate, allowing
     the collector to detect when Build A's observed inputs differ from
@@ -284,11 +309,8 @@ def collect_release_candidate_evidence(
     continuous binding chain — no variable overwrite after the chain is
     established.
 
-    Raises the appropriate ``RC_*`` :class:`ReleaseEvidenceError`
-    subclass on the first violation.  On success the returned bundle is
-    internally consistent: the authoritative image digest, the artifact
-    manifest digest, and the provenance digest all cross-reference
-    correctly.
+    The function is intentionally the only observation-to-provenance
+    preparation path.  It does not create, accept, or upload an attestation.
     """
     for label, inputs in (("Build A", build_a_inputs), ("Build B", build_b_inputs)):
         validate_oci_exporter_policy(inputs.oci_exporter)
@@ -369,7 +391,7 @@ def collect_release_candidate_evidence(
     # provenance_digest populated.
     manifest = build_manifest(manifest_fields)
 
-    # --- S2_GAP_04: provenance statement ---
+    # --- S2_GAP_04: pre-attestation provenance statement ---
     provenance_fields: OrderedDict[str, Any] = OrderedDict(
         [
             ("schema_version", PROVENANCE_SCHEMA_VERSION),
@@ -393,10 +415,9 @@ def collect_release_candidate_evidence(
             ("build_finished_at", build_a.build_finished_at),
             ("reproducible_build_result", build_a.reproducible_build_result),
             ("provenance_digest", ""),  # filled below
-            ("attestation", dict(attestation)),
         ]
     )
-    provenance = build_provenance(provenance_fields)
+    provenance = build_pre_attestation_provenance(provenance_fields)
     provenance_digest = compute_provenance_digest(provenance)
     provenance["provenance_digest"] = provenance_digest
 
@@ -408,22 +429,28 @@ def collect_release_candidate_evidence(
     manifest["provenance_digest"] = provenance_digest
     artifact_manifest_digest = compute_manifest_digest(manifest)
     provenance["subject_artifact_manifest_digest"] = artifact_manifest_digest
-
-    # --- cross-verify everything ---
-    verify_provenance(
-        provenance,
-        expected_image_digest=authoritative_digest,
-        expected_artifact_manifest_digest=artifact_manifest_digest,
-    )
     verify_manifest_digest(manifest, artifact_manifest_digest)
 
-    return EvidenceBundle(
+    attestation_subject = OrderedDict(
+        [
+            ("schema_version", LIVE_ATTESTATION_SUBJECT_SCHEMA),
+            ("provenance_digest", provenance_digest),
+            ("artifact_manifest_digest", artifact_manifest_digest),
+        ]
+    )
+    attestation_subject_digest = compute_live_attestation_subject_digest(
+        provenance_digest, artifact_manifest_digest
+    )
+
+    return PreparedReleaseEvidence(
         rc_version=RC_VERSION,
         authoritative_image_digest=authoritative_digest,
         artifact_manifest=manifest,
         artifact_manifest_digest=artifact_manifest_digest,
-        provenance=provenance,
+        pre_attestation_provenance=provenance,
         provenance_digest=provenance_digest,
+        attestation_subject=attestation_subject,
+        attestation_subject_digest=attestation_subject_digest,
         reproducible_build_result=build_a.reproducible_build_result,
         raw={
             "build_a_input_manifest": build_a_inputs.to_input_manifest(),
@@ -431,6 +458,79 @@ def collect_release_candidate_evidence(
             "build_a_record": record_a,
             "build_b_record": record_b,
         },
+        build_a_inputs=build_a_inputs,
+        build_b_inputs=build_b_inputs,
+        build_a=build_a,
+        build_b=build_b,
+        artifacts=list(artifacts),
+        test_result_reference=test_result_reference,
+        verification_result_reference=verification_result_reference,
+    )
+
+
+def finalize_prepared_release_evidence(
+    prepared: PreparedReleaseEvidence,
+    attestation: Mapping[str, Any],
+    *,
+    live_attestation: bool = False,
+) -> EvidenceBundle:
+    """Attach an explicit attestation and finalize the verified bundle."""
+    provenance = OrderedDict(prepared.pre_attestation_provenance)
+    provenance["attestation"] = dict(attestation)
+    provenance = build_provenance(provenance)
+    provenance["provenance_digest"] = prepared.provenance_digest
+    provenance["subject_artifact_manifest_digest"] = prepared.artifact_manifest_digest
+    verify_provenance(
+        provenance,
+        expected_image_digest=prepared.authoritative_image_digest,
+        expected_artifact_manifest_digest=prepared.artifact_manifest_digest,
+        require_live_attestation=live_attestation,
+    )
+    verify_manifest_digest(prepared.artifact_manifest, prepared.artifact_manifest_digest)
+    return EvidenceBundle(
+        rc_version=prepared.rc_version,
+        authoritative_image_digest=prepared.authoritative_image_digest,
+        artifact_manifest=prepared.artifact_manifest,
+        artifact_manifest_digest=prepared.artifact_manifest_digest,
+        provenance=provenance,
+        provenance_digest=prepared.provenance_digest,
+        reproducible_build_result=prepared.reproducible_build_result,
+        raw={**prepared.raw, "attestation_subject": prepared.attestation_subject},
+    )
+
+
+def collect_release_candidate_evidence(
+    *,
+    build_a_inputs: BuildInputs,
+    build_b_inputs: BuildInputs,
+    build_a: BuildRunRecord,
+    build_b: BuildRunRecord,
+    artifacts: list[Mapping[str, Any]],
+    test_result_reference: str,
+    verification_result_reference: str,
+    attestation: Mapping[str, Any],
+    expected_inputs: BuildInputs | None = None,
+    live_attestation: bool = False,
+) -> EvidenceBundle:
+    """Prepare, attest, and verify a release-candidate evidence bundle.
+
+    Existing synthetic callers retain the historical default.  The live
+    Assembly path opts into the exact Slice 2 attestation contract.
+    """
+    prepared = prepare_pre_attestation_evidence(
+        build_a_inputs=build_a_inputs,
+        build_b_inputs=build_b_inputs,
+        build_a=build_a,
+        build_b=build_b,
+        artifacts=artifacts,
+        test_result_reference=test_result_reference,
+        verification_result_reference=verification_result_reference,
+        expected_inputs=expected_inputs,
+    )
+    return finalize_prepared_release_evidence(
+        prepared,
+        attestation,
+        live_attestation=live_attestation,
     )
 
 
@@ -441,6 +541,11 @@ def verify_evidence_bundle(bundle: EvidenceBundle) -> None:
         bundle.provenance,
         expected_image_digest=bundle.authoritative_image_digest,
         expected_artifact_manifest_digest=bundle.artifact_manifest_digest,
+        require_live_attestation=(
+            isinstance(bundle.provenance.get("attestation"), Mapping)
+            and bundle.provenance["attestation"].get("schema_version")
+            == "cold-storage-live-attestation-v1"
+        ),
     )
     if bundle.provenance.get("provenance_digest") != bundle.provenance_digest:
         raise ProvenanceError(
@@ -472,7 +577,10 @@ __all__ = [
     "BuildInputs",
     "BuildRunRecord",
     "EvidenceBundle",
+    "PreparedReleaseEvidence",
     "collect_release_candidate_evidence",
+    "finalize_prepared_release_evidence",
+    "prepare_pre_attestation_evidence",
     "verify_evidence_bundle",
     "verify_promotion_against_bundle",
 ]

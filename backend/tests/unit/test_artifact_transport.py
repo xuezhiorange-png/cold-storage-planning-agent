@@ -16,9 +16,11 @@ import cold_storage.release.artifact_transport as transport
 from cold_storage.release.artifact_transport import (
     ArtifactTransportError,
     normalize_artifact_digest,
+    verify_attestation_download,
     verify_download,
     verify_handoff_download,
 )
+from cold_storage.release.live_attestation import build_attestation
 
 REPOSITORY = "xuezhiorange-png/cold-storage-planning-agent"
 ARTIFACT_ID = "1234"
@@ -977,3 +979,244 @@ def test_handoff_embedded_capture_digest_mismatch_is_rejected_before_exposure(
     output = tmp_path / "handoff-output"
     assert not (output / transport.VERIFIED_HANDOFF_RECEIPT_NAME).exists()
     assert not (output / transport.HANDOFF_CAPTURE_DIRECTORY_NAME).exists()
+
+
+ATTESTATION_ARTIFACT_ID = "9100"
+ATTESTATION_RUN_ID = "9200"
+ATTESTATION_RUN_ATTEMPT = "1"
+ATTESTATION_HEAD_SHA = "d" * 40
+ATTESTATION_STORAGE_URL = "https://artifact-storage.example/task012/attestation.zip?sig=synthetic"
+
+
+def _attestation_archive(*, extra_entry: bool = False) -> bytes:
+    payload = build_attestation("sha256:" + "1" * 64, "sha256:" + "2" * 64)
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("attestation.json", json.dumps(payload, separators=(",", ":")))
+        if extra_entry:
+            archive.writestr("unexpected.txt", b"unexpected")
+    return output.getvalue()
+
+
+def _install_attestation_http(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    archive: bytes,
+    workflow_override: dict[str, Any] | None = None,
+    jobs: list[dict[str, Any]] | None = None,
+    redirect_location: str | None = ATTESTATION_STORAGE_URL,
+    second_redirect: bool = False,
+) -> list[urllib.request.Request]:
+    calls: list[urllib.request.Request] = []
+    digest = "sha256:" + hashlib.sha256(archive).hexdigest()
+    metadata_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ATTESTATION_ARTIFACT_ID}"
+    workflow_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{ATTESTATION_RUN_ID}"
+    jobs_url = f"{workflow_url}/jobs?per_page=100"
+    archive_url = f"{metadata_url}/zip"
+    metadata = {
+        "id": int(ATTESTATION_ARTIFACT_ID),
+        "name": f"task012-live-attestation-{ATTESTATION_RUN_ID}-{ATTESTATION_RUN_ATTEMPT}",
+        "expired": False,
+        "digest": digest,
+        "archive_download_url": archive_url,
+        "workflow_run": {
+            "id": int(ATTESTATION_RUN_ID),
+            "run_attempt": int(ATTESTATION_RUN_ATTEMPT),
+            "head_sha": ATTESTATION_HEAD_SHA,
+            "head_branch": "main",
+        },
+    }
+    workflow = {
+        "id": int(ATTESTATION_RUN_ID),
+        "run_attempt": int(ATTESTATION_RUN_ATTEMPT),
+        "name": "ci",
+        "path": ".github/workflows/ci.yml",
+        "event": "workflow_dispatch",
+        "head_sha": ATTESTATION_HEAD_SHA,
+        "head_branch": "main",
+        "status": "completed",
+        "conclusion": "success",
+        "workflow_id": 123,
+    }
+    if workflow_override:
+        workflow.update(workflow_override)
+    job_list = (
+        [
+            {
+                "id": 456,
+                "name": "live-evidence-attestation-create",
+                "status": "completed",
+                "conclusion": "success",
+            }
+        ]
+        if jobs is None
+        else jobs
+    )
+
+    def fake_open(
+        request: urllib.request.Request,
+        timeout: int = 60,
+        *,
+        follow_redirects: bool = True,
+    ) -> FakeResponse:
+        del timeout, follow_redirects
+        calls.append(request)
+        if request.full_url == metadata_url:
+            return FakeResponse(json.dumps(metadata).encode("utf-8"))
+        if request.full_url == workflow_url:
+            return FakeResponse(json.dumps(workflow).encode("utf-8"))
+        if request.full_url == jobs_url:
+            return FakeResponse(json.dumps({"jobs": job_list}).encode("utf-8"))
+        if request.full_url == archive_url:
+            headers = {} if redirect_location is None else {"Location": redirect_location}
+            return FakeResponse(b"", status=302, headers=headers)
+        if request.full_url == ATTESTATION_STORAGE_URL:
+            if second_redirect:
+                return FakeResponse(b"", status=302, headers={"Location": ATTESTATION_STORAGE_URL})
+            return FakeResponse(archive)
+        raise urllib.error.URLError(f"unexpected synthetic URL: {request.full_url}")
+
+    monkeypatch.setattr(transport, "_open_url", fake_open)
+    return calls
+
+
+def _verify_attestation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    archive: bytes,
+    **kwargs: Any,
+) -> tuple[Path, list[urllib.request.Request]]:
+    digest = "sha256:" + hashlib.sha256(archive).hexdigest()
+    calls = _install_attestation_http(
+        monkeypatch,
+        archive=archive,
+        workflow_override=kwargs.pop("workflow_override", None),
+        jobs=kwargs.pop("jobs", None),
+        redirect_location=kwargs.pop("redirect_location", ATTESTATION_STORAGE_URL),
+        second_redirect=kwargs.pop("second_redirect", False),
+    )
+    result = verify_attestation_download(
+        repository=REPOSITORY,
+        artifact_id=ATTESTATION_ARTIFACT_ID,
+        expected_artifact_digest=kwargs.pop("expected_digest", digest),
+        expected_creation_run_id=ATTESTATION_RUN_ID,
+        expected_creation_run_attempt=ATTESTATION_RUN_ATTEMPT,
+        expected_creation_head_sha=ATTESTATION_HEAD_SHA,
+        output_dir=tmp_path / "attestation-output",
+        execute_download=True,
+        env={
+            "GITHUB_TOKEN": SECRET_TOKEN,
+            "TASK012_ATTESTATION_DOWNLOAD_AUTHORIZED": "YES",
+        },
+        api_base_url=API_BASE_URL,
+    )
+    return result.receipt_path, calls
+
+
+def test_attestation_transport_happy_path_binds_job_and_strips_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive = _attestation_archive()
+    receipt, calls = _verify_attestation(tmp_path, monkeypatch, archive=archive)
+    assert [request.full_url for request in calls] == [
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ATTESTATION_ARTIFACT_ID}",
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{ATTESTATION_RUN_ID}",
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{ATTESTATION_RUN_ID}/jobs?per_page=100",
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ATTESTATION_ARTIFACT_ID}/zip",
+        ATTESTATION_STORAGE_URL,
+    ]
+    assert all(
+        request.get_header("Authorization") == f"Bearer {SECRET_TOKEN}" for request in calls[:4]
+    )
+    assert calls[-1].get_header("Authorization") is None
+    assert calls[-1].get_header("Cookie") is None
+    assert calls[-1].get_header("X-github-api-version") is None
+    output = receipt.parent
+    assert (output / "verified-artifact.zip").read_bytes() == archive
+    assert (output / "extracted" / "attestation.json").is_file()
+    receipt_value = json.loads(receipt.read_text(encoding="utf-8"))
+    assert receipt_value["transport_verification_status"] == "PASS"
+    assert receipt_value["job_name"] == "live-evidence-attestation-create"
+    assert SECRET_TOKEN not in receipt.read_text(encoding="utf-8")
+
+
+def test_attestation_transport_requires_both_execution_guards(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _install_attestation_http(monkeypatch, archive=_attestation_archive())
+    common = {
+        "repository": REPOSITORY,
+        "artifact_id": ATTESTATION_ARTIFACT_ID,
+        "expected_artifact_digest": "a" * 64,
+        "expected_creation_run_id": ATTESTATION_RUN_ID,
+        "expected_creation_run_attempt": ATTESTATION_RUN_ATTEMPT,
+        "expected_creation_head_sha": ATTESTATION_HEAD_SHA,
+        "output_dir": tmp_path / "guard-output",
+    }
+    with pytest.raises(ArtifactTransportError, match="ATTESTATION_DOWNLOAD_EXECUTION_NOT_EXPLICIT"):
+        verify_attestation_download(
+            **common, env={"TASK012_ATTESTATION_DOWNLOAD_AUTHORIZED": "YES"}
+        )
+    with pytest.raises(
+        ArtifactTransportError, match="ATTESTATION_DOWNLOAD_EXECUTION_NOT_AUTHORIZED"
+    ):
+        verify_attestation_download(**common, execute_download=True, env={})
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    ("workflow_override", "jobs", "error"),
+    [
+        ({"event": "push"}, None, "ATTESTATION_WORKFLOW_BINDING_MISMATCH"),
+        ({"path": ".github/workflows/other.yml"}, None, "ATTESTATION_WORKFLOW_BINDING_MISMATCH"),
+        (None, [], "ATTESTATION_JOB_BINDING_MISMATCH"),
+        (
+            None,
+            [
+                {
+                    "id": 1,
+                    "name": "live-evidence-attestation-create",
+                    "status": "completed",
+                    "conclusion": "failure",
+                }
+            ],
+            "ATTESTATION_JOB_BINDING_MISMATCH",
+        ),
+    ],
+)
+def test_attestation_workflow_and_job_authority_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    workflow_override: dict[str, Any] | None,
+    jobs: list[dict[str, Any]] | None,
+    error: str,
+) -> None:
+    with pytest.raises(ArtifactTransportError, match=error):
+        _verify_attestation(
+            tmp_path,
+            monkeypatch,
+            archive=_attestation_archive(),
+            workflow_override=workflow_override,
+            jobs=jobs,
+        )
+
+
+def test_attestation_package_extra_file_and_second_redirect_are_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(ArtifactTransportError, match="ATTESTATION_PACKAGE_MISMATCH"):
+        _verify_attestation(
+            tmp_path / "extra", monkeypatch, archive=_attestation_archive(extra_entry=True)
+        )
+    with pytest.raises(ArtifactTransportError, match="ARTIFACT_REDIRECT_CHAIN_REJECTED"):
+        _verify_attestation(
+            tmp_path / "redirect",
+            monkeypatch,
+            archive=_attestation_archive(),
+            second_redirect=True,
+        )
+    assert not (tmp_path / "extra" / "attestation-output" / "verified-artifact.zip").exists()
+    assert not (
+        tmp_path / "redirect" / "attestation-output" / "attestation-transport-receipt.json"
+    ).exists()

@@ -47,7 +47,9 @@ from cold_storage.release.evidence_collector import (
     BuildInputs,
     BuildRunRecord,
     EvidenceBundle,
+    PreparedReleaseEvidence,
     collect_release_candidate_evidence,
+    prepare_pre_attestation_evidence,
 )
 from cold_storage.release.provenance_schema import (
     EXPECTED_BUILD_PLATFORM,
@@ -56,12 +58,14 @@ from cold_storage.release.provenance_schema import (
     EXPECTED_SOURCE_TREE_SHA,
     RC_VERSION,
 )
+from cold_storage.release.provenance_statement import ProvenanceError
 
 OBSERVATION_SCHEMA_VERSION = "cold-storage-live-evidence-observation-v1"
 EVIDENCE_BUNDLE_OUTPUT_SCHEMA_VERSION = "cold-storage-live-evidence-bundle-v1"
 RUNNER_MODULE = Path(__file__).resolve()
 
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_COMMIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _BASE_IMAGE_RE = re.compile(r"^\s*FROM\s+(?P<reference>[^\s]+)", re.MULTILINE)
 _OCI_MANIFEST_MEDIA_TYPES = frozenset(
     {
@@ -1144,20 +1148,15 @@ def _bundle_output_document(bundle: EvidenceBundle) -> OrderedDict[str, Any]:
     )
 
 
-def assemble_evidence(
+def prepare_pre_attestation_from_observation(
     *,
     observation_bundle: str | Path,
-    attestation_file: str | Path,
-    output_dir: str | Path,
     tooling_root: str | Path = ".",
     expected_source_sha: str | None = None,
-) -> Path:
-    """Assemble and verify an observation package with explicit attestation."""
+) -> PreparedReleaseEvidence:
+    """Restore and fully verify a D1 observation package before P/M/S."""
     validate_expected_source(expected_source_sha)
-    root = _resolve_tooling_root(tooling_root)
-    attestation_path = Path(attestation_file).expanduser().resolve()
-    if not attestation_path.is_file() or attestation_path.is_symlink():
-        raise LiveEvidenceRunnerError("ATTESTATION_MISSING", str(attestation_path))
+    _resolve_tooling_root(tooling_root)
     bundle_path = Path(observation_bundle).expanduser().resolve()
     _verify_capture_checksums(bundle_path.parent)
     bundle = _read_json_object(bundle_path, code="OBSERVATION_BUNDLE_MISSING")
@@ -1193,12 +1192,7 @@ def assemble_evidence(
         cast(str, cast(Mapping[str, Any], build_b_value)["output_path"]),
     ]
     _ensure_distinct(outputs, code="BUILD_OUTPUT_PATH_COLLISION")
-    if not isinstance(expected_value, Mapping):
-        raise LiveEvidenceRunnerError("OBSERVATION_BUNDLE_INVALID", "expected inputs are missing")
     expected_inputs = _build_inputs_from_document(cast(Mapping[str, Any], expected_value))
-    attestation = _read_json_object(attestation_path, code="ATTESTATION_MISSING")
-    if not attestation:
-        raise LiveEvidenceRunnerError("ATTESTATION_MISSING", "attestation file is empty")
     artifacts = bundle.get("artifacts")
     if not isinstance(artifacts, list):
         raise LiveEvidenceRunnerError("OBSERVATION_BUNDLE_INVALID", "artifacts must be a list")
@@ -1206,7 +1200,7 @@ def assemble_evidence(
     verification_reference = bundle.get("verification_result_reference")
     if not isinstance(test_reference, str) or not isinstance(verification_reference, str):
         raise LiveEvidenceRunnerError("OBSERVATION_BUNDLE_INVALID", "result references are missing")
-    evidence = collect_release_candidate_evidence(
+    return prepare_pre_attestation_evidence(
         build_a_inputs=inputs_a,
         build_b_inputs=inputs_b,
         build_a=record_a,
@@ -1214,21 +1208,225 @@ def assemble_evidence(
         artifacts=[cast(Mapping[str, Any], item) for item in artifacts],
         test_result_reference=test_reference,
         verification_result_reference=verification_reference,
-        attestation=attestation,
         expected_inputs=expected_inputs,
     )
+
+
+def _receipt_object(path: str | Path, *, code: str) -> dict[str, Any]:
+    return _read_json_object(Path(path).expanduser().resolve(), code=code)
+
+
+def _require_live_assembly_receipts(
+    *,
+    d1_receipt: str | Path | None,
+    attestation_receipt: str | Path | None,
+    attestation_path: Path,
+    assembly_run_id: str | None,
+    assembly_run_attempt: str | None,
+    assembly_head_sha: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Require the two independently verified handoff receipts on live Assembly."""
+    if d1_receipt is None or attestation_receipt is None:
+        raise LiveEvidenceRunnerError(
+            "ATTESTATION_CONTRACT_UNBOUND",
+            "live Assembly requires verified D1 and attestation receipts",
+        )
+    if not assembly_run_id or not assembly_run_id.isdecimal() or int(assembly_run_id) <= 0:
+        raise LiveEvidenceRunnerError(
+            "ATTESTATION_CONTRACT_UNBOUND", "live Assembly requires a positive run ID"
+        )
+    if (
+        not assembly_run_attempt
+        or not assembly_run_attempt.isdecimal()
+        or int(assembly_run_attempt) <= 0
+    ):
+        raise LiveEvidenceRunnerError(
+            "ATTESTATION_CONTRACT_UNBOUND", "live Assembly requires a positive run attempt"
+        )
+    if not assembly_head_sha or _COMMIT_SHA_RE.fullmatch(assembly_head_sha) is None:
+        raise LiveEvidenceRunnerError(
+            "ATTESTATION_CONTRACT_UNBOUND", "live Assembly requires a commit head SHA"
+        )
+
+    d1 = _receipt_object(d1_receipt, code="ATTESTATION_CONTRACT_UNBOUND")
+    if (
+        d1.get("schema_version") != "cold-storage-verified-transport-handoff-receipt-v1"
+        or d1.get("verified_handoff_status") != "PASS"
+        or d1.get("transport_workflow_name") != "ci"
+        or d1.get("transport_workflow_path") != ".github/workflows/ci.yml"
+        or d1.get("transport_workflow_event") != "workflow_dispatch"
+        or d1.get("transport_workflow_head_branch") != "main"
+        or d1.get("transport_workflow_status") != "completed"
+        or d1.get("transport_workflow_conclusion") != "success"
+    ):
+        raise LiveEvidenceRunnerError(
+            "ATTESTATION_CONTRACT_UNBOUND", "D1 receipt is not an authoritative PASS receipt"
+        )
+
+    attestation = _receipt_object(attestation_receipt, code="ATTESTATION_CONTRACT_UNBOUND")
+    recorded_path = attestation.get("attestation_file")
+    if (
+        attestation.get("schema_version") != "cold-storage-attestation-transport-receipt-v1"
+        or attestation.get("transport_verification_status") != "PASS"
+        or attestation.get("workflow_name") != "ci"
+        or attestation.get("workflow_path") != ".github/workflows/ci.yml"
+        or attestation.get("workflow_event") != "workflow_dispatch"
+        or attestation.get("workflow_head_branch") != "main"
+        or attestation.get("workflow_status") != "completed"
+        or attestation.get("workflow_conclusion") != "success"
+        or attestation.get("job_name") != "live-evidence-attestation-create"
+        or not isinstance(recorded_path, str)
+        or Path(recorded_path).expanduser().resolve() != attestation_path
+    ):
+        raise LiveEvidenceRunnerError(
+            "ATTESTATION_CONTRACT_UNBOUND",
+            "attestation receipt is not an authoritative PASS receipt",
+        )
+    return d1, attestation
+
+
+def assemble_evidence(
+    *,
+    observation_bundle: str | Path,
+    attestation_file: str | Path,
+    output_dir: str | Path,
+    tooling_root: str | Path = ".",
+    expected_source_sha: str | None = None,
+    live_attestation: bool = False,
+    d1_receipt: str | Path | None = None,
+    attestation_receipt: str | Path | None = None,
+    assembly_run_id: str | None = None,
+    assembly_run_attempt: str | None = None,
+    assembly_head_sha: str | None = None,
+) -> Path:
+    """Assemble an observation package with an explicit attestation."""
+    root = _resolve_tooling_root(tooling_root)
+    attestation_path = Path(attestation_file).expanduser().resolve()
+    if not attestation_path.is_file() or attestation_path.is_symlink():
+        raise LiveEvidenceRunnerError("ATTESTATION_MISSING", str(attestation_path))
+    d1: dict[str, Any] | None = None
+    attestation_receipt_object: dict[str, Any] | None = None
+    attestation: Mapping[str, Any]
+    if live_attestation:
+        d1, attestation_receipt_object = _require_live_assembly_receipts(
+            d1_receipt=d1_receipt,
+            attestation_receipt=attestation_receipt,
+            attestation_path=attestation_path,
+            assembly_run_id=assembly_run_id,
+            assembly_run_attempt=assembly_run_attempt,
+            assembly_head_sha=assembly_head_sha,
+        )
+    prepared = prepare_pre_attestation_from_observation(
+        observation_bundle=observation_bundle,
+        tooling_root=root,
+        expected_source_sha=expected_source_sha,
+    )
+    if live_attestation:
+        try:
+            from cold_storage.release.live_attestation import load_attestation
+
+            attestation = load_attestation(attestation_path)
+        except Exception as exc:
+            if isinstance(exc, LiveEvidenceRunnerError):
+                raise
+            code = getattr(exc, "code", "ATTESTATION_SCHEMA_INVALID")
+            detail = getattr(exc, "detail", str(exc))
+            raise LiveEvidenceRunnerError(code, detail) from exc
+    else:
+        attestation = _read_json_object(attestation_path, code="ATTESTATION_MISSING")
+    if not attestation:
+        raise LiveEvidenceRunnerError("ATTESTATION_MISSING", "attestation file is empty")
+    if (
+        prepared.build_a_inputs is None
+        or prepared.build_b_inputs is None
+        or prepared.build_a is None
+        or prepared.build_b is None
+    ):
+        raise LiveEvidenceRunnerError(
+            "ATTESTATION_CONTRACT_UNBOUND",
+            "prepared live evidence is missing typed build observations",
+        )
+    try:
+        evidence = collect_release_candidate_evidence(
+            build_a_inputs=prepared.build_a_inputs,
+            build_b_inputs=prepared.build_b_inputs,
+            build_a=prepared.build_a,
+            build_b=prepared.build_b,
+            artifacts=prepared.artifacts,
+            test_result_reference=prepared.test_result_reference,
+            verification_result_reference=prepared.verification_result_reference,
+            attestation=attestation,
+            expected_inputs=prepared.build_a_inputs,
+            live_attestation=live_attestation,
+        )
+    except ProvenanceError as exc:
+        raise LiveEvidenceRunnerError(exc.failure_code, exc.detail) from exc
     output = _prepare_output_dir(output_dir, tooling_root=root)
     _write_json(output / "artifact-manifest.json", evidence.artifact_manifest)
     (output / "provenance.json").write_bytes(canonical_bytes(evidence.provenance))
     _write_json(output / "evidence-bundle.json", _bundle_output_document(evidence))
-    assembly_metadata = OrderedDict(
+
+    metadata_map = _read_json_object(
+        Path(observation_bundle).expanduser().resolve(), code="OBSERVATION_BUNDLE_MISSING"
+    ).get("metadata")
+    if not isinstance(metadata_map, Mapping):
+        raise LiveEvidenceRunnerError("OBSERVATION_BUNDLE_INVALID", "metadata is missing")
+    assembly_metadata: OrderedDict[str, Any] = OrderedDict(
         [
             ("schema_version", EVIDENCE_BUNDLE_OUTPUT_SCHEMA_VERSION),
+            ("task", "TASK-012"),
+            ("version", "V0.2"),
+            ("slice", 2),
             ("rc_source_sha", EXPECTED_SOURCE_COMMIT_SHA),
             ("rc_source_tree", EXPECTED_SOURCE_TREE_SHA),
             ("evidence_tool_head", metadata_map.get("evidence_tool_head")),
             ("evidence_tool_tree", metadata_map.get("evidence_tool_tree")),
-            ("attestation_source", str(attestation_path)),
+        ]
+    )
+    if d1 is not None:
+        assembly_metadata.update(
+            [
+                ("d0_artifact_id", d1.get("source_capture_artifact_id")),
+                ("d0_artifact_digest", d1.get("source_capture_artifact_digest")),
+                ("d0_capture_run_id", d1.get("source_capture_workflow_run_id")),
+                ("d0_capture_run_attempt", d1.get("source_capture_workflow_run_attempt")),
+                ("d0_capture_head_sha", d1.get("source_capture_head_sha")),
+                ("d1_artifact_id", d1.get("handoff_artifact_id")),
+                ("d1_artifact_digest", d1.get("recorded_handoff_artifact_digest")),
+                ("d1_transport_run_id", d1.get("transport_workflow_run_id")),
+                ("d1_transport_run_attempt", d1.get("transport_workflow_run_attempt")),
+                ("d1_transport_head_sha", d1.get("transport_workflow_head_sha")),
+            ]
+        )
+    if attestation_receipt_object is not None:
+        receipt = attestation_receipt_object
+        assembly_metadata.update(
+            [
+                ("attestation_artifact_id", receipt.get("artifact_id")),
+                ("attestation_artifact_digest", receipt.get("metadata_artifact_digest")),
+                ("attestation_workflow_run_id", receipt.get("workflow_run_id")),
+                ("attestation_workflow_run_attempt", receipt.get("workflow_run_attempt")),
+                ("attestation_workflow_head_sha", receipt.get("workflow_head_sha")),
+                ("attestation_job_name", receipt.get("job_name")),
+            ]
+        )
+    assembly_metadata.update(
+        [
+            ("attestation_mechanism", attestation.get("mechanism")),
+            ("attestation_subject_schema", attestation.get("subject_schema")),
+            ("attestation_binding", attestation.get("binding")),
+            ("provenance_digest", evidence.provenance_digest),
+            ("artifact_manifest_digest", evidence.artifact_manifest_digest),
+            ("recomputed_attestation_subject_digest", prepared.attestation_subject_digest),
+            ("attestation_verification_status", "PASS"),
+            ("assembly_workflow_run_id", assembly_run_id or os.environ.get("GITHUB_RUN_ID")),
+            (
+                "assembly_workflow_run_attempt",
+                assembly_run_attempt or os.environ.get("GITHUB_RUN_ATTEMPT"),
+            ),
+            ("assembly_workflow_head_sha", assembly_head_sha or os.environ.get("GITHUB_SHA")),
+            ("assembly_job_name", "live-evidence-assembly"),
+            ("authoritative_image_digest", evidence.authoritative_image_digest),
             ("assembled_at", _now()),
         ]
     )
@@ -1251,6 +1449,12 @@ def _parser() -> argparse.ArgumentParser:
     assemble.add_argument("--output-dir", required=True)
     assemble.add_argument("--tooling-root", default=".")
     assemble.add_argument("--expected-source-sha")
+    assemble.add_argument("--live-attestation", action="store_true")
+    assemble.add_argument("--d1-receipt")
+    assemble.add_argument("--attestation-receipt")
+    assemble.add_argument("--assembly-run-id")
+    assemble.add_argument("--assembly-run-attempt")
+    assemble.add_argument("--assembly-head-sha")
     return parser
 
 
@@ -1272,6 +1476,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_dir=args.output_dir,
             tooling_root=args.tooling_root,
             expected_source_sha=args.expected_source_sha,
+            live_attestation=args.live_attestation,
+            d1_receipt=args.d1_receipt,
+            attestation_receipt=args.attestation_receipt,
+            assembly_run_id=args.assembly_run_id,
+            assembly_run_attempt=args.assembly_run_attempt,
+            assembly_head_sha=args.assembly_head_sha,
         )
         print(bundle)
         return 0
@@ -1296,6 +1506,7 @@ __all__ = [
     "extract_oci_manifest_digest",
     "main",
     "observe_oci_manifest",
+    "prepare_pre_attestation_from_observation",
     "validate_capture_authorization",
     "validate_expected_source",
 ]

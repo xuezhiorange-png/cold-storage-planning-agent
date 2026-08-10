@@ -511,6 +511,8 @@ def test_handoff_and_capture_transport_surfaces_are_mutually_exclusive() -> None
     assert "inputs.verify_live_evidence_artifact_transport != true" in handoff_job
     assert "inputs.upload_verified_transport_handoff != true" in handoff_job
     assert "inputs.execute_live_evidence_capture != true" in handoff_job
+    assert "inputs.create_live_evidence_attestation != true" in handoff_job
+    assert "inputs.assemble_live_evidence != true" in handoff_job
     assert "github.event_name == 'workflow_dispatch'" in handoff_job
     assert "github.ref == 'refs/heads/main'" in handoff_job
     assert "expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7'" in handoff_job
@@ -533,3 +535,130 @@ def test_handoff_verifier_does_not_call_assembly_or_core_release_layers() -> Non
             assert "_verify_capture_checksums" not in transport
         else:
             assert forbidden not in transport.lower()
+
+
+def test_live_attestation_module_is_a_strict_schema_adapter() -> None:
+    attestation = (RELEASE_DIR / "live_attestation.py").read_text()
+    provenance_statement = (RELEASE_DIR / "provenance_statement.py").read_text()
+    assert (RELEASE_DIR / "live_attestation.py").is_file()
+    assert "LIVE_ATTESTATION_SCHEMA_VERSION" in attestation
+    assert "LIVE_ATTESTATION_SUBJECT_SCHEMA" in attestation
+    assert "LIVE_ATTESTATION_MECHANISM" in attestation
+    assert "cold-storage-live-attestation-v1" in provenance_statement
+    assert "cold-storage-release-evidence-attestation-subject-v1" in provenance_statement
+    assert "write_once_integrity" in provenance_statement
+    assert "LIVE_ATTESTATION_FIELD_ORDER" in attestation
+    assert "TEST_ONLY" in attestation and "SYNTHETIC_ONLY" in attestation
+    assert "shell=True" not in attestation
+    assert "oidc" not in attestation.lower()
+    assert "cosign" not in attestation.lower()
+    assert "gpg" not in attestation.lower()
+    assert "upload-artifact" not in attestation
+    assert "registry" not in attestation.lower()
+
+
+def test_live_attestation_and_assembly_workflow_surfaces_are_gated() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    for input_name in ("create_live_evidence_attestation", "assemble_live_evidence"):
+        assert f"{input_name}:" in workflow
+        assert f"{input_name}:" in workflow
+    attestation_job = workflow.split("live-evidence-attestation-create:", 1)[1].split(
+        "live-evidence-assembly:", 1
+    )[0]
+    assembly_job = workflow.split("live-evidence-assembly:", 1)[1].split(
+        "live-evidence-verified-transport-handoff-verify:", 1
+    )[0]
+    for job in (attestation_job, assembly_job):
+        assert "github.event_name == 'workflow_dispatch'" in job
+        assert "github.ref == 'refs/heads/main'" in job
+        assert "inputs.execute_live_evidence_capture != true" in job
+        assert "inputs.verify_live_evidence_artifact_transport != true" in job
+        assert "inputs.upload_verified_transport_handoff != true" in job
+        assert "inputs.verify_verified_transport_handoff != true" in job
+        assert "actions: read" in job
+        assert "id-token: write" not in job
+        assert "contents: write" not in job
+    for required in (
+        "handoff_artifact_id",
+        "handoff_capture_artifact_id",
+        "assembly_attestation_handoff",
+    ):
+        assert required in workflow
+    assert "TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES" in attestation_job
+    assert "TASK012_ATTESTATION_DOWNLOAD_AUTHORIZED: YES" in assembly_job
+    assert "verify-handoff-download" in attestation_job
+    assert "verify-handoff-download" in assembly_job
+    assert "verify-attestation-download" in assembly_job
+    assert "cold_storage.release.live_attestation" in attestation_job
+    assert "--live-attestation" in assembly_job
+    assert "ATTESTATION_HANDOFF_JSON" in assembly_job
+    assert (
+        'keys | sort == ["artifact_digest", "artifact_id", "head_sha", "run_attempt", "run_id"]'
+        in assembly_job
+    )
+
+
+def test_live_attestation_upload_and_assembly_payloads_are_exact() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    attestation_job = workflow.split("live-evidence-attestation-create:", 1)[1].split(
+        "live-evidence-assembly:", 1
+    )[0]
+    assembly_job = workflow.split("live-evidence-assembly:", 1)[1].split(
+        "live-evidence-verified-transport-handoff-verify:", 1
+    )[0]
+    assert (
+        "name: task012-live-attestation-${{ github.run_id }}-${{ github.run_attempt }}"
+        in attestation_job
+    )
+    assert "path: ${{ steps.create_attestation.outputs.attestation_file }}" in attestation_job
+    assert "if-no-files-found: error" in attestation_job
+    assert "compression-level: 0" in attestation_job
+    assert "overwrite: false" in attestation_job
+    assert "attestation-job-name: live-evidence-attestation-create" in attestation_job
+    for filename in (
+        "artifact-manifest.json",
+        "provenance.json",
+        "evidence-bundle.json",
+        "assembly-metadata.json",
+        "SHA256SUMS",
+        "SHA256SUMS.sha256",
+    ):
+        assert f"${{{{ steps.assemble.outputs.output_dir }}}}/{filename}" in assembly_job
+    assert (
+        "name: task012-assembled-evidence-${{ github.run_id }}-${{ github.run_attempt }}"
+        in assembly_job
+    )
+    assert "if-no-files-found: error" in assembly_job
+    assert "compression-level: 0" in assembly_job
+    assert "overwrite: false" in assembly_job
+    assert "capture/" not in assembly_job
+    assert "verified-artifact.zip" not in assembly_job
+    assert "attestation.json" not in assembly_job[assembly_job.index("id: upload_assembly") :]
+
+
+def test_live_attestation_binding_is_composite_and_not_a_legacy_p_only_binding() -> None:
+    provenance = (RELEASE_DIR / "provenance_statement.py").read_text()
+    collector = (RELEASE_DIR / "evidence_collector.py").read_text()
+    assert "compute_live_attestation_subject_digest" in provenance
+    assert '"schema_version", LIVE_ATTESTATION_SUBJECT_SCHEMA' in provenance
+    assert '"provenance_digest", provenance_digest' in collector
+    assert '"artifact_manifest_digest", artifact_manifest_digest' in collector
+    assert "attestation_subject_digest" in collector
+    assert "require_live_attestation=live_attestation" in collector
+    assert "subject_artifact_manifest_digest" in provenance
+    assert (
+        'if key in ("provenance_digest", "attestation", "subject_artifact_manifest_digest")'
+        in provenance
+    )
+
+
+def test_core_layers_remain_pure_while_assembly_uses_existing_collector() -> None:
+    runner = (RELEASE_DIR / "live_evidence_runner.py").read_text()
+    for filename in ("digest_verifier.py", "provenance_statement.py"):
+        content = (RELEASE_DIR / filename).read_text()
+        assert "live_attestation" not in content or filename == "provenance_statement.py"
+    assert "collect_release_candidate_evidence" in runner
+    assert "prepare_pre_attestation_from_observation" in runner
+    assert "SHA256SUMS" in runner
+    assert "extract_oci_manifest_digest" in runner
+    assert "shell=True" not in runner

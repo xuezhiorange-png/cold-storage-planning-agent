@@ -10,6 +10,7 @@ equivalent of a cryptographic signature for this scope).
 
 from __future__ import annotations
 
+import re
 from collections import OrderedDict
 from collections.abc import Mapping
 from typing import Any
@@ -67,6 +68,20 @@ REQUIRED_PROVENANCE_FIELDS = (
 )
 
 DIGEST_PATTERN = "sha256:"
+LIVE_ATTESTATION_SCHEMA_VERSION = "cold-storage-live-attestation-v1"
+LIVE_ATTESTATION_SUBJECT_SCHEMA = "cold-storage-release-evidence-attestation-subject-v1"
+LIVE_ATTESTATION_MECHANISM = "write_once_integrity"
+LIVE_ATTESTATION_FIELD_ORDER = (
+    "schema_version",
+    "task",
+    "version",
+    "slice",
+    "mechanism",
+    "subject_schema",
+    "subject_digest_algorithm",
+    "binding",
+)
+_LOWER_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def _is_digest(value: Any) -> bool:
@@ -121,6 +136,32 @@ def build_provenance(fields: Mapping[str, Any]) -> OrderedDict[str, Any]:
     return ordered
 
 
+def build_pre_attestation_provenance(fields: Mapping[str, Any]) -> OrderedDict[str, Any]:
+    """Build the provenance input used before a live attestation exists.
+
+    The pre-attestation document intentionally omits ``attestation``.  Its
+    digest still uses the frozen provenance field order and the existing
+    canonical serializer; the attestation and artifact-manifest subject
+    fields are excluded by :func:`compute_provenance_digest`.
+    """
+    if fields.get("schema_version") != PROVENANCE_SCHEMA_VERSION:
+        raise ProvenanceError(
+            failure_code="RC_PROVENANCE_SCHEMA_VERSION",
+            detail="provenance schema_version mismatch",
+        )
+    for name in REQUIRED_PROVENANCE_FIELDS:
+        if name in ("attestation", "provenance_digest", "subject_artifact_manifest_digest"):
+            continue
+        if name not in fields or fields[name] in (None, ""):
+            raise ProvenanceError(
+                failure_code="RC_PROVENANCE_INCOMPLETE",
+                detail=f"missing required provenance field: {name}",
+            )
+    ordered = _ordered(fields)
+    reject_secret_values(ordered)
+    return ordered
+
+
 def compute_provenance_digest(provenance: Mapping[str, Any]) -> str:
     """Return ``sha256:<hex>`` of the canonical provenance bytes.
 
@@ -137,6 +178,91 @@ def compute_provenance_digest(provenance: Mapping[str, Any]) -> str:
             continue
         stripped[key] = value
     return canonical_digest(stripped)
+
+
+def compute_live_attestation_subject_digest(
+    provenance_digest: str, artifact_manifest_digest: str
+) -> str:
+    """Compute the frozen composite P/M attestation subject digest."""
+    if _LOWER_SHA256_RE.fullmatch(provenance_digest) is None:
+        raise ProvenanceError(
+            failure_code="ATTESTATION_BINDING_INVALID",
+            detail="provenance digest is not a canonical SHA-256 digest",
+        )
+    if _LOWER_SHA256_RE.fullmatch(artifact_manifest_digest) is None:
+        raise ProvenanceError(
+            failure_code="ATTESTATION_BINDING_INVALID",
+            detail="artifact manifest digest is not a canonical SHA-256 digest",
+        )
+    subject = OrderedDict(
+        [
+            ("schema_version", LIVE_ATTESTATION_SUBJECT_SCHEMA),
+            ("provenance_digest", provenance_digest),
+            ("artifact_manifest_digest", artifact_manifest_digest),
+        ]
+    )
+    return canonical_digest(subject)
+
+
+def verify_live_attestation(
+    attestation: Mapping[str, Any],
+    *,
+    expected_provenance_digest: str,
+    expected_artifact_manifest_digest: str,
+) -> str:
+    """Verify the exact Slice 2 live attestation schema and P/M/S binding."""
+    if not isinstance(attestation, Mapping):
+        raise ProvenanceError(
+            failure_code="ATTESTATION_SCHEMA_INVALID",
+            detail="live attestation must be an object",
+        )
+    for value in attestation.values():
+        if isinstance(value, str) and any(
+            marker in value for marker in ("TEST_ONLY", "SYNTHETIC_ONLY")
+        ):
+            raise ProvenanceError(
+                failure_code="ATTESTATION_SYNTHETIC_REJECTED",
+                detail="synthetic live attestation is not accepted",
+            )
+    if tuple(attestation.keys()) != LIVE_ATTESTATION_FIELD_ORDER:
+        raise ProvenanceError(
+            failure_code="ATTESTATION_SCHEMA_INVALID",
+            detail="live attestation fields must exactly match the frozen schema",
+        )
+    expected_values: tuple[tuple[str, Any], ...] = (
+        ("schema_version", LIVE_ATTESTATION_SCHEMA_VERSION),
+        ("task", "TASK-012"),
+        ("version", "V0.2"),
+        ("slice", 2),
+        ("mechanism", LIVE_ATTESTATION_MECHANISM),
+        ("subject_schema", LIVE_ATTESTATION_SUBJECT_SCHEMA),
+        ("subject_digest_algorithm", "sha256"),
+    )
+    for field, expected in expected_values:
+        if attestation.get(field) != expected:
+            raise ProvenanceError(
+                failure_code=(
+                    "ATTESTATION_MECHANISM_UNSUPPORTED"
+                    if field == "mechanism"
+                    else "ATTESTATION_SCHEMA_INVALID"
+                ),
+                detail=f"live attestation {field} mismatch",
+            )
+    binding = attestation.get("binding")
+    if not isinstance(binding, str) or _LOWER_SHA256_RE.fullmatch(binding) is None:
+        raise ProvenanceError(
+            failure_code="ATTESTATION_BINDING_INVALID",
+            detail="live attestation binding must be sha256:<64 lowercase hex>",
+        )
+    expected_binding = compute_live_attestation_subject_digest(
+        expected_provenance_digest, expected_artifact_manifest_digest
+    )
+    if binding != expected_binding:
+        raise ProvenanceError(
+            failure_code="ATTESTATION_SUBJECT_MISMATCH",
+            detail="live attestation binding does not match the recomputed P/M subject",
+        )
+    return binding
 
 
 def serialize_provenance(provenance: Mapping[str, Any]) -> bytes:
@@ -163,6 +289,7 @@ def verify_provenance(
     *,
     expected_image_digest: str,
     expected_artifact_manifest_digest: str,
+    require_live_attestation: bool = False,
 ) -> None:
     """Verify a provenance statement against the RC trust boundary.
 
@@ -200,6 +327,19 @@ def verify_provenance(
         raise ProvenanceError(
             failure_code=RC_PROVENANCE_UNSIGNED,
             detail=f"unexpected OIDC issuer: {issuer!r}",
+        )
+
+    if require_live_attestation:
+        recomputed_provenance_digest = compute_provenance_digest(provenance)
+        if provenance.get("provenance_digest") != recomputed_provenance_digest:
+            raise ProvenanceError(
+                failure_code="ATTESTATION_SUBJECT_MISMATCH",
+                detail="provenance_digest does not match recomputed pre-attestation digest",
+            )
+        verify_live_attestation(
+            attestation,
+            expected_provenance_digest=recomputed_provenance_digest,
+            expected_artifact_manifest_digest=expected_artifact_manifest_digest,
         )
 
     # --- repository / workflow / ref trust boundary ---
@@ -265,11 +405,18 @@ def verify_provenance(
 
 
 __all__ = [
+    "LIVE_ATTESTATION_FIELD_ORDER",
+    "LIVE_ATTESTATION_MECHANISM",
+    "LIVE_ATTESTATION_SCHEMA_VERSION",
+    "LIVE_ATTESTATION_SUBJECT_SCHEMA",
     "ProvenanceError",
     "REQUIRED_PROVENANCE_FIELDS",
     "build_provenance",
+    "build_pre_attestation_provenance",
+    "compute_live_attestation_subject_digest",
     "compute_provenance_digest",
     "load_provenance_from_text",
     "serialize_provenance",
+    "verify_live_attestation",
     "verify_provenance",
 ]

@@ -466,6 +466,159 @@ The adapter uses the GitHub Actions Artifact REST contract documented at
 `https://github.com/actions/upload-artifact`. The future transport job needs
 only `contents: read` and `actions: read`.
 
+## Final Live Attestation and Assembly Contract
+
+The final live evidence path uses the frozen `write_once_integrity` mechanism.
+It does not request OIDC, use cosign or GPG, add `id-token: write`, or require
+a registry. The attestation is created only after a verified D1 package has
+been restored in a separate workflow run. No synthetic or test attestation is
+accepted on this live path.
+
+### P, M, and S binding
+
+The evidence composition has three distinct digests:
+
+```text
+P = compute_provenance_digest(pre_attestation_provenance)
+M = compute_manifest_digest(artifact_manifest with provenance_digest=P)
+S = SHA256(canonical composite subject(P, M))
+```
+
+The composite subject is an ordered object with exactly these fields:
+
+```text
+schema_version
+provenance_digest
+artifact_manifest_digest
+```
+
+The live attestation binding must equal `S`, not merely `P`, `M`, or a
+non-empty digest. The attestation JSON is exactly one object with these fields
+in this order:
+
+```text
+schema_version=cold-storage-live-attestation-v1
+task=TASK-012
+version=V0.2
+slice=2
+mechanism=write_once_integrity
+subject_schema=cold-storage-release-evidence-attestation-subject-v1
+subject_digest_algorithm=sha256
+binding=sha256:<64 lowercase hex for S>
+```
+
+The D0 capture Artifact identity, D1 transport receipt, and attestation
+workflow identity are execution receipts. They are not inserted into the
+provenance subject and cannot replace P, M, or S.
+
+### Attestation creation job
+
+The canonical job is `live-evidence-attestation-create` in the existing `ci`
+workflow. It is a separate `workflow_dispatch` surface and requires:
+
+- `create_live_evidence_attestation=true`;
+- all capture, D0 transport, D1 upload/verification, and Assembly booleans to
+  be false;
+- the frozen RC source assertion and `refs/heads/main`;
+- the existing exact D0 capture identity inputs (`handoff_capture_*`);
+- the existing exact D1 verified handoff identity inputs (`handoff_*`).
+
+The job restores and re-verifies D1, prepares the attestation from the
+verified observation package, and uploads an Artifact named
+`task012-live-attestation-<run-id>-<run-attempt>`. Its payload is exactly one
+file, `attestation.json`. The upload-time Artifact ID, digest, URL, name, run
+identity, head identity, and computed subject digest are recorded in the job
+summary. The digest and receipt remain outside the attestation payload to
+avoid recursive self-reference.
+
+The attestation transport verifier requires the exact Artifact ID and exact
+upload digest. It authenticates the Artifact metadata, exact creation
+workflow run, and exact canonical job. The creation run must be `ci`,
+`.github/workflows/ci.yml`, `workflow_dispatch`, `main`, the expected head and
+attempt, `completed`, and `success`; the exact
+`live-evidence-attestation-create` job must also be `completed` and `success`.
+The ZIP API redirect is observed and validated before the temporary HTTPS
+archive request; the temporary request carries no GitHub Authorization,
+Cookie, or API-version header. The three transport digests must match before
+safe extraction. The extracted `attestation.json` is then checked against the
+strict eight-field schema. This verifier does not assemble evidence.
+
+### Assembly job and durable output
+
+The canonical Assembly job is `live-evidence-assembly`, also in `ci` and also
+separately dispatched. It requires `assemble_live_evidence=true`, all other
+live execution booleans to be false, the frozen RC assertion, `main`, and the
+complete exact identity inputs for D0, D1, and the attestation Artifact. To
+remain within GitHub's maximum of 25 `workflow_dispatch` inputs, the job
+reuses the existing `handoff_*` D1 and `handoff_capture_*` D0 inputs and
+accepts one strict JSON input named `assembly_attestation_handoff` with exactly
+these string keys:
+
+```json
+{
+  "artifact_id": "<exact numeric Artifact ID>",
+  "artifact_digest": "sha256:<upload-time digest>",
+  "run_id": "<attestation creation run ID>",
+  "run_attempt": "<attestation creation run attempt>",
+  "head_sha": "<attestation creation head SHA>"
+}
+```
+
+The workflow rejects missing, extra, non-string, or empty JSON fields before
+any download. In the Assembly run it:
+
+1. restores and re-verifies the exact D1 handoff;
+2. restores and re-verifies the exact attestation Artifact and its canonical
+   creation workflow/job;
+3. verifies `metadata.json` and the D1/attestation receipts before trusting
+   the observation package;
+4. re-observes the A/B OCI manifest bytes and reconstructs the observed
+   `BuildInputs` and `BuildRunRecord` values;
+5. recomputes P, M, and S and calls the existing
+   `collect_release_candidate_evidence()` composition API with the strict
+   live attestation gate;
+6. uploads only the durable six-file Assembly Artifact.
+
+The Assembly Artifact payload is exactly:
+
+```text
+artifact-manifest.json
+provenance.json
+evidence-bundle.json
+assembly-metadata.json
+SHA256SUMS
+SHA256SUMS.sha256
+```
+
+The Assembly Artifact ID/digest/name/URL and Assembly workflow identity are
+recorded outside that payload. The output is durable only after this separate
+Artifact upload succeeds. D0/D1 identity and workflow receipts remain
+assembly metadata and do not become provenance subject fields.
+
+### Authorization separation
+
+The implementation keeps these permissions and workflow inputs independent:
+
+```text
+BUILD_A_EXECUTION_AUTHORIZED
+BUILD_B_EXECUTION_AUTHORIZED
+GITHUB_ACTIONS_ARTIFACT_UPLOAD_AUTHORIZED
+GITHUB_ACTIONS_ARTIFACT_DOWNLOAD_AUTHORIZED
+VERIFIED_TRANSPORT_HANDOFF_UPLOAD_AUTHORIZED
+VERIFIED_TRANSPORT_HANDOFF_DOWNLOAD_AUTHORIZED
+OIDC_SIGNING_EXECUTION_AUTHORIZED or separately approved attestation mechanism
+REGISTRY_PUSH_AUTHORIZED
+STAGING_PROMOTION_AUTHORIZED
+PRODUCTION_PROMOTION_AUTHORIZED
+PRODUCTION_DEPLOYMENT_AUTHORIZED
+```
+
+Capture, D0/D1 transport, attestation creation, and Assembly cannot be
+combined in one dispatch. Ordinary `push` and `pull_request` events skip all
+live jobs. This implementation round performs no real dispatch, Artifact
+download/upload, attestation creation, Assembly, OIDC operation, registry
+push, promotion, or deployment.
+
 ## Registry Optional Boundary
 
 The local digest chain can be verified without a registry:
@@ -550,7 +703,8 @@ The following phases are intentionally separate:
 | GitHub Actions artifact download/transport verification | `GITHUB_ACTIONS_ARTIFACT_DOWNLOAD_AUTHORIZED=YES` plus `verify_live_evidence_artifact_transport=true` | Not authorized |
 | Durable verified transport handoff upload | `VERIFIED_TRANSPORT_HANDOFF_UPLOAD_AUTHORIZED=YES` plus `upload_verified_transport_handoff=true` after D0 transport PASS | Not authorized |
 | Durable verified transport handoff download | `VERIFIED_TRANSPORT_HANDOFF_DOWNLOAD_AUTHORIZED=YES` plus `verify_verified_transport_handoff=true` | Not authorized |
-| Attestation/signing | `OIDC_SIGNING_EXECUTION_AUTHORIZED=YES` or separately approved signing mechanism | Not authorized |
+| Live attestation creation | `LIVE_ATTESTATION_CREATION_AUTHORIZED=YES` plus `create_live_evidence_attestation=true`; frozen mechanism is `write_once_integrity` | Not authorized |
+| Alternate signing mechanism | `OIDC_SIGNING_EXECUTION_AUTHORIZED=YES` or another separately approved signing mechanism; not used by this Slice 2 path | Not authorized |
 | Registry binding | `REGISTRY_PUSH_AUTHORIZED=YES` | Not authorized |
 | Staging promotion | `STAGING_PROMOTION_AUTHORIZED=YES` | Not authorized |
 | Production promotion | `PRODUCTION_PROMOTION_AUTHORIZED=YES` | Not authorized |

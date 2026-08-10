@@ -35,6 +35,21 @@ on:
         required: true
         type: boolean
         default: false
+      create_live_evidence_attestation:
+        description: Separately authorize canonical live attestation creation
+        required: true
+        type: boolean
+        default: false
+      assemble_live_evidence:
+        description: Separately authorize canonical durable live evidence Assembly
+        required: true
+        type: boolean
+        default: false
+      assembly_attestation_handoff:
+        description: JSON object with exact attestation Artifact ID, digest, creation run ID, attempt, and head SHA
+        required: false
+        type: string
+        default: ""
       transport_artifact_id:
         description: Exact GitHub Artifact ID from the upload-time handoff receipt
         required: false
@@ -836,6 +851,7 @@ jobs:
             tests/unit/test_regression_b2_b3_b4.py \
             tests/unit/test_live_evidence_runner.py \
             tests/unit/test_artifact_transport.py \
+            tests/unit/test_live_attestation.py \
             -q
       - name: Release evidence integration tests
         run: |
@@ -857,7 +873,7 @@ jobs:
   # separately gated and remains off by default. A durable handoff upload is a
   # later, independently authorized step after the original transport verify.
   live-evidence-capture:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       artifact_id: ${{ steps.upload_evidence.outputs.artifact-id }}
@@ -957,7 +973,7 @@ jobs:
   # exclusive workflow-dispatch surface. Its optional D1 upload is a distinct
   # step and contains only the verified D0 archive plus its D0 receipt.
   live-evidence-artifact-transport-verify:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_live_evidence_artifact_transport == true && inputs.execute_live_evidence_capture != true && inputs.verify_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_live_evidence_artifact_transport == true && inputs.execute_live_evidence_capture != true && inputs.verify_verified_transport_handoff != true && inputs.upload_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       verified_handoff_artifact_id: ${{ steps.upload_verified_handoff.outputs.artifact-id }}
@@ -1022,6 +1038,7 @@ jobs:
             --expected-capture-run-attempt "${CAPTURE_RUN_ATTEMPT}" \
             --expected-capture-head-sha "${CAPTURE_HEAD_SHA}" \
             --output-dir "${OUTPUT_DIR}"
+
       - name: Upload verified transport handoff
         id: upload_verified_handoff
         if: ${{ inputs.upload_verified_transport_handoff == true && success() }}
@@ -1067,12 +1084,335 @@ jobs:
             echo "transport-head-sha: ${TRANSPORT_HEAD_SHA}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
+  # TASK-012 V0.2 Slice 2: create the exact live write_once_integrity
+  # attestation from a freshly restored and re-verified D1 package.
+  live-evidence-attestation-create:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_live_evidence_attestation == true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Validate attestation creation dispatch inputs
+        env:
+          CREATE_ATTESTATION: ${{ inputs.create_live_evidence_attestation }}
+          EXECUTE_CAPTURE: ${{ inputs.execute_live_evidence_capture }}
+          VERIFY_TRANSPORT: ${{ inputs.verify_live_evidence_artifact_transport }}
+          UPLOAD_HANDOFF: ${{ inputs.upload_verified_transport_handoff }}
+          VERIFY_HANDOFF: ${{ inputs.verify_verified_transport_handoff }}
+          ASSEMBLE: ${{ inputs.assemble_live_evidence }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${CREATE_ATTESTATION}" = "true"
+          test "${EXECUTE_CAPTURE}" != "true"
+          test "${VERIFY_TRANSPORT}" != "true"
+          test "${UPLOAD_HANDOFF}" != "true"
+          test "${VERIFY_HANDOFF}" != "true"
+          test "${ASSEMBLE}" != "true"
+          test "${EXPECTED_SOURCE_SHA}" = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+          test -n "${D1_ID}"
+          test -n "${D1_DIGEST}"
+          test -n "${D1_TRANSPORT_RUN_ID}"
+          test -n "${D1_TRANSPORT_ATTEMPT}"
+          test -n "${D1_TRANSPORT_HEAD_SHA}"
+          test -n "${D0_ID}"
+          test -n "${D0_DIGEST}"
+          test -n "${D0_RUN_ID}"
+          test -n "${D0_ATTEMPT}"
+          test -n "${D0_HEAD_SHA}"
+      - name: Restore and verify authoritative D1
+        id: restore_d1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES
+          REPOSITORY: ${{ github.repository }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-attestation-d1/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RESULT="$(cd backend && PYTHONPATH=src uv run python -m cold_storage.release.artifact_transport \
+            verify-handoff-download \
+            --execute-download \
+            --repository "${REPOSITORY}" \
+            --handoff-artifact-id "${D1_ID}" \
+            --expected-handoff-artifact-digest "${D1_DIGEST}" \
+            --expected-transport-run-id "${D1_TRANSPORT_RUN_ID}" \
+            --expected-transport-run-attempt "${D1_TRANSPORT_ATTEMPT}" \
+            --expected-transport-head-sha "${D1_TRANSPORT_HEAD_SHA}" \
+            --expected-capture-artifact-id "${D0_ID}" \
+            --expected-capture-artifact-digest "${D0_DIGEST}" \
+            --expected-capture-run-id "${D0_RUN_ID}" \
+            --expected-capture-run-attempt "${D0_ATTEMPT}" \
+            --expected-capture-head-sha "${D0_HEAD_SHA}" \
+            --output-dir "${OUTPUT_DIR}")"
+          printf '%s\n' "${RESULT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^CAPTURE_ROOT=//p' | tail -1 | sed 's/^/capture_root=/' >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^OBSERVATION_BUNDLE=//p' | tail -1 | sed 's/^/observation_bundle=/' >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^HANDOFF_RECEIPT=//p' | tail -1 | sed 's/^/d1_receipt=/' >> "${GITHUB_OUTPUT}"
+      - name: Prepare attestation.json from verified observations
+        id: create_attestation
+        env:
+          OBSERVATION_BUNDLE: ${{ steps.restore_d1.outputs.observation_bundle }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-live-attestation/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RESULT="$(cd backend && PYTHONPATH=src uv run python -m cold_storage.release.live_attestation \
+            create \
+            --observation-bundle "${OBSERVATION_BUNDLE}" \
+            --tooling-root .. \
+            --expected-source-sha "${EXPECTED_SOURCE_SHA}" \
+            --output-dir "${OUTPUT_DIR}")"
+          printf '%s\n' "${RESULT}"
+          echo "output_dir=${OUTPUT_DIR}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^ATTESTATION_FILE=//p' | tail -1 | sed 's/^/attestation_file=/' >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^SUBJECT_DIGEST=//p' | tail -1 | sed 's/^/subject_digest=/' >> "${GITHUB_OUTPUT}"
+      - name: Upload live attestation Artifact
+        id: upload_attestation
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-live-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.create_attestation.outputs.attestation_file }}
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+      - name: Record live attestation Artifact metadata
+        env:
+          ARTIFACT_ID: ${{ steps.upload_attestation.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_attestation.outputs.artifact-digest }}
+          ARTIFACT_URL: ${{ steps.upload_attestation.outputs.artifact-url }}
+          ARTIFACT_NAME: task012-live-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          SUBJECT_DIGEST: ${{ steps.create_attestation.outputs.subject_digest }}
+          ATTESTATION_RUN_ID: ${{ github.run_id }}
+          ATTESTATION_RUN_ATTEMPT: ${{ github.run_attempt }}
+          ATTESTATION_HEAD_SHA: ${{ github.sha }}
+          ATTESTATION_HEAD_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Live Attestation Artifact Handoff"
+            echo "attestation-artifact-id: ${ARTIFACT_ID}"
+            echo "attestation-artifact-digest: ${ARTIFACT_DIGEST}"
+            echo "attestation-artifact-url: ${ARTIFACT_URL}"
+            echo "attestation-artifact-name: ${ARTIFACT_NAME}"
+            echo "attestation-run-id: ${ATTESTATION_RUN_ID}"
+            echo "attestation-run-attempt: ${ATTESTATION_RUN_ATTEMPT}"
+            echo "attestation-head-sha: ${ATTESTATION_HEAD_SHA}"
+            echo "attestation-head-branch: ${ATTESTATION_HEAD_BRANCH}"
+            echo "subject-digest: ${SUBJECT_DIGEST}"
+            echo "attestation-job-name: live-evidence-attestation-create"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # TASK-012 V0.2 Slice 2: restore D1 and the exact attestation Artifact in a
+  # separate run, recompute P/M/S, then upload only the six durable outputs.
+  live-evidence-assembly:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.assemble_live_evidence == true && inputs.create_live_evidence_attestation != true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Validate Assembly dispatch inputs
+        env:
+          ASSEMBLE: ${{ inputs.assemble_live_evidence }}
+          CREATE_ATTESTATION: ${{ inputs.create_live_evidence_attestation }}
+          EXECUTE_CAPTURE: ${{ inputs.execute_live_evidence_capture }}
+          VERIFY_TRANSPORT: ${{ inputs.verify_live_evidence_artifact_transport }}
+          UPLOAD_HANDOFF: ${{ inputs.upload_verified_transport_handoff }}
+          VERIFY_HANDOFF: ${{ inputs.verify_verified_transport_handoff }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
+          ATTESTATION_HANDOFF_JSON: ${{ inputs.assembly_attestation_handoff }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${ASSEMBLE}" = "true"
+          test "${CREATE_ATTESTATION}" != "true"
+          test "${EXECUTE_CAPTURE}" != "true"
+          test "${VERIFY_TRANSPORT}" != "true"
+          test "${UPLOAD_HANDOFF}" != "true"
+          test "${VERIFY_HANDOFF}" != "true"
+          test "${EXPECTED_SOURCE_SHA}" = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+          test -n "${D1_ID}" && test -n "${D1_DIGEST}"
+          test -n "${D1_TRANSPORT_RUN_ID}" && test -n "${D1_TRANSPORT_ATTEMPT}" && test -n "${D1_TRANSPORT_HEAD_SHA}"
+          test -n "${D0_ID}" && test -n "${D0_DIGEST}"
+          test -n "${D0_RUN_ID}" && test -n "${D0_ATTEMPT}" && test -n "${D0_HEAD_SHA}"
+          test -n "${ATTESTATION_HANDOFF_JSON}"
+          jq -e 'type == "object" and (keys | sort == ["artifact_digest", "artifact_id", "head_sha", "run_attempt", "run_id"]) and all(.[]; type == "string" and length > 0)' \
+            <<<"${ATTESTATION_HANDOFF_JSON}" >/dev/null
+      - name: Restore and verify authoritative D1
+        id: restore_d1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES
+          REPOSITORY: ${{ github.repository }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-assembly-d1/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RESULT="$(cd backend && PYTHONPATH=src uv run python -m cold_storage.release.artifact_transport \
+            verify-handoff-download --execute-download \
+            --repository "${REPOSITORY}" \
+            --handoff-artifact-id "${D1_ID}" \
+            --expected-handoff-artifact-digest "${D1_DIGEST}" \
+            --expected-transport-run-id "${D1_TRANSPORT_RUN_ID}" \
+            --expected-transport-run-attempt "${D1_TRANSPORT_ATTEMPT}" \
+            --expected-transport-head-sha "${D1_TRANSPORT_HEAD_SHA}" \
+            --expected-capture-artifact-id "${D0_ID}" \
+            --expected-capture-artifact-digest "${D0_DIGEST}" \
+            --expected-capture-run-id "${D0_RUN_ID}" \
+            --expected-capture-run-attempt "${D0_ATTEMPT}" \
+            --expected-capture-head-sha "${D0_HEAD_SHA}" \
+            --output-dir "${OUTPUT_DIR}")"
+          printf '%s\n' "${RESULT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^OBSERVATION_BUNDLE=//p' | tail -1 | sed 's/^/observation_bundle=/' >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^HANDOFF_RECEIPT=//p' | tail -1 | sed 's/^/d1_receipt=/' >> "${GITHUB_OUTPUT}"
+      - name: Restore and verify exact attestation Artifact
+        id: restore_attestation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TASK012_ATTESTATION_DOWNLOAD_AUTHORIZED: YES
+          REPOSITORY: ${{ github.repository }}
+          ATTESTATION_HANDOFF_JSON: ${{ inputs.assembly_attestation_handoff }}
+        run: |
+          set -euo pipefail
+          ATTESTATION_ID="$(jq -er '.artifact_id' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_DIGEST="$(jq -er '.artifact_digest' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_RUN_ID="$(jq -er '.run_id' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_ATTEMPT="$(jq -er '.run_attempt' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_HEAD_SHA="$(jq -er '.head_sha' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-assembly-attestation/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RESULT="$(cd backend && PYTHONPATH=src uv run python -m cold_storage.release.artifact_transport \
+            verify-attestation-download --execute-download \
+            --repository "${REPOSITORY}" \
+            --artifact-id "${ATTESTATION_ID}" \
+            --expected-artifact-digest "${ATTESTATION_DIGEST}" \
+            --expected-creation-run-id "${ATTESTATION_RUN_ID}" \
+            --expected-creation-run-attempt "${ATTESTATION_ATTEMPT}" \
+            --expected-creation-head-sha "${ATTESTATION_HEAD_SHA}" \
+            --output-dir "${OUTPUT_DIR}")"
+          printf '%s\n' "${RESULT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^ATTESTATION_FILE=//p' | tail -1 | sed 's/^/attestation_file=/' >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "${RESULT}" | sed -n 's/^ATTESTATION_RECEIPT=//p' | tail -1 | sed 's/^/attestation_receipt=/' >> "${GITHUB_OUTPUT}"
+      - name: Assemble and verify live evidence
+        id: assemble
+        env:
+          OBSERVATION_BUNDLE: ${{ steps.restore_d1.outputs.observation_bundle }}
+          D1_RECEIPT: ${{ steps.restore_d1.outputs.d1_receipt }}
+          ATTESTATION_FILE: ${{ steps.restore_attestation.outputs.attestation_file }}
+          ATTESTATION_RECEIPT: ${{ steps.restore_attestation.outputs.attestation_receipt }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-assembled-evidence/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.release.live_evidence_runner \
+            assemble \
+            --observation-bundle "${OBSERVATION_BUNDLE}" \
+            --attestation-file "${ATTESTATION_FILE}" \
+            --output-dir "${OUTPUT_DIR}" \
+            --tooling-root .. \
+            --expected-source-sha "${EXPECTED_SOURCE_SHA}" \
+            --live-attestation \
+            --d1-receipt "${D1_RECEIPT}" \
+            --attestation-receipt "${ATTESTATION_RECEIPT}" \
+            --assembly-run-id "${GITHUB_RUN_ID}" \
+            --assembly-run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --assembly-head-sha "${GITHUB_SHA}"
+          echo "output_dir=${OUTPUT_DIR}" >> "${GITHUB_OUTPUT}"
+      - name: Upload assembled evidence Artifact
+        id: upload_assembly
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-assembled-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.assemble.outputs.output_dir }}/artifact-manifest.json
+            ${{ steps.assemble.outputs.output_dir }}/provenance.json
+            ${{ steps.assemble.outputs.output_dir }}/evidence-bundle.json
+            ${{ steps.assemble.outputs.output_dir }}/assembly-metadata.json
+            ${{ steps.assemble.outputs.output_dir }}/SHA256SUMS
+            ${{ steps.assemble.outputs.output_dir }}/SHA256SUMS.sha256
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+      - name: Record assembled evidence Artifact metadata
+        env:
+          ARTIFACT_ID: ${{ steps.upload_assembly.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_assembly.outputs.artifact-digest }}
+          ARTIFACT_URL: ${{ steps.upload_assembly.outputs.artifact-url }}
+          ARTIFACT_NAME: task012-assembled-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Assembled Evidence Artifact Handoff"
+            echo "assembled-artifact-id: ${ARTIFACT_ID}"
+            echo "assembled-artifact-digest: ${ARTIFACT_DIGEST}"
+            echo "assembled-artifact-url: ${ARTIFACT_URL}"
+            echo "assembled-artifact-name: ${ARTIFACT_NAME}"
+            echo "assembly-run-id: ${GITHUB_RUN_ID}"
+            echo "assembly-run-attempt: ${GITHUB_RUN_ATTEMPT}"
+            echo "assembly-head-sha: ${GITHUB_SHA}"
+            echo "assembly-job-name: live-evidence-assembly"
+          } >> "${GITHUB_STEP_SUMMARY}"
   # TASK-012 V0.2 Slice 2 R1: independently verify the durable D1 handoff.
   # This is a later workflow-dispatch surface. It cannot capture, run the
   # original transport verifier, upload, assemble, sign, push, promote, or
   # deploy in the same dispatch.
   live-evidence-verified-transport-handoff-verify:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_verified_transport_handoff == true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_verified_transport_handoff == true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1091,6 +1431,8 @@ jobs:
           VERIFY_TRANSPORT: ${{ inputs.verify_live_evidence_artifact_transport }}
           UPLOAD_HANDOFF: ${{ inputs.upload_verified_transport_handoff }}
           EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
+          CREATE_ATTESTATION: ${{ inputs.create_live_evidence_attestation }}
+          ASSEMBLE: ${{ inputs.assemble_live_evidence }}
           HANDOFF_ID: ${{ inputs.handoff_artifact_id }}
           HANDOFF_DIGEST: ${{ inputs.handoff_artifact_digest }}
           TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
@@ -1109,6 +1451,8 @@ jobs:
           test "${EXECUTE_CAPTURE}" != "true"
           test "${VERIFY_TRANSPORT}" != "true"
           test "${UPLOAD_HANDOFF}" != "true"
+          test "${CREATE_ATTESTATION}" != "true"
+          test "${ASSEMBLE}" != "true"
           test "${EXPECTED_SOURCE_SHA}" = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
           test -n "${HANDOFF_ID}"
           test -n "${HANDOFF_DIGEST}"

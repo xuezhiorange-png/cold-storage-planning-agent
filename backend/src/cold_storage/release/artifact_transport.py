@@ -49,6 +49,9 @@ CHUNK_SIZE = 1024 * 1024
 MAX_ARCHIVE_REDIRECTS = 1
 HANDOFF_ARTIFACT_PREFIX = "task012-verified-transport"
 HANDOFF_DOWNLOAD_AUTHORIZATION_ENV = "TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED"
+ATTESTATION_ARTIFACT_PREFIX = "task012-live-attestation"
+ATTESTATION_DOWNLOAD_AUTHORIZATION_ENV = "TASK012_ATTESTATION_DOWNLOAD_AUTHORIZED"
+ATTESTATION_JOB_NAME = "live-evidence-attestation-create"
 EXPECTED_RC_SOURCE_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
 EXPECTED_RC_SOURCE_TREE = "b456e77f07a0cef801c57d2f089a318c35c145c4"
 CANONICAL_WORKFLOW_NAME = "ci"
@@ -125,6 +128,14 @@ class VerifiedHandoffResult:
     receipt_path: Path
     capture_root: Path
     observation_bundle: Path
+
+
+@dataclass(frozen=True)
+class VerifiedAttestationResult:
+    """Paths exposed after exact attestation Artifact verification."""
+
+    receipt_path: Path
+    attestation_file: Path
 
 
 def _now() -> str:
@@ -663,6 +674,175 @@ class ArtifactTransportClient:
             workflow_id=workflow_id,
         )
 
+    def fetch_verified_attestation_metadata(
+        self,
+        *,
+        artifact_id: int,
+        expected_digest: str,
+        expected_creation_run_id: str,
+        expected_creation_run_attempt: str,
+        expected_creation_head_sha: str,
+    ) -> ArtifactMetadata:
+        """Verify exact metadata for the canonical attestation Artifact."""
+        expected_digest = normalize_artifact_digest(expected_digest)
+        run_id = _parse_positive_decimal(expected_creation_run_id, field="attestation run ID")
+        run_attempt = _parse_positive_decimal(
+            expected_creation_run_attempt, field="attestation run attempt"
+        )
+        head_sha = _validate_head_sha(expected_creation_head_sha)
+        metadata_url = self._metadata_url(artifact_id)
+        archive_url = self._archive_url(artifact_id)
+        metadata = self._get_json(metadata_url)
+        if type(metadata.get("id")) is not int or metadata.get("id") != artifact_id:
+            raise ArtifactTransportError(
+                "ATTESTATION_ARTIFACT_ID_MISMATCH", "attestation metadata ID mismatch"
+            )
+        if metadata.get("expired") is not False:
+            raise ArtifactTransportError(
+                "ATTESTATION_ARTIFACT_EXPIRED", "attestation Artifact is expired"
+            )
+        digest = normalize_artifact_digest(cast(str, metadata.get("digest")))
+        if digest != expected_digest:
+            raise ArtifactTransportError(
+                "ATTESTATION_ARTIFACT_DIGEST_MISMATCH", "attestation metadata digest mismatch"
+            )
+        expected_name = f"{ATTESTATION_ARTIFACT_PREFIX}-{run_id}-{run_attempt}"
+        if metadata.get("name") != expected_name:
+            raise ArtifactTransportError(
+                "ATTESTATION_ARTIFACT_NAME_MISMATCH", "attestation Artifact name mismatch"
+            )
+        workflow_run = metadata.get("workflow_run")
+        if not isinstance(workflow_run, dict):
+            raise ArtifactTransportError(
+                "ATTESTATION_WORKFLOW_BINDING_MISMATCH",
+                "attestation workflow_run is missing",
+            )
+        workflow_run_id = _parse_json_positive_int(
+            workflow_run.get("id"), field="attestation workflow_run.id"
+        )
+        if workflow_run_id != int(run_id):
+            raise ArtifactTransportError(
+                "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation workflow run ID mismatch"
+            )
+        if workflow_run.get("head_sha") != head_sha or workflow_run.get("head_branch") != "main":
+            raise ArtifactTransportError(
+                "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation workflow source mismatch"
+            )
+        metadata_attempt = _parse_json_positive_int(
+            workflow_run.get("run_attempt"), field="attestation workflow_run.run_attempt"
+        )
+        if metadata_attempt != int(run_attempt):
+            raise ArtifactTransportError(
+                "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation workflow attempt mismatch"
+            )
+        archive_download_url = metadata.get("archive_download_url")
+        if archive_download_url is not None:
+            self._verify_archive_metadata_url(archive_download_url, archive_url)
+        return ArtifactMetadata(
+            artifact_id=artifact_id,
+            artifact_name=cast(str, metadata["name"]),
+            artifact_digest=digest,
+            capture_run_id=run_id,
+            capture_run_attempt=run_attempt,
+            capture_head_sha=head_sha,
+            capture_head_branch="main",
+            metadata_url=metadata_url,
+            archive_endpoint_identity=f"GET {urllib.parse.urlsplit(archive_url).path}",
+        )
+
+    def fetch_verified_attestation_workflow_run(
+        self,
+        *,
+        metadata: ArtifactMetadata,
+        expected_creation_run_id: str,
+        expected_creation_run_attempt: str,
+        expected_creation_head_sha: str,
+    ) -> WorkflowRunMetadata:
+        """Verify exact canonical attestation workflow and unique job."""
+        expected_run_id = int(
+            _parse_positive_decimal(expected_creation_run_id, field="attestation run ID")
+        )
+        expected_attempt = int(
+            _parse_positive_decimal(expected_creation_run_attempt, field="attestation run attempt")
+        )
+        expected_head_sha = _validate_head_sha(expected_creation_head_sha)
+        if int(metadata.capture_run_id) != expected_run_id:
+            raise ArtifactTransportError(
+                "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation run assertion mismatch"
+            )
+        response = self._get_json(self._workflow_run_url(expected_run_id))
+        response_run_id = _parse_json_positive_int(
+            response.get("id"), field="attestation workflow run id"
+        )
+        if response_run_id != expected_run_id:
+            raise ArtifactTransportError(
+                "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation workflow run ID mismatch"
+            )
+        if (
+            _parse_json_positive_int(
+                response.get("run_attempt"), field="attestation workflow run attempt"
+            )
+            != expected_attempt
+        ):
+            raise ArtifactTransportError(
+                "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation workflow attempt mismatch"
+            )
+        required_text = (
+            ("name", CANONICAL_WORKFLOW_NAME),
+            ("path", CANONICAL_WORKFLOW_PATH),
+            ("event", CANONICAL_WORKFLOW_EVENT),
+            ("head_branch", "main"),
+            ("head_sha", expected_head_sha),
+            ("status", "completed"),
+            ("conclusion", "success"),
+        )
+        for field, expected in required_text:
+            if response.get(field) != expected:
+                raise ArtifactTransportError(
+                    "ATTESTATION_WORKFLOW_BINDING_MISMATCH",
+                    f"attestation workflow run {field} mismatch",
+                )
+        jobs_response = self._get_json(self._workflow_jobs_url(expected_run_id))
+        jobs = jobs_response.get("jobs")
+        if not isinstance(jobs, list):
+            raise ArtifactTransportError(
+                "ATTESTATION_JOB_BINDING_MISMATCH", "attestation workflow jobs are missing"
+            )
+        matching_jobs = [
+            job for job in jobs if isinstance(job, dict) and job.get("name") == ATTESTATION_JOB_NAME
+        ]
+        if len(matching_jobs) != 1:
+            raise ArtifactTransportError(
+                "ATTESTATION_JOB_BINDING_MISMATCH",
+                "canonical attestation creation job is ambiguous",
+            )
+        job = matching_jobs[0]
+        if job.get("status") != "completed" or job.get("conclusion") != "success":
+            raise ArtifactTransportError(
+                "ATTESTATION_JOB_BINDING_MISMATCH",
+                "canonical attestation creation job did not pass",
+            )
+        job_id = _parse_json_positive_int(job.get("id"), field="attestation job id")
+        workflow_id = None
+        if response.get("workflow_id") is not None:
+            workflow_id = _parse_json_positive_int(
+                response.get("workflow_id"), field="attestation workflow_id"
+            )
+        return WorkflowRunMetadata(
+            run_id=expected_run_id,
+            run_attempt=expected_attempt,
+            name=cast(str, response["name"]),
+            path=cast(str, response["path"]),
+            event=cast(str, response["event"]),
+            head_sha=cast(str, response["head_sha"]),
+            head_branch=cast(str, response["head_branch"]),
+            status=cast(str, response["status"]),
+            conclusion=cast(str, response["conclusion"]),
+            workflow_id=workflow_id,
+            verified_job_id=job_id,
+            verified_job_name=ATTESTATION_JOB_NAME,
+        )
+
     def fetch_verified_handoff_workflow_run(
         self,
         *,
@@ -1066,6 +1246,31 @@ def _canonical_handoff_payload_root(root: Path) -> Path:
             raise ArtifactTransportError(
                 "HANDOFF_PAYLOAD_INVALID", "handoff payload entries must be regular files"
             )
+    return root
+
+
+def _canonical_attestation_payload_root(root: Path) -> Path:
+    """Allow one wrapper directory, then require exactly attestation.json."""
+    try:
+        entries = list(root.iterdir())
+    except OSError as exc:
+        raise ArtifactTransportError("ATTESTATION_PACKAGE_MISMATCH", type(exc).__name__) from exc
+    if len(entries) == 1 and entries[0].is_dir() and not entries[0].is_symlink():
+        root = entries[0]
+    try:
+        entries = list(root.iterdir())
+    except OSError as exc:
+        raise ArtifactTransportError("ATTESTATION_PACKAGE_MISMATCH", type(exc).__name__) from exc
+    if {entry.name for entry in entries} != {"attestation.json"}:
+        raise ArtifactTransportError(
+            "ATTESTATION_PACKAGE_MISMATCH",
+            "attestation Artifact must contain exactly attestation.json",
+        )
+    attestation = root / "attestation.json"
+    if attestation.is_symlink() or not attestation.is_file():
+        raise ArtifactTransportError(
+            "ATTESTATION_PACKAGE_MISMATCH", "attestation.json must be a regular file"
+        )
     return root
 
 
@@ -1486,6 +1691,132 @@ def verify_handoff_download(
         raise
 
 
+def verify_attestation_download(
+    *,
+    repository: str,
+    artifact_id: str,
+    expected_artifact_digest: str,
+    expected_creation_run_id: str,
+    expected_creation_run_attempt: str,
+    expected_creation_head_sha: str,
+    output_dir: str | Path,
+    execute_download: bool = False,
+    env: Mapping[str, str] | None = None,
+    api_base_url: str = DEFAULT_API_BASE_URL,
+) -> VerifiedAttestationResult:
+    """Verify and safely extract the exact live attestation Artifact."""
+    environment = os.environ if env is None else env
+    if not execute_download:
+        raise ArtifactTransportError(
+            "ATTESTATION_DOWNLOAD_EXECUTION_NOT_EXPLICIT",
+            "verify-attestation-download requires --execute-download",
+        )
+    if environment.get(ATTESTATION_DOWNLOAD_AUTHORIZATION_ENV) != "YES":
+        raise ArtifactTransportError(
+            "ATTESTATION_DOWNLOAD_EXECUTION_NOT_AUTHORIZED",
+            f"{ATTESTATION_DOWNLOAD_AUTHORIZATION_ENV} must be exactly YES",
+        )
+    token = _validate_token(environment.get("GITHUB_TOKEN"))
+    repository = _validate_repository(repository)
+    parsed_artifact_id = _parse_artifact_id(artifact_id)
+    expected_digest = normalize_artifact_digest(expected_artifact_digest)
+    output = _prepare_output_dir(output_dir)
+    client = ArtifactTransportClient(repository, token, api_base_url)
+    metadata = client.fetch_verified_attestation_metadata(
+        artifact_id=parsed_artifact_id,
+        expected_digest=expected_digest,
+        expected_creation_run_id=expected_creation_run_id,
+        expected_creation_run_attempt=expected_creation_run_attempt,
+        expected_creation_head_sha=expected_creation_head_sha,
+    )
+    workflow_run = client.fetch_verified_attestation_workflow_run(
+        metadata=metadata,
+        expected_creation_run_id=expected_creation_run_id,
+        expected_creation_run_attempt=expected_creation_run_attempt,
+        expected_creation_head_sha=expected_creation_head_sha,
+    )
+
+    temporary_archive = output / f".attestation-download-{uuid.uuid4().hex}.part"
+    temporary_extracted = output / f".attestation-extracted-{uuid.uuid4().hex}"
+    final_archive = output / VERIFIED_ARCHIVE_NAME
+    final_extracted = output / EXTRACTED_DIRECTORY_NAME
+    receipt_path = output / "attestation-transport-receipt.json"
+    promoted: list[Path] = []
+    try:
+        downloaded_digest = client.download_archive(
+            artifact_id=parsed_artifact_id, destination=temporary_archive
+        )
+        if downloaded_digest != expected_digest or downloaded_digest != metadata.artifact_digest:
+            raise ArtifactTransportError(
+                "ATTESTATION_ARTIFACT_DIGEST_MISMATCH",
+                "recorded, metadata, and downloaded attestation digests differ",
+            )
+        _safe_extract_archive(temporary_archive, temporary_extracted)
+        payload_root = _canonical_attestation_payload_root(temporary_extracted)
+        attestation_file = payload_root / "attestation.json"
+        try:
+            from cold_storage.release.live_attestation import load_attestation
+
+            load_attestation(attestation_file)
+        except Exception as exc:
+            if isinstance(exc, ArtifactTransportError):
+                raise
+            raise ArtifactTransportError(
+                "ATTESTATION_SCHEMA_INVALID", "attestation.json failed schema validation"
+            ) from exc
+        relative_attestation = attestation_file.relative_to(temporary_extracted)
+        os.replace(temporary_archive, final_archive)
+        promoted.append(final_archive)
+        os.replace(temporary_extracted, final_extracted)
+        promoted.append(final_extracted)
+        final_attestation = final_extracted / relative_attestation
+        receipt: dict[str, Any] = {
+            "schema_version": "cold-storage-attestation-transport-receipt-v1",
+            "repository": repository,
+            "artifact_id": metadata.artifact_id,
+            "artifact_name": metadata.artifact_name,
+            "recorded_artifact_digest": expected_digest,
+            "metadata_artifact_digest": metadata.artifact_digest,
+            "downloaded_archive_digest": downloaded_digest,
+            "workflow_run_id": workflow_run.run_id,
+            "workflow_run_attempt": workflow_run.run_attempt,
+            "workflow_name": workflow_run.name,
+            "workflow_path": workflow_run.path,
+            "workflow_event": workflow_run.event,
+            "workflow_head_sha": workflow_run.head_sha,
+            "workflow_head_branch": workflow_run.head_branch,
+            "workflow_status": workflow_run.status,
+            "workflow_conclusion": workflow_run.conclusion,
+            "job_id": workflow_run.verified_job_id,
+            "job_name": workflow_run.verified_job_name,
+            "metadata_url": metadata.metadata_url,
+            "archive_endpoint_identity": metadata.archive_endpoint_identity,
+            "attestation_file": str(final_attestation),
+            "verified_at": _now(),
+            "transport_verification_status": "PASS",
+        }
+        if workflow_run.workflow_id is not None:
+            receipt["workflow_id"] = workflow_run.workflow_id
+        _atomic_write_json(receipt_path, receipt)
+        return VerifiedAttestationResult(
+            receipt_path=receipt_path,
+            attestation_file=final_attestation,
+        )
+    except Exception:
+        if temporary_archive.exists():
+            temporary_archive.unlink()
+        if temporary_extracted.exists():
+            shutil.rmtree(temporary_extracted)
+        if receipt_path.exists():
+            receipt_path.unlink()
+        for path in reversed(promoted):
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path)
+            elif path.exists():
+                path.unlink()
+        raise
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Fail-closed GitHub Artifact transport verifier")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1512,6 +1843,15 @@ def _parser() -> argparse.ArgumentParser:
     handoff.add_argument("--expected-capture-run-attempt", required=True)
     handoff.add_argument("--expected-capture-head-sha", required=True)
     handoff.add_argument("--output-dir", required=True)
+    attestation = subparsers.add_parser("verify-attestation-download")
+    attestation.add_argument("--execute-download", action="store_true")
+    attestation.add_argument("--repository", required=True)
+    attestation.add_argument("--artifact-id", required=True)
+    attestation.add_argument("--expected-artifact-digest", required=True)
+    attestation.add_argument("--expected-creation-run-id", required=True)
+    attestation.add_argument("--expected-creation-run-attempt", required=True)
+    attestation.add_argument("--expected-creation-head-sha", required=True)
+    attestation.add_argument("--output-dir", required=True)
     return parser
 
 
@@ -1529,7 +1869,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 output_dir=args.output_dir,
                 execute_download=args.execute_download,
             )
-        else:
+        elif args.command == "verify-handoff-download":
             result = verify_handoff_download(
                 repository=args.repository,
                 handoff_artifact_id=args.handoff_artifact_id,
@@ -1547,6 +1887,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(f"CAPTURE_ROOT={result.capture_root}")
             print(f"OBSERVATION_BUNDLE={result.observation_bundle}")
+            print(f"HANDOFF_RECEIPT={result.receipt_path}")
+        else:
+            attestation_result: VerifiedAttestationResult = verify_attestation_download(
+                repository=args.repository,
+                artifact_id=args.artifact_id,
+                expected_artifact_digest=args.expected_artifact_digest,
+                expected_creation_run_id=args.expected_creation_run_id,
+                expected_creation_run_attempt=args.expected_creation_run_attempt,
+                expected_creation_head_sha=args.expected_creation_head_sha,
+                output_dir=args.output_dir,
+                execute_download=args.execute_download,
+            )
+            print(f"ATTESTATION_FILE={attestation_result.attestation_file}")
+            print(f"ATTESTATION_RECEIPT={attestation_result.receipt_path}")
         return 0
     except ArtifactTransportError as exc:
         print(f"{exc.code}: {exc.detail}", file=sys.stderr)
@@ -1561,13 +1915,18 @@ __all__ = [
     "ArtifactMetadata",
     "ArtifactTransportClient",
     "ArtifactTransportError",
+    "ATTESTATION_ARTIFACT_PREFIX",
+    "ATTESTATION_DOWNLOAD_AUTHORIZATION_ENV",
+    "ATTESTATION_JOB_NAME",
     "HandoffArtifactMetadata",
     "WorkflowRunMetadata",
     "VerifiedHandoffResult",
+    "VerifiedAttestationResult",
     "HANDOFF_VERIFICATION_RECEIPT_SCHEMA_VERSION",
     "TRANSPORT_RECEIPT_SCHEMA_VERSION",
     "main",
     "normalize_artifact_digest",
+    "verify_attestation_download",
     "verify_handoff_download",
     "verify_download",
 ]
