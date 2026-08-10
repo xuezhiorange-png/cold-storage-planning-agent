@@ -45,6 +45,11 @@ on:
         required: true
         type: boolean
         default: false
+      assembly_attestation_handoff:
+        description: JSON object with exact attestation Artifact ID, digest, creation run ID, attempt, and head SHA
+        required: false
+        type: string
+        default: ""
       transport_artifact_id:
         description: Exact GitHub Artifact ID from the upload-time handoff receipt
         required: false
@@ -117,131 +122,6 @@ on:
         default: ""
       handoff_capture_head_sha:
         description: Original capture workflow head SHA recorded in the D0 receipt
-        required: false
-        type: string
-        default: ""
-      attestation_handoff_artifact_id:
-        description: Exact D1 Artifact ID used for attestation preparation
-        required: false
-        type: string
-        default: ""
-      attestation_handoff_artifact_digest:
-        description: Exact D1 Artifact digest used for attestation preparation
-        required: false
-        type: string
-        default: ""
-      attestation_handoff_transport_run_id:
-        description: D1 transport workflow run ID used for attestation preparation
-        required: false
-        type: string
-        default: ""
-      attestation_handoff_transport_run_attempt:
-        description: D1 transport workflow run attempt used for attestation preparation
-        required: false
-        type: string
-        default: ""
-      attestation_handoff_transport_head_sha:
-        description: D1 transport workflow head SHA used for attestation preparation
-        required: false
-        type: string
-        default: ""
-      attestation_capture_artifact_id:
-        description: D0 Artifact ID recorded by the D1 handoff
-        required: false
-        type: string
-        default: ""
-      attestation_capture_artifact_digest:
-        description: D0 Artifact digest recorded by the D1 handoff
-        required: false
-        type: string
-        default: ""
-      attestation_capture_run_id:
-        description: D0 capture workflow run ID recorded by the D1 handoff
-        required: false
-        type: string
-        default: ""
-      attestation_capture_run_attempt:
-        description: D0 capture workflow run attempt recorded by the D1 handoff
-        required: false
-        type: string
-        default: ""
-      attestation_capture_head_sha:
-        description: D0 capture workflow head SHA recorded by the D1 handoff
-        required: false
-        type: string
-        default: ""
-      assembly_handoff_artifact_id:
-        description: Exact D1 Artifact ID used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_handoff_artifact_digest:
-        description: Exact D1 Artifact digest used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_handoff_transport_run_id:
-        description: D1 transport workflow run ID used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_handoff_transport_run_attempt:
-        description: D1 transport workflow run attempt used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_handoff_transport_head_sha:
-        description: D1 transport workflow head SHA used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_capture_artifact_id:
-        description: D0 Artifact ID used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_capture_artifact_digest:
-        description: D0 Artifact digest used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_capture_run_id:
-        description: D0 capture workflow run ID used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_capture_run_attempt:
-        description: D0 capture workflow run attempt used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_capture_head_sha:
-        description: D0 capture workflow head SHA used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_attestation_artifact_id:
-        description: Exact attestation Artifact ID used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_attestation_artifact_digest:
-        description: Exact attestation Artifact digest used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_attestation_run_id:
-        description: Attestation creation workflow run ID used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_attestation_run_attempt:
-        description: Attestation creation workflow run attempt used for final Assembly
-        required: false
-        type: string
-        default: ""
-      assembly_attestation_head_sha:
-        description: Attestation creation workflow head SHA used for final Assembly
         required: false
         type: string
         default: ""
@@ -1228,16 +1108,16 @@ jobs:
           VERIFY_HANDOFF: ${{ inputs.verify_verified_transport_handoff }}
           ASSEMBLE: ${{ inputs.assemble_live_evidence }}
           EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
-          D1_ID: ${{ inputs.attestation_handoff_artifact_id }}
-          D1_DIGEST: ${{ inputs.attestation_handoff_artifact_digest }}
-          D1_TRANSPORT_RUN_ID: ${{ inputs.attestation_handoff_transport_run_id }}
-          D1_TRANSPORT_ATTEMPT: ${{ inputs.attestation_handoff_transport_run_attempt }}
-          D1_TRANSPORT_HEAD_SHA: ${{ inputs.attestation_handoff_transport_head_sha }}
-          D0_ID: ${{ inputs.attestation_capture_artifact_id }}
-          D0_DIGEST: ${{ inputs.attestation_capture_artifact_digest }}
-          D0_RUN_ID: ${{ inputs.attestation_capture_run_id }}
-          D0_ATTEMPT: ${{ inputs.attestation_capture_run_attempt }}
-          D0_HEAD_SHA: ${{ inputs.attestation_capture_head_sha }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
         run: |
           set -euo pipefail
           test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
@@ -1265,16 +1145,16 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES
           REPOSITORY: ${{ github.repository }}
-          D1_ID: ${{ inputs.attestation_handoff_artifact_id }}
-          D1_DIGEST: ${{ inputs.attestation_handoff_artifact_digest }}
-          D1_TRANSPORT_RUN_ID: ${{ inputs.attestation_handoff_transport_run_id }}
-          D1_TRANSPORT_ATTEMPT: ${{ inputs.attestation_handoff_transport_run_attempt }}
-          D1_TRANSPORT_HEAD_SHA: ${{ inputs.attestation_handoff_transport_head_sha }}
-          D0_ID: ${{ inputs.attestation_capture_artifact_id }}
-          D0_DIGEST: ${{ inputs.attestation_capture_artifact_digest }}
-          D0_RUN_ID: ${{ inputs.attestation_capture_run_id }}
-          D0_ATTEMPT: ${{ inputs.attestation_capture_run_attempt }}
-          D0_HEAD_SHA: ${{ inputs.attestation_capture_head_sha }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
         run: |
           set -euo pipefail
           OUTPUT_DIR="${RUNNER_TEMP}/task012-attestation-d1/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -1375,21 +1255,17 @@ jobs:
           UPLOAD_HANDOFF: ${{ inputs.upload_verified_transport_handoff }}
           VERIFY_HANDOFF: ${{ inputs.verify_verified_transport_handoff }}
           EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
-          D1_ID: ${{ inputs.assembly_handoff_artifact_id }}
-          D1_DIGEST: ${{ inputs.assembly_handoff_artifact_digest }}
-          D1_TRANSPORT_RUN_ID: ${{ inputs.assembly_handoff_transport_run_id }}
-          D1_TRANSPORT_ATTEMPT: ${{ inputs.assembly_handoff_transport_run_attempt }}
-          D1_TRANSPORT_HEAD_SHA: ${{ inputs.assembly_handoff_transport_head_sha }}
-          D0_ID: ${{ inputs.assembly_capture_artifact_id }}
-          D0_DIGEST: ${{ inputs.assembly_capture_artifact_digest }}
-          D0_RUN_ID: ${{ inputs.assembly_capture_run_id }}
-          D0_ATTEMPT: ${{ inputs.assembly_capture_run_attempt }}
-          D0_HEAD_SHA: ${{ inputs.assembly_capture_head_sha }}
-          ATTESTATION_ID: ${{ inputs.assembly_attestation_artifact_id }}
-          ATTESTATION_DIGEST: ${{ inputs.assembly_attestation_artifact_digest }}
-          ATTESTATION_RUN_ID: ${{ inputs.assembly_attestation_run_id }}
-          ATTESTATION_ATTEMPT: ${{ inputs.assembly_attestation_run_attempt }}
-          ATTESTATION_HEAD_SHA: ${{ inputs.assembly_attestation_head_sha }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
+          ATTESTATION_HANDOFF_JSON: ${{ inputs.assembly_attestation_handoff }}
         run: |
           set -euo pipefail
           test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
@@ -1405,24 +1281,25 @@ jobs:
           test -n "${D1_TRANSPORT_RUN_ID}" && test -n "${D1_TRANSPORT_ATTEMPT}" && test -n "${D1_TRANSPORT_HEAD_SHA}"
           test -n "${D0_ID}" && test -n "${D0_DIGEST}"
           test -n "${D0_RUN_ID}" && test -n "${D0_ATTEMPT}" && test -n "${D0_HEAD_SHA}"
-          test -n "${ATTESTATION_ID}" && test -n "${ATTESTATION_DIGEST}"
-          test -n "${ATTESTATION_RUN_ID}" && test -n "${ATTESTATION_ATTEMPT}" && test -n "${ATTESTATION_HEAD_SHA}"
+          test -n "${ATTESTATION_HANDOFF_JSON}"
+          jq -e 'type == "object" and (keys | sort == ["artifact_digest", "artifact_id", "head_sha", "run_attempt", "run_id"]) and all(.[]; type == "string" and length > 0)' \
+            <<<"${ATTESTATION_HANDOFF_JSON}" >/dev/null
       - name: Restore and verify authoritative D1
         id: restore_d1
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES
           REPOSITORY: ${{ github.repository }}
-          D1_ID: ${{ inputs.assembly_handoff_artifact_id }}
-          D1_DIGEST: ${{ inputs.assembly_handoff_artifact_digest }}
-          D1_TRANSPORT_RUN_ID: ${{ inputs.assembly_handoff_transport_run_id }}
-          D1_TRANSPORT_ATTEMPT: ${{ inputs.assembly_handoff_transport_run_attempt }}
-          D1_TRANSPORT_HEAD_SHA: ${{ inputs.assembly_handoff_transport_head_sha }}
-          D0_ID: ${{ inputs.assembly_capture_artifact_id }}
-          D0_DIGEST: ${{ inputs.assembly_capture_artifact_digest }}
-          D0_RUN_ID: ${{ inputs.assembly_capture_run_id }}
-          D0_ATTEMPT: ${{ inputs.assembly_capture_run_attempt }}
-          D0_HEAD_SHA: ${{ inputs.assembly_capture_head_sha }}
+          D1_ID: ${{ inputs.handoff_artifact_id }}
+          D1_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          D1_TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          D1_TRANSPORT_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          D1_TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          D0_ID: ${{ inputs.handoff_capture_artifact_id }}
+          D0_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          D0_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          D0_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          D0_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
         run: |
           set -euo pipefail
           OUTPUT_DIR="${RUNNER_TEMP}/task012-assembly-d1/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -1449,13 +1326,14 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           TASK012_ATTESTATION_DOWNLOAD_AUTHORIZED: YES
           REPOSITORY: ${{ github.repository }}
-          ATTESTATION_ID: ${{ inputs.assembly_attestation_artifact_id }}
-          ATTESTATION_DIGEST: ${{ inputs.assembly_attestation_artifact_digest }}
-          ATTESTATION_RUN_ID: ${{ inputs.assembly_attestation_run_id }}
-          ATTESTATION_ATTEMPT: ${{ inputs.assembly_attestation_run_attempt }}
-          ATTESTATION_HEAD_SHA: ${{ inputs.assembly_attestation_head_sha }}
+          ATTESTATION_HANDOFF_JSON: ${{ inputs.assembly_attestation_handoff }}
         run: |
           set -euo pipefail
+          ATTESTATION_ID="$(jq -er '.artifact_id' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_DIGEST="$(jq -er '.artifact_digest' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_RUN_ID="$(jq -er '.run_id' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_ATTEMPT="$(jq -er '.run_attempt' <<<"${ATTESTATION_HANDOFF_JSON}")"
+          ATTESTATION_HEAD_SHA="$(jq -er '.head_sha' <<<"${ATTESTATION_HANDOFF_JSON}")"
           OUTPUT_DIR="${RUNNER_TEMP}/task012-assembly-attestation/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           RESULT="$(cd backend && PYTHONPATH=src uv run python -m cold_storage.release.artifact_transport \
             verify-attestation-download --execute-download \

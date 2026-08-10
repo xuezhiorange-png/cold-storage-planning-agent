@@ -579,11 +579,9 @@ def test_live_attestation_and_assembly_workflow_surfaces_are_gated() -> None:
         assert "id-token: write" not in job
         assert "contents: write" not in job
     for required in (
-        "attestation_handoff_artifact_id",
-        "attestation_capture_artifact_id",
-        "assembly_handoff_artifact_id",
-        "assembly_capture_artifact_id",
-        "assembly_attestation_artifact_id",
+        "handoff_artifact_id",
+        "handoff_capture_artifact_id",
+        "assembly_attestation_handoff",
     ):
         assert required in workflow
     assert "TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES" in attestation_job
@@ -593,6 +591,11 @@ def test_live_attestation_and_assembly_workflow_surfaces_are_gated() -> None:
     assert "verify-attestation-download" in assembly_job
     assert "cold_storage.release.live_attestation" in attestation_job
     assert "--live-attestation" in assembly_job
+    assert "ATTESTATION_HANDOFF_JSON" in assembly_job
+    assert (
+        'keys | sort == ["artifact_digest", "artifact_id", "head_sha", "run_attempt", "run_id"]'
+        in assembly_job
+    )
 
 
 def test_live_attestation_upload_and_assembly_payloads_are_exact() -> None:

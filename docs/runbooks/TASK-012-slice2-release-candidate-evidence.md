@@ -520,8 +520,8 @@ workflow. It is a separate `workflow_dispatch` surface and requires:
 - all capture, D0 transport, D1 upload/verification, and Assembly booleans to
   be false;
 - the frozen RC source assertion and `refs/heads/main`;
-- exact D0 capture Artifact ID/digest/run/attempt/head SHA;
-- exact D1 verified handoff Artifact ID/digest/transport run/attempt/head SHA.
+- the existing exact D0 capture identity inputs (`handoff_capture_*`);
+- the existing exact D1 verified handoff identity inputs (`handoff_*`).
 
 The job restores and re-verifies D1, prepares the attestation from the
 verified observation package, and uploads an Artifact named
@@ -548,8 +548,24 @@ strict eight-field schema. This verifier does not assemble evidence.
 The canonical Assembly job is `live-evidence-assembly`, also in `ci` and also
 separately dispatched. It requires `assemble_live_evidence=true`, all other
 live execution booleans to be false, the frozen RC assertion, `main`, and the
-complete exact identity inputs for D0, D1, and the attestation Artifact. In
-the Assembly run it:
+complete exact identity inputs for D0, D1, and the attestation Artifact. To
+remain within GitHub's maximum of 25 `workflow_dispatch` inputs, the job
+reuses the existing `handoff_*` D1 and `handoff_capture_*` D0 inputs and
+accepts one strict JSON input named `assembly_attestation_handoff` with exactly
+these string keys:
+
+```json
+{
+  "artifact_id": "<exact numeric Artifact ID>",
+  "artifact_digest": "sha256:<upload-time digest>",
+  "run_id": "<attestation creation run ID>",
+  "run_attempt": "<attestation creation run attempt>",
+  "head_sha": "<attestation creation head SHA>"
+}
+```
+
+The workflow rejects missing, extra, non-string, or empty JSON fields before
+any download. In the Assembly run it:
 
 1. restores and re-verifies the exact D1 handoff;
 2. restores and re-verifies the exact attestation Artifact and its canonical
