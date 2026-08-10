@@ -17,6 +17,7 @@ from cold_storage.release.artifact_transport import (
     ArtifactTransportError,
     normalize_artifact_digest,
     verify_download,
+    verify_handoff_download,
 )
 
 REPOSITORY = "xuezhiorange-png/cold-storage-planning-agent"
@@ -29,6 +30,11 @@ STORAGE_URL = "https://artifact-storage.example/task012/signed-archive.zip?sig=s
 RC_SOURCE_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
 RC_SOURCE_TREE = "b456e77f07a0cef801c57d2f089a318c35c145c4"
 SECRET_TOKEN = "TASK012-SUPER-SECRET-REDIRECT-TOKEN"
+HANDOFF_ID = "5678"
+TRANSPORT_RUN_ID = "800"
+TRANSPORT_RUN_ATTEMPT = "1"
+TRANSPORT_HEAD_SHA = "c" * 40
+HANDOFF_STORAGE_URL = "https://artifact-storage.example/task012/signed-handoff.zip?sig=synthetic"
 
 
 class FakeResponse:
@@ -595,3 +601,379 @@ def test_package_origin_metadata_is_bound_before_receipt(
         _verify(tmp_path / "package", monkeypatch, archive=archive)
     output = tmp_path / "package" / "transport-output"
     assert not (output / "artifact-transport-receipt.json").exists()
+
+
+def _d0_receipt(capture_archive: bytes, **overrides: Any) -> dict[str, Any]:
+    digest = f"sha256:{hashlib.sha256(capture_archive).hexdigest()}"
+    receipt: dict[str, Any] = {
+        "schema_version": transport.TRANSPORT_RECEIPT_SCHEMA_VERSION,
+        "repository": REPOSITORY,
+        "artifact_id": int(ARTIFACT_ID),
+        "artifact_name": f"task012-live-evidence-{RUN_ID}-{RUN_ATTEMPT}",
+        "metadata_url": f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ARTIFACT_ID}",
+        "archive_endpoint_identity": (
+            f"GET /repos/{REPOSITORY}/actions/artifacts/{ARTIFACT_ID}/zip"
+        ),
+        "recorded_artifact_digest": digest,
+        "metadata_artifact_digest": digest,
+        "downloaded_archive_digest": digest,
+        "capture_workflow_run_id": RUN_ID,
+        "capture_workflow_run_attempt": RUN_ATTEMPT,
+        "capture_head_sha": HEAD_SHA,
+        "capture_head_branch": "main",
+        "workflow_run_id": int(RUN_ID),
+        "workflow_run_attempt": int(RUN_ATTEMPT),
+        "workflow_name": "ci",
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_event": "workflow_dispatch",
+        "workflow_head_sha": HEAD_SHA,
+        "workflow_head_branch": "main",
+        "workflow_status": "completed",
+        "workflow_conclusion": "success",
+        "package_capture_workflow_run_id": RUN_ID,
+        "package_capture_workflow_run_attempt": RUN_ATTEMPT,
+        "package_evidence_tool_head": HEAD_SHA,
+        "package_rc_source_sha": RC_SOURCE_SHA,
+        "package_rc_source_tree": RC_SOURCE_TREE,
+        "canonical_capture_origin_status": "PASS",
+        "transport_verification_status": "PASS",
+    }
+    receipt.update(overrides)
+    return receipt
+
+
+def _handoff_archive(
+    capture_archive: bytes,
+    *,
+    receipt: dict[str, Any] | None = None,
+    extra_entries: list[tuple[str, bytes]] | None = None,
+    top_level: str | None = None,
+) -> bytes:
+    prefix = f"{top_level}/" if top_level else ""
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr(
+            prefix + "verified-artifact.zip",
+            capture_archive,
+        )
+        archive.writestr(
+            prefix + "artifact-transport-receipt.json",
+            json.dumps(receipt or _d0_receipt(capture_archive), sort_keys=True).encode("utf-8"),
+        )
+        for name, data in extra_entries or []:
+            archive.writestr(prefix + name, data)
+    return output.getvalue()
+
+
+def _handoff_metadata(handoff_archive: bytes, **overrides: Any) -> dict[str, Any]:
+    value: dict[str, Any] = {
+        "id": int(HANDOFF_ID),
+        "name": (
+            f"task012-verified-transport-{RUN_ID}-{RUN_ATTEMPT}-"
+            f"{TRANSPORT_RUN_ID}-{TRANSPORT_RUN_ATTEMPT}"
+        ),
+        "expired": False,
+        "digest": f"sha256:{hashlib.sha256(handoff_archive).hexdigest()}",
+        "archive_download_url": (
+            f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{HANDOFF_ID}/zip"
+        ),
+        "workflow_run": {
+            "id": int(TRANSPORT_RUN_ID),
+            "run_attempt": int(TRANSPORT_RUN_ATTEMPT),
+            "head_sha": TRANSPORT_HEAD_SHA,
+            "head_branch": "main",
+        },
+    }
+    for key, replacement in overrides.items():
+        if key == "workflow_run":
+            value["workflow_run"] = {**value["workflow_run"], **replacement}
+        else:
+            value[key] = replacement
+    return value
+
+
+def _install_handoff_http(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    handoff_archive: bytes,
+    metadata: dict[str, Any] | None = None,
+    workflow: dict[str, Any] | None = None,
+    jobs: list[dict[str, Any]] | None = None,
+    storage_archive: bytes | None = None,
+    redirect_location: str | None = HANDOFF_STORAGE_URL,
+) -> list[urllib.request.Request]:
+    calls: list[urllib.request.Request] = []
+    metadata_payload = json.dumps(
+        _handoff_metadata(handoff_archive) if metadata is None else metadata
+    ).encode("utf-8")
+    workflow_payload = json.dumps(
+        {
+            "id": int(TRANSPORT_RUN_ID),
+            "run_attempt": int(TRANSPORT_RUN_ATTEMPT),
+            "name": "ci",
+            "path": ".github/workflows/ci.yml",
+            "event": "workflow_dispatch",
+            "head_sha": TRANSPORT_HEAD_SHA,
+            "head_branch": "main",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 654,
+        }
+        if workflow is None
+        else workflow
+    ).encode("utf-8")
+    jobs_payload = json.dumps(
+        {
+            "jobs": jobs
+            if jobs is not None
+            else [
+                {
+                    "id": 4567,
+                    "name": "live-evidence-artifact-transport-verify",
+                    "status": "completed",
+                    "conclusion": "success",
+                }
+            ]
+        }
+    ).encode("utf-8")
+    metadata_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{HANDOFF_ID}"
+    workflow_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{TRANSPORT_RUN_ID}"
+    jobs_url = f"{workflow_url}/jobs?per_page=100"
+    archive_url = f"{metadata_url}/zip"
+
+    def fake_open(
+        request: urllib.request.Request,
+        timeout: int = 60,
+        *,
+        follow_redirects: bool = True,
+    ) -> FakeResponse:
+        del timeout, follow_redirects
+        calls.append(request)
+        if request.full_url == metadata_url:
+            return FakeResponse(metadata_payload)
+        if request.full_url == workflow_url:
+            return FakeResponse(workflow_payload)
+        if request.full_url == jobs_url:
+            return FakeResponse(jobs_payload)
+        if request.full_url == archive_url:
+            headers = {} if redirect_location is None else {"Location": redirect_location}
+            return FakeResponse(b"", status=302, headers=headers)
+        if request.full_url == HANDOFF_STORAGE_URL:
+            return FakeResponse(handoff_archive if storage_archive is None else storage_archive)
+        raise urllib.error.URLError(f"unexpected synthetic URL: {request.full_url}")
+
+    monkeypatch.setattr(transport, "_open_url", fake_open)
+    return calls
+
+
+def _verify_handoff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    capture_archive: bytes,
+    handoff_archive: bytes | None = None,
+    metadata: dict[str, Any] | None = None,
+    storage_archive: bytes | None = None,
+    workflow: dict[str, Any] | None = None,
+    jobs: list[dict[str, Any]] | None = None,
+    env: dict[str, str] | None = None,
+) -> tuple[transport.VerifiedHandoffResult, list[urllib.request.Request]]:
+    archive = handoff_archive or _handoff_archive(capture_archive)
+    calls = _install_handoff_http(
+        monkeypatch,
+        handoff_archive=archive,
+        metadata=metadata,
+        workflow=workflow,
+        jobs=jobs,
+        storage_archive=storage_archive,
+    )
+    result = verify_handoff_download(
+        repository=REPOSITORY,
+        handoff_artifact_id=HANDOFF_ID,
+        expected_handoff_artifact_digest=(
+            metadata["digest"]
+            if metadata is not None
+            else f"sha256:{hashlib.sha256(archive).hexdigest()}"
+        ),
+        expected_transport_run_id=TRANSPORT_RUN_ID,
+        expected_transport_run_attempt=TRANSPORT_RUN_ATTEMPT,
+        expected_transport_head_sha=TRANSPORT_HEAD_SHA,
+        expected_capture_artifact_id=ARTIFACT_ID,
+        expected_capture_artifact_digest=f"sha256:{hashlib.sha256(capture_archive).hexdigest()}",
+        expected_capture_run_id=RUN_ID,
+        expected_capture_run_attempt=RUN_ATTEMPT,
+        expected_capture_head_sha=HEAD_SHA,
+        output_dir=tmp_path / "handoff-output",
+        execute_download=True,
+        env=env
+        or {
+            "GITHUB_TOKEN": SECRET_TOKEN,
+            transport.HANDOFF_DOWNLOAD_AUTHORIZATION_ENV: "YES",
+        },
+        api_base_url=API_BASE_URL,
+    )
+    return result, calls
+
+
+def test_handoff_guard_uses_independent_authorization_and_makes_zero_http_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    capture_archive = _zip_bytes()
+    handoff_archive = _handoff_archive(capture_archive)
+    calls = _install_handoff_http(monkeypatch, handoff_archive=handoff_archive)
+    kwargs: dict[str, Any] = {
+        "repository": REPOSITORY,
+        "handoff_artifact_id": HANDOFF_ID,
+        "expected_handoff_artifact_digest": f"sha256:{hashlib.sha256(handoff_archive).hexdigest()}",
+        "expected_transport_run_id": TRANSPORT_RUN_ID,
+        "expected_transport_run_attempt": TRANSPORT_RUN_ATTEMPT,
+        "expected_transport_head_sha": TRANSPORT_HEAD_SHA,
+        "expected_capture_artifact_id": ARTIFACT_ID,
+        "expected_capture_artifact_digest": f"sha256:{hashlib.sha256(capture_archive).hexdigest()}",
+        "expected_capture_run_id": RUN_ID,
+        "expected_capture_run_attempt": RUN_ATTEMPT,
+        "expected_capture_head_sha": HEAD_SHA,
+        "output_dir": tmp_path / "guard-output",
+        "api_base_url": API_BASE_URL,
+    }
+    with pytest.raises(ArtifactTransportError, match="HANDOFF_DOWNLOAD_EXECUTION_NOT_EXPLICIT"):
+        verify_handoff_download(
+            **kwargs,
+            env={transport.HANDOFF_DOWNLOAD_AUTHORIZATION_ENV: "YES"},
+        )
+    with pytest.raises(ArtifactTransportError, match="HANDOFF_DOWNLOAD_EXECUTION_NOT_AUTHORIZED"):
+        verify_handoff_download(
+            **kwargs,
+            execute_download=True,
+            env={"GITHUB_TOKEN": SECRET_TOKEN, "TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED": "YES"},
+        )
+    assert calls == []
+
+
+def test_handoff_happy_path_verifies_d1_d0_and_exposes_assembly_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    capture_archive = _zip_bytes()
+    result, calls = _verify_handoff(tmp_path, monkeypatch, capture_archive=capture_archive)
+    assert [request.full_url for request in calls] == [
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{HANDOFF_ID}",
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{TRANSPORT_RUN_ID}",
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{TRANSPORT_RUN_ID}/jobs?per_page=100",
+        f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{HANDOFF_ID}/zip",
+        HANDOFF_STORAGE_URL,
+    ]
+    assert all(calls[index].get_header("Authorization") for index in range(4))
+    assert calls[4].get_header("Authorization") is None
+    assert calls[4].get_header("Cookie") is None
+    assert calls[4].get_header("X-github-api-version") is None
+    assert result.capture_root.is_dir()
+    assert result.observation_bundle.is_file()
+    assert result.receipt_path.is_file()
+    receipt_text = result.receipt_path.read_text(encoding="utf-8")
+    assert "verified_handoff_status" in receipt_text
+    assert SECRET_TOKEN not in receipt_text
+
+
+@pytest.mark.parametrize(
+    "workflow_override",
+    [
+        {"event": "push"},
+        {"path": ".github/workflows/other.yml"},
+        {"name": "other"},
+        {"status": "in_progress"},
+        {"conclusion": "failure"},
+        {"head_sha": "d" * 40},
+        {"run_attempt": 2},
+    ],
+)
+def test_handoff_transport_workflow_identity_and_success_are_required(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    workflow_override: dict[str, Any],
+) -> None:
+    with pytest.raises(ArtifactTransportError, match="HANDOFF_WORKFLOW_BINDING_MISMATCH"):
+        _verify_handoff(
+            tmp_path / "workflow",
+            monkeypatch,
+            capture_archive=_zip_bytes(),
+            workflow={
+                "id": int(TRANSPORT_RUN_ID),
+                "run_attempt": int(TRANSPORT_RUN_ATTEMPT),
+                "name": "ci",
+                "path": ".github/workflows/ci.yml",
+                "event": "workflow_dispatch",
+                "head_sha": TRANSPORT_HEAD_SHA,
+                "head_branch": "main",
+                "status": "completed",
+                "conclusion": "success",
+                **workflow_override,
+            },
+        )
+
+
+def test_handoff_transport_job_must_be_the_canonical_successful_job(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with pytest.raises(ArtifactTransportError, match="HANDOFF_TRANSPORT_JOB_INVALID"):
+        _verify_handoff(
+            tmp_path,
+            monkeypatch,
+            capture_archive=_zip_bytes(),
+            jobs=[
+                {
+                    "id": 4567,
+                    "name": "live-evidence-artifact-transport-verify",
+                    "status": "completed",
+                    "conclusion": "failure",
+                }
+            ],
+        )
+
+
+@pytest.mark.parametrize(
+    "extra_entries",
+    [
+        [("unexpected.txt", b"extra")],
+        [("../escape.txt", b"escape")],
+        [("/absolute.txt", b"absolute")],
+        [("..\\escape.txt", b"escape")],
+    ],
+)
+def test_handoff_payload_exact_shape_and_safe_extraction_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    extra_entries: list[tuple[str, bytes]],
+) -> None:
+    capture_archive = _zip_bytes()
+    handoff_archive = _handoff_archive(capture_archive, extra_entries=extra_entries)
+    with pytest.raises(ArtifactTransportError):
+        _verify_handoff(
+            tmp_path,
+            monkeypatch,
+            capture_archive=capture_archive,
+            handoff_archive=handoff_archive,
+        )
+    assert not (tmp_path / "handoff-output" / transport.VERIFIED_HANDOFF_RECEIPT_NAME).exists()
+
+
+def test_handoff_embedded_capture_digest_mismatch_is_rejected_before_exposure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    capture_archive = _zip_bytes()
+    changed_capture = capture_archive + b"tampered"
+    handoff_archive = _handoff_archive(
+        changed_capture,
+        receipt=_d0_receipt(capture_archive),
+    )
+    metadata = _handoff_metadata(handoff_archive)
+    with pytest.raises(ArtifactTransportError, match="HANDOFF_EMBEDDED_CAPTURE_DIGEST_MISMATCH"):
+        _verify_handoff(
+            tmp_path,
+            monkeypatch,
+            capture_archive=capture_archive,
+            handoff_archive=handoff_archive,
+            metadata=metadata,
+        )
+    output = tmp_path / "handoff-output"
+    assert not (output / transport.VERIFIED_HANDOFF_RECEIPT_NAME).exists()
+    assert not (output / transport.HANDOFF_CAPTURE_DIRECTORY_NAME).exists()

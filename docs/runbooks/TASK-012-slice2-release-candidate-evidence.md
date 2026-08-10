@@ -211,6 +211,9 @@ The transport adapter is
 `cold_storage.release.artifact_transport`. It verifies a capture package after
 it has left the ephemeral capture runner. Transport verification is not
 assembly, attestation, OCI verification, registry binding, or promotion.
+The original D0 transport job does not upload a second artifact by default. A
+durable D1 handoff upload is a separate, independently gated step that can run
+only after this verifier has passed.
 
 ### Upload-time handoff receipt
 
@@ -369,6 +372,94 @@ Failure in any layer stops the chain. An internal `SHA256SUMS` file cannot
 substitute for the GitHub Artifact transport digest, and a transport receipt
 cannot substitute for OCI or provenance verification.
 
+### Durable verified transport handoff (D1)
+
+The capture Artifact and the verified transport handoff are different
+Artifacts with different digest authorities:
+
+```text
+D0: original capture Artifact
+  -> exact-ID authenticated transport verification
+  -> verified-artifact.zip + artifact-transport-receipt.json
+
+D1: durable verified transport handoff Artifact
+  -> exact-ID handoff verification
+  -> verify D1 metadata/download digest equality
+  -> verify embedded verified-artifact.zip SHA-256 == D0
+  -> safely extract the embedded D0 package
+  -> expose capture/observation-bundle.json for later assembly
+```
+
+The D1 upload payload is exactly two files:
+
+```text
+verified-artifact.zip
+artifact-transport-receipt.json
+```
+
+It must not contain `extracted/`, partial files, checkout files, tokens,
+redirect locations, or secrets. The runtime artifact name is:
+
+```text
+task012-verified-transport-<capture-run-id>-<capture-run-attempt>-<transport-run-id>-<transport-run-attempt>
+```
+
+The handoff verifier requires the exact numeric D1 Artifact ID. It never lists
+Artifacts, selects by name, chooses the newest result, or accepts a user
+provided archive URL. It verifies all of the following independently:
+
+- D1 upload-time digest, REST metadata digest, and SHA-256 of downloaded D1
+  archive bytes are equal;
+- D1 metadata is unexpired, has the exact runtime-derived name, and is bound
+  to the exact transport workflow run;
+- the transport run is `ci`, `.github/workflows/ci.yml`,
+  `workflow_dispatch`, `main`, the expected head SHA and attempt, `completed`,
+  and `success`;
+- the exact `live-evidence-artifact-transport-verify` job in that run is
+  `completed` and `success`;
+- the embedded D0 receipt is a `PASS` receipt for the expected capture
+  Artifact ID, D0 digest, capture run, attempt, head SHA, frozen RC source and
+  frozen RC tree;
+- the embedded `verified-artifact.zip` re-hashes to D0;
+- the re-extracted capture package has the expected shape and its metadata
+  agrees with the D0 receipt.
+
+The handoff verifier writes its own receipt outside the D1 payload and prints
+the explicit assembly inputs:
+
+```text
+CAPTURE_ROOT=<non-tracked-output>/capture
+OBSERVATION_BUNDLE=<non-tracked-output>/capture/observation-bundle.json
+```
+
+This is an input handoff only. It does not run `assemble`, create an
+attestation, or call the collector. A later assembly command must still supply
+an explicit attestation file.
+
+The four integrity layers are intentionally separate:
+
+```text
+D0 PACKAGE:
+  SHA256SUMS.sha256 -> SHA256SUMS -> exact capture payload
+
+D0 OCI:
+  OCI descriptor digest == SHA256(manifest bytes)
+
+D1 TRANSPORT:
+  recorded D1 digest == REST D1 digest == SHA256(downloaded D1 archive bytes)
+
+D1 EMBEDDED CAPTURE:
+  SHA256(embedded verified-artifact.zip) == recorded D0 digest
+```
+
+The D1 upload is controlled by the independent
+`upload_verified_transport_handoff=true` workflow input and a future operator
+authorization named `VERIFIED_TRANSPORT_HANDOFF_UPLOAD_AUTHORIZED=YES`. The
+handoff download is controlled by the independent
+`verify_verified_transport_handoff=true` workflow input and
+`TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED=YES`. Neither permission is
+inherited from capture, D0 upload, or D0 transport verification.
+
 The adapter uses the GitHub Actions Artifact REST contract documented at
 `https://docs.github.com/en/rest/actions/artifacts` and the
 `actions/upload-artifact` outputs documented at
@@ -412,11 +503,27 @@ The separate `live-evidence-artifact-transport-verify` job requires
 `execute_live_evidence_capture=false`, the same frozen source assertion, and
 `refs/heads/main`. It receives the five transport receipt inputs: exact
 Artifact ID, upload digest, capture run ID, capture run attempt, and capture
-head SHA. Both jobs are skipped for ordinary `push` and `pull_request` events
-and are mutually exclusive for a manual dispatch. All boolean inputs default
-to `false`. Adding either job does not execute a workflow
-dispatch, build, upload, download, request OIDC, push a registry image, or
-promote an environment.
+head SHA. Its optional D1 upload requires
+`upload_verified_transport_handoff=true` and succeeds only after the D0
+transport step has passed. The D1 upload records the handoff Artifact ID,
+digest, name, source D0 identity, and transport run identity in the workflow
+summary and job outputs.
+
+The separate `live-evidence-verified-transport-handoff-verify` job requires
+`verify_verified_transport_handoff=true`,
+`execute_live_evidence_capture=false`,
+`verify_live_evidence_artifact_transport=false`,
+`upload_verified_transport_handoff=false`, the same frozen source assertion,
+`refs/heads/main`, and all exact D1/D0 identity inputs. It uses only
+`contents: read` and `actions: read`. It sets
+`TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED=YES` only inside that future
+job and never runs assembly.
+
+All three execution surfaces are skipped for ordinary `push` and
+`pull_request` events and are mutually exclusive for a manual dispatch. All
+boolean inputs default to `false`. Adding these surfaces does not execute a
+workflow dispatch, build, upload, download, request OIDC, push a registry
+image, or promote an environment.
 
 ## Non-tracked Evidence Outputs
 
@@ -441,6 +548,8 @@ The following phases are intentionally separate:
 | Build B local capture | `BUILD_B_EXECUTION_AUTHORIZED=YES` | Not authorized in this correction |
 | GitHub Actions non-tracked artifact upload | `GITHUB_ACTIONS_ARTIFACT_UPLOAD_AUTHORIZED=YES` plus `upload_live_evidence_artifact=true` | Not authorized |
 | GitHub Actions artifact download/transport verification | `GITHUB_ACTIONS_ARTIFACT_DOWNLOAD_AUTHORIZED=YES` plus `verify_live_evidence_artifact_transport=true` | Not authorized |
+| Durable verified transport handoff upload | `VERIFIED_TRANSPORT_HANDOFF_UPLOAD_AUTHORIZED=YES` plus `upload_verified_transport_handoff=true` after D0 transport PASS | Not authorized |
+| Durable verified transport handoff download | `VERIFIED_TRANSPORT_HANDOFF_DOWNLOAD_AUTHORIZED=YES` plus `verify_verified_transport_handoff=true` | Not authorized |
 | Attestation/signing | `OIDC_SIGNING_EXECUTION_AUTHORIZED=YES` or separately approved signing mechanism | Not authorized |
 | Registry binding | `REGISTRY_PUSH_AUTHORIZED=YES` | Not authorized |
 | Staging promotion | `STAGING_PROMOTION_AUTHORIZED=YES` | Not authorized |
@@ -452,9 +561,13 @@ mapping keeps `execute_live_evidence_capture` and
 `upload_live_evidence_artifact` independent. The transport mapping keeps
 `verify_live_evidence_artifact_transport` and
 `TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED` independent from capture and upload.
-Correction R3 implements the transport surface and synthetic/mock verification
-only. It does not execute a workflow dispatch, real Build A/B, artifact upload
-or download, signing, registry push, promotion, or deployment.
+The D1 mapping keeps `upload_verified_transport_handoff`,
+`verify_verified_transport_handoff`, and
+`TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED` independent from all earlier
+phases. This correction implements only the D1 surface and synthetic/mock
+verification. It does not execute a workflow dispatch, real Build A/B,
+artifact or handoff upload/download, signing, registry push, promotion, or
+deployment.
 
 ## Verification
 
