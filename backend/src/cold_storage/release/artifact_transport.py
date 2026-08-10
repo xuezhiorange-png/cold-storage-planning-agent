@@ -728,10 +728,11 @@ class ArtifactTransportClient:
             raise ArtifactTransportError(
                 "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation workflow source mismatch"
             )
-        metadata_attempt = _parse_json_positive_int(
-            workflow_run.get("run_attempt"), field="attestation workflow_run.run_attempt"
-        )
-        if metadata_attempt != int(run_attempt):
+        metadata_attempt = workflow_run.get("run_attempt")
+        if metadata_attempt is not None and (
+            _parse_json_positive_int(metadata_attempt, field="attestation workflow_run.run_attempt")
+            != int(run_attempt)
+        ):
             raise ArtifactTransportError(
                 "ATTESTATION_WORKFLOW_BINDING_MISMATCH", "attestation workflow attempt mismatch"
             )

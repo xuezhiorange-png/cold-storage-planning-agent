@@ -1003,11 +1003,13 @@ def _install_attestation_http(
     *,
     archive: bytes,
     workflow_override: dict[str, Any] | None = None,
+    metadata_workflow_override: dict[str, Any] | None = None,
     jobs: list[dict[str, Any]] | None = None,
     redirect_location: str | None = ATTESTATION_STORAGE_URL,
     second_redirect: bool = False,
+    request_sink: list[urllib.request.Request] | None = None,
 ) -> list[urllib.request.Request]:
-    calls: list[urllib.request.Request] = []
+    calls = request_sink if request_sink is not None else []
     digest = "sha256:" + hashlib.sha256(archive).hexdigest()
     metadata_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{ATTESTATION_ARTIFACT_ID}"
     workflow_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{ATTESTATION_RUN_ID}"
@@ -1021,11 +1023,12 @@ def _install_attestation_http(
         "archive_download_url": archive_url,
         "workflow_run": {
             "id": int(ATTESTATION_RUN_ID),
-            "run_attempt": int(ATTESTATION_RUN_ATTEMPT),
             "head_sha": ATTESTATION_HEAD_SHA,
             "head_branch": "main",
         },
     }
+    if metadata_workflow_override:
+        metadata["workflow_run"].update(metadata_workflow_override)
     workflow = {
         "id": int(ATTESTATION_RUN_ID),
         "run_attempt": int(ATTESTATION_RUN_ATTEMPT),
@@ -1092,9 +1095,11 @@ def _verify_attestation(
         monkeypatch,
         archive=archive,
         workflow_override=kwargs.pop("workflow_override", None),
+        metadata_workflow_override=kwargs.pop("metadata_workflow_override", None),
         jobs=kwargs.pop("jobs", None),
         redirect_location=kwargs.pop("redirect_location", ATTESTATION_STORAGE_URL),
         second_redirect=kwargs.pop("second_redirect", False),
+        request_sink=kwargs.pop("request_sink", None),
     )
     result = verify_attestation_download(
         repository=REPOSITORY,
@@ -1139,6 +1144,61 @@ def test_attestation_transport_happy_path_binds_job_and_strips_credentials(
     assert receipt_value["transport_verification_status"] == "PASS"
     assert receipt_value["job_name"] == "live-evidence-attestation-create"
     assert SECRET_TOKEN not in receipt.read_text(encoding="utf-8")
+
+
+def test_attestation_metadata_attempt_extension_matching_remains_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive = _attestation_archive()
+    receipt, calls = _verify_attestation(
+        tmp_path,
+        monkeypatch,
+        archive=archive,
+        metadata_workflow_override={"run_attempt": int(ATTESTATION_RUN_ATTEMPT)},
+    )
+    assert calls[-1].full_url == ATTESTATION_STORAGE_URL
+    assert receipt.exists()
+
+
+@pytest.mark.parametrize(
+    ("metadata_attempt", "error"),
+    [
+        (2, "ATTESTATION_WORKFLOW_BINDING_MISMATCH"),
+        (0, "ARTIFACT_METADATA_INVALID"),
+        ("1", "ARTIFACT_METADATA_INVALID"),
+    ],
+)
+def test_attestation_metadata_attempt_mismatch_or_malformed_fails_before_archive_download(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    metadata_attempt: Any,
+    error: str,
+) -> None:
+    calls: list[urllib.request.Request] = []
+    with pytest.raises(ArtifactTransportError, match=error):
+        _verify_attestation(
+            tmp_path,
+            monkeypatch,
+            archive=_attestation_archive(),
+            metadata_workflow_override={"run_attempt": metadata_attempt},
+            request_sink=calls,
+        )
+    assert not any(request.full_url == ATTESTATION_STORAGE_URL for request in calls)
+
+
+def test_attestation_authoritative_workflow_attempt_mismatch_fails_before_archive_download(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[urllib.request.Request] = []
+    with pytest.raises(ArtifactTransportError, match="ATTESTATION_WORKFLOW_BINDING_MISMATCH"):
+        _verify_attestation(
+            tmp_path,
+            monkeypatch,
+            archive=_attestation_archive(),
+            workflow_override={"run_attempt": 2},
+            request_sink=calls,
+        )
+    assert not any(request.full_url == ATTESTATION_STORAGE_URL for request in calls)
 
 
 def test_attestation_transport_requires_both_execution_guards(
