@@ -20,8 +20,18 @@ on:
         required: true
         type: boolean
         default: false
+      upload_verified_transport_handoff:
+        description: Separately authorize durable upload of the verified transport handoff
+        required: true
+        type: boolean
+        default: false
       verify_live_evidence_artifact_transport:
         description: Separately authorize exact GitHub Artifact transport verification
+        required: true
+        type: boolean
+        default: false
+      verify_verified_transport_handoff:
+        description: Separately authorize exact durable transport handoff verification
         required: true
         type: boolean
         default: false
@@ -47,6 +57,56 @@ on:
         default: ""
       transport_capture_head_sha:
         description: Capture workflow head SHA from the upload-time handoff receipt
+        required: false
+        type: string
+        default: ""
+      handoff_artifact_id:
+        description: Exact durable verified-transport handoff Artifact ID
+        required: false
+        type: string
+        default: ""
+      handoff_artifact_digest:
+        description: Upload-time digest of the durable verified-transport handoff Artifact
+        required: false
+        type: string
+        default: ""
+      handoff_transport_run_id:
+        description: Transport workflow run ID that uploaded the durable handoff
+        required: false
+        type: string
+        default: ""
+      handoff_transport_run_attempt:
+        description: Transport workflow run attempt that uploaded the durable handoff
+        required: false
+        type: string
+        default: ""
+      handoff_transport_head_sha:
+        description: Transport workflow head SHA that uploaded the durable handoff
+        required: false
+        type: string
+        default: ""
+      handoff_capture_artifact_id:
+        description: Original capture Artifact ID recorded in the D0 receipt
+        required: false
+        type: string
+        default: ""
+      handoff_capture_artifact_digest:
+        description: Original capture Artifact digest recorded in the D0 receipt
+        required: false
+        type: string
+        default: ""
+      handoff_capture_run_id:
+        description: Original capture workflow run ID recorded in the D0 receipt
+        required: false
+        type: string
+        default: ""
+      handoff_capture_run_attempt:
+        description: Original capture workflow run attempt recorded in the D0 receipt
+        required: false
+        type: string
+        default: ""
+      handoff_capture_head_sha:
+        description: Original capture workflow head SHA recorded in the D0 receipt
         required: false
         type: string
         default: ""
@@ -794,9 +854,10 @@ jobs:
   # The job is unavailable on push/pull_request and remains skipped unless a
   # maintainer explicitly dispatches this workflow on main with both inputs.
   # No registry, signing, or promotion is performed here. Artifact upload is
-  # separately gated and remains off by default.
+  # separately gated and remains off by default. A durable handoff upload is a
+  # later, independently authorized step after the original transport verify.
   live-evidence-capture:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.verify_live_evidence_artifact_transport != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       artifact_id: ${{ steps.upload_evidence.outputs.artifact-id }}
@@ -893,11 +954,16 @@ jobs:
 
   # TASK-012 V0.2 Slice 2 R3: verify an already-uploaded capture package by
   # exact Artifact ID. This job is intentionally a separate, mutually
-  # exclusive workflow-dispatch surface; it never builds, uploads, assembles,
-  # signs, pushes, promotes, or deploys.
+  # exclusive workflow-dispatch surface. Its optional D1 upload is a distinct
+  # step and contains only the verified D0 archive plus its D0 receipt.
   live-evidence-artifact-transport-verify:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_live_evidence_artifact_transport == true && inputs.execute_live_evidence_capture != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_live_evidence_artifact_transport == true && inputs.execute_live_evidence_capture != true && inputs.verify_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    outputs:
+      verified_handoff_artifact_id: ${{ steps.upload_verified_handoff.outputs.artifact-id }}
+      verified_handoff_artifact_digest: ${{ steps.upload_verified_handoff.outputs.artifact-digest }}
+      verified_handoff_artifact_url: ${{ steps.upload_verified_handoff.outputs.artifact-url }}
+      verified_handoff_artifact_name: task012-verified-transport-${{ inputs.transport_capture_run_id }}-${{ inputs.transport_capture_run_attempt }}-${{ github.run_id }}-${{ github.run_attempt }}
     permissions:
       contents: read
       actions: read
@@ -931,6 +997,7 @@ jobs:
           test -n "${CAPTURE_RUN_ATTEMPT}"
           test -n "${CAPTURE_HEAD_SHA}"
       - name: Verify exact live evidence Artifact transport
+        id: transport_verify
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TASK012_ARTIFACT_DOWNLOAD_AUTHORIZED: YES
@@ -943,6 +1010,7 @@ jobs:
         run: |
           set -euo pipefail
           OUTPUT_DIR="${RUNNER_TEMP}/task012-artifact-transport/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "output_dir=${OUTPUT_DIR}" >> "${GITHUB_OUTPUT}"
           cd backend
           PYTHONPATH=src uv run python -m cold_storage.release.artifact_transport \
             verify-download \
@@ -950,6 +1018,138 @@ jobs:
             --repository "${REPOSITORY}" \
             --artifact-id "${ARTIFACT_ID}" \
             --expected-artifact-digest "${ARTIFACT_DIGEST}" \
+            --expected-capture-run-id "${CAPTURE_RUN_ID}" \
+            --expected-capture-run-attempt "${CAPTURE_RUN_ATTEMPT}" \
+            --expected-capture-head-sha "${CAPTURE_HEAD_SHA}" \
+            --output-dir "${OUTPUT_DIR}"
+      - name: Upload verified transport handoff
+        id: upload_verified_handoff
+        if: ${{ inputs.upload_verified_transport_handoff == true && success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-verified-transport-${{ inputs.transport_capture_run_id }}-${{ inputs.transport_capture_run_attempt }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.transport_verify.outputs.output_dir }}/verified-artifact.zip
+            ${{ steps.transport_verify.outputs.output_dir }}/artifact-transport-receipt.json
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+      - name: Record verified transport handoff metadata
+        if: ${{ inputs.upload_verified_transport_handoff == true && success() }}
+        env:
+          VERIFIED_HANDOFF_ARTIFACT_ID: ${{ steps.upload_verified_handoff.outputs.artifact-id }}
+          VERIFIED_HANDOFF_ARTIFACT_DIGEST: ${{ steps.upload_verified_handoff.outputs.artifact-digest }}
+          VERIFIED_HANDOFF_ARTIFACT_URL: ${{ steps.upload_verified_handoff.outputs.artifact-url }}
+          VERIFIED_HANDOFF_ARTIFACT_NAME: task012-verified-transport-${{ inputs.transport_capture_run_id }}-${{ inputs.transport_capture_run_attempt }}-${{ github.run_id }}-${{ github.run_attempt }}
+          SOURCE_CAPTURE_ARTIFACT_ID: ${{ inputs.transport_artifact_id }}
+          SOURCE_CAPTURE_ARTIFACT_DIGEST: ${{ inputs.transport_artifact_digest }}
+          SOURCE_CAPTURE_RUN_ID: ${{ inputs.transport_capture_run_id }}
+          SOURCE_CAPTURE_RUN_ATTEMPT: ${{ inputs.transport_capture_run_attempt }}
+          SOURCE_CAPTURE_HEAD_SHA: ${{ inputs.transport_capture_head_sha }}
+          TRANSPORT_RUN_ID: ${{ github.run_id }}
+          TRANSPORT_RUN_ATTEMPT: ${{ github.run_attempt }}
+          TRANSPORT_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Verified Transport Handoff Artifact"
+            echo "verified-handoff-artifact-id: ${VERIFIED_HANDOFF_ARTIFACT_ID}"
+            echo "verified-handoff-artifact-digest: ${VERIFIED_HANDOFF_ARTIFACT_DIGEST}"
+            echo "verified-handoff-artifact-url: ${VERIFIED_HANDOFF_ARTIFACT_URL}"
+            echo "verified-handoff-artifact-name: ${VERIFIED_HANDOFF_ARTIFACT_NAME}"
+            echo "source-capture-artifact-id: ${SOURCE_CAPTURE_ARTIFACT_ID}"
+            echo "source-capture-artifact-digest: ${SOURCE_CAPTURE_ARTIFACT_DIGEST}"
+            echo "source-capture-run-id: ${SOURCE_CAPTURE_RUN_ID}"
+            echo "source-capture-run-attempt: ${SOURCE_CAPTURE_RUN_ATTEMPT}"
+            echo "source-capture-head-sha: ${SOURCE_CAPTURE_HEAD_SHA}"
+            echo "transport-run-id: ${TRANSPORT_RUN_ID}"
+            echo "transport-run-attempt: ${TRANSPORT_RUN_ATTEMPT}"
+            echo "transport-head-sha: ${TRANSPORT_HEAD_SHA}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # TASK-012 V0.2 Slice 2 R1: independently verify the durable D1 handoff.
+  # This is a later workflow-dispatch surface. It cannot capture, run the
+  # original transport verifier, upload, assemble, sign, push, promote, or
+  # deploy in the same dispatch.
+  live-evidence-verified-transport-handoff-verify:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_verified_transport_handoff == true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Validate verified handoff dispatch inputs
+        env:
+          VERIFY_HANDOFF: ${{ inputs.verify_verified_transport_handoff }}
+          EXECUTE_CAPTURE: ${{ inputs.execute_live_evidence_capture }}
+          VERIFY_TRANSPORT: ${{ inputs.verify_live_evidence_artifact_transport }}
+          UPLOAD_HANDOFF: ${{ inputs.upload_verified_transport_handoff }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_rc_source_sha }}
+          HANDOFF_ID: ${{ inputs.handoff_artifact_id }}
+          HANDOFF_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          TRANSPORT_RUN_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          CAPTURE_ARTIFACT_ID: ${{ inputs.handoff_capture_artifact_id }}
+          CAPTURE_ARTIFACT_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          CAPTURE_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          CAPTURE_RUN_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          CAPTURE_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${VERIFY_HANDOFF}" = "true"
+          test "${EXECUTE_CAPTURE}" != "true"
+          test "${VERIFY_TRANSPORT}" != "true"
+          test "${UPLOAD_HANDOFF}" != "true"
+          test "${EXPECTED_SOURCE_SHA}" = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
+          test -n "${HANDOFF_ID}"
+          test -n "${HANDOFF_DIGEST}"
+          test -n "${TRANSPORT_RUN_ID}"
+          test -n "${TRANSPORT_RUN_ATTEMPT}"
+          test -n "${TRANSPORT_HEAD_SHA}"
+          test -n "${CAPTURE_ARTIFACT_ID}"
+          test -n "${CAPTURE_ARTIFACT_DIGEST}"
+          test -n "${CAPTURE_RUN_ID}"
+          test -n "${CAPTURE_RUN_ATTEMPT}"
+          test -n "${CAPTURE_HEAD_SHA}"
+      - name: Verify exact durable transport handoff
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES
+          REPOSITORY: ${{ github.repository }}
+          HANDOFF_ID: ${{ inputs.handoff_artifact_id }}
+          HANDOFF_DIGEST: ${{ inputs.handoff_artifact_digest }}
+          TRANSPORT_RUN_ID: ${{ inputs.handoff_transport_run_id }}
+          TRANSPORT_RUN_ATTEMPT: ${{ inputs.handoff_transport_run_attempt }}
+          TRANSPORT_HEAD_SHA: ${{ inputs.handoff_transport_head_sha }}
+          CAPTURE_ARTIFACT_ID: ${{ inputs.handoff_capture_artifact_id }}
+          CAPTURE_ARTIFACT_DIGEST: ${{ inputs.handoff_capture_artifact_digest }}
+          CAPTURE_RUN_ID: ${{ inputs.handoff_capture_run_id }}
+          CAPTURE_RUN_ATTEMPT: ${{ inputs.handoff_capture_run_attempt }}
+          CAPTURE_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="${RUNNER_TEMP}/task012-verified-transport/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.release.artifact_transport \
+            verify-handoff-download \
+            --execute-download \
+            --repository "${REPOSITORY}" \
+            --handoff-artifact-id "${HANDOFF_ID}" \
+            --expected-handoff-artifact-digest "${HANDOFF_DIGEST}" \
+            --expected-transport-run-id "${TRANSPORT_RUN_ID}" \
+            --expected-transport-run-attempt "${TRANSPORT_RUN_ATTEMPT}" \
+            --expected-transport-head-sha "${TRANSPORT_HEAD_SHA}" \
+            --expected-capture-artifact-id "${CAPTURE_ARTIFACT_ID}" \
+            --expected-capture-artifact-digest "${CAPTURE_ARTIFACT_DIGEST}" \
             --expected-capture-run-id "${CAPTURE_RUN_ID}" \
             --expected-capture-run-attempt "${CAPTURE_RUN_ATTEMPT}" \
             --expected-capture-head-sha "${CAPTURE_HEAD_SHA}" \

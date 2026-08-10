@@ -38,10 +38,17 @@ from typing import IO, Any, cast
 DEFAULT_API_BASE_URL = "https://api.github.com"
 GITHUB_API_VERSION = "2022-11-28"
 TRANSPORT_RECEIPT_SCHEMA_VERSION = "cold-storage-artifact-transport-receipt-v1"
+HANDOFF_VERIFICATION_RECEIPT_SCHEMA_VERSION = "cold-storage-verified-transport-handoff-receipt-v1"
 VERIFIED_ARCHIVE_NAME = "verified-artifact.zip"
+HANDOFF_RECEIPT_NAME = "artifact-transport-receipt.json"
+VERIFIED_HANDOFF_ARCHIVE_NAME = "verified-transport-handoff.zip"
+VERIFIED_HANDOFF_RECEIPT_NAME = "verified-transport-handoff-receipt.json"
 EXTRACTED_DIRECTORY_NAME = "extracted"
+HANDOFF_CAPTURE_DIRECTORY_NAME = "capture"
 CHUNK_SIZE = 1024 * 1024
 MAX_ARCHIVE_REDIRECTS = 1
+HANDOFF_ARTIFACT_PREFIX = "task012-verified-transport"
+HANDOFF_DOWNLOAD_AUTHORIZATION_ENV = "TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED"
 EXPECTED_RC_SOURCE_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
 EXPECTED_RC_SOURCE_TREE = "b456e77f07a0cef801c57d2f089a318c35c145c4"
 CANONICAL_WORKFLOW_NAME = "ci"
@@ -79,6 +86,21 @@ class ArtifactMetadata:
 
 
 @dataclass(frozen=True)
+class HandoffArtifactMetadata:
+    """Metadata bound to one exact durable verified-transport Artifact ID."""
+
+    artifact_id: int
+    artifact_name: str
+    artifact_digest: str
+    transport_run_id: str
+    transport_run_attempt: str
+    transport_head_sha: str
+    transport_head_branch: str
+    metadata_url: str
+    archive_endpoint_identity: str
+
+
+@dataclass(frozen=True)
 class WorkflowRunMetadata:
     """Authoritative metadata for the exact capture workflow run."""
 
@@ -92,6 +114,17 @@ class WorkflowRunMetadata:
     status: str
     conclusion: str
     workflow_id: int | None
+    verified_job_id: int | None = None
+    verified_job_name: str | None = None
+
+
+@dataclass(frozen=True)
+class VerifiedHandoffResult:
+    """Paths exposed to a later, separately authorized assembly phase."""
+
+    receipt_path: Path
+    capture_root: Path
+    observation_bundle: Path
 
 
 def _now() -> str:
@@ -368,6 +401,9 @@ class ArtifactTransportClient:
     def _workflow_run_url(self, run_id: int) -> str:
         return f"{self._base_url}/repos/{self.repository}/actions/runs/{run_id}"
 
+    def _workflow_jobs_url(self, run_id: int) -> str:
+        return f"{self._workflow_run_url(run_id)}/jobs?per_page=100"
+
     def fetch_verified_metadata(
         self,
         *,
@@ -388,7 +424,7 @@ class ArtifactTransportClient:
         archive_url = self._archive_url(artifact_id)
         metadata = self._get_json(metadata_url)
 
-        if metadata.get("id") != artifact_id:
+        if type(metadata.get("id")) is not int or metadata.get("id") != artifact_id:
             raise ArtifactTransportError("ARTIFACT_METADATA_ID_MISMATCH", "metadata ID mismatch")
         if metadata.get("expired") is not False:
             raise ArtifactTransportError(
@@ -442,6 +478,99 @@ class ArtifactTransportClient:
             capture_run_attempt=run_attempt,
             capture_head_sha=head_sha,
             capture_head_branch="main",
+            metadata_url=metadata_url,
+            archive_endpoint_identity=f"GET {urllib.parse.urlsplit(archive_url).path}",
+        )
+
+    def fetch_verified_handoff_metadata(
+        self,
+        *,
+        artifact_id: int,
+        expected_digest: str,
+        expected_transport_run_id: str,
+        expected_transport_run_attempt: str,
+        expected_transport_head_sha: str,
+        expected_capture_run_id: str,
+        expected_capture_run_attempt: str,
+    ) -> HandoffArtifactMetadata:
+        """Fetch one exact D1 Artifact and bind it to its transport run."""
+        expected_digest = normalize_artifact_digest(expected_digest)
+        transport_run_id = _parse_positive_decimal(
+            expected_transport_run_id, field="transport run ID"
+        )
+        transport_run_attempt = _parse_positive_decimal(
+            expected_transport_run_attempt, field="transport run attempt"
+        )
+        transport_head_sha = _validate_head_sha(expected_transport_head_sha)
+        capture_run_id = _parse_positive_decimal(expected_capture_run_id, field="capture run ID")
+        capture_run_attempt = _parse_positive_decimal(
+            expected_capture_run_attempt, field="capture run attempt"
+        )
+        metadata_url = self._metadata_url(artifact_id)
+        archive_url = self._archive_url(artifact_id)
+        metadata = self._get_json(metadata_url)
+
+        if type(metadata.get("id")) is not int or metadata.get("id") != artifact_id:
+            raise ArtifactTransportError(
+                "HANDOFF_METADATA_ID_MISMATCH", "handoff metadata ID mismatch"
+            )
+        if metadata.get("expired") is not False:
+            raise ArtifactTransportError(
+                "HANDOFF_ARTIFACT_EXPIRED", "handoff artifact is expired or missing expired=false"
+            )
+        digest = normalize_artifact_digest(cast(str, metadata.get("digest")))
+        if digest != expected_digest:
+            raise ArtifactTransportError(
+                "HANDOFF_METADATA_DIGEST_MISMATCH", "handoff metadata digest mismatch"
+            )
+        expected_name = (
+            f"{HANDOFF_ARTIFACT_PREFIX}-{capture_run_id}-{capture_run_attempt}-"
+            f"{transport_run_id}-{transport_run_attempt}"
+        )
+        name = metadata.get("name")
+        if name != expected_name:
+            raise ArtifactTransportError("HANDOFF_ARTIFACT_NAME_MISMATCH", "handoff name mismatch")
+
+        workflow_run = metadata.get("workflow_run")
+        if not isinstance(workflow_run, dict):
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff workflow_run is missing"
+            )
+        workflow_run_id = _parse_json_positive_int(
+            workflow_run.get("id"), field="handoff workflow_run.id"
+        )
+        if workflow_run_id != int(transport_run_id):
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff transport run ID mismatch"
+            )
+        if workflow_run.get("head_sha") != transport_head_sha:
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff transport head SHA mismatch"
+            )
+        if workflow_run.get("head_branch") != "main":
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff transport branch is not main"
+            )
+        metadata_attempt = workflow_run.get("run_attempt")
+        if metadata_attempt is not None and (
+            _parse_json_positive_int(metadata_attempt, field="handoff workflow_run.run_attempt")
+            != int(transport_run_attempt)
+        ):
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff transport run attempt mismatch"
+            )
+
+        archive_download_url = metadata.get("archive_download_url")
+        if archive_download_url is not None:
+            self._verify_archive_metadata_url(archive_download_url, archive_url)
+        return HandoffArtifactMetadata(
+            artifact_id=artifact_id,
+            artifact_name=cast(str, name),
+            artifact_digest=digest,
+            transport_run_id=transport_run_id,
+            transport_run_attempt=transport_run_attempt,
+            transport_head_sha=transport_head_sha,
+            transport_head_branch="main",
             metadata_url=metadata_url,
             archive_endpoint_identity=f"GET {urllib.parse.urlsplit(archive_url).path}",
         )
@@ -532,6 +661,109 @@ class ArtifactTransportClient:
             status=cast(str, response["status"]),
             conclusion=cast(str, response["conclusion"]),
             workflow_id=workflow_id,
+        )
+
+    def fetch_verified_handoff_workflow_run(
+        self,
+        *,
+        metadata: HandoffArtifactMetadata,
+        expected_transport_run_id: str,
+        expected_transport_run_attempt: str,
+        expected_transport_head_sha: str,
+    ) -> WorkflowRunMetadata:
+        """Verify the canonical transport run and its successful verifier job."""
+        expected_run_id = int(
+            _parse_positive_decimal(expected_transport_run_id, field="transport run ID")
+        )
+        expected_attempt = int(
+            _parse_positive_decimal(expected_transport_run_attempt, field="transport run attempt")
+        )
+        expected_head_sha = _validate_head_sha(expected_transport_head_sha)
+        if int(metadata.transport_run_id) != expected_run_id:
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "transport run ID assertion mismatch"
+            )
+
+        response = self._get_json(self._workflow_run_url(expected_run_id))
+        run_id = _parse_json_positive_int(response.get("id"), field="transport workflow run id")
+        run_attempt = _parse_json_positive_int(
+            response.get("run_attempt"), field="transport workflow run attempt"
+        )
+        if run_id != expected_run_id or run_attempt != expected_attempt:
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "transport workflow run identity mismatch"
+            )
+        required_text = (
+            ("name", CANONICAL_WORKFLOW_NAME),
+            ("path", CANONICAL_WORKFLOW_PATH),
+            ("event", CANONICAL_WORKFLOW_EVENT),
+            ("head_branch", "main"),
+            ("head_sha", expected_head_sha),
+            ("status", "completed"),
+            ("conclusion", "success"),
+        )
+        for field, expected in required_text:
+            if response.get(field) != expected:
+                raise ArtifactTransportError(
+                    "HANDOFF_WORKFLOW_BINDING_MISMATCH",
+                    f"transport workflow run {field} mismatch",
+                )
+
+        if metadata.transport_head_sha != expected_head_sha:
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff metadata head SHA mismatch"
+            )
+        if metadata.transport_head_branch != "main":
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff metadata branch mismatch"
+            )
+        if metadata.transport_run_attempt != str(run_attempt):
+            raise ArtifactTransportError(
+                "HANDOFF_WORKFLOW_BINDING_MISMATCH", "handoff metadata attempt mismatch"
+            )
+
+        jobs_response = self._get_json(self._workflow_jobs_url(expected_run_id))
+        jobs = jobs_response.get("jobs")
+        if not isinstance(jobs, list):
+            raise ArtifactTransportError(
+                "HANDOFF_TRANSPORT_JOB_INVALID", "transport workflow jobs are missing"
+            )
+        matching_jobs = [
+            job
+            for job in jobs
+            if isinstance(job, dict)
+            and job.get("name") == "live-evidence-artifact-transport-verify"
+        ]
+        if len(matching_jobs) != 1:
+            raise ArtifactTransportError(
+                "HANDOFF_TRANSPORT_JOB_INVALID", "canonical transport verifier job is ambiguous"
+            )
+        job = matching_jobs[0]
+        if job.get("status") != "completed" or job.get("conclusion") != "success":
+            raise ArtifactTransportError(
+                "HANDOFF_TRANSPORT_JOB_INVALID", "canonical transport verifier job did not pass"
+            )
+        job_id = _parse_json_positive_int(job.get("id"), field="transport verifier job id")
+
+        workflow_id_value = response.get("workflow_id")
+        workflow_id = None
+        if workflow_id_value is not None:
+            workflow_id = _parse_json_positive_int(
+                workflow_id_value, field="transport workflow run workflow_id"
+            )
+        return WorkflowRunMetadata(
+            run_id=run_id,
+            run_attempt=run_attempt,
+            name=cast(str, response["name"]),
+            path=cast(str, response["path"]),
+            event=cast(str, response["event"]),
+            head_sha=cast(str, response["head_sha"]),
+            head_branch=cast(str, response["head_branch"]),
+            status=cast(str, response["status"]),
+            conclusion=cast(str, response["conclusion"]),
+            workflow_id=workflow_id,
+            verified_job_id=job_id,
+            verified_job_name=cast(str, job["name"]),
         )
 
     @staticmethod
@@ -787,6 +1019,185 @@ def _read_capture_package_origin(root: Path, workflow_run: WorkflowRunMetadata) 
     return cast(dict[str, Any], value)
 
 
+def _read_json_object(path: Path, *, error_code: str, label: str) -> dict[str, Any]:
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ArtifactTransportError(error_code, f"{label} is invalid") from exc
+    if not isinstance(value, dict):
+        raise ArtifactTransportError(error_code, f"{label} must be an object")
+    return cast(dict[str, Any], value)
+
+
+def _hash_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as stream:
+            while True:
+                chunk = stream.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                digest.update(chunk)
+    except OSError as exc:
+        raise ArtifactTransportError("HANDOFF_ARCHIVE_READ_FAILED", type(exc).__name__) from exc
+    return f"sha256:{digest.hexdigest()}"
+
+
+def _canonical_handoff_payload_root(root: Path) -> Path:
+    """Allow one archive wrapper directory, then require the exact D1 payload."""
+    try:
+        entries = list(root.iterdir())
+    except OSError as exc:
+        raise ArtifactTransportError("HANDOFF_PAYLOAD_INVALID", type(exc).__name__) from exc
+    if len(entries) == 1 and entries[0].is_dir() and not entries[0].is_symlink():
+        root = entries[0]
+    try:
+        entries = list(root.iterdir())
+    except OSError as exc:
+        raise ArtifactTransportError("HANDOFF_PAYLOAD_INVALID", type(exc).__name__) from exc
+    expected = {VERIFIED_ARCHIVE_NAME, HANDOFF_RECEIPT_NAME}
+    if {entry.name for entry in entries} != expected:
+        raise ArtifactTransportError(
+            "HANDOFF_PAYLOAD_INVALID", "handoff payload must contain exactly two files"
+        )
+    for entry in entries:
+        if entry.is_symlink() or not entry.is_file():
+            raise ArtifactTransportError(
+                "HANDOFF_PAYLOAD_INVALID", "handoff payload entries must be regular files"
+            )
+    return root
+
+
+def _require_receipt_value(
+    receipt: Mapping[str, Any], field: str, expected: Any, *, code: str
+) -> Any:
+    actual = receipt.get(field)
+    if actual != expected:
+        raise ArtifactTransportError(code, f"handoff receipt {field} mismatch")
+    return actual
+
+
+def _verify_embedded_transport_receipt(
+    receipt_path: Path,
+    *,
+    repository: str,
+    capture_artifact_id: str,
+    capture_artifact_digest: str,
+    capture_run_id: str,
+    capture_run_attempt: str,
+    capture_head_sha: str,
+) -> dict[str, Any]:
+    """Verify the D0 receipt without reimplementing its internal checksums."""
+    receipt = _read_json_object(
+        receipt_path, error_code="HANDOFF_RECEIPT_INVALID", label="transport receipt"
+    )
+    code = "HANDOFF_RECEIPT_BINDING_MISMATCH"
+    _require_receipt_value(receipt, "schema_version", TRANSPORT_RECEIPT_SCHEMA_VERSION, code=code)
+    _require_receipt_value(receipt, "repository", repository, code=code)
+    capture_id = _parse_artifact_id(capture_artifact_id)
+    _require_receipt_value(receipt, "artifact_id", capture_id, code=code)
+    metadata_url = receipt.get("metadata_url")
+    metadata_url_parts = (
+        urllib.parse.urlsplit(metadata_url) if isinstance(metadata_url, str) else None
+    )
+    expected_metadata_path = f"/repos/{repository}/actions/artifacts/{capture_id}"
+    if (
+        metadata_url_parts is None
+        or metadata_url_parts.scheme != "https"
+        or not metadata_url_parts.hostname
+        or metadata_url_parts.username is not None
+        or metadata_url_parts.password is not None
+        or metadata_url_parts.query
+        or metadata_url_parts.fragment
+        or metadata_url_parts.path != expected_metadata_path
+    ):
+        raise ArtifactTransportError(code, "handoff receipt metadata URL is not canonical")
+    _require_receipt_value(
+        receipt,
+        "archive_endpoint_identity",
+        f"GET {expected_metadata_path}/zip",
+        code=code,
+    )
+    expected_capture_name = f"task012-live-evidence-{capture_run_id}-{capture_run_attempt}"
+    _require_receipt_value(receipt, "artifact_name", expected_capture_name, code=code)
+    expected_d0 = normalize_artifact_digest(capture_artifact_digest)
+    for field in (
+        "recorded_artifact_digest",
+        "metadata_artifact_digest",
+        "downloaded_archive_digest",
+    ):
+        if normalize_artifact_digest(cast(str, receipt.get(field))) != expected_d0:
+            raise ArtifactTransportError(code, f"handoff receipt {field} mismatch")
+    _require_receipt_value(receipt, "capture_workflow_run_id", capture_run_id, code=code)
+    _require_receipt_value(receipt, "capture_workflow_run_attempt", capture_run_attempt, code=code)
+    _require_receipt_value(receipt, "capture_head_sha", capture_head_sha, code=code)
+    _require_receipt_value(receipt, "capture_head_branch", "main", code=code)
+    _require_receipt_value(receipt, "workflow_run_id", int(capture_run_id), code=code)
+    _require_receipt_value(receipt, "workflow_run_attempt", int(capture_run_attempt), code=code)
+    _require_receipt_value(receipt, "workflow_name", CANONICAL_WORKFLOW_NAME, code=code)
+    _require_receipt_value(receipt, "workflow_path", CANONICAL_WORKFLOW_PATH, code=code)
+    _require_receipt_value(receipt, "workflow_event", CANONICAL_WORKFLOW_EVENT, code=code)
+    _require_receipt_value(receipt, "workflow_head_sha", capture_head_sha, code=code)
+    _require_receipt_value(receipt, "workflow_head_branch", "main", code=code)
+    _require_receipt_value(receipt, "workflow_status", "completed", code=code)
+    _require_receipt_value(receipt, "workflow_conclusion", "success", code=code)
+    _require_receipt_value(receipt, "canonical_capture_origin_status", "PASS", code=code)
+    _require_receipt_value(receipt, "transport_verification_status", "PASS", code=code)
+    _require_receipt_value(receipt, "package_capture_workflow_run_id", capture_run_id, code=code)
+    _require_receipt_value(
+        receipt, "package_capture_workflow_run_attempt", capture_run_attempt, code=code
+    )
+    _require_receipt_value(receipt, "package_evidence_tool_head", capture_head_sha, code=code)
+    _require_receipt_value(receipt, "package_rc_source_sha", EXPECTED_RC_SOURCE_SHA, code=code)
+    _require_receipt_value(receipt, "package_rc_source_tree", EXPECTED_RC_SOURCE_TREE, code=code)
+    return receipt
+
+
+def _verify_embedded_capture_metadata(root: Path, receipt: Mapping[str, Any]) -> None:
+    """Bind the re-extracted D0 package metadata to the D0 receipt."""
+    metadata = _read_json_object(
+        root / "metadata.json",
+        error_code="HANDOFF_CAPTURE_PACKAGE_INVALID",
+        label="embedded capture metadata",
+    )
+    if metadata.get("task") != "TASK-012":
+        raise ArtifactTransportError("HANDOFF_CAPTURE_PACKAGE_INVALID", "capture task mismatch")
+    if metadata.get("version") != "V0.2":
+        raise ArtifactTransportError("HANDOFF_CAPTURE_PACKAGE_INVALID", "capture version mismatch")
+    if type(metadata.get("slice")) is not int or metadata.get("slice") != 2:
+        raise ArtifactTransportError("HANDOFF_CAPTURE_PACKAGE_INVALID", "capture slice mismatch")
+    expected_run_id = cast(str, receipt["capture_workflow_run_id"])
+    expected_attempt = cast(str, receipt["capture_workflow_run_attempt"])
+    if (
+        _parse_package_decimal(metadata.get("capture_workflow_run_id"), field="capture run ID")
+        != int(expected_run_id)
+        or metadata.get("capture_workflow_run_id") != expected_run_id
+    ):
+        raise ArtifactTransportError(
+            "HANDOFF_CAPTURE_PACKAGE_INVALID", "embedded capture workflow run ID mismatch"
+        )
+    if (
+        _parse_package_decimal(
+            metadata.get("capture_workflow_run_attempt"), field="capture run attempt"
+        )
+        != int(expected_attempt)
+        or metadata.get("capture_workflow_run_attempt") != expected_attempt
+    ):
+        raise ArtifactTransportError(
+            "HANDOFF_CAPTURE_PACKAGE_INVALID", "embedded capture workflow attempt mismatch"
+        )
+    for field, receipt_field in (
+        ("evidence_tool_head", "capture_head_sha"),
+        ("rc_source_sha", "package_rc_source_sha"),
+        ("rc_source_tree", "package_rc_source_tree"),
+    ):
+        if metadata.get(field) != receipt.get(receipt_field):
+            raise ArtifactTransportError(
+                "HANDOFF_CAPTURE_PACKAGE_INVALID", f"embedded capture {field} mismatch"
+            )
+
+
 def verify_download(
     *,
     repository: str,
@@ -904,6 +1315,177 @@ def verify_download(
         raise
 
 
+def verify_handoff_download(
+    *,
+    repository: str,
+    handoff_artifact_id: str,
+    expected_handoff_artifact_digest: str,
+    expected_transport_run_id: str,
+    expected_transport_run_attempt: str,
+    expected_transport_head_sha: str,
+    expected_capture_artifact_id: str,
+    expected_capture_artifact_digest: str,
+    expected_capture_run_id: str,
+    expected_capture_run_attempt: str,
+    expected_capture_head_sha: str,
+    output_dir: str | Path,
+    execute_download: bool = False,
+    env: Mapping[str, str] | None = None,
+    api_base_url: str = DEFAULT_API_BASE_URL,
+) -> VerifiedHandoffResult:
+    """Verify D1 and expose the embedded D0 package for later assembly."""
+    environment = os.environ if env is None else env
+    if not execute_download:
+        raise ArtifactTransportError(
+            "HANDOFF_DOWNLOAD_EXECUTION_NOT_EXPLICIT",
+            "verify-handoff-download requires --execute-download",
+        )
+    if environment.get(HANDOFF_DOWNLOAD_AUTHORIZATION_ENV) != "YES":
+        raise ArtifactTransportError(
+            "HANDOFF_DOWNLOAD_EXECUTION_NOT_AUTHORIZED",
+            f"{HANDOFF_DOWNLOAD_AUTHORIZATION_ENV} must be exactly YES",
+        )
+    token = _validate_token(environment.get("GITHUB_TOKEN"))
+    repository = _validate_repository(repository)
+    parsed_handoff_id = _parse_artifact_id(handoff_artifact_id)
+    parsed_capture_id = _parse_artifact_id(expected_capture_artifact_id)
+    expected_handoff_digest = normalize_artifact_digest(expected_handoff_artifact_digest)
+    expected_capture_digest = normalize_artifact_digest(expected_capture_artifact_digest)
+    expected_transport_run_id = _parse_positive_decimal(
+        expected_transport_run_id, field="transport run ID"
+    )
+    expected_transport_run_attempt = _parse_positive_decimal(
+        expected_transport_run_attempt, field="transport run attempt"
+    )
+    expected_capture_run_id = _parse_positive_decimal(
+        expected_capture_run_id, field="capture run ID"
+    )
+    expected_capture_run_attempt = _parse_positive_decimal(
+        expected_capture_run_attempt, field="capture run attempt"
+    )
+    expected_transport_head_sha = _validate_head_sha(expected_transport_head_sha)
+    expected_capture_head_sha = _validate_head_sha(expected_capture_head_sha)
+    output = _prepare_output_dir(output_dir)
+    client = ArtifactTransportClient(repository, token, api_base_url)
+    metadata = client.fetch_verified_handoff_metadata(
+        artifact_id=parsed_handoff_id,
+        expected_digest=expected_handoff_digest,
+        expected_transport_run_id=expected_transport_run_id,
+        expected_transport_run_attempt=expected_transport_run_attempt,
+        expected_transport_head_sha=expected_transport_head_sha,
+        expected_capture_run_id=expected_capture_run_id,
+        expected_capture_run_attempt=expected_capture_run_attempt,
+    )
+    transport_workflow = client.fetch_verified_handoff_workflow_run(
+        metadata=metadata,
+        expected_transport_run_id=expected_transport_run_id,
+        expected_transport_run_attempt=expected_transport_run_attempt,
+        expected_transport_head_sha=expected_transport_head_sha,
+    )
+
+    temporary_archive = output / f".handoff-download-{uuid.uuid4().hex}.part"
+    temporary_payload = output / f".handoff-payload-{uuid.uuid4().hex}"
+    temporary_capture = output / f".handoff-capture-{uuid.uuid4().hex}"
+    promoted: list[Path] = []
+    final_archive = output / VERIFIED_HANDOFF_ARCHIVE_NAME
+    final_capture = output / HANDOFF_CAPTURE_DIRECTORY_NAME
+    final_receipt = output / VERIFIED_HANDOFF_RECEIPT_NAME
+    try:
+        downloaded_digest = client.download_archive(
+            artifact_id=parsed_handoff_id, destination=temporary_archive
+        )
+        if (
+            downloaded_digest != expected_handoff_digest
+            or downloaded_digest != metadata.artifact_digest
+        ):
+            raise ArtifactTransportError(
+                "HANDOFF_TRANSPORT_DIGEST_MISMATCH",
+                "recorded, metadata, and downloaded handoff digests differ",
+            )
+        _safe_extract_archive(temporary_archive, temporary_payload)
+        payload_root = _canonical_handoff_payload_root(temporary_payload)
+        receipt_path = payload_root / HANDOFF_RECEIPT_NAME
+        receipt = _verify_embedded_transport_receipt(
+            receipt_path,
+            repository=repository,
+            capture_artifact_id=str(parsed_capture_id),
+            capture_artifact_digest=expected_capture_digest,
+            capture_run_id=expected_capture_run_id,
+            capture_run_attempt=expected_capture_run_attempt,
+            capture_head_sha=expected_capture_head_sha,
+        )
+        embedded_archive = payload_root / VERIFIED_ARCHIVE_NAME
+        embedded_digest = _hash_file(embedded_archive)
+        if embedded_digest != expected_capture_digest:
+            raise ArtifactTransportError(
+                "HANDOFF_EMBEDDED_CAPTURE_DIGEST_MISMATCH",
+                "embedded verified-artifact.zip digest does not equal D0",
+            )
+
+        _safe_extract_archive(embedded_archive, temporary_capture)
+        _verify_capture_package_shape(temporary_capture)
+        _verify_embedded_capture_metadata(temporary_capture, receipt)
+
+        os.replace(temporary_archive, final_archive)
+        promoted.append(final_archive)
+        os.replace(temporary_capture, final_capture)
+        promoted.append(final_capture)
+        handoff_receipt: dict[str, Any] = {
+            "schema_version": HANDOFF_VERIFICATION_RECEIPT_SCHEMA_VERSION,
+            "repository": repository,
+            "handoff_artifact_id": metadata.artifact_id,
+            "handoff_artifact_name": metadata.artifact_name,
+            "recorded_handoff_artifact_digest": expected_handoff_digest,
+            "metadata_handoff_artifact_digest": metadata.artifact_digest,
+            "downloaded_handoff_archive_digest": downloaded_digest,
+            "transport_workflow_run_id": transport_workflow.run_id,
+            "transport_workflow_run_attempt": transport_workflow.run_attempt,
+            "transport_workflow_name": transport_workflow.name,
+            "transport_workflow_path": transport_workflow.path,
+            "transport_workflow_event": transport_workflow.event,
+            "transport_workflow_head_sha": transport_workflow.head_sha,
+            "transport_workflow_head_branch": transport_workflow.head_branch,
+            "transport_workflow_status": transport_workflow.status,
+            "transport_workflow_conclusion": transport_workflow.conclusion,
+            "transport_verifier_job_id": transport_workflow.verified_job_id,
+            "transport_verifier_job_name": transport_workflow.verified_job_name,
+            "source_capture_artifact_id": parsed_capture_id,
+            "source_capture_artifact_digest": expected_capture_digest,
+            "source_capture_workflow_run_id": expected_capture_run_id,
+            "source_capture_workflow_run_attempt": expected_capture_run_attempt,
+            "source_capture_head_sha": expected_capture_head_sha,
+            "source_capture_head_branch": "main",
+            "embedded_capture_archive_digest": embedded_digest,
+            "capture_root": str(final_capture),
+            "observation_bundle": str(final_capture / "observation-bundle.json"),
+            "verified_at": _now(),
+            "verified_handoff_status": "PASS",
+        }
+        if transport_workflow.workflow_id is not None:
+            handoff_receipt["transport_workflow_id"] = transport_workflow.workflow_id
+        _atomic_write_json(final_receipt, handoff_receipt)
+        return VerifiedHandoffResult(
+            receipt_path=final_receipt,
+            capture_root=final_capture,
+            observation_bundle=final_capture / "observation-bundle.json",
+        )
+    except Exception:
+        if temporary_archive.exists():
+            temporary_archive.unlink()
+        if temporary_payload.exists():
+            shutil.rmtree(temporary_payload)
+        if temporary_capture.exists():
+            shutil.rmtree(temporary_capture)
+        if final_receipt.exists():
+            final_receipt.unlink()
+        for path in reversed(promoted):
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path)
+            elif path.exists():
+                path.unlink()
+        raise
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Fail-closed GitHub Artifact transport verifier")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -916,22 +1498,55 @@ def _parser() -> argparse.ArgumentParser:
     verify.add_argument("--expected-capture-run-attempt", required=True)
     verify.add_argument("--expected-capture-head-sha", required=True)
     verify.add_argument("--output-dir", required=True)
+    handoff = subparsers.add_parser("verify-handoff-download")
+    handoff.add_argument("--execute-download", action="store_true")
+    handoff.add_argument("--repository", required=True)
+    handoff.add_argument("--handoff-artifact-id", required=True)
+    handoff.add_argument("--expected-handoff-artifact-digest", required=True)
+    handoff.add_argument("--expected-transport-run-id", required=True)
+    handoff.add_argument("--expected-transport-run-attempt", required=True)
+    handoff.add_argument("--expected-transport-head-sha", required=True)
+    handoff.add_argument("--expected-capture-artifact-id", required=True)
+    handoff.add_argument("--expected-capture-artifact-digest", required=True)
+    handoff.add_argument("--expected-capture-run-id", required=True)
+    handoff.add_argument("--expected-capture-run-attempt", required=True)
+    handoff.add_argument("--expected-capture-head-sha", required=True)
+    handoff.add_argument("--output-dir", required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        verify_download(
-            repository=args.repository,
-            artifact_id=args.artifact_id,
-            expected_artifact_digest=args.expected_artifact_digest,
-            expected_capture_run_id=args.expected_capture_run_id,
-            expected_capture_run_attempt=args.expected_capture_run_attempt,
-            expected_capture_head_sha=args.expected_capture_head_sha,
-            output_dir=args.output_dir,
-            execute_download=args.execute_download,
-        )
+        if args.command == "verify-download":
+            verify_download(
+                repository=args.repository,
+                artifact_id=args.artifact_id,
+                expected_artifact_digest=args.expected_artifact_digest,
+                expected_capture_run_id=args.expected_capture_run_id,
+                expected_capture_run_attempt=args.expected_capture_run_attempt,
+                expected_capture_head_sha=args.expected_capture_head_sha,
+                output_dir=args.output_dir,
+                execute_download=args.execute_download,
+            )
+        else:
+            result = verify_handoff_download(
+                repository=args.repository,
+                handoff_artifact_id=args.handoff_artifact_id,
+                expected_handoff_artifact_digest=args.expected_handoff_artifact_digest,
+                expected_transport_run_id=args.expected_transport_run_id,
+                expected_transport_run_attempt=args.expected_transport_run_attempt,
+                expected_transport_head_sha=args.expected_transport_head_sha,
+                expected_capture_artifact_id=args.expected_capture_artifact_id,
+                expected_capture_artifact_digest=args.expected_capture_artifact_digest,
+                expected_capture_run_id=args.expected_capture_run_id,
+                expected_capture_run_attempt=args.expected_capture_run_attempt,
+                expected_capture_head_sha=args.expected_capture_head_sha,
+                output_dir=args.output_dir,
+                execute_download=args.execute_download,
+            )
+            print(f"CAPTURE_ROOT={result.capture_root}")
+            print(f"OBSERVATION_BUNDLE={result.observation_bundle}")
         return 0
     except ArtifactTransportError as exc:
         print(f"{exc.code}: {exc.detail}", file=sys.stderr)
@@ -946,9 +1561,13 @@ __all__ = [
     "ArtifactMetadata",
     "ArtifactTransportClient",
     "ArtifactTransportError",
+    "HandoffArtifactMetadata",
     "WorkflowRunMetadata",
+    "VerifiedHandoffResult",
+    "HANDOFF_VERIFICATION_RECEIPT_SCHEMA_VERSION",
     "TRANSPORT_RECEIPT_SCHEMA_VERSION",
     "main",
     "normalize_artifact_digest",
+    "verify_handoff_download",
     "verify_download",
 ]

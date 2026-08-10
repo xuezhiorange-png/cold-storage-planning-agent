@@ -452,3 +452,84 @@ def test_artifact_transport_make_gate_is_network_free() -> None:
     assert "verify-artifact-transport" in makefile
     assert "tests/unit/test_artifact_transport.py" in makefile
     assert "tests/integration/test_artifact_transport.py" in makefile
+
+
+def test_verified_transport_handoff_is_a_separate_durable_surface() -> None:
+    transport = (RELEASE_DIR / "artifact_transport.py").read_text()
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert 'subparsers.add_parser("verify-handoff-download")' in transport
+    assert "HANDOFF_DOWNLOAD_AUTHORIZATION_ENV" in transport
+    assert "fetch_verified_handoff_metadata" in transport
+    assert "fetch_verified_handoff_workflow_run" in transport
+    assert "_workflow_jobs_url" in transport
+    assert "HANDOFF_TRANSPORT_JOB_INVALID" in transport
+    assert "HANDOFF_EMBEDDED_CAPTURE_DIGEST_MISMATCH" in transport
+    assert "_canonical_handoff_payload_root" in transport
+    assert "CAPTURE_ROOT=" in transport
+    assert "OBSERVATION_BUNDLE=" in transport
+    assert "live-evidence-verified-transport-handoff-verify:" in workflow
+    assert "upload_verified_transport_handoff" in workflow
+    assert "verify_verified_transport_handoff" in workflow
+    assert "default: false" in workflow
+    assert "TASK012_VERIFIED_HANDOFF_DOWNLOAD_AUTHORIZED: YES" in workflow
+    assert "actions: read" in workflow
+    assert "id-token: write" not in workflow
+    assert "contents: write" not in workflow
+
+
+def test_verified_handoff_upload_is_after_transport_verify_and_exact_payload() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    transport_job = workflow.split("live-evidence-artifact-transport-verify:", 1)[1].split(
+        "live-evidence-verified-transport-handoff-verify:", 1
+    )[0]
+    verify_index = transport_job.index("id: transport_verify")
+    upload_index = transport_job.index("id: upload_verified_handoff")
+    assert verify_index < upload_index
+    assert "inputs.upload_verified_transport_handoff == true && success()" in transport_job
+    assert "verified-artifact.zip" in transport_job
+    assert "artifact-transport-receipt.json" in transport_job
+    assert "extracted" not in transport_job[upload_index:]
+    assert "GITHUB_STEP_SUMMARY" in transport_job[upload_index:]
+    assert "steps.upload_verified_handoff.outputs.artifact-id" in transport_job
+    assert "steps.upload_verified_handoff.outputs.artifact-digest" in transport_job
+    assert "github.run_id" in transport_job[upload_index:]
+    assert "github.run_attempt" in transport_job[upload_index:]
+
+
+def test_handoff_and_capture_transport_surfaces_are_mutually_exclusive() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    capture_job = workflow.split("live-evidence-capture:", 1)[1].split(
+        "live-evidence-artifact-transport-verify:", 1
+    )[0]
+    transport_job = workflow.split("live-evidence-artifact-transport-verify:", 1)[1].split(
+        "live-evidence-verified-transport-handoff-verify:", 1
+    )[0]
+    handoff_job = workflow.split("live-evidence-verified-transport-handoff-verify:", 1)[1]
+    assert "inputs.upload_verified_transport_handoff != true" in capture_job
+    assert "inputs.verify_verified_transport_handoff != true" in capture_job
+    assert "inputs.verify_verified_transport_handoff != true" in transport_job
+    assert "inputs.verify_live_evidence_artifact_transport != true" in handoff_job
+    assert "inputs.upload_verified_transport_handoff != true" in handoff_job
+    assert "inputs.execute_live_evidence_capture != true" in handoff_job
+    assert "github.event_name == 'workflow_dispatch'" in handoff_job
+    assert "github.ref == 'refs/heads/main'" in handoff_job
+    assert "expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7'" in handoff_job
+
+
+def test_handoff_verifier_does_not_call_assembly_or_core_release_layers() -> None:
+    transport = (RELEASE_DIR / "artifact_transport.py").read_text()
+    for forbidden in (
+        "live_evidence_runner",
+        "collect_release_candidate_evidence",
+        "SHA256SUMS.sha256",
+        "docker build",
+        "docker push",
+        "cosign",
+        "oidc",
+    ):
+        if forbidden == "SHA256SUMS.sha256":
+            # The transport module may require the capture package shape, but
+            # it must not duplicate the package checksum implementation.
+            assert "_verify_capture_checksums" not in transport
+        else:
+            assert forbidden not in transport.lower()
