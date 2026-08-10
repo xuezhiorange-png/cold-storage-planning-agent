@@ -13,9 +13,11 @@ import pytest
 import cold_storage.release.artifact_transport as transport
 from cold_storage.release.artifact_transport import (
     ArtifactTransportError,
+    verify_attestation_download,
     verify_download,
     verify_handoff_download,
 )
+from cold_storage.release.live_attestation import build_attestation
 from cold_storage.release.live_evidence_runner import _verify_capture_checksums, _write_checksums
 
 REPOSITORY = "xuezhiorange-png/cold-storage-planning-agent"
@@ -256,6 +258,111 @@ def test_recorded_digest_must_match_metadata_digest(
             metadata=metadata,
             expected_digest="sha256:" + "c" * 64,
         )
+
+
+def test_live_attestation_transport_reverifies_exact_job_and_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact_id = "9400"
+    run_id = "9500"
+    run_attempt = "1"
+    head_sha = "d" * 40
+    storage_url = "https://artifact-storage.example/task012/attestation-integration.zip?sig=1"
+    payload = build_attestation("sha256:" + "1" * 64, "sha256:" + "2" * 64)
+    archive_buffer = io.BytesIO()
+    with zipfile.ZipFile(archive_buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("attestation.json", json.dumps(payload, separators=(",", ":")))
+    archive_bytes = archive_buffer.getvalue()
+    digest = "sha256:" + hashlib.sha256(archive_bytes).hexdigest()
+    metadata_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/artifacts/{artifact_id}"
+    workflow_url = f"{API_BASE_URL}/repos/{REPOSITORY}/actions/runs/{run_id}"
+    jobs_url = f"{workflow_url}/jobs?per_page=100"
+    archive_url = f"{metadata_url}/zip"
+    metadata = {
+        "id": int(artifact_id),
+        "name": f"task012-live-attestation-{run_id}-{run_attempt}",
+        "expired": False,
+        "digest": digest,
+        "archive_download_url": archive_url,
+        "workflow_run": {
+            "id": int(run_id),
+            "run_attempt": int(run_attempt),
+            "head_sha": head_sha,
+            "head_branch": "main",
+        },
+    }
+    workflow = {
+        "id": int(run_id),
+        "run_attempt": int(run_attempt),
+        "name": "ci",
+        "path": ".github/workflows/ci.yml",
+        "event": "workflow_dispatch",
+        "head_sha": head_sha,
+        "head_branch": "main",
+        "status": "completed",
+        "conclusion": "success",
+    }
+    calls: list[urllib.request.Request] = []
+
+    def fake_open(
+        request: urllib.request.Request,
+        timeout: int = 60,
+        *,
+        follow_redirects: bool = True,
+    ) -> _Response:
+        del timeout, follow_redirects
+        calls.append(request)
+        if request.full_url == metadata_url:
+            return _Response(json.dumps(metadata).encode("utf-8"))
+        if request.full_url == workflow_url:
+            return _Response(json.dumps(workflow).encode("utf-8"))
+        if request.full_url == jobs_url:
+            return _Response(
+                json.dumps(
+                    {
+                        "jobs": [
+                            {
+                                "id": 777,
+                                "name": "live-evidence-attestation-create",
+                                "status": "completed",
+                                "conclusion": "success",
+                            }
+                        ]
+                    }
+                ).encode("utf-8")
+            )
+        if request.full_url == archive_url:
+            return _Response(b"", status=302, headers={"Location": storage_url})
+        if request.full_url == storage_url:
+            return _Response(archive_bytes)
+        raise AssertionError(f"unexpected synthetic URL: {request.full_url}")
+
+    monkeypatch.setattr(transport, "_open_url", fake_open)
+    result = verify_attestation_download(
+        repository=REPOSITORY,
+        artifact_id=artifact_id,
+        expected_artifact_digest=digest,
+        expected_creation_run_id=run_id,
+        expected_creation_run_attempt=run_attempt,
+        expected_creation_head_sha=head_sha,
+        output_dir=tmp_path / "attestation-output",
+        execute_download=True,
+        env={
+            "GITHUB_TOKEN": "integration-token",
+            "TASK012_ATTESTATION_DOWNLOAD_AUTHORIZED": "YES",
+        },
+        api_base_url=API_BASE_URL,
+    )
+
+    assert len(calls) == 5
+    assert calls[-1].full_url == storage_url
+    assert calls[-1].get_header("Authorization") is None
+    assert result.attestation_file.read_bytes() == json.dumps(
+        payload, separators=(",", ":")
+    ).encode("utf-8")
+    assert json.loads(result.receipt_path.read_text(encoding="utf-8"))["job_name"] == (
+        "live-evidence-attestation-create"
+    )
 
 
 def test_exact_artifact_id_and_capture_identity_are_required(

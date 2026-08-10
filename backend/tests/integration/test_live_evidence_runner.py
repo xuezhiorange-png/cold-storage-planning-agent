@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 import cold_storage.release.live_evidence_runner as live_runner
+from cold_storage.release.live_attestation import create_attestation_from_observation
 from cold_storage.release.live_evidence_runner import (
     EXPECTED_SOURCE_COMMIT_SHA,
     LiveEvidenceRunnerError,
@@ -202,6 +203,41 @@ def test_capture_and_assemble_happy_path_are_independent_and_local_only(
     assert (evidence_path.parent / "artifact-manifest.json").is_file()
     assert (evidence_path.parent / "provenance.json").is_file()
     assert (evidence_path.parent / "SHA256SUMS").is_file()
+
+
+def test_attestation_creation_reuses_verified_preparation_and_writes_one_payload(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_mock_docker(monkeypatch, tmp_path)
+    bundle_path = capture_local(
+        output_dir=tmp_path / "observation",
+        tooling_root=PROJECT_ROOT,
+        execute_builds=True,
+        expected_source_sha=EXPECTED_SOURCE_COMMIT_SHA,
+    )
+
+    attestation_path, subject_digest = create_attestation_from_observation(
+        observation_bundle=bundle_path,
+        output_dir=tmp_path / "attestation",
+        tooling_root=PROJECT_ROOT,
+        expected_source_sha=EXPECTED_SOURCE_COMMIT_SHA,
+    )
+
+    assert attestation_path.name == "attestation.json"
+    assert {path.name for path in attestation_path.parent.iterdir()} == {"attestation.json"}
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    assert list(attestation) == [
+        "schema_version",
+        "task",
+        "version",
+        "slice",
+        "mechanism",
+        "subject_schema",
+        "subject_digest_algorithm",
+        "binding",
+    ]
+    assert attestation["binding"] == subject_digest
+    assert subject_digest.startswith("sha256:")
 
 
 def test_build_b_digest_drift_fails_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
