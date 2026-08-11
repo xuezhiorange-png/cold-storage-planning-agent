@@ -1498,3 +1498,63 @@ jobs:
             --expected-capture-run-attempt "${CAPTURE_RUN_ATTEMPT}" \
             --expected-capture-head-sha "${CAPTURE_HEAD_SHA}" \
             --output-dir "${OUTPUT_DIR}"
+
+  # TASK-012 V0.2 Slice 6 Package 1: synthetic data-recovery acceptance.
+  # This is a normal push/PR job, not a workflow-dispatch live-production
+  # surface. It uses an ephemeral PostgreSQL service and temporary files only.
+  recovery-foundation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          POSTGRES_DB: cold_storage_recovery
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cold_storage -d cold_storage_recovery"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - name: Install PostgreSQL client and CJK font
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client fonts-wqy-zenhei
+      - name: Backend install
+        run: cd backend && uv sync
+      - name: Alembic upgrade (recovery service)
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
+          COLD_STORAGE_DATABASE_BACKEND: postgresql
+          COLD_STORAGE_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_recovery
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          COLD_STORAGE_DATABASE_ENVIRONMENT_ID: recovery-db-ci
+          COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: recovery-artifact-ci
+        run: cd backend && PYTHONPATH=src uv run alembic upgrade head
+      - name: Recovery foundation gate
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
+          COLD_STORAGE_DATABASE_BACKEND: postgresql
+          COLD_STORAGE_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_recovery
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          COLD_STORAGE_DATABASE_ENVIRONMENT_ID: recovery-db-ci
+          COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: recovery-artifact-ci
+          COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-recovery-source
+        run: make verify-recovery-foundation

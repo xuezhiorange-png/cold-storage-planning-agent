@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport
+.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -153,6 +153,42 @@ verify-artifact-transport:
 		tests/integration/test_artifact_transport.py \
 		tests/architecture/test_release_evidence_boundaries.py \
 		-q
+
+# --- TASK-012 V0.2 Slice 6 Package 1: data recovery foundation ---
+
+# Recovery tests use synthetic files and, when configured, an isolated
+# PostgreSQL service. They never connect to a production resource.
+recovery-foundation-test:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
+		tests/unit/test_recovery_backup.py \
+		tests/unit/test_recovery_restore.py \
+		tests/unit/test_recovery_verification.py \
+		tests/integration/test_recovery_postgresql.py \
+		tests/architecture/test_recovery_boundaries.py \
+		-q
+
+recovery-foundation-lint:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff check \
+		src/cold_storage/recovery \
+		tests/unit/test_recovery_backup.py \
+		tests/unit/test_recovery_restore.py \
+		tests/unit/test_recovery_verification.py \
+		tests/integration/test_recovery_postgresql.py \
+		tests/architecture/test_recovery_boundaries.py
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff format --check \
+		src/cold_storage/recovery \
+		tests/unit/test_recovery_backup.py \
+		tests/unit/test_recovery_restore.py \
+		tests/unit/test_recovery_verification.py \
+		tests/integration/test_recovery_postgresql.py \
+		tests/architecture/test_recovery_boundaries.py
+
+recovery-foundation-typecheck:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run mypy \
+		src/cold_storage/recovery --strict --ignore-missing-imports
+
+verify-recovery-foundation: recovery-foundation-lint recovery-foundation-typecheck recovery-foundation-test
+	@echo 'verify-recovery-foundation ok'
 
 # Full release evidence verification gate.
 verify-release-evidence: release-evidence-lint release-evidence-typecheck release-evidence-test
