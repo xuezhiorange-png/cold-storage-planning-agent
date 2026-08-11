@@ -280,5 +280,36 @@ def test_package2_workflow_reuses_recovery_authorities_and_publishes_exact_evide
     assert "production secrets" not in workflow.lower()
 
 
+def test_package2_workflow_executes_real_failures_and_recovery_readiness() -> None:
+    workflow = _package2_workflow()
+    for marker in (
+        "Prepare temporary Alembic failure revisions",
+        "PACKAGE2_ALEMBIC_CONFIG",
+        'alembic -c "${PACKAGE2_ALEMBIC_CONFIG}" upgrade',
+        "TASK012_PACKAGE2_TRANSACTIONAL_MIGRATION_FAILURE_INJECTED",
+        "TASK012_PACKAGE2_PARTIAL_MIGRATION_FAILURE_INJECTED",
+        "transactional-result.json",
+        "partial-result.json",
+        "Start previous known-good release against recovered target",
+        "task012-package2-recovered-previous",
+        "RECOVERED_DATABASE_URL",
+        "RECOVERED_ARTIFACT_ROOT",
+        "psycopg2.connect",
+        "post-recovery-readiness.json",
+        "independent_restore_verification",
+        "post_recovery_live_status",
+        "post_recovery_ready_status",
+        "verify_migration_recovery_receipt",
+    ):
+        assert marker in workflow
+    assert workflow.index(
+        "Start previous known-good release against recovered target"
+    ) < workflow.index("Create and verify migration recovery receipt")
+    assert workflow.index("Create and verify migration recovery receipt") < workflow.index(
+        "Write and verify Package 2 acceptance evidence"
+    )
+    assert "alembic downgrade" not in workflow
+
+
 def test_package2_workflow_is_not_part_of_pr_or_push_ci() -> None:
     assert "task012-slice6-package2-recovery.yml" not in WORKFLOW_PATH.read_text(encoding="utf-8")

@@ -204,19 +204,51 @@ jobs:
           set -euo pipefail
           cat > "${PACKAGE2_ROOT}/release-server.py" <<'PY'
           import os
-          import sys
           from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          import psycopg2
 
           if os.environ.get("FAIL_STARTUP") == "1":
               print("CONTROLLED_CANDIDATE_STARTUP_FAILURE", flush=True)
               raise SystemExit(42)
 
+          def recovered_target_is_ready():
+              try:
+                  with psycopg2.connect(
+                      os.environ["RECOVERED_DATABASE_URL"], connect_timeout=5
+                  ) as connection:
+                      with connection.cursor() as cursor:
+                          cursor.execute(
+                              "SELECT 1 FROM projects WHERE code = %s",
+                              (os.environ["EXPECTED_PROJECT_CODE"],),
+                          )
+                          if cursor.fetchone() != (1,):
+                              return False
+                  artifact_path = os.path.join(
+                      os.environ["RECOVERED_ARTIFACT_ROOT"],
+                      os.environ["EXPECTED_ARTIFACT_RELATIVE"],
+                  )
+                  with open(artifact_path, "rb") as artifact:
+                      return artifact.read() == b'{"artifact":"package2","value":1}\n'
+              except (KeyError, OSError, psycopg2.Error):
+                  return False
+
           class Handler(BaseHTTPRequestHandler):
               def do_GET(self):
-                  if self.path in ("/health/live", "/health/ready"):
+                  if self.path == "/health/live":
                       self.send_response(200)
                       self.end_headers()
                       self.wfile.write(b"PASS")
+                      return
+                  if self.path == "/health/ready":
+                      if recovered_target_is_ready():
+                          self.send_response(200)
+                          self.end_headers()
+                          self.wfile.write(b"PASS")
+                      else:
+                          self.send_response(503)
+                          self.end_headers()
+                          self.wfile.write(b"FAIL")
                       return
                   self.send_response(404)
                   self.end_headers()
@@ -228,6 +260,7 @@ jobs:
           PY
           cat > "${PACKAGE2_ROOT}/Dockerfile" <<'DOCKERFILE'
           FROM python:3.12-slim
+          RUN pip install --no-cache-dir psycopg2-binary==2.9.10
           ARG BUILD_VERSION
           ENV PACKAGE2_BUILD_VERSION=${BUILD_VERSION}
           COPY release-server.py /release-server.py
@@ -250,7 +283,15 @@ jobs:
           COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
         run: |
           set -euo pipefail
+          recovered_database_url="${DATABASE_URL/postgresql+psycopg2/postgresql}"
+          recovered_database_url="${recovered_database_url/localhost/host.docker.internal}"
           docker run -d --name task012-package2-previous -p 18080:8000 \
+            --add-host=host.docker.internal:host-gateway \
+            -e RECOVERED_DATABASE_URL="${recovered_database_url}" \
+            -e RECOVERED_ARTIFACT_ROOT=/source-artifacts \
+            -e EXPECTED_PROJECT_CODE=PACKAGE2-CONTROLLED-001 \
+            -e EXPECTED_ARTIFACT_RELATIVE=controlled.json \
+            -v "${SOURCE_ARTIFACT_ROOT}:/source-artifacts:ro" \
             task012-package2-previous
           for attempt in $(seq 1 20); do
             curl --fail --silent http://127.0.0.1:18080/health/live >/dev/null && break
@@ -367,6 +408,8 @@ jobs:
           PYTHONPATH=src uv run python -m cold_storage.recovery.cli classify-release-failure \
             --observation "${PACKAGE2_ROOT}/pre-failure-observation.json" \
             --output "${PACKAGE2_ROOT}/deployment-classification.json"
+          grep -q '"app_only_rollback_allowed":true' \
+            "${PACKAGE2_ROOT}/deployment-classification.json"
           docker start task012-package2-previous >/dev/null
           for attempt in $(seq 1 20); do
             curl --fail --silent http://127.0.0.1:18080/health/live >/dev/null && break
@@ -387,11 +430,16 @@ jobs:
 
           root = Path(os.environ["PACKAGE2_ROOT"])
           state = validate_pre_failure_state(load_json_object(root / "pre-failure-state.json"))
+          observation = load_json_object(root / "pre-failure-observation.json")
           receipt = make_deployment_rollback_receipt(
               state,
-              post_failure_schema_head=state.pre_deployment_schema_head,
-              post_failure_database_inventory_digest=state.pre_deployment_database_inventory_digest,
-              post_failure_artifact_inventory_digest=state.pre_deployment_artifact_inventory_digest,
+              post_failure_schema_head=observation["post_failure_schema_head"],
+              post_failure_database_inventory_digest=observation[
+                  "post_failure_database_inventory_digest"
+              ],
+              post_failure_artifact_inventory_digest=observation[
+                  "post_failure_artifact_inventory_digest"
+              ],
               rollback_image_digest=state.previous_image_digest,
               rollback_build_commit_sha=state.previous_build_commit_sha,
               rollback_build_version=state.previous_build_version,
@@ -406,13 +454,90 @@ jobs:
           docker rm -f task012-package2-previous >/dev/null
           echo "CONTROLLED_PREVIOUS_RELEASE_ROLLBACK=PASS"
 
-      - name: Inject transactional migration failure and classify rollback
+      - name: Prepare temporary Alembic failure revisions
+        run: |
+          set -euo pipefail
+          cd backend
+          temp_root="${PACKAGE2_ROOT}/alembic-temp"
+          mkdir -p "${temp_root}/versions"
+          config="${temp_root}/alembic.ini"
+          python - "${config}" "${temp_root}/versions" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          backend = Path.cwd()
+          config_path = Path(sys.argv[1])
+          temporary_versions = Path(sys.argv[2])
+          source = (backend / "alembic.ini").read_text(encoding="utf-8")
+          source = source.replace(
+              "script_location = alembic",
+              "\n".join(
+                  (
+                      f"script_location = {backend / 'alembic'}",
+                      f"version_locations = {backend / 'alembic' / 'versions'}{os.pathsep}{temporary_versions}",
+                      "path_separator = os",
+                  )
+              ),
+          )
+          config_path.write_text(source, encoding="utf-8")
+          PY
+          head="$(PYTHONPATH=src uv run python - <<'PY'
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+
+          heads = ScriptDirectory.from_config(Config("alembic.ini")).get_heads()
+          if len(heads) != 1:
+              raise SystemExit(f"expected one Alembic head, got {heads}")
+          print(heads[0])
+          PY
+          )"
+          {
+            echo "PACKAGE2_ALEMBIC_CONFIG=${config}"
+            echo "PACKAGE2_ALEMBIC_VERSIONS=${temp_root}/versions"
+            echo "PACKAGE2_ALEMBIC_HEAD=${head}"
+          } >> "${GITHUB_ENV}"
+          echo "TEMP_ALEMBIC_CURRENT_HEAD=${head}"
+
+      - name: Execute transactional Alembic failure and classify rollback
         env:
           COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
           COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
         run: |
           set -euo pipefail
           cd backend
+          revision="task012_pkg2_transactional_failure"
+          revision_path="${PACKAGE2_ALEMBIC_VERSIONS}/${revision}.py"
+          trap 'rm -f "${revision_path}"' EXIT
+          cat > "${revision_path}" <<PY
+          """Temporary transactional Package 2 failure revision."""
+          import sqlalchemy as sa
+          from alembic import op
+
+          revision = "${revision}"
+          down_revision = "${PACKAGE2_ALEMBIC_HEAD}"
+          branch_labels = None
+          depends_on = None
+
+          def upgrade():
+              op.create_table(
+                  "task012_pkg2_transactional_marker",
+                  sa.Column("id", sa.Integer(), nullable=False),
+              )
+              raise RuntimeError("TASK012_PACKAGE2_TRANSACTIONAL_MIGRATION_FAILURE_INJECTED")
+
+          def downgrade():
+              raise RuntimeError("TASK012_PACKAGE2_DOWNGRADE_FORBIDDEN")
+          PY
+          set +e
+          PYTHONPATH=src uv run alembic -c "${PACKAGE2_ALEMBIC_CONFIG}" upgrade "${revision}" \
+            > "${PACKAGE2_ROOT}/transactional-alembic.log" 2>&1
+          status=$?
+          set -e
+          cat "${PACKAGE2_ROOT}/transactional-alembic.log"
+          test "${status}" -ne 0
+          grep -Fq "TASK012_PACKAGE2_TRANSACTIONAL_MIGRATION_FAILURE_INJECTED" \
+            "${PACKAGE2_ROOT}/transactional-alembic.log"
           PYTHONPATH=src uv run python - <<'PY'
           import os
           from pathlib import Path
@@ -423,22 +548,20 @@ jobs:
               inventory_digest,
           )
           from cold_storage.recovery.failure_recovery import load_json_object, write_json
-          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
-          connection = engine.connect()
-          transaction = connection.begin()
-          try:
-              connection.execute(text("CREATE TABLE task012_pkg2_transaction_failure (id INTEGER)"))
-              transaction.rollback()
-          finally:
-              connection.close()
-              engine.dispose()
+
           root = Path(os.environ["PACKAGE2_ROOT"])
-          pre_state = load_json_object(root / "pre-failure-state.json")
           engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
           try:
+              with engine.connect() as connection:
+                  marker = connection.execute(
+                      text("SELECT to_regclass('public.task012_pkg2_transactional_marker')")
+                  ).scalar_one()
+                  if marker is not None:
+                      raise SystemExit("TRANSACTIONAL_MUTATION_NOT_ROLLED_BACK")
               database = collect_database_inventory(engine)
           finally:
               engine.dispose()
+          pre_state = load_json_object(root / "pre-failure-state.json")
           artifact = collect_artifact_inventory(
               Path(os.environ["COLD_STORAGE_STORAGE_DIR"]),
               failure_code="BACKUP_ARTIFACT_FAILED",
@@ -458,18 +581,27 @@ jobs:
                   "post_failure_artifact_inventory_digest": inventory_digest(artifact),
               },
           )
-          print("MIGRATION_TRANSACTIONAL_FAILURE=PASS")
+          write_json(
+              root / "transactional-result.json",
+              {
+                  "alembic_command_executed": True,
+                  "exit_code_nonzero": True,
+                  "expected_failure_marker": True,
+                  "transactional_mutation_rolled_back": True,
+              },
+          )
           PY
           PYTHONPATH=src uv run python -m cold_storage.recovery.cli classify-release-failure \
             --observation "${PACKAGE2_ROOT}/transactional-observation.json" \
             --output "${PACKAGE2_ROOT}/transactional-classification.json"
-          grep -q '"app_only_rollback_allowed":true' "${PACKAGE2_ROOT}/transactional-classification.json" || {
-            echo "TRANSACTIONAL_MIGRATION_FAILURE_CLASSIFICATION_MISMATCH" >&2
-            exit 1
-          }
-          echo "TRANSACTIONAL_MIGRATION_FAILURE_CLASSIFICATION=SCHEMA_AND_DATA_UNCHANGED"
+          grep -q '"app_only_rollback_allowed":true' \
+            "${PACKAGE2_ROOT}/transactional-classification.json"
+          grep -q '"migration_recovery_required":false' \
+            "${PACKAGE2_ROOT}/transactional-classification.json"
+          echo "ALEMBIC_TRANSACTIONAL_FAILURE=PASS"
+          echo "MIGRATION_TRANSACTIONAL_FAILURE=PASS"
 
-      - name: Inject partial migration mutation and recover to isolated target
+      - name: Execute partial Alembic failure and recover to isolated target
         env:
           COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
           COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
@@ -481,22 +613,47 @@ jobs:
           set -euo pipefail
           psql --dbname=postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${RECOVERED_DATABASE_NAME}"
           cd backend
-          PYTHONPATH=src uv run python - <<'PY'
+          revision="task012_pkg2_partial_failure"
+          revision_path="${PACKAGE2_ALEMBIC_VERSIONS}/${revision}.py"
+          trap 'rm -f "${revision_path}"' EXIT
+          cat > "${revision_path}" <<PY
+          """Temporary partial-mutation Package 2 failure revision."""
           import os
           from sqlalchemy import create_engine, text
-          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
-          connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
-          try:
-              connection.execute(text("CREATE TABLE task012_pkg2_partial_failure (id INTEGER PRIMARY KEY)"))
-              print("MIGRATION_PARTIAL_FAILURE_INJECTION=PASS")
-          finally:
-              connection.close()
-              engine.dispose()
+
+          revision = "${revision}"
+          down_revision = "${PACKAGE2_ALEMBIC_HEAD}"
+          branch_labels = None
+          depends_on = None
+
+          def upgrade():
+              engine = create_engine(os.environ["DATABASE_URL"], future=True)
+              connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+              try:
+                  connection.execute(
+                      text("CREATE TABLE task012_pkg2_partial_failure (id INTEGER PRIMARY KEY)")
+                  )
+              finally:
+                  connection.close()
+                  engine.dispose()
+              raise RuntimeError("TASK012_PACKAGE2_PARTIAL_MIGRATION_FAILURE_INJECTED")
+
+          def downgrade():
+              raise RuntimeError("TASK012_PACKAGE2_DOWNGRADE_FORBIDDEN")
           PY
+          set +e
+          PYTHONPATH=src uv run alembic -c "${PACKAGE2_ALEMBIC_CONFIG}" upgrade "${revision}" \
+            > "${PACKAGE2_ROOT}/partial-alembic.log" 2>&1
+          status=$?
+          set -e
+          cat "${PACKAGE2_ROOT}/partial-alembic.log"
+          test "${status}" -ne 0
+          grep -Fq "TASK012_PACKAGE2_PARTIAL_MIGRATION_FAILURE_INJECTED" \
+            "${PACKAGE2_ROOT}/partial-alembic.log"
           PYTHONPATH=src uv run python - <<'PY'
           import os
           from pathlib import Path
-          from sqlalchemy import create_engine
+          from sqlalchemy import create_engine, text
           from cold_storage.recovery.backup_bundle import (
               collect_artifact_inventory,
               collect_database_inventory,
@@ -507,6 +664,12 @@ jobs:
           root = Path(os.environ["PACKAGE2_ROOT"])
           engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
           try:
+              with engine.connect() as connection:
+                  marker = connection.execute(
+                      text("SELECT to_regclass('public.task012_pkg2_partial_failure')")
+                  ).scalar_one()
+                  if marker is None:
+                      raise SystemExit("PARTIAL_MUTATION_NOT_PRESENT_AFTER_FAILURE")
               database = collect_database_inventory(engine)
           finally:
               engine.dispose()
@@ -520,6 +683,15 @@ jobs:
                   "post_failure_schema_head": database["schema_head"],
                   "post_failure_database_inventory_digest": inventory_digest(database),
                   "post_failure_artifact_inventory_digest": inventory_digest(artifact),
+              },
+          )
+          write_json(
+              root / "partial-result.json",
+              {
+                  "alembic_command_executed": True,
+                  "exit_code_nonzero": True,
+                  "expected_failure_marker": True,
+                  "partial_mutation_remains": True,
               },
           )
           PY
@@ -542,8 +714,60 @@ jobs:
             --target-database-environment-id "${TARGET_DATABASE_ENVIRONMENT_ID}" \
             --target-artifact-environment-id "${TARGET_ARTIFACT_ENVIRONMENT_ID}"
           echo "MIGRATION_RECOVERY_REQUIRED=YES"
+          echo "MIGRATION_PARTIAL_FAILURE_INJECTION=PASS"
           echo "CANONICAL_ISOLATED_RESTORE=PASS"
           echo "CANONICAL_VERIFY_RESTORE=PASS"
+
+      - name: Start previous known-good release against recovered target
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.RECOVERED_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          recovered_database_url="${DATABASE_URL/postgresql+psycopg2/postgresql}"
+          recovered_database_url="${recovered_database_url/localhost/host.docker.internal}"
+          docker run -d --name task012-package2-recovered-previous -p 18081:8000 \
+            --add-host=host.docker.internal:host-gateway \
+            -e RECOVERED_DATABASE_URL="${recovered_database_url/controlled_release/controlled_release_recovered}" \
+            -e RECOVERED_ARTIFACT_ROOT=/recovered-artifacts \
+            -e EXPECTED_PROJECT_CODE=PACKAGE2-CONTROLLED-001 \
+            -e EXPECTED_ARTIFACT_RELATIVE=controlled.json \
+            -v "${RECOVERED_ARTIFACT_ROOT}:/recovered-artifacts:ro" \
+            task012-package2-previous
+          test "$(docker inspect task012-package2-recovered-previous --format '{{.Image}}')" = \
+            "${PREVIOUS_IMAGE_DIGEST}"
+          for attempt in $(seq 1 20); do
+            curl --fail --silent http://127.0.0.1:18081/health/live >/dev/null && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:18081/health/live >/dev/null
+          curl --fail --silent http://127.0.0.1:18081/health/ready >/dev/null
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from cold_storage.recovery.failure_recovery import write_json
+
+          write_json(
+              Path(os.environ["PACKAGE2_ROOT"]) / "post-recovery-readiness.json",
+              {
+                  "independent_restore_verification": "PASS",
+                  "post_recovery_live_status": "PASS",
+                  "post_recovery_ready_status": "PASS",
+                  "recovered_database_connectivity": "PASS",
+                  "recovered_database_expected_data": "PASS",
+                  "recovered_artifact_root_binding": "PASS",
+              },
+          )
+          PY
+          echo "PREVIOUS_RELEASE_RECOVERED_TARGET_BINDING=PASS"
+          echo "RECOVERED_DATABASE_CONNECTIVITY=PASS"
+          echo "RECOVERED_DATABASE_EXPECTED_DATA=PASS"
+          echo "RECOVERED_ARTIFACT_ROOT_BINDING=PASS"
+          echo "POST_RECOVERY_LIVE_CHECK_EXECUTED=YES"
+          echo "POST_RECOVERY_LIVE_STATUS=PASS"
+          echo "POST_RECOVERY_READY_CHECK_EXECUTED=YES"
+          echo "POST_RECOVERY_READY_STATUS=PASS"
 
       - name: Create and verify migration recovery receipt
         env:
@@ -571,6 +795,17 @@ jobs:
           root = Path(os.environ["PACKAGE2_ROOT"])
           pre_state = load_json_object(root / "pre-failure-state.json")
           post_observation = load_json_object(root / "migration-post-failure.json")
+          readiness = load_json_object(root / "post-recovery-readiness.json")
+          for key in (
+              "independent_restore_verification",
+              "post_recovery_live_status",
+              "post_recovery_ready_status",
+              "recovered_database_connectivity",
+              "recovered_database_expected_data",
+              "recovered_artifact_root_binding",
+          ):
+              if readiness.get(key) != "PASS":
+                  raise SystemExit(f"POST_RECOVERY_READINESS_NOT_VERIFIED:{key}")
           from sqlalchemy import create_engine
 
           target_engine = create_engine(os.environ["COLD_STORAGE_RESTORE_DATABASE_URL"], future=True)
@@ -616,6 +851,9 @@ jobs:
               final_schema_head=final_database["schema_head"],
               final_database_inventory_digest=inventory_digest(final_database),
               final_artifact_inventory_digest=inventory_digest(final_artifact),
+              independent_restore_verification=readiness["independent_restore_verification"],
+              post_recovery_live_status=readiness["post_recovery_live_status"],
+              post_recovery_ready_status=readiness["post_recovery_ready_status"],
           )
           write_json(Path(os.environ["EVIDENCE_DIR"]) / "migration-recovery-receipt.json", receipt)
           print("MIGRATION_RECOVERY_RECEIPT=PASS")
@@ -623,6 +861,10 @@ jobs:
           PYTHONPATH=src uv run python -m cold_storage.recovery.cli \
             verify-migration-recovery \
             --receipt "${EVIDENCE_DIR}/migration-recovery-receipt.json"
+
+      - name: Stop recovered previous release
+        if: always()
+        run: docker rm -f task012-package2-recovered-previous >/dev/null 2>&1 || true
 
       - name: Write and verify Package 2 acceptance evidence
         run: |
@@ -635,8 +877,52 @@ jobs:
           PYTHONPATH=src uv run python - <<'PY'
           import os
           from pathlib import Path
-          from cold_storage.recovery.failure_recovery import write_json
+          from cold_storage.recovery.failure_recovery import (
+              load_json_object,
+              verify_deployment_rollback_receipt,
+              verify_migration_recovery_receipt,
+              write_json,
+          )
 
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          evidence = Path(os.environ["EVIDENCE_DIR"])
+          deployment_receipt = verify_deployment_rollback_receipt(
+              load_json_object(evidence / "deployment-rollback-receipt.json")
+          )
+          migration_receipt = verify_migration_recovery_receipt(
+              load_json_object(evidence / "migration-recovery-receipt.json")
+          )
+          transactional = load_json_object(root / "transactional-result.json")
+          partial = load_json_object(root / "partial-result.json")
+          readiness = load_json_object(root / "post-recovery-readiness.json")
+          if transactional != {
+              "alembic_command_executed": True,
+              "exit_code_nonzero": True,
+              "expected_failure_marker": True,
+              "transactional_mutation_rolled_back": True,
+          }:
+              raise SystemExit("TRANSACTIONAL_ALEMBIC_EVIDENCE_INVALID")
+          if partial != {
+              "alembic_command_executed": True,
+              "exit_code_nonzero": True,
+              "expected_failure_marker": True,
+              "partial_mutation_remains": True,
+          }:
+              raise SystemExit("PARTIAL_ALEMBIC_EVIDENCE_INVALID")
+          for key in (
+              "independent_restore_verification",
+              "post_recovery_live_status",
+              "post_recovery_ready_status",
+              "recovered_database_connectivity",
+              "recovered_database_expected_data",
+              "recovered_artifact_root_binding",
+          ):
+              if readiness.get(key) != "PASS":
+                  raise SystemExit(f"POST_RECOVERY_READINESS_NOT_VERIFIED:{key}")
+          if deployment_receipt["rollback_result"] != "PASS":
+              raise SystemExit("DEPLOYMENT_ROLLBACK_RECEIPT_NOT_VERIFIED")
+          if migration_receipt["migration_recovery_result"] != "PASS":
+              raise SystemExit("MIGRATION_RECOVERY_RECEIPT_NOT_VERIFIED")
           summary = {
               "schema_version": "cold-storage-release-failure-recovery-acceptance-v1",
               "task": "TASK-012",
@@ -648,20 +934,24 @@ jobs:
               "workflow_run_id": os.environ["GITHUB_RUN_ID"],
               "workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "workflow_head_sha": os.environ["GITHUB_SHA"],
-              "deployment_failure_scenario": "PASS",
-              "deployment_rollback": "PASS",
+              "deployment_failure_scenario": deployment_receipt["failure_classification"],
+              "deployment_rollback": deployment_receipt["rollback_result"],
               "migration_transactional_failure_scenario": "PASS",
               "migration_partial_failure_scenario": "PASS",
-              "migration_failure_classification": "PASS",
-              "automatic_downgrade_performed": False,
+              "migration_failure_classification": migration_receipt[
+                  "failure_state_classification"
+              ],
+              "automatic_downgrade_performed": migration_receipt[
+                  "automatic_downgrade_performed"
+              ],
               "canonical_backup": "PASS",
-              "canonical_isolated_restore": "PASS",
+              "canonical_isolated_restore": readiness["independent_restore_verification"],
               "canonical_verify_restore": "PASS",
-              "post_recovery_live": "PASS",
-              "post_recovery_ready": "PASS",
+              "post_recovery_live": readiness["post_recovery_live_status"],
+              "post_recovery_ready": readiness["post_recovery_ready_status"],
               "acceptance_result": "PASS",
           }
-          write_json(Path(os.environ["EVIDENCE_DIR"]) / "acceptance-summary.json", summary)
+          write_json(evidence / "acceptance-summary.json", summary)
           PY
           find "${EVIDENCE_DIR}" -maxdepth 1 -type f -printf '%f\n' | sort > "${PACKAGE2_ROOT}/evidence-files.txt"
           test "$(wc -l < "${PACKAGE2_ROOT}/evidence-files.txt" | tr -d ' ')" -eq 5

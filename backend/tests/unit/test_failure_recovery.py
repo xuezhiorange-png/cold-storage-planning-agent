@@ -62,6 +62,59 @@ def test_unchanged_state_allows_app_only_rollback() -> None:
     assert assessment.migration_recovery_required is False
 
 
+def test_missing_both_artifact_observations_fail_closed() -> None:
+    assessment = classify_failure_state(
+        pre_deployment_schema_head="head",
+        post_failure_schema_head="head",
+        pre_deployment_database_inventory_digest=_digest("a"),
+        post_failure_database_inventory_digest=_digest("a"),
+        pre_deployment_artifact_inventory_digest=None,
+        post_failure_artifact_inventory_digest=None,
+    )
+    assert assessment.failure_state is FailureState.STATE_AMBIGUOUS
+    assert assessment.recovery_decision is RecoveryDecision.MIGRATION_RECOVERY_REQUIRED
+    assert assessment.app_only_rollback_allowed is False
+
+
+def test_missing_pre_artifact_observation_fails_closed() -> None:
+    assessment = classify_failure_state(
+        pre_deployment_schema_head="head",
+        post_failure_schema_head="head",
+        pre_deployment_database_inventory_digest=_digest("a"),
+        post_failure_database_inventory_digest=_digest("a"),
+        pre_deployment_artifact_inventory_digest=None,
+        post_failure_artifact_inventory_digest=_digest("b"),
+    )
+    assert assessment.failure_state is FailureState.STATE_AMBIGUOUS
+    assert assessment.app_only_rollback_allowed is False
+
+
+def test_missing_post_artifact_observation_fails_closed() -> None:
+    assessment = classify_failure_state(
+        pre_deployment_schema_head="head",
+        post_failure_schema_head="head",
+        pre_deployment_database_inventory_digest=_digest("a"),
+        post_failure_database_inventory_digest=_digest("a"),
+        pre_deployment_artifact_inventory_digest=_digest("b"),
+        post_failure_artifact_inventory_digest=None,
+    )
+    assert assessment.failure_state is FailureState.STATE_AMBIGUOUS
+    assert assessment.app_only_rollback_allowed is False
+
+
+def test_malformed_artifact_observation_fails_closed() -> None:
+    assessment = classify_failure_state(
+        pre_deployment_schema_head="head",
+        post_failure_schema_head="head",
+        pre_deployment_database_inventory_digest=_digest("a"),
+        post_failure_database_inventory_digest=_digest("a"),
+        pre_deployment_artifact_inventory_digest="not-a-digest",
+        post_failure_artifact_inventory_digest=_digest("b"),
+    )
+    assert assessment.failure_state is FailureState.STATE_AMBIGUOUS
+    assert assessment.app_only_rollback_allowed is False
+
+
 @pytest.mark.parametrize(
     ("post_schema", "post_database", "expected"),
     (
@@ -78,6 +131,8 @@ def test_changed_state_requires_migration_recovery(
         post_failure_schema_head=post_schema,
         pre_deployment_database_inventory_digest=_digest("a"),
         post_failure_database_inventory_digest=post_database,
+        pre_deployment_artifact_inventory_digest=_digest("c"),
+        post_failure_artifact_inventory_digest=_digest("c"),
     )
     assert assessment.failure_state is expected
     assert assessment.app_only_rollback_allowed is False
@@ -95,6 +150,8 @@ def test_ambiguous_state_requires_fail_closed_recovery(schema: object, database:
         post_failure_schema_head=schema,
         pre_deployment_database_inventory_digest=_digest("a"),
         post_failure_database_inventory_digest=database,
+        pre_deployment_artifact_inventory_digest=_digest("c"),
+        post_failure_artifact_inventory_digest=_digest("c"),
     )
     assert assessment.failure_state is FailureState.STATE_AMBIGUOUS
     assert assessment.app_only_rollback_allowed is False
@@ -170,8 +227,21 @@ def test_migration_receipt_requires_isolated_verified_recovery() -> None:
         final_schema_head=state.pre_deployment_schema_head,
         final_database_inventory_digest=state.pre_deployment_database_inventory_digest,
         final_artifact_inventory_digest=state.pre_deployment_artifact_inventory_digest,
+        independent_restore_verification="PASS",
+        post_recovery_live_status="PASS",
+        post_recovery_ready_status="PASS",
     )
     assert verify_migration_recovery_receipt(receipt)["automatic_downgrade_performed"] is False
+
+    for field in (
+        "independent_restore_verification",
+        "post_recovery_live_status",
+        "post_recovery_ready_status",
+    ):
+        tampered_status = dict(receipt)
+        tampered_status[field] = "FAIL"
+        with pytest.raises(FailureRecoveryError, match="did not pass"):
+            verify_migration_recovery_receipt(tampered_status)
 
     tampered = dict(receipt)
     tampered["automatic_downgrade_performed"] = True
@@ -202,6 +272,9 @@ def test_migration_receipt_rejects_restore_backup_mismatch() -> None:
         final_schema_head=state.pre_deployment_schema_head,
         final_database_inventory_digest=state.pre_deployment_database_inventory_digest,
         final_artifact_inventory_digest=state.pre_deployment_artifact_inventory_digest,
+        independent_restore_verification="PASS",
+        post_recovery_live_status="PASS",
+        post_recovery_ready_status="PASS",
     )
     receipt["restore_backup_id"] = "backup-other"
     with pytest.raises(FailureRecoveryError, match="backup identity mismatch"):
@@ -232,6 +305,9 @@ def test_migration_receipt_rejects_source_target_collision() -> None:
             final_schema_head=state.pre_deployment_schema_head,
             final_database_inventory_digest=state.pre_deployment_database_inventory_digest,
             final_artifact_inventory_digest=state.pre_deployment_artifact_inventory_digest,
+            independent_restore_verification="PASS",
+            post_recovery_live_status="PASS",
+            post_recovery_ready_status="PASS",
         )
 
 

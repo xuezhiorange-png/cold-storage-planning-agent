@@ -135,6 +135,30 @@ possible. The migration receipt requires
 source/target identities, PASS restore and readiness observations, and final
 state equal to the pre-migration state.
 
+The controlled acceptance must exercise actual Alembic failure boundaries. It
+creates temporary, untracked revisions at runtime and invokes
+`alembic upgrade <temporary-revision>` for both scenarios. The transactional
+revision performs a real Alembic operation and raises a deterministic failure
+marker; the partial revision performs a deliberately separate AUTOCOMMIT
+mutation and raises a different marker. The command must exit nonzero, the
+marker must be present, and the post-failure inventory must be re-observed
+before classification. A SQLAlchemy transaction test or a hand-written SQL
+statement without an Alembic command is not sufficient evidence. Temporary
+revision files are removed after the step and no tracked Alembic revision is
+created.
+
+After the isolated restore and `verify-restore` steps, the workflow starts the
+previous known-good release image against the recovered database and recovered
+artifact root. `/health/live` must be observed from that process and
+`/health/ready` must verify the expected recovered project row and artifact
+content. The workflow writes `post-recovery-readiness.json` only after those
+checks pass. The migration receipt consumes the observed
+`independent_restore_verification`, `post_recovery_live_status`, and
+`post_recovery_ready_status` values; it does not manufacture readiness from a
+receipt or summary field. The acceptance summary verifies both receipts, the
+temporary Alembic result records, and this readiness record before declaring
+PASS.
+
 The canonical commands are:
 
 ```bash

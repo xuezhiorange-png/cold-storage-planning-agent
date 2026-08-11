@@ -112,6 +112,8 @@ MIGRATION_RECOVERY_RECEIPT_FIELDS: tuple[str, ...] = (
     "final_database_inventory_digest",
     "final_artifact_inventory_digest",
     "independent_restore_verification",
+    "post_recovery_live_status",
+    "post_recovery_ready_status",
     "readiness_verification",
     "migration_recovery_result",
 )
@@ -283,7 +285,8 @@ def classify_failure_state(
         or post_schema is None
         or pre_database is None
         or post_database is None
-        or (pre_artifact is None) != (post_artifact is None)
+        or pre_artifact is None
+        or post_artifact is None
     ):
         return FailureAssessment(
             FailureState.STATE_AMBIGUOUS,
@@ -585,6 +588,9 @@ def make_migration_recovery_receipt(
     final_schema_head: object,
     final_database_inventory_digest: object,
     final_artifact_inventory_digest: object,
+    independent_restore_verification: object,
+    post_recovery_live_status: object,
+    post_recovery_ready_status: object,
 ) -> dict[str, Any]:
     """Create a PASS migration-recovery receipt after isolated verification."""
 
@@ -620,6 +626,24 @@ def make_migration_recovery_receipt(
     final_artifact = _validate_digest(
         final_artifact_inventory_digest, field="final_artifact_inventory_digest"
     )
+    restore_verification = independent_restore_verification
+    live_status = post_recovery_live_status
+    ready_status = post_recovery_ready_status
+    if restore_verification != "PASS":
+        raise FailureRecoveryError(
+            "MIGRATION_RECOVERY_RECEIPT_INVALID",
+            "independent restore verification did not pass",
+        )
+    if live_status != "PASS":
+        raise FailureRecoveryError(
+            "MIGRATION_RECOVERY_RECEIPT_INVALID",
+            "post-recovery live status did not pass",
+        )
+    if ready_status != "PASS":
+        raise FailureRecoveryError(
+            "MIGRATION_RECOVERY_RECEIPT_INVALID",
+            "post-recovery ready status did not pass",
+        )
     identities = {
         "source_environment_id": _reject_secret_or_path(
             source_environment_id, field="source_environment_id"
@@ -669,7 +693,7 @@ def make_migration_recovery_receipt(
             "unchanged failure state does not require migration recovery",
         )
     return {
-        "schema_version": "cold-storage-migration-recovery-receipt-v1",
+        "schema_version": "cold-storage-migration-recovery-receipt-v2",
         "task": "TASK-012",
         "version": "V0.2",
         "slice": 6,
@@ -694,7 +718,9 @@ def make_migration_recovery_receipt(
         "final_schema_head": final_schema,
         "final_database_inventory_digest": final_db,
         "final_artifact_inventory_digest": final_artifact,
-        "independent_restore_verification": "PASS",
+        "independent_restore_verification": restore_verification,
+        "post_recovery_live_status": live_status,
+        "post_recovery_ready_status": ready_status,
         "readiness_verification": "PASS",
         "migration_recovery_result": "PASS",
     }
@@ -713,7 +739,7 @@ def verify_migration_recovery_receipt(value: Mapping[str, Any]) -> dict[str, Any
         receipt["slice"],
         receipt["package"],
         receipt["controlled_synthetic"],
-    ) != ("cold-storage-migration-recovery-receipt-v1", "TASK-012", "V0.2", 6, 2, True):
+    ) != ("cold-storage-migration-recovery-receipt-v2", "TASK-012", "V0.2", 6, 2, True):
         raise FailureRecoveryError(
             "MIGRATION_RECOVERY_RECEIPT_INVALID", "receipt identity mismatch"
         )
@@ -800,6 +826,8 @@ def verify_migration_recovery_receipt(value: Mapping[str, Any]) -> dict[str, Any
             )
     for key in (
         "independent_restore_verification",
+        "post_recovery_live_status",
+        "post_recovery_ready_status",
         "readiness_verification",
         "migration_recovery_result",
     ):
