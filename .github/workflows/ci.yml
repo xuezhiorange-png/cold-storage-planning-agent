@@ -1539,8 +1539,6 @@ jobs:
           POSTGRES_DB: cold_storage_recovery
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
-          COLD_STORAGE_ENVIRONMENT_ID: local
-          COLD_STORAGE_SQLITE_PATH: ${{ runner.temp }}/task012-recovery.sqlite
           COLD_STORAGE_DATABASE_ENVIRONMENT_ID: recovery-db-ci
           COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: recovery-artifact-ci
         run: cd backend && PYTHONPATH=src uv run alembic upgrade head
@@ -1554,8 +1552,6 @@ jobs:
           POSTGRES_DB: cold_storage_recovery
           POSTGRES_USER: cold_storage
           POSTGRES_PASSWORD: cold_storage
-          COLD_STORAGE_ENVIRONMENT_ID: local
-          COLD_STORAGE_SQLITE_PATH: ${{ runner.temp }}/task012-recovery.sqlite
           COLD_STORAGE_DATABASE_ENVIRONMENT_ID: recovery-db-ci
           COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: recovery-artifact-ci
           COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-recovery-source
