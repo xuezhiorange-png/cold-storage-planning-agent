@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery
+.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery final-release-evidence-test final-release-evidence-lint final-release-evidence-typecheck verify-final-release-evidence
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -130,11 +130,42 @@ release-evidence-test:
 		tests/unit/test_negative_scenarios.py \
 		tests/unit/test_live_evidence_runner.py \
 		tests/unit/test_artifact_transport.py \
+		tests/unit/test_final_release_evidence.py \
 		tests/integration/test_release_candidate_evidence.py \
 		tests/integration/test_live_evidence_runner.py \
 		tests/integration/test_artifact_transport.py \
+		tests/integration/test_final_release_evidence.py \
+		tests/architecture/test_final_release_evidence_boundaries.py \
 		tests/architecture/test_release_evidence_boundaries.py \
 		-q
+
+# TASK-012 V0.2 Slice 6 Package 3: deterministic final bundle tests.
+final-release-evidence-test:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
+		tests/unit/test_final_release_evidence.py \
+		tests/integration/test_final_release_evidence.py \
+		tests/architecture/test_final_release_evidence_boundaries.py \
+		-q
+
+final-release-evidence-lint:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff check \
+		src/cold_storage/release/final_release_evidence.py \
+		tests/unit/test_final_release_evidence.py \
+		tests/integration/test_final_release_evidence.py \
+		tests/architecture/test_final_release_evidence_boundaries.py
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff format --check \
+		src/cold_storage/release/final_release_evidence.py \
+		tests/unit/test_final_release_evidence.py \
+		tests/integration/test_final_release_evidence.py \
+		tests/architecture/test_final_release_evidence_boundaries.py
+
+final-release-evidence-typecheck:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run mypy \
+		src/cold_storage/release/final_release_evidence.py \
+		--strict --ignore-missing-imports
+
+verify-final-release-evidence: final-release-evidence-lint final-release-evidence-typecheck final-release-evidence-test
+	@echo 'verify-final-release-evidence ok'
 
 # Runner-only contract gate. This target uses mock/synthetic tests and never
 # invokes a real Docker build, registry push, signing command, or deployment.

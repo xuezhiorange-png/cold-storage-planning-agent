@@ -1,0 +1,101 @@
+name: task012-slice6-package3-release-evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      execute_final_release_evidence_assembly:
+        description: Explicitly authorize S6-06 final evidence assembly
+        required: true
+        type: boolean
+        default: false
+      expected_source_sha:
+        description: Exact main commit authorized for S6-06 assembly
+        required: true
+        type: string
+        default: 7b36d68afb94577db401b8825013cc14ab0943d7
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  final-release-evidence:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_final_release_evidence_assembly == true && inputs.expected_source_sha == '7b36d68afb94577db401b8825013cc14ab0943d7' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install backend
+        run: cd backend && uv sync
+
+      - name: Validate exact-main assembly gate
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+          EXPECTED_SOURCE_TREE_SHA: a43c2686a5f2c91aae1b4966f31923648c5eff03
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${EXPECTED_SOURCE_SHA}" = "7b36d68afb94577db401b8825013cc14ab0943d7"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}"
+          test "$(git rev-parse HEAD^{tree})" = "${EXPECTED_SOURCE_TREE_SHA}"
+
+      - name: Assemble and independently verify final release evidence
+        env:
+          SOURCE_SHA: ${{ inputs.expected_source_sha }}
+          SOURCE_TREE_SHA: a43c2686a5f2c91aae1b4966f31923648c5eff03
+          RUN_ROOT: ${{ runner.temp }}/task012-s6-06/${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUN_ROOT}"
+          GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.final_release_evidence \
+            write-frozen-authority-index \
+            --output "${RUN_ROOT}/authority-index.json"
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.final_release_evidence \
+            assemble-final-release-evidence \
+            --authority-index "${RUN_ROOT}/authority-index.json" \
+            --output-dir "${RUN_ROOT}/bundle" \
+            --source-sha "${SOURCE_SHA}" \
+            --source-tree-sha "${SOURCE_TREE_SHA}" \
+            --generated-at "${GENERATED_AT}"
+          sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS"
+          sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS.sha256"
+          echo "RUN_ROOT=${RUN_ROOT}" >> "${GITHUB_ENV}"
+
+      - name: Upload final release evidence bundle
+        id: upload_final_evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-s6-06-final-release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.RUN_ROOT }}/bundle
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+
+      - name: Record final release evidence handoff
+        env:
+          ARTIFACT_ID: ${{ steps.upload_final_evidence.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_final_evidence.outputs.artifact-digest }}
+          ARTIFACT_URL: ${{ steps.upload_final_evidence.outputs.artifact-url }}
+          ARTIFACT_NAME: task012-s6-06-final-release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "${ARTIFACT_ID}"
+          test -n "${ARTIFACT_DIGEST}"
+          test -n "${ARTIFACT_URL}"
+          {
+            echo "### S6-06 final release evidence handoff"
+            echo "artifact-id: ${ARTIFACT_ID}"
+            echo "artifact-digest: ${ARTIFACT_DIGEST}"
+            echo "artifact-url: ${ARTIFACT_URL}"
+            echo "artifact-name: ${ARTIFACT_NAME}"
+            echo "source-sha: ${{ inputs.expected_source_sha }}"
+            echo "s6-07-status: NOT_AUTHORIZED"
+          } >> "${GITHUB_STEP_SUMMARY}"

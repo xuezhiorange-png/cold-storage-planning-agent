@@ -843,6 +843,8 @@ jobs:
         run: cd backend && uv run ruff check src/cold_storage/release/ && uv run ruff format --check src/cold_storage/release/
       - name: Release evidence typecheck
         run: cd backend && uv run mypy src/cold_storage/release/ --strict --ignore-missing-imports
+      - name: Package 3 workflow YAML parse
+        run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/task012-slice6-package3-release-evidence.yml")'
       - name: Release evidence unit tests
         run: |
           cd backend && PYTHONPATH=src uv run pytest \
@@ -856,6 +858,7 @@ jobs:
             tests/unit/test_regression_b2_b3_b4.py \
             tests/unit/test_live_evidence_runner.py \
             tests/unit/test_artifact_transport.py \
+            tests/unit/test_final_release_evidence.py \
             tests/unit/test_live_attestation.py \
             -q
       - name: Release evidence integration tests
@@ -864,11 +867,13 @@ jobs:
             tests/integration/test_release_candidate_evidence.py \
             tests/integration/test_live_evidence_runner.py \
             tests/integration/test_artifact_transport.py \
+            tests/integration/test_final_release_evidence.py \
             -q
       - name: Release evidence architecture tests
         run: |
           cd backend && PYTHONPATH=src uv run pytest \
             tests/architecture/test_release_evidence_boundaries.py \
+            tests/architecture/test_final_release_evidence_boundaries.py \
             -q
 
   # TASK-012 V0.2 Slice 2 R2: this is a future execution surface only.
