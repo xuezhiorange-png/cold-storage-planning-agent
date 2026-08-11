@@ -28,8 +28,9 @@ from cold_storage.release.canonical_serialization import (
 PACKAGE3_SCHEMA_VERSION = "task012-s6-06-final-release-evidence-v1"
 AUTHORITY_INDEX_SCHEMA_VERSION = "task012-s6-06-authority-index-v1"
 EXPECTED_REPOSITORY = "xuezhiorange-png/cold-storage-planning-agent"
-EXPECTED_SOURCE_SHA = "7b36d68afb94577db401b8825013cc14ab0943d7"
-EXPECTED_SOURCE_TREE_SHA = "a43c2686a5f2c91aae1b4966f31923648c5eff03"
+IMPLEMENTATION_BASE_SHA = "7b36d68afb94577db401b8825013cc14ab0943d7"
+IMPLEMENTATION_BASE_TREE_SHA = "a43c2686a5f2c91aae1b4966f31923648c5eff03"
+PACKAGE3_IMPLEMENTATION_HEAD_SHA = "15952da351c922939f82d5e32bdd60216537fcdb"
 EXPECTED_VERSION = "V0.2"
 EXPECTED_RELEASE_VERSION = "v0.2.0"
 EXPECTED_RC_SOURCE_SHA = "043731fea4e60feb6b929c524c4b68e87ed67bd7"
@@ -113,7 +114,7 @@ def _row(
         "production": False,
         "production_operation_performed": False,
         "authority_source_sha": authority_source_sha or merge_sha,
-        "current_release_source_sha": EXPECTED_SOURCE_SHA,
+        "current_release_source_sha": None,
         "lineage_binding_result": "PASS",
         "verification_result": "PASS",
     }
@@ -126,13 +127,13 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         domain="Source / Version Identity",
         canonical_path="backend/src/cold_storage/release/provenance_schema.py;backend/src/cold_storage/release/live_evidence_runner.py",
         pr_number=96,
-        merge_sha=EXPECTED_SOURCE_SHA,
+        merge_sha=IMPLEMENTATION_BASE_SHA,
         workflow_name="ci",
         workflow_path=".github/workflows/ci.yml",
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -155,7 +156,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -178,7 +179,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -201,7 +202,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -224,7 +225,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -247,7 +248,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -270,7 +271,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -293,7 +294,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -316,7 +317,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -339,7 +340,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -471,13 +472,13 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         domain="Slice 6 Package 2 Recovery",
         canonical_path="backend/src/cold_storage/recovery/failure_recovery.py;backend/src/cold_storage/recovery/restore_runner.py;.github/workflows/task012-slice6-package2-recovery.yml;docs/runbooks/TASK-012-slice6-release-failure-recovery.md",
         pr_number=96,
-        merge_sha=EXPECTED_SOURCE_SHA,
+        merge_sha=IMPLEMENTATION_BASE_SHA,
         workflow_name="TASK-012 Slice 6 Package 2 Release Failure Recovery",
         workflow_path=".github/workflows/task012-slice6-package2-recovery.yml",
         run_id=31493144331,
         run_attempt=1,
         event="workflow_dispatch",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=9101883140,
         artifact_name="task012-slice6-package2-recovery-31493144331-1",
@@ -500,7 +501,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         run_id=31492728302,
         run_attempt=1,
         event="push",
-        head_sha=EXPECTED_SOURCE_SHA,
+        head_sha=IMPLEMENTATION_BASE_SHA,
         conclusion="success",
         artifact_id=None,
         artifact_name=None,
@@ -510,7 +511,7 @@ _FROZEN_AUTHORITY_ROWS: tuple[dict[str, Any], ...] = (
         receipt_sha256=None,
         source_environment_class="repository_contract",
         controlled_synthetic=False,
-        authority_source_sha=EXPECTED_SOURCE_SHA,
+        authority_source_sha=IMPLEMENTATION_BASE_SHA,
     ),
 )
 
@@ -792,6 +793,8 @@ def _compare_frozen_authority(row: Mapping[str, Any]) -> None:
     authority_id = row["authority_id"]
     expected = _FROZEN_AUTHORITY_BY_ID[authority_id]
     for field, expected_value in expected.items():
+        if field == "current_release_source_sha":
+            continue
         if row.get(field) != expected_value:
             raise _fail(
                 "AUTHORITY_BINDING_MISMATCH",
@@ -799,7 +802,9 @@ def _compare_frozen_authority(row: Mapping[str, Any]) -> None:
             )
 
 
-def _normalize_and_verify_index(value: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _normalize_and_verify_index(
+    value: Mapping[str, Any], *, source_sha: str, source_tree_sha: str
+) -> list[dict[str, Any]]:
     if value.get("schema_version") not in {
         AUTHORITY_INDEX_SCHEMA_VERSION,
         "task012-s6-06-authority-index-v1-input",
@@ -809,9 +814,9 @@ def _normalize_and_verify_index(value: Mapping[str, Any]) -> list[dict[str, Any]
         raise _fail("AUTHORITY_INDEX_SCHEMA_INVALID", "authority index task/version mismatch")
     if value.get("slice") != 6 or value.get("item") != "S6-06" or value.get("package") != 3:
         raise _fail("AUTHORITY_INDEX_SCHEMA_INVALID", "authority index scope mismatch")
-    if value.get("source_sha") != EXPECTED_SOURCE_SHA:
+    if value.get("source_sha") != source_sha:
         raise _fail("SOURCE_SHA_MISMATCH", "authority index source SHA mismatch")
-    if value.get("source_tree_sha") != EXPECTED_SOURCE_TREE_SHA:
+    if value.get("source_tree_sha") != source_tree_sha:
         raise _fail("SOURCE_TREE_MISMATCH", "authority index source tree mismatch")
     raw_authorities = value.get("authorities")
     if not isinstance(raw_authorities, list) or len(raw_authorities) != len(_FROZEN_AUTHORITY_ROWS):
@@ -823,6 +828,11 @@ def _normalize_and_verify_index(value: Mapping[str, Any]) -> list[dict[str, Any]
         raise _fail("REQUIRED_AUTHORITY_AMBIGUOUS", "authority IDs are not unique")
     for row in normalized:
         _compare_frozen_authority(row)
+        if row["current_release_source_sha"] != source_sha:
+            raise _fail(
+                "SOURCE_SHA_MISMATCH",
+                f"{row['authority_id']}.current_release_source_sha mismatch",
+            )
         if row["verification_result"] != "PASS":
             raise _fail(
                 "REQUIRED_AUTHORITY_FAILED", f"authority is not PASS: {row['authority_id']}"
@@ -915,6 +925,7 @@ def _verify_github_metadata(authorities: Sequence[Mapping[str, Any]], metadata_d
             if (
                 _parse_positive_int(workflow_run.get("id"), field="artifact workflow run id")
                 != authority["workflow_run_id"]
+                or workflow_run.get("head_branch") != "main"
                 or workflow_run.get("head_sha") != authority["workflow_head_sha"]
             ):
                 raise _fail(
@@ -926,10 +937,8 @@ def _verify_github_metadata(authorities: Sequence[Mapping[str, Any]], metadata_d
 def _validate_source_inputs(repository: str, source_sha: str, source_tree_sha: str) -> None:
     if repository != EXPECTED_REPOSITORY:
         raise _fail("REPOSITORY_IDENTITY_MISMATCH", "repository is not the frozen repository")
-    if source_sha != EXPECTED_SOURCE_SHA:
-        raise _fail("SOURCE_SHA_MISMATCH", "current release source SHA mismatch")
-    if source_tree_sha != EXPECTED_SOURCE_TREE_SHA:
-        raise _fail("SOURCE_TREE_MISMATCH", "current release source tree mismatch")
+    _require_commit(source_sha, field="source_sha")
+    _require_commit(source_tree_sha, field="source_tree_sha")
 
 
 def _common(
@@ -1084,7 +1093,7 @@ def _build_documents(
         "status": "PASS",
         "run_id": 31493144331,
         "run_attempt": 1,
-        "head_sha": EXPECTED_SOURCE_SHA,
+        "head_sha": IMPLEMENTATION_BASE_SHA,
         "artifact_id": 9101883140,
         "artifact_digest": (
             "sha256:ab859a42afc7e6459dd053fa1aaf5d7ddd4ce9968f11093904f1f513c0b1ea18"
@@ -1363,8 +1372,12 @@ def _verify_common(document: Mapping[str, Any], *, schema_suffix: str) -> str:
     return generated_at
 
 
-def write_frozen_authority_index(output: Path) -> Path:
-    """Write the fixed 17-entry input index used by the controlled workflow."""
+def write_frozen_authority_index(output: Path, *, source_sha: str, source_tree_sha: str) -> Path:
+    """Write the fixed 17-entry input index for an explicit release source."""
+    _validate_source_inputs(EXPECTED_REPOSITORY, source_sha, source_tree_sha)
+    authorities = [
+        {**row, "current_release_source_sha": source_sha} for row in _FROZEN_AUTHORITY_ROWS
+    ]
     value: OrderedDict[str, Any] = OrderedDict(
         [
             ("schema_version", "task012-s6-06-authority-index-v1-input"),
@@ -1373,9 +1386,9 @@ def write_frozen_authority_index(output: Path) -> Path:
             ("slice", 6),
             ("item", "S6-06"),
             ("package", 3),
-            ("source_sha", EXPECTED_SOURCE_SHA),
-            ("source_tree_sha", EXPECTED_SOURCE_TREE_SHA),
-            ("authorities", list(_FROZEN_AUTHORITY_ROWS)),
+            ("source_sha", source_sha),
+            ("source_tree_sha", source_tree_sha),
+            ("authorities", authorities),
         ]
     )
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -1391,15 +1404,18 @@ def assemble_final_release_evidence(
     source_sha: str,
     source_tree_sha: str,
     generated_at: str,
-    github_metadata_dir: Path | None = None,
+    github_metadata_dir: Path | None,
 ) -> Path:
     """Assemble and independently verify the exact eight-file final bundle."""
+    if github_metadata_dir is None:
+        raise _fail("GITHUB_METADATA_REQUIRED", "GitHub metadata is required for assembly")
     _validate_timestamp(generated_at)
     _validate_source_inputs(repository, source_sha, source_tree_sha)
     index = _read_json(authority_index)
-    authorities = _normalize_and_verify_index(index)
-    if github_metadata_dir is not None:
-        _verify_github_metadata(authorities, github_metadata_dir)
+    authorities = _normalize_and_verify_index(
+        index, source_sha=source_sha, source_tree_sha=source_tree_sha
+    )
+    _verify_github_metadata(authorities, github_metadata_dir)
     if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
         raise _fail("BUNDLE_OUTPUT_NOT_EMPTY", "output directory must be new or empty")
     output_dir.mkdir(parents=True, exist_ok=False)
@@ -1429,9 +1445,11 @@ def verify_final_release_evidence(
     repository: str,
     source_sha: str,
     source_tree_sha: str,
-    github_metadata_dir: Path | None = None,
+    github_metadata_dir: Path | None,
 ) -> None:
     """Independently verify an already-created S6-06 bundle."""
+    if github_metadata_dir is None:
+        raise _fail("GITHUB_METADATA_REQUIRED", "GitHub metadata is required for verification")
     _validate_source_inputs(repository, source_sha, source_tree_sha)
     _verify_exact_shape(bundle_dir)
     documents = {name: _read_json(bundle_dir / name) for name in FINAL_JSON_FILES}
@@ -1449,9 +1467,10 @@ def verify_final_release_evidence(
     authority_index = documents["authority-index.json"]
     if _verify_common(authority_index, schema_suffix="authority-index") != generated_at:
         raise _fail("BUNDLE_SCHEMA_MISMATCH", "authority index timestamp mismatch")
-    authorities = _normalize_and_verify_index(authority_index)
-    if github_metadata_dir is not None:
-        _verify_github_metadata(authorities, github_metadata_dir)
+    authorities = _normalize_and_verify_index(
+        authority_index, source_sha=source_sha, source_tree_sha=source_tree_sha
+    )
+    _verify_github_metadata(authorities, github_metadata_dir)
     for name, document in documents.items():
         _scan_secret_material(document, path=name)
     expected_documents = _build_documents(
@@ -1472,6 +1491,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     frozen = subparsers.add_parser("write-frozen-authority-index")
     frozen.add_argument("--output", required=True, type=Path)
+    frozen.add_argument("--source-sha", required=True)
+    frozen.add_argument("--source-tree-sha", required=True)
 
     assemble = subparsers.add_parser("assemble-final-release-evidence")
     assemble.add_argument("--authority-index", required=True, type=Path)
@@ -1480,14 +1501,14 @@ def _build_parser() -> argparse.ArgumentParser:
     assemble.add_argument("--source-sha", required=True)
     assemble.add_argument("--source-tree-sha", required=True)
     assemble.add_argument("--generated-at", required=True)
-    assemble.add_argument("--github-metadata-dir", type=Path)
+    assemble.add_argument("--github-metadata-dir", required=True, type=Path)
 
     verify = subparsers.add_parser("verify-final-release-evidence")
     verify.add_argument("--bundle-dir", required=True, type=Path)
     verify.add_argument("--repository", default=EXPECTED_REPOSITORY)
     verify.add_argument("--source-sha", required=True)
     verify.add_argument("--source-tree-sha", required=True)
-    verify.add_argument("--github-metadata-dir", type=Path)
+    verify.add_argument("--github-metadata-dir", required=True, type=Path)
     return parser
 
 
@@ -1495,8 +1516,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
         if args.command == "write-frozen-authority-index":
-            path = write_frozen_authority_index(args.output)
-            print("FROZEN_AUTHORITY_INDEX=PASS")
+            path = write_frozen_authority_index(
+                args.output,
+                source_sha=args.source_sha,
+                source_tree_sha=args.source_tree_sha,
+            )
+            print("FROZEN_AUTHORITY_INDEX=WRITTEN")
             print(f"AUTHORITY_INDEX={path}")
             return 0
         if args.command == "assemble-final-release-evidence":
@@ -1533,8 +1558,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 __all__ = [
     "AUTHORITY_INDEX_SCHEMA_VERSION",
     "EXPECTED_REPOSITORY",
-    "EXPECTED_SOURCE_SHA",
-    "EXPECTED_SOURCE_TREE_SHA",
+    "IMPLEMENTATION_BASE_SHA",
+    "IMPLEMENTATION_BASE_TREE_SHA",
+    "PACKAGE3_IMPLEMENTATION_HEAD_SHA",
     "FINAL_BUNDLE_FILES",
     "FINAL_JSON_FILES",
     "FinalReleaseEvidenceError",

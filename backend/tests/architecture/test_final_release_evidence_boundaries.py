@@ -49,7 +49,18 @@ def test_package3_workflow_is_explicitly_gated_and_isolated() -> None:
     assert "execute_final_release_evidence_assembly" in workflow
     assert "expected_source_sha" in workflow
     assert "github.ref == 'refs/heads/main'" in workflow
-    assert "EXPECTED_SOURCE_SHA" in workflow
+    assert "github.sha == inputs.expected_source_sha" in workflow
+    assert "git rev-parse HEAD^{tree}" in workflow
+    assert "git merge-base --is-ancestor" in workflow
+    assert "15952da351c922939f82d5e32bdd60216537fcdb" in workflow
+    assert "7b36d68afb94577db401b8825013cc14ab0943d7" in workflow
+    assert "gh api" in workflow
+    assert "/actions/runs/" in workflow
+    assert "/actions/artifacts/" in workflow
+    assert "github-metadata" in workflow
+    assert "--github-metadata-dir" in workflow
+    assert "verify-final-release-evidence" in workflow
+    assert "continue-on-error" not in workflow
     assert "contents: read" in workflow
     assert "actions: read" in workflow
     assert "push:" not in workflow
@@ -58,6 +69,35 @@ def test_package3_workflow_is_explicitly_gated_and_isolated() -> None:
     assert "assemble_live_evidence" not in workflow
     assert "controlled-recovery" not in workflow
     assert "S6-07" not in workflow
+
+
+def test_workflow_does_not_hardcode_pre_merge_main_as_dispatch_source() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert (
+        "inputs.expected_source_sha == '7b36d68afb94577db401b8825013cc14ab0943d7'" not in workflow
+    )
+    assert "EXPECTED_SOURCE_TREE_SHA" not in workflow
+
+
+def test_workflow_requires_dynamic_source_and_lineage_checks() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "github.sha == inputs.expected_source_sha" in workflow
+    assert 'SOURCE_TREE_SHA="$(git rev-parse HEAD^{tree})"' in workflow
+    assert "git merge-base --is-ancestor" in workflow
+    assert "PACKAGE3_IMPLEMENTATION_HEAD_SHA" in workflow
+    assert "IMPLEMENTATION_BASE_SHA" in workflow
+
+
+def test_workflow_fetches_upstream_metadata_before_both_verification_surfaces() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    fetch_offset = workflow.index("Fetch authoritative GitHub workflow-run metadata")
+    assemble_offset = workflow.index("assemble-final-release-evidence")
+    verify_offset = workflow.index("verify-final-release-evidence")
+    assert fetch_offset < assemble_offset < verify_offset
+    assert "GH_TOKEN: ${{ github.token }}" in workflow
+    assert "--header 'Accept: application/vnd.github+json'" in workflow
+    assert "actions/runs/" in workflow
+    assert "actions/artifacts/" in workflow
 
 
 def test_package3_validation_is_in_ordinary_release_evidence_gate() -> None:
@@ -78,3 +118,18 @@ def test_package3_cli_surfaces_are_explicit() -> None:
     assert 'add_parser("assemble-final-release-evidence")' in content
     assert 'add_parser("verify-final-release-evidence")' in content
     assert "verify_final_release_evidence(" in content
+    assert "--source-sha" in content
+    assert "--source-tree-sha" in content
+    assert 'add_argument("--github-metadata-dir", required=True' in content
+
+
+def test_package3_source_identity_separates_history_from_current_release() -> None:
+    content = MODULE.read_text(encoding="utf-8")
+    assert 'IMPLEMENTATION_BASE_SHA = "7b36d68afb94577db401b8825013cc14ab0943d7"' in content
+    assert 'IMPLEMENTATION_BASE_TREE_SHA = "a43c2686a5f2c91aae1b4966f31923648c5eff03"' in content
+    assert (
+        'PACKAGE3_IMPLEMENTATION_HEAD_SHA = "15952da351c922939f82d5e32bdd60216537fcdb"' in content
+    )
+    assert "EXPECTED_SOURCE_SHA" not in content
+    assert "current_release_source_sha" in content
+    assert "source_sha: str, source_tree_sha: str" in content

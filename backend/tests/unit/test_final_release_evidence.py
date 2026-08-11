@@ -10,18 +10,22 @@ import pytest
 from cold_storage.release.final_release_evidence import (
     _FROZEN_AUTHORITY_ROWS,
     EXPECTED_REPOSITORY,
-    EXPECTED_SOURCE_SHA,
-    EXPECTED_SOURCE_TREE_SHA,
     FINAL_BUNDLE_FILES,
     FINAL_JSON_FILES,
+    IMPLEMENTATION_BASE_SHA,
+    IMPLEMENTATION_BASE_TREE_SHA,
+    PACKAGE3_IMPLEMENTATION_HEAD_SHA,
     FinalReleaseEvidenceError,
     _scan_secret_material,
     assemble_final_release_evidence,
+    main,
     verify_final_release_evidence,
     write_frozen_authority_index,
 )
 
 GENERATED_AT = "2026-08-11T00:00:00Z"
+CURRENT_SOURCE_SHA = "2" * 40
+CURRENT_SOURCE_TREE_SHA = "3" * 40
 
 
 def _write_index(path: Path, value: dict[str, Any]) -> None:
@@ -30,8 +34,19 @@ def _write_index(path: Path, value: dict[str, Any]) -> None:
 
 def _index(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
     path = tmp_path / "authority-index.json"
-    write_frozen_authority_index(path)
+    write_frozen_authority_index(
+        path,
+        source_sha=CURRENT_SOURCE_SHA,
+        source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+    )
     return path, json.loads(path.read_text(encoding="utf-8"))
+
+
+def _metadata_dir(tmp_path: Path) -> Path:
+    path = tmp_path / "github-metadata"
+    if not path.exists():
+        _write_github_metadata(path)
+    return path
 
 
 def _assemble(tmp_path: Path) -> Path:
@@ -40,9 +55,10 @@ def _assemble(tmp_path: Path) -> Path:
         authority_index=index_path,
         output_dir=tmp_path / "bundle",
         repository=EXPECTED_REPOSITORY,
-        source_sha=EXPECTED_SOURCE_SHA,
-        source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+        source_sha=CURRENT_SOURCE_SHA,
+        source_tree_sha=CURRENT_SOURCE_TREE_SHA,
         generated_at=GENERATED_AT,
+        github_metadata_dir=_metadata_dir(tmp_path),
     )
 
 
@@ -59,9 +75,10 @@ def _assert_index_rejected(
             authority_index=index_path,
             output_dir=tmp_path / "bundle",
             repository=EXPECTED_REPOSITORY,
-            source_sha=EXPECTED_SOURCE_SHA,
-            source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
             generated_at=GENERATED_AT,
+            github_metadata_dir=_metadata_dir(tmp_path),
         )
     assert exc.value.failure_code in expected_codes
 
@@ -71,8 +88,9 @@ def test_valid_seventeen_authority_closure_roundtrip_passes(tmp_path: Path) -> N
     verify_final_release_evidence(
         bundle_dir=bundle,
         repository=EXPECTED_REPOSITORY,
-        source_sha=EXPECTED_SOURCE_SHA,
-        source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+        source_sha=CURRENT_SOURCE_SHA,
+        source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+        github_metadata_dir=_metadata_dir(tmp_path),
     )
     assert {path.name for path in bundle.iterdir()} == set(FINAL_BUNDLE_FILES)
     summary = json.loads((bundle / "release-evidence-summary.json").read_text(encoding="utf-8"))
@@ -160,8 +178,9 @@ def test_extra_bundle_file_fails_closed(tmp_path: Path) -> None:
         verify_final_release_evidence(
             bundle_dir=bundle,
             repository=EXPECTED_REPOSITORY,
-            source_sha=EXPECTED_SOURCE_SHA,
-            source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            github_metadata_dir=_metadata_dir(tmp_path),
         )
     assert exc.value.failure_code == "BUNDLE_SHAPE_MISMATCH"
 
@@ -173,8 +192,9 @@ def test_missing_bundle_file_fails_closed(tmp_path: Path) -> None:
         verify_final_release_evidence(
             bundle_dir=bundle,
             repository=EXPECTED_REPOSITORY,
-            source_sha=EXPECTED_SOURCE_SHA,
-            source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            github_metadata_dir=_metadata_dir(tmp_path),
         )
     assert exc.value.failure_code == "BUNDLE_SHAPE_MISMATCH"
 
@@ -187,8 +207,9 @@ def test_checksum_and_sidecar_mismatch_fail_closed(tmp_path: Path) -> None:
         verify_final_release_evidence(
             bundle_dir=bundle,
             repository=EXPECTED_REPOSITORY,
-            source_sha=EXPECTED_SOURCE_SHA,
-            source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            github_metadata_dir=_metadata_dir(tmp_path),
         )
     assert exc.value.failure_code in {"CHECKSUM_MISMATCH", "CHECKSUM_COVERAGE_MISMATCH"}
 
@@ -198,8 +219,9 @@ def test_checksum_and_sidecar_mismatch_fail_closed(tmp_path: Path) -> None:
         verify_final_release_evidence(
             bundle_dir=bundle,
             repository=EXPECTED_REPOSITORY,
-            source_sha=EXPECTED_SOURCE_SHA,
-            source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            github_metadata_dir=_metadata_dir(tmp_path),
         )
     assert exc.value.failure_code == "CHECKSUM_MISMATCH"
 
@@ -214,8 +236,9 @@ def test_secret_material_and_production_markers_fail_closed(tmp_path: Path) -> N
         verify_final_release_evidence(
             bundle_dir=bundle,
             repository=EXPECTED_REPOSITORY,
-            source_sha=EXPECTED_SOURCE_SHA,
-            source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            github_metadata_dir=_metadata_dir(tmp_path),
         )
     assert exc.value.failure_code == "SECRET_MATERIAL_DETECTED"
 
@@ -237,7 +260,7 @@ def test_safe_audit_fields_are_not_secret_material() -> None:
 
 
 def _write_github_metadata(directory: Path) -> None:
-    directory.mkdir()
+    directory.mkdir(parents=True)
     for row in _FROZEN_AUTHORITY_ROWS:
         run_id = row["workflow_run_id"]
         if run_id is not None:
@@ -268,6 +291,7 @@ def _write_github_metadata(directory: Path) -> None:
                         "digest": row["artifact_digest"],
                         "workflow_run": {
                             "id": row["workflow_run_id"],
+                            "head_branch": "main",
                             "head_sha": row["workflow_head_sha"],
                         },
                     }
@@ -284,8 +308,8 @@ def test_github_run_and_artifact_identity_fixture_is_verified(tmp_path: Path) ->
         authority_index=index_path,
         output_dir=tmp_path / "bundle",
         repository=EXPECTED_REPOSITORY,
-        source_sha=EXPECTED_SOURCE_SHA,
-        source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+        source_sha=CURRENT_SOURCE_SHA,
+        source_tree_sha=CURRENT_SOURCE_TREE_SHA,
         generated_at=GENERATED_AT,
         github_metadata_dir=metadata_dir,
     )
@@ -299,8 +323,8 @@ def test_github_run_and_artifact_identity_fixture_is_verified(tmp_path: Path) ->
         verify_final_release_evidence(
             bundle_dir=bundle,
             repository=EXPECTED_REPOSITORY,
-            source_sha=EXPECTED_SOURCE_SHA,
-            source_tree_sha=EXPECTED_SOURCE_TREE_SHA,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
             github_metadata_dir=metadata_dir,
         )
     assert exc.value.failure_code == "WORKFLOW_HEAD_MISMATCH"
@@ -309,3 +333,184 @@ def test_github_run_and_artifact_identity_fixture_is_verified(tmp_path: Path) ->
 def test_final_json_file_set_is_six() -> None:
     assert len(FINAL_JSON_FILES) == 6
     assert len(FINAL_BUNDLE_FILES) == 8
+
+
+def test_dynamic_post_merge_source_identity_is_accepted(tmp_path: Path) -> None:
+    bundle = _assemble(tmp_path)
+    source_identity = json.loads((bundle / "source-identity.json").read_text(encoding="utf-8"))
+    index = json.loads((bundle / "authority-index.json").read_text(encoding="utf-8"))
+    assert source_identity["source_sha"] == CURRENT_SOURCE_SHA
+    assert source_identity["source_tree_sha"] == CURRENT_SOURCE_TREE_SHA
+    assert index["source_sha"] == CURRENT_SOURCE_SHA
+    assert index["source_tree_sha"] == CURRENT_SOURCE_TREE_SHA
+
+
+def test_historical_authority_sha_remains_immutable(tmp_path: Path) -> None:
+    _, index = _index(tmp_path)
+    package2 = next(
+        row for row in index["authorities"] if row["authority_id"] == "S6_PACKAGE2_FINAL"
+    )
+    assert package2["authority_source_sha"] == IMPLEMENTATION_BASE_SHA
+    assert package2["canonical_merge_sha"] == IMPLEMENTATION_BASE_SHA
+    assert package2["current_release_source_sha"] == CURRENT_SOURCE_SHA
+    assert IMPLEMENTATION_BASE_TREE_SHA != CURRENT_SOURCE_TREE_SHA
+    assert PACKAGE3_IMPLEMENTATION_HEAD_SHA != IMPLEMENTATION_BASE_SHA
+
+
+def test_cli_requires_github_metadata_for_assembly(tmp_path: Path) -> None:
+    index_path, _ = _index(tmp_path)
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "assemble-final-release-evidence",
+                "--authority-index",
+                str(index_path),
+                "--output-dir",
+                str(tmp_path / "bundle"),
+                "--source-sha",
+                CURRENT_SOURCE_SHA,
+                "--source-tree-sha",
+                CURRENT_SOURCE_TREE_SHA,
+                "--generated-at",
+                GENERATED_AT,
+            ]
+        )
+
+
+def test_cli_requires_github_metadata_for_independent_verify(tmp_path: Path) -> None:
+    bundle = _assemble(tmp_path)
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "verify-final-release-evidence",
+                "--bundle-dir",
+                str(bundle),
+                "--source-sha",
+                CURRENT_SOURCE_SHA,
+                "--source-tree-sha",
+                CURRENT_SOURCE_TREE_SHA,
+            ]
+        )
+
+
+def test_missing_run_metadata_fails_closed(tmp_path: Path) -> None:
+    metadata_dir = _metadata_dir(tmp_path)
+    (metadata_dir / "run-31493144331.json").unlink()
+    index_path, _ = _index(tmp_path)
+    with pytest.raises(FinalReleaseEvidenceError) as exc:
+        assemble_final_release_evidence(
+            authority_index=index_path,
+            output_dir=tmp_path / "bundle",
+            repository=EXPECTED_REPOSITORY,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            generated_at=GENERATED_AT,
+            github_metadata_dir=metadata_dir,
+        )
+    assert exc.value.failure_code == "REQUIRED_AUTHORITY_MISSING"
+
+
+def test_missing_artifact_metadata_fails_closed(tmp_path: Path) -> None:
+    metadata_dir = _metadata_dir(tmp_path)
+    (metadata_dir / "artifact-9101883140.json").unlink()
+    index_path, _ = _index(tmp_path)
+    with pytest.raises(FinalReleaseEvidenceError) as exc:
+        assemble_final_release_evidence(
+            authority_index=index_path,
+            output_dir=tmp_path / "bundle",
+            repository=EXPECTED_REPOSITORY,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            generated_at=GENERATED_AT,
+            github_metadata_dir=metadata_dir,
+        )
+    assert exc.value.failure_code == "REQUIRED_AUTHORITY_MISSING"
+
+
+def _assert_metadata_mutation_fails(
+    tmp_path: Path,
+    filename: str,
+    mutate: Callable[[dict[str, Any]], None],
+    expected_code: str,
+) -> None:
+    metadata_dir = _metadata_dir(tmp_path)
+    path = metadata_dir / filename
+    value = json.loads(path.read_text(encoding="utf-8"))
+    mutate(value)
+    path.write_text(json.dumps(value) + "\n", encoding="utf-8")
+    index_path, _ = _index(tmp_path)
+    with pytest.raises(FinalReleaseEvidenceError) as exc:
+        assemble_final_release_evidence(
+            authority_index=index_path,
+            output_dir=tmp_path / "bundle",
+            repository=EXPECTED_REPOSITORY,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            generated_at=GENERATED_AT,
+            github_metadata_dir=metadata_dir,
+        )
+    assert exc.value.failure_code == expected_code
+
+
+def test_run_metadata_identity_mismatches_fail_closed(tmp_path: Path) -> None:
+    cases = [
+        ("id", 1, "WORKFLOW_HEAD_MISMATCH"),
+        ("event", "push", "WORKFLOW_IDENTITY_MISMATCH"),
+        ("head_sha", "4" * 40, "WORKFLOW_HEAD_MISMATCH"),
+        ("run_attempt", 2, "WORKFLOW_ATTEMPT_MISMATCH"),
+        ("conclusion", "failure", "WORKFLOW_NOT_SUCCESSFUL"),
+        ("path", ".github/workflows/other.yml", "WORKFLOW_IDENTITY_MISMATCH"),
+    ]
+    for field, value, code in cases:
+        case_dir = tmp_path / field
+        _assert_metadata_mutation_fails(
+            case_dir,
+            "run-31493144331.json",
+            lambda document, field=field, value=value: document.update({field: value}),
+            code,
+        )
+
+
+def test_artifact_metadata_identity_mismatches_fail_closed(tmp_path: Path) -> None:
+    cases = [
+        ("id", 1, "ARTIFACT_DIGEST_MISMATCH"),
+        ("name", "wrong", "ARTIFACT_IDENTITY_MISMATCH"),
+        ("expired", True, "ARTIFACT_DIGEST_MISMATCH"),
+        ("digest", "sha256:" + "0" * 64, "ARTIFACT_DIGEST_MISMATCH"),
+    ]
+    for field, value, code in cases:
+        case_dir = tmp_path / field
+        _assert_metadata_mutation_fails(
+            case_dir,
+            "artifact-9101883140.json",
+            lambda document, field=field, value=value: document.update({field: value}),
+            code,
+        )
+
+
+def test_artifact_workflow_binding_mismatches_fail_closed(tmp_path: Path) -> None:
+    for field, value in (("id", 1), ("head_sha", "4" * 40)):
+        case_dir = tmp_path / f"workflow-{field}"
+        _assert_metadata_mutation_fails(
+            case_dir,
+            "artifact-9101883140.json",
+            lambda document, field=field, value=value: document["workflow_run"].update(
+                {field: value}
+            ),
+            "ARTIFACT_WORKFLOW_BINDING_MISMATCH",
+        )
+
+
+def test_programmatic_metadata_requirement_is_fail_closed(tmp_path: Path) -> None:
+    index_path, _ = _index(tmp_path)
+    with pytest.raises(FinalReleaseEvidenceError) as exc:
+        assemble_final_release_evidence(
+            authority_index=index_path,
+            output_dir=tmp_path / "bundle",
+            repository=EXPECTED_REPOSITORY,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            generated_at=GENERATED_AT,
+            github_metadata_dir=None,
+        )
+    assert exc.value.failure_code == "GITHUB_METADATA_REQUIRED"

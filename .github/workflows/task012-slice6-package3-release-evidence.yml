@@ -12,7 +12,6 @@ on:
         description: Exact main commit authorized for S6-06 assembly
         required: true
         type: string
-        default: 7b36d68afb94577db401b8825013cc14ab0943d7
 
 permissions:
   contents: read
@@ -20,7 +19,11 @@ permissions:
 
 jobs:
   final-release-evidence:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_final_release_evidence_assembly == true && inputs.expected_source_sha == '7b36d68afb94577db401b8825013cc14ab0943d7' && github.ref == 'refs/heads/main' }}
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+      inputs.execute_final_release_evidence_assembly == true &&
+      github.ref == 'refs/heads/main' &&
+      github.sha == inputs.expected_source_sha }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,31 +35,72 @@ jobs:
       - name: Install backend
         run: cd backend && uv sync
 
-      - name: Validate exact-main assembly gate
+      - name: Validate dynamic exact-main and Package 3 lineage gates
         env:
           EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
-          EXPECTED_SOURCE_TREE_SHA: a43c2686a5f2c91aae1b4966f31923648c5eff03
+          PACKAGE3_IMPLEMENTATION_HEAD_SHA: 15952da351c922939f82d5e32bdd60216537fcdb
+          IMPLEMENTATION_BASE_SHA: 7b36d68afb94577db401b8825013cc14ab0943d7
         run: |
           set -euo pipefail
           test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
           test "${GITHUB_REF}" = "refs/heads/main"
-          test "${EXPECTED_SOURCE_SHA}" = "7b36d68afb94577db401b8825013cc14ab0943d7"
+          test "${GITHUB_SHA}" = "${EXPECTED_SOURCE_SHA}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}"
-          test "$(git rev-parse HEAD^{tree})" = "${EXPECTED_SOURCE_TREE_SHA}"
+          SOURCE_TREE_SHA="$(git rev-parse HEAD^{tree})"
+          test -n "${SOURCE_TREE_SHA}"
+          git merge-base --is-ancestor \
+            "${PACKAGE3_IMPLEMENTATION_HEAD_SHA}" "${GITHUB_SHA}"
+          git merge-base --is-ancestor \
+            "${IMPLEMENTATION_BASE_SHA}" "${GITHUB_SHA}"
+          {
+            echo "SOURCE_SHA=${GITHUB_SHA}"
+            echo "SOURCE_TREE_SHA=${SOURCE_TREE_SHA}"
+          } >> "${GITHUB_ENV}"
+          echo "PACKAGE3_IMPLEMENTATION_HEAD_ANCESTOR_GATE=PASS"
+          echo "IMPLEMENTATION_BASE_ANCESTOR_GATE=PASS"
 
-      - name: Assemble and independently verify final release evidence
+      - name: Fetch authoritative GitHub workflow-run metadata
         env:
-          SOURCE_SHA: ${{ inputs.expected_source_sha }}
-          SOURCE_TREE_SHA: a43c2686a5f2c91aae1b4966f31923648c5eff03
+          GH_TOKEN: ${{ github.token }}
           RUN_ROOT: ${{ runner.temp }}/task012-s6-06/${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          mkdir -p "${RUN_ROOT}"
-          GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p "${RUN_ROOT}/github-metadata"
           PYTHONPATH=backend/src uv run --project backend python \
             -m cold_storage.release.final_release_evidence \
             write-frozen-authority-index \
-            --output "${RUN_ROOT}/authority-index.json"
+            --output "${RUN_ROOT}/authority-index.json" \
+            --source-sha "${SOURCE_SHA}" \
+            --source-tree-sha "${SOURCE_TREE_SHA}"
+          while IFS= read -r run_id; do
+            test -n "${run_id}"
+            gh api \
+              --header 'Accept: application/vnd.github+json' \
+              "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+              > "${RUN_ROOT}/github-metadata/run-${run_id}.json"
+          done < <(
+            jq -r '.authorities[] | select(.workflow_run_id != null) | .workflow_run_id' \
+              "${RUN_ROOT}/authority-index.json" | sort -nu
+          )
+          while IFS= read -r artifact_id; do
+            test -n "${artifact_id}"
+            gh api \
+              --header 'Accept: application/vnd.github+json' \
+              "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" \
+              > "${RUN_ROOT}/github-metadata/artifact-${artifact_id}.json"
+          done < <(
+            jq -r '.authorities[] | select(.artifact_id != null) | .artifact_id' \
+              "${RUN_ROOT}/authority-index.json" | sort -nu
+          )
+          test -n "$(find "${RUN_ROOT}/github-metadata" -type f -name '*.json' -print -quit)"
+          echo "GITHUB_METADATA_FETCH=PASS"
+
+      - name: Assemble final release evidence (ASSEMBLY=PASS)
+        env:
+          RUN_ROOT: ${{ runner.temp }}/task012-s6-06/${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           PYTHONPATH=backend/src uv run --project backend python \
             -m cold_storage.release.final_release_evidence \
             assemble-final-release-evidence \
@@ -64,17 +108,33 @@ jobs:
             --output-dir "${RUN_ROOT}/bundle" \
             --source-sha "${SOURCE_SHA}" \
             --source-tree-sha "${SOURCE_TREE_SHA}" \
-            --generated-at "${GENERATED_AT}"
+            --generated-at "${GENERATED_AT}" \
+            --github-metadata-dir "${RUN_ROOT}/github-metadata"
+          echo "ASSEMBLY=PASS"
+
+      - name: Independently verify final release evidence (INDEPENDENT_VERIFICATION=PASS)
+        env:
+          RUN_ROOT: ${{ runner.temp }}/task012-s6-06/${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.final_release_evidence \
+            verify-final-release-evidence \
+            --bundle-dir "${RUN_ROOT}/bundle" \
+            --source-sha "${SOURCE_SHA}" \
+            --source-tree-sha "${SOURCE_TREE_SHA}" \
+            --github-metadata-dir "${RUN_ROOT}/github-metadata"
           sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS"
           sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS.sha256"
-          echo "RUN_ROOT=${RUN_ROOT}" >> "${GITHUB_ENV}"
+          test "$(find "${RUN_ROOT}/bundle" -maxdepth 1 -type f | wc -l)" -eq 8
+          echo "INDEPENDENT_VERIFICATION=PASS"
 
       - name: Upload final release evidence bundle
         id: upload_final_evidence
         uses: actions/upload-artifact@v4
         with:
           name: task012-s6-06-final-release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.RUN_ROOT }}/bundle
+          path: ${{ runner.temp }}/task012-s6-06/${{ github.run_id }}-${{ github.run_attempt }}/bundle
           if-no-files-found: error
           compression-level: 0
           overwrite: false
@@ -96,6 +156,7 @@ jobs:
             echo "artifact-digest: ${ARTIFACT_DIGEST}"
             echo "artifact-url: ${ARTIFACT_URL}"
             echo "artifact-name: ${ARTIFACT_NAME}"
-            echo "source-sha: ${{ inputs.expected_source_sha }}"
+            echo "source-sha: ${SOURCE_SHA}"
+            echo "source-tree-sha: ${SOURCE_TREE_SHA}"
             echo "s6-07-status: NOT_AUTHORIZED"
           } >> "${GITHUB_STEP_SUMMARY}"

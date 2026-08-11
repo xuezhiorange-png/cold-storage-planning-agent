@@ -52,6 +52,22 @@ scope, exact current source SHA and tree SHA, a UTC `generated_at`, the
 controlled-evidence and no-production-operation markers, authority counts,
 and its verification result.
 
+The implementation identity is separate from the controlled release identity:
+
+```text
+implementation base SHA:  7b36d68afb94577db401b8825013cc14ab0943d7
+implementation base tree: a43c2686a5f2c91aae1b4966f31923648c5eff03
+Package 3 implementation: 15952da351c922939f82d5e32bdd60216537fcdb
+controlled source SHA:    exact main SHA supplied at dispatch
+controlled source tree:   git rev-parse HEAD^{tree} at that SHA
+```
+
+The controlled workflow requires the dispatch input to equal `github.sha`,
+derives the tree from the checked-out head, and requires both the Package 3
+implementation head and implementation base to be ancestors. The historical
+authority rows remain immutable; each row separately records the dynamic
+`current_release_source_sha`.
+
 ## Upstream authority model
 
 The authority index contains exactly 17 required entries. Each entry binds:
@@ -175,33 +191,48 @@ production-operation markers, bundle shape changes, and checksum failures.
 
 ## Local operator commands
 
-Use an empty temporary directory outside the repository for all output:
+Use an empty temporary directory outside the repository for all output. The
+source SHA and tree SHA are required explicit inputs; there is no hidden
+pre-merge default:
 
 ```bash
+SOURCE_SHA=<exact-current-main-sha>
+SOURCE_TREE_SHA=<tree-derived-from-that-checkout>
+METADATA_DIR=/tmp/task012-s6-06/github-metadata
+
 PYTHONPATH=backend/src uv run --project backend python \
   -m cold_storage.release.final_release_evidence \
   write-frozen-authority-index \
-  --output /tmp/task012-s6-06/authority-index.json
+  --output /tmp/task012-s6-06/authority-index.json \
+  --source-sha "${SOURCE_SHA}" \
+  --source-tree-sha "${SOURCE_TREE_SHA}"
 
 PYTHONPATH=backend/src uv run --project backend python \
   -m cold_storage.release.final_release_evidence \
   assemble-final-release-evidence \
   --authority-index /tmp/task012-s6-06/authority-index.json \
   --output-dir /tmp/task012-s6-06/bundle \
-  --source-sha 7b36d68afb94577db401b8825013cc14ab0943d7 \
-  --source-tree-sha a43c2686a5f2c91aae1b4966f31923648c5eff03 \
-  --generated-at 2026-08-11T00:00:00Z
+  --source-sha "${SOURCE_SHA}" \
+  --source-tree-sha "${SOURCE_TREE_SHA}" \
+  --generated-at 2026-08-11T00:00:00Z \
+  --github-metadata-dir "${METADATA_DIR}"
 
 PYTHONPATH=backend/src uv run --project backend python \
   -m cold_storage.release.final_release_evidence \
   verify-final-release-evidence \
   --bundle-dir /tmp/task012-s6-06/bundle \
-  --source-sha 7b36d68afb94577db401b8825013cc14ab0943d7 \
-  --source-tree-sha a43c2686a5f2c91aae1b4966f31923648c5eff03
+  --source-sha "${SOURCE_SHA}" \
+  --source-tree-sha "${SOURCE_TREE_SHA}" \
+  --github-metadata-dir "${METADATA_DIR}"
 ```
 
-The final command must independently report `S6_06_VERIFICATION_RESULT=PASS`.
-Do not point these commands at a tracked directory.
+The metadata directory is a required temporary execution input. It contains
+only response JSON fetched from the GitHub Actions run and artifact REST
+endpoints; request headers and tokens are never written. Missing, failed,
+expired, or mismatched metadata fails closed. It is not a member of the final
+eight-file bundle and is not uploaded with it. The final command must
+independently report `S6_06_VERIFICATION_RESULT=PASS`. Do not point these
+commands at a tracked directory.
 
 ## Controlled GitHub workflow
 
@@ -212,12 +243,18 @@ The implementation-only workflow is:
 ```
 
 It is `workflow_dispatch` only, requires
-`execute_final_release_evidence_assembly=true`, requires the exact frozen
-main SHA, and requires `refs/heads/main`. It has `contents: read` and
-`actions: read` permissions, writes the bundle under `RUNNER_TEMP`, verifies
-both checksum files, uploads the exact bundle, and records the upload-time
-artifact identity. It cannot dispatch Slice 2, Package 1, Package 2, or
-S6-07 and performs no production operation.
+`execute_final_release_evidence_assembly=true`, requires the separately
+authorized exact current `main` SHA in `expected_source_sha`, and requires
+`refs/heads/main`. It derives the checked-out tree dynamically and enforces
+the Package 3 implementation ancestry gates. It has `contents: read` and
+`actions: read` permissions. Before assembly it fetches every unique upstream
+workflow-run and artifact metadata record with read-only `gh api` calls;
+missing or mismatched records fail closed. It then passes the metadata
+directory to both the assembler and the independent verifier, verifies both
+checksum files, uploads the exact bundle, and records the upload-time artifact
+identity. Metadata is temporary execution evidence and is excluded from the
+eight-file bundle. It cannot dispatch Slice 2, Package 1, Package 2, or S6-07
+and performs no production operation.
 
 This PR does not dispatch that workflow. A later execution requires separate
 authorization after independent review and merge.
