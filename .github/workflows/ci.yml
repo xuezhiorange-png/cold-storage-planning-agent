@@ -80,11 +80,6 @@ on:
         required: false
         type: string
         default: ""
-      transport_capture_head_sha:
-        description: Capture workflow head SHA from the upload-time handoff receipt
-        required: false
-        type: string
-        default: ""
       handoff_artifact_id:
         description: Exact durable verified-transport handoff Artifact ID
         required: false
@@ -1009,7 +1004,7 @@ jobs:
           ARTIFACT_DIGEST: ${{ inputs.transport_artifact_digest }}
           CAPTURE_RUN_ID: ${{ inputs.transport_capture_run_id }}
           CAPTURE_RUN_ATTEMPT: ${{ inputs.transport_capture_run_attempt }}
-          CAPTURE_HEAD_SHA: ${{ inputs.transport_capture_head_sha }}
+          CAPTURE_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
         run: |
           set -euo pipefail
           test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
@@ -1032,7 +1027,7 @@ jobs:
           ARTIFACT_DIGEST: ${{ inputs.transport_artifact_digest }}
           CAPTURE_RUN_ID: ${{ inputs.transport_capture_run_id }}
           CAPTURE_RUN_ATTEMPT: ${{ inputs.transport_capture_run_attempt }}
-          CAPTURE_HEAD_SHA: ${{ inputs.transport_capture_head_sha }}
+          CAPTURE_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
         run: |
           set -euo pipefail
           OUTPUT_DIR="${RUNNER_TEMP}/task012-artifact-transport/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -1072,7 +1067,7 @@ jobs:
           SOURCE_CAPTURE_ARTIFACT_DIGEST: ${{ inputs.transport_artifact_digest }}
           SOURCE_CAPTURE_RUN_ID: ${{ inputs.transport_capture_run_id }}
           SOURCE_CAPTURE_RUN_ATTEMPT: ${{ inputs.transport_capture_run_attempt }}
-          SOURCE_CAPTURE_HEAD_SHA: ${{ inputs.transport_capture_head_sha }}
+          SOURCE_CAPTURE_HEAD_SHA: ${{ inputs.handoff_capture_head_sha }}
           TRANSPORT_RUN_ID: ${{ github.run_id }}
           TRANSPORT_RUN_ATTEMPT: ${{ github.run_attempt }}
           TRANSPORT_HEAD_SHA: ${{ github.sha }}

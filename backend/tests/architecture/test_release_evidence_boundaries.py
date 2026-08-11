@@ -436,7 +436,8 @@ def test_artifact_transport_workflow_is_off_and_mutually_exclusive() -> None:
     assert "transport_artifact_digest" in workflow
     assert "transport_capture_run_id" in workflow
     assert "transport_capture_run_attempt" in workflow
-    assert "transport_capture_head_sha" in workflow
+    assert "handoff_capture_head_sha" in workflow
+    assert "transport_capture_head_sha" not in workflow
     assert "live-evidence-artifact-transport-verify:" in workflow
     assert "actions: read" in workflow
     assert "id-token: write" not in workflow
