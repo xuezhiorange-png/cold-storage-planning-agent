@@ -45,6 +45,16 @@ on:
         required: true
         type: boolean
         default: false
+      execute_controlled_recovery_acceptance:
+        description: Explicitly authorize TASK-012 Slice 6 Package 1 controlled backup/isolated-restore acceptance
+        required: true
+        type: boolean
+        default: false
+      expected_recovery_source_sha:
+        description: Exact main commit authorized for the controlled recovery acceptance
+        required: false
+        type: string
+        default: ""
       assembly_attestation_handoff:
         description: JSON object with exact attestation Artifact ID, digest, creation run ID, attempt, and head SHA
         required: false
@@ -873,7 +883,7 @@ jobs:
   # separately gated and remains off by default. A durable handoff upload is a
   # later, independently authorized step after the original transport verify.
   live-evidence-capture:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.execute_live_evidence_capture == true && inputs.execute_controlled_recovery_acceptance != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       artifact_id: ${{ steps.upload_evidence.outputs.artifact-id }}
@@ -973,7 +983,7 @@ jobs:
   # exclusive workflow-dispatch surface. Its optional D1 upload is a distinct
   # step and contains only the verified D0 archive plus its D0 receipt.
   live-evidence-artifact-transport-verify:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_live_evidence_artifact_transport == true && inputs.execute_live_evidence_capture != true && inputs.verify_verified_transport_handoff != true && inputs.upload_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_live_evidence_artifact_transport == true && inputs.execute_controlled_recovery_acceptance != true && inputs.execute_live_evidence_capture != true && inputs.verify_verified_transport_handoff != true && inputs.upload_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       verified_handoff_artifact_id: ${{ steps.upload_verified_handoff.outputs.artifact-id }}
@@ -1087,7 +1097,7 @@ jobs:
   # TASK-012 V0.2 Slice 2: create the exact live write_once_integrity
   # attestation from a freshly restored and re-verified D1 package.
   live-evidence-attestation-create:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_live_evidence_attestation == true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_live_evidence_attestation == true && inputs.execute_controlled_recovery_acceptance != true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1234,7 +1244,7 @@ jobs:
   # TASK-012 V0.2 Slice 2: restore D1 and the exact attestation Artifact in a
   # separate run, recompute P/M/S, then upload only the six durable outputs.
   live-evidence-assembly:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.assemble_live_evidence == true && inputs.create_live_evidence_attestation != true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.assemble_live_evidence == true && inputs.execute_controlled_recovery_acceptance != true && inputs.create_live_evidence_attestation != true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.verify_verified_transport_handoff != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1412,7 +1422,7 @@ jobs:
   # original transport verifier, upload, assemble, sign, push, promote, or
   # deploy in the same dispatch.
   live-evidence-verified-transport-handoff-verify:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_verified_transport_handoff == true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_verified_transport_handoff == true && inputs.execute_controlled_recovery_acceptance != true && inputs.execute_live_evidence_capture != true && inputs.verify_live_evidence_artifact_transport != true && inputs.upload_verified_transport_handoff != true && inputs.create_live_evidence_attestation != true && inputs.assemble_live_evidence != true && inputs.expected_rc_source_sha == '043731fea4e60feb6b929c524c4b68e87ed67bd7' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1558,3 +1568,523 @@ jobs:
           COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: recovery-artifact-ci
           COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-recovery-source
         run: make verify-recovery-foundation
+
+  # TASK-012 V0.2 Slice 6 Package 1: explicitly authorized controlled
+  # operational acceptance. This surface uses only ephemeral PostgreSQL
+  # databases and synthetic artifact files; it never touches production.
+  controlled-recovery-acceptance:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch'
+        && inputs.execute_controlled_recovery_acceptance == true
+        && inputs.execute_live_evidence_capture != true
+        && inputs.upload_live_evidence_artifact != true
+        && inputs.upload_verified_transport_handoff != true
+        && inputs.verify_live_evidence_artifact_transport != true
+        && inputs.verify_verified_transport_handoff != true
+        && inputs.create_live_evidence_attestation != true
+        && inputs.assemble_live_evidence != true
+        && inputs.expected_recovery_source_sha != ''
+        && github.ref == 'refs/heads/main'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          POSTGRES_DB: controlled_recovery_source
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cold_storage -d controlled_recovery_source"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      SOURCE_DATABASE_NAME: controlled_recovery_source
+      TARGET_DATABASE_NAME: controlled_recovery_target
+      SOURCE_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/controlled_recovery_source
+      TARGET_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/controlled_recovery_target
+      SOURCE_ENVIRONMENT_ID: controlled-recovery-source
+      TARGET_ENVIRONMENT_ID: controlled-recovery-target
+      SOURCE_DATABASE_ENVIRONMENT_ID: controlled-recovery-source-db
+      TARGET_DATABASE_ENVIRONMENT_ID: controlled-recovery-target-db
+      SOURCE_ARTIFACT_ENVIRONMENT_ID: controlled-recovery-source-artifacts
+      TARGET_ARTIFACT_ENVIRONMENT_ID: controlled-recovery-target-artifacts
+      SOURCE_ARTIFACT_ROOT: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
+      TARGET_ARTIFACT_ROOT: ${{ runner.temp }}/task012-controlled-recovery/target-artifacts
+      RECOVERY_ROOT: ${{ runner.temp }}/task012-controlled-recovery
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: cold_storage
+      PGPASSWORD: cold_storage
+
+    steps:
+      - name: Checkout exact controlled recovery source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate controlled recovery dispatch gate
+        env:
+          EXPECTED_RECOVERY_SOURCE_SHA: ${{ inputs.expected_recovery_source_sha }}
+          CONTROLLED_RECOVERY: ${{ inputs.execute_controlled_recovery_acceptance }}
+          LIVE_CAPTURE: ${{ inputs.execute_live_evidence_capture }}
+          LIVE_UPLOAD: ${{ inputs.upload_live_evidence_artifact }}
+          D1_UPLOAD: ${{ inputs.upload_verified_transport_handoff }}
+          TRANSPORT_VERIFY: ${{ inputs.verify_live_evidence_artifact_transport }}
+          D1_VERIFY: ${{ inputs.verify_verified_transport_handoff }}
+          ATTESTATION_CREATE: ${{ inputs.create_live_evidence_attestation }}
+          ASSEMBLY: ${{ inputs.assemble_live_evidence }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${CONTROLLED_RECOVERY}" = "true"
+          test -n "${EXPECTED_RECOVERY_SOURCE_SHA}"
+          test "${GITHUB_SHA}" = "${EXPECTED_RECOVERY_SOURCE_SHA}" || {
+            echo "RECOVERY_SOURCE_SHA_MISMATCH" >&2
+            exit 1
+          }
+          test "$(git rev-parse HEAD)" = "${EXPECTED_RECOVERY_SOURCE_SHA}" || {
+            echo "RECOVERY_SOURCE_SHA_MISMATCH" >&2
+            exit 1
+          }
+          git cat-file -e "${EXPECTED_RECOVERY_SOURCE_SHA}^{commit}"
+          test "${LIVE_CAPTURE}" != "true"
+          test "${LIVE_UPLOAD}" != "true"
+          test "${D1_UPLOAD}" != "true"
+          test "${TRANSPORT_VERIFY}" != "true"
+          test "${D1_VERIFY}" != "true"
+          test "${ATTESTATION_CREATE}" != "true"
+          test "${ASSEMBLY}" != "true"
+          echo "CONTROLLED_RECOVERY_DISPATCH_GATE=PASS"
+          echo "RECOVERY_SOURCE_SHA=${EXPECTED_RECOVERY_SOURCE_SHA}"
+
+      - name: Set up controlled recovery tools
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install PostgreSQL client and CJK font
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client fonts-wqy-zenhei
+
+      - name: Backend install
+        run: cd backend && uv sync
+
+      - name: Initialize controlled source and isolated target databases
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          COLD_STORAGE_DATABASE_BACKEND: postgresql
+          COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          POSTGRES_DB: ${{ env.SOURCE_DATABASE_NAME }}
+          COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ${{ env.SOURCE_DATABASE_ENVIRONMENT_ID }}
+          COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ${{ env.SOURCE_ARTIFACT_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+          psql --dbname=postgres -v ON_ERROR_STOP=1 -c \
+            "CREATE DATABASE ${TARGET_DATABASE_NAME}"
+          cd backend
+          PYTHONPATH=src uv run alembic upgrade head
+
+      - name: Seed deterministic controlled source data
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          test ! -e "${SOURCE_ARTIFACT_ROOT}"
+          mkdir -p "${SOURCE_ARTIFACT_ROOT}/reports/nested"
+          printf '%s\n' '{"artifact":"alpha","value":1}' > "${SOURCE_ARTIFACT_ROOT}/alpha.json"
+          printf '%s\n' 'controlled recovery report A' > "${SOURCE_ARTIFACT_ROOT}/reports/report-a.txt"
+          printf '%s\n' 'controlled recovery report B' > "${SOURCE_ARTIFACT_ROOT}/reports/nested/report-b.txt"
+          psql --dbname="${SOURCE_DATABASE_NAME}" -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO projects (
+            id, code, name, location, product_category, status,
+            current_version_number, created_at, updated_at
+          ) VALUES (
+            '11111111-1111-4111-8111-111111111111',
+            'CONTROLLED-RECOVERY-001',
+            'Controlled Recovery Project',
+            'synthetic-location',
+            'synthetic-product',
+            'draft',
+            1,
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            TIMESTAMPTZ '2026-01-01T00:00:00Z'
+          );
+          INSERT INTO project_versions (
+            id, project_id, version_number, change_summary, status,
+            input_snapshot, calculation_snapshot, assumption_snapshot,
+            created_at, updated_at, created_by, parent_version_id,
+            submitted_at, reviewed_at, approved_at, approved_by, archived_at
+          ) VALUES (
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            1,
+            'controlled recovery seed',
+            'draft',
+            '{"source":"controlled-recovery","revision":1}'::json,
+            '{"result":"deterministic"}'::json,
+            '{"assumption":"synthetic-only"}'::json,
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            'controlled-recovery-fixture',
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL
+          );
+          INSERT INTO audit_events (
+            id, actor, action, entity_type, entity_id,
+            before_snapshot, after_snapshot, event_metadata, created_at
+          ) VALUES (
+            '33333333-3333-4333-8333-333333333333',
+            'controlled-recovery-fixture',
+            'CONTROLLED_RECOVERY_SEED',
+            'project',
+            '11111111-1111-4111-8111-111111111111',
+            '{}'::json,
+            '{"status":"seeded"}'::json,
+            '{"synthetic":true,"fixture":"TASK-012"}'::json,
+            TIMESTAMPTZ '2026-01-01T00:00:00Z'
+          );
+          SQL
+          test "$(psql --dbname="${SOURCE_DATABASE_NAME}" -Atqc "SELECT count(*) FROM projects")" = "1"
+          test "$(psql --dbname="${SOURCE_DATABASE_NAME}" -Atqc "SELECT count(*) FROM project_versions")" = "1"
+          test "$(psql --dbname="${SOURCE_DATABASE_NAME}" -Atqc "SELECT count(*) FROM audit_events")" = "1"
+          echo "CONTROLLED_SYNTHETIC_DATA=YES"
+          echo "REAL_PRODUCTION_DATA=NO"
+
+      - name: Record source inventories before recovery
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+
+          from sqlalchemy import create_engine
+
+          from cold_storage.recovery.backup_bundle import (
+              collect_artifact_inventory,
+              collect_database_inventory,
+              inventory_digest,
+          )
+
+          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
+          try:
+              database = collect_database_inventory(engine)
+          finally:
+              engine.dispose()
+          artifact = collect_artifact_inventory(
+              Path(os.environ["COLD_STORAGE_STORAGE_DIR"]),
+              failure_code="BACKUP_ARTIFACT_FAILED",
+          )
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as env_file:
+              env_file.write(f"SOURCE_DATABASE_INVENTORY_DIGEST_BEFORE={inventory_digest(database)}\n")
+              env_file.write(f"SOURCE_ARTIFACT_INVENTORY_DIGEST_BEFORE={inventory_digest(artifact)}\n")
+          print("SOURCE_DATABASE_INVENTORY_CAPTURED=YES")
+          print("SOURCE_ARTIFACT_INVENTORY_CAPTURED=YES")
+          PY
+
+      - name: Execute canonical backup and verify seven-file bundle
+        env:
+          TASK012_BACKUP_AUTHORIZED: YES
+          COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_ENVIRONMENT_ID: ${{ env.SOURCE_ENVIRONMENT_ID }}
+          COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ${{ env.SOURCE_DATABASE_ENVIRONMENT_ID }}
+          COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ${{ env.SOURCE_ARTIFACT_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RECOVERY_ROOT}/backup"
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli backup \
+            --execute-backup \
+            --backup-root "${RECOVERY_ROOT}/backup" \
+            --retention-days 30 | tee "${RECOVERY_ROOT}/backup-cli.log"
+          BACKUP_BUNDLE="$(awk -F= '/^BACKUP_BUNDLE=/{print $2}' "${RECOVERY_ROOT}/backup-cli.log")"
+          test -n "${BACKUP_BUNDLE}"
+          test -d "${BACKUP_BUNDLE}"
+          for file in \
+            backup-manifest.json database.dump database-inventory.json \
+            artifacts.tar artifact-inventory.json SHA256SUMS SHA256SUMS.sha256; do
+            test -f "${BACKUP_BUNDLE}/${file}"
+          done
+          test "$(find "${BACKUP_BUNDLE}" -maxdepth 1 -type f | wc -l | tr -d ' ')" = "7"
+          PYTHONPATH=src uv run python - "${BACKUP_BUNDLE}" <<'PY'
+          import sys
+          from pathlib import Path
+
+          from cold_storage.recovery.backup_bundle import validate_backup_bundle
+
+          bundle = validate_backup_bundle(Path(sys.argv[1]))
+          assert bundle.manifest["verification_result"] == "PASS"
+          print("BACKUP_BUNDLE_VERIFICATION=PASS")
+          PY
+          BACKUP_ID="$(PYTHONPATH=src uv run python - "${BACKUP_BUNDLE}" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          print(json.loads((Path(sys.argv[1]) / "backup-manifest.json").read_text())["backup_id"])
+          PY
+          )"
+          {
+            echo "BACKUP_BUNDLE=${BACKUP_BUNDLE}"
+            echo "BACKUP_ID=${BACKUP_ID}"
+          } >> "${GITHUB_ENV}"
+          echo "BACKUP_FILE_COUNT=7"
+
+      - name: Prove isolated restore targets are empty
+        run: |
+          set -euo pipefail
+          psql --dbname="${TARGET_DATABASE_NAME}" -Atqc \
+            "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_%'" \
+            | grep -qx "0"
+          mkdir -p "${TARGET_ARTIFACT_ROOT}"
+          test -z "$(find "${TARGET_ARTIFACT_ROOT}" -mindepth 1 -print -quit)"
+          echo "TARGET_DATABASE_EMPTY=YES"
+          echo "TARGET_ARTIFACT_STORAGE_EMPTY=YES"
+
+      - name: Execute canonical isolated restore
+        env:
+          TASK012_ISOLATED_RESTORE_AUTHORIZED: YES
+          COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_RESTORE_DATABASE_URL: ${{ env.TARGET_DATABASE_URL }}
+          COLD_STORAGE_RESTORE_STORAGE_DIR: ${{ env.TARGET_ARTIFACT_ROOT }}
+          COLD_STORAGE_RESTORE_ENVIRONMENT_ID: ${{ env.TARGET_ENVIRONMENT_ID }}
+          COLD_STORAGE_RESTORE_DATABASE_ENVIRONMENT_ID: ${{ env.TARGET_DATABASE_ENVIRONMENT_ID }}
+          COLD_STORAGE_RESTORE_ARTIFACT_ENVIRONMENT_ID: ${{ env.TARGET_ARTIFACT_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli restore-isolated \
+            --execute-restore \
+            --backup-bundle "${BACKUP_BUNDLE}" \
+            --output-dir "${RECOVERY_ROOT}/restore-receipt" \
+            --target-environment-id "${TARGET_ENVIRONMENT_ID}" \
+            --target-database-environment-id "${TARGET_DATABASE_ENVIRONMENT_ID}" \
+            --target-artifact-environment-id "${TARGET_ARTIFACT_ENVIRONMENT_ID}" \
+            | tee "${RECOVERY_ROOT}/restore-cli.log"
+          RESTORE_RECEIPT="$(awk -F= '/^RESTORE_RECEIPT=/{print $2}' "${RECOVERY_ROOT}/restore-cli.log")"
+          test -n "${RESTORE_RECEIPT}"
+          test -f "${RESTORE_RECEIPT}"
+          echo "RESTORE_RECEIPT=${RESTORE_RECEIPT}" >> "${GITHUB_ENV}"
+          echo "ISOLATED_RESTORE=PASS"
+
+      - name: Execute canonical independent restore verification
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_RESTORE_DATABASE_URL: ${{ env.TARGET_DATABASE_URL }}
+          COLD_STORAGE_RESTORE_STORAGE_DIR: ${{ env.TARGET_ARTIFACT_ROOT }}
+          COLD_STORAGE_RESTORE_ENVIRONMENT_ID: ${{ env.TARGET_ENVIRONMENT_ID }}
+          COLD_STORAGE_RESTORE_DATABASE_ENVIRONMENT_ID: ${{ env.TARGET_DATABASE_ENVIRONMENT_ID }}
+          COLD_STORAGE_RESTORE_ARTIFACT_ENVIRONMENT_ID: ${{ env.TARGET_ARTIFACT_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli verify-restore \
+            --backup-bundle "${BACKUP_BUNDLE}" \
+            --receipt "${RESTORE_RECEIPT}" \
+            --target-environment-id "${TARGET_ENVIRONMENT_ID}" \
+            --target-database-environment-id "${TARGET_DATABASE_ENVIRONMENT_ID}" \
+            --target-artifact-environment-id "${TARGET_ARTIFACT_ENVIRONMENT_ID}"
+          echo "INDEPENDENT_VERIFY_RESTORE=PASS"
+
+      - name: Prove source remained unchanged and prepare seven-file evidence
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+
+          from sqlalchemy import create_engine
+
+          from cold_storage.recovery.backup_bundle import (
+              collect_artifact_inventory,
+              collect_database_inventory,
+              inventory_digest,
+          )
+
+          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
+          try:
+              database = collect_database_inventory(engine)
+          finally:
+              engine.dispose()
+          artifact = collect_artifact_inventory(
+              Path(os.environ["COLD_STORAGE_STORAGE_DIR"]),
+              failure_code="BACKUP_ARTIFACT_FAILED",
+          )
+          database_digest = inventory_digest(database)
+          artifact_digest = inventory_digest(artifact)
+          if database_digest != os.environ["SOURCE_DATABASE_INVENTORY_DIGEST_BEFORE"]:
+              raise SystemExit("SOURCE_DATABASE_MUTATION_DURING_RECOVERY")
+          if artifact_digest != os.environ["SOURCE_ARTIFACT_INVENTORY_DIGEST_BEFORE"]:
+              raise SystemExit("SOURCE_ARTIFACT_MUTATION_DURING_RECOVERY")
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as env_file:
+              env_file.write(f"SOURCE_DATABASE_INVENTORY_DIGEST_AFTER={database_digest}\n")
+              env_file.write(f"SOURCE_ARTIFACT_INVENTORY_DIGEST_AFTER={artifact_digest}\n")
+              env_file.write("SOURCE_DATABASE_UNCHANGED=true\n")
+              env_file.write("SOURCE_ARTIFACTS_UNCHANGED=true\n")
+          Path(os.environ["RECOVERY_ROOT"], "source-observations.env").write_text(
+              f"SOURCE_DATABASE_INVENTORY_DIGEST_AFTER={database_digest}\n"
+              f"SOURCE_ARTIFACT_INVENTORY_DIGEST_AFTER={artifact_digest}\n"
+              "SOURCE_DATABASE_UNCHANGED=true\n"
+              "SOURCE_ARTIFACTS_UNCHANGED=true\n",
+              encoding="utf-8",
+          )
+          print("SOURCE_DATABASE_MUTATION_DURING_RECOVERY=NO")
+          print("SOURCE_ARTIFACT_MUTATION_DURING_RECOVERY=NO")
+          PY
+          set -a
+          . "${RECOVERY_ROOT}/source-observations.env"
+          set +a
+          EVIDENCE_DIR="${RECOVERY_ROOT}/controlled-recovery-evidence"
+          mkdir -p "${EVIDENCE_DIR}"
+          cp "${BACKUP_BUNDLE}/backup-manifest.json" "${EVIDENCE_DIR}/backup-manifest.json"
+          cp "${BACKUP_BUNDLE}/database-inventory.json" "${EVIDENCE_DIR}/database-inventory.json"
+          cp "${BACKUP_BUNDLE}/artifact-inventory.json" "${EVIDENCE_DIR}/artifact-inventory.json"
+          cp "${RESTORE_RECEIPT}" "${EVIDENCE_DIR}/restore-receipt.json"
+          PYTHONPATH=src uv run python - "${EVIDENCE_DIR}" "${BACKUP_ID}" <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          evidence = Path(sys.argv[1])
+          backup_id = sys.argv[2]
+
+          def digest(path: Path) -> str:
+              return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+          manifest = json.loads((evidence / "backup-manifest.json").read_text(encoding="utf-8"))
+          receipt = json.loads((evidence / "restore-receipt.json").read_text(encoding="utf-8"))
+          assert manifest["backup_id"] == backup_id
+          summary = {
+              "acceptance_result": "PASS",
+              "acceptance_type": "CONTROLLED_SYNTHETIC_OPERATIONAL_RECOVERY",
+              "artifact_inventory_digest": manifest["artifact_inventory_digest"],
+              "backup_id": backup_id,
+              "backup_manifest_digest": digest(evidence / "backup-manifest.json"),
+              "backup_verification": "PASS",
+              "controlled_synthetic_data": True,
+              "database_inventory_digest": manifest["database_inventory_digest"],
+              "independent_restore_verification": "PASS",
+              "isolated_restore": "PASS",
+              "package": 1,
+              "real_production_data": False,
+              "restore_receipt_digest": digest(evidence / "restore-receipt.json"),
+              "schema_version": "cold-storage-controlled-recovery-acceptance-v1",
+              "source_artifact_environment_id": os.environ["SOURCE_ARTIFACT_ENVIRONMENT_ID"],
+              "source_artifact_inventory_digest_after": os.environ["SOURCE_ARTIFACT_INVENTORY_DIGEST_AFTER"],
+              "source_artifact_inventory_digest_before": os.environ["SOURCE_ARTIFACT_INVENTORY_DIGEST_BEFORE"],
+              "source_database_environment_id": os.environ["SOURCE_DATABASE_ENVIRONMENT_ID"],
+              "source_database_inventory_digest_after": os.environ["SOURCE_DATABASE_INVENTORY_DIGEST_AFTER"],
+              "source_database_inventory_digest_before": os.environ["SOURCE_DATABASE_INVENTORY_DIGEST_BEFORE"],
+              "source_database_unchanged": os.environ["SOURCE_DATABASE_UNCHANGED"] == "true",
+              "source_environment_id": os.environ["SOURCE_ENVIRONMENT_ID"],
+              "source_artifacts_unchanged": os.environ["SOURCE_ARTIFACTS_UNCHANGED"] == "true",
+              "target_artifact_environment_id": os.environ["TARGET_ARTIFACT_ENVIRONMENT_ID"],
+              "target_database_environment_id": os.environ["TARGET_DATABASE_ENVIRONMENT_ID"],
+              "target_environment_id": os.environ["TARGET_ENVIRONMENT_ID"],
+              "task": "TASK-012",
+              "version": "V0.2",
+              "workflow_head_branch": os.environ["GITHUB_REF_NAME"],
+              "workflow_head_sha": os.environ["GITHUB_SHA"],
+              "workflow_run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+          }
+          (evidence / "acceptance-summary.json").write_text(
+              json.dumps(summary, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          payload = (
+              "acceptance-summary.json",
+              "backup-manifest.json",
+              "database-inventory.json",
+              "artifact-inventory.json",
+              "restore-receipt.json",
+          )
+          sums = "".join(
+              f"{hashlib.sha256((evidence / name).read_bytes()).hexdigest()}  {name}\n"
+              for name in payload
+          ).encode("ascii")
+          (evidence / "SHA256SUMS").write_bytes(sums)
+          (evidence / "SHA256SUMS.sha256").write_text(
+              hashlib.sha256(sums).hexdigest() + "\n", encoding="ascii"
+          )
+          PY
+          for file in \
+            acceptance-summary.json backup-manifest.json database-inventory.json \
+            artifact-inventory.json restore-receipt.json SHA256SUMS SHA256SUMS.sha256; do
+            test -f "${EVIDENCE_DIR}/${file}"
+          done
+          test "$(find "${EVIDENCE_DIR}" -maxdepth 1 -type f | wc -l | tr -d ' ')" = "7"
+          test ! -e "${EVIDENCE_DIR}/database.dump"
+          test ! -e "${EVIDENCE_DIR}/artifacts.tar"
+          echo "CONTROLLED_ACCEPTANCE_FILE_COUNT=7"
+          echo "RAW_DATABASE_DUMP_UPLOADED=NO"
+          echo "RAW_ARTIFACT_ARCHIVE_UPLOADED=NO"
+
+      - name: Upload controlled recovery acceptance evidence
+        id: upload_controlled_recovery
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-controlled-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.RECOVERY_ROOT }}/controlled-recovery-evidence/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 30
+
+      - name: Record controlled recovery artifact metadata
+        env:
+          CONTROLLED_RECOVERY_ARTIFACT_ID: ${{ steps.upload_controlled_recovery.outputs.artifact-id }}
+          CONTROLLED_RECOVERY_ARTIFACT_DIGEST: ${{ steps.upload_controlled_recovery.outputs.artifact-digest }}
+          CONTROLLED_RECOVERY_ARTIFACT_URL: ${{ steps.upload_controlled_recovery.outputs.artifact-url }}
+          CONTROLLED_RECOVERY_ARTIFACT_NAME: task012-controlled-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "${CONTROLLED_RECOVERY_ARTIFACT_ID}"
+          test -n "${CONTROLLED_RECOVERY_ARTIFACT_DIGEST}"
+          {
+            echo "### Controlled Recovery Acceptance Artifact"
+            echo "CONTROLLED_RECOVERY_ARTIFACT_ID=${CONTROLLED_RECOVERY_ARTIFACT_ID}"
+            echo "CONTROLLED_RECOVERY_ARTIFACT_NAME=${CONTROLLED_RECOVERY_ARTIFACT_NAME}"
+            echo "CONTROLLED_RECOVERY_ARTIFACT_DIGEST=${CONTROLLED_RECOVERY_ARTIFACT_DIGEST}"
+            echo "CONTROLLED_RECOVERY_ARTIFACT_URL=${CONTROLLED_RECOVERY_ARTIFACT_URL}"
+            echo "CONTROLLED_RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
+            echo "CONTROLLED_RECOVERY_RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT}"
+            echo "CONTROLLED_RECOVERY_HEAD_SHA=${GITHUB_SHA}"
+            echo "CONTROLLED_RECOVERY_JOB_NAME=controlled-recovery-acceptance"
+            echo "BACKUP_ID=${BACKUP_ID}"
+            echo "TASK=TASK-012"
+            echo "VERSION=V0.2"
+            echo "SLICE=6"
+            echo "PACKAGE=1"
+            echo "CONTROLLED_SYNTHETIC_DATA=YES"
+            echo "REAL_PRODUCTION_DATA=NO"
+            echo "BACKUP=PASS"
+            echo "ISOLATED_RESTORE=PASS"
+            echo "INDEPENDENT_VERIFY_RESTORE=PASS"
+            echo "SOURCE_DATABASE_MUTATION_DURING_RECOVERY=NO"
+            echo "SOURCE_ARTIFACT_MUTATION_DURING_RECOVERY=NO"
+            echo "ACCEPTANCE_RESULT=PASS"
+          } >> "${GITHUB_STEP_SUMMARY}"
