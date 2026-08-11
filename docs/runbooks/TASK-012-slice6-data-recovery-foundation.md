@@ -276,6 +276,34 @@ by this implementation PR. After review, merge, and post-merge CI, one
 explicit workflow dispatch may run the complete backup -> isolated restore ->
 independent verify-restore sequence for S6-01/S6-02/S6-03 live closure review.
 
+### Controlled recovery acceptance live history
+
+The first controlled acceptance dispatch was run once and failed before any
+backup or restore operation:
+
+```text
+RUN_ID=31461529093
+RUN_ATTEMPT=1
+HEAD_SHA=45c114d8a55e5cf2cfa2564e33fbb9cc5dc8924c
+RESULT=FAIL
+FAILED_STEP=Seed deterministic controlled source data
+FAILURE_CLASS=SEED_FIXTURE_SCHEMA_CONTRACT_MISMATCH
+ROOT_CAUSE=audit_events.outbox_event_id omitted from controlled seed
+BACKUP_EXECUTED=NO
+RESTORE_EXECUTED=NO
+ARTIFACT_COUNT=0
+PRODUCTION_DATA_TOUCHED=NO
+```
+
+The migrated Alembic schema requires `audit_events.outbox_event_id` to be
+non-null and unique. The deterministic seed now binds the audit row to
+`legacy-audit:<audit_event_id>` and verifies that value after insertion. A
+real PostgreSQL integration regression executes the complete three-row seed
+against the migrated schema inside a rolled-back transaction. This correction
+changes the fixture and its regression coverage only; it does not change
+recovery core, migrations, ORM contracts, or the Slice 2 live evidence
+surface.
+
 ## What this does not prove
 
 This package closes the implementation surface for S6-01 backup, S6-02

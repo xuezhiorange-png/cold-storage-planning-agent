@@ -33,6 +33,133 @@ def _replace_database(url: str, database: str) -> str:
 
 
 @pytest.mark.postgresql
+def test_controlled_recovery_seed_matches_migrated_postgresql_schema_contract() -> None:
+    """Exercise the controlled workflow seed against the Alembic head schema."""
+    source_url = _database_url()
+    if source_url is None:
+        pytest.skip("PostgreSQL URL is required for the migrated-schema regression")
+
+    engine = create_engine(source_url, future=True)
+    outbox_event_id = "legacy-audit:33333333-3333-4333-8333-333333333333"
+    connection = engine.connect()
+    transaction = connection.begin()
+    try:
+        connection.execute(
+            text(
+                """
+                INSERT INTO projects (
+                    id, code, name, location, product_category, status,
+                    current_version_number, created_at, updated_at
+                ) VALUES (
+                    '11111111-1111-4111-8111-111111111111',
+                    'CONTROLLED-RECOVERY-001',
+                    'Controlled Recovery Project',
+                    'synthetic-location',
+                    'synthetic-product',
+                    'draft',
+                    1,
+                    TIMESTAMPTZ '2026-01-01T00:00:00Z',
+                    TIMESTAMPTZ '2026-01-01T00:00:00Z'
+                )
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO project_versions (
+                    id, project_id, version_number, change_summary, status,
+                    input_snapshot, calculation_snapshot, assumption_snapshot,
+                    created_at, updated_at, created_by, parent_version_id,
+                    submitted_at, reviewed_at, approved_at, approved_by, archived_at
+                ) VALUES (
+                    '22222222-2222-4222-8222-222222222222',
+                    '11111111-1111-4111-8111-111111111111',
+                    1,
+                    'controlled recovery seed',
+                    'draft',
+                    '{"source":"controlled-recovery","revision":1}'::json,
+                    '{"result":"deterministic"}'::json,
+                    '{"assumption":"synthetic-only"}'::json,
+                    TIMESTAMPTZ '2026-01-01T00:00:00Z',
+                    TIMESTAMPTZ '2026-01-01T00:00:00Z',
+                    'controlled-recovery-fixture',
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL
+                )
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO audit_events (
+                    id, actor, action, entity_type, entity_id,
+                    before_snapshot, after_snapshot, event_metadata, created_at,
+                    outbox_event_id
+                ) VALUES (
+                    '33333333-3333-4333-8333-333333333333',
+                    'controlled-recovery-fixture',
+                    'CONTROLLED_RECOVERY_SEED',
+                    'project',
+                    '11111111-1111-4111-8111-111111111111',
+                    '{}'::json,
+                    '{"status":"seeded"}'::json,
+                    '{"synthetic":true,"fixture":"TASK-012"}'::json,
+                    TIMESTAMPTZ '2026-01-01T00:00:00Z',
+                    :outbox_event_id
+                )
+                """
+            ),
+            {"outbox_event_id": outbox_event_id},
+        )
+
+        assert (
+            connection.execute(
+                text(
+                    "SELECT count(*) FROM projects WHERE id='11111111-1111-4111-8111-111111111111'"
+                )
+            ).scalar_one()
+            == 1
+        )
+        assert (
+            connection.execute(
+                text(
+                    "SELECT count(*) FROM project_versions "
+                    "WHERE id='22222222-2222-4222-8222-222222222222'"
+                )
+            ).scalar_one()
+            == 1
+        )
+        assert (
+            connection.execute(
+                text(
+                    "SELECT outbox_event_id FROM audit_events "
+                    "WHERE id='33333333-3333-4333-8333-333333333333'"
+                )
+            ).scalar_one()
+            == outbox_event_id
+        )
+        assert (
+            connection.execute(
+                text(
+                    "SELECT outbox_event_id IS NOT NULL FROM audit_events "
+                    "WHERE id='33333333-3333-4333-8333-333333333333'"
+                )
+            ).scalar_one()
+            is True
+        )
+    finally:
+        transaction.rollback()
+        connection.close()
+        engine.dispose()
+
+
+@pytest.mark.postgresql
 def test_backup_restore_verify_preserves_source_and_isolates_targets(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
