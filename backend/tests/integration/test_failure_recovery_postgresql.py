@@ -170,7 +170,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             source_artifact_root=source_artifacts,
         )
         restore_receipt = restore_runner.restore_isolated(
-            bundle_root=Path(bundle.root),
+            bundle_root=bundle,
             output_dir=restore_receipt_root,
             execute_restore=True,
             target_database_url=target_database,
@@ -180,7 +180,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             target_artifact_environment_id="controlled-release-recovered-artifacts",
         )
         restore_runner.verify_restore(
-            bundle_root=Path(bundle.root),
+            bundle_root=bundle,
             receipt_path=restore_receipt,
             target_database_url=target_database,
             target_artifact_root=target_artifacts,
@@ -194,10 +194,8 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             failure_code="RESTORE_ARTIFACT_INVENTORY_MISMATCH",
         )
         receipt = make_migration_recovery_receipt(
-            backup_id=bundle.backup_id,
-            backup_manifest_digest=backup_bundle._sha256_file(
-                Path(bundle.root) / "backup-manifest.json"
-            ),
+            backup_id=bundle.name,
+            backup_manifest_digest=backup_bundle._sha256_file(bundle / "backup-manifest.json"),
             pre_migration_database_inventory_digest=backup_bundle.inventory_digest(before_database),
             pre_migration_artifact_inventory_digest=backup_bundle.inventory_digest(before_artifact),
             pre_migration_schema_head=before_database["schema_head"],
@@ -211,7 +209,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             restore_target_database_environment_id="controlled-release-recovered-db",
             source_artifact_environment_id="controlled-release-source-artifacts",
             restore_target_artifact_environment_id="controlled-release-recovered-artifacts",
-            restore_backup_id=bundle.backup_id,
+            restore_backup_id=bundle.name,
             restore_receipt_digest=backup_bundle._sha256_file(restore_receipt),
             final_schema_head=after_database["schema_head"],
             final_database_inventory_digest=backup_bundle.inventory_digest(after_database),
