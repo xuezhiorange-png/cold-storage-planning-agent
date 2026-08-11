@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -224,6 +226,64 @@ def test_checksum_and_sidecar_mismatch_fail_closed(tmp_path: Path) -> None:
             github_metadata_dir=_metadata_dir(tmp_path),
         )
     assert exc.value.failure_code == "CHECKSUM_MISMATCH"
+
+
+def test_checksum_verification_requires_bundle_root_context(tmp_path: Path) -> None:
+    bundle = _assemble(tmp_path)
+
+    from_bundle_root = subprocess.run(
+        ["sha256sum", "-c", "SHA256SUMS"],
+        cwd=bundle,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert from_bundle_root.returncode == 0, from_bundle_root.stderr
+
+    without_bundle_context = subprocess.run(
+        ["sha256sum", "-c", str(bundle / "SHA256SUMS")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert without_bundle_context.returncode != 0
+
+
+def test_downloaded_bundle_checksum_manifests_remain_portable(tmp_path: Path) -> None:
+    bundle = _assemble(tmp_path)
+    downloaded = tmp_path / "downloaded-bundle"
+    shutil.copytree(bundle, downloaded)
+
+    for manifest in ("SHA256SUMS", "SHA256SUMS.sha256"):
+        result = subprocess.run(
+            ["sha256sum", "-c", manifest],
+            cwd=downloaded,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+
+    verify_final_release_evidence(
+        bundle_dir=downloaded,
+        repository=EXPECTED_REPOSITORY,
+        source_sha=CURRENT_SOURCE_SHA,
+        source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+        github_metadata_dir=_metadata_dir(tmp_path),
+    )
+
+
+def test_missing_bundle_context_fails_closed(tmp_path: Path) -> None:
+    with pytest.raises(FinalReleaseEvidenceError) as exc:
+        verify_final_release_evidence(
+            bundle_dir=tmp_path / "missing-bundle",
+            repository=EXPECTED_REPOSITORY,
+            source_sha=CURRENT_SOURCE_SHA,
+            source_tree_sha=CURRENT_SOURCE_TREE_SHA,
+            github_metadata_dir=_metadata_dir(tmp_path),
+        )
+    assert exc.value.failure_code == "BUNDLE_SHAPE_MISMATCH"
 
 
 def test_secret_material_and_production_markers_fail_closed(tmp_path: Path) -> None:
