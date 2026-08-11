@@ -117,16 +117,21 @@ jobs:
           RUN_ROOT: ${{ runner.temp }}/task012-s6-06/${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          PYTHONPATH=backend/src uv run --project backend python \
-            -m cold_storage.release.final_release_evidence \
-            verify-final-release-evidence \
-            --bundle-dir "${RUN_ROOT}/bundle" \
-            --source-sha "${SOURCE_SHA}" \
-            --source-tree-sha "${SOURCE_TREE_SHA}" \
-            --github-metadata-dir "${RUN_ROOT}/github-metadata"
-          sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS"
-          sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS.sha256"
-          test "$(find "${RUN_ROOT}/bundle" -maxdepth 1 -type f | wc -l)" -eq 8
+          BUNDLE_DIR="${RUN_ROOT}/bundle"
+          (
+            cd "${BUNDLE_DIR}"
+            PYTHONPATH="${GITHUB_WORKSPACE}/backend/src" uv run \
+              --project "${GITHUB_WORKSPACE}/backend" python \
+              -m cold_storage.release.final_release_evidence \
+              verify-final-release-evidence \
+              --bundle-dir "${PWD}" \
+              --source-sha "${SOURCE_SHA}" \
+              --source-tree-sha "${SOURCE_TREE_SHA}" \
+              --github-metadata-dir "${RUN_ROOT}/github-metadata"
+            sha256sum -c SHA256SUMS
+            sha256sum -c SHA256SUMS.sha256
+            test "$(find . -maxdepth 1 -type f | wc -l)" -eq 8
+          )
           echo "INDEPENDENT_VERIFICATION=PASS"
 
       - name: Upload final release evidence bundle
