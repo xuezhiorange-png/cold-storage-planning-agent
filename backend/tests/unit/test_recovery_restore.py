@@ -146,6 +146,24 @@ def test_validate_backup_rejects_modified_artifact_archive(tmp_path: Path) -> No
         backup_bundle.validate_backup_bundle(root)
 
 
+def test_validate_backup_rejects_archive_inventory_mismatch(tmp_path: Path) -> None:
+    root, _, _ = _make_bundle(tmp_path)
+    changed_source = tmp_path / "changed-source"
+    changed_source.mkdir()
+    (changed_source / "report.txt").write_text("changed\n", encoding="utf-8")
+    backup_bundle._write_artifact_archive(
+        changed_source,
+        root / "artifacts.tar",
+        failure_code="BACKUP_ARTIFACT_FAILED",
+    )
+    manifest = backup_bundle._load_json(root / "backup-manifest.json", code="test")
+    manifest["artifact_archive_digest"] = backup_bundle._sha256_file(root / "artifacts.tar")
+    backup_bundle._write_json(root / "backup-manifest.json", manifest)
+    backup_bundle._write_checksums(root, backup_bundle.BACKUP_PAYLOAD_FILES)
+    with pytest.raises(RecoveryError, match="RESTORE_BUNDLE_INVALID"):
+        backup_bundle.validate_backup_bundle(root)
+
+
 def test_validate_backup_rejects_malformed_manifest(tmp_path: Path) -> None:
     root, _, _ = _make_bundle(tmp_path)
     (root / "backup-manifest.json").write_text("{}\n", encoding="utf-8")
@@ -323,6 +341,80 @@ def test_verify_restore_rejects_post_restore_artifact_changes(
             bundle_root=bundle_root,
             receipt_path=receipt,
         )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("schema_head_expected", "forged-schema-head"),
+        ("database_inventory_expected_digest", "sha256:" + "0" * 64),
+        ("artifact_inventory_expected_digest", "sha256:" + "0" * 64),
+        ("backup_manifest_digest", "sha256:" + "0" * 64),
+        ("database_table_count", 999),
+        ("artifact_file_count", 999),
+        ("target_environment_id", "forged-target"),
+    ),
+)
+def test_verify_restore_rejects_forged_receipt_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    value: object,
+) -> None:
+    bundle_root, database_inventory, artifact_inventory = _make_bundle(tmp_path)
+    _set_restore_environment(monkeypatch, tmp_path)
+    _patch_mock_restore(monkeypatch, database_inventory, artifact_inventory)
+    receipt = restore_runner.restore_isolated(
+        bundle_root=bundle_root,
+        output_dir=tmp_path / "receipt",
+        execute_restore=True,
+    )
+    forged = json.loads(receipt.read_text(encoding="utf-8"))
+    forged[field] = value
+    receipt.write_text(json.dumps(forged), encoding="utf-8")
+    with pytest.raises(RecoveryError, match="RESTORE_RECEIPT_INVALID"):
+        restore_runner.verify_restore(bundle_root=bundle_root, receipt_path=receipt)
+
+
+def test_restore_rechecks_final_artifact_target_before_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundle_root, database_inventory, artifact_inventory = _make_bundle(tmp_path)
+    _set_restore_environment(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        restore_runner, "_create_postgres_engine", lambda *args, **kwargs: _FakeEngine()
+    )
+    monkeypatch.setattr(restore_runner, "_require_empty_database", lambda engine: None)
+    monkeypatch.setattr(restore_runner, "_verify_constraints", lambda engine: None)
+    monkeypatch.setattr(restore_runner, "_verify_readiness", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        restore_runner,
+        "collect_database_inventory",
+        lambda *args, **kwargs: database_inventory,
+    )
+    real_collect = backup_bundle.collect_artifact_inventory
+
+    def collect_artifacts(root: Path, **kwargs: object) -> dict[str, object]:
+        if root.name.startswith(".task012-restore-artifacts-"):
+            return artifact_inventory
+        return real_collect(root, **kwargs)
+
+    monkeypatch.setattr(restore_runner, "collect_artifact_inventory", collect_artifacts)
+    original_promote = restore_runner._promote_artifact_root
+
+    def promote_with_race(staged: Path, target: Path) -> None:
+        original_promote(staged, target)
+        (target / "race.txt").write_text("appeared after promotion", encoding="utf-8")
+
+    monkeypatch.setattr(restore_runner, "_promote_artifact_root", promote_with_race)
+    monkeypatch.setattr(backup_bundle, "_run_postgres_tool", lambda *args, **kwargs: None)
+    with pytest.raises(RecoveryError, match="RESTORE_ARTIFACT_INVENTORY_MISMATCH"):
+        restore_runner.restore_isolated(
+            bundle_root=bundle_root,
+            output_dir=tmp_path / "receipt",
+            execute_restore=True,
+        )
+    assert not (tmp_path / "receipt" / "restore-receipt.json").exists()
 
 
 def test_restore_rejects_traversal_tar_member(tmp_path: Path) -> None:

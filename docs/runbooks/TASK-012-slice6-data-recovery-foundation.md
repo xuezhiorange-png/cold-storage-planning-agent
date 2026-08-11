@@ -85,15 +85,23 @@ only after the exact seven-file shape, internal checksums, manifest digests,
 inventory schemas, and archive safety checks pass.
 
 `database.dump` is produced by `pg_dump --format=custom --no-owner
---no-privileges`. Database credentials are passed to the child process only
-through `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, and `PGPASSWORD`; the full
-URL is never placed in argv. The child is invoked with `shell=False`.
+--no-privileges --snapshot <exported-snapshot>`. The backup keeps a PostgreSQL
+`REPEATABLE READ, READ ONLY` exporter transaction open while `pg_dump` runs and
+while the database inventory is queried through that same connection. The
+snapshot identifier is process-local and is never written to the bundle.
+Database credentials are passed to the child process only through `PGHOST`,
+`PGPORT`, `PGDATABASE`, `PGUSER`, and `PGPASSWORD`; the full URL is never
+placed in argv. The child is invoked with `shell=False`.
 
 The database inventory contains the packaged schema head, every application
 table, row count, and a deterministic logical SHA-256 digest. Rows are
 ordered by primary key; tables without a primary key use a canonical row
-ordering. The artifact inventory contains the sorted storage-root-relative
-path, size, and SHA-256 for every regular file.
+ordering. The artifact archive is created first, and the artifact inventory is
+derived by re-reading the completed tar payload, not by scanning the live
+source a second time. The archive-derived inventory contains the sorted
+storage-root-relative path, size, and SHA-256 for every regular file. Bundle
+validation recomputes that inventory from `artifacts.tar` and rejects any
+archive/inventory disagreement.
 
 ## Isolated restore prerequisites
 
@@ -139,11 +147,14 @@ inventory matches.
 
 After restore, the command recomputes the target schema head, every database
 table logical digest, row count, artifact path set, file sizes, and file
-hashes. It also checks for unvalidated PostgreSQL constraints and runs the
-existing packaged schema-head/readiness primitives against the isolated
-target. A successful run writes `restore-receipt.json`; the receipt contains
-identities, digests, statuses, and verification time, but no URL, password,
-DSN, absolute artifact path, SQL, or traceback.
+hashes. The staged artifact tree is checked before promotion and the final
+target root is scanned again after promotion; only the final scan can supply
+the receipt's artifact observations. It also checks for unvalidated PostgreSQL
+constraints and runs the existing packaged schema-head/readiness primitives
+against the isolated target. A successful run writes `restore-receipt.json`;
+the receipt contains identities, expected and actual digests, counts, all
+verification statuses, and verification time, but no URL, password, DSN,
+absolute artifact path, SQL, or traceback.
 
 ## Independent verification
 
@@ -157,8 +168,11 @@ python -m cold_storage.recovery.cli verify-restore \
 
 `verify-restore` revalidates the backup bundle, reconnects to the target,
 recomputes the database and artifact inventories, rechecks the schema head,
-constraints, and isolated readiness, and compares those observations with
-the receipt. A forged `verification_result=PASS` is rejected.
+constraints, and isolated readiness, and compares those observations with the
+receipt. It also rebinds every receipt authority field, including the manifest
+digest, expected schema and inventory digests, table/file counts, all status
+fields, and source/target identities. A forged `verification_result=PASS` or
+forged expected authority field is rejected.
 
 ## Failure handling
 

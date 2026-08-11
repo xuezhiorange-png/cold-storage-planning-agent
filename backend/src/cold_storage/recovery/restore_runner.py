@@ -9,6 +9,7 @@ import tarfile
 import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -470,6 +471,12 @@ def restore_isolated(
             raise RecoveryError("RESTORE_ARTIFACT_INVENTORY_MISMATCH")
         _promote_artifact_root(staged, target.artifact_root)
         staged = None
+        final_artifact_inventory = collect_artifact_inventory(
+            target.artifact_root,
+            failure_code="RESTORE_ARTIFACT_INVENTORY_MISMATCH",
+        )
+        if final_artifact_inventory != bundle.artifact_inventory:
+            raise RecoveryError("RESTORE_ARTIFACT_INVENTORY_MISMATCH")
         actual_database_inventory = collect_database_inventory(
             engine,
             expected_schema_head=bundle.manifest["source_schema_head"],
@@ -489,7 +496,7 @@ def restore_isolated(
             target,
             schema_head_actual=actual_database_inventory["schema_head"],
             database_actual=actual_database_inventory,
-            artifact_actual=actual_artifact_inventory,
+            artifact_actual=final_artifact_inventory,
             verified_at=_utc_now(),
         )
         receipt_path = output_dir / "restore-receipt.json"
@@ -504,9 +511,21 @@ def restore_isolated(
 
 
 def _utc_now() -> str:
-    from datetime import UTC, datetime
-
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _validate_receipt_timestamp(value: object) -> str:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        raise RecoveryError("RESTORE_RECEIPT_INVALID", "receipt timestamp is not UTC")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise RecoveryError("RESTORE_RECEIPT_INVALID", "receipt timestamp is malformed") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise RecoveryError("RESTORE_RECEIPT_INVALID", "receipt timestamp is not timezone-aware")
+    if parsed.microsecond != 0:
+        raise RecoveryError("RESTORE_RECEIPT_INVALID", "receipt timestamp precision is invalid")
+    return value
 
 
 def _validate_receipt(receipt: Mapping[str, Any]) -> dict[str, Any]:
@@ -524,6 +543,7 @@ def _validate_receipt(receipt: Mapping[str, Any]) -> dict[str, Any]:
             )
     if receipt.get("verification_result") != "PASS":
         raise RecoveryError("RESTORE_RECEIPT_INVALID", "restore receipt is not a PASS receipt")
+    _validate_receipt_timestamp(receipt.get("verified_at"))
     return dict(receipt)
 
 
@@ -590,29 +610,19 @@ def verify_restore(
             target.artifact_root,
             expected_schema_head=bundle.manifest["source_schema_head"],
         )
-        expected = {
-            "backup_manifest_digest": _sha256_file(bundle.root / "backup-manifest.json"),
-            "schema_head_actual": actual_database_inventory["schema_head"],
-            "database_table_count": actual_database_inventory["table_count"],
-            "database_inventory_actual_digest": inventory_digest(actual_database_inventory),
-            "artifact_file_count": actual_artifact_inventory["file_count"],
-            "artifact_inventory_actual_digest": inventory_digest(actual_artifact_inventory),
-        }
+        expected = _receipt_for(
+            bundle,
+            target,
+            schema_head_actual=actual_database_inventory["schema_head"],
+            database_actual=actual_database_inventory,
+            artifact_actual=actual_artifact_inventory,
+            verified_at=str(receipt["verified_at"]),
+        )
         for key, value in expected.items():
             if receipt.get(key) != value:
                 raise RecoveryError(
                     "RESTORE_RECEIPT_INVALID", "restore receipt is not independently verified"
                 )
-        for key in (
-            "database_restore_status",
-            "artifact_restore_status",
-            "database_verification_status",
-            "artifact_verification_status",
-            "constraint_verification_status",
-            "readiness_verification_status",
-        ):
-            if receipt.get(key) != "PASS":
-                raise RecoveryError("RESTORE_RECEIPT_INVALID", "restore receipt status is not PASS")
         return receipt_path
     finally:
         engine.dispose()

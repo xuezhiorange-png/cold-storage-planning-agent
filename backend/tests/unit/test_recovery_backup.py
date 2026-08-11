@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -60,8 +61,8 @@ def test_backup_publishes_exact_verified_bundle_without_secret_material(
     )
     monkeypatch.setattr(
         backup_bundle,
-        "collect_database_inventory",
-        lambda engine: {
+        "collect_database_inventory_from_connection",
+        lambda connection: {
             "schema_version": backup_bundle.DATABASE_INVENTORY_SCHEMA_VERSION,
             "schema_head": "0039_widen_report_export_artifact_mime_type",
             "table_count": 0,
@@ -69,7 +70,15 @@ def test_backup_publishes_exact_verified_bundle_without_secret_material(
         },
     )
 
+    @contextmanager
+    def fake_snapshot(engine: object):
+        yield object(), "00000003-0000001B-1"
+
+    monkeypatch.setattr(backup_bundle, "_export_database_snapshot", fake_snapshot)
+
     def fake_dump(argv: list[str], **_: object) -> None:
+        assert "--snapshot" in argv
+        assert argv[argv.index("--snapshot") + 1] == "00000003-0000001B-1"
         dump_path = Path(argv[argv.index("--file") + 1])
         dump_path.write_bytes(b"synthetic custom-format dump")
 

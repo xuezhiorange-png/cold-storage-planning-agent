@@ -9,9 +9,13 @@ from urllib.parse import urlsplit, urlunsplit
 import pytest
 from sqlalchemy import create_engine, text
 
+from cold_storage.recovery import backup_bundle
 from cold_storage.recovery.backup_bundle import (
+    _postgres_child_env,
+    _run_postgres_tool,
     collect_artifact_inventory,
     collect_database_inventory,
+    collect_database_inventory_from_connection,
 )
 from cold_storage.recovery.cli import main
 
@@ -140,3 +144,96 @@ def test_backup_restore_verify_preserves_source_and_isolates_targets(
                 connection.execute(text(f'DROP DATABASE IF EXISTS "{target_database}"'))
             source_engine.dispose()
             maintenance_engine.dispose()
+
+
+@pytest.mark.postgresql
+def test_database_dump_and_inventory_share_exported_snapshot(
+    tmp_path: Path,
+) -> None:
+    source_url = _database_url()
+    if source_url is None or shutil.which("pg_dump") is None or shutil.which("pg_restore") is None:
+        pytest.skip("PostgreSQL URL and client tools are required for recovery acceptance")
+    source_engine = create_engine(source_url, future=True)
+    target_database = f"task012_snapshot_{uuid.uuid4().hex[:12]}"
+    target_url = _replace_database(source_url, target_database)
+    maintenance_engine = create_engine(_replace_database(source_url, "postgres"), future=True)
+    source_table = f"task012_snapshot_{uuid.uuid4().hex[:8]}"
+    dump_path = tmp_path / "snapshot.dump"
+    try:
+        with maintenance_engine.connect().execution_options(
+            isolation_level="AUTOCOMMIT"
+        ) as connection:
+            connection.execute(text(f'CREATE DATABASE "{target_database}"'))
+        with source_engine.begin() as connection:
+            connection.execute(
+                text(f'CREATE TABLE "{source_table}" (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
+            )
+            connection.execute(
+                text(f'INSERT INTO "{source_table}" (id, value) VALUES (1, :value)'),
+                {"value": "row-a"},
+            )
+        source_database = _postgres_child_env(
+            source_url,
+            code="BACKUP_DATABASE_FAILED",
+        )[1]["PGDATABASE"]
+        with backup_bundle._export_database_snapshot(source_engine) as (
+            snapshot_connection,
+            snapshot_id,
+        ):
+            with source_engine.begin() as connection:
+                connection.execute(
+                    text(f'INSERT INTO "{source_table}" (id, value) VALUES (2, :value)'),
+                    {"value": "row-b"},
+                )
+            snapshot_inventory = collect_database_inventory_from_connection(snapshot_connection)
+            _run_postgres_tool(
+                [
+                    "pg_dump",
+                    "--format=custom",
+                    "--no-owner",
+                    "--no-privileges",
+                    "--snapshot",
+                    snapshot_id,
+                    "--file",
+                    str(dump_path),
+                    "--dbname",
+                    source_database,
+                ],
+                database_url=source_url,
+                code="BACKUP_DATABASE_FAILED",
+            )
+        target_database_name = _postgres_child_env(
+            target_url,
+            code="RESTORE_DATABASE_FAILED",
+        )[1]["PGDATABASE"]
+        _run_postgres_tool(
+            [
+                "pg_restore",
+                "--exit-on-error",
+                "--no-owner",
+                "--no-privileges",
+                "--dbname",
+                target_database_name,
+                str(dump_path),
+            ],
+            database_url=target_url,
+            code="RESTORE_DATABASE_FAILED",
+        )
+        target_engine = create_engine(target_url, future=True)
+        try:
+            restored_inventory = collect_database_inventory(
+                target_engine,
+                expected_schema_head=snapshot_inventory["schema_head"],
+            )
+        finally:
+            target_engine.dispose()
+        assert restored_inventory == snapshot_inventory
+    finally:
+        with source_engine.begin() as connection:
+            connection.execute(text(f'DROP TABLE IF EXISTS "{source_table}"'))
+        with maintenance_engine.connect().execution_options(
+            isolation_level="AUTOCOMMIT"
+        ) as connection:
+            connection.execute(text(f'DROP DATABASE IF EXISTS "{target_database}"'))
+        source_engine.dispose()
+        maintenance_engine.dispose()

@@ -20,7 +20,8 @@ import subprocess
 import tarfile
 import tempfile
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
@@ -29,7 +30,7 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from sqlalchemy import MetaData, Table, create_engine, inspect, select, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 
 BACKUP_SCHEMA_VERSION = "cold-storage-operational-backup-v1"
 DATABASE_INVENTORY_SCHEMA_VERSION = "cold-storage-database-inventory-v1"
@@ -240,6 +241,34 @@ def _create_postgres_engine(url: str, *, code: str) -> Engine:
         raise RecoveryError(code, "PostgreSQL engine could not be created") from exc
 
 
+@contextmanager
+def _export_database_snapshot(engine: Engine) -> Iterator[tuple[Connection, str]]:
+    """Keep one PostgreSQL MVCC snapshot open for dump and inventory reads."""
+    connection = engine.connect().execution_options(isolation_level="REPEATABLE READ")
+    transaction = None
+    try:
+        transaction = connection.begin()
+        connection.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        snapshot = connection.execute(text("SELECT pg_export_snapshot()"))
+        snapshot_id = snapshot.scalar_one()
+        if not isinstance(snapshot_id, str) or not snapshot_id:
+            raise RecoveryError("BACKUP_DATABASE_FAILED", "PostgreSQL snapshot identity is invalid")
+        yield connection, snapshot_id
+        transaction.commit()
+    except RecoveryError:
+        if transaction is not None:
+            transaction.rollback()
+        raise
+    except Exception as exc:
+        if transaction is not None:
+            transaction.rollback()
+        raise RecoveryError(
+            "BACKUP_DATABASE_FAILED", "PostgreSQL snapshot transaction failed"
+        ) from exc
+    finally:
+        connection.close()
+
+
 def _run_postgres_tool(
     argv: Sequence[str],
     *,
@@ -272,13 +301,12 @@ def _packaged_schema_head() -> str:
     return head
 
 
-def _read_schema_head(engine: Engine, *, expected: str | None, code: str) -> str:
+def _read_schema_head_connection(connection: Connection, *, expected: str | None, code: str) -> str:
     packaged = _packaged_schema_head()
     if expected is not None and expected != packaged:
         raise RecoveryError(code, "expected schema identity is not the packaged head")
     try:
-        with engine.connect() as connection:
-            rows = connection.execute(text("SELECT version_num FROM alembic_version")).all()
+        rows = connection.execute(text("SELECT version_num FROM alembic_version")).all()
     except Exception as exc:
         raise RecoveryError(code, "schema identity could not be read") from exc
     if len(rows) != 1 or not isinstance(rows[0][0], str) or not rows[0][0].strip():
@@ -287,6 +315,15 @@ def _read_schema_head(engine: Engine, *, expected: str | None, code: str) -> str
     if actual != packaged or (expected is not None and actual != expected):
         raise RecoveryError(code, "schema head does not match the packaged identity")
     return actual
+
+
+def _read_schema_head(
+    engine_or_connection: Engine | Connection, *, expected: str | None, code: str
+) -> str:
+    if isinstance(engine_or_connection, Engine):
+        with engine_or_connection.connect() as connection:
+            return _read_schema_head_connection(connection, expected=expected, code=code)
+    return _read_schema_head_connection(engine_or_connection, expected=expected, code=code)
 
 
 def _normalize_scalar(value: object) -> object:
@@ -317,18 +354,17 @@ def _normalize_scalar(value: object) -> object:
 
 
 def _table_rows(
-    engine: Engine, *, schema: str, table_name: str
+    connection: Connection, *, schema: str, table_name: str
 ) -> tuple[list[str], list[dict[str, object]]]:
     metadata = MetaData()
     table = Table(
         table_name,
         metadata,
         schema=None if schema == "public" else schema,
-        autoload_with=engine,
+        autoload_with=connection,
     )
     columns = [column.name for column in table.columns]
-    with engine.connect() as connection:
-        rows = connection.execute(select(table)).all()
+    rows = connection.execute(select(table)).all()
     normalized: list[dict[str, object]] = []
     for row in rows:
         normalized.append({column: _normalize_scalar(row._mapping[column]) for column in columns})
@@ -342,8 +378,8 @@ def _table_rows(
     return columns, normalized
 
 
-def _application_table_names(engine: Engine) -> list[tuple[str, str]]:
-    inspector = inspect(engine)
+def _application_table_names(connection: Connection) -> list[tuple[str, str]]:
+    inspector = inspect(connection)
     names: list[tuple[str, str]] = []
     for schema in sorted(inspector.get_schema_names()):
         if schema in _EXCLUDED_SCHEMAS or schema.startswith("pg_"):
@@ -353,17 +389,19 @@ def _application_table_names(engine: Engine) -> list[tuple[str, str]]:
     return names
 
 
-def collect_database_inventory(
-    engine: Engine,
+def collect_database_inventory_from_connection(
+    connection: Connection,
     *,
     expected_schema_head: str | None = None,
     failure_code: str = "BACKUP_DATABASE_FAILED",
 ) -> dict[str, Any]:
-    schema_head = _read_schema_head(engine, expected=expected_schema_head, code=failure_code)
+    schema_head = _read_schema_head_connection(
+        connection, expected=expected_schema_head, code=failure_code
+    )
     tables: list[dict[str, Any]] = []
     try:
-        for schema, table_name in _application_table_names(engine):
-            columns, rows = _table_rows(engine, schema=schema, table_name=table_name)
+        for schema, table_name in _application_table_names(connection):
+            columns, rows = _table_rows(connection, schema=schema, table_name=table_name)
             logical_payload = {
                 "schema": schema,
                 "table": table_name,
@@ -388,6 +426,26 @@ def collect_database_inventory(
         "table_count": len(tables),
         "tables": tables,
     }
+
+
+def collect_database_inventory(
+    engine: Engine,
+    *,
+    expected_schema_head: str | None = None,
+    failure_code: str = "BACKUP_DATABASE_FAILED",
+) -> dict[str, Any]:
+    """Collect inventory using one connection; snapshot callers pass theirs directly."""
+    try:
+        with engine.connect() as connection:
+            return collect_database_inventory_from_connection(
+                connection,
+                expected_schema_head=expected_schema_head,
+                failure_code=failure_code,
+            )
+    except RecoveryError:
+        raise
+    except Exception as exc:
+        raise RecoveryError(failure_code, "database inventory could not be collected") from exc
 
 
 def inventory_digest(inventory: Mapping[str, Any]) -> str:
@@ -481,6 +539,63 @@ def _write_artifact_archive(source_root: Path, destination: Path, *, failure_cod
         raise
     except (OSError, tarfile.TarError) as exc:
         raise RecoveryError(failure_code, "artifact archive could not be created") from exc
+
+
+def collect_artifact_inventory_from_archive(
+    archive_path: Path, *, failure_code: str
+) -> dict[str, Any]:
+    """Derive artifact inventory from the immutable archive payload itself."""
+    files: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    try:
+        with tarfile.open(archive_path, mode="r:") as archive:
+            for member in archive.getmembers():
+                try:
+                    parts = validate_tar_member_name(member.name)
+                except RecoveryError as exc:
+                    raise RecoveryError(failure_code, exc.detail) from exc
+                relative_path = "/".join(parts)
+                if relative_path in seen:
+                    raise RecoveryError(failure_code, "artifact archive contains duplicate paths")
+                seen.add(relative_path)
+                if (
+                    member.issym()
+                    or member.islnk()
+                    or member.isdev()
+                    or not (member.isdir() or member.isreg())
+                ):
+                    raise RecoveryError(failure_code, "artifact archive contains unsafe entries")
+                if member.isdir():
+                    continue
+                stream = archive.extractfile(member)
+                if stream is None:
+                    raise RecoveryError(failure_code, "artifact archive file cannot be read")
+                digest = hashlib.sha256()
+                size = 0
+                with stream:
+                    for chunk in iter(stream.read, b""):
+                        digest.update(chunk)
+                        size += len(chunk)
+                if size != member.size:
+                    raise RecoveryError(failure_code, "artifact archive file size changed")
+                files.append(
+                    {
+                        "relative_path": relative_path,
+                        "size_bytes": size,
+                        "sha256": f"sha256:{digest.hexdigest()}",
+                    }
+                )
+    except RecoveryError:
+        raise
+    except (OSError, tarfile.TarError) as exc:
+        raise RecoveryError(failure_code, "artifact archive could not be read") from exc
+    files.sort(key=lambda item: str(item["relative_path"]))
+    return {
+        "schema_version": ARTIFACT_INVENTORY_SCHEMA_VERSION,
+        "file_count": len(files),
+        "total_bytes": sum(int(item["size_bytes"]) for item in files),
+        "files": files,
+    }
 
 
 def _write_checksums(root: Path, payload_files: Sequence[str]) -> None:
@@ -683,6 +798,12 @@ def validate_backup_bundle(bundle_root: Path) -> BackupBundle:
         )
     if inventory_digest(artifact_inventory) != manifest["artifact_inventory_digest"]:
         raise RecoveryError("RESTORE_BUNDLE_INVALID", "artifact inventory digest disagrees")
+    archive_inventory = collect_artifact_inventory_from_archive(
+        root / "artifacts.tar",
+        failure_code="RESTORE_BUNDLE_INVALID",
+    )
+    if archive_inventory != artifact_inventory:
+        raise RecoveryError("RESTORE_BUNDLE_INVALID", "artifact archive and inventory disagree")
     return BackupBundle(root, manifest, database_inventory, artifact_inventory)
 
 
@@ -738,31 +859,35 @@ def create_backup(
         engine = _create_postgres_engine(url, code="BACKUP_DATABASE_FAILED")
         _identity, child_env = _postgres_child_env(url, code="BACKUP_DATABASE_FAILED")
         database_name = child_env["PGDATABASE"]
-        _run_postgres_tool(
-            [
-                "pg_dump",
-                "--format=custom",
-                "--no-owner",
-                "--no-privileges",
-                "--file",
-                str(temp_root / "database.dump"),
-                "--dbname",
-                database_name,
-            ],
-            database_url=url,
-            code="BACKUP_DATABASE_FAILED",
-        )
-        database_inventory = collect_database_inventory(engine)
-        artifact_inventory = collect_artifact_inventory(
-            source_root, failure_code="BACKUP_ARTIFACT_FAILED"
-        )
-        _write_json(temp_root / "database-inventory.json", database_inventory)
-        _write_json(temp_root / "artifact-inventory.json", artifact_inventory)
+        with _export_database_snapshot(engine) as (snapshot_connection, snapshot_id):
+            _run_postgres_tool(
+                [
+                    "pg_dump",
+                    "--format=custom",
+                    "--no-owner",
+                    "--no-privileges",
+                    "--snapshot",
+                    snapshot_id,
+                    "--file",
+                    str(temp_root / "database.dump"),
+                    "--dbname",
+                    database_name,
+                ],
+                database_url=url,
+                code="BACKUP_DATABASE_FAILED",
+            )
+            database_inventory = collect_database_inventory_from_connection(snapshot_connection)
         _write_artifact_archive(
             source_root,
             temp_root / "artifacts.tar",
             failure_code="BACKUP_ARTIFACT_FAILED",
         )
+        artifact_inventory = collect_artifact_inventory_from_archive(
+            temp_root / "artifacts.tar",
+            failure_code="BACKUP_ARTIFACT_FAILED",
+        )
+        _write_json(temp_root / "database-inventory.json", database_inventory)
+        _write_json(temp_root / "artifact-inventory.json", artifact_inventory)
         manifest: dict[str, Any] = {
             "schema_version": BACKUP_SCHEMA_VERSION,
             "task": "TASK-012",
@@ -829,7 +954,9 @@ __all__ = [
     "BackupBundle",
     "RecoveryError",
     "collect_artifact_inventory",
+    "collect_artifact_inventory_from_archive",
     "collect_database_inventory",
+    "collect_database_inventory_from_connection",
     "create_backup",
     "inventory_digest",
     "validate_backup_bundle",
