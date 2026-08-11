@@ -78,9 +78,9 @@ def test_controlled_recovery_seed_matches_migrated_postgresql_schema_contract() 
                     1,
                     'controlled recovery seed',
                     'draft',
-                    '{"source":"controlled-recovery","revision":1}'::json,
-                    '{"result":"deterministic"}'::json,
-                    '{"assumption":"synthetic-only"}'::json,
+                    CAST(:input_snapshot AS JSON),
+                    CAST(:calculation_snapshot AS JSON),
+                    CAST(:assumption_snapshot AS JSON),
                     TIMESTAMPTZ '2026-01-01T00:00:00Z',
                     TIMESTAMPTZ '2026-01-01T00:00:00Z',
                     'controlled-recovery-fixture',
@@ -92,7 +92,12 @@ def test_controlled_recovery_seed_matches_migrated_postgresql_schema_contract() 
                     NULL
                 )
                 """
-            )
+            ),
+            {
+                "input_snapshot": '{"source":"controlled-recovery","revision":1}',
+                "calculation_snapshot": '{"result":"deterministic"}',
+                "assumption_snapshot": '{"assumption":"synthetic-only"}',
+            },
         )
         connection.execute(
             text(
