@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation
+.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -163,7 +163,9 @@ recovery-foundation-test:
 		tests/unit/test_recovery_backup.py \
 		tests/unit/test_recovery_restore.py \
 		tests/unit/test_recovery_verification.py \
+		tests/unit/test_failure_recovery.py \
 		tests/integration/test_recovery_postgresql.py \
+		tests/integration/test_failure_recovery_postgresql.py \
 		tests/architecture/test_recovery_boundaries.py \
 		-q
 
@@ -173,14 +175,18 @@ recovery-foundation-lint:
 		tests/unit/test_recovery_backup.py \
 		tests/unit/test_recovery_restore.py \
 		tests/unit/test_recovery_verification.py \
+		tests/unit/test_failure_recovery.py \
 		tests/integration/test_recovery_postgresql.py \
+		tests/integration/test_failure_recovery_postgresql.py \
 		tests/architecture/test_recovery_boundaries.py
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff format --check \
 		src/cold_storage/recovery \
 		tests/unit/test_recovery_backup.py \
 		tests/unit/test_recovery_restore.py \
 		tests/unit/test_recovery_verification.py \
+		tests/unit/test_failure_recovery.py \
 		tests/integration/test_recovery_postgresql.py \
+		tests/integration/test_failure_recovery_postgresql.py \
 		tests/architecture/test_recovery_boundaries.py
 
 recovery-foundation-typecheck:
@@ -189,6 +195,36 @@ recovery-foundation-typecheck:
 
 verify-recovery-foundation: recovery-foundation-lint recovery-foundation-typecheck recovery-foundation-test
 	@echo 'verify-recovery-foundation ok'
+
+# --- TASK-012 V0.2 Slice 6 Package 2: release failure recovery ---
+
+release-failure-recovery-test:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
+		tests/unit/test_failure_recovery.py \
+		tests/integration/test_failure_recovery_postgresql.py \
+		tests/architecture/test_recovery_boundaries.py \
+		-q
+
+release-failure-recovery-lint:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff check \
+		src/cold_storage/recovery/failure_recovery.py \
+		src/cold_storage/recovery/cli.py \
+		tests/unit/test_failure_recovery.py \
+		tests/integration/test_failure_recovery_postgresql.py \
+		tests/architecture/test_recovery_boundaries.py
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff format --check \
+		src/cold_storage/recovery/failure_recovery.py \
+		src/cold_storage/recovery/cli.py \
+		tests/unit/test_failure_recovery.py \
+		tests/integration/test_failure_recovery_postgresql.py \
+		tests/architecture/test_recovery_boundaries.py
+
+release-failure-recovery-typecheck:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run mypy \
+		src/cold_storage/recovery --strict --ignore-missing-imports
+
+verify-release-failure-recovery: release-failure-recovery-lint release-failure-recovery-typecheck release-failure-recovery-test
+	@echo 'verify-release-failure-recovery ok'
 
 # Full release evidence verification gate.
 verify-release-evidence: release-evidence-lint release-evidence-typecheck release-evidence-test
