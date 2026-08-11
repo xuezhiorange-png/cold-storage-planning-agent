@@ -143,6 +143,10 @@ def test_controlled_recovery_reuses_canonical_cli_and_publishes_seven_file_evide
     assert "TARGET_ARTIFACT_STORAGE_EMPTY=YES" in job
     assert "SOURCE_DATABASE_MUTATION_DURING_RECOVERY=NO" in job
     assert "SOURCE_ARTIFACT_MUTATION_DURING_RECOVERY=NO" in job
+    assert "outbox_event_id" in job
+    assert "legacy-audit:33333333-3333-4333-8333-333333333333" in job
+    assert "CONTROLLED_SEED_SCHEMA_CONTRACT=PASS" in job
+    assert "CONTROLLED_SEED_AUDIT_OUTBOX_BINDING=PASS" in job
     assert "actions/upload-artifact@v4" in job
     assert (
         "path: ${{ runner.temp }}/task012-controlled-recovery/controlled-recovery-evidence/" in job

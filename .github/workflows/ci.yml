@@ -1743,7 +1743,8 @@ jobs:
           );
           INSERT INTO audit_events (
             id, actor, action, entity_type, entity_id,
-            before_snapshot, after_snapshot, event_metadata, created_at
+            before_snapshot, after_snapshot, event_metadata, created_at,
+            outbox_event_id
           ) VALUES (
             '33333333-3333-4333-8333-333333333333',
             'controlled-recovery-fixture',
@@ -1753,12 +1754,23 @@ jobs:
             '{}'::json,
             '{"status":"seeded"}'::json,
             '{"synthetic":true,"fixture":"TASK-012"}'::json,
-            TIMESTAMPTZ '2026-01-01T00:00:00Z'
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            'legacy-audit:33333333-3333-4333-8333-333333333333'
           );
           SQL
           test "$(psql --dbname="${SOURCE_DATABASE_NAME}" -Atqc "SELECT count(*) FROM projects")" = "1"
           test "$(psql --dbname="${SOURCE_DATABASE_NAME}" -Atqc "SELECT count(*) FROM project_versions")" = "1"
           test "$(psql --dbname="${SOURCE_DATABASE_NAME}" -Atqc "SELECT count(*) FROM audit_events")" = "1"
+          AUDIT_OUTBOX_EVENT_ID="$(
+            psql \
+              --dbname="${SOURCE_DATABASE_NAME}" \
+              -Atqc \
+              "SELECT outbox_event_id FROM audit_events WHERE id='33333333-3333-4333-8333-333333333333'"
+          )"
+          test "${AUDIT_OUTBOX_EVENT_ID}" = \
+            "legacy-audit:33333333-3333-4333-8333-333333333333"
+          echo "CONTROLLED_SEED_SCHEMA_CONTRACT=PASS"
+          echo "CONTROLLED_SEED_AUDIT_OUTBOX_BINDING=PASS"
           echo "CONTROLLED_SYNTHETIC_DATA=YES"
           echo "REAL_PRODUCTION_DATA=NO"
 
