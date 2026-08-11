@@ -205,6 +205,77 @@ and inspect the isolated target; the command does not retry against another
 database or silently fall back to the source. Do not use `DROP DATABASE`,
 `TRUNCATE`, or a migration downgrade as a substitute for restore.
 
+## Controlled operational acceptance
+
+The canonical live validation surface is the separately guarded
+`controlled-recovery-acceptance` job in `.github/workflows/ci.yml`. It is
+available only from `workflow_dispatch` on `main` and requires both:
+
+```text
+execute_controlled_recovery_acceptance=true
+expected_recovery_source_sha=<exact github.sha>
+```
+
+The recovery input is intentionally separate from the Slice 2
+`expected_rc_source_sha`. The dispatch must set every Slice 2 live phase to
+`false`; the workflow rejects mixed capture, transport, attestation, or
+Assembly authorization. A source SHA mismatch fails before backup with
+`RECOVERY_SOURCE_SHA_MISMATCH`. Pull requests and ordinary pushes keep this
+job skipped while the normal `recovery-foundation` CI gate continues to run.
+
+This acceptance uses only an ephemeral PostgreSQL service, two different
+ephemeral databases, and a temporary synthetic artifact root. It seeds fixed
+application and audit records, creates fixed artifact files, and marks the
+run `CONTROLLED_SYNTHETIC_DATA=YES` and `REAL_PRODUCTION_DATA=NO`. It never
+reads production secrets, production databases, production volumes, or
+production artifact storage. The source and target environment identities,
+database identities, and artifact roots are distinct. The target database
+and artifact root must be empty before `restore-isolated` runs.
+
+The job calls the three canonical Package 1 CLI surfaces in order:
+
+```text
+backup --execute-backup
+restore-isolated --execute-restore
+verify-restore
+```
+
+It verifies the backup's exact seven-file bundle and runs the independent
+restore verifier after the restore command. It records source database and
+artifact inventory digests before recovery and recomputes both after
+verification; a mismatch fails the job. No failure is converted to a
+successful exit and no failed acceptance artifact is uploaded.
+
+Only a successful acceptance uploads the operational evidence artifact named
+`task012-controlled-recovery-<run-id>-<run-attempt>` with compression level 0,
+non-overwrite semantics, and a fixed retention period. The uploaded payload
+is exactly seven files and deliberately excludes `database.dump`,
+`artifacts.tar`, PostgreSQL data directories, source/target temporary files,
+and credentials:
+
+```text
+acceptance-summary.json
+backup-manifest.json
+database-inventory.json
+artifact-inventory.json
+restore-receipt.json
+SHA256SUMS
+SHA256SUMS.sha256
+```
+
+`acceptance-summary.json` records the workflow identity, controlled source and
+target identities, backup and receipt digests, the three PASS stages, source
+unchanged results, and `acceptance_result=PASS`. `SHA256SUMS` covers the five
+JSON files and `SHA256SUMS.sha256` covers the checksum manifest. The job
+summary records the upload Artifact ID, Artifact digest, run identity, and
+the same controlled acceptance status. This Artifact is operational
+acceptance evidence, not a copy of the backup payload.
+
+This surface is an authorization/readiness boundary only. It is not executed
+by this implementation PR. After review, merge, and post-merge CI, one
+explicit workflow dispatch may run the complete backup -> isolated restore ->
+independent verify-restore sequence for S6-01/S6-02/S6-03 live closure review.
+
 ## What this does not prove
 
 This package closes the implementation surface for S6-01 backup, S6-02
