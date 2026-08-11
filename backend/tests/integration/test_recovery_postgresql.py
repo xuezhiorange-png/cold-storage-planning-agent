@@ -112,15 +112,20 @@ def test_controlled_recovery_seed_matches_migrated_postgresql_schema_contract() 
                     'CONTROLLED_RECOVERY_SEED',
                     'project',
                     '11111111-1111-4111-8111-111111111111',
-                    '{}'::json,
-                    '{"status":"seeded"}'::json,
-                    '{"synthetic":true,"fixture":"TASK-012"}'::json,
+                    CAST(:before_snapshot AS JSON),
+                    CAST(:after_snapshot AS JSON),
+                    CAST(:event_metadata AS JSON),
                     TIMESTAMPTZ '2026-01-01T00:00:00Z',
                     :outbox_event_id
                 )
                 """
             ),
-            {"outbox_event_id": outbox_event_id},
+            {
+                "before_snapshot": "{}",
+                "after_snapshot": '{"status":"seeded"}',
+                "event_metadata": '{"synthetic":true,"fixture":"TASK-012"}',
+                "outbox_event_id": outbox_event_id,
+            },
         )
 
         assert (
