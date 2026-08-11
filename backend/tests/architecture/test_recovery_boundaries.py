@@ -144,7 +144,9 @@ def test_controlled_recovery_reuses_canonical_cli_and_publishes_seven_file_evide
     assert "SOURCE_DATABASE_MUTATION_DURING_RECOVERY=NO" in job
     assert "SOURCE_ARTIFACT_MUTATION_DURING_RECOVERY=NO" in job
     assert "actions/upload-artifact@v4" in job
-    assert "path: ${{ env.RECOVERY_ROOT }}/controlled-recovery-evidence/" in job
+    assert (
+        "path: ${{ runner.temp }}/task012-controlled-recovery/controlled-recovery-evidence/" in job
+    )
     assert "compression-level: 0" in job
     assert "overwrite: false" in job
     assert "retention-days: 30" in job

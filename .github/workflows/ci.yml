@@ -1615,9 +1615,6 @@ jobs:
       TARGET_DATABASE_ENVIRONMENT_ID: controlled-recovery-target-db
       SOURCE_ARTIFACT_ENVIRONMENT_ID: controlled-recovery-source-artifacts
       TARGET_ARTIFACT_ENVIRONMENT_ID: controlled-recovery-target-artifacts
-      SOURCE_ARTIFACT_ROOT: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
-      TARGET_ARTIFACT_ROOT: ${{ runner.temp }}/task012-controlled-recovery/target-artifacts
-      RECOVERY_ROOT: ${{ runner.temp }}/task012-controlled-recovery
       PGHOST: localhost
       PGPORT: "5432"
       PGUSER: cold_storage
@@ -1674,6 +1671,15 @@ jobs:
       - name: Backend install
         run: cd backend && uv sync
 
+      - name: Define controlled ephemeral paths
+        run: |
+          set -euo pipefail
+          {
+            echo "SOURCE_ARTIFACT_ROOT=${RUNNER_TEMP}/task012-controlled-recovery/source-artifacts"
+            echo "TARGET_ARTIFACT_ROOT=${RUNNER_TEMP}/task012-controlled-recovery/target-artifacts"
+            echo "RECOVERY_ROOT=${RUNNER_TEMP}/task012-controlled-recovery"
+          } >> "${GITHUB_ENV}"
+
       - name: Initialize controlled source and isolated target databases
         env:
           DATABASE_BACKEND: postgresql
@@ -1693,7 +1699,7 @@ jobs:
       - name: Seed deterministic controlled source data
         env:
           COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
-          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
         run: |
           set -euo pipefail
           test ! -e "${SOURCE_ARTIFACT_ROOT}"
@@ -1764,7 +1770,7 @@ jobs:
       - name: Record source inventories before recovery
         env:
           COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
-          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
         run: |
           set -euo pipefail
           cd backend
@@ -1800,7 +1806,7 @@ jobs:
         env:
           TASK012_BACKUP_AUTHORIZED: YES
           COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
-          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
           COLD_STORAGE_ENVIRONMENT_ID: ${{ env.SOURCE_ENVIRONMENT_ID }}
           COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ${{ env.SOURCE_DATABASE_ENVIRONMENT_ID }}
           COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ${{ env.SOURCE_ARTIFACT_ENVIRONMENT_ID }}
@@ -1860,9 +1866,9 @@ jobs:
         env:
           TASK012_ISOLATED_RESTORE_AUTHORIZED: YES
           COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
-          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
           COLD_STORAGE_RESTORE_DATABASE_URL: ${{ env.TARGET_DATABASE_URL }}
-          COLD_STORAGE_RESTORE_STORAGE_DIR: ${{ env.TARGET_ARTIFACT_ROOT }}
+          COLD_STORAGE_RESTORE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/target-artifacts
           COLD_STORAGE_RESTORE_ENVIRONMENT_ID: ${{ env.TARGET_ENVIRONMENT_ID }}
           COLD_STORAGE_RESTORE_DATABASE_ENVIRONMENT_ID: ${{ env.TARGET_DATABASE_ENVIRONMENT_ID }}
           COLD_STORAGE_RESTORE_ARTIFACT_ENVIRONMENT_ID: ${{ env.TARGET_ARTIFACT_ENVIRONMENT_ID }}
@@ -1886,9 +1892,9 @@ jobs:
       - name: Execute canonical independent restore verification
         env:
           COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
-          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
           COLD_STORAGE_RESTORE_DATABASE_URL: ${{ env.TARGET_DATABASE_URL }}
-          COLD_STORAGE_RESTORE_STORAGE_DIR: ${{ env.TARGET_ARTIFACT_ROOT }}
+          COLD_STORAGE_RESTORE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/target-artifacts
           COLD_STORAGE_RESTORE_ENVIRONMENT_ID: ${{ env.TARGET_ENVIRONMENT_ID }}
           COLD_STORAGE_RESTORE_DATABASE_ENVIRONMENT_ID: ${{ env.TARGET_DATABASE_ENVIRONMENT_ID }}
           COLD_STORAGE_RESTORE_ARTIFACT_ENVIRONMENT_ID: ${{ env.TARGET_ARTIFACT_ENVIRONMENT_ID }}
@@ -1906,7 +1912,7 @@ jobs:
       - name: Prove source remained unchanged and prepare seven-file evidence
         env:
           COLD_STORAGE_DATABASE_URL: ${{ env.SOURCE_DATABASE_URL }}
-          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_STORAGE_DIR: ${{ runner.temp }}/task012-controlled-recovery/source-artifacts
         run: |
           set -euo pipefail
           cd backend
@@ -2048,7 +2054,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: task012-controlled-recovery-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.RECOVERY_ROOT }}/controlled-recovery-evidence/
+          path: ${{ runner.temp }}/task012-controlled-recovery/controlled-recovery-evidence/
           if-no-files-found: error
           compression-level: 0
           overwrite: false
