@@ -7,6 +7,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RECOVERY_ROOT = PROJECT_ROOT / "backend" / "src" / "cold_storage" / "recovery"
 WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
+PACKAGE2_WORKFLOW_PATH = (
+    PROJECT_ROOT / ".github" / "workflows" / "task012-slice6-package2-recovery.yml"
+)
 
 
 def _source(name: str) -> str:
@@ -23,6 +26,11 @@ def _workflow_job(name: str) -> str:
     return match.group("body")
 
 
+def _package2_workflow() -> str:
+    assert PACKAGE2_WORKFLOW_PATH.is_file()
+    return PACKAGE2_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+
 def test_recovery_package_exists_with_operator_surfaces() -> None:
     assert (RECOVERY_ROOT / "backup_bundle.py").is_file()
     assert (RECOVERY_ROOT / "restore_runner.py").is_file()
@@ -32,6 +40,24 @@ def test_recovery_package_exists_with_operator_surfaces() -> None:
     assert '"backup"' in cli
     assert '"restore-isolated"' in cli
     assert '"verify-restore"' in cli
+
+
+def test_package2_failure_recovery_module_and_cli_are_present() -> None:
+    module = _source("failure_recovery.py")
+    cli = _source("cli.py")
+    assert '"APP_ONLY_ROLLBACK_ALLOWED"' in module
+    assert '"MIGRATION_RECOVERY_REQUIRED"' in module
+    assert "automatic_downgrade_performed" in module
+    assert "restore_target_environment_id" in module
+    assert "canonical_digest" in module
+    for command in (
+        '"classify-release-failure"',
+        '"verify-deployment-rollback"',
+        '"verify-migration-recovery"',
+    ):
+        assert command in cli
+    assert "alembic downgrade" not in module
+    assert "alembic downgrade" not in cli
 
 
 def test_recovery_core_has_no_web_or_release_boundary_dependency() -> None:
@@ -169,3 +195,121 @@ def test_slice2_live_jobs_are_mutually_exclusive_with_controlled_recovery() -> N
         "live-evidence-verified-transport-handoff-verify",
     ):
         assert "inputs.execute_controlled_recovery_acceptance != true" in _workflow_job(name)
+
+
+def test_package2_workflow_is_dispatch_only_exact_main_and_least_privilege() -> None:
+    workflow = _package2_workflow()
+    workflow_header = workflow.split("jobs:", 1)[0]
+    assert "workflow_dispatch:" in workflow_header
+    assert "\npush:" not in workflow_header
+    assert "\npull_request:" not in workflow_header
+    assert "execute_controlled_failure_recovery_acceptance:" in workflow_header
+    assert "expected_source_sha:" in workflow_header
+    assert "default: false" in workflow_header
+    assert 'default: ""' in workflow_header
+    for condition in (
+        "github.event_name == 'workflow_dispatch'",
+        "inputs.execute_controlled_failure_recovery_acceptance == true",
+        "inputs.expected_source_sha != ''",
+        "github.ref == 'refs/heads/main'",
+        "github.sha == inputs.expected_source_sha",
+        'test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}"',
+        "PACKAGE2_SOURCE_SHA_MISMATCH",
+    ):
+        assert condition in workflow
+    assert "permissions:\n  contents: read" in workflow
+    assert "permissions:\n      contents: read" in workflow
+    for forbidden in (
+        "id-token: write",
+        "contents: write",
+        "actions: write",
+        "packages: write",
+        "deployments: write",
+        "secrets.",
+        "alembic downgrade",
+    ):
+        assert forbidden not in workflow
+
+
+def test_package2_workflow_reuses_recovery_authorities_and_publishes_exact_evidence() -> None:
+    workflow = _package2_workflow()
+    for command in (
+        "python -m cold_storage.recovery.cli backup",
+        "python -m cold_storage.recovery.cli restore-isolated",
+        "python -m cold_storage.recovery.cli verify-restore",
+        "python -m cold_storage.recovery.cli classify-release-failure",
+        "verify-deployment-rollback --receipt",
+        "verify-migration-recovery",
+        "TASK012_BACKUP_AUTHORIZED: YES",
+        "TASK012_ISOLATED_RESTORE_AUTHORIZED: YES",
+        "docker build",
+        "docker run",
+        "/health/live",
+        "/health/ready",
+        "automatic_downgrade_performed",
+    ):
+        assert command in workflow
+    for evidence_file in (
+        "acceptance-summary.json",
+        "deployment-rollback-receipt.json",
+        "migration-recovery-receipt.json",
+        "backup-manifest.json",
+        "restore-receipt.json",
+        "SHA256SUMS",
+        "SHA256SUMS.sha256",
+    ):
+        assert evidence_file in workflow
+    for marker in (
+        "CONTROLLED_SYNTHETIC_DATA=YES",
+        "REAL_PRODUCTION_DATA=NO",
+        "MIGRATION_TRANSACTIONAL_FAILURE=PASS",
+        "MIGRATION_PARTIAL_FAILURE_INJECTION=PASS",
+        "MIGRATION_RECOVERY_REQUIRED=YES",
+        "CANONICAL_ISOLATED_RESTORE=PASS",
+        "CANONICAL_VERIFY_RESTORE=PASS",
+        "actions/upload-artifact@v4",
+        "compression-level: 0",
+        "if-no-files-found: error",
+        "overwrite: false",
+        "retention-days: 30",
+    ):
+        assert marker in workflow
+    assert "path: ${{ runner.temp }}/task012-package2-recovery/evidence/" in workflow
+    assert 'test "$(find "${EVIDENCE_DIR}" -maxdepth 1 -type f' in workflow
+    assert "RAW_DATABASE_DUMP_UPLOADED=NO" not in workflow
+    assert "production secrets" not in workflow.lower()
+
+
+def test_package2_workflow_executes_real_failures_and_recovery_readiness() -> None:
+    workflow = _package2_workflow()
+    for marker in (
+        "Prepare temporary Alembic failure revisions",
+        "PACKAGE2_ALEMBIC_CONFIG",
+        'alembic -c "${PACKAGE2_ALEMBIC_CONFIG}" upgrade',
+        "TASK012_PACKAGE2_TRANSACTIONAL_MIGRATION_FAILURE_INJECTED",
+        "TASK012_PACKAGE2_PARTIAL_MIGRATION_FAILURE_INJECTED",
+        "transactional-result.json",
+        "partial-result.json",
+        "Start previous known-good release against recovered target",
+        "task012-package2-recovered-previous",
+        "RECOVERED_DATABASE_URL",
+        "RECOVERED_ARTIFACT_ROOT",
+        "psycopg2.connect",
+        "post-recovery-readiness.json",
+        "independent_restore_verification",
+        "post_recovery_live_status",
+        "post_recovery_ready_status",
+        "verify_migration_recovery_receipt",
+    ):
+        assert marker in workflow
+    assert workflow.index(
+        "Start previous known-good release against recovered target"
+    ) < workflow.index("Create and verify migration recovery receipt")
+    assert workflow.index("Create and verify migration recovery receipt") < workflow.index(
+        "Write and verify Package 2 acceptance evidence"
+    )
+    assert "alembic downgrade" not in workflow
+
+
+def test_package2_workflow_is_not_part_of_pr_or_push_ci() -> None:
+    assert "task012-slice6-package2-recovery.yml" not in WORKFLOW_PATH.read_text(encoding="utf-8")

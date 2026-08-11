@@ -1,0 +1,976 @@
+name: TASK-012 Slice 6 Package 2 Release Failure Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      execute_controlled_failure_recovery_acceptance:
+        description: Explicitly authorize the synthetic release failure recovery acceptance
+        required: true
+        type: boolean
+        default: false
+      expected_source_sha:
+        description: Exact main commit authorized for the controlled acceptance
+        required: true
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-release-failure-recovery:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch'
+        && inputs.execute_controlled_failure_recovery_acceptance == true
+        && inputs.expected_source_sha != ''
+        && github.ref == 'refs/heads/main'
+        && github.sha == inputs.expected_source_sha
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+          POSTGRES_DB: controlled_release
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cold_storage -d controlled_release"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/controlled_release
+      DATABASE_BACKEND: postgresql
+      COLD_STORAGE_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/controlled_release
+      COLD_STORAGE_DATABASE_BACKEND: postgresql
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: cold_storage
+      PGPASSWORD: cold_storage
+      PGDATABASE: controlled_release
+      SOURCE_ENVIRONMENT_ID: controlled-release-source
+      SOURCE_DATABASE_ENVIRONMENT_ID: controlled-release-source-db
+      SOURCE_ARTIFACT_ENVIRONMENT_ID: controlled-release-source-artifacts
+      TARGET_ENVIRONMENT_ID: controlled-release-recovered
+      TARGET_DATABASE_ENVIRONMENT_ID: controlled-release-recovered-db
+      TARGET_ARTIFACT_ENVIRONMENT_ID: controlled-release-recovered-artifacts
+
+    steps:
+      - name: Checkout exact Package 2 source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Package 2 exact source gate
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+          ACCEPTANCE: ${{ inputs.execute_controlled_failure_recovery_acceptance }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${ACCEPTANCE}" = "true"
+          test -n "${EXPECTED_SOURCE_SHA}"
+          test "${GITHUB_SHA}" = "${EXPECTED_SOURCE_SHA}" || {
+            echo "PACKAGE2_SOURCE_SHA_MISMATCH" >&2
+            exit 1
+          }
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}" || {
+            echo "PACKAGE2_SOURCE_SHA_MISMATCH" >&2
+            exit 1
+          }
+          git cat-file -e "${EXPECTED_SOURCE_SHA}^{commit}"
+          echo "PACKAGE2_SOURCE_GATE=PASS"
+
+      - name: Set up Python tooling
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install PostgreSQL client and CJK font
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client fonts-wqy-zenhei
+
+      - name: Backend install and schema initialization
+        run: |
+          set -euo pipefail
+          cd backend
+          uv sync
+          PYTHONPATH=src uv run alembic upgrade head
+
+      - name: Define controlled ephemeral paths
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/task012-package2-recovery"
+          mkdir -p "${root}/source-artifacts" "${root}/recovered-artifacts" "${root}/evidence"
+          {
+            echo "PACKAGE2_ROOT=${root}"
+            echo "SOURCE_ARTIFACT_ROOT=${root}/source-artifacts"
+            echo "RECOVERED_ARTIFACT_ROOT=${root}/recovered-artifacts"
+            echo "EVIDENCE_DIR=${root}/evidence"
+            echo "BACKUP_ROOT=${root}/backups"
+            echo "RESTORE_RECEIPT_DIR=${root}/restore-receipt"
+            echo "RECOVERED_DATABASE_NAME=controlled_release_recovered"
+          } >> "${GITHUB_ENV}"
+
+      - name: Seed deterministic controlled release data
+        run: |
+          set -euo pipefail
+          printf '%s\n' '{"artifact":"package2","value":1}' > "${SOURCE_ARTIFACT_ROOT}/controlled.json"
+          mkdir -p "${SOURCE_ARTIFACT_ROOT}/reports"
+          printf '%s\n' 'controlled release failure recovery' > "${SOURCE_ARTIFACT_ROOT}/reports/readme.txt"
+          psql --dbname=controlled_release -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO projects (
+            id, code, name, location, product_category, status,
+            current_version_number, created_at, updated_at
+          ) VALUES (
+            '11111111-1111-4111-8111-111111111111',
+            'PACKAGE2-CONTROLLED-001',
+            'Package 2 Controlled Release',
+            'synthetic-location',
+            'synthetic-product',
+            'draft',
+            1,
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            TIMESTAMPTZ '2026-01-01T00:00:00Z'
+          );
+          INSERT INTO project_versions (
+            id, project_id, version_number, change_summary, status,
+            input_snapshot, calculation_snapshot, assumption_snapshot,
+            created_at, updated_at, created_by, parent_version_id,
+            submitted_at, reviewed_at, approved_at, approved_by, archived_at
+          ) VALUES (
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            1,
+            'Package 2 controlled seed',
+            'draft',
+            '{"source":"package2","revision":1}'::json,
+            '{"result":"deterministic"}'::json,
+            '{"assumption":"synthetic-only"}'::json,
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            'package2-controlled-fixture',
+            NULL, NULL, NULL, NULL, NULL, NULL
+          );
+          INSERT INTO audit_events (
+            id, actor, action, entity_type, entity_id,
+            before_snapshot, after_snapshot, event_metadata, created_at,
+            outbox_event_id
+          ) VALUES (
+            '33333333-3333-4333-8333-333333333333',
+            'package2-controlled-fixture',
+            'PACKAGE2_CONTROLLED_SEED',
+            'project',
+            '11111111-1111-4111-8111-111111111111',
+            '{}'::json,
+            '{"status":"seeded"}'::json,
+            '{"synthetic":true,"fixture":"TASK-012-PACKAGE2"}'::json,
+            TIMESTAMPTZ '2026-01-01T00:00:00Z',
+            'legacy-audit:44444444-4444-4444-8444-444444444444'
+          );
+          SQL
+
+      - name: Create verified pre-migration backup
+        env:
+          TASK012_BACKUP_AUTHORIZED: YES
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_ENVIRONMENT_ID: local
+          COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ${{ env.SOURCE_DATABASE_ENVIRONMENT_ID }}
+          COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ${{ env.SOURCE_ARTIFACT_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${BACKUP_ROOT}"
+          output="$(cd backend && PYTHONPATH=src uv run python -m cold_storage.recovery.cli backup \
+            --execute-backup \
+            --backup-root "${BACKUP_ROOT}" \
+            --source-environment-id "${SOURCE_ENVIRONMENT_ID}" \
+            --source-database-environment-id "${SOURCE_DATABASE_ENVIRONMENT_ID}" \
+            --source-artifact-environment-id "${SOURCE_ARTIFACT_ENVIRONMENT_ID}" \
+            --source-artifact-root "${SOURCE_ARTIFACT_ROOT}")"
+          printf '%s\n' "${output}"
+          bundle="$(printf '%s\n' "${output}" | sed -n 's/^BACKUP_BUNDLE=//p')"
+          test -n "${bundle}"
+          test -d "${bundle}"
+          echo "BACKUP_BUNDLE=${bundle}" >> "${GITHUB_ENV}"
+          echo "BACKUP_VERIFICATION=PASS"
+
+      - name: Build previous and failed candidate controlled images
+        run: |
+          set -euo pipefail
+          cat > "${PACKAGE2_ROOT}/release-server.py" <<'PY'
+          import os
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          import psycopg2
+
+          if os.environ.get("FAIL_STARTUP") == "1":
+              print("CONTROLLED_CANDIDATE_STARTUP_FAILURE", flush=True)
+              raise SystemExit(42)
+
+          def recovered_target_is_ready():
+              try:
+                  with psycopg2.connect(
+                      os.environ["RECOVERED_DATABASE_URL"], connect_timeout=5
+                  ) as connection:
+                      with connection.cursor() as cursor:
+                          cursor.execute(
+                              "SELECT 1 FROM projects WHERE code = %s",
+                              (os.environ["EXPECTED_PROJECT_CODE"],),
+                          )
+                          if cursor.fetchone() != (1,):
+                              return False
+                  artifact_path = os.path.join(
+                      os.environ["RECOVERED_ARTIFACT_ROOT"],
+                      os.environ["EXPECTED_ARTIFACT_RELATIVE"],
+                  )
+                  with open(artifact_path, "rb") as artifact:
+                      return artifact.read() == b'{"artifact":"package2","value":1}\n'
+              except (KeyError, OSError, psycopg2.Error):
+                  return False
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path == "/health/live":
+                      self.send_response(200)
+                      self.end_headers()
+                      self.wfile.write(b"PASS")
+                      return
+                  if self.path == "/health/ready":
+                      if recovered_target_is_ready():
+                          self.send_response(200)
+                          self.end_headers()
+                          self.wfile.write(b"PASS")
+                      else:
+                          self.send_response(503)
+                          self.end_headers()
+                          self.wfile.write(b"FAIL")
+                      return
+                  self.send_response(404)
+                  self.end_headers()
+
+              def log_message(self, format, *args):
+                  return
+
+          HTTPServer(("0.0.0.0", 8000), Handler).serve_forever()
+          PY
+          cat > "${PACKAGE2_ROOT}/Dockerfile" <<'DOCKERFILE'
+          FROM python:3.12-slim
+          RUN pip install --no-cache-dir psycopg2-binary==2.9.10
+          ARG BUILD_VERSION
+          ENV PACKAGE2_BUILD_VERSION=${BUILD_VERSION}
+          COPY release-server.py /release-server.py
+          ENTRYPOINT ["python", "/release-server.py"]
+          DOCKERFILE
+          docker build --pull=false --build-arg BUILD_VERSION="pkg2-prev-${GITHUB_RUN_ID}" \
+            -f "${PACKAGE2_ROOT}/Dockerfile" -t task012-package2-previous "${PACKAGE2_ROOT}"
+          docker build --pull=false --build-arg BUILD_VERSION="pkg2-candidate-${GITHUB_RUN_ID}" \
+            -f "${PACKAGE2_ROOT}/Dockerfile" -t task012-package2-candidate "${PACKAGE2_ROOT}"
+          {
+            echo "PREVIOUS_IMAGE_DIGEST=$(docker image inspect task012-package2-previous --format '{{.Id}}')"
+            echo "CANDIDATE_IMAGE_DIGEST=$(docker image inspect task012-package2-candidate --format '{{.Id}}')"
+            echo "PREVIOUS_BUILD_VERSION=pkg2-prev-${GITHUB_RUN_ID}"
+            echo "CANDIDATE_BUILD_VERSION=pkg2-candidate-${GITHUB_RUN_ID}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Start previous known-good release and capture pre-failure state
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          recovered_database_url="${DATABASE_URL/postgresql+psycopg2/postgresql}"
+          recovered_database_url="${recovered_database_url/localhost/host.docker.internal}"
+          docker run -d --name task012-package2-previous -p 18080:8000 \
+            --add-host=host.docker.internal:host-gateway \
+            -e RECOVERED_DATABASE_URL="${recovered_database_url}" \
+            -e RECOVERED_ARTIFACT_ROOT=/source-artifacts \
+            -e EXPECTED_PROJECT_CODE=PACKAGE2-CONTROLLED-001 \
+            -e EXPECTED_ARTIFACT_RELATIVE=controlled.json \
+            -v "${SOURCE_ARTIFACT_ROOT}:/source-artifacts:ro" \
+            task012-package2-previous
+          for attempt in $(seq 1 20); do
+            curl --fail --silent http://127.0.0.1:18080/health/live >/dev/null && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:18080/health/live >/dev/null
+          curl --fail --silent http://127.0.0.1:18080/health/ready >/dev/null
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from sqlalchemy import create_engine
+          from cold_storage.recovery.backup_bundle import (
+              collect_artifact_inventory,
+              collect_database_inventory,
+              inventory_digest,
+              _sha256_file,
+          )
+
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          engine = create_engine(os.environ["DATABASE_URL"], future=True)
+          try:
+              database = collect_database_inventory(engine)
+          finally:
+              engine.dispose()
+          artifact = collect_artifact_inventory(
+              Path(os.environ["SOURCE_ARTIFACT_ROOT"]),
+              failure_code="BACKUP_ARTIFACT_FAILED",
+          )
+          bundle = Path(os.environ["BACKUP_BUNDLE"])
+          state = {
+              "schema_version": "cold-storage-release-failure-state-v1",
+              "previous_image_digest": os.environ["PREVIOUS_IMAGE_DIGEST"].replace("sha256:", "sha256:", 1),
+              "previous_build_commit_sha": "1111111111111111111111111111111111111111",
+              "previous_build_version": os.environ["PREVIOUS_BUILD_VERSION"],
+              "previous_deployment_id": "deployment-prev-" + os.environ["GITHUB_RUN_ID"],
+              "candidate_image_digest": os.environ["CANDIDATE_IMAGE_DIGEST"].replace("sha256:", "sha256:", 1),
+              "candidate_build_commit_sha": "2222222222222222222222222222222222222222",
+              "candidate_build_version": os.environ["CANDIDATE_BUILD_VERSION"],
+              "candidate_deployment_id": "deployment-candidate-" + os.environ["GITHUB_RUN_ID"],
+              "database_environment_id": os.environ["SOURCE_DATABASE_ENVIRONMENT_ID"],
+              "artifact_environment_id": os.environ["SOURCE_ARTIFACT_ENVIRONMENT_ID"],
+              "pre_deployment_schema_head": database["schema_head"],
+              "pre_deployment_database_inventory_digest": inventory_digest(database),
+              "pre_deployment_artifact_inventory_digest": inventory_digest(artifact),
+              "backup_id": json.loads((bundle / "backup-manifest.json").read_text())["backup_id"],
+              "backup_manifest_digest": "sha256:" + _sha256_file(bundle / "backup-manifest.json")[7:],
+          }
+          (root / "pre-failure-state.json").write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+          PY
+
+      - name: Attempt deterministic failed candidate deployment
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          docker stop task012-package2-previous
+          if docker run --rm --name task012-package2-candidate -e FAIL_STARTUP=1 \
+            task012-package2-candidate; then
+            echo "CANDIDATE_FAILURE_INJECTION_MISSING" >&2
+            exit 1
+          else
+            echo "FAILED_CANDIDATE_DEPLOYMENT=PASS"
+          fi
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from sqlalchemy import create_engine
+          from cold_storage.recovery.backup_bundle import (
+              collect_artifact_inventory,
+              collect_database_inventory,
+              inventory_digest,
+          )
+          from cold_storage.recovery.failure_recovery import load_json_object, write_json
+
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          state = load_json_object(root / "pre-failure-state.json")
+          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
+          try:
+              database = collect_database_inventory(engine)
+          finally:
+              engine.dispose()
+          artifact = collect_artifact_inventory(
+              Path(os.environ["COLD_STORAGE_STORAGE_DIR"]),
+              failure_code="BACKUP_ARTIFACT_FAILED",
+          )
+          write_json(
+              root / "pre-failure-observation.json",
+              {
+                  "pre_deployment_schema_head": state["pre_deployment_schema_head"],
+                  "post_failure_schema_head": database["schema_head"],
+                  "pre_deployment_database_inventory_digest": state[
+                      "pre_deployment_database_inventory_digest"
+                  ],
+                  "post_failure_database_inventory_digest": inventory_digest(database),
+                  "pre_deployment_artifact_inventory_digest": state[
+                      "pre_deployment_artifact_inventory_digest"
+                  ],
+                  "post_failure_artifact_inventory_digest": inventory_digest(artifact),
+              },
+          )
+          PY
+
+      - name: Classify unchanged deployment failure and rollback previous release
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          cd backend
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli classify-release-failure \
+            --observation "${PACKAGE2_ROOT}/pre-failure-observation.json" \
+            --output "${PACKAGE2_ROOT}/deployment-classification.json"
+          grep -q '"app_only_rollback_allowed":true' \
+            "${PACKAGE2_ROOT}/deployment-classification.json"
+          docker start task012-package2-previous >/dev/null
+          for attempt in $(seq 1 20); do
+            curl --fail --silent http://127.0.0.1:18080/health/live >/dev/null && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:18080/health/live >/dev/null
+          curl --fail --silent http://127.0.0.1:18080/health/ready >/dev/null
+          PYTHONPATH=src uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from cold_storage.recovery.failure_recovery import (
+              load_json_object,
+              make_deployment_rollback_receipt,
+              validate_pre_failure_state,
+              write_json,
+          )
+
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          state = validate_pre_failure_state(load_json_object(root / "pre-failure-state.json"))
+          observation = load_json_object(root / "pre-failure-observation.json")
+          receipt = make_deployment_rollback_receipt(
+              state,
+              post_failure_schema_head=observation["post_failure_schema_head"],
+              post_failure_database_inventory_digest=observation[
+                  "post_failure_database_inventory_digest"
+              ],
+              post_failure_artifact_inventory_digest=observation[
+                  "post_failure_artifact_inventory_digest"
+              ],
+              rollback_image_digest=state.previous_image_digest,
+              rollback_build_commit_sha=state.previous_build_commit_sha,
+              rollback_build_version=state.previous_build_version,
+              rollback_deployment_id=state.previous_deployment_id,
+              post_rollback_live_status="PASS",
+              post_rollback_ready_status="PASS",
+          )
+          write_json(Path(os.environ["EVIDENCE_DIR"]) / "deployment-rollback-receipt.json", receipt)
+          PY
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli \
+            verify-deployment-rollback --receipt "${EVIDENCE_DIR}/deployment-rollback-receipt.json"
+          docker rm -f task012-package2-previous >/dev/null
+          echo "CONTROLLED_PREVIOUS_RELEASE_ROLLBACK=PASS"
+
+      - name: Prepare temporary Alembic failure revisions
+        run: |
+          set -euo pipefail
+          cd backend
+          temp_root="${PACKAGE2_ROOT}/alembic-temp"
+          mkdir -p "${temp_root}/versions"
+          config="${temp_root}/alembic.ini"
+          python - "${config}" "${temp_root}/versions" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          backend = Path.cwd()
+          config_path = Path(sys.argv[1])
+          temporary_versions = Path(sys.argv[2])
+          source = (backend / "alembic.ini").read_text(encoding="utf-8")
+          source = source.replace(
+              "script_location = alembic",
+              "\n".join(
+                  (
+                      f"script_location = {backend / 'alembic'}",
+                      f"version_locations = {backend / 'alembic' / 'versions'}{os.pathsep}{temporary_versions}",
+                      "path_separator = os",
+                  )
+              ),
+          )
+          config_path.write_text(source, encoding="utf-8")
+          PY
+          head="$(PYTHONPATH=src uv run python - <<'PY'
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+
+          heads = ScriptDirectory.from_config(Config("alembic.ini")).get_heads()
+          if len(heads) != 1:
+              raise SystemExit(f"expected one Alembic head, got {heads}")
+          print(heads[0])
+          PY
+          )"
+          {
+            echo "PACKAGE2_ALEMBIC_CONFIG=${config}"
+            echo "PACKAGE2_ALEMBIC_VERSIONS=${temp_root}/versions"
+            echo "PACKAGE2_ALEMBIC_HEAD=${head}"
+          } >> "${GITHUB_ENV}"
+          echo "TEMP_ALEMBIC_CURRENT_HEAD=${head}"
+
+      - name: Execute transactional Alembic failure and classify rollback
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          cd backend
+          revision="task012_pkg2_transactional_failure"
+          revision_path="${PACKAGE2_ALEMBIC_VERSIONS}/${revision}.py"
+          trap 'rm -f "${revision_path}"' EXIT
+          cat > "${revision_path}" <<PY
+          """Temporary transactional Package 2 failure revision."""
+          import sqlalchemy as sa
+          from alembic import op
+
+          revision = "${revision}"
+          down_revision = "${PACKAGE2_ALEMBIC_HEAD}"
+          branch_labels = None
+          depends_on = None
+
+          def upgrade():
+              op.create_table(
+                  "task012_pkg2_transactional_marker",
+                  sa.Column("id", sa.Integer(), nullable=False),
+              )
+              raise RuntimeError("TASK012_PACKAGE2_TRANSACTIONAL_MIGRATION_FAILURE_INJECTED")
+
+          def downgrade():
+              raise RuntimeError("TASK012_PACKAGE2_DOWNGRADE_FORBIDDEN")
+          PY
+          set +e
+          PYTHONPATH=src uv run alembic -c "${PACKAGE2_ALEMBIC_CONFIG}" upgrade "${revision}" \
+            > "${PACKAGE2_ROOT}/transactional-alembic.log" 2>&1
+          status=$?
+          set -e
+          cat "${PACKAGE2_ROOT}/transactional-alembic.log"
+          test "${status}" -ne 0
+          grep -Fq "TASK012_PACKAGE2_TRANSACTIONAL_MIGRATION_FAILURE_INJECTED" \
+            "${PACKAGE2_ROOT}/transactional-alembic.log"
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from sqlalchemy import create_engine, text
+          from cold_storage.recovery.backup_bundle import (
+              collect_artifact_inventory,
+              collect_database_inventory,
+              inventory_digest,
+          )
+          from cold_storage.recovery.failure_recovery import load_json_object, write_json
+
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
+          try:
+              with engine.connect() as connection:
+                  marker = connection.execute(
+                      text("SELECT to_regclass('public.task012_pkg2_transactional_marker')")
+                  ).scalar_one()
+                  if marker is not None:
+                      raise SystemExit("TRANSACTIONAL_MUTATION_NOT_ROLLED_BACK")
+              database = collect_database_inventory(engine)
+          finally:
+              engine.dispose()
+          pre_state = load_json_object(root / "pre-failure-state.json")
+          artifact = collect_artifact_inventory(
+              Path(os.environ["COLD_STORAGE_STORAGE_DIR"]),
+              failure_code="BACKUP_ARTIFACT_FAILED",
+          )
+          write_json(
+              root / "transactional-observation.json",
+              {
+                  "pre_deployment_schema_head": pre_state["pre_deployment_schema_head"],
+                  "post_failure_schema_head": database["schema_head"],
+                  "pre_deployment_database_inventory_digest": pre_state[
+                      "pre_deployment_database_inventory_digest"
+                  ],
+                  "post_failure_database_inventory_digest": inventory_digest(database),
+                  "pre_deployment_artifact_inventory_digest": pre_state[
+                      "pre_deployment_artifact_inventory_digest"
+                  ],
+                  "post_failure_artifact_inventory_digest": inventory_digest(artifact),
+              },
+          )
+          write_json(
+              root / "transactional-result.json",
+              {
+                  "alembic_command_executed": True,
+                  "exit_code_nonzero": True,
+                  "expected_failure_marker": True,
+                  "transactional_mutation_rolled_back": True,
+              },
+          )
+          PY
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli classify-release-failure \
+            --observation "${PACKAGE2_ROOT}/transactional-observation.json" \
+            --output "${PACKAGE2_ROOT}/transactional-classification.json"
+          grep -q '"app_only_rollback_allowed":true' \
+            "${PACKAGE2_ROOT}/transactional-classification.json"
+          grep -q '"migration_recovery_required":false' \
+            "${PACKAGE2_ROOT}/transactional-classification.json"
+          echo "ALEMBIC_TRANSACTIONAL_FAILURE=PASS"
+          echo "MIGRATION_TRANSACTIONAL_FAILURE=PASS"
+
+      - name: Execute partial Alembic failure and recover to isolated target
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_ENVIRONMENT_ID: local
+          COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ${{ env.SOURCE_DATABASE_ENVIRONMENT_ID }}
+          COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ${{ env.SOURCE_ARTIFACT_ENVIRONMENT_ID }}
+          TASK012_ISOLATED_RESTORE_AUTHORIZED: YES
+        run: |
+          set -euo pipefail
+          psql --dbname=postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${RECOVERED_DATABASE_NAME}"
+          cd backend
+          revision="task012_pkg2_partial_failure"
+          revision_path="${PACKAGE2_ALEMBIC_VERSIONS}/${revision}.py"
+          trap 'rm -f "${revision_path}"' EXIT
+          cat > "${revision_path}" <<PY
+          """Temporary partial-mutation Package 2 failure revision."""
+          import os
+          from sqlalchemy import create_engine, text
+
+          revision = "${revision}"
+          down_revision = "${PACKAGE2_ALEMBIC_HEAD}"
+          branch_labels = None
+          depends_on = None
+
+          def upgrade():
+              engine = create_engine(os.environ["DATABASE_URL"], future=True)
+              connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+              try:
+                  connection.execute(
+                      text("CREATE TABLE task012_pkg2_partial_failure (id INTEGER PRIMARY KEY)")
+                  )
+              finally:
+                  connection.close()
+                  engine.dispose()
+              raise RuntimeError("TASK012_PACKAGE2_PARTIAL_MIGRATION_FAILURE_INJECTED")
+
+          def downgrade():
+              raise RuntimeError("TASK012_PACKAGE2_DOWNGRADE_FORBIDDEN")
+          PY
+          set +e
+          PYTHONPATH=src uv run alembic -c "${PACKAGE2_ALEMBIC_CONFIG}" upgrade "${revision}" \
+            > "${PACKAGE2_ROOT}/partial-alembic.log" 2>&1
+          status=$?
+          set -e
+          cat "${PACKAGE2_ROOT}/partial-alembic.log"
+          test "${status}" -ne 0
+          grep -Fq "TASK012_PACKAGE2_PARTIAL_MIGRATION_FAILURE_INJECTED" \
+            "${PACKAGE2_ROOT}/partial-alembic.log"
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from sqlalchemy import create_engine, text
+          from cold_storage.recovery.backup_bundle import (
+              collect_artifact_inventory,
+              collect_database_inventory,
+              inventory_digest,
+          )
+          from cold_storage.recovery.failure_recovery import write_json
+
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          engine = create_engine(os.environ["COLD_STORAGE_DATABASE_URL"], future=True)
+          try:
+              with engine.connect() as connection:
+                  marker = connection.execute(
+                      text("SELECT to_regclass('public.task012_pkg2_partial_failure')")
+                  ).scalar_one()
+                  if marker is None:
+                      raise SystemExit("PARTIAL_MUTATION_NOT_PRESENT_AFTER_FAILURE")
+              database = collect_database_inventory(engine)
+          finally:
+              engine.dispose()
+          artifact = collect_artifact_inventory(
+              Path(os.environ["COLD_STORAGE_STORAGE_DIR"]),
+              failure_code="BACKUP_ARTIFACT_FAILED",
+          )
+          write_json(
+              root / "migration-post-failure.json",
+              {
+                  "post_failure_schema_head": database["schema_head"],
+                  "post_failure_database_inventory_digest": inventory_digest(database),
+                  "post_failure_artifact_inventory_digest": inventory_digest(artifact),
+              },
+          )
+          write_json(
+              root / "partial-result.json",
+              {
+                  "alembic_command_executed": True,
+                  "exit_code_nonzero": True,
+                  "expected_failure_marker": True,
+                  "partial_mutation_remains": True,
+              },
+          )
+          PY
+          recovered_url="postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/${RECOVERED_DATABASE_NAME}"
+          export COLD_STORAGE_RESTORE_DATABASE_URL="${recovered_url}"
+          export COLD_STORAGE_RESTORE_STORAGE_DIR="${RECOVERED_ARTIFACT_ROOT}"
+          export COLD_STORAGE_RESTORE_ENVIRONMENT_ID="${TARGET_ENVIRONMENT_ID}"
+          export COLD_STORAGE_RESTORE_DATABASE_ENVIRONMENT_ID="${TARGET_DATABASE_ENVIRONMENT_ID}"
+          export COLD_STORAGE_RESTORE_ARTIFACT_ENVIRONMENT_ID="${TARGET_ARTIFACT_ENVIRONMENT_ID}"
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli restore-isolated \
+            --execute-restore --backup-bundle "${BACKUP_BUNDLE}" \
+            --output-dir "${RESTORE_RECEIPT_DIR}" \
+            --target-environment-id "${TARGET_ENVIRONMENT_ID}" \
+            --target-database-environment-id "${TARGET_DATABASE_ENVIRONMENT_ID}" \
+            --target-artifact-environment-id "${TARGET_ARTIFACT_ENVIRONMENT_ID}"
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli verify-restore \
+            --backup-bundle "${BACKUP_BUNDLE}" \
+            --receipt "${RESTORE_RECEIPT_DIR}/restore-receipt.json" \
+            --target-environment-id "${TARGET_ENVIRONMENT_ID}" \
+            --target-database-environment-id "${TARGET_DATABASE_ENVIRONMENT_ID}" \
+            --target-artifact-environment-id "${TARGET_ARTIFACT_ENVIRONMENT_ID}"
+          echo "MIGRATION_RECOVERY_REQUIRED=YES"
+          echo "MIGRATION_PARTIAL_FAILURE_INJECTION=PASS"
+          echo "CANONICAL_ISOLATED_RESTORE=PASS"
+          echo "CANONICAL_VERIFY_RESTORE=PASS"
+
+      - name: Start previous known-good release against recovered target
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.RECOVERED_ARTIFACT_ROOT }}
+        run: |
+          set -euo pipefail
+          recovered_database_url="${DATABASE_URL/postgresql+psycopg2/postgresql}"
+          recovered_database_url="${recovered_database_url/localhost/host.docker.internal}"
+          docker run -d --name task012-package2-recovered-previous -p 18081:8000 \
+            --add-host=host.docker.internal:host-gateway \
+            -e RECOVERED_DATABASE_URL="${recovered_database_url/controlled_release/controlled_release_recovered}" \
+            -e RECOVERED_ARTIFACT_ROOT=/recovered-artifacts \
+            -e EXPECTED_PROJECT_CODE=PACKAGE2-CONTROLLED-001 \
+            -e EXPECTED_ARTIFACT_RELATIVE=controlled.json \
+            -v "${RECOVERED_ARTIFACT_ROOT}:/recovered-artifacts:ro" \
+            task012-package2-previous
+          test "$(docker inspect task012-package2-recovered-previous --format '{{.Image}}')" = \
+            "${PREVIOUS_IMAGE_DIGEST}"
+          for attempt in $(seq 1 20); do
+            curl --fail --silent http://127.0.0.1:18081/health/live >/dev/null && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:18081/health/live >/dev/null
+          curl --fail --silent http://127.0.0.1:18081/health/ready >/dev/null
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from cold_storage.recovery.failure_recovery import write_json
+
+          write_json(
+              Path(os.environ["PACKAGE2_ROOT"]) / "post-recovery-readiness.json",
+              {
+                  "independent_restore_verification": "PASS",
+                  "post_recovery_live_status": "PASS",
+                  "post_recovery_ready_status": "PASS",
+                  "recovered_database_connectivity": "PASS",
+                  "recovered_database_expected_data": "PASS",
+                  "recovered_artifact_root_binding": "PASS",
+              },
+          )
+          PY
+          echo "PREVIOUS_RELEASE_RECOVERED_TARGET_BINDING=PASS"
+          echo "RECOVERED_DATABASE_CONNECTIVITY=PASS"
+          echo "RECOVERED_DATABASE_EXPECTED_DATA=PASS"
+          echo "RECOVERED_ARTIFACT_ROOT_BINDING=PASS"
+          echo "POST_RECOVERY_LIVE_CHECK_EXECUTED=YES"
+          echo "POST_RECOVERY_LIVE_STATUS=PASS"
+          echo "POST_RECOVERY_READY_CHECK_EXECUTED=YES"
+          echo "POST_RECOVERY_READY_STATUS=PASS"
+
+      - name: Create and verify migration recovery receipt
+        env:
+          COLD_STORAGE_DATABASE_URL: ${{ env.DATABASE_URL }}
+          COLD_STORAGE_STORAGE_DIR: ${{ env.SOURCE_ARTIFACT_ROOT }}
+          COLD_STORAGE_RESTORE_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/controlled_release_recovered
+        run: |
+          set -euo pipefail
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from cold_storage.recovery.backup_bundle import (
+              _sha256_file,
+              collect_artifact_inventory,
+              collect_database_inventory,
+              inventory_digest,
+          )
+          from cold_storage.recovery.failure_recovery import (
+              load_json_object,
+              make_migration_recovery_receipt,
+              write_json,
+          )
+
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          pre_state = load_json_object(root / "pre-failure-state.json")
+          post_observation = load_json_object(root / "migration-post-failure.json")
+          readiness = load_json_object(root / "post-recovery-readiness.json")
+          for key in (
+              "independent_restore_verification",
+              "post_recovery_live_status",
+              "post_recovery_ready_status",
+              "recovered_database_connectivity",
+              "recovered_database_expected_data",
+              "recovered_artifact_root_binding",
+          ):
+              if readiness.get(key) != "PASS":
+                  raise SystemExit(f"POST_RECOVERY_READINESS_NOT_VERIFIED:{key}")
+          from sqlalchemy import create_engine
+
+          target_engine = create_engine(os.environ["COLD_STORAGE_RESTORE_DATABASE_URL"], future=True)
+          try:
+              final_database = collect_database_inventory(target_engine)
+          finally:
+              target_engine.dispose()
+          final_artifact = collect_artifact_inventory(
+              Path(os.environ["RECOVERED_ARTIFACT_ROOT"]),
+              failure_code="RESTORE_ARTIFACT_INVENTORY_MISMATCH",
+          )
+          restore_receipt = Path(os.environ["RESTORE_RECEIPT_DIR"]) / "restore-receipt.json"
+          receipt = make_migration_recovery_receipt(
+              backup_id=pre_state["backup_id"],
+              backup_manifest_digest=pre_state["backup_manifest_digest"],
+              pre_migration_database_inventory_digest=pre_state[
+                  "pre_deployment_database_inventory_digest"
+              ],
+              pre_migration_artifact_inventory_digest=pre_state[
+                  "pre_deployment_artifact_inventory_digest"
+              ],
+              pre_migration_schema_head=pre_state["pre_deployment_schema_head"],
+              migration_failure_class="FAILED_MIGRATION_PARTIAL_MUTATION",
+              post_failure_schema_head=post_observation["post_failure_schema_head"],
+              post_failure_database_inventory_digest=post_observation[
+                  "post_failure_database_inventory_digest"
+              ],
+              post_failure_artifact_inventory_digest=post_observation[
+                  "post_failure_artifact_inventory_digest"
+              ],
+              source_environment_id=os.environ["SOURCE_ENVIRONMENT_ID"],
+              restore_target_environment_id=os.environ["TARGET_ENVIRONMENT_ID"],
+              source_database_environment_id=os.environ["SOURCE_DATABASE_ENVIRONMENT_ID"],
+              restore_target_database_environment_id=os.environ[
+                  "TARGET_DATABASE_ENVIRONMENT_ID"
+              ],
+              source_artifact_environment_id=os.environ["SOURCE_ARTIFACT_ENVIRONMENT_ID"],
+              restore_target_artifact_environment_id=os.environ[
+                  "TARGET_ARTIFACT_ENVIRONMENT_ID"
+              ],
+              restore_backup_id=load_json_object(restore_receipt)["backup_id"],
+              restore_receipt_digest=_sha256_file(restore_receipt),
+              final_schema_head=final_database["schema_head"],
+              final_database_inventory_digest=inventory_digest(final_database),
+              final_artifact_inventory_digest=inventory_digest(final_artifact),
+              independent_restore_verification=readiness["independent_restore_verification"],
+              post_recovery_live_status=readiness["post_recovery_live_status"],
+              post_recovery_ready_status=readiness["post_recovery_ready_status"],
+          )
+          write_json(Path(os.environ["EVIDENCE_DIR"]) / "migration-recovery-receipt.json", receipt)
+          print("MIGRATION_RECOVERY_RECEIPT=PASS")
+          PY
+          PYTHONPATH=src uv run python -m cold_storage.recovery.cli \
+            verify-migration-recovery \
+            --receipt "${EVIDENCE_DIR}/migration-recovery-receipt.json"
+
+      - name: Stop recovered previous release
+        if: always()
+        run: docker rm -f task012-package2-recovered-previous >/dev/null 2>&1 || true
+
+      - name: Write and verify Package 2 acceptance evidence
+        run: |
+          set -euo pipefail
+          echo "CONTROLLED_SYNTHETIC_DATA=YES"
+          echo "REAL_PRODUCTION_DATA=NO"
+          cp "${BACKUP_BUNDLE}/backup-manifest.json" "${EVIDENCE_DIR}/backup-manifest.json"
+          cp "${RESTORE_RECEIPT_DIR}/restore-receipt.json" "${EVIDENCE_DIR}/restore-receipt.json"
+          cd backend
+          PYTHONPATH=src uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          from cold_storage.recovery.failure_recovery import (
+              load_json_object,
+              verify_deployment_rollback_receipt,
+              verify_migration_recovery_receipt,
+              write_json,
+          )
+
+          root = Path(os.environ["PACKAGE2_ROOT"])
+          evidence = Path(os.environ["EVIDENCE_DIR"])
+          deployment_receipt = verify_deployment_rollback_receipt(
+              load_json_object(evidence / "deployment-rollback-receipt.json")
+          )
+          migration_receipt = verify_migration_recovery_receipt(
+              load_json_object(evidence / "migration-recovery-receipt.json")
+          )
+          transactional = load_json_object(root / "transactional-result.json")
+          partial = load_json_object(root / "partial-result.json")
+          readiness = load_json_object(root / "post-recovery-readiness.json")
+          if transactional != {
+              "alembic_command_executed": True,
+              "exit_code_nonzero": True,
+              "expected_failure_marker": True,
+              "transactional_mutation_rolled_back": True,
+          }:
+              raise SystemExit("TRANSACTIONAL_ALEMBIC_EVIDENCE_INVALID")
+          if partial != {
+              "alembic_command_executed": True,
+              "exit_code_nonzero": True,
+              "expected_failure_marker": True,
+              "partial_mutation_remains": True,
+          }:
+              raise SystemExit("PARTIAL_ALEMBIC_EVIDENCE_INVALID")
+          for key in (
+              "independent_restore_verification",
+              "post_recovery_live_status",
+              "post_recovery_ready_status",
+              "recovered_database_connectivity",
+              "recovered_database_expected_data",
+              "recovered_artifact_root_binding",
+          ):
+              if readiness.get(key) != "PASS":
+                  raise SystemExit(f"POST_RECOVERY_READINESS_NOT_VERIFIED:{key}")
+          if deployment_receipt["rollback_result"] != "PASS":
+              raise SystemExit("DEPLOYMENT_ROLLBACK_RECEIPT_NOT_VERIFIED")
+          if migration_receipt["migration_recovery_result"] != "PASS":
+              raise SystemExit("MIGRATION_RECOVERY_RECEIPT_NOT_VERIFIED")
+          summary = {
+              "schema_version": "cold-storage-release-failure-recovery-acceptance-v1",
+              "task": "TASK-012",
+              "version": "V0.2",
+              "slice": 6,
+              "package": 2,
+              "controlled_synthetic": True,
+              "production": False,
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "workflow_head_sha": os.environ["GITHUB_SHA"],
+              "deployment_failure_scenario": deployment_receipt["failure_classification"],
+              "deployment_rollback": deployment_receipt["rollback_result"],
+              "migration_transactional_failure_scenario": "PASS",
+              "migration_partial_failure_scenario": "PASS",
+              "migration_failure_classification": migration_receipt[
+                  "failure_state_classification"
+              ],
+              "automatic_downgrade_performed": migration_receipt[
+                  "automatic_downgrade_performed"
+              ],
+              "canonical_backup": "PASS",
+              "canonical_isolated_restore": readiness["independent_restore_verification"],
+              "canonical_verify_restore": "PASS",
+              "post_recovery_live": readiness["post_recovery_live_status"],
+              "post_recovery_ready": readiness["post_recovery_ready_status"],
+              "acceptance_result": "PASS",
+          }
+          write_json(evidence / "acceptance-summary.json", summary)
+          PY
+          find "${EVIDENCE_DIR}" -maxdepth 1 -type f -printf '%f\n' | sort > "${PACKAGE2_ROOT}/evidence-files.txt"
+          test "$(wc -l < "${PACKAGE2_ROOT}/evidence-files.txt" | tr -d ' ')" -eq 5
+          (cd "${EVIDENCE_DIR}" && sha256sum \
+            acceptance-summary.json \
+            deployment-rollback-receipt.json \
+            migration-recovery-receipt.json \
+            backup-manifest.json \
+            restore-receipt.json) > "${EVIDENCE_DIR}/SHA256SUMS"
+          (cd "${EVIDENCE_DIR}" && sha256sum SHA256SUMS) > "${EVIDENCE_DIR}/SHA256SUMS.sha256"
+          test "$(find "${EVIDENCE_DIR}" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 7
+          ! find "${EVIDENCE_DIR}" -maxdepth 1 -type f \( -name 'database.dump' -o -name 'artifacts.tar' -o -name '.env' \) | grep -q .
+
+      - name: Upload Package 2 acceptance artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-slice6-package2-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/task012-package2-recovery/evidence/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 30
