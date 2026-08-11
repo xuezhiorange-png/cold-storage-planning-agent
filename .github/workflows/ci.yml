@@ -1533,6 +1533,7 @@ jobs:
         env:
           DATABASE_BACKEND: postgresql
           DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
+          COLD_STORAGE_DATABASE_BACKEND: postgresql
           COLD_STORAGE_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
@@ -1546,6 +1547,7 @@ jobs:
         env:
           DATABASE_BACKEND: postgresql
           DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
+          COLD_STORAGE_DATABASE_BACKEND: postgresql
           COLD_STORAGE_DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_recovery
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
