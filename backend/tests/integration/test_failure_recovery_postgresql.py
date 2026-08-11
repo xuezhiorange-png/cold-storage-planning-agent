@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
+from sqlalchemy.pool import NullPool
 
 from cold_storage.recovery import backup_bundle, restore_runner
 from cold_storage.recovery.failure_recovery import (
@@ -16,12 +20,48 @@ from cold_storage.recovery.failure_recovery import (
 )
 
 
+@pytest.fixture()
+def package2_pg_database(pg_database_factory, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Create a Package 2 database and apply Alembic to that exact URL.
+
+    The recovery-foundation CI job also exports ``COLD_STORAGE_DATABASE_URL``
+    for its shared service database.  The shared integration fixture inherits
+    that variable when it invokes Alembic, so this test surface binds both
+    settings URLs explicitly before preparing its isolated database.
+    """
+    database_url = pg_database_factory(prefix="pkg2_int")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", database_url)
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    environment = os.environ.copy()
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=Path(__file__).resolve().parents[2],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, (
+        f"Alembic upgrade to head failed:\nSTDERR:\n{result.stderr}\nSTDOUT:\n{result.stdout}"
+    )
+    return database_url
+
+
+@pytest.fixture()
+def package2_pg_engine(package2_pg_database: str):
+    engine = create_engine(package2_pg_database, poolclass=NullPool)
+    yield engine
+    engine.dispose()
+
+
 @pytest.mark.postgresql
 def test_transactional_migration_failure_classifies_schema_and_data_unchanged(
-    pg_engine,
+    package2_pg_engine,
 ) -> None:
-    before = backup_bundle.collect_database_inventory(pg_engine)
-    connection = pg_engine.connect()
+    before = backup_bundle.collect_database_inventory(package2_pg_engine)
+    connection = package2_pg_engine.connect()
     transaction = connection.begin()
     try:
         connection.execute(
@@ -34,7 +74,7 @@ def test_transactional_migration_failure_classifies_schema_and_data_unchanged(
     finally:
         connection.close()
 
-    after = backup_bundle.collect_database_inventory(pg_engine)
+    after = backup_bundle.collect_database_inventory(package2_pg_engine)
     assessment = classify_failure_state(
         pre_deployment_schema_head=before["schema_head"],
         post_failure_schema_head=after["schema_head"],
@@ -48,9 +88,9 @@ def test_transactional_migration_failure_classifies_schema_and_data_unchanged(
 
 
 @pytest.mark.postgresql
-def test_partial_migration_mutation_requires_isolated_recovery(pg_engine) -> None:
-    before = backup_bundle.collect_database_inventory(pg_engine)
-    connection = pg_engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+def test_partial_migration_mutation_requires_isolated_recovery(package2_pg_engine) -> None:
+    before = backup_bundle.collect_database_inventory(package2_pg_engine)
+    connection = package2_pg_engine.connect().execution_options(isolation_level="AUTOCOMMIT")
     try:
         connection.execute(
             text(
@@ -62,7 +102,7 @@ def test_partial_migration_mutation_requires_isolated_recovery(pg_engine) -> Non
         connection.close()
 
     try:
-        after = backup_bundle.collect_database_inventory(pg_engine)
+        after = backup_bundle.collect_database_inventory(package2_pg_engine)
         assessment = classify_failure_state(
             pre_deployment_schema_head=before["schema_head"],
             post_failure_schema_head=after["schema_head"],
@@ -73,7 +113,7 @@ def test_partial_migration_mutation_requires_isolated_recovery(pg_engine) -> Non
         assert assessment.app_only_rollback_allowed is False
         assert assessment.migration_recovery_required is True
     finally:
-        cleanup = pg_engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+        cleanup = package2_pg_engine.connect().execution_options(isolation_level="AUTOCOMMIT")
         try:
             cleanup.execute(text("DROP TABLE IF EXISTS task012_pkg2_partial_marker"))
         finally:
@@ -82,7 +122,7 @@ def test_partial_migration_mutation_requires_isolated_recovery(pg_engine) -> Non
 
 @pytest.mark.postgresql
 def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_target(
-    pg_database: str,
+    package2_pg_database: str,
     pg_database_factory,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -91,7 +131,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
         pytest.skip("PostgreSQL client tools are required for Package 1 reuse")
 
     source_engine = backup_bundle._create_postgres_engine(
-        pg_database,
+        package2_pg_database,
         code="BACKUP_DATABASE_FAILED",
     )
     target_database = pg_database_factory(prefix="pkg2_recovered")
@@ -108,7 +148,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
     try:
         monkeypatch.setenv("TASK012_BACKUP_AUTHORIZED", "YES")
         monkeypatch.setenv("TASK012_ISOLATED_RESTORE_AUTHORIZED", "YES")
-        monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", pg_database)
+        monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", package2_pg_database)
         monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(source_artifacts))
         monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "controlled-release-source")
         monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "controlled-release-source-db")
@@ -130,7 +170,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             source_artifact_root=source_artifacts,
         )
         restore_receipt = restore_runner.restore_isolated(
-            bundle_root=bundle.root,
+            bundle_root=Path(bundle.root),
             output_dir=restore_receipt_root,
             execute_restore=True,
             target_database_url=target_database,
@@ -140,7 +180,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             target_artifact_environment_id="controlled-release-recovered-artifacts",
         )
         restore_runner.verify_restore(
-            bundle_root=bundle.root,
+            bundle_root=Path(bundle.root),
             receipt_path=restore_receipt,
             target_database_url=target_database,
             target_artifact_root=target_artifacts,
@@ -155,7 +195,9 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
         )
         receipt = make_migration_recovery_receipt(
             backup_id=bundle.backup_id,
-            backup_manifest_digest=backup_bundle._sha256_file(bundle.root / "backup-manifest.json"),
+            backup_manifest_digest=backup_bundle._sha256_file(
+                Path(bundle.root) / "backup-manifest.json"
+            ),
             pre_migration_database_inventory_digest=backup_bundle.inventory_digest(before_database),
             pre_migration_artifact_inventory_digest=backup_bundle.inventory_digest(before_artifact),
             pre_migration_schema_head=before_database["schema_head"],
