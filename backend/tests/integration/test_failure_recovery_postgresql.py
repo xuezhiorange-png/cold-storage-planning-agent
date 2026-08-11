@@ -361,7 +361,9 @@ def upgrade() -> None:
         monkeypatch.setenv("TASK012_ISOLATED_RESTORE_AUTHORIZED", "YES")
         monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", package2_pg_database)
         monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(source_artifacts))
-        monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "controlled-release-source")
+        # Alembic's Settings model requires a canonical app environment; the
+        # explicit source identity below remains the recovery authority.
+        monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "local")
         monkeypatch.setenv("COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "controlled-release-source-db")
         monkeypatch.setenv(
             "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "controlled-release-source-artifacts"
