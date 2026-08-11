@@ -145,6 +145,7 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
     target_artifacts = tmp_path / "recovered-artifacts"
     backup_root = tmp_path / "backups"
     restore_receipt_root = tmp_path / "restore-receipt"
+    failure_marker = "task012_pkg2_restore_failure_marker"
     try:
         monkeypatch.setenv("TASK012_BACKUP_AUTHORIZED", "YES")
         monkeypatch.setenv("TASK012_ISOLATED_RESTORE_AUTHORIZED", "YES")
@@ -169,6 +170,12 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             source_artifact_environment_id="controlled-release-source-artifacts",
             source_artifact_root=source_artifacts,
         )
+        failure_connection = source_engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+        try:
+            failure_connection.execute(text(f"CREATE TABLE {failure_marker} (id integer NOT NULL)"))
+        finally:
+            failure_connection.close()
+        post_failure_database = backup_bundle.collect_database_inventory(source_engine)
         restore_receipt = restore_runner.restore_isolated(
             bundle_root=bundle,
             output_dir=restore_receipt_root,
@@ -201,7 +208,9 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
             pre_migration_schema_head=before_database["schema_head"],
             migration_failure_class="FAILED_MIGRATION_PARTIAL_MUTATION",
             post_failure_schema_head=before_database["schema_head"],
-            post_failure_database_inventory_digest=backup_bundle.inventory_digest(before_database),
+            post_failure_database_inventory_digest=backup_bundle.inventory_digest(
+                post_failure_database
+            ),
             post_failure_artifact_inventory_digest=backup_bundle.inventory_digest(before_artifact),
             source_environment_id="controlled-release-source",
             restore_target_environment_id="controlled-release-recovered",
@@ -218,5 +227,10 @@ def test_package1_backup_restore_verify_binds_migration_recovery_to_isolated_tar
         assert verify_migration_recovery_receipt(receipt)["migration_recovery_result"] == "PASS"
         assert canonical_digest(receipt).startswith("sha256:")
     finally:
+        cleanup = source_engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+        try:
+            cleanup.execute(text(f"DROP TABLE IF EXISTS {failure_marker}"))
+        finally:
+            cleanup.close()
         target_engine.dispose()
         source_engine.dispose()
