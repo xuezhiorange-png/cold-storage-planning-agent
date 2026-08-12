@@ -200,6 +200,22 @@ jobs:
           migration_output="$(docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" run --rm migration current 2>&1)"
           printf '%s\n' "${migration_output}" > "${RUN_ROOT}/alembic-current.txt"
           grep -Eq '\(head\)' "${RUN_ROOT}/alembic-current.txt"
+
+          export S6_07_POSTGRES_URL="postgresql+psycopg2://cold_storage:${S6_07_POSTGRES_PASSWORD}@127.0.0.1:5432/cold_storage_s6_07"
+          readiness_seed_json="${RUN_ROOT}/readiness-seed.json"
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.s6_07_controlled_fixture \
+            seed-startup-readiness \
+            --database-url "${S6_07_POSTGRES_URL}" \
+            --token "${GITHUB_RUN_ID}" \
+            --output "${readiness_seed_json}"
+          jq -e '.ready == true and .required_stage_count == 5 and
+                 .seeded_stage_count == 5 and .startup_readiness_seed == "PASS"' \
+            "${readiness_seed_json}"
+          echo "STARTUP_REQUIRED_STAGE_COUNT=$(jq -r '.required_stage_count' "${readiness_seed_json}")"
+          echo "STARTUP_SEEDED_STAGE_COUNT=$(jq -r '.seeded_stage_count' "${readiness_seed_json}")"
+          echo "STARTUP_READINESS_SEED=PASS"
+          echo "READINESS_SEED_BEFORE_BACKEND_START=PASS"
           docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" up -d backend
           for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8000/health/live >/dev/null &&
@@ -338,15 +354,14 @@ jobs:
           printf 's6-07-persistence-probe\n' | docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" \
             exec -T backend sh -c 'cat > /opt/cold-storage/artifacts/s6-07-persistence-probe'
 
-          export S6_07_POSTGRES_URL="postgresql+psycopg2://cold_storage:${S6_07_POSTGRES_PASSWORD}@127.0.0.1:5432/cold_storage_s6_07"
           export S6_07_PRODUCTION_AUTHORITY_OUTPUT="${ACCEPTANCE_ROOT}/production-authority.json"
-          PYTHONPATH=backend/src:backend uv run --project backend python - <<'PY'
-          from tests.integration.test_end_to_end_operational_acceptance import (
-              test_postgresql_persisted_production_authority_roundtrip,
-          )
-
-          test_postgresql_persisted_production_authority_roundtrip()
-          PY
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.s6_07_controlled_fixture \
+            create-production-authority \
+            --database-url "${S6_07_POSTGRES_URL}" \
+            --definition-id "${coefficient_id}" \
+            --token "${GITHUB_RUN_ID}" \
+            --output "${S6_07_PRODUCTION_AUTHORITY_OUTPUT}"
           production_run_id="$(jq -r '.create_response.body.run_id' \
             "${ACCEPTANCE_ROOT}/production-authority.json")"
           production_project_id="$(jq -r '.create_response.body.project_id' \
@@ -422,15 +437,13 @@ jobs:
             '.status == 200 and .body.run_id == $run_id' \
             "${ACCEPTANCE_ROOT}/scheme-http-readback-after-restart.json"
 
-          export S6_07_RELOAD_RUN_ID="${production_run_id}"
           export S6_07_RELOAD_AUTHORITY_OUTPUT="${ACCEPTANCE_ROOT}/production-authority-after-restart.json"
-          PYTHONPATH=backend/src:backend uv run --project backend python - <<'PY'
-          from tests.integration.test_end_to_end_operational_acceptance import (
-              test_postgresql_persisted_production_authority_reload_after_restart,
-          )
-
-          test_postgresql_persisted_production_authority_reload_after_restart()
-          PY
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.s6_07_controlled_fixture \
+            reload-production-authority \
+            --database-url "${S6_07_POSTGRES_URL}" \
+            --run-id "${production_run_id}" \
+            --output "${S6_07_RELOAD_AUTHORITY_OUTPUT}"
 
           jq -n \
             --arg source_sha "${SOURCE_SHA}" --arg source_tree_sha "${SOURCE_TREE_SHA}" \
@@ -478,6 +491,13 @@ jobs:
                 },
                 production_http_scope:{
                   coefficient:{created:$coefficient[0],readback:$coefficient_readback[0],persisted_row_id:($coefficient[0].body.id // null)},
+                  controlled_coefficient:($production[0].controlled_coefficient // {}),
+                  authority_continuity:{
+                    definition_to_revision:(($production[0].controlled_coefficient.approved_revision_definition_id // null) == ($coefficient[0].body.id // null)),
+                    revision_to_active_authority:(($production[0].controlled_coefficient.approved_revision_id // null) == ($production[0].controlled_coefficient.active_authority_revision_id // null)),
+                    active_authority_to_context:(($production[0].controlled_coefficient.active_authority_revision_id // null) != null and ($production[0].controlled_coefficient.coefficient_context_id // null) != null),
+                    context_to_source_binding:(($production[0].controlled_coefficient.coefficient_context_id // null) == ($production[0].controlled_coefficient.source_binding_coefficient_context_id // null))
+                  },
                   planning_agent:{response:$agent[0]}
                 },
                   persistence_e2e:{
@@ -494,6 +514,7 @@ jobs:
                       scheme_persisted_readback:$scheme_http_after[0],
                       source_binding_after_restart:($production_after_restart[0].source_binding + {reloaded_after_restart:true}),
                       source_archive_verification_after_restart:($production_after_restart[0].source_archive + {reloaded_after_restart:true}),
+                      controlled_coefficient_after_restart:($production_after_restart[0].controlled_coefficient // {}),
                       artifact_probe:{exists:$artifact_probe_exists,sha256:$artifact_probe_sha256}
                     }
                   },

@@ -61,6 +61,26 @@ synthetic `ci-strict` database, secret, artifact, and artifact-storage
 identities required by unchanged strict settings. The tracked production
 Compose contract is not modified by S6-07.
 
+The workflow's synthetic setup is implemented by the formal non-production
+support module
+`backend/src/cold_storage/release/s6_07_controlled_fixture.py`. The application
+bootstrap does not import this module, and the workflow does not import
+pytest modules or test-only seed helpers. After migration and before the strict
+backend starts, the workflow uses the canonical coefficient approval service to
+seed and verify all five required readiness stages. A missing, stale, demo, or
+uncited stage fails before backend startup; the readiness seed is not a bypass
+of the production startup contract.
+
+The controlled coefficient flow is also explicit. The HTTP-created definition
+is followed by an approved revision, a persisted coefficient context, a
+SourceBinding, and a canonical production scheme run. The acceptance verifier
+recomputes the concrete definition-to-revision, revision-to-active-authority,
+active-authority-to-context, and context-to-SourceBinding mappings from
+persisted rows. Continuity booleans in the observation bundle are descriptive
+only. After the initial readback, a fresh database engine reads the same run
+through the canonical production read ports and re-hashes the source archive;
+this is the restart persistence authority.
+
 ## Acceptance sequence
 
 1. Validate the dispatch, exact source SHA, checked-out tree SHA, and refreshed
@@ -76,6 +96,12 @@ Compose contract is not modified by S6-07.
 7. Restart the backend while retaining database and artifact volumes, then
    verify readiness and persisted state.
 8. Assemble and independently verify the nine-file S6-07 evidence bundle.
+
+The focused PostgreSQL path executes the coefficient persistence, strict
+composition, controlled HTTP authority, and fresh-engine reload checks as
+independent acceptance steps. A local environment without PostgreSQL may skip
+those integration cases, but the controlled workflow must execute them and
+fails closed on any missing step.
 
 The persistence observations must show the existing canonical production
 scheme-service action followed by independent persisted readback. The legacy

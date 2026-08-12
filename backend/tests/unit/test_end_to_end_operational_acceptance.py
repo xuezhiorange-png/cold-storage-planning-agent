@@ -20,6 +20,8 @@ S6_06_DIGEST = "sha256:153ee7502ff4fcccb04468172d2e6de8e0266ba23193e155930488d2f
 def _observations() -> dict[str, object]:
     digest = "a" * 64
     coefficient_id = "coefficient-s6-07"
+    revision_id = "revision-s6-07"
+    context_id = "context-s6-07"
     run_id = "scheme-run-s6-07"
     return {
         "schema_version": acceptance.S6_07_RAW_OBSERVATION_SCHEMA,
@@ -72,6 +74,15 @@ def _observations() -> dict[str, object]:
                 "readback": {"status": 200, "body": {"id": coefficient_id}},
                 "persisted_row_id": coefficient_id,
             },
+            "controlled_coefficient": {
+                "http_definition_id": coefficient_id,
+                "persisted_definition_id": coefficient_id,
+                "approved_revision_definition_id": coefficient_id,
+                "approved_revision_id": revision_id,
+                "active_authority_revision_id": revision_id,
+                "coefficient_context_id": context_id,
+                "source_binding_coefficient_context_id": context_id,
+            },
             "planning_agent": {
                 "response": {
                     "status": 503,
@@ -114,7 +125,7 @@ def _observations() -> dict[str, object]:
                         "exists": True,
                         "scheme_run_id": run_id,
                         "source_binding_id": "source-binding-s6-07",
-                        "coefficient_context_id": coefficient_id,
+                        "coefficient_context_id": context_id,
                         "required_slot_ids": [
                             f"{name}-calculation" for name in acceptance.S6_07_STAGE_NAMES
                         ],
@@ -124,10 +135,17 @@ def _observations() -> dict[str, object]:
                         "content_sha256": digest,
                     },
                     "coefficient_resolution": {
-                        "coefficient_id": coefficient_id,
+                        "coefficient_id": context_id,
                         "source_type": "production_persisted_context",
                         "selection_strategy": "source_binding_exact_id",
                         "source_binding_id": "source-binding-s6-07",
+                    },
+                    "controlled_coefficient": {
+                        "definition_id": coefficient_id,
+                        "approved_revision_id": revision_id,
+                        "active_authority_revision_id": revision_id,
+                        "coefficient_context_id": context_id,
+                        "source_binding_coefficient_context_id": context_id,
                     },
                     "power_authority": {
                         "slot_id": "power",
@@ -159,7 +177,7 @@ def _observations() -> dict[str, object]:
                     "exists": True,
                     "scheme_run_id": run_id,
                     "source_binding_id": "source-binding-s6-07",
-                    "coefficient_context_id": coefficient_id,
+                    "coefficient_context_id": context_id,
                     "required_slot_ids": [
                         f"{name}-calculation" for name in acceptance.S6_07_STAGE_NAMES
                     ],
@@ -312,6 +330,14 @@ def test_source_binding_must_be_reloaded_after_restart() -> None:
 def test_runtime_coefficient_authority_requires_active_composition_token() -> None:
     data = _mutable_observations()
     data["runtime_lifecycle"]["database"]["composition_manifest"]["tokens"] = []
+    _assert_derived_failure(data, "S6_07_COEFFICIENT_AUTHORITY_INVALID")
+
+
+def test_http_coefficient_and_source_binding_from_different_authorities_fail_closed() -> None:
+    data = _mutable_observations()
+    data["persistence_e2e"]["scheme"]["canonical_persistence"]["source_binding"][
+        "coefficient_context_id"
+    ] = "different-context"
     _assert_derived_failure(data, "S6_07_COEFFICIENT_AUTHORITY_INVALID")
 
 

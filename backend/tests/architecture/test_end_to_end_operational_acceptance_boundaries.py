@@ -4,6 +4,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODULE = PROJECT_ROOT / "backend/src/cold_storage/release/end_to_end_operational_acceptance.py"
+FIXTURE = PROJECT_ROOT / "backend/src/cold_storage/release/s6_07_controlled_fixture.py"
 WORKFLOW = PROJECT_ROOT / ".github/workflows/task012-slice6-s7-e2e-operational-acceptance.yml"
 INTEGRATION = PROJECT_ROOT / "backend/tests/integration/test_end_to_end_operational_acceptance.py"
 
@@ -128,23 +129,50 @@ def test_ci_contains_a_real_focused_postgresql_acceptance_surface() -> None:
 def test_persistence_probe_uses_canonical_persisted_read_ports() -> None:
     module = MODULE.read_text(encoding="utf-8")
     integration = INTEGRATION.read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
     assert "canonical_persistence" in module
     assert "source_binding_after_restart" in module
     assert "source_archive_verification_after_restart" in module
     assert "independent_rehash" in module
     for required in (
-        "compose_production_scheme_service",
-        "read_verified_production_scheme_run",
-        "SqlAlchemyProductionSchemeRunReadPort",
-        "SqlAlchemySourceBindingReadPort",
-        "SqlAlchemyProductionSourceArchiveRepository",
-        "validate_archive_payload_v1",
-        "compute_archive_hash_v1",
-        "test_postgresql_persisted_production_authority_reload_after_restart",
+        "s6_07_controlled_fixture",
+        "create_controlled_production_authority",
+        "read_production_authority",
+        "test_postgresql_production_authority_survives_fresh_engine_reload",
     ):
         assert required in integration
+    for forbidden in ("tests.integration", "tests.evaluation", "test_postgresql_"):
+        assert forbidden not in workflow
+    assert "seed-startup-readiness" in workflow
+    assert "create-production-authority" in workflow
+    assert "reload-production-authority" in workflow
     assert "scheme_create_response" not in integration
     assert "source_binding = scheme_create_response" not in integration
+
+
+def test_controlled_workflow_seeds_readiness_before_strict_backend_start() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    seed_index = workflow.index("seed-startup-readiness")
+    backend_index = workflow.index("up -d backend")
+    assert seed_index < backend_index
+    assert "STARTUP_REQUIRED_STAGE_COUNT" in workflow
+    assert "STARTUP_SEEDED_STAGE_COUNT" in workflow
+    assert "READINESS_SEED_BEFORE_BACKEND_START=PASS" in workflow
+
+
+def test_controlled_fixture_is_formal_non_production_support_boundary() -> None:
+    fixture = FIXTURE.read_text(encoding="utf-8")
+    assert "seed_startup_readiness" in fixture
+    assert "create_controlled_production_authority" in fixture
+    assert "read_production_authority" in fixture
+    assert "tests.integration" not in fixture
+    assert "tests.evaluation" not in fixture
+    production_root = PROJECT_ROOT / "backend/src/cold_storage"
+    production_files = [path for path in production_root.rglob("*.py") if path != FIXTURE]
+    assert all(
+        "s6_07_controlled_fixture" not in path.read_text(encoding="utf-8")
+        for path in production_files
+    )
 
 
 def test_strict_acceptance_fixture_declares_resource_identity_and_storage_contract() -> None:

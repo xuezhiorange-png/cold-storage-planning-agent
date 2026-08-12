@@ -446,6 +446,44 @@ def _derive_assertions(
     )
     if coefficient.get("persisted_row_id") != coefficient_id:
         raise _fail("S6_07_COEFFICIENT_AUTHORITY_INVALID", "persisted coefficient row differs")
+    controlled_coefficient = _mapping(
+        http_scope.get("controlled_coefficient"),
+        field="production_http_scope.controlled_coefficient",
+    )
+    for field in (
+        "http_definition_id",
+        "persisted_definition_id",
+        "approved_revision_definition_id",
+        "approved_revision_id",
+        "active_authority_revision_id",
+        "coefficient_context_id",
+        "source_binding_coefficient_context_id",
+    ):
+        _string(controlled_coefficient.get(field), field=f"controlled_coefficient.{field}")
+    _eq(
+        controlled_coefficient.get("http_definition_id"),
+        coefficient_id,
+        field="controlled HTTP definition id",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
+    _eq(
+        controlled_coefficient.get("persisted_definition_id"),
+        coefficient_id,
+        field="controlled persisted definition id",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
+    _eq(
+        controlled_coefficient.get("approved_revision_definition_id"),
+        coefficient_id,
+        field="approved revision definition id",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
+    _eq(
+        controlled_coefficient.get("active_authority_revision_id"),
+        controlled_coefficient.get("approved_revision_id"),
+        field="active authority revision id",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
 
     agent = _mapping(http_scope.get("planning_agent"), field="production_http_scope.planning_agent")
     agent_response = _require_response_status(
@@ -566,6 +604,45 @@ def _derive_assertions(
     if binding.get("exists") is not True or binding.get("scheme_run_id") != run_id:
         raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding is missing or unbound to this run")
     binding_id = _string(binding.get("source_binding_id"), field="source_binding.source_binding_id")
+    _eq(
+        controlled_coefficient.get("coefficient_context_id"),
+        binding.get("coefficient_context_id"),
+        field="controlled coefficient context to SourceBinding context",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
+    _eq(
+        controlled_coefficient.get("source_binding_coefficient_context_id"),
+        binding.get("coefficient_context_id"),
+        field="recorded SourceBinding context identity",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
+    persisted_controlled = _mapping(
+        canonical.get("controlled_coefficient"),
+        field="canonical_persistence.controlled_coefficient",
+    )
+    for field in (
+        "definition_id",
+        "approved_revision_id",
+        "active_authority_revision_id",
+        "coefficient_context_id",
+        "source_binding_coefficient_context_id",
+    ):
+        _eq(
+            persisted_controlled.get(field),
+            controlled_coefficient.get(
+                {
+                    "definition_id": "http_definition_id",
+                    "approved_revision_id": "approved_revision_id",
+                    "active_authority_revision_id": "active_authority_revision_id",
+                    "coefficient_context_id": "coefficient_context_id",
+                    "source_binding_coefficient_context_id": (
+                        "source_binding_coefficient_context_id"
+                    ),
+                }[field]
+            ),
+            field=f"persisted controlled coefficient {field}",
+            code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+        )
     slot_ids = binding.get("required_slot_ids")
     expected_slot_ids = [stage_by_name[name]["calculation_id"] for name in S6_07_STAGE_NAMES]
     if not isinstance(slot_ids, list) or slot_ids != expected_slot_ids:
