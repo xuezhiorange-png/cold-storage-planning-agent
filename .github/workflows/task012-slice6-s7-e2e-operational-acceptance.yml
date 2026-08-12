@@ -164,6 +164,23 @@ jobs:
       - name: Build and start synthetic strict runtime
         run: |
           set -euo pipefail
+          COMPOSE_OVERRIDE="${RUN_ROOT}/resource-identities.yml"
+          printf '%s\n' \
+            'services:' \
+            '  migration:' \
+            '    environment:' \
+            '      COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ci-strict' \
+            '      COLD_STORAGE_SECRET_ENVIRONMENT_ID: ci-strict' \
+            '      COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ci-strict' \
+            '      COLD_STORAGE_ARTIFACT_STORAGE_DIR: /opt/cold-storage/artifacts' \
+            '  backend:' \
+            '    environment:' \
+            '      COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ci-strict' \
+            '      COLD_STORAGE_SECRET_ENVIRONMENT_ID: ci-strict' \
+            '      COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ci-strict' \
+            '      COLD_STORAGE_ARTIFACT_STORAGE_DIR: /opt/cold-storage/artifacts' \
+            > "${COMPOSE_OVERRIDE}"
+          printf 'COMPOSE_OVERRIDE=%s\n' "${COMPOSE_OVERRIDE}" >> "${GITHUB_ENV}"
           export POSTGRES_PASSWORD="${S6_07_POSTGRES_PASSWORD}"
           export POSTGRES_DB=cold_storage_s6_07
           export POSTGRES_USER=cold_storage
@@ -172,18 +189,18 @@ jobs:
           export COLD_STORAGE_DEPLOYMENT_ID="s6-07-${GITHUB_RUN_ID}"
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${SOURCE_SHA}")"
           export COMPOSE_PROJECT_NAME="task012-s6-07-${GITHUB_RUN_ID}"
-          docker compose -f docker-compose.production.yml build backend
-          docker compose -f docker-compose.production.yml up -d postgres
+          docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" build backend
+          docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" up -d postgres
           set +e
-          migration_upgrade_output="$(docker compose -f docker-compose.production.yml run --rm migration upgrade head 2>&1)"
+          migration_upgrade_output="$(docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" run --rm migration upgrade head 2>&1)"
           migration_exit_code=$?
           set -e
           printf '%s\n' "${migration_upgrade_output}" > "${RUN_ROOT}/alembic-upgrade.txt"
           test "${migration_exit_code}" -eq 0
-          migration_output="$(docker compose -f docker-compose.production.yml run --rm migration current 2>&1)"
+          migration_output="$(docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" run --rm migration current 2>&1)"
           printf '%s\n' "${migration_output}" > "${RUN_ROOT}/alembic-current.txt"
           grep -Eq '\(head\)' "${RUN_ROOT}/alembic-current.txt"
-          docker compose -f docker-compose.production.yml up -d backend
+          docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" up -d backend
           for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8000/health/live >/dev/null &&
                curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; then
@@ -197,21 +214,52 @@ jobs:
             --write-out '%{http_code}' http://127.0.0.1:8000/health/live)"
           jq -n --argjson status "${live_status}" --slurpfile body "${RUN_ROOT}/live-response-body.json" \
             '{status:$status,body:$body[0]}' > "${RUN_ROOT}/live-response.json"
-          docker compose -f docker-compose.production.yml exec -T backend \
+          docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" exec -T backend \
             cat /opt/cold-storage/build-identity.json > "${RUN_ROOT}/build-identity.json"
           jq -e --arg commit_sha "${SOURCE_SHA}" --arg version "v0.2.0" \
             '.commit_sha == $commit_sha and .version == $version' \
             "${RUN_ROOT}/build-identity.json"
-          container_id="$(docker compose -f docker-compose.production.yml ps -q backend)"
+          container_id="$(docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" ps -q backend)"
           test -n "${container_id}"
           docker inspect "${container_id}" --format '{{json .State}}' > "${RUN_ROOT}/backend-state.json"
-          database_backend="$(docker compose -f docker-compose.production.yml exec -T backend \
+          database_backend="$(docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" exec -T backend \
             python -c 'import os; from sqlalchemy import create_engine; engine=create_engine(os.environ["COLD_STORAGE_DATABASE_URL"]); connection=engine.connect(); print(engine.dialect.name); connection.close(); engine.dispose()')"
           test -n "${database_backend}"
-          service_class="$(docker compose -f docker-compose.production.yml exec -T backend \
-            python -c 'from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService; print(DatabaseCoefficientService.__name__)')"
-          test -n "${service_class}"
-          printf '%s\n' "${service_class}" > "${RUN_ROOT}/coefficient-service-class.txt"
+          docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" exec -T backend python - \
+            > "${RUN_ROOT}/composition-manifest.json" <<'PY'
+          import contextlib
+          import io
+          import json
+
+          from fastapi.testclient import TestClient
+          from cold_storage.bootstrap.app import create_app
+          from cold_storage.bootstrap.dependencies import (
+              get_engine,
+              get_production_coefficient_service,
+          )
+          from cold_storage.bootstrap.runtime_readiness import composition_manifest_tokens
+
+          captured_stdout = io.StringIO()
+          with contextlib.redirect_stdout(captured_stdout):
+              with TestClient(create_app()):
+                  engine = get_engine()
+                  coefficient_service = get_production_coefficient_service()
+                  manifest = {
+                      "active_coefficient_service_class": type(coefficient_service).__name__,
+                      "active_service_bound_to_canonical_engine": coefficient_service.engine is engine,
+                      "tokens": sorted(composition_manifest_tokens()),
+                  }
+          print(json.dumps({
+              **manifest,
+              "observation_context": "active_application_lifespan",
+          }, sort_keys=True))
+          PY
+          jq -e '.active_coefficient_service_class == "DatabaseCoefficientService" and
+                 .active_service_bound_to_canonical_engine == true and
+                 (.tokens | index("DATABASE_COEFFICIENT_SERVICE_INSTANTIATED")) != null and
+                 (.tokens | index("PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED")) == null and
+                 (.tokens | index("FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED")) == null' \
+            "${RUN_ROOT}/composition-manifest.json"
 
       - name: Exercise canonical HTTP and persistence surfaces
         run: |
@@ -287,9 +335,32 @@ jobs:
             "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/investment-estimate" \
             > "${ACCEPTANCE_ROOT}/investment.json"
 
-          printf 's6-07-persistence-probe\n' | docker compose -f docker-compose.production.yml \
+          printf 's6-07-persistence-probe\n' | docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" \
             exec -T backend sh -c 'cat > /opt/cold-storage/artifacts/s6-07-persistence-probe'
-          docker compose -f docker-compose.production.yml restart backend
+
+          export S6_07_POSTGRES_URL="postgresql+psycopg2://cold_storage:${S6_07_POSTGRES_PASSWORD}@127.0.0.1:5432/cold_storage_s6_07"
+          export S6_07_PRODUCTION_AUTHORITY_OUTPUT="${ACCEPTANCE_ROOT}/production-authority.json"
+          PYTHONPATH=backend/src:backend uv run --project backend python - <<'PY'
+          from tests.integration.test_end_to_end_operational_acceptance import (
+              test_postgresql_persisted_production_authority_roundtrip,
+          )
+
+          test_postgresql_persisted_production_authority_roundtrip()
+          PY
+          production_run_id="$(jq -r '.create_response.body.run_id' \
+            "${ACCEPTANCE_ROOT}/production-authority.json")"
+          production_project_id="$(jq -r '.create_response.body.project_id' \
+            "${ACCEPTANCE_ROOT}/production-authority.json")"
+          test -n "${production_run_id}"
+          test -n "${production_project_id}"
+          capture_response GET \
+            "http://127.0.0.1:8000/api/v1/projects/${production_project_id}/versions/1/scheme-runs/${production_run_id}" \
+            '' "${ACCEPTANCE_ROOT}/scheme-http-readback-before-restart.json"
+          jq -e --arg run_id "${production_run_id}" \
+            '.status == 200 and .body.run_id == $run_id' \
+            "${ACCEPTANCE_ROOT}/scheme-http-readback-before-restart.json"
+
+          docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" restart backend
           for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; then break; fi
             sleep 2
@@ -305,14 +376,14 @@ jobs:
             '' "${ACCEPTANCE_ROOT}/coefficient-after-restart.json"
           artifact_probe_exists=false
           artifact_probe_sha256=""
-          if docker compose -f docker-compose.production.yml exec -T backend \
+          if docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" exec -T backend \
             test -s /opt/cold-storage/artifacts/s6-07-persistence-probe; then
             artifact_probe_exists=true
-            artifact_probe_sha256="$(docker compose -f docker-compose.production.yml exec -T backend \
+            artifact_probe_sha256="$(docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" exec -T backend \
               sha256sum /opt/cold-storage/artifacts/s6-07-persistence-probe | cut -d' ' -f1)"
           fi
 
-          docker compose -f docker-compose.production.yml logs --no-log-prefix backend > "${ACCEPTANCE_ROOT}/backend.log"
+          docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" logs --no-log-prefix backend > "${ACCEPTANCE_ROOT}/backend.log"
           password_occurrences="$(grep -F -o "${S6_07_POSTGRES_PASSWORD}" "${ACCEPTANCE_ROOT}/backend.log" | wc -l | tr -d ' ')"
           database_url_occurrences="$(grep -Eio 'postgresql(\\+psycopg2)?://|redis://|database_url' "${ACCEPTANCE_ROOT}/backend.log" | wc -l | tr -d ' ')"
           token_occurrences="$(grep -Eio 'bearer |ghp_|github_pat_' "${ACCEPTANCE_ROOT}/backend.log" | wc -l | tr -d ' ')"
@@ -344,22 +415,39 @@ jobs:
           PY
           )
 
-          capture_response POST "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/scheme-runs" \
-            '{"profile_codes":[],"weight_set_id":"controlled"}' "${ACCEPTANCE_ROOT}/scheme.json"
+          capture_response GET \
+            "http://127.0.0.1:8000/api/v1/projects/${production_project_id}/versions/1/scheme-runs/${production_run_id}" \
+            '' "${ACCEPTANCE_ROOT}/scheme-http-readback-after-restart.json"
+          jq -e --arg run_id "${production_run_id}" \
+            '.status == 200 and .body.run_id == $run_id' \
+            "${ACCEPTANCE_ROOT}/scheme-http-readback-after-restart.json"
 
-          service_class="$(cat "${RUN_ROOT}/coefficient-service-class.txt")"
+          export S6_07_RELOAD_RUN_ID="${production_run_id}"
+          export S6_07_RELOAD_AUTHORITY_OUTPUT="${ACCEPTANCE_ROOT}/production-authority-after-restart.json"
+          PYTHONPATH=backend/src:backend uv run --project backend python - <<'PY'
+          from tests.integration.test_end_to_end_operational_acceptance import (
+              test_postgresql_persisted_production_authority_reload_after_restart,
+          )
+
+          test_postgresql_persisted_production_authority_reload_after_restart()
+          PY
+
           jq -n \
             --arg source_sha "${SOURCE_SHA}" --arg source_tree_sha "${SOURCE_TREE_SHA}" \
-            --arg database_backend "${database_backend}" --arg service_class "${service_class}" \
+            --arg database_backend "${database_backend}" \
             --argjson migration_exit_code "${migration_exit_code}" \
             --slurpfile identity "${RUN_ROOT}/build-identity.json" \
+            --slurpfile composition "${RUN_ROOT}/composition-manifest.json" \
             --slurpfile live "${RUN_ROOT}/live-response.json" \
             --slurpfile ready "${ACCEPTANCE_ROOT}/ready.json" \
             --slurpfile state "${RUN_ROOT}/backend-state.json" \
             --slurpfile coefficient "${ACCEPTANCE_ROOT}/coefficient.json" \
             --slurpfile coefficient_readback "${ACCEPTANCE_ROOT}/coefficient-readback.json" \
             --slurpfile agent "${ACCEPTANCE_ROOT}/agent.json" \
-            --slurpfile scheme "${ACCEPTANCE_ROOT}/scheme.json" \
+            --slurpfile production "${ACCEPTANCE_ROOT}/production-authority.json" \
+            --slurpfile scheme_http_before "${ACCEPTANCE_ROOT}/scheme-http-readback-before-restart.json" \
+            --slurpfile scheme_http_after "${ACCEPTANCE_ROOT}/scheme-http-readback-after-restart.json" \
+            --slurpfile production_after_restart "${ACCEPTANCE_ROOT}/production-authority-after-restart.json" \
             --slurpfile restart_ready "${ACCEPTANCE_ROOT}/restart-ready.json" \
             --slurpfile restart_coefficient "${ACCEPTANCE_ROOT}/coefficient-after-restart.json" \
             --arg correlation_expected "${CORRELATION_ID}" --arg correlation_observed "${observed_correlation}" \
@@ -383,17 +471,32 @@ jobs:
                   migration:{exit_code:$migration_exit_code,current_output:""},
                   container:{running:$state[0].Running,status:$state[0].Status},
                   liveness:$live[0], readiness:$ready[0],
-                  database:{backend:$database_backend,service_class:$service_class},
+                  database:{backend:$database_backend,
+                    service_class:$composition[0].active_coefficient_service_class,
+                    composition_manifest:$composition[0]},
                   artifact_storage:{probe_exists:$artifact_probe_exists,probe_sha256:$artifact_probe_sha256}
                 },
                 production_http_scope:{
                   coefficient:{created:$coefficient[0],readback:$coefficient_readback[0],persisted_row_id:($coefficient[0].body.id // null)},
                   planning_agent:{response:$agent[0]}
                 },
-                persistence_e2e:{
-                  scheme:{response:$scheme[0],persisted:($scheme[0].body // {})},
-                  restart:{performed:true,readiness:$restart_ready[0],coefficient_readback:($restart_coefficient[0].body // {}),source_binding:(($scheme[0].body.source_binding // {})),artifact_probe:{exists:$artifact_probe_exists,sha256:$artifact_probe_sha256}}
-                },
+                  persistence_e2e:{
+                    scheme:{
+                      create_response:$production[0].create_response,
+                      persisted_readback:$scheme_http_before[0],
+                      http_readback:$scheme_http_before[0],
+                      canonical_persistence:$production[0].canonical_persistence
+                    },
+                    restart:{
+                      performed:true,
+                      readiness:$restart_ready[0],
+                      coefficient_readback:($restart_coefficient[0].body // {}),
+                      scheme_persisted_readback:$scheme_http_after[0],
+                      source_binding_after_restart:($production_after_restart[0].source_binding + {reloaded_after_restart:true}),
+                      source_archive_verification_after_restart:($production_after_restart[0].source_archive + {reloaded_after_restart:true}),
+                      artifact_probe:{exists:$artifact_probe_exists,sha256:$artifact_probe_sha256}
+                    }
+                  },
                 observability_security:{
                   correlation:{header_present:$header_present,expected:$correlation_expected,observed:$correlation_observed},
                   structured_logging:{record_count:$structured_record_count,parseable_record_count:$parseable_record_count,correlation_match_count:$correlation_match_count},
@@ -481,4 +584,8 @@ jobs:
       - name: Cleanup controlled runtime
         if: always()
         run: |
-          docker compose -f docker-compose.production.yml down -v --remove-orphans || true
+          if [ -n "${COMPOSE_OVERRIDE:-}" ] && [ -f "${COMPOSE_OVERRIDE}" ]; then
+            docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" down -v --remove-orphans || true
+          else
+            docker compose -f docker-compose.production.yml down -v --remove-orphans || true
+          fi

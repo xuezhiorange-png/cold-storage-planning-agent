@@ -371,6 +371,43 @@ def _derive_assertions(
             "S6_07_COEFFICIENT_AUTHORITY_INVALID",
             "canonical coefficient service was not observed",
         )
+    composition = _mapping(
+        database.get("composition_manifest"),
+        field="runtime_lifecycle.database.composition_manifest",
+    )
+    if composition.get("active_coefficient_service_class") != "DatabaseCoefficientService":
+        raise _fail(
+            "S6_07_COEFFICIENT_AUTHORITY_INVALID",
+            "active coefficient service composition was not observed",
+        )
+    if composition.get("active_service_bound_to_canonical_engine") is not True:
+        raise _fail(
+            "S6_07_COEFFICIENT_AUTHORITY_INVALID",
+            "coefficient service is not bound to the canonical engine",
+        )
+    tokens = composition.get("tokens")
+    if not isinstance(tokens, list):
+        raise _fail(
+            "S6_07_COEFFICIENT_AUTHORITY_INVALID",
+            "composition manifest tokens are missing",
+        )
+    if "DATABASE_COEFFICIENT_SERVICE_INSTANTIATED" not in tokens:
+        raise _fail(
+            "S6_07_COEFFICIENT_AUTHORITY_INVALID",
+            "database coefficient composition token is missing",
+        )
+    if any(
+        token in tokens
+        for token in (
+            "PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED",
+            "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED",
+            "COMPOSITION_MANIFEST_PROVIDER_ERROR",
+        )
+    ):
+        raise _fail(
+            "S6_07_FAKE_AGENT_REACHABLE",
+            "unsafe runtime composition token was observed",
+        )
     storage = _mapping(runtime.get("artifact_storage"), field="runtime_lifecycle.artifact_storage")
     if storage.get("probe_exists") is not True:
         raise _fail("S6_07_RUNTIME_STARTUP_FAILED", "artifact storage probe was not observed")
@@ -429,70 +466,183 @@ def _derive_assertions(
 
     persistence = _mapping(observations.get("persistence_e2e"), field="persistence_e2e")
     scheme = _mapping(persistence.get("scheme"), field="persistence_e2e.scheme")
-    scheme_response = _response(scheme, field="response", code="S6_07_PERSISTENCE_FAILED")
-    _require_response_status(
-        scheme_response,
+    create_response = _require_response_status(
+        _response(scheme, field="create_response", code="S6_07_PERSISTENCE_FAILED"),
         expected=200,
-        field="scheme.response",
+        field="scheme.create_response",
         code="S6_07_PERSISTENCE_FAILED",
     )
-    persisted = _mapping(scheme.get("persisted"), field="persistence_e2e.scheme.persisted")
-    run_id = _string(persisted.get("run_id"), field="persisted.run_id")
-    if persisted.get("status") != "completed":
+    create_body = _response_body(
+        create_response,
+        field="scheme.create_response",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    run_id = _string(create_body.get("run_id"), field="scheme.create_response.body.run_id")
+
+    persisted_readback = _require_response_status(
+        _response(scheme, field="persisted_readback", code="S6_07_PERSISTENCE_FAILED"),
+        expected=200,
+        field="scheme.persisted_readback",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    persisted_body = _response_body(
+        persisted_readback,
+        field="scheme.persisted_readback",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    _eq(
+        persisted_body.get("run_id"),
+        run_id,
+        field="scheme persisted readback run id",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    if persisted_body.get("status") != "completed":
         raise _fail("S6_07_PERSISTENCE_FAILED", "persisted scheme run is not completed")
-    stages = persisted.get("stages")
+
+    http_readback = _require_response_status(
+        _response(scheme, field="http_readback", code="S6_07_PERSISTENCE_FAILED"),
+        expected=200,
+        field="scheme.http_readback",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    http_body = _response_body(
+        http_readback,
+        field="scheme.http_readback",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    _eq(
+        http_body.get("run_id"),
+        run_id,
+        field="scheme HTTP readback run id",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+
+    canonical = _mapping(
+        scheme.get("canonical_persistence"),
+        field="persistence_e2e.scheme.canonical_persistence",
+    )
+    _eq(
+        canonical.get("run_id"),
+        run_id,
+        field="canonical persisted run id",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    if canonical.get("status") != "completed" or canonical.get("source_mode") != "production":
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED", "canonical persisted run is not production-completed"
+        )
+
+    stages = canonical.get("stages")
     if not isinstance(stages, list) or len(stages) != len(S6_07_STAGE_NAMES):
         raise _fail("S6_07_PERSISTENCE_FAILED", "persisted stage evidence is incomplete")
     observed_stage_names: list[str] = []
+    stage_by_name: dict[str, Mapping[str, Any]] = {}
     for stage in stages:
-        stage_mapping = _mapping(stage, field="persistence_e2e.scheme.persisted.stages[]")
+        stage_mapping = _mapping(stage, field="canonical_persistence.stages[]")
         stage_name = _string(stage_mapping.get("name"), field="stage.name")
         if stage_name in observed_stage_names or stage_name not in S6_07_STAGE_NAMES:
             raise _fail("S6_07_PERSISTENCE_FAILED", "persisted stage names are ambiguous")
-        if stage_mapping.get("status") != "completed":
-            raise _fail("S6_07_PERSISTENCE_FAILED", f"stage did not complete: {stage_name}")
+        if stage_mapping.get("exists") is not True or stage_mapping.get("persisted") is not True:
+            raise _fail(
+                "S6_07_PERSISTENCE_FAILED",
+                f"stage was not independently persisted: {stage_name}",
+            )
+        _string(stage_mapping.get("calculation_id"), field="stage.calculation_id")
+        _string(stage_mapping.get("calculation_type"), field="stage.calculation_type")
+        _require_sha256(
+            stage_mapping.get("result_hash"),
+            field="stage.result_hash",
+            code="S6_07_PERSISTENCE_FAILED",
+        )
         observed_stage_names.append(stage_name)
+        stage_by_name[stage_name] = stage_mapping
     if set(observed_stage_names) != set(S6_07_STAGE_NAMES):
         raise _fail("S6_07_PERSISTENCE_FAILED", "not all five stages were observed")
 
-    if not isinstance(persisted.get("source_binding"), Mapping):
-        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding observation is missing")
-    binding = cast(Mapping[str, Any], persisted["source_binding"])
-    if binding.get("exists") is not True or binding.get("run_id") != run_id:
-        raise _fail(
-            "S6_07_PERSISTENCE_FAILED", "SourceBinding is missing or belongs to another run"
-        )
+    binding = _mapping(
+        canonical.get("source_binding"),
+        field="canonical_persistence.source_binding",
+    )
+    if binding.get("exists") is not True or binding.get("scheme_run_id") != run_id:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding is missing or unbound to this run")
+    binding_id = _string(binding.get("source_binding_id"), field="source_binding.source_binding_id")
     slot_ids = binding.get("required_slot_ids")
-    if not isinstance(slot_ids, list) or set(slot_ids) != set(S6_07_STAGE_NAMES):
-        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding slots are incomplete")
+    expected_slot_ids = [stage_by_name[name]["calculation_id"] for name in S6_07_STAGE_NAMES]
+    if not isinstance(slot_ids, list) or slot_ids != expected_slot_ids:
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED",
+            "SourceBinding slots are not the persisted five slots",
+        )
     _require_sha256(
         binding.get("content_sha256"),
         field="source_binding.content_sha256",
         code="S6_07_PERSISTENCE_FAILED",
     )
+    per_calculation = _mapping(
+        binding.get("per_calculation_result_hashes"),
+        field="source_binding.per_calculation_result_hashes",
+    )
+    for stage_name in S6_07_STAGE_NAMES:
+        _eq(
+            per_calculation.get(stage_name),
+            stage_by_name[stage_name].get("result_hash"),
+            field=f"source_binding.{stage_name}.result_hash",
+            code="S6_07_PERSISTENCE_FAILED",
+        )
 
     resolution = _mapping(
-        persisted.get("coefficient_resolution"), field="persisted.coefficient_resolution"
+        canonical.get("coefficient_resolution"),
+        field="canonical_persistence.coefficient_resolution",
     )
-    if resolution.get("coefficient_id") != coefficient_id:
-        raise _fail("S6_07_PERSISTENCE_FAILED", "scheme did not use the persisted coefficient")
-    if resolution.get("source_type") in (None, "demo"):
-        raise _fail("S6_07_PERSISTENCE_FAILED", "demo coefficient source was used")
-    if resolution.get("selection_strategy") != "explicit_id":
-        raise _fail("S6_07_PERSISTENCE_FAILED", "coefficient selection was not explicit")
+    if resolution.get("coefficient_id") != binding.get("coefficient_context_id"):
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED",
+            "scheme coefficient context was not read from SourceBinding",
+        )
+    if resolution.get("source_type") != "production_persisted_context":
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED",
+            "non-production or demo coefficient source was used",
+        )
+    if resolution.get("selection_strategy") != "source_binding_exact_id":
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED",
+            "coefficient selection was not exact SourceBinding identity",
+        )
+    if resolution.get("source_binding_id") != binding_id:
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED",
+            "coefficient resolution is not bound to SourceBinding",
+        )
 
-    if not isinstance(persisted.get("power_authority"), Mapping):
-        raise _fail("S6_07_PERSISTENCE_FAILED", "power authority observation is missing")
-    power = cast(Mapping[str, Any], persisted["power_authority"])
-    if power.get("slot_id") != "power" or power.get("value_present") is not True:
-        raise _fail("S6_07_PERSISTENCE_FAILED", "power authority was not persisted")
-    _require_sha256(
+    power = _mapping(
+        canonical.get("power_authority"),
+        field="canonical_persistence.power_authority",
+    )
+    power_stage = stage_by_name["power"]
+    if (
+        power.get("slot_id") != "power"
+        or power.get("calculation_id") != power_stage.get("calculation_id")
+        or power.get("scheme_run_id") != run_id
+        or power.get("source_binding_id") != binding_id
+        or power.get("value_present") is not True
+    ):
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED",
+            "power authority is not bound to the same persisted run",
+        )
+    _eq(
         power.get("value_sha256"),
+        power_stage.get("result_hash"),
         field="power_authority.value_sha256",
         code="S6_07_PERSISTENCE_FAILED",
     )
-    archive = _mapping(persisted.get("source_archive"), field="persisted.source_archive")
-    if archive.get("exists") is not True or archive.get("run_id") != run_id:
+
+    archive = _mapping(
+        canonical.get("source_archive"),
+        field="canonical_persistence.source_archive",
+    )
+    if archive.get("exists") is not True or archive.get("scheme_run_id") != run_id:
         raise _fail("S6_07_PERSISTENCE_FAILED", "source archive is missing or unbound")
     archive_digest = _require_sha256(
         archive.get("sha256"),
@@ -501,6 +651,11 @@ def _derive_assertions(
     )
     if archive.get("expected_sha256") != archive_digest:
         raise _fail("S6_07_PERSISTENCE_FAILED", "source archive digest mismatch")
+    if (
+        archive.get("verification_method") != "canonical_archive_v1"
+        or archive.get("independent_rehash") is not True
+    ):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "source archive was not independently rehashed")
 
     restart = _mapping(persistence.get("restart"), field="persistence_e2e.restart")
     if restart.get("performed") is not True:
@@ -523,9 +678,78 @@ def _derive_assertions(
     )
     if restart_coeff.get("id") != coefficient_id:
         raise _fail("S6_07_PERSISTENCE_FAILED", "coefficient did not survive restart")
-    restart_binding = _mapping(restart.get("source_binding"), field="restart.source_binding")
-    if restart_binding.get("exists") is not True or restart_binding.get("run_id") != run_id:
-        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding did not survive restart")
+    restart_scheme = _require_response_status(
+        _response(restart, field="scheme_persisted_readback", code="S6_07_PERSISTENCE_FAILED"),
+        expected=200,
+        field="restart.scheme_persisted_readback",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    restart_scheme_body = _response_body(
+        restart_scheme,
+        field="restart.scheme_persisted_readback",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    _eq(
+        restart_scheme_body.get("run_id"),
+        run_id,
+        field="restart scheme persisted readback run id",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    restart_binding = _mapping(
+        restart.get("source_binding_after_restart"),
+        field="restart.source_binding_after_restart",
+    )
+    if (
+        restart_binding.get("exists") is not True
+        or restart_binding.get("scheme_run_id") != run_id
+        or restart_binding.get("source_binding_id") != binding_id
+        or restart_binding.get("reloaded_after_restart") is not True
+    ):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding was not reloaded after restart")
+    for field in ("coefficient_context_id", "content_sha256"):
+        _eq(
+            restart_binding.get(field),
+            binding.get(field),
+            field=f"restart SourceBinding {field}",
+            code="S6_07_PERSISTENCE_FAILED",
+        )
+    restart_slot_ids = restart_binding.get("required_slot_ids")
+    _eq(
+        restart_slot_ids,
+        expected_slot_ids,
+        field="restart SourceBinding required slots",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    restart_hashes = _mapping(
+        restart_binding.get("per_calculation_result_hashes"),
+        field="restart.source_binding_after_restart.per_calculation_result_hashes",
+    )
+    for stage_name in S6_07_STAGE_NAMES:
+        _eq(
+            restart_hashes.get(stage_name),
+            per_calculation.get(stage_name),
+            field=f"restart SourceBinding {stage_name}.result_hash",
+            code="S6_07_PERSISTENCE_FAILED",
+        )
+    restart_archive = _mapping(
+        restart.get("source_archive_verification_after_restart"),
+        field="restart.source_archive_verification_after_restart",
+    )
+    if (
+        restart_archive.get("exists") is not True
+        or restart_archive.get("scheme_run_id") != run_id
+        or restart_archive.get("reloaded_after_restart") is not True
+        or restart_archive.get("verification_method") != "canonical_archive_v1"
+        or restart_archive.get("independent_rehash") is not True
+    ):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "source archive was not reverified after restart")
+    for field in ("sha256", "expected_sha256"):
+        _eq(
+            restart_archive.get(field),
+            archive.get(field),
+            field=f"restart source archive {field}",
+            code="S6_07_PERSISTENCE_FAILED",
+        )
     artifact_probe = _mapping(restart.get("artifact_probe"), field="restart.artifact_probe")
     if artifact_probe.get("exists") is not True:
         raise _fail("S6_07_PERSISTENCE_FAILED", "artifact volume probe did not survive restart")

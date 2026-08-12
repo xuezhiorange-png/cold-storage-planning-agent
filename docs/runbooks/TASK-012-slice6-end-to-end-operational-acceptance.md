@@ -46,12 +46,20 @@ results from those facts, and the independent verifier derives them again from
 the raw observation documents. A missing persisted fact fails closed.
 
 The runtime dependency evidence is the strict PostgreSQL configuration plus the
-observed `DatabaseCoefficientService` authority and persisted row readback. The
-planning-agent evidence is an actual HTTP `503` response with
+observed `DatabaseCoefficientService` authority from an active application
+lifespan. The controlled probe reads `get_engine()`,
+`get_production_coefficient_service()`, and the existing composition-manifest
+provider while that lifespan is active; importing the class by name is not
+evidence. The planning-agent evidence is an actual HTTP `503` response with
 `AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE` and `retryable=false`, together with
 the readiness capability projection showing the capability disabled. The
 workflow does not claim a negative construction fact that the runtime does not
 expose as machine-readable evidence.
+
+The workflow uses a runner-temporary Compose override only to declare the
+synthetic `ci-strict` database, secret, artifact, and artifact-storage
+identities required by unchanged strict settings. The tracked production
+Compose contract is not modified by S6-07.
 
 ## Acceptance sequence
 
@@ -69,10 +77,15 @@ expose as machine-readable evidence.
    verify readiness and persisted state.
 8. Assemble and independently verify the nine-file S6-07 evidence bundle.
 
-The persistence observations must show the existing canonical source-binding
-and scheme path when that path is exercised. The five stage names and completed
-statuses, run identity, binding slot set/hash, explicit coefficient resolution,
-power authority, and source archive identity/hash are checked independently.
+The persistence observations must show the existing canonical production
+scheme-service action followed by independent persisted readback. The legacy
+HTTP scheme route is used only for the exact GET readback; its create response
+is never treated as persistence proof. Five-stage facts come from the existing
+`ProductionSchemeService`, `SchemeRunRecord`, `SourceBindingRecord`,
+`CalculationRunRecord`, and production source-archive read ports. The five
+stage names and completed statuses, run identity, binding slot set/hash,
+explicit coefficient resolution, power authority, and source archive
+identity/hash are checked independently before and after backend restart.
 A missing, partial, demo, or latest-row fallback is a failure, not a synthetic
 pass. HTTP 200 alone never implies five-stage success.
 
@@ -112,10 +125,12 @@ HTTP_200_IMPLIES_FIVE_STAGE_PASS=NO
 ```
 
 The focused PostgreSQL persistence test uses the same CI PostgreSQL service and
-performs create, dispose/recreate, and readback through
-`DatabaseCoefficientService`. The strict-agent integration test starts the
-existing production composition and calls the real disabled route; it does not
-mock a response body.
+performs canonical production create, independent readback, source-archive
+re-hash, and fresh-session reload after restart. The strict-agent integration
+test declares all required resource identities, starts the existing production
+composition, and calls the real disabled route; it does not mock a response
+body. The controlled workflow fails closed if the active composition token is
+missing or if a process-local coefficient or fake-agent token is present.
 
 ## Failure and governance
 

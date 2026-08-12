@@ -5,6 +5,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODULE = PROJECT_ROOT / "backend/src/cold_storage/release/end_to_end_operational_acceptance.py"
 WORKFLOW = PROJECT_ROOT / ".github/workflows/task012-slice6-s7-e2e-operational-acceptance.yml"
+INTEGRATION = PROJECT_ROOT / "backend/tests/integration/test_end_to_end_operational_acceptance.py"
 
 
 def test_s6_07_module_reuses_s6_06_verifier_and_does_not_import_calculators() -> None:
@@ -55,6 +56,19 @@ def test_workflow_is_dispatch_only_main_exact_and_read_only() -> None:
     assert 'observation_type:"raw"' in workflow
     assert "task012-s6-07-operational-observation-v2" in workflow
     assert "if $scheme_status" not in workflow
+    assert "persisted:($scheme[0].body // {})" not in workflow
+    assert "source_binding:(($scheme[0].body.source_binding // {}))" not in workflow
+    assert "composition-manifest.json" in workflow
+    assert "composition_manifest_tokens" in workflow
+    assert "TestClient(create_app())" in workflow
+    assert "production-authority.json" in workflow
+    assert "scheme-http-readback-before-restart.json" in workflow
+    assert "scheme-http-readback-after-restart.json" in workflow
+    assert "production-authority-after-restart.json" in workflow
+    assert "resource-identities.yml" in workflow
+    assert "COLD_STORAGE_DATABASE_ENVIRONMENT_ID: ci-strict" in workflow
+    assert "COLD_STORAGE_SECRET_ENVIRONMENT_ID: ci-strict" in workflow
+    assert "COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID: ci-strict" in workflow
     assert "migration:{exit_code:0" not in workflow
     assert 'database:{backend:"postgresql"' not in workflow
     assert 'parseable_record_count="${structured_record_count}"' not in workflow
@@ -109,3 +123,36 @@ def test_ci_contains_a_real_focused_postgresql_acceptance_surface() -> None:
     assert "S6-07 PostgreSQL persistence acceptance" in ci
     assert "tests/integration/test_end_to_end_operational_acceptance.py" in ci
     assert "S6_07_POSTGRES_URL" in ci
+
+
+def test_persistence_probe_uses_canonical_persisted_read_ports() -> None:
+    module = MODULE.read_text(encoding="utf-8")
+    integration = INTEGRATION.read_text(encoding="utf-8")
+    assert "canonical_persistence" in module
+    assert "source_binding_after_restart" in module
+    assert "source_archive_verification_after_restart" in module
+    assert "independent_rehash" in module
+    for required in (
+        "compose_production_scheme_service",
+        "read_verified_production_scheme_run",
+        "SqlAlchemyProductionSchemeRunReadPort",
+        "SqlAlchemySourceBindingReadPort",
+        "SqlAlchemyProductionSourceArchiveRepository",
+        "validate_archive_payload_v1",
+        "compute_archive_hash_v1",
+        "test_postgresql_persisted_production_authority_reload_after_restart",
+    ):
+        assert required in integration
+    assert "scheme_create_response" not in integration
+    assert "source_binding = scheme_create_response" not in integration
+
+
+def test_strict_acceptance_fixture_declares_resource_identity_and_storage_contract() -> None:
+    integration = INTEGRATION.read_text(encoding="utf-8")
+    for required in (
+        'COLD_STORAGE_DATABASE_ENVIRONMENT_ID", "ci-strict"',
+        'COLD_STORAGE_SECRET_ENVIRONMENT_ID", "ci-strict"',
+        'COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "ci-strict"',
+        'COLD_STORAGE_ARTIFACT_STORAGE_DIR", str(artifact_dir)',
+    ):
+        assert required in integration

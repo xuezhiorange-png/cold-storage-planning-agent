@@ -58,6 +58,11 @@ def _observations() -> dict[str, object]:
             "database": {
                 "backend": "postgresql",
                 "service_class": "DatabaseCoefficientService",
+                "composition_manifest": {
+                    "active_coefficient_service_class": "DatabaseCoefficientService",
+                    "active_service_bound_to_canonical_engine": True,
+                    "tokens": ["DATABASE_COEFFICIENT_SERVICE_INSTANTIATED"],
+                },
             },
             "artifact_storage": {"probe_exists": True, "probe_sha256": digest},
         },
@@ -81,35 +86,64 @@ def _observations() -> dict[str, object]:
         },
         "persistence_e2e": {
             "scheme": {
-                "response": {"status": 200, "body": {"run_id": run_id}},
-                "persisted": {
+                "create_response": {"status": 200, "body": {"run_id": run_id}},
+                "persisted_readback": {
+                    "status": 200,
+                    "body": {"run_id": run_id, "status": "completed"},
+                },
+                "http_readback": {
+                    "status": 200,
+                    "body": {"run_id": run_id, "status": "completed"},
+                },
+                "canonical_persistence": {
                     "run_id": run_id,
                     "status": "completed",
+                    "source_mode": "production",
                     "stages": [
-                        {"name": name, "status": "completed"}
+                        {
+                            "name": name,
+                            "exists": True,
+                            "persisted": True,
+                            "calculation_id": f"{name}-calculation",
+                            "calculation_type": name,
+                            "result_hash": digest,
+                        }
                         for name in acceptance.S6_07_STAGE_NAMES
                     ],
                     "source_binding": {
                         "exists": True,
-                        "run_id": run_id,
-                        "required_slot_ids": list(acceptance.S6_07_STAGE_NAMES),
+                        "scheme_run_id": run_id,
+                        "source_binding_id": "source-binding-s6-07",
+                        "coefficient_context_id": coefficient_id,
+                        "required_slot_ids": [
+                            f"{name}-calculation" for name in acceptance.S6_07_STAGE_NAMES
+                        ],
+                        "per_calculation_result_hashes": {
+                            name: digest for name in acceptance.S6_07_STAGE_NAMES
+                        },
                         "content_sha256": digest,
                     },
                     "coefficient_resolution": {
                         "coefficient_id": coefficient_id,
-                        "source_type": "controlled",
-                        "selection_strategy": "explicit_id",
+                        "source_type": "production_persisted_context",
+                        "selection_strategy": "source_binding_exact_id",
+                        "source_binding_id": "source-binding-s6-07",
                     },
                     "power_authority": {
                         "slot_id": "power",
+                        "calculation_id": "power-calculation",
+                        "scheme_run_id": run_id,
+                        "source_binding_id": "source-binding-s6-07",
                         "value_present": True,
                         "value_sha256": digest,
                     },
                     "source_archive": {
                         "exists": True,
-                        "run_id": run_id,
+                        "scheme_run_id": run_id,
                         "sha256": digest,
                         "expected_sha256": digest,
+                        "verification_method": "canonical_archive_v1",
+                        "independent_rehash": True,
                     },
                 },
             },
@@ -117,7 +151,33 @@ def _observations() -> dict[str, object]:
                 "performed": True,
                 "readiness": {"status": 200, "body": {"status": "ready"}},
                 "coefficient_readback": {"id": coefficient_id},
-                "source_binding": {"exists": True, "run_id": run_id},
+                "scheme_persisted_readback": {
+                    "status": 200,
+                    "body": {"run_id": run_id, "status": "completed"},
+                },
+                "source_binding_after_restart": {
+                    "exists": True,
+                    "scheme_run_id": run_id,
+                    "source_binding_id": "source-binding-s6-07",
+                    "coefficient_context_id": coefficient_id,
+                    "required_slot_ids": [
+                        f"{name}-calculation" for name in acceptance.S6_07_STAGE_NAMES
+                    ],
+                    "per_calculation_result_hashes": {
+                        name: digest for name in acceptance.S6_07_STAGE_NAMES
+                    },
+                    "content_sha256": digest,
+                    "reloaded_after_restart": True,
+                },
+                "source_archive_verification_after_restart": {
+                    "exists": True,
+                    "scheme_run_id": run_id,
+                    "sha256": digest,
+                    "expected_sha256": digest,
+                    "verification_method": "canonical_archive_v1",
+                    "independent_rehash": True,
+                    "reloaded_after_restart": True,
+                },
                 "artifact_probe": {"exists": True, "sha256": digest},
             },
         },
@@ -210,6 +270,20 @@ def _assemble(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     )
 
 
+def _assert_derived_failure(data: dict[str, object], expected: str) -> None:
+    with pytest.raises(acceptance.S607AcceptanceError) as exc:
+        acceptance._derive_assertions(  # noqa: SLF001
+            data,
+            source_sha=SOURCE_SHA,
+            source_tree_sha=SOURCE_TREE_SHA,
+        )
+    assert exc.value.failure_code == expected
+
+
+def _mutable_observations() -> dict[str, object]:
+    return json.loads(json.dumps(_observations()))
+
+
 def test_valid_synthetic_acceptance_roundtrip_is_exactly_nine_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -218,6 +292,66 @@ def test_valid_synthetic_acceptance_roundtrip_is_exactly_nine_files(
         sorted(acceptance.S6_07_BUNDLE_FILES)
     )
     acceptance.verify_s6_07_checksums(bundle)
+
+
+def test_scheme_create_response_is_not_accepted_as_persisted_readback() -> None:
+    data = _mutable_observations()
+    persistence = data["persistence_e2e"]
+    scheme = persistence["scheme"]
+    scheme["persisted_readback"] = scheme["create_response"]
+    _assert_derived_failure(data, "S6_07_PERSISTENCE_FAILED")
+
+
+def test_source_binding_must_be_reloaded_after_restart() -> None:
+    data = _mutable_observations()
+    restart_binding = data["persistence_e2e"]["restart"]["source_binding_after_restart"]
+    restart_binding["source_binding_id"] = "different-source-binding"
+    _assert_derived_failure(data, "S6_07_PERSISTENCE_FAILED")
+
+
+def test_runtime_coefficient_authority_requires_active_composition_token() -> None:
+    data = _mutable_observations()
+    data["runtime_lifecycle"]["database"]["composition_manifest"]["tokens"] = []
+    _assert_derived_failure(data, "S6_07_COEFFICIENT_AUTHORITY_INVALID")
+
+
+def test_importable_database_coefficient_class_is_not_sufficient_authority() -> None:
+    data = _mutable_observations()
+    composition = data["runtime_lifecycle"]["database"]["composition_manifest"]
+    composition["active_coefficient_service_class"] = "DatabaseCoefficientService"
+    composition["active_service_bound_to_canonical_engine"] = True
+    composition["tokens"] = []
+    _assert_derived_failure(data, "S6_07_COEFFICIENT_AUTHORITY_INVALID")
+
+
+def test_fake_agent_composition_token_causes_fail_closed() -> None:
+    data = _mutable_observations()
+    data["runtime_lifecycle"]["database"]["composition_manifest"]["tokens"].append(
+        "FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED"
+    )
+    _assert_derived_failure(data, "S6_07_FAKE_AGENT_REACHABLE")
+
+
+def test_persisted_scheme_run_identity_must_match_create_run_id() -> None:
+    data = _mutable_observations()
+    data["persistence_e2e"]["scheme"]["persisted_readback"]["body"]["run_id"] = "other-run"
+    _assert_derived_failure(data, "S6_07_PERSISTENCE_FAILED")
+
+
+def test_source_archive_digest_must_be_independently_verified() -> None:
+    data = _mutable_observations()
+    data["persistence_e2e"]["scheme"]["canonical_persistence"]["source_archive"][
+        "expected_sha256"
+    ] = "b" * 64
+    _assert_derived_failure(data, "S6_07_PERSISTENCE_FAILED")
+
+
+def test_power_authority_must_bind_to_same_run() -> None:
+    data = _mutable_observations()
+    data["persistence_e2e"]["scheme"]["canonical_persistence"]["power_authority"][
+        "scheme_run_id"
+    ] = "other-run"
+    _assert_derived_failure(data, "S6_07_PERSISTENCE_FAILED")
 
 
 def test_source_identity_is_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -438,27 +572,33 @@ def test_forged_summary_pass_does_not_override_failed_observation(
     ("mutation", "expected"),
     [
         (
-            lambda data: data["persistence_e2e"]["scheme"]["persisted"].update({"stages": []}),
+            lambda data: data["persistence_e2e"]["scheme"]["canonical_persistence"].update(
+                {"stages": []}
+            ),
             "S6_07_PERSISTENCE_FAILED",
         ),
         (
-            lambda data: data["persistence_e2e"]["scheme"]["persisted"].pop("source_binding"),
-            "S6_07_PERSISTENCE_FAILED",
+            lambda data: data["persistence_e2e"]["scheme"]["canonical_persistence"].pop(
+                "source_binding"
+            ),
+            "S6_07_EVIDENCE_BUNDLE_INVALID",
         ),
         (
-            lambda data: data["persistence_e2e"]["scheme"]["persisted"][
+            lambda data: data["persistence_e2e"]["scheme"]["canonical_persistence"][
                 "coefficient_resolution"
             ].update({"source_type": "demo"}),
             "S6_07_PERSISTENCE_FAILED",
         ),
         (
-            lambda data: data["persistence_e2e"]["scheme"]["persisted"].pop("power_authority"),
-            "S6_07_PERSISTENCE_FAILED",
+            lambda data: data["persistence_e2e"]["scheme"]["canonical_persistence"].pop(
+                "power_authority"
+            ),
+            "S6_07_EVIDENCE_BUNDLE_INVALID",
         ),
         (
-            lambda data: data["persistence_e2e"]["scheme"]["persisted"]["source_archive"].update(
-                {"expected_sha256": "b" * 64}
-            ),
+            lambda data: data["persistence_e2e"]["scheme"]["canonical_persistence"][
+                "source_archive"
+            ].update({"expected_sha256": "b" * 64}),
             "S6_07_PERSISTENCE_FAILED",
         ),
         (
