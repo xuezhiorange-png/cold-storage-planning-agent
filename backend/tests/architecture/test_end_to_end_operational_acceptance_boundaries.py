@@ -236,3 +236,67 @@ def test_strict_acceptance_fixture_declares_resource_identity_and_storage_contra
         'COLD_STORAGE_ARTIFACT_STORAGE_DIR", str(artifact_dir)',
     ):
         assert required in integration
+
+
+def test_s6_07_does_not_modify_investment_review_semantics() -> None:
+    investment = (
+        PROJECT_ROOT / "backend/src/cold_storage/modules/calculations/domain/investment.py"
+    ).read_text(encoding="utf-8")
+    assert "coefficient_overrides" not in investment
+    assert '"DEMO_INVESTMENT_REQUIRES_REVIEW"' in investment
+    assert "requires_review=True" in investment
+
+
+def test_s6_07_has_no_cross_domain_coefficient_mapping() -> None:
+    source_binding = (
+        PROJECT_ROOT
+        / "backend/src/cold_storage/modules/orchestration/application/source_binding_assembly.py"
+    ).read_text(encoding="utf-8")
+    assert "_controlled_coefficient_inputs" not in source_binding
+    assert "controlled_bindings" not in source_binding
+    assert "pallet.net_load_kg" not in source_binding
+    assert 'Decimal("160")' not in source_binding
+    assert "_investment_coefficients" not in source_binding
+
+
+def test_s6_07_does_not_rewrite_calculator_provenance() -> None:
+    source_binding = (
+        PROJECT_ROOT
+        / "backend/src/cold_storage/modules/orchestration/application/source_binding_assembly.py"
+    ).read_text(encoding="utf-8")
+    assert "replace(provenance" not in source_binding
+    assert "controlled_bindings" not in source_binding
+    assert "coefficient_context" in source_binding
+
+
+def test_s6_07_fixture_does_not_insert_calculation_runs() -> None:
+    tree = ast.parse(FIXTURE.read_text(encoding="utf-8"))
+    assert not any(
+        isinstance(node, ast.Name) and node.id == "CalculationRunRecord" for node in ast.walk(tree)
+    )
+
+
+def test_s6_07_fixture_does_not_insert_source_binding() -> None:
+    tree = ast.parse(FIXTURE.read_text(encoding="utf-8"))
+    assert not any(
+        isinstance(node, ast.Name) and node.id == "SourceBindingRecord" for node in ast.walk(tree)
+    )
+
+
+def test_synthetic_business_inputs_are_allowed() -> None:
+    fixture = FIXTURE.read_text(encoding="utf-8")
+    assert '"product_category": "synthetic"' in fixture
+    assert 'CONTROLLED_COEFFICIENT_CODE_PREFIX = "s6_07_operational_"' in fixture
+
+
+def test_requires_review_true_is_not_operational_failure() -> None:
+    acceptance = MODULE.read_text(encoding="utf-8")
+    assert 'stage_mapping.get("requires_review") is True' not in acceptance
+    assert '"requires_review" in stage_mapping' in acceptance
+
+
+def test_business_warning_does_not_imply_operational_failure() -> None:
+    unit = (
+        PROJECT_ROOT / "backend/tests/unit/test_end_to_end_operational_acceptance.py"
+    ).read_text(encoding="utf-8")
+    assert "test_requires_review_warning_is_not_operational_failure" in unit

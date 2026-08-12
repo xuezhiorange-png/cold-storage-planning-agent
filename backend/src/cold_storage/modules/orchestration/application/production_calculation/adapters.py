@@ -1013,19 +1013,7 @@ class InvestmentAdapter:
                 reason=f"investment input rejected: {exc}",
             ) from exc
 
-        coefficients_raw = projection.raw_inputs.get("coefficients", {})
-        coefficients = dict(coefficients_raw) if isinstance(coefficients_raw, Mapping) else {}
-        overrides_raw = coefficients.get("_investment_coefficients")
-        estimator = self._estimator
-        if isinstance(overrides_raw, Mapping):
-            estimator = InvestmentEstimator(
-                coefficient_overrides={
-                    str(code): dict(metadata)
-                    for code, metadata in overrides_raw.items()
-                    if isinstance(metadata, Mapping)
-                }
-            )
-        result = estimator.estimate(typed_input)
+        result = self._estimator.estimate(typed_input)
         return _build_adapter_result(
             calculation_type=CalculationType.INVESTMENT,
             result=result,

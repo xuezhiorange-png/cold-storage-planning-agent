@@ -456,8 +456,6 @@ def _derive_assertions(
         "approved_revision_definition_id",
         "approved_revision_id",
         "active_authority_revision_id",
-        "coefficient_context_id",
-        "source_binding_coefficient_context_id",
     ):
         _string(controlled_coefficient.get(field), field=f"controlled_coefficient.{field}")
     _eq(
@@ -592,6 +590,10 @@ def _derive_assertions(
             field="stage.result_hash",
             code="S6_07_PERSISTENCE_FAILED",
         )
+        if "requires_review" in stage_mapping and not isinstance(
+            stage_mapping.get("requires_review"), bool
+        ):
+            raise _fail("S6_07_PERSISTENCE_FAILED", "stage requires_review is not boolean")
         observed_stage_names.append(stage_name)
         stage_by_name[stage_name] = stage_mapping
     if set(observed_stage_names) != set(S6_07_STAGE_NAMES):
@@ -604,18 +606,6 @@ def _derive_assertions(
     if binding.get("exists") is not True or binding.get("scheme_run_id") != run_id:
         raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding is missing or unbound to this run")
     binding_id = _string(binding.get("source_binding_id"), field="source_binding.source_binding_id")
-    _eq(
-        controlled_coefficient.get("coefficient_context_id"),
-        binding.get("coefficient_context_id"),
-        field="controlled coefficient context to SourceBinding context",
-        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
-    )
-    _eq(
-        controlled_coefficient.get("source_binding_coefficient_context_id"),
-        binding.get("coefficient_context_id"),
-        field="recorded SourceBinding context identity",
-        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
-    )
     persisted_controlled = _mapping(
         canonical.get("controlled_coefficient"),
         field="canonical_persistence.controlled_coefficient",
@@ -624,8 +614,6 @@ def _derive_assertions(
         "definition_id",
         "approved_revision_id",
         "active_authority_revision_id",
-        "coefficient_context_id",
-        "source_binding_coefficient_context_id",
     ):
         _eq(
             persisted_controlled.get(field),
@@ -634,14 +622,25 @@ def _derive_assertions(
                     "definition_id": "http_definition_id",
                     "approved_revision_id": "approved_revision_id",
                     "active_authority_revision_id": "active_authority_revision_id",
-                    "coefficient_context_id": "coefficient_context_id",
-                    "source_binding_coefficient_context_id": (
-                        "source_binding_coefficient_context_id"
-                    ),
                 }[field]
             ),
             field=f"persisted controlled coefficient {field}",
             code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+        )
+    coefficient_continuity = _mapping(
+        canonical.get("coefficient_execution_continuity"),
+        field="canonical_persistence.coefficient_execution_continuity",
+    )
+    _eq(
+        coefficient_continuity.get("result"),
+        "NOT_REQUIRED_BY_V0_2_OPERATIONAL_ACCEPTANCE",
+        field="coefficient execution continuity scope",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
+    if coefficient_continuity.get("available") is not False:
+        raise _fail(
+            "S6_07_COEFFICIENT_AUTHORITY_INVALID",
+            "coefficient registry to calculator mapping was asserted unexpectedly",
         )
     slot_ids = binding.get("required_slot_ids")
     expected_slot_ids = [stage_by_name[name]["calculation_id"] for name in S6_07_STAGE_NAMES]

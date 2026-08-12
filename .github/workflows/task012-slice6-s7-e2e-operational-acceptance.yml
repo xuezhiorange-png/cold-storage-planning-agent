@@ -326,7 +326,7 @@ jobs:
             header_present=true
           fi
 
-          coefficient_code="power.design_margin_ratio"
+          coefficient_code="s6_07_operational_${GITHUB_RUN_ID}"
           coefficient_request="$(jq -nc --arg code "${coefficient_code}" \
             '{code:$code,name:"S6-07 controlled coefficient",description:"synthetic acceptance coefficient",category:"acceptance",canonical_unit:"unit",source_type:"controlled"}')"
           capture_response POST http://127.0.0.1:8000/api/v1/coefficients \
@@ -455,6 +455,7 @@ jobs:
             reload-production-authority \
             --database-url "${S6_07_POSTGRES_URL}" \
             --run-id "${production_run_id}" \
+            --definition-id "${coefficient_id}" \
             --output "${S6_07_RELOAD_AUTHORITY_OUTPUT}"
 
           jq -n \
@@ -507,8 +508,7 @@ jobs:
                   authority_continuity:{
                     definition_to_revision:(($production[0].controlled_coefficient.approved_revision_definition_id // null) == ($coefficient[0].body.id // null)),
                     revision_to_active_authority:(($production[0].controlled_coefficient.approved_revision_id // null) == ($production[0].controlled_coefficient.active_authority_revision_id // null)),
-                    active_authority_to_context:(($production[0].controlled_coefficient.active_authority_revision_id // null) != null and ($production[0].controlled_coefficient.coefficient_context_id // null) != null),
-                    context_to_source_binding:(($production[0].controlled_coefficient.coefficient_context_id // null) == ($production[0].controlled_coefficient.source_binding_coefficient_context_id // null))
+                    independent_from_five_stage_context:(($production[0].controlled_coefficient.coefficient_context_id // null) == null and ($production[0].controlled_coefficient.source_binding_coefficient_context_id // null) == null)
                   },
                   planning_agent:{response:$agent[0]}
                 },

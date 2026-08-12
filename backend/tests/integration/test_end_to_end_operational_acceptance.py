@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
 
 from cold_storage.bootstrap.app import create_app
 from cold_storage.bootstrap.dependencies import shutdown_dependencies
@@ -21,7 +21,7 @@ from cold_storage.bootstrap.s6_07_controlled_fixture import (
 )
 from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService
 from cold_storage.modules.coefficients.infrastructure.orm import CoefficientDefinitionRecord
-from cold_storage.modules.projects.infrastructure.orm import Base, CalculationRunRecord
+from cold_storage.modules.projects.infrastructure.orm import Base
 from cold_storage.release import end_to_end_operational_acceptance as acceptance
 from tests.unit.test_end_to_end_operational_acceptance import (
     S6_06_ARTIFACT_ID,
@@ -154,6 +154,29 @@ def test_strict_application_composition_returns_disabled_agent_503(
     monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
     monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.2.0")
     monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", "s6-07-test")
+    identity_path = tmp_path / "build-identity.json"
+    identity_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "commit_sha": "0" * 40,
+                "version": "v0.2.0",
+            }
+        ),
+        encoding="utf-8",
+    )
+    from cold_storage.bootstrap import deployment_identity
+
+    load_runtime_identity = deployment_identity.load_runtime_identity
+
+    def load_test_identity(
+        *,
+        env: Mapping[str, str],
+        path: Path | str = deployment_identity.DEFAULT_BUILD_IDENTITY_PATH,
+    ) -> tuple[deployment_identity.BuildIdentityRecord, str]:
+        return load_runtime_identity(env=env, path=identity_path)
+
+    monkeypatch.setattr(deployment_identity, "load_runtime_identity", load_test_identity)
     monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
     monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "120")
     monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "30")
@@ -212,26 +235,12 @@ def test_sqlite_canonical_production_authority_roundtrip(tmp_path: Path) -> None
         ]
         assert authority["source_binding"]["exists"] is True
         assert authority["source_archive"]["independent_rehash"] is True
-        assert authority["coefficient_execution_continuity"]["result"] == "PASS"
-        assert all(
-            stage["calculator_input_evidence"]["result"] == "PASS"
-            for stage in authority["coefficient_execution_continuity"]["stages"].values()
+        assert (
+            authority["coefficient_execution_continuity"]["result"]
+            == "NOT_REQUIRED_BY_V0_2_OPERATIONAL_ACCEPTANCE"
         )
+        assert authority["coefficient_execution_continuity"]["available"] is False
         assert all(stage["persisted"] for stage in authority["stages"])
-
-        power_id = authority["source_binding"]["required_slot_ids"][3]
-        with sessionmaker(bind=engine, expire_on_commit=False)() as session:
-            power_run = session.get(CalculationRunRecord, power_id)
-            assert power_run is not None
-            provenance = dict(power_run.provenance or {})
-            calculator_input = dict(provenance["calculator_input_snapshot"])
-            calculator_input["production_demand_factor"] = "1.16"
-            provenance["calculator_input_snapshot"] = calculator_input
-            power_run.provenance = provenance
-            session.commit()
-
-        with pytest.raises(RuntimeError, match="calculator input coefficient mismatch"):
-            read_production_authority(engine, run_id=str(authority["run_id"]))
     finally:
         engine.dispose()
 
@@ -292,7 +301,11 @@ def test_postgresql_production_authority_survives_fresh_engine_reload() -> None:
 
     restarted_engine = create_engine(database_url, pool_pre_ping=True)
     try:
-        after = read_production_authority(restarted_engine, run_id=run_id)
+        after = read_production_authority(
+            restarted_engine,
+            run_id=run_id,
+            controlled_definition_id=definition_id,
+        )
         assert after["run_id"] == canonical_before["run_id"]
         assert after["source_binding"] == canonical_before["source_binding"]
         assert after["stages"] == canonical_before["stages"]

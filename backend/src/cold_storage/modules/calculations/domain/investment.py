@@ -1,7 +1,4 @@
-from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from decimal import Decimal
-from typing import Any
 
 from cold_storage.modules.calculations.domain.result import (
     CalculationError,
@@ -24,11 +21,7 @@ class InvestmentEstimateInput:
 
 
 class InvestmentEstimator:
-    def __init__(
-        self,
-        *,
-        coefficient_overrides: Mapping[str, Mapping[str, Any]] | None = None,
-    ) -> None:
+    def __init__(self) -> None:
         self._coefficients = {
             "building_envelope_cost_cny_m2": DemoZoneCoefficient(
                 "building_envelope_cost_cny_m2",
@@ -58,9 +51,6 @@ class InvestmentEstimator:
                 "CNY",
                 "监控及开厂物资按固定20万元估算",
             ),
-        }
-        self._coefficient_overrides = {
-            code: dict(metadata) for code, metadata in (coefficient_overrides or {}).items()
         }
 
     def estimate(self, data: InvestmentEstimateInput) -> CalculationResult:
@@ -95,23 +85,6 @@ class InvestmentEstimator:
             self._item("住宿及生活区", dormitory_living),
             self._item("监控及开厂物资", monitoring_opening_supplies),
         ]
-        approved_overrides = len(self._coefficient_overrides) == len(self._coefficients)
-        assumptions = [
-            "投资测算使用已批准的生产系数，并按用户指定投资分项归并。"
-            if approved_overrides
-            else "投资测算使用演示单价，并按用户指定投资分项归并，仅用于方案早期比较。",
-            "住宿及生活区暂未给出独立公式，当前暂列0；1000平方米附加面积已计入土建及钢结构。",
-            "未包含土地、融资、税费、正式设计费和不可预见的专项工程费用。",
-        ]
-        warnings = []
-        if not approved_overrides:
-            warnings.append(
-                CalculationWarning(
-                    "DEMO_INVESTMENT_REQUIRES_REVIEW",
-                    "投资测算使用未审核演示单价，需造价和专业工程人员复核。",
-                    {"requires_review": True},
-                )
-            )
         return CalculationResult(
             success=True,
             calculator_name="investment_estimate",
@@ -127,48 +100,33 @@ class InvestmentEstimator:
                 FormulaReference(
                     "IE-001",
                     VERSION,
-                    "area_or_position_quantity * approved_or_demo_unit_cost",
+                    "area_or_position_quantity * demo_unit_cost",
                     "按面积和板位数量估算分项投资",
                 )
             ],
-            coefficients=[self._reference(code) for code in self._coefficients],
-            assumptions=assumptions,
-            warnings=warnings,
-            requires_review=not approved_overrides,
+            coefficients=[
+                coefficient.to_reference() for coefficient in self._coefficients.values()
+            ],
+            assumptions=[
+                "投资测算使用演示单价，并按用户指定投资分项归并，仅用于方案早期比较。",
+                "住宿及生活区暂未给出独立公式，当前暂列0；1000平方米附加面积已计入土建及钢结构。",
+                "未包含土地、融资、税费、正式设计费和不可预见的专项工程费用。",
+            ],
+            warnings=[
+                CalculationWarning(
+                    "DEMO_INVESTMENT_REQUIRES_REVIEW",
+                    "投资测算使用未审核演示单价，需造价和专业工程人员复核。",
+                    {"requires_review": True},
+                )
+            ],
+            requires_review=True,
         )
 
     def _item(self, item_name: str, amount_cny: float) -> dict[str, object]:
         return {"item_name": item_name, "amount_cny": round(amount_cny, 2)}
 
     def _value(self, code: str) -> float:
-        override = self._coefficient_overrides.get(code)
-        if override is not None:
-            value = override.get("value")
-            if isinstance(value, int | float | Decimal):
-                return float(value)
-            if isinstance(value, str):
-                return float(value)
-            raise TypeError(f"investment coefficient override {code!r} is not numeric")
         return self._coefficients[code].value
-
-    def _reference(self, code: str) -> dict[str, object]:
-        override = self._coefficient_overrides.get(code)
-        if override is None:
-            return self._coefficients[code].to_reference()
-        return {
-            "code": str(override.get("canonical_code", code)),
-            "name": self._coefficients[code].name,
-            "value": self._value(code),
-            "unit": self._coefficients[code].unit,
-            "category": "investment",
-            "source_type": override.get("source_type"),
-            "source_reference": "coefficient_catalog",
-            "version": VERSION,
-            "validity_status": str(override.get("status", "")),
-            "approval_status": str(override.get("status", "")),
-            "requires_review": False,
-            "revision_id": override.get("revision_id"),
-        }
 
     def _number(self, value: object) -> float:
         if isinstance(value, int | float):

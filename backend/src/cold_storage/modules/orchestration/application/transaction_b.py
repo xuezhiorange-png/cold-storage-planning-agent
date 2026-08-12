@@ -18,7 +18,7 @@ Architecture:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, ClassVar, Protocol, runtime_checkable
 
@@ -117,7 +117,6 @@ class StageExecutionResult:
     warnings: list[dict[str, Any]]
     source_references: list[dict[str, Any]]
     requires_review: bool
-    execution_input_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable
@@ -1080,7 +1079,6 @@ class TransactionBExecutor:
                     "orchestration_run_attempt_id": orchestration_attempt_id,
                     "orchestration_fingerprint": orchestration_fingerprint,
                     "upstream_calculation_ids": dict(upstream_calc_ids),
-                    "calculator_input_snapshot": dict(exec_result.execution_input_snapshot),
                 },
                 schema_version=SOURCE_SNAPSHOT_SCHEMA_VERSION,
                 orchestration_fingerprint=orchestration_fingerprint,

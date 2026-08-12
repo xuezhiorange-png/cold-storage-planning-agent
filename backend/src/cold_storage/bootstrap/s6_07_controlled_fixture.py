@@ -31,11 +31,8 @@ from cold_storage.bootstrap.production_composition import (
 )
 from cold_storage.bootstrap.startup_readiness import get_required_stages
 from cold_storage.modules.coefficients.application.approval_service import ApprovalRequest
+from cold_storage.modules.coefficients.domain.exceptions import CoefficientNotFoundError
 from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService
-from cold_storage.modules.coefficients.infrastructure.orm import (
-    CoefficientDefinitionRecord,
-    CoefficientRevisionRecord,
-)
 from cold_storage.modules.orchestration.application.coefficient_contracts import (
     FrozenCoefficientResolutionCriteria,
 )
@@ -71,11 +68,7 @@ from cold_storage.modules.orchestration.infrastructure.repositories import (
     SqlAlchemySourceBindingRepository,
     SqlAlchemyVerificationReadPort,
 )
-from cold_storage.modules.projects.infrastructure.orm import (
-    CalculationRunRecord,
-    ProjectRecord,
-    ProjectVersionRecord,
-)
+from cold_storage.modules.projects.infrastructure.orm import ProjectRecord, ProjectVersionRecord
 from cold_storage.modules.schemes.application.production_ports import (
     GenerateProductionSchemeCommand,
 )
@@ -92,29 +85,7 @@ S6_07_STAGE_NAMES: tuple[str, ...] = (
     "investment",
 )
 
-CONTROLLED_COEFFICIENT_CODE = "power.design_margin_ratio"
-
-_STAGE_REQUIRED_COEFFICIENTS: dict[str, tuple[str, ...]] = {
-    "zone": (
-        "area.auxiliary_area_ratio",
-        "area.circulation_allowance_ratio",
-    ),
-    "cooling_load": ("power.design_margin_ratio",),
-    "equipment": (
-        "pallet.net_load_kg",
-        "pallet.turnover_factor",
-    ),
-    "power": (
-        "power.design_margin_ratio",
-        "power.standby_ratio",
-    ),
-    "investment": (
-        "investment.building_unit_cost",
-        "investment.electrical_installation_ratio",
-        "investment.other_expenses_ratio",
-        "investment.refrigeration_equipment_ratio",
-    ),
-}
+CONTROLLED_COEFFICIENT_CODE_PREFIX = "s6_07_operational_"
 
 _CATALOG_VALUES: dict[str, tuple[str, str, str]] = {
     "area.auxiliary_area_ratio": ("area auxiliary ratio", "0.08", "ratio"),
@@ -133,6 +104,7 @@ _CATALOG_VALUES: dict[str, tuple[str, str, str]] = {
     ),
     "pallet.net_load_kg": ("pallet net load", "400", "kg"),
     "pallet.turnover_factor": ("pallet turnover factor", "1.10", "ratio"),
+    "power.design_margin_ratio": ("power design margin", "1.15", "ratio"),
     "power.standby_ratio": ("power standby ratio", "0.90", "ratio"),
 }
 
@@ -169,11 +141,11 @@ _WEIGHT_CONTENT: dict[str, Any] = {
 _EXECUTION_SNAPSHOT: dict[str, Any] = {
     "product_category": "synthetic",
     "zone": {
-        "daily_inbound_mass_kg": "10000",
-        "working_time_h_per_day": "16",
-        "finished_storage_days": "2.5",
-        "packaging_storage_days": "3",
-        "precooling_required_ratio": "1",
+        "daily_inbound_mass_kg": 10000,
+        "working_time_h_per_day": 16,
+        "finished_storage_days": 2,
+        "packaging_storage_days": 3,
+        "precooling_required_ratio": 1,
     },
     "cooling_load": {
         "zones": [
@@ -207,7 +179,15 @@ _EXECUTION_SNAPSHOT: dict[str, Any] = {
                 "motor_efficiency": "0.92",
             }
         ],
-        "coefficients": {"air_change_rate": "0.50"},
+        "coefficients": {
+            "air_change_rate": "0.50",
+            "design_margin_ratio": "1.15",
+            "diversity_factor": "0.85",
+            "product_specific_heat": "3.6",
+            "respiration_heat": "0",
+            "worker_heat_gain": "120",
+            "motor_efficiency": "0.92",
+        },
     },
     "equipment": {
         "condensing_temperature_c": "40",
@@ -228,7 +208,12 @@ _EXECUTION_SNAPSHOT: dict[str, Any] = {
                 ],
             }
         ],
-        "coefficients": {},
+        "coefficients": {
+            "redundancy_ratio": "1.0",
+            "evaporator_capacity_margin": "1.1",
+            "condenser_capacity_margin": "1.1",
+            "compressor_cop": "2.5",
+        },
     },
     "power": {
         "compressor_input_power_kw_e": "20",
@@ -350,13 +335,15 @@ def seed_startup_readiness(engine: Engine, *, token: str) -> dict[str, Any]:
     }
 
 
-def create_controlled_coefficient_definition(engine: Engine, *, token: str) -> str:
-    """Create the exact catalog definition used by the controlled POST."""
+def create_controlled_coefficient_definition(
+    engine: Engine, *, token: str, code: str | None = None
+) -> str:
+    """Create an isolated synthetic coefficient for the controlled POST."""
 
     service = DatabaseCoefficientService(engine)
     definition = service.create_definition(
-        code=CONTROLLED_COEFFICIENT_CODE,
-        name="Power design margin ratio",
+        code=code or f"{CONTROLLED_COEFFICIENT_CODE_PREFIX}{token[:40]}",
+        name="S6-07 operational acceptance coefficient",
         description="controlled synthetic production coefficient",
         category="acceptance",
         canonical_unit="ratio",
@@ -371,26 +358,29 @@ def _seed_required_catalog(
     """Seed the remaining exact registry codes as approved prerequisites."""
 
     service = DatabaseCoefficientService(engine)
-    revision_ids = {CONTROLLED_COEFFICIENT_CODE: ""}
     controlled = service.get_definition(controlled_definition_id)
-    if controlled.code != CONTROLLED_COEFFICIENT_CODE:
-        raise RuntimeError("controlled HTTP definition has unexpected code")
-    revision_ids[CONTROLLED_COEFFICIENT_CODE] = _seed_approved_revision(
+    if not controlled.code.startswith(CONTROLLED_COEFFICIENT_CODE_PREFIX):
+        raise RuntimeError("controlled HTTP definition has unexpected synthetic code")
+    _seed_approved_revision(
         engine,
         definition_id=controlled_definition_id,
         token=token,
-        label="controlled-design-margin",
-        value=Decimal("1.15"),
+        label="operational-acceptance",
+        value=Decimal("1.0"),
     )
+    revision_ids: dict[str, str] = {}
     for code, (label, value, unit) in _CATALOG_VALUES.items():
-        definition = service.create_definition(
-            code=code,
-            name=label,
-            description="controlled synthetic production coefficient prerequisite",
-            category="catalog",
-            canonical_unit=unit,
-            is_active=True,
-        )
+        try:
+            definition = service.get_definition_by_code(code)
+        except CoefficientNotFoundError:
+            definition = service.create_definition(
+                code=code,
+                name=label,
+                description="controlled synthetic production coefficient prerequisite",
+                category="catalog",
+                canonical_unit=unit,
+                is_active=True,
+            )
         revision_ids[code] = _seed_approved_revision(
             engine,
             definition_id=definition.id,
@@ -566,133 +556,19 @@ def _seed_weight_revision(engine: Engine, *, identity: ControlledFixtureIdentity
         session.commit()
 
 
-def _stage_coefficient_continuity(
+def read_production_authority(
+    engine: Engine,
     *,
-    stage: str,
-    calculation: Any,
-    raw_provenance: Mapping[str, Any],
-    context_items: Mapping[str, Mapping[str, Any]],
-    context_id: str,
+    run_id: str,
+    controlled_definition_id: str | None = None,
 ) -> dict[str, Any]:
-    actual = {
-        str(ref.get("code")): ref
-        for ref in calculation.coefficients
-        if isinstance(ref, Mapping) and ref.get("code") in context_items
-    }
-    required = _STAGE_REQUIRED_COEFFICIENTS[stage]
-    missing = [code for code in required if code not in actual]
-    if missing:
-        raise RuntimeError(f"{stage} did not persist approved coefficient provenance: {missing}")
-    calculator_input = raw_provenance.get("calculator_input_snapshot")
-    if not isinstance(calculator_input, Mapping):
-        raise RuntimeError(f"{stage} persisted calculator input snapshot is missing")
+    """Read canonical production authority and independent coefficient authority.
 
-    expected_paths_by_stage: dict[str, dict[str, tuple[str, ...]]] = {
-        "zone": {
-            "area.auxiliary_area_ratio": ("secondary_fruit_area_ratio",),
-            "area.circulation_allowance_ratio": ("storage_area_factor",),
-        },
-        "cooling_load": {
-            "power.design_margin_ratio": ("design_margin_ratio",),
-        },
-        "equipment": {
-            "pallet.net_load_kg": ("coefficients", "compressor_cop"),
-            "pallet.turnover_factor": ("coefficients", "redundancy_ratio"),
-        },
-        "power": {
-            "power.design_margin_ratio": ("production_demand_factor",),
-            "power.standby_ratio": ("refrigeration_demand_factor",),
-        },
-        "investment": {
-            "investment.building_unit_cost": (
-                "coefficients",
-                "_investment_coefficients",
-                "building_envelope_cost_cny_m2",
-                "value",
-            ),
-            "investment.electrical_installation_ratio": (
-                "coefficients",
-                "_investment_coefficients",
-                "power_distribution_cost_cny_kw",
-                "value",
-            ),
-            "investment.other_expenses_ratio": (
-                "coefficients",
-                "_investment_coefficients",
-                "monitoring_opening_supplies_cny",
-                "value",
-            ),
-            "investment.refrigeration_equipment_ratio": (
-                "coefficients",
-                "_investment_coefficients",
-                "refrigeration_cost_cny_m2",
-                "value",
-            ),
-        },
-    }
-    expected_input_paths = expected_paths_by_stage[stage]
-
-    execution_inputs: list[dict[str, Any]] = []
-
-    def nested_value(path: tuple[str, ...]) -> Any:
-        value: Any = calculator_input
-        for key in path:
-            if not isinstance(value, Mapping) or key not in value:
-                raise RuntimeError(f"{stage} calculator input is missing {'.'.join(path)}")
-            value = value[key]
-        return value
-
-    for code, path in expected_input_paths.items():
-        actual_value = nested_value(path)
-        expected_value = context_items[code].get("value_decimal")
-        if stage == "equipment" and code == "pallet.net_load_kg":
-            expected_value = Decimal(str(expected_value)) / Decimal("160")
-        if Decimal(str(actual_value)) != Decimal(str(expected_value)):
-            raise RuntimeError(
-                f"{stage} calculator input coefficient mismatch for {code}: "
-                f"expected {expected_value!r}, observed {actual_value!r}"
-            )
-        execution_inputs.append(
-            {
-                "code": code,
-                "path": ".".join(path),
-                "value_decimal": str(actual_value),
-                "context_value_decimal": str(context_items[code].get("value_decimal")),
-            }
-        )
-
-    bindings: list[dict[str, Any]] = []
-    for code in required:
-        ref = actual[code]
-        expected = context_items[code]
-        if ref.get("revision_id") != expected.get("revision_id"):
-            raise RuntimeError(f"{stage} coefficient revision mismatch for {code}")
-        if ref.get("source_type") == "demo" or ref.get("status") not in {None, "approved"}:
-            raise RuntimeError(f"{stage} coefficient {code} is not approved non-demo")
-        bindings.append(
-            {
-                "code": code,
-                "revision_id": expected.get("revision_id"),
-                "context_id": context_id,
-                "calculation_id": calculation.id,
-                "value_decimal": expected.get("value_decimal"),
-                "persisted_provenance": dict(ref),
-            }
-        )
-    return {
-        "result": "PASS",
-        "required": list(required),
-        "bindings": bindings,
-        "calculator_input_evidence": {
-            "result": "PASS",
-            "source": "persisted_calculation_run.provenance.calculator_input_snapshot",
-            "bindings": execution_inputs,
-        },
-    }
-
-
-def read_production_authority(engine: Engine, *, run_id: str) -> dict[str, Any]:
-    """Read and independently verify canonical SchemeRun authority."""
+    The persisted coefficient context proves the SourceBinding identity.  The
+    separately created controlled coefficient proves database-backed coefficient
+    lifecycle and restart persistence; S6-07 does not invent a mapping between
+    that coefficient and calculator engineering inputs.
+    """
 
     from cold_storage.modules.orchestration.application.canonical_archive_v1 import (
         compute_archive_hash_v1,
@@ -737,35 +613,14 @@ def read_production_authority(engine: Engine, *, run_id: str) -> dict[str, Any]:
         context = session.get(CoefficientContextRecord, binding.coefficient_context_id)
         if context is None or not isinstance(context.content, Mapping):
             raise RuntimeError("coefficient context readback is missing")
-        context_items_raw = context.content.get("coefficients")
-        if not isinstance(context_items_raw, list):
-            raise RuntimeError("coefficient context has no canonical items")
-        context_items = {
-            str(item["code"]): item
-            for item in context_items_raw
-            if isinstance(item, Mapping) and isinstance(item.get("code"), str)
-        }
-        continuity: dict[str, Any] = {}
+
         stages: list[dict[str, Any]] = []
         for stage in S6_07_STAGE_NAMES:
             calculation = binding_port.load_calculation_run(session, run_id=calculation_ids[stage])
             if calculation is None:
                 raise RuntimeError(f"missing persisted CalculationRun for {stage}")
-            raw_calculation = session.get(CalculationRunRecord, calculation.id)
-            if raw_calculation is None:
-                raise RuntimeError(f"missing raw persisted CalculationRun for {stage}")
-            raw_provenance = raw_calculation.provenance or {}
-            if not isinstance(raw_provenance, Mapping):
-                raise RuntimeError(f"{stage} persisted calculator provenance is missing")
             if calculation.coefficient_context_id != binding.coefficient_context_id:
                 raise RuntimeError(f"{stage} coefficient context binding mismatch")
-            continuity[stage] = _stage_coefficient_continuity(
-                stage=stage,
-                calculation=calculation,
-                raw_provenance=raw_provenance,
-                context_items=context_items,
-                context_id=binding.coefficient_context_id,
-            )
             stages.append(
                 {
                     "name": stage,
@@ -775,21 +630,34 @@ def read_production_authority(engine: Engine, *, run_id: str) -> dict[str, Any]:
                     "calculation_type": calculation.calculation_type,
                     "result_hash": calculation.result_hash,
                     "coefficient_context_id": calculation.coefficient_context_id,
-                    "coefficient_bindings": continuity[stage]["bindings"],
+                    "requires_review": bool(getattr(calculation, "requires_review", False)),
                 }
             )
 
-        controlled_item = context_items.get(CONTROLLED_COEFFICIENT_CODE)
-        if controlled_item is None:
-            raise RuntimeError("controlled design-margin coefficient is missing")
-        definition_id = str(controlled_item.get("definition_id"))
-        revision_id = str(controlled_item.get("revision_id"))
-        definition = session.get(CoefficientDefinitionRecord, definition_id)
-        revision = session.get(CoefficientRevisionRecord, revision_id)
-        if definition is None or revision is None:
-            raise RuntimeError("controlled coefficient rows are missing")
-        if revision.coefficient_definition_id != definition.id or revision.status != "approved":
-            raise RuntimeError("controlled coefficient approval binding is invalid")
+        coefficient_service = DatabaseCoefficientService(engine)
+        if controlled_definition_id is None:
+            acceptance_definitions = coefficient_service.list_definitions(
+                category="acceptance", is_active=True
+            )
+            matching = [
+                definition
+                for definition in acceptance_definitions
+                if definition.code.startswith(CONTROLLED_COEFFICIENT_CODE_PREFIX)
+            ]
+            if len(matching) != 1:
+                raise RuntimeError("controlled synthetic coefficient definition is ambiguous")
+            controlled_definition_id = matching[0].id
+        definition = coefficient_service.get_definition(controlled_definition_id)
+        if not definition.code.startswith(CONTROLLED_COEFFICIENT_CODE_PREFIX):
+            raise RuntimeError("controlled coefficient is not run-scoped synthetic authority")
+        approved_revisions = [
+            revision
+            for revision in coefficient_service.list_revisions(definition.id)
+            if revision.status == "approved"
+        ]
+        if len(approved_revisions) != 1:
+            raise RuntimeError("controlled coefficient must have exactly one approved revision")
+        revision = approved_revisions[0]
 
         archive = SqlAlchemyProductionSourceArchiveRepository().find_by_scheme_run_id(
             session, run_id
@@ -809,9 +677,11 @@ def read_production_authority(engine: Engine, *, run_id: str) -> dict[str, Any]:
             "source_mode": persisted.source_mode,
             "stages": stages,
             "coefficient_execution_continuity": {
-                "result": "PASS",
-                "context_id": binding.coefficient_context_id,
-                "stages": continuity,
+                "result": "NOT_REQUIRED_BY_V0_2_OPERATIONAL_ACCEPTANCE",
+                "available": False,
+                "reason": (
+                    "S6-07 does not assert coefficient registry to calculator engineering mapping"
+                ),
             },
             "source_binding": {
                 "exists": True,
@@ -849,21 +719,15 @@ def read_production_authority(engine: Engine, *, run_id: str) -> dict[str, Any]:
             },
             "controlled_coefficient": {
                 "definition_id": definition.id,
+                "code": definition.code,
                 "approved_revision_id": revision.id,
                 "active_authority_revision_id": revision.id,
-                "coefficient_context_id": context.id,
-                "source_binding_coefficient_context_id": binding.coefficient_context_id,
+                "coefficient_context_id": None,
+                "source_binding_coefficient_context_id": None,
                 "definition_category": definition.category,
                 "revision_status": revision.status,
                 "revision_source_type": revision.source_type,
-                "execution_consumed_stages": [
-                    stage
-                    for stage, result in continuity.items()
-                    if any(
-                        binding_item["code"] == CONTROLLED_COEFFICIENT_CODE
-                        for binding_item in result["bindings"]
-                    )
-                ],
+                "execution_consumed_stages": [],
             },
             "verified_scheme_status": verified.status,
         }
@@ -919,7 +783,11 @@ def create_controlled_production_authority(
             database_backend="postgresql" if engine.dialect.name == "postgresql" else "sqlite",
         )
     )
-    authority = read_production_authority(engine, run_id=run.id)
+    authority = read_production_authority(
+        engine,
+        run_id=run.id,
+        controlled_definition_id=definition_id,
+    )
     controlled = dict(authority["controlled_coefficient"])
     controlled.update(
         {
@@ -988,6 +856,7 @@ def _build_parser() -> argparse.ArgumentParser:
     reload = sub.add_parser("reload-production-authority")
     reload.add_argument("--database-url", required=True)
     reload.add_argument("--run-id", required=True)
+    reload.add_argument("--definition-id", required=True)
     reload.add_argument("--output", type=Path, required=True)
     return parser
 
@@ -1007,7 +876,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 output_path=args.output,
             )
         elif args.command == "reload-production-authority":
-            _write_json(args.output, read_production_authority(engine, run_id=args.run_id))
+            _write_json(
+                args.output,
+                read_production_authority(
+                    engine,
+                    run_id=args.run_id,
+                    controlled_definition_id=args.definition_id,
+                ),
+            )
         else:
             raise RuntimeError(f"unsupported command: {args.command}")
         return 0

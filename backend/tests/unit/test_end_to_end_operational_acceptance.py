@@ -80,8 +80,6 @@ def _observations() -> dict[str, object]:
                 "approved_revision_definition_id": coefficient_id,
                 "approved_revision_id": revision_id,
                 "active_authority_revision_id": revision_id,
-                "coefficient_context_id": context_id,
-                "source_binding_coefficient_context_id": context_id,
             },
             "planning_agent": {
                 "response": {
@@ -118,6 +116,7 @@ def _observations() -> dict[str, object]:
                             "calculation_id": f"{name}-calculation",
                             "calculation_type": name,
                             "result_hash": digest,
+                            "requires_review": name == "investment",
                         }
                         for name in acceptance.S6_07_STAGE_NAMES
                     ],
@@ -144,8 +143,10 @@ def _observations() -> dict[str, object]:
                         "definition_id": coefficient_id,
                         "approved_revision_id": revision_id,
                         "active_authority_revision_id": revision_id,
-                        "coefficient_context_id": context_id,
-                        "source_binding_coefficient_context_id": context_id,
+                    },
+                    "coefficient_execution_continuity": {
+                        "result": "NOT_REQUIRED_BY_V0_2_OPERATIONAL_ACCEPTANCE",
+                        "available": False,
                     },
                     "power_authority": {
                         "slot_id": "power",
@@ -333,12 +334,16 @@ def test_runtime_coefficient_authority_requires_active_composition_token() -> No
     _assert_derived_failure(data, "S6_07_COEFFICIENT_AUTHORITY_INVALID")
 
 
-def test_http_coefficient_and_source_binding_from_different_authorities_fail_closed() -> None:
+def test_requires_review_warning_is_not_operational_failure() -> None:
     data = _mutable_observations()
-    data["persistence_e2e"]["scheme"]["canonical_persistence"]["source_binding"][
-        "coefficient_context_id"
-    ] = "different-context"
-    _assert_derived_failure(data, "S6_07_COEFFICIENT_AUTHORITY_INVALID")
+    stages = data["persistence_e2e"]["scheme"]["canonical_persistence"]["stages"]
+    for stage in stages:
+        stage["requires_review"] = True
+    acceptance._derive_assertions(  # noqa: SLF001
+        data,
+        source_sha=SOURCE_SHA,
+        source_tree_sha=SOURCE_TREE_SHA,
+    )
 
 
 def test_importable_database_coefficient_class_is_not_sufficient_authority() -> None:
