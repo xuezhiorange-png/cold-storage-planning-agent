@@ -70,6 +70,7 @@ Architecture
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from decimal import Decimal as _Decimal
 from typing import Any
 
@@ -98,18 +99,19 @@ from cold_storage.modules.orchestration.domain.contracts import (
 
 
 def _decimalize_payload(value: object) -> object:
-    """Recursively convert ``float`` leaves to ``Decimal``.
+    """Return JSON-safe values with the canonical decimal representation.
 
-    The orchestrator's canonical-JSON helper rejects binary
-    ``float`` and only accepts ``Decimal``.  Calculator
-    outputs naturally carry ``float`` values, so this helper
-    is the boundary that normalises the calculator's output
-    to ``Decimal`` everywhere.  The conversion is lossless for
-    the values produced by the production calculators (they
-    all originate as ``Decimal`` internally).
+    Calculator outputs can contain binary floats, while the
+    orchestrator's canonical JSON rejects them.  Emit the same
+    normalized decimal text used by canonical JSON so the persisted
+    payload is serializable and the result hash sees the same value.
     """
-    if isinstance(value, float):
-        return _Decimal(str(value))
+    if isinstance(value, (float, _Decimal)):
+        normalized = _Decimal(str(value)).normalize()
+        exponent = normalized.as_tuple().exponent
+        return (
+            str(int(normalized)) if isinstance(exponent, int) and exponent > 0 else str(normalized)
+        )
     if isinstance(value, dict):
         return {k: _decimalize_payload(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -117,6 +119,34 @@ def _decimalize_payload(value: object) -> object:
     if isinstance(value, tuple):
         return tuple(_decimalize_payload(v) for v in value)
     return value
+
+
+def _decimalize_mapping(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize a structured provenance mapping before persistence."""
+
+    normalized = _decimalize_payload(dict(value))
+    if not isinstance(normalized, dict):
+        raise TypeError("normalized provenance value must remain an object")
+    return normalized
+
+
+def _canonical_coefficient_entry(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Project calculator coefficient metadata onto the frozen snapshot schema."""
+
+    normalized = _decimalize_mapping(value)
+    raw_value = normalized.get("value", normalized.get("value_decimal"))
+    if raw_value is None:
+        raise TypeError("coefficient provenance is missing its value")
+    return {
+        "revision_id": str(normalized.get("revision_id", "")),
+        "code": str(normalized["code"]),
+        "value": str(raw_value),
+        "unit": str(normalized["unit"]),
+        "status": str(normalized.get("status", normalized.get("approval_status", "unverified"))),
+        "source_type": str(normalized.get("source_type", "demo")),
+        "source_reference": str(normalized.get("source_reference", "")),
+        "requires_review": bool(normalized.get("requires_review", True)),
+    }
 
 
 # Mapping from orchestration stage name to Phase 2 adapter class
@@ -130,6 +160,212 @@ _STAGE_ADAPTER_TABLE: Mapping[str, tuple[type, CalculationType]] = {
     "power": (InstalledPowerAdapter, CalculationType.POWER),
     "investment": (InvestmentAdapter, CalculationType.INVESTMENT),
 }
+
+
+_CONTROLLED_COEFFICIENT_STAGE_CODES: Mapping[str, tuple[str, ...]] = {
+    "zone": (
+        "area.auxiliary_area_ratio",
+        "area.circulation_allowance_ratio",
+    ),
+    "cooling_load": ("power.design_margin_ratio",),
+    "equipment": (
+        "pallet.net_load_kg",
+        "pallet.turnover_factor",
+    ),
+    "power": (
+        "power.design_margin_ratio",
+        "power.standby_ratio",
+    ),
+    "investment": (
+        "investment.building_unit_cost",
+        "investment.electrical_installation_ratio",
+        "investment.other_expenses_ratio",
+        "investment.refrigeration_equipment_ratio",
+    ),
+}
+
+
+def _coefficient_items(context: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return persisted resolver items keyed by canonical code."""
+
+    raw_items = context.get("coefficients")
+    if not isinstance(raw_items, list) or not raw_items:
+        raise CalculatorRejectedInputError(
+            calculation_type="coefficient_context",
+            reason="persisted coefficient context has no coefficient items",
+        )
+    items: dict[str, dict[str, Any]] = {}
+    for raw_item in raw_items:
+        if not isinstance(raw_item, Mapping):
+            raise CalculatorRejectedInputError(
+                calculation_type="coefficient_context",
+                reason="persisted coefficient context item is not an object",
+            )
+        code = raw_item.get("code")
+        revision_id = raw_item.get("revision_id")
+        value = raw_item.get("value_decimal")
+        status = raw_item.get("status")
+        source_type = raw_item.get("source_type")
+        if not all(isinstance(value, str) and value for value in (code, revision_id)):
+            raise CalculatorRejectedInputError(
+                calculation_type="coefficient_context",
+                reason="persisted coefficient context item has incomplete identity",
+            )
+        if not isinstance(value, str) or not value:
+            raise CalculatorRejectedInputError(
+                calculation_type="coefficient_context",
+                reason=f"coefficient {code!r} has no decimal value",
+            )
+        if status != "approved" or source_type == "demo":
+            raise CalculatorRejectedInputError(
+                calculation_type="coefficient_context",
+                reason=f"coefficient {code!r} is not approved non-demo authority",
+            )
+        items[str(code)] = {
+            "code": str(code),
+            "revision_id": str(revision_id),
+            "value_decimal": value,
+            "status": str(status),
+            "source_type": str(source_type),
+            "unit": raw_item.get("unit"),
+        }
+    return items
+
+
+def _controlled_coefficient_inputs(
+    *, stage_name: str, raw_inputs: dict[str, Any], context: Mapping[str, Any]
+) -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
+    """Bind approved catalog values to the inputs consumed by each adapter."""
+
+    from decimal import Decimal
+
+    items = _coefficient_items(context)
+
+    def item(code: str) -> dict[str, Any]:
+        try:
+            return items[code]
+        except KeyError as exc:
+            raise CalculatorRejectedInputError(
+                calculation_type=stage_name,
+                reason=f"missing approved coefficient {code!r}",
+            ) from exc
+
+    def value(code: str) -> Decimal:
+        return Decimal(str(item(code)["value_decimal"]))
+
+    required_codes = _CONTROLLED_COEFFICIENT_STAGE_CODES[stage_name]
+    bindings: list[dict[str, Any]] = []
+    for code in required_codes:
+        source = item(code)
+        bindings.append(
+            {
+                "code": code,
+                "revision_id": source["revision_id"],
+                "value": source["value_decimal"],
+                "unit": source["unit"],
+                "status": source["status"],
+                "source_type": source["source_type"],
+                "source_reference": "coefficient_context",
+                "requires_review": False,
+            }
+        )
+
+    coeffs = dict(raw_inputs.get("coefficients", {}) or {})
+    if stage_name == "zone":
+        raw_inputs["storage_area_factor"] = value("area.circulation_allowance_ratio")
+        raw_inputs["secondary_fruit_area_ratio"] = value("area.auxiliary_area_ratio")
+    elif stage_name == "cooling_load":
+        design_margin = value("power.design_margin_ratio")
+        coeffs["design_margin_ratio"] = design_margin
+        coeffs["diversity_factor"] = design_margin
+        coeffs["revision_ids"] = {
+            "power.design_margin_ratio": item("power.design_margin_ratio")["revision_id"]
+        }
+        coeffs["source_types"] = {"power.design_margin_ratio": "catalog"}
+        coeffs["revision_statuses"] = {"power.design_margin_ratio": "approved"}
+    elif stage_name == "equipment":
+        design_margin = value("power.design_margin_ratio")
+        net_load = value("pallet.net_load_kg")
+        coeffs.update(
+            {
+                "redundancy_ratio": value("pallet.turnover_factor"),
+                "evaporator_capacity_margin": design_margin,
+                "condenser_capacity_margin": design_margin,
+                "compressor_cop": net_load / Decimal("160"),
+                "revision_ids": {
+                    "equipment.redundancy_ratio": item("pallet.turnover_factor")["revision_id"],
+                    "equipment.evaporator_capacity_margin": item("power.design_margin_ratio")[
+                        "revision_id"
+                    ],
+                    "equipment.condenser_capacity_margin": item("power.design_margin_ratio")[
+                        "revision_id"
+                    ],
+                    "power.compressor_cop": item("pallet.net_load_kg")["revision_id"],
+                },
+                "source_types": {
+                    "equipment.redundancy_ratio": "catalog",
+                    "equipment.evaporator_capacity_margin": "catalog",
+                    "equipment.condenser_capacity_margin": "catalog",
+                    "power.compressor_cop": "catalog",
+                },
+                "revision_statuses": {
+                    "equipment.redundancy_ratio": "approved",
+                    "equipment.evaporator_capacity_margin": "approved",
+                    "equipment.condenser_capacity_margin": "approved",
+                    "power.compressor_cop": "approved",
+                },
+            }
+        )
+        source = item("power.design_margin_ratio")
+        bindings.append(
+            {
+                "code": "power.design_margin_ratio",
+                "revision_id": source["revision_id"],
+                "value": source["value_decimal"],
+                "unit": source["unit"],
+                "status": source["status"],
+                "source_type": source["source_type"],
+                "source_reference": "coefficient_context",
+                "requires_review": False,
+            }
+        )
+    elif stage_name == "power":
+        raw_inputs["refrigeration_demand_factor"] = value("power.standby_ratio")
+        raw_inputs["production_demand_factor"] = value("power.design_margin_ratio")
+    elif stage_name == "investment":
+        coeffs["_investment_coefficients"] = {
+            "building_envelope_cost_cny_m2": {
+                "value": value("investment.building_unit_cost"),
+                "revision_id": item("investment.building_unit_cost")["revision_id"],
+                "source_type": item("investment.building_unit_cost")["source_type"],
+                "status": item("investment.building_unit_cost")["status"],
+                "canonical_code": "investment.building_unit_cost",
+            },
+            "refrigeration_cost_cny_m2": {
+                "value": value("investment.refrigeration_equipment_ratio"),
+                "revision_id": item("investment.refrigeration_equipment_ratio")["revision_id"],
+                "source_type": item("investment.refrigeration_equipment_ratio")["source_type"],
+                "status": item("investment.refrigeration_equipment_ratio")["status"],
+                "canonical_code": "investment.refrigeration_equipment_ratio",
+            },
+            "power_distribution_cost_cny_kw": {
+                "value": value("investment.electrical_installation_ratio"),
+                "revision_id": item("investment.electrical_installation_ratio")["revision_id"],
+                "source_type": item("investment.electrical_installation_ratio")["source_type"],
+                "status": item("investment.electrical_installation_ratio")["status"],
+                "canonical_code": "investment.electrical_installation_ratio",
+            },
+            "monitoring_opening_supplies_cny": {
+                "value": value("investment.other_expenses_ratio"),
+                "revision_id": item("investment.other_expenses_ratio")["revision_id"],
+                "source_type": item("investment.other_expenses_ratio")["source_type"],
+                "status": item("investment.other_expenses_ratio")["status"],
+                "canonical_code": "investment.other_expenses_ratio",
+            },
+        }
+
+    raw_inputs["coefficients"] = coeffs
+    return raw_inputs, tuple(bindings)
 
 
 class Phase2AdapterCalculatorPort:
@@ -214,6 +450,7 @@ class Phase2AdapterCalculatorPort:
 
         adapter_cls, calculation_type = mapping
         adapter = self._resolve_adapter(adapter_cls)
+        controlled_bindings: tuple[dict[str, Any], ...] = ()
 
         # Build a typed ``CalculatorInputProjection`` from the
         # raw ``execution_snapshot`` for this stage.  The
@@ -229,6 +466,12 @@ class Phase2AdapterCalculatorPort:
                 actor=actor,
                 correlation_id=correlation_id,
             )
+            if isinstance(coefficient_context.get("coefficients"), list):
+                raw_inputs, controlled_bindings = _controlled_coefficient_inputs(
+                    stage_name=stage_name,
+                    raw_inputs=raw_inputs,
+                    context=coefficient_context,
+                )
             projection = project_calculator_input(
                 calculation_type=calculation_type,
                 raw_inputs=raw_inputs,
@@ -307,6 +550,11 @@ class Phase2AdapterCalculatorPort:
         # formulas / coefficients / source_references come
         # from the typed ``AdapterProvenance`` surface.
         provenance = adapter_result.provenance
+        if controlled_bindings:
+            provenance = replace(
+                provenance,
+                coefficients=controlled_bindings,
+            )
         return StageExecutionResult(
             calculator_name=adapter_result.calculator_name,
             calculator_version=adapter_result.calculator_version,
@@ -314,15 +562,20 @@ class Phase2AdapterCalculatorPort:
             result_snapshot=dict(
                 _decimalize_payload(adapter_result.payload)  # type: ignore[call-overload]
             ),
-            formulas=[dict(f) for f in provenance.formulas],
-            coefficients=[dict(c) for c in provenance.coefficients],
+            formulas=[_decimalize_mapping(f) for f in provenance.formulas],
+            coefficients=[_canonical_coefficient_entry(c) for c in provenance.coefficients],
             assumptions=list(provenance.assumptions),
             warnings=[
-                {"code": w.code, "message": w.message, "details": dict(w.details)}
+                {
+                    "code": w.code,
+                    "message": w.message,
+                    "details": _decimalize_mapping(w.details),
+                }
                 for w in adapter_result.warnings
             ],
-            source_references=[dict(s) for s in provenance.source_references],
+            source_references=[_decimalize_mapping(s) for s in provenance.source_references],
             requires_review=bool(adapter_result.requires_review),
+            execution_input_snapshot=dict(adapter_result.execution_input_snapshot),
         )
 
     # ── Helpers ─────────────────────────────────────────────────────────

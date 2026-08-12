@@ -122,7 +122,7 @@ def _to_decimal(value: Any) -> Decimal:
 
 
 def _to_float(value: Any) -> Any:
-    """Boundary helper: accept ``Decimal`` or numeric, return ``float``.
+    """Boundary helper: accept serialized numeric values, return ``float``.
 
     The production calculators (e.g. ``ColdRoomZonePlanInput``)
     are typed ``float`` and Python's ``Decimal * float`` raises
@@ -132,6 +132,29 @@ def _to_float(value: Any) -> Any:
     """
     if isinstance(value, Decimal):
         return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return value
+    return value
+
+
+def _decimalize_execution_input(value: object) -> object:
+    """Normalize the calculator's returned input snapshot for JSON storage."""
+
+    if isinstance(value, (float, Decimal)):
+        normalized = _to_decimal(value).normalize()
+        exponent = normalized.as_tuple().exponent
+        return (
+            str(int(normalized)) if isinstance(exponent, int) and exponent > 0 else str(normalized)
+        )
+    if isinstance(value, Mapping):
+        return {str(key): _decimalize_execution_input(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_decimalize_execution_input(item) for item in value]
+    if isinstance(value, tuple):
+        return [_decimalize_execution_input(item) for item in value]
     return value
 
 
@@ -235,6 +258,271 @@ def _build_source_refs(
     return tuple(dict(s) for s in getattr(result, "source_references", []) or [])
 
 
+def _canonical_cooling_snapshot_payload(
+    result: LegacyOrNewCalculationResult,
+) -> dict[str, Any]:
+    """Project the cooling calculator result onto the persisted snapshot schema.
+
+    The Phase 2 cooling calculator reports a detailed zone-oriented payload,
+    while the durable orchestration snapshot retains the established aggregate
+    component contract.  Keep this translation at the adapter boundary so the
+    calculator remains the sole producer of the engineering values and the
+    snapshot verifier can continue to enforce its strict schema.
+    """
+
+    payload = result.result
+    if not isinstance(payload, Mapping) or not isinstance(payload.get("zones"), list):
+        return dict(payload) if isinstance(payload, Mapping) else {}
+
+    from decimal import Decimal
+
+    def decimal(value: object) -> Decimal:
+        return Decimal(str(value))
+
+    def text(value: Decimal) -> str:
+        normalized = value.normalize()
+        exponent = normalized.as_tuple().exponent
+        if isinstance(exponent, int) and exponent > 0:
+            return str(int(normalized))
+        return str(normalized)
+
+    totals = {
+        "envelope_heat_transfer_load_kw": Decimal("0"),
+        "product_sensible_heat_load_kw": Decimal("0"),
+        "packaging_load_kw": Decimal("0"),
+        "infiltration_load_kw": Decimal("0"),
+        "personnel_load_kw": Decimal("0"),
+        "lighting_load_kw": Decimal("0"),
+        "evaporator_fan_load_kw": Decimal("0"),
+        "defrost_additional_load_kw": Decimal("0"),
+    }
+    steps = list(getattr(result, "steps", []) or [])
+    for zone in payload["zones"]:
+        if not isinstance(zone, Mapping):
+            continue
+        totals["envelope_heat_transfer_load_kw"] += decimal(zone.get("transmission_load_kw_r", 0))
+        product_total = decimal(zone.get("product_load_kw_r", 0))
+        packaging = Decimal("0")
+        respiration = Decimal("0")
+        zone_name = str(zone.get("zone_name", ""))
+        for step in steps:
+            description = str(getattr(step, "description", ""))
+            if zone_name and not description.endswith(zone_name):
+                continue
+            if getattr(step, "output_name", "") != "total_product_load_kw_r":
+                continue
+            inputs = getattr(step, "inputs", {})
+            if isinstance(inputs, Mapping):
+                packaging = decimal(inputs.get("packaging_load_kw", 0))
+                respiration = decimal(inputs.get("respiration_load_kw", 0))
+            break
+        totals["product_sensible_heat_load_kw"] += product_total - packaging - respiration
+        totals["packaging_load_kw"] += packaging
+        totals["infiltration_load_kw"] += decimal(zone.get("infiltration_load_kw_r", 0))
+        totals["personnel_load_kw"] += decimal(zone.get("people_load_kw_r", 0))
+        totals["lighting_load_kw"] += decimal(zone.get("lighting_load_kw_r", 0))
+        totals["evaporator_fan_load_kw"] += decimal(zone.get("evaporator_fan_load_kw_r", 0))
+        totals["defrost_additional_load_kw"] += decimal(zone.get("defrost_load_kw_r", 0))
+
+    return {
+        "total_cooling_load_kw": text(decimal(payload.get("design_refrigeration_load_kw_r", 0))),
+        "safety_margin_load_kw": text(decimal(payload.get("design_margin_kw_r", 0))),
+        "envelope_heat_transfer_load_kw": text(totals["envelope_heat_transfer_load_kw"]),
+        "product_sensible_heat_load_kw": text(totals["product_sensible_heat_load_kw"]),
+        "packaging_load_kw": text(totals["packaging_load_kw"]),
+        "infiltration_load_kw": text(totals["infiltration_load_kw"]),
+        "personnel_load_kw": text(totals["personnel_load_kw"]),
+        "lighting_load_kw": text(totals["lighting_load_kw"]),
+        "evaporator_fan_load_kw": text(totals["evaporator_fan_load_kw"]),
+        "defrost_additional_load_kw": text(totals["defrost_additional_load_kw"]),
+        "other_configuration_load_kw": "0",
+    }
+
+
+def _canonical_equipment_snapshot_payload(
+    result: LegacyOrNewCalculationResult,
+    context: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project equipment capability output onto the durable snapshot schema."""
+
+    payload = result.result
+    if not isinstance(payload, Mapping) or not isinstance(payload.get("systems"), list):
+        return dict(payload) if isinstance(payload, Mapping) else {}
+
+    from decimal import Decimal
+
+    def decimal(value: object) -> Decimal:
+        return Decimal(str(value))
+
+    def text(value: Decimal) -> str:
+        normalized = value.normalize()
+        exponent = normalized.as_tuple().exponent
+        if isinstance(exponent, int) and exponent > 0:
+            return str(int(normalized))
+        return str(normalized)
+
+    systems = [system for system in payload["systems"] if isinstance(system, Mapping)]
+    if not systems:
+        return {}
+    first_system = systems[0]
+    zones = [
+        zone for system in systems for zone in system.get("zones", []) if isinstance(zone, Mapping)
+    ]
+    condensing_temperature = context.get("condensing_temperature_c")
+    if condensing_temperature is None:
+        raise CalculatorRejectedInputError(
+            calculation_type=CalculationType.EQUIPMENT.value,
+            reason="equipment snapshot requires condensing_temperature_c input",
+        )
+
+    return {
+        "evaporator_total_cooling_capacity_kw": text(
+            sum(
+                (decimal(system.get("evaporator_total_capacity_kw_r", 0)) for system in systems),
+                Decimal("0"),
+            )
+        ),
+        "evaporator_quantity": sum(int(system.get("evaporator_count", 0)) for system in systems),
+        "single_evaporator_capacity_kw": text(
+            sum(
+                (decimal(system.get("evaporator_total_capacity_kw_r", 0)) for system in systems),
+                Decimal("0"),
+            )
+            / max(sum(int(system.get("evaporator_count", 0)) for system in systems), 1)
+        ),
+        "compressor_operating_capacity_kw": text(
+            sum(
+                (
+                    decimal(system.get("compressor_operating_capacity_kw_r", 0))
+                    for system in systems
+                ),
+                Decimal("0"),
+            )
+        ),
+        "compressor_installed_capacity_kw": text(
+            sum(
+                (
+                    decimal(system.get("compressor_installed_capacity_kw_r", 0))
+                    for system in systems
+                ),
+                Decimal("0"),
+            )
+        ),
+        "standby_capacity_kw": text(
+            sum(
+                (decimal(system.get("compressor_standby_capacity_kw_r", 0)) for system in systems),
+                Decimal("0"),
+            )
+        ),
+        "condenser_heat_rejection_capacity_kw": text(
+            sum(
+                (decimal(system.get("condenser_heat_rejection_kw", 0)) for system in systems),
+                Decimal("0"),
+            )
+        ),
+        "evaporation_temperature_c": str(
+            first_system.get(
+                "design_evaporating_temperature_c", zones[0].get("evaporation_temperature_c")
+            )
+        ),
+        "condensing_temperature_c": str(condensing_temperature),
+        "defrost_method": ",".join(
+            sorted(
+                {str(method) for system in systems for method in system.get("defrost_methods", [])}
+            )
+        ),
+        "review_requirement": "",
+    }
+
+
+def _canonical_power_snapshot_payload(
+    result: LegacyOrNewCalculationResult,
+) -> dict[str, Any]:
+    """Project installed-power output onto the durable snapshot schema."""
+
+    payload = result.result
+    if not isinstance(payload, Mapping):
+        return {}
+
+    from decimal import Decimal
+
+    def decimal(value: object) -> Decimal:
+        return Decimal(str(value))
+
+    def text(value: Decimal) -> str:
+        normalized = value.normalize()
+        exponent = normalized.as_tuple().exponent
+        if isinstance(exponent, int) and exponent > 0:
+            return str(int(normalized))
+        return str(normalized)
+
+    component_rows = (
+        ("refrigeration", "refrigeration_system_installed_power_kw_e"),
+        ("processing", "process_equipment_installed_power_kw_e"),
+        ("lighting", "lighting_installed_power_kw_e"),
+        ("auxiliary", "auxiliary_installed_power_kw_e"),
+    )
+    demand_factors = {"refrigeration": Decimal("1"), "processing": Decimal("1")}
+    for step in list(getattr(result, "steps", []) or []):
+        if getattr(step, "output_name", "") != "estimated_peak_demand_kw_e":
+            continue
+        inputs = getattr(step, "inputs", {})
+        if isinstance(inputs, Mapping):
+            demand_factors["refrigeration"] = decimal(
+                inputs.get("refrigeration_demand_factor", "1")
+            )
+            demand_factors["processing"] = decimal(inputs.get("production_demand_factor", "1"))
+        break
+
+    items: list[dict[str, Any]] = []
+    summary_rows: list[dict[str, Any]] = []
+    for category, field_name in component_rows:
+        installed = decimal(payload.get(field_name, 0))
+        demand_factor = demand_factors.get(category, Decimal("1"))
+        items.append(
+            {
+                "category": category,
+                "installed_power_kw": text(installed),
+                "demand_factor": text(demand_factor),
+                "estimated_demand_kw": text(installed * demand_factor),
+            }
+        )
+        summary_rows.append(
+            {
+                "name": category,
+                "basis": "canonical_installed_power_calculator",
+                "total_power_kw": text(installed),
+            }
+        )
+
+    equipment_rows = []
+    for sequence, raw_item in enumerate(payload.get("equipment_items", []), start=1):
+        if not isinstance(raw_item, Mapping):
+            continue
+        equipment_rows.append(
+            {
+                "sequence": sequence,
+                "name": str(raw_item.get("name", "")),
+                "area": str(raw_item.get("category", "")),
+                "quantity": text(decimal(raw_item.get("quantity", 0))),
+                "defrost_power_kw": None,
+                "defrost_total_power_kw": None,
+                "running_power_kw": str(raw_item.get("unit_power_kw_e", "0")),
+                "total_power_kw": str(raw_item.get("total_power_kw_e", "0")),
+                "section": str(raw_item.get("category", "")),
+            }
+        )
+
+    return {
+        "total_installed_power_kw_e": text(decimal(payload.get("total_installed_power_kw_e", 0))),
+        "total_estimated_demand_kw": text(decimal(payload.get("estimated_peak_demand_kw_e", 0))),
+        "equipment_rows": equipment_rows,
+        "summary_rows": summary_rows,
+        "items": items,
+        "assumptions": list(getattr(result, "assumptions", []) or []),
+    }
+
+
 def _build_provenance(result: LegacyOrNewCalculationResult) -> AdapterProvenance:
     return AdapterProvenance(
         formulas=_build_formula_refs(result),
@@ -269,6 +557,8 @@ def _build_adapter_result(
     *,
     calculation_type: CalculationType,
     result: LegacyOrNewCalculationResult,
+    snapshot_context: Mapping[str, Any] | None = None,
+    execution_input_snapshot: Mapping[str, Any] | None = None,
 ) -> AdapterResult:
     """Translate a :class:`CalculationResult` into an :class:`AdapterResult`.
 
@@ -276,8 +566,24 @@ def _build_adapter_result(
     construction.  Adapters call this helper after invoking the
     underlying calculator.
     """
-    payload = freeze_for_hash(result.result) if result.result else {}
+    if calculation_type is CalculationType.COOLING_LOAD:
+        result_payload = _canonical_cooling_snapshot_payload(result)
+    elif calculation_type is CalculationType.EQUIPMENT:
+        result_payload = _canonical_equipment_snapshot_payload(result, snapshot_context or {})
+    elif calculation_type is CalculationType.POWER:
+        result_payload = _canonical_power_snapshot_payload(result)
+    else:
+        result_payload = result.result
+    payload = freeze_for_hash(result_payload) if result_payload else {}
     content_hash = compute_content_hash(payload) if payload else ""
+    raw_execution_input: object = execution_input_snapshot
+    if raw_execution_input is None:
+        raw_execution_input = getattr(result, "input_snapshot", None)
+    if raw_execution_input is None:
+        raw_execution_input = getattr(result, "input", {})
+    normalized_execution_input = _decimalize_execution_input(raw_execution_input)
+    if not isinstance(normalized_execution_input, dict):
+        raise TypeError("calculator execution input snapshot must be an object")
     # The calculator may have flagged failure via ``success=False``
     # without populating a structured ``errors`` list.  The newer
     # ``models.CalculationResult`` uses this pattern.  The legacy
@@ -294,6 +600,7 @@ def _build_adapter_result(
         calculator_name=result.calculator_name,
         calculator_version=result.calculator_version,
         calculator_success=bool(result.success),
+        execution_input_snapshot=normalized_execution_input,
     )
     assert_requires_review_propagated(
         calculator_requires_review=bool(result.requires_review),
@@ -509,6 +816,8 @@ class EquipmentCapabilityAdapter:
         return _build_adapter_result(
             calculation_type=CalculationType.EQUIPMENT,
             result=result,
+            snapshot_context=projection.raw_inputs,
+            execution_input_snapshot=projection.raw_inputs,
         )
 
     @staticmethod
@@ -635,6 +944,8 @@ class InstalledPowerAdapter:
             "processing_equipment_power_kw_e",
             "lighting_power_kw_e",
             "other_auxiliary_power_kw_e",
+            "refrigeration_demand_factor",
+            "production_demand_factor",
         )
         kwargs: dict[str, Any] = {}
         for field_name in decimal_fields:
@@ -702,10 +1013,23 @@ class InvestmentAdapter:
                 reason=f"investment input rejected: {exc}",
             ) from exc
 
-        result = self._estimator.estimate(typed_input)
+        coefficients_raw = projection.raw_inputs.get("coefficients", {})
+        coefficients = dict(coefficients_raw) if isinstance(coefficients_raw, Mapping) else {}
+        overrides_raw = coefficients.get("_investment_coefficients")
+        estimator = self._estimator
+        if isinstance(overrides_raw, Mapping):
+            estimator = InvestmentEstimator(
+                coefficient_overrides={
+                    str(code): dict(metadata)
+                    for code, metadata in overrides_raw.items()
+                    if isinstance(metadata, Mapping)
+                }
+            )
+        result = estimator.estimate(typed_input)
         return _build_adapter_result(
             calculation_type=CalculationType.INVESTMENT,
             result=result,
+            execution_input_snapshot=projection.raw_inputs,
         )
 
 

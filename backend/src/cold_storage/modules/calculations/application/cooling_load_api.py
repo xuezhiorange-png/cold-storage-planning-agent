@@ -105,12 +105,28 @@ def build_cooling_load_input(inputs: dict[str, Any]) -> CoolingLoadCalcInput:
                 product_mass_per_day=_to_decimal(z.get("product_mass_per_day", 0)),
                 product_entry_temperature=product_entry_temperature,
                 product_target_temperature=product_target_temperature,
+                product_specific_heat=(
+                    _to_decimal(z["product_specific_heat"])
+                    if "product_specific_heat" in z
+                    else None
+                ),
                 cooling_duration=cooling_duration,
                 packaging_mass=_to_decimal(z.get("packaging_mass", 0)),
+                packaging_specific_heat=(
+                    _to_decimal(z["packaging_specific_heat"])
+                    if "packaging_specific_heat" in z
+                    else None
+                ),
                 worker_count=int(z.get("worker_count", 0)),
+                worker_heat_gain=(
+                    _to_decimal(z["worker_heat_gain"]) if "worker_heat_gain" in z else None
+                ),
                 lighting_power=_to_decimal(z.get("lighting_power", 0)),
                 equipment_power=_to_decimal(z.get("equipment_power", 0)),
                 fan_motor_power=_to_decimal(z.get("fan_motor_power", 0)),
+                motor_efficiency=(
+                    _to_decimal(z["motor_efficiency"]) if "motor_efficiency" in z else None
+                ),
             )
         )
 

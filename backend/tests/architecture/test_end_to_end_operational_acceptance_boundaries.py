@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODULE = PROJECT_ROOT / "backend/src/cold_storage/release/end_to_end_operational_acceptance.py"
-FIXTURE = PROJECT_ROOT / "backend/src/cold_storage/release/s6_07_controlled_fixture.py"
+FIXTURE = PROJECT_ROOT / "backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py"
 WORKFLOW = PROJECT_ROOT / ".github/workflows/task012-slice6-s7-e2e-operational-acceptance.yml"
 INTEGRATION = PROJECT_ROOT / "backend/tests/integration/test_end_to_end_operational_acceptance.py"
 
@@ -173,6 +174,57 @@ def test_controlled_fixture_is_formal_non_production_support_boundary() -> None:
         "s6_07_controlled_fixture" not in path.read_text(encoding="utf-8")
         for path in production_files
     )
+
+
+def test_controlled_support_does_not_construct_production_output_orm() -> None:
+    tree = ast.parse(FIXTURE.read_text(encoding="utf-8"))
+    forbidden = {"CalculationRunRecord", "SourceBindingRecord"}
+    calls = [
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    ]
+    assert forbidden.isdisjoint(calls)
+
+
+def test_controlled_support_uses_canonical_production_execution_surface() -> None:
+    content = FIXTURE.read_text(encoding="utf-8")
+    source_binding = (
+        PROJECT_ROOT
+        / "backend/src/cold_storage/modules/orchestration/application/production_source_binding.py"
+    ).read_text(encoding="utf-8")
+    for required in (
+        "OrchestrationService",
+        "ProductionSourceBindingUseCase",
+        "compose_production_source_binding_use_case_with_strict_resolver",
+        "generate_production_scheme_run",
+        "SqlAlchemyVerificationReadPort",
+    ):
+        assert required in content
+    assert "execute_transaction_b" in source_binding
+
+
+def test_controlled_support_is_outside_pure_release_package() -> None:
+    release_root = PROJECT_ROOT / "backend/src/cold_storage/release"
+    assert not (release_root / "s6_07_controlled_fixture.py").exists()
+    fixture = FIXTURE.read_text(encoding="utf-8")
+    assert "from sqlalchemy" in fixture
+    assert "modules.infrastructure.orm" not in fixture
+
+
+def test_strict_acceptance_sets_explicit_probe_timeouts() -> None:
+    integration = INTEGRATION.read_text(encoding="utf-8")
+    assert 'COLD_STORAGE_ENVIRONMENT_ID", "production"' in integration
+    assert 'COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "120"' in integration
+    assert 'COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "30"' in integration
+
+
+def test_workflow_requires_package3_and_base_lineage() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "git merge-base --is-ancestor" in workflow
+    assert "5adda901285b8a567dac10460dd9e9fa72ea58a0" in workflow
+    assert "c287aba48201ac9bfc0786f62911cd25fabf3fc4" in workflow
+    assert '"${GITHUB_SHA}"' in workflow
 
 
 def test_strict_acceptance_fixture_declares_resource_identity_and_storage_contract() -> None:

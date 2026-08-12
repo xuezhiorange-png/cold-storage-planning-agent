@@ -193,8 +193,8 @@ class ProductionSourceBindingUseCase:
         command: OrchestrationRequestCommand,
         execution_snapshot_payload: dict[str, Any],
         coefficient_context_payload: dict[str, Any],
-        execution_snapshot_id: str,
-        coefficient_context_id: str,
+        execution_snapshot_id: str | None = None,
+        coefficient_context_id: str | None = None,
     ) -> ProductionSourceBindingOutcome:
         """Run Transaction A + Transaction B for a real production attempt.
 
@@ -276,6 +276,14 @@ class ProductionSourceBindingUseCase:
                 f"refusing to run Transaction B"
             )
 
+        # Transaction A is authoritative for these two identities. Older
+        # callers may still supply them explicitly, but the canonical path
+        # consumes the rows returned by Transaction A.
+        resolved_execution_snapshot_id = execution_snapshot_id or accepted.execution_snapshot_id
+        resolved_coefficient_context_id = coefficient_context_id or accepted.coefficient_context_id
+        if not resolved_execution_snapshot_id or not resolved_coefficient_context_id:
+            raise RuntimeError("Transaction A did not return durable execution context identities")
+
         # Transaction B: five-stage calculator execution.
         # The orchestrator's canonical-JSON helper rejects binary
         # ``float``; normalise the caller-supplied payloads to
@@ -287,8 +295,8 @@ class ProductionSourceBindingUseCase:
             request_id=accepted.request_id,
             project_id=command.project_id,
             project_version_id=command.project_version_id,
-            execution_snapshot_id=execution_snapshot_id,
-            coefficient_context_id=coefficient_context_id,
+            execution_snapshot_id=resolved_execution_snapshot_id,
+            coefficient_context_id=resolved_coefficient_context_id,
             orchestration_identity_id=accepted.identity_id,
             orchestration_attempt_id=accepted.attempt_id,
             orchestration_fingerprint=fingerprint,

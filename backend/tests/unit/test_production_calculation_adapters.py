@@ -92,6 +92,7 @@ def _cooling_load_inputs() -> dict[str, Any]:
 
 def _equipment_inputs() -> dict[str, Any]:
     return {
+        "condensing_temperature_c": "40.0",
         "systems": [
             {
                 "system_code": "S1",
@@ -167,6 +168,48 @@ class TestInvestmentAdapter:
         assert result.content_hash == _expected_hash(result.payload)
         # content_hash is the canonical SHA-256 of the payload
         assert len(result.content_hash) == 64
+
+    def test_controlled_coefficient_overrides_reach_investment_calculator(self) -> None:
+        inputs = _investment_inputs()
+        inputs["coefficients"] = {
+            "_investment_coefficients": {
+                "building_envelope_cost_cny_m2": {
+                    "value": "1234",
+                    "revision_id": "controlled-building",
+                    "source_type": "engineering_judgement",
+                    "status": "approved",
+                    "canonical_code": "investment.building_unit_cost",
+                },
+                "refrigeration_cost_cny_m2": {
+                    "value": "1400",
+                    "revision_id": "controlled-refrigeration",
+                    "source_type": "engineering_judgement",
+                    "status": "approved",
+                    "canonical_code": "investment.refrigeration_equipment_ratio",
+                },
+                "power_distribution_cost_cny_kw": {
+                    "value": "650",
+                    "revision_id": "controlled-power",
+                    "source_type": "engineering_judgement",
+                    "status": "approved",
+                    "canonical_code": "investment.electrical_installation_ratio",
+                },
+                "monitoring_opening_supplies_cny": {
+                    "value": "200000",
+                    "revision_id": "controlled-monitoring",
+                    "source_type": "engineering_judgement",
+                    "status": "approved",
+                    "canonical_code": "investment.other_expenses_ratio",
+                },
+            }
+        }
+        result = adapters.InvestmentAdapter().execute(
+            _projection(CalculationType.INVESTMENT, inputs)
+        )
+
+        assert result.requires_review is False
+        assert result.payload["items"][0]["amount_cny"] == 2_468_000.0
+        assert result.execution_input_snapshot["coefficients"] == inputs["coefficients"]
 
     def test_rejects_invalid_input(self) -> None:
         adapter = adapters.InvestmentAdapter()

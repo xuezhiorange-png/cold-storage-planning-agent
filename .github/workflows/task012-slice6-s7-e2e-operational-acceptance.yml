@@ -85,11 +85,23 @@ jobs:
             echo "ERROR_CODE=S6_07_SOURCE_TREE_INVALID"
             exit 1
           fi
+          if ! git merge-base --is-ancestor \
+            5adda901285b8a567dac10460dd9e9fa72ea58a0 "${GITHUB_SHA}"; then
+            echo "ERROR_CODE=S6_07_PACKAGE3_IMPLEMENTATION_ANCESTRY_MISMATCH"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor \
+            c287aba48201ac9bfc0786f62911cd25fabf3fc4 "${GITHUB_SHA}"; then
+            echo "ERROR_CODE=S6_07_IMPLEMENTATION_BASE_ANCESTRY_MISMATCH"
+            exit 1
+          fi
           {
             echo "SOURCE_SHA=${EXPECTED_SOURCE_SHA}"
             echo "SOURCE_TREE_SHA=${SOURCE_TREE_SHA}"
           } >> "${GITHUB_ENV}"
           echo "S6_07_EXACT_SOURCE_GATE=PASS"
+          echo "PACKAGE3_IMPLEMENTATION_HEAD_ANCESTOR_GATE=PASS"
+          echo "IMPLEMENTATION_BASE_ANCESTOR_GATE=PASS"
 
       - name: Read and verify refreshed S6-06 authority
         run: |
@@ -204,7 +216,7 @@ jobs:
           export S6_07_POSTGRES_URL="postgresql+psycopg2://cold_storage:${S6_07_POSTGRES_PASSWORD}@127.0.0.1:5432/cold_storage_s6_07"
           readiness_seed_json="${RUN_ROOT}/readiness-seed.json"
           PYTHONPATH=backend/src uv run --project backend python \
-            -m cold_storage.release.s6_07_controlled_fixture \
+            -m cold_storage.bootstrap.s6_07_controlled_fixture \
             seed-startup-readiness \
             --database-url "${S6_07_POSTGRES_URL}" \
             --token "${GITHUB_RUN_ID}" \
@@ -314,7 +326,7 @@ jobs:
             header_present=true
           fi
 
-          coefficient_code="s6_07_controlled_coefficient_${GITHUB_RUN_ID}"
+          coefficient_code="power.design_margin_ratio"
           coefficient_request="$(jq -nc --arg code "${coefficient_code}" \
             '{code:$code,name:"S6-07 controlled coefficient",description:"synthetic acceptance coefficient",category:"acceptance",canonical_unit:"unit",source_type:"controlled"}')"
           capture_response POST http://127.0.0.1:8000/api/v1/coefficients \
@@ -356,7 +368,7 @@ jobs:
 
           export S6_07_PRODUCTION_AUTHORITY_OUTPUT="${ACCEPTANCE_ROOT}/production-authority.json"
           PYTHONPATH=backend/src uv run --project backend python \
-            -m cold_storage.release.s6_07_controlled_fixture \
+            -m cold_storage.bootstrap.s6_07_controlled_fixture \
             create-production-authority \
             --database-url "${S6_07_POSTGRES_URL}" \
             --definition-id "${coefficient_id}" \
@@ -439,7 +451,7 @@ jobs:
 
           export S6_07_RELOAD_AUTHORITY_OUTPUT="${ACCEPTANCE_ROOT}/production-authority-after-restart.json"
           PYTHONPATH=backend/src uv run --project backend python \
-            -m cold_storage.release.s6_07_controlled_fixture \
+            -m cold_storage.bootstrap.s6_07_controlled_fixture \
             reload-production-authority \
             --database-url "${S6_07_POSTGRES_URL}" \
             --run-id "${production_run_id}" \

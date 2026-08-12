@@ -142,9 +142,20 @@ class _LoadedVersion:
 
 
 class PreflightAccepted:
-    """Result returned when preflight passes and Transaction A commits."""
+    """Result returned when preflight passes and Transaction A commits.
 
-    __slots__ = ("request_id", "fingerprint", "identity_id", "attempt_id")
+    Transaction A is the authority for the execution snapshot and
+    coefficient context identities consumed by Transaction B.
+    """
+
+    __slots__ = (
+        "request_id",
+        "fingerprint",
+        "identity_id",
+        "attempt_id",
+        "execution_snapshot_id",
+        "coefficient_context_id",
+    )
 
     def __init__(
         self,
@@ -152,11 +163,15 @@ class PreflightAccepted:
         fingerprint: str,
         identity_id: str,
         attempt_id: str,
+        execution_snapshot_id: str | None = None,
+        coefficient_context_id: str | None = None,
     ) -> None:
         self.request_id = request_id
         self.fingerprint = fingerprint
         self.identity_id = identity_id
         self.attempt_id = attempt_id
+        self.execution_snapshot_id = execution_snapshot_id
+        self.coefficient_context_id = coefficient_context_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -452,7 +467,14 @@ class OrchestrationService:
             attempt_id=attempt_id,
         )
 
-        return PreflightAccepted(ctx.request_id, ctx.request_fingerprint, identity_id, attempt_id)
+        return PreflightAccepted(
+            ctx.request_id,
+            ctx.request_fingerprint,
+            identity_id,
+            attempt_id,
+            execution_snapshot_id=snapshot_id,
+            coefficient_context_id=coefficient_id,
+        )
 
     # ── Transaction B: calculator execution ────────────────────────────
 

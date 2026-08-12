@@ -182,13 +182,13 @@ test-s6-07-operational-acceptance: s6-07-operational-acceptance-test
 s6-07-operational-acceptance-lint:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff check \
 		src/cold_storage/release/end_to_end_operational_acceptance.py \
-		src/cold_storage/release/s6_07_controlled_fixture.py \
+		src/cold_storage/bootstrap/s6_07_controlled_fixture.py \
 		tests/unit/test_end_to_end_operational_acceptance.py \
 		tests/integration/test_end_to_end_operational_acceptance.py \
 		tests/architecture/test_end_to_end_operational_acceptance_boundaries.py
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff format --check \
 		src/cold_storage/release/end_to_end_operational_acceptance.py \
-		src/cold_storage/release/s6_07_controlled_fixture.py \
+		src/cold_storage/bootstrap/s6_07_controlled_fixture.py \
 		tests/unit/test_end_to_end_operational_acceptance.py \
 		tests/integration/test_end_to_end_operational_acceptance.py \
 		tests/architecture/test_end_to_end_operational_acceptance_boundaries.py
@@ -196,7 +196,7 @@ s6-07-operational-acceptance-lint:
 s6-07-operational-acceptance-typecheck:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run mypy \
 		src/cold_storage/release/end_to_end_operational_acceptance.py \
-		src/cold_storage/release/s6_07_controlled_fixture.py \
+		src/cold_storage/bootstrap/s6_07_controlled_fixture.py \
 		--strict --ignore-missing-imports
 
 verify-s6-07-operational-acceptance: s6-07-operational-acceptance-lint s6-07-operational-acceptance-typecheck s6-07-operational-acceptance-test

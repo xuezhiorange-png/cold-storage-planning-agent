@@ -8,19 +8,21 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
 from cold_storage.bootstrap.app import create_app
 from cold_storage.bootstrap.dependencies import shutdown_dependencies
 from cold_storage.bootstrap.runtime_readiness import reset_readiness_state
-from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService
-from cold_storage.modules.coefficients.infrastructure.orm import CoefficientDefinitionRecord
-from cold_storage.release import end_to_end_operational_acceptance as acceptance
-from cold_storage.release.s6_07_controlled_fixture import (
+from cold_storage.bootstrap.s6_07_controlled_fixture import (
     create_controlled_coefficient_definition,
     create_controlled_production_authority,
     read_production_authority,
     seed_startup_readiness,
 )
+from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService
+from cold_storage.modules.coefficients.infrastructure.orm import CoefficientDefinitionRecord
+from cold_storage.modules.projects.infrastructure.orm import Base, CalculationRunRecord
+from cold_storage.release import end_to_end_operational_acceptance as acceptance
 from tests.unit.test_end_to_end_operational_acceptance import (
     S6_06_ARTIFACT_ID,
     S6_06_DIGEST,
@@ -153,6 +155,8 @@ def test_strict_application_composition_returns_disabled_agent_503(
     monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.2.0")
     monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", "s6-07-test")
     monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    monkeypatch.setenv("COLD_STORAGE_STARTUP_PROBE_TIMEOUT_SECONDS", "120")
+    monkeypatch.setenv("COLD_STORAGE_READINESS_PROBE_TIMEOUT_SECONDS", "30")
     reset_readiness_state()
     readiness_engine = create_engine(database_url, pool_pre_ping=True)
     seed_startup_readiness(readiness_engine, token=f"strict-{uuid.uuid4().hex}")
@@ -178,6 +182,56 @@ def _read_production_authority(database_url: str, run_id: str) -> dict[str, obje
     engine = create_engine(database_url, pool_pre_ping=True)
     try:
         return read_production_authority(engine, run_id=run_id)
+    finally:
+        engine.dispose()
+
+
+def test_sqlite_canonical_production_authority_roundtrip(tmp_path: Path) -> None:
+    """Exercise the same canonical five-stage producer used by PG acceptance."""
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'canonical-authority.db'}")
+    Base.metadata.create_all(engine)
+    try:
+        seed_startup_readiness(engine, token=f"sqlite-{uuid.uuid4().hex}")
+        definition_id = create_controlled_coefficient_definition(
+            engine, token=f"sqlite-{uuid.uuid4().hex}"
+        )
+        document = create_controlled_production_authority(
+            engine,
+            definition_id=definition_id,
+            token=f"sqlite-{uuid.uuid4().hex}",
+        )
+        authority = document["canonical_persistence"]
+        assert isinstance(authority, dict)
+        assert [stage["name"] for stage in authority["stages"]] == [
+            "zone",
+            "cooling_load",
+            "equipment",
+            "power",
+            "investment",
+        ]
+        assert authority["source_binding"]["exists"] is True
+        assert authority["source_archive"]["independent_rehash"] is True
+        assert authority["coefficient_execution_continuity"]["result"] == "PASS"
+        assert all(
+            stage["calculator_input_evidence"]["result"] == "PASS"
+            for stage in authority["coefficient_execution_continuity"]["stages"].values()
+        )
+        assert all(stage["persisted"] for stage in authority["stages"])
+
+        power_id = authority["source_binding"]["required_slot_ids"][3]
+        with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+            power_run = session.get(CalculationRunRecord, power_id)
+            assert power_run is not None
+            provenance = dict(power_run.provenance or {})
+            calculator_input = dict(provenance["calculator_input_snapshot"])
+            calculator_input["production_demand_factor"] = "1.16"
+            provenance["calculator_input_snapshot"] = calculator_input
+            power_run.provenance = provenance
+            session.commit()
+
+        with pytest.raises(RuntimeError, match="calculator input coefficient mismatch"):
+            read_production_authority(engine, run_id=str(authority["run_id"]))
     finally:
         engine.dispose()
 

@@ -158,3 +158,8 @@ class AdapterResult:
     calculator_name: str = ""
     calculator_version: str = ""
     calculator_success: bool = True
+    # Snapshot returned by, or passed directly to, the production
+    # calculator.  The orchestration persistence boundary records this
+    # separately from coefficient provenance so acceptance readback can
+    # prove what the calculator actually received.
+    execution_input_snapshot: dict[str, object] = field(default_factory=dict)

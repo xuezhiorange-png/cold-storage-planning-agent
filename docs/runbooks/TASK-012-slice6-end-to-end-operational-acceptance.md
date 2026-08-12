@@ -63,7 +63,7 @@ Compose contract is not modified by S6-07.
 
 The workflow's synthetic setup is implemented by the formal non-production
 support module
-`backend/src/cold_storage/release/s6_07_controlled_fixture.py`. The application
+`backend/src/cold_storage/bootstrap/s6_07_controlled_fixture.py`. The application
 bootstrap does not import this module, and the workflow does not import
 pytest modules or test-only seed helpers. After migration and before the strict
 backend starts, the workflow uses the canonical coefficient approval service to
@@ -76,10 +76,15 @@ is followed by an approved revision, a persisted coefficient context, a
 SourceBinding, and a canonical production scheme run. The acceptance verifier
 recomputes the concrete definition-to-revision, revision-to-active-authority,
 active-authority-to-context, and context-to-SourceBinding mappings from
-persisted rows. Continuity booleans in the observation bundle are descriptive
-only. After the initial readback, a fresh database engine reads the same run
-through the canonical production read ports and re-hashes the source archive;
-this is the restart persistence authority.
+persisted rows. Transaction B also persists the calculator input snapshot
+returned by each production adapter (or the exact typed override input at the
+adapter boundary). The verifier compares those persisted inputs with the
+approved context values for all five stages; coefficient identity alone is not
+accepted as proof of calculator consumption. Continuity markers in the
+observation bundle are therefore backed by persisted calculator-input evidence,
+not by a fixture assertion. After the initial readback, a fresh database engine
+reads the same run through the canonical production read ports and re-hashes
+the source archive; this is the restart persistence authority.
 
 ## Acceptance sequence
 
