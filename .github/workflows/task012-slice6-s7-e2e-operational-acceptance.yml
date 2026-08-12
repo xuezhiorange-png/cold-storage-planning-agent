@@ -45,6 +45,9 @@ jobs:
       S6_06_ARTIFACT_ID: ${{ inputs.s6_06_artifact_id }}
       S6_06_ARTIFACT_DIGEST: ${{ inputs.s6_06_artifact_digest }}
       S6_07_POSTGRES_PASSWORD: synthetic-only-s6-07-password
+      POSTGRES_PASSWORD: synthetic-only-s6-07-password
+      POSTGRES_DB: cold_storage_s6_07
+      POSTGRES_USER: cold_storage
 
     steps:
       - uses: actions/checkout@v4
@@ -266,11 +269,11 @@ jobs:
           test -n "${database_backend}"
           docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" exec -T backend python - \
             > "${RUN_ROOT}/composition-manifest.json" <<'PY'
+          import asyncio
           import contextlib
           import io
           import json
 
-          from fastapi.testclient import TestClient
           from cold_storage.bootstrap.app import create_app
           from cold_storage.bootstrap.dependencies import (
               get_engine,
@@ -278,16 +281,20 @@ jobs:
           )
           from cold_storage.bootstrap.runtime_readiness import composition_manifest_tokens
 
-          captured_stdout = io.StringIO()
-          with contextlib.redirect_stdout(captured_stdout):
-              with TestClient(create_app()):
+          async def collect_manifest() -> dict[str, object]:
+              app = create_app()
+              async with app.router.lifespan_context(app):
                   engine = get_engine()
                   coefficient_service = get_production_coefficient_service()
-                  manifest = {
+                  return {
                       "active_coefficient_service_class": type(coefficient_service).__name__,
                       "active_service_bound_to_canonical_engine": coefficient_service.engine is engine,
                       "tokens": sorted(composition_manifest_tokens()),
                   }
+
+          captured_stdout = io.StringIO()
+          with contextlib.redirect_stdout(captured_stdout):
+              manifest = asyncio.run(collect_manifest())
           print(json.dumps({
               **manifest,
               "observation_context": "active_application_lifespan",
