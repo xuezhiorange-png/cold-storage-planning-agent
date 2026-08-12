@@ -89,6 +89,30 @@ def test_workflow_is_dispatch_only_main_exact_and_read_only() -> None:
         assert forbidden_self_attestation not in workflow
 
 
+def test_workflow_stages_refreshed_s6_06_metadata_after_exact_validation() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    run_api = workflow.index('"/repos/${GITHUB_REPOSITORY}/actions/runs/${S6_06_RUN_ID}"')
+    artifact_api = workflow.index(
+        '"/repos/${GITHUB_REPOSITORY}/actions/artifacts/${S6_06_ARTIFACT_ID}"'
+    )
+    run_validation = workflow.index('jq -e --arg sha "${SOURCE_SHA}"')
+    artifact_validation = workflow.index('jq -e --arg digest "${S6_06_ARTIFACT_DIGEST}"')
+    run_staging = workflow.index('cp "${RUN_ROOT}/s6-06-run.json"')
+    artifact_staging = workflow.index('cp "${RUN_ROOT}/s6-06-artifact.json"')
+    historical_runs = workflow.index("while IFS= read -r run_id; do")
+    historical_artifacts = workflow.index("while IFS= read -r artifact_id; do")
+    verifier = workflow.index("verify-s6-06-prerequisite")
+
+    assert run_api < run_validation < run_staging < historical_runs < verifier
+    assert artifact_api < artifact_validation < artifact_staging < historical_artifacts < verifier
+    assert '"${S6_06_METADATA}/run-${S6_06_RUN_ID}.json"' in workflow
+    assert '"${S6_06_METADATA}/artifact-${S6_06_ARTIFACT_ID}.json"' in workflow
+    assert 'if [ "${run_id}" = "${S6_06_RUN_ID}" ]; then' in workflow
+    assert 'if [ "${artifact_id}" = "${S6_06_ARTIFACT_ID}" ]; then' in workflow
+    assert '"${RUN_ROOT}/s6-06-run.json"' in workflow
+    assert '"${RUN_ROOT}/s6-06-artifact.json"' in workflow
+
+
 def test_workflow_does_not_dispatch_predecessor_or_production() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8").lower()
     for forbidden in (
