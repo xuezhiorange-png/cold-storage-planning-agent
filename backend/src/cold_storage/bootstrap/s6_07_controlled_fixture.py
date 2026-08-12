@@ -15,7 +15,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +33,7 @@ from cold_storage.bootstrap.startup_readiness import get_required_stages
 from cold_storage.modules.coefficients.application.approval_service import ApprovalRequest
 from cold_storage.modules.coefficients.domain.exceptions import CoefficientNotFoundError
 from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService
+from cold_storage.modules.coefficients.infrastructure.orm import CoefficientRevisionRecord
 from cold_storage.modules.orchestration.application.coefficient_contracts import (
     FrozenCoefficientResolutionCriteria,
 )
@@ -352,6 +353,85 @@ def create_controlled_coefficient_definition(
     return definition.id
 
 
+def _select_existing_authoritative_revision(
+    engine: Engine, *, definition_id: str
+) -> CoefficientRevisionRecord:
+    """Return the single catalog head, preserving resolver fail-closed rules."""
+
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    with session_factory() as session:
+        revisions = list(
+            session.scalars(
+                select(CoefficientRevisionRecord)
+                .where(CoefficientRevisionRecord.coefficient_definition_id == definition_id)
+                .order_by(CoefficientRevisionRecord.revision_number)
+            ).all()
+        )
+    if not revisions:
+        raise RuntimeError(f"controlled coefficient has no revisions:{definition_id}")
+    return SqlAlchemyCoefficientResolutionAdapter()._select_authoritative(revisions)
+
+
+def _reuse_existing_authoritative_revision(
+    engine: Engine,
+    *,
+    definition_id: str,
+    expected_code: str,
+    expected_value: Decimal,
+    expected_unit: str,
+) -> str:
+    """Validate and reuse an existing fixed catalog authority.
+
+    This intentionally rejects every invalid or ambiguous existing state.  It
+    never repairs, withdraws, deletes, or tie-breaks historical revisions.
+    """
+
+    service = DatabaseCoefficientService(engine)
+    definition = service.get_definition(definition_id)
+    if definition.code != expected_code:
+        raise RuntimeError(
+            f"controlled coefficient code mismatch:{definition.code}:{expected_code}"
+        )
+    if not definition.is_active:
+        raise RuntimeError(f"controlled coefficient definition inactive:{expected_code}")
+    if definition.canonical_unit != expected_unit:
+        raise RuntimeError(f"controlled coefficient unit mismatch:{expected_code}")
+    if definition.value_type != "decimal":
+        raise RuntimeError(f"controlled coefficient value type mismatch:{expected_code}")
+
+    revision = _select_existing_authoritative_revision(engine, definition_id=definition_id)
+    if revision.status != "approved":
+        raise RuntimeError(f"controlled coefficient authority not approved:{expected_code}")
+    if revision.approved_at is None or revision.withdrawn_at is not None:
+        raise RuntimeError(f"controlled coefficient approval metadata invalid:{expected_code}")
+    now = datetime.now(UTC)
+    valid_from = revision.valid_from
+    if valid_from is not None:
+        if valid_from.tzinfo is None:
+            valid_from = valid_from.replace(tzinfo=UTC)
+        if valid_from > now:
+            raise RuntimeError(f"controlled coefficient authority not yet valid:{expected_code}")
+    valid_to = revision.valid_to
+    if valid_to is not None:
+        if valid_to.tzinfo is None:
+            valid_to = valid_to.replace(tzinfo=UTC)
+        if valid_to < now:
+            raise RuntimeError(f"controlled coefficient authority expired:{expected_code}")
+    if revision.unit != expected_unit:
+        raise RuntimeError(f"controlled coefficient revision unit mismatch:{expected_code}")
+    if revision.source_type == "demo":
+        raise RuntimeError(f"controlled coefficient authority is demo:{expected_code}")
+    if revision.value_decimal is None or revision.value_json is not None:
+        raise RuntimeError(f"controlled coefficient value shape invalid:{expected_code}")
+    try:
+        observed_value = Decimal(str(revision.value_decimal))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise RuntimeError(f"controlled coefficient value invalid:{expected_code}") from exc
+    if observed_value != expected_value:
+        raise RuntimeError(f"controlled coefficient value mismatch:{expected_code}")
+    return revision.id
+
+
 def _seed_required_catalog(
     engine: Engine, *, token: str, controlled_definition_id: str
 ) -> dict[str, str]:
@@ -361,15 +441,25 @@ def _seed_required_catalog(
     controlled = service.get_definition(controlled_definition_id)
     if not controlled.code.startswith(CONTROLLED_COEFFICIENT_CODE_PREFIX):
         raise RuntimeError("controlled HTTP definition has unexpected synthetic code")
-    _seed_approved_revision(
-        engine,
-        definition_id=controlled_definition_id,
-        token=token,
-        label="operational-acceptance",
-        value=Decimal("1.0"),
-    )
+    if service.list_revisions(controlled_definition_id):
+        _reuse_existing_authoritative_revision(
+            engine,
+            definition_id=controlled_definition_id,
+            expected_code=controlled.code,
+            expected_value=Decimal("1.0"),
+            expected_unit="ratio",
+        )
+    else:
+        _seed_approved_revision(
+            engine,
+            definition_id=controlled_definition_id,
+            token=token,
+            label="operational-acceptance",
+            value=Decimal("1.0"),
+        )
     revision_ids: dict[str, str] = {}
     for code, (label, value, unit) in _CATALOG_VALUES.items():
+        created = False
         try:
             definition = service.get_definition_by_code(code)
         except CoefficientNotFoundError:
@@ -381,13 +471,23 @@ def _seed_required_catalog(
                 canonical_unit=unit,
                 is_active=True,
             )
-        revision_ids[code] = _seed_approved_revision(
-            engine,
-            definition_id=definition.id,
-            token=token,
-            label=code.replace(".", "-"),
-            value=Decimal(value),
-        )
+            created = True
+        if created:
+            revision_ids[code] = _seed_approved_revision(
+                engine,
+                definition_id=definition.id,
+                token=token,
+                label=code.replace(".", "-"),
+                value=Decimal(value),
+            )
+        else:
+            revision_ids[code] = _reuse_existing_authoritative_revision(
+                engine,
+                definition_id=definition.id,
+                expected_code=code,
+                expected_value=Decimal(value),
+                expected_unit=unit,
+            )
     return revision_ids
 
 

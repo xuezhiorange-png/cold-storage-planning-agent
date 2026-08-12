@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 from collections.abc import Mapping
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,9 @@ from cold_storage.bootstrap.app import create_app
 from cold_storage.bootstrap.dependencies import shutdown_dependencies
 from cold_storage.bootstrap.runtime_readiness import reset_readiness_state
 from cold_storage.bootstrap.s6_07_controlled_fixture import (
+    _CATALOG_VALUES,
+    _seed_approved_revision,
+    _seed_required_catalog,
     create_controlled_coefficient_definition,
     create_controlled_production_authority,
     read_production_authority,
@@ -21,6 +25,7 @@ from cold_storage.bootstrap.s6_07_controlled_fixture import (
 )
 from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService
 from cold_storage.modules.coefficients.infrastructure.orm import CoefficientDefinitionRecord
+from cold_storage.modules.orchestration.domain.errors import AmbiguousCoefficientError
 from cold_storage.modules.projects.infrastructure.orm import Base
 from cold_storage.release import end_to_end_operational_acceptance as acceptance
 from tests.unit.test_end_to_end_operational_acceptance import (
@@ -245,6 +250,139 @@ def test_sqlite_canonical_production_authority_roundtrip(tmp_path: Path) -> None
         engine.dispose()
 
 
+def test_sqlite_controlled_catalog_seed_reuses_valid_authority(tmp_path: Path) -> None:
+    engine = create_engine(f"sqlite:///{tmp_path / 'catalog-seed.db'}")
+    Base.metadata.create_all(engine)
+    try:
+        definition_id = create_controlled_coefficient_definition(
+            engine, token=f"catalog-{uuid.uuid4().hex}"
+        )
+        first = _seed_required_catalog(
+            engine,
+            token=f"first-{uuid.uuid4().hex}",
+            controlled_definition_id=definition_id,
+        )
+        second = _seed_required_catalog(
+            engine,
+            token=f"second-{uuid.uuid4().hex}",
+            controlled_definition_id=definition_id,
+        )
+        assert first == second
+        service = DatabaseCoefficientService(engine)
+        assert len(service.list_revisions(definition_id)) == 1
+        for code in _CATALOG_VALUES:
+            definition = service.get_definition_by_code(code)
+            assert len(service.list_revisions(definition.id)) == 1
+    finally:
+        engine.dispose()
+
+
+def test_sqlite_controlled_catalog_seed_rejects_value_drift(tmp_path: Path) -> None:
+    engine = create_engine(f"sqlite:///{tmp_path / 'catalog-value-drift.db'}")
+    Base.metadata.create_all(engine)
+    try:
+        controlled_definition_id = create_controlled_coefficient_definition(
+            engine, token=f"value-drift-{uuid.uuid4().hex}"
+        )
+        service = DatabaseCoefficientService(engine)
+        definition = service.create_definition(
+            code="area.auxiliary_area_ratio",
+            name="area auxiliary ratio",
+            description="invalid controlled fixture value",
+            category="catalog",
+            canonical_unit="ratio",
+            is_active=True,
+        )
+        _seed_approved_revision(
+            engine,
+            definition_id=definition.id,
+            token=f"value-drift-{uuid.uuid4().hex}",
+            label="area-auxiliary-ratio",
+            value=Decimal("0.09"),
+        )
+        with pytest.raises(RuntimeError, match="value mismatch"):
+            _seed_required_catalog(
+                engine,
+                token=f"value-drift-{uuid.uuid4().hex}",
+                controlled_definition_id=controlled_definition_id,
+            )
+    finally:
+        engine.dispose()
+
+
+def test_sqlite_controlled_catalog_seed_rejects_ambiguous_heads(tmp_path: Path) -> None:
+    engine = create_engine(f"sqlite:///{tmp_path / 'catalog-ambiguous.db'}")
+    Base.metadata.create_all(engine)
+    try:
+        controlled_definition_id = create_controlled_coefficient_definition(
+            engine, token=f"ambiguous-{uuid.uuid4().hex}"
+        )
+        service = DatabaseCoefficientService(engine)
+        definition = service.create_definition(
+            code="area.auxiliary_area_ratio",
+            name="area auxiliary ratio",
+            description="invalid controlled fixture ambiguity",
+            category="catalog",
+            canonical_unit="ratio",
+            is_active=True,
+        )
+        _seed_approved_revision(
+            engine,
+            definition_id=definition.id,
+            token=f"ambiguous-one-{uuid.uuid4().hex}",
+            label="area-auxiliary-ratio-one",
+            value=Decimal("0.08"),
+        )
+        _seed_approved_revision(
+            engine,
+            definition_id=definition.id,
+            token=f"ambiguous-two-{uuid.uuid4().hex}",
+            label="area-auxiliary-ratio-two",
+            value=Decimal("0.08"),
+        )
+        with pytest.raises(AmbiguousCoefficientError, match="ambiguous_revisions"):
+            _seed_required_catalog(
+                engine,
+                token=f"ambiguous-{uuid.uuid4().hex}",
+                controlled_definition_id=controlled_definition_id,
+            )
+    finally:
+        engine.dispose()
+
+
+def test_sqlite_controlled_catalog_seed_rejects_unit_drift(tmp_path: Path) -> None:
+    engine = create_engine(f"sqlite:///{tmp_path / 'catalog-unit-drift.db'}")
+    Base.metadata.create_all(engine)
+    try:
+        controlled_definition_id = create_controlled_coefficient_definition(
+            engine, token=f"unit-drift-{uuid.uuid4().hex}"
+        )
+        service = DatabaseCoefficientService(engine)
+        definition = service.create_definition(
+            code="area.auxiliary_area_ratio",
+            name="area auxiliary ratio",
+            description="invalid controlled fixture unit",
+            category="catalog",
+            canonical_unit="bad-unit",
+            is_active=True,
+        )
+        _seed_approved_revision(
+            engine,
+            definition_id=definition.id,
+            token=f"unit-drift-{uuid.uuid4().hex}",
+            label="area-auxiliary-ratio",
+            value=Decimal("0.08"),
+        )
+        with pytest.raises(RuntimeError, match="unit mismatch"):
+            _seed_required_catalog(
+                engine,
+                token=f"unit-drift-{uuid.uuid4().hex}",
+                controlled_definition_id=controlled_definition_id,
+            )
+    finally:
+        engine.dispose()
+
+
 @pytest.mark.postgresql
 def test_postgresql_persisted_production_authority_roundtrip() -> None:
     """Create once, then emit only independently read persisted authority.
@@ -280,23 +418,51 @@ def test_postgresql_persisted_production_authority_roundtrip() -> None:
 
 @pytest.mark.postgresql
 def test_postgresql_production_authority_survives_fresh_engine_reload() -> None:
-    """Reload the same authority through a newly created engine and session."""
+    """Repeat authority creation, then reload the second result from a new engine."""
 
     database_url = os.environ.get("S6_07_POSTGRES_URL")
     if not database_url:
         pytest.skip("S6_07_POSTGRES_URL is required for PostgreSQL acceptance execution")
     engine = create_engine(database_url, pool_pre_ping=True)
-    definition_id = create_controlled_coefficient_definition(
-        engine, token=f"reload-{uuid.uuid4().hex}"
+    first_definition_id = create_controlled_coefficient_definition(
+        engine, token=f"repeat-first-{uuid.uuid4().hex}"
     )
-    before = create_controlled_production_authority(
+    first = create_controlled_production_authority(
         engine,
-        definition_id=definition_id,
-        token=f"reload-{uuid.uuid4().hex}",
+        definition_id=first_definition_id,
+        token=f"repeat-first-{uuid.uuid4().hex}",
     )
-    canonical_before = before["canonical_persistence"]
-    assert isinstance(canonical_before, dict)
-    run_id = str(canonical_before["run_id"])
+    service = DatabaseCoefficientService(engine)
+    catalog_revision_ids_after_first = {
+        code: tuple(
+            revision.id
+            for revision in service.list_revisions(service.get_definition_by_code(code).id)
+        )
+        for code in _CATALOG_VALUES
+    }
+    second_definition_id = create_controlled_coefficient_definition(
+        engine, token=f"repeat-second-{uuid.uuid4().hex}"
+    )
+    second = create_controlled_production_authority(
+        engine,
+        definition_id=second_definition_id,
+        token=f"repeat-second-{uuid.uuid4().hex}",
+    )
+    catalog_revision_ids_after_second = {
+        code: tuple(
+            revision.id
+            for revision in service.list_revisions(service.get_definition_by_code(code).id)
+        )
+        for code in _CATALOG_VALUES
+    }
+    assert catalog_revision_ids_after_second == catalog_revision_ids_after_first
+    canonical_first = first["canonical_persistence"]
+    canonical_second = second["canonical_persistence"]
+    assert isinstance(canonical_first, dict)
+    assert isinstance(canonical_second, dict)
+    assert canonical_first["run_id"] != canonical_second["run_id"]
+    assert len(canonical_second["stages"]) == 5
+    run_id = str(canonical_second["run_id"])
     engine.dispose()
 
     restarted_engine = create_engine(database_url, pool_pre_ping=True)
@@ -304,13 +470,14 @@ def test_postgresql_production_authority_survives_fresh_engine_reload() -> None:
         after = read_production_authority(
             restarted_engine,
             run_id=run_id,
-            controlled_definition_id=definition_id,
+            controlled_definition_id=second_definition_id,
         )
-        assert after["run_id"] == canonical_before["run_id"]
-        assert after["source_binding"] == canonical_before["source_binding"]
-        assert after["stages"] == canonical_before["stages"]
-        assert after["source_archive"] == canonical_before["source_archive"]
-        assert after["controlled_coefficient"] == before["controlled_coefficient"]
+        assert after["run_id"] == canonical_second["run_id"]
+        assert after["source_binding"] == canonical_second["source_binding"]
+        assert after["stages"] == canonical_second["stages"]
+        assert after["source_archive"] == canonical_second["source_archive"]
+        assert after["controlled_coefficient"] == second["controlled_coefficient"]
+        assert after["source_archive"]["independent_rehash"] is True
     finally:
         restarted_engine.dispose()
 
