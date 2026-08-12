@@ -38,7 +38,16 @@ S6_06_WORKFLOW_NAME = "task012-slice6-package3-release-evidence"
 S6_07_WORKFLOW_PATH = ".github/workflows/task012-slice6-s7-e2e-operational-acceptance.yml"
 
 S6_07_SCHEMA_VERSION = "task012-s6-07-operational-acceptance-v1"
+S6_07_RAW_OBSERVATION_SCHEMA = "task012-s6-07-operational-observation-v2"
 S6_07_ACCEPTANCE_TYPE = "controlled_end_to_end_operational_acceptance"
+
+S6_07_STAGE_NAMES: tuple[str, ...] = (
+    "zone",
+    "cooling_load",
+    "equipment",
+    "power",
+    "investment",
+)
 
 S6_07_JSON_FILES: tuple[str, ...] = (
     "acceptance-summary.json",
@@ -135,6 +144,13 @@ def _positive_int(value: object, *, field: str) -> int:
 def _eq(value: object, expected: object, *, field: str, code: str) -> None:
     if value != expected:
         raise _fail(code, f"{field} does not match the controlled contract")
+
+
+def _require_pass_fields(
+    payload: Mapping[str, Any], expected: Mapping[str, object], *, code: str
+) -> None:
+    for field, expected_value in expected.items():
+        _eq(payload.get(field), expected_value, field=field, code=code)
 
 
 def _validate_source(*, repository: str, source_sha: str, source_tree_sha: str) -> None:
@@ -240,22 +256,349 @@ def _read_observations(observations: Path | Mapping[str, Any]) -> dict[str, Any]
     return dict(_mapping(observations, field="observations"))
 
 
-def _require_pass_fields(
-    section: Mapping[str, Any],
-    required: Mapping[str, object],
-    *,
-    code: str,
-) -> None:
-    for field, expected in required.items():
-        if field not in section:
-            raise _fail(code, f"missing observation: {field}")
-        if section[field] != expected:
-            raise _fail(code, f"observation mismatch: {field}")
+def _require_int(value: object, *, field: str, code: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise _fail(code, f"{field} must be an integer raw observation")
+    return value
+
+
+def _require_sha256(value: object, *, field: str, code: str) -> str:
+    result = _string(value, field=field)
+    if not HEX_RE.fullmatch(result):
+        raise _fail(code, f"{field} must be a SHA-256 hex digest")
+    return result
+
+
+def _response(section: Mapping[str, Any], *, field: str, code: str) -> Mapping[str, Any]:
+    response = _mapping(section.get(field), field=field)
+    _require_int(response.get("status"), field=f"{field}.status", code=code)
+    return response
+
+
+def _response_body(response: Mapping[str, Any], *, field: str, code: str) -> Mapping[str, Any]:
+    return _mapping(response.get("body"), field=f"{field}.body")
+
+
+def _require_response_status(
+    response: Mapping[str, Any], *, expected: int, field: str, code: str
+) -> Mapping[str, Any]:
+    if response.get("status") != expected:
+        raise _fail(code, f"{field} returned unexpected HTTP status")
+    return response
+
+
+def _find_capability(body: Mapping[str, Any], *, name: str) -> Mapping[str, Any]:
+    capabilities = body.get("capabilities")
+    if not isinstance(capabilities, list):
+        raise _fail("S6_07_RUNTIME_STARTUP_FAILED", "readiness capabilities are missing")
+    for capability in capabilities:
+        if isinstance(capability, Mapping) and capability.get("name") == name:
+            return capability
+    raise _fail("S6_07_RUNTIME_STARTUP_FAILED", f"missing capability: {name}")
+
+
+def _derive_assertions(
+    observations: Mapping[str, Any], *, source_sha: str, source_tree_sha: str
+) -> dict[str, str]:
+    """Derive acceptance results exclusively from raw runtime observations."""
+
+    _commit(source_tree_sha, field="source_tree_sha")
+    runtime = _mapping(observations.get("runtime_lifecycle"), field="runtime_lifecycle")
+    identity = _mapping(runtime.get("build_identity"), field="runtime_lifecycle.build_identity")
+    if identity.get("file_present") is not True:
+        raise _fail("S6_07_RUNTIME_STARTUP_FAILED", "build identity file was not observed")
+    _eq(
+        identity.get("commit_sha"),
+        source_sha,
+        field="build identity commit",
+        code="S6_07_SOURCE_SHA_MISMATCH",
+    )
+    _eq(
+        identity.get("version"),
+        EXPECTED_RELEASE_VERSION,
+        field="build identity version",
+        code="S6_07_RUNTIME_STARTUP_FAILED",
+    )
+
+    migration = _mapping(runtime.get("migration"), field="runtime_lifecycle.migration")
+    if (
+        _require_int(
+            migration.get("exit_code"), field="migration.exit_code", code="S6_07_MIGRATION_FAILED"
+        )
+        != 0
+    ):
+        raise _fail("S6_07_MIGRATION_FAILED", "migration command failed")
+    migration_output = _string(migration.get("current_output"), field="migration.current_output")
+    if "(head)" not in migration_output:
+        raise _fail("S6_07_MIGRATION_FAILED", "alembic current did not report the exact head")
+
+    container = _mapping(runtime.get("container"), field="runtime_lifecycle.container")
+    if container.get("running") is not True or container.get("status") != "running":
+        raise _fail("S6_07_RUNTIME_STARTUP_FAILED", "backend container state is not running")
+
+    live_response = _require_response_status(
+        _response(runtime, field="liveness", code="S6_07_READINESS_FAILED"),
+        expected=200,
+        field="liveness",
+        code="S6_07_READINESS_FAILED",
+    )
+    if (
+        _response_body(live_response, field="liveness", code="S6_07_READINESS_FAILED").get("status")
+        != "live"
+    ):
+        raise _fail("S6_07_READINESS_FAILED", "liveness body is not live")
+
+    ready_response = _require_response_status(
+        _response(runtime, field="readiness", code="S6_07_READINESS_FAILED"),
+        expected=200,
+        field="readiness",
+        code="S6_07_READINESS_FAILED",
+    )
+    ready_body = _response_body(ready_response, field="readiness", code="S6_07_READINESS_FAILED")
+    if ready_body.get("status") != "ready":
+        raise _fail("S6_07_READINESS_FAILED", "readiness body is not ready")
+    capability = _find_capability(ready_body, name="model_backed_agent")
+    if capability.get("status") != "disabled" or capability.get("code") != (
+        "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE"
+    ):
+        raise _fail("S6_07_FAKE_AGENT_REACHABLE", "strict capability projection is not disabled")
+
+    database = _mapping(runtime.get("database"), field="runtime_lifecycle.database")
+    if database.get("backend") != "postgresql":
+        raise _fail("S6_07_COEFFICIENT_AUTHORITY_INVALID", "runtime database is not PostgreSQL")
+    if database.get("service_class") != "DatabaseCoefficientService":
+        raise _fail(
+            "S6_07_COEFFICIENT_AUTHORITY_INVALID",
+            "canonical coefficient service was not observed",
+        )
+    storage = _mapping(runtime.get("artifact_storage"), field="runtime_lifecycle.artifact_storage")
+    if storage.get("probe_exists") is not True:
+        raise _fail("S6_07_RUNTIME_STARTUP_FAILED", "artifact storage probe was not observed")
+    _require_sha256(
+        storage.get("probe_sha256"),
+        field="artifact_storage.probe_sha256",
+        code="S6_07_RUNTIME_STARTUP_FAILED",
+    )
+
+    http_scope = _mapping(observations.get("production_http_scope"), field="production_http_scope")
+    coefficient = _mapping(http_scope.get("coefficient"), field="production_http_scope.coefficient")
+    created = _require_response_status(
+        _response(coefficient, field="created", code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED"),
+        expected=200,
+        field="coefficient.created",
+        code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
+    )
+    readback = _require_response_status(
+        _response(coefficient, field="readback", code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED"),
+        expected=200,
+        field="coefficient.readback",
+        code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
+    )
+    created_body = _response_body(
+        created, field="coefficient.created", code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED"
+    )
+    readback_body = _response_body(
+        readback, field="coefficient.readback", code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED"
+    )
+    coefficient_id = _string(created_body.get("id"), field="coefficient.created.body.id")
+    _eq(
+        readback_body.get("id"),
+        coefficient_id,
+        field="coefficient readback id",
+        code="S6_07_COEFFICIENT_AUTHORITY_INVALID",
+    )
+    if coefficient.get("persisted_row_id") != coefficient_id:
+        raise _fail("S6_07_COEFFICIENT_AUTHORITY_INVALID", "persisted coefficient row differs")
+
+    agent = _mapping(http_scope.get("planning_agent"), field="production_http_scope.planning_agent")
+    agent_response = _require_response_status(
+        _response(agent, field="response", code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED"),
+        expected=503,
+        field="planning_agent.response",
+        code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
+    )
+    agent_body = _response_body(
+        agent_response, field="planning_agent.response", code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED"
+    )
+    error = _mapping(agent_body.get("error"), field="planning_agent.error")
+    if error.get("code") != "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE":
+        raise _fail("S6_07_FAKE_AGENT_REACHABLE", "agent did not return the strict disabled code")
+    details = _mapping(error.get("details"), field="planning_agent.error.details")
+    if details.get("retryable") is not False:
+        raise _fail("S6_07_PRODUCTION_HTTP_SCOPE_FAILED", "disabled agent is incorrectly retryable")
+
+    persistence = _mapping(observations.get("persistence_e2e"), field="persistence_e2e")
+    scheme = _mapping(persistence.get("scheme"), field="persistence_e2e.scheme")
+    scheme_response = _response(scheme, field="response", code="S6_07_PERSISTENCE_FAILED")
+    _require_response_status(
+        scheme_response,
+        expected=200,
+        field="scheme.response",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    persisted = _mapping(scheme.get("persisted"), field="persistence_e2e.scheme.persisted")
+    run_id = _string(persisted.get("run_id"), field="persisted.run_id")
+    if persisted.get("status") != "completed":
+        raise _fail("S6_07_PERSISTENCE_FAILED", "persisted scheme run is not completed")
+    stages = persisted.get("stages")
+    if not isinstance(stages, list) or len(stages) != len(S6_07_STAGE_NAMES):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "persisted stage evidence is incomplete")
+    observed_stage_names: list[str] = []
+    for stage in stages:
+        stage_mapping = _mapping(stage, field="persistence_e2e.scheme.persisted.stages[]")
+        stage_name = _string(stage_mapping.get("name"), field="stage.name")
+        if stage_name in observed_stage_names or stage_name not in S6_07_STAGE_NAMES:
+            raise _fail("S6_07_PERSISTENCE_FAILED", "persisted stage names are ambiguous")
+        if stage_mapping.get("status") != "completed":
+            raise _fail("S6_07_PERSISTENCE_FAILED", f"stage did not complete: {stage_name}")
+        observed_stage_names.append(stage_name)
+    if set(observed_stage_names) != set(S6_07_STAGE_NAMES):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "not all five stages were observed")
+
+    if not isinstance(persisted.get("source_binding"), Mapping):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding observation is missing")
+    binding = cast(Mapping[str, Any], persisted["source_binding"])
+    if binding.get("exists") is not True or binding.get("run_id") != run_id:
+        raise _fail(
+            "S6_07_PERSISTENCE_FAILED", "SourceBinding is missing or belongs to another run"
+        )
+    slot_ids = binding.get("required_slot_ids")
+    if not isinstance(slot_ids, list) or set(slot_ids) != set(S6_07_STAGE_NAMES):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding slots are incomplete")
+    _require_sha256(
+        binding.get("content_sha256"),
+        field="source_binding.content_sha256",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+
+    resolution = _mapping(
+        persisted.get("coefficient_resolution"), field="persisted.coefficient_resolution"
+    )
+    if resolution.get("coefficient_id") != coefficient_id:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "scheme did not use the persisted coefficient")
+    if resolution.get("source_type") in (None, "demo"):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "demo coefficient source was used")
+    if resolution.get("selection_strategy") != "explicit_id":
+        raise _fail("S6_07_PERSISTENCE_FAILED", "coefficient selection was not explicit")
+
+    if not isinstance(persisted.get("power_authority"), Mapping):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "power authority observation is missing")
+    power = cast(Mapping[str, Any], persisted["power_authority"])
+    if power.get("slot_id") != "power" or power.get("value_present") is not True:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "power authority was not persisted")
+    _require_sha256(
+        power.get("value_sha256"),
+        field="power_authority.value_sha256",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    archive = _mapping(persisted.get("source_archive"), field="persisted.source_archive")
+    if archive.get("exists") is not True or archive.get("run_id") != run_id:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "source archive is missing or unbound")
+    archive_digest = _require_sha256(
+        archive.get("sha256"),
+        field="source_archive.sha256",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    if archive.get("expected_sha256") != archive_digest:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "source archive digest mismatch")
+
+    restart = _mapping(persistence.get("restart"), field="persistence_e2e.restart")
+    if restart.get("performed") is not True:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "restart was not observed")
+    restart_ready = _require_response_status(
+        _response(restart, field="readiness", code="S6_07_PERSISTENCE_FAILED"),
+        expected=200,
+        field="restart.readiness",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+    if (
+        _response_body(
+            restart_ready, field="restart.readiness", code="S6_07_PERSISTENCE_FAILED"
+        ).get("status")
+        != "ready"
+    ):
+        raise _fail("S6_07_PERSISTENCE_FAILED", "readiness after restart did not pass")
+    restart_coeff = _mapping(
+        restart.get("coefficient_readback"), field="restart.coefficient_readback"
+    )
+    if restart_coeff.get("id") != coefficient_id:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "coefficient did not survive restart")
+    restart_binding = _mapping(restart.get("source_binding"), field="restart.source_binding")
+    if restart_binding.get("exists") is not True or restart_binding.get("run_id") != run_id:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "SourceBinding did not survive restart")
+    artifact_probe = _mapping(restart.get("artifact_probe"), field="restart.artifact_probe")
+    if artifact_probe.get("exists") is not True:
+        raise _fail("S6_07_PERSISTENCE_FAILED", "artifact volume probe did not survive restart")
+    _require_sha256(
+        artifact_probe.get("sha256"),
+        field="restart.artifact_probe.sha256",
+        code="S6_07_PERSISTENCE_FAILED",
+    )
+
+    observability = _mapping(
+        observations.get("observability_security"), field="observability_security"
+    )
+    correlation = _mapping(observability.get("correlation"), field="observability.correlation")
+    if correlation.get("header_present") is not True or correlation.get(
+        "expected"
+    ) != correlation.get("observed"):
+        raise _fail("S6_07_OBSERVABILITY_FAILED", "correlation identity was not observed")
+    structured = _mapping(
+        observability.get("structured_logging"), field="observability.structured_logging"
+    )
+    count = _require_int(
+        structured.get("record_count"),
+        field="structured_logging.record_count",
+        code="S6_07_OBSERVABILITY_FAILED",
+    )
+    parsed = _require_int(
+        structured.get("parseable_record_count"),
+        field="structured_logging.parseable_record_count",
+        code="S6_07_OBSERVABILITY_FAILED",
+    )
+    matched = _require_int(
+        structured.get("correlation_match_count"),
+        field="structured_logging.correlation_match_count",
+        code="S6_07_OBSERVABILITY_FAILED",
+    )
+    if count <= 0 or parsed != count or matched <= 0:
+        raise _fail("S6_07_OBSERVABILITY_FAILED", "structured log observations are incomplete")
+    redaction = _mapping(observability.get("redaction"), field="observability.redaction")
+    for field in ("password_occurrences", "database_url_occurrences", "token_occurrences"):
+        if (
+            _require_int(
+                redaction.get(field),
+                field=f"redaction.{field}",
+                code="S6_07_OBSERVABILITY_FAILED",
+            )
+            != 0
+        ):
+            raise _fail("S6_07_SECRET_MATERIAL_DETECTED", f"secret marker observed: {field}")
+
+    return {
+        "runtime_lifecycle": "PASS",
+        "production_http_scope": "PASS",
+        "persistence_e2e": "PASS",
+        "observability_security": "PASS",
+    }
 
 
 def _validate_observations(
     observations: Mapping[str, Any], *, source_sha: str, source_tree_sha: str
 ) -> dict[str, dict[str, Any]]:
+    """Validate raw observations and return only raw evidence sections."""
+    _eq(
+        observations.get("schema_version"),
+        S6_07_RAW_OBSERVATION_SCHEMA,
+        field="observations.schema_version",
+        code="S6_07_EVIDENCE_BUNDLE_INVALID",
+    )
+    _eq(
+        observations.get("observation_type"),
+        "raw",
+        field="observations.observation_type",
+        code="S6_07_EVIDENCE_BUNDLE_INVALID",
+    )
     _eq(
         observations.get("task"),
         EXPECTED_TASK,
@@ -292,106 +635,23 @@ def _validate_observations(
         field="observations.source_tree_sha",
         code="S6_07_SOURCE_TREE_INVALID",
     )
-    _require_pass_fields(
-        observations,
-        {
-            "controlled_synthetic": True,
-            "real_production_data": False,
-            "real_production_operation": False,
-        },
-        code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
-    )
-
-    runtime = dict(_mapping(observations.get("runtime_lifecycle"), field="runtime_lifecycle"))
-    _require_pass_fields(
-        runtime,
-        {
-            "image_build": "PASS",
-            "build_identity_file": "PASS",
-            "build_commit_sha_match": "PASS",
-            "build_version": EXPECTED_RELEASE_VERSION,
-            "migration_service": "PASS",
-            "alembic_exact_head": "PASS",
-            "backend_startup": "PASS",
-            "liveness": "PASS",
-            "readiness": "PASS",
-            "canonical_database_engine": "PASS",
-            "canonical_artifact_storage": "PASS",
-            "strict_capability_audit": "PASS",
-        },
-        code="S6_07_RUNTIME_STARTUP_FAILED",
-    )
-
-    http_scope = dict(
-        _mapping(observations.get("production_http_scope"), field="production_http_scope")
-    )
-    _require_pass_fields(
-        http_scope,
-        {
-            "coefficient_routes_mounted": True,
-            "coefficient_backend": "DatabaseCoefficientService",
-            "coefficient_engine_is_canonical_engine": True,
-            "database_failure_fallback_to_in_memory": False,
-            "coefficient_lifecycle_readback": "PASS",
-            "planning_agent_route_mounted": True,
-            "planning_agent_backend": "DISABLED",
-            "planning_agent_http_status": 503,
-            "planning_agent_error_code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-            "planning_agent_retryable": False,
-            "fake_agent_gateway_constructed_in_strict_mode": False,
-            "fake_agent_result_returned": False,
-        },
-        code="S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
-    )
-
-    persistence = dict(_mapping(observations.get("persistence_e2e"), field="persistence_e2e"))
-    _require_pass_fields(
-        persistence,
-        {
-            "zone_stage": "PASS",
-            "cooling_load_stage": "PASS",
-            "equipment_stage": "PASS",
-            "power_stage": "PASS",
-            "investment_stage": "PASS",
-            "source_binding": "VERIFIED",
-            "scheme_run": "PASS",
-            "no_demo_coefficient_used": True,
-            "no_latest_row_fallback": True,
-            "no_partial_source_binding": True,
-            "power_authority_binding": "PASS",
-            "source_archive_verification": "PASS",
-            "restart_performed": True,
-            "readiness_after_restart": "PASS",
-            "database_state_persisted": "PASS",
-            "coefficient_state_persisted": "PASS",
-            "source_binding_state_persisted": "PASS",
-            "artifact_state_persisted": "PASS",
-        },
-        code="S6_07_PERSISTENCE_FAILED",
-    )
-
-    observability = dict(
-        _mapping(observations.get("observability_security"), field="observability_security")
-    )
-    _require_pass_fields(
-        observability,
-        {
-            "correlation_id": "PASS",
-            "structured_logging": "PASS",
-            "sensitive_value_redaction": "PASS",
-            "database_url_not_emitted": "PASS",
-            "password_not_emitted": "PASS",
-            "token_not_emitted": "PASS",
-            "production_disabled_capability_observable": "PASS",
-        },
-        code="S6_07_OBSERVABILITY_FAILED",
-    )
-    return {
-        "runtime_lifecycle": runtime,
-        "production_http_scope": http_scope,
-        "persistence_e2e": persistence,
-        "observability_security": observability,
+    if (
+        observations.get("controlled_synthetic") is not True
+        or observations.get("real_production_data") is not False
+        or observations.get("real_production_operation") is not False
+    ):
+        raise _fail("S6_07_PRODUCTION_HTTP_SCOPE_FAILED", "unsafe evidence scope marker")
+    sections = {
+        name: dict(_mapping(observations.get(name), field=name))
+        for name in (
+            "runtime_lifecycle",
+            "production_http_scope",
+            "persistence_e2e",
+            "observability_security",
+        )
     }
+    _derive_assertions(observations, source_sha=source_sha, source_tree_sha=source_tree_sha)
+    return sections
 
 
 def _verify_s6_06_run_metadata(
@@ -634,6 +894,7 @@ def _build_documents(
     generated_at: str,
     s6_06: Mapping[str, Any],
     observations: Mapping[str, dict[str, Any]],
+    assertions: Mapping[str, str],
 ) -> dict[str, dict[str, Any]]:
     common = {
         "schema_version": S6_07_SCHEMA_VERSION,
@@ -655,10 +916,10 @@ def _build_documents(
         "s6_06_artifact_id": s6_06["artifact_id"],
         "s6_06_artifact_digest": s6_06["artifact_digest"],
         "s6_06_verification_result": "PASS",
-        "runtime_lifecycle_result": "PASS",
-        "production_http_scope_result": "PASS",
-        "persistence_e2e_result": "PASS",
-        "observability_security_result": "PASS",
+        "runtime_lifecycle_result": assertions["runtime_lifecycle"],
+        "production_http_scope_result": assertions["production_http_scope"],
+        "persistence_e2e_result": assertions["persistence_e2e"],
+        "observability_security_result": assertions["observability_security"],
         "production_promotion": False,
         "required_gate_count": 6,
         "passed_gate_count": 6,
@@ -678,10 +939,26 @@ def _build_documents(
         "s6_06_source_binding_required": True,
         "verification_result": "PASS",
     }
-    runtime = {**common, **observations["runtime_lifecycle"], "verification_result": "PASS"}
-    http_scope = {**common, **observations["production_http_scope"], "verification_result": "PASS"}
-    persistence = {**common, **observations["persistence_e2e"], "verification_result": "PASS"}
-    security = {**common, **observations["observability_security"], "verification_result": "PASS"}
+    runtime = {
+        **common,
+        "observation_type": "raw",
+        **observations["runtime_lifecycle"],
+    }
+    http_scope = {
+        **common,
+        "observation_type": "raw",
+        **observations["production_http_scope"],
+    }
+    persistence = {
+        **common,
+        "observation_type": "raw",
+        **observations["persistence_e2e"],
+    }
+    security = {
+        **common,
+        "observation_type": "raw",
+        **observations["observability_security"],
+    }
     return {
         "acceptance-summary.json": summary,
         "source-identity.json": source,
@@ -728,6 +1005,9 @@ def assemble_s6_07_acceptance_evidence(
     validated = _validate_observations(
         observation_data, source_sha=source_sha, source_tree_sha=source_tree_sha
     )
+    assertions = _derive_assertions(
+        observation_data, source_sha=source_sha, source_tree_sha=source_tree_sha
+    )
     s6_06 = _s6_06_document(
         source_sha=source_sha,
         source_tree_sha=source_tree_sha,
@@ -755,6 +1035,7 @@ def assemble_s6_07_acceptance_evidence(
         generated_at=generated_at,
         s6_06=s6_06,
         observations=validated,
+        assertions=assertions,
     )
     _write_documents(output_dir, documents)
     verify_s6_07_acceptance_evidence(
@@ -825,12 +1106,6 @@ def verify_s6_07_acceptance_evidence(
         code="S6_07_EVIDENCE_BUNDLE_INVALID",
     )
     _eq(
-        summary.get("acceptance_result"),
-        "PASS",
-        field="acceptance_result",
-        code="S6_07_EVIDENCE_BUNDLE_INVALID",
-    )
-    _eq(
         summary.get("next_stage_status"),
         "NOT_AUTHORIZED",
         field="next_stage_status",
@@ -855,25 +1130,56 @@ def verify_s6_07_acceptance_evidence(
         field="s6-06 digest",
         code="S6_07_S6_06_DIGEST_MISMATCH",
     )
+    for name in (
+        "runtime-lifecycle-observations.json",
+        "production-http-scope-observations.json",
+        "persistence-e2e-observations.json",
+        "observability-security-observations.json",
+    ):
+        _eq(
+            documents[name].get("observation_type"),
+            "raw",
+            field=f"{name}.observation_type",
+            code="S6_07_EVIDENCE_BUNDLE_INVALID",
+        )
+    raw_observations = {
+        "schema_version": S6_07_RAW_OBSERVATION_SCHEMA,
+        "observation_type": "raw",
+        "task": EXPECTED_TASK,
+        "version": EXPECTED_VERSION,
+        "slice": 6,
+        "item": "S6-07",
+        "source_sha": source_sha,
+        "source_tree_sha": source_tree_sha,
+        "controlled_synthetic": True,
+        "real_production_data": False,
+        "real_production_operation": False,
+        "runtime_lifecycle": documents["runtime-lifecycle-observations.json"],
+        "production_http_scope": documents["production-http-scope-observations.json"],
+        "persistence_e2e": documents["persistence-e2e-observations.json"],
+        "observability_security": documents["observability-security-observations.json"],
+    }
+    assertions = _derive_assertions(
+        raw_observations, source_sha=source_sha, source_tree_sha=source_tree_sha
+    )
     _validate_observations(
-        {
-            "task": EXPECTED_TASK,
-            "version": EXPECTED_VERSION,
-            "slice": 6,
-            "item": "S6-07",
-            "source_sha": source_sha,
-            "source_tree_sha": source_tree_sha,
-            "controlled_synthetic": True,
-            "real_production_data": False,
-            "real_production_operation": False,
-            "runtime_lifecycle": documents["runtime-lifecycle-observations.json"],
-            "production_http_scope": documents["production-http-scope-observations.json"],
-            "persistence_e2e": documents["persistence-e2e-observations.json"],
-            "observability_security": documents["observability-security-observations.json"],
-        },
+        raw_observations,
         source_sha=source_sha,
         source_tree_sha=source_tree_sha,
     )
+    for field, expected in {
+        "runtime_lifecycle_result": assertions["runtime_lifecycle"],
+        "production_http_scope_result": assertions["production_http_scope"],
+        "persistence_e2e_result": assertions["persistence_e2e"],
+        "observability_security_result": assertions["observability_security"],
+        "acceptance_result": "PASS",
+    }.items():
+        _eq(
+            summary.get(field),
+            expected,
+            field=field,
+            code="S6_07_EVIDENCE_BUNDLE_INVALID",
+        )
     verify_s6_06_prerequisite(
         repository=repository,
         source_sha=source_sha,

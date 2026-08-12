@@ -18,7 +18,12 @@ S6_06_DIGEST = "sha256:153ee7502ff4fcccb04468172d2e6de8e0266ba23193e155930488d2f
 
 
 def _observations() -> dict[str, object]:
+    digest = "a" * 64
+    coefficient_id = "coefficient-s6-07"
+    run_id = "scheme-run-s6-07"
     return {
+        "schema_version": acceptance.S6_07_RAW_OBSERVATION_SCHEMA,
+        "observation_type": "raw",
         "task": "TASK-012",
         "version": "V0.2",
         "slice": 6,
@@ -29,61 +34,109 @@ def _observations() -> dict[str, object]:
         "real_production_data": False,
         "real_production_operation": False,
         "runtime_lifecycle": {
-            "image_build": "PASS",
-            "build_identity_file": "PASS",
-            "build_commit_sha_match": "PASS",
-            "build_version": "v0.2.0",
-            "migration_service": "PASS",
-            "alembic_exact_head": "PASS",
-            "backend_startup": "PASS",
-            "liveness": "PASS",
-            "readiness": "PASS",
-            "canonical_database_engine": "PASS",
-            "canonical_artifact_storage": "PASS",
-            "strict_capability_audit": "PASS",
+            "build_identity": {
+                "file_present": True,
+                "commit_sha": SOURCE_SHA,
+                "version": "v0.2.0",
+            },
+            "migration": {"exit_code": 0, "current_output": "34 (head)\n"},
+            "container": {"running": True, "status": "running"},
+            "liveness": {"status": 200, "body": {"status": "live"}},
+            "readiness": {
+                "status": 200,
+                "body": {
+                    "status": "ready",
+                    "capabilities": [
+                        {
+                            "name": "model_backed_agent",
+                            "status": "disabled",
+                            "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+                        }
+                    ],
+                },
+            },
+            "database": {
+                "backend": "postgresql",
+                "service_class": "DatabaseCoefficientService",
+            },
+            "artifact_storage": {"probe_exists": True, "probe_sha256": digest},
         },
         "production_http_scope": {
-            "coefficient_routes_mounted": True,
-            "coefficient_backend": "DatabaseCoefficientService",
-            "coefficient_engine_is_canonical_engine": True,
-            "database_failure_fallback_to_in_memory": False,
-            "coefficient_lifecycle_readback": "PASS",
-            "planning_agent_route_mounted": True,
-            "planning_agent_backend": "DISABLED",
-            "planning_agent_http_status": 503,
-            "planning_agent_error_code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
-            "planning_agent_retryable": False,
-            "fake_agent_gateway_constructed_in_strict_mode": False,
-            "fake_agent_result_returned": False,
+            "coefficient": {
+                "created": {"status": 200, "body": {"id": coefficient_id}},
+                "readback": {"status": 200, "body": {"id": coefficient_id}},
+                "persisted_row_id": coefficient_id,
+            },
+            "planning_agent": {
+                "response": {
+                    "status": 503,
+                    "body": {
+                        "error": {
+                            "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+                            "details": {"retryable": False},
+                        }
+                    },
+                }
+            },
         },
         "persistence_e2e": {
-            "zone_stage": "PASS",
-            "cooling_load_stage": "PASS",
-            "equipment_stage": "PASS",
-            "power_stage": "PASS",
-            "investment_stage": "PASS",
-            "source_binding": "VERIFIED",
-            "scheme_run": "PASS",
-            "no_demo_coefficient_used": True,
-            "no_latest_row_fallback": True,
-            "no_partial_source_binding": True,
-            "power_authority_binding": "PASS",
-            "source_archive_verification": "PASS",
-            "restart_performed": True,
-            "readiness_after_restart": "PASS",
-            "database_state_persisted": "PASS",
-            "coefficient_state_persisted": "PASS",
-            "source_binding_state_persisted": "PASS",
-            "artifact_state_persisted": "PASS",
+            "scheme": {
+                "response": {"status": 200, "body": {"run_id": run_id}},
+                "persisted": {
+                    "run_id": run_id,
+                    "status": "completed",
+                    "stages": [
+                        {"name": name, "status": "completed"}
+                        for name in acceptance.S6_07_STAGE_NAMES
+                    ],
+                    "source_binding": {
+                        "exists": True,
+                        "run_id": run_id,
+                        "required_slot_ids": list(acceptance.S6_07_STAGE_NAMES),
+                        "content_sha256": digest,
+                    },
+                    "coefficient_resolution": {
+                        "coefficient_id": coefficient_id,
+                        "source_type": "controlled",
+                        "selection_strategy": "explicit_id",
+                    },
+                    "power_authority": {
+                        "slot_id": "power",
+                        "value_present": True,
+                        "value_sha256": digest,
+                    },
+                    "source_archive": {
+                        "exists": True,
+                        "run_id": run_id,
+                        "sha256": digest,
+                        "expected_sha256": digest,
+                    },
+                },
+            },
+            "restart": {
+                "performed": True,
+                "readiness": {"status": 200, "body": {"status": "ready"}},
+                "coefficient_readback": {"id": coefficient_id},
+                "source_binding": {"exists": True, "run_id": run_id},
+                "artifact_probe": {"exists": True, "sha256": digest},
+            },
         },
         "observability_security": {
-            "correlation_id": "PASS",
-            "structured_logging": "PASS",
-            "sensitive_value_redaction": "PASS",
-            "database_url_not_emitted": "PASS",
-            "password_not_emitted": "PASS",
-            "token_not_emitted": "PASS",
-            "production_disabled_capability_observable": "PASS",
+            "correlation": {
+                "header_present": True,
+                "expected": "s6-07-test-correlation",
+                "observed": "s6-07-test-correlation",
+            },
+            "structured_logging": {
+                "record_count": 3,
+                "parseable_record_count": 3,
+                "correlation_match_count": 2,
+            },
+            "redaction": {
+                "password_occurrences": 0,
+                "database_url_occurrences": 0,
+                "token_occurrences": 0,
+            },
         },
     }
 
@@ -212,25 +265,31 @@ def test_invalid_source_sha_fails_closed(tmp_path: Path, monkeypatch: pytest.Mon
     ("mutation", "expected"),
     [
         (
-            lambda data: data["production_http_scope"].update({"planning_agent_http_status": 200}),
-            "S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
-        ),
-        (
-            lambda data: data["production_http_scope"].update(
-                {"coefficient_backend": "CoefficientService"}
+            lambda data: data["production_http_scope"]["planning_agent"]["response"].update(
+                {"status": 200}
             ),
             "S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
         ),
         (
-            lambda data: data["runtime_lifecycle"].update({"readiness": "FAIL"}),
-            "S6_07_RUNTIME_STARTUP_FAILED",
+            lambda data: data["production_http_scope"]["coefficient"].update(
+                {"persisted_row_id": "wrong"}
+            ),
+            "S6_07_COEFFICIENT_AUTHORITY_INVALID",
         ),
         (
-            lambda data: data["persistence_e2e"].update({"database_state_persisted": "FAIL"}),
+            lambda data: data["runtime_lifecycle"]["readiness"].update({"status": 503}),
+            "S6_07_READINESS_FAILED",
+        ),
+        (
+            lambda data: data["persistence_e2e"]["restart"]["coefficient_readback"].update(
+                {"id": "wrong"}
+            ),
             "S6_07_PERSISTENCE_FAILED",
         ),
         (
-            lambda data: data["observability_security"].update({"token": "ghp_secret"}),
+            lambda data: data["observability_security"]["redaction"].update(
+                {"password_occurrences": 1}
+            ),
             "S6_07_SECRET_MATERIAL_DETECTED",
         ),
     ],
@@ -347,7 +406,7 @@ def test_forged_summary_pass_does_not_override_failed_observation(
     bundle = _assemble(tmp_path, monkeypatch)
     runtime_path = bundle / "runtime-lifecycle-observations.json"
     runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
-    runtime["readiness"] = "FAIL"
+    runtime["readiness"]["status"] = 503
     runtime_path.write_bytes(acceptance.canonical_bytes(runtime))
     sums = "".join(
         f"{hashlib.sha256((bundle / name).read_bytes()).hexdigest()}  {name}\n"
@@ -372,7 +431,70 @@ def test_forged_summary_pass_does_not_override_failed_observation(
             s6_06_bundle_dir=s6_06_bundle,
             s6_06_metadata_dir=metadata,
         )
-    assert exc.value.failure_code == "S6_07_RUNTIME_STARTUP_FAILED"
+    assert exc.value.failure_code == "S6_07_READINESS_FAILED"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    [
+        (
+            lambda data: data["persistence_e2e"]["scheme"]["persisted"].update({"stages": []}),
+            "S6_07_PERSISTENCE_FAILED",
+        ),
+        (
+            lambda data: data["persistence_e2e"]["scheme"]["persisted"].pop("source_binding"),
+            "S6_07_PERSISTENCE_FAILED",
+        ),
+        (
+            lambda data: data["persistence_e2e"]["scheme"]["persisted"][
+                "coefficient_resolution"
+            ].update({"source_type": "demo"}),
+            "S6_07_PERSISTENCE_FAILED",
+        ),
+        (
+            lambda data: data["persistence_e2e"]["scheme"]["persisted"].pop("power_authority"),
+            "S6_07_PERSISTENCE_FAILED",
+        ),
+        (
+            lambda data: data["persistence_e2e"]["scheme"]["persisted"]["source_archive"].update(
+                {"expected_sha256": "b" * 64}
+            ),
+            "S6_07_PERSISTENCE_FAILED",
+        ),
+        (
+            lambda data: data["runtime_lifecycle"]["readiness"]["body"]["capabilities"][0].update(
+                {"status": "enabled"}
+            ),
+            "S6_07_FAKE_AGENT_REACHABLE",
+        ),
+    ],
+)
+def test_forged_all_pass_observations_without_runtime_proof_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation,
+    expected: str,
+) -> None:
+    data = _observations()
+    mutation(data)
+    s6_06_bundle, metadata = _write_s6_06_fixture(tmp_path)
+    monkeypatch.setattr(acceptance, "verify_final_release_evidence", lambda **_: None)
+    with pytest.raises(acceptance.S607AcceptanceError) as exc:
+        acceptance.assemble_s6_07_acceptance_evidence(
+            output_dir=tmp_path / "bundle",
+            repository=acceptance.EXPECTED_REPOSITORY,
+            source_sha=SOURCE_SHA,
+            source_tree_sha=SOURCE_TREE_SHA,
+            generated_at="2026-08-12T00:00:00Z",
+            s6_06_run_id=S6_06_RUN_ID,
+            s6_06_run_attempt=1,
+            s6_06_artifact_id=S6_06_ARTIFACT_ID,
+            s6_06_artifact_digest=S6_06_DIGEST,
+            s6_06_bundle_dir=s6_06_bundle,
+            s6_06_metadata_dir=metadata,
+            observations=data,
+        )
+    assert exc.value.failure_code == expected
 
 
 def test_missing_observation_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

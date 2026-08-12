@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
+import uuid
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 
+from cold_storage.bootstrap.app import create_app
+from cold_storage.bootstrap.dependencies import shutdown_dependencies
+from cold_storage.bootstrap.runtime_readiness import reset_readiness_state
 from cold_storage.modules.coefficients.infrastructure.database import DatabaseCoefficientService
 from cold_storage.modules.coefficients.infrastructure.orm import CoefficientDefinitionRecord
 from cold_storage.release import end_to_end_operational_acceptance as acceptance
@@ -79,13 +85,77 @@ def test_sqlite_persistence_fixture_proves_restart_readback(tmp_path: Path) -> N
 
 
 @pytest.mark.postgresql
-def test_postgresql_controlled_acceptance_requires_explicit_database_authority() -> None:
-    """The real S6-07 workflow supplies this authority; local runs never guess it."""
+def test_postgresql_coefficient_persistence_survives_service_recreation() -> None:
+    """Exercise the real PostgreSQL engine used by the controlled workflow."""
 
-    database_url = __import__("os").environ.get("S6_07_POSTGRES_URL")
+    database_url = os.environ.get("S6_07_POSTGRES_URL")
     if not database_url:
         pytest.skip("S6_07_POSTGRES_URL is required for PostgreSQL acceptance execution")
-    assert database_url.startswith(("postgresql://", "postgresql+psycopg2://"))
+    engine = create_engine(database_url, pool_pre_ping=True)
+    assert engine.dialect.name == "postgresql"
+    service = DatabaseCoefficientService(engine)
+    code = f"s6_07_pg_{uuid.uuid4().hex}"
+    definition = service.create_definition(
+        code=code,
+        name="S6-07 PostgreSQL persistence probe",
+        description="controlled synthetic coefficient",
+        category="acceptance",
+        canonical_unit="unit",
+        is_active=True,
+    )
+    engine.dispose()
+
+    restarted_engine = create_engine(database_url, pool_pre_ping=True)
+    restarted_service = DatabaseCoefficientService(restarted_engine)
+    recovered = restarted_service.get_definition(definition.id)
+    assert recovered.id == definition.id
+    assert recovered.code == code
+    with restarted_engine.connect() as connection:
+        assert (
+            connection.scalar(
+                select(CoefficientDefinitionRecord.id).where(
+                    CoefficientDefinitionRecord.id == definition.id
+                )
+            )
+            == definition.id
+        )
+    restarted_engine.dispose()
+
+
+@pytest.mark.postgresql
+def test_strict_application_composition_returns_disabled_agent_503(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exercise the production composition and strict disabled-agent route."""
+
+    database_url = os.environ.get("S6_07_POSTGRES_URL")
+    if not database_url:
+        pytest.skip("S6_07_POSTGRES_URL is required for PostgreSQL acceptance execution")
+    monkeypatch.setenv("COLD_STORAGE_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_BACKEND", "postgresql")
+    monkeypatch.setenv("COLD_STORAGE_DATABASE_URL", database_url)
+    monkeypatch.setenv("COLD_STORAGE_APP_HOST", "127.0.0.1")
+    monkeypatch.setenv("COLD_STORAGE_APP_PORT", "8000")
+    monkeypatch.setenv("COLD_STORAGE_STORAGE_DIR", str(tmp_path / "artifacts"))
+    monkeypatch.setenv("COLD_STORAGE_ARTIFACT_ENVIRONMENT_ID", "production")
+    monkeypatch.setenv("COLD_STORAGE_BUILD_COMMIT_SHA", "0" * 40)
+    monkeypatch.setenv("COLD_STORAGE_BUILD_VERSION", "v0.2.0")
+    monkeypatch.setenv("COLD_STORAGE_DEPLOYMENT_ID", "s6-07-test")
+    monkeypatch.setenv("COLD_STORAGE_CONFIG_SCHEMA_VERSION", "1")
+    reset_readiness_state()
+    try:
+        with TestClient(create_app()) as client:
+            response = client.post("/api/v1/agent/sessions", json={})
+            assert response.status_code == 503
+            assert response.json() == {
+                "error": {
+                    "code": "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",
+                    "message": "Model-backed agent not in V0.2 production scope.",
+                    "details": {"retryable": False},
+                }
+            }
+    finally:
+        shutdown_dependencies()
 
 
 def test_observation_fixture_is_not_a_production_secret_fixture(tmp_path: Path) -> None:

@@ -768,6 +768,20 @@ jobs:
           PYTHONPATH=src uv run alembic upgrade head
       - name: Install CJK font
         run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+      - name: S6-07 PostgreSQL persistence acceptance
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          S6_07_POSTGRES_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: >-
+          cd backend && PYTHONPATH=src uv run pytest
+          tests/integration/test_end_to_end_operational_acceptance.py
+          -m postgresql -vv
       - name: PostgreSQL integration tests
         env:
           DATABASE_BACKEND: postgresql

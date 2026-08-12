@@ -37,11 +37,21 @@ The existing `production` strict mode is used unchanged. The backend process
 does not run Alembic; the dedicated migration service owns `alembic upgrade
 head`.
 
-The acceptance observes image/build identity, the exact migration head,
-startup, liveness, readiness, canonical PostgreSQL and artifact storage, and
-the strict capability audit. It exercises the database-backed coefficient
-route and verifies the planning-agent route remains a disabled `503` with
-`AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE` and `retryable=false`.
+The workflow writes raw observations only: build identity JSON, Alembic output,
+HTTP status/body pairs, container state, PostgreSQL-backed coefficient IDs,
+restart readbacks, persisted run/source-binding facts, artifact probe hashes,
+correlation IDs, structured-log counters, and redaction counters. These are
+facts, not precomputed `PASS` assertions. The assembler derives the acceptance
+results from those facts, and the independent verifier derives them again from
+the raw observation documents. A missing persisted fact fails closed.
+
+The runtime dependency evidence is the strict PostgreSQL configuration plus the
+observed `DatabaseCoefficientService` authority and persisted row readback. The
+planning-agent evidence is an actual HTTP `503` response with
+`AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE` and `retryable=false`, together with
+the readiness capability projection showing the capability disabled. The
+workflow does not claim a negative construction fact that the runtime does not
+expose as machine-readable evidence.
 
 ## Acceptance sequence
 
@@ -60,8 +70,11 @@ route and verifies the planning-agent route remains a disabled `503` with
 8. Assemble and independently verify the nine-file S6-07 evidence bundle.
 
 The persistence observations must show the existing canonical source-binding
-and scheme path when that path is exercised. A missing, partial, demo, or
-latest-row fallback is a failure, not a synthetic pass.
+and scheme path when that path is exercised. The five stage names and completed
+statuses, run identity, binding slot set/hash, explicit coefficient resolution,
+power authority, and source archive identity/hash are checked independently.
+A missing, partial, demo, or latest-row fallback is a failure, not a synthetic
+pass. HTTP 200 alone never implies five-stage success.
 
 ## Evidence bundle
 
@@ -86,7 +99,23 @@ members.
 
 The independent verifier recomputes source, S6-06, observation, strict-agent,
 database-coefficient, persistence, production-operation, secret-scan, shape,
-and checksum gates. It does not trust `acceptance_result=PASS` in the summary.
+and checksum gates from the raw documents. It does not trust
+`acceptance_result=PASS` or any other recorded derived result in the summary.
+
+The final bundle must continue to distinguish:
+
+```text
+OBSERVATIONS_ARE_FACTS_NOT_PASS_ASSERTIONS=YES
+ASSEMBLER_DERIVES_RESULTS=YES
+INDEPENDENT_VERIFIER_RECOMPUTES_RESULTS=YES
+HTTP_200_IMPLIES_FIVE_STAGE_PASS=NO
+```
+
+The focused PostgreSQL persistence test uses the same CI PostgreSQL service and
+performs create, dispose/recreate, and readback through
+`DatabaseCoefficientService`. The strict-agent integration test starts the
+existing production composition and calls the real disabled route; it does not
+mock a response body.
 
 ## Failure and governance
 
