@@ -135,6 +135,11 @@ jobs:
              .workflow_run.id == $run_id and .workflow_run.head_sha == $sha' \
             "${RUN_ROOT}/s6-06-artifact.json"
 
+          cp "${RUN_ROOT}/s6-06-run.json" \
+            "${S6_06_METADATA}/run-${S6_06_RUN_ID}.json"
+          cp "${RUN_ROOT}/s6-06-artifact.json" \
+            "${S6_06_METADATA}/artifact-${S6_06_ARTIFACT_ID}.json"
+
           gh api --header 'Accept: application/vnd.github+json' \
             "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${S6_06_ARTIFACT_ID}/zip" \
             > "${RUN_ROOT}/s6-06.zip"
@@ -145,12 +150,18 @@ jobs:
           test "$(find "${S6_06_BUNDLE}" -mindepth 1 -maxdepth 1 | wc -l)" -eq 8
 
           while IFS= read -r run_id; do
+            if [ "${run_id}" = "${S6_06_RUN_ID}" ]; then
+              continue
+            fi
             gh api --header 'Accept: application/vnd.github+json' \
               "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
               > "${S6_06_METADATA}/run-${run_id}.json"
           done < <(jq -r '.authorities[] | select(.workflow_run_id != null) | .workflow_run_id' \
             "${S6_06_BUNDLE}/authority-index.json" | sort -nu)
           while IFS= read -r artifact_id; do
+            if [ "${artifact_id}" = "${S6_06_ARTIFACT_ID}" ]; then
+              continue
+            fi
             gh api --header 'Accept: application/vnd.github+json' \
               "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" \
               > "${S6_06_METADATA}/artifact-${artifact_id}.json"
