@@ -100,6 +100,29 @@ def test_workflow_fetches_upstream_metadata_before_both_verification_surfaces() 
     assert "actions/artifacts/" in workflow
 
 
+def test_workflow_verifies_checksums_from_bundle_root() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    verification_step_offset = workflow.index("Independently verify final release evidence")
+    bundle_context_offset = workflow.index(
+        'BUNDLE_DIR="${RUN_ROOT}/bundle"', verification_step_offset
+    )
+    change_directory_offset = workflow.index('cd "${BUNDLE_DIR}"', bundle_context_offset)
+    verify_offset = workflow.index("verify-final-release-evidence", change_directory_offset)
+    checksum_offset = workflow.index("sha256sum -c SHA256SUMS", change_directory_offset)
+    sidecar_offset = workflow.index("sha256sum -c SHA256SUMS.sha256", checksum_offset)
+
+    assert (
+        bundle_context_offset
+        < change_directory_offset
+        < verify_offset
+        < checksum_offset
+        < sidecar_offset
+    )
+    assert 'sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS"' not in workflow
+    assert 'sha256sum -c "${RUN_ROOT}/bundle/SHA256SUMS.sha256"' not in workflow
+    assert 'test "$(find . -maxdepth 1 -type f | wc -l)" -eq 8' in workflow
+
+
 def test_package3_validation_is_in_ordinary_release_evidence_gate() -> None:
     makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
     ci = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
