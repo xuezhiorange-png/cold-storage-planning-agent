@@ -476,7 +476,7 @@ def test_postgresql_production_authority_survives_fresh_engine_reload() -> None:
         assert after["source_binding"] == canonical_second["source_binding"]
         assert after["stages"] == canonical_second["stages"]
         assert after["source_archive"] == canonical_second["source_archive"]
-        assert after["controlled_coefficient"] == second["controlled_coefficient"]
+        assert after["controlled_coefficient"] == canonical_second["controlled_coefficient"]
         assert after["source_archive"]["independent_rehash"] is True
     finally:
         restarted_engine.dispose()
