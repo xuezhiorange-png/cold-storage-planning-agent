@@ -768,6 +768,20 @@ jobs:
           PYTHONPATH=src uv run alembic upgrade head
       - name: Install CJK font
         run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+      - name: S6-07 PostgreSQL persistence acceptance
+        env:
+          DATABASE_BACKEND: postgresql
+          DATABASE_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          S6_07_POSTGRES_URL: postgresql+psycopg2://cold_storage:cold_storage@localhost:5432/cold_storage_test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cold_storage_test
+          POSTGRES_USER: cold_storage
+          POSTGRES_PASSWORD: cold_storage
+        run: >-
+          cd backend && PYTHONPATH=src uv run pytest
+          tests/integration/test_end_to_end_operational_acceptance.py
+          -m postgresql -vv
       - name: PostgreSQL integration tests
         env:
           DATABASE_BACKEND: postgresql
@@ -845,6 +859,20 @@ jobs:
         run: cd backend && uv run mypy src/cold_storage/release/ --strict --ignore-missing-imports
       - name: Package 3 workflow YAML parse
         run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/task012-slice6-package3-release-evidence.yml")'
+      - name: S6-07 workflow YAML parse
+        run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/task012-slice6-s7-e2e-operational-acceptance.yml")'
+      - name: S6-07 implementation lint and format
+        run: |
+          cd backend && uv run ruff check \
+            src/cold_storage/release/end_to_end_operational_acceptance.py \
+            tests/unit/test_end_to_end_operational_acceptance.py \
+            tests/integration/test_end_to_end_operational_acceptance.py \
+            tests/architecture/test_end_to_end_operational_acceptance_boundaries.py
+          uv run ruff format --check \
+            src/cold_storage/release/end_to_end_operational_acceptance.py \
+            tests/unit/test_end_to_end_operational_acceptance.py \
+            tests/integration/test_end_to_end_operational_acceptance.py \
+            tests/architecture/test_end_to_end_operational_acceptance_boundaries.py
       - name: Release evidence unit tests
         run: |
           cd backend && PYTHONPATH=src uv run pytest \
@@ -874,6 +902,13 @@ jobs:
           cd backend && PYTHONPATH=src uv run pytest \
             tests/architecture/test_release_evidence_boundaries.py \
             tests/architecture/test_final_release_evidence_boundaries.py \
+            -q
+      - name: S6-07 operational acceptance implementation tests
+        run: |
+          cd backend && PYTHONPATH=src uv run pytest \
+            tests/unit/test_end_to_end_operational_acceptance.py \
+            tests/integration/test_end_to_end_operational_acceptance.py \
+            tests/architecture/test_end_to_end_operational_acceptance_boundaries.py \
             -q
 
   # TASK-012 V0.2 Slice 2 R2: this is a future execution surface only.

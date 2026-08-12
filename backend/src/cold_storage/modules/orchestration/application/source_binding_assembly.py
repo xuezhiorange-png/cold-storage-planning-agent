@@ -98,18 +98,19 @@ from cold_storage.modules.orchestration.domain.contracts import (
 
 
 def _decimalize_payload(value: object) -> object:
-    """Recursively convert ``float`` leaves to ``Decimal``.
+    """Return JSON-safe values with the canonical decimal representation.
 
-    The orchestrator's canonical-JSON helper rejects binary
-    ``float`` and only accepts ``Decimal``.  Calculator
-    outputs naturally carry ``float`` values, so this helper
-    is the boundary that normalises the calculator's output
-    to ``Decimal`` everywhere.  The conversion is lossless for
-    the values produced by the production calculators (they
-    all originate as ``Decimal`` internally).
+    Calculator outputs can contain binary floats, while the
+    orchestrator's canonical JSON rejects them.  Emit the same
+    normalized decimal text used by canonical JSON so the persisted
+    payload is serializable and the result hash sees the same value.
     """
-    if isinstance(value, float):
-        return _Decimal(str(value))
+    if isinstance(value, (float, _Decimal)):
+        normalized = _Decimal(str(value)).normalize()
+        exponent = normalized.as_tuple().exponent
+        return (
+            str(int(normalized)) if isinstance(exponent, int) and exponent > 0 else str(normalized)
+        )
     if isinstance(value, dict):
         return {k: _decimalize_payload(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -117,6 +118,34 @@ def _decimalize_payload(value: object) -> object:
     if isinstance(value, tuple):
         return tuple(_decimalize_payload(v) for v in value)
     return value
+
+
+def _decimalize_mapping(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize a structured provenance mapping before persistence."""
+
+    normalized = _decimalize_payload(dict(value))
+    if not isinstance(normalized, dict):
+        raise TypeError("normalized provenance value must remain an object")
+    return normalized
+
+
+def _canonical_coefficient_entry(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Project calculator coefficient metadata onto the frozen snapshot schema."""
+
+    normalized = _decimalize_mapping(value)
+    raw_value = normalized.get("value", normalized.get("value_decimal"))
+    if raw_value is None:
+        raise TypeError("coefficient provenance is missing its value")
+    return {
+        "revision_id": str(normalized.get("revision_id", "")),
+        "code": str(normalized["code"]),
+        "value": str(raw_value),
+        "unit": str(normalized["unit"]),
+        "status": str(normalized.get("status", normalized.get("approval_status", "unverified"))),
+        "source_type": str(normalized.get("source_type", "demo")),
+        "source_reference": str(normalized.get("source_reference", "")),
+        "requires_review": bool(normalized.get("requires_review", True)),
+    }
 
 
 # Mapping from orchestration stage name to Phase 2 adapter class
@@ -314,14 +343,18 @@ class Phase2AdapterCalculatorPort:
             result_snapshot=dict(
                 _decimalize_payload(adapter_result.payload)  # type: ignore[call-overload]
             ),
-            formulas=[dict(f) for f in provenance.formulas],
-            coefficients=[dict(c) for c in provenance.coefficients],
+            formulas=[_decimalize_mapping(f) for f in provenance.formulas],
+            coefficients=[_canonical_coefficient_entry(c) for c in provenance.coefficients],
             assumptions=list(provenance.assumptions),
             warnings=[
-                {"code": w.code, "message": w.message, "details": dict(w.details)}
+                {
+                    "code": w.code,
+                    "message": w.message,
+                    "details": _decimalize_mapping(w.details),
+                }
                 for w in adapter_result.warnings
             ],
-            source_references=[dict(s) for s in provenance.source_references],
+            source_references=[_decimalize_mapping(s) for s in provenance.source_references],
             requires_review=bool(adapter_result.requires_review),
         )
 

@@ -92,6 +92,7 @@ def _cooling_load_inputs() -> dict[str, Any]:
 
 def _equipment_inputs() -> dict[str, Any]:
     return {
+        "condensing_temperature_c": "40.0",
         "systems": [
             {
                 "system_code": "S1",
