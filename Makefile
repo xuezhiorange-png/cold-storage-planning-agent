@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= .uv-cache
 RC_BUILD_CONTEXT ?= .
 
-.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery final-release-evidence-test final-release-evidence-lint final-release-evidence-typecheck verify-final-release-evidence
+.PHONY: install dev up down migrate seed test lint format typecheck architecture-test demo clean-dev verify-slice2 production-config backend-image-build release-evidence-test release-evidence-lint release-evidence-typecheck verify-release-evidence verify-base-image-digests verify-live-evidence-runner verify-artifact-transport recovery-foundation-test recovery-foundation-lint recovery-foundation-typecheck verify-recovery-foundation release-failure-recovery-test release-failure-recovery-lint release-failure-recovery-typecheck verify-release-failure-recovery final-release-evidence-test final-release-evidence-lint final-release-evidence-typecheck verify-final-release-evidence test-s6-07-operational-acceptance s6-07-operational-acceptance-test s6-07-operational-acceptance-lint s6-07-operational-acceptance-typecheck verify-s6-07-operational-acceptance
 
 install:
 	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv sync
@@ -166,6 +166,39 @@ final-release-evidence-typecheck:
 
 verify-final-release-evidence: final-release-evidence-lint final-release-evidence-typecheck final-release-evidence-test
 	@echo 'verify-final-release-evidence ok'
+
+# TASK-012 V0.2 Slice 6 S6-07: deterministic implementation tests only.
+# This target never dispatches the controlled acceptance workflow or starts
+# the production-oriented Compose surface.
+s6-07-operational-acceptance-test:
+	cd backend && PYTHONPATH=src UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run pytest \
+		tests/unit/test_end_to_end_operational_acceptance.py \
+		tests/integration/test_end_to_end_operational_acceptance.py \
+		tests/architecture/test_end_to_end_operational_acceptance_boundaries.py \
+		-q
+
+test-s6-07-operational-acceptance: s6-07-operational-acceptance-test
+
+s6-07-operational-acceptance-lint:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff check \
+		src/cold_storage/release/end_to_end_operational_acceptance.py \
+		tests/unit/test_end_to_end_operational_acceptance.py \
+		tests/integration/test_end_to_end_operational_acceptance.py \
+		tests/architecture/test_end_to_end_operational_acceptance_boundaries.py
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run ruff format --check \
+		src/cold_storage/release/end_to_end_operational_acceptance.py \
+		tests/unit/test_end_to_end_operational_acceptance.py \
+		tests/integration/test_end_to_end_operational_acceptance.py \
+		tests/architecture/test_end_to_end_operational_acceptance_boundaries.py
+
+s6-07-operational-acceptance-typecheck:
+	cd backend && UV_CACHE_DIR=../$(UV_CACHE_DIR) uv run mypy \
+		src/cold_storage/release/end_to_end_operational_acceptance.py \
+		--strict --ignore-missing-imports
+
+verify-s6-07-operational-acceptance: s6-07-operational-acceptance-lint s6-07-operational-acceptance-typecheck s6-07-operational-acceptance-test
+	@ruby -e 'require "yaml"; YAML.load_file(".github/workflows/task012-slice6-s7-e2e-operational-acceptance.yml")'
+	@echo 'verify-s6-07-operational-acceptance ok'
 
 # Runner-only contract gate. This target uses mock/synthetic tests and never
 # invokes a real Docker build, registry push, signing command, or deployment.

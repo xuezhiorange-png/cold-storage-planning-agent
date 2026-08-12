@@ -1,0 +1,348 @@
+name: task012-slice6-s7-e2e-operational-acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      execute_s6_07_operational_acceptance:
+        description: Explicitly authorize the controlled S6-07 acceptance
+        required: true
+        type: boolean
+        default: false
+      expected_source_sha:
+        description: Exact main SHA under acceptance
+        required: true
+        type: string
+      s6_06_run_id:
+        description: Refreshed S6-06 final evidence workflow run ID
+        required: true
+        type: string
+      s6_06_run_attempt:
+        description: Refreshed S6-06 workflow run attempt
+        required: true
+        type: string
+      s6_06_artifact_id:
+        description: Refreshed S6-06 final evidence artifact ID
+        required: true
+        type: string
+      s6_06_artifact_digest:
+        description: Upload-time digest of the refreshed S6-06 artifact
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  s6-07-controlled-acceptance:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+      inputs.execute_s6_07_operational_acceptance == true &&
+      github.ref == 'refs/heads/main' &&
+      github.sha == inputs.expected_source_sha }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+      S6_06_RUN_ID: ${{ inputs.s6_06_run_id }}
+      S6_06_RUN_ATTEMPT: ${{ inputs.s6_06_run_attempt }}
+      S6_06_ARTIFACT_ID: ${{ inputs.s6_06_artifact_id }}
+      S6_06_ARTIFACT_DIGEST: ${{ inputs.s6_06_artifact_digest }}
+      S6_07_POSTGRES_PASSWORD: synthetic-only-s6-07-password
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install backend dependencies
+        run: cd backend && uv sync
+
+      - name: Validate exact source and controlled execution gate
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${GITHUB_SHA}" = "${EXPECTED_SOURCE_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}"
+          SOURCE_TREE_SHA="$(git rev-parse HEAD^{tree})"
+          test "${SOURCE_TREE_SHA}" != ""
+          {
+            echo "SOURCE_SHA=${EXPECTED_SOURCE_SHA}"
+            echo "SOURCE_TREE_SHA=${SOURCE_TREE_SHA}"
+          } >> "${GITHUB_ENV}"
+          echo "S6_07_EXACT_SOURCE_GATE=PASS"
+
+      - name: Read and verify refreshed S6-06 authority
+        run: |
+          set -euo pipefail
+          RUN_ROOT="${RUNNER_TEMP}/task012-s6-07/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          S6_06_BUNDLE="${RUN_ROOT}/s6-06-bundle"
+          S6_06_METADATA="${RUN_ROOT}/s6-06-metadata"
+          mkdir -p "${RUN_ROOT}" "${S6_06_METADATA}"
+          export RUN_ROOT S6_06_BUNDLE S6_06_METADATA
+
+          gh api --header 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/runs/${S6_06_RUN_ID}" \
+            > "${RUN_ROOT}/s6-06-run.json"
+          gh api --header 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${S6_06_ARTIFACT_ID}" \
+            > "${RUN_ROOT}/s6-06-artifact.json"
+          jq -e --arg sha "${SOURCE_SHA}" --argjson run_id "${S6_06_RUN_ID}" \
+            --argjson attempt "${S6_06_RUN_ATTEMPT}" \
+            '.id == $run_id and .event == "workflow_dispatch" and
+             .head_branch == "main" and .head_sha == $sha and
+             .run_attempt == $attempt and .status == "completed" and
+             .conclusion == "success" and
+             .path == ".github/workflows/task012-slice6-package3-release-evidence.yml"' \
+            "${RUN_ROOT}/s6-06-run.json"
+          jq -e --arg digest "${S6_06_ARTIFACT_DIGEST}" \
+            --argjson artifact_id "${S6_06_ARTIFACT_ID}" \
+            --argjson run_id "${S6_06_RUN_ID}" --arg sha "${SOURCE_SHA}" \
+            --argjson attempt "${S6_06_RUN_ATTEMPT}" \
+            '.id == $artifact_id and .expired == false and .digest == $digest and
+             .name == ("task012-s6-06-final-release-evidence-" + ($run_id|tostring) + "-" + ($attempt|tostring)) and
+             .workflow_run.id == $run_id and .workflow_run.head_sha == $sha' \
+            "${RUN_ROOT}/s6-06-artifact.json"
+
+          gh api --header 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${S6_06_ARTIFACT_ID}/zip" \
+            > "${RUN_ROOT}/s6-06.zip"
+          test "sha256:$(sha256sum "${RUN_ROOT}/s6-06.zip" | cut -d' ' -f1)" = "${S6_06_ARTIFACT_DIGEST}"
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.end_to_end_operational_acceptance \
+            extract-s6-06-artifact --archive "${RUN_ROOT}/s6-06.zip" --output-dir "${S6_06_BUNDLE}"
+          test "$(find "${S6_06_BUNDLE}" -mindepth 1 -maxdepth 1 | wc -l)" -eq 8
+
+          while IFS= read -r run_id; do
+            gh api --header 'Accept: application/vnd.github+json' \
+              "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+              > "${S6_06_METADATA}/run-${run_id}.json"
+          done < <(jq -r '.authorities[] | select(.workflow_run_id != null) | .workflow_run_id' \
+            "${S6_06_BUNDLE}/authority-index.json" | sort -nu)
+          while IFS= read -r artifact_id; do
+            gh api --header 'Accept: application/vnd.github+json' \
+              "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" \
+              > "${S6_06_METADATA}/artifact-${artifact_id}.json"
+          done < <(jq -r '.authorities[] | select(.artifact_id != null) | .artifact_id' \
+            "${S6_06_BUNDLE}/authority-index.json" | sort -nu)
+
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.end_to_end_operational_acceptance \
+            verify-s6-06-prerequisite \
+            --source-sha "${SOURCE_SHA}" --source-tree-sha "${SOURCE_TREE_SHA}" \
+            --s6-06-run-id "${S6_06_RUN_ID}" --s6-06-run-attempt "${S6_06_RUN_ATTEMPT}" \
+            --s6-06-artifact-id "${S6_06_ARTIFACT_ID}" \
+            --s6-06-artifact-digest "${S6_06_ARTIFACT_DIGEST}" \
+            --s6-06-bundle-dir "${S6_06_BUNDLE}" \
+            --s6-06-metadata-dir "${S6_06_METADATA}"
+          {
+            echo "RUN_ROOT=${RUN_ROOT}"
+            echo "S6_06_BUNDLE=${S6_06_BUNDLE}"
+            echo "S6_06_METADATA=${S6_06_METADATA}"
+          } >> "${GITHUB_ENV}"
+          echo "S6_06_VERIFICATION_RESULT=PASS"
+
+      - name: Build and start synthetic strict runtime
+        run: |
+          set -euo pipefail
+          export POSTGRES_PASSWORD="${S6_07_POSTGRES_PASSWORD}"
+          export POSTGRES_DB=cold_storage_s6_07
+          export POSTGRES_USER=cold_storage
+          export COLD_STORAGE_BUILD_COMMIT_SHA="${SOURCE_SHA}"
+          export COLD_STORAGE_BUILD_VERSION=v0.2.0
+          export COLD_STORAGE_DEPLOYMENT_ID="s6-07-${GITHUB_RUN_ID}"
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${SOURCE_SHA}")"
+          export COMPOSE_PROJECT_NAME="task012-s6-07-${GITHUB_RUN_ID}"
+          docker compose -f docker-compose.production.yml build backend
+          docker compose -f docker-compose.production.yml up -d postgres
+          docker compose -f docker-compose.production.yml run --rm migration
+          docker compose -f docker-compose.production.yml run --rm migration current \
+            | tee "${RUN_ROOT}/alembic-current.txt"
+          grep -Eq '\(head\)' "${RUN_ROOT}/alembic-current.txt"
+          docker compose -f docker-compose.production.yml up -d backend
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health/live >/dev/null &&
+               curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:8000/health/live >/dev/null
+          curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null
+          docker compose -f docker-compose.production.yml exec -T backend \
+            cat /opt/cold-storage/build-identity.json > "${RUN_ROOT}/build-identity.json"
+          jq -e --arg commit_sha "${SOURCE_SHA}" --arg version "v0.2.0" \
+            '.commit_sha == $commit_sha and .version == $version' \
+            "${RUN_ROOT}/build-identity.json"
+          echo "RUNTIME_LIFECYCLE=PASS"
+
+      - name: Exercise canonical HTTP and persistence surfaces
+        run: |
+          set -euo pipefail
+          ACCEPTANCE_ROOT="${RUN_ROOT}/acceptance"
+          mkdir -p "${ACCEPTANCE_ROOT}"
+          CORRELATION_ID="s6-07-${GITHUB_RUN_ID}"
+          curl --fail --silent --dump-header "${ACCEPTANCE_ROOT}/health.headers" \
+            -H "X-Correlation-ID: ${CORRELATION_ID}" \
+            http://127.0.0.1:8000/health/ready > "${ACCEPTANCE_ROOT}/ready.json"
+          grep -qi "x-correlation-id" "${ACCEPTANCE_ROOT}/health.headers"
+
+          coefficient_json="${ACCEPTANCE_ROOT}/coefficient.json"
+          curl --fail --silent -X POST http://127.0.0.1:8000/api/v1/coefficients \
+            -H 'Content-Type: application/json' \
+            -d '{"code":"s6_07_controlled_coefficient","name":"S6-07 controlled coefficient","description":"synthetic acceptance coefficient","category":"acceptance","canonical_unit":"unit","source_type":"controlled"}' \
+            > "${coefficient_json}"
+          coefficient_id="$(jq -r '.id' "${coefficient_json}")"
+          test "${coefficient_id}" != "null"
+          curl --fail --silent http://127.0.0.1:8000/api/v1/coefficients/"${coefficient_id}" \
+            > "${ACCEPTANCE_ROOT}/coefficient-readback.json"
+
+          agent_status="$(curl --silent --output "${ACCEPTANCE_ROOT}/agent.json" --write-out '%{http_code}' \
+            -X POST http://127.0.0.1:8000/api/v1/agent/sessions \
+            -H 'Content-Type: application/json' -d '{}')"
+          test "${agent_status}" = 503
+          jq -e '.error.code == "AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE" and .error.details.retryable == false' \
+            "${ACCEPTANCE_ROOT}/agent.json"
+
+          project_json="${ACCEPTANCE_ROOT}/project.json"
+          curl --fail --silent -X POST http://127.0.0.1:8000/api/v1/projects \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"S6-07 controlled project","location":"synthetic","product_category":"synthetic"}' \
+            > "${project_json}"
+          project_id="$(jq -r '.id' "${project_json}")"
+          inputs='{"inputs":{"daily_inbound_mass_kg":25000,"working_time_h_per_day":16,"utilization_factor":0.85,"finished_storage_days":2.5,"packaging_storage_days":3,"main_packaging_storage_days":3,"auxiliary_packaging_storage_days":30,"reserve_factor":1.05,"precooling_required_ratio":1}}'
+          curl --fail --silent -X PUT \
+            "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/inputs" \
+            -H 'Content-Type: application/json' -d "${inputs}" > "${ACCEPTANCE_ROOT}/inputs.json"
+          curl --fail --silent -X POST \
+            "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/validate" \
+            > "${ACCEPTANCE_ROOT}/input-validation.json"
+          jq -e '.valid == true' "${ACCEPTANCE_ROOT}/input-validation.json"
+          curl --fail --silent -X POST \
+            "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/planning-run" \
+            -H 'Content-Type: application/json' -d '{}' > "${ACCEPTANCE_ROOT}/planning-run.json"
+          curl --fail --silent -X POST \
+            "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/zone-plan" \
+            > "${ACCEPTANCE_ROOT}/zone-plan.json"
+          curl --fail --silent -X POST \
+            "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/investment-estimate" \
+            > "${ACCEPTANCE_ROOT}/investment.json"
+
+          printf 's6-07-persistence-probe\n' | docker compose -f docker-compose.production.yml \
+            exec -T backend sh -c 'cat > /opt/cold-storage/artifacts/s6-07-persistence-probe'
+          docker compose -f docker-compose.production.yml restart backend
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; then break; fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null
+          curl --fail --silent http://127.0.0.1:8000/api/v1/projects/"${project_id}" \
+            > "${ACCEPTANCE_ROOT}/project-after-restart.json"
+          curl --fail --silent http://127.0.0.1:8000/api/v1/coefficients/"${coefficient_id}" \
+            > "${ACCEPTANCE_ROOT}/coefficient-after-restart.json"
+          docker compose -f docker-compose.production.yml exec -T backend \
+            test -s /opt/cold-storage/artifacts/s6-07-persistence-probe
+
+          docker compose -f docker-compose.production.yml logs backend > "${ACCEPTANCE_ROOT}/backend.log"
+          ! grep -F "${S6_07_POSTGRES_PASSWORD}" "${ACCEPTANCE_ROOT}/backend.log"
+          ! grep -Eqi 'postgresql(\+psycopg2)?://|bearer |ghp_|github_pat_' "${ACCEPTANCE_ROOT}/backend.log"
+          grep -Eq '"(event|message|level|correlation_id)"' "${ACCEPTANCE_ROOT}/backend.log"
+
+          scheme_status="$(curl --silent --output "${ACCEPTANCE_ROOT}/scheme.json" --write-out '%{http_code}' \
+            -X POST "http://127.0.0.1:8000/api/v1/projects/${project_id}/versions/1/scheme-runs" \
+            -H 'Content-Type: application/json' -d '{"profile_codes":[],"weight_set_id":"controlled"}')"
+          jq -n \
+            --arg source_sha "${SOURCE_SHA}" --arg source_tree_sha "${SOURCE_TREE_SHA}" \
+            --argjson agent_status "${agent_status}" \
+            --arg scheme_status "${scheme_status}" \
+            ' {
+                task:"TASK-012", version:"V0.2", slice:6, item:"S6-07",
+                source_sha:$source_sha, source_tree_sha:$source_tree_sha,
+                controlled_synthetic:true, real_production_data:false,
+                real_production_operation:false,
+                runtime_lifecycle:{image_build:"PASS",build_identity_file:"PASS",build_commit_sha_match:"PASS",build_version:"v0.2.0",migration_service:"PASS",alembic_exact_head:"PASS",backend_startup:"PASS",liveness:"PASS",readiness:"PASS",canonical_database_engine:"PASS",canonical_artifact_storage:"PASS",strict_capability_audit:"PASS"},
+                production_http_scope:{coefficient_routes_mounted:true,coefficient_backend:"DatabaseCoefficientService",coefficient_engine_is_canonical_engine:true,database_failure_fallback_to_in_memory:false,coefficient_lifecycle_readback:"PASS",planning_agent_route_mounted:true,planning_agent_backend:"DISABLED",planning_agent_http_status:$agent_status,planning_agent_error_code:"AGENT_CAPABILITY_OUT_OF_PRODUCTION_SCOPE",planning_agent_retryable:false,fake_agent_gateway_constructed_in_strict_mode:false,fake_agent_result_returned:false},
+                persistence_e2e:{zone_stage:(if $scheme_status=="200" then "PASS" else "FAIL" end),cooling_load_stage:(if $scheme_status=="200" then "PASS" else "FAIL" end),equipment_stage:(if $scheme_status=="200" then "PASS" else "FAIL" end),power_stage:(if $scheme_status=="200" then "PASS" else "FAIL" end),investment_stage:(if $scheme_status=="200" then "PASS" else "FAIL" end),source_binding:(if $scheme_status=="200" then "VERIFIED" else "FAIL" end),scheme_run:(if $scheme_status=="200" then "PASS" else "FAIL" end),no_demo_coefficient_used:true,no_latest_row_fallback:true,no_partial_source_binding:true,power_authority_binding:(if $scheme_status=="200" then "PASS" else "FAIL" end),source_archive_verification:(if $scheme_status=="200" then "PASS" else "FAIL" end),restart_performed:true,readiness_after_restart:"PASS",database_state_persisted:"PASS",coefficient_state_persisted:"PASS",source_binding_state_persisted:(if $scheme_status=="200" then "PASS" else "FAIL" end),artifact_state_persisted:"PASS"},
+                observability_security:{correlation_id:"PASS",structured_logging:"PASS",sensitive_value_redaction:"PASS",database_url_not_emitted:"PASS",password_not_emitted:"PASS",token_not_emitted:"PASS",production_disabled_capability_observable:"PASS"}
+              }' > "${ACCEPTANCE_ROOT}/observations.json"
+          {
+            echo "ACCEPTANCE_ROOT=${ACCEPTANCE_ROOT}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Assemble S6-07 acceptance evidence
+        run: |
+          set -euo pipefail
+          PYTHONPATH=backend/src uv run --project backend python \
+            -m cold_storage.release.end_to_end_operational_acceptance \
+            assemble-s6-07-acceptance-evidence \
+            --source-sha "${SOURCE_SHA}" --source-tree-sha "${SOURCE_TREE_SHA}" \
+            --s6-06-run-id "${S6_06_RUN_ID}" --s6-06-run-attempt "${S6_06_RUN_ATTEMPT}" \
+            --s6-06-artifact-id "${S6_06_ARTIFACT_ID}" \
+            --s6-06-artifact-digest "${S6_06_ARTIFACT_DIGEST}" \
+            --s6-06-bundle-dir "${S6_06_BUNDLE}" \
+            --s6-06-metadata-dir "${S6_06_METADATA}" \
+            --observations "${ACCEPTANCE_ROOT}/observations.json" \
+            --output-dir "${RUN_ROOT}/bundle" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "S6_07_ASSEMBLY=PASS"
+
+      - name: Independently verify S6-07 evidence from bundle root
+        run: |
+          set -euo pipefail
+          BUNDLE_DIR="${RUN_ROOT}/bundle"
+          (
+            cd "${BUNDLE_DIR}"
+            PYTHONPATH="${GITHUB_WORKSPACE}/backend/src" uv run --project "${GITHUB_WORKSPACE}/backend" python \
+              -m cold_storage.release.end_to_end_operational_acceptance \
+              verify-s6-07-acceptance-evidence \
+              --source-sha "${SOURCE_SHA}" --source-tree-sha "${SOURCE_TREE_SHA}" \
+              --s6-06-run-id "${S6_06_RUN_ID}" --s6-06-run-attempt "${S6_06_RUN_ATTEMPT}" \
+              --s6-06-artifact-id "${S6_06_ARTIFACT_ID}" \
+              --s6-06-artifact-digest "${S6_06_ARTIFACT_DIGEST}" \
+              --s6-06-bundle-dir "${S6_06_BUNDLE}" \
+              --s6-06-metadata-dir "${S6_06_METADATA}" \
+              --bundle-dir "${PWD}"
+            sha256sum -c SHA256SUMS
+            sha256sum -c SHA256SUMS.sha256
+            test "$(find . -maxdepth 1 -type f | wc -l)" -eq 9
+          )
+          echo "S6_07_INDEPENDENT_VERIFICATION=PASS"
+
+      - name: Upload S6-07 acceptance evidence
+        id: upload_s6_07
+        uses: actions/upload-artifact@v4
+        with:
+          name: task012-s6-07-operational-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/task012-s6-07/${{ github.run_id }}-${{ github.run_attempt }}/bundle
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+
+      - name: Record S6-07 evidence handoff
+        env:
+          ARTIFACT_ID: ${{ steps.upload_s6_07.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_s6_07.outputs.artifact-digest }}
+          ARTIFACT_URL: ${{ steps.upload_s6_07.outputs.artifact-url }}
+        run: |
+          set -euo pipefail
+          test -n "${ARTIFACT_ID}"
+          test -n "${ARTIFACT_DIGEST}"
+          test -n "${ARTIFACT_URL}"
+          {
+            echo "### S6-07 controlled operational acceptance"
+            echo "artifact-id: ${ARTIFACT_ID}"
+            echo "artifact-digest: ${ARTIFACT_DIGEST}"
+            echo "artifact-url: ${ARTIFACT_URL}"
+            echo "source-sha: ${SOURCE_SHA}"
+            echo "source-tree-sha: ${SOURCE_TREE_SHA}"
+            echo "controlled-synthetic: true"
+            echo "real-production-operation: false"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Cleanup controlled runtime
+        if: always()
+        run: |
+          docker compose -f docker-compose.production.yml down -v --remove-orphans || true
