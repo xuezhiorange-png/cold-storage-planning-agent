@@ -135,7 +135,7 @@ def _observations() -> dict[str, object]:
                     },
                     "coefficient_resolution": {
                         "coefficient_id": context_id,
-                        "source_type": "production_persisted_context",
+                        "source_type": "catalog",
                         "selection_strategy": "source_binding_exact_id",
                         "source_binding_id": "source-binding-s6-07",
                     },
@@ -311,6 +311,26 @@ def test_valid_synthetic_acceptance_roundtrip_is_exactly_nine_files(
         sorted(acceptance.S6_07_BUNDLE_FILES)
     )
     acceptance.verify_s6_07_checksums(bundle)
+
+
+def test_catalog_coefficient_context_provenance_is_accepted() -> None:
+    acceptance._derive_assertions(  # noqa: SLF001
+        _mutable_observations(),
+        source_sha=SOURCE_SHA,
+        source_tree_sha=SOURCE_TREE_SHA,
+    )
+
+
+@pytest.mark.parametrize(
+    "source_type",
+    ["demo", "production_persisted_context", "engineering_judgement"],
+)
+def test_non_catalog_coefficient_context_provenance_fails_closed(source_type: str) -> None:
+    data = _mutable_observations()
+    data["persistence_e2e"]["scheme"]["canonical_persistence"]["coefficient_resolution"][
+        "source_type"
+    ] = source_type
+    _assert_derived_failure(data, "S6_07_PERSISTENCE_FAILED")
 
 
 def test_scheme_create_response_is_not_accepted_as_persisted_readback() -> None:
