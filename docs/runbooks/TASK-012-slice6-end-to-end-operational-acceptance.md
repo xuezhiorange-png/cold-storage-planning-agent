@@ -71,20 +71,27 @@ seed and verify all five required readiness stages. A missing, stale, demo, or
 uncited stage fails before backend startup; the readiness seed is not a bypass
 of the production startup contract.
 
-The controlled coefficient flow is also explicit. The HTTP-created definition
-is followed by an approved revision, a persisted coefficient context, a
-SourceBinding, and a canonical production scheme run. The acceptance verifier
-recomputes the concrete definition-to-revision, revision-to-active-authority,
-active-authority-to-context, and context-to-SourceBinding mappings from
-persisted rows. Transaction B also persists the calculator input snapshot
-returned by each production adapter (or the exact typed override input at the
-adapter boundary). The verifier compares those persisted inputs with the
-approved context values for all five stages; coefficient identity alone is not
-accepted as proof of calculator consumption. Continuity markers in the
-observation bundle are therefore backed by persisted calculator-input evidence,
-not by a fixture assertion. After the initial readback, a fresh database engine
-reads the same run through the canonical production read ports and re-hashes
-the source archive; this is the restart persistence authority.
+The coefficient authorities deliberately distinguish provenance from persistence.
+The run-scoped HTTP-created coefficient definition and approved revision prove the
+PostgreSQL-backed coefficient lifecycle and restart persistence boundary. The
+canonical five-stage production attempt separately resolves its `CoefficientContext`
+from the approved catalog through the production resolver. That resolver emits
+`source_type="catalog"`, and Transaction A persists that content without rewriting
+its provenance. Persistence is proved by the durable `CoefficientContextRecord`,
+the exact `SourceBinding.coefficient_context_id`, the same context id on all five
+persisted calculation runs, `selection_strategy="source_binding_exact_id"`, the
+matching SourceBinding id, and fresh-engine readback after restart. S6-07 must not
+invent a `production_persisted_context` provenance value merely to signal that a
+catalog context was persisted.
+
+V0.2 S6-07 does not claim a registry-to-engineering-input mapping for the five
+calculators. `coefficient_execution_continuity.result` therefore remains
+`NOT_REQUIRED_BY_V0_2_OPERATIONAL_ACCEPTANCE` with `available=false`. This scope
+marker is distinct from persistence authority: the production path, five
+CalculationRuns, SourceBinding, SchemeRun, and source archive are still required
+and independently read back. After the initial readback, a fresh database engine
+reads the same run through the canonical production read ports and re-hashes the
+source archive; this is the restart persistence authority.
 
 ## Acceptance sequence
 
@@ -115,9 +122,10 @@ is never treated as persistence proof. Five-stage facts come from the existing
 `ProductionSchemeService`, `SchemeRunRecord`, `SourceBindingRecord`,
 `CalculationRunRecord`, and production source-archive read ports. The five
 stage names and completed statuses, run identity, binding slot set/hash,
-explicit coefficient resolution, power authority, and source archive
-identity/hash are checked independently before and after backend restart.
-A missing, partial, demo, or latest-row fallback is a failure, not a synthetic
+coefficient context provenance (`source_type="catalog"`), exact context and
+SourceBinding identities, power authority, and source archive identity/hash are
+checked independently before and after backend restart. A missing, partial,
+demo, non-catalog context, or latest-row fallback is a failure, not a synthetic
 pass. HTTP 200 alone never implies five-stage success.
 
 ## Evidence bundle
