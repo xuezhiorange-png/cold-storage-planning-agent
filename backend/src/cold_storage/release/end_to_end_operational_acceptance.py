@@ -675,10 +675,10 @@ def _derive_assertions(
             "S6_07_PERSISTENCE_FAILED",
             "scheme coefficient context was not read from SourceBinding",
         )
-    if resolution.get("source_type") != "production_persisted_context":
+    if resolution.get("source_type") != "catalog":
         raise _fail(
             "S6_07_PERSISTENCE_FAILED",
-            "non-production or demo coefficient source was used",
+            "coefficient context source is not canonical catalog provenance",
         )
     if resolution.get("selection_strategy") != "source_binding_exact_id":
         raise _fail(
