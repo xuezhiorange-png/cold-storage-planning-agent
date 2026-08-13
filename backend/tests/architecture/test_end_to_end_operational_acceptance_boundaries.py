@@ -62,7 +62,11 @@ def test_workflow_is_dispatch_only_main_exact_and_read_only() -> None:
     assert "source_binding:(($scheme[0].body.source_binding // {}))" not in workflow
     assert "composition-manifest.json" in workflow
     assert "composition_manifest_tokens" in workflow
-    assert "TestClient(create_app())" in workflow
+    assert "async with app.router.lifespan_context(app):" in workflow
+    assert "asyncio.run(collect_manifest())" in workflow
+    assert "from fastapi.testclient import TestClient" not in workflow
+    assert "starlette.testclient" not in workflow
+    assert "httpx2" not in workflow
     assert "production-authority.json" in workflow
     assert "scheme-http-readback-before-restart.json" in workflow
     assert "scheme-http-readback-after-restart.json" in workflow
@@ -87,6 +91,19 @@ def test_workflow_is_dispatch_only_main_exact_and_read_only() -> None:
         "source_archive_verification:",
     ):
         assert forbidden_self_attestation not in workflow
+
+
+def test_s6_07_runtime_probe_is_production_compatible_and_cleanup_has_compose_env() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    job_env, _steps = workflow.split("    steps:", 1)
+
+    assert "POSTGRES_PASSWORD: synthetic-only-s6-07-password" in job_env
+    assert "POSTGRES_DB: cold_storage_s6_07" in job_env
+    assert "POSTGRES_USER: cold_storage" in job_env
+
+    cleanup = workflow.index("- name: Cleanup controlled runtime")
+    teardown = workflow.index("docker compose -f docker-compose.production.yml", cleanup)
+    assert "down -v --remove-orphans" in workflow[teardown:]
 
 
 def test_workflow_stages_refreshed_s6_06_metadata_after_exact_validation() -> None:
