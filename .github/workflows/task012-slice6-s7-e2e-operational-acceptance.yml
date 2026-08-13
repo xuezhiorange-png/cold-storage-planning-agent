@@ -215,6 +215,13 @@ jobs:
           export COLD_STORAGE_DEPLOYMENT_ID="s6-07-${GITHUB_RUN_ID}"
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${SOURCE_SHA}")"
           export COMPOSE_PROJECT_NAME="task012-s6-07-${GITHUB_RUN_ID}"
+          {
+            echo "COLD_STORAGE_BUILD_COMMIT_SHA=${COLD_STORAGE_BUILD_COMMIT_SHA}"
+            echo "COLD_STORAGE_BUILD_VERSION=${COLD_STORAGE_BUILD_VERSION}"
+            echo "COLD_STORAGE_DEPLOYMENT_ID=${COLD_STORAGE_DEPLOYMENT_ID}"
+            echo "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}"
+            echo "COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}"
+          } >> "${GITHUB_ENV}"
           docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" build backend
           docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" up -d postgres
           set +e
@@ -228,6 +235,7 @@ jobs:
           grep -Eq '\(head\)' "${RUN_ROOT}/alembic-current.txt"
 
           export S6_07_POSTGRES_URL="postgresql+psycopg2://cold_storage:${S6_07_POSTGRES_PASSWORD}@127.0.0.1:5432/cold_storage_s6_07"
+          echo "S6_07_POSTGRES_URL=${S6_07_POSTGRES_URL}" >> "${GITHUB_ENV}"
           readiness_seed_json="${RUN_ROOT}/readiness-seed.json"
           PYTHONPATH=backend/src uv run --project backend python \
             -m cold_storage.bootstrap.s6_07_controlled_fixture \
