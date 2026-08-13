@@ -119,6 +119,9 @@ def test_s6_07_persists_compose_identity_across_steps() -> None:
     cleanup = workflow.index("- name: Cleanup controlled runtime")
     build_section = workflow[build_start:exercise]
 
+    assert 'printf \'COMPOSE_OVERRIDE=%s\\n\' "${COMPOSE_OVERRIDE}" >> "${GITHUB_ENV}"' in (
+        build_section
+    )
     for name in (
         "COLD_STORAGE_BUILD_COMMIT_SHA",
         "COLD_STORAGE_BUILD_VERSION",
@@ -156,6 +159,37 @@ def test_s6_07_persists_compose_identity_across_steps() -> None:
     )
     assert postgres_url_export < postgres_url_persist < create_authority
     assert create_authority < create_database_url < reload_authority < reload_database_url
+
+
+def test_s6_07_persists_runtime_facts_across_steps() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    build_start = workflow.index("- name: Build and start synthetic strict runtime")
+    exercise = workflow.index("- name: Exercise canonical HTTP and persistence surfaces")
+    assembly = workflow.index("- name: Assemble S6-07 acceptance evidence", exercise)
+    build_section = workflow[build_start:exercise]
+    exercise_section = workflow[exercise:assembly]
+    runtime_facts_path = '"${RUN_ROOT}/runtime-facts.json"'
+
+    assert 'runtime_facts="${RUN_ROOT}/runtime-facts.json"' in build_section
+    assert runtime_facts_path in build_section
+    assert '.schema_version == "task012-s6-07-runtime-facts-v1"' in build_section
+    assert ".migration_exit_code == 0" in build_section
+    assert '.database_backend | type == "string" and length > 0' in build_section
+    assert "RUNTIME_FACTS_HANDOFF=PASS" in build_section
+
+    assert build_section.index("migration_exit_code=$?") < build_section.index(
+        'runtime_facts="${RUN_ROOT}/runtime-facts.json"'
+    )
+    assert build_section.index("database_backend=") < build_section.index(
+        'runtime_facts="${RUN_ROOT}/runtime-facts.json"'
+    )
+    assert exercise_section.index('runtime_facts="${RUN_ROOT}/runtime-facts.json"') < (
+        exercise_section.index('--slurpfile runtime_facts "${RUN_ROOT}/runtime-facts.json"')
+    )
+    assert "migration:{exit_code:$runtime_facts[0].migration_exit_code" in exercise_section
+    assert "database:{backend:$runtime_facts[0].database_backend" in exercise_section
+    assert '--arg database_backend "${database_backend}"' not in exercise_section
+    assert '--argjson migration_exit_code "${migration_exit_code}"' not in exercise_section
 
 
 def test_s6_07_redaction_count_helper_normalizes_zero_matches_and_fails_io(

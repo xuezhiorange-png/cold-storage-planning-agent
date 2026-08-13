@@ -314,12 +314,35 @@ jobs:
                  (.tokens | index("PROCESS_LOCAL_COEFFICIENT_SERVICE_INSTANTIATED")) == null and
                  (.tokens | index("FAKE_AGENT_MODEL_GATEWAY_INSTANTIATED")) == null' \
             "${RUN_ROOT}/composition-manifest.json"
+          runtime_facts="${RUN_ROOT}/runtime-facts.json"
+          jq -n \
+            --arg schema_version "task012-s6-07-runtime-facts-v1" \
+            --arg database_backend "${database_backend}" \
+            --argjson migration_exit_code "${migration_exit_code}" \
+            '{schema_version:$schema_version,
+              migration_exit_code:$migration_exit_code,
+              database_backend:$database_backend}' \
+            > "${runtime_facts}"
+          jq -e '
+            .schema_version == "task012-s6-07-runtime-facts-v1" and
+            .migration_exit_code == 0 and
+            (.database_backend | type == "string" and length > 0)
+          ' "${runtime_facts}"
+          test -s "${runtime_facts}"
+          echo "RUNTIME_FACTS_HANDOFF=PASS"
 
       - name: Exercise canonical HTTP and persistence surfaces
         run: |
           set -euo pipefail
           ACCEPTANCE_ROOT="${RUN_ROOT}/acceptance"
           mkdir -p "${ACCEPTANCE_ROOT}"
+          runtime_facts="${RUN_ROOT}/runtime-facts.json"
+          test -s "${runtime_facts}"
+          jq -e '
+            .schema_version == "task012-s6-07-runtime-facts-v1" and
+            .migration_exit_code == 0 and
+            (.database_backend | type == "string" and length > 0)
+          ' "${runtime_facts}"
           CORRELATION_ID="s6-07-${GITHUB_RUN_ID}"
           count_matches() {
             local output grep_status
@@ -503,10 +526,9 @@ jobs:
 
           jq -n \
             --arg source_sha "${SOURCE_SHA}" --arg source_tree_sha "${SOURCE_TREE_SHA}" \
-            --arg database_backend "${database_backend}" \
-            --argjson migration_exit_code "${migration_exit_code}" \
             --slurpfile identity "${RUN_ROOT}/build-identity.json" \
             --slurpfile composition "${RUN_ROOT}/composition-manifest.json" \
+            --slurpfile runtime_facts "${RUN_ROOT}/runtime-facts.json" \
             --slurpfile live "${RUN_ROOT}/live-response.json" \
             --slurpfile ready "${ACCEPTANCE_ROOT}/ready.json" \
             --slurpfile state "${RUN_ROOT}/backend-state.json" \
@@ -537,10 +559,10 @@ jobs:
                 real_production_operation:false,
                 runtime_lifecycle:{
                   build_identity:($identity[0] + {file_present:true}),
-                  migration:{exit_code:$migration_exit_code,current_output:""},
+                  migration:{exit_code:$runtime_facts[0].migration_exit_code,current_output:""},
                   container:{running:$state[0].Running,status:$state[0].Status},
                   liveness:$live[0], readiness:$ready[0],
-                  database:{backend:$database_backend,
+                  database:{backend:$runtime_facts[0].database_backend,
                     service_class:$composition[0].active_coefficient_service_class,
                     composition_manifest:$composition[0]},
                   artifact_storage:{probe_exists:$artifact_probe_exists,probe_sha256:$artifact_probe_sha256}
