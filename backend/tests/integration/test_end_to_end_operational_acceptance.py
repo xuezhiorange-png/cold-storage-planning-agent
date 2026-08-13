@@ -214,6 +214,17 @@ def _read_production_authority(database_url: str, run_id: str) -> dict[str, obje
         engine.dispose()
 
 
+def _assert_catalog_resolution(authority: Mapping[str, object]) -> None:
+    binding = authority["source_binding"]
+    resolution = authority["coefficient_resolution"]
+    assert isinstance(binding, Mapping)
+    assert isinstance(resolution, Mapping)
+    assert resolution["source_type"] == "catalog"
+    assert resolution["coefficient_id"] == binding["coefficient_context_id"]
+    assert resolution["selection_strategy"] == "source_binding_exact_id"
+    assert resolution["source_binding_id"] == binding["source_binding_id"]
+
+
 def test_sqlite_canonical_production_authority_roundtrip(tmp_path: Path) -> None:
     """Exercise the same canonical five-stage producer used by PG acceptance."""
 
@@ -231,6 +242,7 @@ def test_sqlite_canonical_production_authority_roundtrip(tmp_path: Path) -> None
         )
         authority = document["canonical_persistence"]
         assert isinstance(authority, dict)
+        _assert_catalog_resolution(authority)
         assert [stage["name"] for stage in authority["stages"]] == [
             "zone",
             "cooling_load",
@@ -411,6 +423,7 @@ def test_postgresql_persisted_production_authority_roundtrip() -> None:
     )
     authority = authority_document["canonical_persistence"]
     assert isinstance(authority, dict)
+    _assert_catalog_resolution(authority)
     output_path = os.environ.get("S6_07_PRODUCTION_AUTHORITY_OUTPUT")
     assert output_path is None or Path(output_path).is_file()
     engine.dispose()
@@ -462,6 +475,7 @@ def test_postgresql_production_authority_survives_fresh_engine_reload() -> None:
     assert isinstance(canonical_second, dict)
     assert canonical_first["run_id"] != canonical_second["run_id"]
     assert len(canonical_second["stages"]) == 5
+    _assert_catalog_resolution(canonical_second)
     run_id = str(canonical_second["run_id"])
     engine.dispose()
 
@@ -476,6 +490,8 @@ def test_postgresql_production_authority_survives_fresh_engine_reload() -> None:
         assert after["source_binding"] == canonical_second["source_binding"]
         assert after["stages"] == canonical_second["stages"]
         assert after["source_archive"] == canonical_second["source_archive"]
+        assert after["coefficient_resolution"] == canonical_second["coefficient_resolution"]
+        _assert_catalog_resolution(after)
         assert after["controlled_coefficient"] == canonical_second["controlled_coefficient"]
         assert after["source_archive"]["independent_rehash"] is True
     finally:

@@ -73,18 +73,24 @@ of the production startup contract.
 
 The controlled coefficient flow is also explicit. The HTTP-created definition
 is followed by an approved revision, a persisted coefficient context, a
-SourceBinding, and a canonical production scheme run. The acceptance verifier
-recomputes the concrete definition-to-revision, revision-to-active-authority,
-active-authority-to-context, and context-to-SourceBinding mappings from
-persisted rows. Transaction B also persists the calculator input snapshot
-returned by each production adapter (or the exact typed override input at the
-adapter boundary). The verifier compares those persisted inputs with the
-approved context values for all five stages; coefficient identity alone is not
-accepted as proof of calculator consumption. Continuity markers in the
-observation bundle are therefore backed by persisted calculator-input evidence,
-not by a fixture assertion. After the initial readback, a fresh database engine
-reads the same run through the canonical production read ports and re-hashes
-the source archive; this is the restart persistence authority.
+SourceBinding, and a canonical production scheme run. `source_type="catalog"`
+is the coefficient-context provenance emitted by the production resolver;
+Transaction A persists that context without rewriting its provenance. The
+verifier therefore keeps provenance and persistence proof separate: `catalog`
+identifies where the context came from, while durable
+`CoefficientContextRecord`, `SourceBinding.coefficient_context_id`, the five
+persisted `CalculationRun` records, exact context identity,
+`source_binding_exact_id`, the matching SourceBinding ID, fresh-engine reload,
+and source-archive rehash prove persistence. A fabricated
+`production_persisted_context` value is not a valid persistence proof.
+
+V0.2 does not require registry-to-calculator engineering-input continuity:
+`coefficient_execution_continuity.result` is
+`NOT_REQUIRED_BY_V0_2_OPERATIONAL_ACCEPTANCE` and `available=false`. The
+acceptance still requires the real `ProductionSchemeService`, `SchemeRun`,
+`CalculationRun`, `SourceBinding`, `CoefficientContext`, and source archive
+records and their canonical identities; it does not claim a business mapping
+between registry coefficients and five-stage calculator inputs.
 
 ## Acceptance sequence
 
@@ -115,10 +121,10 @@ is never treated as persistence proof. Five-stage facts come from the existing
 `ProductionSchemeService`, `SchemeRunRecord`, `SourceBindingRecord`,
 `CalculationRunRecord`, and production source-archive read ports. The five
 stage names and completed statuses, run identity, binding slot set/hash,
-explicit coefficient resolution, power authority, and source archive
+explicit catalog coefficient resolution, power authority, and source archive
 identity/hash are checked independently before and after backend restart.
-A missing, partial, demo, or latest-row fallback is a failure, not a synthetic
-pass. HTTP 200 alone never implies five-stage success.
+A missing, partial, demo, non-catalog, or latest-row fallback is a failure, not
+a synthetic pass. HTTP 200 alone never implies five-stage success.
 
 ## Evidence bundle
 
