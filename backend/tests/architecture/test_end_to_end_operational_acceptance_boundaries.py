@@ -133,6 +133,28 @@ def test_s6_07_persists_compose_identity_across_steps() -> None:
     assert persistence < restart - build_start
     assert persistence < cleanup - build_start
 
+    postgres_url_export = workflow.index("export S6_07_POSTGRES_URL=", build_start, exercise)
+    postgres_url_persist = workflow.index(
+        'echo "S6_07_POSTGRES_URL=${S6_07_POSTGRES_URL}"',
+        postgres_url_export,
+        exercise,
+    )
+    create_authority = workflow.index(
+        "create-production-authority",
+        exercise,
+    )
+    create_database_url = workflow.index(
+        '--database-url "${S6_07_POSTGRES_URL}"',
+        create_authority,
+    )
+    reload_authority = workflow.index("reload-production-authority", exercise)
+    reload_database_url = workflow.index(
+        '--database-url "${S6_07_POSTGRES_URL}"',
+        reload_authority,
+    )
+    assert postgres_url_export < postgres_url_persist < create_authority
+    assert create_authority < create_database_url < reload_authority < reload_database_url
+
 
 def test_workflow_stages_refreshed_s6_06_metadata_after_exact_validation() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
