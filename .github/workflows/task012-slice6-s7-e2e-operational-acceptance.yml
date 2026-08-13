@@ -215,6 +215,13 @@ jobs:
           export COLD_STORAGE_DEPLOYMENT_ID="s6-07-${GITHUB_RUN_ID}"
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "${SOURCE_SHA}")"
           export COMPOSE_PROJECT_NAME="task012-s6-07-${GITHUB_RUN_ID}"
+          {
+            echo "COLD_STORAGE_BUILD_COMMIT_SHA=${COLD_STORAGE_BUILD_COMMIT_SHA}"
+            echo "COLD_STORAGE_BUILD_VERSION=${COLD_STORAGE_BUILD_VERSION}"
+            echo "COLD_STORAGE_DEPLOYMENT_ID=${COLD_STORAGE_DEPLOYMENT_ID}"
+            echo "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}"
+            echo "COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}"
+          } >> "${GITHUB_ENV}"
           docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" build backend
           docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" up -d postgres
           set +e

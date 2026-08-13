@@ -106,6 +106,34 @@ def test_s6_07_runtime_probe_is_production_compatible_and_cleanup_has_compose_en
     assert "down -v --remove-orphans" in workflow[teardown:]
 
 
+def test_s6_07_persists_compose_identity_across_steps() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    build_start = workflow.index("- name: Build and start synthetic strict runtime")
+    exercise = workflow.index("- name: Exercise canonical HTTP and persistence surfaces")
+    restart = workflow.index(
+        'docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" restart backend',
+        exercise,
+    )
+    cleanup = workflow.index("- name: Cleanup controlled runtime")
+    build_section = workflow[build_start:exercise]
+
+    for name in (
+        "COLD_STORAGE_BUILD_COMMIT_SHA",
+        "COLD_STORAGE_BUILD_VERSION",
+        "COLD_STORAGE_DEPLOYMENT_ID",
+        "SOURCE_DATE_EPOCH",
+        "COMPOSE_PROJECT_NAME",
+    ):
+        assert f"export {name}=" in build_section
+        assert f'echo "{name}=${{{name}}}"' in build_section
+
+    persistence = build_section.index(
+        'echo "COLD_STORAGE_BUILD_COMMIT_SHA=${COLD_STORAGE_BUILD_COMMIT_SHA}"'
+    )
+    assert persistence < restart - build_start
+    assert persistence < cleanup - build_start
+
+
 def test_workflow_stages_refreshed_s6_06_metadata_after_exact_validation() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     run_api = workflow.index('"/repos/${GITHUB_REPOSITORY}/actions/runs/${S6_06_RUN_ID}"')
