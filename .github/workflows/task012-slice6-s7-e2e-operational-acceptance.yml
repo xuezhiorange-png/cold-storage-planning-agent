@@ -321,6 +321,23 @@ jobs:
           ACCEPTANCE_ROOT="${RUN_ROOT}/acceptance"
           mkdir -p "${ACCEPTANCE_ROOT}"
           CORRELATION_ID="s6-07-${GITHUB_RUN_ID}"
+          count_matches() {
+            local output grep_status
+            if output="$(grep "$@" "${ACCEPTANCE_ROOT}/backend.log")"; then
+              if [ -z "${output}" ]; then
+                printf '0\n'
+              else
+                printf '%s\n' "${output}" | wc -l | tr -d ' '
+              fi
+            else
+              grep_status="$?"
+              if [ "${grep_status}" -eq 1 ]; then
+                printf '0\n'
+              else
+                return "${grep_status}"
+              fi
+            fi
+          }
           capture_response() {
             local method="$1"
             local url="$2"
@@ -437,9 +454,9 @@ jobs:
           fi
 
           docker compose -f docker-compose.production.yml -f "${COMPOSE_OVERRIDE}" logs --no-log-prefix backend > "${ACCEPTANCE_ROOT}/backend.log"
-          password_occurrences="$(grep -F -o "${S6_07_POSTGRES_PASSWORD}" "${ACCEPTANCE_ROOT}/backend.log" | wc -l | tr -d ' ')"
-          database_url_occurrences="$(grep -Eio 'postgresql(\\+psycopg2)?://|redis://|database_url' "${ACCEPTANCE_ROOT}/backend.log" | wc -l | tr -d ' ')"
-          token_occurrences="$(grep -Eio 'bearer |ghp_|github_pat_' "${ACCEPTANCE_ROOT}/backend.log" | wc -l | tr -d ' ')"
+          password_occurrences="$(count_matches -F -o "${S6_07_POSTGRES_PASSWORD}")"
+          database_url_occurrences="$(count_matches -Eio 'postgresql(\\+psycopg2)?://|redis://|database_url')"
+          token_occurrences="$(count_matches -Eio 'bearer |ghp_|github_pat_')"
           read -r structured_record_count parseable_record_count correlation_match_count < <(
           python - "${ACCEPTANCE_ROOT}/backend.log" "${CORRELATION_ID}" <<'PY'
           import json

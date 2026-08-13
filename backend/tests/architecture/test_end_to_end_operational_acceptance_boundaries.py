@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import shlex
+import subprocess
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -154,6 +156,75 @@ def test_s6_07_persists_compose_identity_across_steps() -> None:
     )
     assert postgres_url_export < postgres_url_persist < create_authority
     assert create_authority < create_database_url < reload_authority < reload_database_url
+
+
+def test_s6_07_redaction_count_helper_normalizes_zero_matches_and_fails_io(
+    tmp_path: Path,
+) -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    exercise = workflow.index("- name: Exercise canonical HTTP and persistence surfaces")
+    assembly = workflow.index("- name: Assemble S6-07 acceptance evidence", exercise)
+    exercise_section = workflow[exercise:assembly]
+    assert "set -euo pipefail" in exercise_section
+    assert 'count_matches -F -o "${S6_07_POSTGRES_PASSWORD}"' in exercise_section
+    assert "count_matches -Eio 'postgresql(\\\\+psycopg2)?://|redis://|database_url'" in (
+        exercise_section
+    )
+    assert "count_matches -Eio 'bearer |ghp_|github_pat_'" in exercise_section
+    assert (
+        "redaction:{password_occurrences:$password_occurrences,"
+        "database_url_occurrences:$database_url_occurrences,"
+        "token_occurrences:$token_occurrences}"
+    ) in exercise_section
+    assert "password_occurrences=0" not in exercise_section
+    assert "database_url_occurrences=0" not in exercise_section
+    assert "token_occurrences=0" not in exercise_section
+
+    helper_start = workflow.index("          count_matches() {", exercise)
+    helper_end = workflow.index("          capture_response() {", helper_start)
+    helper = "\n".join(
+        line[10:] if line.startswith("          ") else line
+        for line in workflow[helper_start:helper_end].splitlines()
+    )
+
+    log_path = tmp_path / "backend.log"
+    log_path.write_text(
+        "safe line\nsecret\npostgresql://\nbearer ghp_token\n",
+        encoding="utf-8",
+    )
+    script = "\n".join(
+        (
+            "set -euo pipefail",
+            f"ACCEPTANCE_ROOT={shlex.quote(str(tmp_path))}",
+            "S6_07_POSTGRES_PASSWORD=secret",
+            helper,
+            'zero_matches="$(count_matches -F -o absent)"',
+            'password_matches="$(count_matches -F -o "$S6_07_POSTGRES_PASSWORD")"',
+            "database_url_matches=\"$(count_matches -Eio 'postgresql(\\\\+psycopg2)?://|redis://|database_url')\"",
+            "token_matches=\"$(count_matches -Eio 'bearer |ghp_|github_pat_')\"",
+            "printf '%s\\n' \"${zero_matches}\"",
+            "printf '%s\\n' \"${password_matches}\"",
+            "printf '%s\\n' \"${database_url_matches}\"",
+            "printf '%s\\n' \"${token_matches}\"",
+            'rm "${ACCEPTANCE_ROOT}/backend.log"',
+            "if count_matches -F -o secret >/dev/null; then",
+            "  exit 1",
+            "else",
+            "  grep_error_status=$?",
+            "fi",
+            '[ "${grep_error_status}" -gt 1 ]',
+        )
+    )
+    result = subprocess.run(
+        ["bash"],
+        input=script,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["0", "1", "1", "2"]
 
 
 def test_workflow_stages_refreshed_s6_06_metadata_after_exact_validation() -> None:
