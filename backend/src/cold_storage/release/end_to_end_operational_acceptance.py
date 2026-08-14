@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import stat
+import uuid
 import zipfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
@@ -38,7 +40,7 @@ S6_06_WORKFLOW_NAME = "task012-slice6-package3-release-evidence"
 S6_07_WORKFLOW_PATH = ".github/workflows/task012-slice6-s7-e2e-operational-acceptance.yml"
 
 S6_07_SCHEMA_VERSION = "task012-s6-07-operational-acceptance-v1"
-S6_07_RAW_OBSERVATION_SCHEMA = "task012-s6-07-operational-observation-v2"
+S6_07_RAW_OBSERVATION_SCHEMA = "task012-s6-07-operational-observation-v3"
 S6_07_ACCEPTANCE_TYPE = "controlled_end_to_end_operational_acceptance"
 
 S6_07_STAGE_NAMES: tuple[str, ...] = (
@@ -66,22 +68,30 @@ HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 
 S6_07_FAILURE_CODES: tuple[str, ...] = (
     "S6_07_EXECUTION_NOT_AUTHORIZED",
+    "S6_07_INPUT_VALIDATION_FAILED",
     "S6_07_SOURCE_SHA_MISMATCH",
     "S6_07_SOURCE_TREE_INVALID",
+    "S6_07_GITHUB_METADATA_FETCH_FAILED",
     "S6_07_S6_06_AUTHORITY_MISSING",
     "S6_07_S6_06_AUTHORITY_MISMATCH",
     "S6_07_S6_06_ARTIFACT_EXPIRED",
     "S6_07_S6_06_DIGEST_MISMATCH",
+    "S6_07_S6_06_ARCHIVE_DIGEST_FAILED",
     "S6_07_S6_06_VERIFICATION_FAILED",
+    "S6_07_RUNTIME_BUILD_START_FAILED",
     "S6_07_RUNTIME_STARTUP_FAILED",
     "S6_07_MIGRATION_FAILED",
     "S6_07_READINESS_FAILED",
+    "S6_07_HTTP_SCOPE_FAILED",
     "S6_07_PRODUCTION_HTTP_SCOPE_FAILED",
     "S6_07_FAKE_AGENT_REACHABLE",
     "S6_07_COEFFICIENT_AUTHORITY_INVALID",
     "S6_07_PERSISTENCE_FAILED",
     "S6_07_OBSERVABILITY_FAILED",
     "S6_07_SECRET_MATERIAL_DETECTED",
+    "S6_07_EVIDENCE_ASSEMBLY_FAILED",
+    "S6_07_INDEPENDENT_VERIFICATION_FAILED",
+    "S6_07_ARTIFACT_UPLOAD_FAILED",
     "S6_07_EVIDENCE_BUNDLE_INVALID",
     "S6_07_CHECKSUM_MISMATCH",
 )
@@ -201,6 +211,18 @@ def _safe_secret_scan(value: object, *, path: str = "") -> None:
             raise _fail("S6_07_SECRET_MATERIAL_DETECTED", f"secret-like value at {path}")
 
 
+def verify_diagnostic_json_safe(path: Path) -> None:
+    """Verify one failure-diagnostic JSON file with the canonical scanner."""
+
+    try:
+        document = load_json_strict(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise _fail("S6_07_EVIDENCE_BUNDLE_INVALID", "diagnostic JSON is missing") from exc
+    except (OSError, UnicodeError, ReleaseEvidenceError) as exc:
+        raise _fail("S6_07_EVIDENCE_BUNDLE_INVALID", "diagnostic JSON is unreadable") from exc
+    _safe_secret_scan(document, path=path.name)
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -269,14 +291,102 @@ def _require_sha256(value: object, *, field: str, code: str) -> str:
     return result
 
 
+def _uuid4(value: object, *, field: str) -> str:
+    result = _string(value, field=field)
+    try:
+        parsed = uuid.UUID(result)
+    except (ValueError, AttributeError) as exc:
+        raise _fail("S6_07_OBSERVABILITY_FAILED", f"{field} must be UUIDv4") from exc
+    if parsed.version != 4 or str(parsed) != result.lower():
+        raise _fail("S6_07_OBSERVABILITY_FAILED", f"{field} must be UUIDv4")
+    return result.lower()
+
+
+def validate_s6_07_inputs(
+    *,
+    source_sha: str,
+    s6_06_run_id: str,
+    s6_06_run_attempt: str,
+    s6_06_artifact_id: str,
+    s6_06_artifact_digest: str,
+) -> None:
+    """Validate controlled-dispatch inputs before any network operation."""
+
+    if not COMMIT_RE.fullmatch(source_sha):
+        raise _fail("S6_07_INPUT_VALIDATION_FAILED", "expected_source_sha must be lowercase SHA-1")
+    for value, field in (
+        (s6_06_run_id, "s6_06_run_id"),
+        (s6_06_run_attempt, "s6_06_run_attempt"),
+        (s6_06_artifact_id, "s6_06_artifact_id"),
+    ):
+        if not value.isdigit() or int(value) <= 0:
+            raise _fail("S6_07_INPUT_VALIDATION_FAILED", f"{field} must be positive")
+    if not DIGEST_RE.fullmatch(s6_06_artifact_digest):
+        raise _fail("S6_07_INPUT_VALIDATION_FAILED", "s6_06_artifact_digest is invalid")
+
+
+def summarize_s6_07_log_observations(
+    log_path: Path, *, expected_correlation_id: str, expected_request_id: str
+) -> dict[str, Any]:
+    """Count application log candidates before parsing and require both IDs."""
+
+    expected_correlation = _uuid4(expected_correlation_id, field="expected_correlation_id")
+    expected_request = _uuid4(expected_request_id, field="expected_request_id")
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as exc:
+        raise _fail("S6_07_OBSERVABILITY_FAILED", "application log could not be read") from exc
+
+    record_count = 0
+    parseable_record_count = 0
+    correlation_match_count = 0
+    matched_correlation_id: str | None = None
+    matched_request_id: str | None = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or "cold_storage." not in stripped:
+            continue
+        record_count += 1
+        try:
+            record = json.loads(stripped)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, Mapping):
+            continue
+        name = record.get("name")
+        if not isinstance(name, str) or not name.startswith("cold_storage."):
+            continue
+        parseable_record_count += 1
+        if (
+            record.get("correlation_id") == expected_correlation
+            and record.get("request_id") == expected_request
+        ):
+            correlation_match_count += 1
+            matched_correlation_id = expected_correlation
+            matched_request_id = expected_request
+    return {
+        "record_count": record_count,
+        "parseable_record_count": parseable_record_count,
+        "correlation_match_count": correlation_match_count,
+        "matched_correlation_id": matched_correlation_id,
+        "matched_request_id": matched_request_id,
+    }
+
+
 def _response(section: Mapping[str, Any], *, field: str, code: str) -> Mapping[str, Any]:
-    response = _mapping(section.get(field), field=field)
+    value = section.get(field)
+    if not isinstance(value, Mapping):
+        raise _fail(code, f"{field} must be an HTTP response object")
+    response = cast(Mapping[str, Any], value)
     _require_int(response.get("status"), field=f"{field}.status", code=code)
     return response
 
 
 def _response_body(response: Mapping[str, Any], *, field: str, code: str) -> Mapping[str, Any]:
-    return _mapping(response.get("body"), field=f"{field}.body")
+    value = response.get("body")
+    if not isinstance(value, Mapping):
+        raise _fail(code, f"{field}.body must be an object")
+    return cast(Mapping[str, Any], value)
 
 
 def _require_response_status(
@@ -499,6 +609,73 @@ def _derive_assertions(
     details = _mapping(error.get("details"), field="planning_agent.error.details")
     if details.get("retryable") is not False:
         raise _fail("S6_07_PRODUCTION_HTTP_SCOPE_FAILED", "disabled agent is incorrectly retryable")
+
+    project_calculation = _mapping(
+        http_scope.get("project_calculation"),
+        field="production_http_scope.project_calculation",
+    )
+    project_create = _require_response_status(
+        _response(project_calculation, field="project_create", code="S6_07_HTTP_SCOPE_FAILED"),
+        expected=200,
+        field="project_calculation.project_create",
+        code="S6_07_HTTP_SCOPE_FAILED",
+    )
+    project_create_body = _response_body(
+        project_create,
+        field="project_calculation.project_create",
+        code="S6_07_HTTP_SCOPE_FAILED",
+    )
+    project_id = _string(
+        project_create_body.get("id"), field="project_calculation.project_create.body.id"
+    )
+    for field in (
+        "inputs_update",
+        "input_validation",
+        "planning_run",
+        "zone_plan",
+        "investment_estimate",
+    ):
+        _require_response_status(
+            _response(project_calculation, field=field, code="S6_07_HTTP_SCOPE_FAILED"),
+            expected=200,
+            field=f"project_calculation.{field}",
+            code="S6_07_HTTP_SCOPE_FAILED",
+        )
+    validation = _require_response_status(
+        _response(project_calculation, field="input_validation", code="S6_07_HTTP_SCOPE_FAILED"),
+        expected=200,
+        field="project_calculation.input_validation",
+        code="S6_07_HTTP_SCOPE_FAILED",
+    )
+    if (
+        _response_body(
+            validation,
+            field="project_calculation.input_validation",
+            code="S6_07_HTTP_SCOPE_FAILED",
+        ).get("valid")
+        is not True
+    ):
+        raise _fail("S6_07_HTTP_SCOPE_FAILED", "project input validation was not true")
+    project_after_restart = _require_response_status(
+        _response(
+            project_calculation,
+            field="project_after_restart",
+            code="S6_07_HTTP_SCOPE_FAILED",
+        ),
+        expected=200,
+        field="project_calculation.project_after_restart",
+        code="S6_07_HTTP_SCOPE_FAILED",
+    )
+    _eq(
+        _response_body(
+            project_after_restart,
+            field="project_calculation.project_after_restart",
+            code="S6_07_HTTP_SCOPE_FAILED",
+        ).get("id"),
+        project_id,
+        field="project restart id",
+        code="S6_07_HTTP_SCOPE_FAILED",
+    )
 
     persistence = _mapping(observations.get("persistence_e2e"), field="persistence_e2e")
     scheme = _mapping(persistence.get("scheme"), field="persistence_e2e.scheme")
@@ -839,9 +1016,32 @@ def _derive_assertions(
         observations.get("observability_security"), field="observability_security"
     )
     correlation = _mapping(observability.get("correlation"), field="observability.correlation")
-    if correlation.get("header_present") is not True or correlation.get(
-        "expected"
-    ) != correlation.get("observed"):
+    correlation_expected = _uuid4(
+        correlation.get("correlation_id_expected"),
+        field="observability.correlation.correlation_id_expected",
+    )
+    correlation_observed = _uuid4(
+        correlation.get("correlation_id_observed"),
+        field="observability.correlation.correlation_id_observed",
+    )
+    request_expected = _uuid4(
+        correlation.get("request_id_expected"),
+        field="observability.correlation.request_id_expected",
+    )
+    request_observed = _uuid4(
+        correlation.get("request_id_observed"),
+        field="observability.correlation.request_id_observed",
+    )
+    response_request_id = _uuid4(
+        correlation.get("response_request_id"),
+        field="observability.correlation.response_request_id",
+    )
+    if (
+        correlation.get("header_present") is not True
+        or correlation_expected != correlation_observed
+        or request_expected != request_observed
+        or response_request_id != request_expected
+    ):
         raise _fail("S6_07_OBSERVABILITY_FAILED", "correlation identity was not observed")
     structured = _mapping(
         observability.get("structured_logging"), field="observability.structured_logging"
@@ -861,7 +1061,21 @@ def _derive_assertions(
         field="structured_logging.correlation_match_count",
         code="S6_07_OBSERVABILITY_FAILED",
     )
-    if count <= 0 or parsed != count or matched <= 0:
+    matched_correlation = _uuid4(
+        structured.get("matched_correlation_id"),
+        field="structured_logging.matched_correlation_id",
+    )
+    matched_request = _uuid4(
+        structured.get("matched_request_id"),
+        field="structured_logging.matched_request_id",
+    )
+    if (
+        count <= 0
+        or parsed != count
+        or matched <= 0
+        or matched_correlation != correlation_expected
+        or matched_request != request_expected
+    ):
         raise _fail("S6_07_OBSERVABILITY_FAILED", "structured log observations are incomplete")
     redaction = _mapping(observability.get("redaction"), field="observability.redaction")
     for field in ("password_occurrences", "database_url_occurrences", "token_occurrences"):
@@ -1152,6 +1366,18 @@ def extract_s6_06_artifact_archive(archive: Path, output_dir: Path) -> Path:
     except (OSError, zipfile.BadZipFile) as exc:
         raise _fail("S6_07_S6_06_VERIFICATION_FAILED", "S6-06 archive extraction failed") from exc
     return output_dir
+
+
+def verify_s6_06_archive_digest(*, archive: Path, expected_digest: str) -> None:
+    """Verify the downloaded ZIP bytes against the GitHub upload digest."""
+
+    _digest(expected_digest, field="s6_06_artifact_digest")
+    try:
+        actual = f"sha256:{_sha256(archive)}"
+    except OSError as exc:
+        raise _fail("S6_07_S6_06_ARCHIVE_DIGEST_FAILED", "S6-06 archive could not be read") from exc
+    if actual != expected_digest:
+        raise _fail("S6_07_S6_06_DIGEST_MISMATCH", "downloaded S6-06 archive digest mismatch")
 
 
 def _s6_06_document(
@@ -1501,6 +1727,25 @@ def _build_parser() -> argparse.ArgumentParser:
     extract.add_argument("--archive", required=True, type=Path)
     extract.add_argument("--output-dir", required=True, type=Path)
 
+    archive_digest = sub.add_parser("verify-s6-06-archive-digest")
+    archive_digest.add_argument("--archive", required=True, type=Path)
+    archive_digest.add_argument("--expected-digest", required=True)
+
+    validate = sub.add_parser("validate-s6-07-inputs")
+    validate.add_argument("--source-sha", required=True)
+    validate.add_argument("--s6-06-run-id", required=True)
+    validate.add_argument("--s6-06-run-attempt", required=True)
+    validate.add_argument("--s6-06-artifact-id", required=True)
+    validate.add_argument("--s6-06-artifact-digest", required=True)
+
+    summarize = sub.add_parser("summarize-s6-07-log-observations")
+    summarize.add_argument("--log-path", required=True, type=Path)
+    summarize.add_argument("--expected-correlation-id", required=True)
+    summarize.add_argument("--expected-request-id", required=True)
+
+    diagnostic = sub.add_parser("verify-diagnostic-json-safe")
+    diagnostic.add_argument("--input", required=True, type=Path)
+
     prerequisite = sub.add_parser("verify-s6-06-prerequisite")
     prerequisite.add_argument("--repository", default=EXPECTED_REPOSITORY)
     prerequisite.add_argument("--source-sha", required=True)
@@ -1539,6 +1784,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             extract_s6_06_artifact_archive(args.archive, args.output_dir)
             print("S6_06_EXTRACTION=PASS")
             return 0
+        if args.command == "verify-s6-06-archive-digest":
+            verify_s6_06_archive_digest(archive=args.archive, expected_digest=args.expected_digest)
+            print("S6_06_ARCHIVE_DIGEST=PASS")
+            return 0
+        if args.command == "validate-s6-07-inputs":
+            validate_s6_07_inputs(
+                source_sha=args.source_sha,
+                s6_06_run_id=args.s6_06_run_id,
+                s6_06_run_attempt=args.s6_06_run_attempt,
+                s6_06_artifact_id=args.s6_06_artifact_id,
+                s6_06_artifact_digest=args.s6_06_artifact_digest,
+            )
+            print("S6_07_INPUT_VALIDATION=PASS")
+            return 0
         if args.command == "verify-s6-06-prerequisite":
             verify_s6_06_prerequisite(
                 repository=args.repository,
@@ -1552,6 +1811,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 s6_06_metadata_dir=args.s6_06_metadata_dir,
             )
             print("S6_06_VERIFICATION_RESULT=PASS")
+            return 0
+        if args.command == "summarize-s6-07-log-observations":
+            print(
+                json.dumps(
+                    summarize_s6_07_log_observations(
+                        args.log_path,
+                        expected_correlation_id=args.expected_correlation_id,
+                        expected_request_id=args.expected_request_id,
+                    ),
+                    sort_keys=True,
+                )
+            )
+            return 0
+        if args.command == "verify-diagnostic-json-safe":
+            verify_diagnostic_json_safe(args.input)
+            print("S6_07_DIAGNOSTIC_JSON_SAFE=PASS")
             return 0
         common = {
             "repository": args.repository,
@@ -1593,7 +1868,11 @@ __all__ = [
     "assemble_s6_07_acceptance_evidence",
     "extract_s6_06_artifact_archive",
     "main",
+    "summarize_s6_07_log_observations",
+    "validate_s6_07_inputs",
+    "verify_diagnostic_json_safe",
     "verify_s6_06_prerequisite",
+    "verify_s6_06_archive_digest",
     "verify_s6_07_acceptance_evidence",
     "verify_s6_07_checksums",
 ]

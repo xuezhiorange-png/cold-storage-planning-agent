@@ -201,3 +201,91 @@ S6-07 remains separate from S6-06 evidence assembly. S6-07 success does not
 enable the model-backed planning agent in strict modes and does not authorize
 registry push, signing, attestation, deployment, rollback, migration, backup,
 or restore against production.
+
+## R8 diagnostics and verification boundaries
+
+`CANONICAL_S6_06_VERIFIER_SINGLE_SOURCE_OF_TRUTH=YES`. The workflow saves raw
+GitHub run and artifact responses, downloads the archive, checks the downloaded
+bytes, fetches historical metadata, and then delegates field-level authority
+decisions to `verify-s6-06-prerequisite`. The workflow does not maintain a
+second composite jq authority contract. Missing or mismatched metadata remains
+fail-closed with a stable error code.
+
+GitHub metadata and controlled HTTP calls have bounded retries and timeouts.
+Dispatch identifiers are validated before network access. A failed run writes
+only an allowlisted diagnostic artifact:
+
+```text
+FAILED_RUN_DIAGNOSTICS_RETAINED=YES
+FAILED_DIAGNOSTIC_ARTIFACT_IS_NOT_ACCEPTANCE_AUTHORITY=YES
+DIAGNOSTIC_ARTIFACT_EXCLUDES_RAW_BACKEND_LOG=YES
+```
+
+The diagnostic artifact never includes backend logs, database dumps, DSNs,
+passwords, tokens, authorization headers, workflow secrets, or the downloaded
+S6-06 ZIP. It is diagnostic-only and cannot close an acceptance gate.
+
+Failure diagnostics apply the canonical acceptance secret scanner to each
+observations JSON before copying it. Unsafe or unreadable observations are
+excluded and only their stable exclusion classification is retained:
+
+```text
+FAILED_DIAGNOSTIC_OBSERVATIONS_REQUIRE_SECRET_SCAN=YES
+UNSAFE_OBSERVATIONS_ARE_EXCLUDED_FROM_DIAGNOSTIC_ARTIFACT=YES
+DIAGNOSTIC_SECRET_SCAN_REUSES_CANONICAL_ACCEPTANCE_SCANNER=YES
+METADATA_FETCH_PRIMARY_ERROR_CODE_PRESERVED=YES
+```
+
+If GitHub metadata retries are exhausted, the same
+`S6_07_GITHUB_METADATA_FETCH_FAILED` code is propagated to the workflow
+environment and the failure summary. The diagnostic artifact never contains
+the rejected observation value, exception text, DSN, password, token,
+authorization header, or cookie.
+
+## R8 observation contract
+
+The raw observation schema is
+`task012-s6-07-operational-observation-v3`. Application log candidates are
+counted before JSON parsing. Therefore a malformed `cold_storage.*` application
+line increases `record_count` without increasing
+`parseable_record_count`. A valid JSON application record must have a
+`cold_storage.*` logger name. A correlation match requires exact equality for
+both `correlation_id` and `request_id` against the expected UUIDv4; one matching
+field is insufficient:
+
+```text
+APPLICATION_RECORD_COUNT_BEFORE_JSON_PARSE=YES
+CORRELATION_AND_REQUEST_ID_BOTH_MATCH_REQUIRED=YES
+```
+
+The project/calculation HTTP responses are retained as raw status/body pairs
+for project creation, input update, validation, planning-run, zone-plan,
+investment-estimate, and project restart readback. `HTTP_200_IMPLIES_FIVE_STAGE_PASS=NO`;
+the five-stage and persistence authority remains the canonical persistence
+section.
+
+## Logging and redaction scope
+
+Production entrypoint logging is initialized with the canonical
+`configure_logging()` before the first application log. It does not call
+`logging.basicConfig()`, and the existing startup exit-code contract is
+unchanged.
+
+S6-07 runtime redaction scanning covers only the secret surfaces actually
+present in this controlled runtime:
+
+```text
+S6_07_RUNTIME_SECRET_SCAN_SCOPE=CONTROLLED_RUNTIME_ACTUAL_SECRET_SURFACES
+ALL_11_REDACTION_TYPES_RUNTIME_EXERCISED=false
+FULL_11_TYPE_REDACTION_CONTRACT=TEST_REDACTION_INTEGRATION
+```
+
+The independent `tests/test_redaction_integration.py` contract covers all 11
+secret types, including `OTHER_DSN`, `SECRET_ENVIRONMENT_VARIABLE`, and
+`CREDENTIAL_BEARING_EXCEPTION`. The three runtime counters must not be
+described as an exercise of all 11 types.
+
+Cleanup runs Compose teardown only after the controlled runtime context has
+been initialized. If that context does not exist, it records
+`CLEANUP_SKIPPED_NO_RUNTIME_CONTEXT=YES` and never evaluates the production
+Compose fallback or masks the primary failure.

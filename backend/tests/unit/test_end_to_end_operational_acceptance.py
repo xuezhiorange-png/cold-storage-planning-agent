@@ -92,6 +92,21 @@ def _observations() -> dict[str, object]:
                     },
                 }
             },
+            "project_calculation": {
+                "project_create": {"status": 200, "body": {"id": "project-s6-07"}},
+                "inputs_update": {"status": 200, "body": {"success": True}},
+                "input_validation": {"status": 200, "body": {"valid": True}},
+                "planning_run": {"status": 200, "body": {"project_id": "project-s6-07"}},
+                "zone_plan": {"status": 200, "body": {"project_id": "project-s6-07"}},
+                "investment_estimate": {
+                    "status": 200,
+                    "body": {"project_id": "project-s6-07"},
+                },
+                "project_after_restart": {
+                    "status": 200,
+                    "body": {"id": "project-s6-07"},
+                },
+            },
         },
         "persistence_e2e": {
             "scheme": {
@@ -203,13 +218,18 @@ def _observations() -> dict[str, object]:
         "observability_security": {
             "correlation": {
                 "header_present": True,
-                "expected": "s6-07-test-correlation",
-                "observed": "s6-07-test-correlation",
+                "correlation_id_expected": "11111111-1111-4111-8111-111111111111",
+                "correlation_id_observed": "11111111-1111-4111-8111-111111111111",
+                "request_id_expected": "11111111-1111-4111-8111-111111111111",
+                "request_id_observed": "11111111-1111-4111-8111-111111111111",
+                "response_request_id": "11111111-1111-4111-8111-111111111111",
             },
             "structured_logging": {
                 "record_count": 3,
                 "parseable_record_count": 3,
                 "correlation_match_count": 2,
+                "matched_correlation_id": "11111111-1111-4111-8111-111111111111",
+                "matched_request_id": "11111111-1111-4111-8111-111111111111",
             },
             "redaction": {
                 "password_occurrences": 0,
@@ -319,6 +339,78 @@ def test_catalog_coefficient_context_provenance_is_accepted() -> None:
         source_sha=SOURCE_SHA,
         source_tree_sha=SOURCE_TREE_SHA,
     )
+
+
+def test_malformed_application_log_counts_as_unparseable_candidate(tmp_path: Path) -> None:
+    log = tmp_path / "backend.log"
+    request_id = "11111111-1111-4111-8111-111111111111"
+    log.write_text(
+        "cold_storage.bootstrap malformed line\n"
+        + json.dumps(
+            {
+                "name": "cold_storage.bootstrap",
+                "correlation_id": request_id,
+                "request_id": request_id,
+                "message": "ready",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    result = acceptance.summarize_s6_07_log_observations(
+        log, expected_correlation_id=request_id, expected_request_id=request_id
+    )
+    assert result == {
+        "record_count": 2,
+        "parseable_record_count": 1,
+        "correlation_match_count": 1,
+        "matched_correlation_id": request_id,
+        "matched_request_id": request_id,
+    }
+
+
+def test_correlation_id_match_without_request_id_match_fails_closed() -> None:
+    data = _mutable_observations()
+    data["observability_security"]["correlation"]["request_id_observed"] = (
+        "22222222-2222-4222-8222-222222222222"
+    )
+    _assert_derived_failure(data, "S6_07_OBSERVABILITY_FAILED")
+
+
+def test_request_id_match_without_correlation_id_match_fails_closed() -> None:
+    data = _mutable_observations()
+    data["observability_security"]["correlation"]["correlation_id_observed"] = (
+        "22222222-2222-4222-8222-222222222222"
+    )
+    _assert_derived_failure(data, "S6_07_OBSERVABILITY_FAILED")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda data: data["production_http_scope"]["project_calculation"].pop("project_create"),
+        lambda data: data["production_http_scope"]["project_calculation"]["input_validation"][
+            "body"
+        ].update({"valid": False}),
+        lambda data: data["production_http_scope"]["project_calculation"]["project_after_restart"][
+            "body"
+        ].update({"id": "other-project"}),
+    ],
+)
+def test_project_calculation_http_evidence_fails_closed(mutation) -> None:
+    data = _mutable_observations()
+    mutation(data)
+    _assert_derived_failure(data, "S6_07_HTTP_SCOPE_FAILED")
+
+
+def test_v2_observation_schema_is_not_accepted_by_v3_verifier() -> None:
+    data = _mutable_observations()
+    data["schema_version"] = "task012-s6-07-operational-observation-v2"
+    with pytest.raises(acceptance.S607AcceptanceError) as exc:
+        acceptance._validate_observations(  # noqa: SLF001
+            data, source_sha=SOURCE_SHA, source_tree_sha=SOURCE_TREE_SHA
+        )
+    assert exc.value.failure_code == "S6_07_EVIDENCE_BUNDLE_INVALID"
 
 
 @pytest.mark.parametrize(
@@ -446,6 +538,48 @@ def test_invalid_source_sha_fails_closed(tmp_path: Path, monkeypatch: pytest.Mon
     assert exc.value.failure_code == "S6_07_SOURCE_SHA_MISMATCH"
 
 
+def test_diagnostic_json_safety_cli_accepts_safe_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "observations.json"
+    path.write_text(
+        json.dumps({"status": "failure", "code": "S6_07_OBSERVABILITY_FAILED"}),
+        encoding="utf-8",
+    )
+
+    assert acceptance.main(["verify-diagnostic-json-safe", "--input", str(path)]) == 0
+    assert capsys.readouterr().out.strip() == "S6_07_DIAGNOSTIC_JSON_SAFE=PASS"
+
+
+@pytest.mark.parametrize(
+    "secret_value",
+    [
+        "postgresql://user:secret@host/db",
+        "Authorization: Bearer diagnostic-token",
+        "ghp_diagnostic_token",
+        "github_pat_diagnostic_token",
+    ],
+)
+def test_diagnostic_json_safety_cli_rejects_secret_like_material(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], secret_value: str
+) -> None:
+    path = tmp_path / "observations.json"
+    path.write_text(json.dumps({"detail": secret_value}), encoding="utf-8")
+
+    assert acceptance.main(["verify-diagnostic-json-safe", "--input", str(path)]) == 1
+    assert capsys.readouterr().out.strip() == "ERROR_CODE=S6_07_SECRET_MATERIAL_DETECTED"
+
+
+def test_diagnostic_json_safety_cli_rejects_invalid_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "observations.json"
+    path.write_text("{", encoding="utf-8")
+
+    assert acceptance.main(["verify-diagnostic-json-safe", "--input", str(path)]) == 1
+    assert capsys.readouterr().out.strip() == "ERROR_CODE=S6_07_EVIDENCE_BUNDLE_INVALID"
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected"),
     [
@@ -563,6 +697,41 @@ def test_s6_06_artifact_digest_mismatch_fails_closed(tmp_path: Path) -> None:
             s6_06_metadata_dir=metadata,
         )
     assert exc.value.failure_code == "S6_07_S6_06_DIGEST_MISMATCH"
+
+
+def test_s6_06_downloaded_archive_digest_mismatch_has_stable_code(tmp_path: Path) -> None:
+    archive = tmp_path / "s6-06.zip"
+    archive.write_bytes(b"controlled archive bytes")
+    with pytest.raises(acceptance.S607AcceptanceError) as exc:
+        acceptance.verify_s6_06_archive_digest(
+            archive=archive,
+            expected_digest="sha256:" + "0" * 64,
+        )
+    assert exc.value.failure_code == "S6_07_S6_06_DIGEST_MISMATCH"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("source_sha", "not-a-sha"),
+        ("s6_06_run_id", "0"),
+        ("s6_06_run_attempt", "attempt"),
+        ("s6_06_artifact_id", "-1"),
+        ("s6_06_artifact_digest", "sha256:not-a-digest"),
+    ],
+)
+def test_controlled_dispatch_input_validation_fails_before_network(field: str, value: str) -> None:
+    values = {
+        "source_sha": "a" * 40,
+        "s6_06_run_id": "31553885227",
+        "s6_06_run_attempt": "1",
+        "s6_06_artifact_id": "9125247786",
+        "s6_06_artifact_digest": "sha256:" + "a" * 64,
+    }
+    values[field] = value
+    with pytest.raises(acceptance.S607AcceptanceError) as exc:
+        acceptance.validate_s6_07_inputs(**values)
+    assert exc.value.failure_code == "S6_07_INPUT_VALIDATION_FAILED"
 
 
 def test_s6_06_source_mismatch_fails_closed(tmp_path: Path) -> None:
